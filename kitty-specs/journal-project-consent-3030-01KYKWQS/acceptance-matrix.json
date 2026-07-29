@@ -6,184 +6,360 @@
   "criteria": [
     {
       "criterion_id": "FR-001",
-      "description": "Verify FR-001 is satisfied",
+      "description": "Consent-availability gate exists in the delivery context; a run aborts when consent is unresolvable.",
       "proof_type": "automated_test",
       "evidence": null,
       "pass_fail": "pending",
       "verified_by": null,
       "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Owner: WP01/T004"
     },
     {
       "criterion_id": "FR-002",
-      "description": "Verify FR-002 is satisfied",
+      "description": "A project with NO consent record is denied for delivery, overriding the default-allow fall-through at routing.py:87.",
       "proof_type": "automated_test",
       "evidence": null,
       "pass_fail": "pending",
       "verified_by": null,
       "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Owner: WP05/T015"
     },
     {
       "criterion_id": "FR-003",
-      "description": "Verify FR-003 is satisfied",
+      "description": "is_sync_enabled_for_checkout denies when routing is unresolvable (routing.py:114-116); no network request is made.",
       "proof_type": "automated_test",
       "evidence": null,
       "pass_fail": "pending",
       "verified_by": null,
       "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Owner: WP01/T005"
     },
     {
       "criterion_id": "FR-004",
-      "description": "Verify FR-004 is satisfied",
+      "description": "A selected batch spanning >1 project is refused before any POST, names the projects, exits non-zero, and does not mutate retry counts.",
       "proof_type": "automated_test",
       "evidence": null,
       "pass_fail": "pending",
       "verified_by": null,
       "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Owner: WP01/T002"
     },
     {
       "criterion_id": "FR-005",
-      "description": "Verify FR-005 is satisfied",
+      "description": "Empty selection short-circuits before payload build and reports the real cause, not the no-Private-Teamspace message.",
       "proof_type": "automated_test",
       "evidence": null,
       "pass_fail": "pending",
       "verified_by": null,
       "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Owner: WP01/T005"
     },
     {
       "criterion_id": "FR-006",
-      "description": "Verify FR-006 is satisfied",
+      "description": "project_uuid/project_slug exist as additive indexed journal columns; a PRE-MIGRATION journal file still opens and reads.",
       "proof_type": "automated_test",
       "evidence": null,
       "pass_fail": "pending",
       "verified_by": null,
       "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Owner: WP04/T010,T012"
     },
     {
       "criterion_id": "FR-007",
-      "description": "Verify FR-007 is satisfied",
+      "description": "_select_undelivered's universe comes from the project-filtered read; the stored column is the sole selection authority.",
       "proof_type": "automated_test",
       "evidence": null,
       "pass_fail": "pending",
       "verified_by": null,
       "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Owner: WP06/T018"
     },
     {
       "criterion_id": "FR-008",
-      "description": "Verify FR-008 is satisfied",
+      "description": "The filtered read returns an identity projection (no payload BLOB) and its SQL carries no LIMIT.",
       "proof_type": "automated_test",
       "evidence": null,
       "pass_fail": "pending",
       "verified_by": null,
       "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Owner: WP06/T017"
     },
     {
       "criterion_id": "FR-009",
-      "description": "Verify FR-009 is satisfied",
+      "description": "Backfill run twice over a 10k-row multi-project journal yields byte-identical column values and unchanged row count.",
       "proof_type": "automated_test",
       "evidence": null,
       "pass_fail": "pending",
       "verified_by": null,
       "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Owner: WP04/T012"
     },
     {
       "criterion_id": "FR-010",
-      "description": "Verify FR-010 is satisfied",
+      "description": "Identity-less capture is stamped into a named non-deliverable state; NO event is dropped at write time.",
       "proof_type": "automated_test",
       "evidence": null,
       "pass_fail": "pending",
       "verified_by": null,
       "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Owner: WP01/T006"
     },
     {
       "criterion_id": "FR-011",
-      "description": "Verify FR-011 is satisfied",
+      "description": "Unresolved-identity events are counted (fixture: >=1 nil-sentinel + >=1 NULL) and those rows are absent from the delivered set.",
       "proof_type": "automated_test",
       "evidence": null,
       "pass_fail": "pending",
       "verified_by": null,
       "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Owner: WP04/T013 + WP07/T021"
     },
     {
       "criterion_id": "FR-012",
-      "description": "Verify FR-012 is satisfied",
+      "description": "No code path constructs the queue-backed drain; the legacy queue is asserted empty and the removal fails loudly rather than discarding.",
       "proof_type": "automated_test",
       "evidence": null,
       "pass_fail": "pending",
       "verified_by": null,
       "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Owner: WP02/T007,T008"
     },
     {
       "criterion_id": "FR-013",
-      "description": "Verify FR-013 is satisfied",
+      "description": "Consent index is uuid-keyed; two checkouts of one project with opposite overrides resolve to DENY; unresolvable paths keep an 'unresolved' marker the predicate ignores.",
       "proof_type": "automated_test",
       "evidence": null,
       "pass_fail": "pending",
       "verified_by": null,
       "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Owner: WP05/T014,T016"
     },
     {
       "criterion_id": "FR-014",
-      "description": "Verify FR-014 is satisfied",
+      "description": "A stable server refusal reason maps to TERMINAL_FAILED in receivers.py and is counted in terminal-failure totals.",
       "proof_type": "automated_test",
       "evidence": null,
       "pass_fail": "pending",
       "verified_by": null,
       "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Owner: WP01/T009"
     },
     {
       "criterion_id": "FR-015",
-      "description": "Verify FR-015 is satisfied",
+      "description": "sync doctor/status/migrate report per-project depth, oldest age and consent state, reconciled against the journal retained count (NOT OfflineQueue stats).",
       "proof_type": "automated_test",
       "evidence": null,
       "pass_fail": "pending",
       "verified_by": null,
       "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Owner: WP07/T021"
     },
     {
       "criterion_id": "FR-016",
-      "description": "Verify FR-016 is satisfied",
+      "description": "sync purge --project removes 100% of the target project's rows across journal AND ledger and 0% of any other project's.",
       "proof_type": "automated_test",
       "evidence": null,
       "pass_fail": "pending",
       "verified_by": null,
       "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Owner: WP08/T022"
     },
     {
       "criterion_id": "FR-017",
-      "description": "Verify FR-017 is satisfied",
+      "description": "sync purge --all empties the store behind explicit confirmation and reports the total removed.",
       "proof_type": "automated_test",
       "evidence": null,
       "pass_fail": "pending",
       "verified_by": null,
       "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Owner: WP08/T022"
     },
     {
       "criterion_id": "FR-018",
-      "description": "Verify FR-018 is satisfied",
+      "description": "Sync docs state the machine-global scope of SPEC_KITTY_ENABLE_SAAS_SYNC and SPEC_KITTY_SAAS_URL; a CI anchor test fails if the statement is removed.",
       "proof_type": "automated_test",
       "evidence": null,
       "pass_fail": "pending",
       "verified_by": null,
       "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Owner: WP09/T023"
+    },
+    {
+      "criterion_id": "NFR-001",
+      "description": "delivered_project_uuids is a SUBSET of consented_project_uuids AND None is not in delivered. Subset/membership, never cardinality -- identity-less events collapse to {None} and would fake cardinality==1.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP06/T018"
+    },
+    {
+      "criterion_id": "NFR-002",
+      "description": "2,000 non-consented events older than 10 consented: ONE drain delivers all 10. Predicate applied before the row limit.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP06/T019"
+    },
+    {
+      "criterion_id": "NFR-003",
+      "description": "100k rows / 20 projects: selecting one project performs no full-table payload decode.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP06/T017"
+    },
+    {
+      "criterion_id": "NFR-004",
+      "description": "Backfill is idempotent and lossless; no row deleted or mutated outside the two new columns.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP04/T012"
+    },
+    {
+      "criterion_id": "NFR-005",
+      "description": "Capture-first preserved: no event dropped at write time. A missing_auth-stamped row DOES deliver once the gate clears.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP01/T003,T006"
+    },
+    {
+      "criterion_id": "NFR-006",
+      "description": "After purging project X, differential row count over all other projects across journal and ledger is zero.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP08/T022"
+    },
+    {
+      "criterion_id": "NFR-007",
+      "description": "The drain's real batch window (_EVENT_SYNC_DISPATCH_BATCH_LIMIT, cli/commands/sync.py:807-820, halved on 413) is exercised. NOT batch.py's max_events_per_batch, which is dead after WP02.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP07/T020"
+    },
+    {
+      "criterion_id": "SC-001",
+      "description": "Incident reproduction: 6 projects, 1 consented, 5 with NO consent record -> only the consented project's events are delivered. FAILS on origin/main at mission start.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP01/T001 + WP06/T018"
+    },
+    {
+      "criterion_id": "SC-002",
+      "description": "Liveness proof, written red-first at the selection seam.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP06/T019"
+    },
+    {
+      "criterion_id": "SC-003",
+      "description": "Each fail-closed path denies with NO network request: unresolvable routing, absent consent record, unresolvable identity, multi-project batch, empty selection.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP01/T001-T005"
+    },
+    {
+      "criterion_id": "SC-004",
+      "description": "Zero hand-written SQLite queries needed to answer 'whose data is in here?'.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP07/T021"
+    },
+    {
+      "criterion_id": "SC-005",
+      "description": "No code path constructs the queue-backed drain.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP02/T008"
+    },
+    {
+      "criterion_id": "SC-006",
+      "description": "Purge exactness measured by differential row counts across journal and ledger.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP08/T022"
+    },
+    {
+      "criterion_id": "SC-007",
+      "description": "Backfill twice -> byte-identical values, unchanged count.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP04/T012"
+    },
+    {
+      "criterion_id": "SC-008",
+      "description": "LIVE drain against spec-kitty-dev at the incident's shape (>=6 projects: 1 consented, >=3 no record, >=1 opt-out, >=1 identity-less). Artefact carries before/after counts per project_slug, the drain's own delivered count, and the CLI commit SHA. NEVER production.",
+      "proof_type": "manual_evidence",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP10/T024"
+    },
+    {
+      "criterion_id": "SC-009",
+      "description": "CROSS-INVOCATION: a second sync now selects strictly fewer events than the first. A single-run assertion is already green on origin/main via the dispatcher's exclude set.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP01/T009"
+    },
+    {
+      "criterion_id": "C-006",
+      "description": "RECORDED, NOT DISCHARGED: after this mission the machine still accumulates every project's payloads in one producer-scoped store. Egress is secured; collection is not. Operator decision.",
+      "proof_type": "manual_evidence",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Owner: WP09/T023"
     }
   ],
-  "negative_invariants": []
+  "negative_invariants": [
+    "No event belonging to a project without a consent record is ever POSTed.",
+    "No event is dropped at write time (capture-first durability).",
+    "No transient drain-blocked reason (missing_auth/missing_team/saas_disabled) permanently excludes an event.",
+    "No test asserts delivered-project CARDINALITY in place of subset membership.",
+    "No mission activity authenticates against or mutates production."
+  ]
 }
