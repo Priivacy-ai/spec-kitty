@@ -16,6 +16,7 @@ home; ``delivery/targets.py`` already precedents importing from
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from specify_cli.identity.project import (  # noqa: F401
@@ -34,6 +35,7 @@ from specify_cli.identity.project import (  # noqa: F401
 # but is intentionally omitted from ``__all__`` so wildcard imports do not promote
 # a write-boundary helper as part of the trimmed public surface.
 __all__ = [
+    "IdentityBackfillResult",
     "NIL_PROJECT_UUID",
     "PROJECT_SLUG_RESOLUTION_CHAIN",
     "PROJECT_UUID_RESOLUTION_CHAIN",
@@ -45,6 +47,8 @@ __all__ = [
     "generate_project_uuid",
     "is_writable",
     "load_identity",
+    "backfill_journal_identity",
+    "count_unresolved_identity",
     "resolve_event_project_slug",
     "resolve_event_project_uuid",
 ]
@@ -146,3 +150,65 @@ def resolve_event_project_slug(
 ) -> str | None:
     """Return the event's ``project_slug``, or ``None``. Reporting only."""
     return _resolve_chain(event, payload, PROJECT_SLUG_RESOLUTION_CHAIN)
+
+
+# --- journal identity backfill (#3030 T012/T013) --------------------------
+
+
+@dataclass(frozen=True)
+class IdentityBackfillResult:
+    """Outcome of one backfill pass over a journal."""
+
+    #: Rows whose identity columns were filled in by this run.
+    updated: int
+    #: Rows still carrying no resolvable identity after this run. They stay in
+    #: the journal (C-002) and are permanently unselectable, so FR-011 requires
+    #: them counted rather than silently dropped.
+    unresolved: int
+
+
+def backfill_journal_identity(journal: Any) -> IdentityBackfillResult:
+    """Project stored payload identity into the journal's identity columns.
+
+    Lives in ``sync`` rather than ``event_journal`` on purpose: the journal is
+    storage and must stay ignorant of consent policy (C-003), while the
+    resolution chain is identity policy. ``sync`` already imports
+    ``event_journal``, so this direction adds no new coupling — the reverse would
+    have needed a charter note.
+
+    Idempotent and lossless (NFR-004/SC-007): only rows with a NULL
+    ``project_uuid`` are considered, the write never overwrites an existing
+    value, and nothing outside the two columns is touched. Interruption is safe —
+    unwritten rows stay NULL, which reads as *unselectable*, never as consented.
+
+    An unparseable payload resolves to ``None`` rather than raising: a single
+    corrupt row must not strand the whole history.
+    """
+    import json
+
+    pending = journal.iter_rows_missing_identity()
+    entries: list[tuple[str, str | None, str | None]] = []
+    unresolved = 0
+
+    for event_id, raw_payload in pending:
+        envelope: dict[str, Any] | None = None
+        try:
+            decoded = json.loads(raw_payload) if raw_payload else None
+        except (TypeError, ValueError):
+            decoded = None
+        if isinstance(decoded, dict):
+            envelope = decoded
+
+        project_uuid = resolve_event_project_uuid(envelope)
+        if project_uuid is None:
+            unresolved += 1
+            continue
+        entries.append((event_id, project_uuid, resolve_event_project_slug(envelope)))
+
+    updated = journal.set_project_identity(entries)
+    return IdentityBackfillResult(updated=updated, unresolved=unresolved)
+
+
+def count_unresolved_identity(journal: Any) -> int:
+    """Count journal rows with no stored project identity (FR-011/T013)."""
+    return int(journal.count_missing_identity())

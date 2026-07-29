@@ -31,8 +31,10 @@ from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.paths import get_runtime_root
 
 from .models import (
+    COUNT_MISSING_IDENTITY_SQL,
     COUNT_SQL,
     CREATE_COALESCE_INDEX_SQL,
+    CREATE_PROJECT_INDEX_SQL,
     CREATE_TABLE_SQL,
     CREATE_TYPE_INDEX_SQL,
     DRAIN_BLOCKED_MISSING_AUTH,
@@ -45,6 +47,8 @@ from .models import (
     SELECT_ALL_SQL,
     SELECT_BLOCKED_SQL,
     SELECT_BY_ID_SQL,
+    SELECT_MISSING_IDENTITY_SQL,
+    SET_IDENTITY_SQL,
     TABLE_NAME,
     Event,
     event_to_params,
@@ -219,6 +223,7 @@ class EventJournal:
             self._migrate_add_identity_columns(conn)
             conn.execute(CREATE_COALESCE_INDEX_SQL)
             conn.execute(CREATE_TYPE_INDEX_SQL)
+            conn.execute(CREATE_PROJECT_INDEX_SQL)
             conn.commit()
 
     @staticmethod
@@ -240,6 +245,58 @@ class EventJournal:
             if column not in existing:
                 conn.execute(f"ALTER TABLE {TABLE_NAME} ADD COLUMN {column} TEXT")  # noqa: S608 - identifiers are module constants, not input
         conn.commit()
+
+    def iter_rows_missing_identity(self) -> list[tuple[str, bytes]]:
+        """Return ``(event_id, payload)`` for rows with no stored identity yet.
+
+        Storage-level seam for the #3030 T012 backfill. The journal deliberately
+        does not resolve identity itself — that chain lives in
+        ``sync/project_identity.py`` and the journal must stay ignorant of
+        consent policy (C-003). Restricting to ``project_uuid IS NULL`` is what
+        makes a resumed backfill idempotent.
+        """
+        with contextlib.closing(self._connect()) as conn:
+            return [
+                (str(event_id), bytes(payload) if payload is not None else b"")
+                for event_id, payload in conn.execute(SELECT_MISSING_IDENTITY_SQL)
+            ]
+
+    def set_project_identity(
+        self, entries: list[tuple[str, str | None, str | None]]
+    ) -> int:
+        """Write resolved identity for *entries* as one transaction.
+
+        Each entry is ``(event_id, project_uuid, project_slug)``. Returns the
+        number of rows actually updated. Only ever fills a NULL uuid — an
+        existing value is never overwritten, so a re-run cannot change a value
+        the selection predicate already trusts. Nothing else on the row is
+        touched (NFR-004), and no row is ever deleted (C-002).
+
+        Batched deliberately: a per-row commit over a 42-day history would be
+        thousands of fsyncs, and a partial run must leave every remaining row
+        NULL — i.e. unselectable — rather than *appearing* consented.
+        """
+        if not entries:
+            return 0
+        with contextlib.closing(self._connect()) as conn:
+            cursor = conn.executemany(
+                SET_IDENTITY_SQL,
+                [(uuid, slug, event_id) for event_id, uuid, slug in entries],
+            )
+            updated = cursor.rowcount
+            conn.commit()
+        return max(updated, 0)
+
+    def count_missing_identity(self) -> int:
+        """Count rows with no resolvable project identity (#3030 T013/FR-011).
+
+        These are permanently unselectable by the consent predicate, so the
+        count is what makes fail-closed denial observable instead of silent
+        data loss. WP07 surfaces it.
+        """
+        with contextlib.closing(self._connect()) as conn:
+            row = conn.execute(COUNT_MISSING_IDENTITY_SQL).fetchone()
+        return int(row[0]) if row else 0
 
     def append(self, event: Event) -> None:
         """Append an event as a distinct row (idempotent on ``event_id``).
