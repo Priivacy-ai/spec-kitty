@@ -134,6 +134,7 @@
       "last_transition_at": "2026-07-29T23:52:08.621322+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
+        "All 4 acceptance pins GREEN incl SC-001; 2349 passed / 0 failed",
         "All 4 acceptance pins GREEN incl SC-001; 2349 passed / 0 failed"
       ],
       "provider": "__resolved_provider_absent__",
