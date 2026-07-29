@@ -135,19 +135,15 @@ class TestSC001OnlineSync:
         assert len(queued) == 6
 
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.background.batch_sync")
     @patch("specify_cli.sync.body_transport.push_content")
     def test_drain_delivers_to_saas(
         self,
         mock_push: MagicMock,
-        mock_batch: MagicMock,
         mock_saas: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Queued bodies are delivered via push_content during drain."""
-        from specify_cli.sync.batch import BatchSyncResult
 
-        mock_batch.return_value = BatchSyncResult()
         mock_push.return_value = UploadOutcome(
             artifact_path="spec.md",
             status=UploadStatus.UPLOADED,
@@ -299,19 +295,15 @@ class TestSC004Idempotent:
         assert queue.get_stats().total_count == 1
 
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.background.batch_sync")
     @patch("specify_cli.sync.body_transport.push_content")
     def test_already_exists_from_server_removes_task(
         self,
         mock_push: MagicMock,
-        mock_batch: MagicMock,
         mock_saas: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Server returning 200 (already_exists) removes task from queue."""
-        from specify_cli.sync.batch import BatchSyncResult
 
-        mock_batch.return_value = BatchSyncResult()
         mock_push.return_value = UploadOutcome(
             artifact_path="spec.md",
             status=UploadStatus.ALREADY_EXISTS,
@@ -339,19 +331,15 @@ class TestSC004Idempotent:
 
 class TestSC005RetryRecovery:
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.background.batch_sync")
     @patch("specify_cli.sync.body_transport.push_content")
     def test_retryable_failure_keeps_task_for_next_cycle(
         self,
         mock_push: MagicMock,
-        mock_batch: MagicMock,
         mock_saas: MagicMock,
         tmp_path: Path,
     ) -> None:
         """404 index_entry_not_found (retryable) keeps task queued for retry."""
-        from specify_cli.sync.batch import BatchSyncResult
 
-        mock_batch.return_value = BatchSyncResult()
         mock_push.return_value = UploadOutcome(
             artifact_path="spec.md",
             status=UploadStatus.FAILED,
@@ -377,19 +365,15 @@ class TestSC005RetryRecovery:
         assert stats.max_retry_count == 1
 
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.background.batch_sync")
     @patch("specify_cli.sync.body_transport.push_content")
     def test_retry_then_success(
         self,
         mock_push: MagicMock,
-        mock_batch: MagicMock,
         mock_saas: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Task fails on first attempt, succeeds on second."""
-        from specify_cli.sync.batch import BatchSyncResult
 
-        mock_batch.return_value = BatchSyncResult()
 
         service = _make_service(tmp_path)
         assert service._body_queue is not None
@@ -431,19 +415,15 @@ class TestSC005RetryRecovery:
         assert service._body_queue.get_stats().total_count == 0
 
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.background.batch_sync")
     @patch("specify_cli.sync.body_transport.push_content")
     def test_auth_expiry_then_success(
         self,
         mock_push: MagicMock,
-        mock_batch: MagicMock,
         mock_saas: MagicMock,
         tmp_path: Path,
     ) -> None:
         """401 (retryable) → auth refresh → 201."""
-        from specify_cli.sync.batch import BatchSyncResult
 
-        mock_batch.return_value = BatchSyncResult()
 
         service = _make_service(tmp_path)
         assert service._body_queue is not None
@@ -485,19 +465,15 @@ class TestSC005RetryRecovery:
         assert service._body_queue.get_stats().total_count == 0
 
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.background.batch_sync")
     @patch("specify_cli.sync.body_transport.push_content")
     def test_rate_limit_then_success(
         self,
         mock_push: MagicMock,
-        mock_batch: MagicMock,
         mock_saas: MagicMock,
         tmp_path: Path,
     ) -> None:
         """429 (retryable) → backoff → 201."""
-        from specify_cli.sync.batch import BatchSyncResult
 
-        mock_batch.return_value = BatchSyncResult()
 
         service = _make_service(tmp_path)
         assert service._body_queue is not None
@@ -536,19 +512,15 @@ class TestSC005RetryRecovery:
         assert service._body_queue.get_stats().total_count == 0
 
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.background.batch_sync")
     @patch("specify_cli.sync.body_transport.push_content")
     def test_server_error_then_success(
         self,
         mock_push: MagicMock,
-        mock_batch: MagicMock,
         mock_saas: MagicMock,
         tmp_path: Path,
     ) -> None:
         """500 (retryable) → backoff → 201."""
-        from specify_cli.sync.batch import BatchSyncResult
 
-        mock_batch.return_value = BatchSyncResult()
 
         service = _make_service(tmp_path)
         assert service._body_queue is not None
@@ -680,19 +652,15 @@ class TestSC006UnsupportedFilesSkip:
 
 class TestFullPipeline:
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.background.batch_sync")
     @patch("specify_cli.sync.body_transport.push_content")
     def test_enqueue_then_drain(
         self,
         mock_push: MagicMock,
-        mock_batch: MagicMock,
         mock_saas: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Full pipeline: prepare_body_uploads enqueues, _sync_once drains."""
-        from specify_cli.sync.batch import BatchSyncResult
 
-        mock_batch.return_value = BatchSyncResult()
 
         feature_dir = tmp_path / "feat"
         feature_dir.mkdir()
@@ -726,20 +694,16 @@ class TestFullPipeline:
         assert service._body_queue.get_stats().total_count == 0
 
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.background.batch_sync")
     @patch("specify_cli.sync.body_transport.push_content")
     def test_permanent_failure_removed(
         self,
         mock_push: MagicMock,
-        mock_batch: MagicMock,
         mock_saas: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Non-retryable failure (400 bad_request) permanently removes task."""
-        from specify_cli.sync.batch import BatchSyncResult
 
 
-        mock_batch.return_value = BatchSyncResult()
 
         service = _make_service(tmp_path)
         assert service._body_queue is not None

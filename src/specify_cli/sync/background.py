@@ -30,9 +30,7 @@ from specify_cli.diagnostics import report_once
 from .batch import (
     BatchEventResult,
     BatchSyncResult,
-    batch_sync,
     run_final_sync_with_retries,
-    sync_all_queued_events,
 )
 from .config import SyncConfig
 from .diagnostics import SyncDiagnosticCode, emit_sync_diagnostic
@@ -54,6 +52,36 @@ _UNAUTHENTICATED_SYNC_ERROR = (
 _DIRECT_INGRESS_SKIPPED_ERROR = (
     "direct_ingress_missing_private_team: direct ingress skipped before final sync auth"
 )
+
+
+class LegacyQueueNotConvergedError(RuntimeError):
+    """Legacy queue rows remain that no drain will ever deliver (#3030 T007).
+
+    Raised instead of starting a daemon that would silently ignore them. See
+    :meth:`BackgroundSyncService._assert_legacy_queue_converged`.
+    """
+
+
+def _count_legacy_event_rows() -> int:
+    """Return the number of legacy queue *event* rows, or 0 if uncountable.
+
+    Read-only: composes the same ``detect_legacy_rows_for_scope`` helper the
+    sync preflight uses, so the daemon and ``sync now`` agree on what "legacy
+    rows remain" means rather than growing a second definition.
+    """
+    from .queue import detect_legacy_rows_for_scope, read_queue_scope_from_credentials
+
+    try:
+        # The legacy DB has no per-scope partitioning, so the callee ignores
+        # this argument; pass the active scope anyway for log context.
+        counts = detect_legacy_rows_for_scope(read_queue_scope_from_credentials() or "")
+    except Exception:
+        # An uncountable legacy DB must not be reported as "dirty" — that would
+        # wedge the daemon on an unrelated fault. The preflight reports it.
+        return 0
+
+    rows = getattr(counts, "event_rows", 0)
+    return rows if isinstance(rows, int) else 0
 
 
 def _emit_nonfatal_final_sync_diagnostic(
@@ -193,11 +221,48 @@ class BackgroundSyncService:
     _body_queue: OfflineBodyUploadQueue | None = field(default=None, init=False, repr=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
+    def _assert_legacy_queue_converged(self) -> None:
+        """Refuse to run while unmigrated legacy queue rows remain (#3030 T007).
+
+        WP02 removed the queue-backed event drain (FR-012). For rows captured
+        after ``_capture_to_journal`` (``sync/emitter.py``) that is lossless —
+        every one of them has a journal copy the dispatcher delivers. Rows that
+        predate journal capture have no such copy, and with the drain gone
+        nothing reads them and nothing reports them.
+
+        Discarding those silently is the precise failure mode this mission
+        exists to eliminate, so the daemon fails closed instead: the operator
+        runs ``spec-kitty sync migrate`` to converge them into the journal.
+        The migration is deliberately *not* run from here — it deletes
+        journal-confirmed source rows, and a background timer thread is the
+        wrong place to mutate the operator's queues unasked.
+
+        Raises:
+            LegacyQueueNotConvergedError: legacy event rows remain.
+        """
+        stranded = _count_legacy_event_rows()
+        if stranded <= 0:
+            return
+
+        message = (
+            f"Refusing to start background sync: {stranded} legacy queue event "
+            "row(s) remain that no drain will deliver. The queue-backed drain "
+            "was removed (#3030 FR-012) and these rows may have no journal "
+            "copy. Run `spec-kitty sync migrate` to converge them into the "
+            "event journal, then start sync again."
+        )
+        logger.error(message)
+        raise LegacyQueueNotConvergedError(message)
+
     def start(self) -> None:
         """Start the background sync service."""
         if not is_saas_sync_enabled():
             logger.info("%s Background sync service will remain stopped.", saas_sync_disabled_message())
             return
+
+        # T007: bind the precondition before any timer is scheduled, so the
+        # daemon can never quietly run alongside undeliverable legacy rows.
+        self._assert_legacy_queue_converged()
 
         with self._lock:
             if self._running:
@@ -369,8 +434,11 @@ class BackgroundSyncService:
         with self._lock:
             return self._sync_once()
 
-    def _perform_full_sync(self, *, show_progress: bool = False) -> BatchSyncResult:
-        """Drain the entire queue across multiple batches.
+    def _perform_full_sync(self, *, show_progress: bool = False) -> BatchSyncResult:  # noqa: ARG002
+        """Drain body uploads; the queue-backed event drain was removed (#3030 FR-012).
+
+        ``show_progress`` is retained for signature compatibility with the callers
+        and tests that still pass it; it no longer has an event drain to report on.
 
         Thread-safe: holds _lock for the full duration so background
         timer ticks are serialised.
@@ -392,24 +460,19 @@ class BackgroundSyncService:
                 return _unauthenticated_sync_result(self.queue)
 
             try:
-                result = sync_all_queued_events(
-                    queue=self.queue,
-                    auth_token=access_token,
-                    server_url=self.config.resolve_runtime_target().resolved_server_url,
-                    batch_size=1000,
-                    show_progress=show_progress,
-                )
-                # Treat auth failures as hard errors (#598)
-                if "auth_expired" in result.category_counts:
-                    self._consecutive_failures += 1
-                    self._backoff_seconds = min(self._backoff_seconds * 2, 30.0)
-                    logger.warning(
-                        "Full sync auth failure (attempt %d): "
-                        "run `spec-kitty auth login` to re-authenticate",
-                        self._consecutive_failures,
-                    )
-                    return result
-                # Drain body upload queue after events (FR-007)
+                # FR-012 (spec-kitty#3030): the queue-backed event drain is GONE.
+                #
+                # This called ``sync_all_queued_events`` over the machine-global
+                # legacy queue — a second live drain alongside the journal
+                # dispatcher, with no per-project consent anywhere on it. Removal
+                # strands nothing: ``_capture_to_journal`` (``sync/emitter.py:2057``)
+                # runs before every gate and is unconditional, so any event that
+                # reached the legacy queue already has a journal copy the
+                # dispatcher can deliver.
+                #
+                # Body uploads still drain here; they are a separate store and are
+                # gated separately (WP11).
+                result = BatchSyncResult()
                 if self._body_queue is not None:
                     self._drain_body_queue()
                 self._consecutive_failures = 0
@@ -431,9 +494,11 @@ class BackgroundSyncService:
                 return result
 
     def _sync_once(self) -> BatchSyncResult:
-        """Internal: single-batch sync (caller must hold _lock).
+        """Internal: single daemon tick (caller must hold _lock).
 
-        Drain ordering: events first, then body uploads (Design Decision #5).
+        Events are no longer drained here (#3030 FR-012); body uploads are the
+        only work this performs. Success resets backoff and stamps
+        ``last_sync``; a raising drain escalates backoff instead.
         """
         if not is_saas_sync_enabled():
             logger.info("%s Single-batch sync skipped.", saas_sync_disabled_message())
@@ -450,35 +515,18 @@ class BackgroundSyncService:
                 logger.warning("Not authenticated, skipping sync")
             return _unauthenticated_sync_result(self.queue, limit=1000)
 
-        event_sync_succeeded = False
         try:
-            result = batch_sync(
-                queue=self.queue,
-                auth_token=access_token,
-                server_url=self.config.resolve_runtime_target().resolved_server_url,
-                limit=1000,
-                show_progress=False,
-            )
-            # Treat auth failures (HTTP 401) as hard errors for backoff
-            # purposes.  batch_sync() handles 401 internally and returns
-            # a result with error_category="auth_expired" rather than
-            # raising, so without this check the service would reset
-            # backoff and keep retrying at the normal cadence (#598).
-            if "auth_expired" in result.category_counts:
-                self._consecutive_failures += 1
-                self._backoff_seconds = min(self._backoff_seconds * 2, 30.0)
-                logger.warning(
-                    "Sync auth failure (attempt %d, next backoff %.1fs): "
-                    "run `spec-kitty auth login` to re-authenticate",
-                    self._consecutive_failures,
-                    self._backoff_seconds,
-                )
-            else:
-                # Genuine success: reset backoff
-                self._consecutive_failures = 0
-                self._backoff_seconds = 0.5
-                self._last_sync = datetime.now(UTC)
-                event_sync_succeeded = True
+            # FR-012 (spec-kitty#3030): the queue-backed event drain is GONE.
+            # See ``_perform_full_sync`` for why removal strands nothing. The
+            # journal dispatcher is the sole event drain; body uploads are a
+            # separate store, gated separately (WP11).
+            result = BatchSyncResult()
+            if self._body_queue is not None:
+                self._drain_body_queue()
+            self._consecutive_failures = 0
+            self._backoff_seconds = 0.5
+            self._last_sync = datetime.now(UTC)
+            return result
         except Exception as exc:
             self._consecutive_failures += 1
             self._backoff_seconds = min(self._backoff_seconds * 2, 30.0)
@@ -491,12 +539,7 @@ class BackgroundSyncService:
             result = BatchSyncResult()
             result.error_count = 1
             result.error_messages.append(str(exc))
-
-        # Drain body upload queue after event queue (FR-007, Design Decision #5)
-        if event_sync_succeeded and self._body_queue is not None:
-            self._drain_body_queue()
-
-        return result
+            return result
 
     def _record_transient_token_fetch_failure(
         self,
