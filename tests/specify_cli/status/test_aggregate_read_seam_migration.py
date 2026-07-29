@@ -228,3 +228,97 @@ def test_find_meta_path_never_raises_coordination_branch_deleted(
     assert resolved_primary_dir == primary_dir
     assert meta_path == primary_dir / "meta.json"
     assert meta_path.exists()
+
+
+# --------------------------------------------------------------------------- #
+# WP08/T035 landing-fold coverage -- the ``:541`` bare-modern-slug RECOVERY
+# ATTEMPT (``composed_primary = _compose_primary_feature_dir(repo_root,
+# bare_dir_name)``), reached from a genuinely in-progress LANE worktree whose
+# local ``kitty-specs/`` has not synced to the primary checkout.
+# --------------------------------------------------------------------------- #
+_LANE_MISSION_ID = "01KYKMMTWP080000000000035"
+_LANE_MID8 = _LANE_MISSION_ID[:8]
+_LANE_HUMAN_SLUG = "lane-worktree-recovery-fixture"
+_LANE_COMPOSED = f"{_LANE_HUMAN_SLUG}-{_LANE_MID8}"
+
+
+def test_find_meta_path_lane_worktree_local_copy_never_shadows_primary(
+    tmp_path: Path,
+) -> None:
+    """The ``:541`` recovery attempt is REACHED from a real lane worktree, and
+    its own ``_compose_primary_feature_dir`` call re-anchors on the PRIMARY
+    checkout rather than trusting the worktree-local match it was found
+    through -- a worktree-local ``kitty-specs/`` copy can never shadow the
+    primary read authority (the same "primary is the one read authority"
+    invariant :func:`_backfilled_primary_dir` documents on the write/seam
+    side).
+
+    Fixture: a genuinely in-progress mission whose LANE BRANCH already
+    carries the composed ``kitty-specs/<slug>-<mid8>/meta.json`` (checked
+    in, real git), while ``main`` -- and therefore the primary checkout --
+    has not merged it yet (a completely ordinary "implementation is still in
+    a lane worktree" state, not a contrived fixture). Querying
+    ``MissionStatus._find_meta_path`` with the BARE human slug from INSIDE
+    that lane worktree:
+
+    1. ``bare_dir_name = resolve_bare_modern_mission_dir_name(repo_root, ...)``
+       (``:525``) globs the RAW ``repo_root`` (the worktree) verbatim and
+       finds the lane's own composed dir -- entering the ``:526`` block.
+    2. ``:541``'s ``_compose_primary_feature_dir(repo_root, bare_dir_name)``
+       calls ``get_main_repo_root(repo_root)`` internally (the worktree ->
+       main-checkout pointer follow), so ``composed_primary`` lands on
+       ``main_repo/kitty-specs/<composed>`` -- NOT the worktree's own
+       ``kitty-specs/<composed>`` the name was found through.
+    3. ``main_repo/kitty-specs/<composed>/meta.json`` does not exist (the
+       mission has not merged yet), so ``:543``'s ``composed_meta.exists()``
+       is False and the function falls through to the topology-aware
+       ``candidate_feature_dir_for_mission`` leg instead of returning the
+       worktree's local file.
+
+    The net, black-box-observable behaviour this proves: a lane-local
+    ``kitty-specs/`` copy is NEVER read as if it were the primary truth --
+    ``_find_meta_path`` resolves (or degrades) entirely off the PRIMARY
+    checkout, exactly as the coord/primary partition doctrine requires. No
+    resolver patching: real ``git worktree add``, real filesystem state.
+    """
+    repo = _make_git_repo(tmp_path, "lane-recovery")
+    lane_branch = f"kitty/mission-{_LANE_COMPOSED}-lane-1"
+    worktree = repo / ".worktrees" / f"{_LANE_HUMAN_SLUG}-lane-1"
+    _git(repo, "worktree", "add", "-b", lane_branch, str(worktree))
+
+    # The lane's OWN local kitty-specs copy -- committed on the lane branch,
+    # exactly what `spec-kitty implement` leaves behind before the mission
+    # merges back to main. The primary checkout (`repo`) never sees this.
+    lane_primary_dir = worktree / "kitty-specs" / _LANE_COMPOSED
+    _write_meta(
+        lane_primary_dir,
+        slug=_LANE_COMPOSED,
+        mission_id=_LANE_MISSION_ID,
+        topology="single_branch",
+        coordination_branch=None,
+    )
+    _git(worktree, "add", "kitty-specs")
+    _git(worktree, "commit", "-m", "lane: add mission planning artifacts")
+
+    # Sanity check the fixture invariant: the primary checkout genuinely has
+    # no trace of this mission yet.
+    main_repo_dir = repo / "kitty-specs" / _LANE_COMPOSED
+    assert not main_repo_dir.exists(), (
+        "fixture invariant: the mission must not have merged to the primary "
+        "checkout yet -- this is what forces :541's recovery attempt to miss"
+    )
+
+    meta_path, resolved_primary_dir = MissionStatus._find_meta_path(
+        worktree, _LANE_HUMAN_SLUG
+    )
+
+    # The lane's OWN local copy is never returned as-is -- `_find_meta_path`
+    # anchors on the primary checkout even when the worktree-local glob is
+    # what located the composed name.
+    assert resolved_primary_dir != lane_primary_dir
+    assert meta_path != lane_primary_dir / "meta.json"
+    assert not meta_path.exists(), (
+        "a lane-local kitty-specs/ copy must never be surfaced as the "
+        "primary meta.json -- the primary checkout is the sole read "
+        "authority (coord/primary partition doctrine)"
+    )

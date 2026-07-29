@@ -254,6 +254,35 @@ def test_mid8_from_primary_meta_reads_primary_anchor(real_git_repo: Path) -> Non
     assert _mid8_from_primary_meta(real_git_repo, _REAL_SLUG) == _REAL_MID8
 
 
+def test_mid8_from_primary_meta_degrades_to_empty_on_malformed_meta(
+    real_git_repo: Path,
+) -> None:
+    """A malformed PRIMARY ``meta.json`` degrades to ``""`` (FR-006 contract).
+
+    ``_mid8_from_primary_meta`` composes the primary anchor then calls
+    ``load_meta(primary_dir, allow_missing=True, on_malformed="raise")`` --
+    canonical reader contract (a): ``ValueError`` on malformed JSON. The
+    ``except ValueError: return ""`` arm reproduces the historical
+    malformed→"" degrade (landing-fold coverage: read-side-seam-primary-
+    primitive-closure-01KYKMMT's wrapper→leaf swap re-attributed this
+    pre-existing, behaviour-unchanged arm to the new leaf call
+    (``_compose_primary_feature_dir``) without any test driving it through
+    the malformed-meta path). No mocking of the compose/load primitives --
+    only the ``meta.json`` CONTENTS are invalid, so the exact same
+    ``except ValueError`` branch the reader contract documents is what
+    actually fires.
+    """
+    from mission_runtime.resolution import _mid8_from_primary_meta
+
+    feature_dir = real_git_repo / "kitty-specs" / _REAL_SLUG
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    # Not valid JSON -- ``load_meta``'s ``on_malformed="raise"`` contract turns
+    # this into a ``ValueError`` at the parse boundary.
+    (feature_dir / "meta.json").write_text("{not valid json", encoding="utf-8")
+
+    assert _mid8_from_primary_meta(real_git_repo, _REAL_SLUG) == ""
+
+
 def test_resolve_coordination_branch_reads_primary_anchor(
     real_git_repo: Path,
 ) -> None:
