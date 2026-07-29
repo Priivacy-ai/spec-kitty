@@ -43,7 +43,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-pytestmark = [pytest.mark.fast]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------
