@@ -44,7 +44,6 @@ Fixtures build a real git repository under pytest's ``tmp_path`` (never a bare
 from __future__ import annotations
 
 import json
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -53,6 +52,13 @@ from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.agent_tasks_ports import MissionHandle, RealFsReader
 from specify_cli.cli.commands.mission_type import _resolve_mission_handle
 from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
+from tests.specify_cli._read_seam_migration_fixtures import (
+    build_coord_husk,
+    build_coord_materialized,
+    coord_branch_name,
+    coord_worktree_root,
+    make_git_repo,
+)
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -63,29 +69,15 @@ _HUMAN_SLUG = "topology-routed-read-migration-fixture"
 _COMPOSED = f"{_HUMAN_SLUG}-{_MID8}"
 
 
-def _git(repo: Path, *args: str) -> str:
-    result = subprocess.run(
-        ["git", "-C", str(repo), *args], check=True, capture_output=True, text=True
-    )
-    return result.stdout.strip()
-
-
 def _make_git_repo(tmp_path: Path, name: str) -> Path:
     """A minimal real git repo with the ``.kittify`` marker + ``kitty-specs/``."""
-    repo = tmp_path / name
-    repo.mkdir(parents=True)
-    subprocess.run(
-        ["git", "init", "-b", "main", str(repo)], check=True, capture_output=True
+    return make_git_repo(
+        tmp_path,
+        name,
+        user_email="wp04-fixture@spec-kitty.test",
+        user_name="WP04 Fixture",
+        readme_text="wp04 fixture repo\n",
     )
-    _git(repo, "config", "user.email", "wp04-fixture@spec-kitty.test")
-    _git(repo, "config", "user.name", "WP04 Fixture")
-    _git(repo, "config", "commit.gpgsign", "false")
-    (repo / ".kittify").mkdir()
-    (repo / "kitty-specs").mkdir()
-    (repo / "README.md").write_text("wp04 fixture repo\n", encoding="utf-8")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-m", "init")
-    return repo
 
 
 def _write_meta(
@@ -121,21 +113,20 @@ def _seed_coord_husk(tmp_path: Path, name: str) -> tuple[Path, Path]:
     primitives can silently land on. Returns ``(repo, primary_dir)``.
     """
     repo = _make_git_repo(tmp_path, name)
-    branch = f"kitty/mission-{_COMPOSED}"
-    _git(repo, "branch", branch)
-    primary_dir = repo / "kitty-specs" / _COMPOSED
-    _write_meta(
-        primary_dir,
-        slug=_COMPOSED,
-        mission_id=_MISSION_ID,
-        topology="coord",
-        coordination_branch=branch,
+    branch = coord_branch_name(_COMPOSED)
+    primary_dir = build_coord_husk(
+        repo,
+        _COMPOSED,
+        branch,
+        coord_worktree_root(repo, _COMPOSED),
+        write_primary_meta=lambda feature_dir: _write_meta(
+            feature_dir,
+            slug=_COMPOSED,
+            mission_id=_MISSION_ID,
+            topology="coord",
+            coordination_branch=branch,
+        ),
     )
-    coord_root = repo / ".worktrees" / f"{_COMPOSED}-coord"
-    coord_mission_dir = coord_root / "kitty-specs" / _COMPOSED
-    coord_mission_dir.mkdir(parents=True)
-    (coord_mission_dir / "status.events.jsonl").write_text("", encoding="utf-8")
-    assert not (coord_mission_dir / "meta.json").exists(), "husk invariant: no coord meta.json"
     return repo, primary_dir
 
 
@@ -144,24 +135,24 @@ def _seed_coord_materialized(tmp_path: Path, name: str) -> tuple[Path, Path]:
     (carries its own ``meta.json`` too) -- the NFR-001 materialized-case twin
     of :func:`_seed_coord_husk`."""
     repo = _make_git_repo(tmp_path, name)
-    branch = f"kitty/mission-{_COMPOSED}"
-    _git(repo, "branch", branch)
-    primary_dir = repo / "kitty-specs" / _COMPOSED
-    _write_meta(
-        primary_dir,
-        slug=_COMPOSED,
-        mission_id=_MISSION_ID,
-        topology="coord",
-        coordination_branch=branch,
-    )
-    coord_root = repo / ".worktrees" / f"{_COMPOSED}-coord"
-    coord_mission_dir = coord_root / "kitty-specs" / _COMPOSED
-    _write_meta(
-        coord_mission_dir,
-        slug=_COMPOSED,
-        mission_id=_MISSION_ID,
-        topology="coord",
-        coordination_branch=branch,
+    branch = coord_branch_name(_COMPOSED)
+
+    def _write(feature_dir: Path) -> None:
+        _write_meta(
+            feature_dir,
+            slug=_COMPOSED,
+            mission_id=_MISSION_ID,
+            topology="coord",
+            coordination_branch=branch,
+        )
+
+    primary_dir, _coord_mission_dir = build_coord_materialized(
+        repo,
+        _COMPOSED,
+        branch,
+        coord_worktree_root(repo, _COMPOSED),
+        write_primary_meta=_write,
+        write_coord_meta=_write,
     )
     return repo, primary_dir
 

@@ -51,6 +51,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -58,6 +59,17 @@ import pytest
 
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.missions._read_path_resolver import _compose_primary_feature_dir
+from tests.specify_cli._read_seam_migration_fixtures import (
+    build_coord_branch_deleted,
+    build_coord_husk,
+    build_coord_materialized,
+    build_coord_worktree_empty,
+    build_flat,
+    coord_branch_name,
+    coord_worktree_root,
+    git_cmd as _git,
+    make_git_repo,
+)
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -68,29 +80,15 @@ _HUMAN_SLUG = "primary-read-delegation-fixture"
 _COMPOSED = f"{_HUMAN_SLUG}-{_MID8}"
 
 
-def _git(repo: Path, *args: str) -> str:
-    result = subprocess.run(
-        ["git", "-C", str(repo), *args], check=True, capture_output=True, text=True
-    )
-    return result.stdout.strip()
-
-
 def _make_git_repo(tmp_path: Path, name: str) -> Path:
     """A minimal real git repo with the ``.kittify`` marker + ``kitty-specs/``."""
-    repo = tmp_path / name
-    repo.mkdir(parents=True)
-    subprocess.run(
-        ["git", "init", "-b", "main", str(repo)], check=True, capture_output=True
+    return make_git_repo(
+        tmp_path,
+        name,
+        user_email="wp03-fixture@spec-kitty.test",
+        user_name="WP03 Fixture",
+        readme_text="wp03 fixture repo\n",
     )
-    _git(repo, "config", "user.email", "wp03-fixture@spec-kitty.test")
-    _git(repo, "config", "user.name", "WP03 Fixture")
-    _git(repo, "config", "commit.gpgsign", "false")
-    (repo / ".kittify").mkdir()
-    (repo / "kitty-specs").mkdir()
-    (repo / "README.md").write_text("wp03 fixture repo\n", encoding="utf-8")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-m", "init")
-    return repo
 
 
 def _write_meta(
@@ -126,43 +124,48 @@ class Fixture:
 # --------------------------------------------------------------------------- #
 # Fixture builders — one per quickstart.md §4 row.
 # --------------------------------------------------------------------------- #
+def _primary_meta_writer(
+    *, topology: str, coordination_branch: str | None
+) -> Callable[[Path], None]:
+    def _write(feature_dir: Path) -> None:
+        _write_meta(
+            feature_dir,
+            slug=_COMPOSED,
+            mission_id=_MISSION_ID,
+            topology=topology,
+            coordination_branch=coordination_branch,
+        )
+
+    return _write
+
+
 def _flat_no_coord(tmp_path: Path) -> Fixture:
     repo = _make_git_repo(tmp_path, "flat")
-    primary_dir = repo / "kitty-specs" / _COMPOSED
-    _write_meta(
-        primary_dir,
-        slug=_COMPOSED,
-        mission_id=_MISSION_ID,
-        topology="single_branch",
-        coordination_branch=None,
+    primary_dir = build_flat(
+        repo,
+        _COMPOSED,
+        write_primary_meta=_primary_meta_writer(
+            topology="single_branch", coordination_branch=None
+        ),
     )
     return Fixture(repo=repo, handle=_COMPOSED, primary_dir=primary_dir)
 
 
 def _coord_materialized(tmp_path: Path) -> Fixture:
     repo = _make_git_repo(tmp_path, "coord-materialized")
-    branch = f"kitty/mission-{_COMPOSED}"
-    _git(repo, "branch", branch)
-    primary_dir = repo / "kitty-specs" / _COMPOSED
-    _write_meta(
-        primary_dir,
-        slug=_COMPOSED,
-        mission_id=_MISSION_ID,
-        topology="coord",
-        coordination_branch=branch,
-    )
+    branch = coord_branch_name(_COMPOSED)
     # Materialize the coord worktree dir + a mission dir WITH its own meta.json
     # (a genuinely populated coord side). Coord-state classification is pure
     # Path.exists() (probe_coord_state) — a real `git worktree add` checkout is
     # not required to exercise the on-disk shape it inspects.
-    coord_root = repo / ".worktrees" / f"{_COMPOSED}-coord"
-    coord_mission_dir = coord_root / "kitty-specs" / _COMPOSED
-    _write_meta(
-        coord_mission_dir,
-        slug=_COMPOSED,
-        mission_id=_MISSION_ID,
-        topology="coord",
-        coordination_branch=branch,
+    writer = _primary_meta_writer(topology="coord", coordination_branch=branch)
+    primary_dir, _coord_mission_dir = build_coord_materialized(
+        repo,
+        _COMPOSED,
+        branch,
+        coord_worktree_root(repo, _COMPOSED),
+        write_primary_meta=writer,
+        write_coord_meta=writer,
     )
     return Fixture(repo=repo, handle=_COMPOSED, primary_dir=primary_dir)
 
@@ -170,55 +173,41 @@ def _coord_materialized(tmp_path: Path) -> Fixture:
 def _coord_husk(tmp_path: Path) -> Fixture:
     """Coord worktree materialized, but its mission dir has NO meta.json (husk)."""
     repo = _make_git_repo(tmp_path, "coord-husk")
-    branch = f"kitty/mission-{_COMPOSED}"
-    _git(repo, "branch", branch)
-    primary_dir = repo / "kitty-specs" / _COMPOSED
-    _write_meta(
-        primary_dir,
-        slug=_COMPOSED,
-        mission_id=_MISSION_ID,
-        topology="coord",
-        coordination_branch=branch,
+    branch = coord_branch_name(_COMPOSED)
+    primary_dir = build_coord_husk(
+        repo,
+        _COMPOSED,
+        branch,
+        coord_worktree_root(repo, _COMPOSED),
+        write_primary_meta=_primary_meta_writer(topology="coord", coordination_branch=branch),
     )
-    coord_root = repo / ".worktrees" / f"{_COMPOSED}-coord"
-    coord_mission_dir = coord_root / "kitty-specs" / _COMPOSED
-    coord_mission_dir.mkdir(parents=True)
-    (coord_mission_dir / "status.events.jsonl").write_text("", encoding="utf-8")
-    assert not (coord_mission_dir / "meta.json").exists(), "husk invariant: no coord meta.json"
     return Fixture(repo=repo, handle=_COMPOSED, primary_dir=primary_dir)
 
 
 def _coord_branch_deleted(tmp_path: Path) -> Fixture:
     """meta.json declares a coordination_branch that was never created in git."""
     repo = _make_git_repo(tmp_path, "coord-deleted")
-    branch = f"kitty/mission-{_COMPOSED}"  # deliberately never `git branch`-ed
-    primary_dir = repo / "kitty-specs" / _COMPOSED
-    _write_meta(
-        primary_dir,
-        slug=_COMPOSED,
-        mission_id=_MISSION_ID,
-        topology="coord",
-        coordination_branch=branch,
+    branch = coord_branch_name(_COMPOSED)  # deliberately never `git branch`-ed
+    primary_dir = build_coord_branch_deleted(
+        repo,
+        _COMPOSED,
+        branch,
+        write_primary_meta=_primary_meta_writer(topology="coord", coordination_branch=branch),
     )
-    assert not (repo / ".worktrees").exists(), "no coord worktree for the deleted-branch case"
     return Fixture(repo=repo, handle=_COMPOSED, primary_dir=primary_dir)
 
 
 def _coord_worktree_empty(tmp_path: Path) -> Fixture:
     """Coord root materialized (create window) but no mission dir under it yet."""
     repo = _make_git_repo(tmp_path, "coord-empty")
-    branch = f"kitty/mission-{_COMPOSED}"
-    _git(repo, "branch", branch)
-    primary_dir = repo / "kitty-specs" / _COMPOSED
-    _write_meta(
-        primary_dir,
-        slug=_COMPOSED,
-        mission_id=_MISSION_ID,
-        topology="coord",
-        coordination_branch=branch,
+    branch = coord_branch_name(_COMPOSED)
+    primary_dir = build_coord_worktree_empty(
+        repo,
+        _COMPOSED,
+        branch,
+        coord_worktree_root(repo, _COMPOSED),
+        write_primary_meta=_primary_meta_writer(topology="coord", coordination_branch=branch),
     )
-    coord_root = repo / ".worktrees" / f"{_COMPOSED}-coord"
-    coord_root.mkdir(parents=True)  # EMPTY — no kitty-specs/ under it at all
     return Fixture(repo=repo, handle=_COMPOSED, primary_dir=primary_dir)
 
 
