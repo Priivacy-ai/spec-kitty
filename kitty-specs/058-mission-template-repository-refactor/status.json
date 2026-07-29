@@ -1,5 +1,5 @@
 {
-  "event_count": 68,
+  "event_count": 79,
   "last_event_id": "01KMYSFNZPDDWQGZ5PTMQZ6A7V",
   "materialized_at": "2026-03-30T07:14:14.646757+00:00",
   "mission_number": "58",
@@ -19,80 +19,180 @@
   "work_packages": {
     "WP01": {
       "actor": "unknown",
+      "agent": "claude-opus-4-6",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KMSY9J0M0CCB89YZ05YFRFYK",
-      "last_transition_at": "2026-03-28T10:02:04.692153+00:00"
+      "last_transition_at": "2026-03-28T10:02:04.692153+00:00",
+      "shell_pid": 21171,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T016": "done"
+      }
     },
     "WP02": {
       "actor": "unknown",
+      "agent": "claude-opus-4-6",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KMSY9K33APC5STSZ6KXDNT4X",
-      "last_transition_at": "2026-03-28T10:02:05.795236+00:00"
+      "last_transition_at": "2026-03-28T10:02:05.795236+00:00",
+      "shell_pid": 21445,
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
     },
     "WP03": {
       "actor": "unknown",
+      "agent": "claude-opus-4-6",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KMSY9KTJXMATNJ5V2NJK65DP",
-      "last_transition_at": "2026-03-28T10:02:06.546839+00:00"
+      "last_transition_at": "2026-03-28T10:02:06.546839+00:00",
+      "shell_pid": 25158,
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
     },
     "WP04": {
       "actor": "unknown",
+      "agent": "opencode",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KMSY9N4HS0PFJYMSFD3K4MDS",
-      "last_transition_at": "2026-03-28T10:02:07.889411+00:00"
+      "last_transition_at": "2026-03-28T10:02:07.889411+00:00",
+      "shell_pid": 26986,
+      "subtasks": {
+        "T017": "done",
+        "T018": "done"
+      }
     },
     "WP05": {
       "actor": "unknown",
+      "agent": "claude-code",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KMSY9NZSKZTSG6MY6SVYWK3W",
-      "last_transition_at": "2026-03-28T10:02:08.761637+00:00"
+      "last_transition_at": "2026-03-28T10:02:08.761637+00:00",
+      "shell_pid": 78482,
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
     },
     "WP06": {
       "actor": "unknown",
+      "agent": "reviewer",
+      "assignee": "reviewer",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KMT24FVCJJGEBHK644CWJ3T8",
-      "last_transition_at": "2026-03-28T11:09:12.940465+00:00"
+      "last_transition_at": "2026-03-28T11:09:12.940465+00:00",
+      "shell_pid": 88955,
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done"
+      }
     },
     "WP07": {
       "actor": "unknown",
+      "agent": "opencode",
       "force_count": 6,
       "lane": "done",
       "last_event_id": "01KMWAB4KV9T73GBPYV9PEYG2Y",
-      "last_transition_at": "2026-03-29T08:11:08.283879+00:00"
+      "last_transition_at": "2026-03-29T08:11:08.283879+00:00",
+      "shell_pid": 113162,
+      "subtasks": {
+        "T027": "done",
+        "T028": "done",
+        "T029": "done",
+        "T030": "done"
+      }
     },
     "WP08": {
       "actor": "unknown",
+      "agent": "opencode",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KMWABA7VS98HK2RBX4FESKN3",
-      "last_transition_at": "2026-03-29T08:11:14.043315+00:00"
+      "last_transition_at": "2026-03-29T08:11:14.043315+00:00",
+      "shell_pid": 113162,
+      "subtasks": {
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T034": "done",
+        "T035": "done",
+        "T036": "done",
+        "T037": "done",
+        "T038": "done",
+        "T043": "done",
+        "T048": "done",
+        "T055": "done"
+      }
     },
     "WP09": {
       "actor": "unknown",
+      "agent": "claude",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KMYSETBP0A4KT0JQ1F3C0X3T",
-      "last_transition_at": "2026-03-30T07:13:46.358711+00:00"
+      "last_transition_at": "2026-03-30T07:13:46.358711+00:00",
+      "shell_pid": 21595,
+      "subtasks": {
+        "T039": "done",
+        "T040": "done",
+        "T041": "done",
+        "T042": "done"
+      }
     },
     "WP10": {
       "actor": "unknown",
+      "agent": "opencode",
       "force_count": 5,
       "lane": "done",
       "last_event_id": "01KMYSFNZPDDWQGZ5PTMQZ6A7V",
-      "last_transition_at": "2026-03-30T07:14:14.646757+00:00"
+      "last_transition_at": "2026-03-30T07:14:14.646757+00:00",
+      "shell_pid": 27168,
+      "subtasks": {
+        "T044": "done",
+        "T045": "done",
+        "T046": "done",
+        "T047": "done"
+      }
     },
     "WP11": {
       "actor": "unknown",
+      "agent": "opencode",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KMSY9PTJB0K8DV87EY7KRKZD",
-      "last_transition_at": "2026-03-28T10:02:09.618253+00:00"
+      "last_transition_at": "2026-03-28T10:02:09.618253+00:00",
+      "shell_pid": 26986,
+      "subtasks": {
+        "T049": "done",
+        "T050": "done",
+        "T051": "done",
+        "T052": "done",
+        "T053": "done",
+        "T054": "done"
+      }
     }
   }
 }

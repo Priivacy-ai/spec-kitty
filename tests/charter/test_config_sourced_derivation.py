@@ -317,7 +317,7 @@ def test_build_synthesis_request_sources_selections_from_config_not_answers(tmp_
     assert "DIRECTIVE_003" not in request.interview_snapshot["selected_directives"]
     assert "deep-module-design" not in request.interview_snapshot["selected_paradigms"]
     assert request.drg_snapshot["nodes"] == [
-        {"urn": "directive:DIRECTIVE_010", "kind": "directive", "id": "DIRECTIVE_010"}
+        {"urn": "directive:DIRECTIVE_010", "kind": "directive"}
     ]
 
 

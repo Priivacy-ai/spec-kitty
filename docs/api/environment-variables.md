@@ -176,7 +176,7 @@ range fall back to the default silently.
 **Example**:
 ```bash
 export SPEC_KITTY_NAG_THROTTLE_SECONDS=86400
-spec-kitty status
+spec-kitty upgrade --cli
 ```
 
 ### SPEC_KITTY_UPGRADE_DISABLED
@@ -189,7 +189,7 @@ auto-upgrade path. It is evaluated per invocation and is not persisted.
 **Example**:
 ```bash
 export SPEC_KITTY_UPGRADE_DISABLED=1
-spec-kitty status
+spec-kitty upgrade --cli
 ```
 
 ### SPEC_KITTY_UPGRADE_AUTO
@@ -204,7 +204,7 @@ manual guidance instead of mutating anything.
 **Example**:
 ```bash
 export SPEC_KITTY_UPGRADE_AUTO=1
-spec-kitty status
+spec-kitty upgrade --cli
 ```
 
 ### SPEC_KITTY_UPGRADE_NEVER_ASK
@@ -218,7 +218,7 @@ the interactive prompt.
 **Example**:
 ```bash
 export SPEC_KITTY_UPGRADE_NEVER_ASK=1
-spec-kitty status
+spec-kitty upgrade --cli
 ```
 
 ### SPEC_KITTY_SIMPLE_HELP

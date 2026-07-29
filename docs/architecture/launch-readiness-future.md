@@ -114,10 +114,10 @@ parse stdout.
 Operator overrides:
 
 ```bash
-SPEC_KITTY_UPGRADE_DISABLED=1 spec-kitty status
-SPEC_KITTY_UPGRADE_AUTO=1 spec-kitty status
-SPEC_KITTY_UPGRADE_NEVER_ASK=1 spec-kitty status
-SPEC_KITTY_NAG_THROTTLE_SECONDS=86400 spec-kitty status
+SPEC_KITTY_UPGRADE_DISABLED=1 spec-kitty upgrade --cli
+SPEC_KITTY_UPGRADE_AUTO=1 spec-kitty upgrade --cli
+SPEC_KITTY_UPGRADE_NEVER_ASK=1 spec-kitty upgrade --cli
+SPEC_KITTY_NAG_THROTTLE_SECONDS=86400 spec-kitty upgrade --cli
 ```
 
 See [Environment Variables Reference](../api/environment-variables.md)

@@ -105,7 +105,14 @@ specialization:
     then `requires` transitively and `suggests` to a bounded depth, so an inbound
     `requires`/`suggests` edge from a scoped artifact is precisely the mechanism that puts an
     asset or anti-pattern in front of an agent. A resolved-only node with no inbound edge is
-    therefore not merely un-navigable — it is unreachable, and reaches nobody.
+    therefore not merely un-navigable — it is unreachable, and reaches nobody. The same trap
+    catches a profile's own workflow: `collaboration.operating-procedures` is prose that mints no
+    edge, so a procedure named only there is unreachable from the profile that runs it. Wiring it
+    takes a `requires` edge from the profile to the procedure. Measured on the shipped graph,
+    16 built-in profiles carry 50 `operating-procedures` declarations; exactly 1 is backed by an
+    edge from the profile that declares it, 5 name a procedure that exists but carries no edge,
+    8 name a tactic rather than a procedure, and 36 name no artifact of any kind — so a named operating procedure should be treated as unwired until
+    the edge is confirmed.
   avoidance-boundary: >
     Does not begin decomposition before documentation is supplied (or its absence confirmed) and
     the agent's purpose is confirmed back to the owner; does not assume behaviour from a
@@ -127,9 +134,21 @@ specialization:
     non-artifact material — an ADR, a README, a template — remains legitimate in `references:`;
     that is raw reference material, not a relationship.) Does not hand-edit a generated
     `<kind>.graph.yaml` fragment, and does not tell an operator to edit `src/doctrine/graph.yaml`,
-    which no longer exists. Does not author an `applies` edge: no traversal reads that relation,
-    so aliasing a real relationship onto it silently makes the edge a no-op. Does not bump a
-    golden-count baseline without extending its composition ledger to explain the delta.
+    which no longer exists. Does not author an `applies` edge — and states the reason precisely,
+    because the imprecise version is written in the codebase and is false. `applies` is not
+    unread: the orphan lint accepts it as an inbound edge on a directive node, and the charter
+    project-tier synthesizer emits it during project-tier synthesis. What is true is
+    that no *traversal* follows it — context resolution walks `scope`, then `requires` and
+    `suggests`, and the charter cascade walks `requires`/`suggests`/`refines` — so an authored
+    `applies` edge names a relationship nothing ever walks. The shipped tree's only one pointed
+    at this profile's own operating procedure and was that procedure's single inbound edge, so
+    activating the profile could not reach the workflow the profile says it runs; it is now a
+    `requires` edge, and an architectural gate in the spec-kitty repository refuses a new one.
+    Does not bump a golden-count baseline without extending its composition ledger to explain
+    the delta — including when cardinality is unchanged and only a relation moved, since a
+    silent relation change is exactly what makes a golden count look untouched while the
+    traversal result differs, unless a dedicated gate asserts the traversal outcome directly (a
+    gate on the walk is a stronger record than a ledger row, and discharges this rule).
   success-definition: >
     The owner's documentation is gathered and the agent's purpose confirmed before any
     conversion. Every piece of the source agent's knowledge is captured in the correct artifact

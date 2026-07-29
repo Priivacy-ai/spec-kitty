@@ -1,5 +1,5 @@
 {
-  "event_count": 35,
+  "event_count": 40,
   "last_event_id": "01KSN9XKRSWCWKFEE6HH3MP2EY",
   "materialized_at": "2026-05-27T18:07:33.145725+00:00",
   "mission_number": "124",
@@ -19,38 +19,82 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "claude:opus:implementer-ivan:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KSN9XKF593P33M153GHVT6DG",
-      "last_transition_at": "2026-05-27T18:07:32.837805+00:00"
+      "last_transition_at": "2026-05-27T18:07:32.837805+00:00",
+      "shell_pid": 66942,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
+      "agent": "claude:opus:implementer-ivan:implementer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KSN9XKM7G1228MAJFTXBMKXY",
-      "last_transition_at": "2026-05-27T18:07:32.999763+00:00"
+      "last_transition_at": "2026-05-27T18:07:32.999763+00:00",
+      "shell_pid": 67262,
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
+      "agent": "claude:opus:implementer-ivan:implementer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KSN9XKNPWZBMTM20RNP0M8T0",
-      "last_transition_at": "2026-05-27T18:07:33.046958+00:00"
+      "last_transition_at": "2026-05-27T18:07:33.046958+00:00",
+      "shell_pid": 69207,
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
+      "agent": "claude:opus:implementer-ivan:implementer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KSN9XKQ8SMYDCH1BP7KD7E4X",
-      "last_transition_at": "2026-05-27T18:07:33.096676+00:00"
+      "last_transition_at": "2026-05-27T18:07:33.096676+00:00",
+      "shell_pid": 69303,
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
+      "agent": "claude:opus:implementer-ivan:implementer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KSN9XKRSWCWKFEE6HH3MP2EY",
-      "last_transition_at": "2026-05-27T18:07:33.145725+00:00"
+      "last_transition_at": "2026-05-27T18:07:33.145725+00:00",
+      "shell_pid": 72713,
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done"
+      }
     }
   }
 }

@@ -71,7 +71,14 @@ from specify_cli.cli.commands.agent.tasks_outline import (
     _resolve_history_wp_id,
     _resolve_wp_id,
 )
+from specify_cli.core.subtask_rows import (
+    SubtaskRosterResolutionError,
+    authored_subtask_roster,
+)
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
+
+#: WP prompt directories carry a README that is not a work package.
+_README_FILENAME = "readme.md"
 
 
 @dataclass
@@ -177,6 +184,9 @@ def _ms_resolve_read_dir(st: _MarkStatusState, ports: TasksPorts) -> None:
     from specify_cli.cli.commands.agent import tasks as _tasks
     handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug)
     st.feature_dir = ports.fs.planning_read_dir(handle, kind=MissionArtifactKind.TASKS_INDEX)
+    # #3027: this TASKS_INDEX-resolved dir is also handed to
+    # owning_wp_from_authored_roster, which reads WORK_PACKAGE_TASK-kinded
+    # ``tasks/*.md`` files — see the pinning comment on that function.
     from specify_cli.coordination import resolve_status_surface
 
     st.status_dir = resolve_status_surface(st.main_repo_root, st.mission_slug).parent
@@ -272,6 +282,7 @@ def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
                 or _resolve_pipe_table(task_id, pipe_table_lines, st.status)
                 or _tasks._resolve_inline_subtasks(task_id, before_content, st.status, st.feature_dir)
                 or _resolve_wp_id(task_id, st.status, st.mission_slug, st.feature_dir)
+                or _resolve_authored_roster(task_id, st.feature_dir)
                 or TaskIdResult(
                     id=task_id,
                     outcome=TaskIdResolutionOutcome.NOT_FOUND,
@@ -321,7 +332,9 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
     resolved_tasks_by_wp: dict[str, list[str]] = {}
     unresolved_tasks: list[str] = []
     for task_id in st.updated_tasks:
-        history_wp_id = _resolve_history_wp_id(tasks_content, task_id)
+        history_wp_id = _resolve_history_wp_id(
+            tasks_content, task_id
+        ) or owning_wp_from_authored_roster(st.feature_dir, task_id)
         if history_wp_id is None:
             unresolved_tasks.append(task_id)
         else:
@@ -350,7 +363,9 @@ def _ms_emit_history(st: _MarkStatusState) -> None:
             unresolved_tasks: list[str] = []
             tasks_content = st.tasks_md.read_text(encoding="utf-8")
             for task_id in st.updated_tasks:
-                history_wp_id = _resolve_history_wp_id(tasks_content, task_id)
+                history_wp_id = _resolve_history_wp_id(
+                    tasks_content, task_id
+                ) or owning_wp_from_authored_roster(st.feature_dir, task_id)
                 if history_wp_id is None:
                     unresolved_tasks.append(task_id)
                 else:
@@ -466,6 +481,89 @@ def _do_mark_status(
 # test_tasks_mark_status_seam.py) keeps INTERCEPTING; ``tasks.py`` re-imports
 # the name in the explicit ``as`` re-export form (NFR-002).
 # ===========================================================================
+
+
+
+def _resolve_authored_roster(task_id: str, feature_dir: Path) -> TaskIdResult | None:
+    """Resolve *task_id* against the authored ``subtasks:`` frontmatter rosters.
+
+    The four legacy resolvers each require a particular ``tasks.md`` row shape —
+    a checkbox, a pipe-table row, or an inline ``Subtasks: T001, T002`` list.
+    Since #2816 IC-10 subtask completion is solely event-sourced and the shipped
+    ``software-dev`` template instructs authors that subtasks are *reference
+    rows, not checkboxes*, so a conforming ``tasks.md`` matches none of them and
+    every id reports ``NOT_FOUND`` (#2962).
+
+    This resolver reads the same source the lane-transition guard already treats
+    as canonical static intent — :func:`authored_subtask_roster` — so the two
+    surfaces agree on what a WP's subtasks are.
+
+    It runs **last** in the chain: every legacy shape resolves exactly as before,
+    and this only catches ids those shapes cannot see.
+
+    An unresolvable roster yields ``None`` rather than propagating. The guard is
+    right to treat a missing tasks directory as corruption and fail closed, but
+    here the caller already has a ``NOT_FOUND`` path whose message is the useful
+    one; raising would turn an ordinary miss into a crash.
+    """
+    wp_id = owning_wp_from_authored_roster(feature_dir, task_id)
+    if wp_id is None:
+        return None
+    return TaskIdResult(
+        id=task_id,
+        outcome=TaskIdResolutionOutcome.UPDATED,
+        format=TaskIdResolutionFormat.AUTHORED_ROSTER,
+        message=f"{task_id} resolved from {wp_id}'s authored subtasks roster.",
+    )
+
+
+def owning_wp_from_authored_roster(feature_dir: Path, task_id: str) -> str | None:
+    """Return the WP whose authored ``subtasks:`` roster contains *task_id*.
+
+    One source for two surfaces. ``_resolve_authored_roster`` uses it to decide
+    whether an id exists at all, and the event emit uses it to attribute the id
+    to a work package — previously each re-derived ownership from ``tasks.md``
+    row shapes, which is why fixing only the first left the emit failing with
+    "Could not resolve owning work package" (#2962).
+
+    An unreadable or ambiguous WP file is skipped rather than raised: the guard
+    already reports roster corruption on its own path, and the callers here have
+    a NOT_FOUND route whose message is the more useful one.
+
+    Pinned assumption (#3027): ``feature_dir`` is resolved by the caller via
+    ``planning_read_dir(handle, kind=MissionArtifactKind.TASKS_INDEX)``
+    (``_ms_resolve_read_dir``), but the ``tasks/*.md`` files read here are
+    ``WORK_PACKAGE_TASK``-kinded artifacts. This is a no-op today only because
+    ``mission_runtime.artifacts._PRIMARY_ARTIFACT_KINDS`` places both kinds in
+    the same partition, so they resolve to the same directory — the same
+    co-membership :func:`authored_subtask_roster` (``core/subtask_rows.py``)
+    and its other callers (``status/emit.py``, ``tasks_shared.py``,
+    ``tasks_move_task.py``) all rely on implicitly via a shared ``feature_dir``.
+    Declaring the kind explicitly here alone would not close the risk (the
+    sibling callers would still assume it), so this is intentionally a pinning
+    comment rather than a partial fix; see
+    ``test_owning_wp_from_authored_roster_kind_co_membership_is_pinned`` in
+    ``test_mark_status_authored_roster.py``, which fails loud if
+    ``WORK_PACKAGE_TASK`` and ``TASKS_INDEX`` are ever placed in different
+    partitions (e.g. a future re-home like ``ANALYSIS_REPORT``'s COORD→PRIMARY
+    move, recorded in ``artifacts.py``).
+    """
+    tasks_dir = feature_dir / "tasks"
+    if not tasks_dir.is_dir():
+        return None
+
+    normalized = task_id.upper()
+    for path in sorted(tasks_dir.glob("*.md")):
+        if path.name.lower() == _README_FILENAME:
+            continue
+        wp_id = path.name.split("-", 1)[0].removesuffix(".md")
+        try:
+            roster = authored_subtask_roster(feature_dir, wp_id)
+        except (SubtaskRosterResolutionError, OSError, ValueError):
+            continue
+        if normalized in {entry.upper() for entry in roster}:
+            return wp_id
+    return None
 
 
 def _resolve_inline_subtasks(

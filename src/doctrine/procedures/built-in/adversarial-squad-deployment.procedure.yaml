@@ -34,11 +34,16 @@ steps:
     actor: agent
   - title: Dispatch in parallel, profile-LOADED
     description: >
-      Dispatch the delegates concurrently. Each delegate FIRST reads its
-      src/doctrine/agent_profiles/built-in/<id>.agent.yaml and adopts its directives and
-      tactics, then states which it applied. Loading the profile — not merely naming a
-      persona — is the point. Each delegate is read-only unless its task is an isolated
-      implementation in its own worktree.
+      Dispatch the delegates concurrently. Each delegate FIRST runs
+      `spec-kitty agent profile show <id>` and
+      `spec-kitty charter context --action <action> --json`, then applies the resolved
+      initialization, boundaries, directives, and tactics and states which it applied.
+      Loading the profile — not merely naming a persona — is the point. Only a read-only
+      harness that cannot invoke the CLI may read
+      `src/doctrine/agent_profiles/built-in/<id>.agent.yaml`; that degraded fallback can
+      diverge because overlays, `specializes_from` lineage, and `enhances`/`overrides`
+      semantics are not applied. Each delegate is read-only unless its task is an
+      isolated implementation in its own worktree.
     actor: agent
   - title: Require structured, non-fakeable output
     description: >

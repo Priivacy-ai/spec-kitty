@@ -1,5 +1,5 @@
 {
-  "event_count": 70,
+  "event_count": 79,
   "last_event_id": "01KXA9B9V036TW7XACNMH3QAZA",
   "materialized_at": "2026-07-12T04:28:41.696643+00:00",
   "mission_number": "174",
@@ -22,70 +22,139 @@
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXA99HF2Q0HJH0GCZ3AGRCRH",
-      "last_transition_at": "2026-07-12T04:27:43.970100+00:00"
+      "last_transition_at": "2026-07-12T04:27:43.970100+00:00",
+      "shell_pid": 1263853,
+      "subtasks": {
+        "T001": "done"
+      },
+      "tracker_refs": [
+        "2531"
+      ]
     },
     "WP02": {
       "actor": "merge",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXA99QM18W9MD16MNJH9B2HM",
-      "last_transition_at": "2026-07-12T04:27:50.273394+00:00"
+      "last_transition_at": "2026-07-12T04:27:50.273394+00:00",
+      "shell_pid": 1268842,
+      "subtasks": {
+        "T007": "done"
+      },
+      "tracker_refs": [
+        "2531"
+      ]
     },
     "WP03": {
       "actor": "merge",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXA99XT9D9FCQY928M0GXVPV",
-      "last_transition_at": "2026-07-12T04:27:56.617909+00:00"
+      "last_transition_at": "2026-07-12T04:27:56.617909+00:00",
+      "shell_pid": 1742369,
+      "subtasks": {
+        "T011": "done"
+      },
+      "tracker_refs": [
+        "2531"
+      ]
     },
     "WP04": {
       "actor": "merge",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXA9A43MJ8613D662YZM2ZHZ",
-      "last_transition_at": "2026-07-12T04:28:03.060381+00:00"
+      "last_transition_at": "2026-07-12T04:28:03.060381+00:00",
+      "shell_pid": 1985551,
+      "subtasks": {
+        "T015": "done"
+      },
+      "tracker_refs": [
+        "2531"
+      ]
     },
     "WP05": {
       "actor": "merge",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXA9AAFKT1K7G4CNC0HVCF2H",
-      "last_transition_at": "2026-07-12T04:28:09.587467+00:00"
+      "last_transition_at": "2026-07-12T04:28:09.587467+00:00",
+      "shell_pid": 2190657,
+      "subtasks": {
+        "T017": "done"
+      },
+      "tracker_refs": [
+        "2531"
+      ]
     },
     "WP06": {
       "actor": "merge",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXA9AGMRVSA5W8RB2J2PFQDG",
-      "last_transition_at": "2026-07-12T04:28:15.896301+00:00"
+      "last_transition_at": "2026-07-12T04:28:15.896301+00:00",
+      "shell_pid": 2442747,
+      "subtasks": {
+        "T021": "done"
+      },
+      "tracker_refs": [
+        "2531"
+      ]
     },
     "WP07": {
       "actor": "merge",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXA9APWF7PWX8E3M1EBCQF9X",
-      "last_transition_at": "2026-07-12T04:28:22.287148+00:00"
+      "last_transition_at": "2026-07-12T04:28:22.287148+00:00",
+      "shell_pid": 2661655,
+      "subtasks": {
+        "T025": "done"
+      },
+      "tracker_refs": [
+        "2531"
+      ]
     },
     "WP08": {
       "actor": "merge",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXA9AX87HZ8FYZ6PKSPQHA52",
-      "last_transition_at": "2026-07-12T04:28:28.807718+00:00"
+      "last_transition_at": "2026-07-12T04:28:28.807718+00:00",
+      "shell_pid": 2850453,
+      "subtasks": {
+        "T028": "done"
+      },
+      "tracker_refs": [
+        "2531"
+      ]
     },
     "WP09": {
       "actor": "merge",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXA9B3GC0DW78M1CD83G0P1H",
-      "last_transition_at": "2026-07-12T04:28:35.212442+00:00"
+      "last_transition_at": "2026-07-12T04:28:35.212442+00:00",
+      "shell_pid": 2956749,
+      "subtasks": {
+        "T031": "done"
+      },
+      "tracker_refs": [
+        "2531"
+      ]
     },
     "WP10": {
       "actor": "merge",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXA9B9V036TW7XACNMH3QAZA",
-      "last_transition_at": "2026-07-12T04:28:41.696643+00:00"
+      "last_transition_at": "2026-07-12T04:28:41.696643+00:00",
+      "subtasks": {
+        "T034": "planned"
+      },
+      "tracker_refs": [
+        "2531"
+      ]
     }
   }
 }

@@ -124,7 +124,7 @@ def _validate_rejects_targets(graph: DRGGraph) -> list[str]:
     regardless of whether the target is currently activated in any
     ``PackContext``.
 
-    Dangling targets are reported by :func:`_validate_dangling_references`;
+    Dangling targets are reported by :func:`validate_dangling_references`;
     this check only classifies targets it can resolve so the two checks
     never double-report the same missing-node defect.
 
@@ -176,8 +176,36 @@ def _validate_anti_pattern_nodes_are_rejected(graph: DRGGraph) -> list[str]:
     return errors
 
 
-def _validate_dangling_references(graph: DRGGraph) -> list[str]:
-    """Return errors for edges whose source/target is not a known node."""
+def validate_dangling_references(graph: DRGGraph) -> list[str]:
+    """Return errors for edges whose source/target is not a known node.
+
+    Public because the org-pack merge path needs *this* check on its own, not
+    the whole of :func:`validate_graph`. ``merge_three_layers`` itself only
+    WARNs (see :func:`doctrine.drg.merge._dangling_org_endpoints`): it cannot
+    know whether its caller merged the whole graph or a deliberate subset.
+
+    **When a caller must run this (the rule, not a list of surfaces).** Run it
+    iff you merged the COMPLETE graph — in practice, iff you passed the real
+    shipped built-in layer (``load_built_in_graph()``) plus every layer the
+    operator configured. Such a caller can distinguish a typo from a forward
+    reference, so for it a dangling endpoint is an error, not a warning. A
+    caller that deliberately merged a SUBSET must not: ``charter lint`` merges
+    org fragments against an intentionally EMPTY built-in to isolate pack-level
+    conflicts, so every qualified endpoint dangles there by construction and
+    the check would report only noise.
+
+    An earlier revision of this docstring named ``spec-kitty doctor doctrine``
+    as "the one place" holding a complete graph. That was false — three runtime
+    callers build the merge from byte-identical inputs, and stating the claim as
+    a uniqueness rather than a predicate is what let two of them ship a clean
+    bill for an unclean graph. State the predicate: if you are adding a caller,
+    ask whether *your* merge was complete.
+
+    Exposed rather than copied so there is one definition of "dangling" —
+    a second, private-to-doctor restatement is how the three drifted kind maps
+    in this codebase started. Runtime callers under ``src/specify_cli/`` reach
+    it through the ``charter.drg`` facade, not this module (ADR 2026-03-27-1).
+    """
     errors: list[str] = []
     urns = graph.node_urns()
     for edge in graph.edges:
@@ -263,7 +291,7 @@ def validate_graph(graph: DRGGraph) -> list[str]:
        target of at least one ``rejects`` edge (INV-004 reverse direction).
     """
     errors: list[str] = []
-    errors.extend(_validate_dangling_references(graph))
+    errors.extend(validate_dangling_references(graph))
     errors.extend(_validate_duplicate_edges(graph))
     errors.extend(_validate_requires_cycles(graph))
     # -- 4. Symmetric profile-edge integrity (#1755) ------------------------

@@ -22,42 +22,84 @@
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KS52X5E1XXZKD563DV6DP7QE",
-      "last_transition_at": "2026-05-21T10:57:07.521875+00:00"
+      "last_transition_at": "2026-05-21T10:57:07.521875+00:00",
+      "subtasks": {
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned",
+        "T005": "planned"
+      }
     },
     "WP02": {
       "actor": "finalize-tasks",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KS52X5J4CVDEAKQQ1BWSZDZG",
-      "last_transition_at": "2026-05-21T10:57:07.652415+00:00"
+      "last_transition_at": "2026-05-21T10:57:07.652415+00:00",
+      "subtasks": {
+        "T006": "planned",
+        "T007": "planned",
+        "T008": "planned",
+        "T009": "planned",
+        "T010": "planned"
+      }
     },
     "WP03": {
       "actor": "finalize-tasks",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KS52X5JXRB9EYC0SZ4JWAW7V",
-      "last_transition_at": "2026-05-21T10:57:07.677782+00:00"
+      "last_transition_at": "2026-05-21T10:57:07.677782+00:00",
+      "subtasks": {
+        "T011": "planned",
+        "T012": "planned",
+        "T013": "planned",
+        "T014": "planned",
+        "T015": "planned"
+      }
     },
     "WP04": {
       "actor": "finalize-tasks",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KS52X5KPE9J451W6FBGYZEV4",
-      "last_transition_at": "2026-05-21T10:57:07.702982+00:00"
+      "last_transition_at": "2026-05-21T10:57:07.702982+00:00",
+      "subtasks": {
+        "T016": "planned",
+        "T017": "planned",
+        "T018": "planned",
+        "T019": "planned",
+        "T020": "planned"
+      }
     },
     "WP05": {
       "actor": "finalize-tasks",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KS52X5MF79XSKS1K68EJJA7N",
-      "last_transition_at": "2026-05-21T10:57:07.727427+00:00"
+      "last_transition_at": "2026-05-21T10:57:07.727427+00:00",
+      "subtasks": {
+        "T021": "planned",
+        "T022": "planned",
+        "T023": "planned",
+        "T024": "planned",
+        "T025": "planned"
+      }
     },
     "WP06": {
       "actor": "finalize-tasks",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KS52X5N7B1VKK89SJZ3CSKZJ",
-      "last_transition_at": "2026-05-21T10:57:07.751941+00:00"
+      "last_transition_at": "2026-05-21T10:57:07.751941+00:00",
+      "subtasks": {
+        "T026": "planned",
+        "T027": "planned",
+        "T028": "planned",
+        "T029": "planned",
+        "T030": "planned"
+      }
     }
   }
 }

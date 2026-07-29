@@ -259,6 +259,31 @@ LEGACY_MISSION_DEAD_CODE_SKIP: dead-code scan skipped on a pre-083 mission. Run 
 
 ---
 
+## DEAD_CODE_UNDETERMINABLE
+
+**Code**: `MISSION_REVIEW_DEAD_CODE_UNDETERMINABLE`
+
+**When it fires**: the dead-code gate cannot establish a supported, complete Python source
+denominator. This includes a failed or unavailable Git diff, a change set with no supported Python
+files, an empty Python corpus, and source traversal or decoding failures.
+
+**JSON stability**: this code string is stable across minor releases; consumers may match it as an
+opaque identifier.
+
+**Remediation**:
+1. Verify that Git is available and `baseline_merge_commit` names a commit in the current repository.
+2. Confirm the baseline-to-HEAD change set contains Python source that this gate supports.
+3. Repair unreadable or invalidly encoded Python files, then rerun `spec-kitty review`.
+4. Do not interpret this diagnostic as a clean scan; the gate deliberately fails closed.
+
+**Body example**:
+
+```text
+MISSION_REVIEW_DEAD_CODE_UNDETERMINABLE: dead-code analysis could not establish a complete supported source set.
+```
+
+---
+
 ## ENV_SKEW
 
 **Code**: `MISSION_REVIEW_ENV_SKEW`

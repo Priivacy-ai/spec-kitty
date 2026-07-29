@@ -206,7 +206,7 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey("_ensure_vcs_in_meta", "7de334239ff2b3665e555c98740eb29e5b69449795940475b748f6de3c070c80"),
         # specify_cli.cli.commands.implement::detect_feature_context
         SymbolKey("detect_feature_context", "03ce3f732e5db8d5a02fbfdcae55ae3acdaf00bdbbd3370b400b37e57fb66b81"),
-        SymbolKey("find_wp_file", "4b72782a4174a1e4ac3e0dc39023effb2e0e86fb49a8fd5f3509b84a12ab8ea7"),  # specify_cli.cli.commands.implement::find_wp_file
+        SymbolKey("find_wp_file", "d320a28d54f0ac514cfe9f87a85a5aad28916e7ce651934b3336f33ad6dc5283"),  # specify_cli.cli.commands.implement::find_wp_file
         SymbolKey("CurrentContext", "49c03fb8a6af76f87fbae0133fd35d4c9ee8a4c5a0b7e5b49a812409af871bc7"),  # specify_cli.core.context_validation::CurrentContext
         SymbolKey("ExecutionContext", "19c71b5bbf90ee7bd3aa32f2240f9495b9ff1354ceea059d4ec54824eb0d92a1"),  # specify_cli.core.context_validation::ExecutionContext
         # specify_cli.core.context_validation::detect_execution_context

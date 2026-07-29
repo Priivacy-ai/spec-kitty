@@ -31,6 +31,7 @@ on the pre-WP09 tree because no mission is ever reconciled at merge time.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -438,6 +439,40 @@ def test_birth_cutover_status_phase_is_primary_only(
 # ---------------------------------------------------------------------------
 
 
+def _anchor_mission_root(root: Path) -> Path:
+    """Terminate mission-root resolution at *root* and return it (issue #2990).
+
+    ``_flip_phase`` enforces its write target against the placement port, and
+    that port resolves the mission's PRIMARY home by walking ancestors from the
+    mission dir looking for a git marker
+    (:func:`~specify_cli.core.paths.resolve_canonical_root`, which stops at the
+    first ancestor carrying a ``.git`` *directory*). A synthetic mission written
+    under a bare ``tmp_path`` carries no marker of its own, so that walk escapes
+    the pytest tmp-path entirely and is captured by whatever marker happens to
+    sit in a shared ancestor — in the field, a stray ``.git`` directory
+    directly under the shared temp root, which
+    spec-kitty itself manufactures (``feature_status_lock_path`` mkdirs
+    ``<root>/.git/spec-kitty-locks`` after :func:`_git_common_dir` falls back to
+    ``repo_root / ".git"`` on a non-repo root). The port then answers
+    ``<ambient>/kitty-specs/<slug>``, that answer disagrees with the write
+    target, and the flip fails closed with ``PlacementMismatchError`` before any
+    of the contracts below ever run.
+
+    Initialising a real repo at the mission root makes resolution a property of
+    the fixture instead of the host: the ancestor walk stops here, so no ambient
+    marker above the tmp-path can be reached. It also *strengthens* these tests —
+    the port now returns a genuine PRIMARY answer that equals the write target,
+    so they exercise FR-001's matching branch instead of its
+    resolver-failure degrade branch (``WorkspaceRootNotFound`` -> ``None``).
+
+    See :func:`test_ambient_repo_marker_cannot_capture_the_synthetic_mission_root`
+    for the guard that keeps this anchoring in place.
+    """
+    root.mkdir(parents=True, exist_ok=True)
+    _git(root, "init", "-q")
+    return root
+
+
 def _write_legacy_mission(feature_dir: Path, *, wp_id: str = "WP01") -> None:
     """A mission shaped like the PRE-WP04/WP05 corpus: real ``shell_pid`` /
     ``agent`` / subtask-checkbox runtime living in frontmatter/``tasks.md`` —
@@ -490,6 +525,217 @@ def _write_legacy_mission(feature_dir: Path, *, wp_id: str = "WP01") -> None:
     )
 
 
+def _write_issue_2985_mixed_mission(
+    feature_dir: Path,
+    *,
+    at_encoding: str = "offset",
+) -> None:
+    """Write the mixed legacy/history corpus that exposed issue #2985.
+
+    ``at_encoding`` selects the ISO-8601 UTC designator on the history rows (see
+    :data:`tests.unit.migration._backfill_fixture.AT_ENCODINGS`). The real corpus
+    uses both ``+00:00`` and ``Z``; the seed-ordering seam compares ``at`` values
+    lexically, so pinning this fixture to one designator hid a whole class of
+    ``MigrationOrderingError`` on whole-second ``Z`` stamps.
+    """
+    from specify_cli.migration.backfill_runtime_state import (
+        BACKFILL_ACTOR,
+        _seed_id,
+    )
+
+    from tests.unit.migration._backfill_fixture import encode_at
+
+    mission_id = "01KYP0BIRTHCUTOVER00000001"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_slug": feature_dir.name,
+                "mission_id": mission_id,
+                "mid8": "01KYP0BI",
+                "mission_number": None,
+                "mission_type": "software-dev",
+                "target_branch": "main",
+                "purpose_tldr": "issue 2985 regression",
+                "purpose_context": "mixed terminal and non-terminal legacy runtime",
+                "created_at": "2026-01-01T00:00:00+00:00",
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir()
+    task_sections: list[str] = []
+    for index, wp_id in enumerate(("WP01", "WP02", "WP03"), start=1):
+        (tasks_dir / f"{wp_id}-work.md").write_text(
+            "---\n"
+            f"work_package_id: {wp_id}\n"
+            f"title: {wp_id} issue 2985 work\n"
+            f"agent: legacy-agent-{index}\n"
+            f'shell_pid: "{4200 + index}"\n'
+            f'shell_pid_created_at: "173568960{index}.0"\n'
+            "---\n"
+            f"# {wp_id}\n",
+            encoding="utf-8",
+        )
+        task_sections.append(
+            f"## {wp_id} issue 2985 work\n\n- [x] T00{index} Legacy completed task\n"
+        )
+    (feature_dir / "tasks.md").write_text(
+        "\n".join(task_sections),
+        encoding="utf-8",
+    )
+
+    histories = tuple(
+        (wp_id, lane, encode_at(at, at_encoding))
+        for wp_id, lane, at in (
+            ("WP01", "done", "2026-01-04T00:00:00+00:00"),
+            ("WP02", "approved", "2026-01-05T00:00:00+00:00"),
+            ("WP03", "in_progress", "2026-01-06T00:00:00+00:00"),
+        )
+    )
+    rows: list[dict[str, object]] = []
+    for index, (wp_id, lane, at) in enumerate(histories, start=1):
+        rows.append(
+            {
+                "event_id": f"01AAAAAAAAAAAAAAAAAAAAAAA{index}",
+                "mission_slug": feature_dir.name,
+                "mission_id": mission_id,
+                "wp_id": wp_id,
+                "from_lane": "planned",
+                "to_lane": lane,
+                "at": at,
+                "actor": "legitimate-history",
+                "force": True,
+                "execution_mode": "worktree",
+            }
+        )
+
+    # A seed persisted by the pre-fix implementation. Re-appending its ID cannot
+    # heal the stream because reducer deduplication preserves the first row.
+    rows.append(
+        {
+            "event_id": _seed_id(mission_id, "WP01", "claim"),
+            "mission_slug": feature_dir.name,
+            "mission_id": mission_id,
+            "wp_id": "WP01",
+            "from_lane": "planned",
+            "to_lane": "claimed",
+            "at": histories[0][2],
+            "actor": BACKFILL_ACTOR,
+            "force": False,
+            "execution_mode": "worktree",
+            "policy_metadata": {
+                "shell_pid": 4201,
+                "shell_pid_created_at": "1735689601.0",
+                "agent": "legacy-agent-1",
+            },
+        }
+    )
+    rows.append(
+        {
+            "event_id": "01CCCCCCCCCCCCCCCCCCCCCCC1",
+            "kind": "annotation",
+            "wp_id": "WP01",
+            "at": histories[0][2],
+            "actor": "legitimate-history",
+            "delta": {"agent": "later-legitimate-agent"},
+        }
+    )
+    (feature_dir / "status.events.jsonl").write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in rows) + "\n",
+        encoding="utf-8",
+    )
+
+
+@pytest.mark.regression
+@pytest.mark.parametrize("at_encoding", ["offset", "zulu"])
+def test_issue_2985_birth_cutover_preserves_every_wp_lane_and_repairs_old_seed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    at_encoding: str,
+) -> None:
+    """A real cutover must not let historical seeds supersede active WP state."""
+    from specify_cli.migration import runtime_state_cutover
+    from specify_cli.migration.runtime_state_cutover import cutover_mission
+    from specify_cli.status.reducer import materialize_snapshot
+
+    feature_dir = tmp_path / "kitty-specs" / "issue-2985-mixed"
+    _write_issue_2985_mixed_mission(feature_dir, at_encoding=at_encoding)
+    monkeypatch.setattr(
+        runtime_state_cutover,
+        "_resolve_primary_home_or_degrade",
+        lambda _feature_dir: feature_dir,
+    )
+    expected_lanes = {
+        "WP01": "done",
+        "WP02": "approved",
+        "WP03": "in_progress",
+    }
+
+    result = cutover_mission(feature_dir)
+
+    assert result.error is None
+    assert result.verify is not None and result.verify.ok, result.verify
+    assert result.flipped
+    snapshot = materialize_snapshot(feature_dir)
+    assert {
+        wp_id: snapshot.work_packages[wp_id]["lane"]
+        for wp_id in expected_lanes
+    } == expected_lanes
+    assert snapshot.work_packages["WP01"]["shell_pid"] == 4201
+    assert snapshot.work_packages["WP01"]["agent"] == "later-legitimate-agent"
+    assert snapshot.work_packages["WP02"]["agent"] == "legacy-agent-2"
+    assert snapshot.work_packages["WP03"]["shell_pid_created_at"] == "1735689603.0"
+
+    from specify_cli.migration.backfill_runtime_state import (
+        BACKFILL_ACTOR,
+        COMPATIBILITY_REPAIR_ACTOR,
+        _mission_id,
+        _seed_id,
+    )
+    from specify_cli.status.store import read_event_stream
+
+    stream = read_event_stream(feature_dir)
+    legitimate_keys = {
+        wp_id: [
+            (event.at, event.event_id)
+            for event in (*stream.transitions, *stream.annotations)
+            if event.wp_id == wp_id and event.actor == "legitimate-history"
+        ]
+        for wp_id in expected_lanes
+    }
+    new_seed_rows = [
+        event
+        for event in (*stream.transitions, *stream.annotations)
+        if event.actor == BACKFILL_ACTOR
+        and event.event_id
+        != _seed_id(_mission_id(feature_dir), "WP01", "claim")
+    ]
+    assert new_seed_rows
+    assert all(
+        (seed.at, seed.event_id) < history_key
+        for seed in new_seed_rows
+        for history_key in legitimate_keys[seed.wp_id]
+    )
+    repairs = [
+        event
+        for event in (*stream.transitions, *stream.annotations)
+        if event.actor == COMPATIBILITY_REPAIR_ACTOR
+    ]
+    assert repairs
+    assert all(event.wp_id == "WP01" for event in repairs)
+
+    events_after_first = (feature_dir / "status.events.jsonl").read_bytes()
+    second = cutover_mission(feature_dir)
+    assert second.error is None
+    assert second.verify is not None and second.verify.ok
+    assert second.seeded_count == 0
+    assert (feature_dir / "status.events.jsonl").read_bytes() == events_after_first
+
+
 def test_crash_between_seed_and_flip_heals_on_resume(tmp_path: Path) -> None:
     """T045: a crash between the durable seed-event append and the
     ``status_phase`` flip must not half-birth a mission — resume (a bare
@@ -499,7 +745,7 @@ def test_crash_between_seed_and_flip_heals_on_resume(tmp_path: Path) -> None:
     from specify_cli.migration.runtime_state_cutover import _seed_phase, cutover_mission
     from specify_cli.status.store import read_event_stream
 
-    feature_dir = tmp_path / "kitty-specs" / "legacy-crash-demo"
+    feature_dir = _anchor_mission_root(tmp_path) / "kitty-specs" / "legacy-crash-demo"
     _write_legacy_mission(feature_dir)
 
     # Simulate "the crash happened right after the durable seed append but
@@ -560,7 +806,8 @@ def test_birth_then_migration_and_migration_then_birth_are_both_idempotent(
     the other seeds 0 the second time and leaves the event log byte-identical."""
     from specify_cli.migration.runtime_state_cutover import cutover_mission
 
-    birth_first_dir = tmp_path / "kitty-specs" / "legacy-birth-first"
+    mission_root = _anchor_mission_root(tmp_path)
+    birth_first_dir = mission_root / "kitty-specs" / "legacy-birth-first"
     _write_legacy_mission(birth_first_dir, wp_id="WP01")
     first = cutover_mission(birth_first_dir)
     assert first.flipped and first.seeded_count > 0
@@ -577,7 +824,7 @@ def test_birth_then_migration_and_migration_then_birth_are_both_idempotent(
         "the second pass must write zero new bytes to meta.json (already flipped)"
     )
 
-    migration_first_dir = tmp_path / "kitty-specs" / "legacy-migration-first"
+    migration_first_dir = mission_root / "kitty-specs" / "legacy-migration-first"
     _write_legacy_mission(migration_first_dir, wp_id="WP01")
     m_first = cutover_mission(migration_first_dir)
     assert m_first.flipped and m_first.seeded_count > 0
@@ -617,8 +864,11 @@ def test_two_target_spine_seeds_status_dir_and_flips_feature_dir(tmp_path: Path)
     event write and verify-anchor stay on COORD (I-02, unchanged)."""
     from specify_cli.migration.runtime_state_cutover import cutover_mission
 
-    primary_dir = tmp_path / "primary" / "kitty-specs" / "split-demo"
-    status_dir = tmp_path / "coord" / "kitty-specs" / "split-demo"
+    # Each leg is its own repo root: the PRIMARY leg is what ``_flip_phase``
+    # resolves against, and anchoring the COORD leg too keeps its seed-event
+    # lock root inside the tmp-path (issue #2990).
+    primary_dir = _anchor_mission_root(tmp_path / "primary") / "kitty-specs" / "split-demo"
+    status_dir = _anchor_mission_root(tmp_path / "coord") / "kitty-specs" / "split-demo"
     _write_legacy_mission(primary_dir)
     # The COORD leg carries ONLY meta.json (the seed-event write/verify-anchor
     # target); no tasks/ of its own is needed since the legacy read now
@@ -653,7 +903,7 @@ def test_two_target_spine_defaults_status_dir_to_feature_dir(tmp_path: Path) -> 
     behavior byte-for-byte."""
     from specify_cli.migration.runtime_state_cutover import cutover_mission
 
-    feature_dir = tmp_path / "kitty-specs" / "flat-demo"
+    feature_dir = _anchor_mission_root(tmp_path) / "kitty-specs" / "flat-demo"
     _write_legacy_mission(feature_dir)
 
     result = cutover_mission(feature_dir)
@@ -663,6 +913,76 @@ def test_two_target_spine_defaults_status_dir_to_feature_dir(tmp_path: Path) -> 
     assert (feature_dir / "status.events.jsonl").exists()
     meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
     assert meta.get("status_phase") == "1"
+
+
+# ---------------------------------------------------------------------------
+# Issue #2990 — the four cases above must not inherit an ambient repo marker
+# ---------------------------------------------------------------------------
+
+_AMBIENT_CAPTURE_CASES = (
+    test_crash_between_seed_and_flip_heals_on_resume,
+    test_birth_then_migration_and_migration_then_birth_are_both_idempotent,
+    test_two_target_spine_seeds_status_dir_and_flips_feature_dir,
+    test_two_target_spine_defaults_status_dir_to_feature_dir,
+)
+
+
+def _plant_ambient_marker(ancestor: Path, *, real_repo: bool) -> None:
+    """Plant a repo marker in a shared *ancestor* of the pytest tmp-path.
+
+    Two shapes, both observed as capture hazards for
+    :func:`~specify_cli.core.paths.resolve_canonical_root` (which stops at the
+    first ancestor carrying a ``.git`` **directory**, without verifying it is a
+    real repository):
+
+    * ``real_repo=False`` — a bare ``.git`` directory holding only
+      ``spec-kitty-locks/``. This is the exact stray shape reported in issue
+      #2990: ``git -C <ancestor> log`` rejects it, yet the ancestor walk trusts
+      it. spec-kitty manufactures it itself via
+      ``feature_status_lock_path`` -> ``_git_common_dir``'s
+      ``repo_root / ".git"`` fallback on a non-repo root.
+    * ``real_repo=True`` — a genuine enclosing repository (``TMPDIR`` pointed
+      inside a checkout, a CI scratch repo). Captures identically.
+    """
+    if real_repo:
+        ancestor.mkdir(parents=True, exist_ok=True)
+        _git(ancestor, "init", "-q")
+    else:
+        (ancestor / ".git" / "spec-kitty-locks").mkdir(parents=True)
+    (ancestor / ".kittify").mkdir(exist_ok=True)
+
+
+@pytest.mark.parametrize("real_repo", [False, True], ids=["stray-git-dir", "enclosing-repo"])
+@pytest.mark.parametrize("case", _AMBIENT_CAPTURE_CASES, ids=lambda fn: fn.__name__)
+def test_ambient_repo_marker_cannot_capture_the_synthetic_mission_root(
+    tmp_path: Path,
+    case: Callable[[Path], None],
+    real_repo: bool,
+) -> None:
+    """Issue #2990: an ambient repo marker above the tmp-path must not capture
+    mission-root resolution for the four synthetic-mission cases above.
+
+    Before :func:`_anchor_mission_root`, those cases wrote their mission under a
+    bare ``tmp_path`` with no marker of its own, so the placement port's
+    ancestor walk escaped the pytest tmp-path, resolved the PRIMARY home to
+    ``<ambient>/kitty-specs/<slug>``, and ``_flip_phase`` fail-closed with
+    ``PlacementMismatchError`` *before* the contract each case exists to prove
+    ever ran — a host-dependent red that had nothing to do with the behaviour
+    under test.
+
+    This re-runs each case verbatim inside a tmp-path whose parent carries an
+    ambient marker, so the isolation is asserted rather than assumed: it goes
+    red (``PlacementMismatchError``) the moment mission-root anchoring is
+    dropped from any of the four.
+    """
+    _plant_ambient_marker(tmp_path, real_repo=real_repo)
+    case_tmp = tmp_path / "pytest-tmp" / case.__name__
+    case_tmp.mkdir(parents=True)
+
+    # No try/except: a PlacementMismatchError escaping here IS the #2990
+    # regression, and its message names both the ambient home and the write
+    # target, which is exactly the diagnostic a maintainer wants to see.
+    case(case_tmp)
 
 
 # ---------------------------------------------------------------------------

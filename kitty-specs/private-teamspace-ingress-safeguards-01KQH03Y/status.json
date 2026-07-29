@@ -1,5 +1,5 @@
 {
-  "event_count": 61,
+  "event_count": 66,
   "last_event_id": "01KQHPX4NPC0DRM9B48T39Q50P",
   "materialized_at": "2026-05-01T12:06:07.798351+00:00",
   "mission_number": "110",
@@ -19,38 +19,82 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "claude:sonnet:python-pedro:implementer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQHPX46D68W05T0RMZF3R4WW",
-      "last_transition_at": "2026-05-01T12:06:07.309815+00:00"
+      "last_transition_at": "2026-05-01T12:06:07.309815+00:00",
+      "shell_pid": 2830,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
+      "agent": "codex:gpt-5:reviewer-renata:reviewer",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KQHPX4HEW2XRR3N7VQH4MFJY",
-      "last_transition_at": "2026-05-01T12:06:07.662588+00:00"
+      "last_transition_at": "2026-05-01T12:06:07.662588+00:00",
+      "shell_pid": 95248,
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
+      "agent": "codex:gpt-5:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KQHPX4JVCVGVKYVBBJNKZ6FY",
-      "last_transition_at": "2026-05-01T12:06:07.707879+00:00"
+      "last_transition_at": "2026-05-01T12:06:07.707879+00:00",
+      "shell_pid": 63593,
+      "subtasks": {
+        "T012": "done",
+        "T013": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
+      "agent": "codex:gpt-5:reviewer-renata:reviewer",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KQHPX4M8Y7M7CPKCXQDAGJVH",
-      "last_transition_at": "2026-05-01T12:06:07.752391+00:00"
+      "last_transition_at": "2026-05-01T12:06:07.752391+00:00",
+      "shell_pid": 40593,
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
+      "agent": "codex:gpt-5:reviewer-renata:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQHPX4NPC0DRM9B48T39Q50P",
-      "last_transition_at": "2026-05-01T12:06:07.798351+00:00"
+      "last_transition_at": "2026-05-01T12:06:07.798351+00:00",
+      "shell_pid": 58823,
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done"
+      }
     }
   }
 }

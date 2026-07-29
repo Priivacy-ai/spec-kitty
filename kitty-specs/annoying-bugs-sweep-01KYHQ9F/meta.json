@@ -1,0 +1,34 @@
+{
+  "accept_commit": "a4dda27fc05dbf3da65164bdc4cf6c49c077091e",
+  "acceptance_history": [
+    {
+      "accept_commit": "a4dda27fc05dbf3da65164bdc4cf6c49c077091e",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-27T17:36:38.418911+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "6db376b505b13186c11d34145a3fcd2dc607037b"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-27T17:36:38.418911+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "6db376b505b13186c11d34145a3fcd2dc607037b",
+  "baseline_merge_commit": "673df58911de5bc8f5035041a8f3408fd5d5b16b",
+  "coordination_branch": "kitty/mission-annoying-bugs-sweep-01KYHQ9F",
+  "created_at": "2026-07-27T12:02:44.651800+00:00",
+  "flattened": false,
+  "friendly_name": "Annoying Bugs Sweep",
+  "mission_id": "01KYHQ9F9BCK9E301PQJG6T7QZ",
+  "mission_number": null,
+  "mission_slug": "annoying-bugs-sweep-01KYHQ9F",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Five defects share one shape: a surface that looks authoritative but silently misdirects. Two misdirect machines. A birth-cutover seed inherits the terminal event's own timestamp and wins the reducer's (at, event_id) tiebreak, so a finished work package reads back as claimed, accept stops converging, and the mission cannot proceed to lane consolidation (#2985). And the post-merge dead-code gate scopes symbol discovery to src/ and matches only Python def/class, so it crashes on Windows without POSIX grep and on any non-Python or non-src consumer project reports zero unreferenced symbols without having examined anything (#2987). Three misdirect agents: profile-load surfaces instruct raw agent.yaml reads that bypass doctrine resolution (#1840), a styleguide teaches a command that does not exist (#2983), and the invocation lifecycle opens under one command path but closes under another (#2984).",
+  "purpose_tldr": "Fix two P0s — a birth-cutover seed that supersedes a finished work package's terminal lane, and a post-merge review gate that crashes on Windows and passes vacuously on non-Python projects — plus three agent-facing papercuts where shipped guidance misdirects.",
+  "slug": "annoying-bugs-sweep-01KYHQ9F",
+  "status_phase": "1",
+  "target_branch": "fix/annoying-bugs-sweep",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-27T13:50:54.783267+00:00"
+}

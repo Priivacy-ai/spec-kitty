@@ -1,5 +1,5 @@
 {
-  "event_count": 35,
+  "event_count": 40,
   "last_event_id": "01KY3FYZ8049JQESWRTMTGK4MT",
   "materialized_at": "2026-07-21T23:25:18.464832+00:00",
   "mission_number": "",
@@ -19,53 +19,109 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
-      "agent": "claude:opus:python-pedro:implementer",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KY3FY5BK67KFVDSVH8GCKTEK",
       "last_transition_at": "2026-07-21T23:24:51.955366+00:00",
-      "shell_pid": 1512431,
-      "shell_pid_created_at": "1784665579.13"
+      "notes": [
+        "WP01 kind registration complete; URN regression + exact-set + derive tests green. NOTE: enum addition also required 1-line canonical fix to unowned executor.py::_ARTIFACT_TO_NODE_KIND (squad wrongly cleared totality guard); 5 WP04-owned charter test_pack_manager* hard-count assertions now expect the derived 9->10 YAML_KEY_MAP growth (WP04 to absorb on rebase).",
+        "Review passed. Additive kind registration correct: ArtifactKind.GLOSSARY_PACK + _PLURALS/_PATTERNS added, kept OUT of _NON_AUGMENTATION_ELIGIBLE_KINDS (template/asset only); token/CHARTER_KIND_TOKENS/YAML_KEY_MAP all derive for free (pack_manager.py + kind_vocabulary.py verified untouched; YAML_KEY_MAP is a comprehension over CHARTER_KIND_TOKENS). T001 URN regression confirmed RED-first (base lacked GLOSSARY_PACK in both enums; test files absent on base) and now GREEN, exercising BOTH real guard layers (_URN_RE + prefix==kind.value in DRGNode._validate_urn). T005 exact-set updated to include glossary_pack; NodeKind fence names Mission C. Gates green: 55 targeted tests pass incl. tests/doctrine/drg/test_kind_mapping_totality.py; ruff + mypy --strict exit 0. Executor.py leeway CONFIRMED: exactly one canonical line added to the non-exempt TOTAL _ARTIFACT_TO_NODE_KIND dict, required to keep the repo-wide totality guard green; no other edits rode in. WP04-owned tests/charter/test_pack_manager*.py correctly LEFT ALONE (their 9->10 YAML_KEY_MAP redness is the expected WP04 transient, not a WP01 defect). Filled issue-matrix #1418 verdict as in-mission (keystone landed in WP01; terminal at mission close)."
+      ],
+      "shell_pid": 1528455,
+      "shell_pid_created_at": "1784666652.07",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
-      "agent": "claude:sonnet:python-pedro:implementer",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KY3FYC05P9BXP6HK3R7TM7GC",
       "last_transition_at": "2026-07-21T23:24:58.757506+00:00",
-      "shell_pid": 1537018,
-      "shell_pid_created_at": "1784667076.45"
+      "notes": [
+        "WP02 complete; models(all seed fields,float confidence,None defaults), repository, service accessor, non-vacuous import-boundary guard — targeted tests+ruff+mypy green",
+        "Review passed: schema carries all 9 seed fields (confidence:float, optional->None); repository inherits BaseDoctrineRepository (no re-implemented glob/merge); DoctrineService.glossary_packs wired via _built_in_dir and proven live through a through-service load test; T011 boundary guard is AST-based, module-boundary, non-vacuous (self-tests prove 'from glossary import X' flagged, 'glossary_packs' NOT); dup-surface rejected at model+load; 30/30 tests green, ruff+mypy --strict clean; commit touches only owned files + test scaffolding."
+      ],
+      "shell_pid": 1550469,
+      "shell_pid_created_at": "1784667810.92",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
-      "agent": "claude:sonnet:python-pedro:implementer",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KY3FYJANPGZZ7WFM5ZR0Y9T3",
       "last_transition_at": "2026-07-21T23:25:05.237452+00:00",
-      "shell_pid": 1560485,
-      "shell_pid_created_at": "1784668115.63"
+      "notes": [
+        "WP03 complete; built-in pack resolves as loaded glossary_pack node (non-vacuous guard w/ negative control), 104-term seed-driven full-key parity, generated root graph fragment, extractor helper keeps complexity ≤15. Justified out-of-map: narrow built-in terminology exemption (pack data catalogs deprecated terms, like docs/adr/) + extractor projection golden count 289→290. WP04 owns the residual charter-selected/org-required exhaustiveness reds.",
+        "Review PASSED (reviewer-renata, independent QA). B1 fragment: src/doctrine/glossary_pack.graph.yaml sits at doctrine ROOT, is GENERATED (generated_at:STATIC + generated_by:drg-migration-v1, identical header to all 10 existing fragments = deterministic extractor output, not hand-authored); other 10 fragments byte-unchanged; node glossary_pack:spec-kitty-core resolves through load_built_in_graph. B2 emission: new _emit_glossary_pack_nodes helper called from extract_artifact_edges; C901 passes, noqa pre-existing (not newly added), enclosing-fn complexity did NOT rise. T012 NON-VACUOUS: real negative-control arms for BOTH blockers (remove root fragment -> node does NOT resolve; symlink-root without glossary_packs/ -> extractor emits no node), each paired with a sanity positive-control arm. T016 seed-driven full-key parity (every seed term x every seed-present key), sparse counts pinned 1/2/3 + explicit round-trip tests. T017 F4 seed integrity: sha256 pin + term-count pin; seed proven byte-untouched in mission diff. SEE_ALSO FLATTEN judged ACCEPTABLE-WITH-FOLLOWUP: seed's list[dict] ({tactic,path},{fr,description}) -> list[str] 'k: v, k: v' is TEXTUALLY LOSSLESS (every key AND value survives verbatim), deterministic, reversible-in-practice for this data; ratified by data-model.md contract as list[str]|None (a planning decision, not implementer improvisation); see_also is an inert reference field in Mission A (enforcement fields aliases/banned_synonyms are Mission-B). The parity test IS circular (recomputes the identical flatten) but the circularity masks no ACTUAL loss because the transform is scalar-lossless, and the test honestly discloses this. FOLLOW-UP REQUIRED: see_also needs richer/structured typing if/when a consumer (Mission B or later) needs machine-addressable access to the dict entries; NFR-002 zero-loss holds in the information sense, not the structural sense. Out-of-map edits justified+pre-accepted: terminology exemption narrow (src/doctrine/glossary_packs/built-in/ only) + pinned by test_glossary_pack_builtin_exemption_is_narrow; projection golden 289->290 nodes/+0 edges/11->12 orphans matches +1 edgeless pack node exactly. Gates: 249 passed, ruff clean, mypy --strict clean, complexity <=15. Anti-pattern checklist all PASS (no dead code: _emit_glossary_pack_nodes has live caller; non-synthetic tests through real production paths; guarded returns documented+exercised by negative controls; FRs covered; seed frozen surface untouched)."
+      ],
+      "shell_pid": 1646823,
+      "shell_pid_created_at": "1784671454.43",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
-      "agent": "claude:sonnet:python-pedro:implementer",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KY3FYRQ1MA0HXV5W0E7VPVA6",
       "last_transition_at": "2026-07-21T23:25:11.777053+00:00",
-      "shell_pid": 1658448,
-      "shell_pid_created_at": "1784671902.38"
+      "notes": [
+        "WP04 complete; glossary_packs wired across all 7 activation surfaces + DoctrineSelectionConfig.selected_glossary_packs + OrgCharterPolicy.required_glossary_packs; three-way drift-guard RED-first (2ae624d59); exact-set tests 9->10/10->11 updated; default-on+cascade e2e green; 114 target-gate tests pass. Justified out-of-map: charter_yaml_io._ACTIVATION_KEYS += activated_glossary_packs (documented).",
+        "Review passed (reviewer-renata). All 8 activation surfaces carry plural 'glossary_packs' (activations _ALLOWED_KINDS + singular alias; pack_context _BUILTIN_ARTIFACT_KINDS + activated_glossary_packs field/reader/from_config; org_pack_loader _ORG_DRG_KIND_ALIASES dict not frozenset; consistency_check _CLI_KIND_TO_DRG_SINGULAR; drg _SINGULAR_TO_PLURAL + _SINGULAR_TO_PER_KIND_FIELD; charter_yaml_io _ACTIVATION_KEYS out-of-map one-liner, documented+justified). RED-FIRST PROVEN EMPIRICALLY: checked out commit 2ae624d59 (guard+default-on assertion, before wiring commit 5925848cd); _BUILTIN_ARTIFACT_KINDS lacked glossary_packs there; ran the 2 guard tests -> 2 FAILED. Guard is genuinely three-way (_ALLOWED_KINDS == _BUILTIN_ARTIFACT_KINDS bare equality + org-pack universe) plus positive default-on membership assertion. GATING FIX CONFIRMED: adding glossary_pack to _SINGULAR_TO_PLURAL closes the Step-2 unknown-kind default-allow (plural is None -> return True) bypass; test_negative_control (activated_kinds omitting glossary_packs) proves the built-in pack node is genuinely FILTERED OUT while other kinds survive -> non-vacuous. Default-on e2e (no config + minimal config) resolves pack active; not a tautology. Exhaustiveness fields present: DoctrineSelectionConfig.selected_glossary_packs + OrgCharterPolicy.required_glossary_packs (REQUIRED_KIND_FIELDS + _fold_policies wiring); test_artifact_selection_completeness green. Exact-set tests updated 9->10 (YAML_KEY_MAP) / 10->11 (pack_context). Cascade stayed generic (cascade.py untouched). MYPY BASELINE VERIFIED: sole error org_charter.py:308 (no-any-return from resolve_config_id) authored 2026-07-10 by 161d5c0b62, 12 days pre-WP04, in untouched code; all 7 other changed src files pass mypy --strict clean; WP04 introduced NO new mypy errors. ruff clean. Gate suite: 1666 passed, 1 skipped. Anti-pattern checklist all PASS."
+      ],
+      "shell_pid": 1696888,
+      "shell_pid_created_at": "1784673512.67",
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
-      "agent": "claude:sonnet:python-pedro:implementer",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KY3FYZ8049JQESWRTMTGK4MT",
       "last_transition_at": "2026-07-21T23:25:18.464832+00:00",
-      "shell_pid": 1714356,
-      "shell_pid_created_at": "1784674105.83"
+      "notes": [
+        "WP05 complete; glossary-pack health surfaced through MODEL→COLLECT→RENDER (nested, no render passthrough change); invalid pack→unhealthy via synthetic fixture; <2s perf assertion; target test green with PYTHONPATH pinned",
+        "Review passed. 3-layer seam verified END-TO-END: independent 'doctor doctrine --json' invocation confirmed the payload carries profile_health.glossary_packs (pack_count=1, term_count=104, healthy) sourced through COLLECT (_collect_glossary_pack_health invoked, attached in _collect_profile_health; RENDER untouched via nesting into DoctrineHealthReport.to_dict/healthy). NOT a MODEL-only edit. Invalid pack -> unhealthy non-silently: synthetic missing-definition + duplicate-surface fixtures drive aggregate healthy=False and RC=1 (real DoctrineService path, not a literal-dict fixture). Warning-parse judgment: ACCEPTABLE for Mission A -- the 'Skipping invalid <layer> <kind> <file>: <reason>' shape is pinned at the single emitter (src/doctrine/base.py x2), the healthy verdict depends only on any-UserWarning-captured (not on regex match), and an unrecognized shape degrades to unknown/unknown/full-text rather than raising; a structured skip-list mirroring SkippedProfile is a reasonable follow-up (implementer documents this). RED-first credible: test imports GlossaryPackHealth/SkippedGlossaryPack/_collect_glossary_pack_health/_parse_skipped_glossary_pack_warning, all absent at mission base -> ImportError at collection. Perf NFR-005: single generous <2.0s wall-clock threshold, not a micro-benchmark. Out-of-map test_doctor_doctrine.py pin (added 'glossary_packs' to the exact-set) is the direct necessary consequence of nesting. GlossaryPack imported+consumed at _doctrine_collect top -> live consumer for WP02 models. Gates: target tests 31 passed; ruff clean; mypy --strict clean on 2 changed src files (_profile_health_render.py untouched). Anti-pattern checklist 1-8 all PASS. Commit touches exactly the 4 owned files; no out-of-scope changes; no new --feature flags."
+      ],
+      "shell_pid": 1753368,
+      "shell_pid_created_at": "1784675787.05",
+      "subtasks": {
+        "T024": "done",
+        "T025": "done",
+        "T026": "done"
+      }
     }
   }
 }

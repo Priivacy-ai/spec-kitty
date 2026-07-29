@@ -9,6 +9,7 @@ zero-reader proof (T013), and the idempotency/determinism/precondition assertion
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -21,7 +22,7 @@ from specify_cli.migration.strip_frontmatter import (
     STATIC_FIELDS,
     strip_mutable_fields,
 )
-from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.status.models import Lane, StatusEvent, WPInnerStateDelta
 from specify_cli.status.reducer import materialize_snapshot
 from specify_cli.status.store import (
     append_annotations_atomic_verified,
@@ -30,9 +31,12 @@ from specify_cli.status.store import (
 )
 from specify_cli.status.wp_view import reconstruct_wp_view
 from tests.unit.migration._backfill_fixture import (
+    AT_ENCODINGS,
     CLAIMED_AT,
+    IN_PROGRESS_AT,
     build_mission,
     corrupt_seed_value,
+    encode_at,
 )
 
 pytestmark = [pytest.mark.fast]
@@ -127,6 +131,201 @@ def test_strip_removes_history_and_new_mutable_keys(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_seed_floor_precedes_transition_and_annotation_history(tmp_path: Path) -> None:
+    feature_dir = build_mission(tmp_path)
+    append_annotations_atomic_verified(
+        feature_dir,
+        [
+            b.annotate(
+                "WP01",
+                WPInnerStateDelta(agent="later-agent"),
+                actor={
+                    "role": "implementer",
+                    "profile": "python-pedro",
+                    "tool": "codex",
+                    "model": "gpt-5.6-sol",
+                },
+                at=CLAIMED_AT,
+                event_id="01BBBBBBBBBBBBBBBBBBBBBBB1",
+            )
+        ],
+    )
+    stream_before = read_event_stream(feature_dir)
+    legitimate_keys = [
+        (event.at, event.event_id)
+        for event in (*stream_before.transitions, *stream_before.annotations)
+    ]
+
+    result = b.backfill_runtime_state(feature_dir)
+
+    assert result.seeded_count > 0
+    stream_after = read_event_stream(feature_dir)
+    seeds = [
+        event
+        for event in (*stream_after.transitions, *stream_after.annotations)
+        if event.actor == b.BACKFILL_ACTOR
+    ]
+    assert seeds
+    assert all(
+        (seed.at, seed.event_id) < history_key
+        for seed in seeds
+        for history_key in legitimate_keys
+    )
+
+
+def test_seed_floor_uses_annotation_only_history(tmp_path: Path) -> None:
+    feature_dir = build_mission(tmp_path, with_transitions=False)
+    append_annotations_atomic_verified(
+        feature_dir,
+        [
+            b.annotate(
+                "WP01",
+                WPInnerStateDelta(assignee="later-assignee"),
+                actor="legitimate-writer",
+                at="2026-01-02T03:04:05+00:00",
+                event_id="01BBBBBBBBBBBBBBBBBBBBBBB2",
+            )
+        ],
+    )
+
+    result = b.backfill_runtime_state(feature_dir)
+
+    assert result.seeded_count > 0
+    stream = read_event_stream(feature_dir)
+    seed_keys = [
+        (event.at, event.event_id)
+        for event in (*stream.transitions, *stream.annotations)
+        if event.actor == b.BACKFILL_ACTOR
+    ]
+    annotation_key = (
+        "2026-01-02T03:04:05+00:00",
+        "01BBBBBBBBBBBBBBBBBBBBBBB2",
+    )
+    assert seed_keys
+    assert all(key < annotation_key for key in seed_keys)
+
+
+@pytest.mark.parametrize(
+    "bad_at",
+    [
+        "not-a-timestamp",
+        "0001-01-01T00:00:00+00:00",
+    ],
+)
+def test_unrepresentable_seed_floor_fails_before_append(
+    tmp_path: Path,
+    bad_at: str,
+) -> None:
+    feature_dir = build_mission(tmp_path)
+    events_path = feature_dir / "status.events.jsonl"
+    rows = events_path.read_text(encoding="utf-8").splitlines()
+    rows[0] = rows[0].replace(CLAIMED_AT, bad_at)
+    events_path.write_text("\n".join(rows) + "\n", encoding="utf-8")
+    before = events_path.read_bytes()
+
+    with pytest.raises(b.MigrationOrderingError, match="strict seed history floor"):
+        b.backfill_runtime_state(feature_dir)
+
+    assert events_path.read_bytes() == before
+
+
+def test_claim_slot_witness_allows_later_legitimate_writer(tmp_path: Path) -> None:
+    feature_dir = build_mission(tmp_path)
+    append_annotations_atomic_verified(
+        feature_dir,
+        [
+            b.annotate(
+                "WP01",
+                WPInnerStateDelta(agent="reviewer-renata"),
+                actor="legitimate-writer",
+                at="2026-01-03T00:00:00+00:00",
+                event_id="01BBBBBBBBBBBBBBBBBBBBBBB3",
+            )
+        ],
+    )
+
+    first = b.backfill_runtime_state(feature_dir)
+    assert first.seeded_count > 0
+    assert b.verify_backfill(feature_dir).ok
+    assert materialize_snapshot(feature_dir).work_packages["WP01"]["agent"] == "reviewer-renata"
+    before = (feature_dir / "status.events.jsonl").read_bytes()
+
+    second = b.backfill_runtime_state(feature_dir)
+
+    assert second.seeded_count == 0
+    assert (feature_dir / "status.events.jsonl").read_bytes() == before
+
+
+def test_persisted_bad_claim_seed_repairs_lane_and_later_claim_slots(
+    tmp_path: Path,
+) -> None:
+    feature_dir = build_mission(tmp_path)
+    events_path = feature_dir / "status.events.jsonl"
+    rows = [
+        json.loads(line)
+        for line in events_path.read_text(encoding="utf-8").splitlines()
+    ]
+    rows[0]["policy_metadata"] = {
+        "shell_pid": 991,
+        "shell_pid_created_at": "later-claim-time",
+        "agent": "later-legitimate-agent",
+    }
+    events_path.write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in rows) + "\n",
+        encoding="utf-8",
+    )
+    append_events_atomic_verified(
+        feature_dir,
+        [
+            StatusEvent(
+                event_id=b._seed_id(
+                    b._mission_id(feature_dir),
+                    "WP01",
+                    "claim",
+                ),
+                mission_slug=feature_dir.name,
+                mission_id=b._mission_id(feature_dir),
+                wp_id="WP01",
+                from_lane=Lane.PLANNED,
+                to_lane=Lane.CLAIMED,
+                at="2026-01-02T04:00:00+00:00",
+                actor=b.BACKFILL_ACTOR,
+                force=False,
+                execution_mode="worktree",
+                policy_metadata={
+                    "shell_pid": 44821,
+                    "shell_pid_created_at": "1784458183.44",
+                    "agent": "claude:opus:pedro",
+                },
+            )
+        ],
+    )
+    assert materialize_snapshot(feature_dir).work_packages["WP01"]["lane"] == "claimed"
+
+    result = b.backfill_runtime_state(feature_dir)
+
+    assert result.seeded_count > 0
+    snapshot = materialize_snapshot(feature_dir).work_packages["WP01"]
+    assert snapshot["lane"] == "in_progress"
+    assert snapshot["shell_pid"] == 991
+    assert snapshot["shell_pid_created_at"] == "later-claim-time"
+    assert snapshot["agent"] == "later-legitimate-agent"
+    assert b.verify_backfill(feature_dir).ok
+    repairs = [
+        event
+        for event in read_event_stream(feature_dir).annotations
+        if event.actor == b.COMPATIBILITY_REPAIR_ACTOR
+    ]
+    # Exactly one repair row may be minted: the compatibility repair is
+    # append-only and idempotent, so a second row would be a duplicate write.
+    assert len(repairs) == 1  # golden-count: cardinality-is-contract
+    assert repairs[0].delta.shell_pid == 991
+    before = events_path.read_bytes()
+
+    assert b.backfill_runtime_state(feature_dir).seeded_count == 0
+    assert events_path.read_bytes() == before
+
+
 def test_backfill_seeds_positive_then_snapshot_matches_old_reader(tmp_path: Path) -> None:
     feature_dir = build_mission(tmp_path)
     result = b.backfill_runtime_state(feature_dir)
@@ -175,13 +374,16 @@ def test_seed_ids_are_byte_identical_across_independent_runs(tmp_path: Path) -> 
     assert b._seed_id(b._mission_id(fd_a), "WP01", "subtasks") == seed_annotation_ids(fd_a)["subtasks"]
 
 
-def test_subtask_mark_at_clamps_to_claimed(tmp_path: Path) -> None:
+def test_subtask_mark_at_clamps_before_existing_history(tmp_path: Path) -> None:
     feature_dir = build_mission(tmp_path)
     b.backfill_runtime_state(feature_dir)
     subtask_seeds = [a for a in read_event_stream(feature_dir).annotations if a.delta.subtasks]
     assert subtask_seeds, "expected a subtasks seed annotation"
     for seed in subtask_seeds:
-        assert seed.at == CLAIMED_AT  # fictional clamp, not a real completion time
+        assert (seed.at, seed.event_id) < (
+            CLAIMED_AT,
+            "01AAAAAAAAAAAAAAAAAAAAAAA1",
+        )
 
 
 def test_never_claimed_wp_skips_runtime_seed(tmp_path: Path) -> None:
@@ -344,6 +546,80 @@ def test_scalar_value_mismatch_aborts(tmp_path: Path) -> None:
     result = b.verify_backfill(feature_dir)
     assert result.ok is False
     assert any("claim mismatch" in m for m in result.mismatches)
+
+
+def test_missing_raw_claim_witness_cannot_be_masked_by_expected_event_builder(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Anti-disable proof: the claim witness must not share the builder's denominator.
+
+    A ``_build_seed_events`` that emits annotations but suppresses claim
+    transitions used to empty the witness denominator, so ``verify_backfill``
+    returned a false green even with every raw claim seed deleted (review cycle
+    1, plan IC-02 / C-002). The denominator now comes from
+    ``read_legacy_runtime`` plus the independently resolved eligibility
+    contract, so suppressing the builder cannot hide the loss.
+    """
+    feature_dir = build_mission(tmp_path)
+    b.backfill_runtime_state(feature_dir)
+    events_path = feature_dir / "status.events.jsonl"
+    claim_seed_id = b._seed_id(
+        b._mission_id(feature_dir),
+        "WP01",
+        "claim",
+    )
+
+    original_builder = b._build_seed_events
+
+    def suppress_expected_claims(
+        *args: object,
+        **kwargs: object,
+    ) -> tuple[list[StatusEvent], list[object]]:
+        _transitions, annotations = original_builder(*args, **kwargs)
+        return [], annotations
+
+    monkeypatch.setattr(b, "_build_seed_events", suppress_expected_claims)
+
+    # Control: the mutation alone must NOT make verify fail. Any red below is
+    # therefore caused by the deleted claim seed, not by the monkeypatch.
+    assert b.verify_backfill(feature_dir).ok is True
+
+    rows = [
+        json.loads(line)
+        for line in events_path.read_text(encoding="utf-8").splitlines()
+    ]
+    retained = [row for row in rows if row["event_id"] != claim_seed_id]
+    assert len(retained) == len(rows) - 1
+    # Annotation seeds survive, so the reduced snapshot still carries runtime
+    # state and the coarse count-parity guard stays silent — only the
+    # independent per-slot witness can catch this.
+    surviving_migration_annotations = [
+        row
+        for row in retained
+        if "delta" in row and row.get("actor") == b.BACKFILL_ACTOR
+    ]
+    assert surviving_migration_annotations
+    events_path.write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in retained) + "\n",
+        encoding="utf-8",
+    )
+    assert b._has_snapshot_runtime(
+        materialize_snapshot(feature_dir).work_packages["WP01"]
+    )
+
+    result = b.verify_backfill(feature_dir)
+
+    assert result.ok is False
+    missing = [
+        mismatch
+        for mismatch in result.mismatches
+        if "raw claim-slot witness missing" in mismatch
+    ]
+    # Every non-null legacy claim slot is reported, not just the first.
+    assert len(missing) == len(b._CLAIM_SLOTS)
+    for slot in b._CLAIM_SLOTS:
+        assert any(f"missing for {slot}" in mismatch for mismatch in missing)
 
 
 def test_never_claimed_wp_absent_from_snapshot_warns_not_fails(tmp_path: Path) -> None:
@@ -679,20 +955,346 @@ def test_claim_carrier_seeds_only_the_slots_still_missing(tmp_path: Path) -> Non
     assert snapshot["agent"] == "claude:opus:pedro"
 
 
-def test_unmigrated_claim_slots_drops_only_already_present_slots() -> None:
-    runtime = b.LegacyWPRuntime(
-        wp_id="WP01",
-        shell_pid=44821,
-        shell_pid_created_at="1784458183.44",
-        agent="claude:opus:pedro",
-    )
-    assert b._unmigrated_claim_slots(runtime, frozenset()) == {
+def test_unmigrated_claim_slots_drops_only_already_archived_values() -> None:
+    """The helper suppresses on value equality, never on bare slot presence."""
+    legacy = {
         "shell_pid": 44821,
         "shell_pid_created_at": "1784458183.44",
         "agent": "claude:opus:pedro",
     }
-    assert b._unmigrated_claim_slots(runtime, frozenset({"agent"})) == {
+    runtime = b.LegacyWPRuntime(wp_id="WP01", **legacy)  # type: ignore[arg-type]
+
+    assert b._unmigrated_claim_slots(runtime, {}) == legacy
+    assert b._unmigrated_claim_slots(
+        runtime, {"agent": "claude:opus:pedro"}
+    ) == {
         "shell_pid": 44821,
         "shell_pid_created_at": "1784458183.44",
     }
-    assert b._unmigrated_claim_slots(runtime, frozenset(b._CLAIM_SLOTS)) == {}
+    assert b._unmigrated_claim_slots(runtime, dict(legacy)) == {}
+    # A DIVERGENT authentic value archives nothing, so the slot is still owed.
+    assert b._unmigrated_claim_slots(runtime, {"agent": "codex:DIVERGENT"}) == legacy
+
+
+# ---------------------------------------------------------------------------
+# Ordering-seam encoding sensitivity (#2990 follow-up)
+#
+# ``reducer.reduce`` sorts on the RAW ``(at, event_id)`` string tuple, so the
+# seed-ordering helpers compare ``at`` values lexically. Re-encoding a
+# ``Z``-suffixed stamp as ``+00:00`` silently breaks that comparison because
+# ``'.'`` (0x2E) sorts below ``'Z'`` (0x5A) — and only for WHOLE-SECOND stamps,
+# which is why fixtures pinned to ``+00:00`` never saw it.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "2025-11-02T16:58:36Z",
+        "2025-11-02T16:58:36.123456Z",
+        "2025-11-02T16:58:36+00:00",
+        "2025-11-02T16:58:36.123456+00:00",
+    ],
+)
+@pytest.mark.parametrize("direction", ["before", "after"])
+def test_shift_ordering_timestamp_holds_its_lexical_postcondition(
+    raw: str,
+    direction: str,
+) -> None:
+    """The shifted stamp must compare correctly against its own input.
+
+    That is the whole point of the helper: ``_wp_history_floor`` and
+    ``_compatibility_repair_at`` both assert ``(shifted, "") < / > (at, id)``
+    against the reducer's raw string keys. A shift that re-encodes the
+    designator breaks the comparison without changing the instant.
+    """
+    shifted = b._shift_ordering_timestamp(raw, wp_id="WP01", direction=direction)  # type: ignore[arg-type]
+
+    if direction == "before":
+        assert shifted < raw, f"{shifted!r} must sort below {raw!r}"
+    else:
+        assert shifted > raw, f"{shifted!r} must sort above {raw!r}"
+
+
+@pytest.mark.parametrize(
+    ("raw", "suffix"),
+    [
+        ("2025-11-02T16:58:36Z", "Z"),
+        ("2025-11-02T16:58:36.123456Z", "Z"),
+        ("2025-11-02T16:58:36+00:00", "+00:00"),
+        ("2025-11-02T16:58:36.123456+00:00", "+00:00"),
+    ],
+)
+@pytest.mark.parametrize("direction", ["before", "after"])
+def test_shift_ordering_timestamp_preserves_the_input_designator(
+    raw: str,
+    suffix: str,
+    direction: str,
+) -> None:
+    """Encoding is preserved, so the lexical guard stays meaningful."""
+    shifted = b._shift_ordering_timestamp(raw, wp_id="WP01", direction=direction)  # type: ignore[arg-type]
+
+    assert shifted.endswith(suffix), f"{shifted!r} must keep the {suffix!r} designator"
+
+
+@pytest.mark.parametrize("at_encoding", AT_ENCODINGS)
+def test_seed_floor_precedes_history_under_either_at_encoding(
+    tmp_path: Path,
+    at_encoding: str,
+) -> None:
+    """T-P4: the history-floor seam must survive a ``Z``-encoded corpus."""
+    feature_dir = build_mission(tmp_path, at_encoding=at_encoding)
+    stream_before = read_event_stream(feature_dir)
+    legitimate_keys = [
+        (event.at, event.event_id)
+        for event in (*stream_before.transitions, *stream_before.annotations)
+    ]
+
+    result = b.backfill_runtime_state(feature_dir)
+
+    assert result.action == "wrote"
+    seeds = [
+        event
+        for event in (*read_event_stream(feature_dir).transitions, *read_event_stream(feature_dir).annotations)
+        if event.actor == b.BACKFILL_ACTOR
+    ]
+    assert seeds
+    assert all(
+        (seed.at, seed.event_id) < history_key
+        for seed in seeds
+        for history_key in legitimate_keys
+    )
+    assert b.verify_backfill(feature_dir).ok
+
+
+@pytest.mark.parametrize("at_encoding", AT_ENCODINGS)
+def test_compatibility_repair_lands_after_history_under_either_at_encoding(
+    tmp_path: Path,
+    at_encoding: str,
+) -> None:
+    """T-P4: the append-only repair seam must survive a ``Z``-encoded corpus.
+
+    ``_compatibility_repair_at`` shifts the LATEST history stamp forward; on a
+    whole-second ``Z`` stamp the re-encoded result sorts *below* its own input,
+    so the fail-closed guard fires and the whole cutover aborts with
+    ``MigrationOrderingError``.
+    """
+    feature_dir = build_mission(tmp_path, at_encoding=at_encoding)
+    events_path = feature_dir / "status.events.jsonl"
+    rows = [
+        json.loads(line)
+        for line in events_path.read_text(encoding="utf-8").splitlines()
+    ]
+    rows[0]["policy_metadata"] = {
+        "shell_pid": 991,
+        "shell_pid_created_at": "later-claim-time",
+        "agent": "later-legitimate-agent",
+    }
+    events_path.write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in rows) + "\n",
+        encoding="utf-8",
+    )
+    append_events_atomic_verified(
+        feature_dir,
+        [
+            StatusEvent(
+                event_id=b._seed_id(b._mission_id(feature_dir), "WP01", "claim"),
+                mission_slug=feature_dir.name,
+                mission_id=b._mission_id(feature_dir),
+                wp_id="WP01",
+                from_lane=Lane.PLANNED,
+                to_lane=Lane.CLAIMED,
+                at=encode_at(IN_PROGRESS_AT, at_encoding),
+                actor=b.BACKFILL_ACTOR,
+                force=False,
+                execution_mode="worktree",
+                policy_metadata={
+                    "shell_pid": 44821,
+                    "shell_pid_created_at": "1784458183.44",
+                    "agent": "claude:opus:pedro",
+                },
+            )
+        ],
+    )
+
+    assert b.backfill_runtime_state(feature_dir).seeded_count > 0
+
+    stream = read_event_stream(feature_dir)
+    repairs = [
+        event
+        for event in (*stream.transitions, *stream.annotations)
+        if event.actor == b.COMPATIBILITY_REPAIR_ACTOR
+    ]
+    assert repairs
+    pre_repair_keys = [
+        (event.at, event.event_id)
+        for event in (*stream.transitions, *stream.annotations)
+        if event.actor != b.COMPATIBILITY_REPAIR_ACTOR
+    ]
+    assert all(
+        (repair.at, repair.event_id) > key
+        for repair in repairs
+        for key in pre_repair_keys
+    )
+    assert b.verify_backfill(feature_dir).ok
+
+
+# ---------------------------------------------------------------------------
+# C-002 / contract invariant 5: suppression is keyed on the VALUE, not on mere
+# slot presence. Authentic history holding a *different* value for a claim slot
+# does not discharge the archival obligation — the legacy value would then be
+# recorded nowhere, and the strip step later destroys the frontmatter it came
+# from.
+# ---------------------------------------------------------------------------
+
+
+def test_claim_carrier_still_archives_a_slot_whose_authentic_value_diverges(
+    tmp_path: Path,
+) -> None:
+    """A divergent authentic value must NOT suppress the legacy carrier.
+
+    ``spec.md`` C-002 bars seed suppression that "discards claim-borne runtime
+    slots", and ``contracts/birth-cutover-ordering.md`` invariant 5 requires each
+    non-null legacy claim value to be *present in the raw seed evidence*. When
+    authentic history carries ``agent='codex:DIVERGENT'`` and legacy frontmatter
+    carries ``agent='claude:opus:pedro'``, presence-keyed suppression archives
+    the legacy value nowhere at all.
+
+    Invariant 5's second clause already anticipates the later writer winning the
+    *reduced* fold, so archiving the legacy value in the raw log costs nothing:
+    the reduced snapshot must still show the divergent authentic value.
+    """
+    feature_dir = _mission_with_modern_claim(
+        tmp_path,
+        policy_metadata={
+            "shell_pid": 44821,
+            "shell_pid_created_at": "1784458183.44",
+            "agent": "codex:DIVERGENT",
+        },
+    )
+
+    b.backfill_runtime_state(feature_dir)
+
+    claim_seeds = [
+        e
+        for e in read_event_stream(feature_dir).transitions
+        if e.actor == b.BACKFILL_ACTOR and e.to_lane == Lane.CLAIMED
+    ]
+    assert [e.policy_metadata for e in claim_seeds] == [
+        {"agent": "claude:opus:pedro"}
+    ], "the divergent legacy 'agent' must be archived in the raw seed evidence"
+    # The later legitimate writer still owns the reduced slot (invariant 5's
+    # second clause) — archival must not resurrect the legacy value.
+    snapshot = materialize_snapshot(feature_dir).work_packages["WP01"]
+    assert snapshot["agent"] == "codex:DIVERGENT"
+    assert snapshot["shell_pid"] == 44821
+    assert b.verify_backfill(feature_dir).ok is True
+
+
+def test_snapshot_claim_slots_reports_authentic_values_not_bare_presence(
+    tmp_path: Path,
+) -> None:
+    """The probe must expose values, or callers cannot compare against legacy."""
+    feature_dir = _mission_with_modern_claim(
+        tmp_path, policy_metadata={"agent": "codex:DIVERGENT"}
+    )
+
+    present = b._snapshot_claim_slots(read_event_stream(feature_dir))
+
+    assert present["WP01"] == {"agent": "codex:DIVERGENT"}
+
+
+def _delete_claim_seed_and_strip_claim_frontmatter(feature_dir: Path) -> None:
+    """Scenario E: remove BOTH halves of the claim-slot evidence for WP01."""
+    from specify_cli.frontmatter import FrontmatterManager
+
+    seed_id = b._seed_id(b._mission_id(feature_dir), "WP01", "claim")
+    events_path = feature_dir / "status.events.jsonl"
+    rows = [
+        json.loads(line)
+        for line in events_path.read_text(encoding="utf-8").splitlines()
+    ]
+    kept = [row for row in rows if row.get("event_id") != seed_id]
+    assert len(kept) == len(rows) - 1, "precondition: the claim seed must exist"
+    events_path.write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in kept) + "\n",
+        encoding="utf-8",
+    )
+
+    wp_path = feature_dir / "tasks" / "WP01-demo.md"
+    manager = FrontmatterManager()
+    frontmatter, body = manager.read(wp_path)
+    for key in b._CLAIM_SLOTS:
+        assert key in frontmatter, f"precondition: {key} must be present pre-strip"
+        del frontmatter[key]
+    manager.write(wp_path, frontmatter, body)
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "KNOWN HOLE (squad finding P7, scenario E): every denominator "
+        "verify_backfill owns is derived from one of the two halves of the "
+        "claim-slot evidence — `legacy` comes from the WP frontmatter via "
+        "read_legacy_runtime, and `seeded_slots` (which arms _assert_unstripped) "
+        "comes from the persisted seed rows. Deleting the seed row AND the three "
+        "legacy claim frontmatter keys therefore removes the obligation and the "
+        "guard together, and no third non-deletable witness is available to a "
+        "read-only verify: 'never claimed' and 'claimed, then both halves "
+        "deleted' are indistinguishable on disk. Closing this needs an "
+        "independent integrity witness (e.g. an append-only log digest), which "
+        "is a design change beyond this fix fold — deliberately NOT bodged by "
+        "making verify trust the derived status.json cache. Left strict so "
+        "whoever closes the hole is forced to un-xfail this test."
+    ),
+)
+def test_scenario_e_deleting_seed_row_and_claim_frontmatter_is_caught(
+    tmp_path: Path,
+) -> None:
+    """Both halves of the claim evidence must not be removable in silence."""
+    feature_dir = build_mission(tmp_path)
+    b.backfill_runtime_state(feature_dir)
+    assert b.verify_backfill(feature_dir).ok is True
+
+    _delete_claim_seed_and_strip_claim_frontmatter(feature_dir)
+
+    result = b.verify_backfill(feature_dir)
+    assert result.ok is False, (
+        "verify returned a silent green after both halves of the claim-slot "
+        "evidence were removed"
+    )
+
+
+def test_scenario_e_currently_returns_a_documented_silent_green(
+    tmp_path: Path,
+) -> None:
+    """Characterise the hole exactly, so its blast radius cannot widen unseen.
+
+    Companion to the strict-xfail above: that test pins the *desired* behaviour,
+    this one pins the *actual* behaviour so a change that makes the hole WIDER
+    (e.g. new slots becoming silently droppable) still reds. Delete this test
+    when the xfail above starts passing.
+    """
+    feature_dir = build_mission(tmp_path)
+    b.backfill_runtime_state(feature_dir)
+
+    _delete_claim_seed_and_strip_claim_frontmatter(feature_dir)
+
+    result = b.verify_backfill(feature_dir)
+    assert (result.ok, result.mismatches) == (True, ()), (
+        "the documented silent-green hole changed shape — re-derive P7"
+    )
+    # Non-vacuity: deleting ONLY the seed row (leaving the frontmatter intact)
+    # is still caught fail-closed, so the hole is specifically the *collusion*
+    # of the two deletions, not a blanket blindness to a missing seed.
+    intact = build_mission(tmp_path / "intact")
+    b.backfill_runtime_state(intact)
+    seed_id = b._seed_id(b._mission_id(intact), "WP01", "claim")
+    events_path = intact / "status.events.jsonl"
+    kept = [
+        line
+        for line in events_path.read_text(encoding="utf-8").splitlines()
+        if json.loads(line).get("event_id") != seed_id
+    ]
+    events_path.write_text("\n".join(kept) + "\n", encoding="utf-8")
+    assert b.verify_backfill(intact).ok is False

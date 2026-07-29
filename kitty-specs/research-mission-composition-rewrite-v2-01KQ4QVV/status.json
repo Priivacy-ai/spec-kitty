@@ -1,5 +1,5 @@
 {
-  "event_count": 46,
+  "event_count": 52,
   "last_event_id": "01KQ502FW4388H66XJNJ4H1YM3",
   "materialized_at": "2026-04-26T13:36:12.676817+00:00",
   "mission_number": "100",
@@ -19,45 +19,97 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
+      "agent": "claude:opus-4.7:reviewer-renata:reviewer",
       "force_count": 3,
       "lane": "approved",
       "last_event_id": "01KQ4VAXQWGSPCZ1MJAAT2A2Y4",
-      "last_transition_at": "2026-04-26T12:13:26.140417+00:00"
+      "last_transition_at": "2026-04-26T12:13:26.140417+00:00",
+      "shell_pid": 13687,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "user",
+      "agent": "claude:opus-4.7:reviewer-renata:reviewer",
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KQ4W44KY84ZY6KE3PTJFK3AT",
-      "last_transition_at": "2026-04-26T12:27:12.383023+00:00"
+      "last_transition_at": "2026-04-26T12:27:12.383023+00:00",
+      "shell_pid": 36279,
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
     },
     "WP03": {
       "actor": "user",
+      "agent": "claude:opus-4.7:reviewer-renata:reviewer",
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KQ4XANEWNRVW2HJ6T78YGT88",
-      "last_transition_at": "2026-04-26T12:48:14.812482+00:00"
+      "last_transition_at": "2026-04-26T12:48:14.812482+00:00",
+      "shell_pid": 49826,
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
     },
     "WP04": {
       "actor": "user",
+      "agent": "claude:opus-4.7:reviewer-renata:reviewer",
       "force_count": 3,
       "lane": "approved",
       "last_event_id": "01KQ4Y153FSNKP0SWBP9HSDJX1",
-      "last_transition_at": "2026-04-26T13:00:31.727056+00:00"
+      "last_transition_at": "2026-04-26T13:00:31.727056+00:00",
+      "shell_pid": 58782,
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
     },
     "WP05": {
       "actor": "user",
+      "agent": "claude:opus-4.7:reviewer-renata:reviewer",
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KQ4YPR9CSWXJCENZ3D9Z9AN6",
-      "last_transition_at": "2026-04-26T13:12:19.500507+00:00"
+      "last_transition_at": "2026-04-26T13:12:19.500507+00:00",
+      "shell_pid": 65939,
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done"
+      }
     },
     "WP06": {
       "actor": "user",
+      "agent": "claude:opus-4.7:reviewer-renata:reviewer",
       "force_count": 4,
       "lane": "approved",
       "last_event_id": "01KQ502FW4388H66XJNJ4H1YM3",
-      "last_transition_at": "2026-04-26T13:36:12.676817+00:00"
+      "last_transition_at": "2026-04-26T13:36:12.676817+00:00",
+      "shell_pid": 75841,
+      "subtasks": {
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done"
+      }
     }
   }
 }

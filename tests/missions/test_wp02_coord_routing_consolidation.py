@@ -261,8 +261,13 @@ def test_resolve_topology_relay_exception_arm(
     # read_topology raises FileNotFoundError and the relay arm runs.
     empty_dir = tmp_path / "kitty-specs" / _MISSION_SLUG
     empty_dir.mkdir(parents=True, exist_ok=True)
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T035): patch
+    # target moved from the deleted public wrapper to the module-private
+    # ``_compose_primary_feature_dir`` leaf -- ``resolution.py``'s internal
+    # PRIMARY-dir composition (WP03 T016) already called the leaf directly,
+    # never the wrapper, before this WP.
     monkeypatch.setattr(
-        "specify_cli.missions._read_path_resolver.primary_feature_dir_for_mission",
+        "specify_cli.missions._read_path_resolver._compose_primary_feature_dir",
         lambda _root, _slug: empty_dir,
     )
     # The coordination-branch value the relay classifies from is read separately.

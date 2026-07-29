@@ -1,5 +1,5 @@
 {
-  "event_count": 28,
+  "event_count": 32,
   "last_event_id": "01KW1GEQX6CENWMW17YPJ04FB6",
   "materialized_at": "2026-06-26T08:24:02.726898+00:00",
   "mission_number": "",
@@ -22,28 +22,32 @@
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KW0X1C1B34RADMEBTEXK5230",
-      "last_transition_at": "2026-06-26T02:44:41.643823+00:00"
+      "last_transition_at": "2026-06-26T02:44:41.643823+00:00",
+      "shell_pid": 1035054
     },
     "WP02": {
       "actor": "user",
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KW100X688RNCE6SHMESG0MXC",
-      "last_transition_at": "2026-06-26T03:36:52.168203+00:00"
+      "last_transition_at": "2026-06-26T03:36:52.168203+00:00",
+      "shell_pid": 1500369
     },
     "WP03": {
       "actor": "user",
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KW1E40GGP0VEBNHE6H9K6PH4",
-      "last_transition_at": "2026-06-26T07:43:13.936254+00:00"
+      "last_transition_at": "2026-06-26T07:43:13.936254+00:00",
+      "shell_pid": 1788780
     },
     "WP04": {
       "actor": "user",
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KW1GEQX6CENWMW17YPJ04FB6",
-      "last_transition_at": "2026-06-26T08:24:02.726898+00:00"
+      "last_transition_at": "2026-06-26T08:24:02.726898+00:00",
+      "shell_pid": 2341815
     },
     "WP05": {
       "actor": "finalize-tasks",

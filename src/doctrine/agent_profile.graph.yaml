@@ -129,7 +129,7 @@ edges:
   relation: requires
 - source: agent_profile:doctrine-daphne
   target: procedure:onboard-external-agent-to-pack
-  relation: applies
+  relation: requires
 - source: agent_profile:frontend-freddy
   target: agent_profile:implementer-ivan
   relation: specializes_from

@@ -19,93 +19,218 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
-      "agent": "claude:sonnet:architect-alphonso:implementer",
+      "agent": "claude:sonnet:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KY5VGR1GZW91GWRYAYVD5S81",
       "last_transition_at": "2026-07-22T21:25:44.112614+00:00",
-      "shell_pid": 3307872,
-      "shell_pid_created_at": "1784736877.81"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "ADR authored + cross-linked; markdownlint clean",
+        "Review passed (renata/sonnet): ADR + cross-link, markdownlint clean"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3352518,
+      "shell_pid_created_at": "1784739499.25",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
-      "agent": "claude:sonnet:python-pedro:implementer",
+      "agent": "claude:opus:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KY5VGZN6DMR1B7ZHE9J9822P",
       "last_transition_at": "2026-07-22T21:25:51.910932+00:00",
-      "shell_pid": 3305540,
-      "shell_pid_created_at": "1784736824.24"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Port + 2 impls; RawRunResult; baseline-relative; cycle-guarded; tests+lint+mypy green",
+        "Review passed (renata/opus): all 7 keystone criteria PASS; RawRunResult + baseline-relative; 36 tests+ruff+mypy green"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3366703,
+      "shell_pid_created_at": "1784739660.44",
+      "subtasks": {
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
-      "agent": "claude:sonnet:python-pedro:implementer",
+      "agent": "claude:sonnet:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KY5VHEBRJSNP2P4P45J9M59E",
       "last_transition_at": "2026-07-22T21:26:06.968667+00:00",
-      "shell_pid": 3411460,
-      "shell_pid_created_at": "1784740263.13"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Engine consumes port; probe deleted; #2330 + pre-existing-not-blocked tests green"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3471990,
+      "shell_pid_created_at": "1784742413.21",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
-      "agent": "claude:sonnet:python-pedro:implementer",
+      "agent": "claude:sonnet:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KY5VHNGGHSMVZYMVM1HMHX37",
       "last_transition_at": "2026-07-22T21:26:14.288429+00:00",
-      "shell_pid": 3479021,
-      "shell_pid_created_at": "1784742667.71"
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3490155,
+      "shell_pid_created_at": "1784743087.82",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
-      "agent": "claude:sonnet:python-pedro:implementer",
+      "agent": "claude:sonnet:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KY5VHWCP5N7V5ZANYZJNQDGF",
       "last_transition_at": "2026-07-22T21:26:21.334870+00:00",
-      "shell_pid": 3509825,
-      "shell_pid_created_at": "1784743333.42"
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3552786,
+      "shell_pid_created_at": "1784744023.62",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      }
     },
     "WP06": {
       "actor": "merge",
-      "agent": "claude:opus:python-pedro:implementer",
+      "agent": "claude:opus:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KY5VJ31WJJ18KGNRCGGXVHRK",
       "last_transition_at": "2026-07-22T21:26:28.156396+00:00",
-      "shell_pid": 3559926,
-      "shell_pid_created_at": "1784744304.48"
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3588377,
+      "shell_pid_created_at": "1784745362.62",
+      "subtasks": {
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T031": "done"
+      }
     },
     "WP07": {
       "actor": "merge",
-      "agent": "claude:haiku:doctrine-daphne:implementer",
+      "agent": "claude:sonnet:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KY5VJ9K8MJPKB1Y710WW9BYD",
       "last_transition_at": "2026-07-22T21:26:34.857013+00:00",
-      "shell_pid": 3561525,
-      "shell_pid_created_at": "1784744326.28"
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3578383,
+      "shell_pid_created_at": "1784744851.37",
+      "subtasks": {
+        "T032": "done",
+        "T033": "done",
+        "T034": "done"
+      }
     },
     "WP08": {
       "actor": "merge",
-      "agent": "claude:opus:python-pedro:implementer",
+      "agent": "claude:opus:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KY5VH72M5EK5VNKK23ZFHM3S",
       "last_transition_at": "2026-07-22T21:25:59.509024+00:00",
-      "shell_pid": 3307872,
-      "shell_pid_created_at": "1784736877.81"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "aggregate_verdicts + machine-emitted base parity fixtures; matrix + fault-injection green",
+        "Review passed (renata/opus): pure aggregate_verdicts, machine-emitted base parity oracle, strict-xfail arm accepted"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3369606,
+      "shell_pid_created_at": "1784739696.31",
+      "subtasks": {
+        "T035": "done",
+        "T036": "done",
+        "T037": "done",
+        "T038": "done",
+        "T039": "done"
+      }
     },
     "WP09": {
       "actor": "merge",
-      "agent": "claude:opus:python-pedro:implementer",
+      "agent": "claude:opus:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KY5VJGBFZT2YSSFRH3H3H7AE",
       "last_transition_at": "2026-07-22T21:26:41.775942+00:00",
-      "shell_pid": 3593973,
-      "shell_pid_created_at": "1784745661.4"
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3833833,
+      "shell_pid_created_at": "1784754045.75",
+      "subtasks": {
+        "T040": "done",
+        "T041": "done",
+        "T042": "done",
+        "T043": "done",
+        "T044": "done",
+        "T045": "done",
+        "T046": "done",
+        "T047": "done"
+      }
     }
   }
 }

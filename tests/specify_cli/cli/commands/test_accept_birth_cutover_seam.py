@@ -137,18 +137,30 @@ def test_coord_status_feature_dir_rejects_unsafe_handle_before_the_seam(
 def test_stamp_birth_cutover_passes_the_seam_dir_as_the_coord_leg(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """``_stamp_birth_cutover_for_accept`` hands the seam's dir to the cutover."""
+    """``_stamp_birth_cutover_for_accept`` hands the seam's dir to the cutover.
+
+    read-side-seam-primary-primitive-closure-01KYKMMT WP06 (T029): the PRIMARY
+    leg used to be produced by the retiring ``primary_feature_dir_for_mission``
+    wrapper (patched directly on ``accept``, since it was a plain top-level
+    re-export); it is now a ``placement_seam(...).read_dir(PRIMARY_METADATA)``
+    call the function makes via a lazy, function-local import, so the fake is
+    installed on ``mission_runtime.placement_seam`` instead — the same
+    ``_RecordingSeam`` stand-in used by the COORD-leg tests above, which also
+    lets this test pin the kind (``PRIMARY_METADATA``).
+
+    WP08 (T036): the caller-side ``_canonicalize_primary_read_handle`` fold
+    this test used to patch (as a no-op identity stand-in) is DROPPED from
+    the production body — redundant with the seam's own internal fold for a
+    PRIMARY-partition kind — so there is no longer a module attribute to
+    patch here; the seam mock alone now controls the resolved dir.
+    """
     repo_root = tmp_path / "repo"
     primary_dir = repo_root / "kitty-specs" / _SLUG
     primary_dir.mkdir(parents=True)
     coord_dir = tmp_path / "coord-wt" / "kitty-specs" / f"{_SLUG}-01KYHP67"
 
-    monkeypatch.setattr(
-        accept, "_canonicalize_primary_read_handle", lambda _root, handle: handle
-    )
-    monkeypatch.setattr(
-        accept, "primary_feature_dir_for_mission", lambda _root, _handle: primary_dir
-    )
+    seam = _RecordingSeam(primary_dir)
+    monkeypatch.setattr(mission_runtime, "placement_seam", lambda *_args: seam)
     monkeypatch.setattr(
         accept, "_coord_status_feature_dir", lambda _root, _slug: coord_dir
     )
@@ -171,3 +183,4 @@ def test_stamp_birth_cutover_passes_the_seam_dir_as_the_coord_leg(
     accept._stamp_birth_cutover_for_accept(repo_root, _SLUG)
 
     assert captured == {"feature_dir": primary_dir, "status_feature_dir": coord_dir}
+    assert seam.read_kinds == [MissionArtifactKind.PRIMARY_METADATA]

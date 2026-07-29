@@ -457,13 +457,17 @@ class MissionStatus:
         """Return ``(meta_path, primary_dir)`` via the canonical handle resolver.
 
         Routes EVERY handle form (full slug, bare mid8, full ULID, numeric
-        prefix, ``<slug>-<mid8>`` dir name) through the one canonical read
-        primitive :func:`candidate_feature_dir_for_mission` so identity is
-        derived exactly once — aggregate never self-composes the surface path or
-        does its own ``glob`` selection (FR-008). The resolved candidate may land
-        in a coord worktree (which carries no ``meta.json``), so only its
-        canonical NAME re-anchors the meta read on the primary checkout, where
-        ``meta.json`` always lives.
+        prefix, ``<slug>-<mid8>`` dir name) so identity is derived exactly
+        once — aggregate never self-composes the surface path or does its own
+        ``glob`` selection (FR-008). :func:`candidate_feature_dir_for_mission`
+        still disambiguates an ambiguous handle to a canonical mission-dir
+        NAME, but the primary and canonical directory legs are now composed
+        via ``placement_seam(...).read_dir(MissionArtifactKind.
+        PRIMARY_METADATA)`` (read-side-seam-primary-primitive-closure-01KYKMMT
+        WP07, T033) — the resolved candidate may land in a coord worktree
+        (which carries no ``meta.json``), so only its canonical NAME
+        re-anchors the meta read on the primary checkout, where ``meta.json``
+        always lives.
 
         The historical silent-first-match glob
         (``sorted(specs_dir.glob(f"{slug}-*/meta.json"))``) is **removed**: an
@@ -479,26 +483,27 @@ class MissionStatus:
             MissionSelectorAmbiguous: When ``mission_slug`` is a handle that
                 matches more than one mission (FR-008 — never a silent pick).
         """
+        from mission_runtime import MissionArtifactKind, placement_seam
         from specify_cli.missions._read_path_resolver import (
             StatusReadPathNotFound,
-            _canonicalize_primary_read_handle,
+            _compose_primary_feature_dir,
             candidate_feature_dir_for_mission,
-            primary_feature_dir_for_mission,
             resolve_bare_modern_mission_dir_name,
         )
 
-        # Compose the primary candidate through the blessed path-constructor
-        # (the sanctioned ``KITTY_SPECS_DIR`` owner that carries its own
-        # ``assert_safe_path_segment`` guard), so aggregate never self-composes a
-        # raw ``repo_root / KITTY_SPECS_DIR / <slug>`` surface path (WP01
+        # Compose the primary candidate through the kind-aware placement seam
+        # (a PRIMARY-partition kind never transits coord for any topology/coord
+        # state), so aggregate never self-composes a raw
+        # ``repo_root / KITTY_SPECS_DIR / <slug>`` surface path (WP01
         # raw-bypass; FR-008). The slug is also grammar-checked one level up at
-        # the ``load`` boundary.
-        # WP05/FR-005: route through _canonicalize_primary_read_handle so every
-        # handle form (bare mid8 / ULID / numeric prefix / bare human slug) lands
-        # on the correct composed primary dir — not a wrong literal dir.
-        primary_dir = primary_feature_dir_for_mission(
-            repo_root,
-            _canonicalize_primary_read_handle(repo_root, mission_slug),
+        # the ``load`` boundary. read-side-seam-primary-primitive-closure-
+        # 01KYKMMT WP07 (T033): routed through
+        # ``placement_seam(...).read_dir(PRIMARY_METADATA)`` -- the seam folds
+        # every handle form (bare mid8 / ULID / numeric prefix / bare human
+        # slug) to the correct composed primary dir internally, so the caller
+        # no longer pre-canonicalizes with ``_canonicalize_primary_read_handle``.
+        primary_dir = placement_seam(repo_root, mission_slug).read_dir(
+            MissionArtifactKind.PRIMARY_METADATA
         )
         raw_meta = primary_dir / _META_JSON_FILENAME
         # Pure-path happy path: when the literal slug already names an existing
@@ -519,7 +524,21 @@ class MissionStatus:
         # Re-anchor the meta read on the composed primary dir when it resolves.
         bare_dir_name = resolve_bare_modern_mission_dir_name(repo_root, mission_slug)
         if bare_dir_name is not None:
-            composed_primary = primary_feature_dir_for_mission(repo_root, bare_dir_name)
+            # read-side-seam-primary-primitive-closure-01KYKMMT WP07 (T033) /
+            # WP08 (T035): calls the module-private leaf directly, not the
+            # seam. ``bare_dir_name`` is already the on-disk composed dir NAME
+            # returned by ``resolve_bare_modern_mission_dir_name`` --
+            # already-canonical by provenance, not a detectable intra-function
+            # fold. This exact call is a PERMANENT fixture in
+            # ``tests/architectural/resolution_gate_allowlist.yaml``'s
+            # ``canonicalizer`` allow-list (qualname ``MissionStatus._find_meta_path``,
+            # predates this mission). WP08 deleted the public wrapper
+            # (``primary_feature_dir_for_mission``) this site used to call --
+            # ``CANONICALIZER_PRIMITIVE_NAMES`` already recognises the leaf
+            # ``_compose_primary_feature_dir`` by literal name, so the pinned
+            # entry's token line is re-pointed to it in the same commit rather
+            # than orphaned.
+            composed_primary = _compose_primary_feature_dir(repo_root, bare_dir_name)
             composed_meta = composed_primary / _META_JSON_FILENAME
             if composed_meta.exists():
                 return composed_meta, composed_primary
@@ -537,11 +556,20 @@ class MissionStatus:
         # ``candidate_feature_dir_for_mission`` resolved a canonical mission
         # directory NAME; re-anchor the meta read on the primary checkout under
         # that canonical name (the candidate itself may be a coord-worktree dir
-        # with no ``meta.json``), again via the blessed constructor. For a
-        # literal slug that already matched on disk the name is unchanged and
-        # this collapses to the same primary candidate.
-        canonical_primary = primary_feature_dir_for_mission(
-            repo_root, candidate_dir.name
+        # with no ``meta.json``), again via the kind-aware seam. For a literal
+        # slug that already matched on disk the name is unchanged and this
+        # collapses to the same primary candidate. read-side-seam-primary-
+        # primitive-closure-01KYKMMT WP07 (T033): ``candidate_dir.name`` is a
+        # composed ``<slug>-<mid8>`` name for a BACKFILLED mission whose
+        # on-disk PRIMARY dir still carries the bare ``<slug>``; routing
+        # through the seam (rather than the deprecated wrapper's literal
+        # compose) means the seam's ``_backfilled_primary_dir`` recovery leg
+        # resolves the EXISTING bare-slug dir instead of silently returning a
+        # non-existent composed path (NFR-001's one accepted divergence, US3
+        # scenario 3) -- pinned by
+        # ``tests/specify_cli/status/test_aggregate_read_seam_migration.py``.
+        canonical_primary = placement_seam(repo_root, candidate_dir.name).read_dir(
+            MissionArtifactKind.PRIMARY_METADATA
         )
         return canonical_primary / _META_JSON_FILENAME, canonical_primary
 
@@ -778,20 +806,19 @@ class MissionStatus:
         from specify_cli.coordination.transaction import BookkeepingTransaction
 
         if self.mission_id is None or not self.mid8:
-            # Compose the diagnostic paths through the blessed path-constructor
-            # (the sanctioned ``KITTY_SPECS_DIR`` owner) so aggregate carries no
-            # raw ``repo_root / KITTY_SPECS_DIR / <slug>`` self-composition for
-            # any surface — even error-path diagnostics (WP01 raw-bypass).
-            from specify_cli.missions._read_path_resolver import (
-                _canonicalize_primary_read_handle,
-                primary_feature_dir_for_mission,
-            )
+            # Compose the diagnostic paths through the kind-aware placement seam
+            # so aggregate carries no raw
+            # ``repo_root / KITTY_SPECS_DIR / <slug>`` self-composition for any
+            # surface — even error-path diagnostics (WP01 raw-bypass).
+            # read-side-seam-primary-primitive-closure-01KYKMMT WP07 (T033):
+            # routed through ``placement_seam(...).read_dir(PRIMARY_METADATA)``
+            # -- the seam folds every handle form internally, so the caller no
+            # longer pre-canonicalizes with ``_canonicalize_primary_read_handle``.
+            from mission_runtime import MissionArtifactKind, placement_seam
 
-            # WP05/FR-005: route through _canonicalize_primary_read_handle.
-            diag_primary = primary_feature_dir_for_mission(
-                self.repo_root,
-                _canonicalize_primary_read_handle(self.repo_root, self.mission_slug),
-            )
+            diag_primary = placement_seam(
+                self.repo_root, self.mission_slug
+            ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
             raise MissionMetadataUnavailable(
                 mission_slug=self.mission_slug,
                 meta_path=diag_primary / _META_JSON_FILENAME,

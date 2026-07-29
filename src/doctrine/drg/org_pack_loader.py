@@ -39,11 +39,12 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from doctrine.artifact_kinds import _NON_AUGMENTATION_ELIGIBLE_KINDS, ArtifactKind
-from doctrine.drg.models import Relation
+from doctrine.drg.models import NodeKind, Relation
 
 __all__ = [
     "AUGMENTATION_ELIGIBLE_KINDS",
     "AUGMENTATION_RELATIONS",
+    "ORG_PLURAL_TO_SINGULAR_KIND",
     "TOPOLOGY_KINDS",
     "OrgDRGFragment",
     "OrgPackMissingError",
@@ -153,6 +154,87 @@ _MISSION_TYPE_UNIVERSE_EXTENSION: frozenset[str] = frozenset({"mission_types"})
 #: alongside the :class:`ArtifactKind`-derived entries.
 _MISSION_TYPE_SINGULAR = "mission_type"
 _MISSION_TYPE_PLURAL = "mission_types"
+
+
+# ---------------------------------------------------------------------------
+# Plural -> singular URN kind (FR-010, WP08) — derived, never hand-restated
+# ---------------------------------------------------------------------------
+# ``doctrine.drg.merge`` mints an org node's URN as ``<singular>:<node.id>``
+# and so needs the singular form of every canonical plural in the universe
+# above. It used to carry its OWN hand-written copy of that mapping — a fourth
+# hand-restated DRG writer alongside the three catalogued by mission
+# ``doctrine-silence-guards-01KYFV7Q`` — and it had drifted two kinds behind:
+# a pack declaring a ``mission_types`` or ``glossary_packs`` node crashed the
+# merge with a bare ``KeyError``. Deriving the map here, next to the universe
+# it inverts, makes that drift impossible: a plural added to
+# :data:`_ORG_DRG_KIND_ALIASES` either resolves to a singular or fails at
+# IMPORT time — never in the middle of a merge.
+#
+# Two canonical plurals cannot be derived from :class:`ArtifactKind`:
+#
+# * ``mission_types`` — mission types are mission-tier, not an ``ArtifactKind``
+#   member (see :data:`_MISSION_TYPE_SINGULAR` above).
+# * ``mission_steps`` — WP01 of ``charter-doctrine-mission-type-configuration``
+#   renamed the *plural* to ``mission_steps`` while the singular URN kind
+#   stayed ``mission_step_contract`` (``NodeKind`` has no ``mission_step``
+#   member), so ``ArtifactKind.from_plural`` cannot resolve it.
+_IRREGULAR_PLURAL_SINGULARS: dict[str, str] = {
+    _MISSION_TYPE_PLURAL: _MISSION_TYPE_SINGULAR,
+    "mission_steps": ArtifactKind.MISSION_STEP_CONTRACT.value,
+}
+
+
+def _derive_plural_to_singular() -> dict[str, str]:
+    """Invert the canonical plural universe into singular URN kinds.
+
+    Keyed on the CANONICAL plural forms (the alias table's *values*), because
+    ``_OrgDRGNode._validate_kind`` resolves every accepted input form to its
+    canonical value before the merge ever sees it. Keying on input forms
+    instead would leave unreachable entries — the inert-slot smell this
+    mission exists to remove.
+
+    Returns:
+        A ``{canonical_plural: singular_urn_kind}`` map covering the whole
+        universe.
+
+    Raises:
+        ValueError: at import time when a canonical plural resolves to no
+            singular, or resolves to one that is not a :class:`NodeKind`
+            member. Fail-closed by construction (C-009): a kind cannot enter
+            the universe without also teaching the URN minter about it.
+    """
+    resolved: dict[str, str] = {}
+    unmapped: list[str] = []
+    for plural in sorted(set(_ORG_DRG_KIND_ALIASES.values())):
+        irregular = _IRREGULAR_PLURAL_SINGULARS.get(plural)
+        if irregular is not None:
+            resolved[plural] = irregular
+            continue
+        try:
+            resolved[plural] = ArtifactKind.from_plural(plural).value
+        except KeyError:
+            unmapped.append(plural)
+    if unmapped:
+        raise ValueError(
+            f"org-pack plural kind(s) {unmapped} have no singular URN kind: "
+            "they are in the canonical universe but are neither an "
+            "ArtifactKind plural nor listed in _IRREGULAR_PLURAL_SINGULARS. "
+            "Add the mapping (and the matching NodeKind member) before "
+            "admitting the kind to _ORG_DRG_KIND_ALIASES."
+        )
+    node_kinds = {kind.value for kind in NodeKind}
+    not_node_kinds = sorted(set(resolved.values()) - node_kinds)
+    if not_node_kinds:
+        raise ValueError(
+            f"singular URN kind(s) {not_node_kinds} have no NodeKind member, "
+            "so the merge could never mint a valid node for them."
+        )
+    return resolved
+
+
+#: Canonical plural -> singular URN kind for every kind an org pack may declare.
+#: Consumed by ``doctrine.drg.merge`` to mint node URNs. Derived, not restated.
+ORG_PLURAL_TO_SINGULAR_KIND: dict[str, str] = _derive_plural_to_singular()
 
 #: SINGLE SOURCE OF TRUTH (FR-030). Maps the singular URN kind to its plural
 #: directory/universe form for every augmentation-eligible kind. Derived from
@@ -301,9 +383,15 @@ class _OrgDRGEdge(BaseModel):
     Mirrors the contract YAML example shape: ``source`` + ``target`` +
     ``relation`` (free-form string label; the merge bridges to
     ``doctrine.drg.models.Relation`` when possible, handled in
-    ``charter.drg``). The optional ``reason`` field captures provenance for
-    auto-emitted edges (FR-014, WP06 T036) and is accepted on hand-authored
-    edges for audit purposes.
+    ``charter.drg``).
+
+    ``reason`` is the **author's own rationale** and nothing else. Machine
+    provenance lives on :class:`_ProjectedOrgDRGEdge.generated_reason`, a field
+    this class does not declare — so with ``extra="forbid"`` a fragment cannot
+    write one, and anything reaching ``reason`` came from a governance author.
+    That is the whole discriminator :func:`doctrine.drg.merge
+    ._warn_discarded_edge_rationale` needs; see that docstring for why reading
+    "has a reason" as "an author wrote a reason" was a defect.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -312,6 +400,25 @@ class _OrgDRGEdge(BaseModel):
     target: str
     relation: str
     reason: str | None = None
+
+
+class _ProjectedOrgDRGEdge(_OrgDRGEdge):
+    """A projection edge minted from an artifact field, never author-written.
+
+    The FR-014 / WP06-T036 provenance string ("declared via
+    ``<kind>.<field>`` field") records *how* the edge came to exist, which the
+    operator needs when a conflict record names this edge but no ``edges:``
+    entry in the pack produced it. It is machine text, not an author's
+    rationale, so it gets its own field rather than borrowing ``reason``.
+
+    Sharing one field for both meanings is what made a healthy pack — a legacy
+    ``enhances:`` field plus the explicit fragment edge that documents and will
+    replace it — look like two authors disagreeing. Separating them means the
+    distinction cannot be lost by anyone reading ``reason``, and cannot be
+    faked from YAML: this subclass is only ever constructed here, in Python.
+    """
+
+    generated_reason: str
 
 
 # ---------------------------------------------------------------------------
@@ -421,26 +528,31 @@ def load_org_pack(
     # migrates built-in/shipped field-authored relationships into fragment
     # edges) the field-projection path is RETAINED so already-shipped artifacts
     # keep emitting their edges. Both paths route through the single relation
-    # source (:data:`AUGMENTATION_RELATIONS`) and are deduplicated against the
-    # fragment-authored edges by ``(source, target, relation)``.
-    existing_edges = fragment_data.setdefault("edges", []) or []
-    seen: set[tuple[str, str, str]] = set()
-    for edge in existing_edges:
-        if isinstance(edge, dict):
-            seen.add(
-                (
-                    str(edge.get("source", "")),
-                    str(edge.get("target", "")),
-                    str(edge.get("relation", "")),
-                )
-            )
-    for auto_edge in _collect_augmentation_edges(pack_root):
-        key = (auto_edge["source"], auto_edge["target"], auto_edge["relation"])
-        if key in seen:
-            continue
-        existing_edges.append(auto_edge)
-        seen.add(key)
-    fragment_data["edges"] = existing_edges
+    # source (:data:`AUGMENTATION_RELATIONS`).
+    #
+    # The two paths are NOT reconciled here. This loader used to dedup them by
+    # ``(source, target, relation)`` on the raw strings as written, and that
+    # was only ever an approximation: the projection path emits fully-qualified
+    # ``<kind>:<id>`` endpoints while a fragment author naturally writes bare
+    # ids, so the two spellings of ONE relationship were two keys — and once
+    # ``doctrine.drg.merge._resolve_edge_endpoint`` became the canonicaliser,
+    # both keys resolved to the same triple and the edge landed twice.
+    #
+    # It cannot be repaired in place either: resolving a bare id the fragment
+    # does not declare requires the BUILT-IN layer, which the loader never
+    # sees. So edge identity belongs downstream of resolution and is owned by
+    # ``merge._OrgEdgeCollector`` — one authority, applied to what the
+    # endpoints MEAN rather than to how they were typed. Emitting both edges
+    # here is the honest report of what the pack declares; collapsing them is
+    # the merge's job.
+    #
+    # The two paths ARE distinguished by type: the projection edges arrive as
+    # already-constructed :class:`_ProjectedOrgDRGEdge` instances (which
+    # ``model_validate`` passes through untouched) so that downstream code can
+    # tell machine provenance from an author's ``reason:`` without matching on
+    # the generated text — a string the emitter above owns and could reword.
+    authored_edges: list[Any] = list(fragment_data.get("edges") or [])
+    fragment_data["edges"] = authored_edges + _collect_augmentation_edges(pack_root)
 
     try:
         return OrgDRGFragment.model_validate(fragment_data)
@@ -483,13 +595,19 @@ def _augmentation_files(type_dir: Path, plural: str, glob: str) -> list[Path]:
     )
 
 
-def _projection_edges_for_file(yaml_file: Path, urn_kind: str) -> list[dict[str, str]]:
+def _projection_edges_for_file(
+    yaml_file: Path, urn_kind: str
+) -> list[_ProjectedOrgDRGEdge]:
     """Emit projection edges for one artifact file (best-effort).
 
     Reads the artifact's ``id`` and any augmentation/lineage field present,
-    yielding one edge dict per declared relation. Malformed YAML or files
-    missing the required keys are skipped silently — the pack validator
-    surfaces those errors through its own paths.
+    yielding one edge per declared relation. Malformed YAML or files missing
+    the required keys are skipped silently — the pack validator surfaces those
+    errors through its own paths.
+
+    Returns :class:`_ProjectedOrgDRGEdge` instances rather than plain dicts:
+    the type IS the marker that says "machine-minted", and a dict would be
+    validated into the plain author-facing :class:`_OrgDRGEdge` and lose it.
     """
     try:
         data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
@@ -500,23 +618,23 @@ def _projection_edges_for_file(yaml_file: Path, urn_kind: str) -> list[dict[str,
     art_id = data.get("id")
     if not isinstance(art_id, str) or not art_id:
         return []
-    edges: list[dict[str, str]] = []
+    edges: list[_ProjectedOrgDRGEdge] = []
     for field_name, relation in _PROJECTION_FIELD_TO_RELATION.items():
         target = data.get(field_name)
         if not isinstance(target, str) or not target:
             continue
         edges.append(
-            {
-                "source": f"{urn_kind}:{art_id}",
-                "target": f"{urn_kind}:{target}",
-                "relation": relation.value,
-                "reason": f"declared via {urn_kind}.{field_name} field",
-            }
+            _ProjectedOrgDRGEdge(
+                source=f"{urn_kind}:{art_id}",
+                target=f"{urn_kind}:{target}",
+                relation=relation.value,
+                generated_reason=f"declared via {urn_kind}.{field_name} field",
+            )
         )
     return edges
 
 
-def _collect_augmentation_edges(pack_root: Path) -> list[dict[str, str]]:
+def _collect_augmentation_edges(pack_root: Path) -> list[_ProjectedOrgDRGEdge]:
     """Collect projection edges for every augmentation-eligible kind.
 
     Iterates the single-source :data:`AUGMENTATION_ELIGIBLE_KINDS` mapping so
@@ -524,7 +642,7 @@ def _collect_augmentation_edges(pack_root: Path) -> list[dict[str, str]]:
     project edges at parity with the original five (T015). Mission types carry
     no per-file glob and are authored as fragment edges only.
     """
-    edges: list[dict[str, str]] = []
+    edges: list[_ProjectedOrgDRGEdge] = []
     for urn_kind, plural in AUGMENTATION_ELIGIBLE_KINDS.items():
         glob = _AUGMENTATION_GLOBS.get(plural, "")
         for yaml_file in _augmentation_files(pack_root / plural, plural, glob):

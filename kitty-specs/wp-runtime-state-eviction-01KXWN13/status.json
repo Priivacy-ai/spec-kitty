@@ -1,5 +1,5 @@
 {
-  "event_count": 75,
+  "event_count": 85,
   "last_event_id": "01KXXK2XA1E4HCK9SPYG873D1K",
   "materialized_at": "2026-07-19T16:24:26.689657+00:00",
   "mission_number": "",
@@ -19,73 +19,103 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXXK2PRB80P0HR0H7CYXTQ8P",
-      "last_transition_at": "2026-07-19T16:24:19.979589+00:00"
+      "last_transition_at": "2026-07-19T16:24:19.979589+00:00",
+      "shell_pid": 2374828,
+      "shell_pid_created_at": "1784456746.12"
     },
     "WP02": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXXK2QK0KVPWZ3P9DBC7FZHH",
-      "last_transition_at": "2026-07-19T16:24:20.832720+00:00"
+      "last_transition_at": "2026-07-19T16:24:20.832720+00:00",
+      "shell_pid": 2548429,
+      "shell_pid_created_at": "1784460091.24"
     },
     "WP03": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXXK2R9ZAX819F2178YTQ63E",
-      "last_transition_at": "2026-07-19T16:24:21.567202+00:00"
+      "last_transition_at": "2026-07-19T16:24:21.567202+00:00",
+      "shell_pid": 2517029,
+      "shell_pid_created_at": "1784459594.4"
     },
     "WP04": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KXXK2S11TM8Z9343ESR86RNB",
-      "last_transition_at": "2026-07-19T16:24:22.305262+00:00"
+      "last_transition_at": "2026-07-19T16:24:22.305262+00:00",
+      "shell_pid": 2819582,
+      "shell_pid_created_at": "1784463844.46"
     },
     "WP05": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXXK2SR1T65K3WH542C221CA",
-      "last_transition_at": "2026-07-19T16:24:23.041241+00:00"
+      "last_transition_at": "2026-07-19T16:24:23.041241+00:00",
+      "shell_pid": 2682167,
+      "shell_pid_created_at": "1784461922.96"
     },
     "WP06": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXXK2WK89H9RYV9576FQQMC0",
-      "last_transition_at": "2026-07-19T16:24:25.960096+00:00"
+      "last_transition_at": "2026-07-19T16:24:25.960096+00:00",
+      "shell_pid": 2906270,
+      "shell_pid_created_at": "1784466863.05"
     },
     "WP07": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXXK2TEMTTG47Z97M198TABN",
-      "last_transition_at": "2026-07-19T16:24:23.764099+00:00"
+      "last_transition_at": "2026-07-19T16:24:23.764099+00:00",
+      "shell_pid": 2792311,
+      "shell_pid_created_at": "1784463133.39"
     },
     "WP08": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXXK2V5C3C1MKJE5780H36CN",
-      "last_transition_at": "2026-07-19T16:24:24.492450+00:00"
+      "last_transition_at": "2026-07-19T16:24:24.492450+00:00",
+      "shell_pid": 2711717,
+      "shell_pid_created_at": "1784462120.46"
     },
     "WP09": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXXK2VWAG6J4DSTPQTH4VAYF",
-      "last_transition_at": "2026-07-19T16:24:25.226024+00:00"
+      "last_transition_at": "2026-07-19T16:24:25.226024+00:00",
+      "shell_pid": 2715927,
+      "shell_pid_created_at": "1784462196.63"
     },
     "WP10": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXXK2XA1E4HCK9SPYG873D1K",
-      "last_transition_at": "2026-07-19T16:24:26.689657+00:00"
+      "last_transition_at": "2026-07-19T16:24:26.689657+00:00",
+      "shell_pid": 3276369,
+      "shell_pid_created_at": "1784475556.5"
     }
   }
 }

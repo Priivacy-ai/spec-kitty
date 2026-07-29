@@ -1,5 +1,5 @@
 {
-  "event_count": 46,
+  "event_count": 52,
   "last_event_id": "01KNXZPH9TZAYDQ2Y10EKN9A0S",
   "materialized_at": "2026-04-11T09:59:18.074809+00:00",
   "mission_number": "82",
@@ -19,45 +19,98 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "claude:opus-4-6:reviewer:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KNXZPGP37QX6B4JEE75MD5NX",
-      "last_transition_at": "2026-04-11T09:59:17.443269+00:00"
+      "last_transition_at": "2026-04-11T09:59:17.443269+00:00",
+      "shell_pid": 36093,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
+      "agent": "claude:opus-4-6:reviewer:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KNXZPH0CBXB3CPJCE6HW38QR",
-      "last_transition_at": "2026-04-11T09:59:17.772075+00:00"
+      "last_transition_at": "2026-04-11T09:59:17.772075+00:00",
+      "shell_pid": 65504,
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
+      "agent": "claude:sonnet:python-implementer:implementer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KNXZPH235GC8CSJ17P1QQJV3",
-      "last_transition_at": "2026-04-11T09:59:17.827208+00:00"
+      "last_transition_at": "2026-04-11T09:59:17.827208+00:00",
+      "shell_pid": 66132,
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
+      "agent": "claude:sonnet:python-implementer:implementer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KNXZPH6CWY0VYXM72KM7JTA2",
-      "last_transition_at": "2026-04-11T09:59:17.964492+00:00"
+      "last_transition_at": "2026-04-11T09:59:17.964492+00:00",
+      "shell_pid": 71430,
+      "subtasks": {
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
+      "agent": "claude:sonnet:python-implementer:implementer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KNXZPH84RYYJTM79K267BS5D",
-      "last_transition_at": "2026-04-11T09:59:18.020228+00:00"
+      "last_transition_at": "2026-04-11T09:59:18.020228+00:00",
+      "shell_pid": 78529,
+      "subtasks": {
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done"
+      }
     },
     "WP06": {
       "actor": "merge",
+      "agent": "claude:sonnet:python-implementer:implementer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KNXZPH9TZAYDQ2Y10EKN9A0S",
-      "last_transition_at": "2026-04-11T09:59:18.074809+00:00"
+      "last_transition_at": "2026-04-11T09:59:18.074809+00:00",
+      "shell_pid": 88497,
+      "subtasks": {
+        "T027": "done",
+        "T028": "done",
+        "T029": "done"
+      }
     }
   }
 }

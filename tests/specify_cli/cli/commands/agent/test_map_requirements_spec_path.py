@@ -13,7 +13,7 @@ from typer.testing import CliRunner
 
 from mission_runtime import CommitTarget
 from specify_cli.coordination.commit_router import CommitRouterResult
-from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import _compose_primary_feature_dir
 
 pytestmark = [pytest.mark.fast]
 
@@ -30,7 +30,14 @@ _WP01_FRONTMATTER = (
 
 
 def test_primary_feature_dir_is_not_coord_worktree(tmp_path: Path) -> None:
-    """primary_feature_dir_for_mission returns primary-checkout path, not coord path."""
+    """_compose_primary_feature_dir returns primary-checkout path, not coord path.
+
+    read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T035): re-pointed
+    from the deleted public wrapper ``primary_feature_dir_for_mission`` to the
+    module-private ``_compose_primary_feature_dir`` leaf -- the same
+    topology-blind, handle-blind composition contract this test pins,
+    unchanged.
+    """
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
 
@@ -41,11 +48,11 @@ def test_primary_feature_dir_is_not_coord_worktree(tmp_path: Path) -> None:
     coord_spec.mkdir(parents=True)
 
     # Call the primary resolver (topology-blind)
-    result = primary_feature_dir_for_mission(repo_root, MISSION_SLUG)
+    result = _compose_primary_feature_dir(repo_root, MISSION_SLUG)
 
     # Result must be under the primary checkout, not the coord worktree
     assert ".worktrees" not in str(result), (
-        f"primary_feature_dir_for_mission returned a path under .worktrees/: {result}. "
+        f"_compose_primary_feature_dir returned a path under .worktrees/: {result}. "
         "map-requirements spec.md lookup will fail when the coord dir lacks spec.md."
     )
     assert str(result).startswith(str(repo_root)), (
@@ -121,14 +128,19 @@ def test_map_requirements_reads_spec_from_primary_when_coord_lacks_it(
         tasks_mod, "_emit_sparse_session_warning", lambda *_a, **_k: None
     )
 
-    # The two resolvers are late-imported inside map_requirements from this module.
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T035): the
+    # ``primary_feature_dir_for_mission`` patch this block used to install is
+    # retired along with the (now-deleted) public wrapper it targeted -- the
+    # real code under test (``_do_map_requirements`` -> ``FsReader.
+    # primary_anchor_dir``) resolves the primary dir through
+    # ``placement_seam(...).read_dir(PRIMARY_METADATA)``, never through that
+    # module attribute, so the patch was already vestigial (never intercepting
+    # the real call path) before the wrapper's deletion made it dead entirely.
+    # A well-formed real ``meta.json`` fixture on disk (below) resolves the
+    # primary dir correctly without any resolver patch.
     monkeypatch.setattr(
         "specify_cli.missions._read_path_resolver.resolve_feature_dir_for_slug",
         lambda _root, _slug: coord_mission_dir,
-    )
-    monkeypatch.setattr(
-        "specify_cli.missions._read_path_resolver.primary_feature_dir_for_mission",
-        lambda _root, _slug: primary_mission_dir,
     )
 
     app = typer.Typer()
@@ -257,13 +269,15 @@ def test_map_requirements_auto_commit_uses_coord_placement_for_coord_files(
     monkeypatch.setattr(
         commit_router_mod, "_resolve_planning_placement", lambda *_args, **_kwargs: placement
     )
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T035): the
+    # ``primary_feature_dir_for_mission`` patch this block used to install is
+    # retired along with the deleted public wrapper -- see the sibling test
+    # above for the full rationale (the real code path never read that
+    # attribute; a real ``meta.json`` fixture resolves the primary dir
+    # correctly on its own).
     monkeypatch.setattr(
         "specify_cli.missions._read_path_resolver.resolve_feature_dir_for_slug",
         lambda _root, _slug: coord_mission_dir,
-    )
-    monkeypatch.setattr(
-        "specify_cli.missions._read_path_resolver.primary_feature_dir_for_mission",
-        lambda _root, _slug: primary_mission_dir,
     )
 
     app = typer.Typer()

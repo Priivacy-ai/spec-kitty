@@ -15,7 +15,9 @@ All directive files conform to `directive.schema.yaml` with fields:
 - `enforcement` — `required` or `advisory`
 
 Cross-artifact relationships (directive → tactic, directive → paradigm, etc.)
-are expressed as typed edges in `src/doctrine/graph.yaml`. Inline `tactic_refs`
+are expressed as typed edges in the per-kind DRG fragments — an edge lives in
+the fragment for its *source* kind, so a directive's edges are in
+`src/doctrine/directive.graph.yaml`. Inline `tactic_refs`
 and `applies_to` fields were removed in Phase 1 excision (mission
 `excise-doctrine-curation-and-inline-references-01KP54J6` WP02).
 

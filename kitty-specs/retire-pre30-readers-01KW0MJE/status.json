@@ -1,5 +1,5 @@
 {
-  "event_count": 25,
+  "event_count": 31,
   "last_event_id": "01KW0Y57BFX1GT7Q5G7JXRD990",
   "materialized_at": "2026-06-26T03:04:16.495418+00:00",
   "mission_number": "",
@@ -19,38 +19,46 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KW0RBGV4B6TK084FWTQXHBMP",
-      "last_transition_at": "2026-06-26T01:22:51.364453+00:00"
+      "last_transition_at": "2026-06-26T01:22:51.364453+00:00",
+      "shell_pid": 838253
     },
     "WP02": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KW0T9PP68D0N53BH9APSV53B",
-      "last_transition_at": "2026-06-26T01:56:48.966581+00:00"
+      "last_transition_at": "2026-06-26T01:56:48.966581+00:00",
+      "shell_pid": 1028678
     },
     "WP03": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KW0WNFWA3B5ACJQASA7VFVCD",
-      "last_transition_at": "2026-06-26T02:38:12.362840+00:00"
+      "last_transition_at": "2026-06-26T02:38:12.362840+00:00",
+      "shell_pid": 1213525
     },
     "WP04": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KW0Y57BFX1GT7Q5G7JXRD990",
       "last_transition_at": "2026-06-26T03:04:16.495418+00:00"
     },
     "WP05": {
-      "actor": "finalize-tasks",
+      "actor": "migration:backfill_runtime_state:compatibility",
+      "agent": "claude",
       "force_count": 0,
       "lane": "planned",
-      "last_event_id": "01KW0Q7YD222X24QTF8TMXWMJJ",
-      "last_transition_at": "2026-06-26T01:03:25.603014+00:00"
+      "last_event_id": "5EVQDD4PVX60AH3NJX3Q898049",
+      "last_transition_at": "2026-06-26T01:03:25.603015+00:00"
     }
   }
 }

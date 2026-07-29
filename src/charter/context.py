@@ -49,6 +49,7 @@ from charter.governance_references import (
 from charter.language_scope import infer_repo_languages
 from charter.schemas import DirectivesConfig, DoctrineSelectionConfig
 from doctrine.agent_profiles import AgentProfile, AgentProfileRepository
+from doctrine.drg.models import NodeKind
 from doctrine.spdd_reasons import append_spdd_reasons_guidance, is_spdd_reasons_active
 from kernel.atomic import atomic_write
 
@@ -634,6 +635,65 @@ def _prepare_context_state(
     )
 
 
+#: Every :class:`~doctrine.drg.models.NodeKind`, mapped to the
+#: :class:`_ActionDoctrineBundle` list it feeds -- or to ``None`` where the
+#: bundle deliberately has no slot for it.
+#:
+#: WP03 of ``doctrine-silence-guards-01KYFV7Q`` (FR-003/SC-002). The classifier
+#: below used to be four ``elif`` arms with no ``else``, which made *exclusion*
+#: and *ignorance* indistinguishable: twelve kinds fell through, and a kind
+#: added tomorrow would have joined them in silence. Twelve exclusions are
+#: correct -- the bundle really does render only four lists, and ``paradigm``,
+#: ``procedure``, ``template`` and ``agent_profile`` nodes reach here on the
+#: shipped graph today -- so the fix is to *state* them, not to start rendering
+#: them.
+#:
+#: This table is total on purpose, and the totality is enforced rather than
+#: trusted: ``tests/doctrine/drg/test_kind_mapping_totality.py`` already fails
+#: any module-level ``NodeKind``-keyed dict that omits a member, so a
+#: seventeenth kind goes red there without a second gate being invented for it.
+_ACTION_BUNDLE_SLOT_BY_KIND: dict[NodeKind, str | None] = {
+    NodeKind.DIRECTIVE: "directives",
+    NodeKind.TACTIC: "tactics",
+    NodeKind.STYLEGUIDE: "styleguides",
+    NodeKind.TOOLGUIDE: "toolguides",
+    # -- Reached today, deliberately not projected: the action bundle renders
+    #    four lists, and these kinds are surfaced by other charter surfaces.
+    NodeKind.PARADIGM: None,
+    NodeKind.PROCEDURE: None,
+    NodeKind.AGENT_PROFILE: None,
+    NodeKind.MISSION_STEP_CONTRACT: None,
+    NodeKind.TEMPLATE: None,
+    NodeKind.ASSET: None,
+    # -- Not artifacts of the kind this bundle carries.
+    NodeKind.ACTION: None,
+    NodeKind.MISSION_TYPE: None,
+    NodeKind.ANTI_PATTERN: None,
+    NodeKind.GLOSSARY: None,
+    NodeKind.GLOSSARY_SCOPE: None,
+    NodeKind.GLOSSARY_PACK: None,
+}
+
+
+def action_bundle_bucket(kind: NodeKind) -> str | None:
+    """Return the action-bundle list *kind* feeds, or ``None`` if excluded.
+
+    Raises:
+        LookupError: when *kind* has no recorded verdict -- i.e. somebody added
+            a :class:`~doctrine.drg.models.NodeKind` member and never said
+            whether the action bundle should carry it. That is the whole defect
+            class this closes, so it is loud rather than a silent skip.
+    """
+    try:
+        return _ACTION_BUNDLE_SLOT_BY_KIND[kind]
+    except KeyError as exc:
+        raise LookupError(
+            f"NodeKind {kind!r} has no recorded action-bundle verdict. Add it to "
+            "_ACTION_BUNDLE_SLOT_BY_KIND -- mapped to a bundle list if it should "
+            "be rendered, or to None if it should not."
+        ) from exc
+
+
 def _classify_artifact_urns(
     artifact_urns: frozenset[str] | set[str],
     merged: DRGGraph,
@@ -641,8 +701,13 @@ def _classify_artifact_urns(
     selected_tactics: set[str] | None = None,
     selected_paradigms: set[str] | None = None,
 ) -> tuple[list[str], list[str], list[str], list[str]]:
-    """Partition resolved artifact URNs into doctrine-type buckets."""
-    from doctrine.drg.models import NodeKind, Relation
+    """Partition resolved artifact URNs into doctrine-type buckets.
+
+    Every :class:`~doctrine.drg.models.NodeKind` is ruled on via
+    :func:`action_bundle_bucket`; a kind with no recorded verdict raises rather
+    than falling out of the loop unnoticed (WP03, FR-003).
+    """
+    from doctrine.drg.models import Relation
     from doctrine.drg.query import resolve_transitive_refs
 
     selected_tactics = selected_tactics or set()
@@ -661,26 +726,26 @@ def _classify_artifact_urns(
     artifact_urns.update(f"styleguide:{styleguide_id}" for styleguide_id in selected_closure.styleguides)
     artifact_urns.update(f"toolguide:{toolguide_id}" for toolguide_id in selected_closure.toolguides)
 
-    directive_ids: list[str] = []
-    tactic_ids: list[str] = []
-    styleguide_ids: list[str] = []
-    toolguide_ids: list[str] = []
+    slots: dict[str, list[str]] = {
+        "directives": [],
+        "tactics": [],
+        "styleguides": [],
+        "toolguides": [],
+    }
     for urn in sorted(artifact_urns):
         node = merged.get_node(urn)
         if node is None:
             continue
+        # Raises LookupError for a kind nobody has ruled on -- the `else` the
+        # old elif-chain never had.
+        slot = action_bundle_bucket(node.kind)
+        if slot is None:
+            continue
         artifact_id = urn.split(":", 1)[1] if ":" in urn else urn
-        if node.kind == NodeKind.DIRECTIVE:
-            if project_directives and artifact_id not in project_directives:
-                continue
-            directive_ids.append(artifact_id)
-        elif node.kind == NodeKind.TACTIC:
-            tactic_ids.append(artifact_id)
-        elif node.kind == NodeKind.STYLEGUIDE:
-            styleguide_ids.append(artifact_id)
-        elif node.kind == NodeKind.TOOLGUIDE:
-            toolguide_ids.append(artifact_id)
-    return directive_ids, tactic_ids, styleguide_ids, toolguide_ids
+        if node.kind is NodeKind.DIRECTIVE and project_directives and artifact_id not in project_directives:
+            continue
+        slots[slot].append(artifact_id)
+    return slots["directives"], slots["tactics"], slots["styleguides"], slots["toolguides"]
 
 
 #: Artifact-kind suffixes for which an org pack may declare a

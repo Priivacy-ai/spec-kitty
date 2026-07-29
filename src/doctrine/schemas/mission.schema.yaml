@@ -56,25 +56,61 @@ definitions:
     additionalProperties: false
     required:
     - id
+    - display_name
+    - step_type
+    - prompt_template
     properties:
       id:
         type: string
+        pattern: ^[a-z][a-z0-9-]*$
+      display_name:
+        type: string
         minLength: 1
-      title:
+      step_type:
         type: string
-      name:
-        type: string
-      description:
-        type: string
+        minLength: 1
+        enum:
+        - agent
+        - human_in_loop
+        - integration
       prompt_template:
         type: string
+        minLength: 1
+      agent-profile:
+        type: string
+        pattern: ^[a-z][a-z0-9-]*$
+      guidance:
+        type: string
+      delegates_to:
+        type: array
+        items:
+          type: string
       depends_on:
         type: array
         items:
           type: string
-      agent-profile:
+      sequence_index:
+        type: integer
+      in_action_sequence:
+        type: boolean
+        default: false
+      recommended_model_tier:
+        type: string
+      template:
+        $ref: '#/definitions/mission_step_template_ref'
+  mission_step_template_ref:
+    type: object
+    additionalProperties: false
+    required:
+    - artifact_key
+    - template_file
+    properties:
+      artifact_key:
         type: string
         pattern: ^[a-z][a-z0-9-]*$
+      template_file:
+        type: string
+        minLength: 1
   mission_transition:
     type: object
     additionalProperties: false

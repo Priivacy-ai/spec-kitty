@@ -71,6 +71,7 @@ src/doctrine/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURCE)
 - Do not introduce or preserve `feature*` aliases (API/query params, routes, fields, flags, env vars, command names, or docs) when the domain object is a Mission.
 - Historical archived artifacts may retain legacy wording only as immutable snapshots, explicitly marked legacy.
 - **Overloaded terms `primary` and `merge` — footgun.** `primary` carries four senses (PRIMARY partition / Primary Branch / repository-root checkout / Target Ref) and `merge` three operations (lane consolidation / branch integration / publish to origin). The load-bearing trap is reading a **PRIMARY-partition** verdict as a **Primary-Branch (`main`)** instruction — and treating `spec-kitty merge` (local lane consolidation) as a **publish to origin**. Always name the sense; the canonical definitions and "Do NOT use when" guards live in the glossary: [`docs/context/orchestration.md`](docs/context/orchestration.md) (`#primary-partition`, `#primary-branch`, `#target-ref--commit-target`, `#lane-consolidation`, `#branch-integration--git-merge`, `#publish-to-originmain`) and [`docs/context/execution.md`](docs/context/execution.md#repository-root-checkout).
+- **Overloaded term `routing` — footgun (cf. #2653, the `primary`/`merge` disambiguation this entry extends).** "Routing" names at least seven distinct, governed decisions — placement (kind + topology → surface), branch-target (which branch a change commits to), commit (coord-worktree materialization inside `commit_for_mission`), dispatch/profile (`invocation/router.py`), sync fan-out (`sync/routing.py`), model/task (`src/doctrine/model_task_routing/`), and scope routing — plus infrastructural senses named explicitly out of scope (event routing, HTTP request routing, significance routing bands). Never write bare "routing"; name the sense. Full disambiguation with "do NOT use when" guards: [`docs/context/orchestration.md#routing`](docs/context/orchestration.md#routing). Placement-sense explanation: [`docs/architecture/artifact-placement-seam.md`](docs/architecture/artifact-placement-seam.md).
 
 ---
 
@@ -497,10 +498,12 @@ Without `--cascade`: warns about skipped artifacts with a suggested recovery com
 Profile lineage is a DRG edge (C-009 binding constraint), not a per-profile field. Declare in org-pack DRG YAML:
 ```yaml
 edges:
-  - source: "urn:profile:my-analyst"
-    target: "urn:profile:researcher-ryan"
+  - source: "agent_profile:my-analyst"
+    target: "agent_profile:researcher-ryan"
     relation: specializes_from
 ```
+
+**Endpoint form matters.** An endpoint is either a **DRG URN** — `<kind>:<id>`, where `<kind>` is a `NodeKind` member such as `agent_profile`, `directive` or `styleguide` — or a **bare id** that the fragment's own `nodes:` block declares. Anything else is refused at merge time with an `unresolved_edge_endpoint` conflict naming the token. (Before mission `doctrine-silence-guards-01KYFV7Q` this snippet read `urn:profile:…`, a shape that exists nowhere in the vocabulary; the bridge dropped it in silence, so the documented declaration was inert. See `src/doctrine/drg/merge.py:_resolve_edge_endpoint`.)
 
 - Distinct from `delegates_to` (runtime work handoff).
 - Resolved via `AgentProfileRepository.resolve_profile` DRG traversal. Retired per-profile field form rejected at load time.

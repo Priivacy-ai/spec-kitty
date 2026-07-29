@@ -52,7 +52,16 @@ jobs:
   windows-critical:
     name: Windows critical (pipx, pytest -m windows_ci)
     needs: [changes]
-    if: ${{ (needs.changes.outputs.windows_critical == 'true') && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
+    # `|| github.event_name == 'push'` keeps the 30 `windows_ci` tests
+    # collectable on a push to main: no Linux job selects them (every Linux gate
+    # carries `not windows_ci`), so without this disjunct a main push whose diff
+    # misses the `windows_critical` globs runs them nowhere. The
+    # `needs.changes.outputs.windows_critical` reference is deliberately kept —
+    # dropping it would orphan the group and red the src-filter invariant.
+    if: >-
+      ${{ (needs.changes.outputs.windows_critical == 'true' || github.event_name == 'push')
+      && !contains(github.event.pull_request.labels.*.name, 'pr:deferred')
+      && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     runs-on: blacksmith-4vcpu-windows-2025
     timeout-minutes: 20
     env:

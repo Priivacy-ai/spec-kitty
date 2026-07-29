@@ -41,7 +41,7 @@ import typer
 
 from charter import resolve_mission_type_context
 from charter.resolution import ResolutionResult
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.core.constants import MISSION_TYPE_DOCUMENTATION
 from specify_cli.doc_analysis.doc_state import GeneratorConfig
 from specify_cli.mission import _canonical_meta_mission_type, get_mission_type
@@ -726,7 +726,6 @@ def _detect_and_configure_generators(
 
 
 def _run_documentation_wiring(
-    feature_dir: Path,
     mission_slug: str,
     repo_root: Path,
     *,
@@ -736,11 +735,29 @@ def _run_documentation_wiring(
     """Documentation-mission plan wiring (T014 + T016): gap analysis + generator detection.
 
     No-op (returns ``(None, [])``) for non-documentation missions.
+
+    read-side-seam-primary-primitive-closure-01KYKMMT WP04 (FR-013, #2886):
+    this used to take the caller's ``feature_dir`` (the STATUS/lifecycle-side
+    coord-aware resolution -- see the comment at the call site) and read
+    ``meta.json`` straight off it. Both metadata reads below (the mission-type
+    check and the ``meta.json`` access ``_run_documentation_gap_analysis``/
+    ``_detect_and_configure_generators`` perform) now route through a FRESH
+    PRIMARY-partition seam read instead, and the gap-analysis WRITE that
+    follows resolves through that SAME ``primary_dir`` (SC-007 scenario 2) --
+    routing only one of the two reads would clear the #2214 pin while leaving
+    the other bound to a possible coord husk (no ``meta.json`` since #2106),
+    the exact honesty hole this subtask closes. The ``feature_dir`` parameter
+    is therefore dropped: nothing in this function needs it any more.
+    ``gap-analysis.md`` itself carries no ``MissionArtifactKind`` (WP02 T013's
+    honest bound) -- it simply anchors on this resolved directory.
     """
-    if get_mission_type(feature_dir) != MISSION_TYPE_DOCUMENTATION:
+    primary_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
+    )
+    if get_mission_type(primary_dir) != MISSION_TYPE_DOCUMENTATION:
         return None, []
-    meta_file = feature_dir / "meta.json"
-    gap_analysis_path = _run_documentation_gap_analysis(feature_dir, mission_slug, repo_root, meta_file, target_branch=target_branch, json_output=json_output)
+    meta_file = primary_dir / "meta.json"
+    gap_analysis_path = _run_documentation_gap_analysis(primary_dir, mission_slug, repo_root, meta_file, target_branch=target_branch, json_output=json_output)
     generators_detected = _detect_and_configure_generators(mission_slug, repo_root, meta_file, target_branch=target_branch, json_output=json_output)
     return gap_analysis_path, generators_detected
 
@@ -973,7 +990,7 @@ def setup_plan(
         )
 
         gap_analysis_path, generators_detected = _run_documentation_wiring(
-            feature_dir, mission_slug, repo_root, target_branch=target_branch, json_output=json_output
+            mission_slug, repo_root, target_branch=target_branch, json_output=json_output
         )
 
         _trigger_dossier_sync(feature_dir, mission_slug, repo_root)

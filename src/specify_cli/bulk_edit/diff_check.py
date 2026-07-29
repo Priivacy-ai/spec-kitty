@@ -24,7 +24,7 @@ YAMLs, CLI command modules, test fixtures, user-facing docs, etc.).
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from fnmatch import fnmatch
 from pathlib import Path
 
@@ -185,9 +185,18 @@ def _path_matches(posix: str, declared: str) -> bool:
 
 
 def _exception_for(path: str, omap: OccurrenceMap) -> dict[str, str] | None:
-    """Return the first exception whose glob matches *path*, if any."""
+    """Return the first WHOLE-FILE exception whose glob matches *path*, if any.
+
+    Field-scoped exceptions (``field_path`` set, WP02, FR-002) are excluded
+    here: they narrow the exemption to one field inside a file that also
+    carries entries the category-level action must still classify normally,
+    so they must never override the whole file's verdict — see
+    :func:`_field_path_pins_for`, which is where they are actually honoured.
+    """
     posix = Path(path).as_posix()
     for exception in omap.exceptions:
+        if exception.get("field_path"):
+            continue
         pattern = exception.get("path", "")
         if not pattern:
             continue
@@ -209,6 +218,24 @@ def _exception_for(path: str, omap: OccurrenceMap) -> dict[str, str] | None:
             matched: dict[str, str] = exception
             return matched
     return None
+
+
+def _field_path_pins_for(path: str, omap: OccurrenceMap) -> tuple[str, ...]:
+    """Return every field name pinned ``do_not_change`` by a field-scoped
+    exception matching *path* (WP02, FR-002).
+
+    Unlike :func:`_exception_for`, ALL matches apply, sorted for determinism
+    — a single file can carry several distinct protected fields (e.g. an
+    agent profile's ``directive-references`` AND ``context-sources.tactics``,
+    each declared as its own ``exceptions[]`` entry).
+    """
+    posix = Path(path).as_posix()
+    pins = {
+        fpe.field_path
+        for fpe in omap.field_path_exceptions
+        if _glob_match(posix, fpe.path)
+    }
+    return tuple(sorted(pins))
 
 
 def _fnmatch_recursive(path: str, pattern: str) -> bool:
@@ -328,6 +355,7 @@ class FileAssessment:
     action: str | None             # None => no action defined in map
     violation: bool                # True when this file blocks approval
     reason: str                    # Human-readable rationale
+    field_path_pins: tuple[str, ...] = ()  # WP02: fields pinned do_not_change
 
 
 @dataclass(frozen=True)
@@ -351,7 +379,25 @@ def assess_file(
     as a repo-root-relative POSIX path. When provided, it anchors the
     runtime-state gate exemption (FR-007, C-004) so only this mission's own
     bookkeeping files are exempted — never another mission's.
+
+    Field-scoped exceptions (WP02, FR-002) never change the base verdict
+    computed below — they only ADD a :attr:`FileAssessment.field_path_pins`
+    annotation naming the protected field(s), which
+    :func:`check_diff_compliance` turns into a targeted warning.
     """
+    base = _classify_file(path, omap, feature_dir_rel)
+    pins = _field_path_pins_for(path, omap)
+    if not pins:
+        return base
+    return replace(base, field_path_pins=pins)
+
+
+def _classify_file(
+    path: str,
+    omap: OccurrenceMap,
+    feature_dir_rel: str | None,
+) -> FileAssessment:
+    """The whole-file classification :func:`assess_file` pins fields onto."""
     # 1) Exceptions take precedence over path heuristics.
     exception = _exception_for(path, omap)
     if exception is not None:
@@ -479,6 +525,7 @@ def check_diff_compliance(
         f"{a.path}: category '{a.category}' requires manual_review — document justification"
         for a in manual_review_files
     ]
+    warnings.extend(_field_path_pin_warnings(assessments))
 
     return DiffCheckResult(
         passed=len(violations) == 0,
@@ -486,3 +533,21 @@ def check_diff_compliance(
         errors=errors,
         warnings=warnings,
     )
+
+
+def _field_path_pin_warnings(assessments: list[FileAssessment]) -> list[str]:
+    """Targeted per-field warnings (WP02, FR-002) — the reviewer reviews
+    exceptions, not a whole-file sweep.
+
+    Without field-path granularity, a file that carries both migrating AND
+    protected content can only be flagged generically (blanket
+    ``manual_review``), forcing a reviewer to eyeball every changed line. A
+    field-scoped exception names exactly which field(s) must be verified
+    unchanged, so the warning names them too.
+    """
+    return [
+        f"{a.path}: field-path exception pins {', '.join(a.field_path_pins)} "
+        "as do_not_change — verify only those fields were left untouched"
+        for a in assessments
+        if a.field_path_pins
+    ]

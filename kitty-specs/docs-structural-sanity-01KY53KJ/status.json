@@ -20,52 +20,132 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude:sonnet:doctrine-daphne:implementer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYAJHFMHSCCVW5F8YJ9CEEG6",
       "last_transition_at": "2026-07-24T17:25:03.249851+00:00",
-      "shell_pid": 3352732,
-      "shell_pid_created_at": "1784739504.65"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP01 ready: DIRECTIVE_042 + styleguide config block extended; 4 ratchet refs reconciled to the lint; terminology guard 4 passed, tests/doctrine/ 2837 passed, no anti-sprawl/ratchet strings remain in src/doctrine/. Campsite: extended Styleguide Pydantic model + JSON Schema (extra/additionalProperties=false blocked the new structural_lint_config key) + focused test — logged in Activity Log.",
+        "Review passed: DIRECTIVE_042 validation_criteria now cites scripts/docs/docs_structural_lint.py (no dead-ratchet refs); comprehensive structural_lint_config policy block matches #2302 4-check spec (curated sections, concern-bucket map, point-in-time patterns/markers/allowlist, frontmatter contract w/ #2227 deferral, shadow-tree nav exemptions, guides boundary); Styleguide Pydantic model + JSON schema extended with optional field; 2 tactics reconciled to name the lint; test_models.py 12 passed. Satisfies #2302 doctrine half; WP02 lint consumes this config."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3356247,
+      "shell_pid_created_at": "1784739534.86",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude:sonnet:python-pedro:implementer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYAJHJ6886082BMS1467KR67",
       "last_transition_at": "2026-07-24T17:25:05.864657+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "lint+tests done (lane-b 678f40e91)",
+        "Review passed: 4 config-driven checks load policy from WP01 structural_lint_config block (SSOT, fail-loud, 'reads config not constant' tested); 18 tests green incl 4-class detection + live cohort-clean + config-match; ruff clean; mypy clean w/ --explicit-package-bases (plain collision pre-existing project-wide). CI-wiring + real-tree zero-violation correctly deferred to WP05 per timing-boundary. Satisfies #2302 lint half + FR-007/011/NFR-003/005/006."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
       "shell_pid": 2745383,
-      "shell_pid_created_at": "1784888606.89"
+      "shell_pid_created_at": "1784888606.89",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
-      "agent": "claude:sonnet:curator-carla:implementer",
+      "agent": "claude:opus:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYAJHGKR2MXRQR4BZH87P7GN",
       "last_transition_at": "2026-07-24T17:25:04.248944+00:00",
-      "shell_pid": 3356247,
-      "shell_pid_created_at": "1784739534.86"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP03 ready: git mv'd 883-research-synthesis.md + 883-mission-type-authority-brief.md + audits/ (7 files, grouped as architecture-audits/) into docs/plans/engineering-notes/. FR-002 verdicts (both STAYS, no occurrence_map promotion): (1) assessments/code-as-a-crime-scene-overview.md STAYS - durable CaaCS methodology explainer (10/11 sections), only sec.10 ties to the 2026-05 run; (2) migrations/teamspace-mission-state-920-closeout.md STAYS (escalated) - content IS verified point-in-time dated closeout evidence, but its URL is published in redirect_baseline_urls.json and this mission does not regen redirect_map.yaml, so a MOVE would 404 it with no redirect; per WP guidance a verified-point-in-time MOVE must be escalated to the operator rather than moved silently, so it stays pending an operator decision on the redirect-corpus gap. architecture/index.md refreshed to enumerate all 55 non-index .md pages recursively (verified 55/55 via script), including the staying assessments/ page. Hand-off for WP05: 11 docs referrers to the moved audits + 2 referrers to the moved mission-type-authority-brief need repointing; non-docs referrer src/doctrine/paradigms/built-in/brownfield-onboarding.paradigm.yaml:50 cites a moved audit path and is invisible to relative_link_fixer (docs/** only) - needs bulk_ref_rewrite/manual sweep. Did not touch redirect_map.yaml/inventory/toc.yml/occurrence_map.yaml; nothing landed in guides/.",
+        "Review passed: redistribution correct; index enumerates 57 links (#2865); back-ref fixed; no terminology issues. Closes #2864/#2865/#2867; ext ref sweep -> WP05."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 2721214,
+      "shell_pid_created_at": "1784888150.05",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
-      "agent": "claude:sonnet:curator-carla:implementer",
+      "agent": "claude:opus:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYAJHHCYA4KSDH9TXV5MS0P9",
       "last_transition_at": "2026-07-24T17:25:05.054593+00:00",
-      "shell_pid": 3356247,
-      "shell_pid_created_at": "1784739534.86"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP04 ready: 3 shadows folded-then-deleted (git rm, no git mv); unique content preserved into canonical twins; #2227 coordination noted on adr-connector; referrer repoint left for WP05\n\nFold findings (canonical was superset in all 3 cases, no unique content lost):\n- feature-detection.md (5 referrers): shadow's only distinct line was itself a stale legacy adr/1.x-2.x pointer; canonical already modernized (--mission terminology, mission-083 supersession note). Nothing ported; git rm.\n- gap-analysis-connector-installation-model.md (1 referrer): shadow diverged only in stale metadata + a relative link pointing at the old plans/notes/ ADR location. Nothing ported; git rm.\n- adr-connector-auth-binding-separation.md (6 referrers, #2227 census-tail ADR): shadow lacked canonical's status:Accepted/date frontmatter; no decision divergence. Nothing ported; git rm.\n\nT021: docs/plans/notes/ is now empty of content pages -> removed README.md + the now-empty directory rather than rewriting a stub.\n\nLeft for WP05: repoint the 12 total referrers (5+1+6) above at the canonical paths; no redirect_map/page-inventory/toc.yml edits made here.",
+        "Review passed: 4 docs/plans/notes/ shadows deleted (1118 lines); fold-safety verified — all 3 canonical twins (architecture/, adr/3.x/) hold equal-or-fuller content; shadow tree fully retired. Closes #2866."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 2736570,
+      "shell_pid_created_at": "1784888420.25",
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
       "agent": "claude:sonnet:curator-carla:implementer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYAJHJZQKPBC8V30WRS0Z6QG",
       "last_transition_at": "2026-07-24T17:25:06.679754+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP05 aggregate gate sweep done (lane-e 7f34276); lint exits 0 on post-move tree",
+        "Review passed: lint exit 0 post-move (0 violations); adr+redirect-stub doctrine exemptions config-driven; 1 real frontmatter fix; referrers repointed (0 dead links); CI wired; redirect corpus byte-untouched; 28 tests pass; ruff/mypy clean. Deviations (bulk_ref_rewrite file-move bug worked around, T022 deferred) documented as upstream gaps."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
       "shell_pid": 2788283,
-      "shell_pid_created_at": "1784889852.43"
+      "shell_pid_created_at": "1784889852.43",
+      "subtasks": {
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done"
+      }
     }
   }
 }

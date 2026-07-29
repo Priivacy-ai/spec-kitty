@@ -19,8 +19,9 @@ def _reject_retired_relationship_fields(kind: str, data: Any) -> Any:
 
     The ``enhances``/``overrides`` (and agent-profile ``specializes-from``)
     fields were retired in the FR-028 hard cutover. Relationships are now
-    authored exclusively as DRG fragment edges in ``drg/`` fragments (merged
-    into ``src/doctrine/*.graph.yaml``), never as inline artifact fields. With
+    authored exclusively as DRG edges in the per-kind
+    ``src/doctrine/<kind>.graph.yaml`` fragments, never as inline artifact
+    fields. With
     ``extra="forbid"`` these keys already fail validation; this pre-validator
     upgrades the bare ``extra_forbidden`` error into a message that tells the
     author what to do instead.
@@ -33,10 +34,10 @@ def _reject_retired_relationship_fields(kind: str, data: Any) -> Any:
         raise ValueError(
             f"Retired relationship field(s) {keys} on {kind} are no longer "
             f"accepted (FR-028 hard cutover). Author the relationship as a DRG "
-            f"fragment edge in a `drg/` fragment "
-            f"(e.g. {{source: <kind>:<id>, target: <kind>:<id>, "
-            f"relation: enhances|overrides}}) merged into "
-            f"src/doctrine/graph.yaml — not as an inline artifact field."
+            f"edge (e.g. {{source: <kind>:<id>, target: <kind>:<id>, "
+            f"relation: enhances|overrides}}) in the fragment for the source "
+            f"kind, src/doctrine/{kind}.graph.yaml — not as an inline "
+            f"artifact field."
         )
     return data
 

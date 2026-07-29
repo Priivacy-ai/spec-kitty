@@ -767,8 +767,11 @@ def test_commit_plan_substantive_commits_with_no_scaffold_flag(monkeypatch: pyte
 
 
 def test_documentation_wiring_noop_for_non_doc_mission(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP04: the ``feature_dir``
+    # positional argument was dropped -- the function now resolves its own
+    # PRIMARY-partition dir through the seam (FR-013, #2886).
     monkeypatch.setattr(seam, "get_mission_type", lambda _fd: "software-dev")
-    gap, gens = seam._run_documentation_wiring(tmp_path, "001-demo", tmp_path, target_branch="main", json_output=True)
+    gap, gens = seam._run_documentation_wiring("001-demo", tmp_path, target_branch="main", json_output=True)
     assert gap is None
     assert gens == []
 
@@ -788,7 +791,6 @@ def test_documentation_wiring_runs_both_documentation_phases(monkeypatch: pytest
     )
 
     gap, generators = seam._run_documentation_wiring(
-        tmp_path,
         "001-docs",
         tmp_path,
         target_branch="main",
@@ -797,6 +799,58 @@ def test_documentation_wiring_runs_both_documentation_phases(monkeypatch: pytest
 
     assert gap == "gap-analysis.md"
     assert generators == [generator]
+
+
+def test_documentation_wiring_on_coord_husk_writes_gap_analysis_to_primary(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """T024 (WP04 review, WP08 T039 nice-to-have): a documentation mission whose
+    coordination worktree is a HUSK (materialised, no ``meta.json``) still
+    anchors ``gap-analysis.md`` on the PRIMARY dir, never the husk.
+
+    read-side-seam-primary-primitive-closure-01KYKMMT WP04 closed the #2886
+    one-of-two documentation-wiring hole (both reads route through
+    ``placement_seam(...).read_dir(PRIMARY_METADATA)``), but its reviewer
+    flagged there was no committed BEHAVIOURAL test: both phase tests above
+    monkeypatch the read (``get_mission_type``) so a regression that routed
+    only ONE of the two reads back onto the coord husk would still pass them.
+    This test drives the REAL seam (no ``placement_seam``/``get_mission_type``
+    mock) against a real coord-husk fixture and asserts on the observable
+    contract: which directory ``_run_documentation_gap_analysis`` is handed as
+    its write target.
+    """
+    mission_slug = "001-docs-on-husk"
+    primary_dir = tmp_path / "kitty-specs" / mission_slug
+    coord_dir = tmp_path / ".worktrees" / f"{mission_slug}-coord" / "kitty-specs" / mission_slug
+    primary_dir.mkdir(parents=True)
+    coord_dir.mkdir(parents=True)  # materialised coord root, but NO meta.json: a husk
+    (primary_dir / "meta.json").write_text(
+        '{"mission_type": "documentation", "coordination_branch": "kitty/mission-001-docs-on-husk"}',
+        encoding="utf-8",
+    )
+    assert not (coord_dir / "meta.json").exists(), "husk invariant: no coord meta.json"
+
+    captured: dict[str, object] = {}
+
+    def _capture_gap_analysis(
+        primary_dir_arg: Path, *args: object, **kwargs: object
+    ) -> str:
+        captured["primary_dir_arg"] = primary_dir_arg
+        return "gap-analysis.md"
+
+    monkeypatch.setattr(seam, "_run_documentation_gap_analysis", _capture_gap_analysis)
+    monkeypatch.setattr(seam, "_detect_and_configure_generators", lambda *a, **k: [])
+
+    gap, _generators = seam._run_documentation_wiring(
+        mission_slug, tmp_path, target_branch="main", json_output=True
+    )
+
+    assert gap == "gap-analysis.md"
+    assert captured["primary_dir_arg"] == primary_dir, (
+        "gap-analysis.md's write target must be the PRIMARY dir, never the "
+        f"coord husk {coord_dir} — got {captured['primary_dir_arg']}"
+    )
+    assert captured["primary_dir_arg"] != coord_dir
 
 
 @pytest.mark.parametrize("json_output", [True, False])

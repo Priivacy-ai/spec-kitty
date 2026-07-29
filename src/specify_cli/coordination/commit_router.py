@@ -646,17 +646,13 @@ def _materialise_coord_worktree(
 def _resolve_mid8(repo_root: Path, mission_slug: str) -> str | None:
     """Load meta.json and derive mid8 for worktree resolution."""
     try:
+        from mission_runtime import MissionArtifactKind, placement_seam
         from specify_cli.lanes.branch_naming import resolve_mid8
         from specify_cli.mission_metadata import load_meta
-        from specify_cli.missions._read_path_resolver import (
-            MissionSelectorAmbiguous,
-            _canonicalize_primary_read_handle,
-            primary_feature_dir_for_mission,
-        )
+        from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 
-        feature_dir = primary_feature_dir_for_mission(
-            repo_root,
-            _canonicalize_primary_read_handle(repo_root, mission_slug),
+        feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+            MissionArtifactKind.PRIMARY_METADATA
         )
         meta = load_meta(feature_dir, allow_missing=True, on_malformed="none")
         raw_mid = meta.get("mission_id") if meta else None

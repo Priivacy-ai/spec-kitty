@@ -53,6 +53,12 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("merge_layers", "doctrine.drg"),
         ("resolve_context", "doctrine.drg.query"),
         ("ResolvedContext", "doctrine.drg.query"),
+        # Added by mission ``doctrine-silence-guards-01KYFV7Q`` WP08. The
+        # post-merge completeness check that every runtime caller merging the
+        # COMPLETE graph must run; sourced from the ``doctrine.drg`` package
+        # surface (not ``doctrine.drg.validator``) so the package's ``__all__``
+        # entry has a real ``src/`` importer instead of being a dead export.
+        ("validate_dangling_references", "doctrine.drg"),
     ],
     "charter.primitives": [
         ("PrimitiveExecutionContext", "doctrine.missions"),

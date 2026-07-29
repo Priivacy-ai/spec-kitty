@@ -35,9 +35,6 @@ nodes:
 - urn: toolguide:python-review-checks
   kind: toolguide
   label: Python Review Checks
-- urn: toolguide:rtk-search-tooling
-  kind: toolguide
-  label: RTK Interception and Search Tooling
 - urn: toolguide:terminology-guard
   kind: toolguide
   label: Terminology Guard

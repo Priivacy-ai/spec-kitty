@@ -287,6 +287,77 @@ def test_persist_decision_in_artifact(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# #3058: persisted frontmatter must not wrap long prose into trailing-
+# whitespace continuation lines.
+#
+# Red-first note: before the arbiter dump sites were migrated to
+# kernel.yaml_io.serialize_mapping (width=4096), _persist_in_artifact used a
+# bare ``YAML()`` instance whose default wrap width breaks long reviewer
+# prose across lines and leaves a trailing space/tab on the wrap-continuation
+# line (verified interactively: dumping a ~300-char explanation through the
+# pre-change bare-YAML() dump produced 4 such trailing-whitespace lines).
+# This test was confirmed to fail against that pre-change code — restored
+# temporarily during authoring, then reverted — before landing here green.
+# ---------------------------------------------------------------------------
+
+
+def test_persist_decision_frontmatter_has_no_trailing_whitespace_on_wrapped_prose(
+    tmp_path: Path,
+) -> None:
+    """Long rationale prose must round-trip through frontmatter with NO
+    trailing-whitespace line and the safe-load of the frontmatter must equal
+    the override that was persisted.
+    """
+    feature_dir = tmp_path / "kitty-specs" / "066-test"
+    wp_subdir = feature_dir / "tasks" / "WP01"
+    wp_subdir.mkdir(parents=True)
+
+    artifact = wp_subdir / "review-cycle-001.md"
+    artifact.write_text(
+        "---\nreview_ref: review-cycle://066-test/WP01/001\n---\n\n# Review\n\nSome feedback.\n",
+        encoding="utf-8",
+    )
+
+    long_explanation = (
+        "This override was granted because the failing check flagged a "
+        "pre-existing gap unrelated to this change and the reviewer confirmed "
+        "via git blame that the same assertion was already broken on main "
+        "before this work package branched off, so blocking merge on it would "
+        "be incorrect and contrary to the pre-existing-failure carve-out "
+        "documented in the review policy."
+    )
+    checklist = _make_checklist(is_pre_existing=True)
+    decision = ArbiterDecision(
+        arbiter="robert",
+        category=ArbiterCategory.PRE_EXISTING_FAILURE,
+        explanation=long_explanation,
+        checklist=checklist,
+        decided_at="2026-04-06T14:00:00+00:00",
+    )
+
+    result_path = persist_arbiter_decision(
+        feature_dir=feature_dir,
+        wp_id="WP01",
+        review_ref="review-cycle://066-test/WP01/001",
+        decision=decision,
+    )
+
+    content = result_path.read_text(encoding="utf-8")
+    fm_match_result = content.split("---\n")
+    # content shape: "" , frontmatter, body...
+    frontmatter = fm_match_result[1]
+
+    assert all(not line.endswith((" ", "\t")) for line in frontmatter.splitlines()), (
+        f"frontmatter has a trailing-whitespace line:\n{frontmatter!r}"
+    )
+
+    from ruamel.yaml import YAML
+
+    loaded = YAML(typ="safe").load(frontmatter)
+    assert loaded["arbiter_override"]["explanation"] == long_explanation
+
+
+# ---------------------------------------------------------------------------
 # T13: Standalone fallback when no artifact
 # ---------------------------------------------------------------------------
 

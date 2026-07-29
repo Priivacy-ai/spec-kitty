@@ -166,7 +166,6 @@ def _synthesize_unchanged_pack(repo_root: Path, run_id: str) -> None:
                 {
                     "urn": "directive:DIRECTIVE_003",
                     "kind": "directive",
-                    "id": "DIRECTIVE_003",
                 }
             ],
             "edges": [],

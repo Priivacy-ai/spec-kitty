@@ -3,8 +3,11 @@
 Covers:
 - T019: ``_discover_built_in_artifact_nodes`` scans ``assets/built-in`` and
   registers discovered ``*.asset.yaml`` files as ``NodeKind.ASSET`` nodes.
-- T019: ``_KIND_MAP`` stays ``.get``-based (never a raising subscript), so an
-  unknown/new reference type is skipped cleanly instead of raising ``KeyError``.
+- T019: ``_kind_for_type`` stays ``.get``-based (never a raising subscript), so
+  an unknown/new reference type is skipped cleanly instead of raising
+  ``KeyError``. (WP04 of ``doctrine-silence-guards-01KYFV7Q`` made ``_KIND_MAP``
+  itself total over ``NodeKind``; the ``.get`` contract at this read site is
+  unchanged and still guards typo'd reference types.)
 - T020: ``doctrine.py::_SUFFIX_TO_KIND`` resolves ``*.asset.yaml`` to the
   ``("assets", "asset")`` kind pair.
 """
@@ -54,17 +57,21 @@ def test_discover_built_in_artifact_nodes_skips_missing_assets_dir(
 
 
 def test_kind_map_get_is_none_safe_for_unknown_type() -> None:
-    """``_KIND_MAP`` is read via ``.get`` -- an unrecognised type returns ``None``.
+    """``_kind_for_type`` is ``.get``-based -- an unrecognised type returns ``None``.
 
     This is the regression guard: a raising subscript (``_KIND_MAP[ref_type]``)
-    would crash on any type not yet registered (e.g. a future kind). ``asset``
-    is deliberately absent from ``_KIND_MAP`` -- built-in reference fields don't
-    target assets by type (org packs declare assets via ``org_pack_loader``,
-    not this extractor path) -- so it doubles as the "unknown/new type" probe.
+    at *this* read site would crash on any reference ``type`` an author typos.
+
+    Re-pinned by WP04 (FR-004). The probe used to be ``asset``, on the reasoning
+    that built-in reference fields never target assets by type. But ``asset`` is
+    a ``NodeKind``, and using a real kind as the "unknown type" specimen is what
+    let ``_KIND_MAP`` sit at 11 of 16 members with a test apparently vouching for
+    it. ``_KIND_MAP`` is now derived from ``NodeKind`` and total; the probe moved
+    to a string that is genuinely not a kind, which is what the contract was ever
+    about.
     """
-    assert "asset" not in _KIND_MAP
-    assert _KIND_MAP.get("asset") is None
-    assert _kind_for_type("asset") is None
+    assert _kind_for_type("asset") is NodeKind.ASSET
+    assert _KIND_MAP.get("some-future-kind-not-yet-registered") is None
     assert _kind_for_type("some-future-kind-not-yet-registered") is None
 
 
