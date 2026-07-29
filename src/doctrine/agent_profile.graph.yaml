@@ -93,6 +93,11 @@ edges:
   when: discovering domain events, commands, aggregates, policies, read models, and bounded-context boundaries from real business flows
   reason: Event Storming is a DDD-cluster discovery procedure (family-A). The operator's earlier guard keeps it OUT of the eager specify delivery (context-overload concern), so it is attached via the architect profile — INERT in the profile channel (requires/specializes_from only) — rather than via paradigm:domain-driven-design, which is scope-resolved (family-A) and would deliver it at specify. It can be switched to paradigm-delivered later if the operator wants it eager.
 - source: agent_profile:architect-alphonso
+  target: styleguide:reasons-canvas-writing
+  relation: suggests
+  when: capturing the change-intent, decision boundaries and safeguards of a mission or a significant architectural change as a REASONS Canvas -- recording architectural decisions with rationale rather than mirroring code
+  reason: "The architect should reach the REASONS Canvas writing styleguide when documenting the intent behind a significant architectural change: alphonso's attested scope is architectural decisions documented with rationale (DIRECTIVE_003, ADR/design outputs), and the styleguide's own purpose is to capture intent -- Safeguard (must) / Norm (should) / Approach (may) -- for a mission or change, not to mirror code. Composition-only under today's traversal (the profile channel walks requires/specializes_from only), authored per the #3063 family-E operator ruling (canvas WRITING only; the reasons-canvas fill/review tactics and the SPDD paradigm stay in the deferred set, untouched)."
+- source: agent_profile:architect-alphonso
   target: tactic:development-bdd
   relation: requires
   reason: Use BDD behavioral contract definition during architecture design to express observable system boundaries in stakeholder-readable terms. Behavioral contracts precede implementation and shape system component boundaries.

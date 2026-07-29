@@ -48,6 +48,21 @@ nodes:
   kind: toolguide
   label: TypeScript Mutation Testing with Stryker
 edges:
+- source: toolguide:contextive
+  target: tactic:glossary-curation-interview
+  relation: suggests
+  when: capturing the terms produced by a glossary-curation round in an enforceable, IDE-surfaced ubiquitous-language glossary (hover, auto-complete, per-context definitions)
+  reason: "Contextive's own summary is a tool to 'manage ubiquitous language ... glossary file setup ... alignment with Spec Kitty glossary curation workflows', and its guide ties the glossary-curation-interview tactic's output to Contextive format. It therefore supports the write-a-glossary workflow. INERT: contextive is action-unreachable, so its outbound `suggests` are never walked."
+- source: toolguide:contextive
+  target: tactic:language-driven-design
+  relation: suggests
+  when: treating terminology drift as an architectural signal -- an IDE-surfaced glossary makes same-term/different-meaning and different-term/same-concept conflicts visible in the developer workflow
+  reason: 'Contextive surfaces ubiquitous-language definitions with compound-word recognition and multi-context term disambiguation (its own guide), which is the tooling that makes the linguistic conflicts language-driven-design hunts for observable. It therefore supports the language-oriented development approach. INERT: contextive is action-unreachable.'
+- source: toolguide:contextive
+  target: tactic:terminology-extraction-mapping
+  relation: suggests
+  when: capturing the extracted, bounded-context-owned terms in an enforceable Contextive glossary so the recovered ubiquitous language is surfaced in the IDE rather than left in a static document
+  reason: "Contextive is the ubiquitous-language glossary tool; the terms terminology-extraction-mapping extracts and validates are exactly the content Contextive stores and enforces (its guide ties glossary-curation output to Contextive format). It supports the extraction-mapping workflow's output. INERT: contextive is action-unreachable."
 - source: toolguide:git-worktree-pr-workflow
   target: tactic:clean-linear-commit-history
   relation: suggests
@@ -57,3 +72,13 @@ edges:
 - source: toolguide:terminology-guard
   target: directive:DIRECTIVE_044
   relation: suggests
+- source: toolguide:terminology-guard
+  target: tactic:canonical-source-unification
+  relation: suggests
+  when: enforcing the single-canonical-authority rule at the commit level -- a CI gate that rejects a superseded (non-canonical) term reappearing in active source, the terminology instance of the tactic's 'add a gate to enforce the canonical route' step
+  reason: "The terminology guard is a CI gate that 'enforces canonical naming at the commit level' and references DIRECTIVE_044 -- the exact directive canonical-source-unification operationalizes, whose step 4 calls for 'an architectural gate ... that rejects future non-canonical routing'. The guard is that gate for terminology, so it supports the tactic. INERT: terminology-guard is action-unreachable."
+- source: toolguide:terminology-guard
+  target: tactic:occurrence-classification-workflow
+  relation: suggests
+  when: verifying a classified bulk terminology change (e.g. a rename) is complete and stays complete -- the guard fails CI if a superseded term reappears anywhere in active source after the rename
+  reason: "occurrence-classification-workflow governs bulk terminology edits (its own example is a 'constitution -> charter (rename)'), and the terminology guard is precisely the gate that 'catches superseded terms that have reappeared in active source and fails CI' -- the enforcement that the classified rename left no un-renamed occurrence. It supports the workflow. INERT: terminology-guard is action-unreachable."
