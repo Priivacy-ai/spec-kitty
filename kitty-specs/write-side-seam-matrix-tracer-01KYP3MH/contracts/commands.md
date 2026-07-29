@@ -10,8 +10,8 @@ CLI command contracts for the deterministic writers. All route through `write_ta
 - **Errors**: unknown criterion → actionable error; unroutable → zero-write refusal (I-W2).
 
 ## `issue-verdict` (FR-003)
-- **Inputs**: `--mission <handle>`, `--issue <#ref>`, `--status <open|addressed|not_applicable|verified>`, `--wp <id?>`, `--evidence <text?>`, `--actor <name>`, `--json`.
-- **Behavior**: mutates the row (keyed by `issue_ref`) on `issue-matrix.json`; migrates the mission from legacy `.md` on first write (FR-013); routes to COORD. No markdown render.
+- **Inputs**: `--mission <handle>`, `--issue <#ref>`, `--verdict <fixed|verified-already-fixed|deferred-with-followup|in-mission>`, `--wp <id?>`, `--evidence-ref <text?>`, `--actor <name>`, `--json`. (**Reconciled WP05**: `verdict`/`evidence_ref` over the canonical `IssueMatrixVerdict` closed-set, NOT the earlier `--status open|addressed|…` sketch — the approve gate does an `is` identity check on the enum; see data-model.md "Vocabulary decision".)
+- **Behavior**: mutates the row (keyed by `issue_ref`) on `issue-matrix.json`; migrates the mission from legacy `.md` on first write (FR-013); routes to COORD. No markdown render. Idempotent (FR-012); keep computed/derived fields authoritative.
 - **Output**: `{ok, kind:"ISSUE_MATRIX", destination_surface, row_or_entry_ref, migrated}`.
 
 ## `tracer-append` (FR-006)

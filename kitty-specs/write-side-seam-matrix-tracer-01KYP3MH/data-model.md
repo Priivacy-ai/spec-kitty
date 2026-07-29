@@ -17,22 +17,23 @@ Phase 1 output. Entities, schemas, invariants, and state for the structured matr
 
 - **Partition**: COORD.
 - **Migration**: replaces `issue-matrix.md` (markdown). **No markdown render** is emitted (D-2). Back-compat via failover-read + migrate-on-write (D-3, FR-013).
-- **Schema** (indicative):
+- **Schema** (as-built WP05 — reconciled from the earlier `status` sketch to the canonical `IssueMatrixVerdict` vocabulary; see note below):
   ```json
   {
     "schema_version": 1,
     "mission_id": "01K…",
-    "rows": [
-      {
+    "rows": {
+      "#1726": {
         "issue_ref": "#1726",
         "sources": ["tasks/WP01.md", "tasks/WP02.md"],
-        "status": "open|addressed|not_applicable|verified",
+        "verdict": "fixed|verified-already-fixed|deferred-with-followup|in-mission",
         "wp_refs": ["WP01"],
-        "evidence": null
+        "evidence_ref": null
       }
-    ]
+    }
   }
   ```
+- **Vocabulary decision (WP05, reviewer-confirmed):** rows carry **`verdict`/`evidence_ref`** reusing the existing closed-set `IssueMatrixVerdict` (`fixed` | `verified-already-fixed` | `deferred-with-followup` | `in-mission`), **not** a parallel `status: open|addressed|not_applicable|verified` set. Load-bearing reason: the approval-gate consumer `tasks_parsing_validation.py:116` does an **`is` identity check** against `IssueMatrixVerdict.IN_MISSION` — a free-form string would silently never match, defeating the "unresolved in-mission blocks at done" gate; and it keeps ONE vocabulary for the concept the coord matrix + approve gate already use (unification-not-parity). The scaffold placeholder `unknown` is a non-member sentinel (excluded from `.rows`, surfaced as `ISSUE_MATRIX_VERDICT_UNKNOWN`). **`rows` is object-keyed by `issue_ref`** (not an array). **WP07 (`issue-verdict`) MUST use `--verdict`/`evidence_ref`.**
 - **Row identity**: `issue_ref` (canonical, deduped) — the stable key the row-aware merge driver unions on.
 - **Invariants**:
   - I-I1: rows are keyed by `issue_ref`; discovery scans `spec.md`+`tasks/`+`plan.md`+`research.md`+`analysis-report.md`+`contracts/` (FR-004).
