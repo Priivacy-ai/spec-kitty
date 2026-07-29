@@ -73,9 +73,15 @@ _ACTION_D2_DEPTH = 2
 _NORMALIZATION_DELTA = 25
 
 #: The measured d=1 <-> d=2 action-channel spread (R-2): d=2 (bootstrap) reaches
-#: exactly 7 more nodes than d=1 (compact), so d=2's unreachable set is d=1's
-#: minus those 7.
-_ACTION_D1_D2_SPREAD = 7
+#: exactly 10 more nodes than d=1 (compact), so d=2's unreachable set is d=1's
+#: minus those 10. Was 7 before #3063 family-D; the ACCEPT-DELIVERY wiring adds
+#: three members that are reached only at d=2 (they were in BOTH unreachable sets
+#: before, so they sit in D1 - D2 now): ``tactic:reverse-speccing`` and
+#: ``tactic:test-to-system-reconstruction`` (via the brownfield-onboarding suggests
+#: chain, which lands inside the d=2 bound but not d=1) and
+#: ``styleguide:mutation-aware-test-design`` (a 2-hop suggests chain out of the
+#: action-scoped DIRECTIVE_030). The pre-existing 7 are unchanged.
+_ACTION_D1_D2_SPREAD = 10
 
 #: The common-docs cluster WP09 wires (mission doctrine-delivery-reachability,
 #: T050, FR-015). One authored `scope` edge —
@@ -156,6 +162,57 @@ _DDD_FAMILY_WIRED: frozenset[str] = frozenset(
     }
 )
 
+#: The TESTING / BDD / MUTATION family #3063 family-D delivers (operator interview
+#: outcome + ACCEPT-DELIVERY ruling 2026-07-29). Unlike families B/C, family D is
+#: reachability-affecting: two hubs are EXISTING action-scoped directives, so their
+#: outbound ``suggests`` edges ARE walked and DELIVER at implement/review.
+#: ``directive:DIRECTIVE_034`` (test-first) and ``directive:DIRECTIVE_030`` (test-
+#: quality gate) are both ``scope``-linked from ``action:software-dev/implement``
+#: and ``action:software-dev/review``; ``resolve_context`` step 3 walks ``suggests``
+#: from those scope-resolved artifacts.
+#:
+#: Delivered at BOTH d=1 and d=2 (leave both ``_ACTION_UNREACHABLE`` sets) — five
+#: from DIRECTIVE_034 (development-bdd, atdd-adversarial-acceptance,
+#: specification-by-example, formalized-constraint-testing, example-mapping-
+#: workshop) and two from DIRECTIVE_030 (adversarial-qa-handoff,
+#: work-package-completion-validation):
+_TESTING_DELIVERED_AT_D1: frozenset[str] = frozenset(
+    {
+        "tactic:development-bdd",
+        "tactic:atdd-adversarial-acceptance",
+        "paradigm:specification-by-example",
+        "tactic:formalized-constraint-testing",
+        "procedure:example-mapping-workshop",
+        "tactic:adversarial-qa-handoff",
+        "tactic:work-package-completion-validation",
+    }
+)
+
+#: Delivered at the bootstrap depth d=2 ONLY (leave ``_ACTION_UNREACHABLE_D2`` but
+#: NOT ``_ACTION_UNREACHABLE_D1``; they move into the d1<->d2 spread):
+#: ``reverse-speccing`` / ``test-to-system-reconstruction`` via the
+#: ``paradigm:brownfield-onboarding`` suggests chain, and
+#: ``styleguide:mutation-aware-test-design`` via a 2-hop suggests chain out of the
+#: action-scoped DIRECTIVE_030.
+_TESTING_DELIVERED_AT_D2_ONLY: frozenset[str] = frozenset(
+    {
+        "tactic:reverse-speccing",
+        "tactic:test-to-system-reconstruction",
+        "styleguide:mutation-aware-test-design",
+    }
+)
+
+#: Every artefact family-D makes action-reachable (the union). The BDD + test-
+#: quality members action-reachable at implement/review — the acceptance target of
+#: the ACCEPT-DELIVERY ruling. The mutation hub (a NEW non-scoped directive) and the
+#: DIRECTIVE_041 fan-out stay UNREACHABLE (their members remain in the deferred set);
+#: the profile->hub and event-storming edges are ``suggests`` on the profile channel
+#: and inert. ``_PROFILE_UNREACHABLE`` is unchanged (153); ``_PROFILE_RESCUES``
+#: 4 -> 2 because development-bdd and reverse-speccing entered the action channel.
+_TESTING_BDD_MUTATION_WIRED: frozenset[str] = (
+    _TESTING_DELIVERED_AT_D1 | _TESTING_DELIVERED_AT_D2_ONLY
+)
+
 #: Activated artefacts (node form) NOT reachable via the action channel at
 #: d=1 (compact/steady-state). Membership, not cardinality (R-4).
 _ACTION_UNREACHABLE_D1: frozenset[str] = frozenset(
@@ -167,13 +224,11 @@ _ACTION_UNREACHABLE_D1: frozenset[str] = frozenset(
         "paradigm:atomic-design",
         "paradigm:behaviour-driven-development",
         "paradigm:c4-incremental-detail-modeling",
-        "paradigm:specification-by-example",
         "paradigm:structured-prompt-driven-development",
         "procedure:bdd-scenario-lifecycle",
         "procedure:documentation-gap-prioritization",
         "procedure:drill-down-documentation",
         "procedure:event-storming-discovery",
-        "procedure:example-mapping-workshop",
         "procedure:migrate-project-guidance-to-spec-kitty-charter",
         "styleguide:adversarial-squad-cadence",
         "styleguide:deployable-skill-authoring",
@@ -181,10 +236,8 @@ _ACTION_UNREACHABLE_D1: frozenset[str] = frozenset(
         "styleguide:mutation-aware-test-design",
         "styleguide:planning-and-tracking",
         "styleguide:reasons-canvas-writing",
-        "tactic:adversarial-qa-handoff",
         "tactic:analysis-extract-before-interpret",
         "tactic:architecture-diagram-review-checklist",
-        "tactic:atdd-adversarial-acceptance",
         "tactic:atomic-design-review-checklist",
         "tactic:atomic-state-ownership",
         "tactic:c4-zoom-in-architecture-documentation",
@@ -193,8 +246,6 @@ _ACTION_UNREACHABLE_D1: frozenset[str] = frozenset(
         "tactic:code-documentation-analysis",
         "tactic:compositional-stream-boundaries",
         "tactic:cross-cutting-state-via-store",
-        "tactic:development-bdd",
-        "tactic:formalized-constraint-testing",
         "tactic:mutation-testing-workflow",
         "tactic:occurrence-classification-workflow",
         "tactic:ownership-map-leeway",
@@ -216,7 +267,6 @@ _ACTION_UNREACHABLE_D1: frozenset[str] = frozenset(
         "tactic:test-minimisation",
         "tactic:test-readability-clarity-check",
         "tactic:test-to-system-reconstruction",
-        "tactic:work-package-completion-validation",
         "tactic:zombies-tdd",
         "toolguide:contextive",
         "toolguide:github-tracker",
@@ -240,21 +290,16 @@ _ACTION_UNREACHABLE_D2: frozenset[str] = frozenset(
         "directive:DIRECTIVE_044",
         "paradigm:atomic-design",
         "paradigm:c4-incremental-detail-modeling",
-        "paradigm:specification-by-example",
         "paradigm:structured-prompt-driven-development",
         "procedure:documentation-gap-prioritization",
         "procedure:drill-down-documentation",
         "procedure:event-storming-discovery",
-        "procedure:example-mapping-workshop",
         "procedure:migrate-project-guidance-to-spec-kitty-charter",
         "styleguide:deployable-skill-authoring",
         "styleguide:java-conventions",
-        "styleguide:mutation-aware-test-design",
         "styleguide:reasons-canvas-writing",
-        "tactic:adversarial-qa-handoff",
         "tactic:analysis-extract-before-interpret",
         "tactic:architecture-diagram-review-checklist",
-        "tactic:atdd-adversarial-acceptance",
         "tactic:atomic-design-review-checklist",
         "tactic:atomic-state-ownership",
         "tactic:c4-zoom-in-architecture-documentation",
@@ -263,8 +308,6 @@ _ACTION_UNREACHABLE_D2: frozenset[str] = frozenset(
         "tactic:code-documentation-analysis",
         "tactic:compositional-stream-boundaries",
         "tactic:cross-cutting-state-via-store",
-        "tactic:development-bdd",
-        "tactic:formalized-constraint-testing",
         "tactic:mutation-testing-workflow",
         "tactic:occurrence-classification-workflow",
         "tactic:ownership-map-leeway",
@@ -279,12 +322,9 @@ _ACTION_UNREACHABLE_D2: frozenset[str] = frozenset(
         "tactic:refactoring-state-pattern-for-behavior",
         "tactic:refactoring-strangler-fig",
         "tactic:reference-architectural-patterns",
-        "tactic:reverse-speccing",
         "tactic:secure-regex-catastrophic-backtracking",
         "tactic:terminology-extraction-mapping",
         "tactic:test-readability-clarity-check",
-        "tactic:test-to-system-reconstruction",
-        "tactic:work-package-completion-validation",
         "tactic:zombies-tdd",
         "toolguide:contextive",
         "toolguide:github-tracker",
@@ -467,8 +507,6 @@ _PROFILE_UNREACHABLE: frozenset[str] = frozenset(
 _PROFILE_RESCUES: frozenset[str] = frozenset(
     {
         "directive:DIRECTIVE_044",
-        "tactic:development-bdd",
-        "tactic:reverse-speccing",
         "tactic:test-readability-clarity-check",
     }
 )
@@ -610,6 +648,41 @@ class TestActionChannelReachability:
                 f"(paradigm not scoped by an action, or a member is wired only to "
                 f"an unreachable source): {missing}"
             )
+
+    def test_testing_bdd_family_is_action_reachable_at_implement_review(
+        self, graph: DRGGraph
+    ) -> None:
+        """#3063 family-D acceptance (operator ACCEPT-DELIVERY ruling): the BDD +
+        test-quality members must be action-reachable at implement/review.
+
+        Unlike families B/C, family D delivers, because ``directive:DIRECTIVE_034``
+        (test-first) and ``directive:DIRECTIVE_030`` (test-quality gate) are already
+        ``scope``-linked from ``action:software-dev/implement`` and
+        ``action:software-dev/review``. ``resolve_context`` step 3 walks
+        ``suggests`` from those scope-resolved artifacts, so the authored
+        ``suggests`` edges deliver their targets. Measured by CALLING the WP08
+        helper (R-1): the seven core members must be reachable at BOTH the compact
+        (d=1) and bootstrap (d=2) depths; the three brownfield/2-hop members are
+        reached at the bootstrap depth only. Red before the edges land, green after.
+        """
+        r_d1 = action_channel_reachable(graph, action_seed_urns(graph), _ACTION_D1_DEPTH)
+        missing_d1 = sorted(_TESTING_DELIVERED_AT_D1 - r_d1)
+        assert not missing_d1, (
+            "BDD + test-quality members still unreachable at d=1 "
+            f"(a hub is not action-scoped, or an edge is absent): {missing_d1}"
+        )
+
+        r_d2 = action_channel_reachable(graph, action_seed_urns(graph), _ACTION_D2_DEPTH)
+        missing_d2 = sorted(_TESTING_BDD_MUTATION_WIRED - r_d2)
+        assert not missing_d2, (
+            "family-D delivered members still unreachable at d=2: "
+            f"{missing_d2}"
+        )
+        # The mutation hub (a NEW non-scoped directive) and the DIRECTIVE_041
+        # fan-out are INERT by design: their members stay unreachable. Guards
+        # against a future edit that accidentally makes the mutation family eager.
+        assert "tactic:mutation-testing-workflow" not in r_d2
+        assert "styleguide:quadruple-a-test-format" not in r_d2
 
 
 @pytest.mark.doctrine

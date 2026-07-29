@@ -1024,6 +1024,798 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
             "operator attestation."
         ),
     ),
+    # -----------------------------------------------------------------------
+    # #3063 family-D (TESTING / BDD / MUTATION family), operator interview
+    # outcome. The operator has ATTESTED these relationships AND ruled
+    # ACCEPT DELIVERY (2026-07-29): unlike families B and C, family D is
+    # REACHABILITY-AFFECTING, not composition-only. The reason is measured, not
+    # assumed: two of the four hubs are EXISTING directives already `scope`-linked
+    # from actions —
+    #   * directive:DIRECTIVE_034 (test-first-development) is scoped by
+    #     action:software-dev/implement AND action:software-dev/review;
+    #   * directive:DIRECTIVE_030 (test-and-typecheck-quality-gate) is scoped by
+    #     the same two actions.
+    # `resolve_context` step 3 walks `suggests` FROM the scope-resolved artifacts,
+    # so a `suggests` edge sourced at 034/030 IS followed and DELIVERS its target
+    # at implement/review. That is the opposite of the family-B/C pattern, where
+    # the hub was a NEW, non-scoped directive whose outbound `suggests` were never
+    # walked (inert). The operator wants this delivery: the BDD + test-quality
+    # families become action-reachable at implement/review now, and the pins in
+    # tests/doctrine/drg/test_reachability.py are updated to the measured result
+    # (exactly as family-A did for DDD-at-specify), NOT left unchanged.
+    #
+    # Measured with the WP08 helper (resolve_context / action_channel_reachable),
+    # before -> after the full family-D edge set + 5 new artefacts + the inert
+    # event-storming edge:
+    #   * _ACTION_UNREACHABLE_D1 67 -> 60. The SEVEN delivered at d=1 (compact):
+    #     from DIRECTIVE_034 — development-bdd, atdd-adversarial-acceptance,
+    #     specification-by-example, formalized-constraint-testing,
+    #     example-mapping-workshop; from DIRECTIVE_030 — adversarial-qa-handoff,
+    #     work-package-completion-validation.
+    #   * _ACTION_UNREACHABLE_D2 60 -> 50. The above seven PLUS three more reached
+    #     only at the bootstrap depth d=2: reverse-speccing and
+    #     test-to-system-reconstruction (via paradigm:brownfield-onboarding, which
+    #     is not itself scoped but is reachable through a <=2-hop suggests chain, so
+    #     a further suggests hop lands within the d=2 bound), and
+    #     mutation-aware-test-design (a 2-hop suggests chain out of DIRECTIVE_030).
+    #   * _ACTION_D1_D2_SPREAD 7 -> 10: reverse-speccing, test-to-system-
+    #     reconstruction and mutation-aware-test-design were in BOTH old sets; they
+    #     leave d=2 only, so they now sit in (D1 - D2).
+    #   * _PROFILE_UNREACHABLE UNCHANGED (153): every family-D profile edge is
+    #     `suggests`, which the profile channel (requires/specializes_from) does not
+    #     follow.
+    #   * _PROFILE_RESCUES 4 -> 2 (= _ACTION_UNREACHABLE_D2 - _PROFILE_UNREACHABLE):
+    #     development-bdd and reverse-speccing entered the action channel, so they
+    #     are no longer profile-only rescues; DIRECTIVE_044 and
+    #     test-readability-clarity-check remain.
+    #
+    # The mutation hub is a NEW directive (directive:USE_MUTATION_TESTING_TO_
+    # VALIDATE_TEST_QUALITY, authored as directives/built-in/use-mutation-testing-
+    # to-validate-test-quality.directive.yaml). It is NOT charter-activated and NOT
+    # action-scoped, so its four outbound `suggests` edges are INERT (its members
+    # stay in the deferred set). The test-quality fan-out is SPLIT across two hubs
+    # per each target's own text: DIRECTIVE_030 (the quality-BAR the gate enforces)
+    # heads adversarial-qa-handoff, work-package-completion-validation,
+    # testing-principles, test-desiderata-and-boundaries and toolguide:sonar;
+    # DIRECTIVE_041 (tests-as-scaffold, clarity/authoring) heads
+    # test-readability-clarity-check, zombies-tdd and the new quadruple-a-test-
+    # format styleguide. DIRECTIVE_041 is NOT scope-linked from any action, so its
+    # three `suggests` edges are inert (those members stay deferred); only the
+    # 030-headed members are delivered.
+    #
+    # URN CASING (mutation hub): the wiring named the hub lower-kebab; the Directive
+    # model's `id` pattern + id_normalizer upper-case it, so the canonical URN is
+    # directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY (the
+    # RECONCILE_CHANGE_SCOPE_TENSIONS / DISCIPLINED_REFACTORING precedent). Recorded
+    # in docs/plans/doctrine/delivery-reachability-wiring-table.md.
+    #
+    # PROFILE -> hub edges (all `suggests`, all INERT in the profile channel; the
+    # attested delivery vector for a future channel that follows suggests): the
+    # seven implementer-role profiles reach the test-first, mutation and BOTH
+    # test-quality hubs; reviewer-renata reaches the test-quality + mutation hubs;
+    # debugger-debbie reaches the mutation hub.
+    #
+    # EVENT-STORMING (DDD-cluster membership, family-A): attached via
+    # agent_profile:architect-alphonso --suggests--> procedure:event-storming-
+    # discovery, which is INERT (measured: not reachable at d=1 or d=2). It is
+    # DELIBERATELY NOT attached via paradigm:domain-driven-design: family-A made the
+    # DDD paradigm a scope-resolved artifact (action:software-dev/specify --scope-->
+    # DDD), so a DDD --suggests--> event-storming edge WOULD deliver event-storming
+    # at specify (measured: reachable at d=1 and d=2) — which the operator's earlier
+    # explicit guard forbids (context-overload concern). event-storming remains a
+    # DDD-cluster member; it can be switched to paradigm-delivered later if the
+    # operator wants it eager at specify.
+    # -----------------------------------------------------------------------
+    # D1. BDD/ATDD hub = directive:DIRECTIVE_034 (test-first-development).
+    # DELIVERS at implement/review (034 is scope-resolved).
+    DRGEdge(
+        source="directive:DIRECTIVE_034",
+        target="tactic:development-bdd",
+        relation=Relation.SUGGESTS,
+        when=(
+            "designing observable behavioural contracts at a system's public "
+            "interfaces before implementation, so stakeholders can validate what "
+            "the system must do"
+        ),
+        reason=(
+            "Test-first development suggests BDD-as-behavioural-contract-design as "
+            "the way to state required behaviour before code; the `when` is the "
+            "tactic's own stated purpose. Delivered at implement/review (034 is "
+            "scope-resolved) per the #3063 family-D ACCEPT-DELIVERY ruling."
+        ),
+    ),
+    DRGEdge(
+        source="directive:DIRECTIVE_034",
+        target="tactic:atdd-adversarial-acceptance",
+        relation=Relation.SUGGESTS,
+        when=(
+            "hardening acceptance criteria by deliberately exploring how a feature "
+            "could fail and turning selected failure modes into adversarial "
+            "acceptance tests"
+        ),
+        reason=(
+            "Test-first development suggests adversarial acceptance-test definition "
+            "as the technique for strengthening acceptance criteria; the `when` is "
+            "the tactic's own stated purpose. Delivered at implement/review."
+        ),
+    ),
+    DRGEdge(
+        source="directive:DIRECTIVE_034",
+        target="paradigm:specification-by-example",
+        relation=Relation.SUGGESTS,
+        when=(
+            "building shared understanding of required behaviour from concrete, "
+            "business-readable examples that become executable acceptance tests and "
+            "living documentation"
+        ),
+        reason=(
+            "Test-first development suggests Specification by Example as the "
+            "paradigm for driving development from concrete examples; the `when` is "
+            "the paradigm's own stated summary. Delivered at implement/review."
+        ),
+    ),
+    DRGEdge(
+        source="directive:DIRECTIVE_034",
+        target="tactic:formalized-constraint-testing",
+        relation=Relation.SUGGESTS,
+        when=(
+            "verifying mathematical invariants and structural contracts (round-trip "
+            "symmetry, equality/hash-code alignment, sparse serialization) with "
+            "property-based rather than example-based checks"
+        ),
+        reason=(
+            "Test-first development suggests formalized constraint testing when the "
+            "behaviour to pin is an invariant/contract better checked by property "
+            "patterns than by examples; the `when` is the tactic's own stated "
+            "purpose. Delivered at implement/review."
+        ),
+    ),
+    DRGEdge(
+        source="directive:DIRECTIVE_034",
+        target="procedure:example-mapping-workshop",
+        relation=Relation.SUGGESTS,
+        when=(
+            "turning a behaviour request into concrete rules, examples, and open "
+            "questions as a shared specification set before implementation"
+        ),
+        reason=(
+            "Test-first development suggests the Example Mapping workshop as the "
+            "collaborative step that produces the examples tests are written from; "
+            "the `when` is the procedure's own stated purpose. Delivered at "
+            "implement/review."
+        ),
+    ),
+    DRGEdge(
+        source="directive:DIRECTIVE_034",
+        target="styleguide:given-when-then-authoring",
+        relation=Relation.SUGGESTS,
+        when=(
+            "writing behavioural scenarios as Given (precondition) / When (single "
+            "trigger) / Then (observable outcome) in domain language, runner-"
+            "agnostic"
+        ),
+        reason=(
+            "Test-first development suggests the Given-When-Then authoring "
+            "conventions for writing the scenarios; the `when` is the new "
+            "styleguide's own scope. Delivered at implement/review."
+        ),
+    ),
+    DRGEdge(
+        source="directive:DIRECTIVE_034",
+        target="toolguide:gherkin",
+        relation=Relation.SUGGESTS,
+        when=(
+            "expressing those scenarios in the Gherkin DSL (Feature / Scenario / "
+            "Given-When-Then / Examples), independent of any runner"
+        ),
+        reason=(
+            "Test-first development suggests the Gherkin toolguide as the notation "
+            "for the scenarios; the `when` is the new toolguide's own scope "
+            "(language only, not a runner). Delivered at implement/review."
+        ),
+    ),
+    # D2. Brownfield onboarding hub = paradigm:brownfield-onboarding.
+    # Not scope-resolved itself, but reachable via a <=2-hop suggests chain, so
+    # these DELIVER at the bootstrap depth d=2 only. `suggests` matches how
+    # brownfield already links its non-mandatory members (it mixes requires for
+    # hard prerequisites with suggests, e.g. styleguide:adversarial-squad-cadence).
+    DRGEdge(
+        source="paradigm:brownfield-onboarding",
+        target="tactic:reverse-speccing",
+        relation=Relation.SUGGESTS,
+        when=(
+            "reconstructing system understanding purely from test code and "
+            "comparing it against the implementation and design docs to reveal "
+            "under-documented behaviour"
+        ),
+        reason=(
+            "Brownfield onboarding suggests reverse-speccing as the technique for "
+            "recovering intent from an existing system's tests; the `when` is the "
+            "tactic's own stated purpose. Delivered at d=2 per the family-D "
+            "ACCEPT-DELIVERY ruling."
+        ),
+    ),
+    DRGEdge(
+        source="paradigm:brownfield-onboarding",
+        target="tactic:test-to-system-reconstruction",
+        relation=Relation.SUGGESTS,
+        when=(
+            "scoring how effectively a legacy system's tests serve as executable "
+            "specifications, identifying where they fail to communicate "
+            "behavioural, architectural, or operational intent"
+        ),
+        reason=(
+            "Brownfield onboarding suggests test-to-system reconstruction as the "
+            "scored dual-agent validation of a legacy suite's specification "
+            "quality; the `when` is the tactic's own stated purpose. Delivered at "
+            "d=2."
+        ),
+    ),
+    # D3. Mutation hub = NEW directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY.
+    # INERT: the directive is not action-scoped and not charter-activated, so its
+    # outbound `suggests` are never walked; these members stay in the deferred set.
+    DRGEdge(
+        source="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        target="tactic:mutation-testing-workflow",
+        relation=Relation.SUGGESTS,
+        when=(
+            "running mutation testing to verify tests detect real bugs rather than "
+            "merely execute code, and triaging the surviving mutants"
+        ),
+        reason=(
+            "The mutation hub suggests the run/triage workflow as its concrete "
+            "step-by-step technique; the `when` is the tactic's own stated purpose. "
+            "Inert under today's traversal (the new hub directive is not action-"
+            "scoped)."
+        ),
+    ),
+    DRGEdge(
+        source="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        target="styleguide:mutation-aware-test-design",
+        relation=Relation.SUGGESTS,
+        when=(
+            "designing tests so common mutants (boundary, logic, membership, "
+            "aggregate) are killed rather than tolerated"
+        ),
+        reason=(
+            "The mutation hub suggests the mutation-aware test-design conventions "
+            "as the design discipline that makes mutants killable; the `when` is "
+            "the styleguide's own scope. Inert under today's traversal."
+        ),
+    ),
+    DRGEdge(
+        source="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        target="toolguide:python-mutation-tools",
+        relation=Relation.SUGGESTS,
+        when=(
+            "running mutation testing on Python code with mutmut (run/browse/apply, "
+            "equivalent-mutant annotation)"
+        ),
+        reason=(
+            "The mutation hub suggests the Python mutation toolguide (mutmut) as the "
+            "generator for Python; the `when` is the toolguide's own scope. Inert "
+            "under today's traversal."
+        ),
+    ),
+    DRGEdge(
+        source="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        target="toolguide:typescript-mutation-tools",
+        relation=Relation.SUGGESTS,
+        when=(
+            "running mutation testing on TypeScript/JavaScript code with Stryker"
+        ),
+        reason=(
+            "The mutation hub suggests the TypeScript/JavaScript mutation toolguide "
+            "(Stryker) as the generator for that stack; the `when` is the "
+            "toolguide's own scope. Inert under today's traversal."
+        ),
+    ),
+    # D4a. Test-quality hub = directive:DIRECTIVE_030 (test-and-typecheck-quality-
+    # gate) — the quality BAR the gate enforces. DELIVERS at implement/review (030
+    # is scope-resolved).
+    DRGEdge(
+        source="directive:DIRECTIVE_030",
+        target="tactic:adversarial-qa-handoff",
+        relation=Relation.SUGGESTS,
+        when=(
+            "preparing changed code for review/QA by identifying likely failure "
+            "modes up front and leaving evidence that behaviour, typing, and edge "
+            "cases were verified"
+        ),
+        reason=(
+            "The test-and-typecheck quality gate suggests the adversarial QA "
+            "handoff as the pre-handoff discipline that anticipates what review/QA "
+            "will probe; the `when` is the tactic's own stated purpose. Delivered "
+            "at implement/review."
+        ),
+    ),
+    DRGEdge(
+        source="directive:DIRECTIVE_030",
+        target="tactic:work-package-completion-validation",
+        relation=Relation.SUGGESTS,
+        when=(
+            "validating that a work package meets its required quality gates before "
+            "its status advances to for_review or done"
+        ),
+        reason=(
+            "The quality gate suggests work-package completion validation as the "
+            "check that its gates are actually met before a status transition; the "
+            "`when` is the tactic's own stated purpose. Delivered at implement/"
+            "review."
+        ),
+    ),
+    DRGEdge(
+        source="directive:DIRECTIVE_030",
+        target="styleguide:testing-principles",
+        relation=Relation.SUGGESTS,
+        when=(
+            "judging whether a test suite is fast, isolated, repeatable, self-"
+            "validating, thorough and truthful — the properties the quality gate "
+            "exists to protect"
+        ),
+        reason=(
+            "The quality gate suggests the testing-principles styleguide as the "
+            "properties a suite must have to pass it; the `when` is the styleguide's "
+            "own subject. Delivered at implement/review."
+        ),
+    ),
+    DRGEdge(
+        source="directive:DIRECTIVE_030",
+        target="styleguide:test-desiderata-and-boundaries",
+        relation=Relation.SUGGESTS,
+        when=(
+            "assessing tests against the test desiderata (Kent Beck) and checking "
+            "each test owns exactly one behavioural boundary"
+        ),
+        reason=(
+            "The quality gate suggests the test-desiderata-and-boundaries styleguide "
+            "as the finer-grained bar for a good test; the `when` is the "
+            "styleguide's own subject. Delivered at implement/review."
+        ),
+    ),
+    DRGEdge(
+        source="directive:DIRECTIVE_030",
+        target="toolguide:sonar",
+        relation=Relation.SUGGESTS,
+        when=(
+            "running SonarQube static analysis and gating on NEW-code coverage, "
+            "code smells, security hotspots and duplication"
+        ),
+        reason=(
+            "The quality gate suggests the Sonar toolguide as the static-analysis "
+            "gate that carries the size/complexity/duplication metrics that do not "
+            "belong in a per-file test gate; the `when` is the new toolguide's own "
+            "scope. Delivered at implement/review."
+        ),
+    ),
+    # D4b. Test-quality hub = directive:DIRECTIVE_041 (tests-as-scaffold-not-
+    # friction) — the clarity / authoring side. INERT: 041 is NOT scope-linked from
+    # any action, so its `suggests` are never walked; these members stay deferred.
+    DRGEdge(
+        source="directive:DIRECTIVE_041",
+        target="tactic:test-readability-clarity-check",
+        relation=Relation.SUGGESTS,
+        when=(
+            "checking whether a test suite documents behaviour well enough to "
+            "reconstruct the system from tests alone (tests as executable "
+            "specification)"
+        ),
+        reason=(
+            "Tests-as-scaffold suggests the readability/clarity check as the way to "
+            "confirm tests remain a legible specification, not friction; the `when` "
+            "is the tactic's own stated purpose. Inert (041 is not action-scoped)."
+        ),
+    ),
+    DRGEdge(
+        source="directive:DIRECTIVE_041",
+        target="tactic:zombies-tdd",
+        relation=Relation.SUGGESTS,
+        when=(
+            "driving implementation through tiny behaviour increments (ZOMBIES) "
+            "with failing tests to control complexity"
+        ),
+        reason=(
+            "Tests-as-scaffold suggests ZOMBIES TDD as the increment-sized way to "
+            "let tests scaffold the implementation; the `when` is the tactic's own "
+            "stated purpose. Inert (041 is not action-scoped)."
+        ),
+    ),
+    DRGEdge(
+        source="directive:DIRECTIVE_041",
+        target="styleguide:quadruple-a-test-format",
+        relation=Relation.SUGGESTS,
+        when=(
+            "structuring each test as Arrange / Assumption-check / Act / Assert so "
+            "one behaviour is pinned and a wrong fixture fails at the assumption "
+            "check rather than masquerading as a behaviour failure"
+        ),
+        reason=(
+            "Tests-as-scaffold suggests the new Quadruple-A test-format styleguide "
+            "as the single-behaviour skeleton that keeps tests clear; the `when` is "
+            "the new styleguide's own subject. Inert (041 is not action-scoped)."
+        ),
+    ),
+    # D5. Profile -> hub (all `suggests`, all INERT in the profile channel; the
+    # attested delivery vector for a future channel that follows suggests).
+    # Seven implementer-role profiles -> {test-first 034, mutation, test-quality
+    # 030, test-quality 041}.
+    DRGEdge(
+        source="agent_profile:frontend-freddy",
+        target="directive:DIRECTIVE_034",
+        relation=Relation.SUGGESTS,
+        when="when writing or reviewing the tests that accompany an implementation",
+        reason=(
+            "An implementer-role profile should reach the test-first hub when "
+            "writing tests. Composition-only in the profile channel (walks "
+            "requires/specializes_from only), authored per the #3063 family-D "
+            "operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:frontend-freddy",
+        target="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        relation=Relation.SUGGESTS,
+        when="when assessing whether the tests around a change actually constrain its behaviour",
+        reason=(
+            "An implementer-role profile should reach the mutation hub when "
+            "assessing test quality. Composition-only in the profile channel, "
+            "authored per the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:frontend-freddy",
+        target="directive:DIRECTIVE_030",
+        relation=Relation.SUGGESTS,
+        when="when assessing whether tests meet the quality gate they must pass",
+        reason=(
+            "An implementer-role profile should reach the test-quality-gate hub "
+            "when assessing test quality. Composition-only in the profile channel, "
+            "authored per the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:frontend-freddy",
+        target="directive:DIRECTIVE_041",
+        relation=Relation.SUGGESTS,
+        when="when keeping the tests they write a clear scaffold rather than friction",
+        reason=(
+            "An implementer-role profile should reach the tests-as-scaffold hub "
+            "when writing tests. Composition-only in the profile channel, authored "
+            "per the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:generic-agent",
+        target="directive:DIRECTIVE_034",
+        relation=Relation.SUGGESTS,
+        when="when writing or reviewing the tests that accompany an implementation",
+        reason=(
+            "An implementer-role profile should reach the test-first hub when "
+            "writing tests. Composition-only in the profile channel, authored per "
+            "the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:generic-agent",
+        target="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        relation=Relation.SUGGESTS,
+        when="when assessing whether the tests around a change actually constrain its behaviour",
+        reason=(
+            "An implementer-role profile should reach the mutation hub when "
+            "assessing test quality. Composition-only in the profile channel, "
+            "authored per the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:generic-agent",
+        target="directive:DIRECTIVE_030",
+        relation=Relation.SUGGESTS,
+        when="when assessing whether tests meet the quality gate they must pass",
+        reason=(
+            "An implementer-role profile should reach the test-quality-gate hub "
+            "when assessing test quality. Composition-only in the profile channel, "
+            "authored per the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:generic-agent",
+        target="directive:DIRECTIVE_041",
+        relation=Relation.SUGGESTS,
+        when="when keeping the tests they write a clear scaffold rather than friction",
+        reason=(
+            "An implementer-role profile should reach the tests-as-scaffold hub "
+            "when writing tests. Composition-only in the profile channel, authored "
+            "per the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:implementer-ivan",
+        target="directive:DIRECTIVE_034",
+        relation=Relation.SUGGESTS,
+        when="when writing or reviewing the tests that accompany an implementation",
+        reason=(
+            "An implementer-role profile should reach the test-first hub when "
+            "writing tests. Composition-only in the profile channel, authored per "
+            "the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:implementer-ivan",
+        target="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        relation=Relation.SUGGESTS,
+        when="when assessing whether the tests around a change actually constrain its behaviour",
+        reason=(
+            "An implementer-role profile should reach the mutation hub when "
+            "assessing test quality. Composition-only in the profile channel, "
+            "authored per the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:implementer-ivan",
+        target="directive:DIRECTIVE_030",
+        relation=Relation.SUGGESTS,
+        when="when assessing whether tests meet the quality gate they must pass",
+        reason=(
+            "An implementer-role profile should reach the test-quality-gate hub "
+            "when assessing test quality. Composition-only in the profile channel, "
+            "authored per the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:implementer-ivan",
+        target="directive:DIRECTIVE_041",
+        relation=Relation.SUGGESTS,
+        when="when keeping the tests they write a clear scaffold rather than friction",
+        reason=(
+            "An implementer-role profile should reach the tests-as-scaffold hub "
+            "when writing tests. Composition-only in the profile channel, authored "
+            "per the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:java-jenny",
+        target="directive:DIRECTIVE_034",
+        relation=Relation.SUGGESTS,
+        when="when writing or reviewing the tests that accompany an implementation",
+        reason=(
+            "An implementer-role profile should reach the test-first hub when "
+            "writing tests. Composition-only in the profile channel, authored per "
+            "the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:java-jenny",
+        target="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        relation=Relation.SUGGESTS,
+        when="when assessing whether the tests around a change actually constrain its behaviour",
+        reason=(
+            "An implementer-role profile should reach the mutation hub when "
+            "assessing test quality. Composition-only in the profile channel, "
+            "authored per the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:java-jenny",
+        target="directive:DIRECTIVE_030",
+        relation=Relation.SUGGESTS,
+        when="when assessing whether tests meet the quality gate they must pass",
+        reason=(
+            "An implementer-role profile should reach the test-quality-gate hub "
+            "when assessing test quality. Composition-only in the profile channel, "
+            "authored per the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:java-jenny",
+        target="directive:DIRECTIVE_041",
+        relation=Relation.SUGGESTS,
+        when="when keeping the tests they write a clear scaffold rather than friction",
+        reason=(
+            "An implementer-role profile should reach the tests-as-scaffold hub "
+            "when writing tests. Composition-only in the profile channel, authored "
+            "per the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:node-norris",
+        target="directive:DIRECTIVE_034",
+        relation=Relation.SUGGESTS,
+        when="when writing or reviewing the tests that accompany an implementation",
+        reason=(
+            "An implementer-role profile should reach the test-first hub when "
+            "writing tests. Composition-only in the profile channel, authored per "
+            "the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:node-norris",
+        target="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        relation=Relation.SUGGESTS,
+        when="when assessing whether the tests around a change actually constrain its behaviour",
+        reason=(
+            "An implementer-role profile should reach the mutation hub when "
+            "assessing test quality. Composition-only in the profile channel, "
+            "authored per the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:node-norris",
+        target="directive:DIRECTIVE_030",
+        relation=Relation.SUGGESTS,
+        when="when assessing whether tests meet the quality gate they must pass",
+        reason=(
+            "An implementer-role profile should reach the test-quality-gate hub "
+            "when assessing test quality. Composition-only in the profile channel, "
+            "authored per the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:node-norris",
+        target="directive:DIRECTIVE_041",
+        relation=Relation.SUGGESTS,
+        when="when keeping the tests they write a clear scaffold rather than friction",
+        reason=(
+            "An implementer-role profile should reach the tests-as-scaffold hub "
+            "when writing tests. Composition-only in the profile channel, authored "
+            "per the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:python-pedro",
+        target="directive:DIRECTIVE_034",
+        relation=Relation.SUGGESTS,
+        when="when writing or reviewing the tests that accompany an implementation",
+        reason=(
+            "The primary implementer-role profile should reach the test-first hub "
+            "when writing tests. Composition-only in the profile channel, authored "
+            "per the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:python-pedro",
+        target="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        relation=Relation.SUGGESTS,
+        when="when assessing whether the tests around a change actually constrain its behaviour",
+        reason=(
+            "The primary implementer-role profile should reach the mutation hub "
+            "when assessing test quality. Composition-only in the profile channel, "
+            "authored per the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:python-pedro",
+        target="directive:DIRECTIVE_030",
+        relation=Relation.SUGGESTS,
+        when="when assessing whether tests meet the quality gate they must pass",
+        reason=(
+            "The primary implementer-role profile should reach the test-quality-"
+            "gate hub when assessing test quality. Composition-only in the profile "
+            "channel, authored per the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:python-pedro",
+        target="directive:DIRECTIVE_041",
+        relation=Relation.SUGGESTS,
+        when="when keeping the tests they write a clear scaffold rather than friction",
+        reason=(
+            "The primary implementer-role profile should reach the tests-as-"
+            "scaffold hub when writing tests. Composition-only in the profile "
+            "channel, authored per the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:randy-reducer",
+        target="directive:DIRECTIVE_034",
+        relation=Relation.SUGGESTS,
+        when="when writing or reviewing the tests that accompany an implementation",
+        reason=(
+            "An implementer-role profile should reach the test-first hub when "
+            "writing tests. Composition-only in the profile channel, authored per "
+            "the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:randy-reducer",
+        target="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        relation=Relation.SUGGESTS,
+        when="when assessing whether the tests around a change actually constrain its behaviour",
+        reason=(
+            "An implementer-role profile should reach the mutation hub when "
+            "assessing test quality. Composition-only in the profile channel, "
+            "authored per the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:randy-reducer",
+        target="directive:DIRECTIVE_030",
+        relation=Relation.SUGGESTS,
+        when="when assessing whether tests meet the quality gate they must pass",
+        reason=(
+            "An implementer-role profile should reach the test-quality-gate hub "
+            "when assessing test quality. Composition-only in the profile channel, "
+            "authored per the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:randy-reducer",
+        target="directive:DIRECTIVE_041",
+        relation=Relation.SUGGESTS,
+        when="when keeping the tests they write a clear scaffold rather than friction",
+        reason=(
+            "An implementer-role profile should reach the tests-as-scaffold hub "
+            "when writing tests. Composition-only in the profile channel, authored "
+            "per the #3063 family-D operator attestation."
+        ),
+    ),
+    # reviewer-renata -> {test-quality 030, test-quality 041, mutation}
+    DRGEdge(
+        source="agent_profile:reviewer-renata",
+        target="directive:DIRECTIVE_030",
+        relation=Relation.SUGGESTS,
+        when="when assessing the quality of the tests under review",
+        reason=(
+            "The reviewer profile should reach the test-quality-gate hub when "
+            "assessing the tests under review. Composition-only in the profile "
+            "channel, authored per the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:reviewer-renata",
+        target="directive:DIRECTIVE_041",
+        relation=Relation.SUGGESTS,
+        when="when assessing whether the tests under review are a clear scaffold rather than friction",
+        reason=(
+            "The reviewer profile should reach the tests-as-scaffold hub when "
+            "assessing the tests under review. Composition-only in the profile "
+            "channel, authored per the #3063 family-D operator attestation."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:reviewer-renata",
+        target="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        relation=Relation.SUGGESTS,
+        when="when assessing whether the tests under review actually constrain behaviour",
+        reason=(
+            "The reviewer profile should reach the mutation hub when assessing test "
+            "quality under review. Composition-only in the profile channel, "
+            "authored per the #3063 family-D operator attestation."
+        ),
+    ),
+    # debugger-debbie -> {mutation}
+    DRGEdge(
+        source="agent_profile:debugger-debbie",
+        target="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        relation=Relation.SUGGESTS,
+        when="when assessing whether the tests around a defect actually constrain the behaviour that broke",
+        reason=(
+            "The investigator/reviewer profile should reach the mutation hub when "
+            "checking that the tests around a defect genuinely pin the behaviour. "
+            "Composition-only in the profile channel, authored per the #3063 "
+            "family-D operator attestation."
+        ),
+    ),
+    # D6. Event-storming (DDD-cluster membership, family-A) attached INERT via the
+    # architect profile, NOT via the DDD paradigm (which would deliver it at
+    # specify). Measured inert: not reachable at d=1 or d=2.
+    DRGEdge(
+        source="agent_profile:architect-alphonso",
+        target="procedure:event-storming-discovery",
+        relation=Relation.SUGGESTS,
+        when=(
+            "discovering domain events, commands, aggregates, policies, read "
+            "models, and bounded-context boundaries from real business flows"
+        ),
+        reason=(
+            "Event Storming is a DDD-cluster discovery procedure (family-A). The "
+            "operator's earlier guard keeps it OUT of the eager specify delivery "
+            "(context-overload concern), so it is attached via the architect "
+            "profile — INERT in the profile channel (requires/specializes_from "
+            "only) — rather than via paradigm:domain-driven-design, which is "
+            "scope-resolved (family-A) and would deliver it at specify. It can be "
+            "switched to paradigm-delivered later if the operator wants it eager."
+        ),
+    ),
 )
 
 
