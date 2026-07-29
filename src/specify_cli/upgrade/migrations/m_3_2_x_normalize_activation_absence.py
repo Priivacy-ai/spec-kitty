@@ -69,6 +69,41 @@ Body pattern mirrors ``m_unify_charter_activation_finalize.py``. Registered via
 project-identity/config-level normalization, not a worktree concern).
 ``charter.*`` imports are lazy inside the methods so registry discovery stays
 import-cheap (C-002).
+
+Two-invocation churn guard (NFR-006, landing-fold fix for #3070)
+------------------------------------------------------------------
+``MigrationRegistry.get_applicable`` builds a SAME-VERSION (``target ==
+from_version``) migration's inclusion in the applicable list from
+``detect()`` evaluated ONCE, against the project's state *before any
+migration in this same upgrade invocation has run*. That means a
+same-version migration whose applicability only becomes true as a
+*consequence* of an earlier same-version migration's write is not picked up
+until the *next* ``spec-kitty upgrade`` call.
+
+On a project whose ``config.yaml`` carries **zero** activation keys and no
+``charter.yaml`` yet (the common freshly-``init``-ed shape, before a charter
+interview ever runs), this migration is that earlier write: writing all nine
+explicit ``[]`` per-artifact keys directly into ``config.yaml`` makes
+``m_unify_charter_activation_finalize.ConsolidateCharterBundleMigration``'s
+own ``_config_has_activation`` trigger true — but one invocation too late,
+so a fold that should have happened alongside this normalization instead
+lands on the *second* ``upgrade --yes`` call, breaking "a second consecutive
+upgrade changes zero bytes" (NFR-006).
+
+``_should_defer_bare_config_write`` closes this gap: when config.yaml is the
+resolved store (no ``charter.yaml`` yet) and nothing else already visible
+this pass would trigger the fold anyway (no legacy bundle, no existing
+config-embedded activation, no pending answers-only promotion), writing the
+normalized ``[]`` values here would be the SOLE, premature trigger — so the
+write is deferred entirely rather than split across two invocations. Nothing
+is lost by deferring: FR-017 already repoints the runtime activation reader
+onto "absence means nothing activated," so an un-materialized absent key
+reads identically to an explicit ``[]``; the values get materialized once
+there is real activation data (or a legacy bundle / ``charter generate``)
+for the fold to relocate. When something else already arms the fold this
+pass, the write proceeds immediately so the fold's live per-item ``detect()``
+picks it up in the SAME invocation (single-pass convergence, matching how a
+genuinely-old project's rc35 seed migrations already converge in one pass).
 """
 
 from __future__ import annotations
@@ -103,6 +138,22 @@ _PER_ARTIFACT_ACTIVATION_KEYS: tuple[str, ...] = (
     "activated_agent_profiles",
     "activated_mission_step_contracts",
     "activated_glossary_packs",
+)
+
+#: The coarser activation gates (own built-in-default absence semantics,
+#: never normalized by this migration -- see ``_PER_ARTIFACT_ACTIVATION_KEYS``
+#: above) plus the four legacy bundle filenames. Duplicated (not imported)
+#: from ``m_unify_charter_activation_finalize`` for the same C-002 reason
+#: that module states for its own ``ACTIVATION_KEYS``/``LEGACY_BUNDLE_FILENAMES``
+#: duplication: importing the sibling migration module at collection time
+#: would pull its (non-lazy) ``charter.*`` imports into registry discovery.
+#: Used only by the bare-config-write defer guard below.
+_COARSE_ACTIVATION_KEYS: tuple[str, ...] = ("activated_kinds", "mission_type_activations")
+_LEGACY_BUNDLE_FILENAMES: tuple[str, ...] = (
+    "governance.yaml",
+    "directives.yaml",
+    "metadata.yaml",
+    "references.yaml",
 )
 
 
@@ -166,6 +217,68 @@ def _store_activation_mapping(project_path: Path, config_data: dict[str, Any]) -
 def _missing_per_artifact_keys(activation: dict[str, Any]) -> list[str]:
     """Per-artifact activation keys absent from *activation* (FR-018 targets)."""
     return [key for key in _PER_ARTIFACT_ACTIVATION_KEYS if key not in activation]
+
+
+# ---------------------------------------------------------------------------
+# Two-invocation churn guard (see module docstring)
+# ---------------------------------------------------------------------------
+
+
+def _legacy_bundle_present(project_path: Path) -> bool:
+    """True when any of the four legacy charter bundle files still exist.
+
+    Mirrors ``m_unify_charter_activation_finalize.legacy_bundle_present``.
+    """
+    charter_dir = project_path / _KITTIFY_DIRNAME / "charter"
+    return any((charter_dir / name).exists() for name in _LEGACY_BUNDLE_FILENAMES)
+
+
+def _config_carries_any_activation(config_data: dict[str, Any]) -> bool:
+    """True when config.yaml already carries ANY activation key (coarse or per-artifact).
+
+    Mirrors ``m_unify_charter_activation_finalize._config_has_activation`` --
+    the fold migration's own trigger predicate -- so this migration can tell
+    whether the fold is ALREADY armed this pass by a pre-existing signal,
+    before deciding whether writing fresh ``[]`` values into a bare
+    config.yaml would be the sole, premature trigger for a LATER invocation.
+    """
+    return any(
+        key in config_data for key in (*_COARSE_ACTIVATION_KEYS, *_PER_ARTIFACT_ACTIVATION_KEYS)
+    )
+
+
+def _unify_promotion_pending(project_path: Path) -> bool:
+    """True when the answers-only promotion migration still has real work to do.
+
+    Lazy import (C-002): pulls in ``charter.*`` machinery this module
+    otherwise avoids at collection time. Cheap on the common path -- the
+    promotion migration's own ``detect()`` short-circuits when
+    ``answers.yaml`` is absent, which is true for a bare/freshly-``init``-ed
+    project.
+    """
+    from .m_unify_charter_activation import UnifyCharterActivationMigration  # noqa: PLC0415
+
+    return UnifyCharterActivationMigration().detect(project_path)
+
+
+def _should_defer_bare_config_write(
+    project_path: Path, config_data: dict[str, Any], charter_path: Path | None
+) -> bool:
+    """True when normalizing into config.yaml now would arm the fold too late.
+
+    Only relevant when config.yaml itself is the resolved activation store
+    (``charter_path is None``); once ``charter.yaml`` exists this migration
+    always writes there directly and this guard never applies. See the
+    module docstring's "Two-invocation churn guard" section for the full
+    rationale.
+    """
+    if charter_path is not None:
+        return False
+    if _legacy_bundle_present(project_path):
+        return False
+    if _config_carries_any_activation(config_data):
+        return False
+    return not _unify_promotion_pending(project_path)
 
 
 # ---------------------------------------------------------------------------
@@ -239,12 +352,21 @@ class NormalizeActivationAbsenceMigration(BaseMigration):
 
     def detect(self, project_path: Path) -> bool:
         """True when the resolved store omits any per-artifact activation key,
-        or a charter.yaml store exists without a config ``charter:`` pointer."""
+        or a charter.yaml store exists without a config ``charter:`` pointer.
+
+        The per-artifact check is skipped for a bare config.yaml store (no
+        ``charter.yaml`` yet) when nothing else already visible this pass
+        would trigger the fold migration anyway -- see
+        ``_should_defer_bare_config_write`` / the module docstring's
+        "Two-invocation churn guard" (NFR-006).
+        """
         config_data = _load_yaml_mapping(_config_path(project_path))
-        activation = _store_activation_mapping(project_path, config_data)
-        if _missing_per_artifact_keys(activation):
-            return True
         charter_path = _resolved_charter_yaml(project_path, config_data)
+        activation = _store_activation_mapping(project_path, config_data)
+        if _missing_per_artifact_keys(activation) and not _should_defer_bare_config_write(
+            project_path, config_data, charter_path
+        ):
+            return True
         return charter_path is not None and _CHARTER_POINTER_KEY not in config_data
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
@@ -262,6 +384,8 @@ class NormalizeActivationAbsenceMigration(BaseMigration):
         charter_path = _resolved_charter_yaml(project_path, config_data)
         activation = _store_activation_mapping(project_path, config_data)
         missing = _missing_per_artifact_keys(activation)
+        if missing and _should_defer_bare_config_write(project_path, config_data, charter_path):
+            missing = []
         pointer_missing = charter_path is not None and _CHARTER_POINTER_KEY not in config_data
 
         if not missing and not pointer_missing:
