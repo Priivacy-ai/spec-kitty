@@ -504,13 +504,20 @@ def test_shipped_prose_would_false_red_without_the_path_shape_discriminator() ->
     """NFR-003 proof for discriminator B1, with its effect set pinned."""
     scan = scan_shipped_pack_paths(_SRC_ROOT)
     # A list, not a set: duplicates survive, so a second prose match appearing in
-    # either of these two files goes red instead of collapsing into the same path.
+    # any of these three files goes red instead of collapsing into the same path.
     # Unlike gate A, ``Site.text`` here is a 24-char prose window built for the
     # failure message, so it is not part of the pinned identity.
+    #
+    # 2026-07-29 (PR #3070 landing pass, WP05 doctrine-delivery-reachability):
+    # widened by one entry for `src/specify_cli/cli/commands/_doctrine_asset.py`
+    # — its module docstring reads "...resolve shipped/overlay doctrine assets",
+    # genuine English prose (no `<segment>/` immediately precedes `shipped/`),
+    # not a `<kind>/shipped/` pack-layer path reference.
     excluded = sorted(site.path for site in scan.prose)
     assert excluded == [
         "src/doctrine/model_task_routing/catalog/model-to-task_type.yaml",
         "src/runtime/next/_internal_runtime/planner.py",
+        "src/specify_cli/cli/commands/_doctrine_asset.py",
     ], f"B1's effect set moved -- widening it needs a reason: {_render(scan.prose)}"
 
 
