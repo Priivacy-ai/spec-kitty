@@ -427,9 +427,11 @@ class BackgroundSyncService:
                 return result
 
     def _sync_once(self) -> BatchSyncResult:
-        """Internal: single-batch sync (caller must hold _lock).
+        """Internal: single daemon tick (caller must hold _lock).
 
-        Drain ordering: events first, then body uploads (Design Decision #5).
+        Events are no longer drained here (#3030 FR-012); body uploads are the
+        only work this performs. Success resets backoff and stamps
+        ``last_sync``; a raising drain escalates backoff instead.
         """
         if not is_saas_sync_enabled():
             logger.info("%s Single-batch sync skipped.", saas_sync_disabled_message())
@@ -446,14 +448,18 @@ class BackgroundSyncService:
                 logger.warning("Not authenticated, skipping sync")
             return _unauthenticated_sync_result(self.queue, limit=1000)
 
-        event_sync_succeeded = False
         try:
             # FR-012 (spec-kitty#3030): the queue-backed event drain is GONE.
             # See ``_perform_full_sync`` for why removal strands nothing. The
-            # journal dispatcher is the sole event drain; body uploads below are
-            # a separate store, gated separately (WP11).
+            # journal dispatcher is the sole event drain; body uploads are a
+            # separate store, gated separately (WP11).
             result = BatchSyncResult()
-            event_sync_succeeded = True
+            if self._body_queue is not None:
+                self._drain_body_queue()
+            self._consecutive_failures = 0
+            self._backoff_seconds = 0.5
+            self._last_sync = datetime.now(UTC)
+            return result
         except Exception as exc:
             self._consecutive_failures += 1
             self._backoff_seconds = min(self._backoff_seconds * 2, 30.0)
@@ -466,12 +472,7 @@ class BackgroundSyncService:
             result = BatchSyncResult()
             result.error_count = 1
             result.error_messages.append(str(exc))
-
-        # Drain body upload queue after event queue (FR-007, Design Decision #5)
-        if event_sync_succeeded and self._body_queue is not None:
-            self._drain_body_queue()
-
-        return result
+            return result
 
     def _record_transient_token_fetch_failure(
         self,

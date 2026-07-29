@@ -114,54 +114,11 @@ def _make_service(
 
 
 # --- Drain ordering ---
-
-
-class TestDrainOrdering:
-    @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.background.batch_sync")
-    @patch("specify_cli.sync.body_transport.push_content")
-    def test_events_drain_before_bodies(
-        self,
-        mock_push: MagicMock,
-        mock_batch: MagicMock,
-        mock_saas: MagicMock,
-        tmp_path: Path,
-    ) -> None:
-        """Verify event queue drains before body queue in _sync_once()."""
-        from specify_cli.sync.batch import BatchSyncResult
-
-        mock_batch.return_value = BatchSyncResult()
-
-        service = _make_service(tmp_path)
-        _enqueue_task(service._body_queue, "spec.md", "# Spec\n")
-
-        mock_push.return_value = UploadOutcome(
-            artifact_path="spec.md",
-            status=UploadStatus.UPLOADED,
-            reason="stored",
-            content_hash="abc",
-        )
-
-        call_order: list[str] = []
-        def track_batch(*args, **kwargs):
-            call_order.append("event_drain")
-            return BatchSyncResult()
-
-        def track_push(*args, **kwargs):
-            call_order.append("body_drain")
-            return UploadOutcome(
-                artifact_path="spec.md",
-                status=UploadStatus.UPLOADED,
-                reason="stored",
-                content_hash="abc",
-            )
-
-        mock_batch.side_effect = track_batch
-        mock_push.side_effect = track_push
-
-        service._sync_once()
-
-        assert call_order == ["event_drain", "body_drain"]
+#
+# ``test_events_drain_before_bodies`` lived here. #3030 FR-012 removed the
+# queue-backed event drain from the daemon, so there is no longer an event
+# drain to order against the body drain — the contract is gone, not changed.
+# Body uploads remain the daemon's only drain and are covered below.
 
 
 # --- Body outcome handling ---
@@ -169,18 +126,14 @@ class TestDrainOrdering:
 
 class TestBodyOutcomeHandling:
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.background.batch_sync")
     @patch("specify_cli.sync.body_transport.push_content")
     def test_successful_upload_removes_task(
         self,
         mock_push: MagicMock,
-        mock_batch: MagicMock,
         mock_saas: MagicMock,
         tmp_path: Path,
     ) -> None:
-        from specify_cli.sync.batch import BatchSyncResult
 
-        mock_batch.return_value = BatchSyncResult()
         service = _make_service(tmp_path)
         _enqueue_task(service._body_queue, "spec.md")
 
@@ -197,18 +150,14 @@ class TestBodyOutcomeHandling:
         assert stats.total_count == 0
 
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.background.batch_sync")
     @patch("specify_cli.sync.body_transport.push_content")
     def test_already_exists_removes_task(
         self,
         mock_push: MagicMock,
-        mock_batch: MagicMock,
         mock_saas: MagicMock,
         tmp_path: Path,
     ) -> None:
-        from specify_cli.sync.batch import BatchSyncResult
 
-        mock_batch.return_value = BatchSyncResult()
         service = _make_service(tmp_path)
         _enqueue_task(service._body_queue, "spec.md")
 
@@ -225,18 +174,14 @@ class TestBodyOutcomeHandling:
         assert stats.total_count == 0
 
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.background.batch_sync")
     @patch("specify_cli.sync.body_transport.push_content")
     def test_retryable_failure_keeps_task_with_backoff(
         self,
         mock_push: MagicMock,
-        mock_batch: MagicMock,
         mock_saas: MagicMock,
         tmp_path: Path,
     ) -> None:
-        from specify_cli.sync.batch import BatchSyncResult
 
-        mock_batch.return_value = BatchSyncResult()
         service = _make_service(tmp_path)
         _enqueue_task(service._body_queue, "spec.md")
 
@@ -255,20 +200,16 @@ class TestBodyOutcomeHandling:
         assert stats.max_retry_count == 1
 
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.background.batch_sync")
     @patch("specify_cli.sync.body_transport.push_content")
     def test_permanent_failure_removes_task(
         self,
         mock_push: MagicMock,
-        mock_batch: MagicMock,
         mock_saas: MagicMock,
         tmp_path: Path,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        from specify_cli.sync.batch import BatchSyncResult
         import logging
 
-        mock_batch.return_value = BatchSyncResult()
         service = _make_service(tmp_path)
         _enqueue_task(service._body_queue, "spec.md")
 
@@ -297,18 +238,14 @@ class TestBodyOutcomeHandling:
 
 class TestEdgeCases:
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.background.batch_sync")
     @patch("specify_cli.sync.body_transport.push_content")
     def test_no_auth_token_skips_body_drain(
         self,
         mock_push: MagicMock,
-        mock_batch: MagicMock,
         mock_saas: MagicMock,
         tmp_path: Path,
     ) -> None:
-        from specify_cli.sync.batch import BatchSyncResult
 
-        mock_batch.return_value = BatchSyncResult()
         service = _make_service(tmp_path, auth_token=None)
         _enqueue_task(service._body_queue, "spec.md")
 
@@ -319,18 +256,14 @@ class TestEdgeCases:
         assert stats.total_count == 1  # Task still queued
 
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.background.batch_sync")
     @patch("specify_cli.sync.body_transport.push_content")
     def test_empty_queue_no_push_calls(
         self,
         mock_push: MagicMock,
-        mock_batch: MagicMock,
         mock_saas: MagicMock,
         tmp_path: Path,
     ) -> None:
-        from specify_cli.sync.batch import BatchSyncResult
 
-        mock_batch.return_value = BatchSyncResult()
         service = _make_service(tmp_path)
 
         service._sync_once()
@@ -338,21 +271,17 @@ class TestEdgeCases:
         mock_push.assert_not_called()
 
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.background.batch_sync")
     @patch("specify_cli.sync.body_transport.push_content")
     def test_backoff_respected_tasks_not_drained(
         self,
         mock_push: MagicMock,
-        mock_batch: MagicMock,
         mock_saas: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Task with next_attempt_at in the future should not be drained."""
         import sqlite3
 
-        from specify_cli.sync.batch import BatchSyncResult
 
-        mock_batch.return_value = BatchSyncResult()
         service = _make_service(tmp_path)
         _enqueue_task(service._body_queue, "spec.md")
 
@@ -373,42 +302,23 @@ class TestEdgeCases:
         stats = service._body_queue.get_stats()
         assert stats.total_count == 1  # Still queued, not drained
 
-    @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.background.batch_sync")
-    @patch("specify_cli.sync.body_transport.push_content")
-    def test_event_sync_exception_skips_body_drain(
-        self,
-        mock_push: MagicMock,
-        mock_batch: MagicMock,
-        mock_saas: MagicMock,
-        tmp_path: Path,
-    ) -> None:
-        service = _make_service(tmp_path)
-        _enqueue_task(service._body_queue, "spec.md")
-        mock_batch.side_effect = RuntimeError("server unavailable")
-
-        service._sync_once()
-
-        mock_push.assert_not_called()
-        stats = service._body_queue.get_stats()
-        assert stats.total_count == 1
+    # ``test_event_sync_exception_skips_body_drain`` lived here. It asserted the
+    # "events failed, therefore skip bodies" gate, which #3030 FR-012 removed
+    # along with the event drain itself — bodies are now the only drain, so
+    # there is nothing upstream of them left to fail.
 
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.background.batch_sync")
     @patch("specify_cli.sync.body_transport.push_content")
     def test_stale_tasks_removed(
         self,
         mock_push: MagicMock,
-        mock_batch: MagicMock,
         mock_saas: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Tasks exceeding max retry count should be removed."""
         import sqlite3
 
-        from specify_cli.sync.batch import BatchSyncResult
 
-        mock_batch.return_value = BatchSyncResult()
         service = _make_service(tmp_path)
         _enqueue_task(service._body_queue, "spec.md")
 
@@ -436,15 +346,9 @@ class TestEdgeCases:
             config=MagicMock(),
         )
         # _body_queue is None by default — this should not raise
-        with (
-            patch(
-                "specify_cli.sync.background.is_saas_sync_enabled", return_value=True,
-            ),
-            patch("specify_cli.sync.background.batch_sync") as mock_batch,
+        with patch(
+            "specify_cli.sync.background.is_saas_sync_enabled", return_value=True,
         ):
-            from specify_cli.sync.batch import BatchSyncResult
-
-            mock_batch.return_value = BatchSyncResult()
             service._sync_once()  # No error
 
 
@@ -468,19 +372,14 @@ class TestBodyQueueSize:
 
 class TestTimerBodyQueue:
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.background.batch_sync")
     @patch("specify_cli.sync.body_transport.push_content")
     def test_timer_triggers_when_only_body_queue_has_tasks(
         self,
         mock_push: MagicMock,
-        mock_batch: MagicMock,
         mock_saas: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Timer should trigger sync when event queue is empty but body queue has work."""
-        from specify_cli.sync.batch import BatchSyncResult
-
-        mock_batch.return_value = BatchSyncResult()
         mock_push.return_value = UploadOutcome(
             artifact_path="spec.md",
             status=UploadStatus.UPLOADED,
@@ -497,8 +396,10 @@ class TestTimerBodyQueue:
         service._running = True
         service._on_timer()
 
-        # Should have called batch_sync (via _perform_sync)
-        mock_batch.assert_called_once()
+        # Should have run a sync (via _perform_sync), observable as the body
+        # upload being pushed — body work is the daemon's only drain (FR-012).
+        mock_push.assert_called_once()
+        assert service._body_queue.size() == 0
 
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
     def test_timer_skips_when_both_queues_empty(
@@ -522,18 +423,13 @@ class TestTimerBodyQueue:
 
 class TestSyncNowBody:
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.background.sync_all_queued_events")
     @patch("specify_cli.sync.body_transport.push_content")
     def test_sync_now_drains_body_queue(
         self,
         mock_push: MagicMock,
-        mock_sync_all: MagicMock,
         mock_saas: MagicMock,
         tmp_path: Path,
     ) -> None:
-        from specify_cli.sync.batch import BatchSyncResult
-
-        mock_sync_all.return_value = BatchSyncResult()
         mock_push.return_value = UploadOutcome(
             artifact_path="spec.md",
             status=UploadStatus.UPLOADED,
@@ -555,18 +451,13 @@ class TestSyncNowBody:
 
 class TestStopBody:
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.sync.background.batch_sync")
     @patch("specify_cli.sync.body_transport.push_content")
     def test_stop_best_effort_includes_body_queue(
         self,
         mock_push: MagicMock,
-        mock_batch: MagicMock,
         mock_saas: MagicMock,
         tmp_path: Path,
     ) -> None:
-        from specify_cli.sync.batch import BatchSyncResult
-
-        mock_batch.return_value = BatchSyncResult()
         mock_push.return_value = UploadOutcome(
             artifact_path="spec.md",
             status=UploadStatus.UPLOADED,
@@ -581,7 +472,7 @@ class TestStopBody:
         service.stop()
 
         # Body queue should have been attempted
-        mock_batch.assert_called()
+        mock_push.assert_called()
 
 
 # --- Runtime lifecycle ---
