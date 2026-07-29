@@ -78,7 +78,7 @@ A directional, hard-dependency edge: resolving or activating the source artifact
 
 ### Suggestion — `suggests`
 
-A directional, soft-recommendation edge: the source artifact points at content that is relevant but not mandatory. ``resolve_action_context`` walks ``suggests`` edges only up to a bounded hop depth -- unlike the unbounded transitive walk used for ``requires`` -- and the charter cascade treats a ``suggests`` target as optional, something an operator may accept or skip. It is the most-emitted relation in the built-in graph (340 edges); the boundedness of the walk, not the edge count, is what distinguishes it from ``requires``.
+A directional, soft-recommendation edge: the source artifact points at content that is relevant but not mandatory. ``resolve_action_context`` walks ``suggests`` edges only up to a bounded hop depth -- unlike the unbounded transitive walk used for ``requires`` -- and the charter cascade treats a ``suggests`` target as optional, something an operator may accept or skip. It is the most-emitted relation in the built-in graph (354 edges); the boundedness of the walk, not the edge count, is what distinguishes it from ``requires``.
 
 ### Application — `applies`
 

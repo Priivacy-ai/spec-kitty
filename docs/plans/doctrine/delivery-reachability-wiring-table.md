@@ -279,13 +279,13 @@ action-reachable via the DDD paradigm.)
   - `tactic:pr-agent-worktree-isolation`
   - `tactic:reasons-canvas-fill`
   - `tactic:reasons-canvas-review`
-  - `tactic:refactoring-encapsulate-record`
-  - `tactic:refactoring-encapsulate-variable`
-  - `tactic:refactoring-extract-first-order-concept`
-  - `tactic:refactoring-move-field`
-  - `tactic:refactoring-move-method`
-  - `tactic:refactoring-state-pattern-for-behavior`
-  - `tactic:refactoring-strangler-fig`
+  - `tactic:refactoring-encapsulate-record` — Family B: topology authored, delivery pending
+  - `tactic:refactoring-encapsulate-variable` — Family B: topology authored, delivery pending
+  - `tactic:refactoring-extract-first-order-concept` — Family B: topology authored, delivery pending
+  - `tactic:refactoring-move-field` — Family B: topology authored, delivery pending
+  - `tactic:refactoring-move-method` — Family B: topology authored, delivery pending
+  - `tactic:refactoring-state-pattern-for-behavior` — Family B: topology authored, delivery pending
+  - `tactic:refactoring-strangler-fig` — Family B: topology authored, delivery pending
   - `tactic:reference-architectural-patterns`
   - `tactic:reverse-speccing`
   - `tactic:secure-regex-catastrophic-backtracking`
@@ -366,3 +366,118 @@ silently.
   edge-incident.
 - **Deferred set 72 → 60** (directive 6→4, paradigm 5→4, styleguide 5→4, tactic
   43→35; procedure 5 and toolguide 8 unchanged).
+
+## Family B (#3063 REFACTORING family) — operator interview outcome, INERT (composition-only)
+
+The #3063 operator interview ATTESTED a REFACTORING family (C-007(a) satisfied by
+operator ruling). Its hub is a **NEW built-in directive**,
+`directive:DISCIPLINED_REFACTORING`
+(`src/doctrine/directives/built-in/disciplined-refactoring.directive.yaml`):
+disciplined, behaviour-preserving refactoring — refactor in small steps under
+green tests, name the smell before the move, one transformation at a time,
+structural moves kept separate from behaviour changes. No equivalent directive
+existed (`grep -ri refactor src/doctrine/directives/` found only the
+`reconcile-change-scope-tensions` tension directive, which is unrelated).
+
+### ⚠️ URN casing (relation/id correction)
+
+The wiring instruction named the hub `directive:disciplined-refactoring`
+(lower-kebab). A directive node's URN is derived from its artifact `id`, and the
+`Directive` model requires `id` to match `^[A-Z][A-Z0-9_-]*$` while
+`doctrine.drg.migration.id_normalizer.normalize_directive_id` upper-cases any
+non-numeric slug — so the only URN a real directive artifact can yield is
+`directive:DISCIPLINED_REFACTORING`, exactly the
+`directive:RECONCILE_CHANGE_SCOPE_TENSIONS` precedent. The lower-kebab form is
+unreachable through the schema; the canonical URN is UPPER_SNAKE, corrected here.
+
+### The 14 authored edges (all `suggests`, all INERT under today's traversal)
+
+The 7 directive→tactic edges each carry a per-tactic `when` = the tactic's own
+attested applicability (the "problem" it solves), derived from the tactic's own
+`purpose`/first-step text — **not invented**:
+
+| # | source | relation | target | `when` (grounded in the tactic's own text) |
+|---|---|---|---|---|
+| B1 | `directive:DISCIPLINED_REFACTORING` | `suggests` | `tactic:refactoring-encapsulate-record` | a raw data record (dict/plain object/mutable named tuple) is accessed by field name from many call sites, blocking validation, renames, or a change of representation |
+| B2 | `directive:DISCIPLINED_REFACTORING` | `suggests` | `tactic:refactoring-encapsulate-variable` | a widely-accessed module-level/global variable (or public attribute) is read and written from many locations and needs a single chokepoint for validation, monitoring, or a later type change |
+| B3 | `directive:DISCIPLINED_REFACTORING` | `suggests` | `tactic:refactoring-extract-first-order-concept` | an important concept is implicit, duplicated, or scattered with no explicit name or single home |
+| B4 | `directive:DISCIPLINED_REFACTORING` | `suggests` | `tactic:refactoring-move-field` | a field is read/modified more by another class than the one that declares it, so data ownership has drifted |
+| B5 | `directive:DISCIPLINED_REFACTORING` | `suggests` | `tactic:refactoring-move-method` | a method uses more of another class's data and behaviour than its own host's (feature envy) |
+| B6 | `directive:DISCIPLINED_REFACTORING` | `suggests` | `tactic:refactoring-state-pattern-for-behavior` | a class's methods are full of conditionals branching on the same internal state variable, and behaviour is driven by lifecycle state transitions |
+| B7 | `directive:DISCIPLINED_REFACTORING` | `suggests` | `tactic:refactoring-strangler-fig` | a legacy component/path must be replaced incrementally — new alongside old, rerouting callers one at a time — because a single-step cutover is too risky |
+
+The 7 profile→directive edges all share `when` = *"when tidying code, encountering
+long classes/methods, or discovering convoluted logic"*. The **implementer-role
+profiles** are every built-in profile whose role is `implementer` (resolved via
+`spec-kitty agent profile list`; python-pedro is the primary):
+
+| # | source (role: implementer) | relation | target |
+|---|---|---|---|
+| B8 | `agent_profile:frontend-freddy` | `suggests` | `directive:DISCIPLINED_REFACTORING` |
+| B9 | `agent_profile:generic-agent` | `suggests` | `directive:DISCIPLINED_REFACTORING` |
+| B10 | `agent_profile:implementer-ivan` | `suggests` | `directive:DISCIPLINED_REFACTORING` |
+| B11 | `agent_profile:java-jenny` | `suggests` | `directive:DISCIPLINED_REFACTORING` |
+| B12 | `agent_profile:node-norris` | `suggests` | `directive:DISCIPLINED_REFACTORING` |
+| B13 | `agent_profile:python-pedro` (primary) | `suggests` | `directive:DISCIPLINED_REFACTORING` |
+| B14 | `agent_profile:randy-reducer` | `suggests` | `directive:DISCIPLINED_REFACTORING` |
+
+### Why Family B is INERT — measured, not assumed (WP08 helper, R-1)
+
+All 14 edges are inert under today's traversal:
+
+- The **directive is not charter-activated** in this project, so it never enters
+  the `_activated()` universe the reachability pins subtract from — a new
+  unactivated built-in directive cannot join `_ACTION_UNREACHABLE_*`.
+- The **profile→directive** edges are `suggests`; the profile channel walks
+  `{requires, specializes_from}` only, so it never follows them.
+- The **directive→tactic** edges are only reachable if the directive is
+  action-reachable, which it is **not** (no action scopes it; it is reached only
+  via the inert profile edges). `resolve_context` walks `suggests` only *from*
+  scope-resolved artifacts.
+
+Measured before/after the edges landed with `resolve_context` via the WP08 helper:
+`_ACTION_UNREACHABLE_D1` (67), `_ACTION_UNREACHABLE_D2` (60), `_PROFILE_UNREACHABLE`
+(153) and `_PROFILE_RESCUES` (the same 4) are **UNCHANGED**. Family B moves **no**
+reachability pin — only composition counts.
+
+The seven refactoring tactics therefore **remain in the DEFERRED set above** —
+*topology authored, delivery pending fast-follow*. Their delivery needs the
+profile-channel walk to follow `suggests` (or the directive to be
+action-scoped); that is a traversal-policy decision for the operator, not edge
+authoring, so they are not action-reachable yet.
+
+### Pending anti-pattern-authoring companion (NOT authored here)
+
+The operator flagged that the `anti_pattern` kind — the code smells that are the
+"problem" each refactor solves — is sensible to author for this family (smell →
+refactor, i.e. `anti_pattern --…--> tactic:refactoring-*`). That is
+doctrine-CONTENT authoring, **deferred to the fast-follow decision** and **not
+authored in this pass**. Recorded here as a known companion so it is not lost.
+
+## Composition ledger (NFR-004) — Family B (#3063 REFACTORING family)
+
+One new directive node (via extraction) + fourteen `suggests` overlay edges. Each
+moved count is recorded so no golden number moves silently.
+
+- **Shipped-graph nodes 310 → 311** (+1). The directive is a real
+  `*.directive.yaml`, so the extractor mints its node: pure golden
+  `_EXPECTED_NODE_COUNT` **304 → 305** (`test_extractor_projection`). It carries
+  **no inline references** (relationships are edges), so it mints **zero**
+  extractor edges — `_EXPECTED_EDGE_COUNT` stays **764**.
+- **Shipped-graph edges 796 → 810** (+14). `len(HAND_AUTHORED_EDGES)` **32 → 46**.
+  `test_shipped_graph_is_fresh_and_byte_identical` stays green by construction
+  (`764 + 46 = 810`) once the fragments are regenerated. Ledger entry (10) is added
+  to that module's composition ledger.
+- **`suggests` relation histogram 340 → 354** (+14; all 14 edges are `suggests`).
+  `requires` (272) and `scope` (159) are **unchanged**. Gated by
+  `tests/architectural/test_no_authored_applies_edge.py::TestPositiveCountClaimsAreTrue`
+  and mirrored char-for-char in `RELATION_DESCRIPTIONS` (`doctrine.drg.models`) and
+  `docs/architecture/doctrine-relationships.md`; both updated.
+- **Orphan sets:** in a **pure** regeneration the directive is an orphan (its only
+  edges are overlay-authored), so pure orphans **23 → 24** — it joins
+  `_AWAITING_REFERENCES` (4 → 5) and `_ORPHANS_RESOLVED_BY_OVERLAY` (2 → 3). Shipped
+  orphans stay **21** (the overlay wires it as both an edge source and target).
+- **`_ACTION_UNREACHABLE_D1`/`D2`, `_PROFILE_UNREACHABLE`, `_PROFILE_RESCUES`
+  UNCHANGED** — Family B is inert (measured). No pin moves.
+- **Deferred set unchanged at 60** — the seven refactoring tactics stay deferred
+  (topology authored, delivery pending); no artefact leaves the set.
