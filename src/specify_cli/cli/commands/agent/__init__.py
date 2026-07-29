@@ -3,10 +3,12 @@
 import typer
 from typing_extensions import Annotated
 
-from . import config, mission, tasks, context, release, workflow, status, tests
 from specify_cli.cli.commands import profiles_cmd
 from specify_cli.cli.commands.agent_retrospect import app as retrospect_app
 from specify_cli.cli.commands.decision import decision_app
+
+from . import config, context, issue_verdict, mission, release, status, tasks, tests, workflow
+from .tracer_append import tracer_append
 
 app = typer.Typer(
     name="agent",
@@ -26,12 +28,14 @@ app.add_typer(status.app, name="status")
 app.add_typer(tests.app, name="tests")
 app.add_typer(decision_app, name="decision")
 app.add_typer(retrospect_app, name="retrospect", help="Retrospective synthesis commands")
+app.command(name="tracer-append")(tracer_append)
 app.add_typer(
     profiles_cmd.app,
     name="profile",
     help="Compatibility alias for listing agent profiles",
     hidden=True,
 )
+app.command(name="issue-verdict")(issue_verdict.issue_verdict_command)
 
 
 @app.command(name="check-prerequisites", hidden=True)

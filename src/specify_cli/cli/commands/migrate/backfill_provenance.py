@@ -43,7 +43,11 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from specify_cli.acceptance.matrix import NegativeInvariant, PROVENANCE_LEGACY_UNRECORDED
+from specify_cli.acceptance.matrix import (
+    MATRIX_FILENAME,
+    NegativeInvariant,
+    PROVENANCE_LEGACY_UNRECORDED,
+)
 from specify_cli.core.constants import KITTY_SPECS_DIR
 
 _PENDING_RESULT = "pending"
@@ -212,10 +216,51 @@ def _compute_migration(raw_text: str) -> tuple[str, int] | None:
 
 
 def _collect_matrix_paths(repo_root: Path) -> list[Path]:
+    """Resolve the on-disk ``acceptance-matrix.json`` for every mission (T017).
+
+    WP04 (write-side-seam-matrix-tracer-01KYP3MH,
+    ``contracts/write-seam-adoption.md``): the pre-fix glob
+    (``specs_dir.glob("*/acceptance-matrix.json")``) only ever looked under the
+    PRIMARY ``kitty-specs/`` tree — a hand-derived, coord-blind destination
+    that silently skipped every COORD-topology mission's matrix (it lives
+    under ``.worktrees/<slug>-<mid8>-coord/kitty-specs/<slug>/
+    acceptance-matrix.json``, never copied back to primary). Each mission
+    slug is now resolved through the single kind-aware read authority
+    (``mission_runtime.placement_seam(...).read_dir(ACCEPTANCE_MATRIX)`` — the
+    SAME authority ``acceptance/gates_core.py`` reads through) instead of a
+    raw path join, so a coord-homed matrix is found too.
+
+    This still returns file PATHS, not a write destination: the migration's
+    own ``_CorpusWriteTransaction`` (module docstring) stays the sole writer —
+    only discovery changes here. No git-commit machinery is introduced (module
+    docstring: this migration deliberately does not depend on the generalized
+    transactional-write owner, since it spans the whole matrix corpus across
+    many missions, not one mission's coordination worktree).
+    """
     specs_dir = repo_root / KITTY_SPECS_DIR
     if not specs_dir.is_dir():
         return []
-    return sorted(specs_dir.glob("*/acceptance-matrix.json"))
+
+    from mission_runtime import ActionContextError, MissionArtifactKind, placement_seam
+    from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
+
+    paths: list[Path] = []
+    for mission_dir in sorted(p for p in specs_dir.iterdir() if p.is_dir()):
+        try:
+            matrix_dir = placement_seam(repo_root, mission_dir.name).read_dir(
+                MissionArtifactKind.ACCEPTANCE_MATRIX
+            )
+        except (ActionContextError, StatusReadPathNotFound, FileNotFoundError):
+            # An unroutable mission (e.g. a deleted coordination branch) has no
+            # resolvable matrix home. AM-4 already treats a per-file parse
+            # failure as "skip, never archive"; whole-corpus discovery mirrors
+            # that posture by falling back to the pre-fix primary location
+            # rather than aborting the run for the rest of the corpus.
+            matrix_dir = mission_dir
+        candidate = matrix_dir / MATRIX_FILENAME
+        if candidate.is_file():
+            paths.append(candidate)
+    return paths
 
 
 def _plan_migration(

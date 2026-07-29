@@ -172,7 +172,22 @@ def _write_meta(feature_dir: Path, *, coordination_branch: str) -> None:
     )
 
 
-def _make_manifest(coordination_branch: str) -> LanesManifest:
+def _make_manifest(
+    coordination_branch: str, *, planning_commit_sha: str | None = None
+) -> LanesManifest:
+    """Build the lanes.json fixture this test hand-constructs.
+
+    ``planning_commit_sha`` defaults to ``None`` (pre-WP01 shape) so any other
+    caller of this helper keeps exercising the legacy no-recorded-SHA path
+    unchanged. WP01 (FR-009 / #2993 / ADR ``2026-07-29-1``) fix landed: the
+    production ``lanes.json`` writer (``mission_finalize._compute_and_write_lanes``)
+    now ALWAYS populates this field at finalize-tasks time, so
+    ``test_lane_worktree_does_not_descend_from_planning_artifacts`` below passes
+    the real ``planning_artifact_sha`` it committed to reproduce that contract
+    faithfully (this test bypasses the finalize-tasks command entirely and
+    constructs the manifest by hand, so it must mirror what that command would
+    have written).
+    """
     return LanesManifest(
         version=1,
         mission_slug=MISSION_SLUG,
@@ -191,6 +206,7 @@ def _make_manifest(coordination_branch: str) -> LanesManifest:
         ],
         computed_at="2026-07-28T10:00:00Z",
         computed_from="test",
+        planning_commit_sha=planning_commit_sha,
     )
 
 
@@ -268,7 +284,11 @@ def test_lane_worktree_does_not_descend_from_planning_artifacts(
     )
 
     # Step 4: allocate the lane worktree -- the real WP04 lane allocator.
-    manifest = _make_manifest(coord_branch)
+    # planning_commit_sha mirrors what mission_finalize._compute_and_write_lanes
+    # would have recorded at finalize-tasks time (WP01 / FR-009 / ADR
+    # 2026-07-29-1) -- this test bypasses that command and constructs
+    # lanes.json by hand, so it must supply the same value.
+    manifest = _make_manifest(coord_branch, planning_commit_sha=planning_artifact_sha)
     worktree_path, lane_branch = allocate_lane_worktree(
         repo_root=repo,
         mission_slug=MISSION_SLUG,

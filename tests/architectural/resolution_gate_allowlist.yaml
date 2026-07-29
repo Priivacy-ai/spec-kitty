@@ -19,8 +19,13 @@
 # shrunk 7 -> 3 (the 4 workflow.py entries drained; see the coord_authority
 # header comment below for the routing detail). SHRINK-ONLY: baseline must
 # never rise back above the honest live entry count.
+# write-side-seam-matrix-tracer-01KYP3MH WP02 (FR-010, #3055) Move A,
+# STRENGTHENING: decisions/emit.py:_mission_dir:71 was routed off the
+# kind-blind resolver entirely (onto placement_seam(...).read_dir(STATUS_STATE)),
+# so its allowlist entry below is REMOVED (staleness twin-guard) — the site no
+# longer exists. coord_authority_baseline shrinks 4 -> 3.
 canonicalizer_baseline: 3
-coord_authority_baseline: 4
+coord_authority_baseline: 3
 
 canonicalizer:
 - qualname: _canonicalize_bare_modern_handle
@@ -73,11 +78,6 @@ coord_authority:
   # WP07/WP08 because they were never seen. This is a census GAIN (2 new
   # legitimate write sites surfaced, not routed), raising honest write count
   # 2 -> 4 and allowlist baseline 2 -> 4.
-- qualname: _mission_dir
-  line: 71
-  rationale: "legitimate coord-owned write that bypasses commit_for_mission by design - coord status authority is at the caller level, not the commit level; PERMANENT fixture"
-  file: src/specify_cli/decisions/emit.py
-  token: return resolve_feature_dir_for_mission ( repo_root , mission_slug )
 - qualname: WidenPendingStore.__init__
   line: 63
   rationale: "legitimate coord-owned write that bypasses commit_for_mission by design - coord status authority is at the caller level, not the commit level; PERMANENT fixture"

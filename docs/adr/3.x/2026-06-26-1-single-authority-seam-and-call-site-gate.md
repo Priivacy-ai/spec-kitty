@@ -1,7 +1,7 @@
 ---
 title: 'ADR: Single-Authority Seam + Call-Site Gate for Resolution Boundaries (Phase
   1)'
-status: Proposed
+status: Accepted
 date: '2026-06-26'
 ---
 
@@ -164,6 +164,20 @@ A `MissionResolver` Protocol + `FsMissionResolver` + `FakeMissionResolver`, owni
 - It is the **enumeration-consolidation / #1619-unblock** layer, a distinct strategic concern — recorded here as the **deferred follow-on**, not this decision.
 
 ## More Information
+
+**Ratification (2026-07-29, write-side-seam-matrix-tracer-01KYP3MH WP02, HiC-approved).**
+This ADR was `status: Proposed` but de-facto shipped — the coord-authority gate it
+governs (`tests/architectural/test_resolution_authority_gates.py`) has been live and
+enforced since the sibling `single-authority-resolution-gates-01KW1P0F` mission. WP02
+re-pins the gate's census floor (`COORD_AUTHORITY_WRITE_FLOOR` 4 → 3, "Move A" per
+[`contracts/coord-authority-gate.md`](../../../kitty-specs/write-side-seam-matrix-tracer-01KYP3MH/contracts/coord-authority-gate.md))
+by routing `decisions/emit.py` off the kind-blind resolver onto the kind-aware
+`placement_seam(...).read_dir(STATUS_STATE)` seam — the natural site to formally ratify
+this ADR to `Accepted`. A future **Move B** — recognizing `write_target(kind=...)` calls
+as sanctioned coord-write authority in the gate's predicate — is named here as the
+**amendment target** for this ADR: it changes the gate mechanism itself (not merely the
+census), so it must amend this ADR (def-use gated, with a preserved non-vacuity proof),
+never land as a contract-only predicate widen.
 
 **Phase 2 (deferred follow-on, under [#1619](https://github.com/Priivacy-ai/spec-kitty/issues/1619)).**
 The `MissionResolver` port — Protocol contract + one real FS adapter + one fake, owning the single

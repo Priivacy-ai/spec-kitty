@@ -399,6 +399,13 @@ class TestCheckLaneGates:
         monkeypatch.setattr("specify_cli.lanes.compute.is_planning_artifact_only", lambda _m: False)
         monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: matrix)
         monkeypatch.setattr("specify_cli.acceptance.matrix.validate_matrix_evidence", lambda _m: evidence_errors or [])
+        # WP04 / T016 (#2318): the gate now persists the recomputed verdict
+        # unconditionally when mutate_matrix=True, not only inside the
+        # negative-invariants arm. ``_matrix()`` here is a bare SimpleNamespace
+        # (no ``to_dict``), so the real writer is stubbed to a no-op by
+        # default; tests that specifically exercise the write override this
+        # with their own monkeypatch call afterwards (setattr is last-wins).
+        monkeypatch.setattr("specify_cli.acceptance.matrix.write_acceptance_matrix", lambda _fd, _m: None)
 
     def test_negative_invariants_enforced_and_matrix_written_when_mutate_true(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

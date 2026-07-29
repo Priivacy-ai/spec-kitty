@@ -1,0 +1,283 @@
+{
+  "event_count": 77,
+  "last_event_id": "01KYQ70D7XQD1113PX2NSJCZHF",
+  "materialized_at": "2026-07-29T15:13:37.021479+00:00",
+  "mission_number": "187",
+  "mission_slug": "write-side-seam-matrix-tracer-01KYP3MH",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 11,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYQ704WK4X3NNPZ3GZSGT7DB",
+      "last_transition_at": "2026-07-29T15:13:28.467752+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Approved by reviewer-renata (Opus 4.8). Additive-merge of recorded planning_commit_sha into the lane (on top of unchanged coordination_branch parentage) judged SOUND and faithful to FR-009 — not a letter-of-the-test workaround: planning_commit_sha becomes a true git ancestor of the lane AND is an ancestor of target_branch, so the 3-way merge base for planning files is the planning commit's tree; the lane never edits planning files, so at consolidation the lane side==base and git takes primary's amended/retracted version (no silent revert). Proven by DoD-2 real-consolidation-durability test independent of the #2993 pin, plus Assert B/C. All six crux concerns verified: dual-ancestry, coord-status-lineage untouched (parent selection unchanged), no consolidation-abort path (fails closed at allocate time), SHA captured once at finalize and read as a fixed field, FR-008 %O orthogonality preserved. Gates: 19+53 targeted tests green; #2993 red-on-base -> green confirmed; #1684 preserved; ruff clean; mypy StructuredError findings are the known follow_imports=skip artifact, correctly unsuppressed; complexity helper=4/allocator=6. Advisory: out-of-map producer edit to mission_finalize.py (WP05-owned) is region-disjoint and consolidates cleanly."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 149717,
+      "shell_pid_created_at": "1785323851.45",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYQ705RSPSEWVRYMCQE9YQP3",
+      "last_transition_at": "2026-07-29T15:13:29.369765+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review passed (reviewer-renata). Move A verified end-to-end; see review-cycle artifact. Non-vacuity independently confirmed: live WRITE census EXACTLY 3, floor 3, zero slack. emit.py routes via placement_seam(...).read_dir(STATUS_STATE), matching decisions/service.py:172 (no split-brain, no primary regression). ADR ratified correctly. Gates green (49 + 10 passed), ruff/mypy clean on new code. Issue-matrix was mission-wide unpopulated (finalize clobber, not a WP02 defect); populated with canonical non-terminal in-mission verdicts (#3055 evidence-linked to WP02 commit 3562b54c2) — terminal verification still required before mission done."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 136217,
+      "shell_pid_created_at": "1785323673.21",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T046": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KYQ706JYSWZATMQ9115WGFM4",
+      "last_transition_at": "2026-07-29T15:13:30.206795+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T010+T013 delivered (write_seam.py core, commit 0ad388694); T011/T012 operator-approved DEFERRAL to #3071 (collide with pinned #2160/#2966 invariants C-006 marks out-of-scope). Ready for review on delivered core.",
+        "WP03 delivered core (write_seam.py write_artifact + zero-write refusal/#3033 + idempotent result + Ledger-M16 guard) verified PASS on all axes; 5 tests green, ruff/mypy clean, complexity<=15. T011/T012 operator-approved deferral to #3071 (recorded coord matrix 34c4bfe21)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 235578,
+      "shell_pid_created_at": "1785325828.35",
+      "subtasks": {
+        "T010": "done",
+        "T013": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYQ707D37BE4RQB0DV5CG16X",
+      "last_transition_at": "2026-07-29T15:13:31.043066+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Reviewer-renata: APPROVED. Persist-on-accept #2318 fix verified red-first (T016 regression fails 'pending'!='pass' on pre-fix 2ba3d3f95, green on fix); overall_verdict stays a computed @property (from_dict excludes it). --no-commit invariant preserved (raw writer in mutate_matrix arm, not the committing wrapper; tree-clean regression green). accept.py + backfill_provenance routed through write_artifact/write_target(ACCEPTANCE_MATRIX), no second resolver. post_consolidation.py:275 left un-routed is a SOUND documented exception (post-consolidation partition has collapsed; consolidated_tree may be a bare CI checkout with no .worktrees sibling). 13 targeted tests green, ruff clean, mypy only pre-existing 371 no-any-return, complexity<=15. NON-BLOCKING follow-up: amend contracts/write-seam-adoption.md to move post_consolidation.py:275 out of the 'route these' set into the sanctioned-non-routed set."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 456736,
+      "shell_pid_created_at": "1785329721.18",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYQ7087X5EFZNWV5FWV3X8GM",
+      "last_transition_at": "2026-07-29T15:13:31.901609+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP05 approved by reviewer-renata. B2 recognition linchpin confirmed (map-entry removal -> None). ONE canonical dir-based reader (load_issue_matrix) confirmed sole consumer reader; no second consumer parser. C1 finalize-lint fold proven behaviourally against a .json-only mission. Scaffold coord-aware idempotency proven. Migration failover/on-write/bulk covered. verdict/evidence_ref (reusing IssueMatrixVerdict closed-set) is the correct, consistent choice vs the indicative status sketch: the approval gate tasks_parsing_validation.py:116 does an 'is IssueMatrixVerdict.IN_MISSION' identity check only a genuine enum member satisfies; data-model.md/contracts need doc-sync (orchestrator) and WP07 must use verdict/evidence_ref. Gates green: 31+31+35 unit + 28 arch (dead-symbol/terminology); ruff+mypy clean on new modules; 6 mission_finalize mypy errors pre-existing on base; complexity <=15."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 490670,
+      "shell_pid_created_at": "1785330336.03",
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYQ70D7XQD1113PX2NSJCZHF",
+      "last_transition_at": "2026-07-29T15:13:37.021479+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 853843,
+      "shell_pid_created_at": "1785336982.42",
+      "subtasks": {
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      }
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYQ709WG9NSM8ZTJ13CN4J8X",
+      "last_transition_at": "2026-07-29T15:13:33.584817+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review passed (renata): vocabulary correct (fixed|verified-already-fixed|deferred-with-followup|in-mission validated against genuine IssueMatrixVerdict enum, matches approve-gate 'is' identity); parse_issue_matrix_document (full-fidelity round-trip) vs load_issue_matrix (validated-rows gate reader) is a SOUND distinction, not an M7 violation - regression test proves an unknown-verdict row survives an unrelated mutation; seam routing canonical (write_issue_matrix -> write_target(ISSUE_MATRIX), no independent commit); migrate reuses WP05 migrate_issue_matrix_to_json; idempotence genuine via stateful byte-keyed fake; ruff+mypy clean under canonical whole-package gate, 43 tests pass."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 622655,
+      "shell_pid_created_at": "1785332754.05",
+      "subtasks": {
+        "T032": "done",
+        "T033": "done"
+      }
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYQ70APVNGQPW61Y9Q31CGCP",
+      "last_transition_at": "2026-07-29T15:13:34.427886+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP08 approved: multi-file discovery (spec/plan/research/analysis-report/tasks/contracts) reuses the single canonical detect_issue_references regex (no 4th definition); B-1 crux fixed — .md-only .exists() prechecks in doctor.check_issue_matrix and tasks_parsing_validation deleted, replaced by dir-based issue_matrix_artifact_present so JSON-only missions are evaluated (proven by live run + regression tests); validate_issue_matrix routes JSON-first through load_issue_matrix (M7 holds); merge_gates issue_matrix_completeness gate wired + tested (zero-ref PASS, missing-row FAIL blocking); mission.py zero-refs claim verified. 117 targeted tests pass, ruff+mypy clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 665469,
+      "shell_pid_created_at": "1785333435.5",
+      "subtasks": {
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T043": "done"
+      }
+    },
+    "WP09": {
+      "actor": "merge",
+      "agent": "renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYQ70CD4TS3V838F3RRWNCSR",
+      "last_transition_at": "2026-07-29T15:13:36.164289+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP09 approved: zero-ref Gate-4 not_applicable (T034) uses WP08 discover_issue_references (no local re-scan, does not scan issue-matrix itself); has-ref fail-closed retained for both missing-matrix and present-but-invalid (T035, hard-fails via issue_matrix_violation finding); T044 hardcoded .md .exists() precheck replaced by dir-based issue_matrix_artifact_present (JSON-first, present-not-truthy so malformed-but-present still reaches validate_issue_matrix). The two edited baseline tests are a legitimate friction-adjustment: setup_fixture wrote no scanned artifacts so under the correct not_applicable branch they'd report not_applicable; seeding a realistic spec.md #ref restores the has-ref precondition with assertions unchanged. 14 tests green; ruff clean; mypy line-143 error pre-existing (outside diff, identical on base); complexity <=15."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 742449,
+      "shell_pid_created_at": "1785334875.4",
+      "subtasks": {
+        "T034": "done",
+        "T035": "done",
+        "T044": "done"
+      }
+    },
+    "WP10": {
+      "actor": "merge",
+      "agent": "renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYQ70924MJQEPGRB17E7PE3Q",
+      "last_transition_at": "2026-07-29T15:13:32.740194+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review passed (reviewer-renata): lane-safety proven on real-git committed trees — zero lane-branch commit (byte-for-byte SHA unchanged), clean lane worktree, residue-cleaned primary; attribution guard rejects blank actor before any commit lands (git show fails); Ledger-M16 read call site pinned to TRACER_FILE (never RETROSPECTIVE); idempotent re-append is status=unchanged with entry present exactly once; noqa TID251 is a genuine content-addressed-id false-positive; ruff+mypy clean, complexity <=15; 22 targeted tests + WP03 regression green."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 423670,
+      "shell_pid_created_at": "1785329353.83",
+      "subtasks": {
+        "T036": "done",
+        "T037": "done",
+        "T038": "done"
+      }
+    },
+    "WP11": {
+      "actor": "merge",
+      "agent": "renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYQ70BJ2PD0986XXNFG4P6XW",
+      "last_transition_at": "2026-07-29T15:13:35.298549+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review passed (reviewer-renata): 3-way base-aware row drivers over structured JSON confirmed — _resolve_merge_driver_paths consults %O/%A/%B; reconcile_{issue,acceptance}_matrix_documents implement delete-vs-stale disambiguation requiring a real base; disjoint union, stale-residue drop, same-field structured conflict (no silent pick), intra-side dup-key guard, byte-determinism all tested. Deleted test_gate_artifact_merge_drivers_2804.py is a SOUND retirement: grep proves _acceptance_matrix_fill_score/_issue_matrix_fill_score/_write_more_filled_side have zero definitions in src/; the pinned scorer heuristic is genuinely removed and superseded by row-aware tests + T045; corrupt-input coverage re-homed to the new exit-1 tests. Migrated 2804 regression (.md->.json) still asserts the #2804 no-clobber invariant via a real git squash merge. #2970 'one parent dir' invariant is sound (git materializes %O/%A/%B as siblings; empirically validated by the passing real-merge 2804 regression with the guard active) — 5 S2083 closed with no blanket suppressions. M6: 3 sites repointed to .json + NEW m_3_2_7 migration (m_3_2_6 untouched). T045 uses real %O via git merge-base+git show for coord+flat topologies. overall_verdict stays a recomputed property. 45 targeted tests pass; ruff clean; mypy 'has type Any' errors are single-file follow_imports=skip artifacts (identical on unmodified base sibling). _make_merge_env hazard is pre-existing (WP11 does not touch it) — follow-up, not a blocker."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 807461,
+      "shell_pid_created_at": "1785336011.84",
+      "subtasks": {
+        "T039": "done",
+        "T040": "done",
+        "T041": "done",
+        "T042": "done",
+        "T045": "done"
+      }
+    }
+  }
+}

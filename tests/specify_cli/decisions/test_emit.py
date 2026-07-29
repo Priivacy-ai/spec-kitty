@@ -39,12 +39,30 @@ MISSION_ID = "01KPWT8PNY8683QX3WBW6VXYM7"
 ACTOR = "test-actor"
 
 
+class _DirectMissionDirSeam:
+    """Stub placement seam returning ``repo_root/kitty-specs/<slug>`` directly.
+
+    write-side-seam-matrix-tracer-01KYP3MH WP02 Move A: ``emit.py`` now routes
+    ``_mission_dir`` through ``placement_seam(...).read_dir(STATUS_STATE)``
+    rather than the kind-blind ``resolve_feature_dir_for_mission`` — stub the
+    seam constructor instead so these emission tests keep targeting event
+    serialization, not mission/topology lookup.
+    """
+
+    def __init__(self, repo_root: Path, mission_slug: str) -> None:
+        self._repo_root = repo_root
+        self._mission_slug = mission_slug
+
+    def read_dir(self, kind: object) -> Path:
+        return self._repo_root / "kitty-specs" / self._mission_slug
+
+
 @pytest.fixture(autouse=True)
 def _direct_mission_dir(monkeypatch: pytest.MonkeyPatch) -> None:
     """These emission tests target event serialization, not mission lookup."""
     monkeypatch.setattr(
-        "specify_cli.decisions.emit.resolve_feature_dir_for_mission",
-        lambda repo_root, mission_slug: repo_root / "kitty-specs" / mission_slug,
+        "specify_cli.decisions.emit.placement_seam",
+        _DirectMissionDirSeam,
     )
 
 

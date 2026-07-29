@@ -42,6 +42,8 @@ from specify_cli.compat._detect.runtime import InstalledCliRuntime, detect_runti
 from specify_cli.compat.remediation import RemediationCommand, plan_remediation, RemediationIntent
 from specify_cli.cli.selector_resolution import resolve_mission_handle  # noqa: F401
 from specify_cli.task_utils import TaskCliError, find_repo_root  # noqa: F401
+from specify_cli.tasks.issue_matrix_migration import issue_matrix_artifact_present
+from specify_cli.tasks.issue_reference_discovery import discover_issue_references
 from specify_cli.version_utils import get_version  # noqa: F401
 
 from ._ble001_audit import (  # noqa: F401
@@ -299,25 +301,58 @@ def _evaluate_issue_matrix(
     console: object,
     findings: list[dict[str, str]],
 ) -> bool | Literal["not_applicable"]:
+    """Gate 4: issue-matrix enforcement.
+
+    FR-005 / #3035: ``not_applicable`` is a first-class Gate-4 verdict, not a
+    fabricated matrix or a hard fail. A mission that declares ZERO canonical
+    issue references (per WP08's :func:`discover_issue_references` -- the
+    SAME multi-file completeness definition finalization/merge-gates use, not
+    a local re-scan) has nothing for an issue-matrix to enforce, so this
+    returns ``not_applicable`` rather than failing on a matrix the mission
+    never needed. When references DO exist, fail-closed behaviour is
+    retained: a mission with no rows the reader can load is a hard failure.
+
+    C-008 / B-1 (#3035, T044): presence is checked via WP05's dir-based
+    :func:`~specify_cli.tasks.issue_matrix_migration.
+    issue_matrix_artifact_present` (JSON-first, ``.md`` failover) -- NOT a
+    hardcoded ``issue-matrix.md`` ``.exists()`` precheck, which wrongly
+    hard-failed a JSON-only (B3) mission before ever consulting the failover
+    reader. ``issue_matrix_artifact_present`` is an EXISTENCE check, not a
+    "has rows" check (a structurally malformed ``.md`` exists but may parse
+    to zero valid rows) -- so a present-but-invalid matrix still reaches
+    :func:`validate_issue_matrix` below for its specific schema diagnostic,
+    rather than being misreported as merely "missing".
+    """
     if review_mode is not MissionReviewMode.POST_MERGE:
         return "not_applicable"
 
-    issue_matrix_path = feature_dir / "issue-matrix.md"
-    if not issue_matrix_path.exists():
+    if not discover_issue_references(feature_dir):
+        console.print(  # type: ignore[attr-defined]
+            "  [green]✓[/green]  Issue matrix: not_applicable "
+            "(mission declares zero canonical issue references)"
+        )
+        return "not_applicable"
+
+    if not issue_matrix_artifact_present(feature_dir):
         console.print(  # type: ignore[attr-defined]
             f"  [red]✗[/red]  Issue matrix: "
             f"{MissionReviewDiagnostic.ISSUE_MATRIX_MISSING}: "
-            "issue-matrix.md not found (required in post-merge mode)"
+            "issue-matrix not found (required in post-merge mode when "
+            "canonical issue references exist)"
         )
         findings.append(
             {
                 "type": "issue_matrix_violation",
                 "diagnostic_code": str(MissionReviewDiagnostic.ISSUE_MATRIX_MISSING),
-                "message": "issue-matrix.md is required in post-merge mode",
+                "message": (
+                    "issue-matrix is required in post-merge mode when "
+                    "canonical issue references exist"
+                ),
             }
         )
         return False
 
+    issue_matrix_path = feature_dir / "issue-matrix.md"
     matrix_result = validate_issue_matrix(issue_matrix_path)
     if not matrix_result.passed:
         for diag in matrix_result.diagnostics:

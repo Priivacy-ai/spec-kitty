@@ -489,7 +489,6 @@ def _evaluate_acceptance_matrix(
         acc_matrix.negative_invariants = enforce_negative_invariants(
             repo_root, acc_matrix.negative_invariants, context=context
         )
-        write_acceptance_matrix(matrix_dir, acc_matrix)
     elif acc_matrix.negative_invariants:
         skipped_checks.append(
             AcceptanceCheckDiagnostic(
@@ -497,6 +496,28 @@ def _evaluate_acceptance_matrix(
                 detail="Negative invariant execution skipped: diagnose mode is read-only",
             )
         )
+
+    if mutate_matrix:
+        # WP04 / T016 (#2318 comment 5102989064): persist the RECOMPUTED
+        # ``overall_verdict`` unconditionally -- not only inside the
+        # ``negative_invariants`` arm above. The pre-fix gate wrote the matrix
+        # back to disk ONLY when it had negative invariants to enforce, so an
+        # all-pass / no-negative-invariant accept left the on-disk verdict
+        # stuck at its scaffolded ``pending`` forever: nothing ever re-derived
+        # and saved it, misleading downstream PR/readiness tooling that reads
+        # the file directly instead of recomputing the property.
+        #
+        # This stays the RAW, uncommitted writer (``write_acceptance_matrix``)
+        # deliberately, not the WP03 seam-committing wrapper
+        # (``write_and_commit_acceptance_matrix``): ``--no-commit``
+        # (``mutate_matrix=True``) is contractually allowed to MUTATE this
+        # accept-owned file but must NEVER commit anything (#1883 / #1908) --
+        # see ``test_accept_no_commit_via_cli_converges_and_leaves_tree_clean``
+        # (asserts HEAD is unchanged after a ``--no-commit`` run). The real
+        # accept-commit path picks this write up and commits it via
+        # ``cli/commands/accept.py``'s residual-artifact sweep, itself routed
+        # through the WP03 seam (``_commit_coord_residuals``).
+        write_acceptance_matrix(matrix_dir, acc_matrix)
 
     for err in validate_matrix_evidence(acc_matrix):
         activity_issues.append(f"Evidence: {err}")

@@ -22,6 +22,7 @@ from specify_cli.mission_metadata import mission_identity_fields, resolve_missio
 
 if TYPE_CHECKING:
     from specify_cli.acceptance.execution_context import GateExecutionContext
+    from specify_cli.coordination.write_seam import ProtectionPolicyLike, WriteSeamResult
 
 CRITERION_VERDICTS = frozenset({"pass", "fail", "pending"})
 
@@ -273,6 +274,57 @@ def write_acceptance_matrix(feature_dir: Path, matrix: AcceptanceMatrix) -> Path
         encoding="utf-8",
     )
     return path
+
+
+def write_and_commit_acceptance_matrix(
+    repo_root: Path,
+    mission_slug: str,
+    matrix_dir: Path,
+    matrix: AcceptanceMatrix,
+    *,
+    entry_id: str,
+    message: str,
+    policy: ProtectionPolicyLike | None = None,
+) -> WriteSeamResult:
+    """Write ``acceptance-matrix.json`` and commit it through the WP03 write seam.
+
+    WP04 / T015 / T017 (write-side-seam-matrix-tracer-01KYP3MH,
+    ``contracts/write-seam-adoption.md``): composes the unchanged raw writer
+    (:func:`write_acceptance_matrix` — kept byte-identical for the many
+    fixture call sites that write straight to a ``tmp_path`` with no git repo
+    at all) with :func:`specify_cli.coordination.write_seam.write_artifact`
+    (FR-007 core / FR-011 zero-write refusal / FR-012 idempotence): the bytes
+    land on disk exactly as before, then the WP03 seam resolves the
+    kind-aware commit target and materialises the commit, replacing a
+    hand-derived "write now, rely on a separate later commit sweep to find
+    the dirt" two-step with one routed call.
+
+    Deliberately NOT used by ``acceptance/gates_core.py``'s
+    ``_evaluate_acceptance_matrix``: the ``--no-commit`` / ``--diagnose``
+    accept legs (#1883 / #1908) may MUTATE this accept-owned file but must
+    NEVER commit anything — see
+    ``tests/specify_cli/test_accept_no_commit_readonly.py::
+    test_accept_no_commit_via_cli_converges_and_leaves_tree_clean`` (asserts
+    HEAD is unchanged). That call site keeps calling
+    :func:`write_acceptance_matrix` directly; the real accept-commit path
+    picks the resulting dirt up via ``cli/commands/accept.py``'s residual
+    sweep, itself routed through this same seam.
+    """
+    from mission_runtime import MissionArtifactKind
+    from specify_cli.coordination.write_seam import write_artifact
+    from specify_cli.git.protection_policy import ProtectionPolicy
+
+    path = write_acceptance_matrix(matrix_dir, matrix)
+    resolved_policy = policy if policy is not None else ProtectionPolicy.resolve(repo_root)
+    return write_artifact(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
+        files=(path,),
+        message=message,
+        policy=resolved_policy,
+        entry_id=entry_id,
+    )
 
 
 def read_acceptance_matrix(feature_dir: Path) -> AcceptanceMatrix | None:

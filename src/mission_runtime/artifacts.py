@@ -198,6 +198,14 @@ _MISSION_FILE_KIND_BY_BASENAME: dict[str, MissionArtifactKind] = {
     "lanes.json": MissionArtifactKind.LANE_STATE,
     "acceptance-matrix.json": MissionArtifactKind.ACCEPTANCE_MATRIX,
     "issue-matrix.md": MissionArtifactKind.ISSUE_MATRIX,
+    # write-side-seam-matrix-tracer-01KYP3MH WP05 (B2 / T019 / FR-002): the
+    # issue-matrix migrates from free markdown to a structured JSON artifact
+    # (see ``specify_cli.tasks.issue_matrix``). Added BESIDE the ``.md`` entry
+    # above -- NOT a replacement -- so failover-read (FR-013) keeps working for
+    # a mission that has not migrated yet. Without this entry
+    # ``kind_for_mission_file("issue-matrix.json")`` returns ``None`` and the
+    # file silently fails to stage to coord / row-merge (the B2 linchpin).
+    "issue-matrix.json": MissionArtifactKind.ISSUE_MATRIX,
     "status.events.jsonl": MissionArtifactKind.STATUS_STATE,
     "status.json": MissionArtifactKind.STATUS_STATE,
     # KEPT after the COORD→PRIMARY re-home (FR-003): this is the file→kind

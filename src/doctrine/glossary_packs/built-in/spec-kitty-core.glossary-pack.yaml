@@ -676,8 +676,8 @@ terms:
   surface: lightweight mode
 - confidence: 0.95
   definition: '`spec-kitty review` invocation that enforces the full mission-review
-    release-gate contract; requires `issue-matrix.md`, Gate 1-4 records, and `mission-exception.md`
-    when applicable.'
+    release-gate contract; requires `issue-matrix.json` (or a legacy `issue-matrix.md`
+    failover), Gate 1-4 records, and `mission-exception.md` when applicable.'
   status: active
   surface: post-merge mode
 - confidence: 0.95
@@ -687,8 +687,9 @@ terms:
   status: active
   surface: mode mismatch
 - confidence: 0.95
-  definition: Diagnostic class fired when an `issue-matrix.md` file uses columns
-    outside the canonical mandatory + named-optional vocabulary.
+  definition: Diagnostic class fired when an `issue-matrix.json` (or legacy
+    `issue-matrix.md` failover) file uses columns outside the canonical
+    mandatory + named-optional vocabulary.
   status: active
   surface: issue-matrix schema drift
 - confidence: 0.95
