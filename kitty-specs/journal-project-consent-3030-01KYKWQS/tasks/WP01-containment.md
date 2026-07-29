@@ -15,12 +15,9 @@ branch_strategy: Planning artifacts for this mission were generated on feat/jour
 base_commit: 1dc38ea23ee04dbcabd5a56bb19e141163bbb497
 created_at: '2026-07-28T13:53:39.091131+00:00'
 subtasks:
-- T001
 - T002
-- T003
 - T004
 - T005
-- T006
 - T009
 history: []
 execution_mode: code_change
@@ -28,7 +25,6 @@ tags: []
 tracker_refs: []
 authoritative_surface: src/specify_cli/
 owned_files:
-- src/specify_cli/delivery/dispatcher.py
 - src/specify_cli/delivery/receivers.py
 - src/specify_cli/sync/routing.py
 ---
@@ -85,6 +81,23 @@ len(events) == 1` (`delivery/receivers.py:411-414`). Everything the server refus
 from `gate.checkout_enabled`, and `delivery/` never reads it — so events captured while a checkout was
 opted out are marked blocked at `journal.py:345` and **shipped anyway**. Excluding non-null values from
 the universe is migration-free.
+
+## Ownership decision (2026-07-28)
+
+`dispatcher.py` cannot be owned by two work packages, and both WP01's exclusion and WP06's filtered
+read must edit `_select_undelivered`. Resolved in WP06's favour:
+
+- **WP01 owns the delivery-decision surface** — `receivers.py` (where `GateKind`, the per-event outcome
+  mapping and the pre-POST seam already live) and `routing.py`.
+- **WP06 owns `dispatcher.py` + `selection.py`**, so T003 and T017/T018 land together in one reviewable
+  change rather than as two half-edits to one function.
+- **T003 moves to WP06.** This costs nothing for the P0: T003 covers **zero** incident rows (in the
+  incident `saas_enabled` and `checkout_enabled` were both true, so every leaked event's
+  `drain_blocked_reason` is NULL), so it was never containment. Deferring it out of wave 1 loses no
+  protection and buys a coherent slice.
+- **T006 moves to WP04**, which owns `emitter.py` and `journal.py` — the journal-write path it changes.
+- **T005's message replacement** at `batch.py:1484-1488` is WP02's file; it lands there as a DoD item,
+  since WP02 is deleting that drain anyway.
 
 ## Definition of done
 

@@ -11,7 +11,6 @@
         "WP01"
       ],
       "write_scope": [
-        "src/specify_cli/delivery/dispatcher.py",
         "src/specify_cli/delivery/receivers.py",
         "src/specify_cli/sync/routing.py"
       ],
@@ -133,6 +132,7 @@
         "WP06"
       ],
       "write_scope": [
+        "src/specify_cli/delivery/dispatcher.py",
         "src/specify_cli/delivery/selection.py"
       ],
       "predicted_surfaces": [
@@ -178,7 +178,7 @@
       "parallel_group": 3
     }
   ],
-  "computed_at": "2026-07-28T14:18:42.455862+00:00",
+  "computed_at": "2026-07-29T10:07:57.922651+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": []
 }

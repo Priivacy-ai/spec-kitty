@@ -21,12 +21,12 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|----------|
-| T001 | **Red-first**: incident reproduction (6 projects, 1 consented, other 5 with **no consent record at all**) + multi-project refusal + empty-selection tests. RED on current code (SC-001, SC-003) | WP01 | |
+| T001 | **Red-first**: incident reproduction (6 projects, 1 consented, other 5 with **no consent record at all**). RED on current code (SC-001) | WP04 | |
 | T002 | Cross-project pre-flight: refuse before any POST, name the projects, exit non-zero, no retry-count mutation. Identity resolved in-memory over the **already-selected batch** only (FR-004) | WP01 | |
-| T003 | Split `drain_blocked_reason` into **transient gate reasons** (re-evaluated at drain) and a **terminal reason**; exclude only the terminal one from `_select_undelivered`. Today the column collapses `not saas_enabled OR not checkout_enabled` into one token and also stamps `missing_auth`/`missing_team` (`journal.py:338-352`), and `emitter.py:2246-2248` states drain-blocked events are re-evaluated each tick — so excluding all non-null values would permanently strand every pre-login capture | WP01 | |
+| T003 | Split `drain_blocked_reason` into **transient gate reasons** (re-evaluated at drain) and a **terminal reason**; exclude only the terminal one from `_select_undelivered`. Today the column collapses `not saas_enabled OR not checkout_enabled` into one token and also stamps `missing_auth`/`missing_team` (`journal.py:338-352`), and `emitter.py:2246-2248` states drain-blocked events are re-evaluated each tick — so excluding all non-null values would permanently strand every pre-login capture. **Covers ZERO incident rows** — never treat as containment | WP06 | |
 | T004 | `GateKind` consent-availability gate + consent port in `GateContext`/`evaluate_gates`; aborts the run when consent is unresolvable (FR-001) | WP01 | |
 | T005 | Fail closed at `routing.py:114-116`; empty-selection short-circuit before payload build, replacing the misleading no-Private-Teamspace message at `batch.py:1484-1488` (FR-003, FR-005) | WP01 | |
-| T006 | FR-010 restated: journal write requires identity; identity-less capture is stamped into a named non-deliverable state via the existing `drain_blocked_reason` vocabulary — **not** dropped (NFR-005) | WP01 | |
+| T006 | FR-010 restated: journal write requires identity; identity-less capture is stamped into a named non-deliverable state via the existing `drain_blocked_reason` vocabulary — **not** dropped (NFR-005) | WP04 | |
 | T007 | Precondition guard: require/run `migrate_queues_to_journal`, assert the legacy queue is empty, **fail loudly** rather than discard (pre-WP03 rows may have no journal copy) | WP02 | |
 | T008 | Delete the queue-backed daemon drain: `background.py:395,455-461,589-592`; retire `queue.remove_project_events` per C-004. Assert no code path constructs it (FR-012, SC-005) | WP02 | |
 | T009 | Terminal reject classification **in `delivery/receivers.py`**: `DeliveryOutcome.TERMINAL_FAILED` is reachable from exactly one predicate today (`receivers.py:411-414`, oversized-single-event). Map a stable server refusal reason there. `delivery/ledger.py:98-101` **already** maps `terminal_failed`/`failed_permanent`, so no ledger work is needed. Folds #3005 (FR-014, SC-009) | WP01 | |
@@ -47,6 +47,14 @@
 | T025 | Body-upload consent: `prepare_body_uploads` gates once at enqueue on `is_sync_enabled_for_checkout(repo_root)` (`body_upload.py:150`), which is default-allow on absence; `_drain_body_queue` then POSTs every task under only the machine-global `is_saas_sync_enabled()`. Resolve consent **per task at drain time** from the task's namespace project identity, not cwd. Bodies are full `spec.md`/`plan.md`/`tasks/WP*.md` text (`body_upload.py:33-52`) | WP11 | |
 | T026 | Add the body-upload queue to the purge differential — it shares the offline-queue DB file, so a purge reporting 100% today leaves queued bodies behind | WP11 | |
 | T024 | Live drain against **`spec-kitty-dev`** at the incident's shape — **≥6 projects**: 1 consented, ≥3 with no consent record, ≥1 explicit opt-out, ≥1 identity-less. Evidence artefact records **before/after counts per `project_slug`**, the drain's own delivered count, and the CLI commit SHA (SC-008) | WP10 | |
+
+## Ownership resolution (2026-07-28)
+
+`lanes.json` mirrors `owned_files`, so a subtask that must write another lane's file is a hard stop at
+implement time. Resolved: **WP01 owns `receivers.py` + `routing.py`** (the delivery-decision surface),
+**WP06 owns `dispatcher.py` + `selection.py`** (the selection surface). T003 moved to WP06, T001/T006
+to WP04, T005's `batch.py` message to WP02. Rationale in `tasks/WP01-containment.md`. Reversible if you
+would rather keep T003 in wave 1 — but note it protects none of the incident population.
 
 ## Dependency graph
 
