@@ -16,10 +16,13 @@ proof (SC-003) lives in ``tests/docs/test_asset_resolution_wheel.py``.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
+from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
+from specify_cli.cli.commands import _doctrine_asset as asset_module
 from specify_cli.cli.commands.doctrine import app as doctrine_app
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -29,6 +32,15 @@ runner = CliRunner()
 #: The single built-in asset shipped today (WP04). Its blob is the structural
 #: docs-lint script; the manifest declares this stable identifier.
 _SHIPPED_ASSET_ID = "common-docs-structural-lint"
+
+
+def _write_asset_manifest(path: Path, *, asset_id: str, mime: str, blob_path: str) -> None:
+    """Write one ``*.asset.yaml`` sidecar manifest (mirrors ``tests/doctrine/assets``)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    yaml = YAML()
+    yaml.default_flow_style = False
+    with path.open("w", encoding="utf-8") as handle:
+        yaml.dump({"id": asset_id, "mime": mime, "path": blob_path}, handle)
 
 
 def test_asset_path_resolves_shipped_asset() -> None:
@@ -121,3 +133,51 @@ def test_resolved_path_str_renders_marker_on_not_found_not_just_escape() -> None
     repo.resolve_path.side_effect = AssetNotFoundError("orphaned-org-asset")
 
     assert _resolved_path_str(repo, "orphaned-org-asset") == _UNRESOLVABLE
+
+
+def test_asset_list_empty_prints_message_and_exits_zero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No resolvable manifests at all -> a friendly message, exit 0 (not a crash)."""
+    from doctrine.assets.repository import AssetRepository
+
+    empty_built_in = tmp_path / "shipped" / "assets" / "built-in"
+    empty_built_in.mkdir(parents=True)
+    monkeypatch.setattr(
+        asset_module, "_build_asset_repository", lambda: AssetRepository(built_in_dir=empty_built_in)
+    )
+
+    result = runner.invoke(doctrine_app, ["asset", "list"], catch_exceptions=False)
+    assert result.exit_code == 0, result.output
+    assert "No doctrine assets found." in result.output
+
+
+def test_asset_path_escape_exits_nonzero_naming_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A manifest whose blob path escapes its anchoring root refuses fail-closed (NFR-006)."""
+    from doctrine.assets.repository import AssetRepository
+
+    built_in = tmp_path / "shipped" / "assets" / "built-in"
+    _write_asset_manifest(
+        built_in / "evil.asset.yaml",
+        asset_id="evil",
+        mime="text/plain",
+        blob_path="../../../../etc/passwd",
+    )
+    monkeypatch.setattr(
+        asset_module, "_build_asset_repository", lambda: AssetRepository(built_in_dir=built_in)
+    )
+
+    result = runner.invoke(doctrine_app, ["asset", "path", "evil"], catch_exceptions=False)
+    assert result.exit_code != 0
+    assert "evil" in result.output
+
+
+def test_asset_path_unknown_id_json_carries_id_and_error() -> None:
+    """``path --json`` on a failure renders the id/error record, not rich text."""
+    result = runner.invoke(
+        doctrine_app,
+        ["asset", "path", "no-such-asset-xyz", "--json"],
+        catch_exceptions=False,
+    )
+    assert result.exit_code != 0
+    payload = json.loads(result.output)
+    assert payload["id"] == "no-such-asset-xyz"
+    assert "no-such-asset-xyz" in payload["error"]

@@ -22,6 +22,10 @@ from specify_cli.upgrade.migrations.m_3_2_x_normalize_activation_absence import 
     MIGRATION_ID,
     NormalizeActivationAbsenceMigration,
     _PER_ARTIFACT_ACTIVATION_KEYS,
+    _config_carries_any_activation,
+    _legacy_bundle_present,
+    _should_defer_bare_config_write,
+    _unify_promotion_pending,
 )
 from specify_cli.upgrade.registry import MigrationRegistry
 
@@ -173,3 +177,151 @@ def test_absent_keys_become_empty_in_legacy_config(tmp_path: Path) -> None:
     for key in _PER_ARTIFACT_ACTIVATION_KEYS:
         if key != "activated_directives":
             assert config[key] == [], key
+
+
+# ---------------------------------------------------------------------------
+# Two-invocation churn guard predicates (NFR-006, landing-fold fix for #3070)
+#
+# ``_should_defer_bare_config_write`` only defers when config.yaml is the
+# resolved store (no charter.yaml) AND none of three signals already arms
+# the sibling fold migration this pass: a legacy bundle file, an
+# already-activation-carrying config, or a pending answers-only promotion.
+# These tests exercise each predicate's true/false branches directly, then
+# the detect()/apply() decisions they gate.
+# ---------------------------------------------------------------------------
+
+
+def test_legacy_bundle_present_true_when_a_bundle_file_exists(tmp_path: Path) -> None:
+    _write(tmp_path / ".kittify" / "charter" / "governance.yaml", "testing: {}\n")
+    assert _legacy_bundle_present(tmp_path) is True
+
+
+def test_legacy_bundle_present_false_when_no_charter_dir(tmp_path: Path) -> None:
+    assert _legacy_bundle_present(tmp_path) is False
+
+
+def test_config_carries_any_activation_true_for_per_artifact_key() -> None:
+    assert _config_carries_any_activation({"activated_directives": []}) is True
+
+
+def test_config_carries_any_activation_true_for_coarse_key() -> None:
+    """The coarse gates (excluded from FR-018 normalization) still arm the guard."""
+    assert _config_carries_any_activation({"activated_kinds": ["directive"]}) is True
+
+
+def test_config_carries_any_activation_false_for_bare_config() -> None:
+    assert _config_carries_any_activation({"vcs": {"type": "git"}}) is False
+
+
+def test_unify_promotion_pending_false_without_answers_yaml(tmp_path: Path) -> None:
+    """No answers.yaml -> the sibling migration's own detect() short-circuits False."""
+    _write(tmp_path / ".kittify" / "config.yaml", "vcs:\n  type: git\n")
+    assert _unify_promotion_pending(tmp_path) is False
+
+
+def test_unify_promotion_pending_true_with_answers_only_selection(tmp_path: Path) -> None:
+    """An answers-only selection not yet mirrored into config.yaml is pending promotion."""
+    _write(tmp_path / ".kittify" / "config.yaml", "vcs:\n  type: git\n")
+    _write(
+        tmp_path / ".kittify" / "charter" / "interview" / "answers.yaml",
+        "selected_directives:\n  - 010-specification-fidelity-requirement\n",
+    )
+    assert _unify_promotion_pending(tmp_path) is True
+
+
+def test_should_defer_bare_config_write_false_when_charter_path_given(tmp_path: Path) -> None:
+    """Once charter.yaml exists, config.yaml is never the resolved store -- never defer."""
+    assert (
+        _should_defer_bare_config_write(tmp_path, {}, tmp_path / ".kittify" / "charter" / "charter.yaml")
+        is False
+    )
+
+
+def test_should_defer_bare_config_write_false_when_legacy_bundle_present(tmp_path: Path) -> None:
+    _write(tmp_path / ".kittify" / "charter" / "governance.yaml", "testing: {}\n")
+    assert _should_defer_bare_config_write(tmp_path, {}, None) is False
+
+
+def test_should_defer_bare_config_write_false_when_config_carries_activation(tmp_path: Path) -> None:
+    config_data = {"vcs": {"type": "git"}, "activated_kinds": ["directive"]}
+    assert _should_defer_bare_config_write(tmp_path, config_data, None) is False
+
+
+def test_should_defer_bare_config_write_true_on_bare_project(tmp_path: Path) -> None:
+    """No charter.yaml, no legacy bundle, no config activation, no pending promotion -> defer."""
+    _write(tmp_path / ".kittify" / "config.yaml", "vcs:\n  type: git\n")
+    config_data = {"vcs": {"type": "git"}}
+    assert _should_defer_bare_config_write(tmp_path, config_data, None) is True
+
+
+# ---------------------------------------------------------------------------
+# detect()/apply() decisions the guard gates
+# ---------------------------------------------------------------------------
+
+
+def test_bare_config_defers_normalization_when_nothing_arms_the_fold(tmp_path: Path) -> None:
+    """A freshly-init'd project (no charter.yaml/legacy bundle/activation/answers)
+    reports detect() False and apply() is a true no-op -- the write is deferred
+    rather than becoming the sole, premature trigger for the sibling fold.
+    """
+    _write(tmp_path / ".kittify" / "config.yaml", "vcs:\n  type: git\n")
+    migration = NormalizeActivationAbsenceMigration()
+
+    assert migration.detect(tmp_path) is False
+    result = migration.apply(tmp_path)
+    assert result.success
+    assert result.changes_made == []
+
+    config = _load(tmp_path / ".kittify" / "config.yaml")
+    for key in _PER_ARTIFACT_ACTIVATION_KEYS:
+        assert key not in config, key
+
+
+def test_proceeds_immediately_when_legacy_bundle_present(tmp_path: Path) -> None:
+    """A surviving legacy bundle file already arms the fold -- write now, not deferred."""
+    _write(tmp_path / ".kittify" / "config.yaml", "vcs:\n  type: git\n")
+    _write(tmp_path / ".kittify" / "charter" / "governance.yaml", "testing: {}\n")
+    migration = NormalizeActivationAbsenceMigration()
+
+    assert migration.detect(tmp_path) is True
+    result = migration.apply(tmp_path)
+    assert result.success
+    assert result.changes_made != []
+
+    config = _load(tmp_path / ".kittify" / "config.yaml")
+    for key in _PER_ARTIFACT_ACTIVATION_KEYS:
+        assert config[key] == [], key
+
+
+def test_proceeds_immediately_when_config_already_carries_coarse_activation(tmp_path: Path) -> None:
+    """A pre-existing coarse activation key already arms the fold -- write now."""
+    _write(
+        tmp_path / ".kittify" / "config.yaml",
+        "vcs:\n  type: git\nactivated_kinds:\n  - directive\n",
+    )
+    migration = NormalizeActivationAbsenceMigration()
+
+    assert migration.detect(tmp_path) is True
+    migration.apply(tmp_path)
+
+    config = _load(tmp_path / ".kittify" / "config.yaml")
+    assert config["activated_kinds"] == ["directive"]
+    for key in _PER_ARTIFACT_ACTIVATION_KEYS:
+        assert config[key] == [], key
+
+
+def test_proceeds_immediately_when_answers_only_promotion_pending(tmp_path: Path) -> None:
+    """A pending answers->config promotion already arms the fold -- write now."""
+    _write(tmp_path / ".kittify" / "config.yaml", "vcs:\n  type: git\n")
+    _write(
+        tmp_path / ".kittify" / "charter" / "interview" / "answers.yaml",
+        "selected_directives:\n  - 010-specification-fidelity-requirement\n",
+    )
+    migration = NormalizeActivationAbsenceMigration()
+
+    assert migration.detect(tmp_path) is True
+    migration.apply(tmp_path)
+
+    config = _load(tmp_path / ".kittify" / "config.yaml")
+    for key in _PER_ARTIFACT_ACTIVATION_KEYS:
+        assert config[key] == [], key
