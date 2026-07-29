@@ -1129,6 +1129,19 @@ _FOUNDATION_SANCTION_KEYS: tuple[CompositeKey, ...] = tuple(
 #: The 4th named FR-005 foundation site, coordination/surface_resolver.py, is
 #: NOT here -- it is already covered by its existing whole-module
 #: _READ_SANCTIONED_MODULES entry (which now names both primitives it serves).
+#:
+#: Foundation-count reconciliation: the in-code "RECORDED FOUNDATION SITE N/4"
+#: comments at core/paths.py (x2), core/git_ops.py, and
+#: coordination/surface_resolver.py count FOUR sites -- the ones sanctioned by
+#: an inline module/function-level comment (surface_resolver.py's is a
+#: whole-module sanction, not an individual seed row). This table's "N/5"
+#: numbering counts a DIFFERENT five: the same paths.py x2 + git_ops.py trio,
+#: swapping out surface_resolver.py (already whole-module sanctioned, so not
+#: individually machine-checked here) for the two sites that WERE deferred
+#: until this table added them -- retrospective/writer.py and
+#: status/aggregate.py. Six underlying leaf-call sites exist in total; "N/4"
+#: and "N/5" are two different countable subsets of that same six, not a
+#: drifted recount.
 _FOUNDATION_SANCTIONED: frozenset[CompositeKey] = frozenset(_FOUNDATION_SANCTION_KEYS)
 
 
