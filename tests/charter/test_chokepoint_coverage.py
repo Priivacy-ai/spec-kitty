@@ -26,6 +26,10 @@ wrapper that does). The carve-out list is explicit and narrow:
     the chokepoint.
   * ``src/specify_cli/upgrade/migrations/m_3_2_0rc35_unified_bundle.py`` —
     bootstrap migration.
+  * ``src/specify_cli/upgrade/migrations/m_3_2_x_normalize_activation_absence.py``
+    — migration that runs during ``upgrade``, before the bundle is fresh;
+    its legacy-bundle-filename check is a pre-migration existence probe,
+    not a content read of the canonical bundle.
   * ``src/charter/hasher.py`` — metadata.yaml consumer used by the chokepoint itself.
   * ``src/charter/schemas.py`` — only string constants for YAML filenames.
 
@@ -66,6 +70,15 @@ _CARVE_OUTS: frozenset[str] = frozenset(
         "src/charter/schemas.py",
         # Bootstrap migration
         "src/specify_cli/upgrade/migrations/m_3_2_0rc35_unified_bundle.py",
+        # Migration-time reader (landing fold, PR #3070): this migration's
+        # ``_legacy_bundle_present`` helper checks for the four legacy
+        # bundle filenames' EXISTENCE (not content) under ``.kittify/charter``
+        # to decide whether an earlier same-pass write already arms a sibling
+        # fold migration. Migrations run during ``upgrade`` itself, before
+        # the bundle is guaranteed fresh — routing this pre-migration probe
+        # through ``ensure_charter_bundle_fresh`` would be circular. Mirrors
+        # the sibling bootstrap migration carve-out immediately above.
+        "src/specify_cli/upgrade/migrations/m_3_2_x_normalize_activation_absence.py",
         # Doctrine layer cannot import the charter layer (architectural rule
         # ``kernel <- doctrine <- charter <- specify_cli`` — see
         # tests/architectural/test_layer_rules.py::TestDoctrineIsolation).
