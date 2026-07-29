@@ -1,0 +1,171 @@
+"""``spec-kitty doctrine asset`` — the operator surface over ASSET resolution.
+
+WP05 (``doctrine-delivery-reachability``). Two read-only commands let an
+operator see and resolve shipped/overlay doctrine assets, reading exclusively
+through :class:`doctrine.service.DoctrineService` ``.assets`` (the WP04
+:class:`~doctrine.assets.repository.AssetRepository`):
+
+* ``asset list [--json]`` — every resolvable asset with its source tier.
+* ``asset path <asset-id> [--json]`` — a resolvable filesystem path; an unknown
+  id exits non-zero with the id named (contract A-7).
+
+**C-002 — resolution and explicit invocation only.** Nothing here writes into a
+consumer repository; there is no auto-install path. Assets are resolved from
+package data (the built-in tier) plus the project/org overlays when the command
+runs inside a project.
+
+The subapp is registered onto the ``doctrine`` group at the WP03 anchor in
+:mod:`specify_cli.cli.commands.doctrine`.
+"""
+
+from __future__ import annotations
+
+import json
+from typing import TYPE_CHECKING
+
+import typer
+from rich.table import Table
+
+from specify_cli.cli.console import console
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from doctrine.assets.repository import AssetRepository
+
+__all__ = ["asset_app"]
+
+_JSON_OPTION_HELP = "Emit machine-readable JSON instead of rich text."
+
+#: Marker recorded in the ``path`` column when a manifest resolves but its blob
+#: escapes the anchoring root (NFR-006 containment refusal); never a real path.
+_UNRESOLVABLE = "<unresolvable: path escapes root>"
+
+asset_app = typer.Typer(
+    name="asset",
+    help="Resolve shipped and overlay doctrine assets (no install — C-002).",
+    no_args_is_help=True,
+)
+
+
+def _build_asset_repository() -> AssetRepository:
+    """Construct the three-tier asset repository for the current context.
+
+    Built-in assets resolve from packaged data (``built_in_root=None`` lets the
+    repository fall back to ``importlib.resources``), so the command works from
+    a clean installation with no repository present. When invoked inside a
+    project, the project ``.kittify/doctrine`` layer and configured org packs
+    are layered on top (more specific tiers win).
+    """
+    from doctrine.service import DoctrineService
+    from specify_cli.core.paths import locate_project_root
+
+    project_root: Path | None = None
+    org_roots: list[Path] = []
+    repo_root = locate_project_root()
+    if repo_root is not None:
+        from charter._doctrine_paths import resolve_project_root
+        from specify_cli.doctrine.config import resolve_org_roots
+
+        project_root = resolve_project_root(repo_root)
+        org_roots = [root for root in resolve_org_roots(repo_root) if root.exists()]
+
+    service = DoctrineService(project_root=project_root, org_roots=org_roots)
+    return service.assets
+
+
+def _resolved_path_str(repo: AssetRepository, asset_id: str) -> str:
+    """Return the resolved blob path as a string, or the unresolvable marker."""
+    from doctrine.assets.repository import AssetPathEscapeError
+
+    try:
+        return str(repo.resolve_path(asset_id))
+    except AssetPathEscapeError:
+        return _UNRESOLVABLE
+
+
+@asset_app.command("list")
+def asset_list(
+    json_output: bool = typer.Option(False, "--json", help=_JSON_OPTION_HELP),
+) -> None:
+    """List all resolvable doctrine assets and their source tiers."""
+    repo = _build_asset_repository()
+    rows = [
+        {
+            "id": manifest.id,
+            "tier": repo.get_provenance(manifest.id) or "unknown",
+            "path": _resolved_path_str(repo, manifest.id),
+        }
+        for manifest in repo.list_all()
+    ]
+
+    if json_output:
+        console.print_json(json.dumps(rows))
+        return
+
+    if not rows:
+        console.print("[yellow]No doctrine assets found.[/yellow]")
+        raise typer.Exit(0)
+
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("ID", style="cyan")
+    table.add_column("TIER", style="green")
+    table.add_column("PATH")
+    for row in rows:
+        table.add_row(row["id"], row["tier"], row["path"])
+    console.print(table)
+    raise typer.Exit(0)
+
+
+@asset_app.command("path")
+def asset_path(
+    asset_id: str = typer.Argument(
+        ...,
+        metavar="ASSET_ID",
+        help="Identifier of the asset to resolve (see `doctrine asset list`).",
+    ),
+    json_output: bool = typer.Option(False, "--json", help=_JSON_OPTION_HELP),
+) -> None:
+    """Resolve an asset identifier to a filesystem path (fail-closed on miss).
+
+    Exits ``0`` and prints the path on success. An unknown id or a containment
+    refusal exits non-zero with the offending id named (A-7 / NFR-006).
+    """
+    from doctrine.assets.repository import (
+        AssetNotFoundError,
+        AssetPathEscapeError,
+    )
+
+    repo = _build_asset_repository()
+    try:
+        resolved = repo.resolve_path(asset_id)
+    except AssetNotFoundError as exc:
+        _emit_path_error(asset_id, f"Unknown asset id: {asset_id}", json_output)
+        raise typer.Exit(1) from exc
+    except AssetPathEscapeError as exc:
+        _emit_path_error(asset_id, str(exc), json_output)
+        raise typer.Exit(1) from exc
+
+    if json_output:
+        console.print_json(
+            json.dumps(
+                {
+                    "id": asset_id,
+                    "tier": repo.get_provenance(asset_id) or "unknown",
+                    "path": str(resolved),
+                }
+            )
+        )
+    else:
+        # ``soft_wrap`` keeps the path on one line so it stays copy-pasteable
+        # and machine-consumable regardless of terminal width.
+        console.print(str(resolved), soft_wrap=True)
+    raise typer.Exit(0)
+
+
+def _emit_path_error(asset_id: str, message: str, json_output: bool) -> None:
+    """Render a ``path`` failure as JSON or rich text (id always named)."""
+    if json_output:
+        console.print_json(json.dumps({"id": asset_id, "error": message}))
+    else:
+        console.print(f"[red]{message}[/red]")

@@ -46,6 +46,7 @@ from ruamel.yaml.error import YAMLError
 from doctrine.artifact_kinds import (
     CHARTER_KIND_TOKENS,
     MISSION_TYPE_TOKEN,
+    PROJECT_KIND_DIRS as _PROJECT_KIND_DIRS,
     ArtifactKind,
     MissionTypeNotAnArtifactKind,
 )
@@ -76,12 +77,12 @@ _ID_FIELD_BY_KIND: dict[ArtifactKind, str] = {
     ArtifactKind.AGENT_PROFILE: "profile-id",
 }
 _DEFAULT_ID_FIELD = "id"
-_PROJECT_KIND_DIRS: dict[ArtifactKind, str] = {
-    ArtifactKind.DIRECTIVE: "directive",
-    ArtifactKind.TACTIC: "tactic",
-    ArtifactKind.STYLEGUIDE: "styleguide",
-    ArtifactKind.PROCEDURE: "procedure",
-}
+#: The project-tier overlay directory name per kind is the single canonical
+#: authority :data:`doctrine.artifact_kinds.PROJECT_KIND_DIRS` (imported above
+#: as ``_PROJECT_KIND_DIRS``). It is *total*, so ``.get(kind, kind.plural)``
+#: below never actually falls back — the default is retained only as a
+#: belt-and-braces guard against a future partial authority. No mapping is
+#: re-declared here (WP03 T014).
 
 
 def _id_field_for(kind: ArtifactKind) -> str:

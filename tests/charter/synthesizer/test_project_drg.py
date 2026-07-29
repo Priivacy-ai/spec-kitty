@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
+from charter.synthesizer import project_drg
 from charter.synthesizer.errors import ProjectDRGValidationError
 from charter.synthesizer.path_guard import PathGuard
 from charter.synthesizer.project_drg import emit_project_layer, persist
@@ -64,6 +65,64 @@ def _make_target(
         source_section=source_section,
         source_urns=source_urns,
     )
+
+
+# ---------------------------------------------------------------------------
+# 0. T003/T005 — the inline serialization loops are extracted into mapping
+#    helpers (T003) and then repointed at the derived ``model_to_graph_dict``
+#    (T005). The derived shape emits the declared ``DRGNode.tags`` field the old
+#    hand-restated shape silently dropped — the defect this WP closes.
+# ---------------------------------------------------------------------------
+
+
+class TestSerializationHelperExtraction:
+    """T005: ``_serialize_graph`` builds its dicts via the derived mapping helper.
+
+    The node dict now includes ``tags`` — the field the pre-WP inline loop
+    dropped. Both helpers derive their keys from ``model_fields``, so a field a
+    later mission adds is emitted without editing this writer.
+    """
+
+    def test_node_helper_now_emits_the_previously_dropped_tags_field(self) -> None:
+        node = DRGNode(
+            urn="directive:PROJECT_001",
+            kind=NodeKind.DIRECTIVE,
+            label="A label",
+            tags=["no-longer-dropped"],
+        )
+        assert project_drg._node_to_dict(node) == {
+            "urn": "directive:PROJECT_001",
+            "kind": "directive",
+            "label": "A label",
+            "tags": ["no-longer-dropped"],
+        }
+
+    def test_node_helper_still_omits_empty_tags(self) -> None:
+        """Byte-stability for the common overlay node: an empty ``tags`` stays out."""
+        node = DRGNode(
+            urn="directive:PROJECT_001", kind=NodeKind.DIRECTIVE, label="A label"
+        )
+        assert project_drg._node_to_dict(node) == {
+            "urn": "directive:PROJECT_001",
+            "kind": "directive",
+            "label": "A label",
+        }
+
+    def test_edge_helper_reproduces_the_inline_edge_dict(self) -> None:
+        edge = DRGEdge(
+            source="directive:PROJECT_001",
+            target="directive:DIRECTIVE_003",
+            relation=Relation.REQUIRES,
+            when="a condition",
+            reason="a rationale",
+        )
+        assert project_drg._edge_to_dict(edge) == {
+            "source": "directive:PROJECT_001",
+            "target": "directive:DIRECTIVE_003",
+            "relation": "requires",
+            "when": "a condition",
+            "reason": "a rationale",
+        }
 
 
 # ---------------------------------------------------------------------------

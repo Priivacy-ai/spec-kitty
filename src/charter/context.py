@@ -5,11 +5,12 @@ from __future__ import annotations
 import json
 import logging
 import re
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, UTC
+from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, NamedTuple, Protocol
 
 if TYPE_CHECKING:
     from charter.pack_context import PackContext
@@ -42,6 +43,14 @@ from charter.context_renderers import (
 from charter.context_renderers.fetch_stanza import (
     fetch_stanza_lines as _shared_fetch_stanza_lines,
 )
+from charter.context_renderers.profile_sections import (
+    format_inline_named_body as _format_inline_named_body,
+    render_profile_procedures as _render_profile_procedures,
+    render_profile_selector_refs as _render_profile_selector_refs,
+    render_profile_styleguides as _render_profile_styleguides,
+    render_profile_toolguides as _render_profile_toolguides,
+)
+from charter import progressive_disclosure as _pd
 from charter.governance_references import (
     collect_governance_reference_status,
     render_governance_references,
@@ -82,7 +91,9 @@ KITTIFY_DIRNAME = ".kittify"
 MISSING_REFERENCES_MESSAGE = "  - No references manifest found."
 
 _MIN_EFFECTIVE_DEPTH = 2   # minimum depth for bootstrap context (full summary + references)
-_EXTENDED_CONTEXT_DEPTH = 3  # depth that includes extended styleguide/toolguide lines
+# WP11 (T059) retired ``_EXTENDED_CONTEXT_DEPTH``: ``depth`` is now purely the
+# DRG suggests-hop cap, not also a render-verbosity tier (which gated
+# styleguides/toolguides out at every delivered depth).
 
 
 @dataclass(frozen=True)
@@ -109,14 +120,26 @@ class _ContextStateBundle:
 
 @dataclass(frozen=True)
 class _ActionDoctrineBundle:
-    """Resolved action doctrine artifacts for bootstrap rendering."""
+    """Resolved action doctrine artifacts for bootstrap rendering.
+
+    ``procedure_ids``/``asset_ids`` are WP10 additions (FR-009/FR-011); ``mission``
+    and ``service`` are kept though the contract sketch omits them.
+    """
 
     mission: str
     directive_ids: list[str]
     tactic_ids: list[str]
     styleguide_ids: list[str]
     toolguide_ids: list[str]
+    procedure_ids: list[str]
+    asset_ids: list[str]
     service: object
+    # WP15 (progressive disclosure, out-of-map): the resolved DRG and the
+    # traversal roots, carried so the JSON entrypoint can render each artefact's
+    # ``references[]`` and split the requires-eager / suggests-linked cadence
+    # without re-loading and re-filtering the graph.
+    merged: DRGGraph | None = None
+    roots: tuple[str, ...] = ()
 
 
 class _DirectiveLike(Protocol):
@@ -129,6 +152,60 @@ class _DirectivesConfigLike(Protocol):
     """Minimal directives config contract returned by charter.sync."""
 
     directives: Sequence[_DirectiveLike]
+
+
+def _resolve_action_bundle(
+    repo_root: Path,
+    *,
+    action: str,
+    effective_depth: int,
+    org_root: Path | None,
+    mission_type: str | None,
+    feature_dir: Path | None,
+) -> _ActionDoctrineBundle:
+    """Resolve the action doctrine bundle with the WP06 org-root fallback
+    (extracted WP11/T060 so every-load delivery computes it once, before the
+    depth-tier branch, without growing ``build_charter_context``)."""
+    effective_org_root = org_root
+    if effective_org_root is None:
+        for _name, candidate in _enumerate_org_pack_paths(repo_root):
+            if candidate.exists():
+                effective_org_root = candidate
+                break
+
+    from charter.pack_context import PackContext as _PackContext  # noqa: PLC0415
+
+    return _load_action_doctrine_bundle(
+        repo_root=repo_root,
+        action=action,
+        effective_depth=effective_depth,
+        org_root=effective_org_root,
+        pack_context=_PackContext.from_config(repo_root),
+        mission_type=mission_type,
+        feature_dir=feature_dir,
+    )
+
+
+def _render_compact_from_bundle(
+    repo_root: Path,
+    *,
+    action: str,
+    profile: AgentProfile | None,
+    bundle: _ActionDoctrineBundle,
+) -> str:
+    """Render the widened compact rail (T061): the steady-state render carries
+    every delivered kind's ids (FR-010), collapsing only the long-form prose."""
+    return _render_compact_governance(
+        repo_root,
+        directive_ids=list(bundle.directive_ids),
+        tactic_ids=list(bundle.tactic_ids),
+        styleguide_ids=list(bundle.styleguide_ids),
+        toolguide_ids=list(bundle.toolguide_ids),
+        procedure_ids=list(bundle.procedure_ids),
+        asset_ids=list(bundle.asset_ids),
+        profile=profile,
+        action=action,
+    )
 
 
 def build_charter_context(
@@ -235,7 +312,19 @@ def build_charter_context(
             depth=state_bundle.effective_depth,
         )
 
+    # WP11 (T060/B-3) — compute the bundle BEFORE the depth-tier branch so it
+    # is delivered on EVERY load; the old order returned compact before it existed.
+    doctrine_bundle = _resolve_action_bundle(
+        repo_root,
+        action=normalized,
+        effective_depth=state_bundle.effective_depth,
+        org_root=org_root,
+        mission_type=mission_type,
+        feature_dir=feature_dir,
+    )
+
     if state_bundle.effective_depth < _MIN_EFFECTIVE_DEPTH:
+        # Steady-state load: deliver via the widened compact rail (T061/FR-010).
         if mark_loaded and state_bundle.first_load:
             _mark_action_loaded(state_bundle.state, state_bundle.state_path, normalized)
         return CharterContextResult(
@@ -243,37 +332,17 @@ def build_charter_context(
             mode="compact",
             first_load=state_bundle.first_load,
             text=_augment(
-                _render_compact_governance(repo_root, profile=profile_record, action=normalized)
+                _render_compact_from_bundle(
+                    repo_root,
+                    action=normalized,
+                    profile=profile_record,
+                    bundle=doctrine_bundle,
+                )
             ),
             references_count=0,
             depth=state_bundle.effective_depth,
         )
 
-    # WP06 — when the caller did not supply an explicit ``org_root``,
-    # fall back to the first existing pack path discovered via the
-    # charter-layer enumeration of ``.kittify/config.yaml``.  This keeps
-    # callers that go through ``build_charter_context`` directly (e.g.
-    # ATDD tests) on the same three-layer (built-in + org + project)
-    # service shape that the ``specify_cli``-wrapped callers get.
-    effective_org_root = org_root
-    if effective_org_root is None:
-        for _name, candidate in _enumerate_org_pack_paths(repo_root):
-            if candidate.exists():
-                effective_org_root = candidate
-                break
-
-    from charter.pack_context import PackContext as _PackContext  # noqa: PLC0415
-
-    _pack_ctx = _PackContext.from_config(repo_root)
-    doctrine_bundle = _load_action_doctrine_bundle(
-        repo_root=repo_root,
-        action=normalized,
-        effective_depth=state_bundle.effective_depth,
-        org_root=effective_org_root,
-        pack_context=_pack_ctx,
-        mission_type=mission_type,
-        feature_dir=feature_dir,
-    )
     charter_content = charter_path.read_text(encoding="utf-8")
     summary = _extract_policy_summary(charter_content)
     references = _load_references(canonical_root)
@@ -284,7 +353,6 @@ def build_charter_context(
         summary=summary,
         doctrine_bundle=doctrine_bundle,
         references=references,
-        effective_depth=state_bundle.effective_depth,
         profile=profile_record,
         repo_root=repo_root,
         doctrine_selection=doctrine_selection,
@@ -635,63 +703,103 @@ def _prepare_context_state(
     )
 
 
-#: Every :class:`~doctrine.drg.models.NodeKind`, mapped to the
-#: :class:`_ActionDoctrineBundle` list it feeds -- or to ``None`` where the
-#: bundle deliberately has no slot for it.
+class _Gate(Enum):
+    """How a delivered kind is gated (``delivered = gate ∩ reachable``).
+
+    ``ACTIVATED`` -> ``activated(kind) ∩ reachable`` (the kinds
+    ``charter.drg._SINGULAR_TO_PLURAL`` gates on). ``ALL`` -> ``reachable``
+    alone; ``activated(kind)`` is ``∅`` by construction for these, so gating an
+    asset on ``activated ∩ reachable`` would ship ``asset_ids = []`` forever.
+    """
+
+    ACTIVATED = "activated"
+    ALL = "all"
+
+
+class _KindDelivery(NamedTuple):
+    """One row of the NodeKind delivery table: the ``slot`` and ``gate`` columns.
+
+    ``slot`` is the :class:`_ActionDoctrineBundle` list the kind feeds (``None``
+    = not delivered, with a stated reason). ``gate`` is total over ``NodeKind``
+    so ``TEMPLATE``'s exclusion carries a reason rather than being ASSET's
+    untreated twin (B-1a).
+    """
+
+    slot: str | None
+    gate: _Gate
+
+
+#: The NodeKind delivery table -- ``slot`` and ``gate`` as two columns of ONE
+#: total table (B-1: ``gate`` is a column of the same table as the slot).
 #:
-#: WP03 of ``doctrine-silence-guards-01KYFV7Q`` (FR-003/SC-002). The classifier
-#: below used to be four ``elif`` arms with no ``else``, which made *exclusion*
-#: and *ignorance* indistinguishable: twelve kinds fell through, and a kind
-#: added tomorrow would have joined them in silence. Twelve exclusions are
-#: correct -- the bundle really does render only four lists, and ``paradigm``,
-#: ``procedure``, ``template`` and ``agent_profile`` nodes reach here on the
-#: shipped graph today -- so the fix is to *state* them, not to start rendering
-#: them.
+#: WP03 of ``doctrine-silence-guards`` froze the bundle at four slots ("state
+#: the exclusions, do NOT render them"). **WP10 (FR-009/FR-011) reverses that
+#: for PROCEDURE and ASSET**: the criterion is *delivery obligation* -- a
+#: resolved procedure/asset is executing-agent context no other charter surface
+#: delivers on this path (13/18 activated procedures are graph-reachable; assets
+#: arrive only through inbound requires/suggests edges, D4). The ten still
+#: excluded each have a delivery home elsewhere or are not bundle artefacts.
 #:
-#: This table is total on purpose, and the totality is enforced rather than
-#: trusted: ``tests/doctrine/drg/test_kind_mapping_totality.py`` already fails
-#: any module-level ``NodeKind``-keyed dict that omits a member, so a
-#: seventeenth kind goes red there without a second gate being invented for it.
-_ACTION_BUNDLE_SLOT_BY_KIND: dict[NodeKind, str | None] = {
-    NodeKind.DIRECTIVE: "directives",
-    NodeKind.TACTIC: "tactics",
-    NodeKind.STYLEGUIDE: "styleguides",
-    NodeKind.TOOLGUIDE: "toolguides",
-    # -- Reached today, deliberately not projected: the action bundle renders
-    #    four lists, and these kinds are surfaced by other charter surfaces.
-    NodeKind.PARADIGM: None,
-    NodeKind.PROCEDURE: None,
-    NodeKind.AGENT_PROFILE: None,
-    NodeKind.MISSION_STEP_CONTRACT: None,
-    NodeKind.TEMPLATE: None,
-    NodeKind.ASSET: None,
-    # -- Not artifacts of the kind this bundle carries.
-    NodeKind.ACTION: None,
-    NodeKind.MISSION_TYPE: None,
-    NodeKind.ANTI_PATTERN: None,
-    NodeKind.GLOSSARY: None,
-    NodeKind.GLOSSARY_SCOPE: None,
-    NodeKind.GLOSSARY_PACK: None,
+#: Totality is enforced, not trusted: ``test_kind_mapping_totality.py`` reddens
+#: on any NodeKind-keyed dict that omits a member.
+_ACTION_BUNDLE_DELIVERY_BY_KIND: dict[NodeKind, _KindDelivery] = {
+    NodeKind.DIRECTIVE: _KindDelivery("directives", _Gate.ACTIVATED),
+    NodeKind.TACTIC: _KindDelivery("tactics", _Gate.ACTIVATED),
+    NodeKind.STYLEGUIDE: _KindDelivery("styleguides", _Gate.ACTIVATED),
+    NodeKind.TOOLGUIDE: _KindDelivery("toolguides", _Gate.ACTIVATED),
+    NodeKind.PROCEDURE: _KindDelivery("procedures", _Gate.ACTIVATED),  # WP10: flipped
+    NodeKind.ASSET: _KindDelivery("assets", _Gate.ALL),  # WP10: flipped, ungated (D4)
+    # Excluded (slot=None) with a stated reason, NOT ASSET's untreated twin:
+    NodeKind.PARADIGM: _KindDelivery(None, _Gate.ACTIVATED),  # charter selection block
+    NodeKind.AGENT_PROFILE: _KindDelivery(None, _Gate.ACTIVATED),  # profile channel (FR-020)
+    NodeKind.MISSION_STEP_CONTRACT: _KindDelivery(None, _Gate.ACTIVATED),  # step executor
+    NodeKind.GLOSSARY_PACK: _KindDelivery(None, _Gate.ACTIVATED),
+    NodeKind.ANTI_PATTERN: _KindDelivery(None, _Gate.ACTIVATED),
+    NodeKind.TEMPLATE: _KindDelivery(None, _Gate.ALL),  # template-file selection (C-004)
+    # Not artefacts this bundle carries:
+    NodeKind.ACTION: _KindDelivery(None, _Gate.ALL),
+    NodeKind.MISSION_TYPE: _KindDelivery(None, _Gate.ALL),
+    NodeKind.GLOSSARY: _KindDelivery(None, _Gate.ALL),
+    NodeKind.GLOSSARY_SCOPE: _KindDelivery(None, _Gate.ALL),
 }
+
+
+def _kind_delivery(kind: NodeKind) -> _KindDelivery:
+    """Look up *kind*'s delivery row, loud on an unruled (new) member."""
+    try:
+        return _ACTION_BUNDLE_DELIVERY_BY_KIND[kind]
+    except KeyError as exc:
+        raise LookupError(
+            f"NodeKind {kind!r} has no delivery row. Add it to "
+            "_ACTION_BUNDLE_DELIVERY_BY_KIND (slot + gate)."
+        ) from exc
 
 
 def action_bundle_bucket(kind: NodeKind) -> str | None:
     """Return the action-bundle list *kind* feeds, or ``None`` if excluded.
 
-    Raises:
-        LookupError: when *kind* has no recorded verdict -- i.e. somebody added
-            a :class:`~doctrine.drg.models.NodeKind` member and never said
-            whether the action bundle should carry it. That is the whole defect
-            class this closes, so it is loud rather than a silent skip.
+    Raises ``LookupError`` for a kind with no recorded verdict (a new
+    ``NodeKind`` nobody ruled on) -- the defect class this closes.
     """
-    try:
-        return _ACTION_BUNDLE_SLOT_BY_KIND[kind]
-    except KeyError as exc:
-        raise LookupError(
-            f"NodeKind {kind!r} has no recorded action-bundle verdict. Add it to "
-            "_ACTION_BUNDLE_SLOT_BY_KIND -- mapped to a bundle list if it should "
-            "be rendered, or to None if it should not."
-        ) from exc
+    return _kind_delivery(kind).slot
+
+
+def action_bundle_gate(kind: NodeKind) -> _Gate:
+    """Return the delivery gate for *kind* (``ACTIVATED`` or ``ALL``); total (B-1)."""
+    return _kind_delivery(kind).gate
+
+
+def _empty_slot_map() -> dict[str, list[str]]:
+    """A fresh accumulator with one empty list per delivered slot.
+
+    Derived from the delivery table so a kind flipped into a slot grows an
+    accumulator automatically -- totality and delivery are one statement.
+    """
+    return {
+        row.slot: []
+        for row in _ACTION_BUNDLE_DELIVERY_BY_KIND.values()
+        if row.slot is not None
+    }
 
 
 def _classify_artifact_urns(
@@ -700,12 +808,14 @@ def _classify_artifact_urns(
     project_directives: set[str],
     selected_tactics: set[str] | None = None,
     selected_paradigms: set[str] | None = None,
-) -> tuple[list[str], list[str], list[str], list[str]]:
-    """Partition resolved artifact URNs into doctrine-type buckets.
+) -> Mapping[str, tuple[str, ...]]:
+    """Partition resolved artifact URNs into a slot-keyed mapping.
 
-    Every :class:`~doctrine.drg.models.NodeKind` is ruled on via
-    :func:`action_bundle_bucket`; a kind with no recorded verdict raises rather
-    than falling out of the loop unnoticed (WP03, FR-003).
+    Returns ``{slot: (id, ...)}`` for every delivered slot in the delivery
+    table. The mapping is *not* destroyed into a positional tuple: that shape
+    spawned five parallel per-kind projections that drifted apart, and every
+    drift was a delivery defect (WP10/T053). A kind with no recorded verdict
+    raises via :func:`action_bundle_bucket` rather than falling out unnoticed.
     """
     from doctrine.drg.models import Relation
     from doctrine.drg.query import resolve_transitive_refs
@@ -726,12 +836,7 @@ def _classify_artifact_urns(
     artifact_urns.update(f"styleguide:{styleguide_id}" for styleguide_id in selected_closure.styleguides)
     artifact_urns.update(f"toolguide:{toolguide_id}" for toolguide_id in selected_closure.toolguides)
 
-    slots: dict[str, list[str]] = {
-        "directives": [],
-        "tactics": [],
-        "styleguides": [],
-        "toolguides": [],
-    }
+    slots = _empty_slot_map()
     for urn in sorted(artifact_urns):
         node = merged.get_node(urn)
         if node is None:
@@ -745,7 +850,7 @@ def _classify_artifact_urns(
         if node.kind is NodeKind.DIRECTIVE and project_directives and artifact_id not in project_directives:
             continue
         slots[slot].append(artifact_id)
-    return slots["directives"], slots["tactics"], slots["styleguides"], slots["toolguides"]
+    return {slot: tuple(ids) for slot, ids in slots.items()}
 
 
 #: Artifact-kind suffixes for which an org pack may declare a
@@ -966,23 +1071,14 @@ def _load_action_doctrine_bundle(
     selected_tactics = {t for t in doctrine_selection.selected_tactics if t}
     selected_paradigms = {p for p in doctrine_selection.selected_paradigms if p}
 
-    # WP07 T034: route the DRG load through the shared helper so the built-in +
-    # org + project three-layer overlay is honoured.  Callers in ``specify_cli``
-    # supply *org_root* explicitly; charter-internal callers pass ``None`` and
-    # get the two-layer (built-in + project) merge.
-    #
-    # WP04 (charter-mediated-doctrine-selection): a project that authors a
-    # user doctrine artifact (e.g. ``.kittify/doctrine/styleguide/foo.yaml``)
-    # without a sibling ``*.graph.yaml`` fragment causes ``load_graph_or_dir``
-    # to raise ``DRGLoadError``. The DRG-action resolution is orthogonal to
-    # charter-level global selection rendering, so we collapse the failure to
-    # an empty action bundle and let the selection-renderer path continue
-    # surfacing charter-authored ``selected_<kind>`` lists.  A WARNING is
-    # logged so operators can audit the missing graph fragment.
-    directive_ids: list[str] = []
-    tactic_ids: list[str] = []
-    styleguide_ids: list[str] = []
-    toolguide_ids: list[str] = []
+    # The DRG load honours the built-in + org + project three-layer overlay
+    # (WP07 T034; charter-internal callers pass org_root=None for two layers).
+    # A project authoring a doctrine artifact without a sibling ``*.graph.yaml``
+    # raises ``DRGLoadError``; that is orthogonal to charter-level selection
+    # rendering, so we collapse it to an empty bundle and log a WARNING (WP04).
+    ids_by_slot: Mapping[str, tuple[str, ...]] = {}
+    merged_graph: DRGGraph | None = None
+    roots: tuple[str, ...] = ()
     # A typeless mission has no action:<type>/<action> node to resolve; skip the
     # DRG action resolution entirely so no doctrine is inferred (FR-003a).
     if resolved_type is not None:
@@ -993,12 +1089,22 @@ def _load_action_doctrine_bundle(
                 merged = filter_graph_by_activation(merged, pack_context)
             action_urn = f"action:{resolved_type}/{action}"
             resolved = resolve_context(merged, action_urn, depth=effective_depth)
-            directive_ids, tactic_ids, styleguide_ids, toolguide_ids = _classify_artifact_urns(
+            ids_by_slot = _classify_artifact_urns(
                 resolved.artifact_urns,
                 merged,
                 project_directives,
                 selected_tactics,
                 selected_paradigms,
+            )
+            # WP15: carry the graph + traversal roots for progressive disclosure.
+            # Roots mirror ``_classify_artifact_urns``: the action node plus the
+            # project/selected start URNs whose requires-closure is delivered eager.
+            merged_graph = merged
+            roots = (
+                action_urn,
+                *(f"directive:{d}" for d in project_directives),
+                *(f"tactic:{t}" for t in selected_tactics),
+                *(f"paradigm:{p}" for p in selected_paradigms),
             )
         except DRGLoadError as exc:
             _LOGGER.warning(
@@ -1011,11 +1117,15 @@ def _load_action_doctrine_bundle(
 
     return _ActionDoctrineBundle(
         mission=resolved_type or "",
-        directive_ids=directive_ids,
-        tactic_ids=tactic_ids,
-        styleguide_ids=styleguide_ids,
-        toolguide_ids=toolguide_ids,
+        directive_ids=list(ids_by_slot.get("directives", ())),
+        tactic_ids=list(ids_by_slot.get("tactics", ())),
+        styleguide_ids=list(ids_by_slot.get("styleguides", ())),
+        toolguide_ids=list(ids_by_slot.get("toolguides", ())),
+        procedure_ids=list(ids_by_slot.get("procedures", ())),
+        asset_ids=list(ids_by_slot.get("assets", ())),
         service=_build_doctrine_service(repo_root, org_roots=[org_root] if org_root else None),
+        merged=merged_graph,
+        roots=roots,
     )
 
 
@@ -1036,6 +1146,65 @@ def _append_guidelines_lines(lines: list[str], mission: str, action: str) -> Non
         pass
 
 
+class _ActionRenderRow(NamedTuple):
+    """One Action Doctrine render row."""
+
+    heading: str
+    ids_attr: str  # attribute on _ActionDoctrineBundle
+    service_attr: str  # repository/dict on the service (absent for assets here)
+    title_attr: str
+    summary_attr: str | None
+
+
+#: The Action Doctrine render order. Iterating it (not hand-written per-kind
+#: calls) makes "the render emits every kind the bundle carries" one statement
+#: (FR-009/B-2): a kind flipped into a slot renders as soon as it has a row.
+#: WP11 (T059) retired the ``extended`` depth gate — every row renders on the
+#: bootstrap load; the compact rail carries the same kinds as ids (T061).
+_ACTION_RENDER_ROWS: tuple[_ActionRenderRow, ...] = (
+    _ActionRenderRow("Directives", "directive_ids", "directives", "title", "intent"),
+    _ActionRenderRow("Tactics", "tactic_ids", "tactics", "name", "purpose"),
+    _ActionRenderRow("Styleguides", "styleguide_ids", "styleguides", "title", None),
+    _ActionRenderRow("Toolguides", "toolguide_ids", "toolguides", "title", None),
+    _ActionRenderRow("Procedures", "procedure_ids", "procedures", "name", "purpose"),
+    _ActionRenderRow("Assets", "asset_ids", "assets", "title", None),
+)
+
+
+def _render_action_doctrine_lines(
+    lines: list[str],
+    doctrine_bundle: _ActionDoctrineBundle,
+    *,
+    repo_root: Path | None,
+) -> None:
+    """Emit every kind the bundle resolves under the Action Doctrine heading.
+
+    Assets have no repository on this lane, so ``getattr(service, "assets",
+    None)`` is ``None`` and :func:`_extend_named_artifact_lines` emits bare ids.
+    """
+    service = doctrine_bundle.service
+    all_action_ids: list[str] = [
+        artifact_id
+        for row in _ACTION_RENDER_ROWS
+        for artifact_id in getattr(doctrine_bundle, row.ids_attr)
+    ]
+    org_source_map = (
+        _build_action_org_source_map(repo_root, all_action_ids)
+        if repo_root is not None and all_action_ids
+        else {}
+    )
+    for row in _ACTION_RENDER_ROWS:
+        _extend_named_artifact_lines(
+            lines,
+            row.heading,
+            getattr(doctrine_bundle, row.ids_attr),
+            getattr(service, row.service_attr, None),
+            row.title_attr,
+            row.summary_attr,
+            org_source_map=org_source_map,
+        )
+
+
 def _render_bootstrap_text(
     *,
     charter_path: Path,
@@ -1043,7 +1212,6 @@ def _render_bootstrap_text(
     summary: list[str],
     doctrine_bundle: _ActionDoctrineBundle,
     references: list[dict[str, str]],
-    effective_depth: int,
     profile: AgentProfile | None = None,
     repo_root: Path | None = None,
     doctrine_selection: DoctrineSelectionConfig | None = None,
@@ -1065,9 +1233,8 @@ def _render_bootstrap_text(
     else:
         lines.append(NO_POLICY_SUMMARY_MESSAGE)
 
-    # WP04 (FR-003) — authority paths block, sliced between Policy Summary
-    # and the action-critical bodies so the resolved-context anchor order
-    # documented in data-model.md §3 holds.
+    # WP04 (FR-003) — authority paths block, between Policy Summary and the
+    # action-critical bodies (resolved-context anchor order, data-model.md §3).
     authority_block = ""
     if repo_root is not None and doctrine_selection is not None:
         authority_block = render_authority_paths(repo_root, doctrine_selection)
@@ -1085,9 +1252,8 @@ def _render_bootstrap_text(
         lines.append("")
         lines.append(reference_block)
 
-    # WP04 (FR-001) — action-critical charter section bodies.  When a
-    # heading is absent from the charter the renderer emits a fetch
-    # stanza, so the executing agent has a recovery path either way.
+    # WP04 (FR-001) — action-critical charter section bodies; an absent heading
+    # emits a fetch stanza so the agent still has a recovery path.
     section_block = render_critical_section_bodies(charter_content, action)
     if section_block:
         lines.append("")
@@ -1098,10 +1264,8 @@ def _render_bootstrap_text(
         lines.append("")
         lines.append(profile_block)
 
-    # WP04 (FR-005) — charter-level global selection rendering.  The
-    # combined 5-kind block surfaces every artifact named in
-    # ``DoctrineSelectionConfig.selected_<kind>`` (with provenance
-    # disclosure for org-distributed entries).
+    # WP04 (FR-005) — charter-level global selection rendering: the 5-kind block
+    # surfaces every ``DoctrineSelectionConfig.selected_<kind>`` (with org provenance).
     selection_block = _render_selection_block(
         doctrine_selection, service, repo_root=repo_root
     )
@@ -1109,10 +1273,8 @@ def _render_bootstrap_text(
         lines.append("")
         lines.append(selection_block)
 
-    # WP04 T023 — activation-registry hook (FR-007).  The renderer body
-    # is WP05's surface (``charter._activation_render``); WP04 only
-    # ships the call site so the wire is exercised end-to-end as soon
-    # as WP05 lands.  Until then the stub returns ``""``.
+    # WP04 T023 — activation-registry hook (FR-007); renderer body is WP05's
+    # surface (``charter._activation_render``), this only ships the call site.
     activation_block = _render_activation_block(
         doctrine_selection,
         repo_root,
@@ -1126,36 +1288,7 @@ def _render_bootstrap_text(
 
     lines.append("")
     lines.append(f"Action Doctrine ({action}):")
-
-    # WP07 T035/T036 (FR-001, Option B) — compute org-layer provenance map ONCE
-    # and pass it to each _extend_named_artifact_lines call so org-contributed
-    # artifacts carry a ``(source: org:<pack>)`` suffix.  Returns {} when no org
-    # packs are configured → NFR-001 byte-stability preserved (23 fixtures unchanged).
-    _all_action_ids = (
-        doctrine_bundle.directive_ids
-        + doctrine_bundle.tactic_ids
-        + doctrine_bundle.styleguide_ids
-        + doctrine_bundle.toolguide_ids
-    )
-    _action_org_source_map = (
-        _build_action_org_source_map(repo_root, _all_action_ids)
-        if repo_root is not None and _all_action_ids
-        else {}
-    )
-
-    _extend_named_artifact_lines(lines, "Directives", doctrine_bundle.directive_ids, service.directives, "title", "intent", org_source_map=_action_org_source_map)  # type: ignore[attr-defined]
-    _extend_named_artifact_lines(lines, "Tactics", doctrine_bundle.tactic_ids, service.tactics, "name", "purpose", org_source_map=_action_org_source_map)  # type: ignore[attr-defined]
-
-    if effective_depth >= _EXTENDED_CONTEXT_DEPTH:
-        _service_any: Any = service
-        _extend_named_artifact_lines(
-            lines, "Styleguides", doctrine_bundle.styleguide_ids,
-            _service_any.styleguides, "title", None, org_source_map=_action_org_source_map,
-        )
-        _extend_named_artifact_lines(
-            lines, "Toolguides", doctrine_bundle.toolguide_ids,
-            _service_any.toolguides, "title", None, org_source_map=_action_org_source_map,
-        )
+    _render_action_doctrine_lines(lines, doctrine_bundle, repo_root=repo_root)
 
     _append_guidelines_lines(lines, doctrine_bundle.mission, action)
 
@@ -1164,13 +1297,16 @@ def _render_bootstrap_text(
 
     lines.append("")
     lines.append(REFERENCE_DOCS_HEADER)
-    filtered_references = _filter_references_for_action(references, action)
-    if filtered_references:
-        for reference in filtered_references[:10]:
+    from charter.catalog import resolve_doctrine_root  # noqa: PLC0415 — lazy, avoids import cycle
+
+    selected_references = _select_reference_pointers(
+        references, action, resolve_doctrine_root()
+    )
+    if selected_references:
+        for reference, resolved_path in selected_references:
             ref_id = reference.get("id", "unknown")
             title = reference.get("title", "")
-            local_path = reference.get("local_path", "")
-            lines.append(f"  - {ref_id}: {title} ({local_path})")
+            lines.append(f"  - {ref_id}: {title} ({resolved_path})")
     else:
         lines.append(MISSING_REFERENCES_MESSAGE)
     text = "\n".join(lines)
@@ -1294,7 +1430,7 @@ def _extend_named_artifact_lines(
     lines: list[str],
     heading: str,
     artifact_ids: list[str],
-    repository: object,
+    repository: object | None,
     title_attr: str,
     summary_attr: str | None,
     org_source_map: dict[str, str] | None = None,
@@ -1305,6 +1441,10 @@ def _extend_named_artifact_lines(
     pack receives a ``(source: org:<pack>)`` suffix (Option B — additive only
     when an org pack is present, preserving NFR-001 byte-stability when no
     org packs are configured).
+
+    *repository* may be ``None`` when a delivered kind has no repository wired
+    on this layer (e.g. assets on the WP10 base): every id then renders in the
+    bare-id form, so the ids still reach the output (FR-009/B-2).
     """
     if not artifact_ids:
         return
@@ -1312,7 +1452,7 @@ def _extend_named_artifact_lines(
     formatted: list[str] = []
     for artifact_id in artifact_ids:
         suffix = _provenance_suffix(artifact_id, org_source_map)
-        artifact = repository.get(artifact_id)  # type: ignore[attr-defined]
+        artifact = repository.get(artifact_id) if repository is not None else None  # type: ignore[attr-defined]
         if artifact is None:
             formatted.append(f"    - {artifact_id}{suffix}")
             continue
@@ -1510,33 +1650,169 @@ def _filter_references_for_action(references: list[dict[str, str]], action: str)
     return filtered
 
 
-def _render_bootstrap(charter_path: Path, summary: list[str], references: list[dict[str, str]]) -> str:
-    lines: list[str] = [
-        BOOTSTRAP_HEADER,
-        f"  - Source: {charter_path}",
-        FIRST_LOAD_GUIDANCE,
-        "",
-        POLICY_SUMMARY_HEADER,
-    ]
+# ---------------------------------------------------------------------------
+# WP13 (FR-013 / FR-014, SC-006) — reference-block distribution + resolution.
+#
+# The retired ``filtered_references[:10]`` window was order-rigged: the catalog
+# leads with ``user_profile`` + 8 ``paradigm`` + ``DIRECTIVE_001`` (indices
+# 0-9), so a naive head cap was exhausted before the first ``tactic`` (index
+# 34) was ever reached. Distribution across kinds makes every kind reachable;
+# the emitted slice is capped at a stated limit so the block stays bounded.
+# ---------------------------------------------------------------------------
 
-    if summary:
-        for item in summary[:8]:
-            lines.append(f"  - {item}")
-    else:
-        lines.append(NO_POLICY_SUMMARY_MESSAGE)
+_REFERENCE_POINTER_LIMIT = 12
 
-    lines.append("")
-    lines.append(REFERENCE_DOCS_HEADER)
-    if references:
-        for reference in references[:10]:
-            ref_id = reference.get("id", "unknown")
-            title = reference.get("title", "")
-            local_path = reference.get("local_path", "")
-            lines.append(f"  - {ref_id}: {title} ({local_path})")
-    else:
-        lines.append(MISSING_REFERENCES_MESSAGE)
+# SC-006 non-vacuity floor: the stated minimum number of resolvable pointers
+# the block must emit per software-dev action. Without a floor, "every emitted
+# pointer resolves" would pass vacuously over an emitted set of zero. Held well
+# below ``_REFERENCE_POINTER_LIMIT`` so it stays robust to catalog drift while
+# still forbidding an empty block.
+_REFERENCE_POINTER_FLOOR = 6
 
-    return "\n".join(lines)
+# Reference ``kind`` -> doctrine-source subdirectory under the doctrine root.
+# ``user_profile`` / ``template_set`` are project-generated (no doctrine
+# source), so they carry no entry and are dropped when a pointer is resolved.
+_REFERENCE_KIND_DIRS: dict[str, str] = {
+    "tactic": "tactics",
+    "directive": "directives",
+    "paradigm": "paradigms",
+    "procedure": "procedures",
+    "styleguide": "styleguides",
+    "toolguide": "toolguides",
+    "agent_profile": "agent_profiles",
+}
+
+# Process-wide cache of the ``kind -> {key -> source path}`` index, keyed by
+# resolved doctrine root so the filesystem walk runs once per interpreter.
+_REFERENCE_SOURCE_INDEX_CACHE: dict[Path, dict[str, dict[str, Path]]] = {}
+
+
+def _reference_source_index(doctrine_root: Path) -> dict[str, dict[str, Path]]:
+    """Build (and cache) a ``kind -> {lookup key -> source path}`` index.
+
+    Each artifact file contributes its stem (the filename before the first
+    dot, e.g. ``acceptance-test-first``) and, for numerically-prefixed
+    directives (``001-...``), a ``DIRECTIVE_001`` alias so the catalog id form
+    resolves.
+    """
+    cached = _REFERENCE_SOURCE_INDEX_CACHE.get(doctrine_root)
+    if cached is not None:
+        return cached
+
+    index: dict[str, dict[str, Path]] = {}
+    for kind, subdir in _REFERENCE_KIND_DIRS.items():
+        base = doctrine_root / subdir
+        kind_index: dict[str, Path] = {}
+        if base.is_dir():
+            for path in sorted(base.rglob("*.yaml")):
+                stem = path.name.split(".", 1)[0]
+                kind_index.setdefault(stem, path)
+                numeric = re.match(r"^(\d+)-", stem)
+                if numeric:
+                    kind_index.setdefault(f"DIRECTIVE_{numeric.group(1)}", path)
+        index[kind] = kind_index
+
+    _REFERENCE_SOURCE_INDEX_CACHE[doctrine_root] = index
+    return index
+
+
+def _resolve_reference_source(
+    ref: dict[str, str], index: dict[str, dict[str, Path]]
+) -> Path | None:
+    """Resolve *ref* to an existing doctrine-source path, or ``None``.
+
+    Tries the catalog artifact id (the part after ``KIND:``) first, then the
+    slug carried by the ``_LIBRARY/<kind>-<slug>.md`` local path. Returns
+    ``None`` when the reference names no resolvable document (e.g. the
+    project-generated ``user_profile`` / ``template_set`` entries).
+    """
+    kind_index = index.get(ref.get("kind", ""))
+    if not kind_index:
+        return None
+
+    artifact_id = ref.get("id", "").split(":", 1)[-1]
+    resolved = kind_index.get(artifact_id)
+    if resolved is not None:
+        return resolved
+
+    slug = Path(ref.get("local_path", "")).stem
+    prefix = f"{ref.get('kind', '')}-"
+    if slug.startswith(prefix):
+        slug = slug[len(prefix) :]
+    return kind_index.get(slug)
+
+
+def _action_offset(action: str) -> int:
+    """Deterministic, salt-free ordinal seed derived from *action*.
+
+    Used to rotate each kind's window so the emitted slice VARIES by action
+    (FR-014 / SC-006 cross-action variation) rather than always leading with
+    the same fixed head. Deterministic across processes (no ``hash()`` salt).
+    """
+    return sum((position + 1) * ord(char) for position, char in enumerate(action))
+
+
+def _distribute_references_across_kinds(
+    references: list[dict[str, str]], action: str
+) -> list[dict[str, str]]:
+    """Interleave *references* across their kinds (round-robin).
+
+    Groups by ``kind`` (preserving first-seen kind order), rotates each kind's
+    members by an action-seeded offset, then emits one member per kind per
+    round. The result surfaces later kinds early instead of exhausting the
+    first kind in a fixed order (FR-013), and varies by *action* (FR-014).
+    """
+    by_kind: dict[str, list[dict[str, str]]] = {}
+    for ref in references:
+        by_kind.setdefault(ref.get("kind", ""), []).append(ref)
+
+    offset = _action_offset(action)
+    rotated: dict[str, list[dict[str, str]]] = {}
+    for kind, members in by_kind.items():
+        start = offset % len(members) if members else 0
+        rotated[kind] = members[start:] + members[:start]
+
+    ordered: list[dict[str, str]] = []
+    round_index = 0
+    added = True
+    while added:
+        added = False
+        for members in rotated.values():
+            if round_index < len(members):
+                ordered.append(members[round_index])
+                added = True
+        round_index += 1
+    return ordered
+
+
+def _select_reference_pointers(
+    references: list[dict[str, str]],
+    action: str,
+    doctrine_root: Path,
+    *,
+    limit: int = _REFERENCE_POINTER_LIMIT,
+) -> list[tuple[dict[str, str], Path]]:
+    """Return up to *limit* ``(reference, resolved source path)`` pairs.
+
+    The pipeline is: action-scope filter -> per-kind distribution -> resolve
+    each candidate to an existing doctrine document, keeping only pointers that
+    OPEN (FR-013 / F-1). Distribution runs before the cap, so the emitted slice
+    still spreads across kinds; unresolvable entries (``user_profile`` /
+    ``template_set``) are skipped rather than emitted as dead pointers.
+    """
+    filtered = _filter_references_for_action(references, action)
+    distributed = _distribute_references_across_kinds(filtered, action)
+    index = _reference_source_index(doctrine_root)
+
+    selected: list[tuple[dict[str, str], Path]] = []
+    for ref in distributed:
+        resolved = _resolve_reference_source(ref, index)
+        if resolved is None:
+            continue
+        selected.append((ref, resolved))
+        if len(selected) >= limit:
+            break
+    return selected
 
 
 # ---------------------------------------------------------------------------
@@ -1877,74 +2153,21 @@ def _render_profile_tactics(
     refs = list(profile.tactic_references)
     if not refs:
         return []
-
-    header = _PROFILE_TACTICS_HEADER_TPL.format(profile_id=profile.profile_id)
-    lines: list[str] = [header]
-    repo = getattr(service, "tactics", None)
-
-    for ref in refs:
-        tactic_id = str(getattr(ref, "id", "")).strip()
-        rationale = getattr(ref, "rationale", "") or ""
-        header_line = f"  - {tactic_id}"
-        if rationale:
-            header_line = f"{header_line}: {rationale}"
-        lines.append(header_line)
-
-        tactic = None
-        if repo is not None:
-            try:
-                tactic = repo.get(tactic_id)
-            except Exception:  # noqa: BLE001 — best-effort catalog lookup
-                tactic = None
-
-        if tactic is None:
-            # RISK-3 (Mission B post-merge): structured catalog-miss
-            # stanza + warning instead of the generic placeholder.
-            # FR-013: _diagnose_catalog_miss checks scope_filtered_ids
-            # first so a scope-filtered tactic surfaces SCOPE_FILTERED
-            # rather than MISSING_ARTIFACT.
-            diagnosis = _diagnose_catalog_miss(tactic_id, repo)
-            lines.extend(
-                format_catalog_miss_stanza(
-                    selector_kind="tactic",
-                    artifact_id=tactic_id,
-                    diagnosis=diagnosis,
-                    indent="    ",
-                )
-            )
-            emit_catalog_miss_warning(
-                selector_kind="tactic",
-                artifact_id=tactic_id,
-                diagnosis=diagnosis,
-                context=f"profile:{profile.profile_id}",
-            )
-            continue
-
-        body_lines: list[str] = []
-        name = getattr(tactic, "name", None)
-        if isinstance(name, str) and name:
-            body_lines.append(f"    Name: {name}")
-        purpose = getattr(tactic, "purpose", None)
-        if isinstance(purpose, str) and purpose.strip():
-            body_lines.append(f"    Purpose: {purpose.strip()}")
-        steps = getattr(tactic, "steps", None)
-        if isinstance(steps, list) and steps:
-            body_lines.append("    Steps:")
-            for step in steps:
-                step_title = getattr(step, "title", str(step))
-                body_lines.append(f"      - {step_title}")
-
-        if body_lines and _budget_estimate(body_lines) <= _PROFILE_INLINE_BODY_LIMIT_CHARS:
-            lines.extend(body_lines)
-        else:
-            lines.extend(
-                _render_fetch_stanza(
-                    selector=f"tactic:{tactic_id}",
-                    when_clause="are about to apply a code change",
-                )
-            )
-
-    return lines
+    # WP12/T067: shares the profile-section renderer with the styleguide /
+    # toolguide / procedure paths (extracted to context_renderers.profile_sections
+    # so context.py does not grow). Byte-identical to the prior inline body.
+    return _render_profile_selector_refs(
+        header=_PROFILE_TACTICS_HEADER_TPL.format(profile_id=profile.profile_id),
+        entries=[
+            (getattr(ref, "id", ""), getattr(ref, "rationale", "") or "")
+            for ref in refs
+        ],
+        repo=getattr(service, "tactics", None),
+        selector_kind="tactic",
+        profile_id=profile.profile_id,
+        when_clause="are about to apply a code change",
+        body_fn=_format_inline_named_body,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -2746,21 +2969,29 @@ def _render_profile_sections(
     profile: AgentProfile | None,
     service: object,
 ) -> str:
-    """Render the combined profile-cited directive + tactic sections.
+    """Render every profile-channel section the profile attests.
 
-    Returns an empty string when *profile* is ``None`` or when neither
-    section has any entries — callers can then skip the leading blank
-    line without emitting a stray section header.
+    Returns an empty string when *profile* is ``None`` (T069 — an absent
+    profile renders nothing, never a fail-open whole-graph fallback) or when
+    no section has entries. WP12/T067 widens this beyond directives/tactics to
+    the schema-attested styleguide/toolguide kinds and the channel-resolved
+    procedure kind (T068). Unattested kinds (asset/anti-pattern/paradigm) are
+    C-007 deferrals and contribute no section.
     """
     if profile is None:
         return ""
-    directive_lines = _render_profile_directives(profile, service)
-    tactic_lines = _render_profile_tactics(profile, service)
-    blocks: list[str] = []
-    if directive_lines:
-        blocks.append("\n".join(directive_lines))
-    if tactic_lines:
-        blocks.append("\n".join(tactic_lines))
+    section_renderers = (
+        _render_profile_directives,
+        _render_profile_tactics,
+        _render_profile_styleguides,
+        _render_profile_toolguides,
+        _render_profile_procedures,
+    )
+    blocks = [
+        "\n".join(lines)
+        for renderer in section_renderers
+        if (lines := renderer(profile, service))
+    ]
     return "\n\n".join(blocks)
 
 
@@ -2790,10 +3021,14 @@ def _render_compact_governance(
     *,
     directive_ids: list[str] | None = None,
     tactic_ids: list[str] | None = None,
+    styleguide_ids: list[str] | None = None,
+    toolguide_ids: list[str] | None = None,
+    procedure_ids: list[str] | None = None,
+    asset_ids: list[str] | None = None,
     profile: AgentProfile | None = None,
     action: str | None = None,
 ) -> str:
-    """Render the compact governance block (FR-034).
+    """Render the compact governance block (FR-034, WP11/T061).
 
     Compact mode preserves every directive ID, tactic ID, and section
     anchor that bootstrap mode would emit; only the long-form prose
@@ -2801,6 +3036,10 @@ def _render_compact_governance(
     bootstrap-side lists that the caller has already resolved; when
     omitted the compact view falls back to the resolver's directive
     canon.
+
+    WP11 (T061) widens this to the full delivered kind set (styleguide/
+    toolguide/procedure/asset ids) — the render an agent receives on every load
+    after the first (FR-010).
 
     When *profile* is provided (an :class:`AgentProfile` already resolved
     via :func:`_load_agent_profile`), the profile's
@@ -2815,6 +3054,10 @@ def _render_compact_governance(
         repo_root,
         directive_ids=directive_ids or (),
         tactic_ids=tactic_ids or (),
+        styleguide_ids=styleguide_ids or (),
+        toolguide_ids=toolguide_ids or (),
+        procedure_ids=procedure_ids or (),
+        asset_ids=asset_ids or (),
     )
     text: str = str(view.text)
 
@@ -2976,47 +3219,6 @@ def _mark_action_loaded(state: dict[str, object], state_path: Path, action: str)
 # ---------------------------------------------------------------------------
 
 
-def _artifact_to_dict(artifact: object, source: str) -> dict[str, object]:
-    """Render a single doctrine artifact for the JSON ``charter context`` output.
-
-    The returned mapping always carries an ``id`` and a ``source`` field;
-    additional fields are extracted on a best-effort basis.  Unknown layer
-    sources fall back to ``"builtin"`` (the safest default — "we don't know,
-    assume "built-in"").
-    """
-    item_id = getattr(artifact, "id", None)
-    title = getattr(artifact, "title", None) or getattr(artifact, "name", None)
-    summary = getattr(artifact, "intent", None) or getattr(artifact, "purpose", None)
-    out: dict[str, object] = {
-        "id": item_id if isinstance(item_id, str) else "",
-        "source": source if source in {"builtin", "org", "project"} else "builtin",
-    }
-    if isinstance(title, str) and title:
-        out["title"] = title
-    if isinstance(summary, str) and summary:
-        out["summary"] = summary
-    return out
-
-
-def _collect_typed_artifacts(
-    repository: object,
-    artifact_ids: list[str],
-) -> list[dict[str, object]]:
-    """Look up artifacts in *repository* and emit JSON entries tagged with provenance."""
-    entries: list[dict[str, object]] = []
-    for artifact_id in artifact_ids:
-        try:
-            artifact = repository.get(artifact_id)  # type: ignore[attr-defined]
-            source = repository.get_provenance(artifact_id) or "builtin"  # type: ignore[attr-defined]
-        except (AttributeError, KeyError):
-            artifact, source = None, "builtin"
-        if artifact is None:
-            entries.append({"id": artifact_id, "source": source})
-            continue
-        entries.append(_artifact_to_dict(artifact, source))
-    return entries
-
-
 def _bundle_root_for_json(repo_root: Path) -> Path:
     """Return the canonical charter bundle root, falling back to *repo_root*."""
     try:
@@ -3092,7 +3294,7 @@ def _project_directive_entries(repo_root: Path) -> list[dict[str, object]]:
         if service is None:
             entries.append({"id": directive_id, "source": "builtin"})
             continue
-        entries.extend(_collect_typed_artifacts(service.directives, [directive_id]))  # type: ignore[attr-defined]
+        entries.extend(_pd.collect_typed_artifacts(service.directives, [directive_id], kind="directive"))  # type: ignore[attr-defined]
     return entries
 
 
@@ -3148,6 +3350,7 @@ def build_charter_context_json(
     org_charter_block: dict[str, object] | None = None,
     mission_type: str | None = None,
     feature_dir: Path | None = None,
+    include_all: bool = False,
 ) -> dict[str, object]:
     """Return the structured JSON payload for ``charter context --json``.
 
@@ -3183,6 +3386,7 @@ def build_charter_context_json(
         "styleguides": [],
         "toolguides": [],
         "all_directives": _project_directive_entries(repo_root),
+        "references": [],
         "project_charter": _project_charter_json_block(repo_root),
         "org_charter": (
             dict(org_charter_block) if org_charter_block is not None else dict(_EMPTY_ORG_CHARTER)
@@ -3199,13 +3403,15 @@ def build_charter_context_json(
     ]
 
     if normalized not in BOOTSTRAP_ACTIONS:
+        # WP11 (B-6) — non-bootstrap actions carry no action grain; ruled OUT
+        # explicitly (empty typed arrays), not an early-return before a bundle.
         payload["mode"] = "compact"
         return payload
 
     state_bundle = _prepare_context_state(repo_root, normalized, depth)
     payload["mode"] = "bootstrap"
-    if state_bundle.effective_depth < _MIN_EFFECTIVE_DEPTH:
-        return payload
+    # WP11 (T060/B-3) — no depth<minimum early return: the ``--json`` half of
+    # every-load delivery (where SC-001/002 are measured) delivers at every depth.
 
     from charter.pack_context import PackContext as _PackContext  # noqa: PLC0415
 
@@ -3220,8 +3426,24 @@ def build_charter_context_json(
         feature_dir=feature_dir,
     )
     service = bundle.service
-    payload["directives"] = _collect_typed_artifacts(service.directives, bundle.directive_ids)  # type: ignore[attr-defined]
-    payload["tactics"] = _collect_typed_artifacts(service.tactics, bundle.tactic_ids)  # type: ignore[attr-defined]
-    payload["styleguides"] = _collect_typed_artifacts(service.styleguides, bundle.styleguide_ids)  # type: ignore[attr-defined]
-    payload["toolguides"] = _collect_typed_artifacts(service.toolguides, bundle.toolguide_ids)  # type: ignore[attr-defined]
+    # WP15 progressive disclosure (default cadence): DTOs carry ``references[]``
+    # (T081); ``requires``-reachable is inline/eager, ``suggests``-reached is
+    # link/lazy (T082); ``include_all`` inlines the whole closure — a strict
+    # superset (T083); the link set names every delivered artefact so the union
+    # of inlined + referenced ids equals the delivered set, no cap (T084).
+    payload.update(
+        _pd.build_disclosure_payload(
+            repos_by_kind={
+                "directive": (service.directives, bundle.directive_ids),  # type: ignore[attr-defined]
+                "tactic": (service.tactics, bundle.tactic_ids),  # type: ignore[attr-defined]
+                "styleguide": (service.styleguides, bundle.styleguide_ids),  # type: ignore[attr-defined]
+                "toolguide": (service.toolguides, bundle.toolguide_ids),  # type: ignore[attr-defined]
+            },
+            extra_delivered={"procedure": bundle.procedure_ids, "asset": bundle.asset_ids},
+            merged=bundle.merged,
+            roots=bundle.roots,
+            include_all=include_all,
+            body_of=_jsonable_artifact_value,
+        )
+    )
     return payload

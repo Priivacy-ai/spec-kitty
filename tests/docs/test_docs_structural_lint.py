@@ -43,13 +43,21 @@ pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
-#: The structural lint now ships as the ``common-docs-structural-lint``
-#: doctrine asset — its single canonical copy. It lives outside any importable
-#: package, so we load it by file path rather than importing ``scripts.docs.*``
-#: (which no longer exists) or ``specify_cli.*``.
-_LINT_ASSET_PATH = (
-    _REPO_ROOT / "src/doctrine/assets/built-in/docs_structural_lint.py"
-)
+#: The structural lint ships as the ``common-docs-structural-lint`` doctrine
+#: asset — its single canonical copy. FR-008 (proof by first user): this
+#: repository's own consumer resolves it through the WP04 resolution surface
+#: (``DoctrineService.assets``) by its stable identifier, instead of reaching
+#: through a hard-coded ``_REPO_ROOT`` path. In the dev checkout this lands on
+#: ``src/doctrine/assets/built-in/…``; from a clean installation it lands on
+#: packaged data — the same addressing the WP05 operator surface uses.
+def _resolve_lint_asset_path() -> Path:
+    """Resolve the shipped structural-lint asset via ``DoctrineService.assets``."""
+    from doctrine.service import DoctrineService
+
+    return DoctrineService().assets.resolve_path("common-docs-structural-lint")
+
+
+_LINT_ASSET_PATH = _resolve_lint_asset_path()
 
 #: In THIS repo the styleguide carrying the ``structural_lint_config:`` block
 #: is still the built-in common-docs styleguide. The asset itself no longer
@@ -707,3 +715,30 @@ def test_schema_properties_match_lintconfig_fields() -> None:
         f"schema/LintConfig drift — only-in-schema={props - fields}, "
         f"only-in-dataclass={fields - props}"
     )
+
+
+def test_shipped_lint_asset_resolved_via_doctrine_service() -> None:
+    """FR-008 — the shipped-asset consumer resolves via the resolution surface.
+
+    WP05's proof-by-first-user: this repository's own consumer of the shipped
+    ``common-docs-structural-lint`` asset must resolve it through
+    :class:`doctrine.service.DoctrineService` ``.assets`` (the WP04 resolver),
+    not by reaching through a hard-coded ``_REPO_ROOT`` path. Guards against
+    reintroducing the retired reach-through so the fix cannot silently regress.
+    """
+    from doctrine.service import DoctrineService
+
+    source = Path(__file__).read_text(encoding="utf-8")
+    # Built by concatenation so this guard does not match its own source text.
+    forbidden = "src/doctrine/assets/" + "built-in/docs_structural_lint.py"
+    assert forbidden not in source, (
+        "structural-lint test must not hard-code the shipped asset's repo path; "
+        "resolve it by id through DoctrineService.assets.resolve_path (FR-008)."
+    )
+
+    resolved = DoctrineService().assets.resolve_path("common-docs-structural-lint")
+    assert resolved == _LINT_ASSET_PATH, (
+        "the lint asset consumed by this suite must be the one the resolver "
+        "returns for 'common-docs-structural-lint' (FR-008)."
+    )
+    assert _LINT_ASSET_PATH.is_file()

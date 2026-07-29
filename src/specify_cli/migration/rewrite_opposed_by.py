@@ -94,7 +94,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from charter.drg import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.drg import (
+    DRGEdge,
+    DRGGraph,
+    DRGNode,
+    NodeKind,
+    Relation,
+    model_to_graph_dict,
+)
 from ruamel.yaml import YAML
 
 logger = logging.getLogger(__name__)
@@ -336,25 +343,26 @@ def _load_graph(pack_root: Path, artifact_type: str) -> DRGGraph:
 
 
 def _node_to_dict(node: DRGNode) -> dict[str, Any]:
-    out: dict[str, Any] = {"urn": node.urn, "kind": node.kind.value}
-    if node.label is not None:
-        out["label"] = node.label
-    if node.tags:
-        out["tags"] = list(node.tags)
-    return out
+    """Serialise one ``DRGNode`` via the derived ``model_to_graph_dict``.
+
+    T005: repointed from the hand-restated key list at the canonical derived
+    writer (#2977). The old list happened to be complete for today's fields, but
+    a field a later mission adds — B1's ``impacts`` / ``is_symmetric`` — would
+    have been dropped here silently. Registered as a ``MappingWriter`` in
+    ``specify_cli.drg_writers.registry``; its existing guard tests at
+    ``test_model_strictness_roundtrip.py`` stay green (no duplicate assertion).
+    """
+    # The charter.drg facade is ``follow_imports = "skip"`` for mypy, so the
+    # helper resolves to ``Any`` here; bind to a typed local to keep the return
+    # precise without a suppression.
+    rendered: dict[str, Any] = model_to_graph_dict(node)
+    return rendered
 
 
 def _edge_to_dict(edge: DRGEdge) -> dict[str, Any]:
-    out: dict[str, Any] = {
-        "source": edge.source,
-        "target": edge.target,
-        "relation": edge.relation.value,
-    }
-    if edge.reason:
-        out["reason"] = edge.reason
-    if edge.when:
-        out["when"] = edge.when
-    return out
+    """Serialise one ``DRGEdge`` via the derived ``model_to_graph_dict`` (T005)."""
+    rendered: dict[str, Any] = model_to_graph_dict(edge)
+    return rendered
 
 
 def _write_graph(pack_root: Path, artifact_type: str, graph: DRGGraph) -> None:

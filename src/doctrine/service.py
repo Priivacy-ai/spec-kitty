@@ -7,6 +7,8 @@ from typing import cast
 
 from doctrine.shared.scoping import normalize_languages
 from doctrine.agent_profiles import AgentProfileRepository
+from doctrine.artifact_kinds import PROJECT_KIND_DIRS, ArtifactKind
+from doctrine.assets import AssetRepository
 from doctrine.directives import DirectiveRepository
 from doctrine.glossary_packs import GlossaryPackRepository
 from doctrine.missions.step_contracts import MissionStepContractRepository
@@ -15,13 +17,6 @@ from doctrine.procedures import ProcedureRepository
 from doctrine.styleguides import StyleguideRepository
 from doctrine.tactics import TacticRepository
 from doctrine.toolguides import ToolguideRepository
-
-_PROJECT_KIND_DIRS = {
-    "directives": "directive",
-    "tactics": "tactic",
-    "styleguides": "styleguide",
-    "procedures": "procedure",
-}
 
 
 class DoctrineService:
@@ -49,7 +44,11 @@ class DoctrineService:
         if self._project_root is None:
             return None
         if self._project_root.name == "doctrine" and self._project_root.parent.name == ".kittify":
-            return self._project_root / _PROJECT_KIND_DIRS.get(artifact, artifact)
+            # Consume the single hoisted authority (WP03/WP04, contract A-5) so
+            # scaffolder and resolver cannot disagree. Fail-closed: an unknown
+            # plural raises rather than falling through a silent default.
+            kind = ArtifactKind.from_plural(artifact)
+            return self._project_root / PROJECT_KIND_DIRS[kind]
         return self._project_root / artifact
 
     def _org_dirs(self, artifact: str) -> list[Path]:
@@ -145,6 +144,16 @@ class DoctrineService:
                 project_dir=self._project_dir("glossary_packs"),
             )
         return cast(GlossaryPackRepository, self._cache["glossary_packs"])
+
+    @property
+    def assets(self) -> AssetRepository:
+        if "assets" not in self._cache:
+            self._cache["assets"] = AssetRepository(
+                built_in_dir=self._built_in_dir("assets"),
+                org_dirs=self._org_dirs("assets"),
+                project_dir=self._project_dir("assets"),
+            )
+        return cast(AssetRepository, self._cache["assets"])
 
     @property
     def agent_profiles(self) -> AgentProfileRepository:

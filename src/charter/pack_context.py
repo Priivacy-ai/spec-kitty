@@ -22,6 +22,8 @@ within the allowed layer boundary for charter→doctrine reads).
 from __future__ import annotations
 
 import warnings
+from collections.abc import Iterable, Mapping
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -31,7 +33,21 @@ from ruamel.yaml import YAML
 
 from charter.charter_yaml_io import load_charter_yaml
 
-__all__ = ["CharterPackConfigError", "PackContext", "resolve_charter_yaml_pointer"]
+__all__ = [
+    "ActivationReachabilityPartition",
+    "CharterPackConfigError",
+    "PackContext",
+    "charter_activated_urns",
+    "normalize_activation_identifier",
+    "partition_activated_unreachable",
+    "resolve_charter_yaml_pointer",
+]
+
+#: Config-key prefix on every ``activated_<plural>`` activation-store key. The
+#: normalization boundary strips it so the store's own key form
+#: (``activated_directives``) is accepted alongside the plural (``directives``)
+#: and the singular node kind (``directive``).
+_ACTIVATION_KEY_PREFIX = "activated_"
 
 #: The single ``config.yaml`` key naming the active charter (consolidate-
 #: charter-bundle WP02, data-model.md "Entity: .kittify/config.yaml (after
@@ -292,6 +308,223 @@ def resolve_charter_yaml_pointer(repo_root: Path, config_data: dict[str, Any]) -
         return None
     pointer_path = Path(pointer)
     return pointer_path if pointer_path.is_absolute() else repo_root / pointer_path
+
+
+# ---------------------------------------------------------------------------
+# Identifier normalization boundary (I-V4 / C-009, WP06)
+# ---------------------------------------------------------------------------
+#
+# The activation store keeps a directive as its file slug (``025-boy-scout-
+# rule``); the selector / DRG-node form is ``directive:DIRECTIVE_025``. Every
+# other kind stores the node id verbatim, so only the kind prefix is added.
+# These two forms are reconciled at exactly ONE place — the two functions below
+# — rather than by scattered ``.replace()`` calls (WP06 risk row). The id
+# translation is delegated to the canonical
+# ``doctrine.drg.migration.id_normalizer.artifact_to_urn`` — the same algorithm
+# the DRG extractor uses to mint node URNs — so the store form and the node form
+# can never drift.
+#
+# C-009 — THIS NORMALIZATION IS NOT REACHABILITY PROGRESS. Reconciling the form
+# moves the measured "activated-but-unreachable" count by ~25 artefacts (the
+# activated directives, whose stored slug is not a node URN while their
+# normalized form is) WITHOUT making anything reachable. That swing is reported
+# separately (:attr:`ActivationReachabilityPartition.normalization_delta`) and
+# is explicitly excluded from any SC-005 claim. See
+# ``kitty-specs/doctrine-delivery-reachability-01KYMXD6/spec.md`` (C-009) and
+# ``data-model.md`` (I-V4).
+
+
+def _resolve_activation_kind(kind: str) -> str:
+    """Return the canonical singular artifact-kind value for an activation kind.
+
+    Accepts the singular node kind (``directive``), the plural directory form
+    (``directives``) and the ``activated_<plural>`` config-key form
+    (``activated_directives``) — the three shapes the activation store speaks.
+
+    Fail-closed (C-006 / NFR-005): an unrecognised kind raises ``ValueError``
+    naming the accepted kinds rather than silently inferring an identity.
+    """
+    from doctrine.artifact_kinds import (  # noqa: PLC0415 — lazy: charter→doctrine read, mirror NFR-001 import-time-I/O convention
+        ArtifactKind,
+    )
+
+    token = kind.strip().lower()
+    if token.startswith(_ACTIVATION_KEY_PREFIX):
+        token = token[len(_ACTIVATION_KEY_PREFIX) :]
+    try:
+        return ArtifactKind.from_plural(token).value
+    except KeyError:
+        # from_operator_token raises ValueError (naming the valid tokens) when
+        # the singular form is also unknown — exactly the fail-closed shape.
+        return ArtifactKind.from_operator_token(token).value
+
+
+def normalize_activation_identifier(kind: str, identifier: str) -> str:
+    """Reconcile one activation-store identifier to its selector / DRG-node URN.
+
+    This is the **single boundary** (I-V4) between the store's identifier form
+    and the selector form. ``normalize_activation_identifier("directive",
+    "025-boy-scout-rule")`` returns ``"directive:DIRECTIVE_025"``; a non-directive
+    kind only gains its kind prefix (``"tactic:usage-examples-sync"``).
+
+    Per C-009 this reconciliation is **not** a reachability improvement — see the
+    module comment above.
+
+    Parameters
+    ----------
+    kind:
+        Singular node kind, plural directory name, or ``activated_<plural>``
+        config-key form. Unknown kinds raise ``ValueError`` naming the accepted
+        forms.
+    identifier:
+        The stored identifier (file slug or node id).
+    """
+    from doctrine.drg.migration.id_normalizer import (  # noqa: PLC0415 — lazy: charter→doctrine read, mirror NFR-001 import-time-I/O convention
+        artifact_to_urn,
+    )
+
+    return artifact_to_urn(_resolve_activation_kind(kind), identifier)
+
+
+@dataclass(frozen=True)
+class ActivationReachabilityPartition:
+    """C-009 partition of activated identifiers that are not reachable-as-stored.
+
+    Measured on the activation store form against the DRG node / reachable sets,
+    so the partition names *why* each activated identifier misses reachability:
+
+    * :attr:`not_a_node` — the stored form is not a graph node URN at all. This
+      is the set the C-009 identifier normalization reconciles (chiefly the
+      activated directives, whose stored slug is not a node URN). Reducing this
+      count by normalizing the form is **not** reachability progress and is
+      excluded from SC-005.
+    * :attr:`node_but_unreachable` — the stored form already IS a graph node but
+      no traversal reaches it. This is FR-015's real wiring target — the only
+      partition SC-005 progress may touch.
+
+    The two sets are disjoint and together cover every activated identifier that
+    is not reachable in its stored form.
+
+    :attr:`normalization_recovered` is the declared C-009 swing: the subset of
+    :attr:`not_a_node` whose **normalized** selector URN IS a real node. Its
+    cardinality (:attr:`normalization_delta`) is the count the boundary moves and
+    that a later pin (WP08) subtracts before claiming any artefact "made
+    reachable".
+    """
+
+    not_a_node: frozenset[str]
+    node_but_unreachable: frozenset[str]
+    normalization_recovered: frozenset[str]
+
+    @property
+    def normalization_delta(self) -> int:
+        """Count of activated identifiers the normalization reconciles to a real
+        node — the C-009 swing, reported separately and never banked as progress."""
+        return len(self.normalization_recovered)
+
+
+def partition_activated_unreachable(
+    activated: Mapping[str, Iterable[str]],
+    node_urns: AbstractSet[str],
+    reachable_urns: AbstractSet[str],
+) -> ActivationReachabilityPartition:
+    """Partition activated identifiers by why they miss reachability (T033).
+
+    Parameters
+    ----------
+    activated:
+        Mapping of activation kind (any form :func:`normalize_activation_identifier`
+        accepts) to the stored identifiers activated under it.
+    node_urns:
+        Every DRG node URN (selector form).
+    reachable_urns:
+        The subset of ``node_urns`` a traversal reaches. Must be expressed in the
+        same selector form as ``node_urns``.
+
+    Returns
+    -------
+    ActivationReachabilityPartition
+        The ``{not-a-node, node-but-unreachable}`` split plus the declared,
+        excluded C-009 normalization swing.
+    """
+    not_a_node: set[str] = set()
+    node_but_unreachable: set[str] = set()
+    normalization_recovered: set[str] = set()
+
+    for kind, identifiers in activated.items():
+        singular = _resolve_activation_kind(kind)
+        for identifier in identifiers:
+            stored_urn = f"{singular}:{identifier}"
+            if stored_urn in reachable_urns:
+                # Reachable in its stored form (non-directive kinds): delivered,
+                # not part of the unreachable partition.
+                continue
+            if stored_urn in node_urns:
+                node_but_unreachable.add(stored_urn)
+                continue
+            # Stored form is not a node URN. This is the C-009 set: if the
+            # normalized selector form IS a node, the normalization is exactly
+            # what recovers it — a form reconciliation, never new reachability.
+            not_a_node.add(stored_urn)
+            selector_urn = normalize_activation_identifier(kind, identifier)
+            if selector_urn in node_urns:
+                normalization_recovered.add(selector_urn)
+
+    return ActivationReachabilityPartition(
+        not_a_node=frozenset(not_a_node),
+        node_but_unreachable=frozenset(node_but_unreachable),
+        normalization_recovered=frozenset(normalization_recovered),
+    )
+
+
+#: Per-artifact activation keys projected to ``<kind>:<id>`` selector URNs by
+#: :func:`charter_activated_urns`. Restricted to the DRG-node-bearing kinds the
+#: reachability projection gate compares against (directives, tactics,
+#: toolguides, procedures, paradigms, styleguides); agent profiles / mission
+#: step contracts / glossary packs are activation-eligible but are not part of
+#: that orphan-partition comparison.
+_ACTIVATION_URN_KINDS: dict[str, str] = {
+    "activated_directives": "directive",
+    "activated_tactics": "tactic",
+    "activated_toolguides": "toolguide",
+    "activated_procedures": "procedure",
+    "activated_paradigms": "paradigm",
+    "activated_styleguides": "styleguide",
+}
+
+
+def charter_activated_urns(repo_root: Path) -> set[str]:
+    """Return every ``<kind>:<id>`` URN the project's *resolved* activation store activates.
+
+    This is the single activation authority (FR-017). It reads the activation
+    store resolved through the ``charter:`` pointer — ``charter.yaml`` when the
+    pointer is present, else the legacy ``config.yaml``-embedded keys — via
+    :func:`_load_charter_activation_source`. It never consults the retired
+    ``config.yaml`` ``activated_*`` mirror once a charter pointer resolves, so a
+    divergent config mirror can never win (SC-007).
+
+    Directive slugs are reconciled to their DRG node code
+    (``025-boy-scout-rule`` -> ``directive:DIRECTIVE_025``) through the single
+    C-009 normalization boundary (:func:`normalize_activation_identifier`), so
+    the returned URNs match DRG node URNs. Other kinds only gain their kind
+    prefix.
+
+    Parameters
+    ----------
+    repo_root:
+        Repository root containing ``.kittify/config.yaml`` (and, when
+        migrated, the pointed-at ``charter.yaml``).
+    """
+    data = _load_config(repo_root)
+    activation = _load_charter_activation_source(repo_root, data)
+    urns: set[str] = set()
+    for key, kind in _ACTIVATION_URN_KINDS.items():
+        entries = activation.get(key)
+        if not entries:
+            continue
+        for entry in entries:
+            urns.add(normalize_activation_identifier(kind, str(entry)))
+    return urns
 
 
 def _load_charter_activation_source(repo_root: Path, data: dict[str, Any]) -> dict[str, Any]:

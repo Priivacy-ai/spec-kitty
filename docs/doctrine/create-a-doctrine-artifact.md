@@ -16,7 +16,9 @@ related:
 This guide walks through authoring one new doctrine artifact — from picking a kind through
 verifying it is live in governed mission context. It uses a **tactic** as the worked example
 because tactics have the simplest schema and the most built-in precedent to copy from, but the
-same six steps apply to any of the [eight doctrine artifact kinds](doctrine-kinds.md).
+same six steps apply to any of the [eight doctrine artifact kinds](doctrine-kinds.md). The
+loose-contract `asset` kind (a shipped blob, not an activatable artifact) works differently and
+has its own short recipe at the end: [Author an asset](#author-an-asset-a-shipped-blob).
 
 This guide covers **project-tier** artifacts — the fast, self-serve path for one project's own
 doctrine. If you are building a shareable **org pack** (doctrine distributed across multiple
@@ -34,8 +36,10 @@ this guide.
 
 Every kind has its own directory under `.kittify/doctrine/`, its own file suffix, and its own
 schema. Project-tier directories use singular names for four kinds and plural names for the
-rest — this is a real, code-verified asymmetry (`_PROJECT_KIND_DIRS` in
-`src/charter/kind_vocabulary.py`), not a typo:
+rest — this is a real, code-verified asymmetry, not a typo. The mapping has a single canonical
+home: `PROJECT_KIND_DIRS` in `src/doctrine/artifact_kinds.py` (the lowest doctrine layer, imported
+downward by charter and the CLI — there is no second copy to drift). The table below is that
+mapping:
 
 | Kind | Project directory | File suffix | Schema | ID field |
 |---|---|---|---|---|
@@ -182,6 +186,75 @@ spec-kitty charter deactivate tactic example-driven-api-design
 Deactivating removes the ID from `activated_tactics`; it does not delete the file. Delete
 `.kittify/doctrine/tactic/example-driven-api-design.tactic.yaml` directly if you want the
 artifact gone entirely.
+
+## Author an asset (a shipped blob)
+
+The walkthrough above covers the eight **activation** kinds. The `asset` kind works differently and
+gets its own short recipe here — it is the canonical way to ship an image, font, template fixture,
+or an executable script (a lint, a hook) to a downstream repo, instead of naming a repo-local
+`scripts/…` or `.github/…` path a consumer does not have (see
+[`review-gates.md`](../development/review-gates.md)). An asset is a **blob** plus a **sidecar
+manifest**; there is no schema on the blob and — unlike the eight kinds above — **no
+`charter activate` step**. It is delivered when a reachable artifact points at it, not when you
+activate it (see [Delivery verdicts](doctrine-kinds.md#delivery-verdicts-which-kinds-reach-a-mission)).
+
+This recipe is executable against a fresh project — copy it verbatim.
+
+### Step A: place the blob
+
+The project-tier asset directory is `.kittify/doctrine/assets/` (from the single canonical
+`PROJECT_KIND_DIRS` mapping). Put the blob there. For a worked example, a shared release checklist:
+
+```bash
+mkdir -p .kittify/doctrine/assets
+printf '# Release checklist\n- [ ] Tests green\n' > .kittify/doctrine/assets/team-release-checklist.md
+```
+
+### Step B: write the sidecar manifest
+
+Alongside the blob, create a manifest named `<blob>.asset.yaml` — here
+`.kittify/doctrine/assets/team-release-checklist.md.asset.yaml`. The manifest is the validated
+surface; it requires `id`, `mime`, and `path`, with an optional `title`:
+
+```yaml
+id: team-release-checklist
+mime: text/markdown
+path: team-release-checklist.md
+title: Team release checklist
+```
+
+Field rules (`doctrine.assets.models.AssetManifest`, enforced by the pack validator):
+
+- `id` — a stable identifier, unique per pack per kind. This is what you resolve by.
+- `mime` — `type/subtype` form (e.g. `text/markdown`, `image/png`); when the extension implies a
+  type, `mime` must agree with it.
+- `path` — the blob's path **relative to the `assets/` root**. It must resolve *inside* that root:
+  an absolute path, a `..`-escape, or a symlink that leaves the root is rejected (NFR-006
+  containment).
+- `title` — optional human-facing display name.
+
+### Step C: resolve it
+
+Assets are not activated — they are resolved on demand, from any installation, with no charter
+step. Confirm the asset is discoverable and resolves to your blob:
+
+```bash
+# List every resolvable asset and its source tier (built-in / org / project)
+spec-kitty doctrine asset list
+
+# Resolve one identifier to a filesystem path (exit 0 on success;
+# an unknown id exits non-zero and names the id)
+spec-kitty doctrine asset path team-release-checklist
+```
+
+The `path` command prints the absolute path to your blob and exits `0`. Downstream code (a mission
+step, a hook, a shipped lint) consumes the asset by calling `spec-kitty doctrine asset path <id>`
+and reading the file at the returned path — never by hard-coding a source-tree path. A more
+specific tier wins: a project or org asset of the same `id` shadows the built-in, and the shadow is
+reported by `asset list`.
+
+There is nothing to undo — no activation entry was written. Delete the blob and its
+`*.asset.yaml` manifest to remove the asset entirely.
 
 ## See also
 

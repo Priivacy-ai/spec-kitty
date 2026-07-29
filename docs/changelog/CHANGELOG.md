@@ -19,6 +19,32 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
 
+- **The `asset` doctrine kind is now reachable end to end — resolve, deliver,
+  and author it (mission `doctrine-delivery-reachability`).** Previously a
+  shipped asset (executable logic or any blob a pack hands to a downstream repo)
+  had no operator surface and no followable how-to, so the documented remedy
+  "ship it as an asset" was not actually followable (#3037). Now:
+  - **`spec-kitty doctrine asset list`** enumerates every resolvable asset with
+    its source tier (built-in / org / project), and **`spec-kitty doctrine asset
+    path <id>`** resolves one identifier to a filesystem path — exit `0` on
+    success, non-zero with the id named on an unknown id or a containment
+    refusal. Nothing is installed into the consumer repo; assets resolve from
+    packaged data plus the project/org overlays (no auto-install). The one
+    built-in asset, `common-docs-structural-lint`, resolves from any
+    installation.
+  - **`spec-kitty doctrine new --kind asset <name>`** scaffolds an asset with
+    the same parity as `validate`, writing into the directory the resolver reads
+    (`.kittify/doctrine/assets/`).
+  - **The action doctrine bundle now delivers every resolved kind**, including
+    procedures and assets. The delivery gate is a total function over kinds:
+    activation-gated kinds deliver `activated ∩ reachable`, while assets are
+    **delivered-but-not-activation-gated** (`gate = ALL`) — a reachable source
+    pulls them in without an activation list. This closes the defect where
+    `asset_ids = []` was the silently-conforming outcome forever.
+  - **Docs**: [Create a doctrine artifact](docs/doctrine/create-a-doctrine-artifact.md)
+    gains an executable asset how-to (author a manifest, place the blob, resolve
+    it), and [Doctrine artifact kinds](docs/doctrine/doctrine-kinds.md) documents
+    the shipped built-in asset and the three delivery categories.
 - **New checks that catch a change which looks like it worked and did nothing
   (mission `doctrine-silence-guards`).** Four additions, all aimed at the same
   failure mode — a declaration that loads, validates, reports success, and then

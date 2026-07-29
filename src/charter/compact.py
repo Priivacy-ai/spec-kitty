@@ -38,16 +38,25 @@ NONE_LABEL = "(none)"
 class CompactView:
     """Structured payload for the compact charter view.
 
-    Tests treat the four ID/anchor sets as the contract surface.
-    ``text`` is the rendered string suitable for direct inclusion in
-    agent context, and ``token_estimate`` is a coarse character-based
-    proxy used by smoke checks to verify compact stays meaningfully
-    smaller than bootstrap.
+    Tests treat the ID/anchor sets as the contract surface. ``text`` is the
+    rendered string suitable for direct inclusion in agent context, and
+    ``token_estimate`` is a coarse character-based proxy used by smoke checks
+    to verify compact stays meaningfully smaller than bootstrap.
+
+    WP11 (T061, FR-010) widens the steady-state rail: the compact view is the
+    render an agent receives on *every load after the first*, so it must carry
+    **every** delivered kind — not just directives and tactics — or the
+    styleguides, toolguides, procedures and assets that FR-009/FR-011 deliver
+    on the bootstrap load evaporate on the next one.
     """
 
     text: str
     directive_ids: tuple[str, ...] = field(default_factory=tuple)
     tactic_ids: tuple[str, ...] = field(default_factory=tuple)
+    styleguide_ids: tuple[str, ...] = field(default_factory=tuple)
+    toolguide_ids: tuple[str, ...] = field(default_factory=tuple)
+    procedure_ids: tuple[str, ...] = field(default_factory=tuple)
+    asset_ids: tuple[str, ...] = field(default_factory=tuple)
     section_anchors: tuple[str, ...] = field(default_factory=tuple)
 
     @property
@@ -100,6 +109,10 @@ def render_compact_view(
     *,
     directive_ids: Iterable[str] = (),
     tactic_ids: Iterable[str] = (),
+    styleguide_ids: Iterable[str] = (),
+    toolguide_ids: Iterable[str] = (),
+    procedure_ids: Iterable[str] = (),
+    asset_ids: Iterable[str] = (),
     section_anchors: Iterable[str] | None = None,
     charter_text: str | None = None,
 ) -> CompactView:
@@ -110,6 +123,12 @@ def render_compact_view(
         directive_ids: Directive IDs the bootstrap view would surface.
             Each ID is emitted verbatim in the compact output.
         tactic_ids: Tactic IDs the bootstrap view would surface.
+        styleguide_ids: Styleguide IDs the bootstrap view would surface
+            (WP11/T061 — carried on the steady-state rail so they persist
+            past the first load).
+        toolguide_ids: Toolguide IDs, per ``styleguide_ids``.
+        procedure_ids: Procedure IDs (FR-009 delivery), per ``styleguide_ids``.
+        asset_ids: Asset IDs (D4 delivery), per ``styleguide_ids``.
         section_anchors: Optional pre-computed anchor list. When omitted
             the helper extracts anchors from ``charter_text`` (or, if
             both are omitted, from ``<repo_root>/.kittify/charter/charter.md``
@@ -118,11 +137,15 @@ def render_compact_view(
             extraction; convenient for tests.
 
     Returns:
-        :class:`CompactView` carrying the rendered text and the four
+        :class:`CompactView` carrying the rendered text and the per-kind
         ID/anchor tuples that form the contract surface.
     """
     directive_tuple = tuple(dict.fromkeys(directive_ids))
     tactic_tuple = tuple(dict.fromkeys(tactic_ids))
+    styleguide_tuple = tuple(dict.fromkeys(styleguide_ids))
+    toolguide_tuple = tuple(dict.fromkeys(toolguide_ids))
+    procedure_tuple = tuple(dict.fromkeys(procedure_ids))
+    asset_tuple = tuple(dict.fromkeys(asset_ids))
 
     if section_anchors is not None:
         anchor_tuple = tuple(dict.fromkeys(section_anchors))
@@ -142,12 +165,25 @@ def render_compact_view(
                     charter_text = ""
         anchor_tuple = tuple(extract_section_anchors(charter_text))
 
-    text = _render_text(repo_root, directive_tuple, tactic_tuple, anchor_tuple)
+    text = _render_text(
+        repo_root,
+        directive_tuple,
+        tactic_tuple,
+        styleguide_tuple,
+        toolguide_tuple,
+        procedure_tuple,
+        asset_tuple,
+        anchor_tuple,
+    )
 
     return CompactView(
         text=text,
         directive_ids=directive_tuple,
         tactic_ids=tactic_tuple,
+        styleguide_ids=styleguide_tuple,
+        toolguide_ids=toolguide_tuple,
+        procedure_ids=procedure_tuple,
+        asset_ids=asset_tuple,
         section_anchors=anchor_tuple,
     )
 
@@ -156,6 +192,10 @@ def _render_text(
     repo_root: Path,
     directive_ids: tuple[str, ...],
     tactic_ids: tuple[str, ...],
+    styleguide_ids: tuple[str, ...],
+    toolguide_ids: tuple[str, ...],
+    procedure_ids: tuple[str, ...],
+    asset_ids: tuple[str, ...],
     section_anchors: tuple[str, ...],
 ) -> str:
     """Render the human-readable compact governance block.
@@ -189,6 +229,15 @@ def _render_text(
 
     _append_section(lines, "Directive IDs:", merged_directive_ids)
     _append_section(lines, "Tactic IDs:", tactic_ids)
+    # WP11 (T061) — the widened rail carries every delivered kind so the
+    # steady-state render is not one strictly narrower than the bootstrap one.
+    # These four kinds are emitted only when the bundle delivers them: an empty
+    # kind adds no heading, keeping the rail compact when nothing is delivered
+    # (the FR-034 contract is ID *parity*, not a fixed heading list).
+    _append_section_if_present(lines, "Styleguide IDs:", styleguide_ids)
+    _append_section_if_present(lines, "Toolguide IDs:", toolguide_ids)
+    _append_section_if_present(lines, "Procedure IDs:", procedure_ids)
+    _append_section_if_present(lines, "Asset IDs:", asset_ids)
     _append_section(lines, "Section Anchors:", section_anchors)
 
     if diagnostics:
@@ -248,3 +297,15 @@ def _append_section(lines: list[str], title: str, values: Iterable[str]) -> None
         return
     for entry in entries:
         lines.append(f"  - {entry}")
+
+
+def _append_section_if_present(lines: list[str], title: str, values: Iterable[str]) -> None:
+    """Emit a section only when it carries at least one id (WP11/T061).
+
+    Used for the widened-rail kinds so a load that delivers nothing of a kind
+    adds no heading — the rail stays compact when a kind is absent while still
+    carrying every id when the bundle delivers it.
+    """
+    entries = list(values)
+    if entries:
+        _append_section(lines, title, entries)

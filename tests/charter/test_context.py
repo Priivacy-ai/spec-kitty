@@ -13,13 +13,14 @@ import pytest
 
 from charter.context import (
     CharterContextResult,
+    _ActionDoctrineBundle,
     _build_doctrine_service,
     _bundle_root_for_json,
     _load_project_directives,
     _project_charter_json_block,
     _project_directive_entries,
     _relative_json_path,
-    _render_bootstrap,
+    _render_bootstrap_text,
     build_charter_context,
     build_charter_context_json,
 )
@@ -483,16 +484,20 @@ class TestBuildContextV2:
         assert result.depth == 1
 
     def test_depth_3_includes_extended_sections(self, tmp_path: Path) -> None:
-        """depth >= 3 renders styleguide and toolguide extended sections."""
+        """depth >= 3 renders styleguide and toolguide sections."""
         result = self._call(tmp_path, depth=3)
         assert "Styleguides:" in result.text
         assert "Toolguides:" in result.text
 
-    def test_depth_2_omits_extended_sections(self, tmp_path: Path) -> None:
-        """depth=2 does NOT render extended sections."""
+    def test_depth_2_renders_extended_sections(self, tmp_path: Path) -> None:
+        """WP11 (T059): the retired ``_EXTENDED_CONTEXT_DEPTH`` gate no longer
+        drops styleguides/toolguides at the bootstrap depth (d=2). ``depth`` is
+        now purely the DRG hop cap, not a render-verbosity tier, so every
+        delivered kind renders on the bootstrap load.
+        """
         result = self._call(tmp_path, depth=2)
-        assert "Styleguides:" not in result.text
-        assert "Toolguides:" not in result.text
+        assert "Styleguides:" in result.text
+        assert "Toolguides:" in result.text
 
     def test_missing_charter_file(self, tmp_path: Path) -> None:
         """When charter.md is missing, returns mode='missing'."""
@@ -812,12 +817,88 @@ def test_action_doctrine_keys_off_meta_json_not_template_set(tmp_path: Path) -> 
 
 
 def test_render_bootstrap_uses_fallback_labels_without_summary_or_references() -> None:
-    text = _render_bootstrap(Path("/nonexistent/charter.md"), [], [])
+    # WP13 (T072): the test-only ``_render_bootstrap`` dead render path was
+    # deleted; its fallback-label behaviour lives on the live renderer
+    # ``_render_bootstrap_text``, which this assertion now targets.
+    bundle = _ActionDoctrineBundle(
+        mission="software-dev",
+        directive_ids=[],
+        tactic_ids=[],
+        styleguide_ids=[],
+        toolguide_ids=[],
+        procedure_ids=[],
+        asset_ids=[],
+        service=_ProcedureOnlyService(),
+    )
+
+    text = _render_bootstrap_text(
+        charter_path=Path("/nonexistent/charter.md"),
+        action="implement",
+        summary=[],
+        doctrine_bundle=bundle,
+        references=[],
+    )
 
     assert "Policy Summary:" in text
     assert "No explicit policy summary section found in charter.md." in text
     assert "Reference Docs:" in text
     assert "No references manifest found." in text
+
+
+class _StubRepo:
+    """A repository that resolves nothing -- exercises the bare-id fallback."""
+
+    def get(self, _artifact_id: str) -> None:
+        return None
+
+
+class _ProcedureOnlyService:
+    """A doctrine service exposing only ``procedures`` (no ``assets`` attr).
+
+    Mirrors the WP10 base: the asset repository/service wiring (WP04/WP05) is
+    not on this lane, so the renderer must emit asset ids without a repository
+    (``getattr(service, "assets", None)`` → ``None`` → bare-id fallback), while
+    procedures resolve through ``service.procedures``.
+    """
+
+    directives = _StubRepo()
+    tactics = _StubRepo()
+    styleguides = _StubRepo()
+    toolguides = _StubRepo()
+    procedures = _StubRepo()
+
+
+def test_render_emits_every_kind_the_bundle_resolves() -> None:
+    """FR-009/B-2: every id the bundle resolves reaches the rendered output.
+
+    Asserted on the RENDERED text, not the bundle: the procedure and asset ids
+    the bundle carries must appear under their own headings. WP11 (T059)
+    retired the ``_EXTENDED_CONTEXT_DEPTH`` render gate, so these kinds now
+    render on the bootstrap load unconditionally rather than only at depth>=3.
+    """
+    bundle = _ActionDoctrineBundle(
+        mission="software-dev",
+        directive_ids=[],
+        tactic_ids=[],
+        styleguide_ids=[],
+        toolguide_ids=[],
+        procedure_ids=["onboard-external-agent-to-pack"],
+        asset_ids=["common-docs-structural-lint"],
+        service=_ProcedureOnlyService(),
+    )
+
+    text = _render_bootstrap_text(
+        charter_path=Path("/nonexistent/charter.md"),
+        action="implement",
+        summary=[],
+        doctrine_bundle=bundle,
+        references=[],
+    )
+
+    assert "Procedures:" in text
+    assert "onboard-external-agent-to-pack" in text
+    assert "Assets:" in text
+    assert "common-docs-structural-lint" in text
 
 
 # ---------------------------------------------------------------------------

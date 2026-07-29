@@ -70,6 +70,14 @@ from doctrine.drg.merge import (
     UnknownRelationError,
     merge_three_layers,
 )
+from doctrine.drg.merge import (
+    _bridge_org_edge_to_drg_edge as bridge_org_edge_to_drg_edge,
+)
+from doctrine.drg.migration.extractor import (
+    FIELDS_WITHHELD_FROM_GRAPH_OUTPUT,
+    graph_document_to_dict,
+    model_to_graph_dict,
+)
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.org_pack_config import (
     OrgPackEnvVarUnsetError,
@@ -105,6 +113,7 @@ __all__ = [
     "DRGEdge",
     "DRGGraph",
     "DRGNode",
+    "FIELDS_WITHHELD_FROM_GRAPH_OUTPUT",
     "NodeKind",
     "OrgDRGConflict",
     "OrgDRGConflictError",
@@ -115,12 +124,15 @@ __all__ = [
     "Relation",
     "ResolvedContext",
     "UnknownRelationError",
+    "bridge_org_edge_to_drg_edge",
     "filter_graph_by_activation",
+    "graph_document_to_dict",
     "load_built_in_graph",
     "load_graph",
     "load_org_drg",
     "merge_layers",
     "merge_three_layers",
+    "model_to_graph_dict",
     "resolve_context",
     "validate_dangling_references",
 ]

@@ -449,10 +449,20 @@ def ensure_workspace_materialized(
         raise typer.Exit(1)
 
 
-def render_charter_context_text(repo_root: Path, action: str) -> str:
-    """Render charter context for workflow prompts."""
+def render_charter_context_text(
+    repo_root: Path, action: str, *, mission_type: str | None = None
+) -> str:
+    """Render charter context for workflow prompts.
+
+    WP11 (T062/B-8/FR-012): ``mission_type`` is forwarded to
+    ``build_charter_context`` so the action doctrine bundle resolves for the
+    mission's grain. Without it the grain is typeless and degrades to an empty
+    bundle (FR-003a) — governance declared but not delivered.
+    """
     try:
-        context = _wf().build_charter_context(repo_root, action=action, mark_loaded=True)
+        context = _wf().build_charter_context(
+            repo_root, action=action, mark_loaded=True, mission_type=mission_type
+        )
         text: str = context.text
         return text
     except Exception as exc:
@@ -1293,7 +1303,7 @@ def build_implement_prompt_lines(
     # role flow into the rendered prompt instead of being silently discarded.
     lines.extend(render_resolved_agent_identity(wp_agent_assignment))
     lines.append("")
-    lines.append(render_charter_context_text(repo_root, "implement"))
+    lines.append(render_charter_context_text(repo_root, "implement", mission_type=mission_type))
     lines.append("")
 
     # CRITICAL: WP isolation rules
@@ -1863,7 +1873,17 @@ def build_review_prompt_lines(
     if review_agent_assignment is not None:
         lines.extend(render_resolved_agent_identity(review_agent_assignment))
         lines.append("")
-    lines.append(render_charter_context_text(repo_root, "review"))
+    # WP11 (T062/B-8): resolve the mission-type grain from the mission scope so
+    # review context delivers the action doctrine bundle rather than degrading
+    # to typeless. A resolution failure degrades to ``None`` (typeless), the
+    # pre-WP11 behaviour, rather than aborting the prompt.
+    try:
+        review_mission_type, _ = implement_resolve_mission_type(repo_root, mission_slug)
+    except Exception:
+        review_mission_type = None
+    lines.append(
+        render_charter_context_text(repo_root, "review", mission_type=review_mission_type)
+    )
     lines.append("")
 
     if dependents_warning:

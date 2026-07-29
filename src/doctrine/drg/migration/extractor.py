@@ -245,7 +245,7 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
         Relation.REQUIRES,
     ),
     # Landing pass for PR #3007, operator ruling 2026-07-28 (#3009 remedy 4).
-    # Seven of the nine ``_ACTIVATED_BUT_UNREACHABLE`` artefacts are oversights,
+    # Seven of the nine ``_ACTIVATED_BUT_ORPHANED`` artefacts are oversights,
     # not design: the charter ACTIVATES them while the graph gives them no inbound
     # edge, so a cascade or context walk reaches none of them. Each edge below
     # follows an existing (source_kind -> target_kind, relation) pattern in the
@@ -1288,20 +1288,11 @@ def _write_graph_yaml(graph: DRGGraph, output_path: Path) -> None:
 
 def _dump_graph_document(graph: DRGGraph, output_path: Path) -> None:
     """Serialise a single ``DRGGraph`` document to *output_path* as sorted YAML."""
-    # Build plain dict for YAML serialisation (sorted keys for determinism)
-    data: dict[str, Any] = {
-        "schema_version": graph.schema_version,
-        "generated_at": graph.generated_at,
-        "generated_by": graph.generated_by,
-        "nodes": [
-            _node_to_dict(n)
-            for n in graph.nodes
-        ],
-        "edges": [
-            _edge_to_dict(e)
-            for e in graph.edges
-        ],
-    }
+    # T006: the five document-level keys are derived from ``DRGGraph.model_fields``
+    # (via :func:`graph_document_to_dict`), not restated here, so a top-level
+    # field added to the model is emitted without editing this writer. Nodes and
+    # edges recurse through the same derived ``model_to_graph_dict`` helper.
+    data: dict[str, Any] = graph_document_to_dict(graph)
 
     yaml_writer = YAML()
     yaml_writer.default_flow_style = False
@@ -1325,63 +1316,132 @@ def _dump_graph_document(graph: DRGGraph, output_path: Path) -> None:
 #: construction. That is the whole point -- the writers used to restate their
 #: field names, so a field added to ``DRGNode``/``DRGEdge`` loaded fine and was
 #: deleted on the next write.
-_FIELDS_WITHHELD_FROM_GRAPH_OUTPUT: frozenset[str] = frozenset({"provenance"})
+FIELDS_WITHHELD_FROM_GRAPH_OUTPUT: frozenset[str] = frozenset({"provenance"})
+
+#: Backwards-compatible private alias (T001 promotion). Existing call sites and
+#: guard tests that read ``_FIELDS_WITHHELD_FROM_GRAPH_OUTPUT`` keep working; the
+#: two names are one object.
+_FIELDS_WITHHELD_FROM_GRAPH_OUTPUT = FIELDS_WITHHELD_FROM_GRAPH_OUTPUT
+
+#: Fields whose *empty* value (``None`` or ``[]``) is intentionally omitted from
+#: ``*.graph.yaml`` (contract W-1a, T002). This is the second half of totality.
+#:
+#: ``FIELDS_WITHHELD_FROM_GRAPH_OUTPUT`` makes the derivation total over field
+#: *names*; this set makes it total over *values*. ``_render_for_yaml`` used to
+#: collapse ``None`` **and** every empty list to ``None``, and the writer dropped
+#: any key whose rendered value was ``None`` — so a novel ``impacts: list[str] =
+#: []`` field vanished on an unpopulated instance while a completeness gate over a
+#: populated fixture stayed green (vacuous for exactly the field B1 adds).
+#:
+#: The rule is now explicit and opt-in: a field is omitted-when-empty **only** if
+#: it is named here. Every other declared field — including any B1/B2 adds — is
+#: emitted even when empty (``null`` / ``[]``), so it can never be dropped in
+#: silence. The members are exactly the pre-existing optionals whose empty form
+#: was already absent from every shipped fragment, so the shipped graph stays
+#: byte-identical. ``test_the_omit_when_empty_set_is_a_shrink_only_allowlist``
+#: pins the content so padding it (the way to re-open the hole) costs a
+#: deliberate, diff-visible edit.
+_FIELDS_OMITTED_WHEN_EMPTY: frozenset[str] = frozenset(
+    {"label", "tags", "when", "reason"}
+)
+
+
+def _is_empty(value: Any) -> bool:
+    """Return whether *value* is an omissible empty: ``None`` or an empty list.
+
+    Deliberately narrow: ``False`` and ``0`` are **not** empty, so a
+    ``is_symmetric: bool = False`` field renders as ``false`` rather than being
+    dropped. Only ``None`` and ``[]`` qualify — the two shapes the pre-T002
+    writer silently collapsed.
+    """
+    return value is None or (isinstance(value, list) and not value)
 
 
 def _render_for_yaml(value: Any) -> Any:
-    """Render one model field value for YAML, or ``None`` to omit the key.
+    """Render one model field value for YAML output.
 
-    ``None`` means "omit", which preserves the pre-existing output shape: unset
-    optionals and empty lists never appeared in a fragment, and re-adding them
-    would churn every shipped file. Enums are unwrapped before the ``str``
-    branch because ``NodeKind``/``Relation`` are ``StrEnum`` and would otherwise
-    serialise as their repr.
+    Enums are unwrapped before the ``str`` branch because ``NodeKind`` /
+    ``Relation`` are ``StrEnum`` and would otherwise serialise as their repr;
+    strings are whitespace-trimmed; lists recurse. Unlike the pre-T002 form this
+    no longer collapses empty containers to ``None`` — omission is decided
+    separately by :data:`_FIELDS_OMITTED_WHEN_EMPTY`, so a non-omitted empty
+    value renders faithfully (``[]`` / ``None``) instead of vanishing.
     """
     if isinstance(value, Enum):
         return value.value
     if isinstance(value, str):
         return value.strip()
     if isinstance(value, list):
-        return [_render_for_yaml(item) for item in value] or None
+        return [_render_for_yaml(item) for item in value]
     return value
 
 
-def _model_to_dict(model: BaseModel) -> dict[str, Any]:
+def model_to_graph_dict(model: BaseModel) -> dict[str, Any]:
     """Serialise every declared field of *model* except the withheld ones.
 
     Derived from ``type(model).model_fields`` rather than a hand-written key
     list, so a field added to the model is written without anyone remembering
-    to update this function.
+    to update this function. This is the **public, canonical** DRG mapping
+    writer (T001, mission ``doctrine-delivery-reachability``): every sibling
+    write path — ``charter.synthesizer.project_drg`` and
+    ``specify_cli.migration.rewrite_opposed_by`` — routes through it so no writer
+    restates the field list by hand. It is registered as a ``MappingWriter`` in
+    ``specify_cli.drg_writers.registry``; the registry's completeness gate
+    iterates every member and fails naming the writer + the dropped field.
 
-    **This is not the only DRG writer.** Three sibling write paths still restate
-    their keys by hand and will silently drop a field added to the models:
-
-    * ``specify_cli/migration/rewrite_opposed_by.py`` (org-pack rewrite) — `#2977
-      <https://github.com/Priivacy-ai/spec-kitty/issues/2977>`_
-    * ``charter/synthesizer/project_drg.py`` (project overlay) — already drops
-      the declared ``DRGNode.tags`` field today
-    * :func:`_dump_graph_document` below, for the five document-level keys;
-      ``DRGGraph`` also declares no ``model_config``, so unknown top-level keys
-      are accepted and discarded rather than rejected
-
-    Deriving *this* function does not make those safe. Anyone adding a model
-    field should check all four sites, not just this one.
+    Totality has **two** dimensions and this helper closes both: a field name is
+    dropped only via :data:`FIELDS_WITHHELD_FROM_GRAPH_OUTPUT`, and an empty value
+    is dropped only for a field named in :data:`_FIELDS_OMITTED_WHEN_EMPTY`
+    (contract W-1a). Any other field — including a novel ``impacts: list[str] =
+    []`` — is emitted even when empty.
     """
     rendered: dict[str, Any] = {}
     for field_name in type(model).model_fields:
-        if field_name in _FIELDS_WITHHELD_FROM_GRAPH_OUTPUT:
+        if field_name in FIELDS_WITHHELD_FROM_GRAPH_OUTPUT:
             continue
-        value = _render_for_yaml(getattr(model, field_name))
-        if value is not None:
-            rendered[field_name] = value
+        raw = getattr(model, field_name)
+        if field_name in _FIELDS_OMITTED_WHEN_EMPTY and _is_empty(raw):
+            continue
+        rendered[field_name] = _render_for_yaml(raw)
     return rendered
+
+
+#: Backwards-compatible private alias. Internal call sites that predate the
+#: T001 promotion keep working; the two names are one object.
+_model_to_dict = model_to_graph_dict
 
 
 def _node_to_dict(node: DRGNode) -> dict[str, Any]:
     """Field-derived ``DRGNode`` -> plain dict for YAML output."""
-    return _model_to_dict(node)
+    return model_to_graph_dict(node)
 
 
 def _edge_to_dict(edge: DRGEdge) -> dict[str, Any]:
     """Field-derived ``DRGEdge`` -> plain dict for YAML output."""
-    return _model_to_dict(edge)
+    return model_to_graph_dict(edge)
+
+
+def graph_document_to_dict(graph: DRGGraph) -> dict[str, Any]:
+    """Field-derived ``DRGGraph`` -> plain document dict for YAML output.
+
+    Derives the document-level keys from ``DRGGraph.model_fields`` (T006) rather
+    than restating ``schema_version`` / ``generated_at`` / ``generated_by`` /
+    ``nodes`` / ``edges`` by hand, so a top-level field added to :class:`DRGGraph`
+    is emitted without editing this function — the fourth writer named in the
+    module note above. ``nodes`` / ``edges`` recurse through
+    :func:`model_to_graph_dict`; every other declared field is copied verbatim.
+
+    Registered as the sole ``DocumentWriter`` in
+    ``specify_cli.drg_writers.registry`` and consumed by
+    :func:`_dump_graph_document` so the production write path is derived too.
+    """
+    data: dict[str, Any] = {}
+    for field_name in type(graph).model_fields:
+        if field_name in FIELDS_WITHHELD_FROM_GRAPH_OUTPUT:
+            continue
+        value = getattr(graph, field_name)
+        if field_name in {"nodes", "edges"}:
+            data[field_name] = [model_to_graph_dict(item) for item in value]
+        else:
+            data[field_name] = value
+    return data

@@ -44,6 +44,8 @@ from pathlib import Path
 
 import typer
 from charter.drg import ArtifactKind
+from doctrine.artifact_kinds import PROJECT_KIND_DIRS
+from specify_cli.cli.commands._doctrine_asset import asset_app
 from specify_cli.cli.console import console
 from rich.table import Table
 
@@ -78,6 +80,11 @@ mission_type_app = typer.Typer(
 )
 app.add_typer(mission_type_app, name="mission-type")
 
+# WP05 — asset operator surface. Read-only ``asset list`` / ``asset path``
+# commands resolve shipped and overlay doctrine assets through
+# ``DoctrineService.assets`` (no install — C-002). ``asset_app`` is imported at
+# the top of the module; registered here at the WP03 anchor.
+app.add_typer(asset_app, name="asset")
 
 
 # ----------------------------------------------------------------------
@@ -422,134 +429,142 @@ def pack_assemble(
 # new — scaffold a stub artifact (FR-016 / WP09 T048)
 # ----------------------------------------------------------------------
 
-#: Canonical artifact kinds the scaffolder supports. The plural form names the
-#: pack-mode directory (``directives/``, ``styleguides/``, …); project mode uses
-#: the singular project overlay directories for the runtime-managed kinds. The
-#: singular form becomes the YAML filename suffix
-#: (``foo.directive.yaml``).  Order is the canonical listing order from
-#: the pack contract; consumed by ``--help`` rendering.
-_CANONICAL_KIND_SINGULAR_TO_PLURAL: dict[str, str] = {
-    "directive": "directives",
-    "tactic": "tactics",
-    "styleguide": "styleguides",
-    "toolguide": "toolguides",
-    "paradigm": "paradigms",
-    "procedure": "procedures",
-    "agent_profile": "agent_profiles",
-    "mission_step_contract": "mission_step_contracts",
+#: Per-kind stub bodies (T016).  Each value is a ``str.format``-ready YAML
+#: template whose ``{artifact_id}`` placeholder the scaffolder substitutes; the
+#: rendered stub is the *minimum* payload that passes the corresponding Pydantic
+#: schema in ``src/doctrine/*/models.py`` (or ``AssetManifest``).  The scaffolder
+#: validates the rendered stub against the schema before writing — a future
+#: schema tightening surfaces at the next ``doctrine new`` rather than silently
+#: scaffolding an invalid file.
+#:
+#: This is a ``dict[ArtifactKind, str]`` (not an eight-arm ``if``-chain) so the
+#: kind projection is a table the kind-mapping totality guard can see. It is a
+#: deliberately **partial** table — ``template`` (empty glob, unscaffoldable),
+#: ``glossary_pack`` and ``anti_pattern`` (hand-authored) carry no stub — read
+#: only through the membership gate in :func:`new`, so it is carried as an
+#: allow-listed ``.get``/membership partial in the guard's
+#: ``_EXEMPT_GET_PARTIALS`` with that reason. The set of keys is exactly the
+#: kinds ``doctrine new`` supports.
+_STUB_TEMPLATES: dict[ArtifactKind, str] = {
+    # Directive: id must match [A-Z][A-Z0-9_-]*; intent + title required.
+    ArtifactKind.DIRECTIVE: (
+        'schema_version: "1.0"\n'
+        "id: {artifact_id}\n"
+        "title: TODO short title\n"
+        "intent: TODO why this directive exists\n"
+        "enforcement: advisory\n"
+    ),
+    # Tactic: needs at least one step.
+    ArtifactKind.TACTIC: (
+        'schema_version: "1.0"\n'
+        "id: {artifact_id}\n"
+        "name: TODO short name\n"
+        "purpose: TODO when to apply this tactic\n"
+        "steps:\n"
+        "  - title: TODO first step\n"
+        "    description: TODO what the step does\n"
+    ),
+    # Styleguide: needs at least one principle (min_length=1).
+    ArtifactKind.STYLEGUIDE: (
+        'schema_version: "1.0"\n'
+        "id: {artifact_id}\n"
+        "title: TODO short title\n"
+        "scope: code\n"
+        "principles:\n"
+        "  - TODO first principle\n"
+        "applies_to_languages: []\n"
+    ),
+    # Toolguide: guide_path must match ^src/doctrine/.+\.md$.
+    ArtifactKind.TOOLGUIDE: (
+        'schema_version: "1.0"\n'
+        "id: {artifact_id}\n"
+        "tool: TODO tool name\n"
+        "title: TODO short title\n"
+        "guide_path: src/doctrine/toolguides/{artifact_id}.md\n"
+        "summary: TODO one-line summary\n"
+    ),
+    ArtifactKind.PARADIGM: (
+        'schema_version: "1.0"\n'
+        "id: {artifact_id}\n"
+        "name: TODO short name\n"
+        "summary: TODO one-line summary of the paradigm\n"
+    ),
+    # Procedure: name + purpose + entry/exit + min 1 step.
+    ArtifactKind.PROCEDURE: (
+        'schema_version: "1.0"\n'
+        "id: {artifact_id}\n"
+        "name: TODO short name\n"
+        "purpose: TODO why this procedure exists\n"
+        "entry_condition: TODO when to enter\n"
+        "exit_condition: TODO when complete\n"
+        "steps:\n"
+        "  - title: TODO first step\n"
+    ),
+    # AgentProfile uses hyphenated YAML aliases (profile-id, schema-version,
+    # specialization → {primary-focus, ...}). The model requires roles
+    # (min_length=1), purpose, and a Specialization with primary-focus.
+    ArtifactKind.AGENT_PROFILE: (
+        'schema-version: "1.0"\n'
+        "profile-id: {artifact_id}\n"
+        "name: TODO agent display name\n"
+        "roles: [implementer]\n"
+        "purpose: TODO one-line purpose statement\n"
+        "specialization:\n"
+        "  primary-focus: TODO primary focus area\n"
+    ),
+    ArtifactKind.MISSION_STEP_CONTRACT: (
+        "id: {artifact_id}\n"
+        'schema_version: "1.0"\n'
+        "action: TODO action verb\n"
+        "mission: TODO mission slug\n"
+        "steps:\n"
+        "  - id: step-1\n"
+        "    description: TODO step description\n"
+    ),
+    # Asset: loose-contract sidecar manifest (AssetManifest, extra=forbid) —
+    # required id/mime/path, optional title, and NO schema_version field.
+    ArtifactKind.ASSET: (
+        "id: {artifact_id}\n"
+        "mime: text/plain\n"
+        "path: TODO-relative-path-under-assets.txt\n"
+        "title: TODO asset display name\n"
+    ),
 }
 
-_PROJECT_KIND_DIRS: dict[str, str] = {
-    "directive": "directive",
-    "tactic": "tactic",
-    "styleguide": "styleguide",
-    "procedure": "procedure",
-}
 
-#: Per-kind stub bodies.  Each stub is the *minimum* YAML payload that
-#: passes the corresponding Pydantic schema in ``src/doctrine/*/models.py``
-#: when ``<ID>`` is substituted in.  The scaffolder validates the rendered
-#: stub against the schema before writing — if a future schema change
-#: tightens a required field, the next ``doctrine new`` invocation will
-#: surface the mismatch immediately rather than silently scaffolding an
-#: invalid file.
-def _artifact_filename(kind_singular: str, artifact_id: str) -> str:
+def _artifact_filename(kind: ArtifactKind, artifact_id: str) -> str:
     """Return the canonical filename for a doctrine artifact."""
-    glob_pattern = ArtifactKind(kind_singular).glob_pattern
+    glob_pattern = kind.glob_pattern
     if not glob_pattern.startswith("*"):
-        raise ValueError(f"Unsupported artifact kind: {kind_singular}")
+        raise ValueError(f"Unsupported artifact kind: {kind.value}")
     return f"{artifact_id}{glob_pattern.removeprefix('*')}"
 
 
-def _stub_template(kind_singular: str, artifact_id: str) -> str:
-    """Return the canonical YAML stub for ``kind_singular`` populated with ``artifact_id``."""
-    if kind_singular == "directive":
-        # Directive: id must match [A-Z][A-Z0-9_-]*; intent + title required.
-        return (
-            f'schema_version: "1.0"\n'
-            f"id: {artifact_id}\n"
-            f"title: TODO short title\n"
-            f"intent: TODO why this directive exists\n"
-            f"enforcement: advisory\n"
+def _stub_template(kind: ArtifactKind, artifact_id: str) -> str:
+    """Return the canonical YAML stub for ``kind`` populated with ``artifact_id``."""
+    return _STUB_TEMPLATES[kind].format(artifact_id=artifact_id)
+
+
+def _resolve_scaffoldable_kind(raw_kind: str) -> ArtifactKind:
+    """Resolve an operator kind token to a scaffoldable :class:`ArtifactKind`.
+
+    The set of scaffoldable kinds is exactly ``_STUB_TEMPLATES``' keys —
+    ``template``/``glossary_pack``/``anti_pattern`` are not hand-scaffolded.
+    Exits 2 (with the valid-kinds list) for an unknown or unscaffoldable token.
+    """
+    normalized = raw_kind.strip().lower()
+    try:
+        kind: ArtifactKind | None = ArtifactKind(normalized)
+    except ValueError:
+        kind = None
+    if kind is None or kind not in _STUB_TEMPLATES:
+        valid = ", ".join(sorted(member.value for member in _STUB_TEMPLATES))
+        console.print(
+            f"[red]Unknown artifact kind '{raw_kind}'.[/red] "
+            f"Expected one of: {valid}."
         )
-    if kind_singular == "tactic":
-        # Tactic: needs at least one step.
-        return (
-            f'schema_version: "1.0"\n'
-            f"id: {artifact_id}\n"
-            f"name: TODO short name\n"
-            f"purpose: TODO when to apply this tactic\n"
-            f"steps:\n"
-            f"  - title: TODO first step\n"
-            f"    description: TODO what the step does\n"
-        )
-    if kind_singular == "styleguide":
-        # Styleguide: needs at least one principle (min_length=1).
-        return (
-            f'schema_version: "1.0"\n'
-            f"id: {artifact_id}\n"
-            f"title: TODO short title\n"
-            f"scope: code\n"
-            f"principles:\n"
-            f"  - TODO first principle\n"
-            f"applies_to_languages: []\n"
-        )
-    if kind_singular == "toolguide":
-        # Toolguide: guide_path must match ^src/doctrine/.+\.md$.
-        return (
-            f'schema_version: "1.0"\n'
-            f"id: {artifact_id}\n"
-            f"tool: TODO tool name\n"
-            f"title: TODO short title\n"
-            f"guide_path: src/doctrine/toolguides/{artifact_id}.md\n"
-            f"summary: TODO one-line summary\n"
-        )
-    if kind_singular == "paradigm":
-        return (
-            f'schema_version: "1.0"\n'
-            f"id: {artifact_id}\n"
-            f"name: TODO short name\n"
-            f"summary: TODO one-line summary of the paradigm\n"
-        )
-    if kind_singular == "procedure":
-        # Procedure: name + purpose + entry/exit + min 1 step.
-        return (
-            f'schema_version: "1.0"\n'
-            f"id: {artifact_id}\n"
-            f"name: TODO short name\n"
-            f"purpose: TODO why this procedure exists\n"
-            f"entry_condition: TODO when to enter\n"
-            f"exit_condition: TODO when complete\n"
-            f"steps:\n"
-            f"  - title: TODO first step\n"
-        )
-    if kind_singular == "agent_profile":
-        # AgentProfile uses hyphenated YAML aliases (profile-id, schema-version,
-        # specialization → {primary-focus, ...}). The model requires roles
-        # (min_length=1), purpose, and a Specialization with primary-focus.
-        # Reviewers will fill in the full 6-section structure; this stub
-        # carries only the schema's hard-required fields.
-        return (
-            f'schema-version: "1.0"\n'
-            f"profile-id: {artifact_id}\n"
-            f"name: TODO agent display name\n"
-            f"roles: [implementer]\n"
-            f"purpose: TODO one-line purpose statement\n"
-            f"specialization:\n"
-            f"  primary-focus: TODO primary focus area\n"
-        )
-    if kind_singular == "mission_step_contract":
-        return (
-            f"id: {artifact_id}\n"
-            f'schema_version: "1.0"\n'
-            f"action: TODO action verb\n"
-            f"mission: TODO mission slug\n"
-            f"steps:\n"
-            f"  - id: step-1\n"
-            f"    description: TODO step description\n"
-        )
-    # Unreachable — caller validated kind first.
-    raise ValueError(f"Unsupported artifact kind: {kind_singular}")
+        raise typer.Exit(2)
+    return kind
 
 
 def _resolve_scaffold_root(
@@ -578,7 +593,7 @@ def new(
         ...,
         help=(
             "Artifact kind (singular): one of "
-            + ", ".join(sorted(_CANONICAL_KIND_SINGULAR_TO_PLURAL))
+            + ", ".join(sorted(member.value for member in _STUB_TEMPLATES))
             + "."
         ),
     ),
@@ -602,16 +617,8 @@ def new(
     ``TODO …`` placeholders so the file passes ``doctrine validate`` on
     first emit.  Refuses to overwrite an existing file.
     """
-    kind_singular = kind.strip().lower()
-    if kind_singular not in _CANONICAL_KIND_SINGULAR_TO_PLURAL:
-        valid = ", ".join(sorted(_CANONICAL_KIND_SINGULAR_TO_PLURAL))
-        console.print(
-            f"[red]Unknown artifact kind '{kind}'.[/red] "
-            f"Expected one of: {valid}."
-        )
-        raise typer.Exit(2)
-
-    plural = _CANONICAL_KIND_SINGULAR_TO_PLURAL[kind_singular]
+    artifact_kind = _resolve_scaffoldable_kind(kind)
+    plural = artifact_kind.plural
 
     from specify_cli.core.paths import locate_project_root
 
@@ -622,12 +629,16 @@ def new(
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
 
+    # Pack mode uses the plural pack-layout directory; project mode uses the
+    # single canonical project-tier authority — the same map DoctrineService's
+    # resolver reads (doctrine.artifact_kinds.PROJECT_KIND_DIRS), so the stub
+    # lands exactly where the loader will look for it.
     target_dir_name = (
-        plural if pack is not None else _PROJECT_KIND_DIRS.get(kind_singular, plural)
+        plural if pack is not None else PROJECT_KIND_DIRS[artifact_kind]
     )
     target_dir = doctrine_root / target_dir_name
     target_dir.mkdir(parents=True, exist_ok=True)
-    target_path = target_dir / _artifact_filename(kind_singular, artifact_id)
+    target_path = target_dir / _artifact_filename(artifact_kind, artifact_id)
 
     if target_path.exists():
         console.print(
@@ -635,7 +646,7 @@ def new(
         )
         raise typer.Exit(1)
 
-    stub_text = _stub_template(kind_singular, artifact_id)
+    stub_text = _stub_template(artifact_kind, artifact_id)
 
     # Sanity-check the stub against the schema before writing so a future
     # schema tightening can't silently regress the scaffolder.  The
@@ -650,7 +661,7 @@ def new(
         schema_cls.model_validate(parsed)
     except Exception as exc:  # noqa: BLE001 — surface to operator verbatim
         console.print(
-            f"[red]Internal error:[/red] stub for kind '{kind_singular}' failed "
+            f"[red]Internal error:[/red] stub for kind '{artifact_kind.value}' failed "
             f"schema validation: {exc}"
         )
         raise typer.Exit(1) from exc

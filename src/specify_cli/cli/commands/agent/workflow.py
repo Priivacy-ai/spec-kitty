@@ -728,10 +728,19 @@ def _print_commit_summary(*, command_name: str, json_output: bool = False) -> No
         )
 
 
-def _render_charter_context(repo_root: Path, action: str) -> str:
-    """Render charter context for workflow prompts."""
+def _render_charter_context(
+    repo_root: Path, action: str, *, mission_type: str | None = None
+) -> str:
+    """Render charter context for workflow prompts.
+
+    WP11 (T062/B-8/FR-012): ``mission_type`` is forwarded so the action
+    doctrine bundle resolves for the mission grain instead of degrading to a
+    typeless (empty) bundle.
+    """
     try:
-        context = build_charter_context(repo_root, action=action, mark_loaded=True)
+        context = build_charter_context(
+            repo_root, action=action, mark_loaded=True, mission_type=mission_type
+        )
         return context.text
     except Exception as exc:
         return f"Governance: unavailable ({exc})"

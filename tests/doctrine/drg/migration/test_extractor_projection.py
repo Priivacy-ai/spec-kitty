@@ -144,13 +144,13 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 #:     affect test execution, so shipping an activated toolguide for it is a
 #:     liability rather than an oversight to be wired.
 #:     -1 node / +0 edges / -1 orphan. Composed: 305/757/32 - 1/0/1 = 304/757/31.
-#:     It was one of the nine ``_ACTIVATED_BUT_UNREACHABLE`` entries below; the
+#:     It was one of the nine ``_ACTIVATED_BUT_ORPHANED`` entries below; the
 #:     other eight are oversights and are wired rather than deleted, so this is
 #:     the only member that leaves by deletion. The node carried no edges in
 #:     either direction (verified: its sole graph appearance was its own node
 #:     line), so nothing else in the graph moves.
 #: (7) Same ruling, the other half of #3009 remedy 4: the eight remaining
-#:     ``_ACTIVATED_BUT_UNREACHABLE`` artefacts are WIRED via
+#:     ``_ACTIVATED_BUT_ORPHANED`` artefacts are WIRED via
 #:     ``_CURATED_ARTIFACT_EDGES``. The charter activated them while the graph
 #:     gave them no inbound edge, so cascade reached none of them -- the same
 #:     failure WP09 fixed once (entry 5), with no edge at all rather than an
@@ -170,10 +170,35 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 #:     place, and ``DIRECTIVE_028 -> no-parallel-duplicate-test-runs`` was
 #:     re-pointed to ``DIRECTIVE_030`` (028 scopes tool SELECTION; the tactic is
 #:     a discipline on how a suite is RUN). Totals are unchanged; only
-#:     ``_ACTIVATED_BUT_UNREACHABLE``'s membership moved. A bare cardinality
+#:     ``_ACTIVATED_BUT_ORPHANED``'s membership moved. A bare cardinality
 #:     could not have shown that swap -- which is the case for naming members.
 #:     ``styleguide:deployable-skill-authoring`` is now the one deliberately NOT
-#:     wired -- see ``_ACTIVATED_BUT_UNREACHABLE``.
+#:     wired -- see ``_ACTIVATED_BUT_ORPHANED``.
+#: (8) Mission doctrine-delivery-reachability-01KYMXD6, WP09 (T050, FR-015): one
+#:     hand-authored SCOPE edge, ``action:documentation/generate --scope-->
+#:     directive:DIRECTIVE_042``, added to ``HAND_AUTHORED_EDGES``. It is the
+#:     REACHING edge for the common-docs cluster: DIRECTIVE_042 and the asset /
+#:     styleguide / four common-docs tactics it heads were all measured
+#:     action-UNREACHABLE (a strongly-connected island no action scoped), so the
+#:     four pre-existing ``requires`` edges into ``asset:common-docs-structural-lint``
+#:     de-orphaned it by incidence while it still reached nobody. This edge makes
+#:     042 action-reachable, delivering the cluster transitively.
+#:     +0 nodes / +1 edge (overlay) / +0 orphans. The PURE golden counts below are
+#:     UNCHANGED -- the edge is overlay-authored, not extractor-derived -- so
+#:     ``test_shipped_graph_is_fresh_and_byte_identical`` stays green because it
+#:     asserts ``_EXPECTED_EDGE_COUNT + len(HAND_AUTHORED_EDGES)`` (764 + 18 = 782,
+#:     was 764 + 17 = 781) against the regenerated shipped graph. The moved counts
+#:     are: shipped edges 781 -> 782; ``len(HAND_AUTHORED_EDGES)`` 17 -> 18; the
+#:     ``scope`` relation histogram 157 -> 158 (pinned by
+#:     ``tests/architectural/test_no_authored_applies_edge.py`` and mirrored in
+#:     ``RELATION_DESCRIPTIONS`` / ``docs/architecture/doctrine-relationships.md``,
+#:     both updated). Orphan sets are unaffected: 042 and the asset were already
+#:     edge-incident. The per-channel reachability move (six artefacts leave
+#:     ``_ACTION_UNREACHABLE_D1``/``D2``) is ledgered in
+#:     ``tests/doctrine/drg/test_reachability.py``. Canonical home / B2 handoff:
+#:     the scope edge belongs in the documentation step-contract action index;
+#:     mission B2 migrates it when it retires this overlay generator. See
+#:     ``docs/plans/doctrine/delivery-reachability-wiring-table.md``.
 _EXPECTED_NODE_COUNT = 304
 _EXPECTED_EDGE_COUNT = 764
 
@@ -257,6 +282,13 @@ _AWAITING_REFERENCES: frozenset[str] = frozenset(
 _NOT_A_TRAVERSAL_TARGET: frozenset[str] = frozenset({"agent_profile:human-in-charge"})
 
 #: **Tracked defect -- issue #3009. This set must only ever SHRINK.**
+#: Renamed from ``_ACTIVATED_BUT_UNREACHABLE`` (WP08/T044): it is measured by
+#: ``_orphan_urns``, which counts edge INCIDENCE, so it names activated nodes
+#: with no edge in *either* direction -- an orphan, not the stricter
+#: "unreachable from an action/profile traversal". Per-channel REACHABILITY (the
+#: activated-but-unreachable membership sets that a nominal inbound edge from an
+#: unreachable source does NOT satisfy) lives in
+#: ``tests/doctrine/drg/test_reachability.py`` (WP08).
 #: Every URN here is ACTIVATED in ``.kittify/config.yaml`` yet has no edge at
 #: all, so ``charter activate --cascade`` pulls in nothing for it, deactivation
 #: frees nothing, and no action's context resolution can surface it. The
@@ -296,7 +328,7 @@ _NOT_A_TRAVERSAL_TARGET: frozenset[str] = frozenset({"agent_profile:human-in-cha
 #: times, and the styleguide is a distribution-surface concern, not a
 #: pack-authoring one. Corrected so the standard is applied once: record
 #: relationships that exist, refuse to invent ones that do not.
-_ACTIVATED_BUT_UNREACHABLE: frozenset[str] = frozenset(
+_ACTIVATED_BUT_ORPHANED: frozenset[str] = frozenset(
     {
         "styleguide:deployable-skill-authoring",
     }
@@ -310,7 +342,7 @@ _INTENTIONAL_ORPHANS: frozenset[str] = (
     _EDGELESS_BY_CONSTRUCTION
     | _AWAITING_REFERENCES
     | _NOT_A_TRAVERSAL_TARGET
-    | _ACTIVATED_BUT_UNREACHABLE
+    | _ACTIVATED_BUT_ORPHANED
 )
 
 #: The pure-extractor figure (23) and the shipped-graph figure (21) differ by
@@ -386,7 +418,7 @@ def _describe_orphan_drift(measured: set[str], expected: frozenset[str]) -> str:
             "NO LONGER orphans -- these are still declared as edge-less:\n"
             + "\n".join(f"    - {urn}" for urn in resolved)
             + "\n  Drop them from the declaration; if one left "
-            "_ACTIVATED_BUT_UNREACHABLE, note the fix on issue #3009."
+            "_ACTIVATED_BUT_ORPHANED, note the fix on issue #3009."
         )
     return "orphan membership drifted.\n  " + "\n  ".join(lines)
 
@@ -394,42 +426,24 @@ def _describe_orphan_drift(measured: set[str], expected: frozenset[str]) -> str:
 def _charter_activated_urns() -> set[str]:
     """Return every ``<kind>:<id>`` the project charter currently activates.
 
+    WP07/T035 repoint (FR-017): this now delegates to the single activation
+    authority, :func:`charter.pack_context.charter_activated_urns`, which reads
+    the store resolved through the ``config.yaml`` ``charter:`` pointer
+    (``charter.yaml`` when migrated, else the legacy config-embedded keys) —
+    never the retired ``config.yaml`` ``activated_*`` mirror. Repointing here
+    BEFORE the mirror is removed (T036) is load-bearing: consulting the mirror
+    after its removal would return the empty set, failing this gate's floor
+    assertion while its stray guard went vacuously true.
+
     Directives are the reason this needs a mapping rather than a bare id
     comparison: a directive node's URN carries its ``code``
-    (``directive:DIRECTIVE_035``) while ``.kittify/config.yaml`` activates the
-    file slug (``035-bulk-edit-occurrence-classification``).
+    (``directive:DIRECTIVE_035``) while the store activates the file slug
+    (``035-bulk-edit-occurrence-classification``). That reconciliation now
+    happens inside the authority via the single C-009 normalization boundary.
     """
-    import yaml
+    from charter.pack_context import charter_activated_urns
 
-    config = yaml.safe_load((_REPO_ROOT / ".kittify" / "config.yaml").read_text())
-    kind_for_key = {
-        "activated_directives": "directive",
-        "activated_tactics": "tactic",
-        "activated_toolguides": "toolguide",
-        "activated_procedures": "procedure",
-        "activated_paradigms": "paradigm",
-        "activated_styleguides": "styleguide",
-    }
-    slug_to_code: dict[str, str] = {}
-    for path in (DOCTRINE_ROOT / "directives" / "built-in").glob("*.directive.yaml"):
-        loaded = yaml.safe_load(path.read_text())
-        code = loaded.get("id") if isinstance(loaded, dict) else None
-        if code:
-            slug_to_code[path.name.removesuffix(".directive.yaml")] = str(code)
-    assert slug_to_code, (
-        "no directive slug->id mapping was built, so every directive would "
-        "silently fail to match an activation entry -- which is the exact "
-        "blind spot that made issue #3009 report nine instead of ten"
-    )
-
-    urns: set[str] = set()
-    for key, kind in kind_for_key.items():
-        for entry in config.get(key) or []:
-            identifier = str(entry)
-            if kind == "directive":
-                identifier = slug_to_code.get(identifier, identifier)
-            urns.add(f"{kind}:{identifier}")
-    return urns
+    return charter_activated_urns(_REPO_ROOT)
 
 
 @pytest.mark.doctrine
@@ -491,7 +505,7 @@ class TestDRGZeroDelta:
             _EDGELESS_BY_CONSTRUCTION,
             _AWAITING_REFERENCES,
             _NOT_A_TRAVERSAL_TARGET,
-            _ACTIVATED_BUT_UNREACHABLE,
+            _ACTIVATED_BUT_ORPHANED,
         )
         assert sum(len(part) for part in parts) == len(_INTENTIONAL_ORPHANS), (
             "the orphan buckets overlap -- a URN is filed under two reasons"
@@ -509,16 +523,16 @@ class TestDRGZeroDelta:
         mapping issue #3009's own matcher lacks.
         """
         activated = _charter_activated_urns()
-        assert activated >= _ACTIVATED_BUT_UNREACHABLE, (
+        assert activated >= _ACTIVATED_BUT_ORPHANED, (
             "these are filed as activated-yet-orphaned but the charter no "
             "longer activates them -- move them to another bucket: "
-            f"{sorted(_ACTIVATED_BUT_UNREACHABLE - activated)}"
+            f"{sorted(_ACTIVATED_BUT_ORPHANED - activated)}"
         )
-        strays = (_INTENTIONAL_ORPHANS & activated) - _ACTIVATED_BUT_UNREACHABLE
+        strays = (_INTENTIONAL_ORPHANS & activated) - _ACTIVATED_BUT_ORPHANED
         assert not strays, (
             "these orphans are charter-ACTIVATED but are filed under an "
             f"'acceptable' reason: {sorted(strays)}. Activating them cascades "
-            "to nothing -- add them to _ACTIVATED_BUT_UNREACHABLE and #3009."
+            "to nothing -- add them to _ACTIVATED_BUT_ORPHANED and #3009."
         )
 
     def test_shipped_graph_is_fresh_and_byte_identical(self) -> None:
