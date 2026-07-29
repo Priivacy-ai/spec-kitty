@@ -9,10 +9,10 @@ spec-kitty agent acceptance-verdict --mission <handle> \
 ```
 Canonical acceptance now persists the recomputed `overall_verdict` even with no negative invariants (no more stale `pending`).
 
-## Set an issue-matrix per-item status
+## Set an issue-matrix per-item verdict
 ```bash
 spec-kitty agent issue-verdict --mission <handle> \
-  --issue "#1726" --status verified --wp WP01 --actor claude --json
+  --issue "#1726" --verdict verified-already-fixed --wp WP01 --actor claude --json
 ```
 Writes `issue-matrix.json` (single canonical artifact; the dashboard renders from JSON). A legacy `issue-matrix.md` mission is migrated on this first write.
 
