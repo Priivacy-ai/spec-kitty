@@ -90,3 +90,9 @@ tests/specify_cli/migration/test_dogfood_corpus_backfilled.py::test_sampled_comp
 # @pytest.mark.slow (shared with its sibling corpus-scanning tests in this file, all
 # genuinely slow real-event-log scans) — not a budget-motivated re-mark.
 tests/specify_cli/migration/test_dogfood_corpus_backfilled.py::test_reked_lock_reds_on_born_un_reconciled_mission
+# Deliberate regen (2026-07-29, PR #3070 landing pass, WP05/T028, SC-003): the
+# clean-wheel-install asset-resolution proof builds and installs a real wheel
+# into a throwaway venv per test (>30s each) — genuinely slow, not a
+# budget-motivated re-mark. Carries [slow, distribution, non_sandbox].
+tests/docs/test_asset_resolution_wheel.py::test_shipped_asset_resolves_from_clean_wheel_install
+tests/docs/test_asset_resolution_wheel.py::test_unknown_asset_id_exits_nonzero_from_clean_wheel_install
