@@ -210,15 +210,26 @@ profile-unreachable so its new `requires` edges deliver nothing there.
 
 ## The deferred set (T052) — the operator's decision surface
 
-These **60** activated artefacts remain action-unreachable at `d=2` after row 1
-(WP09) and Family A (#3063) land. Each fails C-007(b): no action-reachable source with a textually-attested
+These **50** activated artefacts remain action-unreachable at `d=2` after row 1
+(WP09), Family A (#3063), and Family D (#3063, ACCEPT DELIVERY) land. Each fails C-007(b): no action-reachable source with a textually-attested
 relationship, and no `scope`-from-action path whose relationship is attested
 without invention. **This is not a filed issue** — it is the surface the
 after-mission operator interview rules on (C-007). Wiring any of these now would
 mean either wiring to an unreachable source (#3007's error) or inventing a
 relationship (the guard T050 forbids).
 
-### Note: 5 of the 60 are edge-incident from a reachable source, depth-gated
+> **Family D (#3063) delivered 10 of the previous 60.** The operator ruled
+> ACCEPT DELIVERY for the TESTING/BDD/MUTATION family, so these left the deferred
+> set and are now action-reachable at implement/review (they are dropped from the
+> list below): `paradigm:specification-by-example`,
+> `procedure:example-mapping-workshop`, `tactic:development-bdd`,
+> `tactic:atdd-adversarial-acceptance`, `tactic:formalized-constraint-testing`,
+> `tactic:adversarial-qa-handoff`, `tactic:work-package-completion-validation`
+> (all seven reachable at d=1 and d=2), plus `tactic:reverse-speccing`,
+> `tactic:test-to-system-reconstruction` and `styleguide:mutation-aware-test-design`
+> (reachable at d=2 only). See the Family D section below.
+
+### Note: 4 of the 50 are edge-incident from a reachable source, depth-gated
 
 The following already carry an inbound edge **from an action-reachable source**,
 but the edge is `suggests` (or a `requires` chain) that sits **beyond the
@@ -234,13 +245,15 @@ action-reachable via the DDD paradigm.)
 
 | artefact | reachable inbound source (relation) |
 |---|---|
-| `procedure:example-mapping-workshop` | `procedure:bdd-scenario-lifecycle` (requires) |
 | `tactic:ownership-map-leeway` | `styleguide:planning-and-tracking` (suggests) |
 | `tactic:pr-agent-worktree-isolation` | `directive:DIRECTIVE_043` (suggests) |
 | `tactic:zombies-tdd` | `tactic:delete-the-assertion-not-the-test` (suggests) |
 | `toolguide:github-tracker` | `styleguide:planning-and-tracking` (suggests) |
 
-### Full deferred set (60), by kind — directive 4 · paradigm 4 · procedure 5 · styleguide 4 · tactic 35 · toolguide 8
+(`procedure:example-mapping-workshop` left this table when Family D made it
+action-reachable at implement/review via `directive:DIRECTIVE_034`.)
+
+### Full deferred set (50), by kind — directive 4 · paradigm 3 · procedure 4 · styleguide 3 · tactic 28 · toolguide 8
 
   - `directive:DIRECTIVE_035`
   - `directive:DIRECTIVE_038`
@@ -248,21 +261,16 @@ action-reachable via the DDD paradigm.)
   - `directive:DIRECTIVE_044`
   - `paradigm:atomic-design`
   - `paradigm:c4-incremental-detail-modeling` — Family C: topology authored, delivery pending
-  - `paradigm:specification-by-example`
   - `paradigm:structured-prompt-driven-development`
   - `procedure:documentation-gap-prioritization` — Family C candidate EXCLUDED as non-attested (see Family C section)
   - `procedure:drill-down-documentation` — Family C: topology authored, delivery pending
   - `procedure:event-storming-discovery`
-  - `procedure:example-mapping-workshop`
   - `procedure:migrate-project-guidance-to-spec-kitty-charter`
   - `styleguide:deployable-skill-authoring`
   - `styleguide:java-conventions`
-  - `styleguide:mutation-aware-test-design`
   - `styleguide:reasons-canvas-writing`
-  - `tactic:adversarial-qa-handoff`
   - `tactic:analysis-extract-before-interpret`
   - `tactic:architecture-diagram-review-checklist` — Family C: topology authored, delivery pending
-  - `tactic:atdd-adversarial-acceptance`
   - `tactic:atomic-design-review-checklist`
   - `tactic:atomic-state-ownership`
   - `tactic:c4-zoom-in-architecture-documentation` — Family C: topology authored, delivery pending
@@ -271,8 +279,6 @@ action-reachable via the DDD paradigm.)
   - `tactic:code-documentation-analysis` — Family C: topology authored, delivery pending
   - `tactic:compositional-stream-boundaries`
   - `tactic:cross-cutting-state-via-store`
-  - `tactic:development-bdd`
-  - `tactic:formalized-constraint-testing`
   - `tactic:mutation-testing-workflow`
   - `tactic:occurrence-classification-workflow`
   - `tactic:ownership-map-leeway`
@@ -287,12 +293,9 @@ action-reachable via the DDD paradigm.)
   - `tactic:refactoring-state-pattern-for-behavior` — Family B: topology authored, delivery pending
   - `tactic:refactoring-strangler-fig` — Family B: topology authored, delivery pending
   - `tactic:reference-architectural-patterns`
-  - `tactic:reverse-speccing`
   - `tactic:secure-regex-catastrophic-backtracking`
   - `tactic:terminology-extraction-mapping`
   - `tactic:test-readability-clarity-check`
-  - `tactic:test-to-system-reconstruction`
-  - `tactic:work-package-completion-validation`
   - `tactic:zombies-tdd`
   - `toolguide:contextive`
   - `toolguide:github-tracker`
@@ -625,3 +628,102 @@ count is recorded so no golden number moves silently.
 - **Deferred set unchanged at 60** — the seven architecture-doc members stay deferred
   (topology authored, delivery pending); `documentation-gap-prioritization` stays
   deferred (excluded as non-attested); no artefact leaves the set.
+
+## Family D (#3063 TESTING / BDD / MUTATION family) — operator interview outcome, ACCEPT DELIVERY
+
+Unlike Families B and C (inert, composition-only), the operator ruled **ACCEPT
+DELIVERY** for Family D (2026-07-29). Family D is **reachability-affecting**: it
+delivers the BDD + test-quality members at implement/review, and the pins move —
+exactly as Family A did for DDD-at-specify.
+
+### Why Family D delivers (measured, not assumed — WP08 helper, R-1)
+
+Two of the four hubs are **existing directives already `scope`-linked from
+actions**: `directive:DIRECTIVE_034` (test-first-development) and
+`directive:DIRECTIVE_030` (test-and-typecheck-quality-gate) are both scoped from
+`action:software-dev/implement` **and** `action:software-dev/review`.
+`resolve_context` step 3 walks `suggests` **from scope-resolved artifacts**, so a
+`suggests` edge sourced at 034/030 **is** followed and delivers its target. This
+is the opposite of the Family-B/C pattern, where the hub was a **new, non-scoped**
+directive whose outbound `suggests` were never walked.
+
+### The five new artefacts
+
+| artefact | kind | body |
+|---|---|---|
+| `directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY` | directive (`lenient-adherence`) | mutation testing validates that tests constrain behaviour; a surviving mutant reveals a hollow assertion; score is a quality signal, not a target; run on the changed scope in review |
+| `styleguide:quadruple-a-test-format` | styleguide (`testing`) | Arrange / Assumption-check / Act / Assert; the assumption check MAY precede Arrange when the default state already is the precondition |
+| `styleguide:given-when-then-authoring` | styleguide (`testing`) | Given=precondition, When=single trigger, Then=observable outcome; one behaviour per scenario; domain language, declarative, runner-agnostic |
+| `toolguide:sonar` (+ SONAR.md) | toolguide | SonarQube static analysis + quality gate; gate on NEW-code metrics; loopback-safe URLs (no forced HTTPS on 127.0.0.1) |
+| `toolguide:gherkin` (+ GHERKIN.md) | toolguide | the Gherkin DSL only (Feature/Background/Scenario/Outline/Given-When-Then-And-But/Examples); explicitly NOT stack runners |
+
+### The 54 authored edges (all `suggests`)
+
+- **BDD/ATDD hub `DIRECTIVE_034` → 7** (DELIVERS at implement/review): `tactic:development-bdd`, `tactic:atdd-adversarial-acceptance`, `paradigm:specification-by-example`, `tactic:formalized-constraint-testing`, `procedure:example-mapping-workshop`, `styleguide:given-when-then-authoring` (new), `toolguide:gherkin` (new).
+- **Brownfield `paradigm:brownfield-onboarding` → 2** (DELIVERS at d=2 only, via a ≤2-hop suggests chain; `suggests` matches how brownfield already links its non-mandatory members): `tactic:reverse-speccing`, `tactic:test-to-system-reconstruction`.
+- **Mutation hub `USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY` → 4** (INERT — new non-scoped hub): `tactic:mutation-testing-workflow`, `styleguide:mutation-aware-test-design`, `toolguide:python-mutation-tools`, `toolguide:typescript-mutation-tools`.
+- **Test-quality hub `DIRECTIVE_030` → 5** (DELIVERS; the quality-BAR the gate enforces): `tactic:adversarial-qa-handoff`, `tactic:work-package-completion-validation`, `styleguide:testing-principles`, `styleguide:test-desiderata-and-boundaries`, `toolguide:sonar` (new).
+- **Test-quality hub `DIRECTIVE_041` → 3** (INERT — 041 is NOT scope-linked from any action; the clarity/authoring side): `tactic:test-readability-clarity-check`, `tactic:zombies-tdd`, `styleguide:quadruple-a-test-format` (new).
+- **Profile → hub → 32** (INERT in the profile channel): 7 implementer-role profiles (frontend-freddy, generic-agent, implementer-ivan, java-jenny, node-norris, python-pedro, randy-reducer) each → {034, mutation, 030, 041}; reviewer-renata → {030, 041, mutation}; debugger-debbie → {mutation}.
+- **Event-storming → 1** (INERT): `agent_profile:architect-alphonso --suggests--> procedure:event-storming-discovery`.
+
+**030-vs-041 split rationale:** 030 (the quality gate) heads the members that
+define the *bar* a suite must clear (QA handoff, WP-completion gates, the FIRST
+testing principles, test desiderata/boundaries, Sonar). 041 (tests-as-scaffold)
+heads the *clarity/authoring* members (readability check, ZOMBIES increments, the
+Quad-A single-behaviour skeleton). Because 030 is action-scoped and 041 is not,
+the 030-headed members deliver and the 041-headed members stay deferred.
+
+### Event-storming — inert by design, DDD-cluster member
+
+Event Storming is a DDD-cluster discovery procedure (Family A). The operator's
+earlier explicit guard keeps it **out of the eager specify delivery** (context-
+overload concern). Measured: `paradigm:domain-driven-design --suggests-->
+event-storming` would deliver it at specify (DDD is scope-resolved since Family A
+— reachable at d=1 and d=2), so it is attached instead via
+`agent_profile:architect-alphonso --suggests--> procedure:event-storming-discovery`,
+which is **INERT** (measured: not reachable at d=1 or d=2; the profile channel
+walks requires/specializes_from only). It can be switched to paradigm-delivered
+later if the operator wants it eager at specify.
+
+## Composition ledger (NFR-004) — Family D (#3063 TESTING / BDD / MUTATION family)
+
+Five new artefact nodes (via extraction) + 54 `suggests` overlay edges. Each moved
+count is recorded so no golden number moves silently.
+
+- **Shipped-graph nodes 312 → 317** (+5). All five are real `*.directive.yaml` /
+  `*.styleguide.yaml` / `*.toolguide.yaml`, so the extractor mints their nodes:
+  pure golden `_EXPECTED_NODE_COUNT` **306 → 311** (`test_extractor_projection`).
+  None carries inline references, so they mint **zero** extractor edges —
+  `_EXPECTED_EDGE_COUNT` stays **764**.
+- **Shipped-graph edges 819 → 873** (+54). `len(HAND_AUTHORED_EDGES)` **55 → 109**.
+  `test_shipped_graph_is_fresh_and_byte_identical` stays green by construction
+  (`764 + 109 = 873`) once the fragments are regenerated. Ledger entry (12) is added
+  to that module's composition ledger.
+- **`suggests` relation histogram 363 → 417** (+54; all 54 edges are `suggests`).
+  `requires` (272) and `scope` (159) are **unchanged**. Gated by
+  `tests/architectural/test_no_authored_applies_edge.py::TestPositiveCountClaimsAreTrue`
+  and mirrored char-for-char in `RELATION_DESCRIPTIONS` (`doctrine.drg.models`) and
+  `docs/architecture/doctrine-relationships.md`; both updated.
+- **Orphan sets:** in a **pure** regeneration all five new artefacts are orphans
+  (their only edges are overlay-authored), so pure orphans **25 → 30** — they join
+  `_AWAITING_REFERENCES` (6 → 11) and `_ORPHANS_RESOLVED_BY_OVERLAY` (4 → 9). Shipped
+  orphans stay **21** (the overlay wires every one of them).
+- **`_ACTION_UNREACHABLE_D1` 67 → 60** (−7) and **`_ACTION_UNREACHABLE_D2` 60 → 50**
+  (−10). D1 loses the seven delivered at the compact depth (from 034:
+  development-bdd, atdd-adversarial-acceptance, specification-by-example,
+  formalized-constraint-testing, example-mapping-workshop; from 030:
+  adversarial-qa-handoff, work-package-completion-validation). D2 loses those seven
+  **plus** reverse-speccing, test-to-system-reconstruction (brownfield chain) and
+  mutation-aware-test-design (2-hop out of 030). **`_ACTION_D1_D2_SPREAD` 7 → 10**
+  (the three d=2-only members move into `D1 − D2`).
+- **`_PROFILE_UNREACHABLE` UNCHANGED at 153** (every family-D profile edge is
+  `suggests`, which the profile channel does not follow). **`_PROFILE_RESCUES` 4 → 2**
+  (development-bdd and reverse-speccing entered the action channel, so they are no
+  longer profile-only rescues; `DIRECTIVE_044` and `test-readability-clarity-check`
+  remain). Ledgered in `tests/doctrine/drg/test_reachability.py`.
+- **Deferred set 60 → 50** — ten members leave (the delivered artefacts, listed
+  above and dropped from the deferred list). The mutation-hub members
+  (mutation-testing-workflow, python/typescript-mutation-tools) and the 041 fan-out
+  (test-readability-clarity-check, zombies-tdd) stay deferred (topology authored,
+  delivery inert); `documentation-gap-prioritization` unaffected.

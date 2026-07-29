@@ -8,6 +8,9 @@ nodes:
 - urn: toolguide:efficient-local-tooling
   kind: toolguide
   label: Efficient Local Tooling
+- urn: toolguide:gherkin
+  kind: toolguide
+  label: The Gherkin Scenario Language
 - urn: toolguide:git-agent-commit-signing
   kind: toolguide
   label: Git Agent Commit Signing
@@ -35,6 +38,9 @@ nodes:
 - urn: toolguide:python-review-checks
   kind: toolguide
   label: Python Review Checks
+- urn: toolguide:sonar
+  kind: toolguide
+  label: SonarQube Static Analysis and Quality Gate
 - urn: toolguide:terminology-guard
   kind: toolguide
   label: Terminology Guard

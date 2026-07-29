@@ -86,6 +86,9 @@ nodes:
 - urn: directive:USE_C4_MODEL_TECHNIQUES
   kind: directive
   label: Use C4 Model Techniques
+- urn: directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY
+  kind: directive
+  label: Use Mutation Testing to Validate Test Quality
 edges:
 - source: directive:DIRECTIVE_001
   target: tactic:paula-patterns-architecture-scout-review
@@ -126,11 +129,36 @@ edges:
   target: procedure:red-main-release-discipline
   relation: suggests
 - source: directive:DIRECTIVE_030
+  target: styleguide:test-desiderata-and-boundaries
+  relation: suggests
+  when: assessing tests against the test desiderata (Kent Beck) and checking each test owns exactly one behavioural boundary
+  reason: The quality gate suggests the test-desiderata-and-boundaries styleguide as the finer-grained bar for a good test; the `when` is the styleguide's own subject. Delivered at implement/review.
+- source: directive:DIRECTIVE_030
+  target: styleguide:testing-principles
+  relation: suggests
+  when: judging whether a test suite is fast, isolated, repeatable, self-validating, thorough and truthful — the properties the quality gate exists to protect
+  reason: The quality gate suggests the testing-principles styleguide as the properties a suite must have to pass it; the `when` is the styleguide's own subject. Delivered at implement/review.
+- source: directive:DIRECTIVE_030
   target: styleguide:tiered-standards
   relation: suggests
 - source: directive:DIRECTIVE_030
+  target: tactic:adversarial-qa-handoff
+  relation: suggests
+  when: preparing changed code for review/QA by identifying likely failure modes up front and leaving evidence that behaviour, typing, and edge cases were verified
+  reason: The test-and-typecheck quality gate suggests the adversarial QA handoff as the pre-handoff discipline that anticipates what review/QA will probe; the `when` is the tactic's own stated purpose. Delivered at implement/review.
+- source: directive:DIRECTIVE_030
   target: tactic:no-parallel-duplicate-test-runs
   relation: suggests
+- source: directive:DIRECTIVE_030
+  target: tactic:work-package-completion-validation
+  relation: suggests
+  when: validating that a work package meets its required quality gates before its status advances to for_review or done
+  reason: The quality gate suggests work-package completion validation as the check that its gates are actually met before a status transition; the `when` is the tactic's own stated purpose. Delivered at implement/review.
+- source: directive:DIRECTIVE_030
+  target: toolguide:sonar
+  relation: suggests
+  when: running SonarQube static analysis and gating on NEW-code coverage, code smells, security hotspots and duplication
+  reason: The quality gate suggests the Sonar toolguide as the static-analysis gate that carries the size/complexity/duplication metrics that do not belong in a per-file test gate; the `when` is the new toolguide's own scope. Delivered at implement/review.
 - source: directive:DIRECTIVE_031
   target: directive:DIRECTIVE_001
   relation: requires
@@ -146,6 +174,41 @@ edges:
 - source: directive:DIRECTIVE_032
   target: tactic:language-driven-design
   relation: suggests
+- source: directive:DIRECTIVE_034
+  target: paradigm:specification-by-example
+  relation: suggests
+  when: building shared understanding of required behaviour from concrete, business-readable examples that become executable acceptance tests and living documentation
+  reason: Test-first development suggests Specification by Example as the paradigm for driving development from concrete examples; the `when` is the paradigm's own stated summary. Delivered at implement/review.
+- source: directive:DIRECTIVE_034
+  target: procedure:example-mapping-workshop
+  relation: suggests
+  when: turning a behaviour request into concrete rules, examples, and open questions as a shared specification set before implementation
+  reason: Test-first development suggests the Example Mapping workshop as the collaborative step that produces the examples tests are written from; the `when` is the procedure's own stated purpose. Delivered at implement/review.
+- source: directive:DIRECTIVE_034
+  target: styleguide:given-when-then-authoring
+  relation: suggests
+  when: writing behavioural scenarios as Given (precondition) / When (single trigger) / Then (observable outcome) in domain language, runner-agnostic
+  reason: Test-first development suggests the Given-When-Then authoring conventions for writing the scenarios; the `when` is the new styleguide's own scope. Delivered at implement/review.
+- source: directive:DIRECTIVE_034
+  target: tactic:atdd-adversarial-acceptance
+  relation: suggests
+  when: hardening acceptance criteria by deliberately exploring how a feature could fail and turning selected failure modes into adversarial acceptance tests
+  reason: Test-first development suggests adversarial acceptance-test definition as the technique for strengthening acceptance criteria; the `when` is the tactic's own stated purpose. Delivered at implement/review.
+- source: directive:DIRECTIVE_034
+  target: tactic:development-bdd
+  relation: suggests
+  when: designing observable behavioural contracts at a system's public interfaces before implementation, so stakeholders can validate what the system must do
+  reason: "Test-first development suggests BDD-as-behavioural-contract-design as the way to state required behaviour before code; the `when` is the tactic's own stated purpose. Delivered at implement/review (034 is scope-resolved) per the #3063 family-D ACCEPT-DELIVERY ruling."
+- source: directive:DIRECTIVE_034
+  target: tactic:formalized-constraint-testing
+  relation: suggests
+  when: verifying mathematical invariants and structural contracts (round-trip symmetry, equality/hash-code alignment, sparse serialization) with property-based rather than example-based checks
+  reason: Test-first development suggests formalized constraint testing when the behaviour to pin is an invariant/contract better checked by property patterns than by examples; the `when` is the tactic's own stated purpose. Delivered at implement/review.
+- source: directive:DIRECTIVE_034
+  target: toolguide:gherkin
+  relation: suggests
+  when: expressing those scenarios in the Gherkin DSL (Feature / Scenario / Given-When-Then / Examples), independent of any runner
+  reason: Test-first development suggests the Gherkin toolguide as the notation for the scenarios; the `when` is the new toolguide's own scope (language only, not a runner). Delivered at implement/review.
 - source: directive:DIRECTIVE_035
   target: tactic:occurrence-classification-workflow
   relation: requires
@@ -195,6 +258,11 @@ edges:
   target: directive:DIRECTIVE_034
   relation: requires
 - source: directive:DIRECTIVE_041
+  target: styleguide:quadruple-a-test-format
+  relation: suggests
+  when: structuring each test as Arrange / Assumption-check / Act / Assert so one behaviour is pinned and a wrong fixture fails at the assumption check rather than masquerading as a behaviour failure
+  reason: Tests-as-scaffold suggests the new Quadruple-A test-format styleguide as the single-behaviour skeleton that keeps tests clear; the `when` is the new styleguide's own subject. Inert (041 is not action-scoped).
+- source: directive:DIRECTIVE_041
   target: styleguide:testing-principles
   relation: suggests
 - source: directive:DIRECTIVE_041
@@ -206,6 +274,16 @@ edges:
 - source: directive:DIRECTIVE_041
   target: tactic:tdd-red-green-refactor
   relation: suggests
+- source: directive:DIRECTIVE_041
+  target: tactic:test-readability-clarity-check
+  relation: suggests
+  when: checking whether a test suite documents behaviour well enough to reconstruct the system from tests alone (tests as executable specification)
+  reason: Tests-as-scaffold suggests the readability/clarity check as the way to confirm tests remain a legible specification, not friction; the `when` is the tactic's own stated purpose. Inert (041 is not action-scoped).
+- source: directive:DIRECTIVE_041
+  target: tactic:zombies-tdd
+  relation: suggests
+  when: driving implementation through tiny behaviour increments (ZOMBIES) with failing tests to control complexity
+  reason: Tests-as-scaffold suggests ZOMBIES TDD as the increment-sized way to let tests scaffold the implementation; the `when` is the tactic's own stated purpose. Inert (041 is not action-scoped).
 - source: directive:DIRECTIVE_042
   target: asset:common-docs-structural-lint
   relation: requires
@@ -366,3 +444,23 @@ edges:
   relation: suggests
   when: rendering the architecture diagrams as text-based, version-controlled diagram-as-code in PlantUML so they diff and review beside the code
   reason: The C4 hub suggests the PlantUML toolguide as the other text-based rendering option satisfying its 'keep diagrams as diagram-as-code' rule; the `when` is the toolguide's own stated scope. Composition-only under today's traversal.
+- source: directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY
+  target: styleguide:mutation-aware-test-design
+  relation: suggests
+  when: designing tests so common mutants (boundary, logic, membership, aggregate) are killed rather than tolerated
+  reason: The mutation hub suggests the mutation-aware test-design conventions as the design discipline that makes mutants killable; the `when` is the styleguide's own scope. Inert under today's traversal.
+- source: directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY
+  target: tactic:mutation-testing-workflow
+  relation: suggests
+  when: running mutation testing to verify tests detect real bugs rather than merely execute code, and triaging the surviving mutants
+  reason: The mutation hub suggests the run/triage workflow as its concrete step-by-step technique; the `when` is the tactic's own stated purpose. Inert under today's traversal (the new hub directive is not action-scoped).
+- source: directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY
+  target: toolguide:python-mutation-tools
+  relation: suggests
+  when: running mutation testing on Python code with mutmut (run/browse/apply, equivalent-mutant annotation)
+  reason: The mutation hub suggests the Python mutation toolguide (mutmut) as the generator for Python; the `when` is the toolguide's own scope. Inert under today's traversal.
+- source: directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY
+  target: toolguide:typescript-mutation-tools
+  relation: suggests
+  when: running mutation testing on TypeScript/JavaScript code with Stryker
+  reason: The mutation hub suggests the TypeScript/JavaScript mutation toolguide (Stryker) as the generator for that stack; the `when` is the toolguide's own scope. Inert under today's traversal.

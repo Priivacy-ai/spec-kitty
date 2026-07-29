@@ -312,7 +312,48 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 #:     Directive model's ``id`` pattern + ``id_normalizer`` upper-case it, so the
 #:     canonical URN is ``directive:USE_C4_MODEL_TECHNIQUES``. See
 #:     ``docs/plans/doctrine/delivery-reachability-wiring-table.md``.
-_EXPECTED_NODE_COUNT = 306
+#: (12) #3063 family-D (TESTING / BDD / MUTATION family), operator interview
+#:     outcome + ACCEPT-DELIVERY ruling (2026-07-29). FIVE new built-in artefacts
+#:     plus FIFTY-FOUR hand-authored ``suggests`` edges. The artefacts:
+#:     ``directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY``
+#:     (``directives/built-in/use-mutation-testing-to-validate-test-quality.
+#:     directive.yaml``), ``styleguide:quadruple-a-test-format``,
+#:     ``styleguide:given-when-then-authoring``, ``toolguide:sonar`` (+ SONAR.md)
+#:     and ``toolguide:gherkin`` (+ GHERKIN.md). Each carries NO inline references
+#:     (relationships are edges), so a PURE ``generate_graph`` run mints five nodes
+#:     but zero edges. PURE golden counts move +5 NODES / +0 edges:
+#:     ``_EXPECTED_NODE_COUNT`` 306 -> 311, ``_EXPECTED_EDGE_COUNT`` UNCHANGED at
+#:     764. In a pure run all five are ORPHANS (their only edges are overlay-
+#:     authored), so they join ``_AWAITING_REFERENCES`` (pure orphans 25 -> 30) and,
+#:     because the overlay wires every one of them, ``_ORPHANS_RESOLVED_BY_OVERLAY``
+#:     (4 -> 9); shipped orphans stay 21.
+#:     Unlike families B/C, family D is REACHABILITY-AFFECTING (operator ACCEPT-
+#:     DELIVERY), because two hubs are EXISTING action-scoped directives:
+#:     ``directive:DIRECTIVE_034`` and ``directive:DIRECTIVE_030`` are both
+#:     ``scope``-linked from ``action:software-dev/implement`` and
+#:     ``action:software-dev/review``, so ``resolve_context`` walks their outbound
+#:     ``suggests`` and DELIVERS the targets at implement/review. The 54 edges: 7
+#:     from DIRECTIVE_034 (BDD/ATDD family; DELIVERS 5 activated members + the 2 new
+#:     BDD artefacts); 2 from ``paradigm:brownfield-onboarding`` (DELIVERS at d=2
+#:     only, via a <=2-hop suggests chain); 4 from the new mutation directive
+#:     (INERT — new hub not action-scoped); 5 from DIRECTIVE_030 + 3 from
+#:     ``directive:DIRECTIVE_041`` (test-quality fan-out split per fit; 030 DELIVERS,
+#:     041 INERT as it is not action-scoped); 32 profile->hub edges (INERT in the
+#:     profile channel); and 1 inert ``architect-alphonso --suggests-->
+#:     event-storming-discovery``. Moved counts: shipped nodes 312 -> 317; shipped
+#:     edges 819 -> 873; ``len(HAND_AUTHORED_EDGES)`` 55 -> 109; relation histogram
+#:     ``suggests`` 363 -> 417 (``requires`` 272 / ``scope`` 159 UNCHANGED) -- pinned
+#:     by ``tests/architectural/test_no_authored_applies_edge.py`` and mirrored in
+#:     ``RELATION_DESCRIPTIONS`` / ``docs/architecture/doctrine-relationships.md``,
+#:     both updated. The per-channel reachability move is ledgered in
+#:     ``tests/doctrine/drg/test_reachability.py``: ``_ACTION_UNREACHABLE_D1`` 67 ->
+#:     60, ``_ACTION_UNREACHABLE_D2`` 60 -> 50, ``_ACTION_D1_D2_SPREAD`` 7 -> 10,
+#:     ``_PROFILE_RESCUES`` 4 -> 2 (``_PROFILE_UNREACHABLE`` UNCHANGED at 153). URN
+#:     CASING: the wiring named the mutation hub lower-kebab; the Directive model's
+#:     ``id`` pattern + ``id_normalizer`` upper-case it, so the canonical URN is
+#:     ``directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY``. See
+#:     ``docs/plans/doctrine/delivery-reachability-wiring-table.md``.
+_EXPECTED_NODE_COUNT = 311
 _EXPECTED_EDGE_COUNT = 764
 
 # ---------------------------------------------------------------------------
@@ -400,6 +441,16 @@ _AWAITING_REFERENCES: frozenset[str] = frozenset(
         # the DDD paradigm, and 1 from architect-alphonso). Wired by the overlay --
         # see _ORPHANS_RESOLVED_BY_OVERLAY.
         "directive:USE_C4_MODEL_TECHNIQUES",
+        # Ledger (12) #3063 family-D: the five new TESTING/BDD/MUTATION artefacts.
+        # Each carries no inline references, so a pure ``generate_graph`` mints its
+        # node but no edge; every one is wired only by the hand-authored family-D
+        # ``suggests`` edges. Wired by the overlay -- see
+        # _ORPHANS_RESOLVED_BY_OVERLAY.
+        "directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        "styleguide:quadruple-a-test-format",
+        "styleguide:given-when-then-authoring",
+        "toolguide:sonar",
+        "toolguide:gherkin",
     }
 )
 
@@ -462,12 +513,12 @@ _ACTIVATED_BUT_ORPHANED: frozenset[str] = frozenset(
 )
 
 #: Every node a PURE ``generate_graph`` run leaves incident to no edge.
-#: 17 + 6 + 1 + 1 = 25 (``_AWAITING_REFERENCES`` grew to 6 with ledger entry (11)'s
-#: ``directive:USE_C4_MODEL_TECHNIQUES``, atop entry (10)'s
-#: ``directive:DISCIPLINED_REFACTORING``). The retired ``_EXPECTED_ORPHAN_COUNT``
-#: pinned 32; the difference is ledger entries (6) and (7) -- one deletion and
-#: eight wirings -- and is now a consequence of the membership rather than the
-#: whole contract.
+#: 17 + 11 + 1 + 1 = 30 (``_AWAITING_REFERENCES`` grew to 11 with ledger entry (12)'s
+#: five new family-D artefacts, atop entry (11)'s ``directive:USE_C4_MODEL_TECHNIQUES``
+#: and entry (10)'s ``directive:DISCIPLINED_REFACTORING``). The retired
+#: ``_EXPECTED_ORPHAN_COUNT`` pinned 32; the difference is ledger entries (6) and (7)
+#: -- one deletion and eight wirings -- and is now a consequence of the membership
+#: rather than the whole contract.
 _INTENTIONAL_ORPHANS: frozenset[str] = (
     _EDGELESS_BY_CONSTRUCTION
     | _AWAITING_REFERENCES
@@ -491,6 +542,13 @@ _ORPHANS_RESOLVED_BY_OVERLAY: frozenset[str] = frozenset(
         # Ledger (11) #3063 family-C: the use-c4-model-techniques hub directive.
         # Pure-orphan (no inline refs), wired only by the family-C overlay edges.
         "directive:USE_C4_MODEL_TECHNIQUES",
+        # Ledger (12) #3063 family-D: the five new TESTING/BDD/MUTATION artefacts.
+        # Pure-orphans (no inline refs), wired only by the family-D overlay edges.
+        "directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        "styleguide:quadruple-a-test-format",
+        "styleguide:given-when-then-authoring",
+        "toolguide:sonar",
+        "toolguide:gherkin",
     }
 )
 

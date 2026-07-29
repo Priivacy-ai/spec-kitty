@@ -80,6 +80,16 @@ edges:
 - source: paradigm:brownfield-onboarding
   target: tactic:forensic-repository-audit
   relation: requires
+- source: paradigm:brownfield-onboarding
+  target: tactic:reverse-speccing
+  relation: suggests
+  when: reconstructing system understanding purely from test code and comparing it against the implementation and design docs to reveal under-documented behaviour
+  reason: Brownfield onboarding suggests reverse-speccing as the technique for recovering intent from an existing system's tests; the `when` is the tactic's own stated purpose. Delivered at d=2 per the family-D ACCEPT-DELIVERY ruling.
+- source: paradigm:brownfield-onboarding
+  target: tactic:test-to-system-reconstruction
+  relation: suggests
+  when: scoring how effectively a legacy system's tests serve as executable specifications, identifying where they fail to communicate behavioural, architectural, or operational intent
+  reason: Brownfield onboarding suggests test-to-system reconstruction as the scored dual-agent validation of a legacy suite's specification quality; the `when` is the tactic's own stated purpose. Delivered at d=2.
 - source: paradigm:c4-incremental-detail-modeling
   target: anti_pattern:big-upfront-design
   relation: rejects
