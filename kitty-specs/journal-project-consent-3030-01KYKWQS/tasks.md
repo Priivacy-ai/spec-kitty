@@ -56,6 +56,13 @@ implement time. Resolved: **WP01 owns `receivers.py` + `routing.py`** (the deliv
 to WP04, T005's `batch.py` message to WP02. Rationale in `tasks/WP01-containment.md`. Reversible if you
 would rather keep T003 in wave 1 — but note it protects none of the incident population.
 
+## Test-file ownership (added 2026-07-28)
+
+The lane guard flagged that **no WP declared its test files**, so every WP would trip
+`ACTIVE_WP_SCOPE_VIOLATION` on its first red-first commit. Each WP must own the test modules it
+writes, alongside its source files. WP01 now owns `tests/sync/test_routing.py` and
+`tests/delivery/test_receivers.py`; the remaining WPs need the same treatment before they start.
+
 ## Dependency graph
 
 ```

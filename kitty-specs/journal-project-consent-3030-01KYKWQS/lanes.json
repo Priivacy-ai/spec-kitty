@@ -12,7 +12,9 @@
       ],
       "write_scope": [
         "src/specify_cli/delivery/receivers.py",
-        "src/specify_cli/sync/routing.py"
+        "src/specify_cli/sync/routing.py",
+        "tests/delivery/test_receivers.py",
+        "tests/sync/test_routing.py"
       ],
       "predicted_surfaces": [
         "api",
@@ -178,7 +180,7 @@
       "parallel_group": 3
     }
   ],
-  "computed_at": "2026-07-29T10:08:30.404115+00:00",
+  "computed_at": "2026-07-29T10:41:16.299323+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": []
 }
