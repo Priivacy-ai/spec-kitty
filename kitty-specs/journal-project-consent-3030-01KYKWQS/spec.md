@@ -216,7 +216,7 @@ assert nothing changed; execute and assert exact removal.
 | ID | Title | User Story | Priority | Status |
 |----|-------|------------|----------|--------|
 | FR-001 | Consent gate in the delivery context | US1a | As a maintainer, I want the delivery context to carry a consent gate — a new `GateKind` plus a consent port injected into the dispatcher, mirroring the existing `ReceiverGate`/`GateContext` pattern (`delivery/receivers.py:165-203`) — so delivery is authorized at the scope it delivers. | High | Open |
-| FR-002 | Absence of a consent record denies | US1a | As a consultant, I want an unrecorded project treated as non-consented for delivery, overriding the default-allow fall-through at `sync/routing.py:87`, so never-opted-in projects cannot ship. | High | Open |
+| FR-002 | Absence of a consent record denies | US1a | As a consultant, I want an unrecorded project treated as non-consented **for capture and for delivery**, overriding the default-allow fall-through at `sync/routing.py:87`, so never-opted-in projects neither reach the journal nor ship. Pinned by `tests/sync/test_sync_consent_default_deny.py::test_unconfigured_checkout_does_not_consent_to_sync`. | High | Open |
 | FR-003 | Routing gate fails closed | US1a | As a maintainer, I want `is_sync_enabled_for_checkout()` to deny when routing is unresolvable (`routing.py:114-116`) so inability to determine consent is never read as consent. Defence in depth for the daemon path, which is its only caller set. | High | Open |
 | FR-004 | Cross-project drain refusal | US1a | As an operator, I want the drain to refuse, name the projects and exit non-zero if a selected batch spans more than one project, so a regression in FR-007 cannot silently leak. | High | Open |
 | FR-005 | Empty-selection short-circuit | US1a | As an operator, I want the drain to short-circuit before building or POSTing when nothing is selectable, and to report the real cause, instead of POSTing `{"events": []}` and printing the unrelated no-Private-Teamspace message (`sync/batch.py:1484-1488`). | High | Open |
@@ -242,7 +242,7 @@ assert nothing changed; execute and assert exact removal.
 | NFR-002 | Predicate precedes the row limit | A drain delivers consented events regardless of how many non-consented rows precede them in FIFO order. Filtering after `LIMIT` starves the drain permanently (`_should_stop_sync_loop` breaks on an empty selection); the predicate must be inside the filtered read. | Reliability | High | Open |
 | NFR-003 | Predicate cost does not scale with store size | With 100k rows across 20 projects, selecting one project's batch performs no full-table payload decode — indexed column lookup only, via FR-008's filtered read. | Performance | High | Open |
 | NFR-004 | Backfill is idempotent and lossless | Two runs yield identical column values and identical row counts; no row deleted or mutated outside the two new columns. | Reliability | High | Open |
-| NFR-005 | Capture-first durability preserved | Capture continues at emit time; no event is dropped at write time. Consent gates delivery, not capture. See C-006 for the collection question this deliberately leaves open. | Reliability | High | Open |
+| NFR-005 | Consent gates capture, not only delivery | **Amended 2026-07-29 (operator decision).** Previously: "capture continues unconditionally; no event dropped at write time." That yielded to `#3031` Defect 3 — a non-consenting project's events must **never reach the journal**. Capture-first durability now applies only to *consenting* projects. `event_journal/journal.py` documents the journal write as deliberately unconditional for Teamspace-bound families, so this is a **deliberate reversal of a documented invariant**, not an oversight; the journal's own contract must be updated with it. Beware the fake-green: a bare `if skip_journal: return event` guard leaves capture unconditional at the real caller. | Security | High | Open |
 | NFR-006 | Purge is exact | After purging project X, a differential row count over all other projects, in journal and ledger, is zero. | Correctness | High | Open |
 | NFR-007 | Fake ingress must exercise the real window | The recording ingress must advertise a realistic `sync_ingress.limits.max_events_per_batch` over a host that passes `_should_probe_advertised_limits` (`sync/batch.py:177-183` returns False for localhost/`.example`, so a naive fake elides the very limit that decides whether non-consented rows fill the selection window). | Security | High | Open |
 
@@ -299,6 +299,37 @@ assert nothing changed; execute and assert exact removal.
 - **SC-009**: A server rejection carrying the stable refusal reason is classified `failed_permanent`,
   counted in terminal-failure totals, and the drain makes forward progress past it (closes #3005 and
   unblocks `saas#585` FR-004).
+
+## Absorbed: spec-kitty#3031's red pins (operator decision, 2026-07-29)
+
+`origin/main` carries two deliberately-red P0 reproductions under the honest-red-P0 policy
+(ADR 2026-07-17-1). **This mission absorbs them and they are its acceptance gate.** They are marked
+`regression`, so the blocking `regression tests` CI job selects them; the marker comes off as each
+goes green.
+
+`tests/sync/test_sync_consent_default_deny.py` — five pins:
+
+1. `test_unconfigured_checkout_does_not_consent_to_sync` — **contradicted this spec's earlier
+   position.** An unconfigured checkout must resolve `effective_sync_enabled is False`. An earlier
+   implementation attempt flipped this, measured 39 regressions across `tests/sync`, and reverted on
+   capture-first grounds. The operator has now ruled: those 39 tests encode the defect, not a
+   requirement — they are updated as part of the fix.
+2. `test_unresolvable_routing_does_not_consent_to_sync` — satisfied by FR-003 (shipped, `de274f3f`).
+3. `test_project_config_refusal_is_honoured` — **new to this mission.**
+4. `test_project_config_refusal_outranks_env_override` — **new.** Project-local refusal beats the
+   machine-global env var.
+5. `test_machine_global_opt_in_does_not_leak_to_sibling_projects` — **new.** The sibling-leak case.
+
+`tests/sync/test_sync_consent_capture_gap_3031.py` — Defect 3, ungated capture. See NFR-005 as amended.
+
+### New requirement inherited from #3031
+
+**FR-019 — consent lives in the project, not the machine.** Today the consent record sits in
+machine-global `~/.spec-kitty/config.toml` keyed by `repo_slug`: invisible in the repo it governs,
+unreviewable, not version-controlled, and keyed on a **mutable git remote**. Consent must be
+expressible in the project's own `.kittify/config.yaml` and must outrank the machine-global record and
+the env var (pins 3 and 4). This partially supersedes FR-013's uuid-keyed index — reconcile the two
+before implementing either.
 
 ## Folded dependencies
 
