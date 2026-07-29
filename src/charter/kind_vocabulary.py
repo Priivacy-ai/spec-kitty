@@ -51,10 +51,25 @@ from doctrine.artifact_kinds import (
     MissionTypeNotAnArtifactKind,
 )
 
+#: Public re-export of :data:`doctrine.artifact_kinds.PROJECT_KIND_DIRS`.
+#:
+#: Landing-fold addition (write-side-seam-matrix-tracer Wave B / #3070):
+#: ``specify_cli.cli.commands.doctrine``'s ``new`` scaffolder needs the
+#: project-tier directory-per-kind mapping but, as a runtime-layer module,
+#: may not import ``doctrine.*`` directly (the runtime -> charter ->
+#: doctrine boundary ratchet, ``test_runtime_charter_doctrine_boundary.py``).
+#: This module already imports the mapping privately (as
+#: ``_PROJECT_KIND_DIRS``, kept for the existing internal partial-table
+#: distinction below); this public alias is the thin facade re-export the
+#: boundary doc's Phase-2 recipe calls for, without disturbing the private
+#: name other tests already import.
+PROJECT_KIND_DIRS = _PROJECT_KIND_DIRS
+
 __all__ = [
     "ArtifactKind",
     "CHARTER_KIND_TOKENS",
     "MISSION_TYPE_TOKEN",
+    "PROJECT_KIND_DIRS",
     "MissionTypeNotAnArtifactKind",
     "UnknownArtifactIdError",
     "resolve_artifact_urn",
@@ -78,11 +93,13 @@ _ID_FIELD_BY_KIND: dict[ArtifactKind, str] = {
 }
 _DEFAULT_ID_FIELD = "id"
 #: The project-tier overlay directory name per kind is the single canonical
-#: authority :data:`doctrine.artifact_kinds.PROJECT_KIND_DIRS` (imported above
-#: as ``_PROJECT_KIND_DIRS``). It is *total*, so ``.get(kind, kind.plural)``
-#: below never actually falls back — the default is retained only as a
-#: belt-and-braces guard against a future partial authority. No mapping is
-#: re-declared here (WP03 T014).
+#: authority :data:`doctrine.artifact_kinds.PROJECT_KIND_DIRS` (imported and
+#: re-exported above as ``PROJECT_KIND_DIRS`` — the runtime→charter→doctrine
+#: boundary facade for this mapping; see ``cli/commands/doctrine.py``'s
+#: ``new`` scaffolder for the consumer). It is *total*, so
+#: ``.get(kind, kind.plural)`` below never actually falls back — the default
+#: is retained only as a belt-and-braces guard against a future partial
+#: authority. No mapping is re-declared here (WP03 T014).
 
 
 def _id_field_for(kind: ArtifactKind) -> str:
@@ -153,7 +170,7 @@ def _scan_roots(
     if layer_roots:
         for layer, root in layer_roots.items():
             candidate = (
-                root / "doctrine" / _PROJECT_KIND_DIRS.get(kind, kind.plural)
+                root / "doctrine" / PROJECT_KIND_DIRS.get(kind, kind.plural)
                 if layer == "project"
                 else root / "doctrine" / kind.plural / layer
             )
