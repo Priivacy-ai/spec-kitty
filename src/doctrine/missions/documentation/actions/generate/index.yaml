@@ -2,7 +2,6 @@ action: generate
 directives:
   - 010-specification-fidelity-requirement
   - 037-living-documentation-sync
-  - 042-common-docs
 tactics:
   - requirements-validation-workflow
 styleguides: []

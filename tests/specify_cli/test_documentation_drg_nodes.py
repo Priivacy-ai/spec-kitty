@@ -73,7 +73,47 @@ _SLUG_TO_URN: dict[str, str] = {
     # documentation-curation-audit). Both are shipped graph.yaml nodes.
     "stakeholder-alignment": "tactic:stakeholder-alignment",
     "documentation-curation-audit": "tactic:documentation-curation-audit",
+    # Type-grain (governance-profile.yaml selected_directives/selected_tactics)
+    # entries, needed by ``_type_grain_urns`` -- these never appear in an
+    # action bundle's own index.yaml (FR-013 forbids the duplication), only
+    # in the type-grain exclusion set used by test_action_bundle_matches_drg_edges.
+    "common-docs-curation": "tactic:common-docs-curation",
+    "common-docs-find": "tactic:common-docs-find",
+    "common-docs-scaffold": "tactic:common-docs-scaffold",
+    "common-docs-write": "tactic:common-docs-write",
+    "usage-examples-sync": "tactic:usage-examples-sync",
 }
+
+
+def _type_grain_urns(repo_root: Path) -> set[str]:
+    """Type-grain (``governance-profile.yaml``) directive/tactic URNs.
+
+    FR-013 forbids duplicating a type-grain artifact into an action's own
+    bundle (``index.yaml``), but the DRG may still carry a direct
+    action -> type-grain-artifact ``scope`` edge as a deliberate "reaching"
+    edge (see ``hand_authored_overlay.py``'s
+    ``documentation/generate -> DIRECTIVE_042`` edge, WP09/FR-015:
+    DIRECTIVE_042 is type-wide and therefore governs every action, but only
+    ``generate`` needed a direct scope edge to make the otherwise
+    action-unreachable common-docs cluster reachable at all). Such edges are
+    legitimate type-grain inheritance, not action-grain bundle content, so
+    ``test_action_bundle_matches_drg_edges`` excludes them from the strict
+    bundle<->graph equality check below rather than requiring every action's
+    bundle to redundantly re-declare the whole type grain.
+    """
+    profile_path = (
+        repo_root
+        / "src"
+        / "doctrine"
+        / "missions"
+        / "documentation"
+        / "governance-profile.yaml"
+    )
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    slugs: list[str] = list(profile.get("selected_directives", []) or []) + list(
+        profile.get("selected_tactics", []) or []
+    )
+    return {_SLUG_TO_URN[slug] for slug in slugs}
 
 
 def _repo_root() -> Path:
@@ -108,7 +148,18 @@ def test_each_documentation_action_has_drg_node_and_context(action: str) -> None
 
 @pytest.mark.parametrize("action", _DOC_ACTIONS)
 def test_action_bundle_matches_drg_edges(action: str) -> None:
-    """FR-006: action-bundle index.yaml directives/tactics match graph.yaml URN edges."""
+    """FR-006: action-bundle index.yaml directives/tactics match graph.yaml URN edges.
+
+    Type-grain-aware (landing fold, PR #3070): a type-wide directive/tactic
+    (declared in ``governance-profile.yaml``) may reach a specific action via
+    a direct hand-authored ``scope`` edge (e.g.
+    ``documentation/generate -> DIRECTIVE_042``, WP09/FR-015) without being
+    duplicated into that action's own bundle -- FR-013 forbids the
+    duplication. Such edges are excluded from the equality check via
+    ``_type_grain_urns`` so the assertion still enforces exact parity for
+    genuine action-grain content while tolerating legitimate type-grain
+    inheritance.
+    """
     repo_root = _repo_root()
     bundle_path = (
         repo_root
@@ -136,9 +187,14 @@ def test_action_bundle_matches_drg_edges(action: str) -> None:
         and str(edge.relation) == "scope"
     }
 
-    assert expected_urns == actual_urns, (
-        f"bundle <-> DRG mismatch for {action}: "
-        f"bundle has {expected_urns}, graph has {actual_urns}"
+    type_grain_urns = _type_grain_urns(repo_root)
+    inherited_urns = actual_urns & type_grain_urns
+    actual_action_grain_urns = actual_urns - inherited_urns
+
+    assert expected_urns == actual_action_grain_urns, (
+        f"bundle <-> DRG mismatch for {action}: bundle has {expected_urns}, "
+        f"graph (excl. type-grain-inherited {inherited_urns}) has "
+        f"{actual_action_grain_urns}"
     )
 
 
