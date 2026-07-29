@@ -38,6 +38,15 @@ from typing import TYPE_CHECKING, Protocol
 if TYPE_CHECKING:
     from doctrine.agent_profiles import AgentProfile
 
+__all__ = [
+    "format_inline_named_body",
+    "render_profile_procedures",
+    "render_profile_selector_refs",
+    "render_profile_styleguides",
+    "render_profile_toolguides",
+]
+
+
 _PROFILE_STYLEGUIDES_HEADER_TPL = "Profile-Cited Styleguides ({profile_id}):"
 _PROFILE_TOOLGUIDES_HEADER_TPL = "Profile-Cited Toolguides ({profile_id}):"
 # Procedures arrive through the profile *channel* (a ``requires`` DRG edge), not an
