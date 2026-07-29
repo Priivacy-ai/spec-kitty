@@ -10,5 +10,7 @@
   "purpose_tldr": "journal project consent 3030",
   "slug": "journal-project-consent-3030-01KYKWQS",
   "target_branch": "feat/journal-project-consent-3030",
-  "topology": "single_branch"
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-29T10:17:57.054382+00:00"
 }
