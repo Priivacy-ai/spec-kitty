@@ -109,9 +109,40 @@ spec-kitty merge
 
 ## Hosted Auth and Sync
 
+!!! warning "Both variables in this section are machine-global"
+
+    `SPEC_KITTY_ENABLE_SAAS_SYNC` and `SPEC_KITTY_SAAS_URL` are ordinary process
+    environment variables. They have **no project-scoped form**, so a single
+    `export` in a shell arms **every project that shell subsequently touches** —
+    not just the repository you were standing in when you ran it.
+
+    This matters because the event journal is scoped per *producer*
+    (`~/.spec-kitty/event_journal/journal-<token>.db`), not per project. One
+    journal holds the events of every checkout on the machine.
+
+    If you work on more than one client's code on one machine — as consultants,
+    contractors and agencies do — arming these in your shell profile makes every
+    project you touch a candidate for delivery. Prefer scoping them to a single
+    command, and use per-project consent (`spec-kitty sync opt-in` /
+    `sync opt-out`) to decide what may actually be delivered.
+
+    ```bash
+    # Scoped to one invocation — preferred
+    SPEC_KITTY_ENABLE_SAAS_SYNC=1 spec-kitty sync now
+
+    # Arms every project this shell touches afterwards — know what you are doing
+    export SPEC_KITTY_ENABLE_SAAS_SYNC=1
+    ```
+
+    Run `spec-kitty sync doctor` before draining to see, per project, what is
+    queued and whether it is consented.
+
 ### SPEC_KITTY_ENABLE_SAAS_SYNC
 
 Opt in to hosted auth, tracker, and sync flows.
+
+**Scope**: machine-global (see the warning above). Enabling it is not a
+per-repository decision.
 
 **Purpose**: Enables the SaaS-backed readiness path. Leave it unset for fully local CLI workflows.
 
@@ -132,6 +163,10 @@ spec-kitty auth login
 ### SPEC_KITTY_SAAS_URL
 
 Override the Spec Kitty SaaS base URL.
+
+**Scope**: machine-global (see the warning at the top of this section). Combined
+with `SPEC_KITTY_ENABLE_SAAS_SYNC`, exporting this in a shell points every
+project that shell touches at the named instance.
 
 **Purpose**: Point auth, tracker discovery, and sync clients at a specific hosted environment such as a dev deployment.
 
