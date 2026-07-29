@@ -1,6 +1,6 @@
 ---
 title: "Delivery-reachability wiring table (FR-015)"
-description: "One row per candidate artefact: its proposed inbound source, that source's MEASURED action-reachability (via WP08's helper), and the wire/defer disposition under C-007. The deferred set is the operator's decision surface."
+description: "Per candidate artefact: proposed inbound source, its measured action-reachability (WP08 helper), and the C-007 wire/defer disposition; the deferred set is the decision surface."
 doc_status: active
 updated: '2026-07-29'
 related:
