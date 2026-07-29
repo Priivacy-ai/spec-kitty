@@ -20,8 +20,7 @@
       ],
       "predicted_surfaces": [
         "api",
-        "artifact-rendering",
-        "tests"
+        "artifact-rendering"
       ],
       "depends_on_lanes": [],
       "parallel_group": 0
@@ -186,7 +185,6 @@
         "tests"
       ],
       "depends_on_lanes": [
-        "lane-a",
         "lane-e"
       ],
       "parallel_group": 2
@@ -232,7 +230,7 @@
       "parallel_group": 4
     }
   ],
-  "computed_at": "2026-07-29T10:05:16.606269+00:00",
+  "computed_at": "2026-07-29T10:12:40.329615+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": []
 }

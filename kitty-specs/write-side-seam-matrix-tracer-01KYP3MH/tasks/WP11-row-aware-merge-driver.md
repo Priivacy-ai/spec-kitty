@@ -3,7 +3,6 @@ work_package_id: WP11
 title: Row-aware matrix merge driver
 dependencies:
 - WP05
-- WP01
 requirement_refs:
 - FR-008
 - FR-002
@@ -60,7 +59,7 @@ Replace the whole-file "more-filled-side" acceptance/issue-matrix merge drivers 
 ## Context
 
 - Grounding **refuted** the "row-aware" claim: `spec-kitty-acceptance-matrix`/`-issue-matrix` are whole-file `_write_more_filled_side` (`merge_driver.py:333/347/357`); only `-traces`/`-event-log` union. This WP builds genuine row-aware drivers over the WP05 structured schema.
-- The driver MUST be **3-way base-aware** (`%O`/`%A`/`%B`) — a 2-way merge cannot distinguish an added row from a deleted row and re-leaks clobber. This is why this WP has a **hard dependency on WP01** (a real common ancestor); without a shared `%O` the driver degrades to 2-way and the SC-003 durability regression is false-green.
+- The driver MUST be **3-way base-aware** (`%O`/`%A`/`%B`) — a 2-way merge cannot distinguish an added row from a deleted row and re-leaks clobber. **`%O` is topology-resolved** (adjudicated 2026-07-29, see `contracts/merge-driver-algorithm.md` + WP01-T001): it is the git merge-base blob on the **seam-resolved matrix surface for the active topology** — coord lineage under coord topology (this mission), primary/`target_branch` lineage under flat. Matrices are COORD-partitioned and, under coord topology, **serialize onto the single coord worktree** (`commit_router.py:248-306`) — they never diverge on lane branches, so **FR-008 durability does NOT depend on WP01's primary lane base**. The WP01 hard edge is dropped; WP11 needs only a real (non-synthetic) `%O` from the resolved consolidation lineage.
 - The issue-matrix driver pattern in `lanes/merge.py` is currently `kitty-specs/**/issue-matrix.md` — repoint to `issue-matrix.json`. The acceptance-matrix pattern is already `.json`.
 - **#2970 (E1):** `merge_driver.py` has 5 S2083 BLOCKER path-injection findings — fold the hardening here, **red-first**, without weakening the merge contract (Sonar attack-vector-campsite doctrine).
 
@@ -80,8 +79,8 @@ Rewrite the acceptance + issue-matrix drivers per the algorithm contract: 3-way 
 ### T042 — Tests (driver-unit, synthetic %O)
 `tests/specify_cli/cli/commands/test_row_aware_merge_driver.py`: disjoint-row union (two lanes, different keys → no clobber); stale-residue (base row deleted on one side, untouched on the other → dropped); same-field divergence → structured conflict (no silent pick, no abort); **intra-side duplicate-key** (two raw rows on one side normalizing to the same key → structured error/deterministic dedupe, never silent drop); byte-determinism (shuffled input order → identical output); #2970 path-injection regression. These construct `%O`/`%A`/`%B` synthetically and pass **regardless of WP01** — they prove the algorithm, not the durability.
 
-### T045 — SC-003 durability-integration regression (gated on WP01)
-The WP11→WP01 edge exists so the driver's `%O` is a **real** common ancestor, not a synthetic fixture. Add the integration test that actually bites: a real-git two-lane consolidation where a lane worktree is created from the **recorded planning SHA** (WP01), two lanes write **disjoint** matrix rows, and after consolidation **both rows survive** via the row-aware driver — zero clobber, zero silent reversion (SC-003). This test is meaningful only once WP01 has landed; without a shared `%O` the driver degrades to 2-way and this is where that would surface. **Gate:** this subtask depends on WP01's ADR decision (T001) of **which partition supplies the merge `%O`** — primary lane lineage (WP01's SHA) vs the coord surface where matrices are routed by FR-007. If the ADR resolves it the coord way, this test seeds `%O` from the coord surface accordingly and the WP11→WP01 coupling is via the recorded-SHA lane base only. Do not write this test against a synthetic base.
+### T045 — SC-003 durability-integration regression (real `%O` from the resolved surface)
+Add the integration test that actually bites (T042's unit tests use synthetic `%O` and pass regardless). Seed `%O` from the **seam-resolved matrix surface for the active topology**, NOT a synthetic base and NOT WP01's lane SHA: for this mission's **coord** topology, drive a real-git merge whose base is the **coord-branch** matrix blob, with two divergent sides writing **disjoint** rows, and assert both rows survive via the row-aware driver — zero clobber, zero silent reversion (SC-003). Also cover the **flat-topology** case (matrices on `target_branch`, `%O` from the target lineage) since that is where lane-branch divergence actually occurs. Because matrices serialize onto the single coord worktree under coord topology (`commit_router.py:248-306`), document that the coord-topology disjoint-row case is a coord-surface / coord↔target-integration merge, not a lane→mission 3-way. No dependency on WP01 (matrix `%O` is coord-lineage, orthogonal to the primary lane base).
 
 ## Branch Strategy
 
@@ -92,7 +91,7 @@ Both planning and merge target are `feat/write-side-seam-matrix-tracer`. Allocat
 - `ruff`/`mypy` clean; complexity ≤ 15; all five test cases green.
 
 ## Risks / Reviewer guidance
-- **3-way, not 2-way** — verify `%O` is actually used; the durability regression is meaningless without WP01's common ancestor.
+- **3-way, not 2-way** — verify `%O` is actually used and drawn from the **seam-resolved matrix surface for the active topology** (coord lineage here), not a synthetic base and not WP01's primary lane SHA.
 - Verify the migration is a **new** file (not a mutation of `m_3_2_6`).
 - The #2970 fix must not weaken any merge-reconciliation rule.
 - **Commit each slice** (#2970 repro+fix, drivers, registration) so worktree progress is durable.

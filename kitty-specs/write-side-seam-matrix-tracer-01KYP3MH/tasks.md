@@ -15,7 +15,7 @@
 
 ## Lane / sequencing overview
 
-- **Lane A** — WP01 (FR-009 lane-base topology, ADR-first). Independent. Hard predecessor of WP11's SC-003 durability regression (edge WP11 → WP01).
+- **Lane A** — WP01 (FR-009 lane-base topology, ADR-first). Independent. Governs **PRIMARY-partition planning** durability only; per the E-B adjudication (2026-07-29) it is **not** a predecessor of WP11's matrix durability regression (matrix `%O` is coord-resolved).
 - **Lane B** — WP02 (FR-010 coord-authority gate + `decisions/emit.py` Move A, **atomic**). Independent: per D-6 the `write_target`-routed writers are gate-invisible, so **no other WP depends on WP02**. Routing `emit.py` off the allow-list and re-pinning the census floor (4→3) is a single atomic change (ADR `2026-06-26-1-single-authority-seam-and-call-site-gate` Move A).
 - **Lane C** — WP03 (seam core) → WP04/05/07/10 (writers, dep WP03 core) → WP08 (discovery+gate+reader switch, dep WP05 only — read-only, no seam write) → WP09 (dep WP08) → WP06 (completeness, dep WP05/08/09) → WP11 (driver, dep WP05/WP01). The `write_target`-routed writers depend on the WP03 **core**, not on Lane B; the read-only consumers (WP08/09/06) depend on WP05's canonical reader.
 
@@ -80,7 +80,7 @@
 | T042 | Tests (driver-unit, synthetic %O): disjoint-row union, stale-residue, same-field conflict, intra-side dup-key, byte-determinism, #2970 regression | WP11 | |
 | T043 | Reader switch (C-008/B-1): doctor `check_issue_matrix` + `tasks_parsing_validation.py` → dir-based `load_issue_matrix`, delete `.md` `.exists()` precheck; deprecate dead single-file `detect_issue_references` | WP08 | |
 | T044 | Reader switch (C-008/B-1): post-merge review `_evaluate_issue_matrix` → dir-based `load_issue_matrix`, delete `.md` `.exists()` precheck | WP09 | |
-| T045 | SC-003 durability-integration regression: real-git two-lane consolidation over recorded-SHA base, disjoint matrix rows both survive via row-aware driver (gated on WP01 + its `%O`-partition ADR decision) | WP11 | |
+| T045 | SC-003 durability-integration regression: real-git merge seeding `%O` from the seam-resolved matrix surface per topology (coord lineage here; + a flat-topology case), disjoint rows both survive via row-aware driver — no WP01 dep (E-B) | WP11 | |
 
 ---
 
@@ -150,7 +150,7 @@
 **Prompt**: [tasks/WP11-row-aware-merge-driver.md](./tasks/WP11-row-aware-merge-driver.md)
 **Goal**: Replace the whole-file "more-filled-side" drivers with row-aware, base-aware drivers over the structured JSON; fold #2970 path-injection hardening; fix driver registration at all 3 sites.
 **Priority**: P2. **Independent test**: two lanes editing disjoint rows union with no clobber; a base row deleted on one side is dropped; #2970 injection regression is red-first.
-**Subtasks**: T039–T042, T045. **Depends on**: WP05, **WP01** (T045 durability-integration regression needs the common-ancestor base + the ADR's `%O`-partition decision). **Risk**: row-key stability + intra-side collision; #2970 fix must not weaken the merge contract. **~300 lines.**
+**Subtasks**: T039–T042, T045. **Depends on**: WP05 (WP01 dep dropped per E-B — T045 seeds `%O` from the seam-resolved coord surface, orthogonal to the PRIMARY lane base). **Risk**: row-key stability + intra-side collision; #2970 fix must not weaken the merge contract. **~300 lines.**
 
 ---
 
