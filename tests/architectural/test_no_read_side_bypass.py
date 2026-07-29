@@ -933,55 +933,17 @@ _ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
             "not a reason to skip classifying the site)."
         ),
     ),
-    # ---- WP08 (T039, reconciliation item #5 from research/expected-reds.md):
-    # ---- decisions/emit.py:71 was WP02's ONE migrate-fail-loud
-    # ---- resolve_feature_dir_for_mission finding (STATUS_STATE), deliberately
-    # ---- NOT allow-listed at the time -- expected-red pending a later WP's
-    # ---- route. WP04's reviewer (opus) adjudicated the two authorities:
-    # ---- test_resolution_authority_gates.py's coord-authority gate
-    # ---- (WP01-owned) independently, PERMANENTLY sanctions this exact call
-    # ---- as a legitimate coord-owned write bypass
-    # ---- (_COORD_WRITE_BY_DESIGN / COORD_AUTHORITY_WRITE_FLOOR) -- routing it
-    # ---- is directory-identical in every fixture cell; the only delta is the
-    # ---- exception TYPE on a deleted coord branch (ActionContextError ->
-    # ---- CoordinationBranchDeleted), a fail-loud GAIN, not a divergence. Full
-    # ---- routing needs gate-owner work this WP's charter does not cover:
-    # ---- teach the coord-authority gate the seam idiom (recognise
-    # ---- read_dir(<COORD kind>) as a coord-owned write), re-token its YAML
-    # ---- entry, and transfer COORD_AUTHORITY_WRITE_FLOOR per the
-    # ---- DIRECTIVE_043 precedent (see test_resolution_authority_gates.py's
-    # ---- coord_authority allow-list, qualname _mission_dir, PERMANENT
-    # ---- fixture). Per the WP08 prompt's own escape hatch ("if that is more
-    # ---- than this WP should carry, allow-list it... do NOT leave it an
-    # ---- unexplained census offender"), this WP takes the ALLOW-LIST path:
-    # ---- sanctioned here as a coord-owned write, tracked for the eventual
-    # ---- routing at
-    # ---- https://github.com/Priivacy-ai/spec-kitty/issues/3055 (gate-owner
-    # ---- follow-up: teach the coord-authority gate the seam idiom for
-    # ---- decisions/emit.py:71).
-    ContentDescriptor(
-        rel_path="src/specify_cli/decisions/emit.py",
-        qualname="_mission_dir",
-        token_substring="resolve_feature_dir_for_mission ( repo_root , mission_slug )",
-        occurrence=None,
-        rationale=(
-            "WP08 (T039, reconciliation item #5): legitimate coord-owned "
-            "write that bypasses commit_for_mission by design -- the SAME "
-            "call test_resolution_authority_gates.py's coord-authority gate "
-            "(WP01-owned) independently and PERMANENTLY sanctions "
-            "(_COORD_WRITE_BY_DESIGN, qualname _mission_dir). WP04's reviewer "
-            "confirmed routing is directory-identical in every cell "
-            "(coord-materialized / coord-branch-no-worktree / deleted-coord); "
-            "the only delta is the exception type on a deleted branch "
-            "(ActionContextError -> CoordinationBranchDeleted), a fail-loud "
-            "gain. Full routing needs gate-owner work (teach the "
-            "coord-authority gate the seam idiom, re-token its YAML entry, "
-            "transfer COORD_AUTHORITY_WRITE_FLOOR per DIRECTIVE_043) that is "
-            "out of this WP's charter -- allow-listed per the WP08 prompt's "
-            "own escape hatch rather than left an unexplained offender. "
-            "Tracked: https://github.com/Priivacy-ai/spec-kitty/issues/3055."
-        ),
-    ),
+    # ---- decisions/emit.py:71 (_mission_dir) is intentionally ABSENT here.
+    # ---- The read-side-seam-primary-primitive-closure mission left it an
+    # ---- expected-red `migrate-fail-loud` site; a later reviewer allow-listed
+    # ---- it pending gate-owner work (#3055). The write-side-seam-matrix-tracer
+    # ---- mission (WP02, FR-010 "Move A") then ROUTED it: `_mission_dir` now
+    # ---- resolves through `placement_seam(...).read_dir(STATUS_STATE)`, so the
+    # ---- `resolve_feature_dir_for_mission ( repo_root , mission_slug )` call no
+    # ---- longer exists in emit.py. It is a COMPLETED migration, not an
+    # ---- allow-listed offender -- keeping a descriptor here would resolve to 0
+    # ---- findings and red the census on a vacuous key. The ledger's
+    # ---- `resolve_feature_dir_for_mission` summary drops 8/7 -> 7/6 to match.
 )
 
 #: Composite key resolved LIVE for each ``_ALLOW_LIST_SEED`` entry (parallel,
