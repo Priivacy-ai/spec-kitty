@@ -60,6 +60,8 @@ from reachability_fixtures.nominal_wiring import (
     nominal_wiring_graph,
 )
 
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
+
 #: Repo root — tests/doctrine/drg/ is three levels down.
 _REPO_ROOT: Path = Path(__file__).resolve().parents[3]
 

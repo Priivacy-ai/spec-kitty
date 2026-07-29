@@ -23,8 +23,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from charter import progressive_disclosure as pd
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+
+pytestmark = [pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

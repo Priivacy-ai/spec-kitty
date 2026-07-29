@@ -23,11 +23,15 @@ import dataclasses
 from collections.abc import Mapping
 from pathlib import Path
 
+import pytest
+
 from charter import context
 from charter.drg import filter_graph_by_activation
 from charter.pack_context import PackContext
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.query import resolve_context
+
+pytestmark = [pytest.mark.fast]
 
 _ACTION_URN = "action:demo/build"
 
