@@ -7,6 +7,7 @@
   "mission_number": null,
   "mission_slug": "write-side-seam-matrix-tracer-01KYP3MH",
   "mission_type": "software-dev",
+  "pr_bound": true,
   "purpose_context": "Consumers running Spec Kitty missions hit friction when agents hand-edit acceptance/issue matrices (burning inference to reconstruct file shape) and when lane worktrees cannot cleanly record findings. This mission gives those writes deterministic commands that route through the placement seam to the correct branch surface, extending PR #3060's read-side unification to the write side, so matrix and tracer state land correctly and survive merge.",
   "purpose_tldr": "Deterministic CLI commands write matrix verdicts and lane findings, routed through the placement seam to the correct branch surface so mission status stops breaking on consolidation.",
   "slug": "write-side-seam-matrix-tracer-01KYP3MH",
