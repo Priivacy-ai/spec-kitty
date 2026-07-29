@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-07-28'
+updated: '2026-07-29'
 ---
 # Changelog
 
@@ -772,9 +772,46 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   (lenient) read contracts (#2465). No user-facing behaviour change; pinned by
   seam-only + cores-no-I/O architectural tests and a characterization safety net over
   implement / review / accept / next.
+- **Read-side placement seam closure: the last unpoliced primitive is gone
+  (#2886, #3014; closes the read-side placement-seam migration opened by
+  #2922/#2921).** The #2922 migration above left one gap on purpose — its own
+  gate coverage bounds named `primary_feature_dir_for_mission` as unpoliced,
+  because the wrapper itself, and the ~34 call sites still composing a
+  mission's primary directory by calling it directly, hadn't been routed
+  through the seam yet. They are now: every one of those call sites asks
+  `placement_seam(root, slug).read_dir(<kind>)` for the artifact kind it
+  actually wants, instead of asking a topology-blind wrapper to guess a path
+  from a slug. The terminal `KITTY_SPECS_DIR` assembler survives as the
+  seam's own module-private leaf — the one place still allowed to compose a
+  path, because something has to. One behavioural nuance was accepted rather
+  than papered over: on a backfilled mission where the old blind composition
+  returned a directory that does not exist, the seam now recovers the real
+  bare-`<slug>` directory instead of repeating the miss (identity-confirmed,
+  not just path-shaped). A new architecture reference,
+  [`docs/architecture/artifact-placement-seam.md`](../architecture/artifact-placement-seam.md),
+  documents the L0–L4 read-placement layering end to end; `branch-target-routing.md`
+  is narrowed to the branch-target sense now that placement has its own home.
+  Governed by ADR
+  [2026-06-24-1](../adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md)
+  and ADR
+  [2026-07-23-1](../adr/3.x/2026-07-23-1-surface-vocabulary-two-domains-and-topology-surface-rename.md);
+  no new architectural decision was needed.
 
 ### 💥 Breaking Changes
 
+- **`primary_feature_dir_for_mission` is removed; importing it now raises
+  `ImportError` (#2886, #3014).** It was the last kind-blind wrapper left over
+  from before the read-side placement seam (#2922): callers passed it a slug
+  and it guessed a mission's primary directory by path composition, with no
+  artifact-kind awareness and no way to fail loud when the guess was wrong. The
+  invariant "reads go through the seam" is now structural rather than
+  counted — there is no bypass left to police, so the gate that used to name it
+  as an accepted gap has nothing left to accept. If you imported this function
+  directly (an internal API, but importable), replace the call with
+  `placement_seam(root, slug).read_dir(<kind>)` for the artifact kind you
+  actually need; see the Changed entry above and
+  [`docs/architecture/artifact-placement-seam.md`](../architecture/artifact-placement-seam.md)
+  for the read-placement layering it now goes through.
 - **An org doctrine pack whose agent profile carries an unrecognised key now
   fails to load (mission `doctrine-silence-guards`).** Agent profiles and DRG
   nodes and edges used to accept keys the code did not know about and drop them,
