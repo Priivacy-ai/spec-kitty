@@ -26,6 +26,7 @@ import pytest
 import requests
 
 from specify_cli.delivery.receivers import (
+    BATCH_ENDPOINT_PATH,
     DeliveryOutcome,
     DeliveryReceiver,
     DeliveryResult,
@@ -551,7 +552,9 @@ def test_single_project_batch_still_delivers() -> None:
     receiver = TeamspaceReceiver(resolved_server_url=SERVER_URL, auth_token=_TOKEN, poster=_ok)
     results = receiver.deliver([_evt("e1", "aaaaaaaa-0000-0000-0000-000000000001")])
 
-    assert len(seen) == 1
+    assert seen == [SERVER_URL + BATCH_ENDPOINT_PATH], (
+        "a single-project batch must POST exactly once, to the batch endpoint"
+    )
     assert [r.outcome for r in results] == [DeliveryOutcome.SUCCESS]
 
 
@@ -579,7 +582,10 @@ def test_identity_less_events_do_not_count_as_a_project_at_this_seam() -> None:
     receiver = TeamspaceReceiver(resolved_server_url=SERVER_URL, auth_token=_TOKEN, poster=_ok)
     results = receiver.deliver([_evt("e1", "aaaaaaaa-0000-0000-0000-000000000001"), _evt("e2", None)])
 
-    assert len(seen) == 1, "a single-project batch with a legacy row still delivers"
+    assert seen == [SERVER_URL + BATCH_ENDPOINT_PATH], (
+        "a single-project batch with a legacy row still delivers, once, to the "
+        "batch endpoint"
+    )
     assert {r.outcome for r in results} == {DeliveryOutcome.SUCCESS}
 
 
