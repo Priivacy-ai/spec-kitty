@@ -262,6 +262,13 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_3_2_6_meta_traces_merge_drivers",  # auto-discovered (#2709)
         "specify_cli.upgrade.migrations.m_3_2_6_decisions_event_log_merge_driver",  # auto-discovered (#2709)
         "specify_cli.upgrade.migrations.m_3_2_6_retire_rtk_search_tooling",  # auto-discovered (#3009)
+        # doctrine-delivery-reachability-01KYMXD6 WP07/T037 (FR-018): normalizes
+        # absent activated_<kind> keys to explicit [] in the resolved activation
+        # store. Auto-discovered via pkgutil.iter_modules + @MigrationRegistry
+        # .register (decorator on NormalizeActivationAbsenceMigration); never
+        # statically imported by runtime code -- same sibling shape as the
+        # m_3_2_6_* migrations above.
+        "specify_cli.upgrade.migrations.m_3_2_x_normalize_activation_absence",
         # runtime-state-corpus-cutover-01KXZ0AX WP02 (FR-010, #2816): auto-discovered
         # corpus cutover migration for existing deployments. Auto-discovered via
         # pkgutil.iter_modules + @MigrationRegistry.register; never statically
