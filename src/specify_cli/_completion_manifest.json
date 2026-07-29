@@ -720,6 +720,23 @@
        "deprecated": false
       }
      }
+    },
+    "asset": {
+     "help": "Resolve shipped and overlay doctrine assets (no install — C-002).",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "list": {
+       "help": "List all resolvable doctrine assets and their source tiers.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "path": {
+       "help": "Resolve an asset identifier to a filesystem path (fail-closed on miss).\n\nExits ``0`` and prints the path on success. An unknown id or a containment\nrefusal exits non-zero with the offending id named (A-7 / NFR-006).",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
     }
    }
   },
