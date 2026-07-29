@@ -579,7 +579,7 @@ def test_flat_topology_disjoint_rows_survive_real_git_merge_base(tmp_path: Path)
 
 
 # ---------------------------------------------------------------------------
-# T041 -- m_3_2_7 registration migration (upgraded repos)
+# T041 -- m_3_2_6_issue_matrix_driver_repoint registration migration (upgraded repos)
 # ---------------------------------------------------------------------------
 #
 # The .gitattributes/init/registry parity itself is covered generically by
@@ -589,34 +589,34 @@ def test_flat_topology_disjoint_rows_survive_real_git_merge_base(tmp_path: Path)
 # the migration's own detect/apply/idempotency behavior directly -- mirroring
 # ``tests/upgrade/migrations/test_m_3_2_6_meta_traces_merge_drivers.py``.
 
-from specify_cli.upgrade.migrations.m_3_2_7_issue_matrix_driver_repoint import (  # noqa: E402
+from specify_cli.upgrade.migrations.m_3_2_6_issue_matrix_driver_repoint import (  # noqa: E402
     IssueMatrixDriverRepointMigration,
 )
 
 _ISSUE_MATRIX_JSON_ENTRY = "kitty-specs/**/issue-matrix.json merge=spec-kitty-issue-matrix"
 
 
-def test_m_3_2_7_migration_is_a_new_file_not_a_mutation_of_m_3_2_6() -> None:
+def test_m_3_2_6_issue_matrix_driver_repoint_is_a_new_file_not_a_mutation_of_gate_artifact() -> None:
     """Reviewer guidance: verify the migration is a NEW file, not an edit of
     the historical ``m_3_2_6_gate_artifact_merge_drivers``."""
-    import specify_cli.upgrade.migrations.m_3_2_6_gate_artifact_merge_drivers as m_3_2_6
-    import specify_cli.upgrade.migrations.m_3_2_7_issue_matrix_driver_repoint as m_3_2_7
+    import specify_cli.upgrade.migrations.m_3_2_6_gate_artifact_merge_drivers as m_3_2_6_gate
+    import specify_cli.upgrade.migrations.m_3_2_6_issue_matrix_driver_repoint as m_3_2_6_repoint
 
-    assert m_3_2_6.__file__ != m_3_2_7.__file__
-    assert m_3_2_6.GateArtifactMergeDriverMigration.migration_id == "3.2.6_gate_artifact_merge_drivers"
-    assert m_3_2_7.IssueMatrixDriverRepointMigration.migration_id == "3.2.7_issue_matrix_driver_repoint"
+    assert m_3_2_6_gate.__file__ != m_3_2_6_repoint.__file__
+    assert m_3_2_6_gate.GateArtifactMergeDriverMigration.migration_id == "3.2.6_gate_artifact_merge_drivers"
+    assert m_3_2_6_repoint.IssueMatrixDriverRepointMigration.migration_id == "3.2.6_issue_matrix_driver_repoint"
     # The historical migration's issue-matrix.md driver entry is untouched
     # (inert on repos that already ran it -- WP05 means no .md is ever
     # written any more, but the historical record is not rewritten).
     assert any(
-        d.pattern == "kitty-specs/**/issue-matrix.md" for d in m_3_2_6._DRIVERS
+        d.pattern == "kitty-specs/**/issue-matrix.md" for d in m_3_2_6_gate._DRIVERS
     )
     assert any(
-        d.pattern == "kitty-specs/**/issue-matrix.json" for d in m_3_2_7._DRIVERS
+        d.pattern == "kitty-specs/**/issue-matrix.json" for d in m_3_2_6_repoint._DRIVERS
     )
 
 
-def test_m_3_2_7_migration_detects_and_applies_json_attribute(tmp_path: Path) -> None:
+def test_m_3_2_6_issue_matrix_driver_repoint_migration_detects_and_applies_json_attribute(tmp_path: Path) -> None:
     subprocess.run(["git", "init", "-q", "-b", "main"], cwd=str(tmp_path), check=True)
     migration = IssueMatrixDriverRepointMigration()
 
@@ -630,7 +630,9 @@ def test_m_3_2_7_migration_detects_and_applies_json_attribute(tmp_path: Path) ->
     assert migration.detect(tmp_path) is False  # idempotent: nothing left to apply
 
 
-def test_m_3_2_7_migration_repoints_a_repo_still_on_the_stale_md_driver(tmp_path: Path) -> None:
+def test_m_3_2_6_issue_matrix_driver_repoint_migration_repoints_a_repo_still_on_the_stale_md_driver(
+    tmp_path: Path,
+) -> None:
     """A repo that already ran ``m_3_2_6`` (so it has the OLD ``.md`` driver
     config + attribute) still needs repointing -- ``detect`` must see the
     stale config/attribute mismatch, not just "config present"."""
