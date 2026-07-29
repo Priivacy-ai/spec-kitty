@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-07-29T07:40:24.146593Z",
+      "decision_id": "01KYPD2HPJTCWBB5V24GDPANNF",
+      "final_answer": "JSON. Single canonical artifact per matrix (acceptance-matrix.json, issue-matrix.json); NO issue-matrix.md render \u2014 the dashboard parses JSON directly for display. Avoids duplicate files that confuse operator/agents.",
+      "input_key": "matrix_storage_format",
+      "mission_id": "01KYP3MHBPB22TGAT5VRRPT66G",
+      "mission_slug": "write-side-seam-matrix-tracer-01KYP3MH",
+      "opened_by": "cli",
+      "options": [
+        "JSON",
+        "YAML",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Structured matrix storage format: JSON or YAML?",
+      "rationale": null,
+      "resolved_at": "2026-07-29T07:44:55.289545Z",
+      "resolved_by": null,
+      "slot_key": "plan.matrix.storage-format",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-07-29T07:40:25.311669Z",
+      "decision_id": "01KYPD2JTZXX9B033EW9QVM7Y3",
+      "final_answer": "Migrate-on-write + failover-read (read legacy issue-matrix.md when issue-matrix.json is absent), via a shared migration sub-module that also backs a dedicated bulk-migration command for one-shot swap-over.",
+      "input_key": "issue_matrix_backcompat",
+      "mission_id": "01KYP3MHBPB22TGAT5VRRPT66G",
+      "mission_slug": "write-side-seam-matrix-tracer-01KYP3MH",
+      "opened_by": "cli",
+      "options": [
+        "dual-read-and-migrate",
+        "forward-only",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Back-compat for existing markdown issue-matrix.md: dual-read+migrate or forward-only?",
+      "rationale": null,
+      "resolved_at": "2026-07-29T07:44:56.408024Z",
+      "resolved_by": null,
+      "slot_key": "plan.matrix.issue-backcompat",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KYP3MHBPB22TGAT5VRRPT66G",
+  "version": 1
+}
