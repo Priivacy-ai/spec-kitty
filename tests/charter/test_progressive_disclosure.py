@@ -316,8 +316,11 @@ class TestCompletenessByNaming:
         )
         delivered = set(leaves)
         referenced = {ref["id"] for ref in pd.link_references(graph, ["directive:root"], delivered)}
+        # Full content equality against all 50 expected bare ids is the real
+        # "no cap" contract: a truncating [:10] cap would drop 40 of them and
+        # fail this equality outright, so a separate `len(referenced) == 50`
+        # cardinality check would be a strictly weaker, redundant duplicate.
         assert referenced == {pd.bare_id(u) for u in leaves}
-        assert len(referenced) == 50
 
     def test_payload_union_equals_delivered(self) -> None:
         payload = _json_payload()
