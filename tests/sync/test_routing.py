@@ -219,16 +219,19 @@ def test_sync_enabled_denies_when_routing_is_unresolvable(
     assert routing_module.is_sync_enabled_for_checkout() is False
 
 
-def test_absence_of_consent_record_does_not_gate_capture(
+def test_absence_of_consent_record_denies_capture_and_delivery(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A checkout with NO consent record still CAPTURES (NFR-005, capture-first).
+    """A checkout with NO consent record denies, for capture AND delivery.
 
-    FR-002's "absence denies" is scoped to **delivery**. This resolver is also
-    read by the emit-time gate, so denying here would suppress capture and drop
-    events at write time. Measured cost of getting this wrong: 39 regressions
-    across tests/sync. The deny-by-default predicate belongs at the delivery
-    seam (WP06) and on the body-upload drain (WP11), not here.
+    This assertion was inverted on 2026-07-28 and corrected on 2026-07-29. The
+    earlier version asserted capture still proceeds, on capture-first grounds
+    (NFR-005 as originally written). The operator has since ruled that capture
+    yields: a non-consenting project's events must never reach the journal
+    (#3031 Defect 3), so NFR-005 now applies only to consenting projects.
+
+    Pinned upstream by
+    ``test_sync_consent_default_deny.py::test_unconfigured_checkout_does_not_consent_to_sync``.
     """
     repo_root = tmp_path / "never-opted-in"
     repo_root.mkdir()
@@ -243,4 +246,4 @@ def test_absence_of_consent_record_does_not_gate_capture(
     assert routing is not None
     assert routing.local_sync_enabled is None
     assert routing.repo_default_sync_enabled is None
-    assert routing.effective_sync_enabled is True
+    assert routing.effective_sync_enabled is False
