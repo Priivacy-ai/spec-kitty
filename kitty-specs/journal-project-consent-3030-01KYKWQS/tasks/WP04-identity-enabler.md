@@ -32,6 +32,7 @@ owned_files:
 - tests/event_journal/test_identity_migration_3030.py
 - tests/sync/test_project_identity_resolver_3030.py
 - tests/sync/test_journal_identity_backfill_3030.py
+- tests/delivery/test_incident_reproduction_3030.py
 tags: []
 tracker_refs: []
 ---
