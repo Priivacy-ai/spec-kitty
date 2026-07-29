@@ -139,17 +139,86 @@ and `/accept` — WP09 authored only the single minimal edge needed for
 reachability). This is a **known** migration, inherited deliberately, not a
 surprise.
 
+## Family A (#3063 DDD family) — operator interview outcome, WIRED
+
+The #3063 operator interview ATTESTED the Domain-Driven Design family (C-007(a)
+satisfied by operator ruling). Hub: `paradigm:domain-driven-design`. Fourteen
+edges land in `HAND_AUTHORED_EDGES`:
+
+| # | source | relation | target | delivers reachability? |
+|---|---|---|---|---|
+| A1 | `action:software-dev/specify` | **`scope`** | `paradigm:domain-driven-design` | **yes — the reaching edge** |
+| A2–A11 | `paradigm:domain-driven-design` | `requires` | the 10 DDD members below | yes, transitively via A1 |
+| A12 | `agent_profile:architect-alphonso` | `suggests` | `paradigm:domain-driven-design` | no — composition-only (inert) |
+| A13 | `agent_profile:paula-patterns` | `suggests` | `paradigm:domain-driven-design` | no — composition-only (inert) |
+| A14 | `agent_profile:randy-reducer` | `suggests` | `paradigm:domain-driven-design` | no — composition-only (inert) |
+
+The 10 `requires` members (A2–A11), each attested as DDD in its **own** text:
+`tactic:bounded-context-identification`, `tactic:context-mapping-classification`,
+`tactic:context-boundary-inference`, `tactic:bounded-context-canvas-fill`,
+`tactic:strategic-domain-classification`, `tactic:aggregate-boundary-design`,
+`tactic:entity-value-object-classification`, `tactic:domain-event-capture`,
+`tactic:anti-corruption-layer`, `styleguide:aggregate-design-rules`.
+
+### ⚠️ The specify edge is `scope`, NOT `suggests` (relation correction)
+
+The #3063 wiring instruction named the specify→paradigm edge `suggests` **and**
+required it to change action reachability + move the pinned unreachable sets.
+Those two are contradictory, and the contradiction is resolved by **measurement**
+(WP08 helper, R-1): a `suggests` edge whose SOURCE is an `action` node is **inert**
+— `resolve_context` walks `suggests` only from scope-resolved artifacts, never
+from the action node itself (`query.resolve_context` steps 2/3 seed from
+`scoped_artifacts`). Measured: `specify --suggests--> ddd` leaves `d=1`/`d=2`
+unchanged (118/125); `specify --scope--> ddd` grows both by 12. Only `scope`
+delivers — exactly the WP09 precedent (`documentation/generate --scope--> 042`).
+The `§3` mandate ("this edge DOES change action reachability; update the pins")
+is satisfiable **only** by `scope`, so the edge is authored as `scope` and the
+`suggests` label is corrected here. C-007: (a) DDD's own summary attests aligning
+code with a deep domain model — what the software-dev specify step does; (b) the
+source is an `action` node (C-007(b) clause 2).
+
+### Attestation audit — what was EXCLUDED as non-attested
+
+- `tactic:reference-architectural-patterns` — its own text is *general* reference-
+  architecture selection by quality attributes (scalability/consistency/latency),
+  with no DDD content. NOT a DDD member; the `requires` edge is **not** authored.
+- `tactic:compositional-stream-boundaries`, `tactic:cross-cutting-state-via-store`,
+  `tactic:atomic-state-ownership` — state/UI concerns, not DDD strategic/tactical
+  design. Left out (per the #3063 ambiguity guard).
+
+### DEFERRED — the DDD↔documentation mutual-reinforcement edge (B1)
+
+Not authored: the DDD↔documentation mutual-reinforcement relationship is **gated
+on the upcoming value-based edge properties (B1)** and is left **pending** until
+that lands. Recorded here, not wired.
+
+### Measured reachability delta (WP08 helper, R-1)
+
+`d=1` action-reachable 118→130; `d=2` 125→137 (each +12). The twelve that become
+action-reachable and leave BOTH `_ACTION_UNREACHABLE_D1`/`D2`:
+`paradigm:domain-driven-design`, `directive:DIRECTIVE_031`, `directive:DIRECTIVE_032`
+(the paradigm's pre-existing `directive_refs`, delivered once it is scoped),
+`styleguide:aggregate-design-rules`, `tactic:aggregate-boundary-design`,
+`tactic:anti-corruption-layer`, `tactic:bounded-context-canvas-fill`,
+`tactic:bounded-context-identification`, `tactic:context-boundary-inference`,
+`tactic:context-mapping-classification`, `tactic:domain-event-capture`,
+`tactic:entity-value-object-classification`.
+`tactic:strategic-domain-classification` was already action-reachable, so it is
+delivered but moves no pin. The profile channel is unchanged (measured 39→39): the
+three `agent_profile --suggests--> ddd` edges are inert, and the DDD paradigm stays
+profile-unreachable so its new `requires` edges deliver nothing there.
+
 ## The deferred set (T052) — the operator's decision surface
 
-These **72** activated artefacts remain action-unreachable at `d=2` after row 1
-lands. Each fails C-007(b): no action-reachable source with a textually-attested
+These **60** activated artefacts remain action-unreachable at `d=2` after row 1
+(WP09) and Family A (#3063) land. Each fails C-007(b): no action-reachable source with a textually-attested
 relationship, and no `scope`-from-action path whose relationship is attested
 without invention. **This is not a filed issue** — it is the surface the
 after-mission operator interview rules on (C-007). Wiring any of these now would
 mean either wiring to an unreachable source (#3007's error) or inventing a
 relationship (the guard T050 forbids).
 
-### Note: 10 of the 72 are edge-incident from a reachable source, depth-gated
+### Note: 5 of the 60 are edge-incident from a reachable source, depth-gated
 
 The following already carry an inbound edge **from an action-reachable source**,
 but the edge is `suggests` (or a `requires` chain) that sits **beyond the
@@ -158,31 +227,27 @@ They are **not orphans** and are **not** wiring candidates: the relationship
 already exists as an edge; "fixing" them would mean upgrading `suggests`→`requires`
 (claiming a hard dependency the text does not attest) or deepening the bootstrap
 walk — both are traversal-policy decisions for the operator, not edge authoring.
+(Five former rows — `DIRECTIVE_032`, `anti-corruption-layer`,
+`bounded-context-identification`, `context-mapping-classification`,
+`domain-event-capture` — left this table when Family A (#3063) made them
+action-reachable via the DDD paradigm.)
 
 | artefact | reachable inbound source (relation) |
 |---|---|
-| `directive:DIRECTIVE_032` | `tactic:paula-patterns-architecture-scout-review` (suggests) |
 | `procedure:example-mapping-workshop` | `procedure:bdd-scenario-lifecycle` (requires) |
-| `tactic:anti-corruption-layer` | `tactic:paula-patterns-architecture-scout-review` (suggests) |
-| `tactic:bounded-context-identification` | `tactic:strategic-domain-classification` (suggests) |
-| `tactic:context-mapping-classification` | `tactic:strategic-domain-classification` (suggests) |
-| `tactic:domain-event-capture` | `tactic:paula-patterns-architecture-scout-review` (suggests) |
 | `tactic:ownership-map-leeway` | `styleguide:planning-and-tracking` (suggests) |
 | `tactic:pr-agent-worktree-isolation` | `directive:DIRECTIVE_043` (suggests) |
 | `tactic:zombies-tdd` | `tactic:delete-the-assertion-not-the-test` (suggests) |
 | `toolguide:github-tracker` | `styleguide:planning-and-tracking` (suggests) |
 
-### Full deferred set (72), by kind — directive 6 · paradigm 5 · procedure 5 · styleguide 5 · tactic 43 · toolguide 8
+### Full deferred set (60), by kind — directive 4 · paradigm 4 · procedure 5 · styleguide 4 · tactic 35 · toolguide 8
 
-  - `directive:DIRECTIVE_031`
-  - `directive:DIRECTIVE_032`
   - `directive:DIRECTIVE_035`
   - `directive:DIRECTIVE_038`
   - `directive:DIRECTIVE_039`
   - `directive:DIRECTIVE_044`
   - `paradigm:atomic-design`
   - `paradigm:c4-incremental-detail-modeling`
-  - `paradigm:domain-driven-design`
   - `paradigm:specification-by-example`
   - `paradigm:structured-prompt-driven-development`
   - `procedure:documentation-gap-prioritization`
@@ -190,32 +255,23 @@ walk — both are traversal-policy decisions for the operator, not edge authorin
   - `procedure:event-storming-discovery`
   - `procedure:example-mapping-workshop`
   - `procedure:migrate-project-guidance-to-spec-kitty-charter`
-  - `styleguide:aggregate-design-rules`
   - `styleguide:deployable-skill-authoring`
   - `styleguide:java-conventions`
   - `styleguide:mutation-aware-test-design`
   - `styleguide:reasons-canvas-writing`
   - `tactic:adversarial-qa-handoff`
-  - `tactic:aggregate-boundary-design`
   - `tactic:analysis-extract-before-interpret`
-  - `tactic:anti-corruption-layer`
   - `tactic:architecture-diagram-review-checklist`
   - `tactic:atdd-adversarial-acceptance`
   - `tactic:atomic-design-review-checklist`
   - `tactic:atomic-state-ownership`
-  - `tactic:bounded-context-canvas-fill`
-  - `tactic:bounded-context-identification`
   - `tactic:c4-zoom-in-architecture-documentation`
   - `tactic:canonical-source-unification`
   - `tactic:chain-of-responsibility-rule-pipeline`
   - `tactic:code-documentation-analysis`
   - `tactic:compositional-stream-boundaries`
-  - `tactic:context-boundary-inference`
-  - `tactic:context-mapping-classification`
   - `tactic:cross-cutting-state-via-store`
   - `tactic:development-bdd`
-  - `tactic:domain-event-capture`
-  - `tactic:entity-value-object-classification`
   - `tactic:formalized-constraint-testing`
   - `tactic:mutation-testing-workflow`
   - `tactic:occurrence-classification-workflow`
@@ -274,3 +330,39 @@ number moves silently.
   `_PROFILE_RESCUES` are unaffected (the profile channel is unchanged, and the 6
   are profile-unreachable too). Orphan sets are unaffected (042 and the asset were
   already edge-incident). Ledgered in that module's docstring.
+
+## Composition ledger (NFR-004) — Family A (#3063 DDD family)
+
+Fourteen authored edges. Each moved count is recorded so no golden number moves
+silently.
+
+- **Shipped-graph edges 782 → 796** (+14). `len(HAND_AUTHORED_EDGES)` 18 → 32. The
+  pure-extraction golden counts (`_EXPECTED_NODE_COUNT=304`, `_EXPECTED_EDGE_COUNT=764`)
+  are **unchanged** — all fourteen are overlay-authored — so
+  `test_extractor_projection`'s byte-identical assertion stays green once the
+  fragments are regenerated (`764 + 32 = 796`). Ledger entry (9) is added to that
+  module's composition ledger.
+- **Relation histogram**: `requires` 262 → 272 (+10 paradigm→member edges),
+  `suggests` 337 → 340 (+3 profile→paradigm edges), `scope` 158 → 159 (+1 reaching
+  edge). All three are gated by
+  `tests/architectural/test_no_authored_applies_edge.py::TestPositiveCountClaimsAreTrue`
+  and mirrored char-for-char in `RELATION_DESCRIPTIONS` (`doctrine.drg.models`) and
+  `docs/architecture/doctrine-relationships.md`; all updated.
+- **`_ACTION_UNREACHABLE_D1` and `_ACTION_UNREACHABLE_D2`** each **lose the same 12
+  members**: `paradigm:domain-driven-design`, `directive:DIRECTIVE_031`,
+  `directive:DIRECTIVE_032`, `styleguide:aggregate-design-rules`,
+  `tactic:aggregate-boundary-design`, `tactic:anti-corruption-layer`,
+  `tactic:bounded-context-canvas-fill`, `tactic:bounded-context-identification`,
+  `tactic:context-boundary-inference`, `tactic:context-mapping-classification`,
+  `tactic:domain-event-capture`, `tactic:entity-value-object-classification`. The
+  `d1↔d2` spread stays 7 (same members removed from both).
+  `tactic:strategic-domain-classification` was already reachable, so it moves no
+  pin.
+- **`_PROFILE_UNREACHABLE` unchanged** (profile channel measured 39→39). **`_PROFILE_RESCUES`
+  loses 4** (`directive:DIRECTIVE_031`, `directive:DIRECTIVE_032`,
+  `tactic:anti-corruption-layer`, `tactic:domain-event-capture`) — the action
+  channel now covers them, so they are no longer profile-only rescues.
+- **Orphan sets unaffected** — every one of the 14 endpoints was already
+  edge-incident.
+- **Deferred set 72 → 60** (directive 6→4, paradigm 5→4, styleguide 5→4, tactic
+  43→35; procedure 5 and toolguide 8 unchanged).

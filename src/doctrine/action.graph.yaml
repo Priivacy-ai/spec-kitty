@@ -548,6 +548,10 @@ edges:
   target: directive:DIRECTIVE_010
   relation: scope
 - source: action:software-dev/specify
+  target: paradigm:domain-driven-design
+  relation: scope
+  reason: The software-dev specify step aligns the mission design with architectural intent; Domain-Driven Design is the paradigm that governs aligning that design with a deep model of the business domain (DDD's own summary). This scope edge is the reaching entry point that makes the DDD paradigm action-reachable at the specify grain and delivers its strategic-design family transitively (#3063 family-A). It is `scope` not `suggests` because a suggests edge sourced at an action node is inert under resolve_context.
+- source: action:software-dev/specify
   target: tactic:requirements-validation-workflow
   relation: scope
 - source: action:software-dev/specify
