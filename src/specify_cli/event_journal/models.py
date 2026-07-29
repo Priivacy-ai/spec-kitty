@@ -32,11 +32,17 @@ COL_DRAIN_BLOCKED_REASON = "drain_blocked_reason"
 # journal still knows nothing about *where* an event would be delivered.
 COL_PROJECT_UUID = "project_uuid"
 COL_PROJECT_SLUG = "project_slug"
+# The consent key in today's storage: machine-global consent is recorded as
+# ``[sync.repo_defaults."<repo_slug>"]``. Carried on the row so the drain can
+# resolve consent without standing in the checkout (#3030 WP06, operator decision
+# 2026-07-30). project_slug is derived and can collide, so it is reporting-only and
+# must never be used as an authorization key.
+COL_REPO_SLUG = "repo_slug"
 
 #: Columns added after the original 8-column schema shipped. ``_ensure_schema``
 #: ALTERs any journal file that predates them (#3030 T010). Additive and
 #: nullable only (C-001), never dropped or retyped (C-002).
-IDENTITY_COLUMNS: tuple[str, ...] = (COL_PROJECT_UUID, COL_PROJECT_SLUG)
+IDENTITY_COLUMNS: tuple[str, ...] = (COL_PROJECT_UUID, COL_PROJECT_SLUG, COL_REPO_SLUG)
 
 # Canonical column order shared by INSERT params and SELECT projection so
 # ``journal.py`` never hand-codes column order (T013 step 4).
@@ -51,6 +57,7 @@ ORDERED_COLUMNS: tuple[str, ...] = (
     COL_DRAIN_BLOCKED_REASON,
     COL_PROJECT_UUID,
     COL_PROJECT_SLUG,
+    COL_REPO_SLUG,
 )
 
 _COLUMN_LIST = ", ".join(ORDERED_COLUMNS)
@@ -69,7 +76,8 @@ CREATE_TABLE_SQL = (
     f"    {COL_ARCHIVED_AT} TEXT,\n"
     f"    {COL_DRAIN_BLOCKED_REASON} TEXT,\n"
     f"    {COL_PROJECT_UUID} TEXT,\n"
-    f"    {COL_PROJECT_SLUG} TEXT\n"
+    f"    {COL_PROJECT_SLUG} TEXT,\n"
+    f"    {COL_REPO_SLUG} TEXT\n"
     ")"
 )
 
@@ -98,9 +106,29 @@ SELECT_MISSING_IDENTITY_SQL = (
     f"WHERE {COL_PROJECT_UUID} IS NULL ORDER BY {COL_CREATED_AT} ASC, {COL_EVENT_ID} ASC"
 )
 SET_IDENTITY_SQL = (
-    f"UPDATE {TABLE_NAME} SET {COL_PROJECT_UUID} = ?, {COL_PROJECT_SLUG} = ? "  # noqa: S608 — identifiers are static module constants
+    f"UPDATE {TABLE_NAME} SET {COL_PROJECT_UUID} = ?, {COL_PROJECT_SLUG} = ?, {COL_REPO_SLUG} = ? "  # noqa: S608 — identifiers are static module constants
     f"WHERE {COL_EVENT_ID} = ? AND {COL_PROJECT_UUID} IS NULL"
 )
+# T017 (#3030 FR-008/NFR-003): the project-filtered read is an **identity
+# projection** — event_id, created_at, project_uuid and the blocked reason, with
+# NO payload BLOB and NO LIMIT.
+#
+# No LIMIT is load-bearing, not an oversight. ``ledger.select_undelivered``
+# fetches the full terminal-id set and slices the already-filtered universe, so
+# pushing a LIMIT into this SQL would let already-delivered terminal rows fill the
+# window and then be stripped by the ledger — an empty selection while consented
+# undelivered rows sit behind them. That is exactly the starvation NFR-002 bans,
+# and the ledger is a separate SQLite file so no join can rescue it.
+#
+# No payload BLOB because an unlimited read that still materialised every payload
+# of a 100k-row project would satisfy NFR-003's letter and miss its point.
+# Payloads are hydrated via read_by_id over the ledger-selected batch only.
+SELECT_IDENTITY_PROJECTION_SQL = (
+    f"SELECT {COL_EVENT_ID}, {COL_CREATED_AT}, {COL_PROJECT_UUID}, {COL_REPO_SLUG}, "  # noqa: S608 — identifiers are static module constants
+    f"{COL_DRAIN_BLOCKED_REASON} FROM {TABLE_NAME} "
+    f"ORDER BY {COL_CREATED_AT} ASC, {COL_EVENT_ID} ASC"
+)
+
 COUNT_MISSING_IDENTITY_SQL = (
     f"SELECT COUNT(*) FROM {TABLE_NAME} WHERE {COL_PROJECT_UUID} IS NULL"  # noqa: S608 — identifiers are static module constants
 )
@@ -168,6 +196,7 @@ class Event:
     drain_blocked_reason: str | None = None
     project_uuid: str | None = None
     project_slug: str | None = None
+    repo_slug: str | None = None
 
 
 def event_to_params(event: Event) -> tuple[Any, ...]:
@@ -183,6 +212,7 @@ def event_to_params(event: Event) -> tuple[Any, ...]:
         event.drain_blocked_reason,
         event.project_uuid,
         event.project_slug,
+        event.repo_slug,
     )
 
 
@@ -204,6 +234,7 @@ def row_to_event(row: tuple[Any, ...]) -> Event:
         drain_blocked_reason=None if row[7] is None else str(row[7]),
         project_uuid=None if row[8] is None else str(row[8]),
         project_slug=None if row[9] is None else str(row[9]),
+        repo_slug=None if row[10] is None else str(row[10]),
     )
 
 
@@ -215,6 +246,7 @@ __all__ = [
     "CREATE_TYPE_INDEX_SQL",
     "COUNT_SQL",
     "IDENTITY_COLUMNS",
+    "SELECT_IDENTITY_PROJECTION_SQL",
     "SELECT_MISSING_IDENTITY_SQL",
     "SET_IDENTITY_SQL",
     "TABLE_NAME",

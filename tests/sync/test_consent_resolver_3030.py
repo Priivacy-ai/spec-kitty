@@ -340,5 +340,11 @@ def test_precedence_order_is_pinned() -> None:
     assert PROJECT_CONSENT_PRECEDENCE == (
         ConsentLevel.PROJECT_LOCAL,
         ConsentLevel.MACHINE_INDEX,
+        # Added 2026-07-30: repo-slug-keyed defaults are where `sync enable
+        # --remember` has always written, so they are the only record many projects
+        # have. Below the uuid index (which is project-specific, where a repo
+        # default covers every checkout of a repo) and above the env var (a real
+        # per-repo decision, not machine-wide arming).
+        ConsentLevel.REPO_DEFAULT,
         ConsentLevel.ENV,
     )

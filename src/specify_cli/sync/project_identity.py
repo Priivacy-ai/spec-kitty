@@ -180,7 +180,7 @@ def backfill_journal_identity(journal: Any) -> IdentityBackfillResult:
     import json
 
     pending = journal.iter_rows_missing_identity()
-    entries: list[tuple[str, str | None, str | None]] = []
+    entries: list[tuple[str, str | None, str | None, str | None]] = []
     unresolved = 0
 
     for event_id, raw_payload in pending:
@@ -196,7 +196,13 @@ def backfill_journal_identity(journal: Any) -> IdentityBackfillResult:
         if project_uuid is None:
             unresolved += 1
             continue
-        entries.append((event_id, project_uuid, resolve_event_project_slug(envelope)))
+        repo_slug = None
+        if isinstance(envelope, dict):
+            raw_repo = envelope.get("repo_slug")
+            repo_slug = str(raw_repo).strip() or None if raw_repo else None
+        entries.append(
+            (event_id, project_uuid, resolve_event_project_slug(envelope), repo_slug)
+        )
 
     updated = journal.set_project_identity(entries)
     return IdentityBackfillResult(updated=updated, unresolved=unresolved)

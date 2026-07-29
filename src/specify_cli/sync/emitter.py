@@ -1970,6 +1970,11 @@ class EventEmitter:
         ``capture_teamspace_bound`` via its unused ``skip_journal`` parameter
         would leave every real capture unconditional while looking fixed.
         """
+        from .project_identity import (
+            resolve_event_project_slug,
+            resolve_event_project_uuid,
+        )
+
         try:
             gate = self._capture_gate_state(team_slug)
             if not gate.checkout_enabled:
@@ -1991,6 +1996,11 @@ class EventEmitter:
                 payload=payload_bytes,
                 occurred_at=occurred_at,
                 gate=gate,
+                # Resolved through T011's single chain so the stored column and the
+                # backfill can never disagree (NFR-001).
+                project_uuid=resolve_event_project_uuid(event),
+                project_slug=resolve_event_project_slug(event),
+                repo_slug=event.get("repo_slug"),
             )
         except Exception as exc:
             _console.print(f"[yellow]Warning: event journal capture failed: {exc}[/yellow]")

@@ -50,6 +50,7 @@ from specify_cli.delivery.receivers import (
 )
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
+from .selection import selectable_event_ids
 
 if TYPE_CHECKING:
     from specify_cli.delivery.interfaces import DeliveryTarget
@@ -211,16 +212,31 @@ def _select_undelivered(
     past events that made no progress this pass); it never changes durable ledger
     state, so the ledger's non-terminal re-selection contract is preserved.
     """
-    universe = journal.read_all()
-    by_id = {event.event_id: event for event in universe}
+    # T017/T018 (#3030 FR-007/FR-008): the universe is built from the identity
+    # projection and filtered by consent BEFORE the ledger query and before any
+    # limit. Previously this was ``journal.read_all()`` — every row of every
+    # project, with no project predicate anywhere — which is the seam the
+    # 2026-07-27 leak went through.
+    #
+    # Ordering is load-bearing: consent filtering must precede the ledger's limit,
+    # or 2,000 non-consented rows ahead of 10 consented ones fill the window and
+    # the drain starves permanently (NFR-002/SC-002).
+    identity_rows = journal.read_identity_projection()
+    eligible = selectable_event_ids(identity_rows)
+    universe_ids = [
+        event_id for event_id in eligible if event_id not in exclude
+    ]
+
     selected_ids = ledger.select_undelivered(
         target_id=target_id,
-        event_universe=[
-            event.event_id for event in universe if event.event_id not in exclude
-        ],
+        event_universe=universe_ids,
         limit=limit,
     )
-    return [by_id[event_id] for event_id in selected_ids]
+
+    # Payloads are hydrated only for the batch the ledger actually selected, so an
+    # unlimited universe read never materialises every payload (NFR-003).
+    hydrated = [journal.read_by_id(event_id) for event_id in selected_ids]
+    return [event for event in hydrated if event is not None]
 
 
 # --------------------------------------------------------------------------- #
