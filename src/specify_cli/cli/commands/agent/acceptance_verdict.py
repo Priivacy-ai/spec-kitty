@@ -26,7 +26,6 @@ re-implemented here.
 
 from __future__ import annotations
 
-import json
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -40,6 +39,7 @@ from specify_cli.acceptance.matrix import (
     read_acceptance_matrix,
     write_and_commit_acceptance_matrix,
 )
+from specify_cli.agent_tasks_ports import RealRender
 from specify_cli.cli.console import console
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.task_utils import TaskCliError, find_repo_root
@@ -50,7 +50,11 @@ _RED_ERROR_PREFIX = "[red]Error:[/red] "
 
 
 def _emit_json(payload: dict[str, object]) -> None:
-    print(json.dumps(payload))
+    # Routed through the sanctioned RealRender.json_envelope adapter — the ONE
+    # blessed json.dumps home in the agent command surface (FR-007 /
+    # test_no_inline_json_dumps_outside_allowlist); never an inline json.dumps
+    # here (tasks-py-degod-wave2-01KWH9EQ contracts/gate-contracts.md Gate 1).
+    print(RealRender().json_envelope(payload))
 
 
 def _emit_error(message: str, *, json_output: bool) -> None:

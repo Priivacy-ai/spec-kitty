@@ -12,11 +12,11 @@ which the seam then stages onto the coordination branch (#2980 / #2549).
 
 from __future__ import annotations
 
-import json
 from typing import Annotated
 
 import typer
 
+from specify_cli.agent_tasks_ports import RealRender
 from specify_cli.cli.console import console
 from specify_cli.core.paths import (
     get_feature_target_branch,
@@ -42,7 +42,12 @@ _CATEGORY_HELP = "Tracer category: " + " | ".join(sorted(TRACER_CATEGORIES))
 
 def _emit(payload: dict[str, object], *, json_output: bool, ok: bool) -> None:
     if json_output:
-        print(json.dumps(payload))
+        # Routed through the sanctioned RealRender.json_envelope adapter — the
+        # ONE blessed json.dumps home in the agent command surface (FR-007 /
+        # test_no_inline_json_dumps_outside_allowlist); never an inline
+        # json.dumps here (tasks-py-degod-wave2-01KWH9EQ
+        # contracts/gate-contracts.md Gate 1).
+        print(RealRender().json_envelope(payload))
         return
     if ok:
         console.print(f"[green]✓[/green] {payload.get('row_or_entry_ref', '')}")
