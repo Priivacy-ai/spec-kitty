@@ -335,4 +335,4 @@ def issue_verdict_command(
         raise typer.Exit(1)
 
 
-__all__ = ["IssueVerdictError", "do_issue_verdict", "issue_verdict_command"]
+__all__ = ["issue_verdict_command"]

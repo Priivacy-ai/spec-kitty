@@ -7,7 +7,8 @@ from specify_cli.cli.commands import profiles_cmd
 from specify_cli.cli.commands.agent_retrospect import app as retrospect_app
 from specify_cli.cli.commands.decision import decision_app
 
-from . import config, context, issue_verdict, mission, release, status, tasks, tests, workflow
+from . import config, context, mission, release, status, tasks, tests, workflow
+from .issue_verdict import issue_verdict_command
 from .tracer_append import tracer_append
 
 app = typer.Typer(
@@ -35,7 +36,7 @@ app.add_typer(
     help="Compatibility alias for listing agent profiles",
     hidden=True,
 )
-app.command(name="issue-verdict")(issue_verdict.issue_verdict_command)
+app.command(name="issue-verdict")(issue_verdict_command)
 
 
 @app.command(name="check-prerequisites", hidden=True)
