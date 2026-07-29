@@ -14,7 +14,9 @@ requirement_refs:
 planning_base_branch: feat/doctrine-delivery-reachability
 merge_target_branch: feat/doctrine-delivery-reachability
 branch_strategy: Planning artifacts for this mission were generated on feat/doctrine-delivery-reachability. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/doctrine-delivery-reachability unless the human explicitly redirects the landing branch.
-created_at: '2026-07-28T19:48:12Z'
+base_branch: kitty/mission-doctrine-delivery-reachability-01KYMXD6
+base_commit: 32d37437da55f5fbab87288587c6ac9e82a4fe17
+created_at: '2026-07-28T20:51:19.263906+00:00'
 subtasks:
 - T001
 - T002

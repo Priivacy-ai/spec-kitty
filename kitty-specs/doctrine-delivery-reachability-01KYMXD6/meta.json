@@ -12,5 +12,7 @@
   "purpose_tldr": "Make declared doctrine actually reach the agents and consumers that need it, instead of validating cleanly and going nowhere.",
   "slug": "doctrine-delivery-reachability-01KYMXD6",
   "target_branch": "feat/doctrine-delivery-reachability",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-28T20:51:16.372790+00:00"
 }
