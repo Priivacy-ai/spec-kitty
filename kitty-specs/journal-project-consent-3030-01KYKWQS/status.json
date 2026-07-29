@@ -83,7 +83,8 @@
       "last_transition_at": "2026-07-29T22:38:41.600737+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "T001,T006,T010-T013 done. 6 failed/2320 passed; capture-gap pin now GREEN, 2 new SC-001 reds land deliberately red per charter standing order 9."
+        "T001,T006,T010-T013 done. 6 failed/2320 passed; capture-gap pin now GREEN, 2 new SC-001 reds land deliberately red per charter standing order 9.",
+        "T001,T006,T010-T013 verified; 6 failed/2320 passed"
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
