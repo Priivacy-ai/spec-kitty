@@ -9,6 +9,7 @@ from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import charter_app, console
 from specify_cli.cli.commands.charter._common import _emit_error
+from specify_cli.core.time_utils import now_utc_iso
 
 # Test-patch shim — see ``synthesize.py``.
 import specify_cli.cli.commands.charter as _charter_pkg
@@ -154,8 +155,6 @@ def charter_lint(
     # existing graph load remains authoritative for findings — but the
     # call enforces FR-005 hard-fails as a lint gate.
     if org_fragments:
-        import datetime as _dt
-
         from charter.drg import (
             DRGGraph,
             OrgDRGConflict,
@@ -165,7 +164,7 @@ def charter_lint(
 
         empty_built_in = DRGGraph(
             schema_version="1.0",
-            generated_at=_dt.datetime.now(_dt.UTC).isoformat(),
+            generated_at=now_utc_iso(),
             generated_by="charter-lint",
             nodes=[],
             edges=[],

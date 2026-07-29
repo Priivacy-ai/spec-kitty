@@ -761,17 +761,19 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   (create-if-absent); an existing curated companion is left byte-for-byte untouched,
   preserving the #2772 never-clobber invariant. `charter.md` remains display-only, never a
   resolving input. ADR 2026-07-18-1 amended.
-- **Internal: the coord-authority trio is decomposed into ports + pure cores
-  (#2464, #2465).** The three coord-authority god-modules are restructured
-  behaviour-preservingly into the shipped Typer-shell + request-dataclass + pure-cores
-  (ports injected) + executor pattern — following `MissionResolver` (#2494) and
-  `tasks.py` (#2308): `workflow.py` → `workflow_cores.py` + `workflow_executor.py`,
-  `implement.py` → `implement_cores.py` (a `GitPort` injected and two `# noqa: C901`
-  suppressions removed), and `acceptance/` → `summary_core.py` + `gates_core.py`. The
-  trio's leaf resolvers now consume the kind-aware placement seam, preserving all three
-  (lenient) read contracts (#2465). No user-facing behaviour change; pinned by
-  seam-only + cores-no-I/O architectural tests and a characterization safety net over
-  implement / review / accept / next.
+- **Internal: the `specify_cli` aware-UTC clock contract is now enforced structurally
+  (#2496).** Follow-up to #2494's clock-consolidation sweep. Routes the remaining
+  byte-identical `datetime.now(UTC).isoformat()` "now"-stamp call sites in `specify_cli`
+  onto the single canonical `now_utc_iso()` helper, so that helper is the sole permitted
+  producer of the form. Behaviour-preserving: the `UTC` / `timezone.utc` spellings
+  serialize byte-identically under `requires-python >=3.11`. Replaces the previous
+  owned-file inventory with an **AST negative gate** over the whole `src/specify_cli`
+  tree (`tests/specify_cli/test_clock_consolidation.py`), so a module added later is
+  covered the moment it lands rather than silently regressing while the suite stays
+  green; the gate ships a self-mutant non-vacuity test and a stale-exemption check.
+  Distinct contracts are deliberately out of scope and are not flagged: the
+  second-precision `%Y-%m-%dT%H:%M:%SZ` stamp family, `isoformat(timespec=...)`,
+  naive `now()`, and the datetime-returning family.
 
 ### 💥 Breaking Changes
 
