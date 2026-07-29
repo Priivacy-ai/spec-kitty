@@ -3,77 +3,88 @@
 **Mission Branch**: `feat/write-side-seam-matrix-tracer`
 **Created**: 2026-07-29
 **Status**: Draft
-**Input**: Follow-up to PR #3060 (read-side placement-seam closure, **MERGED** `e6806f184`). Close the write/gate side of the same seam so consumer missions stop losing matrix and tracer state and stop burning inference to hand-edit matrices.
+**Input**: Follow-up to PR #3060 (read-side placement-seam closure, **MERGED** `e6806f184`). Close the write/gate side of the same seam, make the acceptance/issue matrices structured and deterministically writable, and give lanes a writable findings surface — so consumer missions stop losing matrix/tracer state and stop burning inference to hand-edit matrices.
 
-> **Pre-planning note (2026-07-29):** A profile-loaded squad (paula/architect/priti) surveyed the code post-#3060-merge. Findings and the full change rationale live in [`pre-planning-ledger.md`](./pre-planning-ledger.md). Headline: this is an **adoption** mission (route existing writers/call-sites through the existing write seam), not a construction mission. This spec has been corrected accordingly.
+> **Grounding note (2026-07-29):** Two profile-loaded squads (pre-planning + post-spec) surveyed the code on the merged base. Full findings, the write-bypass census, the merge-driver refutation, the coord-authority-gate ratchet, and the recommended lane shape live in [`pre-planning-ledger.md`](./pre-planning-ledger.md). Headline: the write **seam** already exists (`write_target`) — this is an **adoption** mission for the seam, plus deterministic **matrix tooling** (structured schema + writers + row-aware merge) and the **tracer** writer.
 
 ## Context & Motivation *(informative)*
 
-PR #3060 unified the **read** side of the artifact placement seam and deleted the `primary_feature_dir_for_mission` wrapper. Crucially, the squad confirmed the **write** seam already exists and predates the read side: `PlacementSeam.write_target(kind)` (`src/mission_runtime/resolution.py:1430`) → `resolve_placement_only(...)`, landed in ADR `2026-06-24-1`, which **explicitly rejects building a second, write-only resolver (C-006)**. #3060 caught the *read* side up to that write seam; this mission catches the *write call sites* up — an **adoption**, not a build.
+PR #3060 unified the **read** side of the placement seam and deleted the `primary_feature_dir_for_mission` wrapper. The write seam already exists and predates it: `PlacementSeam.write_target(kind)` (`resolution.py:1430`), landed in ADR `2026-06-24-1`, which **explicitly rejects a second write-only resolver (C-006)**. This mission catches the *write call sites*, the *matrix artifacts*, and the *tracer* up to that seam.
 
-Three consumer-facing pains all trace to the write side of the seam not being uniformly **adopted** (~80 seam-routed reads vs ~3 seam-routed writes today):
+Consumer-facing pains addressed:
 
-1. **Matrix edits are inference-heavy.** No *command* fronts the acceptance-matrix writer, so an agent reads product source to learn the file shape, computed fields, and negative-invariant semantics, then hand-edits JSON — burning tokens and getting it wrong.
-2. **Lanes cannot cleanly record findings.** `TRACER_FILE` is classified coord-partition but has **only a reader, no writer**; agents append into the lane worktree's `kitty-specs/`, which the lane guards warn-then-block.
-3. **Consolidation drops writes.** Execution lanes are branched off a base minted *before* planning artifacts exist, so lane writes have no common ancestor with the consolidation base and are silently reverted at merge.
+1. **Matrix editing is inference-heavy and the artifacts are semi-structured.** The acceptance-matrix is JSON but has no writing *command* (agents hand-edit it and even canonical acceptance can leave a stale `overall_verdict`); the issue-matrix is free markdown, so per-item state cannot be merged or tooled deterministically.
+2. **Issue-reference completeness is blind.** Reference discovery scans only `spec.md`, missing refs in `tasks/`/`plan.md`/etc., and there is no merge-time completeness gate; conversely a zero-reference mission is hard-failed for a matrix it should not need.
+3. **Lanes cannot cleanly record findings.** `TRACER_FILE` is coord-classified but has only a reader; lane appends trip the warn-then-block guards.
+4. **Consolidation drops writes.** Lanes branch off a base minted before planning artifacts exist (no common ancestor), and the matrix merge drivers are whole-file "keep-more-filled-side," so concurrent disjoint-row edits clobber.
 
-The unifying move: **deterministic write commands (and converged call sites) that route lane-origin writes to the correct partition surface through the existing `write_target`/`commit_for_mission` seam** — the same way status transitions already materialize lane-origin events to the coord surface. Agents stop hand-committing artifacts; the seam owns placement.
+The unifying move: **structured matrix artifacts + deterministic write commands + one write-surface seam adoption + row-aware merge + a lane-safe tracer writer**, all routing lane-origin writes to the correct partition through the existing `write_target`/`commit_for_mission` authority.
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 - Record an acceptance-matrix verdict with one deterministic command (Priority: P1)
+### User Story 1 - Record an acceptance-matrix verdict deterministically, and have canonical acceptance persist it (Priority: P1)
 
-An implementing or reviewing agent has just finished verifying a work package. It needs to record the outcome in the acceptance-matrix (per requirement / Definition-of-Done). Today it reads product source to reconstruct the file shape and hand-edits JSON. In the target state it runs a single command that sets the verdict; the command fronts the existing writer, owns the destination surface and commit, and keeps the *computed* verdict authoritative.
+A reviewing agent finishes a work package and records the acceptance-matrix outcome with one command that fronts the existing writer and routes through the seam. Separately, when a mission is canonically accepted with all criteria `pass`, the persisted `overall_verdict` must become `pass` — today it can stay stale `pending` because the writer is only called when negative invariants exist.
 
-**Why this priority**: This is the headline token-burn the mission targets and the most self-contained, live-witnessed win (#2318). It delivers value even if nothing else ships.
+**Why this priority**: Headline token-burn win (#2318) plus a live correctness bug (#2318 comment 5102989064) that misleads PR/readiness tooling.
 
-**Independent Test**: On a mission with a scaffolded acceptance-matrix, run the verdict command for one row and assert the row is updated, computed/derived fields are recomputed, negative-invariant provenance is preserved, and the agent read zero product-source files to do it.
+**Independent Test**: Run the verdict command on a scaffolded matrix and assert deterministic update with zero product-source reads. Separately, accept an all-pass/no-negative-invariant mission and assert `acceptance-matrix.json` persists `overall_verdict: "pass"`.
 
 **Acceptance Scenarios**:
-
-1. **Given** a scaffolded acceptance-matrix row in `unknown`/`pending`, **When** the agent runs the acceptance-verdict command with a result and verification method, **Then** the row is updated deterministically, derived fields are recomputed, the file validates against its negative-invariant shape, and the write lands on the surface `write_target(ACCEPTANCE_MATRIX)` dictates.
-2. **Given** an acceptance-matrix with recorded negative-invariant provenance, **When** the command writes a verdict, **Then** it materializes/routes the write without re-authoring the computed verdict semantics or stamping over existing invariant provenance.
-3. **Given** a verdict already recorded, **When** the same command is re-run with identical inputs, **Then** it is a no-op (no duplicate row, no error).
+1. **Given** a scaffolded acceptance-matrix row, **When** the agent runs the acceptance-verdict command, **Then** the row is updated deterministically via `write_target(ACCEPTANCE_MATRIX)`, derived fields recompute, negative-invariant provenance is preserved, and the computed verdict remains authoritative (never a hand-stored duplicate).
+2. **Given** an all-pass matrix with no negative invariants, **When** the mission is canonically accepted, **Then** the persisted `overall_verdict` is `pass` (regression for #2318 comment).
+3. **Given** a verdict already recorded, **When** the command re-runs with identical inputs, **Then** it is a no-op.
 
 ---
 
-### User Story 2 - Capture a finding on a lane without blocking the lane (Priority: P1)
+### User Story 2 - A structured, complete, correctly-gated issue-matrix (Priority: P1)
 
-An agent implementing a work package on a lane worktree discovers a tooling-friction, approach, or design-decision note worth retaining. It needs to record that finding during implementation. Today it cannot: `TRACER_FILE` has no writer, and appending into the lane worktree trips the warn-then-block guards. In the target state a single command appends a dated, attributed finding entry that is **routed to the mission's coordination surface** via the same materialization authority status transitions use, leaving the lane branch unblocked and clean.
+An agent works with the issue-matrix as **structured data with per-item statuses** (not free markdown), discovers issue references across *all* mission artifacts (not just `spec.md`), and is neither blocked by a completeness gate that scans too little nor failed for a matrix a zero-reference mission does not need.
 
-**Why this priority**: Formalizing the lane-writable findings capture is a primary ask, and without it tracer files remain unusable on-lane (#2980/#2549).
+**Why this priority**: Makes the issue-matrix deterministically tooled/mergeable and closes three real gaps (#1738 discovery + missing merge gate; #3035 zero-reference hard-fail).
 
-**Independent Test**: From a lane worktree, run the finding-append command; assert the entry appears on the coordination surface, the lane branch has no new `kitty-specs/` commit, and a subsequent `move-task` on that lane is not blocked by the finding.
+**Independent Test**: Reference an issue only in `tasks/WP01.md`; assert discovery finds it and the structured matrix carries a row. Run post-merge review on a zero-reference mission; assert Gate 4 is `not_applicable`, not a hard fail. Set a per-item status via the command; assert the structured artifact and its rendered markdown view both update.
 
 **Acceptance Scenarios**:
-
-1. **Given** an agent on a lane worktree, **When** it appends a finding via the command, **Then** the entry is recorded on the coordination surface and no `kitty-specs/` artifact is committed to the lane branch.
-2. **Given** a finding recorded from a lane, **When** the lane later runs a status transition (`move-task`), **Then** the transition is not blocked by a `kitty-specs/` divergence.
-3. **Given** the same finding content submitted twice, **When** the append command runs again, **Then** no duplicate entry is created.
+1. **Given** an issue referenced only in `tasks/`, `plan.md`, or `contracts/`, **When** completeness is checked (approval and merge time), **Then** the reference is discovered (multi-file) and a merge-time gate enforces it (#1738).
+2. **Given** a spec with no canonical issue references, **When** post-merge review runs, **Then** Gate 4 is recorded `not_applicable` and the verdict is decided by applicable gates — no fabricated matrix required (#3035).
+3. **Given** the structured issue-matrix, **When** an agent sets a row's per-item status via the command, **Then** the structured artifact updates deterministically (routed via `write_target(ISSUE_MATRIX)`) and the rendered markdown view is regenerated.
 
 ---
 
-### User Story 3 - Writes land on the right surface and survive consolidation (Priority: P2)
+### User Story 3 - Capture a finding on a lane without blocking the lane (Priority: P1)
 
-A mission operator consolidates several lanes. Matrix verdicts, tracer findings, and status recorded during implementation must all still be present and correct after the merge — not reverted, not clobbered by a stale copy on another partition.
+An implementing agent on a lane worktree records a tooling-friction / approach / design-decision finding via a command that routes it to the coordination surface, leaving the lane branch unblocked.
 
-**Why this priority**: This is the durability guarantee that makes Stories 1 and 2 trustworthy; it depends on lanes sharing a common ancestor with the consolidation base (the #2993 P0).
+**Why this priority**: The tracer writer is the one genuine must-build; without it findings remain uncapturable on-lane (#2980/#2549).
 
-**Independent Test**: Run a representative multi-lane mission that records matrix and tracer writes during implementation, then consolidate; assert every recorded write is present and correct on the consolidated branch with zero silent reversions.
+**Independent Test**: From a lane, append a finding; assert it lands on the coordination surface, the lane branch has no new `kitty-specs/` commit, and a later `move-task` is not blocked.
 
 **Acceptance Scenarios**:
+1. **Given** an agent on a lane, **When** it appends a finding, **Then** the entry is recorded on the coordination surface with correct actor attribution and no `kitty-specs/` commit lands on the lane branch.
+2. **Given** a finding recorded from a lane, **When** the lane later runs `move-task`, **Then** the transition is not blocked by a `kitty-specs/` divergence.
+3. **Given** identical finding content submitted twice, **When** the command re-runs, **Then** no duplicate entry is created.
 
-1. **Given** an execution lane created at implement time, **When** the lane is created, **Then** its worktree branches from the planning-artifact commit so it shares a common ancestor with the consolidation base.
-2. **Given** matrix/tracer writes recorded on a lane during implementation, **When** the mission consolidates, **Then** those writes are present on the consolidated branch and not reverted.
-3. **Given** a stale matrix copy on a non-authoritative partition, **When** a fresher verdict is written, **Then** the write reconciles (via the artifact's dedicated merge driver) rather than being overwritten by the stale copy.
+---
+
+### User Story 4 - Writes land on the right surface and survive consolidation (Priority: P2)
+
+An operator consolidates several lanes; matrix, tracer, and status writes recorded during implementation are all present and correct after merge — not reverted, not clobbered, even when two lanes edited disjoint rows of the same matrix.
+
+**Why this priority**: The durability guarantee that makes Stories 1–3 trustworthy; depends on a common ancestor and row-aware merge.
+
+**Acceptance Scenarios**:
+1. **Given** an execution lane created at implement time, **When** the lane is created, **Then** it branches from the recorded planning-artifact commit so it shares a common ancestor with the consolidation base.
+2. **Given** matrix/tracer writes on a lane, **When** the mission consolidates, **Then** those writes survive with zero silent reversions.
+3. **Given** two lanes writing disjoint rows of the same structured matrix, **When** they consolidate, **Then** the rows union with no clobber (row-aware merge driver).
 
 ### Edge Cases
 
-- **Coordination surface missing** (worktree/branch removed): a lane finding or matrix write returns a structured, actionable error rather than crashing or writing partially.
-- **Target surface absent post-merge** (deleted `target_branch`): the routing **degrades gracefully** with a structured, recoverable result rather than hard-failing. The real post-merge write mode is fast-follow #3033 (out of scope, see C-006).
-- **Unknown target**: a verdict or finding command for an unknown work package returns an actionable error, not a silent no-write.
-- **Concurrent cross-lane writes** to the same coordination artifact reconcile via that artifact's **dedicated** merge driver (`spec-kitty-acceptance-matrix` / `-issue-matrix` / `-traces` / `-event-log`) — no clobber.
-- **Coord-authority gate**: routing a COORD write must satisfy the coord-authority resolution gate; teaching that gate the seam idiom is in scope (FR-010), not a bypass allow-list.
+- **Target surface absent** (deleted `target_branch` post-merge, missing coordination worktree): the write **refuses with a structured, recoverable result that discloses #3033 as the deferred fix** — never a fallback write to any surface, never a consolidation abort.
+- **Unknown target**: a verdict/finding command for an unknown WP returns an actionable error, not a silent no-write.
+- **Zero issue references**: completeness/review record `not_applicable`; the structured matrix is not fabricated.
+- **Coord-authority gate**: routing a COORD write must satisfy the coord-authority gate; teaching the gate the seam idiom (FR-010) is in scope, not a bypass allow-list.
+- **Structured-matrix compatibility**: every issue-matrix consumer (doctor, gates, review, dashboard) reads the structured form; a rendered markdown view is retained for humans/PRs.
 
 ## Requirements *(mandatory)*
 
@@ -81,90 +92,99 @@ A mission operator consolidates several lanes. Matrix verdicts, tracer findings,
 
 | ID | Title | User Story | Priority | Status |
 |----|-------|------------|----------|--------|
-| FR-001 | Deterministic acceptance-matrix verdict command | As an implementing/reviewing agent, I want a single command that fronts the existing acceptance-matrix writer, routes through `write_target(ACCEPTANCE_MATRIX)`, and keeps the computed verdict + negative-invariant provenance authoritative, so I never read product source or hand-edit JSON. | High | Open |
-| FR-002 | Issue-matrix writes route through the write-side seam (placement only) | As a maintainer, I want issue-matrix writes to resolve their COORD surface through the seam (reusing the existing single-file scaffold), so issue-matrix artifacts are never stranded on the wrong partition. The deterministic issue-matrix **verdict command** and **multi-file reference discovery** (#2583/#1738) are DEFERRED to the WP-metadata authority slice (#2093/#2400). | Medium | Open |
-| FR-003 | Lane findings (tracer) append command routed to coordination surface | As an agent on a lane, I want to append a dated, attributed finding that is routed to the mission's coordination surface (via the status-transition materialization authority) without committing to the lane branch, so findings are captured without blocking the lane. | High | Open |
-| FR-004 | Adopt the write-side seam across bypassing call sites | As a maintainer, I want the measured direct-caller write bypasses (~12 across 8 modules, per the placement-seam census) converged onto `write_target`/`commit_for_mission` — **extending** the existing write seam, never building a new resolver — so no call site hand-derives a write destination. Includes folding the already-isolated implement-claim write-partition split (#2663). | High | Open |
-| FR-005 | Lane branches from the planning-artifact commit (common ancestor) | As an operator, I want an execution lane's worktree to branch from the planning-artifact commit so that matrix/tracer/planning writes share a common ancestor with the consolidation base and are not reverted at merge. **This is a P0 structural git-topology change (#2993), ADR-gated (see C-007), bundled in this mission's core but reviewed as its own WP with explicit merge/ancestor tests.** | High | Open |
-| FR-006 | Matrix/tracer write reconciles, never clobbers a fresher cross-partition copy | As an operator, I want a matrix/tracer write to reconcile with a fresher copy on the authoritative surface (via the artifact's dedicated merge driver) rather than overwrite it, so stale partition residue cannot destroy a newer verdict (#2482). | Medium | Open |
-| FR-007 | Idempotent, re-runnable writes | As an agent, I want re-running any verdict or finding command with identical inputs to be a no-op, so retries never create duplicate rows or entries. | Medium | Open |
-| FR-008 | Structured machine-readable command results | As an orchestrator, I want each write command to emit structured output naming the resulting row/entry and destination surface, so I can consume the result without parsing prose. | Medium | Open |
-| FR-009 | Graceful degrade + actionable errors on unroutable writes | As an agent, I want a write that cannot be routed (missing coordination surface, deleted `target_branch`, unknown target) to degrade gracefully with a structured, recoverable result — never a silent partial write or an uncaught crash — so I can recover deterministically. | Medium | Open |
-| FR-010 | Teach the coord-authority gate the write-side seam idiom | As a maintainer, I want the coord-authority resolution gate to recognize the `write_target(<COORD kind>)` idiom (routing `decisions/emit.py` off the allow-list), so routing tracer/matrix COORD writes is not blocked by the gate. Enabler that unblocks FR-001/FR-003 (folds #3055). | High | Open |
+| FR-001 | Acceptance-matrix verdict command + persist-on-accept | As a reviewing agent, I want a command that fronts `write_acceptance_matrix` via `write_target(ACCEPTANCE_MATRIX)` keeping the computed verdict authoritative, AND canonical acceptance to persist the recomputed `overall_verdict` (not only when negative invariants exist), so the JSON is never stale (#2318 + comment 5102989064). | High | Open |
+| FR-002 | Structured matrix schema (acceptance + issue) | As a maintainer, I want both matrices as structured artifacts with a clear schema and accepted per-item statuses — the issue-matrix migrated from free markdown to structured JSON/YAML with a retained rendered markdown view, and all downstream readers (doctor, gates, review, dashboard) migrated to the structured form — so the tooling is deterministic and testable in isolation. | High | Open |
+| FR-003 | Deterministic issue-matrix verdict command | As an agent, I want a command that sets an issue-matrix row's per-item status/verdict on the structured artifact, routed through `write_target(ISSUE_MATRIX)`, regenerating the markdown view. | High | Open |
+| FR-004 | Multi-file issue-reference discovery + merge-time gate | As a maintainer, I want `detect_issue_references` generalized from single-`spec.md` to scan `spec.md`+`tasks/`+`plan.md`+`research.md`+`analysis-report.md`+`contracts/` (updating the three enforcement sites), and a missing issue-matrix completeness gate added to `merge_gates.py`, so load-bearing references are never invisible (#1738). | High | Open |
+| FR-005 | Zero-reference gate = not_applicable | As a maintainer, I want post-merge review + gates to record Gate 4 `not_applicable` when the spec declares no canonical issue references (same definition as finalization), retaining fail-closed when references exist, with regression for both branches (#3035). | High | Open |
+| FR-006 | Lane findings (tracer) append routed to coordination surface | As an agent on a lane, I want to append a dated, attributed finding routed to the coordination surface via `commit_for_mission` without a lane-branch `kitty-specs/` commit, so findings are captured without blocking the lane (#2980/#2549; attribution guard #2960). | High | Open |
+| FR-007 | Adopt the write-side seam across the TRUE bypass set | As a maintainer, I want the actual bypasses — caller-resolved-`feature_dir` matrix writers, the tracer writer, the four coord-authority-gate write sites, the #2663 implement-claim partition split, and the `status/emit.py` write (#2966 slice, route-only per C-003) — converged onto `write_target`/`commit_for_mission`, NOT the seam's own engine (the raw `resolve_placement_only` census is not the target). | High | Open |
+| FR-008 | Row-aware matrix merge driver | As an operator, I want the whole-file "more-filled-side" acceptance/issue-matrix merge drivers replaced by row-aware drivers over the structured schema, so concurrent disjoint-row writes union without clobber (covers #2482 AND the disjoint-row gap grounding refuted). | High | Open |
+| FR-009 | Lane branches from the recorded planning-artifact commit | As an operator, I want an execution lane's worktree to branch from the recorded finalize-tasks tip (captured in `lanes.json`/`meta.json`), not the pre-planning coord tip nor a moving target tip, so matrix/tracer/planning writes share a common ancestor with the consolidation base and are not reverted at merge (#2993). ADR-gated (C-007); own WP with merge/ancestor tests; no consolidation abort path. | High | Open |
+| FR-010 | Teach the coord-authority gate the write-side seam idiom | As a maintainer, I want `decisions/emit.py` routed off the gate allow-list (Move A, strengthening) and — only if seam-routed writers still resolve via the kind-blind resolver — the gate widened to recognize `write_target(<COORD kind>)` by def-use with an alias-bite non-vacuity test (Move B), re-pinning the census floor (4→3), so routing COORD writes is unblocked (#3055). | High | Open |
+| FR-011 | Zero-write refusal + actionable errors on unroutable writes | As an agent, I want an unroutable write (missing coord surface, deleted `target_branch`, unknown target) to return a structured, recoverable **zero-write refusal** disclosing #3033 as the deferred real fix — never a fallback write, never a consolidation abort — so I recover deterministically. | Medium | Open |
+| FR-012 | Idempotent, structured-result write commands | As an orchestrator, I want every write command to be idempotent (re-run = no-op) and to emit structured output naming the row/entry and destination surface, so retries are safe and results are machine-consumable. | Medium | Open |
 
 ### Non-Functional Requirements
 
 | ID | Title | Requirement | Category | Priority | Status |
 |----|-------|-------------|----------|----------|--------|
-| NFR-001 | Zero-inference writes | A matrix or tracer write requires zero product-source reads by the agent: the documented workflow is fully specified by CLI arguments and current mission state (0 "read module X to learn the shape" steps). | Usability | High | Open |
-| NFR-002 | Responsive commands | Each write command completes in under 3 seconds (p95) on a representative mission, so it never reads as a hang. | Performance | Medium | Open |
-| NFR-003 | Lane-safe and idempotent | Running any write command from a lane leaves zero `kitty-specs/` commits on the lane branch and no blocked/dirty state; re-running any command is a no-op. | Reliability | High | Open |
-| NFR-004 | Coverage and complexity | Every new command branch, converged call site, and the seam write path has focused unit tests executed directly; no new or modified function exceeds cyclomatic complexity 15. | Maintainability | High | Open |
-| NFR-005 | No regression of shipped invariants | The read-side seam census (`test_no_read_side_bypass.py`), the C-008 architectural gates, and the coord-authority gate (`test_resolution_authority_gates.py`) remain green; event-log status remains the sole authority for lane state. | Reliability | High | Open |
+| NFR-001 | Zero-inference writes | A matrix or tracer write requires zero product-source reads by the agent: the workflow is fully specified by CLI arguments and current mission state (0 "read module X to learn the shape" steps). | Usability | High | Open |
+| NFR-002 | Responsive commands | Each write command completes in under 3 seconds (p95) on a representative mission. | Performance | Medium | Open |
+| NFR-003 | Lane-safe and idempotent | Any write command run from a lane leaves zero `kitty-specs/` commits on the lane branch and no blocked/dirty state; re-running any command is a no-op. | Reliability | High | Open |
+| NFR-004 | Coverage and complexity | Every new command branch, converged call site, structured-schema path, merge driver, and gate change has focused unit tests executed directly; no new/modified function exceeds cyclomatic complexity 15. | Maintainability | High | Open |
+| NFR-005 | No regression of shipped invariants | The read-side seam census, the C-008 architectural gates, the coord-authority gate (`test_resolution_authority_gates.py`), and every migrated issue-matrix consumer remain green; event-log status remains the sole authority for lane state. | Reliability | High | Open |
+| NFR-006 | Backward-compatible matrix render | The structured issue-matrix always emits a human-readable rendered markdown view; no PR/readiness surface is left without a legible matrix. | Compatibility | Medium | Open |
 
 ### Constraints
 
 | ID | Title | Constraint | Category | Priority | Status |
 |----|-------|------------|----------|----------|--------|
-| C-001 | Extend the seam, never allow-list a bypass | The write path MUST reuse/extend `write_target`/`commit_for_mission`. Adding a per-command exception to the `kitty-specs/` guards, or hand-deriving a destination, is prohibited (ADR `2026-06-24-1` C-006: no parallel write resolver). | Technical | High | Open |
-| C-002 | Tracer classification unchanged | `TRACER_FILE` remains coord-partition. This mission does NOT reclassify it. Lane findings reach the coordination surface via routing, not via lane-branch commits. | Technical | High | Open |
-| C-003 | Do not rebuild the status engine | Status transitions are already deterministic (event-log is the sole authority). This mission only routes status writes through the seam and adds the acceptance-matrix + tracer writers — it does not re-implement transition logic (coordinate with #2966). | Technical | High | Open |
-| C-004 | Terminology canon | New command names, flags, and prose use canonical Mission terminology; no `feature*` aliases and no new overloaded uses of `primary`/`merge`/`routing` without naming the sense. | Business | Medium | Open |
-| C-005 | Built on merged PR #3060 | Coord topology; consolidates into `feat/write-side-seam-matrix-tracer`; PR into `upstream/main` post-consolidation. Rebased onto PR #3060 (MERGED `e6806f184`); the write path must not reference the deleted `primary_feature_dir_for_mission` wrapper. | Technical | High | Open |
-| C-006 | Explicit out-of-scope boundary | OUT of core scope, filed as fast-follows: finalize-tasks commit-destination bugs (#2938/#2937/#2930/#2802/#2643); status-writer behavioural unification (#2300/#3029/#1734/#3027); review-verdict integrity P0s (#2996/#2939, epic #3044); the **post-merge write mode #3033** (FR-009 only guards against it, does not implement it); the **issue-matrix verdict command + multi-file discovery #2583/#1738**, deferred to the WP-metadata authority slice (#2093/#2400). | Business | Medium | Open |
-| C-007 | ADR-gated structural changes | The FR-005 lane-base change and the write-side seam-adoption contract require ADR coverage citing `2026-06-24-1` (partition + no-parallel-resolver), `2026-06-24-2` (`target_branch` reads `meta.json` from the primary anchor), `2026-07-23-1` (surface vocabulary — COORD is not conditioned on topology), and `2026-07-23-2` (post-consolidation deferral). A new ADR is required for the FR-005 lane-origin base-ref change. | Technical | High | Open |
+| C-001 | Extend the seam, never allow-list a bypass | The write path MUST reuse/extend `write_target`/`commit_for_mission`. A per-command exception to the `kitty-specs/` guards, or hand-deriving a destination, is prohibited (ADR `2026-06-24-1` C-006: no parallel write resolver). | Technical | High | Open |
+| C-002 | Tracer classification unchanged | `TRACER_FILE` remains coord-partition; lane findings reach the coordination surface via routing, not lane-branch commits. | Technical | High | Open |
+| C-003 | Do not rebuild the status engine | Status transitions stay event-log-authoritative; this mission only **routes** status writes (incl. the `status/emit.py` slice of #2966) through the seam — no transition-logic re-implementation. | Technical | High | Open |
+| C-004 | Terminology canon | New command names/flags/prose use canonical Mission terminology; no `feature*` aliases; name the `primary`/`merge`/`routing` sense. | Business | Medium | Open |
+| C-005 | Built on merged PR #3060 | Coord topology; consolidates into `feat/write-side-seam-matrix-tracer`; PR into `upstream/main` post-consolidation. Rebased onto PR #3060 (MERGED `e6806f184`); must not reference the deleted `primary_feature_dir_for_mission` wrapper. | Technical | High | Open |
+| C-006 | Explicit out-of-scope boundary | OUT of core, filed as fast-follows: finalize-tasks commit-destination bugs (#2938/#2937/#2930/#2802/#2643); status-writer *behavioural* unification (#2300/#3029/#1734 — only #3027's mark-status-roster campsite is in-core); review-verdict integrity P0s (#2996/#2939, #3044); post-merge write mode **#3033** (FR-011 guards only); mission-card-as-alternative-issue-source **#1742/#1740** (`at_tension_with` — this mission commits to the scanner + structured-artifact path). | Business | Medium | Open |
+| C-007 | ADR + contracts scope | Exactly **one new ADR** (FR-009 lane-base: amends `2026-04-03-1`, cites `2026-06-24-1/-2`+`2026-07-23-2`, MUST pin a recorded base SHA — never a moving tip — and resolve whether the base carries coord-status lineage; no consolidation abort path). **Two `contracts/` docs** (FR-007 write-seam-adoption; FR-010 gate predicate-widen with an alias-bite non-vacuity proof), each citing `2026-06-24-1`, `2026-06-26-1`, `2026-07-23-1`. FR-007/FR-010 are NOT new ADRs — they implement decisions already made. | Technical | High | Open |
+| C-008 | Structured-matrix migration completeness | The issue-matrix structural migration MUST retain a rendered markdown view AND migrate every downstream consumer (doctor, gates, review, dashboard) in this mission — no consumer left reading the retired markdown-only format. | Technical | High | Open |
 
 ### Key Entities
 
-- **Acceptance-matrix row**: a per-requirement / Definition-of-Done verdict carrying a verification method and result. Its overall verdict is a **computed property** with a `PASS_PENDING_CONSOLIDATION` value and negative-invariant provenance — a writer materializes/routes it, it does not re-author the verdict.
-- **Issue-matrix row**: a per-tracked-issue traceability verdict. In this mission it is a **placement-routed artifact only**; its reference-discovery source and verdict command are owned by the WP-metadata authority slice (#2093/#2400).
-- **Tracer finding entry**: a dated, actor-attributed note in one of the finding categories (tooling-friction, approach, design-decision) captured during implementation and routed to the coord surface.
-- **Placement seam (write path)**: the **existing** authority (`write_target(kind)` → `resolve_placement_only`) that maps an artifact kind to its destination branch surface (coordination vs primary). This mission adopts it at bypassing call sites; it does not build a new one.
-- **Execution lane**: a per-lane worktree/branch created at implement time; FR-005 changes its base to the planning-artifact commit.
+- **Acceptance-matrix**: structured (JSON) per-requirement/DoD verdicts; `overall_verdict` is a computed property (never hand-stored) and must be persisted on canonical acceptance.
+- **Issue-matrix**: migrated to a **structured artifact with per-item statuses** + a rendered markdown view; rows are keyed by tracked-issue reference discovered across all mission artifacts.
+- **Tracer finding entry**: a dated, actor-attributed note (tooling-friction / approach / design-decision), routed to the coord surface.
+- **Placement seam (write path)**: the **existing** `write_target(kind)` → `resolve_placement_only` authority; this mission adopts it at bypassing call sites — it does not build a new one.
+- **Row-aware merge driver**: a merge driver operating on structured matrix rows so disjoint concurrent edits union.
+- **Execution lane**: a per-lane worktree/branch; FR-009 bases it on the recorded planning-artifact commit.
 
 ## Domain Language *(canonical terms)*
 
-- **Placement seam** — canonical. The resolver mapping artifact kind → surface (`write_target` for writes, `read_dir` for reads). Do not call it a "path helper" and do not build a second write-only resolver.
-- **Coordination (coord) partition vs primary partition** — coord holds lifecycle surfaces (status, notes, trace, issue-matrix, acceptance-matrix, move-task); primary holds stable planning (spec/plan/WP outlines). Name the partition sense explicitly.
-- **`TRACER_FILE`** — the artifact kind for lane findings; remains coord-partition in this mission.
-- **Acceptance-matrix vs issue-matrix** — distinct artifacts. Acceptance-matrix = requirement/DoD verdicts (writer in scope); issue-matrix = tracked-issue traceability (routing only here). Never conflate.
-- **Lane-origin write routing** — a write invoked from a lane worktree whose destination is materialized to the coordination surface by `commit_for_mission`, not committed to the lane branch.
+- **Placement seam** — `write_target` (writes) / `read_dir` (reads); do not build a second write-only resolver.
+- **Coordination vs primary partition** — coord = lifecycle surfaces (status, notes, trace, issue-matrix, acceptance-matrix, move-task); primary = stable planning. Name the sense.
+- **`TRACER_FILE`** — the coord-partition artifact kind for lane findings; unchanged here.
+- **Acceptance-matrix vs issue-matrix** — distinct structured artifacts; never conflate.
+- **Lane-origin write routing** — a lane-invoked write materialized to the coordination surface by `commit_for_mission`, not committed to the lane branch.
+- **Structured matrix** — a schema'd JSON/YAML artifact with per-item statuses, rendered to markdown for humans.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: An agent records an acceptance-matrix verdict with a single command and **zero product-source reads** in the documented workflow.
-- **SC-002**: **100%** of lane finding writes succeed with **zero** `kitty-specs/` commits on the lane branch and without tripping the `move-task` block.
-- **SC-003**: Across a representative multi-lane mission consolidation, matrix and tracer writes recorded during implementation survive with **zero silent reversions** (regression-tested).
-- **SC-004**: The documented "record a work-package verdict / finding" procedure is a **fixed, bounded command sequence** whose length does not grow with mission size (contrast today's open-ended source-reading loop).
-- **SC-005**: **No regression** — the read-side seam census, the C-008 architectural gates, and the coord-authority gate remain green after this mission.
+- **SC-001**: An agent records an acceptance-matrix verdict with a single command and **zero product-source reads**; canonical acceptance of an all-pass mission persists `overall_verdict: pass`.
+- **SC-002**: **100%** of lane finding writes succeed with **zero** lane-branch `kitty-specs/` commits and without tripping the `move-task` block.
+- **SC-003**: Across a representative multi-lane consolidation, matrix and tracer writes survive with **zero silent reversions**, including two lanes editing disjoint rows of the same matrix (**zero clobber**).
+- **SC-004**: The "record a verdict / finding / issue-status" procedure is a **fixed, bounded command sequence** whose length does not grow with mission size.
+- **SC-005**: Issue-reference completeness detects references across `spec.md`+`tasks/`+`plan.md`+`research.md`+`analysis-report.md`+`contracts/`; a zero-reference mission records Gate 4 `not_applicable` (no hard fail).
+- **SC-006**: **No regression** — the read-side seam census, the C-008 architectural gates, the coord-authority gate, and every migrated issue-matrix consumer remain green.
 
 ## Dependencies & Traceability *(informative)*
 
-**Built on**: PR #3060 (read-side placement-seam closure — **MERGED** `e6806f184`, closed **#2886**; **#3014 was resolved independently, not by #3060**).
-
-**Core-scope tickets** (map to requirements):
+**Built on**: PR #3060 (read-side placement-seam closure — **MERGED** `e6806f184`, closed **#2886**; **#3014 resolved independently, not by #3060**).
 
 | Ticket | Maps to | Note |
 |--------|---------|------|
-| #2318 | FR-001 | Acceptance-matrix marking CLI — fronts existing `write_acceptance_matrix`; keeps computed verdict authoritative (campsite #2743 negative-invariant integrity). |
-| #2980, #2549 | FR-003 | Lane-write barrier resolved by routing to coord, not lane commits. Campsite #2960 (attribution-blanking) for the "attributed" guarantee. |
-| #2663, #2966 (direction) | FR-004 | Fold the already-isolated implement-claim write-partition split; converge the write-bypass census onto `write_target`. |
-| #2993 | FR-005 | No-common-ancestor lane snapshot — P0, ADR-gated, own WP. Blast radius: `auto_rebase`, `merge/executor`, `merge/ordering`, dependent-lane invariant #1684. |
-| #2482 | FR-006 | Primary residue clobbers coord matrix; reconcile via the dedicated merge driver (confirm `spec-kitty-acceptance-matrix` is row-aware). |
-| #3055 | FR-010 | Coord-authority gate must recognize the seam idiom for COORD writes (routing prerequisite, folded in). |
-| #2743, #3027 (campsite) | FR-001/FR-003 | Negative-invariant semantics + mark-status roster placement dependency — in-mission campsites. |
+| #2318 (+ comment 5102989064) | FR-001 | Acceptance-matrix marking CLI + stale-`pending`-on-accept fix. Campsite #2743 (negative-invariant integrity). |
+| (structured schema) | FR-002 | Issue-matrix markdown → structured JSON/YAML + per-item statuses + rendered view + reader migration. |
+| #2583 | FR-003 | Deterministic issue-matrix verdict/per-item write (adopted from the deferred slice into core). |
+| #1738 | FR-004 | Multi-file reference discovery + missing merge-time completeness gate. |
+| #3035 | FR-005 | Zero-reference Gate 4 `not_applicable`. **Folded from samuelgoff (coordinated, reassigned); their work reused downstream.** |
+| #2980, #2549, #2960 | FR-006 | Lane-write barrier resolved by routing; attribution guard. Tracer writer is the one genuine must-build. |
+| #2663, #2966 (status/emit.py slice) | FR-007 | Fold the implement-claim partition split + route `status/emit.py`; converge the true bypass set onto `write_target`. |
+| #2482 | FR-008 | Stale-residue clobber + disjoint-row union via row-aware driver. |
+| #2993 | FR-009 | No-common-ancestor lane snapshot — P0, ADR-gated, own WP. Blast radius: `auto_rebase`, `merge/executor`, `merge/ordering`, dependent-lane invariant #1684. |
+| #3055 | FR-010 | Coord-authority gate seam idiom (routing prerequisite). |
+| #3027 (campsite) | FR-003/FR-006 | mark-status roster placement dependency — in-mission campsite only (behavioural unification stays out, C-006). |
 
-**Governance attach points** (link via `blocks`/`blocked_by`, do NOT spawn a new epic): #2160 (coord artifact authority), #1676 (deterministic authoring), #3044 (review-verdict integrity — parents the fast-follow P0s), #2017 (block-class guards).
+**Adjacent / coordinate (do not collide)**: #2465 (read-side resolver proliferation in `workflow.py` — read axis, coordinate with FR-007's write convergence in the same module), #3065 (post-#3060 read-side follow-up).
 
-**Deferred / fast-follows** (explicitly out of core): issue-matrix verdict command + multi-file discovery #2583/#1738 → WP-metadata authority slice (#2093/#2400); post-merge write mode #3033; finalize-tasks commit-destination consolidation (#2938/#2937/#2930/#2802/#2643); status-writer behavioural unification (#2300/#3029/#1734/#3027); review-verdict integrity (#2996/#2939). Gate twin #3035 (issue-matrix presence gate) travels with the deferred issue-matrix slice.
+**Governance attach points** (link via `blocks`/`blocked_by`, do NOT spawn a new epic): #2160 (coord artifact authority), #1746 (Mission Clarity Layer — home of the issue-matrix/traceability domain, where #1738 lives; add `at_tension_with #1742` for the mission-card source alternative), #1676 (deterministic authoring), #3044 (review-verdict integrity — parents the fast-follow P0s), #2017 (block-class guards).
 
 ## Assumptions
 
-- Rebased onto merged PR #3060 (`e6806f184`); the write path does not depend on the deleted `primary_feature_dir_for_mission` wrapper (verified: the symbol is gone, `write_target` intact).
-- Reconciliation is provided by **four dedicated merge drivers** (`spec-kitty-acceptance-matrix` / `-issue-matrix` / `-traces` / `-event-log`), **not** a generic union driver. FR-006's reconcile-not-clobber depends on `spec-kitty-acceptance-matrix` being row-aware — to be **confirmed** during plan, not assumed.
-- Event-log status remains the sole authority for lane state (the runtime-mutable-state eviction shipped in #2684); this mission reuses it rather than re-deriving status.
-- Governance epics #2160 / #1676 / #3044 exist; this mission attaches to them rather than creating a new epic.
-- Lane→coordination routing for findings follows the existing `commit_for_mission` materialization pattern used for lane-origin status events.
-- The canonical tracer directory literal is `"traces"` (`retrospective/generator.py`); confirm no `traces/`-vs-`ln/` naming drift with a `Read` during plan.
+- Rebased onto merged PR #3060 (`e6806f184`); the wrapper is gone, `write_target`/`write_acceptance_matrix` intact (verified).
+- The four artifact merge drivers today are `spec-kitty-{acceptance-matrix,issue-matrix,traces,event-log}`; the matrix ones are whole-file "more-filled-side" (grounding-refuted as row-aware) — FR-008 replaces them with row-aware drivers over the FR-002 structured schema.
+- Event-log status remains the sole authority for lane state (#2684 shipped); this mission routes status writes, it does not re-derive them.
+- Lane→coordination routing follows the existing `commit_for_mission` materialization; the tracer writer sits beneath the `read_dir(RETROSPECTIVE)` short-circuit and must call the leaf/`write_target` directly (Ledger-M16 recursion guard).
+- Governance epics #2160 / #1746 / #1676 / #3044 exist; this mission attaches to them rather than creating a new epic.
+- The canonical tracer directory literal is `"traces"`; confirm no `traces/`-vs-`ln/` drift with a `Read` during plan.

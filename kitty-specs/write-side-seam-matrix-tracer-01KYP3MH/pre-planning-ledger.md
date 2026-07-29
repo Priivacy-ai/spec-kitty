@@ -87,3 +87,32 @@ All four write concerns (acceptance verdict, issue verdict, tracer routing, gene
 - **D — #3055 → FOLDED into this mission.** New FR-010 teaches the coord-authority gate the write-side seam idiom (routing `decisions/emit.py` off the allow-list), unblocking FR-001/FR-003 COORD routing.
 
 **Spec corrected accordingly** (2026-07-29): FR-004 reframed to census-and-route (not "build twin"); #3014 prereq fixed; four-dedicated-merge-drivers replaces the union-driver assumption; FR-005 re-weighted P0/ADR-gated; C-007 added; #2663 folded into FR-004; FR-010 added; issue-matrix narrowed. #3060 confirmed MERGED (`e6806f184`) and rebased; `write_target`/`write_acceptance_matrix` intact, `primary_feature_dir_for_mission` gone — all extend-points verified against the merged base.
+
+---
+
+## POST-SPEC GROUNDING ADDENDUM — 2026-07-29 (paula / architect / priti, opus, on merged HEAD)
+
+Second squad grounded every corrected claim against `feat/write-side-seam-matrix-tracer` @ merged base. Facts are file:line on HEAD; the spec was re-expanded a second time from these.
+
+### Grounded facts that changed the spec
+- **FR-007 (was FR-004) TRUE bypass set ≠ the "~12 `resolve_placement_only` callers".** Those 12 are the seam's own engine (`commit_router` ×4, `write_target_degrade`, `status_transition:300` = FR-006 mirror) — the census doc itself says none is a defect. The real adoption targets: caller-resolved-`feature_dir` writers (`write_acceptance_matrix` callers `gates_core.py:492`, `post_consolidation.py:275`, `accept.py`, `backfill_provenance.py:109`), the tracer must-build, the 4 coord-authority-gate write sites (`decisions/emit.py:71`, `widen/state.py:63`, `agent_tasks_ports.py:322`, `lanes/recovery.py:765`), #2663 (`implement.py::_partition_files_for_commit`), and the `status/emit.py` write (#2966 slice).
+- **FR-008 merge-driver "row-aware" REFUTED.** `spec-kitty-acceptance-matrix`/`-issue-matrix` = whole-file `_write_more_filled_side` (`merge_driver.py:333/347/357`); only `-traces`/`-event-log` union. → operator chose to BUILD row-aware drivers on a structured schema (FR-002/FR-008).
+- **FR-010 is interlocking ratchet surgery, not a one-liner.** Routing `decisions/emit.py` off the allow-list drops the write census 4→3 (trips `COORD_AUTHORITY_WRITE_FLOOR=4`), staleness twin-guard reds the allow-list entry, `test_coord_authority_by_design_modules_classified_write` hard-asserts emit.py present, and `coord_authority_baseline:4` must re-pin. Move A (route emit.py off = STRENGTHENING) + conditional Move B (widen gate by def-use + alias-bite non-vacuity test). NOT a blocker for the new `write_target`-routed writers (gate scans only `resolve_feature_dir_for_mission`).
+- **FR-001 confirmed clean**: `overall_verdict` computed `@property`, `from_dict` excludes it (can't drift). Plus #2318 comment: `_evaluate_acceptance_matrix()` only writes on negative-invariants → stale `pending` after all-pass accept → FR-001 persist-on-accept + regression.
+- **FR-009 lane-base = ONE ADR** (amends `2026-04-03-1`). MUST pin the base to a **recorded finalize-tasks SHA** (`lanes.json`/`meta.json`), never "current tip of target_branch" (moving-tip trap), and decide whether the base carries coord-status lineage (`auto_rebase._refuse_preexisting_lane_status_deletions:460-488` reasons over coord status in the merge-base). No consolidation abort path (`2026-07-23-2`). `merge/ordering.py` is a pure frontmatter topo-sort — NOT ancestor-dependent, untouched.
+- **FR-011 zero-write condition**: the existing degrade path (`status_transition._resolve_write_target:640` → `get_feature_target_branch`) falls back to *writing* `main` — resurrects a closed defect + forecloses #3033's `CONSOLIDATED` decision. FR-011 must be a structured **zero-write refusal** that discloses #3033.
+- **C-007 narrowed**: exactly ONE new ADR (FR-009); FR-007 + FR-010 are `contracts/` citation docs, not ADRs.
+- **Defer-home fix**: issue-matrix domain re-homed #2400 → **#1746** (where #1738 lives); `at_tension_with #1742`. State: all core tickets OPEN; #3035 was samuelgoff's (now folded + reassigned, coordinated); new adjacents #2465 (read-axis, coordinate) / #3065.
+
+### SCOPE EXPANSION — 2026-07-29 (operator, post-grounding)
+Operator pulled the full issue-matrix cluster back into core and chose the structured path:
+- **FR-006 answer → BUILD row-aware driver + STRUCTURED matrix schema** (issue-matrix markdown → JSON/YAML + per-item statuses + rendered md view + migrate all readers). FR-002/FR-008.
+- **#2966 → FOLD status/emit.py route into FR-007** (route-only, C-003).
+- **#1738 (multi-file discovery + merge gate) + #3035 (zero-ref not_applicable) + #2318 comment (persist-on-accept) → IN CORE.** Reverses the earlier issue-matrix deferral; only mission-card source #1742/#1740 stays `at_tension_with`.
+- **#3035 reassigned** samuelgoff → operator, with a crediting coordination comment (their work reused downstream).
+Spec re-expanded to 12 FRs + C-008 (structured-migration completeness). Commit: (this commit).
+
+### RECOMMENDED WP/LANE SHAPE (for /plan — architect)
+- **Lane A (P0, ADR-first):** WP author FR-009 ADR → retarget lane base + merge/ancestor tests. Files: `lanes/`, `merge/`. Must land before Lane C's SC-003 regression is meaningful. No consolidation abort path.
+- **Lane B (enabler / routing prereq):** route `decisions/emit.py` off allow-list (+ conditional gate-predicate widen + non-vacuity test). FR-010. **Blocks Lane C.**
+- **Lane C (writer adoption + matrix tooling, ONE seam):** WP parameterized write-seam core → acceptance command+persist (FR-001) → structured matrix schema + reader migration (FR-002/C-008) → issue verdict command (FR-003) → multi-file discovery + merge gate (FR-004) → zero-ref not_applicable (FR-005) → tracer writer (FR-006) → census-route incl. #2663 + status/emit.py (FR-007) → row-aware driver (FR-008); FR-011/FR-012 cross-cutting. **Reject any WP giving writers independent compute-and-commit paths** (re-leaks the pre-#3060 defect). Disjoint file scopes from Lane A. Gated by Lane B.
