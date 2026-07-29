@@ -197,3 +197,4 @@ pytest-of-*/
 .kittify/mission-brief.md
 .kittify/brief-source.yaml
 .kittify/legacy-warning-shown-*
+.local/
