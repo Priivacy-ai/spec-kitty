@@ -54,6 +54,36 @@ _DIRECT_INGRESS_SKIPPED_ERROR = (
 )
 
 
+class LegacyQueueNotConvergedError(RuntimeError):
+    """Legacy queue rows remain that no drain will ever deliver (#3030 T007).
+
+    Raised instead of starting a daemon that would silently ignore them. See
+    :meth:`BackgroundSyncService._assert_legacy_queue_converged`.
+    """
+
+
+def _count_legacy_event_rows() -> int:
+    """Return the number of legacy queue *event* rows, or 0 if uncountable.
+
+    Read-only: composes the same ``detect_legacy_rows_for_scope`` helper the
+    sync preflight uses, so the daemon and ``sync now`` agree on what "legacy
+    rows remain" means rather than growing a second definition.
+    """
+    from .queue import detect_legacy_rows_for_scope, read_queue_scope_from_credentials
+
+    try:
+        # The legacy DB has no per-scope partitioning, so the callee ignores
+        # this argument; pass the active scope anyway for log context.
+        counts = detect_legacy_rows_for_scope(read_queue_scope_from_credentials() or "")
+    except Exception:
+        # An uncountable legacy DB must not be reported as "dirty" — that would
+        # wedge the daemon on an unrelated fault. The preflight reports it.
+        return 0
+
+    rows = getattr(counts, "event_rows", 0)
+    return rows if isinstance(rows, int) else 0
+
+
 def _emit_nonfatal_final_sync_diagnostic(
     diagnostic_code: SyncDiagnosticCode,
     message: str,
@@ -191,11 +221,48 @@ class BackgroundSyncService:
     _body_queue: OfflineBodyUploadQueue | None = field(default=None, init=False, repr=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
+    def _assert_legacy_queue_converged(self) -> None:
+        """Refuse to run while unmigrated legacy queue rows remain (#3030 T007).
+
+        WP02 removed the queue-backed event drain (FR-012). For rows captured
+        after ``_capture_to_journal`` (``sync/emitter.py``) that is lossless —
+        every one of them has a journal copy the dispatcher delivers. Rows that
+        predate journal capture have no such copy, and with the drain gone
+        nothing reads them and nothing reports them.
+
+        Discarding those silently is the precise failure mode this mission
+        exists to eliminate, so the daemon fails closed instead: the operator
+        runs ``spec-kitty sync migrate`` to converge them into the journal.
+        The migration is deliberately *not* run from here — it deletes
+        journal-confirmed source rows, and a background timer thread is the
+        wrong place to mutate the operator's queues unasked.
+
+        Raises:
+            LegacyQueueNotConvergedError: legacy event rows remain.
+        """
+        stranded = _count_legacy_event_rows()
+        if stranded <= 0:
+            return
+
+        message = (
+            f"Refusing to start background sync: {stranded} legacy queue event "
+            "row(s) remain that no drain will deliver. The queue-backed drain "
+            "was removed (#3030 FR-012) and these rows may have no journal "
+            "copy. Run `spec-kitty sync migrate` to converge them into the "
+            "event journal, then start sync again."
+        )
+        logger.error(message)
+        raise LegacyQueueNotConvergedError(message)
+
     def start(self) -> None:
         """Start the background sync service."""
         if not is_saas_sync_enabled():
             logger.info("%s Background sync service will remain stopped.", saas_sync_disabled_message())
             return
+
+        # T007: bind the precondition before any timer is scheduled, so the
+        # daemon can never quietly run alongside undeliverable legacy rows.
+        self._assert_legacy_queue_converged()
 
         with self._lock:
             if self._running:

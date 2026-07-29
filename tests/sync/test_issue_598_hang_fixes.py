@@ -49,6 +49,21 @@ def _reset_diagnostics():
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@pytest.fixture(autouse=True)
+def _isolate_legacy_queue(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Give every test its own runtime home so ``start()`` sees a clean legacy queue.
+
+    ``BackgroundSyncService.start()`` now refuses when unmigrated legacy queue
+    rows remain (#3030 T007). The root conftest's isolated home is shared for
+    the whole session, so rows any earlier test queues at the legacy path make
+    these lifecycle tests order-dependent — they passed alone and failed in a
+    full run. Pinning the home per test removes the coupling; tests that want
+    stranded rows create them explicitly (see
+    ``test_legacy_queue_precondition_3030.py``).
+    """
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime-home"))
+
+
 @pytest.fixture
 def full_queue(tmp_path: Path):
     """A real SQLite OfflineQueue at capacity.
