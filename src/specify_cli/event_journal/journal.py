@@ -38,12 +38,14 @@ from .models import (
     DRAIN_BLOCKED_MISSING_AUTH,
     DRAIN_BLOCKED_MISSING_TEAM,
     DRAIN_BLOCKED_SAAS_DISABLED,
+    IDENTITY_COLUMNS,
     INSERT_SQL,
     MARK_ARCHIVED_SQL,
     OLDEST_CREATED_AT_SQL,
     SELECT_ALL_SQL,
     SELECT_BLOCKED_SQL,
     SELECT_BY_ID_SQL,
+    TABLE_NAME,
     Event,
     event_to_params,
     row_to_event,
@@ -209,9 +211,35 @@ class EventJournal:
     def _ensure_schema(self) -> None:
         with contextlib.closing(self._connect()) as conn:
             conn.execute(CREATE_TABLE_SQL)
+            # #3030 T010: must run BEFORE any statement derived from
+            # ``_COLUMN_LIST``. ``CREATE TABLE IF NOT EXISTS`` is a no-op on an
+            # existing file, so without this every journal written before the
+            # identity columns existed would raise ``no such column`` on the
+            # first read.
+            self._migrate_add_identity_columns(conn)
             conn.execute(CREATE_COALESCE_INDEX_SQL)
             conn.execute(CREATE_TYPE_INDEX_SQL)
             conn.commit()
+
+    @staticmethod
+    def _migrate_add_identity_columns(conn: sqlite3.Connection) -> None:
+        """Add the project-identity columns to journals that predate them.
+
+        Additive and idempotent, mirroring the in-repo precedent at
+        ``sync/queue.py`` (``PRAGMA table_info`` → ``ALTER TABLE … ADD COLUMN``).
+        Nothing is dropped, retyped or rewritten, so an older CLI keeps reading
+        and writing the same file (C-001, C-002).
+
+        Lives inside ``_ensure_schema`` deliberately: that runs unconditionally
+        on construction, so ``get_journal``'s instance cache cannot skip it.
+        """
+        existing = {
+            row[1] for row in conn.execute(f"PRAGMA table_info({TABLE_NAME})")
+        }
+        for column in IDENTITY_COLUMNS:
+            if column not in existing:
+                conn.execute(f"ALTER TABLE {TABLE_NAME} ADD COLUMN {column} TEXT")  # noqa: S608 - identifiers are module constants, not input
+        conn.commit()
 
     def append(self, event: Event) -> None:
         """Append an event as a distinct row (idempotent on ``event_id``).

@@ -25,6 +25,19 @@ COL_COALESCE_KEY = "coalesce_key"
 COL_ARCHIVED_AT = "archived_at"
 COL_DRAIN_BLOCKED_REASON = "drain_blocked_reason"
 
+# Project identity as a *derived projection* of the envelope (#3030 FR-006).
+# The authoritative identity stays in the payload; these columns exist so
+# consent is evaluable in SQL instead of by decoding every row (NFR-003).
+# They carry no target/receiver identity, so C-003's boundary holds: the
+# journal still knows nothing about *where* an event would be delivered.
+COL_PROJECT_UUID = "project_uuid"
+COL_PROJECT_SLUG = "project_slug"
+
+#: Columns added after the original 8-column schema shipped. ``_ensure_schema``
+#: ALTERs any journal file that predates them (#3030 T010). Additive and
+#: nullable only (C-001), never dropped or retyped (C-002).
+IDENTITY_COLUMNS: tuple[str, ...] = (COL_PROJECT_UUID, COL_PROJECT_SLUG)
+
 # Canonical column order shared by INSERT params and SELECT projection so
 # ``journal.py`` never hand-codes column order (T013 step 4).
 ORDERED_COLUMNS: tuple[str, ...] = (
@@ -52,7 +65,9 @@ CREATE_TABLE_SQL = (
     f"    {COL_CREATED_AT} TEXT NOT NULL,\n"
     f"    {COL_COALESCE_KEY} TEXT,\n"
     f"    {COL_ARCHIVED_AT} TEXT,\n"
-    f"    {COL_DRAIN_BLOCKED_REASON} TEXT\n"
+    f"    {COL_DRAIN_BLOCKED_REASON} TEXT,\n"
+    f"    {COL_PROJECT_UUID} TEXT,\n"
+    f"    {COL_PROJECT_SLUG} TEXT\n"
     ")"
 )
 
