@@ -353,6 +353,42 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 #:     ``id`` pattern + ``id_normalizer`` upper-case it, so the canonical URN is
 #:     ``directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY``. See
 #:     ``docs/plans/doctrine/delivery-reachability-wiring-table.md``.
+#: (13) #3063 family-E (ANALYSIS / TERMINOLOGY / REASONS-CANVAS family), operator
+#:     interview outcome: NINE hand-authored ``suggests`` edges added to
+#:     ``HAND_AUTHORED_EDGES`` and ZERO new artefacts -- every endpoint already
+#:     exists, so the PURE golden counts below are UNCHANGED
+#:     (``_EXPECTED_NODE_COUNT`` 311, ``_EXPECTED_EDGE_COUNT`` 764). The nine
+#:     edges: 1 from ``agent_profile:architect-alphonso`` to
+#:     ``styleguide:reasons-canvas-writing`` (E1, canvas-writing only); 2
+#:     reinforcement edges from ``tactic:terminology-extraction-mapping`` to
+#:     ``paradigm:domain-driven-design`` and ``paradigm:brownfield-onboarding``
+#:     (E2 group 1 -- the only terminology/analysis tactic whose OWN text attests a
+#:     paradigm); 3 glossary/language links (``toolguide:contextive`` ->
+#:     ``tactic:glossary-curation-interview`` and ``tactic:language-driven-design``;
+#:     ``tactic:terminology-extraction-mapping`` -> ``tactic:glossary-curation-
+#:     interview`` -- the fourth implied edge, terminology-extraction-mapping ->
+#:     language-driven-design, was OMITTED as it already exists extractor-minted
+#:     from that tactic's own ``references:`` block); and 3 tool-support edges
+#:     (``toolguide:terminology-guard`` -> ``tactic:canonical-source-unification``
+#:     and ``tactic:occurrence-classification-workflow``; ``toolguide:contextive``
+#:     -> ``tactic:terminology-extraction-mapping``). Moved counts: shipped edges
+#:     873 -> 882; ``len(HAND_AUTHORED_EDGES)`` 109 -> 118; relation histogram
+#:     ``suggests`` 417 -> 426 (``requires`` 272 / ``scope`` 159 UNCHANGED) --
+#:     pinned by ``tests/architectural/test_no_authored_applies_edge.py`` and
+#:     mirrored in ``RELATION_DESCRIPTIONS`` / ``docs/architecture/doctrine-
+#:     relationships.md``, both updated. ``test_shipped_graph_is_fresh_and_byte_
+#:     identical`` stays green by construction (764 + 118 = 882). Orphan sets are
+#:     UNCHANGED -- every one of the nine endpoints was already edge-incident, so
+#:     no artefact enters or leaves ``_AWAITING_REFERENCES`` /
+#:     ``_ORPHANS_RESOLVED_BY_OVERLAY``. Family E is INERT: every source is either
+#:     the architect profile (inert in the profile channel) or an action-
+#:     unreachable tactic/toolguide, and the reinforcement edges point INTO
+#:     already-reachable paradigms, so ``_ACTION_UNREACHABLE_D1``/``D2``,
+#:     ``_PROFILE_UNREACHABLE`` and ``_PROFILE_RESCUES`` in
+#:     ``tests/doctrine/drg/test_reachability.py`` are UNCHANGED (measured, not
+#:     assumed). The delivery-reachability DEFERRED set stays at 50 -- no artefact
+#:     leaves (delivery is the fast-follow's job). See
+#:     ``docs/plans/doctrine/delivery-reachability-wiring-table.md``.
 _EXPECTED_NODE_COUNT = 311
 _EXPECTED_EDGE_COUNT = 764
 

@@ -95,12 +95,15 @@ pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 #:   (11)    #3063 family-C (ARCHITECTURE-DOCS): +1 node (directive) / +9 overlay edges
 #:   (12)    #3063 family-D (TESTING/BDD/MUTATION): +5 nodes (1 directive, 2
 #:           styleguides, 2 toolguides) / +54 overlay edges
-#: Net: 317/873 = pure 311/764 plus the hand-authored overlay's 6 nodes / 109
+#:   (13)    #3063 family-E (ANALYSIS/TERMINOLOGY/REASONS-CANVAS): +0 nodes /
+#:           +9 overlay edges (all `suggests`, zero new artefacts) -> 317/882
+#: Net: 317/882 = pure 311/764 plus the hand-authored overlay's 6 nodes / 118
 #: edges. (WP09 and families A–D were ledgered in the projection module but this
 #: shipped-graph mirror was left stale at 310/781 through those changes; corrected
-#: here with family D, whose full delta is projection-ledger entry (12).)
+#: with family D, whose full delta is projection-ledger entry (12); family E adds
+#: +9 edges, projection-ledger entry (13).)
 _EXPECTED_NODE_COUNT = 317
-_EXPECTED_EDGE_COUNT = 873
+_EXPECTED_EDGE_COUNT = 882
 
 _DOCTRINE_ROOT = pathlib.Path(__file__).resolve().parents[3] / "src" / "doctrine"
 

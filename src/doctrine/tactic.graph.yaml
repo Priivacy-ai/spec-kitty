@@ -1153,9 +1153,24 @@ edges:
   relation: suggests
   when: Understanding relationships between contexts informs classification decisions.
 - source: tactic:terminology-extraction-mapping
+  target: paradigm:brownfield-onboarding
+  relation: suggests
+  when: recovering a shared vocabulary from an existing system's source code and documentation (as a follow-up to code-documentation-analysis) so the terminology latent in the codebase is named before it is changed
+  reason: The tactic's OWN text extracts domain terms from 'source code (class/method names), documentation ... as a follow-up to code-documentation-analysis' -- recovering terminology from an existing system, which is exactly the 'terminology aliases ... inferred from the code' durable artefact brownfield-onboarding's own summary names. INBOUND to the brownfield paradigm from an action-unreachable source, so composition-only under today's traversal.
+- source: tactic:terminology-extraction-mapping
+  target: paradigm:domain-driven-design
+  relation: suggests
+  when: the extracted terms must be owned by a bounded context and cross-context uses translated at the boundary -- the strategic-DDD ubiquitous-language and anti-corruption-layer concerns the mapping surfaces
+  reason: "The terminology-extraction-mapping tactic's OWN text attests DDD strategic design verbatim: it assigns term ownership 'by bounded context', translates cross-context uses 'at the context boundary', and names 'missing ACL or translation layers' as a failure mode -- so it reinforces Domain-Driven Design. INBOUND to the already-action-reachable DDD paradigm (family-A); a member->paradigm edge does not make the source reachable, so it is composition-only under today's traversal."
+- source: tactic:terminology-extraction-mapping
   target: tactic:code-documentation-analysis
   relation: suggests
   when: Use as the upstream term-extraction step before mapping relationships
+- source: tactic:terminology-extraction-mapping
+  target: tactic:glossary-curation-interview
+  relation: suggests
+  when: feeding the extracted, relationship-mapped, validated terms into the HiC-led curation rounds that promote them into the living glossary
+  reason: "The extraction-mapping tactic's OWN purpose is to build 'a comprehensive, maintainable glossary' and its final step publishes the validated terms as 'the authoritative source for the project ubiquitous language' -- the input the glossary-curation-interview curation rounds consume. INERT: terminology-extraction-mapping is action-unreachable. (Its sibling edge to `tactic:language-driven-design` is OMITTED here -- it already exists as an extractor-minted edge.)"
 - source: tactic:terminology-extraction-mapping
   target: tactic:language-driven-design
   relation: suggests

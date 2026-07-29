@@ -1816,6 +1816,222 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
             "switched to paradigm-delivered later if the operator wants it eager."
         ),
     ),
+    # -----------------------------------------------------------------------
+    # #3063 family-E (ANALYSIS / TERMINOLOGY / REASONS-CANVAS family), operator
+    # interview outcome. The operator ATTESTED these relationships (C-007(a)
+    # satisfied by operator ruling); each `when` is additionally grounded in the
+    # SOURCE artefact's OWN text so a reviewer can verify it is not a topic-
+    # adjacency invention. Family E authors NO new artefact files -- every
+    # endpoint already exists -- so node count / `_EXPECTED_NODE_COUNT` stay
+    # unchanged; all nine edges are overlay-authored `suggests`.
+    #
+    # Family E is INERT under today's traversal (composition-only) -- measured
+    # with the WP08 helper, not assumed. Every source is either
+    # `agent_profile:architect-alphonso` (a profile: the profile channel walks
+    # {requires, specializes_from} only, so profile--suggests-->X is inert) or an
+    # action-UNREACHABLE tactic/toolguide (`terminology-extraction-mapping`,
+    # `contextive`, `terminology-guard` are all in the pinned
+    # `_ACTION_UNREACHABLE_D1`/`D2` sets, and `resolve_context` walks `suggests`
+    # only FROM scope-resolved artifacts, never from an unreachable source). The
+    # reinforcement edges (E-group-1) point INTO already-reachable paradigms,
+    # which does not make the source reachable. Measured before/after with the
+    # WP08 helper: `_ACTION_UNREACHABLE_D1`/`D2`, `_PROFILE_UNREACHABLE` and
+    # `_PROFILE_RESCUES` are UNCHANGED. No pin moves; only composition counts
+    # (nine overlay `suggests` edges). The deferred set stays at 50 -- no artefact
+    # leaves it (delivery is the fast-follow's job per the operator).
+    #
+    # E1 (reasons-canvas / SPDD). The operator ruled: link only the canvas
+    # *writing* as `suggests` to alphonso, for now. ONE edge.
+    DRGEdge(
+        source="agent_profile:architect-alphonso",
+        target="styleguide:reasons-canvas-writing",
+        relation=Relation.SUGGESTS,
+        when=(
+            "capturing the change-intent, decision boundaries and safeguards of a "
+            "mission or a significant architectural change as a REASONS Canvas -- "
+            "recording architectural decisions with rationale rather than mirroring "
+            "code"
+        ),
+        reason=(
+            "The architect should reach the REASONS Canvas writing styleguide when "
+            "documenting the intent behind a significant architectural change: "
+            "alphonso's attested scope is architectural decisions documented with "
+            "rationale (DIRECTIVE_003, ADR/design outputs), and the styleguide's own "
+            "purpose is to capture intent -- Safeguard (must) / Norm (should) / "
+            "Approach (may) -- for a mission or change, not to mirror code. "
+            "Composition-only under today's traversal (the profile channel walks "
+            "requires/specializes_from only), authored per the #3063 family-E "
+            "operator ruling (canvas WRITING only; the reasons-canvas fill/review "
+            "tactics and the SPDD paradigm stay in the deferred set, untouched)."
+        ),
+    ),
+    # -----------------------------------------------------------------------
+    # E2 group 1 -- reinforcement into paradigms (member -> paradigm, `suggests`,
+    # following the family-C "C8 DDD-bridge" precedent: source = the member,
+    # target = the paradigm, so it is inert). The operator noted the terminology/
+    # analysis tactics "link to both DDD and Brownfield approaches"; authored ONLY
+    # where the tactic's OWN text attests (C-007a). Only
+    # `terminology-extraction-mapping` attests either paradigm; see the EXCLUDED
+    # audit below for the other three.
+    DRGEdge(
+        source="tactic:terminology-extraction-mapping",
+        target="paradigm:domain-driven-design",
+        relation=Relation.SUGGESTS,
+        when=(
+            "the extracted terms must be owned by a bounded context and cross-"
+            "context uses translated at the boundary -- the strategic-DDD ubiquitous-"
+            "language and anti-corruption-layer concerns the mapping surfaces"
+        ),
+        reason=(
+            "The terminology-extraction-mapping tactic's OWN text attests DDD "
+            "strategic design verbatim: it assigns term ownership 'by bounded "
+            "context', translates cross-context uses 'at the context boundary', and "
+            "names 'missing ACL or translation layers' as a failure mode -- so it "
+            "reinforces Domain-Driven Design. INBOUND to the already-action-"
+            "reachable DDD paradigm (family-A); a member->paradigm edge does not "
+            "make the source reachable, so it is composition-only under today's "
+            "traversal."
+        ),
+    ),
+    DRGEdge(
+        source="tactic:terminology-extraction-mapping",
+        target="paradigm:brownfield-onboarding",
+        relation=Relation.SUGGESTS,
+        when=(
+            "recovering a shared vocabulary from an existing system's source code "
+            "and documentation (as a follow-up to code-documentation-analysis) so "
+            "the terminology latent in the codebase is named before it is changed"
+        ),
+        reason=(
+            "The tactic's OWN text extracts domain terms from 'source code (class/"
+            "method names), documentation ... as a follow-up to code-documentation-"
+            "analysis' -- recovering terminology from an existing system, which is "
+            "exactly the 'terminology aliases ... inferred from the code' durable "
+            "artefact brownfield-onboarding's own summary names. INBOUND to the "
+            "brownfield paradigm from an action-unreachable source, so composition-"
+            "only under today's traversal."
+        ),
+    ),
+    # E2 group 2 -- glossary / language links (`suggests`). The operator: contextive
+    # links to "write a glossary" (tactic:glossary-curation-interview) and
+    # "language-oriented development" (tactic:language-driven-design), "as do the
+    # terminology extraction mapping". NOTE: the fourth implied edge,
+    # `tactic:terminology-extraction-mapping --suggests--> tactic:language-driven-
+    # design`, ALREADY EXISTS as an extractor-minted edge (from that tactic's own
+    # `references:` block) -- authoring it here would be a duplicate, so it is
+    # OMITTED (three edges, not four). See the EXCLUDED audit.
+    DRGEdge(
+        source="toolguide:contextive",
+        target="tactic:glossary-curation-interview",
+        relation=Relation.SUGGESTS,
+        when=(
+            "capturing the terms produced by a glossary-curation round in an "
+            "enforceable, IDE-surfaced ubiquitous-language glossary (hover, auto-"
+            "complete, per-context definitions)"
+        ),
+        reason=(
+            "Contextive's own summary is a tool to 'manage ubiquitous language ... "
+            "glossary file setup ... alignment with Spec Kitty glossary curation "
+            "workflows', and its guide ties the glossary-curation-interview tactic's "
+            "output to Contextive format. It therefore supports the write-a-glossary "
+            "workflow. INERT: contextive is action-unreachable, so its outbound "
+            "`suggests` are never walked."
+        ),
+    ),
+    DRGEdge(
+        source="toolguide:contextive",
+        target="tactic:language-driven-design",
+        relation=Relation.SUGGESTS,
+        when=(
+            "treating terminology drift as an architectural signal -- an IDE-"
+            "surfaced glossary makes same-term/different-meaning and different-term/"
+            "same-concept conflicts visible in the developer workflow"
+        ),
+        reason=(
+            "Contextive surfaces ubiquitous-language definitions with compound-word "
+            "recognition and multi-context term disambiguation (its own guide), which "
+            "is the tooling that makes the linguistic conflicts language-driven-design "
+            "hunts for observable. It therefore supports the language-oriented "
+            "development approach. INERT: contextive is action-unreachable."
+        ),
+    ),
+    DRGEdge(
+        source="tactic:terminology-extraction-mapping",
+        target="tactic:glossary-curation-interview",
+        relation=Relation.SUGGESTS,
+        when=(
+            "feeding the extracted, relationship-mapped, validated terms into the "
+            "HiC-led curation rounds that promote them into the living glossary"
+        ),
+        reason=(
+            "The extraction-mapping tactic's OWN purpose is to build 'a "
+            "comprehensive, maintainable glossary' and its final step publishes the "
+            "validated terms as 'the authoritative source for the project ubiquitous "
+            "language' -- the input the glossary-curation-interview curation rounds "
+            "consume. INERT: terminology-extraction-mapping is action-unreachable. "
+            "(Its sibling edge to `tactic:language-driven-design` is OMITTED here -- "
+            "it already exists as an extractor-minted edge.)"
+        ),
+    ),
+    # E2 group 3 -- tools-support-tactics (`suggests`, toolguide -> tactic). The
+    # operator: "Terminology-guard and contextive are suggested tools linking to
+    # the tactics/techniques they support." Authored where the tool genuinely
+    # supports the tactic's workflow (verified per-tactic); see the EXCLUDED audit
+    # for the candidates left out.
+    DRGEdge(
+        source="toolguide:terminology-guard",
+        target="tactic:canonical-source-unification",
+        relation=Relation.SUGGESTS,
+        when=(
+            "enforcing the single-canonical-authority rule at the commit level -- a "
+            "CI gate that rejects a superseded (non-canonical) term reappearing in "
+            "active source, the terminology instance of the tactic's 'add a gate to "
+            "enforce the canonical route' step"
+        ),
+        reason=(
+            "The terminology guard is a CI gate that 'enforces canonical naming at "
+            "the commit level' and references DIRECTIVE_044 -- the exact directive "
+            "canonical-source-unification operationalizes, whose step 4 calls for "
+            "'an architectural gate ... that rejects future non-canonical routing'. "
+            "The guard is that gate for terminology, so it supports the tactic. "
+            "INERT: terminology-guard is action-unreachable."
+        ),
+    ),
+    DRGEdge(
+        source="toolguide:terminology-guard",
+        target="tactic:occurrence-classification-workflow",
+        relation=Relation.SUGGESTS,
+        when=(
+            "verifying a classified bulk terminology change (e.g. a rename) is "
+            "complete and stays complete -- the guard fails CI if a superseded term "
+            "reappears anywhere in active source after the rename"
+        ),
+        reason=(
+            "occurrence-classification-workflow governs bulk terminology edits (its "
+            "own example is a 'constitution -> charter (rename)'), and the "
+            "terminology guard is precisely the gate that 'catches superseded terms "
+            "that have reappeared in active source and fails CI' -- the enforcement "
+            "that the classified rename left no un-renamed occurrence. It supports "
+            "the workflow. INERT: terminology-guard is action-unreachable."
+        ),
+    ),
+    DRGEdge(
+        source="toolguide:contextive",
+        target="tactic:terminology-extraction-mapping",
+        relation=Relation.SUGGESTS,
+        when=(
+            "capturing the extracted, bounded-context-owned terms in an enforceable "
+            "Contextive glossary so the recovered ubiquitous language is surfaced in "
+            "the IDE rather than left in a static document"
+        ),
+        reason=(
+            "Contextive is the ubiquitous-language glossary tool; the terms "
+            "terminology-extraction-mapping extracts and validates are exactly the "
+            "content Contextive stores and enforces (its guide ties glossary-curation "
+            "output to Contextive format). It supports the extraction-mapping "
+            "workflow's output. INERT: contextive is action-unreachable."
+        ),
+    ),
 )
 
 

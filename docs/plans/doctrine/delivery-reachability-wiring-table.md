@@ -213,7 +213,11 @@ profile-unreachable so its new `requires` edges deliver nothing there.
 These **50** activated artefacts remain action-unreachable at `d=2` after row 1
 (WP09), Family A (#3063), and Family D (#3063, ACCEPT DELIVERY) land. Each fails C-007(b): no action-reachable source with a textually-attested
 relationship, and no `scope`-from-action path whose relationship is attested
-without invention. **This is not a filed issue** — it is the surface the
+without invention. **Family E (#3063) does not change this count**: it is
+topology-only / INERT (every source is the architect profile or an action-
+unreachable tactic/toolguide, and the reinforcement edges point into already-
+reachable paradigms), so no artefact leaves the deferred set — delivery is the
+fast-follow's job per the operator. The set stays at **50**. **This is not a filed issue** — it is the surface the
 after-mission operator interview rules on (C-007). Wiring any of these now would
 mean either wiring to an unreachable source (#3007's error) or inventing a
 relationship (the guard T050 forbids).
@@ -252,6 +256,17 @@ action-reachable via the DDD paradigm.)
 
 (`procedure:example-mapping-workshop` left this table when Family D made it
 action-reachable at implement/review via `directive:DIRECTIVE_034`.)
+
+**Operator ruling (2026-07-29): ACCEPT all four as-is.** They are reachable in
+principle — an agent following the `suggests` chain still reaches them — and
+correctly sit *beyond the eager `d=2` bootstrap horizon* by design. The two
+alternatives were both rejected: upgrading `suggests`→`requires` would falsely
+claim a hard dependency none of the four texts attest (misrepresentation), and
+deepening the bootstrap walk is a **global** traversal-policy change whose blast
+radius pulls in *every* depth-3 artefact, not just these four. Delivery-depth
+tuning (and the profile-channel `suggests`-follow that would animate the inert
+Family B/C/E edges) is deferred to the **fast-follow walk-update mission**. No
+edge is upgraded and no walk is deepened here.
 
 ### Full deferred set (50), by kind — directive 4 · paradigm 3 · procedure 4 · styleguide 3 · tactic 28 · toolguide 8
 
@@ -727,3 +742,152 @@ count is recorded so no golden number moves silently.
   (mutation-testing-workflow, python/typescript-mutation-tools) and the 041 fan-out
   (test-readability-clarity-check, zombies-tdd) stay deferred (topology authored,
   delivery inert); `documentation-gap-prioritization` unaffected.
+
+## Family E (#3063 ANALYSIS / TERMINOLOGY / REASONS-CANVAS family) — operator interview outcome, INERT (topology-only)
+
+Like Families B and C (and unlike A and D), Family E is **inert** — it moves no
+reachability pin. The operator ATTESTED the relationships (C-007(a) satisfied by
+operator ruling); each `when` is additionally grounded in the **source
+artefact's own text** so a reviewer can verify it is not a topic-adjacency
+invention. Family E authors **no new artefact files** — every endpoint already
+exists — so node count / `_EXPECTED_NODE_COUNT` stay unchanged and all nine edges
+are overlay-authored `suggests`.
+
+### The 9 authored edges (all `suggests`)
+
+**E1 — reasons-canvas / SPDD** (1 edge). Operator ruling: link only the canvas
+*writing* to alphonso, for now.
+
+| # | source | relation | target | `when` (grounded in both source texts) |
+|---|---|---|---|---|
+| E1 | `agent_profile:architect-alphonso` | `suggests` | `styleguide:reasons-canvas-writing` | capturing the change-intent, decision boundaries and safeguards of a mission or significant architectural change as a REASONS Canvas — recording decisions with rationale, not mirroring code |
+
+Grounded in BOTH alphonso's attested scope (architectural decisions documented
+with rationale — DIRECTIVE_003, ADR/design outputs) AND the styleguide's own
+purpose (capture intent as Safeguard/Norm/Approach for a mission or change, not
+mirror code). `tactic:reasons-canvas-fill`, `tactic:reasons-canvas-review` and
+`paradigm:structured-prompt-driven-development` are **untouched** — they stay in
+the deferred set per the operator.
+
+**E2 group 1 — reinforcement into paradigms** (2 edges; member→paradigm, the
+family-C "C8 DDD-bridge" precedent, so inert). Authored ONLY where the tactic's
+own text attests.
+
+| # | source | relation | target | `when` (grounded in the tactic's own text) |
+|---|---|---|---|---|
+| E2 | `tactic:terminology-extraction-mapping` | `suggests` | `paradigm:domain-driven-design` | the extracted terms must be owned by a bounded context and cross-context uses translated at the boundary — the tactic's own strategic-DDD ubiquitous-language / ACL text |
+| E3 | `tactic:terminology-extraction-mapping` | `suggests` | `paradigm:brownfield-onboarding` | recovering a shared vocabulary from an existing system's code and documentation (follow-up to code-documentation-analysis) — brownfield's own "terminology aliases inferred from the code" durable artefact |
+
+**E2 group 2 — glossary / language links** (3 edges). The fourth implied edge is
+a pre-existing extractor edge (see the exclusion audit) and is **omitted**.
+
+| # | source | relation | target | `when` (grounded in the source's own text) |
+|---|---|---|---|---|
+| E4 | `toolguide:contextive` | `suggests` | `tactic:glossary-curation-interview` | capturing a curation round's terms in an enforceable, IDE-surfaced ubiquitous-language glossary (contextive's own "manage ubiquitous language … alignment with glossary curation workflows") |
+| E5 | `toolguide:contextive` | `suggests` | `tactic:language-driven-design` | treating terminology drift as an architectural signal — an IDE-surfaced glossary makes same-term/different-meaning conflicts visible |
+| E6 | `tactic:terminology-extraction-mapping` | `suggests` | `tactic:glossary-curation-interview` | feeding the extracted, validated terms into the HiC-led curation rounds (the tactic's own purpose: build "the authoritative source for the project ubiquitous language") |
+
+**E2 group 3 — tools-support-tactics** (3 edges; toolguide→tactic).
+
+| # | source | relation | target | `when` (grounded in the source's own text) |
+|---|---|---|---|---|
+| E7 | `toolguide:terminology-guard` | `suggests` | `tactic:canonical-source-unification` | enforcing single-canonical-authority at the commit level — the terminology instance of the tactic's step-4 "add a gate to enforce the canonical route"; both cite DIRECTIVE_044 |
+| E8 | `toolguide:terminology-guard` | `suggests` | `tactic:occurrence-classification-workflow` | verifying a classified bulk terminology change (a rename) is complete and stays complete — the guard fails CI if a superseded term reappears |
+| E9 | `toolguide:contextive` | `suggests` | `tactic:terminology-extraction-mapping` | capturing the extracted, bounded-context-owned terms in an enforceable Contextive glossary surfaced in the IDE |
+
+### Attestation audit — what was EXCLUDED and why
+
+- **`tactic:terminology-extraction-mapping --suggests--> tactic:language-driven-design` (group 2, the implied 4th edge) — OMITTED as a DUPLICATE.** It already
+  exists as an **extractor-minted** edge, derived from terminology-extraction-mapping's
+  own `references:` block (`Language-Driven Design … Apply after the glossary is
+  validated`). Re-authoring it in the overlay would be a duplicate `(source,
+  relation, target)`; the operator's "avoid duplicate edges" rule applies.
+- **Group 1 — `canonical-source-unification`, `analysis-extract-before-interpret`,
+  `occurrence-classification-workflow` — NO paradigm edge.** None attests DDD or
+  brownfield in its **own** text: canonical-source-unification is about split-brain
+  code/config surfaces (refs only DIRECTIVE_044); analysis-extract-before-interpret
+  is a domain-agnostic reasoning discipline (extract facts before interpreting —
+  applies equally to log analysis and requirement gathering); occurrence-classification-workflow
+  is a bulk-edit guardrail. Authoring a paradigm edge for any of them would be
+  topic-adjacency (the C-007(a) violation). Only terminology-extraction-mapping's
+  own text carries the bounded-context / ubiquitous-language / ACL vocabulary.
+- **Group 3 — `contextive → canonical-source-unification` / `→ occurrence-classification-workflow` — EXCLUDED.** Contextive is a ubiquitous-language *glossary*
+  tool; canonical-source-unification (code/config surface consolidation) and
+  occurrence-classification-workflow (generic string bulk-edit classification) are
+  not glossary/terminology work, so contextive does not support them.
+- **Group 3 — `terminology-guard → terminology-extraction-mapping` — EXCLUDED.**
+  The guard enforces a canon of *superseded/forbidden* terms (catching reappearances
+  in active source), which supports maintaining a **canonical route** (E7) and a
+  **completed rename** (E8); it does not support *building a project glossary*, which
+  is contextive's job (E9). Excluded to avoid stretching the support relation.
+- **`analysis-extract-before-interpret` — NO Family E edge at all.** Its own text
+  attests neither a paradigm link (group 1) nor a terminology-tool support relation
+  (group 3): it is a general extract-before-interpret reasoning tactic, not a
+  terminology/glossary technique. It stays in the deferred set, untouched.
+
+### Why Family E is INERT — measured, not assumed (WP08 helper, R-1)
+
+All nine edges are inert under today's traversal:
+
+- Every source is either `agent_profile:architect-alphonso` (a **profile**: the
+  profile channel walks `{requires, specializes_from}` only, never `suggests`) or
+  an **action-UNREACHABLE** tactic/toolguide — `terminology-extraction-mapping`,
+  `contextive`, `terminology-guard` are all pinned in `_ACTION_UNREACHABLE_D1`/`D2`,
+  and `resolve_context` walks `suggests` only **from** scope-resolved artifacts, so
+  an unreachable source's outbound `suggests` are never followed.
+- The two reinforcement edges (E2/E3) point **into** the already-action-reachable
+  DDD / brownfield paradigms; an edge into a reachable node does not make its
+  **source** reachable.
+
+Measured before/after with the WP08 helper: `_ACTION_UNREACHABLE_D1`,
+`_ACTION_UNREACHABLE_D2`, `_PROFILE_UNREACHABLE` and `_PROFILE_RESCUES` are
+**UNCHANGED**. Family E moves **no** reachability pin — only composition counts.
+
+## Composition ledger (NFR-004) — Family E (#3063 ANALYSIS / TERMINOLOGY / REASONS-CANVAS family)
+
+Nine `suggests` overlay edges, zero new artefacts. Each moved count is recorded
+so no golden number moves silently.
+
+- **Shipped-graph edges 873 → 882** (+9). `len(HAND_AUTHORED_EDGES)` **109 → 118**.
+  Zero new artefacts, so the pure-extraction golden counts (`_EXPECTED_NODE_COUNT=311`,
+  `_EXPECTED_EDGE_COUNT=764`) are **unchanged** — every edge is overlay-authored —
+  and `test_shipped_graph_is_fresh_and_byte_identical` stays green by construction
+  (`764 + 118 = 882`) once the fragments are regenerated. Ledger entry (13) is added
+  to `test_extractor_projection`'s composition ledger.
+- **`suggests` relation histogram 417 → 426** (+9; all nine edges are `suggests`).
+  `requires` (272) and `scope` (159) are **unchanged**. Gated by
+  `tests/architectural/test_no_authored_applies_edge.py::TestPositiveCountClaimsAreTrue`
+  and mirrored char-for-char in `RELATION_DESCRIPTIONS` (`doctrine.drg.models`) and
+  `docs/architecture/doctrine-relationships.md`; both updated.
+- **Orphan sets UNCHANGED** — every one of the nine endpoints was already
+  edge-incident, so nothing enters or leaves `_AWAITING_REFERENCES` /
+  `_ORPHANS_RESOLVED_BY_OVERLAY`; pure orphans stay 30, shipped orphans stay 21.
+- **`_ACTION_UNREACHABLE_D1`/`D2`, `_PROFILE_UNREACHABLE`, `_PROFILE_RESCUES`
+  UNCHANGED** — Family E is inert (measured). No pin moves. Ledgered in
+  `tests/doctrine/drg/test_reachability.py`.
+- **Deferred set unchanged at 50** — no artefact leaves (topology-only; delivery
+  is the fast-follow's job per the operator).
+
+## Family F (#3063 ORPHAN GOVERNANCE DIRECTIVES) — operator interview outcome, ACCEPT (no edges authored)
+
+The four remaining deferred directives (`DIRECTIVE_035`, `DIRECTIVE_038`,
+`DIRECTIVE_039`, `DIRECTIVE_044`) are **hub directives that reach no action** —
+but three of the four are unreachable *by design*, not by defect. Unlike the
+tactic/toolguide families, a directive is a hub, not a leaf, so "fixing" it means
+changing its **activation model** (scope it from an action, or make it always-on),
+not authoring member edges. The operator ruled **ACCEPT** — author **no edges**;
+record the disposition here (2026-07-29):
+
+| directive | activation archetype | why unreachable-by-default is CORRECT | disposition |
+|---|---|---|---|
+| `DIRECTIVE_038` structured-prompt-boundary | **charter-opt-in by design** | its own `scope` states *"Does not apply to projects that have not opted in via charter"* (SPDD paradigm / reasons-canvas tactics / 038) | **ACCEPT** — intentionally charter-gated; forcing it reachable would violate its own scope contract. Ties to Family E1 (SPDD/reasons-canvas). |
+| `DIRECTIVE_039` lynn-cole-engineering-culture | **user-selected persona by design** | its own `intent` states *"Select this directive when the user names Lynn Cole's rules…"* | **ACCEPT** — intentionally opt-in; not an orphan to wire. |
+| `DIRECTIVE_035` bulk-edit-occurrence-classification | **conditional-on-mission-property** | `scope` = *"any mission marked `change_mode: bulk_edit`"* — a mission property, not an action; scoping it from `implement`/`review` would over-deliver it to *every* mission (context bloat) | **ACCEPT** — carried by the bulk-edit mission-type / charter selection, not a broad action scope. |
+| `DIRECTIVE_044` canonical-sources-and-unification | **genuinely universal → always-on candidate** | applies to *"whenever an agent selects a template/skill/command… whenever a split-brain is discovered"* — i.e. ~all agent work — yet no action scopes it | **DEFER to #3064** — the universal engineering-hygiene rule belongs in the default `charter.yml` / empty-charter always-on set; the always-on **activation-model** decision is #3064's, not edge-authoring. |
+
+**No graph change.** Family F authors zero edges and moves zero counts; the four
+directives stay in the deferred set (now understood as intentionally-gated /
+#3064-owned, not defects). This closes the #3063 operator interview: Families A–E
+authored, F accepted, and the four depth-gated artefacts accepted (see the
+depth-gated note above). All residual delivery/activation work is owned by the
+fast-follow walk-update mission and #3064.

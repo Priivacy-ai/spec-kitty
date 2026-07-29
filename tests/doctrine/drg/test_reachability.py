@@ -213,6 +213,22 @@ _TESTING_BDD_MUTATION_WIRED: frozenset[str] = (
     _TESTING_DELIVERED_AT_D1 | _TESTING_DELIVERED_AT_D2_ONLY
 )
 
+#: #3063 family-E (ANALYSIS / TERMINOLOGY / REASONS-CANVAS family) is INERT --
+#: it moves NO reachability pin (measured with the WP08 helper, not assumed). Its
+#: nine overlay ``suggests`` edges all originate at either
+#: ``agent_profile:architect-alphonso`` (the profile channel walks {requires,
+#: specializes_from} only, so profile--suggests-->X is never followed) or an
+#: action-UNREACHABLE tactic/toolguide (``terminology-extraction-mapping``,
+#: ``contextive``, ``terminology-guard`` are all pinned in
+#: ``_ACTION_UNREACHABLE_D1``/``D2`` below, and ``resolve_context`` walks
+#: ``suggests`` only FROM scope-resolved artifacts). The two reinforcement edges
+#: point INTO the already-action-reachable DDD / brownfield paradigms, which does
+#: not make their source reachable. So ``_ACTION_UNREACHABLE_D1``/``D2``,
+#: ``_PROFILE_UNREACHABLE`` and ``_PROFILE_RESCUES`` are all UNCHANGED by family E
+#: (composition-only: +9 ``suggests`` edges, 0 new artefacts). The delivery-
+#: reachability DEFERRED set stays at 50 -- no artefact leaves it. See
+#: ``docs/plans/doctrine/delivery-reachability-wiring-table.md`` (Family E).
+
 #: Activated artefacts (node form) NOT reachable via the action channel at
 #: d=1 (compact/steady-state). Membership, not cardinality (R-4).
 _ACTION_UNREACHABLE_D1: frozenset[str] = frozenset(
