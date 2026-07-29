@@ -155,3 +155,19 @@ Verdict: **NOT ready for /tasks until the remediations below land.** Coverage is
 
 ### CONFIRMED SOUND (no action)
 FR-011 zero-write refusal ✓; FR-009 recorded-SHA + no-consolidation-abort + amends 2026-04-03-1 ✓; Lane A "before IC-08 regression" ordering ✓; write-seam-adoption/coord-authority-gate correctly citation-docs-not-ADRs ✓; FR→IC coverage complete (zero holes) ✓.
+
+---
+
+## POST-TASKS SQUAD FINDINGS + REMEDIATION — 2026-07-29 (priti/paula/architect, opus, profile-loaded, read-only)
+
+Ran after tasks.md + 11 WP prompts + finalize (commit b9f9b0c9). All three lenses validated claims against live source.
+
+**BLOCKER (paula B-1) — issue-matrix reader migration under-scoped (VERIFIED against source, REMEDIATED).** Every live consumer builds `feature_dir/"issue-matrix.md"` AND `.exists()`-prechecks `.md` BEFORE calling `validate_issue_matrix` (doctor.py:342/370-386, review/__init__.py:305-306, tasks_parsing_validation.py:87/196, mission_finalize.py:93/397), so swapping reader internals is dead code; `tasks_parsing_validation.py` was owned by NO WP. FIX (option a, chosen): `load_issue_matrix(feature_dir)` DIR-based; reader-switch + `.md`-precheck-DELETE subtasks added — WP05 T023 (finalize-lint), WP08 T043 (doctor + tasks_parsing_validation.py, now owned), WP09 T044 (review); WP06 now deps WP05/WP08/WP09 (completeness test runs after switches). Commit 22f3387e1.
+
+**MAJORS remediated:** priti MAJOR-1 spec.md FR-007 still said "four gate sites" (my B1 miss) → only emit.py; architect M1 unowned SC-003 durability regression → WP11 T045 (real two-lane consolidation, gated on WP01); architect M2 → WP01 T001 must DECIDE the merge %O partition (E-B); priti MAJOR-3 Sonar-census standing clause → tasks.md. **priti MAJOR-2 = VERIFIED FALSE POSITIVE** (mission-wrap-up-sequence.procedure.yaml + planning-and-tracking.styleguide.yaml reference issue-matrix as CONCEPT PROSE, not `.md` paths — NOT migration targets; WP06's 3-file M8 scope is correct). Do NOT re-raise.
+
+**MINORS remediated:** slug citations (plan.md:103, write-seam-adoption.md:16); IC-03 emit.py note; WP02 T008 all-4-emit.py-by-design-sites (test_resolution_authority_gates.py:720/1151/1228/1641); artifacts.py :195/:200 anchor; WP11 concrete #2970 vector; dead detect_issue_references note; merge-driver intra-side dup-key guard; coord-authority-gate Proposed-but-shipped note; 3 tracer files seeded; WP08/WP11 +FR-002/C-008.
+
+**ESCALATIONS RESOLVED (operator, 2026-07-29):**
+- **E-A → RATIFY in WP02.** ADR `2026-06-26-1-single-authority-seam-and-call-site-gate` Proposed→Accepted = WP02 T046 (owned_file + DoD). Commit b5eec03e3.
+- **E-B → RESOLVED (folded, commit 249dcba3e).** Operator steer confirmed by architect-alphonso investigation: placement is TOPOLOGY-RESOLVED through the seam (`resolution.py:1602-1607`) — ISSUE_MATRIX/ACCEPTANCE_MATRIX declare PRIMARY surface in SINGLE_BRANCH/LANES and COORD in coord-topology; ALL read/write paths route through the same seam. The merge `%O` follows the seam-resolved surface for the active topology, NOT a hardcoded primary-or-coord. Under coord topology, matrices serialize onto the single coord worktree (`commit_router.py:248-306`) so they never diverge on lane branches — FR-008 durability is therefore INDEPENDENT of WP01's primary lane base. **The WP11→WP01 hard edge was DROPPED**; WP11 T045 seeds `%O` from the seam-resolved coord/target lineage. Folded into spec.md FR-008/FR-009, plan.md (IC-08→IC-01 edge removed), tasks.md, WP11 prompt, contracts/merge-driver-algorithm.md, traces/design-decisions.md.
