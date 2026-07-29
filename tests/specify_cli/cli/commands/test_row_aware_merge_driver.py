@@ -38,7 +38,7 @@ from specify_cli.cli.commands.merge_driver import (
     reconcile_issue_matrix_documents,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 runner = CliRunner()
 

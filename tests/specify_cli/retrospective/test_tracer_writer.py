@@ -241,7 +241,12 @@ class TestRoutesThroughWriteSeamHelper:
         assert result.status == "committed"
         assert captured["kind"] is MissionArtifactKind.TRACER_FILE
         files = captured["files"]
-        assert isinstance(files, tuple) and len(files) == 1
+        # golden-count: cardinality-is-contract -- the count merely asserts
+        # "exactly one file staged"; the file's actual identity/content is
+        # verified by the assertions immediately below (staged_path equality,
+        # on-disk existence, and contents), so a frozenset-equality rewrite
+        # would add no additional contract strength here.
+        assert isinstance(files, tuple) and len(files) == 1  # golden-count: cardinality-is-contract
         staged_path = files[0]
         assert isinstance(staged_path, Path)
         assert staged_path == (
