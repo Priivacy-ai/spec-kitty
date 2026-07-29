@@ -106,7 +106,7 @@ docs/adr/3.x/                              # NEW ADR: lane-origin base ref (FR-0
 
 - **Purpose**: One parameterized write-surface resolution (`write_target`) + one materialization authority (`commit_for_mission`); route the true bypass set onto it.
 - **Relevant requirements**: FR-007, FR-011, FR-012 (C-001).
-- **Affected surfaces**: caller-resolved-`feature_dir` matrix writers, #2663 (`implement.py::_partition_files_for_commit`), `status/emit.py` (#2966 slice); Ledger-M16 leaf guard. NOTE: the `decisions/emit.py:71` routing landed wholly in **WP02** (atomic Move A) — it is not an IC-03/WP03 surface; the other three gate write sites stay by-design (IC-02).
+- **Affected surfaces**: caller-resolved-`feature_dir` matrix writers; the **core helper** `coordination/write_seam.py` (delivered WP03). Ledger-M16 leaf guard. NOTE: the `decisions/emit.py:71` routing landed wholly in **WP02** (atomic Move A) — it is not an IC-03/WP03 surface; the other three gate write sites stay by-design (IC-02). **DEFERRED → #3071 (2026-07-29):** ~~#2663 (`implement.py::_partition_files_for_commit`)~~ and ~~`status/emit.py` (#2966 slice)~~ are out of this mission — WP03 found them colliding with pinned #2160/#2966 invariants C-006 marks out-of-scope (see spec FR-007 + contracts/write-seam-adoption.md).
 - **Sequencing/depends-on**: the `emit.py` slice depends on IC-02; the rest of the core is Lane-B-independent.
 - **Risks**: routing the seam's own engine is circular — target only the true bypasses; FR-011 must be a **zero-write refusal** (never fall back to writing `main`).
 
