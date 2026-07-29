@@ -2111,7 +2111,7 @@ def test_index_discriminator_represents_a_four_site_qualname() -> None:
     # primitive) key -- the exact review-cycle-1 finding, reproduced here by
     # feeding the gate's OWN duplicate-detector the old shape's keys.
     old_shape_keys = [row[:3] for row in synthetic_rows]
-    assert len(set(old_shape_keys)) == 2, (
+    assert len(set(old_shape_keys)) == 2, (  # golden-count: cardinality-is-contract
         "sanity check failed: the previous 3-column shape was expected to "
         f"collapse 4 sites onto 2 keys; got {sorted(set(old_shape_keys))}"
     )
