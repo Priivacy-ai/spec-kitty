@@ -84,7 +84,26 @@ def _build_checkout_sync_routing(repo_root: Path, identity: ProjectIdentity) -> 
     elif repo_default_sync_enabled is not None:
         effective_sync_enabled = repo_default_sync_enabled
     else:
-        effective_sync_enabled = True
+        # FR-002 (spec-kitty#3030, absorbing #3031): absence of a consent record
+        # is NOT consent — for capture *or* delivery.
+        #
+        # This fall-through used to yield ``True``, which is how the 2026-07-27
+        # breach happened: five client projects had never been opted in, so
+        # neither a checkout override nor a repo default existed, and every one
+        # resolved to "sync enabled". Inverting only the ``routing is None``
+        # branch of ``is_sync_enabled_for_checkout`` does not close it — those
+        # projects resolve fine, they simply have no record.
+        #
+        # Pinned red on main by
+        # ``tests/sync/test_sync_consent_default_deny.py::
+        # test_unconfigured_checkout_does_not_consent_to_sync``.
+        #
+        # Deny here also gates the emit-time path (``sync/emitter.py:1890,1921``)
+        # and the body-upload path (``sync/body_upload.py:150``). That is now
+        # intended: NFR-005 was amended so capture-first durability applies only
+        # to *consenting* projects — a non-consenting project's events must never
+        # reach the journal (#3031 Defect 3).
+        effective_sync_enabled = False
 
     return CheckoutSyncRouting(
         repo_root=repo_root,
@@ -113,7 +132,11 @@ def is_sync_enabled_for_checkout(start: Path | None = None) -> bool:
     """
     routing = resolve_checkout_sync_routing_readonly(start=start)
     if routing is None:
-        return True
+        # FR-003 (spec-kitty#3030): fail CLOSED. This returned ``True``, so any
+        # invocation where the checkout could not be resolved was treated as
+        # consent. For a gate standing in front of a confidentiality boundary
+        # the default is inverted: inability to determine consent is not consent.
+        return False
     return routing.effective_sync_enabled
 
 

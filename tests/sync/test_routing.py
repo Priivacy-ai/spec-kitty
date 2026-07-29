@@ -197,3 +197,53 @@ def test_disable_checkout_sync_purges_only_matching_project_data(
     config_toml = (home / ".spec-kitty" / "config.toml").read_text(encoding="utf-8")
     assert "acme/spec-kitty" in config_toml
     assert "enabled = false" in config_toml
+
+
+# --- WP01 / FR-003: the sync-enabled gate must fail CLOSED -------------------
+# Regression cover for spec-kitty#3030. Before this, `is_sync_enabled_for_checkout`
+# returned True whenever routing could not be resolved, so an inability to
+# determine consent was read as consent — the inverted default in front of a
+# confidentiality boundary.
+
+
+def test_sync_enabled_denies_when_routing_is_unresolvable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Unresolvable routing must DENY, not permit (FR-003, SC-003)."""
+    from specify_cli.sync import routing as routing_module
+
+    monkeypatch.setattr(
+        routing_module, "resolve_checkout_sync_routing_readonly", lambda start=None: None
+    )
+
+    assert routing_module.is_sync_enabled_for_checkout() is False
+
+
+def test_absence_of_consent_record_denies_capture_and_delivery(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A checkout with NO consent record denies, for capture AND delivery.
+
+    This assertion was inverted on 2026-07-28 and corrected on 2026-07-29. The
+    earlier version asserted capture still proceeds, on capture-first grounds
+    (NFR-005 as originally written). The operator has since ruled that capture
+    yields: a non-consenting project's events must never reach the journal
+    (#3031 Defect 3), so NFR-005 now applies only to consenting projects.
+
+    Pinned upstream by
+    ``test_sync_consent_default_deny.py::test_unconfigured_checkout_does_not_consent_to_sync``.
+    """
+    repo_root = tmp_path / "never-opted-in"
+    repo_root.mkdir()
+    _write_repo_config(repo_root, project_uuid=str(uuid4()), repo_slug="acme/never-opted-in")
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.chdir(repo_root)
+
+    routing = resolve_checkout_sync_routing_readonly()
+
+    assert routing is not None
+    assert routing.local_sync_enabled is None
+    assert routing.repo_default_sync_enabled is None
+    assert routing.effective_sync_enabled is False

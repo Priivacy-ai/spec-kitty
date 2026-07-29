@@ -189,3 +189,44 @@ def emitter_without_identity(
         _git_resolver=mock_git_resolver,  # Pre-populate with mock git resolver
     )
     return em
+
+
+@pytest.fixture(autouse=True)
+def _consented_checkout_by_default(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> None:
+    """Treat the checkout under test as consented, unless the test says otherwise.
+
+    Consent became **opt-in** in spec-kitty#3030 (absorbing #3031): an
+    unconfigured checkout now resolves ``effective_sync_enabled = False``, which
+    is the fix for the 2026-07-27 breach where five never-opted-in projects were
+    delivered to a hosted instance.
+
+    Almost every test in this package exercises *transport* behaviour — batching,
+    retry hygiene, error surfacing, offline replay — in a throwaway tmp repo that
+    has no consent record and never had one. Under opt-in consent those tests
+    short-circuit with ``sync_disabled`` before reaching the behaviour they
+    assert, which is a fixture artefact, not a finding.
+
+    This fixture restores their premise explicitly rather than weakening the
+    production default. It patches only the batch/emit consent read, so:
+
+    * consent itself is still covered, by suites that assert on the real
+      resolver — ``tests/sync/test_routing.py`` and the upstream pins in
+      ``tests/sync/test_sync_consent_default_deny.py``, neither of which calls
+      the patched seam; and
+    * a test that *wants* the denial can still opt out with
+      ``monkeypatch.setattr(..., lambda *a, **k: False)``.
+
+    Named rather than implicit so a future reader can tell that these suites
+    assume consent, instead of inferring it from a green run.
+    """
+    # Never touch the consent suites themselves. Without this guard the fixture
+    # would mask the very pins it must not weaken the moment they go green.
+    if "consent" in Path(str(request.node.fspath)).name:
+        return
+
+    for seam in (
+        "specify_cli.sync.batch.is_sync_enabled_for_checkout",
+        "specify_cli.sync.emitter.is_sync_enabled_for_checkout",
+        "specify_cli.sync.runtime.is_sync_enabled_for_checkout",
+    ):
+        monkeypatch.setattr(seam, lambda *args, **kwargs: True, raising=False)

@@ -46,6 +46,7 @@ not in this WP's ``owned_files``). WP07 imports the protocol from this module.
 Per **C-001** nothing here imports ``sync/queue.py`` or ``specify_cli.events``; the
 batch transport pattern mirrors ``sync/batch.py`` as a read-only reference only.
 """
+
 from __future__ import annotations
 
 import gzip
@@ -242,14 +243,10 @@ class HttpResponse(Protocol):
 class HttpPoster(Protocol):
     """A POST transport. ``requests.post`` is the default; tests inject a fake."""
 
-    def __call__(
-        self, url: str, *, data: bytes, headers: Mapping[str, str], timeout: float
-    ) -> HttpResponse: ...
+    def __call__(self, url: str, *, data: bytes, headers: Mapping[str, str], timeout: float) -> HttpResponse: ...
 
 
-def default_http_poster(
-    url: str, *, data: bytes, headers: Mapping[str, str], timeout: float
-) -> HttpResponse:
+def default_http_poster(url: str, *, data: bytes, headers: Mapping[str, str], timeout: float) -> HttpResponse:
     """Default poster: a thin, typed wrapper over ``requests.post`` (mirrors batch.py).
 
     The single public name for the default poster (#2884) — cross-package
@@ -260,6 +257,59 @@ def default_http_poster(
 
 
 # -- The shared result mapper (one mapper, reused by all three receivers) -------
+
+
+# -- Cross-project refusal + terminal rejection (spec-kitty#3030, WP01) --------
+
+#: Server ``error_category`` values that mean "never retry this event".
+#:
+#: Must match the literal the SaaS ingress emits — see ``spec-kitty-saas#585``
+#: FR-004, which sends a per-event refusal inside the 200 ``results`` list. Before
+#: this, ``TERMINAL_FAILED`` was reachable from exactly one predicate (an oversized
+#: single event), so *every* server refusal became ``REJECTED`` and was retried
+#: forever with no ceiling — the "4,141 rejected / 0 terminal failures" signal in
+#: the 2026-07-27 incident (folds spec-kitty#3005).
+TERMINAL_REJECTION_CATEGORIES: frozenset[str] = frozenset({"project_not_consented", "project_refused"})
+
+_CROSS_PROJECT_ERROR = "refused before send: batch spans more than one project ({projects}); authorization and delivery must be scoped to the same project"
+
+
+def _event_project(event: OutboundEvent) -> str | None:
+    """Resolve an event's project identity from the envelope, or ``None``.
+
+    Mirrors the three sites identity is written to (``namespace.project_uuid``,
+    top-level, ``payload.project_uuid``). ``None`` means *unresolvable here* — it is
+    deliberately **not** treated as a project, because counting it as one would
+    refuse ordinary batches containing a legacy identity-less row. Denying
+    unresolvable identity is the selection seam's job, where the stored column is
+    the sole authority.
+    """
+    payload = event.payload
+    namespace = payload.get("namespace")
+    if isinstance(namespace, Mapping) and namespace.get("project_uuid"):
+        return str(namespace["project_uuid"])
+    if payload.get("project_uuid"):
+        return str(payload["project_uuid"])
+    subject = payload.get("subject")
+    if isinstance(subject, Mapping) and subject.get("project_uuid"):
+        return str(subject["project_uuid"])
+    return None
+
+
+def _cross_project_refusal(
+    events: Sequence[OutboundEvent],
+) -> list[DeliveryResult] | None:
+    """Refuse a batch that spans >1 project, **before** any network call (FR-004).
+
+    Belt-and-braces behind the selection predicate: if selection ever regresses,
+    this turns a silent cross-project leak into a loud, terminal refusal rather
+    than letting it reach the wire.
+    """
+    projects = {p for p in (_event_project(e) for e in events) if p is not None}
+    if len(projects) <= 1:
+        return None
+    error = _CROSS_PROJECT_ERROR.format(projects=", ".join(sorted(projects)))
+    return _all_outcome(events, DeliveryOutcome.TERMINAL_FAILED, http_status=None, error=error, body=None)
 
 
 _PER_EVENT_OUTCOME: dict[str, DeliveryOutcome] = {
@@ -324,25 +374,22 @@ def _map_single_ok(event: OutboundEvent, entry: Mapping[str, Any] | None) -> Del
             raw=entry,
         )
     error = _error_text(entry) if outcome is DeliveryOutcome.REJECTED else None
-    return DeliveryResult(
-        event_id=event.event_id, outcome=outcome, http_status=200, error=error, raw=entry
-    )
+    if outcome is DeliveryOutcome.REJECTED:
+        category = str(entry.get("error_category", "")).strip().lower()
+        if category in TERMINAL_REJECTION_CATEGORIES:
+            # FR-014: a refusal the server will never accept is terminal, not
+            # retryable. Without this the event re-POSTs on every drain forever
+            # and is reported as a non-failure.
+            outcome = DeliveryOutcome.TERMINAL_FAILED
+    return DeliveryResult(event_id=event.event_id, outcome=outcome, http_status=200, error=error, raw=entry)
 
 
-def _map_ok_results(
-    events: Sequence[OutboundEvent], body: Mapping[str, Any] | None
-) -> list[DeliveryResult]:
+def _map_ok_results(events: Sequence[OutboundEvent], body: Mapping[str, Any] | None) -> list[DeliveryResult]:
     """Map an HTTP 200 batch response. A non-batch shape → transient (defensive)."""
     if not _looks_like_batch_response(body):
-        return _all_outcome(
-            events, DeliveryOutcome.TRANSIENT, http_status=200, error=_NON_BATCH_BODY_ERROR, body=body
-        )
+        return _all_outcome(events, DeliveryOutcome.TRANSIENT, http_status=200, error=_NON_BATCH_BODY_ERROR, body=body)
     assert body is not None  # narrowed by _looks_like_batch_response
-    by_id: dict[Any, Mapping[str, Any]] = {
-        entry.get("event_id"): entry
-        for entry in body["results"]
-        if isinstance(entry, Mapping)
-    }
+    by_id: dict[Any, Mapping[str, Any]] = {entry.get("event_id"): entry for entry in body["results"] if isinstance(entry, Mapping)}
     return [_map_single_ok(event, by_id.get(event.event_id)) for event in events]
 
 
@@ -398,9 +445,7 @@ def _http_error_text(http_status: int, body: Mapping[str, Any] | None) -> str:
     return str(reason) if reason else f"HTTP {http_status}"
 
 
-def _map_batch_failure(
-    events: Sequence[OutboundEvent], *, http_status: int, body: Mapping[str, Any] | None
-) -> list[DeliveryResult]:
+def _map_batch_failure(events: Sequence[OutboundEvent], *, http_status: int, body: Mapping[str, Any] | None) -> list[DeliveryResult]:
     """Classify a non-200 batch response.
 
     Oversized/permanent → ``terminal_failed`` (FR-015); 400 content failure →
@@ -409,9 +454,7 @@ def _map_batch_failure(
     transient failure").
     """
     if _is_oversized(http_status, body) and len(events) == 1:
-        return _all_outcome(
-            events, DeliveryOutcome.TERMINAL_FAILED, http_status=http_status, error=_OVERSIZED_ERROR, body=body
-        )
+        return _all_outcome(events, DeliveryOutcome.TERMINAL_FAILED, http_status=http_status, error=_OVERSIZED_ERROR, body=body)
     if _is_oversized(http_status, body):
         return _all_outcome(
             events,
@@ -518,11 +561,12 @@ class _HttpReceiver:
         events = list(batch)
         if not events:
             return []
+        refusal = _cross_project_refusal(events)
+        if refusal is not None:
+            return refusal
         return self._bisect_send(events)
 
-    def _attempt_batch_send(
-        self, events: Sequence[OutboundEvent]
-    ) -> tuple[int | None, Mapping[str, Any] | None]:
+    def _attempt_batch_send(self, events: Sequence[OutboundEvent]) -> tuple[int | None, Mapping[str, Any] | None]:
         """POST *events* once and return ``(status, body)``; a single clean send seam.
 
         A transport-level timeout/connection error returns ``(None, {"error": <exc>})``
@@ -536,9 +580,7 @@ class _HttpReceiver:
         headers = {**self.auth_headers(), _H_CONTENT_ENCODING: _GZIP, _H_CONTENT_TYPE: _JSON}
         payload = gzip.compress(_build_payload(events))
         try:
-            response = self._poster(
-                self.endpoint_url, data=payload, headers=headers, timeout=BATCH_TIMEOUT_SECONDS
-            )
+            response = self._poster(self.endpoint_url, data=payload, headers=headers, timeout=BATCH_TIMEOUT_SECONDS)
         except requests.RequestException as exc:
             return None, {"error": str(exc)}
         return response.status_code, _safe_json(response)
