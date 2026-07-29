@@ -2507,6 +2507,22 @@ pages:
     - {slug: "option-c-relation-impacts-but-symmetric", text: "Option C — `Relation.IMPACTS` but symmetric", level: 3}
     - {slug: "option-d-keep-both-the-boolean-and-the-signed-field", text: "Option D — keep both the boolean and the signed field", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/3.x/2026-07-28-1-progressive-disclosure-of-doctrine-context.md"
+    title: "ADR: doctrine context is delivered as navigable links, not inlined bodies — `when`/`reason` carry the fetch guidance"
+    divio_type: "none"
+    abstract: "**Status:** Accepted"
+    anchors:
+    - {slug: "context", text: "Context", level: 2}
+    - {slug: "what-the-graph-already-carries", text: "What the graph already carries", level: 3}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "what-this-adr-does-not-decide", text: "What this ADR does *not* decide", level: 3}
+    - {slug: "rationale", text: "Rationale", level: 2}
+    - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "positive", text: "Positive", level: 3}
+    - {slug: "negative-risks", text: "Negative / risks", level: 3}
+    - {slug: "neutral", text: "Neutral", level: 3}
+    - {slug: "folding-decision-mission-doctrine-delivery-reachability-01kymxd6", text: "Folding decision (mission `doctrine-delivery-reachability-01KYMXD6`)", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
@@ -2762,6 +2778,9 @@ pages:
     - {slug: "spec-kitty-doctrine-fetch", text: "spec-kitty doctrine fetch", level: 2}
     - {slug: "spec-kitty-doctrine-mission-type", text: "spec-kitty doctrine mission-type", level: 2}
     - {slug: "spec-kitty-doctrine-mission-type-list", text: "spec-kitty doctrine mission-type list", level: 2}
+    - {slug: "spec-kitty-doctrine-asset", text: "spec-kitty doctrine asset", level: 2}
+    - {slug: "spec-kitty-doctrine-asset-list", text: "spec-kitty doctrine asset list", level: 2}
+    - {slug: "spec-kitty-doctrine-asset-path", text: "spec-kitty doctrine asset path", level: 2}
     - {slug: "spec-kitty-doctrine-new", text: "spec-kitty doctrine new", level: 2}
     - {slug: "spec-kitty-doctrine-org", text: "spec-kitty doctrine org", level: 2}
     - {slug: "spec-kitty-doctrine-org-init", text: "spec-kitty doctrine org init", level: 2}
@@ -5941,6 +5960,10 @@ pages:
     - {slug: "step-5-activate-it", text: "Step 5: Activate it", level: 2}
     - {slug: "step-6-verify-it-took-effect", text: "Step 6: Verify it took effect", level: 2}
     - {slug: "undoing-this", text: "Undoing this", level: 2}
+    - {slug: "author-an-asset-a-shipped-blob", text: "Author an asset (a shipped blob)", level: 2}
+    - {slug: "step-a-place-the-blob", text: "Step A: place the blob", level: 3}
+    - {slug: "step-b-write-the-sidecar-manifest", text: "Step B: write the sidecar manifest", level: 3}
+    - {slug: "step-c-resolve-it", text: "Step C: resolve it", level: 3}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/doctrine/doctrine-kinds.md"
     title: "Doctrine artifact kinds"
@@ -5948,6 +5971,8 @@ pages:
     abstract: "What each doctrine artifact kind is for, with a real built-in example of each — sourced directly from the charter kind-vocabulary code."
     anchors:
     - {slug: "single-source-of-truth", text: "Single source of truth", level: 2}
+    - {slug: "the-asset-kind", text: "The asset kind", level: 2}
+    - {slug: "delivery-verdicts-which-kinds-reach-a-mission", text: "Delivery verdicts: which kinds reach a mission", level: 3}
     - {slug: "the-eight-doctrine-artifact-kinds", text: "The eight doctrine artifact kinds", level: 2}
     - {slug: "directive", text: "Directive", level: 3}
     - {slug: "tactic", text: "Tactic", level: 3}
@@ -7937,6 +7962,53 @@ pages:
     - {slug: "8-what-survives-every-lens-the-minimum-shippable-thing", text: "8. What survives every lens — the minimum shippable thing", level: 2}
     - {slug: "9-open-operator-decisions", text: "9. Open operator decisions", level: 2}
     - {slug: "10-method-limits", text: "10. Method limits", level: 2}
+  - path: "docs/plans/doctrine/delivery-reachability-wiring-table.md"
+    title: "Delivery-reachability wiring table (FR-015)"
+    divio_type: "none"
+    abstract: "Per candidate artefact: proposed inbound source, its measured action-reachability (WP08 helper), and the C-007 wire/defer disposition; the deferred set is the decision surface."
+    anchors:
+    - {slug: "the-disposition-rule-c-007-operator-ruling-2026-07-28", text: "The disposition rule (C-007, operator ruling 2026-07-28)", level: 2}
+    - {slug: "how-every-reachability-value-here-was-measured-r-1", text: "How every reachability value here was measured (R-1)", level: 2}
+    - {slug: "the-wiring-table", text: "The wiring table", level: 2}
+    - {slug: "why-only-one-edge-is-authored", text: "Why only ONE edge is authored", level: 3}
+    - {slug: "the-common-docs-cluster-t050-wired", text: "The `common-docs` cluster (T050) — wired", level: 2}
+    - {slug: "b2-handoff-the-scope-edge-s-canonical-home", text: "B2 handoff — the scope edge's canonical home", level: 2}
+    - {slug: "family-a-3063-ddd-family-operator-interview-outcome-wired", text: "Family A (#3063 DDD family) — operator interview outcome, WIRED", level: 2}
+    - {slug: "the-specify-edge-is-scope-not-suggests-relation-correction", text: "⚠️ The specify edge is `scope`, NOT `suggests` (relation correction)", level: 3}
+    - {slug: "attestation-audit-what-was-excluded-as-non-attested", text: "Attestation audit — what was EXCLUDED as non-attested", level: 3}
+    - {slug: "deferred-the-ddd-documentation-mutual-reinforcement-edge-b1", text: "DEFERRED — the DDD↔documentation mutual-reinforcement edge (B1)", level: 3}
+    - {slug: "measured-reachability-delta-wp08-helper-r-1", text: "Measured reachability delta (WP08 helper, R-1)", level: 3}
+    - {slug: "the-deferred-set-t052-the-operator-s-decision-surface", text: "The deferred set (T052) — the operator's decision surface", level: 2}
+    - {slug: "note-4-of-the-50-are-edge-incident-from-a-reachable-source-depth-gated", text: "Note: 4 of the 50 are edge-incident from a reachable source, depth-gated", level: 3}
+    - {slug: "full-deferred-set-50-by-kind-directive-4-paradigm-3-procedure-4-styleguide-3-tactic-28-toolguide-8", text: "Full deferred set (50), by kind — directive 4 · paradigm 3 · procedure 4 · styleguide 3 · tactic 28 · toolguide 8", level: 3}
+    - {slug: "composition-ledger-nfr-004-counts-this-wp-moves", text: "Composition ledger (NFR-004) — counts this WP moves", level: 2}
+    - {slug: "composition-ledger-nfr-004-family-a-3063-ddd-family", text: "Composition ledger (NFR-004) — Family A (#3063 DDD family)", level: 2}
+    - {slug: "family-b-3063-refactoring-family-operator-interview-outcome-inert-composition-only", text: "Family B (#3063 REFACTORING family) — operator interview outcome, INERT (composition-only)", level: 2}
+    - {slug: "urn-casing-relation-id-correction", text: "⚠️ URN casing (relation/id correction)", level: 3}
+    - {slug: "the-14-authored-edges-all-suggests-all-inert-under-today-s-traversal", text: "The 14 authored edges (all `suggests`, all INERT under today's traversal)", level: 3}
+    - {slug: "why-family-b-is-inert-measured-not-assumed-wp08-helper-r-1", text: "Why Family B is INERT — measured, not assumed (WP08 helper, R-1)", level: 3}
+    - {slug: "pending-anti-pattern-authoring-companion-not-authored-here", text: "Pending anti-pattern-authoring companion (NOT authored here)", level: 3}
+    - {slug: "composition-ledger-nfr-004-family-b-3063-refactoring-family", text: "Composition ledger (NFR-004) — Family B (#3063 REFACTORING family)", level: 2}
+    - {slug: "family-c-3063-architecture-docs-diagramming-family-operator-interview-outcome-inert-composition-only", text: "Family C (#3063 ARCHITECTURE-DOCS / DIAGRAMMING family) — operator interview outcome, INERT (composition-only)", level: 2}
+    - {slug: "urn-casing-relation-id-correction-same-rule-as-family-b", text: "⚠️ URN casing (relation/id correction, same rule as Family B)", level: 3}
+    - {slug: "the-9-authored-edges-all-suggests-all-inert-under-today-s-traversal", text: "The 9 authored edges (all `suggests`, all INERT under today's traversal)", level: 3}
+    - {slug: "the-supporting-relation-and-the-documentation-paradigm-what-was-found", text: "The \"supporting\" relation and \"the documentation paradigm\" — what was found", level: 3}
+    - {slug: "attestation-audit-what-was-excluded-as-non-attested-2", text: "Attestation audit — what was EXCLUDED as non-attested", level: 3}
+    - {slug: "why-family-c-is-inert-measured-not-assumed-wp08-helper-r-1", text: "Why Family C is INERT — measured, not assumed (WP08 helper, R-1)", level: 3}
+    - {slug: "asset-template-assessment-operator-asked-specifically", text: "Asset / template assessment (operator asked specifically)", level: 3}
+    - {slug: "composition-ledger-nfr-004-family-c-3063-architecture-docs-family", text: "Composition ledger (NFR-004) — Family C (#3063 ARCHITECTURE-DOCS family)", level: 2}
+    - {slug: "family-d-3063-testing-bdd-mutation-family-operator-interview-outcome-accept-delivery", text: "Family D (#3063 TESTING / BDD / MUTATION family) — operator interview outcome, ACCEPT DELIVERY", level: 2}
+    - {slug: "why-family-d-delivers-measured-not-assumed-wp08-helper-r-1", text: "Why Family D delivers (measured, not assumed — WP08 helper, R-1)", level: 3}
+    - {slug: "the-five-new-artefacts", text: "The five new artefacts", level: 3}
+    - {slug: "the-54-authored-edges-all-suggests", text: "The 54 authored edges (all `suggests`)", level: 3}
+    - {slug: "event-storming-inert-by-design-ddd-cluster-member", text: "Event-storming — inert by design, DDD-cluster member", level: 3}
+    - {slug: "composition-ledger-nfr-004-family-d-3063-testing-bdd-mutation-family", text: "Composition ledger (NFR-004) — Family D (#3063 TESTING / BDD / MUTATION family)", level: 2}
+    - {slug: "family-e-3063-analysis-terminology-reasons-canvas-family-operator-interview-outcome-inert-topology-only", text: "Family E (#3063 ANALYSIS / TERMINOLOGY / REASONS-CANVAS family) — operator interview outcome, INERT (topology-only)", level: 2}
+    - {slug: "the-9-authored-edges-all-suggests", text: "The 9 authored edges (all `suggests`)", level: 3}
+    - {slug: "attestation-audit-what-was-excluded-and-why", text: "Attestation audit — what was EXCLUDED and why", level: 3}
+    - {slug: "why-family-e-is-inert-measured-not-assumed-wp08-helper-r-1", text: "Why Family E is INERT — measured, not assumed (WP08 helper, R-1)", level: 3}
+    - {slug: "composition-ledger-nfr-004-family-e-3063-analysis-terminology-reasons-canvas-family", text: "Composition ledger (NFR-004) — Family E (#3063 ANALYSIS / TERMINOLOGY / REASONS-CANVAS family)", level: 2}
+    - {slug: "family-f-3063-orphan-governance-directives-operator-interview-outcome-accept-no-edges-authored", text: "Family F (#3063 ORPHAN GOVERNANCE DIRECTIVES) — operator interview outcome, ACCEPT (no edges authored)", level: 2}
   - path: "docs/plans/doctrine/doctrine-artifact-selection-preflight.md"
     title: "Pre-flight investigation — user-authored doctrine artifact selection"
     divio_type: "none"
