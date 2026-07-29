@@ -25,6 +25,12 @@ from typing import Any
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+__all__ = [
+    "CANONICAL_YAML_WIDTH",
+    "serialize_mapping",
+    "write_mapping_atomic",
+]
+
 # Matches the house "prevent line wrapping" width used across writers
 # (e.g. ``specify_cli.review.artifacts._make_yaml``): wide enough that no
 # reviewer-prose or retrospective-detail scalar wraps under normal use.
