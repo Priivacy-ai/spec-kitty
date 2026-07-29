@@ -805,6 +805,225 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
             "traversal, authored per the #3063 family-B operator attestation."
         ),
     ),
+    # -----------------------------------------------------------------------
+    # #3063 family-C (ARCHITECTURE-DOCS / DIAGRAMMING family), operator
+    # interview outcome. The operator has ATTESTED these relationships; the hub
+    # is a NEW built-in directive, `directive:USE_C4_MODEL_TECHNIQUES` (authored
+    # as src/doctrine/directives/built-in/use-c4-model-techniques.directive.yaml).
+    #
+    # URN CASING NOTE (same rule as family-B's DISCIPLINED_REFACTORING): the
+    # wiring named the hub `directive:use-c4-model-techniques` (lower-kebab). A
+    # directive node's URN is derived from its artifact `id`, and the Directive
+    # model requires `id` to match `^[A-Z][A-Z0-9_-]*$` while
+    # `id_normalizer.normalize_directive_id` upper-cases any non-numeric slug — so
+    # the only URN a real directive artifact can yield is
+    # `directive:USE_C4_MODEL_TECHNIQUES` (the RECONCILE_CHANGE_SCOPE_TENSIONS /
+    # DISCIPLINED_REFACTORING precedent). Recorded in
+    # docs/plans/doctrine/delivery-reachability-wiring-table.md.
+    #
+    # This family is INERT under today's traversal (composition-only) — measured,
+    # not assumed:
+    #
+    #   * SEVEN `suggests` edges, USE_C4_MODEL_TECHNIQUES -> each attested
+    #     architecture-documentation technique, each carrying a per-member `when`
+    #     grounded in the member's OWN purpose/scope text (not invented). These
+    #     deliver nothing under the action channel: the directive is scoped by no
+    #     action, so `resolve_context` never reaches it, and `suggests` is only
+    #     walked FROM scope-resolved artifacts. The members stay action-unreachable
+    #     (they already were — all seven are in the delivery-reachability DEFERRED
+    #     set).
+    #
+    #   * ONE `suggests` edge, USE_C4_MODEL_TECHNIQUES -> paradigm:domain-driven-
+    #     design: the reinforcement ("supporting") bridge the operator attested.
+    #     `suggests` is the closest ATTESTED relation for "supporting/reinforces"
+    #     (a soft, non-mandatory pointer) — no new relation kind was invented. It
+    #     is INBOUND to the DDD paradigm, which Family A already made action-
+    #     reachable; it therefore delivers nothing new (a directive->paradigm edge
+    #     does not make the SOURCE reachable) and moves no pin. The documentation-
+    #     family leg of the "supporting the documentation and DDD paradigms"
+    #     instruction needs no separate edge: `paradigm:c4-incremental-detail-
+    #     modeling` IS the documentation/architecture-modelling paradigm and is
+    #     already a member above, so the documentation leg is covered by the member
+    #     edge and only the DDD leg is added here.
+    #
+    #   * ONE `suggests` edge, agent_profile:architect-alphonso ->
+    #     USE_C4_MODEL_TECHNIQUES, `when` = "documenting or reviewing system
+    #     architecture" (alphonso's attested scope: roles=architect, capabilities
+    #     system-design / architecture-review / component-design). Inert in the
+    #     profile channel too: that channel walks {requires, specializes_from}
+    #     only, never `suggests`.
+    #
+    # EXCLUDED as non-attested (reported to the operator): the #3063 candidate
+    # `procedure:documentation-gap-prioritization`. Its own text triages
+    # documentation gaps by user impact across ALL doc types (tutorials, how-tos,
+    # reference, explanation) — a documentation-project-management technique, not a
+    # C4 / architecture-documentation / diagramming one. No member edge is
+    # authored for it; it stays in the DEFERRED set.
+    #
+    # Net reachability move: NONE. `directive:USE_C4_MODEL_TECHNIQUES` is a new
+    # built-in directive this project's charter does NOT activate, so it never
+    # enters the `_activated()` universe the reachability pins subtract from; all
+    # nine edges are `suggests` on channels that do not follow `suggests` into
+    # delivery. Measured with the WP08 helper: `_ACTION_UNREACHABLE_D1`/`D2`,
+    # `_PROFILE_UNREACHABLE` and `_PROFILE_RESCUES` are UNCHANGED. Only composition
+    # counts move (one new directive node via extraction + nine overlay edges);
+    # ledgered in the wiring-table doc and test_extractor_projection's ledger.
+    #
+    # DEFERRED (recorded, NOT authored here): the seven architecture-doc technique
+    # members remain in the delivery-reachability DEFERRED set — topology authored,
+    # delivery pending fast-follow (their delivery needs the directive to be
+    # action-scoped, or the profile channel to follow `suggests`).
+    # -----------------------------------------------------------------------
+    DRGEdge(
+        source="directive:USE_C4_MODEL_TECHNIQUES",
+        target="paradigm:c4-incremental-detail-modeling",
+        relation=Relation.SUGGESTS,
+        when=(
+            "communicating a system's architecture to more than one audience at "
+            "more than one level of detail, so it must be broken into progressive "
+            "zoom levels (System Context, Container, Component, Code) rather than a "
+            "single all-in-one diagram"
+        ),
+        reason=(
+            "The C4 hub suggests the C4 incremental-detail paradigm as its core "
+            "mental model; the `when` is the paradigm's own stated purpose "
+            "(progressive zoom, right detail per audience). Composition-only under "
+            "today's traversal."
+        ),
+    ),
+    DRGEdge(
+        source="directive:USE_C4_MODEL_TECHNIQUES",
+        target="tactic:c4-zoom-in-architecture-documentation",
+        relation=Relation.SUGGESTS,
+        when=(
+            "actually drawing the architecture diagrams — starting from the System "
+            "Context and zooming in to Container and Component levels only where "
+            "additional detail adds value"
+        ),
+        reason=(
+            "The C4 hub suggests the zoom-in documentation workflow as the concrete "
+            "step-by-step technique; the `when` is the tactic's own stated purpose. "
+            "Composition-only under today's traversal."
+        ),
+    ),
+    DRGEdge(
+        source="directive:USE_C4_MODEL_TECHNIQUES",
+        target="tactic:architecture-diagram-review-checklist",
+        relation=Relation.SUGGESTS,
+        when=(
+            "an architecture diagram is about to be shared, committed, or included "
+            "in documentation and must communicate to its audience without a verbal "
+            "walkthrough (title, legend, typed described elements, labelled "
+            "unidirectional relationships)"
+        ),
+        reason=(
+            "The C4 hub suggests the diagram review checklist as its quality gate; "
+            "the `when` is the tactic's own stated purpose. Composition-only under "
+            "today's traversal."
+        ),
+    ),
+    DRGEdge(
+        source="directive:USE_C4_MODEL_TECHNIQUES",
+        target="toolguide:mermaid-diagramming",
+        relation=Relation.SUGGESTS,
+        when=(
+            "rendering the architecture diagrams as text-based, version-controlled "
+            "diagram-as-code in Mermaid so they diff and review beside the code"
+        ),
+        reason=(
+            "The C4 hub suggests the Mermaid toolguide as one text-based rendering "
+            "option satisfying its 'keep diagrams as diagram-as-code' rule; the "
+            "`when` is the toolguide's own stated scope. Composition-only under "
+            "today's traversal."
+        ),
+    ),
+    DRGEdge(
+        source="directive:USE_C4_MODEL_TECHNIQUES",
+        target="toolguide:plantuml-diagramming",
+        relation=Relation.SUGGESTS,
+        when=(
+            "rendering the architecture diagrams as text-based, version-controlled "
+            "diagram-as-code in PlantUML so they diff and review beside the code"
+        ),
+        reason=(
+            "The C4 hub suggests the PlantUML toolguide as the other text-based "
+            "rendering option satisfying its 'keep diagrams as diagram-as-code' "
+            "rule; the `when` is the toolguide's own stated scope. Composition-only "
+            "under today's traversal."
+        ),
+    ),
+    DRGEdge(
+        source="directive:USE_C4_MODEL_TECHNIQUES",
+        target="procedure:drill-down-documentation",
+        relation=Relation.SUGGESTS,
+        when=(
+            "capturing decisions, documentation, and architecture descriptions at a "
+            "consistent abstraction level (organisational, architecture, design, "
+            "code) with upward and downward traceability, rather than mixing levels "
+            "in one artifact"
+        ),
+        reason=(
+            "The C4 hub suggests the drill-down documentation procedure as the "
+            "abstraction-level discipline that keeps each artifact at one C4 zoom "
+            "level; the `when` is the procedure's own stated purpose/entry "
+            "condition. Composition-only under today's traversal."
+        ),
+    ),
+    DRGEdge(
+        source="directive:USE_C4_MODEL_TECHNIQUES",
+        target="tactic:code-documentation-analysis",
+        relation=Relation.SUGGESTS,
+        when=(
+            "reverse-engineering or reviewing an existing system's architecture — "
+            "extracting terminology from its code and documentation to surface "
+            "implicit context boundaries before they calcify into accidental "
+            "coupling"
+        ),
+        reason=(
+            "The C4 hub suggests code/documentation analysis as the technique for "
+            "discovering an existing system's architecture (implicit boundaries) "
+            "prior to documenting it; the `when` is the tactic's own stated purpose "
+            "(architectural review / boundary discovery). Composition-only under "
+            "today's traversal."
+        ),
+    ),
+    DRGEdge(
+        source="directive:USE_C4_MODEL_TECHNIQUES",
+        target="paradigm:domain-driven-design",
+        relation=Relation.SUGGESTS,
+        when=(
+            "the architecture being documented is organised around a domain model, "
+            "so its container/component boundaries should reflect bounded contexts "
+            "and the ubiquitous language"
+        ),
+        reason=(
+            "The reinforcement ('supporting') bridge the #3063 operator attested: "
+            "the C4 architecture-documentation hub suggests the Domain-Driven Design "
+            "paradigm so architecture diagrams and domain boundaries reinforce each "
+            "other. `suggests` is the closest attested relation for a soft "
+            "supporting/reinforces pointer (no new relation kind invented). INBOUND "
+            "to the already-action-reachable DDD paradigm (Family A), so it delivers "
+            "nothing new and moves no pin — composition-only under today's "
+            "traversal. The documentation-family leg of 'supporting the "
+            "documentation and DDD paradigms' is already covered by the member edge "
+            "to paradigm:c4-incremental-detail-modeling, which IS the documentation/"
+            "architecture-modelling paradigm."
+        ),
+    ),
+    DRGEdge(
+        source="agent_profile:architect-alphonso",
+        target="directive:USE_C4_MODEL_TECHNIQUES",
+        relation=Relation.SUGGESTS,
+        when="documenting or reviewing system architecture",
+        reason=(
+            "The architect profile should reach the C4 architecture-documentation "
+            "hub when documenting or reviewing system architecture (alphonso's "
+            "attested scope: system-design / architecture-review / component-"
+            "design). Composition-only under today's traversal (the profile channel "
+            "walks requires/specializes_from only), authored per the #3063 family-C "
+            "operator attestation."
+        ),
+    ),
 )
 
 

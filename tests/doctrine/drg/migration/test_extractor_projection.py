@@ -268,7 +268,51 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 #:     ``id_normalizer`` upper-case it, so the canonical URN is
 #:     ``directive:DISCIPLINED_REFACTORING`` (the ``RECONCILE_CHANGE_SCOPE_TENSIONS``
 #:     precedent). See ``docs/plans/doctrine/delivery-reachability-wiring-table.md``.
-_EXPECTED_NODE_COUNT = 305
+#: (11) #3063 family-C (ARCHITECTURE-DOCS / DIAGRAMMING family), operator interview
+#:     outcome: a NEW built-in directive ``directive:USE_C4_MODEL_TECHNIQUES``
+#:     (``directives/built-in/use-c4-model-techniques.directive.yaml``) plus NINE
+#:     hand-authored ``suggests`` edges added to ``HAND_AUTHORED_EDGES``. The
+#:     directive carries NO inline references (relationships are edges), so a PURE
+#:     ``generate_graph`` run mints its node but zero edges -- the
+#:     ``DISCIPLINED_REFACTORING`` / ``RECONCILE_CHANGE_SCOPE_TENSIONS`` shape. So the
+#:     PURE golden counts move +1 NODE / +0 edges: ``_EXPECTED_NODE_COUNT`` 305 -> 306,
+#:     ``_EXPECTED_EDGE_COUNT`` UNCHANGED at 764. In a pure run the directive is an
+#:     ORPHAN (its only edges are overlay-authored), so it joins
+#:     ``_AWAITING_REFERENCES`` (pure orphans 24 -> 25) and, because the overlay wires
+#:     it (7 outbound directive->member + 1 outbound directive->DDD + 1 inbound
+#:     architect-alphonso->directive), ``_ORPHANS_RESOLVED_BY_OVERLAY`` (3 -> 4);
+#:     shipped orphans stay 21. The nine overlay edges are ALL ``suggests``: 7 from
+#:     the directive to the attested architecture-documentation techniques
+#:     (paradigm:c4-incremental-detail-modeling, tactic:c4-zoom-in-architecture-
+#:     documentation, tactic:architecture-diagram-review-checklist,
+#:     toolguide:mermaid-diagramming, toolguide:plantuml-diagramming,
+#:     procedure:drill-down-documentation, tactic:code-documentation-analysis), each
+#:     with a per-member ``when`` grounded in the member's OWN purpose/scope text; 1
+#:     the reinforcement bridge to ``paradigm:domain-driven-design`` (the attested
+#:     "supporting" leg — ``suggests`` is the closest attested relation, no new kind
+#:     invented); and 1 from ``agent_profile:architect-alphonso`` to the directive.
+#:     Moved counts: shipped nodes 311 -> 312; shipped edges 810 -> 819;
+#:     ``len(HAND_AUTHORED_EDGES)`` 46 -> 55; relation histogram ``suggests``
+#:     354 -> 363 (``requires``/``scope`` UNCHANGED) -- pinned by
+#:     ``tests/architectural/test_no_authored_applies_edge.py`` and mirrored in
+#:     ``RELATION_DESCRIPTIONS`` / ``docs/architecture/doctrine-relationships.md``,
+#:     both updated. This family is INERT: the directive is not charter-activated (so
+#:     it never enters the reachability pins' ``_activated()`` universe) and all nine
+#:     edges are ``suggests`` on channels that do not follow ``suggests`` into
+#:     delivery, so ``_ACTION_UNREACHABLE_D1``/``D2``, ``_PROFILE_UNREACHABLE`` and
+#:     ``_PROFILE_RESCUES`` in ``tests/doctrine/drg/test_reachability.py`` are
+#:     UNCHANGED (measured, not assumed). The DDD-bridge edge is INBOUND to the
+#:     already-action-reachable DDD paradigm (family-A), so it delivers nothing new.
+#:     The seven architecture-doc technique members remain in the delivery-
+#:     reachability DEFERRED set (topology authored, delivery pending fast-follow).
+#:     EXCLUDED as non-attested: ``procedure:documentation-gap-prioritization`` (its
+#:     own text triages documentation gaps by user impact across all doc types -- a
+#:     documentation-project-management technique, not a C4 / architecture-doc one).
+#:     URN CASING: the wiring named ``directive:use-c4-model-techniques``; the
+#:     Directive model's ``id`` pattern + ``id_normalizer`` upper-case it, so the
+#:     canonical URN is ``directive:USE_C4_MODEL_TECHNIQUES``. See
+#:     ``docs/plans/doctrine/delivery-reachability-wiring-table.md``.
+_EXPECTED_NODE_COUNT = 306
 _EXPECTED_EDGE_COUNT = 764
 
 # ---------------------------------------------------------------------------
@@ -349,6 +393,13 @@ _AWAITING_REFERENCES: frozenset[str] = frozenset(
         # the seven implementer-role profiles). Wired by the overlay -- see
         # _ORPHANS_RESOLVED_BY_OVERLAY.
         "directive:DISCIPLINED_REFACTORING",
+        # Ledger (11) #3063 family-C: the new use-c4-model-techniques hub directive.
+        # It carries no inline references, so a pure ``generate_graph`` mints its
+        # node but no edge; its only edges are the hand-authored family-C
+        # ``suggests`` edges (7 to the architecture-documentation techniques, 1 to
+        # the DDD paradigm, and 1 from architect-alphonso). Wired by the overlay --
+        # see _ORPHANS_RESOLVED_BY_OVERLAY.
+        "directive:USE_C4_MODEL_TECHNIQUES",
     }
 )
 
@@ -411,7 +462,8 @@ _ACTIVATED_BUT_ORPHANED: frozenset[str] = frozenset(
 )
 
 #: Every node a PURE ``generate_graph`` run leaves incident to no edge.
-#: 17 + 5 + 1 + 1 = 24 (``_AWAITING_REFERENCES`` grew to 5 with ledger entry (10)'s
+#: 17 + 6 + 1 + 1 = 25 (``_AWAITING_REFERENCES`` grew to 6 with ledger entry (11)'s
+#: ``directive:USE_C4_MODEL_TECHNIQUES``, atop entry (10)'s
 #: ``directive:DISCIPLINED_REFACTORING``). The retired ``_EXPECTED_ORPHAN_COUNT``
 #: pinned 32; the difference is ledger entries (6) and (7) -- one deletion and
 #: eight wirings -- and is now a consequence of the membership rather than the
@@ -423,8 +475,8 @@ _INTENTIONAL_ORPHANS: frozenset[str] = (
     | _ACTIVATED_BUT_ORPHANED
 )
 
-#: The pure-extractor figure (24) and the shipped-graph figure (21) differ by
-#: exactly these three, and by nothing else: the hand-authored overlay
+#: The pure-extractor figure (25) and the shipped-graph figure (21) differ by
+#: exactly these four, and by nothing else: the hand-authored overlay
 #: (``doctrine.drg.migration.hand_authored_overlay``) carries edges the
 #: extractor has no frontmatter mechanism to mint, and they land on these nodes.
 #: Naming them keeps the two figures related by a stated cause instead of by two
@@ -436,6 +488,9 @@ _ORPHANS_RESOLVED_BY_OVERLAY: frozenset[str] = frozenset(
         # Ledger (10) #3063 family-B: the disciplined-refactoring hub directive.
         # Pure-orphan (no inline refs), wired only by the family-B overlay edges.
         "directive:DISCIPLINED_REFACTORING",
+        # Ledger (11) #3063 family-C: the use-c4-model-techniques hub directive.
+        # Pure-orphan (no inline refs), wired only by the family-C overlay edges.
+        "directive:USE_C4_MODEL_TECHNIQUES",
     }
 )
 
@@ -543,7 +598,7 @@ class TestDRGZeroDelta:
         )
 
     def test_shipped_graph_orphans_are_the_pure_set_minus_the_overlay(self) -> None:
-        """The two figures (pure 23, shipped 21) differ by a stated cause.
+        """The two figures (pure 25, shipped 21) differ by a stated cause.
 
         Asserting each against its own constant would let them drift apart while
         both stayed green. Here the shipped set is *derived* from the pure set,

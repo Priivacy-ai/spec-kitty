@@ -247,11 +247,11 @@ action-reachable via the DDD paradigm.)
   - `directive:DIRECTIVE_039`
   - `directive:DIRECTIVE_044`
   - `paradigm:atomic-design`
-  - `paradigm:c4-incremental-detail-modeling`
+  - `paradigm:c4-incremental-detail-modeling` — Family C: topology authored, delivery pending
   - `paradigm:specification-by-example`
   - `paradigm:structured-prompt-driven-development`
-  - `procedure:documentation-gap-prioritization`
-  - `procedure:drill-down-documentation`
+  - `procedure:documentation-gap-prioritization` — Family C candidate EXCLUDED as non-attested (see Family C section)
+  - `procedure:drill-down-documentation` — Family C: topology authored, delivery pending
   - `procedure:event-storming-discovery`
   - `procedure:example-mapping-workshop`
   - `procedure:migrate-project-guidance-to-spec-kitty-charter`
@@ -261,14 +261,14 @@ action-reachable via the DDD paradigm.)
   - `styleguide:reasons-canvas-writing`
   - `tactic:adversarial-qa-handoff`
   - `tactic:analysis-extract-before-interpret`
-  - `tactic:architecture-diagram-review-checklist`
+  - `tactic:architecture-diagram-review-checklist` — Family C: topology authored, delivery pending
   - `tactic:atdd-adversarial-acceptance`
   - `tactic:atomic-design-review-checklist`
   - `tactic:atomic-state-ownership`
-  - `tactic:c4-zoom-in-architecture-documentation`
+  - `tactic:c4-zoom-in-architecture-documentation` — Family C: topology authored, delivery pending
   - `tactic:canonical-source-unification`
   - `tactic:chain-of-responsibility-rule-pipeline`
-  - `tactic:code-documentation-analysis`
+  - `tactic:code-documentation-analysis` — Family C: topology authored, delivery pending
   - `tactic:compositional-stream-boundaries`
   - `tactic:cross-cutting-state-via-store`
   - `tactic:development-bdd`
@@ -297,8 +297,8 @@ action-reachable via the DDD paradigm.)
   - `toolguide:contextive`
   - `toolguide:github-tracker`
   - `toolguide:maven-review-checks`
-  - `toolguide:mermaid-diagramming`
-  - `toolguide:plantuml-diagramming`
+  - `toolguide:mermaid-diagramming` — Family C: topology authored, delivery pending
+  - `toolguide:plantuml-diagramming` — Family C: topology authored, delivery pending
   - `toolguide:python-mutation-tools`
   - `toolguide:terminology-guard`
   - `toolguide:typescript-mutation-tools`
@@ -481,3 +481,147 @@ moved count is recorded so no golden number moves silently.
   UNCHANGED** — Family B is inert (measured). No pin moves.
 - **Deferred set unchanged at 60** — the seven refactoring tactics stay deferred
   (topology authored, delivery pending); no artefact leaves the set.
+
+## Family C (#3063 ARCHITECTURE-DOCS / DIAGRAMMING family) — operator interview outcome, INERT (composition-only)
+
+The #3063 operator interview ATTESTED an ARCHITECTURE-DOCS / DIAGRAMMING family
+(C-007(a) satisfied by operator ruling). Its hub is a **NEW built-in directive**,
+`directive:USE_C4_MODEL_TECHNIQUES`
+(`src/doctrine/directives/built-in/use-c4-model-techniques.directive.yaml`): use
+the C4 model's progressive zoom (System Context → Container → Component → Code) to
+document and reason about architecture at the right level of detail; keep diagrams
+as text-based, version-controlled diagram-as-code; drawn as an **extensible hub**
+for architecture-documentation techniques (further techniques wired in as they are
+supplied). No equivalent directive existed (`grep -ri "c4\|architecture.*model\|diagram" src/doctrine/directives/`
+found none).
+
+### ⚠️ URN casing (relation/id correction, same rule as Family B)
+
+The wiring named the hub `directive:use-c4-model-techniques` (lower-kebab). A
+directive node's URN is derived from its artifact `id`, and the `Directive` model
+requires `id` to match `^[A-Z][A-Z0-9_-]*$` while
+`id_normalizer.normalize_directive_id` upper-cases any non-numeric slug — so the
+only URN a real directive artifact can yield is `directive:USE_C4_MODEL_TECHNIQUES`
+(the `DISCIPLINED_REFACTORING` / `RECONCILE_CHANGE_SCOPE_TENSIONS` precedent). The
+lower-kebab form is unreachable through the schema; the canonical URN is UPPER_SNAKE.
+
+### The 9 authored edges (all `suggests`, all INERT under today's traversal)
+
+The 7 directive→member edges each carry a per-member `when` = the member's own
+attested applicability, derived from the member's own `purpose`/`scope`/`summary`
+text — **not invented**:
+
+| # | source | relation | target | `when` (grounded in the member's own text) |
+|---|---|---|---|---|
+| C1 | `directive:USE_C4_MODEL_TECHNIQUES` | `suggests` | `paradigm:c4-incremental-detail-modeling` | communicating architecture to more than one audience at more than one level of detail, so it must be broken into progressive zoom levels rather than a single all-in-one diagram |
+| C2 | `directive:USE_C4_MODEL_TECHNIQUES` | `suggests` | `tactic:c4-zoom-in-architecture-documentation` | actually drawing the diagrams — starting from the System Context and zooming in to Container and Component levels only where detail adds value |
+| C3 | `directive:USE_C4_MODEL_TECHNIQUES` | `suggests` | `tactic:architecture-diagram-review-checklist` | an architecture diagram is about to be shared/committed and must be understandable without a verbal walkthrough |
+| C4 | `directive:USE_C4_MODEL_TECHNIQUES` | `suggests` | `toolguide:mermaid-diagramming` | rendering the diagrams as text-based, version-controlled diagram-as-code in Mermaid |
+| C5 | `directive:USE_C4_MODEL_TECHNIQUES` | `suggests` | `toolguide:plantuml-diagramming` | rendering the diagrams as text-based, version-controlled diagram-as-code in PlantUML |
+| C6 | `directive:USE_C4_MODEL_TECHNIQUES` | `suggests` | `procedure:drill-down-documentation` | capturing decisions/architecture at a consistent abstraction level (org → arch → design → code) with upward/downward traceability, rather than mixing levels in one artifact |
+| C7 | `directive:USE_C4_MODEL_TECHNIQUES` | `suggests` | `tactic:code-documentation-analysis` | reverse-engineering or reviewing an existing system's architecture — extracting terminology from code and docs to surface implicit context boundaries before documenting them |
+
+The reinforcement ("supporting") bridge and the profile edge:
+
+| # | source | relation | target | `when` / note |
+|---|---|---|---|---|
+| C8 | `directive:USE_C4_MODEL_TECHNIQUES` | `suggests` | `paradigm:domain-driven-design` | the architecture is organised around a domain model, so its container/component boundaries should reflect bounded contexts and the ubiquitous language — the attested DDD-reinforcement leg |
+| C9 | `agent_profile:architect-alphonso` | `suggests` | `directive:USE_C4_MODEL_TECHNIQUES` | `when` = "documenting or reviewing system architecture" (alphonso's attested scope) |
+
+### The "supporting" relation and "the documentation paradigm" — what was found
+
+- **Relation for "supporting/reinforces":** `Relation` (`src/doctrine/drg/models.py`)
+  offers no dedicated support/reinforce member. The closest **attested** relation is
+  `suggests` (a directional, soft, non-mandatory pointer) — used for C8. **No new
+  relation kind was invented** (the "defer/report instead of invent" guard).
+- **"The documentation paradigm":** there is **no distinct documentation paradigm
+  node**. `paradigm:c4-incremental-detail-modeling` **IS** the documentation /
+  architecture-modelling paradigm, and it is already a hub member (edge C1). So the
+  "documentation" leg of "supporting the documentation and DDD paradigms" is covered
+  by C1, and **only the DDD-bridge leg (C8) is added** as a separate edge. This is
+  what was found and done.
+
+### Attestation audit — what was EXCLUDED as non-attested
+
+- `procedure:documentation-gap-prioritization` — a #3063 candidate member, but its
+  own text triages documentation **gaps** by user impact across ALL doc types
+  (tutorials, how-to, reference, explanation). That is a documentation-project-
+  management technique, **not** a C4 / architecture-documentation / diagramming one.
+  No member edge is authored for it; it stays in the DEFERRED set (plain, not
+  "topology authored").
+
+### Why Family C is INERT — measured, not assumed (WP08 helper, R-1)
+
+All 9 edges are inert under today's traversal:
+
+- The **directive is not charter-activated** in this project, so it never enters the
+  `_activated()` universe the reachability pins subtract from — a new unactivated
+  built-in directive cannot join `_ACTION_UNREACHABLE_*`.
+- The **directive→member** and **directive→DDD** edges are `suggests`, and the
+  directive is scoped by no action, so `resolve_context` never reaches it and never
+  walks its outbound `suggests`. The seven members stay action-unreachable (they
+  already were).
+- The **C8 DDD-bridge** edge is INBOUND to `paradigm:domain-driven-design`, which
+  Family A already made action-reachable; a directive→paradigm edge does not make
+  the SOURCE reachable, so it delivers nothing new and moves no DDD pin either.
+- The **profile→directive (C9)** edge is `suggests`; the profile channel walks
+  `{requires, specializes_from}` only, so it never follows it.
+
+Measured before/after with the WP08 helper: `_ACTION_UNREACHABLE_D1`,
+`_ACTION_UNREACHABLE_D2`, `_PROFILE_UNREACHABLE` and `_PROFILE_RESCUES` are
+**UNCHANGED**. Family C moves **no** reachability pin — only composition counts.
+
+The seven architecture-doc technique members therefore **remain in the DEFERRED set
+above** — *topology authored, delivery pending fast-follow*. Their delivery needs
+the directive to be action-scoped (the canonical home would be a mission
+step-contract action index), or the profile-channel walk to follow `suggests`; that
+is a traversal-policy / scoping decision for the operator, not edge authoring.
+
+### Asset / template assessment (operator asked specifically)
+
+The mission's asset surface (`AssetRepository`, `doctrine asset` commands,
+`*.asset.yaml` manifests) was assessed for shippable architecture-doc
+exemplars/templates. **Finding: the exemplars already ship — as `template` artefacts,
+not assets.** `src/doctrine/templates/architecture/` already contains
+`c4-context-mermaid-template.md`, `c4-container-mermaid-template.md` and
+`c4-component-mermaid-template.md` (plus a broad `templates/diagrams/{mermaid,plantuml}/`
+library), and the C4 zoom-in tactic already references them by id
+(`c4-context-mermaid-template`, etc.). A text-based C4 context+container template is
+therefore **already self-contained and shipped in the correct kind** (`template`, the
+fill-in-the-blanks companion), so authoring a NEW `*.asset.yaml` would duplicate
+existing canonical content in the wrong kind. **Decision: author NO new asset.** The
+asset kind is reserved for a loaded policy blob like `common-docs-structural-lint`
+(a lint config the structural-lint gate loads), which is a different concern from a
+fill-in exemplar. **Recommendation for the fast-follow:** if the operator wants these
+C4 templates *delivered* to an agent's context, wire the existing template nodes via
+the C4 zoom-in tactic's already-authored `references:` (a template `instantiates`
+edge from the `documentation/design` action is the canonical delivery path) rather
+than re-homing them as assets.
+
+## Composition ledger (NFR-004) — Family C (#3063 ARCHITECTURE-DOCS family)
+
+One new directive node (via extraction) + nine `suggests` overlay edges. Each moved
+count is recorded so no golden number moves silently.
+
+- **Shipped-graph nodes 311 → 312** (+1). The directive is a real `*.directive.yaml`,
+  so the extractor mints its node: pure golden `_EXPECTED_NODE_COUNT` **305 → 306**
+  (`test_extractor_projection`). It carries **no inline references**, so it mints
+  **zero** extractor edges — `_EXPECTED_EDGE_COUNT` stays **764**.
+- **Shipped-graph edges 810 → 819** (+9). `len(HAND_AUTHORED_EDGES)` **46 → 55**.
+  `test_shipped_graph_is_fresh_and_byte_identical` stays green by construction
+  (`764 + 55 = 819`) once the fragments are regenerated. Ledger entry (11) is added to
+  that module's composition ledger.
+- **`suggests` relation histogram 354 → 363** (+9; all 9 edges are `suggests`).
+  `requires` (272) and `scope` (159) are **unchanged**. Gated by
+  `tests/architectural/test_no_authored_applies_edge.py::TestPositiveCountClaimsAreTrue`
+  and mirrored char-for-char in `RELATION_DESCRIPTIONS` (`doctrine.drg.models`) and
+  `docs/architecture/doctrine-relationships.md`; both updated.
+- **Orphan sets:** in a **pure** regeneration the directive is an orphan (its only
+  edges are overlay-authored), so pure orphans **24 → 25** — it joins
+  `_AWAITING_REFERENCES` (5 → 6) and `_ORPHANS_RESOLVED_BY_OVERLAY` (3 → 4). Shipped
+  orphans stay **21** (the overlay wires it as both an edge source and target).
+- **`_ACTION_UNREACHABLE_D1`/`D2`, `_PROFILE_UNREACHABLE`, `_PROFILE_RESCUES`
+  UNCHANGED** — Family C is inert (measured). No pin moves.
+- **Deferred set unchanged at 60** — the seven architecture-doc members stay deferred
+  (topology authored, delivery pending); `documentation-gap-prioritization` stays
+  deferred (excluded as non-attested); no artefact leaves the set.
