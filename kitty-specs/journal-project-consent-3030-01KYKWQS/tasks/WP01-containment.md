@@ -28,6 +28,8 @@ owned_files:
 - src/specify_cli/sync/routing.py
 - tests/sync/test_routing.py
 - tests/delivery/test_receivers.py
+- tests/sync/conftest.py
+- tests/sync/test_sync_consent_default_deny.py
 tags: []
 tracker_refs: []
 ---
