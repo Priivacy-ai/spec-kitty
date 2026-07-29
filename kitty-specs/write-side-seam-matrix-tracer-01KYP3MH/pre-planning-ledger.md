@@ -79,8 +79,11 @@ All four write concerns (acceptance verdict, issue verdict, tracer routing, gene
 
 ---
 
-## RESUME DECISIONS for the operator (surface at un-park)
+## RESUME DECISIONS — RESOLVED 2026-07-29 (operator, post-#3060-merge)
 
-- **A — FR-005 home:** own ADR + isolated lane (recommended, given P0 + merge blast radius) vs. bundle into the core mission (coherence hit).
-- **B — #3033 post-merge write mode:** fold into core FR-004 vs. explicit C-006 out-of-scope + a guard.
-- **C — FR-002 issue source-of-truth:** scanner interim-authoritative with a mission-card seam (recommended) vs. commit to the scanner as the authority.
+- **A — FR-005 home → BUNDLE into core mission.** Kept in the single core mission (one lane), but marked ADR-gated (C-007) and reviewed as its own WP with explicit merge/ancestor tests.
+- **B — #3033 → OUT-OF-SCOPE + graceful guard.** FR-009 now degrades gracefully on a deleted `target_branch`; the real post-merge write mode is fast-follow #3033 (C-006).
+- **C — FR-002 issue source-of-truth → DEFERRED to its own slice.** The issue-matrix verdict command + multi-file reference discovery (#2583/#1738) move to the WP-metadata authority slice (#2093 WP-metadata authority split, #2400 metadata & profile authority sub-epic) — it is its own technical problem domain tied to the reader surface and open P0s. This mission keeps issue-matrix **placement-routing only** (FR-002 narrowed). Gate twin #3035 travels with the deferred slice.
+- **D — #3055 → FOLDED into this mission.** New FR-010 teaches the coord-authority gate the write-side seam idiom (routing `decisions/emit.py` off the allow-list), unblocking FR-001/FR-003 COORD routing.
+
+**Spec corrected accordingly** (2026-07-29): FR-004 reframed to census-and-route (not "build twin"); #3014 prereq fixed; four-dedicated-merge-drivers replaces the union-driver assumption; FR-005 re-weighted P0/ADR-gated; C-007 added; #2663 folded into FR-004; FR-010 added; issue-matrix narrowed. #3060 confirmed MERGED (`e6806f184`) and rebased; `write_target`/`write_acceptance_matrix` intact, `primary_feature_dir_for_mission` gone — all extend-points verified against the merged base.
