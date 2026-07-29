@@ -43,12 +43,12 @@ An agent works with the issue-matrix as **structured data with per-item statuses
 
 **Why this priority**: Makes the issue-matrix deterministically tooled/mergeable and closes three real gaps (#1738 discovery + missing merge gate; #3035 zero-reference hard-fail).
 
-**Independent Test**: Reference an issue only in `tasks/WP01.md`; assert discovery finds it and the structured matrix carries a row. Run post-merge review on a zero-reference mission; assert Gate 4 is `not_applicable`, not a hard fail. Set a per-item status via the command; assert the structured artifact and its rendered markdown view both update.
+**Independent Test**: Reference an issue only in `tasks/WP01.md`; assert discovery finds it and the structured matrix carries a row. Run post-merge review on a zero-reference mission; assert Gate 4 is `not_applicable`, not a hard fail. Set a per-item status via the command; assert `issue-matrix.json` updates (single canonical artifact, no markdown render).
 
 **Acceptance Scenarios**:
 1. **Given** an issue referenced only in `tasks/`, `plan.md`, or `contracts/`, **When** completeness is checked (approval and merge time), **Then** the reference is discovered (multi-file) and a merge-time gate enforces it (#1738).
 2. **Given** a spec with no canonical issue references, **When** post-merge review runs, **Then** Gate 4 is recorded `not_applicable` and the verdict is decided by applicable gates — no fabricated matrix required (#3035).
-3. **Given** the structured issue-matrix, **When** an agent sets a row's per-item status via the command, **Then** the structured artifact updates deterministically (routed via `write_target(ISSUE_MATRIX)`) and the rendered markdown view is regenerated.
+3. **Given** the structured `issue-matrix.json`, **When** an agent sets a row's per-item status via the command, **Then** the JSON artifact updates deterministically (routed via `write_target(ISSUE_MATRIX)`) — a single canonical artifact, no separate markdown render.
 
 ---
 
@@ -84,7 +84,7 @@ An operator consolidates several lanes; matrix, tracer, and status writes record
 - **Unknown target**: a verdict/finding command for an unknown WP returns an actionable error, not a silent no-write.
 - **Zero issue references**: completeness/review record `not_applicable`; the structured matrix is not fabricated.
 - **Coord-authority gate**: routing a COORD write must satisfy the coord-authority gate; teaching the gate the seam idiom (FR-010) is in scope, not a bypass allow-list.
-- **Structured-matrix compatibility**: every issue-matrix consumer (doctor, gates, review, dashboard) reads the structured form; a rendered markdown view is retained for humans/PRs.
+- **Structured-matrix compatibility**: every issue-matrix consumer (doctor, gates, review, dashboard) reads `issue-matrix.json`; a mission with only a legacy `issue-matrix.md` is still readable via failover-read until migrated (FR-013).
 
 ## Requirements *(mandatory)*
 
@@ -93,8 +93,8 @@ An operator consolidates several lanes; matrix, tracer, and status writes record
 | ID | Title | User Story | Priority | Status |
 |----|-------|------------|----------|--------|
 | FR-001 | Acceptance-matrix verdict command + persist-on-accept | As a reviewing agent, I want a command that fronts `write_acceptance_matrix` via `write_target(ACCEPTANCE_MATRIX)` keeping the computed verdict authoritative, AND canonical acceptance to persist the recomputed `overall_verdict` (not only when negative invariants exist), so the JSON is never stale (#2318 + comment 5102989064). | High | Open |
-| FR-002 | Structured matrix schema (acceptance + issue) | As a maintainer, I want both matrices as structured artifacts with a clear schema and accepted per-item statuses — the issue-matrix migrated from free markdown to structured JSON/YAML with a retained rendered markdown view, and all downstream readers (doctor, gates, review, dashboard) migrated to the structured form — so the tooling is deterministic and testable in isolation. | High | Open |
-| FR-003 | Deterministic issue-matrix verdict command | As an agent, I want a command that sets an issue-matrix row's per-item status/verdict on the structured artifact, routed through `write_target(ISSUE_MATRIX)`, regenerating the markdown view. | High | Open |
+| FR-002 | Structured matrix schema (acceptance + issue) | As a maintainer, I want both matrices as structured **JSON** artifacts with a clear schema and accepted per-item statuses — the issue-matrix migrated from free markdown to `issue-matrix.json` as the **single canonical artifact** (NO `issue-matrix.md` render; the dashboard parses JSON directly), and all downstream readers (doctor, gates, review, dashboard) migrated to the JSON form — so the tooling is deterministic and testable in isolation. | High | Open |
+| FR-003 | Deterministic issue-matrix verdict command | As an agent, I want a command that sets an issue-matrix row's per-item status/verdict on the structured `issue-matrix.json`, routed through `write_target(ISSUE_MATRIX)`. | High | Open |
 | FR-004 | Multi-file issue-reference discovery + merge-time gate | As a maintainer, I want `detect_issue_references` generalized from single-`spec.md` to scan `spec.md`+`tasks/`+`plan.md`+`research.md`+`analysis-report.md`+`contracts/` (updating the three enforcement sites), and a missing issue-matrix completeness gate added to `merge_gates.py`, so load-bearing references are never invisible (#1738). | High | Open |
 | FR-005 | Zero-reference gate = not_applicable | As a maintainer, I want post-merge review + gates to record Gate 4 `not_applicable` when the spec declares no canonical issue references (same definition as finalization), retaining fail-closed when references exist, with regression for both branches (#3035). | High | Open |
 | FR-006 | Lane findings (tracer) append routed to coordination surface | As an agent on a lane, I want to append a dated, attributed finding routed to the coordination surface via `commit_for_mission` without a lane-branch `kitty-specs/` commit, so findings are captured without blocking the lane (#2980/#2549; attribution guard #2960). | High | Open |
@@ -104,6 +104,7 @@ An operator consolidates several lanes; matrix, tracer, and status writes record
 | FR-010 | Teach the coord-authority gate the write-side seam idiom | As a maintainer, I want `decisions/emit.py` routed off the gate allow-list (Move A, strengthening) and — only if seam-routed writers still resolve via the kind-blind resolver — the gate widened to recognize `write_target(<COORD kind>)` by def-use with an alias-bite non-vacuity test (Move B), re-pinning the census floor (4→3), so routing COORD writes is unblocked (#3055). | High | Open |
 | FR-011 | Zero-write refusal + actionable errors on unroutable writes | As an agent, I want an unroutable write (missing coord surface, deleted `target_branch`, unknown target) to return a structured, recoverable **zero-write refusal** disclosing #3033 as the deferred real fix — never a fallback write, never a consolidation abort — so I recover deterministically. | Medium | Open |
 | FR-012 | Idempotent, structured-result write commands | As an orchestrator, I want every write command to be idempotent (re-run = no-op) and to emit structured output naming the row/entry and destination surface, so retries are safe and results are machine-consumable. | Medium | Open |
+| FR-013 | Issue-matrix migration (on-write + failover-read + bulk command) | As a maintainer, I want a shared migration sub-module that (a) failover-reads a legacy `issue-matrix.md` when `issue-matrix.json` is absent, (b) migrates a mission to JSON on the first structured write, and (c) backs a dedicated bulk-migration command for one-shot swap-over — so no in-flight consumer mission breaks on the format change. | High | Open |
 
 ### Non-Functional Requirements
 
@@ -114,7 +115,7 @@ An operator consolidates several lanes; matrix, tracer, and status writes record
 | NFR-003 | Lane-safe and idempotent | Any write command run from a lane leaves zero `kitty-specs/` commits on the lane branch and no blocked/dirty state; re-running any command is a no-op. | Reliability | High | Open |
 | NFR-004 | Coverage and complexity | Every new command branch, converged call site, structured-schema path, merge driver, and gate change has focused unit tests executed directly; no new/modified function exceeds cyclomatic complexity 15. | Maintainability | High | Open |
 | NFR-005 | No regression of shipped invariants | The read-side seam census, the C-008 architectural gates, the coord-authority gate (`test_resolution_authority_gates.py`), and every migrated issue-matrix consumer remain green; event-log status remains the sole authority for lane state. | Reliability | High | Open |
-| NFR-006 | Backward-compatible matrix render | The structured issue-matrix always emits a human-readable rendered markdown view; no PR/readiness surface is left without a legible matrix. | Compatibility | Medium | Open |
+| NFR-006 | Back-compat via failover-read | A mission that still has only a legacy `issue-matrix.md` remains fully readable via failover-read until its first structured write migrates it; no consumer mission breaks on the format change. | Compatibility | High | Open |
 
 ### Constraints
 
@@ -127,12 +128,12 @@ An operator consolidates several lanes; matrix, tracer, and status writes record
 | C-005 | Built on merged PR #3060 | Coord topology; consolidates into `feat/write-side-seam-matrix-tracer`; PR into `upstream/main` post-consolidation. Rebased onto PR #3060 (MERGED `e6806f184`); must not reference the deleted `primary_feature_dir_for_mission` wrapper. | Technical | High | Open |
 | C-006 | Explicit out-of-scope boundary | OUT of core, filed as fast-follows: finalize-tasks commit-destination bugs (#2938/#2937/#2930/#2802/#2643); status-writer *behavioural* unification (#2300/#3029/#1734 — only #3027's mark-status-roster campsite is in-core); review-verdict integrity P0s (#2996/#2939, #3044); post-merge write mode **#3033** (FR-011 guards only); mission-card-as-alternative-issue-source **#1742/#1740** (`at_tension_with` — this mission commits to the scanner + structured-artifact path). | Business | Medium | Open |
 | C-007 | ADR + contracts scope | Exactly **one new ADR** (FR-009 lane-base: amends `2026-04-03-1`, cites `2026-06-24-1/-2`+`2026-07-23-2`, MUST pin a recorded base SHA — never a moving tip — and resolve whether the base carries coord-status lineage; no consolidation abort path). **Two `contracts/` docs** (FR-007 write-seam-adoption; FR-010 gate predicate-widen with an alias-bite non-vacuity proof), each citing `2026-06-24-1`, `2026-06-26-1`, `2026-07-23-1`. FR-007/FR-010 are NOT new ADRs — they implement decisions already made. | Technical | High | Open |
-| C-008 | Structured-matrix migration completeness | The issue-matrix structural migration MUST retain a rendered markdown view AND migrate every downstream consumer (doctor, gates, review, dashboard) in this mission — no consumer left reading the retired markdown-only format. | Technical | High | Open |
+| C-008 | Structured-matrix migration completeness | The issue-matrix migration MUST move every downstream consumer (doctor, gates, review, dashboard) to `issue-matrix.json` in this mission — no consumer left parsing markdown. NO `issue-matrix.md` is emitted going forward; back-compat is via failover-read + migrate-on-write (FR-013), not a dual-format render. | Technical | High | Open |
 
 ### Key Entities
 
 - **Acceptance-matrix**: structured (JSON) per-requirement/DoD verdicts; `overall_verdict` is a computed property (never hand-stored) and must be persisted on canonical acceptance.
-- **Issue-matrix**: migrated to a **structured artifact with per-item statuses** + a rendered markdown view; rows are keyed by tracked-issue reference discovered across all mission artifacts.
+- **Issue-matrix**: migrated to a single **structured JSON artifact (`issue-matrix.json`) with per-item statuses**; no markdown render (the dashboard parses JSON); rows are keyed by tracked-issue reference discovered across all mission artifacts.
 - **Tracer finding entry**: a dated, actor-attributed note (tooling-friction / approach / design-decision), routed to the coord surface.
 - **Placement seam (write path)**: the **existing** `write_target(kind)` → `resolve_placement_only` authority; this mission adopts it at bypassing call sites — it does not build a new one.
 - **Row-aware merge driver**: a merge driver operating on structured matrix rows so disjoint concurrent edits union.
