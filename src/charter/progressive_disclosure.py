@@ -111,20 +111,35 @@ def link_references(
     merged: DRGGraph,
     roots: Iterable[str],
     delivered_urns: Iterable[str],
+    *,
+    bridge_urns: Iterable[str] = (),
 ) -> list[dict[str, str | None]]:
     """The complete link set naming every delivered artefact (completeness, T084).
 
     Emits one reference per ``(target-id, relation)`` for every edge whose source
-    is a root **or** a delivered artefact and whose target is delivered. Computed
-    over ``roots ∪ delivered`` — not only the inline DTOs — so a ``suggests``
-    chain (``root ~> a ~> b ~> c`` where ``b`` is itself only linked) still names
-    its deep members: every delivered artefact has an inbound edge from within
-    ``roots ∪ delivered`` by construction of the reachable closure, so it is named
-    here. This is the "completeness by naming" guarantee: the union of inlined and
+    is a root, a delivered artefact, **or** a *bridge* URN, and whose target is
+    delivered. Computed over ``roots ∪ delivered ∪ bridge_urns`` — not only the
+    inline DTOs — so a ``suggests`` chain (``root ~> a ~> b ~> c`` where ``b`` is
+    itself only linked) still names its deep members: every delivered artefact
+    has an inbound edge from within ``roots ∪ delivered`` by construction of the
+    reachable closure, **provided every intermediate hop is itself delivered**.
+
+    That proviso does not hold when a hop is of a kind the bundle deliberately
+    never delivers (e.g. ``paradigm`` — see ``charter.context``'s NodeKind
+    delivery table): such a node is genuinely reachable during resolution and
+    can sit on the only path to a delivered artefact, yet it is excluded from
+    the ``delivered`` set by policy, so it would never act as a source and the
+    artefact on the far side would be neither inlined nor named — a silent
+    delivery gap despite ``delivered`` correctly containing it. ``bridge_urns``
+    closes that gap: pass every URN actually visited during resolution
+    (including excluded kinds) so pass-through hops still act as reference
+    sources, without pulling them into ``delivered`` or ``inline`` themselves.
+
+    This is the "completeness by naming" guarantee: the union of inlined and
     referenced ids equals the delivered set, with no cap.
     """
     delivered = set(delivered_urns)
-    sources = set(roots) | delivered
+    sources = set(roots) | delivered | set(bridge_urns)
     seen: set[tuple[str, str]] = set()
     out: list[dict[str, str | None]] = []
     for source in sorted(sources):
@@ -257,6 +272,7 @@ def build_disclosure_payload(
     roots: Iterable[str],
     include_all: bool,
     body_of: Callable[[object], object] | None,
+    bridge_urns: Iterable[str] = (),
 ) -> dict[str, object]:
     """Render the progressive-disclosure slice of the JSON payload (WP15).
 
@@ -266,6 +282,13 @@ def build_disclosure_payload(
     ``procedure``/``asset`` kinds in *extra_delivered*, which are delivered but
     not surfaced as their own arrays). Kept here so ``charter.context`` stays
     flat (single-owner, no-net-growth) while owning only the call.
+
+    *bridge_urns* is every URN actually visited while resolving the action's
+    doctrine (e.g. ``resolve_context``'s raw ``artifact_urns``, before the
+    NodeKind delivery table drops the never-delivered kinds). It is forwarded
+    to :func:`link_references` only — never folded into ``roots`` here, so it
+    cannot widen the ``requires``-eager/inline set — to keep excluded-kind
+    pass-through hops (e.g. ``paradigm``) usable as reference sources.
     """
     inline_urns = (
         frozenset(requires_closure(merged, roots)) if merged is not None else frozenset()
@@ -285,7 +308,9 @@ def build_disclosure_payload(
         delivered[kind] = ids
     delivered.update(extra_delivered)
     out["references"] = (
-        link_references(merged, roots, reconstruct_urns(delivered))
+        link_references(
+            merged, roots, reconstruct_urns(delivered), bridge_urns=bridge_urns
+        )
         if merged is not None
         else []
     )
