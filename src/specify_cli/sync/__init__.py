@@ -58,12 +58,16 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     # Lazy-loaded names that require heavier optional/runtime dependencies.
     "BatchEventResult": (".batch", "BatchEventResult"),
     "BatchSyncResult": (".batch", "BatchSyncResult"),
-    "batch_sync": (".batch", "batch_sync"),
+    # NOTE (#3030 FR-012): ``batch_sync`` and ``sync_all_queued_events`` are
+    # deliberately absent. They are the retired queue-backed event drain, which
+    # carries no per-project consent; the journal dispatcher
+    # (``delivery/dispatcher.py``) is the sole event drain. Re-exporting them
+    # reinstates the cross-project leak — guarded by
+    # ``tests/sync/test_no_queue_drain_constructed_3030.py``.
     "categorize_error": (".batch", "categorize_error"),
     "format_sync_summary": (".batch", "format_sync_summary"),
     "generate_failure_report": (".batch", "generate_failure_report"),
     "write_failure_report": (".batch", "write_failure_report"),
-    "sync_all_queued_events": (".batch", "sync_all_queued_events"),
     "WebSocketClient": (".client", "WebSocketClient"),
     "SyncConfig": (".config", "SyncConfig"),
     "BackgroundSyncService": (".background", "BackgroundSyncService"),
@@ -100,8 +104,6 @@ __all__ = [
     "WebSocketClient",
     "SyncConfig",
     "OfflineQueue",
-    "batch_sync",
-    "sync_all_queued_events",
     "BatchEventResult",
     "BatchSyncResult",
     "categorize_error",
