@@ -9,6 +9,7 @@ from specify_cli.core.paths import locate_project_root
 
 from .body_queue import OfflineBodyUploadQueue
 from .config import SyncConfig
+from .consent import set_project_consent
 from .git_metadata import GitMetadataResolver
 from specify_cli.identity.project import ProjectIdentity, load_identity, resolve_identity
 from .queue import OfflineQueue
@@ -150,6 +151,22 @@ def write_local_sync_enabled(repo_root: Path, enabled: bool) -> None:
     SyncConfig().set_checkout_sync_enabled(repo_root, enabled)
 
 
+class ConsentIdentityUnresolvedError(RuntimeError):
+    """No ``project_uuid`` resolved while recording consent (#3030 T016).
+
+    Raised instead of writing a path-keyed record with no uuid counterpart. Under
+    FR-002 an absent uuid record denies, so a half-written grant would silently
+    never deliver.
+    """
+
+    def __init__(self, repo_root: Path) -> None:
+        super().__init__(
+            f"Cannot record hosted-sync consent for {repo_root}: no project_uuid "
+            "resolved. Run `spec-kitty init` in this checkout so it has a project "
+            "identity, then retry."
+        )
+
+
 def enable_checkout_sync(
     repo_root: Path,
     *,
@@ -160,9 +177,19 @@ def enable_checkout_sync(
     if routing is None:
         raise ValueError("Could not resolve the active checkout.")
 
+    # #3030 T016: fail loudly rather than half-succeed. Under FR-002 absence of a
+    # uuid-keyed record denies, so writing only the path-keyed record here would
+    # leave the index empty and silently never deliver the project the operator
+    # just explicitly opted in — the exact failure the inversion was supposed to
+    # avoid. resolve_checkout_sync_routing already mints identity, so a missing
+    # uuid at this point is a real fault, not a state to paper over.
+    if not routing.project_uuid:
+        raise ConsentIdentityUnresolvedError(repo_root)
+
     write_local_sync_enabled(repo_root, True)
     if remember_repo_default and routing.repo_slug:
         SyncConfig().set_repository_sync_enabled(routing.repo_slug, True)
+    set_project_consent(str(routing.project_uuid), True)
     refreshed = resolve_checkout_sync_routing(repo_root)
     assert refreshed is not None
     return refreshed
@@ -181,6 +208,11 @@ def disable_checkout_sync(
     write_local_sync_enabled(repo_root, False)
     if remember_repo_default and routing.repo_slug:
         SyncConfig().set_repository_sync_enabled(routing.repo_slug, False)
+
+    if routing.project_uuid:
+        # #3030 FR-013: record the refusal uuid-keyed as well, so the drain
+        # honours it from any checkout and after this one moves or is deleted.
+        set_project_consent(str(routing.project_uuid), False)
 
     queue = OfflineQueue()
     removed_events = (

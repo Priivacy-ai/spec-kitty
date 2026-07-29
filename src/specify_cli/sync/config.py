@@ -232,3 +232,95 @@ class SyncConfig:
             config["sync"]["checkout_overrides"] = checkout_overrides
         checkout_overrides[str(repo_root.resolve())] = {"enabled": bool(enabled)}
         self._save(config)
+
+    # --- uuid-keyed consent index (#3030 FR-013) --------------------------
+    #
+    # Events carry a ``project_uuid``; the records above are keyed by absolute
+    # path. This section is the join, and it is a *cache* whose authority is the
+    # project's own ``.kittify/config.yaml`` — see ``sync/consent.py``, which owns
+    # the precedence chain. Nothing here decides consent; it only stores it.
+
+    def get_project_consent(self, project_uuid: str) -> bool | None:
+        """Return the recorded consent for *project_uuid*, or ``None`` if absent."""
+        entry = self._project_consent_section().get(project_uuid)
+        if not isinstance(entry, dict):
+            return None
+        enabled = entry.get("enabled")
+        return enabled if isinstance(enabled, bool) else None
+
+    def get_all_project_consent(self) -> dict[str, bool]:
+        """Return every recorded uuid → consent pair."""
+        records: dict[str, bool] = {}
+        for uuid, entry in self._project_consent_section().items():
+            if isinstance(entry, dict) and isinstance(entry.get("enabled"), bool):
+                records[str(uuid)] = entry["enabled"]
+        return records
+
+    def set_project_consent(self, project_uuid: str, enabled: bool) -> None:
+        """Record consent for one project."""
+        self.set_project_consent_bulk({project_uuid: enabled})
+
+    def set_project_consent_bulk(self, entries: dict[str, bool]) -> None:
+        """Record consent for many projects in a **single** file write.
+
+        Batched on purpose: these setters are unlocked whole-file
+        read-modify-writes and the daemon writes this file concurrently with an
+        interactive ``sync enable``. Since #3030 a lost record is a silent
+        delivery denial, not a cosmetic loss, so a backfill over N paths must not
+        be N read-modify-write cycles.
+        """
+        if not entries:
+            return
+        config = self._load()
+        section = config.setdefault("sync", {})
+        if not isinstance(section, dict):
+            section = {}
+            config["sync"] = section
+        consent = section.setdefault("project_consent", {})
+        if not isinstance(consent, dict):
+            consent = {}
+            section["project_consent"] = consent
+        for uuid, enabled in entries.items():
+            consent[str(uuid)] = {"enabled": bool(enabled)}
+        self._save(config)
+
+    def mark_checkout_records_unresolved(self, paths: list[str]) -> None:
+        """Flag path-keyed records whose checkout no longer resolves to a uuid.
+
+        The record is **retained**: dropping it would lose the operator's
+        decision, and leaving it unmarked would imply it is enforced when the
+        uuid-keyed predicate cannot see it. WP07 renders these as "consented but
+        unresolvable" (US2 scenario 3).
+        """
+        if not paths:
+            return
+        config = self._load()
+        overrides = config.get("sync", {}).get("checkout_overrides", {})
+        if not isinstance(overrides, dict):
+            return
+        changed = False
+        for path in paths:
+            entry = overrides.get(path)
+            if isinstance(entry, dict) and not entry.get("unresolved"):
+                entry["unresolved"] = True
+                changed = True
+        if changed:
+            self._save(config)
+
+    def get_all_checkout_sync_records(self) -> dict[str, bool]:
+        """Return every path-keyed sync record as ``{resolved_path: enabled}``."""
+        records: dict[str, bool] = {}
+        overrides = self._load().get("sync", {}).get("checkout_overrides", {})
+        if not isinstance(overrides, dict):
+            return records
+        for path, entry in overrides.items():
+            if isinstance(entry, dict) and isinstance(entry.get("enabled"), bool):
+                records[str(path)] = entry["enabled"]
+        return records
+
+    def _project_consent_section(self) -> dict:
+        section = self._load().get("sync", {})
+        if not isinstance(section, dict):
+            return {}
+        consent = section.get("project_consent", {})
+        return consent if isinstance(consent, dict) else {}
