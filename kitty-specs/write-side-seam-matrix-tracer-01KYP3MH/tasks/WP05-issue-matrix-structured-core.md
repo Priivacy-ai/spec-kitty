@@ -68,7 +68,7 @@ Migrate the issue-matrix from free markdown to `issue-matrix.json` as the **sing
 ## Subtasks
 
 ### T019 — B2: recognition map (red-first, first slice)
-Add `"issue-matrix.json" → ISSUE_MATRIX` to `_MISSION_FILE_KIND_BY_BASENAME` (keep `"issue-matrix.md"` for failover). Positive test: `kind_for_mission_file("issue-matrix.json") == ISSUE_MATRIX`. Negative test: an unknown basename → `None`. This is the **opening red-first test** of the WP.
+In `src/mission_runtime/artifacts.py` the map opens at `:195`; the `issue-matrix.md` entry is at `:200`. Add `"issue-matrix.json" → ISSUE_MATRIX` **beside** the `.md` entry (keep `"issue-matrix.md"` for failover — `.json` recognition is genuinely absent today). Positive test: `kind_for_mission_file("issue-matrix.json") == ISSUE_MATRIX`. Negative test: an unknown basename → `None`. This is the **opening red-first test** of the WP.
 
 ### T020 — Structured schema + canonical writer
 In `tasks/issue_matrix.py`, define the `issue-matrix.json` schema (rows keyed by canonicalized issue ref, per-item statuses) and the canonical writer routed via the WP03 helper `write_target(ISSUE_MATRIX)`. NO `issue-matrix.md` is emitted going forward.
@@ -79,8 +79,11 @@ Change `mission_finalize.py:355` / `issue_matrix.py:94` to author `issue-matrix.
 ### T022 — Migration sub-module (FR-013)
 Create `src/specify_cli/tasks/issue_matrix_migration.py`: failover-read (read legacy `issue-matrix.md` when `.json` absent), migrate-on-write (first structured write converts a legacy mission), and a bulk-migration command (`spec-kitty issue-matrix migrate [--mission <handle>] --json`). NFR-006 back-compat.
 
-### T023 — M7: one canonical reader
-Host `load_issue_matrix(feature_dir) → rows` in the migration sub-module (failover inside). Re-point `review/_issue_matrix.py:194 validate_issue_matrix` to call it, so doctor/review/finalize-lint/move-task all read through one definition. (Other consumers that already import `validate_issue_matrix` inherit JSON automatically.)
+### T023 — M7: one canonical **dir-based** reader
+Host `load_issue_matrix(feature_dir) → rows` in the migration sub-module — **dir-based** (takes `feature_dir`, resolves `.json` then failover-reads `.md`), NOT path-based. Re-point `review/_issue_matrix.py:194 validate_issue_matrix` to call it. **Consumers do NOT inherit JSON automatically** (B-1): each builds its own `feature_dir / "issue-matrix.md"` and `.exists()`-prechecks before reading, so the reader-internals swap is dead code behind those prechecks. Therefore:
+- **finalize-lint** (`mission_finalize.py:93/397`, owned by this WP): switch to `load_issue_matrix(feature_dir)` and **delete the `.md` `.exists()` precheck**.
+- **doctor + `tasks_parsing_validation.py`** switch in WP08 (T043); **post-merge review** switches in WP09 (T044). Those files are owned there — coordinate, do not edit them here.
+The dir-based signature + precheck deletion is the load-bearing contract: if the reader stays path-based, the failover is inert.
 
 ### T024 — Tests
 `tests/specify_cli/tasks/test_issue_matrix_structured.py`: schema round-trip; recognition (T019); scaffold-on-coord greenfield (T021); migrate-on-write + failover-read + bulk migrate (T022); canonical reader returns rows for both `.json` and legacy `.md`.

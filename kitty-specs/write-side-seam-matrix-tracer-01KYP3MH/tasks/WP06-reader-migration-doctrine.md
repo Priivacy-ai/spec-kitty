@@ -3,6 +3,8 @@ work_package_id: WP06
 title: Reader migration - doctrine, skills, completeness
 dependencies:
 - WP05
+- WP08
+- WP09
 requirement_refs:
 - C-008
 - FR-002
@@ -67,6 +69,8 @@ Judge each `.md`-shaped issue-matrix test as **stale-vs-valid** (per the failing
 
 ### T027 — C-008 completeness assertion [P]
 Add `tests/architectural/test_issue_matrix_json_migration_completeness.py`: assert no live consumer (doctor, review, finalize-lint, move-task, doctrine skills) parses `issue-matrix.md`; assert no code path emits `issue-matrix.md` going forward (failover-read of a legacy file is allowed). Explicitly exclude dashboard + `merge_gates` from the assertion set (net-new, not migration).
+
+> **Sequencing (B-1 fix):** the code-consumer reader switches are NOT in this WP — doctor + `tasks_parsing_validation.py` switch in **WP08 (T043)**, post-merge review in **WP09 (T044)**, finalize-lint in **WP05 (T023)**. This WP therefore depends on WP05+WP08+WP09; T027 must run **after** them or it reds on its own DoD (the `.exists()` `.md` prechecks are the real gate, not the reader internals).
 
 ## Branch Strategy
 

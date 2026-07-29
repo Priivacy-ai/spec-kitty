@@ -6,6 +6,8 @@ dependencies:
 - WP01
 requirement_refs:
 - FR-008
+- FR-002
+- C-008
 - NFR-005
 planning_base_branch: feat/write-side-seam-matrix-tracer
 merge_target_branch: feat/write-side-seam-matrix-tracer
@@ -16,6 +18,7 @@ subtasks:
 - T040
 - T041
 - T042
+- T045
 history:
 - at: '2026-07-29T09:24:15Z'
   actor: system
@@ -64,7 +67,7 @@ Replace the whole-file "more-filled-side" acceptance/issue-matrix merge drivers 
 ## Subtasks
 
 ### T039 — Red-first #2970 path-injection repro
-Before the rewrite, add a failing test reproducing the 5 S2083 path-injection findings in `merge_driver.py` (untrusted `%O`/`%A`/`%B` path handling). Fix the path handling; the regression must stay green.
+Before the rewrite, add a **true red-first repro** (not a scanner-count mirror): drive the driver's real `main(argv)` entry with untrusted `%O`/`%A`/`%B` arguments containing traversal/absolute-path vectors (e.g. `../`, an absolute `/etc/...` path) and assert the driver refuses/sanitizes rather than reading/writing outside the intended matrix path — the concrete shape of the 5 S2083 findings in `merge_driver.py`. Fix the path handling; the regression must stay green.
 
 ### T040 — Row-aware base-aware drivers
 Rewrite the acceptance + issue-matrix drivers per the algorithm contract: 3-way `%O`/`%A`/`%B`; row-key canonicalization (`criterion_id` for acceptance; canonicalized `issue_ref` for issue); per-row three-way reconciliation; **delete-vs-stale** disambiguation; stable canonical output order (byte-determinism). Never re-author a computed verdict (acceptance `overall_verdict` stays a property).
@@ -74,8 +77,11 @@ Rewrite the acceptance + issue-matrix drivers per the algorithm contract: 3-way 
 - `cli/commands/init.py:73,194`: update the new-repo `.gitattributes` pattern.
 - Create a **NEW forward migration** `src/specify_cli/upgrade/migrations/m_3_2_7_issue_matrix_driver_repoint.py` repointing `**/issue-matrix.md` → `issue-matrix.json` for upgraded repos. **Do NOT** mutate the historical `m_3_2_6_gate_artifact_merge_drivers.py`.
 
-### T042 — Tests
-`tests/specify_cli/cli/commands/test_row_aware_merge_driver.py`: disjoint-row union (two lanes, different keys → no clobber); stale-residue (base row deleted on one side, untouched on the other → dropped); same-field divergence → structured conflict (no silent pick, no abort); byte-determinism (shuffled input order → identical output); #2970 path-injection regression.
+### T042 — Tests (driver-unit, synthetic %O)
+`tests/specify_cli/cli/commands/test_row_aware_merge_driver.py`: disjoint-row union (two lanes, different keys → no clobber); stale-residue (base row deleted on one side, untouched on the other → dropped); same-field divergence → structured conflict (no silent pick, no abort); **intra-side duplicate-key** (two raw rows on one side normalizing to the same key → structured error/deterministic dedupe, never silent drop); byte-determinism (shuffled input order → identical output); #2970 path-injection regression. These construct `%O`/`%A`/`%B` synthetically and pass **regardless of WP01** — they prove the algorithm, not the durability.
+
+### T045 — SC-003 durability-integration regression (gated on WP01)
+The WP11→WP01 edge exists so the driver's `%O` is a **real** common ancestor, not a synthetic fixture. Add the integration test that actually bites: a real-git two-lane consolidation where a lane worktree is created from the **recorded planning SHA** (WP01), two lanes write **disjoint** matrix rows, and after consolidation **both rows survive** via the row-aware driver — zero clobber, zero silent reversion (SC-003). This test is meaningful only once WP01 has landed; without a shared `%O` the driver degrades to 2-way and this is where that would surface. **Gate:** this subtask depends on WP01's ADR decision (T001) of **which partition supplies the merge `%O`** — primary lane lineage (WP01's SHA) vs the coord surface where matrices are routed by FR-007. If the ADR resolves it the coord way, this test seeds `%O` from the coord surface accordingly and the WP11→WP01 coupling is via the recorded-SHA lane base only. Do not write this test against a synthetic base.
 
 ## Branch Strategy
 

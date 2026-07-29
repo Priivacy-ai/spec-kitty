@@ -13,6 +13,7 @@ created_at: '2026-07-29T09:24:15+00:00'
 subtasks:
 - T034
 - T035
+- T044
 history:
 - at: '2026-07-29T09:24:15Z'
   actor: system
@@ -58,6 +59,9 @@ In `src/specify_cli/cli/commands/review/__init__.py`, when the discovery (WP08) 
 
 ### T035 — Fail-closed retained + both-branch regression
 When references exist, retain the fail-closed enforcement. Add `tests/specify_cli/cli/commands/review/test_zero_reference_not_applicable.py` covering **both** branches: zero references → `not_applicable` (no hard fail); references present but unmatched → fail-closed.
+
+### T044 — Issue-matrix reader switch on post-merge review (C-008 / B-1 fix)
+`review/__init__.py:295 _evaluate_issue_matrix` hardcodes `issue_matrix_path = feature_dir / "issue-matrix.md"` and `:306 if not issue_matrix_path.exists(): return` a violation ("required in post-merge mode") **before** calling `validate_issue_matrix` — so a greenfield `.json` mission (B3) hard-fails post-merge review despite the matrix existing on coord. Switch this to WP05's dir-based `load_issue_matrix(feature_dir)` and **delete the `.md` `.exists()` precheck**; the `not_applicable` (T034) and fail-closed (T035) branches then evaluate against the JSON via the failover reader.
 
 ## Branch Strategy
 

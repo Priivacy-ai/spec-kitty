@@ -66,7 +66,7 @@ Convert `decisions/emit.py:_mission_dir:71` to the kind-aware seam (`write_targe
 ### T008 — Re-pin the floor + drop the allow-list/by-design entries (same change)
 - Re-pin `COORD_AUTHORITY_WRITE_FLOOR` 4→3 and `coord_authority_baseline` (with rationale).
 - Remove the stale `resolution_gate_allowlist.yaml` `emit.py` entry (staleness twin-guard).
-- Remove `emit.py` from `_COORD_WRITE_BY_DESIGN` (else `test_coord_authority_by_design_modules_classified_write` reds).
+- Remove `emit.py` from **every** by-design assertion site in `test_resolution_authority_gates.py`, not just one: the `_COORD_WRITE_BY_DESIGN` set (`:720`) **and** the explicit assertions/docstrings at `:1151`, `:1228`, `:1641` (else a stale assertion reds). After removal the three genuine by-design sites (`widen/state.py`, `agent_tasks_ports.py`, `lanes/recovery.py`) remain → floor 3, margin 2, non-vacuous.
 
 ### T009 — Assert the three by-design sites remain
 Add/keep an assertion that `widen/state.py`, `agent_tasks_ports.py`, and `lanes/recovery.py` are still counted as by-design kind-blind coord writes, so the floor of 3 is non-vacuous. Document the non-vacuity invariant: the live census MUST NOT drop below 3.

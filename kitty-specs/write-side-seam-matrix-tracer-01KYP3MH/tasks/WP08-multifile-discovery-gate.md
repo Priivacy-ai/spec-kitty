@@ -3,9 +3,10 @@ work_package_id: WP08
 title: Multi-file issue-reference discovery + merge gate
 dependencies:
 - WP05
-- WP03
 requirement_refs:
 - FR-004
+- FR-002
+- C-008
 - NFR-005
 planning_base_branch: feat/write-side-seam-matrix-tracer
 merge_target_branch: feat/write-side-seam-matrix-tracer
@@ -16,6 +17,7 @@ subtasks:
 - T029
 - T030
 - T031
+- T043
 history:
 - at: '2026-07-29T09:24:15Z'
   actor: system
@@ -33,6 +35,7 @@ owned_files:
 - src/specify_cli/status/doctor.py
 - src/specify_cli/cli/commands/agent/tasks.py
 - src/specify_cli/cli/commands/agent/mission.py
+- src/specify_cli/cli/commands/agent/tasks_parsing_validation.py
 - tests/specify_cli/tasks/test_issue_reference_discovery.py
 role: implementer
 tags: []
@@ -73,6 +76,12 @@ Add a missing-issue-matrix completeness gate to `src/specify_cli/policy/merge_ga
 
 ### T031 — Tests
 `tests/specify_cli/tasks/test_issue_reference_discovery.py`: an issue referenced only in `tasks/WP01.md` (or `plan.md`/`contracts/`) is discovered; the merge gate enforces it; the definition matches finalization/approval.
+
+### T043 — Issue-matrix reader switch on this WP's consumers (C-008 / B-1 fix)
+The reader migration is **not** automatic — each live consumer builds `feature_dir / "issue-matrix.md"` and existence-prechecks `.md` *before* calling `validate_issue_matrix`, so re-pointing the reader internals alone is dead code. Switch the two issue-matrix consumers this WP owns to WP05's **dir-based** `load_issue_matrix(feature_dir)` and **delete the `.md` `.exists()` precheck** (let the failover reader own presence/absence):
+- `status/doctor.py:342 check_issue_matrix` (+ the `.md` message/precheck around `:370-386`).
+- `cli/commands/agent/tasks_parsing_validation.py:87` and `:196` (the `_ISSUE_MATRIX_ERROR_PREFIX` "ERROR: issue-matrix.md" const at `:66` and the `feature_dir / "issue-matrix.md"` paths) — this file was owned by **no** WP before this fix (paula M-1).
+Also **remove/deprecate the now-dead single-file `detect_issue_references` (`tasks/issue_matrix.py:51`)** once all three enforcement sites consume the new discovery module, so there are not two discovery definitions (m-4). (Its owner is WP05; coordinate the deletion — WP08 leaves a note, WP05 removes it, or WP08 records the out-of-map deletion rationale.)
 
 ## Branch Strategy
 

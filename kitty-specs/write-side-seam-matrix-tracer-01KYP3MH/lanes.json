@@ -20,7 +20,8 @@
       ],
       "predicted_surfaces": [
         "api",
-        "artifact-rendering"
+        "artifact-rendering",
+        "tests"
       ],
       "depends_on_lanes": [],
       "parallel_group": 0
@@ -124,27 +125,6 @@
       "parallel_group": 1
     },
     {
-      "lane_id": "lane-f",
-      "wp_ids": [
-        "WP06"
-      ],
-      "write_scope": [
-        "src/doctrine/glossary_packs/built-in/spec-kitty-core.glossary-pack.yaml",
-        "src/doctrine/skills/spec-kitty-implement-review/SKILL.md",
-        "src/doctrine/skills/spec-kitty-mission-review/SKILL.md",
-        "tests/architectural/test_issue_matrix_json_migration_completeness.py"
-      ],
-      "predicted_surfaces": [
-        "api",
-        "dashboard",
-        "legacy-cleanup"
-      ],
-      "depends_on_lanes": [
-        "lane-e"
-      ],
-      "parallel_group": 2
-    },
-    {
       "lane_id": "lane-g",
       "wp_ids": [
         "WP07"
@@ -171,6 +151,7 @@
       "write_scope": [
         "src/specify_cli/cli/commands/agent/mission.py",
         "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py",
         "src/specify_cli/policy/merge_gates.py",
         "src/specify_cli/status/doctor.py",
         "src/specify_cli/tasks/issue_reference_discovery.py",
@@ -178,10 +159,10 @@
       ],
       "predicted_surfaces": [
         "api",
-        "artifact-rendering"
+        "artifact-rendering",
+        "legacy-cleanup"
       ],
       "depends_on_lanes": [
-        "lane-c",
         "lane-e"
       ],
       "parallel_group": 2
@@ -200,7 +181,8 @@
       ],
       "predicted_surfaces": [
         "api",
-        "artifact-rendering"
+        "artifact-rendering",
+        "tests"
       ],
       "depends_on_lanes": [
         "lane-a",
@@ -224,9 +206,32 @@
         "lane-h"
       ],
       "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/doctrine/glossary_packs/built-in/spec-kitty-core.glossary-pack.yaml",
+        "src/doctrine/skills/spec-kitty-implement-review/SKILL.md",
+        "src/doctrine/skills/spec-kitty-mission-review/SKILL.md",
+        "tests/architectural/test_issue_matrix_json_migration_completeness.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-e",
+        "lane-h",
+        "lane-i"
+      ],
+      "parallel_group": 4
     }
   ],
-  "computed_at": "2026-07-29T09:37:35.548663+00:00",
+  "computed_at": "2026-07-29T09:54:15.605363+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": []
 }

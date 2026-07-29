@@ -7,18 +7,24 @@
 > record with `spec-kitty agent tasks mark-status T0xx --status done`. The reduced
 > event-log snapshot is the sole authority (#2816).
 
+> **Standing clause for every WP (post-tasks squad, MAJOR-3):** each implementer runs a
+> **Sonar attack-vector census on the files the WP touches** and either fixes the finding
+> or records why it is safe (loopback/local-only, tool-wrong) in the PR — do not leave a
+> new complexity/injection/dup finding unaddressed. This is part of every WP's Definition
+> of Done even where the prompt body does not repeat it.
+
 ## Lane / sequencing overview
 
 - **Lane A** — WP01 (FR-009 lane-base topology, ADR-first). Independent. Hard predecessor of WP11's SC-003 durability regression (edge WP11 → WP01).
 - **Lane B** — WP02 (FR-010 coord-authority gate + `decisions/emit.py` Move A, **atomic**). Independent: per D-6 the `write_target`-routed writers are gate-invisible, so **no other WP depends on WP02**. Routing `emit.py` off the allow-list and re-pinning the census floor (4→3) is a single atomic change (ADR `2026-06-26-1-single-authority-seam-and-call-site-gate` Move A).
-- **Lane C** — WP03 (seam core) → WP04/05/07/08/10 (writers) → WP06/09 (downstream) → WP11 (driver). The `write_target`-routed writers depend on the WP03 **core**, not on Lane B.
+- **Lane C** — WP03 (seam core) → WP04/05/07/10 (writers, dep WP03 core) → WP08 (discovery+gate+reader switch, dep WP05 only — read-only, no seam write) → WP09 (dep WP08) → WP06 (completeness, dep WP05/08/09) → WP11 (driver, dep WP05/WP01). The `write_target`-routed writers depend on the WP03 **core**, not on Lane B; the read-only consumers (WP08/09/06) depend on WP05's canonical reader.
 
 ## Requirement → Work-Package coverage
 
 | FR | WP | FR | WP |
 |----|----|----|----|
 | FR-001 | WP04 | FR-008 | WP11 |
-| FR-002 | WP04 (acceptance half) + WP05 (issue half) | FR-009 | WP01 |
+| FR-002 | WP04 + WP05 + WP06/08/09/11 (reader migration) | FR-009 | WP01 |
 | FR-003 | WP07 | FR-010 | WP02 |
 | FR-004 | WP08 | FR-011 | WP03 |
 | FR-005 | WP09 | FR-012 | WP03 |
@@ -70,7 +76,10 @@
 | T039 | Red-first **#2970**: path-injection repro for `merge_driver.py` (5 S2083 BLOCKERs) | WP11 | |
 | T040 | Row-aware acceptance+issue drivers over structured JSON (3-way `%O`/`%A`/`%B`, row-key canonicalization, delete-vs-stale) | WP11 | |
 | T041 | **M6** registration 3 sites: `lanes/merge.py` repoint issue-matrix pattern `.md`→`.json`, `init.py:73/194`, NEW forward migration | WP11 | |
-| T042 | Tests: disjoint-row union, stale-residue, same-field conflict, byte-determinism, #2970 regression | WP11 | |
+| T042 | Tests (driver-unit, synthetic %O): disjoint-row union, stale-residue, same-field conflict, intra-side dup-key, byte-determinism, #2970 regression | WP11 | |
+| T043 | Reader switch (C-008/B-1): doctor `check_issue_matrix` + `tasks_parsing_validation.py` → dir-based `load_issue_matrix`, delete `.md` `.exists()` precheck; deprecate dead single-file `detect_issue_references` | WP08 | |
+| T044 | Reader switch (C-008/B-1): post-merge review `_evaluate_issue_matrix` → dir-based `load_issue_matrix`, delete `.md` `.exists()` precheck | WP09 | |
+| T045 | SC-003 durability-integration regression: real-git two-lane consolidation over recorded-SHA base, disjoint matrix rows both survive via row-aware driver (gated on WP01 + its `%O`-partition ADR decision) | WP11 | |
 
 ---
 
@@ -110,7 +119,7 @@
 **Prompt**: [tasks/WP06-reader-migration-doctrine.md](./tasks/WP06-reader-migration-doctrine.md)
 **Goal**: Migrate the doctrine/skills consumers `.md`→`.json` (M8), judge the `.md`-shaped test fallout (m3), and assert migration completeness (C-008) — dashboard & `merge_gates` are net-new, NOT migration targets.
 **Priority**: P2. **Independent test**: `test_no_legacy_terminology.py` green; the completeness test proves no live consumer parses markdown.
-**Subtasks**: T025–T027. **Depends on**: WP05. **Risk**: missing a consumer; touching a domain WP's test file (record out-of-map rationale). **~180 lines.**
+**Subtasks**: T025–T027. **Depends on**: WP05, WP08, WP09 (its completeness test must run after the code-consumer reader switches in T043/T044/T023). **Risk**: missing a consumer; touching a domain WP's test file (record out-of-map rationale). **~180 lines.**
 
 ### WP07 — Issue-matrix verdict command (Lane C) · FR-003
 **Prompt**: [tasks/WP07-issue-verdict-command.md](./tasks/WP07-issue-verdict-command.md)
@@ -122,13 +131,13 @@
 **Prompt**: [tasks/WP08-multifile-discovery-gate.md](./tasks/WP08-multifile-discovery-gate.md)
 **Goal**: Generalize issue-reference discovery from single-`spec.md` to all mission artifacts across the three enforcement sites; add the missing merge-time completeness gate.
 **Priority**: P1. **Independent test**: an issue referenced only in `tasks/WP01.md` is discovered and enforced at merge.
-**Subtasks**: T028–T031. **Depends on**: WP05, WP03. **Risk**: use the one canonical reference definition — avoid a fourth. **~220 lines.**
+**Subtasks**: T028–T031, T043. **Depends on**: WP05 (WP03 dropped — this WP is read-only, no write through the seam). **Risk**: use the one canonical reference definition — avoid a fourth; owns the previously-unowned `tasks_parsing_validation.py` reader switch. **~250 lines.**
 
 ### WP09 — Zero-reference Gate 4 = not_applicable (Lane C) · FR-005
 **Prompt**: [tasks/WP09-zero-reference-not-applicable.md](./tasks/WP09-zero-reference-not-applicable.md)
 **Goal**: Post-merge review records Gate 4 `not_applicable` when the spec declares no canonical references; fail-closed retained when references exist.
 **Priority**: P1. **Independent test**: zero-reference mission → Gate 4 `not_applicable`, verdict decided by applicable gates.
-**Subtasks**: T034–T035. **Depends on**: WP08. **Risk**: both branches need regression. **~150 lines.**
+**Subtasks**: T034–T035, T044. **Depends on**: WP08. **Risk**: both branches need regression; owns the post-merge-review reader switch. **~170 lines.**
 
 ### WP10 — Tracer finding writer (Lane C) · FR-006
 **Prompt**: [tasks/WP10-tracer-writer.md](./tasks/WP10-tracer-writer.md)
@@ -140,7 +149,7 @@
 **Prompt**: [tasks/WP11-row-aware-merge-driver.md](./tasks/WP11-row-aware-merge-driver.md)
 **Goal**: Replace the whole-file "more-filled-side" drivers with row-aware, base-aware drivers over the structured JSON; fold #2970 path-injection hardening; fix driver registration at all 3 sites.
 **Priority**: P2. **Independent test**: two lanes editing disjoint rows union with no clobber; a base row deleted on one side is dropped; #2970 injection regression is red-first.
-**Subtasks**: T039–T042. **Depends on**: WP05, **WP01** (durability regression needs the common-ancestor base). **Risk**: row-key stability; #2970 fix must not weaken the merge contract. **~260 lines.**
+**Subtasks**: T039–T042, T045. **Depends on**: WP05, **WP01** (T045 durability-integration regression needs the common-ancestor base + the ADR's `%O`-partition decision). **Risk**: row-key stability + intra-side collision; #2970 fix must not weaken the merge contract. **~300 lines.**
 
 ---
 

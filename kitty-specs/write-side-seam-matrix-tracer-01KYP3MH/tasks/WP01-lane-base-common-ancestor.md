@@ -67,6 +67,7 @@ Make an execution lane branch from the **recorded planning-artifact commit** (th
 Create `docs/adr/3.x/2026-07-29-1-lane-base-recorded-planning-commit.md`. It MUST:
 - Pin the lane base to a **recorded SHA** captured at finalize-tasks (in `lanes.json`/`meta.json`), never "current tip of `target_branch`" (moving-tip trap).
 - **Resolve the coord-status-lineage question explicitly** in light of `2026-06-24-1` §5 and this mission's FR-007 routing: since matrix/tracer/status writes are routed OFF the lane onto coord (FR-007), the lane base carries **planning (PRIMARY) lineage**; decide and document whether/how the merge-base needs coord-status lineage given `auto_rebase._refuse_preexisting_lane_status_deletions` reasons over coord status in the merge-base. Disentangle FR-009 ancestry (primary) from FR-008 row-aware-merge durability (coord).
+- **DECIDE (do not defer) which partition supplies the FR-008 merge-driver `%O`** (the common ancestor the row-aware driver diffs against): the primary lane lineage this WP pins, or the coord surface where FR-007 routes the matrix writes. This is the load-bearing input to WP11's durability-integration test (WP11-T045); if matrices are coord-serialized off the lane, the FR-008 clobber scenario and the WP11→WP01 coupling may be weaker than assumed — say so explicitly. (This is escalation E-B; the HiC may weigh in, but the ADR is the artifact that records the decision.)
 - State **no consolidation abort path** (`2026-07-23-2`).
 - Cite ADRs by slug.
 
