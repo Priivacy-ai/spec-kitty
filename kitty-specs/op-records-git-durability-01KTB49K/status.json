@@ -1,5 +1,5 @@
 {
-  "event_count": 15,
+  "event_count": 17,
   "last_event_id": "01KTB8XGR9NQT75FNHY4ESQT9R",
   "materialized_at": "2026-06-05T06:53:18.985242+00:00",
   "mission_number": "",
@@ -19,17 +19,39 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
+      "agent": "claude:sonnet:spec-kitty-reviewer:reviewer",
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KTB7YF56FS5FG3SZ0SKPMSFH",
-      "last_transition_at": "2026-06-05T06:36:21.542943+00:00"
+      "last_transition_at": "2026-06-05T06:36:21.542943+00:00",
+      "shell_pid": 46963,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
     },
     "WP02": {
       "actor": "user",
+      "agent": "claude:sonnet:python-pedro:reviewer",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KTB8XGR9NQT75FNHY4ESQT9R",
-      "last_transition_at": "2026-06-05T06:53:18.985242+00:00"
+      "last_transition_at": "2026-06-05T06:53:18.985242+00:00",
+      "shell_pid": 18497,
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
     }
   }
 }

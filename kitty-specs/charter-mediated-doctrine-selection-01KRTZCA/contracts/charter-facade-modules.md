@@ -53,11 +53,17 @@ No additional logic. No thin wrappers. No type aliases. Pure re-exports.
 
 ### Symbol tables
 
+> ⚠️ **These tables have no automated parity test.** Verified 2026-07-27 against
+> `__all__`: the `charter/drg.py` row listed **9** symbols where the facade exported
+> **22** — thirteen behind, drifted silently over multiple missions. Re-derive from
+> `__all__` rather than trusting a row, and treat a stale row as expected until a
+> parity gate exists.
+
 | Facade | Re-exported symbols |
 |--------|---------------------|
 | `charter/profiles.py` | `AgentProfile`, `AgentProfileRepository`, `Role`, `DEFAULT_ROLE_CAPABILITIES` |
 | `charter/mission_steps.py` | `MissionStep`, `MissionStepContract`, `MissionStepContractRepository` |
-| `charter/drg.py` | `DRGEdge`, `DRGGraph`, `DRGNode`, `Relation`, `NodeKind`, `load_graph`, `merge_layers`, `resolve_context`, `ResolvedContext` |
+| `charter/drg.py` | `ArtifactKind`, `DRGEdge`, `DRGGraph`, `DRGNode`, `NodeKind`, `OrgDRGConflict`, `OrgDRGConflictError`, `OrgDRGFragment`, `OrgPackEnvVarUnsetError`, `OrgPackMissingError`, `OrgPackSubdirEscapeError`, `Relation`, `ResolvedContext`, `UnknownRelationError`, `filter_graph_by_activation`, `load_built_in_graph`, `load_graph`, `load_org_drg`, `merge_layers`, `merge_three_layers`, `resolve_context`, `validate_dangling_references` |
 | `charter/primitives.py` | `PrimitiveExecutionContext`, `execute_with_glossary` |
 | `charter/resolution.py` | `ResolutionResult`, `ResolutionTier` |
 | `charter/versioning.py` | `check_bundle_compatibility`, `get_bundle_schema_version` |

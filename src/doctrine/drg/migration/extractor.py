@@ -17,9 +17,11 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from collections.abc import Iterator
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from pydantic import BaseModel
 from ruamel.yaml import YAML
 
 from doctrine.drg.migration.calibrator import calibrate_surfaces
@@ -130,19 +132,41 @@ def _resolve_path_ref(path_str: str) -> tuple[str, str] | None:
             return kind, m.group(1)
     return None
 
-_KIND_MAP: dict[str, NodeKind] = {
-    "directive": NodeKind.DIRECTIVE,
-    "tactic": NodeKind.TACTIC,
-    "paradigm": NodeKind.PARADIGM,
-    "styleguide": NodeKind.STYLEGUIDE,
-    "toolguide": NodeKind.TOOLGUIDE,
-    "procedure": NodeKind.PROCEDURE,
-    "agent_profile": NodeKind.AGENT_PROFILE,
-    "template": NodeKind.TEMPLATE,
-    "action": NodeKind.ACTION,
-    "mission_type": NodeKind.MISSION_TYPE,
-    "mission_step_contract": NodeKind.MISSION_STEP_CONTRACT,
-}
+#: Reference-``type`` string / URN prefix -> :class:`NodeKind`.
+#:
+#: Derived from the enum, so it is total by construction (T015, FR-004). It
+#: previously restated 11 of the 16 members by hand and dropped ``anti_pattern``,
+#: ``asset``, ``glossary``, ``glossary_pack`` and ``glossary_scope``. Because the
+#: table is ``str``-keyed it was invisible to the ``NodeKind``-keyed totality
+#: guard in ``tests/doctrine/drg/test_kind_mapping_totality.py`` -- a
+#: hand-restated table one step outside the gate that exists to catch
+#: hand-restated tables. Deriving it removes the restatement instead of
+#: lengthening it: a ``NodeKind`` member added tomorrow is carried with no edit
+#: here, and none can be dropped by omission.
+#:
+#: Measured graph-neutral when closed: the extractor emits the same 305 nodes /
+#: 757 edges before and after. The gap was latent, not live -- nothing shipped
+#: today *references* one of the five missing kinds by type.
+_KIND_MAP: dict[str, NodeKind] = {kind.value: kind for kind in NodeKind}
+
+#: Action-index list field -> the artifact kind its entries name, for the
+#: ``scope`` edges emitted by :func:`extract_action_edges`.
+#:
+#: Hoisted to module scope so the ``_KIND_MAP`` subscript at the read site can be
+#: proven safe by a test that derives from *this* declaration rather than
+#: restating the seven kinds a third time. The read site previously used
+#: ``_KIND_MAP.get(kind, NodeKind.GLOSSARY_SCOPE)``, so an unmapped scope-field
+#: kind produced a *wrongly-kinded* node rather than an error -- a silent
+#: corruption, which is worse than the silent omission elsewhere in this module.
+_ACTION_SCOPE_FIELDS: tuple[tuple[str, str], ...] = (
+    ("directives", "directive"),
+    ("tactics", "tactic"),
+    ("paradigms", "paradigm"),
+    ("styleguides", "styleguide"),
+    ("toolguides", "toolguide"),
+    ("procedures", "procedure"),
+    ("agent_profiles", "agent_profile"),
+)
 
 # Reference types that are NOT DRG node kinds (skipped during extraction).
 _SKIP_REF_TYPES: frozenset[str] = frozenset()
@@ -207,10 +231,99 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
         "tactic:traceable-decisions",
         Relation.REQUIRES,
     ),
+    # WP09 (doctrine-silence-guards-01KYFV7Q, FR-012): this edge was authored as
+    # ``Relation.APPLIES`` and was the procedure's ONLY inbound edge, so the profile's
+    # declared operating procedure was unreachable -- no context resolution, charter
+    # cascade or reference walk follows ``applies``. Retyped to ``REQUIRES``: the profile
+    # states it runs this procedure, which is a hard dependency, and ``requires`` is what
+    # ``resolve_context`` walks transitively and what ``charter activate --cascade``
+    # follows. Cardinality is unchanged (774 edges before and after) -- the relation
+    # changed, nothing else. See tests/architectural/test_no_authored_applies_edge.py.
     (
         "agent_profile:doctrine-daphne",
         "procedure:onboard-external-agent-to-pack",
-        Relation.APPLIES,
+        Relation.REQUIRES,
+    ),
+    # Landing pass for PR #3007, operator ruling 2026-07-28 (#3009 remedy 4).
+    # Seven of the nine ``_ACTIVATED_BUT_UNREACHABLE`` artefacts are oversights,
+    # not design: the charter ACTIVATES them while the graph gives them no inbound
+    # edge, so a cascade or context walk reaches none of them. Each edge below
+    # follows an existing (source_kind -> target_kind, relation) pattern in the
+    # shipped graph rather than inventing one; the relation is ``requires`` where
+    # the source MANDATES the target and ``suggests`` where it recommends it.
+    #
+    # ``toolguide:rtk-search-tooling`` is deliberately absent -- it was deleted
+    # outright by the same ruling. ``paradigm:atomic-design`` is also absent and
+    # stays an enrolled orphan: it is frontend-interface-specific and no shipped
+    # doctrine artefact is a defensible source, so wiring it would mean inventing
+    # a relationship rather than recording one. It needs an operator ruling, not
+    # a guess.
+    #
+    # DIRECTIVE_035 IS bulk-edit occurrence classification; this tactic is the
+    # workflow it mandates. (#3009 names exactly this pairing.)
+    (
+        "directive:DIRECTIVE_035",
+        "tactic:occurrence-classification-workflow",
+        Relation.REQUIRES,
+    ),
+    # DIRECTIVE_003 (Decision Documentation Requirement) already ``requires``
+    # ``tactic:traceable-decisions`` above; marker capture is the other half of
+    # the same obligation -- capturing the decision at the point it is made.
+    (
+        "directive:DIRECTIVE_003",
+        "tactic:decision-marker-capture",
+        Relation.REQUIRES,
+    ),
+    # DIRECTIVE_030 (Test and Typecheck Quality Gate). Re-pointed from
+    # DIRECTIVE_028 (Efficient Local Tooling) on review: 028 scopes itself to
+    # tool SELECTION (ripgrep, pagers, archive tools, git ergonomics) and none of
+    # its procedures concern running a suite. This tactic is a discipline on HOW
+    # the suite is run and how its result is read, which is 030's subject. The
+    # 028 reading argued from a shared side-effect (resource waste), not a shared
+    # subject -- the signature of a convenient owner rather than the right one.
+    (
+        "directive:DIRECTIVE_030",
+        "tactic:no-parallel-duplicate-test-runs",
+        Relation.SUGGESTS,
+    ),
+    # DIRECTIVE_030 (Test and Typecheck Quality Gate). The procedure keeps the
+    # mainline CI signal honest and authoritative for release, which is the gate
+    # this directive governs. Charter standing order #9 is the prose form.
+    (
+        "directive:DIRECTIVE_030",
+        "procedure:red-main-release-discipline",
+        Relation.SUGGESTS,
+    ),
+    # styleguide -> toolguide ``suggests`` is the established pattern (x4). The
+    # toolguide is a catalog of automated checks for Python review; the Python
+    # styleguide is what sends a reviewer to it.
+    (
+        "styleguide:python-conventions",
+        "toolguide:python-review-checks",
+        Relation.SUGGESTS,
+    ),
+    # ``tactic -> paradigm suggests`` is the most common inbound-to-paradigm
+    # pattern in the shipped graph (9 edges, 6 of them this exact shape -- the
+    # semantic-compression tactic family each suggesting their paradigm). The
+    # checklist's own summary is "respects atomic design level boundaries",
+    # so this records a name-identical relationship rather than inventing one.
+    # NOTE: this de-orphans the paradigm by incidence but does NOT make it
+    # reachable -- the checklist tactic is itself outbound-only. The frontend
+    # cluster (checklist + atomic-state-ownership + compositional-stream-
+    # boundaries + cross-cutting-state-via-store + the paradigm) is a
+    # disconnected island needing one ruling, not one edge. Tracked in #3009.
+    (
+        "tactic:atomic-design-review-checklist",
+        "paradigm:atomic-design",
+        Relation.SUGGESTS,
+    ),
+    # The REASONS canvas is the SPDD artefact, so the SPDD paradigm is its owner
+    # (``paradigm -> styleguide suggests``). Without this edge, selecting SPDD
+    # reached none of the guidance on writing the canvas it asks for.
+    (
+        "paradigm:structured-prompt-driven-development",
+        "styleguide:reasons-canvas-writing",
+        Relation.SUGGESTS,
     ),
 )
 
@@ -702,23 +815,15 @@ def extract_action_edges(
             nodes_by_urn, action_urn, NodeKind.ACTION, action_name
         )
 
-        # Map of field name -> artifact kind for scope edges
-        scope_fields: list[tuple[str, str]] = [
-            ("directives", "directive"),
-            ("tactics", "tactic"),
-            ("paradigms", "paradigm"),
-            ("styleguides", "styleguide"),
-            ("toolguides", "toolguide"),
-            ("procedures", "procedure"),
-            ("agent_profiles", "agent_profile"),
-        ]
-
-        for field_name, kind in scope_fields:
+        for field_name, kind in _ACTION_SCOPE_FIELDS:
             for raw_id in data.get(field_name, []) or []:
                 tgt_urn = artifact_to_urn(kind, raw_id)
-                _ensure_node(
-                    nodes_by_urn, tgt_urn, _KIND_MAP.get(kind, NodeKind.GLOSSARY_SCOPE)
-                )
+                # Subscript, not ``.get(..., GLOSSARY_SCOPE)``: an unmapped kind
+                # here is an authoring error in _ACTION_SCOPE_FIELDS, and a node
+                # silently registered under the wrong kind is unrecoverable
+                # downstream. Safety is pinned by
+                # ``test_every_action_scope_field_kind_resolves_to_a_node_kind``.
+                _ensure_node(nodes_by_urn, tgt_urn, _KIND_MAP[kind])
                 _add_edge(
                     DRGEdge(
                         source=action_urn,
@@ -1207,23 +1312,76 @@ def _dump_graph_document(graph: DRGGraph, output_path: Path) -> None:
         yaml_writer.dump(data, fh)
 
 
+#: Model fields deliberately kept out of ``*.graph.yaml`` (FR-004, T016).
+#:
+#: ``provenance`` is the merge-time layer marker (FR-013). It is ``None`` for
+#: every extractor-built node, so emitting it would add a dead key to all 14
+#: shipped fragments. Withholding it is a *declaration*, not a silence: the set
+#: is named, and ``test_the_withholding_set_names_only_real_model_fields``
+#: asserts every member is a real field, so a typo here cannot rot into an
+#: exclusion that excludes nothing.
+#:
+#: Everything a model declares and does not name here is emitted by
+#: construction. That is the whole point -- the writers used to restate their
+#: field names, so a field added to ``DRGNode``/``DRGEdge`` loaded fine and was
+#: deleted on the next write.
+_FIELDS_WITHHELD_FROM_GRAPH_OUTPUT: frozenset[str] = frozenset({"provenance"})
+
+
+def _render_for_yaml(value: Any) -> Any:
+    """Render one model field value for YAML, or ``None`` to omit the key.
+
+    ``None`` means "omit", which preserves the pre-existing output shape: unset
+    optionals and empty lists never appeared in a fragment, and re-adding them
+    would churn every shipped file. Enums are unwrapped before the ``str``
+    branch because ``NodeKind``/``Relation`` are ``StrEnum`` and would otherwise
+    serialise as their repr.
+    """
+    if isinstance(value, Enum):
+        return value.value
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, list):
+        return [_render_for_yaml(item) for item in value] or None
+    return value
+
+
+def _model_to_dict(model: BaseModel) -> dict[str, Any]:
+    """Serialise every declared field of *model* except the withheld ones.
+
+    Derived from ``type(model).model_fields`` rather than a hand-written key
+    list, so a field added to the model is written without anyone remembering
+    to update this function.
+
+    **This is not the only DRG writer.** Three sibling write paths still restate
+    their keys by hand and will silently drop a field added to the models:
+
+    * ``specify_cli/migration/rewrite_opposed_by.py`` (org-pack rewrite) — `#2977
+      <https://github.com/Priivacy-ai/spec-kitty/issues/2977>`_
+    * ``charter/synthesizer/project_drg.py`` (project overlay) — already drops
+      the declared ``DRGNode.tags`` field today
+    * :func:`_dump_graph_document` below, for the five document-level keys;
+      ``DRGGraph`` also declares no ``model_config``, so unknown top-level keys
+      are accepted and discarded rather than rejected
+
+    Deriving *this* function does not make those safe. Anyone adding a model
+    field should check all four sites, not just this one.
+    """
+    rendered: dict[str, Any] = {}
+    for field_name in type(model).model_fields:
+        if field_name in _FIELDS_WITHHELD_FROM_GRAPH_OUTPUT:
+            continue
+        value = _render_for_yaml(getattr(model, field_name))
+        if value is not None:
+            rendered[field_name] = value
+    return rendered
+
+
 def _node_to_dict(node: DRGNode) -> dict[str, Any]:
-    d: dict[str, Any] = {"urn": node.urn, "kind": node.kind.value}
-    if node.label is not None:
-        d["label"] = node.label.strip()
-    if node.tags:
-        d["tags"] = list(node.tags)
-    return d
+    """Field-derived ``DRGNode`` -> plain dict for YAML output."""
+    return _model_to_dict(node)
 
 
 def _edge_to_dict(edge: DRGEdge) -> dict[str, Any]:
-    d: dict[str, Any] = {
-        "source": edge.source,
-        "target": edge.target,
-        "relation": edge.relation.value,
-    }
-    if edge.when is not None:
-        d["when"] = edge.when.strip()
-    if edge.reason is not None:
-        d["reason"] = edge.reason.strip()
-    return d
+    """Field-derived ``DRGEdge`` -> plain dict for YAML output."""
+    return _model_to_dict(edge)

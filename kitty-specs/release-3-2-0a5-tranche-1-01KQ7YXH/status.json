@@ -1,5 +1,5 @@
 {
-  "event_count": 60,
+  "event_count": 68,
   "last_event_id": "01KQ8C44XPJGE1RKD8NDR9AYHA",
   "materialized_at": "2026-04-27T21:04:33.206249+00:00",
   "mission_number": "104",
@@ -19,59 +19,130 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "claude:sonnet:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KQ8C418ZWKS86EBAQNT7M5H3",
-      "last_transition_at": "2026-04-27T21:04:29.471515+00:00"
+      "last_transition_at": "2026-04-27T21:04:29.471515+00:00",
+      "shell_pid": 66749,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
+      "agent": "reviewer-renata",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQ8C44XPJGE1RKD8NDR9AYHA",
-      "last_transition_at": "2026-04-27T21:04:33.206249+00:00"
+      "last_transition_at": "2026-04-27T21:04:33.206249+00:00",
+      "shell_pid": 86393,
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
+      "agent": "reviewer-renata",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQ8C41Z3614333PHM8XD0S1B",
-      "last_transition_at": "2026-04-27T21:04:30.179981+00:00"
+      "last_transition_at": "2026-04-27T21:04:30.179981+00:00",
+      "shell_pid": 73284,
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
+      "agent": "reviewer-renata",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQ8C42ET50ZG7Y54MX333VN7",
-      "last_transition_at": "2026-04-27T21:04:30.682633+00:00"
+      "last_transition_at": "2026-04-27T21:04:30.682633+00:00",
+      "shell_pid": 78401,
+      "subtasks": {
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
+      "agent": "reviewer-renata",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQ8C42YNKQRXHW644BATNHBX",
-      "last_transition_at": "2026-04-27T21:04:31.189446+00:00"
+      "last_transition_at": "2026-04-27T21:04:31.189446+00:00",
+      "shell_pid": 80527,
+      "subtasks": {
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      }
     },
     "WP06": {
       "actor": "merge",
+      "agent": "reviewer-renata",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KQ8C43ENEPYQKQCTTNTEXJ32",
-      "last_transition_at": "2026-04-27T21:04:31.701073+00:00"
+      "last_transition_at": "2026-04-27T21:04:31.701073+00:00",
+      "shell_pid": 82312,
+      "subtasks": {
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done"
+      }
     },
     "WP07": {
       "actor": "merge",
+      "agent": "reviewer-renata",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KQ8C43YVPDAY4F9VJ5Z03YHX",
-      "last_transition_at": "2026-04-27T21:04:32.219724+00:00"
+      "last_transition_at": "2026-04-27T21:04:32.219724+00:00",
+      "shell_pid": 84538,
+      "subtasks": {
+        "T033": "done",
+        "T034": "done",
+        "T035": "done"
+      }
     },
     "WP08": {
       "actor": "merge",
+      "agent": "claude:sonnet:reviewer-renata:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQ8C44EBH4M2JYSDVSC0K3KG",
-      "last_transition_at": "2026-04-27T21:04:32.715855+00:00"
+      "last_transition_at": "2026-04-27T21:04:32.715855+00:00",
+      "shell_pid": 70274,
+      "subtasks": {
+        "T036": "done",
+        "T037": "done",
+        "T038": "done",
+        "T039": "done"
+      }
     }
   }
 }

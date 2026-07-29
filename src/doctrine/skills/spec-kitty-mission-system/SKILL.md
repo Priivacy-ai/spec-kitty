@@ -306,14 +306,14 @@ steps. They are the reusable building blocks that step contracts delegate to.
 Each procedure describes a complete mini-workflow (e.g., a refactoring
 sequence, a test-first bug fix, a situational assessment).
 
-Procedures live in `src/doctrine/procedures/shipped/` (shipped) or
+Procedures live in `src/doctrine/procedures/built-in/` (shipped) or
 `.kittify/procedures/` (project-local). Access via `DoctrineService`:
 
 ```python
 procedure = service.procedures.get("refactoring")
 # procedure.steps → ordered list of actions
 # procedure.prerequisites → what must be true before starting
-# All procedures: read src/doctrine/procedures/shipped/ or .kittify/procedures/
+# All procedures: read src/doctrine/procedures/built-in/ or .kittify/procedures/
 ```
 
 To validate project-layer doctrine artifacts:

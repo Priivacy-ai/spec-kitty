@@ -63,8 +63,8 @@ from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.core.git_ops import resolve_target_branch
 from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.missions._read_path_resolver import (
+    _compose_primary_feature_dir,
     candidate_feature_dir_for_mission,
-    primary_feature_dir_for_mission,
     resolve_planning_read_dir,
 )
 
@@ -498,7 +498,7 @@ def test_write_twin_anchors_on_primary_not_candidate(
     # Control: the production primary anchor points at the primary feature dir,
     # which carries target_branch; the coord meta in this fixture lacks it.
     assert (
-        primary_feature_dir_for_mission(repo_root, _HANDLE).resolve()
+        _compose_primary_feature_dir(repo_root, _HANDLE).resolve()
         == primary_dir.resolve()
     )
 
@@ -513,8 +513,13 @@ def test_write_twin_anchors_on_primary_not_candidate(
     (no_target_dir / "meta.json").write_text(
         json.dumps({"mission_slug": _HANDLE, "mid8": _MID8}), encoding="utf-8"
     )
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T035): patch
+    # target moved from the deleted public wrapper to the module-private
+    # ``_compose_primary_feature_dir`` leaf -- ``get_feature_target_branch``
+    # (an FR-005 foundation site) calls the leaf directly now, never the
+    # (now-deleted) wrapper.
     monkeypatch.setattr(
-        "specify_cli.missions._read_path_resolver.primary_feature_dir_for_mission",
+        "specify_cli.missions._read_path_resolver._compose_primary_feature_dir",
         lambda root, slug: no_target_dir,
     )
     mutated = get_feature_target_branch(repo_root, _HANDLE)

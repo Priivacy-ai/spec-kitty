@@ -1,5 +1,5 @@
 {
-  "event_count": 26,
+  "event_count": 29,
   "last_event_id": "01KV60R1MBGY9SB27Q00S97SYP",
   "materialized_at": "2026-06-15T16:10:00.715759+00:00",
   "mission_number": "138",
@@ -19,24 +19,46 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "claude",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KV60QZNM0MN8WQCJZP4G4VEY",
-      "last_transition_at": "2026-06-15T16:09:58.708805+00:00"
+      "last_transition_at": "2026-06-15T16:09:58.708805+00:00",
+      "shell_pid": 73512,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
+      "agent": "claude",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KV60R0PWX66EW267D80NKPKT",
-      "last_transition_at": "2026-06-15T16:09:59.772824+00:00"
+      "last_transition_at": "2026-06-15T16:09:59.772824+00:00",
+      "shell_pid": 16033,
+      "subtasks": {
+        "T004": "planned",
+        "T005": "planned",
+        "T006": "planned"
+      }
     },
     "WP03": {
       "actor": "merge",
+      "agent": "claude:sonnet-4-6:reviewer-riley:reviewer",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KV60R1MBGY9SB27Q00S97SYP",
-      "last_transition_at": "2026-06-15T16:10:00.715759+00:00"
+      "last_transition_at": "2026-06-15T16:10:00.715759+00:00",
+      "shell_pid": 83941,
+      "subtasks": {
+        "T007": "planned",
+        "T008": "planned",
+        "T009": "planned",
+        "T010": "planned"
+      }
     }
   }
 }

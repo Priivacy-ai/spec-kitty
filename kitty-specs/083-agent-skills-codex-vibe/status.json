@@ -1,5 +1,5 @@
 {
-  "event_count": 23,
+  "event_count": 30,
   "last_event_id": "01KP5T3W6RZENC1YJJ10M7WZA8",
   "materialized_at": "2026-04-14T10:55:39.224094+00:00",
   "mission_number": "83",
@@ -19,52 +19,117 @@
   "work_packages": {
     "WP01": {
       "actor": "opus",
+      "agent": "opus",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KP5Q93NP6104416EH1HRQ6QS",
-      "last_transition_at": "2026-04-14T10:06:04.982682+00:00"
+      "last_transition_at": "2026-04-14T10:06:04.982682+00:00",
+      "shell_pid": 3815,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "opus",
+      "agent": "opus",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KP5Q9SCBC7Q432YKH77DS3BM",
-      "last_transition_at": "2026-04-14T10:06:27.211409+00:00"
+      "last_transition_at": "2026-04-14T10:06:27.211409+00:00",
+      "shell_pid": 3994,
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
     },
     "WP03": {
       "actor": "opus",
+      "agent": "opus",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KP5QV8YBAFN1MBJHXDP1AYW2",
-      "last_transition_at": "2026-04-14T10:16:00.203311+00:00"
+      "last_transition_at": "2026-04-14T10:16:00.203311+00:00",
+      "shell_pid": 9377,
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
     },
     "WP04": {
       "actor": "opus",
+      "agent": "opus",
       "force_count": 4,
       "lane": "done",
       "last_event_id": "01KP5RFVH89S5F87416TV5JWQV",
-      "last_transition_at": "2026-04-14T10:27:14.600435+00:00"
+      "last_transition_at": "2026-04-14T10:27:14.600435+00:00",
+      "shell_pid": 13190,
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
     },
     "WP05": {
       "actor": "opus",
+      "agent": "opus",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KP5S0YSJ23FGGM07W821VQK6",
-      "last_transition_at": "2026-04-14T10:36:34.994093+00:00"
+      "last_transition_at": "2026-04-14T10:36:34.994093+00:00",
+      "shell_pid": 16249,
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      }
     },
     "WP06": {
       "actor": "opus",
+      "agent": "opus",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KP5SK7AR22TQT99YW57F75QD",
-      "last_transition_at": "2026-04-14T10:46:33.560177+00:00"
+      "last_transition_at": "2026-04-14T10:46:33.560177+00:00",
+      "shell_pid": 19351,
+      "subtasks": {
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done"
+      }
     },
     "WP07": {
       "actor": "opus",
+      "agent": "opus",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KP5T3W6RZENC1YJJ10M7WZA8",
-      "last_transition_at": "2026-04-14T10:55:39.224094+00:00"
+      "last_transition_at": "2026-04-14T10:55:39.224094+00:00",
+      "shell_pid": 22219,
+      "subtasks": {
+        "T033": "done",
+        "T034": "done",
+        "T035": "done",
+        "T036": "done",
+        "T037": "done"
+      }
     }
   }
 }

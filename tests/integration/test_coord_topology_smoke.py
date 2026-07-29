@@ -171,11 +171,14 @@ class TestNoResolverPatchedInFixture:
         import unittest.mock
         from specify_cli.missions import _read_path_resolver as resolver_mod
 
+        # read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T035):
+        # ``primary_feature_dir_for_mission`` dropped -- the public wrapper is
+        # deleted outright (SC-001), so there is no longer a module attribute
+        # by that name to check for mocking.
         target_functions = [
             "candidate_feature_dir_for_mission",
             "resolve_planning_read_dir",
             "resolve_handle_to_read_path",
-            "primary_feature_dir_for_mission",
         ]
         for fn_name in target_functions:
             fn = getattr(resolver_mod, fn_name)

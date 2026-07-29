@@ -61,7 +61,7 @@ references:
 #   first-class risk surface here. The empirical basis is the 2026-05
 #   spec-kitty CaaCS run; a broader evidence base from other brownfield
 #   engagements would strengthen or qualify the claim.
-# - Cross-links into the doctrine graph are declared in src/doctrine/graph.yaml
-#   alongside this file. The motivating tactic is forensic-repository-audit
+# - Cross-links into the doctrine graph are declared in the per-kind
+#   src/doctrine/<kind>.graph.yaml fragments alongside this file. The motivating tactic is forensic-repository-audit
 #   and the motivating procedure is legacy-codebase-triage; the structural
 #   overlays are domain-driven-design and deep-module-design.

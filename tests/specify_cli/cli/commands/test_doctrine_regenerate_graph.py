@@ -84,11 +84,23 @@ def _graph_files(doctrine_dir: Path) -> list[Path]:
 #: 2026-07-26 (PR #2936 fold): #2936 promoted ``toolguide:powershell-syntax`` from a
 #: dead, unreachable file into a live graph node with no inbound/outbound edge (real
 #: PowerShell-authoring content, consumed at runtime, no doctrinal static referent —
-#: same class as the existing ``toolguide:rtk-search-tooling`` /
+#: same class as the then-existing ``toolguide:rtk-search-tooling`` /
 #: ``toolguide:python-review-checks`` residuals). Accepted as an edge-less residual per
-#: D-C2 / C-003 rather than a manufactured edge. Raises the ceiling 29 -> 30. Full
+#: D-C2 / C-003 rather than a manufactured edge. Raised the ceiling 29 -> 30. Full
 #: narrative in ``drg-orphan-residual.md``.
-DOCUMENTED_ORPHAN_RESIDUAL = 30
+#:
+#: 2026-07-28 (PR #3007 landing folds, operator ruling on #3009): ratcheted
+#: 30 -> 21, measured. BOTH residuals the 2026-07-26 note cites are gone --
+#: ``rtk-search-tooling`` was DELETED outright and ``python-review-checks`` was
+#: WIRED (``styleguide:python-conventions --suggests-->``), along with six other
+#: activated-but-unreachable artefacts. The ceiling stayed green at 30 through
+#: all of that because a ceiling cannot see a shrink, which is exactly why it is
+#: being ratcheted rather than left with nine points of silent slack. The
+#: authoritative membership record is ``_INTENTIONAL_ORPHANS`` in
+#: ``tests/doctrine/drg/migration/test_extractor_projection.py`` (pure-extractor
+#: view, 23); this ceiling is the shipped-graph view (21) and the two differ by
+#: the hand-authored overlay, per that module's own stated cause.
+DOCUMENTED_ORPHAN_RESIDUAL = 21
 
 
 def _count_orphans(graph: DRGGraph) -> int:

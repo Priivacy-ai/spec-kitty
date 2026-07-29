@@ -1,5 +1,5 @@
 {
-  "event_count": 39,
+  "event_count": 44,
   "last_event_id": "01KWPS4W9QAFJ3CQAKVVXTJG3B",
   "materialized_at": "2026-07-04T14:39:59.799019+00:00",
   "mission_number": "162",
@@ -19,38 +19,74 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "claude-orchestrator",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KWPS4SKRVT8KGH400172KZTW",
-      "last_transition_at": "2026-07-04T14:39:57.048066+00:00"
+      "last_transition_at": "2026-07-04T14:39:57.048066+00:00",
+      "shell_pid": 3796249,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
+      "agent": "claude-orchestrator",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KWPS4TB93T1VHVJZSKVG37SR",
-      "last_transition_at": "2026-07-04T14:39:57.801386+00:00"
+      "last_transition_at": "2026-07-04T14:39:57.801386+00:00",
+      "shell_pid": 3797463,
+      "subtasks": {
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
+      "agent": "claude-orchestrator",
       "force_count": 4,
       "lane": "done",
       "last_event_id": "01KWPS4TZYAWH266W11PZZYAEE",
-      "last_transition_at": "2026-07-04T14:39:58.462367+00:00"
+      "last_transition_at": "2026-07-04T14:39:58.462367+00:00",
+      "shell_pid": 3883381,
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
+      "agent": "claude-orchestrator",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KWPS4VN3R3SCY0ZRWXJSSW11",
-      "last_transition_at": "2026-07-04T14:39:59.139543+00:00"
+      "last_transition_at": "2026-07-04T14:39:59.139543+00:00",
+      "shell_pid": 40821,
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
+      "agent": "claude-orchestrator",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KWPS4W9QAFJ3CQAKVVXTJG3B",
-      "last_transition_at": "2026-07-04T14:39:59.799019+00:00"
+      "last_transition_at": "2026-07-04T14:39:59.799019+00:00",
+      "shell_pid": 112000,
+      "subtasks": {
+        "T015": "planned",
+        "T016": "planned"
+      }
     }
   }
 }

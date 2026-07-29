@@ -79,7 +79,7 @@ def minimal_drg_snapshot() -> dict:
     """Minimal DRG graph snapshot for deterministic testing."""
     return {
         "nodes": [
-            {"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"}
+            {"urn": "directive:DIRECTIVE_003", "kind": "directive"}
         ],
         "edges": [],
         "schema_version": "1",

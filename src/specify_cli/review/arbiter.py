@@ -437,7 +437,8 @@ def persist_arbiter_decision(
 def _persist_in_artifact(artifact_path: Path, decision: ArbiterDecision) -> Path:
     """Add arbiter_override section to a review-cycle artifact's frontmatter."""
     from ruamel.yaml import YAML
-    from io import StringIO
+
+    from kernel.yaml_io import serialize_mapping
 
     content = artifact_path.read_text(encoding="utf-8")  # NOSONAR(pythonsecurity:S2083) - path is resolved from trusted project structure, not user-controlled input
 
@@ -456,18 +457,18 @@ def _persist_in_artifact(artifact_path: Path, decision: ArbiterDecision) -> Path
         # Add arbiter_override section
         data["arbiter_override"] = decision.to_dict()
 
-        stream = StringIO()
-        yaml.dump(data, stream)
-        new_fm = stream.getvalue().rstrip("\n")
+        # #3058: serialize_mapping's rt dumper (default width 4096) — not the
+        # prior bare YAML()/width~80 dump, which wrapped reviewer prose and
+        # left trailing-whitespace continuation lines. This intentionally
+        # widens the on-disk wrap from ~80 to 4096, unifying arbiter with
+        # review/artifacts.py's own frontmatter width (#3058).
+        new_fm = serialize_mapping(data).decode("utf-8").rstrip("\n")
 
         new_content = f"---\n{new_fm}\n---\n{body_text}"
     else:
         # No frontmatter: prepend it
         fm_dict = {"arbiter_override": decision.to_dict()}
-        yaml = YAML()
-        stream = StringIO()
-        yaml.dump(fm_dict, stream)
-        fm_text = stream.getvalue().rstrip("\n")
+        fm_text = serialize_mapping(fm_dict).decode("utf-8").rstrip("\n")
         new_content = f"---\n{fm_text}\n---\n{content}"
 
     write_text_within_directory(artifact_path, new_content, root=artifact_path.parent, encoding="utf-8")

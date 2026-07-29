@@ -22,35 +22,72 @@
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJM2PDPQM8KVZPN5W5XQ0EC4",
-      "last_transition_at": "2026-03-01T06:52:10.327688+00:00"
+      "last_transition_at": "2026-03-01T06:52:10.327688+00:00",
+      "subtasks": {
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned",
+        "T005": "planned"
+      }
     },
     "WP02": {
       "actor": "user",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJM43KAJR5F0G7C13WN84S6R",
-      "last_transition_at": "2026-03-01T07:16:50.642054+00:00"
+      "last_transition_at": "2026-03-01T07:16:50.642054+00:00",
+      "subtasks": {
+        "T006": "planned",
+        "T007": "planned",
+        "T008": "planned",
+        "T009": "planned",
+        "T010": "planned"
+      }
     },
     "WP03": {
       "actor": "user",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJPC29724164S1WJS5MW7RJV",
-      "last_transition_at": "2026-03-02T04:14:24.995109+00:00"
+      "last_transition_at": "2026-03-02T04:14:24.995109+00:00",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
     },
     "WP04": {
       "actor": "user",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJPC4SZ1R5RA7ABW0MP96N62",
-      "last_transition_at": "2026-03-02T04:15:47.682009+00:00"
+      "last_transition_at": "2026-03-02T04:15:47.682009+00:00",
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
     },
     "WP05": {
       "actor": "user",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KJPC54KR5XJMKVGAF70XSK2G",
-      "last_transition_at": "2026-03-02T04:15:58.584520+00:00"
+      "last_transition_at": "2026-03-02T04:15:58.584520+00:00",
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      }
     }
   }
 }

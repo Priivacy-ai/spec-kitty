@@ -1,5 +1,5 @@
 {
-  "event_count": 42,
+  "event_count": 48,
   "last_event_id": "01KQFRQEG77FVG412PXMAN7FR2",
   "materialized_at": "2026-04-30T17:59:29.543695+00:00",
   "mission_number": "109",
@@ -19,45 +19,103 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "claude:claude-sonnet-4-6:python-pedro:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KQFQWGAAQJ7JB7Q698AJ89H6",
-      "last_transition_at": "2026-04-30T17:44:46.666650+00:00"
+      "last_transition_at": "2026-04-30T17:44:46.666650+00:00",
+      "shell_pid": 5241,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
     },
     "WP02": {
       "actor": "user",
+      "agent": "claude:claude-sonnet-4-6:python-pedro:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQFRNJQYBHB726XFCWFQ0VKH",
-      "last_transition_at": "2026-04-30T17:58:28.350529+00:00"
+      "last_transition_at": "2026-04-30T17:58:28.350529+00:00",
+      "shell_pid": 5660,
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
     },
     "WP03": {
       "actor": "user",
+      "agent": "claude:claude-sonnet-4-6:python-pedro:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQFRP1ZBFE79TSAJ46TX2PMY",
-      "last_transition_at": "2026-04-30T17:58:43.947354+00:00"
+      "last_transition_at": "2026-04-30T17:58:43.947354+00:00",
+      "shell_pid": 6129,
+      "subtasks": {
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
     },
     "WP04": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQFRPGTFTZHBHG72PDEGSYAK",
-      "last_transition_at": "2026-04-30T17:58:59.151873+00:00"
+      "last_transition_at": "2026-04-30T17:58:59.151873+00:00",
+      "shell_pid": 46345,
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
     },
     "WP05": {
       "actor": "user",
+      "agent": "claude:claude-sonnet-4-6:python-pedro:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQFRPZNEK2QBX1A5VF6J91ZZ",
-      "last_transition_at": "2026-04-30T17:59:14.350986+00:00"
+      "last_transition_at": "2026-04-30T17:59:14.350986+00:00",
+      "shell_pid": 6129,
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done"
+      }
     },
     "WP06": {
       "actor": "user",
+      "agent": "claude:claude-sonnet-4-6:python-pedro:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KQFRQEG77FVG412PXMAN7FR2",
-      "last_transition_at": "2026-04-30T17:59:29.543695+00:00"
+      "last_transition_at": "2026-04-30T17:59:29.543695+00:00",
+      "shell_pid": 6129,
+      "subtasks": {
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T034": "done"
+      }
     }
   }
 }

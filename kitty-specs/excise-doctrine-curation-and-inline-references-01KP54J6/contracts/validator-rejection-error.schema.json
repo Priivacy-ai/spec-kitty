@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "spec-kitty://phase1-excision/validator-rejection-error/v1",
   "title": "InlineReferenceRejectedError",
-  "description": "Structured error raised by per-kind doctrine validators when a shipped or project-local artifact YAML contains a forbidden inline reference field. Introduced in WP1.3.",
+  "description": "Structured error raised by per-kind doctrine validators when a built-in or project-local artifact YAML contains a forbidden inline reference field. Introduced in WP1.3; migration_hint pattern corrected in doctrine-silence-guards-01KYFV7Q WP07 (FR-008).",
   "type": "object",
   "required": ["file_path", "forbidden_field", "artifact_kind", "migration_hint"],
   "additionalProperties": false,
@@ -29,8 +29,8 @@
     },
     "migration_hint": {
       "type": "string",
-      "description": "Fixed text pointing at the graph-edge migration pattern.",
-      "pattern": "^Remove .+ from YAML; add edge \\{source: .+, target: .+, relation: requires\\} to src/doctrine/graph.yaml$"
+      "description": "Fixed text pointing at the graph-edge migration pattern. The trailing path is the DRG fragment for the source artifact's kind — the file the operator actually opens. Mission #2680 sharded away the single src/doctrine/graph.yaml monolith the v1 pattern named.",
+      "pattern": "^Remove .+ from YAML; add edge \\{source: .+, target: .+, relation: requires\\} to src/doctrine/[a-z_]+\\.graph\\.yaml$"
     }
   },
   "examples": [
@@ -38,7 +38,7 @@
       "file_path": "/path/to/project/.kittify/doctrine/directives/my-directive.directive.yaml",
       "forbidden_field": "tactic_refs",
       "artifact_kind": "directive",
-      "migration_hint": "Remove tactic_refs from YAML; add edge {source: directive:my-directive, target: tactic:my-tactic, relation: requires} to src/doctrine/graph.yaml"
+      "migration_hint": "Remove tactic_refs from YAML; add edge {source: directive:my-directive, target: tactic:my-tactic, relation: requires} to src/doctrine/directive.graph.yaml"
     }
   ]
 }

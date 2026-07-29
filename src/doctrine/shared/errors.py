@@ -9,7 +9,13 @@ for the error-shape contract and the required ``migration_hint`` pattern.
 The canonical ``migration_hint`` string must match::
 
     ^Remove .+ from YAML; add edge \\{source: .+, target: .+, relation: requires\\}
-     to src/doctrine/graph.yaml$
+     to src/doctrine/[a-z_]+\\.graph\\.yaml$
+
+The trailing path is the DRG fragment for the *source* artifact's kind, which
+is where an edge with that source belongs. Mission #2680 sharded the former
+single doctrine-graph monolith into one ``<kind>.graph.yaml`` fragment per
+kind, so a hint naming the monolith sent the operator to a file that is not
+there.
 
 The hint uses the actual ``DRGEdge`` schema: ``source``/``target``/``relation``
 keys (not ``from``/``to``/``kind``), and ``requires`` as the relation value (the
@@ -54,12 +60,17 @@ def build_migration_hint(
 
     The returned text matches the regex in
     ``contracts/validator-rejection-error.schema.json``.
+
+    The named file is the DRG fragment for ``source_kind`` -- edges are
+    sharded by their source's kind, so that is the fragment the operator
+    actually has to open. There is no monolith left to open: #2680 replaced
+    it with per-kind fragments.
     """
     return (
         f"Remove {forbidden_field} from YAML; "
         f"add edge {{source: {source_kind}:{source_id}, "
         f"target: {target_kind}:{target_id}, relation: requires}} "
-        f"to src/doctrine/graph.yaml"
+        f"to src/doctrine/{source_kind}.graph.yaml"
     )
 
 

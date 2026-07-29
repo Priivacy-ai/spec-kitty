@@ -1,5 +1,5 @@
 {
-  "event_count": 52,
+  "event_count": 58,
   "last_event_id": "01KP458ZTXNVCX8SC05JY6VH72",
   "materialized_at": "2026-04-13T19:32:12.254020+00:00",
   "mission_number": "",
@@ -19,45 +19,87 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
+      "agent": "claude:opus:reviewer:reviewer",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KP458TBB3XDE5EMWM0VX5CGM",
-      "last_transition_at": "2026-04-13T19:32:06.635866+00:00"
+      "last_transition_at": "2026-04-13T19:32:06.635866+00:00",
+      "shell_pid": 47414,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done"
+      }
     },
     "WP02": {
       "actor": "user",
+      "agent": "claude:opus:reviewer:reviewer",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KP458VDRX9QVDY1VF7W596YQ",
-      "last_transition_at": "2026-04-13T19:32:07.736155+00:00"
+      "last_transition_at": "2026-04-13T19:32:07.736155+00:00",
+      "shell_pid": 59383,
+      "subtasks": {
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP03": {
       "actor": "user",
+      "agent": "claude:opus:implementer:implementer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KP458WG1ERWZRY418Q3VWTC0",
-      "last_transition_at": "2026-04-13T19:32:08.833871+00:00"
+      "last_transition_at": "2026-04-13T19:32:08.833871+00:00",
+      "shell_pid": 59674,
+      "subtasks": {
+        "T006": "done",
+        "T007": "done"
+      }
     },
     "WP04": {
       "actor": "user",
+      "agent": "claude:opus:implementer:implementer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KP458XHGYSCDYK6A1BXE7JEV",
-      "last_transition_at": "2026-04-13T19:32:09.904352+00:00"
+      "last_transition_at": "2026-04-13T19:32:09.904352+00:00",
+      "shell_pid": 68605,
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
     },
     "WP05": {
       "actor": "user",
+      "agent": "claude:opus:implementer:implementer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KP458YS0R17P2N0M191D554H",
-      "last_transition_at": "2026-04-13T19:32:11.168297+00:00"
+      "last_transition_at": "2026-04-13T19:32:11.168297+00:00",
+      "shell_pid": 77246,
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done"
+      }
     },
     "WP06": {
       "actor": "user",
+      "agent": "claude:opus:implementer:implementer",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KP458ZTXNVCX8SC05JY6VH72",
-      "last_transition_at": "2026-04-13T19:32:12.254020+00:00"
+      "last_transition_at": "2026-04-13T19:32:12.254020+00:00",
+      "shell_pid": 85590,
+      "subtasks": {
+        "T017": "done",
+        "T018": "done"
+      }
     }
   }
 }

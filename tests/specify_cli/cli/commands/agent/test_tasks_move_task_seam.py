@@ -229,23 +229,32 @@ def test_patched_detect_reviewer_intercepts_approval_facts() -> None:
     assert approval_ref is not None and approval_ref.startswith("auto-approval:WP01:")
 
 
-def test_patched_primary_feature_dir_intercepts_issue_matrix_facts(
-    tmp_path: Path,
-) -> None:
-    """``tasks.primary_feature_dir_for_mission`` (the pre30-guard-wiring patch
-    seam) bites through ``_mt_issue_matrix_facts``'s ``_tasks.<attr>`` route."""
+def test_seam_read_dir_intercepts_issue_matrix_facts(tmp_path: Path) -> None:
+    """``_mt_issue_matrix_facts`` routes its PRIMARY-anchor read through the
+    kind-aware placement seam directly with ``MissionArtifactKind.SPEC``.
+
+    read-side-seam-primary-primitive-closure-01KYKMMT WP06 (T029): this test
+    replaces ``test_patched_primary_feature_dir_intercepts_issue_matrix_facts``
+    (retired — its entire subject was the ``_tasks.<attr>`` patch-seam bridge
+    onto the retiring ``primary_feature_dir_for_mission`` wrapper, which this
+    call site no longer uses; DIRECTIVE_041 "delete, don't repair" for a test
+    whose whole subject is the old shape). ``SPEC`` (not ``ISSUE_MATRIX``) is
+    the correct kind: ``_issue_matrix_approval_blocker``'s ``primary_feature_dir``
+    argument is consulted only to detect ``spec.md``'s referenced issues.
+    """
     st = _make_state(to="approved")
     st.target_lane = Lane.APPROVED
     st.main_repo_root = tmp_path
     st.mission_slug = "034-feature"
+    st.feature_dir = tmp_path
     with (
         patch(
-            f"{_TASKS}.primary_feature_dir_for_mission", side_effect=_SentinelHit
-        ) as primary_mock,
+            f"{tasks_move_task.__name__}.placement_seam", side_effect=_SentinelHit
+        ) as seam_mock,
         pytest.raises(_SentinelHit),
     ):
         tasks_move_task._mt_issue_matrix_facts(st)
-    primary_mock.assert_called_once()
+    seam_mock.assert_called_once()
 
 
 def test_patched_read_events_intercepts_current_event_lane(tmp_path: Path) -> None:

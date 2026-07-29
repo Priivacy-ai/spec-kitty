@@ -1,5 +1,5 @@
 {
-  "event_count": 29,
+  "event_count": 32,
   "last_event_id": "01KNSCA8MGHZE5BBP6GW3BK2QZ",
   "materialized_at": "2026-04-09T15:03:35.312539+00:00",
   "mission_number": "80",
@@ -19,73 +19,154 @@
   "work_packages": {
     "WP01": {
       "actor": "opencode",
+      "agent": "opencode",
       "force_count": 4,
       "lane": "in_progress",
       "last_event_id": "01KNSC9C8JFFQ72FYSWRSNKVZG",
-      "last_transition_at": "2026-04-09T15:03:06.258196+00:00"
+      "last_transition_at": "2026-04-09T15:03:06.258196+00:00",
+      "shell_pid": 40632,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "implement-command",
+      "agent": "claude",
       "force_count": 1,
       "lane": "in_progress",
       "last_event_id": "01KNSB1QSHWXR559E4YGMC0043",
-      "last_transition_at": "2026-04-09T14:41:27.345801+00:00"
+      "last_transition_at": "2026-04-09T14:41:27.345801+00:00",
+      "shell_pid": 50468,
+      "subtasks": {
+        "T006": "planned",
+        "T007": "planned",
+        "T008": "planned",
+        "T009": "planned"
+      }
     },
     "WP03": {
       "actor": "codex:gpt-5:python-implementer:implementer",
+      "agent": "codex:gpt-5:python-implementer:implementer",
       "force_count": 2,
       "lane": "in_progress",
       "last_event_id": "01KNSCA8MGHZE5BBP6GW3BK2QZ",
-      "last_transition_at": "2026-04-09T15:03:35.312539+00:00"
+      "last_transition_at": "2026-04-09T15:03:35.312539+00:00",
+      "shell_pid": 43579,
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
     },
     "WP04": {
       "actor": "finalize-tasks",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KNS46ZNW019SH51ZX5HZP5C7",
-      "last_transition_at": "2026-04-09T12:41:59.228988+00:00"
+      "last_transition_at": "2026-04-09T12:41:59.228988+00:00",
+      "subtasks": {
+        "T014": "planned",
+        "T015": "planned",
+        "T016": "planned",
+        "T017": "planned",
+        "T018": "planned",
+        "T019": "planned"
+      }
     },
     "WP05": {
       "actor": "finalize-tasks",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KNS46ZNZX1Q0W942A03P779G",
-      "last_transition_at": "2026-04-09T12:41:59.231261+00:00"
+      "last_transition_at": "2026-04-09T12:41:59.231261+00:00",
+      "subtasks": {
+        "T020": "planned",
+        "T021": "planned",
+        "T022": "planned",
+        "T023": "planned",
+        "T024": "planned",
+        "T025": "planned",
+        "T026": "planned"
+      }
     },
     "WP06": {
       "actor": "finalize-tasks",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KNS46ZP1J32YE3A86QSFAD5A",
-      "last_transition_at": "2026-04-09T12:41:59.233283+00:00"
+      "last_transition_at": "2026-04-09T12:41:59.233283+00:00",
+      "subtasks": {
+        "T027": "planned",
+        "T028": "planned",
+        "T029": "planned",
+        "T030": "planned",
+        "T031": "planned"
+      }
     },
     "WP07": {
       "actor": "finalize-tasks",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KNS46ZP34QF12915NSJRR0V3",
-      "last_transition_at": "2026-04-09T12:41:59.235398+00:00"
+      "last_transition_at": "2026-04-09T12:41:59.235398+00:00",
+      "subtasks": {
+        "T032": "planned",
+        "T033": "planned",
+        "T034": "planned",
+        "T035": "planned",
+        "T036": "planned"
+      }
     },
     "WP08": {
       "actor": "finalize-tasks",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KNS46ZP5G0MJ272FNHFZZQ8R",
-      "last_transition_at": "2026-04-09T12:41:59.237449+00:00"
+      "last_transition_at": "2026-04-09T12:41:59.237449+00:00",
+      "subtasks": {
+        "T037": "planned",
+        "T038": "planned",
+        "T039": "planned",
+        "T040": "planned",
+        "T041": "planned"
+      }
     },
     "WP09": {
       "actor": "finalize-tasks",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KNS46ZP7XGR47YFW4K9F4QTV",
-      "last_transition_at": "2026-04-09T12:41:59.239849+00:00"
+      "last_transition_at": "2026-04-09T12:41:59.239849+00:00",
+      "subtasks": {
+        "T042": "planned",
+        "T043": "planned",
+        "T044": "planned",
+        "T045": "planned",
+        "T046": "planned",
+        "T047": "planned",
+        "T048": "planned",
+        "T049": "planned",
+        "T050": "planned"
+      }
     },
     "WP10": {
       "actor": "finalize-tasks",
       "force_count": 1,
       "lane": "planned",
       "last_event_id": "01KNS46ZP95VVP765DP9JCB7S4",
-      "last_transition_at": "2026-04-09T12:41:59.241858+00:00"
+      "last_transition_at": "2026-04-09T12:41:59.241858+00:00",
+      "subtasks": {
+        "T051": "planned",
+        "T052": "planned",
+        "T053": "planned",
+        "T054": "planned",
+        "T055": "planned"
+      }
     }
   }
 }

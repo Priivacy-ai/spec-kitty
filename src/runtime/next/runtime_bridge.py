@@ -246,20 +246,20 @@ def _mission_routes_through_coordination(mission_slug: str, repo_root: Path) -> 
     cells return ``False``. Missing/malformed meta degrades to non-coord (matching
     the historical "no declared coord topology" arm).
     """
+    from mission_runtime import MissionArtifactKind, placement_seam
     from specify_cli.migration.backfill_topology import read_topology
-    from specify_cli.missions._read_path_resolver import (
-        _canonicalize_primary_read_handle,
-        primary_feature_dir_for_mission,
-    )
 
     # Anchor the stored-topology read on the topology-BLIND primary dir (where
-    # meta.json lives), mirroring ``resolution._resolve_coordination_branch`` — the
-    # coord-aware resolver fail-closes for a materialized-but-empty coord worktree,
-    # so it must not gate this read.
-    # WP05/FR-005: route through _canonicalize_primary_read_handle.
-    feature_dir = primary_feature_dir_for_mission(
-        repo_root,
-        _canonicalize_primary_read_handle(repo_root, mission_slug),
+    # meta.json lives), mirroring ``resolution._resolve_coordination_branch``.
+    # A KIND-BLIND resolver (``candidate_feature_dir_for_mission``) genuinely
+    # CAN land on a materialized-but-empty coord worktree here — that was the
+    # original hazard this anchoring guarded against. The kind-aware seam
+    # cannot: for a PRIMARY-partition kind (``PRIMARY_METADATA``) the decision
+    # layer short-circuits to the primary anchor for EVERY topology and coord
+    # state, before any coord probe (read-side-seam-primary-primitive-closure-
+    # 01KYKMMT WP07, T032 — FR-004/FR-015).
+    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
     )
     try:
         topology = read_topology(feature_dir)
@@ -1235,14 +1235,11 @@ def _dn_bootstrap(
     # ``""`` from ``get_mission_type`` (post-#883 no software-dev default), which
     # then breaks runtime template resolution. Anchor the type read on the primary
     # dir, mirroring ``_mission_routes_through_coordination`` above (FR-001).
-    from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
-        _canonicalize_primary_read_handle,
-        primary_feature_dir_for_mission,
-    )
+    from mission_runtime import MissionArtifactKind, placement_seam  # noqa: PLC0415
 
     mission_type = get_mission_type(
-        primary_feature_dir_for_mission(
-            repo_root, _canonicalize_primary_read_handle(repo_root, mission_slug)
+        placement_seam(repo_root, mission_slug).read_dir(
+            MissionArtifactKind.PRIMARY_METADATA
         )
     )
     sync_emitter = SyncRuntimeEventEmitter.for_feature(

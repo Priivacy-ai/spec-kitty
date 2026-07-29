@@ -10,13 +10,29 @@ import re
 from enum import StrEnum
 from typing import Self
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 # ---------------------------------------------------------------------------
 # URN regex -- anchored, no spaces, only lower-alpha + underscore for kind
 # ---------------------------------------------------------------------------
 
 _URN_RE = re.compile(r"^[a-z_]+:[A-Za-z0-9_/.\-]+$")
+
+
+def is_valid_urn(value: str) -> bool:
+    """Return whether *value* is a syntactically valid DRG URN.
+
+    The single public read of :data:`_URN_RE` (FR-010, WP08). Callers that
+    build a URN before handing it to :class:`DRGNode` / :class:`DRGEdge` use
+    this to fail with their own typed, domain-appropriate error instead of
+    letting a raw ``pydantic_core.ValidationError`` escape from the middle of
+    an unrelated operation — the org→DRG bridge is the motivating case.
+
+    Validity is *syntactic only*: it says nothing about whether the URN's kind
+    prefix is a :class:`NodeKind` member or whether a node with that URN
+    exists. Both are separate, deliberately independent checks.
+    """
+    return bool(_URN_RE.match(value))
 
 
 # ---------------------------------------------------------------------------
@@ -142,8 +158,8 @@ RELATION_DESCRIPTIONS: dict[Relation, str] = {
         "``resolve_action_context`` walks ``requires`` edges transitively, "
         "with no depth limit, from an action's ``scope``-resolved artifacts; "
         "``charter activate --cascade`` follows the same edge to pull in "
-        "artifacts that must also be active. It is the emission-heaviest "
-        "relation in the built-in graph (255 edges) and is the mandatory "
+        "artifacts that must also be active. It is the second-most-emitted "
+        "relation in the built-in graph (262 edges) and is the mandatory "
         "counterpart to ``suggests``, not a stronger synonym for it."
     ),
     Relation.SUGGESTS: (
@@ -153,17 +169,26 @@ RELATION_DESCRIPTIONS: dict[Relation, str] = {
         "unlike the unbounded transitive walk used for ``requires`` -- and "
         "the charter cascade treats a ``suggests`` target as optional, "
         "something an operator may accept or skip. It is the most-emitted "
-        "relation in the built-in graph (330 edges); the boundedness of the "
+        "relation in the built-in graph (337 edges); the boundedness of the "
         "walk, not the edge count, is what distinguishes it from ``requires``."
     ),
     Relation.APPLIES: (
         "Names the edge from an agent profile to the concrete procedure or "
-        "tactic that profile executes as its operating workflow, e.g. "
-        "``agent_profile:doctrine-daphne`` --applies--> "
-        "``procedure:onboard-external-agent-to-pack``. Emission is narrow by "
-        "design (1 edge in the built-in graph): most profiles describe their "
-        "workflow in prose via the ``specialization`` field rather than a "
-        "graph edge. Distinct from ``scope``, which names the "
+        "tactic that profile executes as its operating workflow. Zero edges "
+        "exist in the built-in graph, and authoring one is refused by "
+        "``tests/architectural/test_no_authored_applies_edge.py``: no context "
+        "resolution, no charter cascade and no reference walk follows "
+        "``applies``, so an authored one names a relationship nothing "
+        "traverses. The single shipped example "
+        "(``agent_profile:doctrine-daphne`` --applies--> "
+        "``procedure:onboard-external-agent-to-pack``) was retyped to "
+        "``requires`` because it was that procedure's only inbound edge and "
+        "left the profile's own operating procedure unreachable. The relation "
+        "itself is not dead -- ``charter.synthesizer.project_drg`` emits it "
+        "during project-tier synthesis and the orphan lint accepts it as an "
+        "inbound edge on a ``directive`` node -- so what is forbidden is "
+        "authoring one into the shipped tree, not the relation existing. "
+        "Distinct from ``scope``, which names the "
         "action-to-governance-artifact edge role, not a profile's own "
         "operating procedure -- the two are never interchangeable."
     ),
@@ -292,6 +317,13 @@ RELATION_DESCRIPTIONS: dict[Relation, str] = {
 class DRGNode(BaseModel):
     """A single addressable doctrine artifact node."""
 
+    # FR-004: an authored key this model does not declare is a load error, not a
+    # silent discard. Pydantic v2's default is ``extra="ignore"``, which is how a
+    # graph fragment can carry a key nobody reads and nobody is told about.
+    # Every sibling model under ``src/doctrine/**/models.py`` already forbids
+    # extras; this brings the DRG models in line rather than inventing a policy.
+    model_config = ConfigDict(extra="forbid")
+
     urn: str
     kind: NodeKind
     label: str | None = None
@@ -327,6 +359,11 @@ class DRGNode(BaseModel):
 
 class DRGEdge(BaseModel):
     """A typed, directed relationship between two nodes."""
+
+    # FR-004 -- see ``DRGNode.model_config``. This is the half that makes B1's
+    # ``impacts`` / ``is_symmetric`` real: without it a typo'd or unmerged edge
+    # field is accepted and discarded on load.
+    model_config = ConfigDict(extra="forbid")
 
     source: str
     target: str

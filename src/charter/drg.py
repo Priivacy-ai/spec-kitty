@@ -62,6 +62,7 @@ from doctrine.drg import (
     load_built_in_graph,
     load_graph,
     merge_layers,
+    validate_dangling_references,
 )
 from doctrine.drg.merge import (
     OrgDRGConflict,
@@ -90,6 +91,15 @@ from doctrine.drg.query import ResolvedContext, resolve_context
 # sites keep working without crossing the layer boundary directly. Charter
 # retains only the activation-aware filter/aggregation
 # (:func:`filter_graph_by_activation`), which is a charter concern.
+#
+# ``validate_dangling_references`` rides the same rule. It is the post-merge
+# completeness check every runtime caller that merges the COMPLETE graph must
+# run (see its docstring for the predicate), so it belongs beside
+# ``merge_three_layers`` on the facade rather than being imported from
+# ``doctrine.drg.validator`` inside a runtime function — a form that reaches
+# past charter into doctrine and that the boundary ratchet
+# (``tests/architectural/test_runtime_charter_doctrine_boundary.py``) cannot
+# see, because it only inspects module-level imports.
 __all__ = [
     "ArtifactKind",
     "DRGEdge",
@@ -112,6 +122,7 @@ __all__ = [
     "merge_layers",
     "merge_three_layers",
     "resolve_context",
+    "validate_dangling_references",
 ]
 
 # ---------------------------------------------------------------------------

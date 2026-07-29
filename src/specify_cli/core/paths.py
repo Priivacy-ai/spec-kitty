@@ -717,14 +717,32 @@ def get_feature_target_branch(repo_root: Path, mission_slug: str) -> str:
     # commit/branch surface was the protected primary instead of the mission's
     # ``target_branch`` (the finalize-tasks / implement-loop refusal-to-main bug,
     # WP00 / FR-004). This mirrors ``resolve_merge_target_branch`` below exactly.
+    #
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP07/WP08 (T034/T035,
+    # FR-005 / NFR-009): RECORDED FOUNDATION SITE 1/4, deliberately UNROUTED.
+    # This read feeds the write-side composition root
+    # (``resolve_placement_only``). ``PlacementSeam.read_dir`` never reaches this
+    # target-branch resolution -- it routes to ``resolve_retrospective_home`` or
+    # ``resolve_artifact_surface``, neither of which calls
+    # ``get_feature_target_branch`` -- so routing here would NOT close the
+    # literal cycle a naive reading suggests. The real constraints are (a)
+    # import-layering: ``core/paths.py`` is imported very early, so this pulls
+    # the missions layer in via a deferred import to dodge the missions<->core
+    # import cycle, and (b) behaviour-preservation: this leaf call is
+    # byte-identical to the deleted wrapper's pre-delegation body. WP08 deleted
+    # the public wrapper (``primary_feature_dir_for_mission``) this site used to
+    # import, so this now calls the module-private ``_compose_primary_feature_dir``
+    # leaf directly -- see ``tests/architectural/test_no_read_side_bypass.py``'s
+    # ``_FOUNDATION_SANCTION_SEED`` entry for ``get_feature_target_branch``
+    # (token re-pointed in the same commit).
     from specify_cli.core.git_ops import resolve_primary_branch
     from specify_cli.missions._read_path_resolver import (
         _canonicalize_primary_read_handle,
-        primary_feature_dir_for_mission,
+        _compose_primary_feature_dir,
     )
 
     main_root = get_main_repo_root(repo_root)
-    feature_dir = primary_feature_dir_for_mission(
+    feature_dir = _compose_primary_feature_dir(
         main_root,
         _canonicalize_primary_read_handle(main_root, mission_slug),
     )
@@ -747,8 +765,9 @@ def resolve_merge_target_branch(
     primary-meta ``target_branch`` > repo default.
 
     The merge target lives in the PRIMARY-checkout meta.json (like
-    ``coordination_branch``), so it is read via ``primary_feature_dir_for_mission``
-    — NOT the topology-aware candidate. Under coordination topology that candidate
+    ``coordination_branch``), so it is read via the module-private
+    ``_compose_primary_feature_dir`` leaf — NOT the topology-aware candidate.
+    Under coordination topology that candidate
     resolves to the coordination worktree, whose mission dir has no meta.json;
     reading it found nothing and silently fell back to the repo default (main),
     merging the mission into the wrong branch.
@@ -766,10 +785,21 @@ def resolve_merge_target_branch(
     # Deferred imports: core.paths is imported very early; these pull in the
     # missions/git layers that import back into core — module-level imports would
     # form a circular import.
+    #
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP07/WP08 (T034/T035,
+    # FR-005 / NFR-009): RECORDED FOUNDATION SITE 2/4, deliberately UNROUTED —
+    # same import-layering + behaviour-preservation rationale as
+    # ``get_feature_target_branch`` above (``PlacementSeam.read_dir`` never
+    # reaches this target-branch resolution, so no literal cycle is at stake;
+    # the constraints are the early-import deferred-import layering noted above
+    # and behaviour-preservation with the deleted wrapper's pre-delegation
+    # body). WP08 deleted the public wrapper this site imported; calls the
+    # module-private ``_compose_primary_feature_dir`` leaf directly
+    # (``_FOUNDATION_SANCTION_SEED`` token re-pointed in the same commit).
     from specify_cli.core.git_ops import resolve_primary_branch
     from specify_cli.missions._read_path_resolver import (
         _canonicalize_primary_read_handle,
-        primary_feature_dir_for_mission,
+        _compose_primary_feature_dir,
     )
 
     main_root = get_main_repo_root(repo_root)
@@ -777,7 +807,7 @@ def resolve_merge_target_branch(
     if not mission_slug:
         return fallback, "primary_branch"
 
-    feature_dir = primary_feature_dir_for_mission(
+    feature_dir = _compose_primary_feature_dir(
         main_root,
         _canonicalize_primary_read_handle(main_root, mission_slug),
     )

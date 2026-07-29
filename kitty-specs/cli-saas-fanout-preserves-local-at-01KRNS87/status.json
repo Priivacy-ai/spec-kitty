@@ -1,5 +1,5 @@
 {
-  "event_count": 7,
+  "event_count": 8,
   "last_event_id": "01KRNT64Q9E2SKQ75NH1PNVPMY",
   "materialized_at": "2026-05-15T12:36:08.041055+00:00",
   "mission_number": "",
@@ -19,10 +19,21 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
+      "agent": "claude:opus-4-7:reviewer:reviewer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KRNT64Q9E2SKQ75NH1PNVPMY",
-      "last_transition_at": "2026-05-15T12:36:08.041055+00:00"
+      "last_transition_at": "2026-05-15T12:36:08.041055+00:00",
+      "shell_pid": 62952,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
     }
   }
 }

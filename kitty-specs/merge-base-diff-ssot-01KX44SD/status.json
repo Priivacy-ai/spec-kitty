@@ -1,5 +1,5 @@
 {
-  "event_count": 30,
+  "event_count": 34,
   "last_event_id": "01KX4KXXQCQ4YKV9B727DHTT3B",
   "materialized_at": "2026-07-09T23:38:11.052254+00:00",
   "mission_number": "171",
@@ -19,31 +19,62 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KX4KXVM2Y9A7F3VVH7MM5RG7",
-      "last_transition_at": "2026-07-09T23:38:08.898630+00:00"
+      "last_transition_at": "2026-07-09T23:38:08.898630+00:00",
+      "shell_pid": 2495818,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KX4KXWCJPWPJJ3Q208YCMMV2",
-      "last_transition_at": "2026-07-09T23:38:09.682730+00:00"
+      "last_transition_at": "2026-07-09T23:38:09.682730+00:00",
+      "shell_pid": 2577155,
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KX4KXX2B5HP2QV1Z7ZY801K7",
-      "last_transition_at": "2026-07-09T23:38:10.379359+00:00"
+      "last_transition_at": "2026-07-09T23:38:10.379359+00:00",
+      "shell_pid": 2624934,
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KX4KXXQCQ4YKV9B727DHTT3B",
-      "last_transition_at": "2026-07-09T23:38:11.052254+00:00"
+      "last_transition_at": "2026-07-09T23:38:11.052254+00:00",
+      "shell_pid": 2680664,
+      "subtasks": {
+        "T013": "planned",
+        "T014": "planned",
+        "T015": "planned"
+      }
     }
   }
 }

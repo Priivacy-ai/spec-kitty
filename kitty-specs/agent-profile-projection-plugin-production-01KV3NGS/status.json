@@ -1,5 +1,5 @@
 {
-  "event_count": 58,
+  "event_count": 67,
   "last_event_id": "01KV4SVP8TT899JB0GVWT65TR3",
   "materialized_at": "2026-06-15T04:50:25.690896+00:00",
   "mission_number": "136",
@@ -19,66 +19,146 @@
   "work_packages": {
     "WP01": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 4,
       "lane": "approved",
       "last_event_id": "01KV3XTPVN6EZFFY0ZE552RTQA",
-      "last_transition_at": "2026-06-14T20:40:33.397392+00:00"
+      "last_transition_at": "2026-06-14T20:40:33.397392+00:00",
+      "shell_pid": 46315,
+      "subtasks": {
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned",
+        "T005": "planned"
+      }
     },
     "WP02": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KV3YBCV6KACXK7KTZNQEMDQ0",
-      "last_transition_at": "2026-06-14T20:49:40.198205+00:00"
+      "last_transition_at": "2026-06-14T20:49:40.198205+00:00",
+      "shell_pid": 72372,
+      "subtasks": {
+        "T006": "planned",
+        "T007": "planned",
+        "T008": "planned",
+        "T009": "planned"
+      }
     },
     "WP03": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KV3ZF8HMS0YS6ENBRJ8NPV0G",
-      "last_transition_at": "2026-06-14T21:09:15.444451+00:00"
+      "last_transition_at": "2026-06-14T21:09:15.444451+00:00",
+      "shell_pid": 78708,
+      "subtasks": {
+        "T010": "planned",
+        "T011": "planned",
+        "T012": "planned",
+        "T013": "planned",
+        "T014": "planned"
+      }
     },
     "WP04": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KV3X466P8BXFZF6HQXC271YD",
-      "last_transition_at": "2026-06-14T20:28:15.446145+00:00"
+      "last_transition_at": "2026-06-14T20:28:15.446145+00:00",
+      "shell_pid": 66930,
+      "subtasks": {
+        "T015": "planned",
+        "T016": "planned",
+        "T017": "planned",
+        "T018": "planned",
+        "T019": "planned"
+      }
     },
     "WP05": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KV3XNWM2XSVNF4TSQ0HFD265",
-      "last_transition_at": "2026-06-14T20:37:55.458724+00:00"
+      "last_transition_at": "2026-06-14T20:37:55.458724+00:00",
+      "shell_pid": 38234,
+      "subtasks": {
+        "T020": "planned",
+        "T021": "planned",
+        "T022": "planned",
+        "T023": "planned"
+      }
     },
     "WP06": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KV3XR6WV93NCEY1144N6YY28",
-      "last_transition_at": "2026-06-14T20:39:11.515475+00:00"
+      "last_transition_at": "2026-06-14T20:39:11.515475+00:00",
+      "shell_pid": 40489,
+      "subtasks": {
+        "T024": "planned",
+        "T025": "planned",
+        "T026": "planned",
+        "T027": "planned"
+      }
     },
     "WP07": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 2,
       "lane": "approved",
       "last_event_id": "01KV40PNVA8K7Y7GWBYP0B5BV0",
-      "last_transition_at": "2026-06-14T21:30:47.018944+00:00"
+      "last_transition_at": "2026-06-14T21:30:47.018944+00:00",
+      "shell_pid": 72856,
+      "subtasks": {
+        "T028": "planned",
+        "T029": "planned",
+        "T030": "planned",
+        "T031": "planned",
+        "T032": "planned",
+        "T033": "planned",
+        "T034": "planned"
+      }
     },
     "WP08": {
       "actor": "user",
+      "agent": "claude",
       "force_count": 1,
       "lane": "approved",
       "last_event_id": "01KV4R6CCMVX1SXTRZTB8H132T",
-      "last_transition_at": "2026-06-15T04:21:18.868869+00:00"
+      "last_transition_at": "2026-06-15T04:21:18.868869+00:00",
+      "shell_pid": 53464,
+      "subtasks": {
+        "T035": "planned",
+        "T036": "planned",
+        "T037": "planned",
+        "T038": "planned",
+        "T039": "planned"
+      }
     },
     "WP09": {
       "actor": "claude:sonnet:reviewer:reviewer",
+      "agent": "claude:sonnet:reviewer:reviewer",
       "force_count": 1,
       "lane": "in_review",
       "last_event_id": "01KV4SVP8TT899JB0GVWT65TR3",
-      "last_transition_at": "2026-06-15T04:50:25.690896+00:00"
+      "last_transition_at": "2026-06-15T04:50:25.690896+00:00",
+      "shell_pid": 28191,
+      "subtasks": {
+        "T040": "planned",
+        "T041": "planned",
+        "T042": "planned",
+        "T043": "planned",
+        "T044": "planned"
+      }
     }
   }
 }

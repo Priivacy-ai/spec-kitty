@@ -125,6 +125,32 @@ class ValidationResult:
 
 
 @dataclass(frozen=True)
+class FieldPathException:
+    """A single field-scoped exemption (WP02, FR-002/C-005).
+
+    ``exceptions[]`` entries match by *path glob* alone, which cannot express
+    Mission B2's exemption set: every one of its 17 GOVERNANCE files, and 5 of
+    its 7 RAW_MATERIAL files, also carry MIGRATE entries in the SAME file —
+    so a path-only exception would either whitelist the migration in those
+    files or block it outright.
+
+    A field-scoped entry narrows the exemption to one YAML field path inside
+    files matching ``path``. The file's OTHER fields (including migrating
+    ones) are still classified by the category-level action; this entry only
+    additionally records that ``field_path`` is pinned to ``action``. See
+    :func:`specify_cli.bulk_edit.diff_check.assess_file`, which surfaces the
+    pin as a targeted warning rather than using it to override the whole
+    file's verdict — a blanket override is exactly what made the exemption
+    inexpressible in the first place.
+    """
+
+    path: str
+    field_path: str
+    action: str
+    reason: str | None = None
+
+
+@dataclass(frozen=True)
 class MoveEntry:
     """A single multi-path structural move (IC-10, #1815).
 
@@ -150,6 +176,7 @@ class OccurrenceMap:
     status: dict[str, Any] | None
     raw: dict[str, Any]
     moves: list[MoveEntry] = field(default_factory=list)
+    field_path_exceptions: list[FieldPathException] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -178,6 +205,7 @@ def load_occurrence_map(feature_dir: Path) -> OccurrenceMap | None:
     exceptions = data.get("exceptions", [])
     status = data.get("status")
     moves = _parse_moves(data.get("moves"))
+    field_path_exceptions = _parse_field_path_exceptions(exceptions)
 
     return OccurrenceMap(
         target_term=target.get("term", ""),
@@ -188,7 +216,44 @@ def load_occurrence_map(feature_dir: Path) -> OccurrenceMap | None:
         status=status,
         raw=data,
         moves=moves,
+        field_path_exceptions=field_path_exceptions,
     )
+
+
+def _parse_field_path_exceptions(raw_exceptions: Any) -> list[FieldPathException]:
+    """Parse the field-scoped subset of ``exceptions:`` (WP02, FR-002).
+
+    An entry is field-scoped when it carries a non-empty ``field_path``.
+    Malformed entries are skipped here — surfaced as human-readable errors by
+    :func:`validate_occurrence_map` — so a missing/absent ``exceptions``
+    block, or a legacy exceptions list with no ``field_path`` keys, yields an
+    empty list (C-OMAP-1 backward compatibility).
+    """
+    if not isinstance(raw_exceptions, list):
+        return []
+
+    parsed: list[FieldPathException] = []
+    for entry in raw_exceptions:
+        if not isinstance(entry, dict):
+            continue
+        field_path_raw = entry.get("field_path")
+        if not isinstance(field_path_raw, str) or field_path_raw.strip() == "":
+            continue
+        path_raw = entry.get("path")
+        action_raw = entry.get("action")
+        if not isinstance(path_raw, str) or not isinstance(action_raw, str):
+            continue
+        reason_raw = entry.get("reason")
+        reason = reason_raw if isinstance(reason_raw, str) else None
+        parsed.append(
+            FieldPathException(
+                path=path_raw,
+                field_path=field_path_raw,
+                action=action_raw,
+                reason=reason,
+            )
+        )
+    return parsed
 
 
 def _parse_moves(raw_moves: Any) -> list[MoveEntry]:
@@ -241,6 +306,7 @@ def validate_occurrence_map(omap: OccurrenceMap) -> ValidationResult:
 
     errors.extend(_validate_target(omap.raw.get("target", _MISSING)))
     errors.extend(_validate_categories(omap.raw.get("categories", _MISSING)))
+    errors.extend(_validate_exceptions(omap.raw.get("exceptions")))
     errors.extend(_validate_moves(omap.raw.get("moves")))
 
     for key in omap.raw:
@@ -301,6 +367,55 @@ def _validate_categories(cats: Any) -> list[str]:
                 f"Category '{cat_name}' has invalid action '{action}'; "
                 f"must be one of {sorted(VALID_ACTIONS)}"
             )
+    return errors
+
+
+def _validate_exceptions(exceptions_raw: Any) -> list[str]:
+    """Validate the optional ``exceptions`` section, including field-path
+    entries (WP02, FR-002).
+
+    A missing or ``None`` block produces no errors — legacy maps may omit
+    ``exceptions`` entirely (C-OMAP-1).
+    """
+    if exceptions_raw is None:
+        return []
+    if not isinstance(exceptions_raw, list):
+        return ["'exceptions' must be a list when present"]
+
+    errors: list[str] = []
+    for index, entry in enumerate(exceptions_raw):
+        errors.extend(_validate_exception_entry(index, entry))
+    return errors
+
+
+def _validate_exception_entry(index: int, entry: Any) -> list[str]:
+    """Validate a single ``exceptions[]`` entry; return human-readable errors."""
+    errors: list[str] = []
+    label = f"exceptions[{index}]"
+    if not isinstance(entry, dict):
+        return [f"{label} must be a mapping with 'path' and 'action'"]
+
+    path = entry.get("path")
+    if path is None:
+        errors.append(f"{label} missing required 'path' key")
+    elif not isinstance(path, str) or path.strip() == "":
+        errors.append(f"{label}.path must be a non-empty string")
+
+    action = entry.get("action")
+    if action is None:
+        errors.append(f"{label} missing required 'action' key")
+    elif action not in VALID_ACTIONS:
+        errors.append(
+            f"{label} has invalid action '{action}'; "
+            f"must be one of {sorted(VALID_ACTIONS)}"
+        )
+
+    field_path = entry.get("field_path")
+    if field_path is not None and (
+        not isinstance(field_path, str) or field_path.strip() == ""
+    ):
+        errors.append(f"{label}.field_path must be a non-empty string when present")
+
     return errors
 
 

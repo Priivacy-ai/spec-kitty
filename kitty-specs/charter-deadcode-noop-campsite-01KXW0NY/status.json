@@ -1,5 +1,5 @@
 {
-  "event_count": 28,
+  "event_count": 32,
   "last_event_id": "01KXW5F22H4BQ9XPT9G19W39TJ",
   "materialized_at": "2026-07-19T03:07:10.289603+00:00",
   "mission_number": "",
@@ -19,31 +19,79 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXW5EZWPQWFD3KYYEGC7H4NF",
-      "last_transition_at": "2026-07-19T03:07:08.054565+00:00"
+      "last_transition_at": "2026-07-19T03:07:08.054565+00:00",
+      "shell_pid": 1542680,
+      "shell_pid_created_at": "1784428988.57",
+      "subtasks": {
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned"
+      },
+      "tracker_refs": [
+        "#1797"
+      ]
     },
     "WP02": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXW5F0P7QJARM6B3S0S0XBRY",
-      "last_transition_at": "2026-07-19T03:07:08.871703+00:00"
+      "last_transition_at": "2026-07-19T03:07:08.871703+00:00",
+      "shell_pid": 1622149,
+      "shell_pid_created_at": "1784429760.61",
+      "subtasks": {
+        "T005": "planned",
+        "T006": "planned",
+        "T007": "planned",
+        "T008": "planned"
+      },
+      "tracker_refs": [
+        "#1797"
+      ]
     },
     "WP03": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXW5F1C2KQF245AQPENJ63S5",
-      "last_transition_at": "2026-07-19T03:07:09.570774+00:00"
+      "last_transition_at": "2026-07-19T03:07:09.570774+00:00",
+      "shell_pid": 1597951,
+      "shell_pid_created_at": "1784429557.67",
+      "subtasks": {
+        "T009": "planned",
+        "T010": "planned",
+        "T011": "planned"
+      },
+      "tracker_refs": [
+        "#2373",
+        "#1914"
+      ]
     },
     "WP04": {
       "actor": "merge",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KXW5F22H4BQ9XPT9G19W39TJ",
-      "last_transition_at": "2026-07-19T03:07:10.289603+00:00"
+      "last_transition_at": "2026-07-19T03:07:10.289603+00:00",
+      "shell_pid": 1567732,
+      "shell_pid_created_at": "1784429244.93",
+      "subtasks": {
+        "T012": "planned",
+        "T013": "planned",
+        "T014": "planned"
+      },
+      "tracker_refs": [
+        "#2373",
+        "#1914"
+      ]
     }
   }
 }

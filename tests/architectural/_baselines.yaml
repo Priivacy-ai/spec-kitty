@@ -31,7 +31,7 @@ test_no_dead_modules:
   # wp-lane-state-machine-fsm): upstream #1756 added m_3_3_0_session_presence_all_harnesses
   # and m_3_3_0_session_presence_claude_code; both auto-discovered via
   # pkgutil.iter_modules, never statically imported. Growth here is expected/routine.
-  category_1_auto_discovered_migrations: 95  # justification: 95 after the coord-write-placement-closure mission added m_3_2_6_decisions_event_log_merge_driver (decisions.events.jsonl merge-driver seeding, target 3.2.6), registered via @MigrationRegistry.register and discovered through pkgutil rather than a static importer -- same auto-discovery shape as the sibling m_3_2_6_meta_traces_merge_drivers / m_3_2_6_gate_artifact_merge_drivers; no runtime caller by design.
+  category_1_auto_discovered_migrations: 96  # justification: 96 after PR #3007 added m_3_2_6_retire_rtk_search_tooling, an auto-discovered upgrade migration that cleans up the retired rtk-search-tooling toolguide activation from existing consumer configs (#3009 operator ruling). Category 1 exists precisely to enumerate auto-discovered migration modules that have no static importer, so this is registration, not suppression.
   # justification: 3 schema generator modules consumed by
   # scripts/generate_schemas.py via importlib.import_module.
   # Shrunk from 4 → 3 when doctrine.missions.models gained a live
@@ -288,3 +288,41 @@ test_no_dead_symbols:
   # read_wp_lane_actor) were deleted and the 3 internally-used types
   # (EventLogWriteTarget, StatusContractError, StatusReadSource) were
   # de-exported from status_service.__all__, so the baseline is now 0.
+
+# tests/architectural/test_no_inert_schema_slots.py — the zero-producer lint
+# (mission doctrine-silence-guards-01KYFV7Q, WP01).
+#
+# NOT an allowlist. Each entry is a declared doctrine slot that nothing in the
+# tree populates, frozen with a named owner and a required structural fix; see
+# tests/architectural/_inert_slots_baseline.yaml. Growth FAILS, shrinkage WARNS.
+# WP05 cleared its 8 (the FR-028 enhances/overrides excision, 59 -> 51); mission
+# foundational-values-creed-band-01KYFV8N still owns 26 (import_candidates'
+# first producer). Expect this to fall further, not rise.
+test_no_inert_schema_slots:
+  baseline_entries: 51
+  # The shrink-only cap on `unassigned` owners. `unassigned` is the one owner the
+  # anti-weasel test can never fire for, so this is the gate's only escape hatch;
+  # registering it here subjects widening it to the same `# justification:` policy
+  # as any other ratchet, instead of leaving it a bare module constant a future PR
+  # raises in one line.
+  unassigned_entries: 23
+  # The shrink-only cap on slots suppressed by a CODE producer alone. A single
+  # dead line anywhere under src/doctrine (`x = None`, a dict key, a kwarg —
+  # three shapes work) used to silence a new inert-slot finding with no baseline
+  # row and nothing visible in review. Tightening which AST node counts as a
+  # write only moves that hole, so the suppressions are made visible and capped
+  # instead. Measured: 14 of the 15 are false suppressions (name collisions and
+  # reader-not-producer sites) — the lint erred permissively. At 14/14 a new
+  # suppression can only enter as a genuine producer, argued in the diff.
+  masking_suppressions: 14
+
+# tests/architectural/test_reference_enum_ratchet.py
+# The four `<kind>_reference.type` enums in src/doctrine/schemas/. `_BASELINE`
+# there is a mutable, shrink-only member set; Charter Burn-down Policy (a) puts
+# every such allowlist under a baseline here, so widening an enum needs the
+# `# justification:` diff rather than a one-line module edit. Counted as flat
+# `<definition_key>:<member>` slots (BASELINE_MEMBER_SLOTS) so the four sets
+# reduce to one number: 9 + 7 + 9 + 9. The 9-vs-7 split is unadjudicated --
+# see #2976 -- so expect this to SHRINK when it is settled, never grow.
+test_reference_enum_ratchet:
+  baseline_members: 34

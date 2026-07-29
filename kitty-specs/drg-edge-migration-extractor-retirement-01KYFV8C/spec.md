@@ -37,6 +37,47 @@ becomes a node minter plus validator; node discovery stays derived.
 — hand counts were wrong twice): 559 MIGRATE / 188 GOVERNANCE / 14 RAW across 171 files; 169 MIGRATE
 files. Estimated 11–14 agent-days, ~365–390 files.
 
+## Inherited from mission A's WP02 — the occurrence-map field-path mechanism
+
+WP02 extended `occurrence-map.schema.yaml` so `do_not_change` can name a **YAML field path**
+inside a file that also carries migrating entries. That is what lets this mission's map express
+exemptions its 17 GOVERNANCE files could not, since every one of them also carries MIGRATE entries.
+Verified at review: **all 55 real (file, field) GOVERNANCE pairs parse and produce pins.**
+
+Three things to carry, none of them optional reading:
+
+1. **A pin is ADVISORY.** It surfaces the field to the reviewer; it does **not** block, and nothing
+   verifies the field was actually unchanged. Do not read `do_not_change` here as enforcement.
+2. **The 14 RAW occurrences can be *named* but not *isolated*.** They share the field name
+   `references` with MIGRATE entries in 5 of 7 files, so field-path granularity reaches the field,
+   not the individual list entry. That finer cut is FR-015's entry-level gate — **this mission's own
+   work**. Do not assume the RAW 14 are pinned by the map.
+3. **Known test-strength gap, deliberately left for you.** WP02's suite proves each pair passes
+   schema validation; it does *not* assert the pair loads into a `FieldPathException` and produces a
+   pin. Review proved that separately (55/55, 0 misses), so the behaviour is verified — just not by
+   the committed suite. WP02 structurally could not own the test, because `owned_files` may not
+   reference `kitty-specs/` and the fixture is **your** map. **You re-author that map against this
+   schema, so the end-to-end assertion belongs here.**
+
+## Inherited burn-down obligation — `aliases` and `banned_synonyms`
+
+Mission A's zero-producer lint owns two baseline entries against this mission:
+`aliases` (`drg/models.py`-adjacent, the field FR-028 adds) and `banned_synonyms`
+(`glossary_packs/models.py`). Both are declared today and nothing populates them —
+`glossary_packs/models.py` says so in its own docstring: they *"are carried and
+round-tripped for Mission B forward-compat but are inert (unwired) in Mission A."*
+
+**This mission cannot reach `done` while they stand** (mission A SC-001a, enforced by
+test). The disposition is `wire-the-producer`: FR-028 is what makes `aliases` real.
+
+Worth knowing how nearly this was missed. The lint's first implementation did **not**
+flag `aliases` at all — its producer scan was repo-wide, so an unrelated use of the
+bare name elsewhere in `src/` masked it, and the gate stayed green over the exact
+field it was built to guard. Then, once surfaced, it was parked as `unassigned`
+because this mission's slug was believed not to exist. Twice in one work package the
+mechanism nearly went inert against its own purpose. If FR-028 ships and this entry
+is still in the baseline, that is the third time.
+
 ## Carried constraints — do not lose these when speccing
 
 - **Never sweep `directive-references` (68).** Zero DRG edges, but it is the **seed set for the entire charter governance closure**. Deleting it empties every profile-routed prompt while fragments, golden counts and a zero-entries gate all stay green.

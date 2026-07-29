@@ -198,7 +198,7 @@ def _base_synthesis_request(run_id: str) -> SynthesisRequest:
         },
         drg_snapshot={
             "nodes": [
-                {"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"},
+                {"urn": "directive:DIRECTIVE_003", "kind": "directive"},
             ],
             "edges": [],
             "schema_version": "1",

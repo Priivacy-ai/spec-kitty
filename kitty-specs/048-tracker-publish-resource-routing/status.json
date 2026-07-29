@@ -22,14 +22,27 @@
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KKBKYYNX1814AECTWCBX8ZX0",
-      "last_transition_at": "2026-03-10T10:16:27.581223+00:00"
+      "last_transition_at": "2026-03-10T10:16:27.581223+00:00",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "user",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KKBM6T00ZDS3J0PXWQZ9TD8D",
-      "last_transition_at": "2026-03-10T10:20:44.928639+00:00"
+      "last_transition_at": "2026-03-10T10:20:44.928639+00:00",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
     }
   }
 }

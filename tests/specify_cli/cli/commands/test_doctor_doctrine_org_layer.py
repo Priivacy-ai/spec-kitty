@@ -108,6 +108,77 @@ def test_render_org_layer_section_shows_pack_counts(
     )
 
 
+def test_render_org_layer_section_names_a_dangling_org_endpoint(
+    tmp_repo_with_org_pack: Path,
+) -> None:
+    """The human section must name the finding, on its own verdict line.
+
+    ``_collect_org_layer_data`` declares itself a mirror of *this* function
+    ("Mirrors the human-readable output of ``_render_org_layer_section``"). The
+    first WP08 fold wired the completeness check into the JSON collector only,
+    so the mirror broke: ``doctor doctrine --json`` reported the dangling
+    endpoint under ``org_drg.errors`` while the same command's human output
+    showed the pack ``✓ loaded``, a ``collisions: none`` line, and nothing at
+    all about the endpoint — a clean-looking section for the exact graph the
+    JSON call had just failed.
+
+    RED before this fold: the offending token appears nowhere in the rendered
+    section.
+    """
+    from specify_cli.cli.commands.doctor import _render_org_layer_section
+
+    fragment = tmp_repo_with_org_pack / "example_org" / "drg" / "fragment.yaml"
+    fragment.write_text(
+        fragment.read_text(encoding="utf-8").replace(
+            "styleguide:plain-language", "styleguide:plain-languagee"
+        ),
+        encoding="utf-8",
+    )
+
+    buf = StringIO()
+    console = Console(file=buf, highlight=False, markup=False, width=200)
+    _render_org_layer_section(tmp_repo_with_org_pack, console)
+    output = buf.getvalue()
+
+    assert "styleguide:plain-languagee" in output, (
+        f"the section must name the offending token; got {output!r}"
+    )
+    # ``markup=False`` on the test console keeps rich tags literal, so match the
+    # verdict label and its count separately rather than across the ``[/red]``.
+    assert "dangling endpoints:" in output, (
+        "the token must be presented as a finding with its own verdict line, "
+        f"not buried in prose; got {output!r}"
+    )
+    assert "1 org edge endpoint(s)" in output, output
+    # ``collisions: none`` stays — and stays true. Collisions and dangling
+    # endpoints are two checks; suppressing one verdict because the other
+    # failed would lose the answer to a question the operator also asked.
+    assert "collisions: none" in output, output
+
+
+def test_render_org_layer_section_reports_clean_when_no_dangling_endpoint(
+    tmp_repo_with_org_pack: Path,
+) -> None:
+    """The escalation must discriminate, not fire on every pack.
+
+    Clean-discriminator for the test above: the shipped fixture references a
+    real built-in node by qualified URN — the sanctioned cross-fragment
+    authoring shape — so an unmodified pack renders an explicitly clean verdict
+    and names no token. Without this, the test above would pass on a renderer
+    that flagged everything.
+    """
+    from specify_cli.cli.commands.doctor import _render_org_layer_section
+
+    buf = StringIO()
+    console = Console(file=buf, highlight=False, markup=False, width=200)
+    _render_org_layer_section(tmp_repo_with_org_pack, console)
+    output = buf.getvalue()
+
+    assert "collisions: none" in output, output
+    assert "dangling endpoints: none" in output, output
+    assert "plain-language" not in output, output
+
+
 def test_render_org_layer_section_no_crash_on_missing_pack(
     tmp_path: Path,
 ) -> None:
@@ -176,6 +247,106 @@ def test_collect_org_layer_data_returns_configured_packs(
     assert pack.get("fetched") is True
     assert isinstance(pack.get("node_count"), int)
     assert isinstance(pack.get("edge_count"), int)
+
+
+def test_collect_org_layer_data_reports_a_dangling_org_endpoint(
+    tmp_repo_with_org_pack: Path,
+) -> None:
+    """A qualified endpoint that binds to nothing is an ERROR here (WP08 fold).
+
+    ``merge_three_layers`` accepts a fully-qualified endpoint verbatim and only
+    WARNs when it resolves to nothing, because it cannot tell whether its caller
+    merged the whole graph or a deliberate subset — ``charter lint`` merges org
+    fragments against an EMPTY built-in graph on purpose.
+
+    ``_collect_org_layer_data`` is the caller that DOES hold a complete graph:
+    the real shipped built-in against the operator's real configured packs. So
+    it escalates, and — because ``DoctrineHealthReport.healthy`` reads
+    ``org_drg['errors']`` — a typo'd endpoint now flips ``doctor doctrine`` to
+    RC=1 instead of passing clean.
+
+    Before the fold, no production caller of ``merge_three_layers`` ran
+    ``validate_graph``/``assert_valid`` at all, so this returned no errors.
+    """
+    from specify_cli.cli.commands.doctor import _collect_org_layer_data
+
+    fragment = tmp_repo_with_org_pack / "example_org" / "drg" / "fragment.yaml"
+    fragment.write_text(
+        fragment.read_text(encoding="utf-8").replace(
+            "styleguide:plain-language", "styleguide:plain-languagee"
+        ),
+        encoding="utf-8",
+    )
+
+    result = _collect_org_layer_data(tmp_repo_with_org_pack)
+
+    dangling = result.get("dangling_endpoints")
+    assert isinstance(dangling, list) and dangling, (
+        f"a typo'd qualified endpoint must be reported, got {result!r}"
+    )
+    assert any("styleguide:plain-languagee" in e for e in dangling), (
+        f"the report must name the offending token; got {dangling}"
+    )
+    errors = result.get("errors")
+    assert isinstance(errors, list)
+    assert any("styleguide:plain-languagee" in e for e in errors), (
+        "the finding must reach org_drg['errors'] — that is the channel "
+        f"DoctrineHealthReport.healthy reads; got {errors}"
+    )
+
+
+def test_collect_org_layer_data_reports_no_dangling_endpoint_when_clean(
+    tmp_repo_with_org_pack: Path,
+) -> None:
+    """The escalation must discriminate, not fire on every pack.
+
+    The shipped fixture references a real built-in node by qualified URN — the
+    sanctioned cross-fragment authoring shape — so an unmodified pack must come
+    back clean. Without this, the test above would pass on a check that flagged
+    everything.
+
+    The clean signal is an EMPTY ``dangling_endpoints``, not an absent one. This
+    assertion previously read ``is None`` and so pinned the key's conditional
+    presence — under which "the check ran and found nothing" and "the check
+    never ran" produced the identical payload. See
+    ``test_doctrine_hard_fail_surfacing.test_dangling_endpoints_key_is_always_present``.
+    """
+    from specify_cli.cli.commands.doctor import _collect_org_layer_data
+
+    result = _collect_org_layer_data(tmp_repo_with_org_pack)
+
+    assert result.get("dangling_endpoints") == [], result
+    assert result.get("errors") == []
+
+
+def test_collect_org_layer_data_surfaces_a_failed_merge_check(
+    tmp_repo_with_org_pack: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A merge check that could not RUN is not a merge check that PASSED.
+
+    Twin of the ``charter status`` case: the handler wrapping this merge was a
+    bare ``except Exception: pass``. Since the fold, the merge inside it also
+    decides whether the org layer is reported complete, so swallowing the
+    failure turns "the completeness check crashed" into ``errors: []`` — and
+    ``DoctrineHealthReport.healthy`` reads that array, so ``doctor doctrine``
+    would exit 0 having verified nothing.
+    """
+    import charter.drg as charter_drg
+    from specify_cli.cli.commands.doctor import _collect_org_layer_data
+
+    def _boom(**_kwargs: object) -> object:
+        raise RuntimeError("merge exploded")
+
+    monkeypatch.setattr(charter_drg, "merge_three_layers", _boom)
+
+    result = _collect_org_layer_data(tmp_repo_with_org_pack)
+
+    errors = result.get("errors")
+    assert isinstance(errors, list)
+    assert any("merge exploded" in e for e in errors), (
+        f"a diagnostic that could not verify must not report healthy; got {errors}"
+    )
 
 
 def test_collect_org_layer_data_empty_packs_when_none_configured(

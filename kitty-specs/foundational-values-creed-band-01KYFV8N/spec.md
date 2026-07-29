@@ -39,6 +39,7 @@ auto-decides, and degrades gracefully.
 - **I5** — unify the two drifted AMMERSE definition copies (tactic + template) with a parity test.
 - **I6** — accreditation: required non-empty `attribution`, a root `NOTICE`, packaging inclusion.
 - **I9** — corpus import + value-set artefact + a **non-AMMERSE N ≠ 7 fixture**.
+  **Inherited burn-down obligation:** mission A's zero-producer lint measured **20 baseline entries for the `import-candidate` kind** — the model and schema are declared, and every instance in the repository is a test fixture. That is not a surprise: the sequencing authority already says I9 "gives `import_candidates` its first real producer." I9 is therefore the owner of those entries, and **this mission cannot reach `done` with them outstanding** (mission A SC-001a, enforced by test). The legal dispositions are `wire-the-producer` or `delete-the-declaration` — there is no `accepted`.
 - **I13** — N-generic first-order connascence matrix and its validator. *ADR-D8 settled 2026-07-26 — unblocked.*
 - **I8** — perturbation-stability probe (~20 lines). Can falsify the mechanism; **run it early**.
 - **I1a** — sign-vs-rationale polarity lint, advisory, against the 12-row validation set.

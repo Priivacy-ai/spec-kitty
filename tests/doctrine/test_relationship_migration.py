@@ -3,7 +3,8 @@
 Built-in doctrine relationships that used to be authored as artifact *fields*
 (``specializes-from`` / ``enhances`` / ``overrides``) are migrated into typed
 DRG ``specializes_from`` / ``enhances`` / ``overrides`` **edges** in the shipped
-``src/doctrine/graph.yaml``. The migration must be *zero-loss*: every
+per-kind DRG fragments (``src/doctrine/<kind>.graph.yaml``, sharded by edge
+source kind). The migration must be *zero-loss*: every
 field-authored relationship discovered in the built-in artifacts has exactly one
 corresponding edge in the merged DRG.
 

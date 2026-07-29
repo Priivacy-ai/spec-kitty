@@ -129,6 +129,8 @@ _REQUIRED_TOP_LEVEL_KEYS: frozenset[str] = frozenset(
         "test_compat_shims",
         "test_example_round_trip",
         "test_all_declarations_required",
+        "test_no_inert_schema_slots",
+        "test_reference_enum_ratchet",
     }
 )
 
@@ -308,6 +310,24 @@ def test_growing_an_allowlist_above_baseline_fails() -> None:
             "_SKIP_MARKED_BLOCKS",
             data["test_example_round_trip"]["skip_marker_blocks"],
         ),
+        # doctrine-silence-guards-01KYFV7Q WP01: frozen shrink-only baseline of
+        # declared doctrine slots that nothing populates. Debt with named owners,
+        # not an allowlist -- the module's own ALLOWLIST is permanently empty.
+        (
+            "test_no_inert_schema_slots",
+            "tests.architectural._inert_slots",
+            "BASELINE_SLOTS",
+            data["test_no_inert_schema_slots"]["baseline_entries"],
+        ),
+        # Charter Burn-down Policy (a): the four `<kind>_reference.type` enum
+        # baselines, flattened to one slot per permitted member. Shrink-only --
+        # the 12-vs-7 split is unadjudicated (#2976), so it should narrow.
+        (
+            "test_reference_enum_ratchet",
+            "tests.architectural.test_reference_enum_ratchet",
+            "BASELINE_MEMBER_SLOTS",
+            data["test_reference_enum_ratchet"]["baseline_members"],
+        ),
     ]
     for label, module_dotted, attr_name, baseline in single_baselines:
         current = len(_import_module_attr(module_dotted, attr_name))
@@ -407,6 +427,24 @@ def test_growth_fails_shrinkage_warns(
             "tests.contract.test_example_round_trip",
             "_SKIP_MARKED_BLOCKS",
             data["test_example_round_trip"]["skip_marker_blocks"],
+        ),
+        # doctrine-silence-guards-01KYFV7Q WP01: frozen shrink-only baseline of
+        # declared doctrine slots that nothing populates. Debt with named owners,
+        # not an allowlist -- the module's own ALLOWLIST is permanently empty.
+        (
+            "test_no_inert_schema_slots",
+            "tests.architectural._inert_slots",
+            "BASELINE_SLOTS",
+            data["test_no_inert_schema_slots"]["baseline_entries"],
+        ),
+        # Charter Burn-down Policy (a): the four `<kind>_reference.type` enum
+        # baselines, flattened to one slot per permitted member. Shrink-only --
+        # the 12-vs-7 split is unadjudicated (#2976), so it should narrow.
+        (
+            "test_reference_enum_ratchet",
+            "tests.architectural.test_reference_enum_ratchet",
+            "BASELINE_MEMBER_SLOTS",
+            data["test_reference_enum_ratchet"]["baseline_members"],
         ),
     ]
     for label, module_dotted, attr_name, baseline in single_baselines:

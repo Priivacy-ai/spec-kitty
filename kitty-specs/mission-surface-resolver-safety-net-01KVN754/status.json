@@ -1,5 +1,5 @@
 {
-  "event_count": 37,
+  "event_count": 42,
   "last_event_id": "01KVNP51YS4GRWEYFN87C9ZDP3",
   "materialized_at": "2026-06-21T18:12:43.609956+00:00",
   "mission_number": "",
@@ -19,38 +19,101 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "claude:opus:python-pedro:implementer",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KVNP500NDEM9SXP2XYY7N9H6",
-      "last_transition_at": "2026-06-21T18:12:41.621508+00:00"
+      "last_transition_at": "2026-06-21T18:12:41.621508+00:00",
+      "subtasks": {
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned",
+        "T005": "planned",
+        "T006": "planned",
+        "T007": "planned"
+      },
+      "tracker_refs": [
+        "2040",
+        "1993"
+      ]
     },
     "WP02": {
       "actor": "merge",
+      "agent": "claude:sonnet:python-pedro:implementer",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KVNP50J9A8CMC6JC7ZTK0796",
-      "last_transition_at": "2026-06-21T18:12:42.185378+00:00"
+      "last_transition_at": "2026-06-21T18:12:42.185378+00:00",
+      "subtasks": {
+        "T008": "planned",
+        "T009": "planned",
+        "T010": "planned"
+      },
+      "tracker_refs": [
+        "2061"
+      ]
     },
     "WP03": {
       "actor": "merge",
+      "agent": "claude:sonnet:python-pedro:implementer",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KVNP51163WM3AEVV16TC194A",
-      "last_transition_at": "2026-06-21T18:12:42.662421+00:00"
+      "last_transition_at": "2026-06-21T18:12:42.662421+00:00",
+      "subtasks": {
+        "T011": "planned",
+        "T012": "planned",
+        "T013": "planned",
+        "T014": "planned"
+      },
+      "tracker_refs": [
+        "2052",
+        "1993"
+      ]
     },
     "WP04": {
       "actor": "merge",
+      "agent": "claude:opus:python-pedro:implementer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KVNP51G18RTZ1X5ABQ1EX96H",
-      "last_transition_at": "2026-06-21T18:12:43.138027+00:00"
+      "last_transition_at": "2026-06-21T18:12:43.138027+00:00",
+      "subtasks": {
+        "T015": "planned",
+        "T016": "planned",
+        "T017": "planned",
+        "T018": "planned",
+        "T019": "planned",
+        "T020": "planned",
+        "T021": "planned"
+      },
+      "tracker_refs": [
+        "1716",
+        "2040"
+      ]
     },
     "WP05": {
       "actor": "merge",
+      "agent": "claude:opus:python-pedro:implementer",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KVNP51YS4GRWEYFN87C9ZDP3",
-      "last_transition_at": "2026-06-21T18:12:43.609956+00:00"
+      "last_transition_at": "2026-06-21T18:12:43.609956+00:00",
+      "subtasks": {
+        "T022": "planned",
+        "T023": "planned",
+        "T024": "planned",
+        "T025": "planned",
+        "T026": "planned",
+        "T027": "planned",
+        "T028": "planned"
+      },
+      "tracker_refs": [
+        "1848",
+        "2040",
+        "2010"
+      ]
     }
   }
 }

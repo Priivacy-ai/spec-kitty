@@ -2667,6 +2667,7 @@ pages:
     abstract: "Reference schema for Spec Kitty bulk-edit gates. Learn how to configure occurrence_map.yaml for renaming operations, actions, and validation."
     anchors:
     - {slug: "required-schema", text: "Required schema", level: 2}
+    - {slug: "exceptions-optional", text: "`exceptions` (optional)", level: 3}
     - {slug: "top-level-target-block", text: "Top-level `target:` block", level: 2}
     - {slug: "allowed-action-values", text: "Allowed `action` values", level: 2}
     - {slug: "category-cookbook", text: "Category cookbook", level: 2}
@@ -3497,6 +3498,17 @@ pages:
     - {slug: "try-it", text: "Try It", level: 2}
     - {slug: "how-to-guides", text: "How-To Guides", level: 2}
     - {slug: "reference", text: "Reference", level: 2}
+  - path: "docs/architecture/artifact-placement-seam.md"
+    title: "The Artifact Placement Seam"
+    divio_type: "none"
+    abstract: "How a mission artifact's kind and topology resolve to a physical tree, the two composition roots, and where callers still bypass the seam."
+    anchors:
+    - {slug: "what-routing-means-here", text: "What \"routing\" means here", level: 2}
+    - {slug: "the-layer-table", text: "The layer table", level: 2}
+    - {slug: "both-composition-roots", text: "Both composition roots", level: 2}
+    - {slug: "the-compliance-taxonomy", text: "The compliance taxonomy", level: 2}
+    - {slug: "honest-bounds", text: "Honest bounds", level: 2}
+    - {slug: "citations", text: "Citations", level: 2}
   - path: "docs/architecture/assessments/code-as-a-crime-scene-overview.md"
     title: "Code as a Crime Scene — High-Level Overview"
     divio_type: "none"
@@ -3519,12 +3531,11 @@ pages:
   - path: "docs/architecture/branch-target-routing.md"
     title: "Branch-Target Routing"
     divio_type: "explanation"
-    abstract: "Explanation of how Spec Kitty decides which git branch receives each type of change — planning artifacts, status events, code, and documentation."
+    abstract: "Explanation of which git branch a mission's code, coordination surface, and base-level artifacts land on."
     anchors:
     - {slug: "why-branch-target-routing-exists", text: "Why branch-target routing exists", level: 2}
-    - {slug: "the-routing-table", text: "The routing table", level: 2}
+    - {slug: "the-three-branch-level-destinations", text: "The three branch-level destinations", level: 2}
     - {slug: "the-simple-case-flat-topology-no-lanes-no-coordination", text: "The simple case: flat topology (no lanes, no coordination)", level: 2}
-    - {slug: "how-the-routing-decision-is-made", text: "How the routing decision is made", level: 2}
     - {slug: "relationship-to-execution-lanes", text: "Relationship to execution lanes", level: 2}
   - path: "docs/architecture/calibration/README.md"
     title: "Calibration Report Template"
@@ -4406,18 +4417,19 @@ pages:
     - {slug: "added", text: "✨ Added", level: 3}
     - {slug: "fixed", text: "🐛 Fixed", level: 3}
     - {slug: "changed", text: "♻️ Changed", level: 3}
+    - {slug: "breaking-changes", text: "💥 Breaking Changes", level: 3}
     - {slug: "3-2-5-2026-07-08", text: "[3.2.5] - 2026-07-08", level: 2}
     - {slug: "added-2", text: "✨ Added", level: 3}
     - {slug: "fixed-2", text: "🐛 Fixed", level: 3}
     - {slug: "changed-2", text: "♻️ Changed", level: 3}
-    - {slug: "breaking-changes", text: "💥 Breaking Changes", level: 3}
-    - {slug: "3-2-4-2026-07-05", text: "[3.2.4] - 2026-07-05", level: 2}
     - {slug: "breaking-changes-2", text: "💥 Breaking Changes", level: 3}
+    - {slug: "3-2-4-2026-07-05", text: "[3.2.4] - 2026-07-05", level: 2}
+    - {slug: "breaking-changes-3", text: "💥 Breaking Changes", level: 3}
     - {slug: "changed-3", text: "♻️ Changed", level: 3}
     - {slug: "fixed-3", text: "🐛 Fixed", level: 3}
     - {slug: "3-2-3-2026-06-29", text: "[3.2.3] - 2026-06-29", level: 2}
     - {slug: "added-3", text: "✨ Added", level: 3}
-    - {slug: "breaking-changes-3", text: "💥 Breaking Changes", level: 3}
+    - {slug: "breaking-changes-4", text: "💥 Breaking Changes", level: 3}
     - {slug: "fixed-4", text: "🐛 Fixed", level: 3}
     - {slug: "changed-4", text: "♻️ Changed", level: 3}
     - {slug: "3-2-2-2026-06-24", text: "[3.2.2] - 2026-06-24", level: 2}
@@ -4496,7 +4508,7 @@ pages:
     - {slug: "3-2-0rc27-2026-05-26", text: "[3.2.0rc27] - 2026-05-26", level: 2}
     - {slug: "fixed-22", text: "Fixed", level: 3}
     - {slug: "3-2-0rc26-2026-05-26", text: "[3.2.0rc26] - 2026-05-26", level: 2}
-    - {slug: "breaking-changes-4", text: "Breaking changes", level: 3}
+    - {slug: "breaking-changes-5", text: "Breaking changes", level: 3}
     - {slug: "changed-18", text: "Changed", level: 3}
     - {slug: "added-15", text: "Added", level: 3}
     - {slug: "3-2-0rc25-2026-05-23", text: "[3.2.0rc25] - 2026-05-23", level: 2}
@@ -4679,7 +4691,7 @@ pages:
     - {slug: "3-0-1-2026-03-31", text: "[3.0.1] - 2026-03-31", level: 2}
     - {slug: "fixed-62", text: "Fixed", level: 3}
     - {slug: "3-0-0-2026-03-30", text: "[3.0.0] - 2026-03-30", level: 2}
-    - {slug: "breaking-changes-5", text: "Breaking Changes", level: 3}
+    - {slug: "breaking-changes-6", text: "Breaking Changes", level: 3}
     - {slug: "added-41", text: "Added", level: 3}
     - {slug: "removed-6", text: "Removed", level: 3}
     - {slug: "fixed-63", text: "Fixed", level: 3}
@@ -4813,7 +4825,7 @@ pages:
     - {slug: "fixed-97", text: "🐛 Fixed", level: 3}
     - {slug: "added-57", text: "✨ Added", level: 3}
     - {slug: "migration-upgrade-path", text: "📚 Migration & Upgrade Path", level: 3}
-    - {slug: "breaking-changes-6", text: "🔒 Breaking Changes", level: 3}
+    - {slug: "breaking-changes-7", text: "🔒 Breaking Changes", level: 3}
     - {slug: "0-10-8-2025-12-30", text: "[0.10.8] - 2025-12-30", level: 2}
     - {slug: "fixed-98", text: "🐛 Fixed", level: 3}
     - {slug: "changed-52", text: "🔧 Changed", level: 3}
@@ -4838,7 +4850,7 @@ pages:
     - {slug: "migration", text: "🚀 Migration", level: 3}
     - {slug: "0-9-0-2025-12-17", text: "[0.9.0] - 2025-12-17", level: 2}
     - {slug: "major-release-frontmatter-only-lane-management", text: "🎯 Major Release: Frontmatter-Only Lane Management", level: 3}
-    - {slug: "breaking-changes-7", text: "⚠️ Breaking Changes", level: 3}
+    - {slug: "breaking-changes-8", text: "⚠️ Breaking Changes", level: 3}
     - {slug: "added-60", text: "🆕 Added", level: 3}
     - {slug: "changed-55", text: "🔧 Changed", level: 3}
     - {slug: "documentation-10", text: "📚 Documentation", level: 3}
@@ -4851,7 +4863,7 @@ pages:
     - {slug: "0-8-1-2025-12-17", text: "[0.8.1] - 2025-12-17", level: 2}
     - {slug: "fixed-105", text: "Fixed", level: 3}
     - {slug: "0-8-0-2025-12-15", text: "[0.8.0] - 2025-12-15", level: 2}
-    - {slug: "breaking-changes-8", text: "Breaking Changes", level: 3}
+    - {slug: "breaking-changes-9", text: "Breaking Changes", level: 3}
     - {slug: "added-62", text: "Added", level: 3}
     - {slug: "changed-56", text: "Changed", level: 3}
     - {slug: "deprecated-2", text: "Deprecated", level: 3}
@@ -5508,6 +5520,7 @@ pages:
     - {slug: "publish-to-origin-main", text: "Publish to origin/main", level: 3}
     - {slug: "coord-partition", text: "COORD partition", level: 3}
     - {slug: "topology-surface", text: "Topology Surface", level: 3}
+    - {slug: "routing", text: "Routing", level: 3}
   - path: "docs/context/planning-and-tracking.md"
     title: "Context: Planning & Tracking"
     divio_type: "none"
@@ -5779,20 +5792,27 @@ pages:
     divio_type: "reference"
     abstract: "Per-site verdicts (migrate-fail-loud / stay-lenient / sanction-infra) for every production call site that bypasses PlacementSeam.read_dir(kind)."
     anchors:
-    - {slug: "method-how-this-census-was-built", text: "Method (how this census was built)", level: 2}
-    - {slug: "coverage-reconciliation", text: "Coverage reconciliation", level: 2}
-    - {slug: "summary", text: "Summary", level: 2}
+    - {slug: "this-revision-deliberately-leaves-part-of-the-census-red", text: "⚠ This revision deliberately leaves part of the census red", level: 2}
+    - {slug: "method-how-the-original-2-primitive-census-was-built-historical", text: "Method (how the original 2-primitive census was built — historical)", level: 2}
+    - {slug: "method-wp02-this-revision-the-live-4-primitive-re-derivation", text: "Method (WP02 this revision — the live 4-primitive re-derivation)", level: 2}
+    - {slug: "coverage-reconciliation-historical-2-primitive-record", text: "Coverage reconciliation (historical 2-primitive record)", level: 2}
+    - {slug: "live-census-summary-machine-checked-end-state", text: "Live census summary (machine-checked, end-state)", level: 2}
+    - {slug: "summary-historical-pre-migration-2-primitive-audit-record-nfr-008", text: "Summary (historical — pre-migration 2-primitive audit record, NFR-008)", level: 2}
     - {slug: "stay-lenient-allow-list-index-machine-checked", text: "Stay-lenient allow-list index (machine-checked)", level: 2}
-    - {slug: "known-gap-primary-feature-dir-for-mission-tracked-follow-up", text: "Known gap — `primary_feature_dir_for_mission` (tracked follow-up)", level: 2}
+    - {slug: "foundation-site-sanctions-machine-checked", text: "Foundation-site sanctions (machine-checked)", level: 2}
+    - {slug: "resolve-feature-dir-for-mission-classification-wp02-fr-010-fr-012", text: "`resolve_feature_dir_for_mission` — classification (WP02, FR-010/FR-012)", level: 2}
+    - {slug: "primary-feature-dir-for-mission-live-census-wp02-fr-012", text: "`primary_feature_dir_for_mission` — live census (WP02, FR-012)", level: 2}
+    - {slug: "known-gap-primary-feature-dir-for-mission-corrected-fr-016", text: "Known gap — `primary_feature_dir_for_mission` (CORRECTED, FR-016)", level: 2}
     - {slug: "known-gap-raw-kitty-specs-dir-joins-out-of-census-grammar", text: "Known gap — raw `KITTY_SPECS_DIR` joins (out of census grammar)", level: 2}
-    - {slug: "full-ledger", text: "Full ledger", level: 2}
+    - {slug: "full-ledger-historical-the-original-2-primitive-migration-wp03-wp07-of", text: "Full ledger (historical — the original 2-primitive migration, WP03–WP07 of", level: 2}
+    - {slug: "read-side-placement-seam-migration-01kyhp67", text: "read-side-placement-seam-migration-01KYHP67)", level: 2}
     - {slug: "sanction-infra", text: "Sanction-infra", level: 3}
     - {slug: "wp03-agent-cli-src-specify-cli-cli-commands-agent", text: "WP03 — agent-CLI (`src/specify_cli/cli/commands/agent/**`)", level: 3}
     - {slug: "wp04-cli-commands-src-specify-cli-cli-commands-py-cli-commands-charter-widen-py", text: "WP04 — CLI-commands (`src/specify_cli/cli/commands/*.py` + `cli/commands/charter/_widen.py`)", level: 3}
     - {slug: "wp05-merge-lanes-src-specify-cli-merge-src-specify-cli-lanes", text: "WP05 — merge+lanes (`src/specify_cli/merge/**` + `src/specify_cli/lanes/**`)", level: 3}
     - {slug: "wp06-diagnostic-heavy", text: "WP06 — diagnostic-heavy", level: 3}
     - {slug: "wp07-core-misc", text: "WP07 — core/misc", level: 3}
-    - {slug: "notes-for-the-migration-wps-wp03-wp07", text: "Notes for the migration WPs (WP03–WP07)", level: 2}
+    - {slug: "notes-for-the-migration-wps-wp03-wp08", text: "Notes for the migration WPs (WP03–WP08)", level: 2}
   - path: "docs/development/red-main-and-release-readiness.md"
     title: "Red Main and Release Readiness"
     divio_type: "explanation"
@@ -7826,6 +7846,35 @@ pages:
     - {slug: "validated-as-predictive-strengths", text: "Validated as predictive (strengths)", level: 3}
     - {slug: "concrete-gaps-fed-back-to-wp04-wp05", text: "Concrete gaps (fed back to WP04/WP05)", level: 3}
     - {slug: "summary-of-live-mutations", text: "Summary of live mutations", level: 2}
+  - path: "docs/plans/doctrine/built-in-doctrine-repo-coupling-audit.md"
+    title: "Repo-Coupling Audit of Built-In Doctrine"
+    divio_type: "explanation"
+    abstract: "Classified audit of repository-local references in shipped built-in doctrine, the gate that currently requires one, and the relocation order for follow-on missions."
+    anchors:
+    - {slug: "1-counts-and-why-the-raw-number-is-a-trap", text: "1. Counts, and why the raw number is a trap", level: 2}
+    - {slug: "2-class-a-the-offenders", text: "2. Class (a) — the offenders", level: 2}
+    - {slug: "3-class-b-do-not-fix-these", text: "3. Class (b) — do not \"fix\" these", level: 2}
+    - {slug: "4-the-quick-check-has-a-blind-spot-larger-than-what-it-finds", text: "4. The quick-check has a blind spot larger than what it finds", level: 2}
+    - {slug: "5-a-gate-currently-requires-one-of-these-references", text: "5. A gate currently REQUIRES one of these references", level: 2}
+    - {slug: "6-what-remains-repo-local-in-doctrine-daphne-after-the-2026-07-28-reword", text: "6. What remains repo-local in `doctrine-daphne` after the 2026-07-28 reword", level: 2}
+    - {slug: "7-where-a-relocated-artefact-can-actually-go", text: "7. Where a relocated artefact can actually go", level: 2}
+    - {slug: "8-recommended-order", text: "8. Recommended order", level: 2}
+  - path: "docs/plans/doctrine/charter-activation-reachability-assessment.md"
+    title: "Charter Activation vs DRG Reachability: Which Path Actually Reaches an Agent"
+    divio_type: "explanation"
+    abstract: "Why 185 charter-activated doctrine artefacts never surface at the action-context boundary, the three parallel activation vocabularies behind it, and the recommended fix ordering."
+    anchors:
+    - {slug: "1-what-was-measured", text: "1. What was measured", level: 2}
+    - {slug: "2-why-three-parallel-activation-vocabularies", text: "2. Why — three parallel activation vocabularies", level: 2}
+    - {slug: "3-what-activation-does-do-today", text: "3. What activation *does* do today", level: 2}
+    - {slug: "4-why-this-reframes-3009", text: "4. Why this reframes #3009", level: 2}
+    - {slug: "5-recommendation", text: "5. Recommendation", level: 2}
+    - {slug: "r1-make-activation-an-entry-vector-into-action-context-the-real-fix", text: "R1 — Make activation an entry vector into action context (the real fix)", level: 3}
+    - {slug: "r2-collapse-the-three-vocabularies-to-one", text: "R2 — Collapse the three vocabularies to one", level: 3}
+    - {slug: "r3-adopt-3009-remedy-1-now-cheap-and-correct-regardless-of-r1-r2", text: "R3 — Adopt #3009 remedy 1 now (cheap, and correct regardless of R1/R2)", level: 3}
+    - {slug: "r4-triage-the-nine-with-the-disposition-vocabulary-fixed", text: "R4 — Triage the nine, with the disposition vocabulary fixed", level: 3}
+    - {slug: "r5-measure-reachability-not-incidence", text: "R5 — Measure reachability, not incidence", level: 3}
+    - {slug: "6-what-this-means-for-pr-3007", text: "6. What this means for PR #3007", level: 2}
   - path: "docs/plans/doctrine/charter-path-resolution-gaps.md"
     title: "Charter as Central Path Resolver — Gap Analysis"
     divio_type: "none"

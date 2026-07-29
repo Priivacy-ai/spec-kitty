@@ -1,5 +1,5 @@
 {
-  "event_count": 28,
+  "event_count": 32,
   "last_event_id": "01KQTTS0QD6GD89CKPQEEBT57V",
   "materialized_at": "2026-05-05T01:06:56.877210+00:00",
   "mission_number": "113",
@@ -19,31 +19,39 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "codex:gpt-5:python-pedro:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KQTTS0A79XZ8BCP7G8PME3JB",
-      "last_transition_at": "2026-05-05T01:06:56.455602+00:00"
+      "last_transition_at": "2026-05-05T01:06:56.455602+00:00",
+      "shell_pid": 98406
     },
     "WP02": {
       "actor": "merge",
+      "agent": "codex:gpt-5:python-pedro:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KQTTS0N7GZCH0XP7BHCFB09Z",
-      "last_transition_at": "2026-05-05T01:06:56.807465+00:00"
+      "last_transition_at": "2026-05-05T01:06:56.807465+00:00",
+      "shell_pid": 98482
     },
     "WP03": {
       "actor": "merge",
+      "agent": "codex:gpt-5:python-pedro:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KQTTS0PAWE8QDR7YSQWRA5CR",
-      "last_transition_at": "2026-05-05T01:06:56.842512+00:00"
+      "last_transition_at": "2026-05-05T01:06:56.842512+00:00",
+      "shell_pid": 10130
     },
     "WP04": {
       "actor": "merge",
+      "agent": "codex:gpt-5:curator-carla:reviewer",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KQTTS0QD6GD89CKPQEEBT57V",
-      "last_transition_at": "2026-05-05T01:06:56.877210+00:00"
+      "last_transition_at": "2026-05-05T01:06:56.877210+00:00",
+      "shell_pid": 15276
     }
   }
 }

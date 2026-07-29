@@ -13,13 +13,12 @@ WP03 additions:
 from __future__ import annotations
 
 import dataclasses
-import io
-import os
 from pathlib import Path
 from typing import Any, Literal
 
 from ruamel.yaml import YAML
 
+from kernel.yaml_io import write_mapping_atomic
 from specify_cli.core.constants import RETROSPECTIVE_FILENAME
 from specify_cli.retrospective.schema import (
     GenActor,
@@ -48,13 +47,36 @@ def resolve_retrospective_home(repo_root: Path, mission_slug: str) -> Path:
 
     The retrospective is a terminal PRIMARY-partition artifact
     (:attr:`MissionArtifactKind.RETROSPECTIVE`, gated below); the home is the
-    topology-blind :func:`primary_feature_dir_for_mission` primitive.
+    topology-blind module-private leaf
+    :func:`~specify_cli.missions._read_path_resolver._compose_primary_feature_dir`
+    join primitive.
 
     FR-011 write leg (#2136): the blind primitive composes its handle verbatim,
     so the caller canonicalizes the handle here FIRST — mirroring the read leg's
     caller-side fold (:func:`resolve_planning_read_dir`) and reusing the SAME
     shared canonicalizer (no bespoke resolver — C-006). An *ambiguous* handle
     propagates :class:`MissionSelectorAmbiguous` — no silent pick (C-009).
+
+    **Foundation site (read-side-seam-primary-primitive-closure-01KYKMMT WP03,
+    Ledger cycle-1 B1/B2) — this call MUST target the module-private leaf
+    ``_compose_primary_feature_dir``, never the public wrapper
+    ``primary_feature_dir_for_mission``.** This function is itself the callee
+    :func:`mission_runtime.resolution.PlacementSeam.read_dir` dispatches
+    ``RETROSPECTIVE`` reads to (the seam's kind-specific chokepoint,
+    ``resolution.py:1454``), *beneath* ``read_dir`` in the call graph. The
+    public wrapper's body now delegates to
+    ``placement_seam(repo_root, slug).read_dir(PRIMARY_METADATA)`` (WP03 T019)
+    — so calling the wrapper from here closes a
+    ``read_dir → resolve_retrospective_home → wrapper → read_dir`` cycle
+    (NFR-009). No ``RecursionError`` fires only because the wrapper's
+    ``PRIMARY_METADATA`` leg happens not to re-enter; that is a property of the
+    constant, not of the call graph, and does not make the cycle safe. This
+    site therefore joins the four FR-005 foundation sites
+    (``core/paths.py`` x2, ``core/git_ops.py``,
+    ``coordination/surface_resolver.py``) that call the leaf directly and
+    permanently, even after WP08 deletes the public wrapper — it is NOT a
+    call site WP06 routes through the seam; WP06 verifies it stays a leaf call
+    and does not touch it.
 
     Raises:
         AssertionError: If the partition predicate ever stops classifying
@@ -66,7 +88,7 @@ def resolve_retrospective_home(repo_root: Path, mission_slug: str) -> Path:
     from mission_runtime import MissionArtifactKind, is_primary_artifact_kind
     from specify_cli.missions._read_path_resolver import (
         _canonicalize_primary_read_handle,
-        primary_feature_dir_for_mission,
+        _compose_primary_feature_dir,
     )
 
     # The retrospective is a PRIMARY-partition kind by contract (FR-002): assert
@@ -81,8 +103,16 @@ def resolve_retrospective_home(repo_root: Path, mission_slug: str) -> Path:
     # therefore composed a DIVERGENT dir on the write leg while the read leg resolved
     # the real one (the #2136 read/write divergence this closes). An *ambiguous*
     # handle propagates :class:`MissionSelectorAmbiguous` — no silent pick (C-009).
+    #
+    # read-side-seam-primary-primitive-closure-01KYKMMT WP03 cycle-1 fix (B1):
+    # call the module-private leaf directly, NEVER the public wrapper
+    # ``primary_feature_dir_for_mission`` — see the foundation-site paragraph
+    # above. This restores this write leg's pre-WP03 behaviour exactly (the
+    # leaf's body is byte-identical to what the wrapper composed before Half B
+    # made it delegate to the seam), so no NFR-001 divergence remains on this
+    # write path: no backfill recovery, no double handle-fold.
     canonical = _canonicalize_primary_read_handle(repo_root, mission_slug)
-    feature_dir: Path = primary_feature_dir_for_mission(repo_root, canonical)
+    feature_dir: Path = _compose_primary_feature_dir(repo_root, canonical)
     return feature_dir
 
 
@@ -158,65 +188,31 @@ def _atomic_write_yaml(data: dict[str, Any], canonical: Path, target_dir: Path) 
     """Atomically write a dict as YAML to ``canonical``.
 
     Shared primitive used by both ``write_record`` and ``write_gen_record``.
+    Delegates the serialize + fsync + atomic-rename sequence to the
+    kernel-layer :func:`kernel.yaml_io.write_mapping_atomic` primitive, which
+    every caller here already invokes with ``target_dir == canonical.parent``
+    (both call sites ``mkdir`` the target directory before reaching this
+    function) — asserted below so a future caller that passes a divergent
+    directory fails loudly instead of silently fsyncing the wrong directory.
 
-    Sequence:
-    1. Serialize ``data`` via ruamel.yaml round-trip dumper to a uniquely-named
-       tempfile in ``target_dir`` (same filesystem as ``canonical`` →
-       ``os.replace`` is guaranteed atomic on POSIX/APFS/NTFS).
-    2. ``fsync()`` the tempfile fd, close.
-    3. ``os.replace(tmp, canonical)`` — atomic rename.
-    4. Best-effort ``fsync()`` on the parent directory fd to flush the rename
-       into the inode (non-fatal on failure).
+    Width stays 120 here (not the kernel's wider 4096 default): retrospective
+    records intentionally keep the narrower wrap; widening it is a separate,
+    open decision tracked by #3059.
 
     Raises:
         WriterError: On any IO or serialization error.  The tempfile is
             unlinked on failure so no partial file remains.
     """
-    tmp_name = f"{RETROSPECTIVE_FILENAME}.tmp.{os.getpid()}.{os.urandom(4).hex()}"
-    tmp_path = target_dir / tmp_name
+    if target_dir != canonical.parent:
+        raise WriterError(
+            f"target_dir {target_dir} must equal canonical.parent {canonical.parent}"
+        )
 
     try:
-        yaml = YAML(typ="rt")
-        yaml.default_flow_style = False
-        yaml.preserve_quotes = True
-        yaml.width = 120
-
-        buf = io.BytesIO()
-        yaml.dump(data, buf)
-        serialized = buf.getvalue()
-
-        fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
-        try:
-            os.write(fd, serialized)
-            os.fsync(fd)
-        finally:
-            os.close(fd)
-
-        os.replace(str(tmp_path), str(canonical))
-
-        # Best-effort dir fsync.
-        try:
-            dir_fd = os.open(str(target_dir), os.O_RDONLY)
-            try:
-                os.fsync(dir_fd)
-            finally:
-                os.close(dir_fd)
-        except OSError:
-            pass
-
-    except WriterError:
-        raise
+        write_mapping_atomic(data, canonical, width=120)
     except OSError as exc:
-        try:
-            tmp_path.unlink(missing_ok=True)
-        except OSError:
-            pass
         raise WriterError(f"IO error writing retrospective record: {exc}") from exc
     except Exception as exc:
-        try:
-            tmp_path.unlink(missing_ok=True)
-        except OSError:
-            pass
         raise WriterError(f"Unexpected error writing retrospective record: {exc}") from exc
 
 
