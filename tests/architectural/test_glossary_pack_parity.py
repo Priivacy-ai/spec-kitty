@@ -112,12 +112,17 @@ def pack_terms_by_surface() -> dict[str, Any]:
 
 #: Surfaces the pack legitimately carries ON TOP of the frozen 104-term seed.
 #: The doctrine-controlled-transition-gates mission (epic #2535 half A, FR-015)
-#: registers three new gate-family terms directly in the built-in pack. The seed
-#: is read-only (C-003, pinned by ``test_glossary_pack_no_regression``), so these
-#: additions live only pack-side; parity is therefore ``pack == seed ∪ {these}``,
-#: which still proves no seed term was dropped and no *unexpected* term invented.
+#: registers three new gate-family terms directly in the built-in pack. The
+#: issue-matrix JSON migration mission (write-side-seam-matrix-tracer, WP06/C-008)
+#: adds one more -- ``canonical issue-matrix`` -- so the pack teaches the new
+#: ``issue-matrix.json`` artifact WITHOUT rewording the two pre-existing seed
+#: terms (``post-merge mode`` / ``issue-matrix schema drift``), which must stay
+#: byte-identical to the frozen seed (NFR-002 parity). The seed is read-only
+#: (C-003, pinned by ``test_glossary_pack_no_regression``), so these additions
+#: live only pack-side; parity is therefore ``pack == seed ∪ {these}``, which
+#: still proves no seed term was dropped and no *unexpected* term invented.
 _MISSION_ADDED_SURFACES: frozenset[str] = frozenset(
-    {"transition gate", "gate handler", "gate binding"}
+    {"transition gate", "gate handler", "gate binding", "canonical issue-matrix"}
 )
 
 
