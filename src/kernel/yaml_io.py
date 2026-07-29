@@ -26,7 +26,6 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 __all__ = [
-    "CANONICAL_YAML_WIDTH",
     "serialize_mapping",
     "write_mapping_atomic",
 ]
