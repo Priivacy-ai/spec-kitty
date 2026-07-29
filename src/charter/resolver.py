@@ -161,6 +161,10 @@ class GovernanceResolution:
     styleguides: list[str] = field(default_factory=list)
     toolguides: list[str] = field(default_factory=list)
     procedures: list[str] = field(default_factory=list)
+    # WP10/T058 (V-4): assets keep GovernanceResolution one kind wide as the
+    # delivery bundle. Populated only from the canonical PackContext /
+    # resolve_config_activated_roots path — never a second store reader.
+    assets: list[str] = field(default_factory=list)
     profile_id: str | None = None
     role: str | None = None
     diagnostics: list[str] = field(default_factory=list)

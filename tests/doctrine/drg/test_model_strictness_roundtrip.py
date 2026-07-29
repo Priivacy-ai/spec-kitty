@@ -86,12 +86,15 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 from ruamel.yaml import YAML
 
 from doctrine.agent_profiles.profile import AgentProfile
+from doctrine.drg import loader as drg_loader
+from doctrine.drg import models as drg_models
+from doctrine.drg.loader import DRGLoadError
 from doctrine.drg.migration import extractor
-from doctrine.drg.models import DRGEdge, DRGNode, NodeKind, Relation
+from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
@@ -284,6 +287,103 @@ def test_every_declared_node_field_is_emitted_unless_explicitly_withheld() -> No
     assert emitted == set(DRGNode.model_fields) - extractor._FIELDS_WITHHELD_FROM_GRAPH_OUTPUT
 
 
+# ---------------------------------------------------------------------------
+# T001 -- the derived serialisation helper is a public, exported surface
+# ---------------------------------------------------------------------------
+
+
+def test_the_derived_helper_is_public_on_the_extractor() -> None:
+    """Every sibling writer needs the derived helper; a private name cannot be shared.
+
+    Promoting ``_model_to_dict`` to ``model_to_graph_dict`` (and the withholding
+    set to ``FIELDS_WITHHELD_FROM_GRAPH_OUTPUT``) is the T001 export. The private
+    aliases stay so internal call sites keep working, and both names must point
+    at the same object -- a copy would let the two drift.
+    """
+    assert extractor.model_to_graph_dict is extractor._model_to_dict
+    assert (
+        extractor.FIELDS_WITHHELD_FROM_GRAPH_OUTPUT
+        is extractor._FIELDS_WITHHELD_FROM_GRAPH_OUTPUT
+    )
+
+
+def test_the_derived_helper_is_reexported_through_the_charter_facade() -> None:
+    """T001: ``rewrite_opposed_by`` (specify_cli) reaches doctrine only through
+    ``charter.drg`` (ADR ``2026-03-27-1``), so the helper must be on that surface.
+
+    The re-export is identity, not a re-implementation, and it is named in the
+    facade's ``__all__`` so the public contract is explicit.
+    """
+    import charter.drg as charter_drg
+
+    assert charter_drg.model_to_graph_dict is extractor.model_to_graph_dict
+    assert (
+        charter_drg.FIELDS_WITHHELD_FROM_GRAPH_OUTPUT
+        is extractor.FIELDS_WITHHELD_FROM_GRAPH_OUTPUT
+    )
+    assert "model_to_graph_dict" in charter_drg.__all__
+    assert "FIELDS_WITHHELD_FROM_GRAPH_OUTPUT" in charter_drg.__all__
+
+
+# ---------------------------------------------------------------------------
+# T002 (contract W-1a) -- the derivation is total over VALUES, not only names
+# ---------------------------------------------------------------------------
+
+
+class _DRGEdgeWithEmptyNovelFields(DRGEdge):
+    """``DRGEdge`` plus two novel fields whose *default* values are empty.
+
+    ``impacts``-shaped: a ``None`` optional and an empty ``list``. These are the
+    exact shapes W-1a says the derived writer dropped silently — ``impacts:
+    list[str] = []`` vanished while ``is_symmetric: bool = False`` survived. A
+    completeness gate over a *populated* fixture is vacuous for them, so the
+    fixture here leaves both at their empty defaults.
+    """
+
+    novel_optional: str | None = None
+    novel_list: list[str] = Field(default_factory=list)
+
+
+def test_a_novel_field_with_an_empty_value_is_not_dropped_silently() -> None:
+    """W-1a: a field the withholding/omit sets do not name is emitted even when empty.
+
+    ``novel_optional`` (``None``) and ``novel_list`` (``[]``) are neither
+    withheld nor named in the omit-when-empty allowlist, so the derived writer
+    must emit both — the case that silently dropped B1's ``impacts`` today.
+    """
+    edge = _DRGEdgeWithEmptyNovelFields(
+        source="tactic:a", target="tactic:b", relation=Relation.REQUIRES
+    )
+
+    emitted = extractor.model_to_graph_dict(edge)
+
+    assert "novel_optional" in emitted
+    assert emitted["novel_optional"] is None
+    assert "novel_list" in emitted
+    assert emitted["novel_list"] == []
+
+
+def test_the_omit_when_empty_set_is_a_shrink_only_allowlist() -> None:
+    """W-1a: omitting an empty value is opt-in, and the opt-in list cannot be padded.
+
+    The allowlist names exactly the pre-existing optionals whose empty form was
+    already absent from every shipped fragment. Adding a member here re-opens the
+    silent-drop hole for that field — precisely the escape mission B1's ``impacts``
+    must not have — so this pin makes that a deliberate, diff-visible edit.
+    """
+    assert frozenset(
+        {"label", "tags", "when", "reason"}
+    ) == extractor._FIELDS_OMITTED_WHEN_EMPTY
+
+
+def test_the_omit_when_empty_set_names_only_real_model_fields() -> None:
+    """Anti-rot twin of the withholding-set guard: no member may be a typo."""
+    declared = set(DRGNode.model_fields) | set(DRGEdge.model_fields)
+
+    assert extractor._FIELDS_OMITTED_WHEN_EMPTY
+    assert declared >= extractor._FIELDS_OMITTED_WHEN_EMPTY
+
+
 def test_the_withholding_set_names_only_real_model_fields() -> None:
     """Anti-rot: a typo in the withholding set withholds nothing and says nothing."""
     declared = set(DRGNode.model_fields) | set(DRGEdge.model_fields)
@@ -413,6 +513,56 @@ def test_a_newly_declared_edge_field_survives_write_then_read(tmp_path: Path) ->
 
     assert restored.audit_note == "ledger-42"
     assert restored == _new_field_edge()
+
+
+# ---------------------------------------------------------------------------
+# T006 -- the document-level writer derives its keys from DRGGraph.model_fields
+# ---------------------------------------------------------------------------
+
+
+class _DRGGraphWithNovelField(DRGGraph):
+    """``DRGGraph`` plus a novel top-level field — the fourth writer's probe.
+
+    ``_dump_graph_document`` owns the five document-level keys. Restated by hand,
+    a top-level field added to :class:`DRGGraph` is dropped on write; deriving
+    them from ``model_fields`` closes it.
+    """
+
+    novel_document_key: str = "planted-document-value"
+
+
+def test_graph_document_to_dict_derives_the_document_level_keys() -> None:
+    """W-2: the derived document writer emits every ``DRGGraph`` field, incl. novel."""
+    graph = _DRGGraphWithNovelField(
+        schema_version="1.0", generated_at="STATIC", generated_by="test",
+        nodes=[], edges=[],
+    )
+    emitted = set(extractor.graph_document_to_dict(graph))
+    expected = set(DRGGraph.model_fields) - extractor.FIELDS_WITHHELD_FROM_GRAPH_OUTPUT
+
+    assert expected <= emitted
+    assert "novel_document_key" in emitted
+
+
+def test_the_production_dump_graph_document_does_not_drop_a_novel_field(
+    tmp_path: Path,
+) -> None:
+    """T006: the *file-writing* path must be derived too, not just the helper.
+
+    ``_dump_graph_document`` restated the five keys inline; this drives the real
+    write path with a novel-field graph and reads the file back. Red until the
+    production writer routes through ``graph_document_to_dict``.
+    """
+    fragment = tmp_path / "planted.graph.yaml"
+    graph = _DRGGraphWithNovelField(
+        schema_version="1.0", generated_at="STATIC", generated_by="test",
+        nodes=[], edges=[],
+    )
+
+    extractor._dump_graph_document(graph, fragment)
+
+    reloaded = YAML(typ="safe").load(fragment.read_text(encoding="utf-8"))
+    assert reloaded["novel_document_key"] == "planted-document-value"
 
 
 def test_the_hand_written_writer_shape_would_drop_the_new_field() -> None:
@@ -569,3 +719,141 @@ def test_the_migration_writer_also_emits_every_declared_node_field() -> None:
     emitted = set(rewrite_opposed_by._node_to_dict(node))
 
     assert emitted == set(DRGNode.model_fields) - extractor._FIELDS_WITHHELD_FROM_GRAPH_OUTPUT
+
+
+# ---------------------------------------------------------------------------
+# T008 (WP02, contract W-4) -- the DRGGraph *container* forbids unknown
+# top-level keys, closing the last read-path silence: ``DRGNode`` and
+# ``DRGEdge`` already carry ``extra="forbid"``, but the document that holds them
+# did not, so a stray top-level key was accepted-and-discarded on load.
+# ---------------------------------------------------------------------------
+
+_VALID_GRAPH_DOCUMENT: dict[str, Any] = {
+    "schema_version": "1.0",
+    "generated_at": "STATIC",
+    "generated_by": "test",
+    "nodes": [],
+    "edges": [],
+}
+
+
+def test_an_undeclared_top_level_graph_key_is_a_load_error() -> None:
+    """W-4. The positive control runs first so a red cannot be a broken payload."""
+    DRGGraph.model_validate(_VALID_GRAPH_DOCUMENT)
+
+    with pytest.raises(ValidationError, match="[Ee]xtra"):
+        DRGGraph.model_validate({**_VALID_GRAPH_DOCUMENT, _UNDECLARED_KEY: "a value"})
+
+
+# ---------------------------------------------------------------------------
+# T009 (WP02, NFR-006) -- the load boundary translates the raw pydantic
+# ``ValidationError`` into a typed, *named* error identifying the offending file
+# and the stray key, so a consumer can act on it. The typed error must NOT be a
+# ``DRGLoadError`` subclass: many call sites ``except DRGLoadError`` and degrade
+# silently to an empty graph, which is exactly the silence this WP closes. A
+# stray top-level key must fail *closed*, past those handlers.
+# ---------------------------------------------------------------------------
+
+_STRAY_SOURCE = "acme-org-pack/directive.graph.yaml"
+
+
+def test_load_graph_document_accepts_a_valid_document() -> None:
+    """Positive control: a clean document round-trips through the typed loader."""
+    graph = drg_models.load_graph_document(
+        dict(_VALID_GRAPH_DOCUMENT), source=_STRAY_SOURCE
+    )
+    assert isinstance(graph, DRGGraph)
+
+
+def test_load_graph_document_raises_a_typed_named_error_for_a_stray_key() -> None:
+    """NFR-006: fail-closed with a diagnostic that names the file and the key."""
+    with pytest.raises(drg_models.DRGGraphSchemaError) as excinfo:
+        drg_models.load_graph_document(
+            {**_VALID_GRAPH_DOCUMENT, _UNDECLARED_KEY: "a value"},
+            source=_STRAY_SOURCE,
+        )
+
+    error = excinfo.value
+    assert error.source == _STRAY_SOURCE
+    assert error.unknown_keys == (_UNDECLARED_KEY,)
+    message = str(error)
+    assert _STRAY_SOURCE in message, "diagnostic must name the offending document"
+    assert _UNDECLARED_KEY in message, "diagnostic must name the stray key"
+
+
+def test_the_typed_error_is_not_swallowed_by_the_degrade_handlers() -> None:
+    """The break is only fail-closed if it escapes ``except DRGLoadError``."""
+    assert not issubclass(drg_models.DRGGraphSchemaError, DRGLoadError)
+
+
+def test_a_valid_document_forbidding_extras_is_unchanged_by_the_loader() -> None:
+    """The typed loader is a pure add-on: valid documents behave as before."""
+    graph = drg_models.load_graph_document(
+        dict(_VALID_GRAPH_DOCUMENT), source=_STRAY_SOURCE
+    )
+    assert graph.nodes == []
+    assert graph.edges == []
+
+
+# ---------------------------------------------------------------------------
+# T011 (WP02) -- consumer-facing regression: the *production* file-load boundary
+# (``load_graph``) surfaces the typed error, and its diagnostic is actionable.
+# A node/edge-level extra key keeps the ordinary ``DRGLoadError`` path -- the
+# typed error is scoped to the document container, not a catch-all.
+# ---------------------------------------------------------------------------
+
+
+def _write_graph_yaml(path: Path, extra: str = "") -> None:
+    path.write_text(
+        "schema_version: '1.0'\n"
+        "generated_at: STATIC\n"
+        "generated_by: acme\n"
+        "nodes: []\n"
+        "edges: []\n" + extra,
+        encoding="utf-8",
+    )
+
+
+def test_load_graph_surfaces_the_typed_error_for_a_stray_top_level_key(
+    tmp_path: Path,
+) -> None:
+    """T011: a consumer graph document with a stray key fails loud and named."""
+    graph_file = tmp_path / "directive.graph.yaml"
+    _write_graph_yaml(graph_file, extra="unexpected_top_key: oops\n")
+
+    with pytest.raises(drg_models.DRGGraphSchemaError) as excinfo:
+        drg_loader.load_graph(graph_file)
+
+    error = excinfo.value
+    assert str(graph_file) in error.source
+    assert error.unknown_keys == ("unexpected_top_key",)
+    assert "unexpected_top_key" in str(error)
+
+
+def test_a_clean_consumer_graph_document_still_loads(tmp_path: Path) -> None:
+    """Blast-radius floor: the typed boundary does not reject valid documents."""
+    graph_file = tmp_path / "directive.graph.yaml"
+    _write_graph_yaml(graph_file)
+
+    assert drg_loader.load_graph(graph_file).nodes == []
+
+
+def test_a_node_level_extra_key_still_raises_the_ordinary_load_error(
+    tmp_path: Path,
+) -> None:
+    """The typed error is document-scoped: nested extras stay ``DRGLoadError``."""
+    graph_file = tmp_path / "directive.graph.yaml"
+    graph_file.write_text(
+        "schema_version: '1.0'\n"
+        "generated_at: STATIC\n"
+        "generated_by: acme\n"
+        "nodes:\n"
+        "  - urn: directive:X\n"
+        "    kind: directive\n"
+        "    bogus_node_key: nope\n"
+        "edges: []\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(DRGLoadError):
+        drg_loader.load_graph(graph_file)

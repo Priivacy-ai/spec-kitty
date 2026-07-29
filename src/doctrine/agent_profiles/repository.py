@@ -22,6 +22,7 @@ from ruamel.yaml.error import YAMLError
 
 from doctrine.drg.loader import DRGLoadError, load_built_in_graph
 from doctrine.drg.models import DRGGraph, NodeKind, Relation
+from doctrine.drg.reachability import profile_channel_reachable
 from doctrine.shared.exceptions import InlineReferenceRejectedError
 from doctrine.shared.scoping import applies_to_languages_match, normalize_languages
 
@@ -39,9 +40,12 @@ _AGENT_PROFILE_GLOB = "*.agent.yaml"
 _LAYER_RANK: dict[str, int] = {"builtin": 0, "org": 1, "project": 2}
 
 
+_URN_SEP = ":"
+
+
 def _profile_urn(profile_id: str) -> str:
     """Return the DRG node URN for an agent-profile id."""
-    return f"{NodeKind.AGENT_PROFILE.value}:{profile_id}"
+    return f"{NodeKind.AGENT_PROFILE.value}{_URN_SEP}{profile_id}"
 
 
 def _profile_id_from_urn(urn: str) -> str:
@@ -847,6 +851,30 @@ class AgentProfileRepository:
             merged = _apply_excluding(merged, profile.excluding)
 
         return AgentProfile.model_validate(merged)
+
+    def profile_channel_procedure_ids(self, profile_id: str) -> list[str]:
+        """Procedure ids a loaded *profile* delivers through the profile channel.
+
+        The profile channel is WP08's :func:`profile_channel_reachable` — a
+        ``walk_edges({requires, specializes_from})`` transitive closure seeded
+        from the profile URN. It is deliberately **not** ``resolve_context``:
+        ``agent_profile`` nodes carry zero outbound ``scope`` edges, so a
+        ``resolve_context`` seed would measure zero at any depth (R-3). This is
+        the mechanism that carries the PR #3007 exemplar
+        ``procedure:onboard-external-agent-to-pack`` — reached from
+        ``agent_profile:doctrine-daphne`` by a ``requires`` edge — to the agent.
+
+        The channel is fail-closed: an unknown ``profile_id`` seeds a URN with no
+        outbound edges, so the reachable set (and this result) is empty rather
+        than falling open to the whole graph.
+
+        Returns the reached procedure ids (URN prefix stripped), sorted for
+        deterministic render order.
+        """
+        seed = _profile_urn(profile_id)
+        reached = profile_channel_reachable(self._drg, {seed})
+        prefix = f"{NodeKind.PROCEDURE.value}{_URN_SEP}"
+        return sorted(urn[len(prefix):] for urn in reached if urn.startswith(prefix))
 
     def save(self, profile: AgentProfile) -> None:
         """Save profile to project directory.

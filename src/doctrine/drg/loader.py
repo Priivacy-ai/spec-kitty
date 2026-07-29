@@ -13,7 +13,7 @@ from pydantic import ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-from doctrine.drg.models import DRGGraph, DRGNode
+from doctrine.drg.models import DRGGraph, DRGNode, load_graph_document
 
 __all__ = [
     "DRGLoadError",
@@ -65,8 +65,13 @@ def load_graph(path: Path) -> DRGGraph:
     if not isinstance(data, dict):
         raise DRGLoadError(f"Expected a YAML mapping at top level in {path}")
 
+    # Route through the strict document boundary: a stray *top-level* key raises
+    # a typed, named ``DRGGraphSchemaError`` that propagates past the many
+    # ``except DRGLoadError`` silent-degrade handlers (fail-closed, NFR-006).
+    # Any other validation failure re-raises as a raw ``ValidationError`` and is
+    # wrapped into ``DRGLoadError`` exactly as before.
     try:
-        return DRGGraph.model_validate(data)
+        return load_graph_document(data, source=str(path))
     except ValidationError as exc:
         raise DRGLoadError(
             f"Validation error in {path}: {exc}"

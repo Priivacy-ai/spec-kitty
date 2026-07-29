@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from runtime.next._internal_runtime.workflow_schema import WorkflowSequence
 
 from charter.context import build_charter_context
+from charter.pack_context import CharterPackConfigError
 from charter.scope import CharterScopeConflict, CharterScopeNotFound
 from charter.scope_router import build_with_scope
 from charter.mission_type_profiles import (
@@ -415,6 +416,13 @@ def _governance_context(
             # Scope routing failures mean the operator-authored monorepo
             # governance config does not cover this feature path. Falling back
             # to root governance would silently cross a trust boundary.
+            raise
+        except CharterPackConfigError:
+            # WP07/T040 (FR-012 error half / NFR-006): activation-resolution
+            # failures are fail-closed. A malformed charter pack / dangling
+            # 'charter:' pointer MUST surface to the operator, never degrade
+            # into a silent legacy render. Mirrors the CharterScope* re-raise
+            # immediately above.
             raise
         except Exception:
             # Non-fatal: fall back to compact governance rendering.

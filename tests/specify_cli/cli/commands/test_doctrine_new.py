@@ -127,6 +127,66 @@ def test_new_special_kind_suffixes_validate_on_first_emit(
     assert "OK" in result_validate.stdout
 
 
+def test_new_asset_scaffolds_where_project_resolver_reads(tmp_path: Path) -> None:
+    """T018: ``doctrine new --kind asset`` exits 0 and writes where the
+    project-tier resolver reads.
+
+    This is the headline WP03 assertion — before the kind-vocabulary hoist the
+    command exited 2 (``asset`` was rejected two dicts upstream). The stub must
+    land under the *same* project-tier directory the resolver reads, which is
+    the single authority ``doctrine.artifact_kinds.PROJECT_KIND_DIRS[ASSET]``.
+    DoctrineService's round-trip over that same authority is WP04's
+    (``tests/doctrine/test_service.py``); here we assert only the written path.
+    """
+    from doctrine.artifact_kinds import PROJECT_KIND_DIRS, ArtifactKind
+
+    project = _make_project_root(tmp_path)
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(project)
+        result = runner.invoke(
+            doctrine_app, ["new", "asset", "my-logo"], catch_exceptions=False
+        )
+    finally:
+        os.chdir(old_cwd)
+
+    assert result.exit_code == 0, result.stdout
+    resolver_dir = PROJECT_KIND_DIRS[ArtifactKind.ASSET]
+    target = project / ".kittify" / "doctrine" / resolver_dir / "my-logo.asset.yaml"
+    assert target.exists()
+    text = target.read_text(encoding="utf-8")
+    assert "id: my-logo" in text
+    # AssetManifest requires id/mime/path (extra=forbid, no schema_version).
+    assert "mime:" in text
+    assert "path:" in text
+
+
+def test_new_asset_stub_validates_on_first_emit(tmp_path: Path) -> None:
+    """The scaffolded ASSET manifest passes ``doctrine validate`` immediately."""
+    project = _make_project_root(tmp_path)
+
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(project)
+        result_new = runner.invoke(
+            doctrine_app, ["new", "asset", "sample-blob"], catch_exceptions=False
+        )
+        assert result_new.exit_code == 0, result_new.stdout
+        target = (
+            project / ".kittify" / "doctrine" / "assets" / "sample-blob.asset.yaml"
+        )
+        assert target.exists()
+        result_validate = runner.invoke(
+            doctrine_app, ["validate", str(target)], catch_exceptions=False
+        )
+    finally:
+        os.chdir(old_cwd)
+
+    assert result_validate.exit_code == 0, result_validate.stdout
+    assert "OK" in result_validate.stdout
+
+
 def test_new_refuses_to_overwrite_existing_file(tmp_path: Path) -> None:
     """Re-running ``doctrine new`` on the same id fails with a clear message."""
     project = _make_project_root(tmp_path)

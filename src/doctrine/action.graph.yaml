@@ -139,6 +139,10 @@ edges:
   target: directive:DIRECTIVE_037
   relation: scope
 - source: action:documentation/generate
+  target: directive:DIRECTIVE_042
+  relation: scope
+  reason: The documentation/generate action creates documentation files (its write_docs step writes docs/**/*.md), which is DIRECTIVE_042's stated trigger ('whenever a documentation file under the Common Docs root is created'); the action is therefore governed by the common-docs documentation standard. This scope edge is the reaching entry point that delivers the common-docs styleguide, tactics and structural-lint asset, which were otherwise a strongly-connected island no action scoped (WP09 / FR-015).
+- source: action:documentation/generate
   target: tactic:requirements-validation-workflow
   relation: scope
 - source: action:documentation/publish

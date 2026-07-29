@@ -86,7 +86,7 @@ Names the edge from an agent profile to the concrete procedure or tactic that pr
 
 ### Scope — `scope`
 
-Names the edge from a mission-step action node to the directives and tactics that govern performing that action -- the entry point walked at depth 1 by ``resolve_action_context`` before it expands through ``requires``/``suggests``. It is the most heavily emitted action-adjacent relation in the built-in graph (157 edges). Distinct from ``applies``: ``scope`` says an action is governed by an artifact; ``applies`` says a profile executes a workflow artifact. Despite both linking an action-adjacent node to guidance content, they name different edge-roles and are never interchangeable.
+Names the edge from a mission-step action node to the directives and tactics that govern performing that action -- the entry point walked at depth 1 by ``resolve_action_context`` before it expands through ``requires``/``suggests``. It is the most heavily emitted action-adjacent relation in the built-in graph (158 edges). Distinct from ``applies``: ``scope`` says an action is governed by an artifact; ``applies`` says a profile executes a workflow artifact. Despite both linking an action-adjacent node to guidance content, they name different edge-roles and are never interchangeable.
 
 ### Vocabulary — `vocabulary`
 

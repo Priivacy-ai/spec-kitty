@@ -214,9 +214,61 @@ CHARTER_KIND_TOKENS: tuple[str, ...] = tuple(
 ) + (MISSION_TYPE_TOKEN,)
 
 
+#: The runtime-managed kinds whose **project-tier overlay** directory is the
+#: *singular* form (``.kittify/doctrine/directive/``, …) rather than the plural.
+#: These four kinds carry per-project overlays that the live loader reads from a
+#: singular directory; every other kind uses its plural. This is the *only*
+#: place that asymmetry is declared.
+_SINGULAR_PROJECT_DIR_KINDS: frozenset[ArtifactKind] = frozenset(
+    {
+        ArtifactKind.DIRECTIVE,
+        ArtifactKind.TACTIC,
+        ArtifactKind.STYLEGUIDE,
+        ArtifactKind.PROCEDURE,
+    }
+)
+
+
+#: **Canonical project-tier directory authority** (WP03 / R-009 / CC-4).
+#:
+#: Maps every :class:`ArtifactKind` to the directory name its artifacts live
+#: under in a project overlay (``.kittify/doctrine/<dir>/``). This is the single
+#: source of truth the ``doctrine new`` scaffolder, :class:`DoctrineService`'s
+#: project-dir resolver (``doctrine.service``), and the charter resolvers
+#: (``charter.kind_vocabulary`` / ``charter.pack_manager``) all import — **no
+#: consumer re-declares it** (the module docstring's "no second kind
+#: enumeration" rule). ``doctrine`` is the lowest layer, so charter and
+#: specify_cli import *down* into it (C-001-legal).
+#:
+#: Declared as an explicit, **total** literal (not a comprehension) so the
+#: kind-mapping totality guard
+#: (``tests/doctrine/drg/test_kind_mapping_totality.py``) discovers it via its
+#: AST scan and certifies exhaustiveness: a new :class:`ArtifactKind` added
+#: without an entry here fails that guard rather than falling through a silent
+#: ``.get`` default. Fail-closed — there is no fallback; a missing key is a
+#: :class:`KeyError`. The four :data:`_SINGULAR_PROJECT_DIR_KINDS` map to their
+#: singular value; every other kind maps to its :attr:`ArtifactKind.plural`
+#: (asserted in ``tests/doctrine/test_artifact_kinds.py``).
+PROJECT_KIND_DIRS: dict[ArtifactKind, str] = {
+    ArtifactKind.DIRECTIVE: "directive",
+    ArtifactKind.TACTIC: "tactic",
+    ArtifactKind.STYLEGUIDE: "styleguide",
+    ArtifactKind.PROCEDURE: "procedure",
+    ArtifactKind.TOOLGUIDE: "toolguides",
+    ArtifactKind.PARADIGM: "paradigms",
+    ArtifactKind.AGENT_PROFILE: "agent_profiles",
+    ArtifactKind.MISSION_STEP_CONTRACT: "mission_step_contracts",
+    ArtifactKind.TEMPLATE: "templates",
+    ArtifactKind.ASSET: "assets",
+    ArtifactKind.GLOSSARY_PACK: "glossary_packs",
+    ArtifactKind.ANTI_PATTERN: "anti_patterns",
+}
+
+
 __all__ = [
     "ArtifactKind",
     "CHARTER_KIND_TOKENS",
     "MISSION_TYPE_TOKEN",
+    "PROJECT_KIND_DIRS",
     "MissionTypeNotAnArtifactKind",
 ]

@@ -6,8 +6,10 @@ import pytest
 
 from doctrine.artifact_kinds import (
     CHARTER_KIND_TOKENS,
+    PROJECT_KIND_DIRS,
     ArtifactKind,
     _NON_AUGMENTATION_ELIGIBLE_KINDS,
+    _SINGULAR_PROJECT_DIR_KINDS,
 )
 
 pytestmark = pytest.mark.fast
@@ -143,6 +145,43 @@ class TestPydanticIntegration:
 
         with pytest.raises(ValidationError):
             DirectiveReference.model_validate({"type": "unknown_type", "id": "x"})
+
+
+class TestProjectKindDirs:
+    """T012: the single canonical project-tier directory authority.
+
+    :data:`PROJECT_KIND_DIRS` is the one place the project-overlay directory
+    name for each :class:`ArtifactKind` is declared. The scaffolder
+    (``doctrine new``), :class:`~doctrine.service.DoctrineService` (WP04), and
+    the charter resolvers all import it; none re-declares the mapping. It must
+    be **total** (fail-closed) so a new kind cannot silently miss an entry.
+    """
+
+    def test_authority_is_total_over_every_artifact_kind(self) -> None:
+        assert set(PROJECT_KIND_DIRS) == set(ArtifactKind)
+
+    def test_runtime_managed_kinds_use_singular_overlay_dir(self) -> None:
+        for kind in _SINGULAR_PROJECT_DIR_KINDS:
+            assert PROJECT_KIND_DIRS[kind] == kind.value
+        assert frozenset(
+            {
+                ArtifactKind.DIRECTIVE,
+                ArtifactKind.TACTIC,
+                ArtifactKind.STYLEGUIDE,
+                ArtifactKind.PROCEDURE,
+            }
+        ) == _SINGULAR_PROJECT_DIR_KINDS
+
+    def test_every_other_kind_uses_its_plural_overlay_dir(self) -> None:
+        for kind in ArtifactKind:
+            if kind not in _SINGULAR_PROJECT_DIR_KINDS:
+                assert PROJECT_KIND_DIRS[kind] == kind.plural
+
+    def test_asset_project_dir_is_the_plural_assets(self) -> None:
+        # Pins the T018 scaffold/resolver rendezvous: ``doctrine new --kind
+        # asset`` writes under this directory, and DoctrineService (WP04) reads
+        # the same authority for the project tier.
+        assert PROJECT_KIND_DIRS[ArtifactKind.ASSET] == "assets"
 
 
 class TestNonAugmentationEligibleKinds:

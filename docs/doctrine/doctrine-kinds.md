@@ -47,10 +47,63 @@ agent_profile, mission_step_contract**.
 > `charter activate`/`deactivate`/`list`/`context --include` operate over). `template` is
 > mission-scoped (it ships as part of a mission type's own template set, not as a
 > standalone artifact you activate — `spec-kitty charter list --all` reports it as
-> "mission-scoped — not separately activated"). `asset` is a newer, loose-contract kind
-> (added alongside `template` for org-pack binary/media references) with no built-in
-> artifacts yet. Both are worth knowing exist; neither is part of the eight-kind
-> activation vocabulary this page and its companion how-to cover.
+> "mission-scoped — not separately activated"). `asset` is a loose-contract kind (a
+> sidecar `*.asset.yaml` manifest describing a blob — an image, font, template fixture, or
+> a shipped script — that is resolved to a path, never parsed or schema-validated). It ships
+> **one** built-in artifact today: `common-docs-structural-lint`, the structural docs lint
+> (`src/doctrine/assets/built-in/docs_structural_lint.py`, declared by
+> `docs_structural_lint.py.asset.yaml`). Resolve it — from any installation, no charter step
+> required — with `spec-kitty doctrine asset path common-docs-structural-lint` (or list every
+> resolvable asset and its source tier with `spec-kitty doctrine asset list`). Both are worth
+> knowing exist; neither is part of the eight-kind activation vocabulary this page and its
+> companion how-to cover — see [The asset kind](#the-asset-kind) below for how to author and
+> resolve one, and [Delivery verdicts: which kinds reach a mission](#delivery-verdicts-which-kinds-reach-a-mission)
+> for why the shipped asset arrives without being activated.
+
+## The asset kind
+
+The eight kinds above are the **activation vocabulary** — you author one, `charter activate` it,
+and it becomes eligible for injection into governed mission context. The `asset` kind sits outside
+that vocabulary on purpose. An asset is not a rule, a technique, or a persona; it is a **blob** —
+a file whose bytes are the payload (an image, a font, a template fixture, or a shipped script such
+as a lint). Spec Kitty never parses or schema-validates the blob itself. Instead each blob is
+described by a small YAML **sidecar manifest** placed alongside it, and it is the manifest — not
+the blob — that carries the validated contract (`id`, `mime`, `path`, optional `title`).
+
+**Why a project would ship one.** [`review-gates.md`](../development/review-gates.md) forbids
+shipped doctrine from naming a repo-local script or CI path a consumer does not have. The
+canonical way to hand executable logic (or any blob) to a downstream repo is precisely the `asset`
+kind: the blob travels *inside* the pack under its `assets/` tree, and downstream code resolves it
+by identifier through `spec-kitty doctrine asset path <id>` rather than reaching for a path that
+only exists in our source tree. The one built-in asset, `common-docs-structural-lint`, is exactly
+this pattern — a lint script shipped as an asset instead of as a `scripts/…` reference.
+
+To **author and resolve** an asset end to end, follow the asset section of
+[Create a doctrine artifact](create-a-doctrine-artifact.md#author-an-asset-a-shipped-blob).
+
+### Delivery verdicts: which kinds reach a mission
+
+"Activatable" and "delivered" are two different questions. A kind is **delivered** when its
+resolved artifacts reach the rendered doctrine bundle a mission action consumes. The delivery rail
+records a verdict for **every** `NodeKind` in one total table (`_ACTION_BUNDLE_DELIVERY_BY_KIND` in
+[`src/charter/context.py`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/charter/context.py)),
+with two columns — the bundle *slot* the kind feeds, and the *gate* that filters it. The gate is a
+**total function** over kinds, so there are three categories, not two:
+
+| Category | Kinds | Gate | What reaches the mission |
+|---|---|---|---|
+| **Delivered, activation-gated** | directive, tactic, styleguide, toolguide, procedure | `ACTIVATED` | `activated(kind) ∩ reachable` — only the ones you activated *and* the DRG reaches |
+| **Delivered, not activation-gated** | **asset** | `ALL` | `reachable` alone — every asset a reachable source pulls in, no activation list consulted |
+| **Not bundle-delivered (stated reason)** | paradigm, agent_profile, mission_step_contract, glossary_pack, anti_pattern, template | — | excluded, each with a recorded reason (e.g. template is mission-scoped file selection; agent_profile ships through the profile channel) |
+
+Assets are the **third category** — *delivered but not activation-gated*. This matters because an
+asset has no `activated_assets` list to appear on: `activated(asset)` is empty by construction, so
+gating an asset on `activated ∩ reachable` would ship "no assets, ever" and quietly pass. Instead
+the gate for assets is `ALL`, meaning delivery is `reachable` alone — an asset arrives when a
+reachable artifact points at it through a `requires`/`suggests` edge. That is how the shipped
+`common-docs-structural-lint` reaches a mission without anyone activating it. (`template` shares
+the `ALL` gate but has no bundle slot — its selection is mission-scoped file resolution, a stated
+exclusion rather than asset's untreated twin.)
 
 ## The eight doctrine artifact kinds
 

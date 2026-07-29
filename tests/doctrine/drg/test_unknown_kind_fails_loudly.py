@@ -252,11 +252,17 @@ def test_action_bundle_rules_on_every_node_kind() -> None:
     assert not unruled, f"no recorded verdict for kinds: {unruled}"
 
 
-def test_action_bundle_still_projects_exactly_the_four_bundle_slots() -> None:
-    """Closing the drop must not smuggle new kinds into the rendered bundle.
+def test_action_bundle_projects_exactly_the_delivered_slots() -> None:
+    """The bundle projects exactly the *stated* delivered slots -- no more.
 
-    NFR-004 in spirit: the fix is about making the twelve exclusions *stated*,
-    not about starting to render them.
+    WP03 of ``doctrine-silence-guards`` froze this at four slots ("state the
+    exclusions, do not render them"). **WP10 (doctrine-delivery-reachability,
+    FR-009/FR-011) reverses that verdict for PROCEDURE and ASSET**: a resolved
+    procedure/asset is executing-agent context no other charter surface
+    delivers on the action path (the criterion recorded at
+    ``_ACTION_BUNDLE_SLOT_BY_KIND``). The guard's intent is unchanged -- the
+    projected set must equal the *stated* set exactly, so a future kind cannot
+    be smuggled in unstated; only the stated set grew from four to six.
     """
     from charter.context import action_bundle_bucket
 
@@ -271,6 +277,8 @@ def test_action_bundle_still_projects_exactly_the_four_bundle_slots() -> None:
         NodeKind.TACTIC: "tactics",
         NodeKind.STYLEGUIDE: "styleguides",
         NodeKind.TOOLGUIDE: "toolguides",
+        NodeKind.PROCEDURE: "procedures",
+        NodeKind.ASSET: "assets",
     }
 
 

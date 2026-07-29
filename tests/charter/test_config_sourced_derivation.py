@@ -271,9 +271,11 @@ def test_resolve_config_activated_roots_reads_kittify_config_yaml(tmp_path: Path
     assert isinstance(roots, ConfigActivatedRoots)
     assert roots.directives == ["DIRECTIVE_010"]
     assert roots.styleguides == ["aggregate-design-rules"]
-    # No `activated_paradigms` key in this fixture's config.yaml -> all built-ins.
-    catalog = load_doctrine_catalog()
-    assert sorted(roots.paradigms) == sorted(catalog.paradigms)
+    # FR-018 (WP07/T038): a present project that OMITS `activated_paradigms`
+    # delivers NOTHING for that kind at this delivery boundary -- absence is no
+    # longer "all built-ins". (Retired: the pre-FR-018 assertion expected every
+    # built-in paradigm here.)
+    assert roots.paradigms == []
 
 
 def test_resolve_config_activated_roots_raises_on_unresolvable_stem(tmp_path: Path) -> None:

@@ -66,11 +66,26 @@ def _find_repo_root() -> Path:
 
 
 def _load_config(repo_root: Path) -> dict[str, object]:
+    """Load the *resolved activation store* (WP07/T036 repoint, FR-017).
+
+    Activation lives in the store resolved through the ``.kittify/config.yaml``
+    ``charter:`` pointer — ``charter.yaml`` when the pointer is present (the
+    migrated state), else the legacy config.yaml. The retired config.yaml
+    ``activated_*`` mirror is no longer consulted. The function name is kept
+    for call-site stability; every consumer reads ``activated_*`` keys.
+    """
+    from charter.pack_context import resolve_charter_yaml_pointer
+
     yaml = YAML(typ="safe")
     config_path = repo_root / ".kittify" / "config.yaml"
-    data = yaml.load(config_path.read_text(encoding="utf-8"))
-    assert isinstance(data, dict)
-    return data
+    config_data = yaml.load(config_path.read_text(encoding="utf-8"))
+    assert isinstance(config_data, dict)
+    charter_path = resolve_charter_yaml_pointer(repo_root, config_data)
+    if charter_path is None:
+        return config_data
+    store = yaml.load(charter_path.read_text(encoding="utf-8"))
+    assert isinstance(store, dict)
+    return store
 
 
 @pytest.fixture(scope="module")

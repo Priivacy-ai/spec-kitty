@@ -299,6 +299,54 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
             "activating the tactic requires the shipped lint asset."
         ),
     ),
+    # -----------------------------------------------------------------------
+    # WP09 (mission doctrine-delivery-reachability-01KYMXD6, T050, FR-015): the
+    # reaching edge for the common-docs cluster. The four `requires` edges above
+    # de-orphan asset:common-docs-structural-lint by INCIDENCE, but every one of
+    # their sources (DIRECTIVE_042, styleguide:common-docs, and the curation /
+    # scaffold tactics) was measured action-UNREACHABLE -- the whole documentation-
+    # authoring family is a strongly-connected island no action node scopes, so
+    # the asset (and the styleguide, and the four common-docs tactics) reached
+    # nobody. Incidence is not reachability (contract R-6); this is exactly the
+    # PR #3007 failure the mission exists to correct.
+    #
+    # This SCOPE edge makes DIRECTIVE_042 itself action-reachable: resolve_context
+    # walks `scope` at depth 1 from the action, then 042's pre-existing
+    # `requires`/`suggests` edges deliver the asset, the styleguide and the four
+    # common-docs tactics transitively. Measured with the WP08 helper: d=1 and d=2
+    # action-reachable each grow by exactly the seven artefacts 042 heads.
+    #
+    # C-007 is satisfied without inventing a relationship: (a) DIRECTIVE_042's own
+    # `scope:` text -- "Applies whenever a documentation file under the Common Docs
+    # root is created, moved, renamed ..." -- attests it governs documentation-file
+    # creation, and `documentation/generate`'s `write_docs` step writes docs/**/*.md
+    # (creates documentation files); (b) the source is an `action` node, C-007(b)'s
+    # second clause. It is NOT a profile/lineage edge, so assert_valid's
+    # profile-endpoint rule does not apply.
+    #
+    # Canonical home / B2 handoff: the canonical surface for an action->artefact
+    # `scope` edge is the documentation step-contract action index
+    # (missions/built_in_step_contracts/documentation-generate.step-contract.yaml,
+    # `delegates_to` candidates), which is outside WP09's owned files. Mission B2
+    # (drg-edge-migration-extractor-retirement-01KYFV8C) retires this overlay
+    # generator; when it does it MUST migrate this edge into that action index
+    # rather than silently dropping it. See
+    # docs/plans/doctrine/delivery-reachability-wiring-table.md.
+    DRGEdge(
+        source="action:documentation/generate",
+        target="directive:DIRECTIVE_042",
+        relation=Relation.SCOPE,
+        reason=(
+            "The documentation/generate action creates documentation files "
+            "(its write_docs step writes docs/**/*.md), which is DIRECTIVE_042's "
+            "stated trigger ('whenever a documentation file under the Common Docs "
+            "root is created'); the action is therefore governed by the common-docs "
+            "documentation standard. This scope edge is the reaching entry point "
+            "that delivers the common-docs styleguide, tactics and structural-lint "
+            "asset, which were otherwise a strongly-connected island no action "
+            "scoped (WP09 / FR-015)."
+        ),
+    ),
 )
 
 

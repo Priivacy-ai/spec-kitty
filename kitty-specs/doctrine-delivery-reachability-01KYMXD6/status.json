@@ -1,0 +1,435 @@
+{
+  "event_count": 108,
+  "last_event_id": "01KYP4PF1M4H6BVRF11PJ9H4DD",
+  "materialized_at": "2026-07-29T05:13:59.604109+00:00",
+  "mission_number": "187",
+  "mission_slug": "doctrine-delivery-reachability-01KYMXD6",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 15,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYP4P37ZANZ2WJZSH805EK0P",
+      "last_transition_at": "2026-07-29T05:13:47.519120+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Independent reviewer-renata mutation review: M1 (drop caught, names member+field), M2 (novel empty [] survives all writers), M3 (registry iterated), C-006 red-first confirmed, NFR-002 clean",
+        "APPROVE: mutation-verified (M1 drop caught naming member+field; M2 novel empty [] survives all writers; M3 registry iterated; C-006 red-first; NFR-002 clean). 2 LOW non-blocking follow-ups recorded."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3259827,
+      "shell_pid_created_at": "1785271874.05",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYP4P46F6HY75MDF32DY013A",
+      "last_transition_at": "2026-07-29T05:13:48.495714+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Independent mutation review complete",
+        "APPROVE (reviewer-renata): fail-closed break correct per-call-site (built-ins crash on corrupt shipped graph; consumer sites silent-accept->hard-fail = intended NFR-006); migration NOT a blocker (IC-01 disjunction satisfied via not-first-and-alone lane). Org-bridge W-3 non-vacuous (red on revert); generated_reason correctly excluded; loader.py edit minimal/necessary/unowned. Follow-ups: LOW consumer sites surface typed error as traceback vs structured ValidationIssue (out of owned surface); INFO add loader.py to owned_files map."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3381114,
+      "shell_pid_created_at": "1785275679.64",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYP4P50S1K8E8GTS8NQATMFS",
+      "last_transition_at": "2026-07-29T05:13:49.337960+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "reviewer-renata mutation review complete",
+        "APPROVE (reviewer-renata): hoist REAL (authority mutation changes all 3 consumers w/ is-identity; single definition); guard SEES copies (drop ASSET -> reddens naming PROJECT_KIND_DIRS; synthetic 13th caught); T018 e2e exit0 scaffold==resolver; service.py deferral correct (WP04/T023, interim agreement proven 0 mismatches); exemptions shrank honestly. LOW: out-of-map test_doctrine_new.py e2e (unclaimed, justified). INFO: WP05 anchor comment."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3382748,
+      "shell_pid_created_at": "1785275696.23",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYP4P7GD588SP7ZG3SNNT43W",
+      "last_transition_at": "2026-07-29T05:13:51.885044+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "debugger-debbie adversarial review complete",
+        "APPROVE (debugger-debbie): 6 adversarial escape variants ALL refused (AssetPathEscapeError), mutation reddens containment; anchor asymmetry exercised (mutation->built-in/built-in doubling red); rglob nested discovery + list[Path] override mypy-clean; tier precedence reports shadow (DoctrineLayerCollisionWarning); T023 fail-closed no local copy; source-path _pre_validate hook is sanctioned pattern. LOW: source_path/get asymmetry on malformed manifest (cosmetic). INFO: pre-existing untyped test param (mission 057, not WP04)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3501221,
+      "shell_pid_created_at": "1785278645.32",
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYP4P956P833VSXG744D2D74",
+      "last_transition_at": "2026-07-29T05:13:53.574071+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "reviewer-renata execution+mutation review complete",
+        "APPROVE (reviewer-renata): SC-003 wheel harness GENUINE - built wheel, isolated venv, asset ships (zipfile-confirmed), repo absent from resolution, unknown-id path exercised; T029 consumer repoint guard non-vacuous (reddens on revert); CLI list/path work from outside repo (fail-closed unknown-id exit1); freshness clean; C-002 resolution-only. INFO: justified # noqa:T201 run-marker print (carve-out). LOW: brittle-but-non-vacuous source-substring guard assertion."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3546492,
+      "shell_pid_created_at": "1785280570.79",
+      "subtasks": {
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done",
+        "T030": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYP4P5TYT0P1RY2Q71VWN909",
+      "last_transition_at": "2026-07-29T05:13:50.174750+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Independent mutation review complete",
+        "APPROVE (doctrine-daphne): independently re-derived delta=25 all-directives matching shipped partition; exclusion structural (no consumer banks swing); partition disjoint+total; single-boundary canonical delegation; tests non-vacuous (mutation reddened 4); C-006 red-first honest. NFR-002 carve-out RECORDED: 2 new noqa:PLC0415 mirror 2 pre-existing identical suppressions (NFR-001 lazy import-time-I/O convention), narrowly scoped w/ inline rationale — sanctioned per CLAUDE.md narrow-exception rule."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3384714,
+      "shell_pid_created_at": "1785275715.33",
+      "subtasks": {
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T034": "done"
+      }
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KYP4P6NQJNSWC7T02XB3D5Q8",
+      "last_transition_at": "2026-07-29T05:13:51.031387+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "APPROVE (reviewer-renata mutation review): M1 gate non-vacuous, M2 divergent-mirror charter-wins, M3 absence->empty, M4 fail-closed propagates, M5 charter: key, M6 reconciliation; T035-before-T036 held. MEDIUM handoff tracked: resolver.py None->all-builtins fail-open to be retired by WP10/WP11. Subtasks marked done post-hoc (implementer loop failed to record; code reviewer-verified complete).",
+        "Ready for review",
+        "Re-approving: reviewer-renata mutation review already APPROVED (see prior). WP07 code unchanged (lane-e HEAD c630d278d); its late implementer continuation had reverted approved->for_review.",
+        "RE-APPROVE: mutation-verified (M1-M6 all held). Reverting the implementer's spurious approved->for_review. resolver.py fail-open handoff carried to WP10."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3464582,
+      "shell_pid_created_at": "1785277750.98",
+      "subtasks": {
+        "T035": "done",
+        "T036": "done",
+        "T037": "done",
+        "T038": "done",
+        "T039": "done",
+        "T040": "done",
+        "T041": "done"
+      }
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYP4P8ANAMYKHSJSKDHSPZQT",
+      "last_transition_at": "2026-07-29T05:13:52.725658+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "doctrine-daphne independent re-derivation complete",
+        "APPROVE (doctrine-daphne): all 4 pins re-derived independently (85/78/153/8) WITHOUT importing WP08 module; 103/96->85/78 delta FULLY EXPLAINED (18 of 25 normalized slugs become reachable, 7 remain; pre-WP06 store-form=103/96 exactly matches plan). Action path calls resolve_context (no BFS); membership-not-cardinality (mutation names urn); C-009 partition excludes 25-swing; T047 nominal-wiring caught; goldens 304/764 extractor vs 310/781 shipped reconciled; WP07 coexists. No material findings."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3572401,
+      "shell_pid_created_at": "1785281421.28",
+      "subtasks": {
+        "T042": "done",
+        "T043": "done",
+        "T044": "done",
+        "T045": "done",
+        "T046": "done",
+        "T047": "done"
+      }
+    },
+    "WP09": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYP4P9ZNS0P765D8QHPQDWT2",
+      "last_transition_at": "2026-07-29T05:13:54.421227+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "reviewer-renata re-derivation+attestation review complete",
+        "APPROVE (reviewer-renata): C-007 attestation REAL (042 scope text names doc-file creation; generate write_docs writes docs; action-node source) - NOT invented; reachability re-derived +7 exactly (asset+6 members, closed island confirmed, cascade would false-positive); pins shrink EXACTLY the 6 members (mutation reddens); deferred set (72) not banked; ledger complete; goldens 304/764 unchanged; canonical regeneration verified; C-006 red genuine. INFO only."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3615290,
+      "shell_pid_created_at": "1785283631.17",
+      "subtasks": {
+        "T048": "done",
+        "T049": "done",
+        "T050": "done",
+        "T051": "done",
+        "T052": "done"
+      }
+    },
+    "WP10": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYP4PAT9976KXWSCR9QDESTF",
+      "last_transition_at": "2026-07-29T05:13:55.273443+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: WP10 core delivery rail (T053-T058) complete. Added-scope resolver fail-open reverted due to mission-level blast radius (see report).",
+        "reviewer-renata mutation review complete",
+        "APPROVE (reviewer-renata): total gate(kind) NOT vacuous - asset_ids=[] non-conforming proven via real pipeline (ASSET=ALL, mutations redden); no sixth projection; render emits every kind (reads rendered text, mutation reddens); verdict flip+reversal recorded; single reader resolver.py +4; red-first genuine; NFR-002 clean (type:ignore 14->12). Fail-open retirement DEFERRED (operator decision) - reviewer independently confirmed re-applying it reddens routing parity guard, revert sound. LOW: action_bundle_gate documentary; 2 kinds thin inline reasons; context.py +68 (accepted, compressed from +166)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3622003,
+      "shell_pid_created_at": "1785283803.76",
+      "subtasks": {
+        "T053": "done",
+        "T054": "done",
+        "T055": "done",
+        "T056": "done",
+        "T057": "done",
+        "T058": "done"
+      }
+    },
+    "WP11": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYP4PDBWV98NMRPDFX3WERKY",
+      "last_transition_at": "2026-07-29T05:13:57.884390+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "reviewer-renata mutation review complete",
+        "APPROVE (reviewer-renata): M1 present-on-load-two closed (mutation reddens, DIRECTIVE_001 vanishes); M2 both --json sites deliver (mutation reddens json+CLI), non-bootstrap ruled out w/ regression test; M3 SC-001/002 through shipped CLI (CliRunner --mission-type, reddens only under json-builder mutation not text-path); M4 depth gate retired; M5 dead-symbols body_hash SANCTIONED (load-bearing, widened fields consumed, baseline WP07/WP15 symbols correctly left red); M6 inverted test legitimate (old encoded defect); M7 grain callers fixed, prompt_builder untouched, scope_router coverage. resolver.py untouched. LOW: context.py +55 (pre-authorized). INFO: stale gate count."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3766401,
+      "shell_pid_created_at": "1785293181.72",
+      "subtasks": {
+        "T059": "done",
+        "T060": "done",
+        "T061": "done",
+        "T062": "done",
+        "T063": "done",
+        "T064": "done",
+        "T065": "done"
+      }
+    },
+    "WP12": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYP4PE6S3TNYQH6AC59KMMMG",
+      "last_transition_at": "2026-07-29T05:13:58.745211+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "reviewer-renata review complete + NFR-002 type:ignore fix verified",
+        "APPROVE (reviewer-renata): channel uses walk_edges not resolve_context (test asserts resolve_context(profile)==empty); exemplar procedure:onboard-external-agent-to-pack reaches agent under doctrine-daphne (mutation reddens); C-007 deferral GENUINE (schema profile.py: delivered kinds have *-references fields, asset/anti_pattern/paradigm have NO schema field - not dodging); conditional guard fail-closed (mutation reddens); context.py shrank -38 (extracted to sibling module); resolver.py untouched; C-006 red-first. NFR-002 type:ignore finding FIXED (d08779a74: _ref_entries widened to Iterable[object], ignore removed, mypy/ruff/gate clean - verified)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3828464,
+      "shell_pid_created_at": "1785297257.74",
+      "subtasks": {
+        "T066": "done",
+        "T067": "done",
+        "T068": "done",
+        "T069": "done",
+        "T070": "done"
+      }
+    },
+    "WP13": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYP4PF1M4H6BVRF11PJ9H4DD",
+      "last_transition_at": "2026-07-29T05:13:59.604109+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "reviewer-renata mutation review complete"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3831421,
+      "shell_pid_created_at": "1785297286.81",
+      "subtasks": {
+        "T071": "done",
+        "T072": "done",
+        "T073": "done",
+        "T074": "done",
+        "T075": "done"
+      }
+    },
+    "WP14": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYP4PBNED2SHWTE3AGDSNKWZ",
+      "last_transition_at": "2026-07-29T05:13:56.142623+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "reviewer-renata review complete (SC-008 doc-as-test non-vacuous)",
+        "APPROVE (reviewer-renata): SC-008 doc-as-test NON-VACUOUS (parses published how-to; mutations M1 id-rename / M2 command-mismatch redden); false 'no built-in artifacts' claim gone; delivery-verdict table matches _ACTION_BUNDLE_DELIVERY_BY_KIND (asset=ALL, activated(asset)=empty reason stated); kind-vocab reference = WP03 authority; CHANGELOG + terminology green; red-first confirmed. LOW: test can't detect Step-A bash drift. INFO: excluded-kinds row editorial scoping."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3705033,
+      "shell_pid_created_at": "1785289767.35",
+      "subtasks": {
+        "T076": "done",
+        "T077": "done",
+        "T078": "done",
+        "T079": "done",
+        "T080": "done"
+      }
+    },
+    "WP15": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYP4PCH66WH189KNHTS42JRK",
+      "last_transition_at": "2026-07-29T05:13:57.030207+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "reviewer-renata mutation review complete",
+        "APPROVE (reviewer-renata): no-cap completeness HOLDS (cap[:10] reddens, mid-chain drop reddens; union==delivered over roots∪delivered); --include-all strict superset (mutation reddens); cadence follows relation (requires inline/suggests link, all-relations mutation reddens); uncovered suggests->stated default not blank (empty-string mutation reddens, requires negative control green); linked artefact fetchable via --include. context.py net -2 (own contribution); deliverable intact post-reset; C-012 ordering satisfied; C-006 red genuine; NFR-002 clean (1:1 suppression relocation). INFO: >= vs == at integration grain (strict pinned by synthetic tests)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3732982,
+      "shell_pid_created_at": "1785290427.46",
+      "subtasks": {
+        "T081": "done",
+        "T082": "done",
+        "T083": "done",
+        "T084": "done"
+      }
+    }
+  }
+}

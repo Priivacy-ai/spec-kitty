@@ -861,6 +861,14 @@ def _bridge_org_edge_to_drg_edge(
     FR-003: an unknown relation label still raises
     :class:`UnknownRelationError` (via :func:`_resolve_relation`).
 
+    Contract W-3: every ``DRGEdge`` field the fragment schema can express is set
+    on the minted edge. Beyond the endpoints and relation, the fragment can
+    express the author's ``reason`` -- an ``_OrgDRGEdge`` field this bridge used
+    to drop before any writer ran. It is carried through here (machine
+    provenance ``generated_reason`` is projection-only, is not a ``DRGEdge``
+    field, and is intentionally not mapped). ``provenance`` is attached below by
+    :func:`_tag_source`.
+
     Returns:
         ``(edge, None)`` on success, ``(None, conflict)`` on refusal.
     """
@@ -874,7 +882,12 @@ def _bridge_org_edge_to_drg_edge(
     except _EndpointResolutionError as exc:
         return None, _endpoint_conflict(exc.conflict_kind, exc.raw, edge, source)
 
-    drg_edge = DRGEdge(source=source_urn, target=target_urn, relation=relation)
+    drg_edge = DRGEdge(
+        source=source_urn,
+        target=target_urn,
+        relation=relation,
+        reason=getattr(edge, "reason", None),
+    )
     return _tag_source(drg_edge, source), None
 
 
