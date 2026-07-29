@@ -763,8 +763,16 @@ def _resolve_coordination_branch(
     # reaches the single injected walk (no bypass) — ``None`` is byte-identical
     # to the pre-WP03 behaviour.
     # WP03 T016 (read-side-seam-primary-primitive-closure-01KYKMMT): calls the
-    # leaf directly — the wrapper delegates to the seam, which reaches this
-    # module again (Ledger M16 recursion guard).
+    # leaf directly, not the deleted public wrapper. This feeds the seam's
+    # classification decision rather than recursing through it:
+    # ``_classify_artifact_surface`` calls this helper only AFTER
+    # ``declared_read_surface`` has already resolved COORD (a PRIMARY-partition
+    # kind, or a coord-less topology, resolves PRIMARY first and never reaches
+    # here); ``_resolve_topology``'s bootstrap-fallback arm also calls this
+    # directly to derive the topology shape it returns. Either way this reads
+    # the raw ``coordination_branch`` meta field that PRODUCES a routing
+    # signal — it never itself re-enters ``declared_read_surface`` /
+    # ``_classify_artifact_surface``, so there is no cycle.
     primary_dir = _compose_primary_feature_dir(
         primary_root,
         _canonicalize_primary_read_handle(primary_root, mission_slug, resolver=resolver),
@@ -812,8 +820,11 @@ def _resolve_topology(
     # WP03/FR-002: ``resolver`` threaded through so this shell read reaches the
     # single injected walk (no bypass).
     # WP03 T016 (read-side-seam-primary-primitive-closure-01KYKMMT): calls the
-    # leaf directly — the wrapper delegates to the seam, which reaches this
-    # module again (Ledger M16 recursion guard).
+    # leaf directly, not the deleted public wrapper. This IS the pure shell
+    # read ``declared_read_surface`` calls (via the public
+    # ``resolve_topology``) to produce the PRIMARY/COORD signal for a
+    # coord-partition kind — it precedes and feeds that decision rather than
+    # routing through it, so there is no cycle.
     primary_dir = _compose_primary_feature_dir(
         primary_root,
         _canonicalize_primary_read_handle(primary_root, mission_slug, resolver=resolver),
@@ -1009,8 +1020,13 @@ def _resolve_mission_id(
 
     # WP05/FR-005: route through _canonicalize_primary_read_handle.
     # WP03 T016 (read-side-seam-primary-primitive-closure-01KYKMMT): calls the
-    # leaf directly — the wrapper delegates to the seam, which reaches this
-    # module again (Ledger M16 recursion guard).
+    # leaf directly, not the deleted public wrapper. ``_classify_artifact_
+    # surface`` calls this helper only AFTER ``declared_read_surface`` has
+    # already resolved COORD, to derive the ``mid8`` its coord-state probe
+    # needs — it feeds that already-made decision rather than recursing back
+    # into it (the ``legacy-<slug>`` sentinel carve-out below is unaffected:
+    # it fires on a malformed/absent meta read, before any classification
+    # decision is even in play).
     primary_dir = _compose_primary_feature_dir(
         primary_root,
         _canonicalize_primary_read_handle(primary_root, mission_slug, resolver=resolver),
