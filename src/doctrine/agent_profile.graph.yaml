@@ -79,6 +79,11 @@ edges:
   target: directive:DIRECTIVE_044
   relation: requires
 - source: agent_profile:architect-alphonso
+  target: directive:USE_C4_MODEL_TECHNIQUES
+  relation: suggests
+  when: documenting or reviewing system architecture
+  reason: "The architect profile should reach the C4 architecture-documentation hub when documenting or reviewing system architecture (alphonso's attested scope: system-design / architecture-review / component-design). Composition-only under today's traversal (the profile channel walks requires/specializes_from only), authored per the #3063 family-C operator attestation."
+- source: agent_profile:architect-alphonso
   target: paradigm:domain-driven-design
   relation: suggests
   reason: "When designing and reviewing significant code changes, the architect should reach Domain-Driven Design. Composition-only under today's traversal (the profile channel walks requires/specializes_from only), authored per the #3063 operator attestation."
