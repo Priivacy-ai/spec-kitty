@@ -64,6 +64,7 @@ _SLUG_TO_URN: dict[str, str] = {
     "003-decision-documentation-requirement": "directive:DIRECTIVE_003",
     "010-specification-fidelity-requirement": "directive:DIRECTIVE_010",
     "037-living-documentation-sync": "directive:DIRECTIVE_037",
+    "042-common-docs": "directive:DIRECTIVE_042",
     "requirements-validation-workflow": "tactic:requirements-validation-workflow",
     "premortem-risk-identification": "tactic:premortem-risk-identification",
     "adr-drafting-workflow": "tactic:adr-drafting-workflow",
