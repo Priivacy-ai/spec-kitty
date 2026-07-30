@@ -34,12 +34,13 @@ class CheckoutSyncRouting:
     local_sync_enabled: bool | None
     repo_default_sync_enabled: bool | None
     effective_sync_enabled: bool
-    #: Why the project-local ``.kittify/config.yaml`` could not be read, when it
-    #: exists but is unreadable or unparseable (#3030 FR-022). ``None`` for the
-    #: ordinary cases — a readable file, or no file at all. Present so a denial on
-    #: this ground is distinguishable from the far more common "no record" denial:
-    #: an operator told only "sync is disabled" goes looking for a missing opt-in
-    #: instead of the broken file that actually caused it.
+    #: Why the project-local ``.kittify/config.yaml`` could not be understood, when it
+    #: exists but is unreadable, unparseable, or (#3030 FR-027) records a *field* value
+    #: that cannot be used — an unusable ``sync.enabled`` or an unusable
+    #: ``project.uuid``. ``None`` for the ordinary cases — a readable file, or no file
+    #: at all. Present so a denial on this ground is distinguishable from the far more
+    #: common "no record" denial: an operator told only "sync is disabled" goes looking
+    #: for a missing opt-in instead of the broken file that actually caused it.
     project_local_fault: ConfigReadFault | None = None
 
 
@@ -121,6 +122,18 @@ def _routing_for_unreadable_project_config(
     unreadable project file cannot take out any command that consults the gate.
     (The ``load_identity`` fault itself is still latent for its other callers and is
     reported separately — it is not this module's to fix.)
+
+    **#3030 FR-027 widened what this fence catches, with no change here.** It consumes
+    ``project_local_consent_fault`` rather than re-deciding readability, so extending
+    that one notion from the *file* to a *field* — an unusable ``sync.enabled``, an
+    unusable ``project.uuid`` — reached this path for free. That is the whole point of
+    the C-003 shape: the two field-level leaks it now closes are
+    ``sync.enabled: no`` overridden by a checkout-level grant (nineteen such shapes,
+    all measured granting), and FR-024's residual, where a corrupt ``project.uuid``
+    resolved to ``effective_sync_enabled=True`` with ``project_uuid=None`` — events
+    captured with no identity at all, which is the population FR-011/FR-017 then have
+    to clean up. Had this function re-implemented its own readability test, FR-027
+    would have had to be fixed twice.
     """
     fault = project_local_consent_fault(repo_root)
     if fault is None:

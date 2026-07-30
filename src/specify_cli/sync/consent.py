@@ -138,6 +138,109 @@ class ConsentBackfillResult:
 # --- project-local (level 1) ----------------------------------------------
 
 
+#: Sentinel distinguishing "the key is not there" from "the key is there and holds
+#: ``None``". ``dict.get`` collapses the two, and that collapse is the whole of
+#: FR-027's absence half: a *missing* ``enabled:`` is no record and must keep falling
+#: through, while ``enabled:`` with nothing after it is a record that records nothing.
+_MISSING = object()
+
+
+def _declared_uuid_or_fault(project: Any) -> tuple[str | None, str | None]:
+    """Return ``(canonical_uuid, fault)`` for a config's ``project`` section (FR-027).
+
+    **Asks ``identity/project.py`` rather than deciding here.**
+    :meth:`~specify_cli.identity.project.ProjectIdentity.from_dict` is the single
+    parse site both identity directions already go through, and #3030 FR-024 made it
+    the one place that decides whether a recorded value can be understood. Re-deciding
+    that here — as ``str(raw).strip() or None`` did — is how two notions of the same
+    file end up one function apart, which is C-003's concern and the reason this
+    defect class keeps regenerating.
+
+    Two consequences, both measured:
+
+    1. **FR-024's residual closes.** ``uuid: not-a-uuid``, a merge-conflict marker,
+       ``42``, a mapping, a list, and a non-text sibling such as ``slug: {a: b}`` all
+       resolved to ``granted=True`` with ``project_uuid=None`` once FR-024 stopped
+       them crashing — captured with no identity at all, i.e. exactly the population
+       FR-011/FR-017 then have to clean up. They are now faults, and FR-022's fence
+       fires for them.
+    2. **A leak nobody reported closes too.** The returned uuid is *canonical*, from
+       the parsed :class:`~uuid.UUID`. The raw text was compared against the canonical
+       uuid the journal stores, so ``AAAAAAAA-…``, a dash-less 32-hex spelling, a
+       ``urn:uuid:`` form or a braced form — all the same uuid, all legibly the same
+       project — matched nothing, and the checkout's committed refusal was discarded
+       as belonging to some other project. Measured granting at ``machine_index``.
+       Comparing raw file text against a canonical string is a third representation of
+       one value; parsing both sides removes it.
+
+    ``(None, None)`` is **absence**, and it must stay absence for every shape
+    ``identity/project.py`` mints over: no ``project`` key, an empty ``project:``, a
+    ``project`` section that is not a mapping (``project: guard-suite`` — FR-023's
+    recorded decision), a missing ``uuid`` key, and a ``uuid:`` with no value. Those
+    are the ordinary pre-``init`` states of a checkout, not broken records.
+    """
+    if not isinstance(project, dict):
+        # No ``project`` key, an empty section, or a scalar section. ``load_identity``
+        # reads all three as absence and mints over them; disagreeing here would deny
+        # every checkout that has not been initialised yet.
+        return (None, None)
+    from specify_cli.identity.project import ConfigNotUnderstoodError, ProjectIdentity
+
+    try:
+        identity = ProjectIdentity.from_dict(project)
+    except ConfigNotUnderstoodError as exc:
+        return (None, str(exc))
+    return (str(identity.project_uuid) if identity.project_uuid else None, None)
+
+
+def _consent_value_or_fault(section: Any) -> tuple[bool | None, str | None]:
+    """Return ``(hosted, fault)`` for a config's ``sync`` section (FR-027).
+
+    **Only a YAML ``bool`` records a decision.** Every other *present* value is a
+    fault, and no string form is accepted in either direction. The reasoning, because
+    the two directions are not symmetric:
+
+    * Accepting ``"false"`` as a refusal buys nothing — a fault already denies — while
+      the same lookup table would have to rule on ``"true"``, ``1``, ``"yes"`` and
+      ``"on"``, and those become **grants**. A truthy table on a consent key is a new
+      leak surface with no upside.
+    * ``no``/``off``/``yes``/``on`` are strings only because ruamel's round-trip loader
+      is YAML 1.2. Accepting them would mean re-implementing the YAML 1.1 implicit
+      typing that loader deliberately dropped, in a module that does not own it — so
+      the accepted set would drift with a dependency this module cannot see.
+    * A fault is *reportable*: :class:`ConfigReadFault` names the file, the key and
+      the value, so an operator who mis-spelled their refusal is told. Silently
+      honouring ``"false"`` would leave ``enabled: "true"`` broken and silent, which
+      is the worse half — and ``enabled: False`` and ``enabled: "False"`` are one
+      quote apart in a diff.
+
+    Absence stays absence: no ``sync:`` section, an empty one, ``sync: {}``, and a
+    missing ``enabled:`` key all mean "no record". Nothing in production writes this
+    section (``identity/project.py`` preserves it as a foreign key), so a checkout
+    with ``sync.auto_start`` and no ``enabled`` has recorded no consent decision, and
+    denying on that would deny every delivery on the machine.
+    """
+    if section is None:
+        # No ``sync:`` key at all, or ``sync:`` with nothing under it.
+        return (None, None)
+    if not isinstance(section, dict):
+        return (
+            None,
+            f"{PROJECT_CONFIG_SYNC_SECTION} is not a mapping "
+            f"(got {type(section).__name__})",
+        )
+    raw = section.get(PROJECT_CONFIG_ENABLED_KEY, _MISSING)
+    if raw is _MISSING:
+        return (None, None)
+    if isinstance(raw, bool):
+        return (raw, None)
+    return (
+        None,
+        f"{PROJECT_CONFIG_SYNC_SECTION}.{PROJECT_CONFIG_ENABLED_KEY} is not a "
+        f"boolean (got {raw!r})",
+    )
+
+
 def _read_project_local(
     repo_root: Path,
 ) -> tuple[str | None, bool | None, ConfigReadFault | None]:
@@ -158,6 +261,26 @@ def _read_project_local(
     A malformed *shape* (top-level not a mapping) is treated as a fault for the same
     reason: it is a file that exists and cannot be understood, not a file that says
     nothing.
+
+    **FR-027 extends that one notion from the file to the field**, because stopping at
+    the file left FR-021's own defect open one level down. This function defined a
+    fault as unreadable-or-wrong-shape and *not* as an unusable **value**, so a
+    present-but-unusable ``sync.enabled`` was discarded as absence and fell through to
+    the stale grant. Measured with the index granting, every one of these granted at
+    ``machine_index``: ``"false"``, ``"true"``, ``no``, ``yes``, ``off``, ``on``, ``0``,
+    ``1``, ``0.0``, ``1.5``, ``null``, a bare ``enabled:``, a list, a nested mapping,
+    ``"False"``, ``"FALSE"``, ``"  false  "``, ``sync: disabled`` and a list-shaped
+    ``sync:`` — nineteen shapes, not the four that were reported. ``enabled: False``
+    unquoted is the one that already denied, because it is a real YAML bool.
+
+    Why it is the *expected* failure mode: nothing in production writes this key, so
+    it is hand-authored and committed, and ``no`` — the spelling an operator reaches
+    for first — is a **string** under ruamel's YAML 1.2 loader.
+
+    Every fault is reported, not just the first: a hand-merged config tends to carry
+    more than one, and an operator who fixes the uuid only to be denied again for the
+    consent key learns the tool is guessing. Same reasoning as
+    ``identity/project.py``'s ``_identity_from_mapping``.
     """
     config_path = Path(repo_root) / ".kittify" / "config.yaml"
     if not config_path.is_file():
@@ -190,18 +313,21 @@ def _read_project_local(
             ),
         )
 
-    project = data.get("project")
-    declared = None
-    if isinstance(project, dict):
-        raw = project.get("uuid")
-        declared = str(raw).strip() or None if raw is not None else None
-
-    hosted = None
-    section = data.get(PROJECT_CONFIG_SYNC_SECTION)
-    if isinstance(section, dict):
-        raw_hosted = section.get(PROJECT_CONFIG_ENABLED_KEY)
-        if isinstance(raw_hosted, bool):
-            hosted = raw_hosted
+    declared, identity_fault = _declared_uuid_or_fault(data.get("project"))
+    hosted, consent_fault = _consent_value_or_fault(
+        data.get(PROJECT_CONFIG_SYNC_SECTION)
+    )
+    field_faults = [f for f in (identity_fault, consent_fault) if f is not None]
+    if field_faults:
+        logger.debug("Unusable project config at %s: %s", config_path, field_faults)
+        return (
+            None,
+            None,
+            ConfigReadFault(
+                kind="unusable",
+                detail=f"{config_path}: {'; '.join(field_faults)}",
+            ),
+        )
 
     return (declared, hosted, None)
 
@@ -227,6 +353,13 @@ def read_project_local_consent(repo_root: Path) -> bool | None:
     lives in ``routing.py`` and cannot be repaired from here. Reported, not silently
     half-fixed by changing this return value under a caller that is not expecting it.
     Use :func:`project_local_consent_fault` to ask about readability.
+
+    #3030 FR-027 widens *which* shapes reach that conflation — a present-but-unusable
+    ``sync.enabled`` or ``project.uuid`` is now a fault, so this returns ``None`` for
+    them where it previously returned ``None`` for a different reason (absence). The
+    signature and the conflation are still deliberately unchanged, and the denial is
+    still delivered by ``routing.py``'s fence, which consults
+    :func:`project_local_consent_fault` **before** this function's value is used.
     """
     return _read_project_local(repo_root)[1]
 

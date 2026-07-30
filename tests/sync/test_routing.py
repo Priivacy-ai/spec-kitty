@@ -575,3 +575,77 @@ def test_opt_in_on_an_unreadable_project_config_refuses_to_write_a_grant(
         "no checkout-level grant may be written on the way out"
     )
     assert is_sync_enabled_for_checkout(repo_root) is False
+
+
+# --- FR-027: the same fall-through at *field* level -----------------------------
+#
+# FR-022 fenced the file being unreadable. The field being unusable walked straight
+# past it, because ``project_local_consent_fault`` did not call a bad *value* a fault.
+# Both cases below were measured **granted** through ``is_sync_enabled_for_checkout``
+# with a checkout-level grant present. Nothing here changes what the fence does — it
+# already consumed the one notion — so these pin that the widened notion arrives.
+
+
+def test_a_misspelled_refusal_does_not_defer_to_a_checkout_grant(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-027: ``enabled: no`` is a *string* under ruamel's YAML 1.2 loader.
+
+    So the spelling an operator reaches for first recorded nothing, fell through to
+    the checkout override, and egress continued. Nothing in production writes this
+    key — it is hand-authored and committed — which makes mis-spelling the refusal the
+    expected failure mode rather than an exotic one.
+    """
+    repo_root = _make_checkout_with_grant(tmp_path, monkeypatch, case="misspelled")
+    _write_project_config(
+        repo_root, _VALID_REFUSAL.replace("enabled: false", "enabled: no")
+    )
+
+    assert is_sync_enabled_for_checkout(repo_root) is False
+
+
+def test_an_unusable_project_uuid_denies_rather_than_capturing_without_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-024's measured residual, closed by the same notion.
+
+    FR-024 stopped ``uuid: "<<<<<<< HEAD"`` *crashing* the policy read. What it left
+    behind was ``granted=True`` with ``project_uuid=None``: not a cross-project grant,
+    but events captured with **no identity**, which is exactly the population
+    FR-011/FR-017 then have to clean up. A merge-conflict marker in a tracked,
+    hand-edited file is the realistic route in.
+    """
+    repo_root = _make_checkout_with_grant(tmp_path, monkeypatch, case="baduuid")
+    _write_project_config(
+        repo_root, "project:\n  uuid: <<<<<<< HEAD\n  slug: spec-kitty-local\n"
+    )
+
+    routing = resolve_checkout_sync_routing_readonly(repo_root)
+
+    assert is_sync_enabled_for_checkout(repo_root) is False
+    assert routing is not None
+    assert routing.project_uuid is None
+    assert routing.project_local_fault is not None, (
+        "denying is half of it; an operator told only 'sync is disabled' goes looking "
+        "for a missing opt-in instead of the conflict marker that caused it"
+    )
+    assert "uuid" in routing.project_local_fault.detail
+
+
+def test_a_healthy_config_with_no_consent_key_still_honours_the_checkout_grant(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The FR-027 falsifier on this path, alongside the absent-file pin above.
+
+    A valid identity and no ``sync:`` section is the ordinary shape of every
+    ``spec-kitty init``ed checkout on the machine. If the field-level fence denied
+    here it would deny every delivery, and each denial above would prove nothing.
+    """
+    repo_root = _make_checkout_with_grant(tmp_path, monkeypatch, case="healthy")
+    _write_project_config(
+        repo_root,
+        "project:\n  uuid: 11111111-1111-1111-1111-111111111111\n"
+        "  slug: spec-kitty-local\n",
+    )
+
+    assert is_sync_enabled_for_checkout(repo_root) is True

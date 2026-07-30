@@ -44,8 +44,16 @@ class ConfigReadFault:
     """Why ``config.toml`` could not be read (#3030 FR-020).
 
     Carried, never raised. ``kind`` is a stable token for programmatic handling
-    (``unparseable`` | ``unreadable``); ``detail`` names the file and the underlying
-    error, because an operator told "consent is undetermined" with no path cannot act.
+    (``unparseable`` | ``unreadable`` | ``unusable``); ``detail`` names the file and
+    the underlying error, because an operator told "consent is undetermined" with no
+    path cannot act.
+
+    ``unusable`` is #3030 FR-027: the file parsed and its shape is fine, but a *field*
+    records a value that cannot be understood as the field it sits in. It is the same
+    notion as the other two — "exists and cannot be understood" — one level down, and
+    it is deliberately the same type rather than a fourth vocabulary, because three
+    modules independently deciding what a broken config means is how this defect class
+    regenerates (C-003).
 
     A **missing** file is not a fault and produces ``None`` — absence of a record is a
     legitimate, common state that denies under FR-002, and collapsing it into this
@@ -86,25 +94,59 @@ class ProjectConsentRead:
         return self.fault is not None
 
 
-def _project_consent_entry(config: dict[str, Any], project_uuid: str) -> bool | None:
-    """Decode one uuid's consent entry from already-loaded config data.
+def _project_consent_entry(
+    config: dict[str, Any], project_uuid: str
+) -> tuple[bool | None, str | None]:
+    """Decode one uuid's consent entry: ``(enabled, fault_detail)``.
 
     Shared by :meth:`SyncConfig.get_project_consent` and
     :meth:`SyncConfig.read_project_consent` so the two cannot disagree about what a
     malformed entry means — a second copy of this decode is how a reported state and
     an enforced state drift apart.
+
+    **The fault half is #3030 FR-027**, and it is honesty rather than a leak. An entry
+    that exists but records no usable decision — a hand-edited ``enabled = "true"``, or
+    an entry that is not a table — decoded to ``None``, which the resolver reports as
+    ``ConsentLevel.ABSENT``: *"no consent record for this project"*, the one message
+    FR-020 exists to stop sending, because the action it implies is the one the
+    operator already took. It already denied (there is no level below the index but the
+    env var, which never grants), so nothing shipped that should not have; what was
+    wrong is what the operator was told. Fixed here rather than reported because
+    leaving it would make this the third module with its own idea of a broken record.
+
+    An entry is a record whose *only* purpose is to carry ``enabled``, so an entry
+    present with that key missing is a record that records nothing, and is a fault.
+    That is the opposite call from the project-local ``sync:`` section, deliberately:
+    that section is shared with unrelated keys such as ``auto_start``, so a missing
+    ``enabled`` there is genuine absence.
+
+    A missing ``[sync]`` table, a missing ``project_consent`` table, and a missing
+    entry all stay plain **absence** — an unconfigured machine, which denies under
+    FR-002 and is not a fault to repair.
     """
     section = config.get("sync", {})
     if not isinstance(section, dict):
-        return None
+        return (None, None)
     consent = section.get("project_consent", {})
     if not isinstance(consent, dict):
-        return None
-    entry = consent.get(project_uuid)
+        return (None, None)
+    if project_uuid not in consent:
+        return (None, None)
+    entry = consent[project_uuid]
     if not isinstance(entry, dict):
-        return None
+        return (
+            None,
+            f"[sync.project_consent.{project_uuid!r}] is not a table "
+            f"(got {type(entry).__name__})",
+        )
     enabled = entry.get("enabled")
-    return enabled if isinstance(enabled, bool) else None
+    if isinstance(enabled, bool):
+        return (enabled, None)
+    return (
+        None,
+        f"[sync.project_consent.{project_uuid!r}].enabled is not a boolean "
+        f"(got {enabled!r})",
+    )
 
 
 class SyncConfig:
@@ -186,9 +228,18 @@ class SyncConfig:
         read = self.read()
         if read.fault is not None:
             return ProjectConsentRead(enabled=None, fault=read.fault)
-        return ProjectConsentRead(
-            enabled=_project_consent_entry(read.data, project_uuid), fault=None
-        )
+        enabled, entry_fault = _project_consent_entry(read.data, project_uuid)
+        if entry_fault is not None:
+            # A per-project fact, deliberately NOT a machine-level one: the file read
+            # fine, so ``consent_index_health()`` must keep reporting the index
+            # healthy. One broken entry is not a broken index.
+            return ProjectConsentRead(
+                enabled=None,
+                fault=ConfigReadFault(
+                    kind="unusable", detail=f"{self.config_file}: {entry_fault}"
+                ),
+            )
+        return ProjectConsentRead(enabled=enabled, fault=None)
 
     def _save(self, config: dict[str, Any]) -> None:
         """Write config dict back to config.toml atomically."""
@@ -372,11 +423,12 @@ class SyncConfig:
     def get_project_consent(self, project_uuid: str) -> bool | None:
         """Return the recorded consent for *project_uuid*, or ``None`` if absent.
 
-        ``None`` conflates "no record" with "index unreadable"; callers that must
+        ``None`` conflates "no record" with "index unreadable" — and, since #3030
+        FR-027, with "the entry exists but records nothing usable"; callers that must
         tell them apart use :meth:`read_project_consent`. Kept as-is because ``None``
         denies either way, so existing callers stay correct without change.
         """
-        return _project_consent_entry(self._load(), project_uuid)
+        return _project_consent_entry(self._load(), project_uuid)[0]
 
     def get_all_project_consent(self) -> dict[str, bool]:
         """Return every recorded uuid → consent pair."""
