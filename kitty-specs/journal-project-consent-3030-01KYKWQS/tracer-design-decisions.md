@@ -355,3 +355,73 @@ would leave the erasure claim unprovable while sounding total — the worst of t
 This matters more than a wording choice. An operator purging a client engagement needs to
 know the scope of what they just did; "erased" that silently means "erased here" is the same
 class of defect as a gate that reports success for having done nothing.
+
+## Only a YAML `bool` records a consent decision (FR-027, `34e4e16496`)
+
+19 non-bool `enabled` shapes granted before the fix, not the four reported — `enabled: False`
+unquoted was the only one that already denied. Isolated properly rather than trusted: the probe
+was re-run in a clean HEAD worktree with only the three changed source files copied in, giving a
+byte-identical table, so the result is attributable and not another agent's in-flight work in the
+shared tree.
+
+**Decision: only a YAML `bool` records a decision; every other present value is a fault. No
+string form is accepted in either direction.** Three grounds, and the second is the decisive one:
+
+1. Accepting `"false"` buys nothing, since a fault already denies.
+2. The same table would then have to rule on `"true"`, `1`, `"yes"`, `"on"` — which become
+   **grants**. A leak surface with no upside. The two directions are not symmetric, so a rule
+   that looks even-handed is not.
+3. `no`/`off`/`yes`/`on` are strings only because ruamel is YAML 1.2. Accepting them means
+   re-implementing implicit typing this module does not own.
+
+A fault is also **reportable**, whereas silently honouring `"false"` would leave
+`enabled: "true"` broken *and* silent.
+
+**Absence stays absence, with a sentinel.** `dict.get` collapses "key missing" with "key holds
+null", so an explicit `enabled: null` is a fault (the key was written; nothing usable recorded)
+while a *missing* key is not. This **deliberately diverges** from `identity/project.py`'s
+`None → absence`, and the reason is worth keeping: identity's absence **mints** a uuid, which is
+harmless; consent's absence **defers to a possibly-stale grant**. Same shape, opposite safe
+direction. A considered non-uniformity, not an inconsistency — the C-003 rule is one
+representation of one invariant, and these are two invariants.
+
+**The FR-024 residual was closed by asking, not re-deciding.** It delegates to
+`ProjectIdentity.from_dict`, the single parse site FR-024 made authoritative, so there is one
+notion rather than a fourth. `routing.py` needed no logic change at all: it already consumes
+`project_local_consent_fault`, so widening the notion reached the gate for free — which is the
+payoff for having put that seam in one place.
+
+## A valid uuid spelled non-canonically discarded its own project's refusal
+
+Found by probing the set rather than the reported cases, and **measured granting**. Raw file
+text was compared against the canonical uuid the journal stores, so an UPPERCASE, dash-less or
+`urn:uuid:`-prefixed spelling of the project's *own* uuid read as *some other project* — and the
+committed refusal beside it was discarded. Now parsed on both sides.
+
+This is the same lesson as FR-024's padded-uuid decision, one layer out: two places compared
+representations of the same identity without agreeing on the representation. Worth remembering
+that `str == str` on an identifier is a comparison of *spellings*, not of identities.
+
+## The machine-wide-denial finding is real but far less reachable than it looked
+
+A reviewer measured that one unreadable sibling config denies every project on the machine, and
+noted it contradicts FR-020's own recorded rationale. FR-027 makes *more* file contents qualify
+as a fault, so the surface grows — direction unchanged and fail-closed.
+
+But the reachability is much narrower than "any sibling checkout", and this was measured:
+**every production supplier of `checkout_roots` offers at most one root — the cwd's project
+root** (`selection.py:101`, `background.py:298`, `runtime.py:151`, `local_commit.py:330`,
+`sync/__init__.py:373`). So the trigger is **the drain's own checkout being broken**, not an
+arbitrary sibling's. That is a materially different defect: annoying and self-inflicted rather
+than a machine-wide outage caused by an unrelated project. The contradiction with FR-020's
+rationale stands and is not resolvable from within `consent.py`/`config.py`/`routing.py`.
+
+## Two residual holes, both with a stated reason for not closing them
+
+- **Mis-spelling the *key*** (`enabledd: false`) still voids the refusal, and is indistinguishable
+  from a missing key without a closed whitelist of `sync.*` keys — which would break forward
+  compatibility with any newer key an older CLI has not heard of. Recorded rather than fixed.
+- **Genuine identity absence plus a grant** still captures with `project_uuid=None`. Not fixable
+  without denying every pre-`init` checkout. Reachability is low because `enable_checkout_sync`
+  refuses to write a grant without a uuid, so the grant must be a leftover from a config that
+  once had identity and lost it.
