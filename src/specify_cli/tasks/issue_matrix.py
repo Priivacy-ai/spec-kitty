@@ -114,7 +114,13 @@ def _matched_issue_number(match: re.Match[str]) -> int | None:
     """
     if match.group(1) is not None:
         return int(match.group(1))
-    if f"{match.group('owner')}/{match.group('repo')}" != _CANONICAL_REPO_SLUG:
+    # GitHub owner/repo slugs are case-insensitive, so a same-repo URL authored
+    # with non-canonical casing (e.g. ``priivacy-ai/spec-kitty``) must still be
+    # recognised -- a case-sensitive compare would silently drop it, a
+    # false-negative that lets a real same-repo issue escape the completeness
+    # gate (SC-008). Compare case-folded on both sides.
+    owner_repo = f"{match.group('owner')}/{match.group('repo')}"
+    if owner_repo.casefold() != _CANONICAL_REPO_SLUG.casefold():
         return None
     return int(match.group("url_number"))
 

@@ -138,6 +138,21 @@ class TestSameRepoUrlRecognition:
 
         assert [r.number for r in refs] == [320]
 
+    def test_same_repo_url_with_noncanonical_casing_is_discovered(self, tmp_path: Path) -> None:
+        """GitHub owner/repo slugs are case-insensitive, so a same-repo URL
+        authored with non-canonical casing must still be recognised -- a
+        case-sensitive filter would silently drop it, a false-negative that
+        lets a real same-repo issue escape the completeness gate (SC-008)."""
+        spec_md = tmp_path / "spec.md"
+        spec_md.write_text(
+            "See https://github.com/priivacy-ai/Spec-Kitty/issues/320 for details.\n",
+            encoding="utf-8",
+        )
+
+        refs = detect_issue_references(spec_md)
+
+        assert [r.number for r in refs] == [320]
+
     def test_pr_url_is_not_matched(self, tmp_path: Path) -> None:
         """A ``/pull/`` URL must never be treated as an issue reference."""
         spec_md = tmp_path / "spec.md"
