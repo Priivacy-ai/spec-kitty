@@ -72,8 +72,24 @@ class _OkPreflight:
         return None
 
 
+#: #3030 WP06: selection requires a consented project identity, so every journal
+#: event these CLI tests seed carries this uuid and ``_consent_to_cli_project``
+#: records consent for it. These tests exercise `sync now`'s dispatch/report
+#: plumbing, not consent; the consent behaviour itself is pinned in
+#: tests/delivery/test_incident_reproduction_3030.py and its siblings.
+_CLI_PROJECT_UUID = "ffffffff-0000-0000-0000-00000000000f"
+
+
+def _consent_to_cli_project() -> None:
+    """Record hosted-sync consent for the uuid these tests' events carry."""
+    from specify_cli.sync.consent import set_project_consent
+
+    set_project_consent(_CLI_PROJECT_UUID, True)
+
+
 def _populate_journal(count: int = 3) -> EventJournal:
     """Append *count* JSON-object events to the CLI-resolved journal."""
+    _consent_to_cli_project()
     journal = EventJournal(resolve_journal_path())
     for index in range(count):
         journal.append(
@@ -83,6 +99,7 @@ def _populate_journal(count: int = 3) -> EventJournal:
                 payload=json.dumps({"n": index}).encode("utf-8"),
                 occurred_at="2026-06-29T00:00:00+00:00",
                 created_at=f"2026-06-29T00:00:0{index}+00:00",
+                project_uuid=_CLI_PROJECT_UUID,
             )
         )
     return journal
@@ -843,6 +860,7 @@ def test_sync_now_posts_exactly_once_and_drains_body(
     # The wire envelope is the event's own JSON payload (``event_id`` is carried
     # on the OutboundEvent, not the body), so embed it in the payload here so the
     # fake server can echo a per-event success result keyed on it.
+    _consent_to_cli_project()
     journal = EventJournal(resolve_journal_path(team_slug="team"))
     journal.append(
         Event(
@@ -851,6 +869,7 @@ def test_sync_now_posts_exactly_once_and_drains_body(
             payload=json.dumps({"event_id": "evt-solo", "n": 1}).encode("utf-8"),
             occurred_at="2026-06-29T00:00:00+00:00",
             created_at="2026-06-29T00:00:00+00:00",
+            project_uuid=_CLI_PROJECT_UUID,
         )
     )
 
@@ -903,3 +922,77 @@ def test_sync_migrate_imports_queue_db_into_journal() -> None:
     journal = EventJournal(resolve_journal_path())
     assert journal.read_by_id("evt-m0") is not None
     assert journal.read_by_id("evt-m1") is not None
+
+
+# ---------------------------------------------------------------------------
+# #3030 FR-015 — `sync migrate` must report the composition of what it MOVED
+# ---------------------------------------------------------------------------
+
+
+def _seed_legacy_queue(rows: Sequence[tuple[str, str]]) -> None:
+    """Write ``(event_id, json_payload)`` pairs into the legacy ``queue.db``."""
+    import sqlite3
+
+    from specify_cli.paths import get_runtime_root
+
+    base = get_runtime_root().base
+    base.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(base / "queue.db"))
+    conn.execute(
+        "CREATE TABLE queue (id INTEGER PRIMARY KEY, event_id TEXT, "
+        "event_type TEXT, data TEXT, timestamp INTEGER)"
+    )
+    conn.executemany(
+        "INSERT INTO queue (event_id, event_type, data, timestamp) VALUES (?, ?, ?, ?)",
+        [
+            (event_id, "mission.updated", payload, 1700000000 + index)
+            for index, (event_id, payload) in enumerate(rows)
+        ],
+    )
+    conn.commit()
+    conn.close()
+
+
+def test_sync_migrate_reports_the_per_project_composition_of_what_it_moved() -> None:
+    """FR-015's third surface. `sync migrate` produced the incident's false-green.
+
+    It emptied the legacy queue `doctor` reads while pooling every local project's
+    payloads into one machine-global journal, and printed nothing but aggregate
+    import/dedupe counts — so the operator was never told *whose* events had just
+    been lifted. Red before the fix: `sync migrate` had a zero diff for this WP and
+    printed no composition at all.
+
+    The composition of legacy rows is also a substantive finding rather than a
+    formality: `migrate_journal._build_event` sets no identity columns, so every
+    migrated row lands with a NULL ``project_uuid`` and is therefore unselectable
+    until an identity backfill runs. FR-011 exists so that is visible instead of
+    silent.
+    """
+    _seed_legacy_queue(
+        [
+            ("evt-m0", json.dumps({"event_id": "evt-m0"})),
+            ("evt-m1", json.dumps({"event_id": "evt-m1"})),
+        ]
+    )
+
+    result = runner.invoke(app, ["migrate"])
+
+    assert result.exit_code == 0, result.output
+    assert "imported 2" in result.output
+    assert "Migrated events by project" in result.output
+    # Two identity-less rows, grouped and counted rather than dropped (FR-011).
+    assert "identity unresolved" in result.output
+    assert "no stored project identity" in result.output
+
+
+def test_sync_migrate_says_so_when_it_moved_nothing() -> None:
+    """A re-run must state that explicitly, not omit the section.
+
+    An absent section is how the first cut of this WP's `doctor` renderer failed:
+    "nothing to move" and "the composition could not be read" looked identical.
+    """
+    result = runner.invoke(app, ["migrate"])
+
+    assert result.exit_code == 0, result.output
+    assert "Migrated events by project" in result.output
+    assert "nothing imported on this run" in result.output

@@ -11,12 +11,24 @@ clause, and ``_select_undelivered`` (``delivery/dispatcher.py:192-223``) never
 looks inside the payload — ``_decode_payload`` (``dispatcher.py:231-245``) is
 only reached in the *post* phase, after selection has already happened.
 
-This drives the REAL emit -> capture -> dispatch -> receiver path end to end
-(no hand-built journal rows), mirroring
-``tests/delivery/test_envelope.py::test_journal_stores_full_envelope_so_dispatch_posts_contract_event``,
-with TWO distinct project identities that land in the SAME shared journal —
-the shared-journal premise is the point, not an accident, and is asserted
-explicitly below before the drain even runs.
+Both sides drive the REAL emit -> capture -> dispatch -> receiver path end to end,
+mirroring
+``tests/delivery/test_envelope.py::test_journal_stores_full_envelope_so_dispatch_posts_contract_event``.
+Both events therefore sit in the SAME shared journal — that premise is the point,
+not an accident, and is asserted explicitly below before the drain even runs.
+
+A note on how this pin is *not* built, because it was built that way once. An
+earlier revision seeded the never-opted-in row directly and stamped it
+``saas_disabled`` so that nothing claimed the checkout had consented at capture
+time. That removed one overclaim and introduced a worse one: ``saas_disabled`` is
+the sole member of ``selection.TERMINAL_DRAIN_BLOCKED_REASONS``, so T003's filter
+excluded the row on its own and the pin stopped testing consent at all — green with
+the consent predicate reverted entirely. Making both gates identical and open is
+the stronger arrangement: neither row is drain-blocked, so consent is the only
+signal that can separate their outcomes, and the reviewer's original objection is
+answered without handing T003 the decision. The complementary "no row is created in
+the first place" property is pinned separately in
+:func:`test_a_never_opted_in_project_no_longer_reaches_the_journal_at_all`.
 
 Consent is recorded for the FIRST project only, **keyed on its ``project_uuid``**
 via ``sync.consent.set_project_consent`` — the same write ``enable_checkout_sync``
@@ -50,11 +62,21 @@ BOTH events with the same ``drain_blocked_reason=saas_disabled``, which made
 this file's "must ship" demand and the sibling's "any such row must never
 ship" demand directly contradictory — no implementation could satisfy both),
 the consenting checkout's capture gate is forced open below so its journal
-row is genuinely unblocked (``drain_blocked_reason=None``); only the
-non-consenting checkout's row is left machine-gate-blocked. The two files now
-key on different, non-overlapping columns: 3031 on
-``Event.drain_blocked_reason`` values it constructs directly; this file on
-``repo_slug``-keyed consent-record resolution via a real emitter round-trip.
+row is genuinely unblocked (``drain_blocked_reason=None``); only the residual
+row carries ``saas_disabled``. The two files now key on different,
+non-overlapping columns: 3031 on ``Event.drain_blocked_reason`` values it
+constructs directly; this file on the ABSENCE of a ``repo_slug``-keyed consent
+record for a project whose row is on disk regardless.
+
+That separation had a cost this file used to pay wrongly, and the fix is why both
+gates are now identical. ``saas_disabled`` is the SOLE member of
+``selection.TERMINAL_DRAIN_BLOCKED_REASONS``, so while the two rows carried
+*different* drain-blocked reasons, T003's filter excluded the non-consenting one on
+its own and the consent clause never had to fire — the pin stayed green with the
+consent predicate stripped out entirely. Two independent investigations reached that
+same conclusion and it was fixed the same way: make the rows indistinguishable on
+every machine signal, so consent is the only thing left that can separate their
+outcomes.
 """
 from __future__ import annotations
 
@@ -218,15 +240,26 @@ def test_consenting_project_leaks_sibling_project_event_through_shared_journal(
     the sibling owns machine-readiness exclusion, this file owns consent
     exclusion — rather than needing the rows classified differently to coexist.
 
-    Reds today: the dispatcher ships BOTH events. The journal has no project
-    scoping at all (only ``user_id``/``team_slug``), and the drain never
-    decodes ``project_slug`` from the payload to gate delivery — so once two
-    projects share a journal (the common case: no per-project journal
-    partitioning exists), a single active sync target drains every project's
-    events indiscriminately, exactly as the incident (five non-consenting
-    projects' events shipped alongside a consenting one) played out. No
-    consent-checking code exists on the drain path at all today, so both
-    events ship regardless of ``repo_slug``/consent-record resolution.
+    Which is precisely why a third row is needed to pin CONSENT. An earlier
+    revision of this docstring claimed the two rows established that "consent — not
+    drain_blocked_reason — is the only thing distinguishing the two events", and
+    that was false: the assertions below establish that they differ on exactly that
+    field, and ``saas_disabled`` is on its own a terminal exclusion under T003. The
+    open never-opted-in row added below carries the consent claim instead.
+
+    Originally red because the dispatcher shipped BOTH events: the journal has no
+    project scoping (only ``user_id``/``team_slug``), and the drain never decoded
+    ``project_slug`` from the payload to gate delivery — so once two projects
+    shared a journal (the common case: no per-project journal partitioning
+    exists), a single active sync target drained every project's events
+    indiscriminately, exactly as the incident (five non-consenting projects'
+    events shipped alongside a consenting one) played out.
+
+    Still falsifiable today, which is the point of keeping it, and falsifiable by
+    the regression that matters: reverting the consent predicate while leaving
+    T003's drain-blocked filter intact ships the open never-opted-in row and reds
+    this test. Replacing ``selectable_event_ids`` with the wholly unfiltered
+    universe reds it too, on the residual row as well.
     """
     from specify_cli.sync import emitter as emitter_mod
 
@@ -281,12 +314,14 @@ def test_consenting_project_leaks_sibling_project_event_through_shared_journal(
         "capture-first) — the defect is at drain time, not capture time"
     )
 
-    # The shared-journal premise, asserted explicitly before the drain runs:
-    # both events landed in the SAME journal file (team_slug=None for both,
-    # since is_saas_sync_enabled() is stubbed False for this process).
     journal = get_journal(team_slug=None)
+
+    # A THIRD row, and it is what makes this file a consent pin at all. The residual
+    # The shared-journal premise, asserted explicitly before the drain runs: both
+    # events sit in the SAME journal file (team_slug=None, since
+    # is_saas_sync_enabled() is stubbed False for this process).
     assert journal.count() == 2, (
-        "both projects' events must land in the same producer-scoped journal "
+        "every project's event must sit in the same producer-scoped journal "
         "for this test to exercise the real cross-project leak"
     )
 
@@ -338,3 +373,58 @@ def test_consenting_project_leaks_sibling_project_event_through_shared_journal(
         "Both rows are drain-open, so consent is the only thing that can exclude "
         "this one"
     )
+
+
+def test_a_never_opted_in_project_no_longer_reaches_the_journal_at_all(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The stronger post-T006 property, which nothing currently pins.
+
+    The test above proves the DRAIN excludes a never-opted-in project's residual
+    row. This proves the complementary half: after T006 no such row is created in
+    the first place, so the machine-global pool stops growing. Without this, T006's
+    capture refusal could be reverted and every existing pin would stay green —
+    the drain would keep excluding rows that no longer needed to exist.
+
+    Nothing is stubbed to produce the refusal. The emitter keeps its REAL
+    ``_capture_gate_state``, and this project has no consent record anywhere, so
+    ``_project_consents_to_capture`` denies and the write never happens.
+
+    That mechanism changed under #3030 M1 and this docstring changed with it: the
+    gate used to resolve ``checkout_enabled`` from the working directory via
+    ``routing.is_sync_enabled_for_checkout``, so the refusal came from cwd being a
+    plain temp dir rather than a checkout (WP01's deny-by-default, FR-003). It now
+    resolves from the EVENT'S OWN ``project_uuid``, which is strictly better here —
+    the refusal is now caused by the absent consent record this test is about,
+    rather than by an incidental property of the working directory. The
+    ``monkeypatch.chdir`` below is retained only to keep the test off the developer's
+    real checkout; it is no longer what produces the denial.
+    """
+    from specify_cli.sync import emitter as emitter_mod
+
+    monkeypatch.setattr(emitter_mod, "is_saas_sync_enabled", lambda: False)
+    monkeypatch.chdir(tmp_path)
+    # Deliberately NO consent record for this project, anywhere.
+
+    nonconsenting = _stub_emitter(
+        project_slug="client-confidential", build_id="confidential-build-1"
+    )
+
+    envelope = nonconsenting._emit(
+        event_type="ErrorLogged",
+        aggregate_id="WP04",
+        aggregate_type="WorkPackage",
+        payload={"error_type": "runtime", "error_message": "boom", "wp_id": "WP04"},
+    )
+    assert envelope is not None, (
+        "emission itself must still succeed — the local command does not fail "
+        "because hosted sync was declined"
+    )
+
+    journal = get_journal(team_slug=None)
+    assert journal.count() == 0, (
+        "a project that never opted in must leave NO journal row (T006 / NFR-005 "
+        "as amended): capture-first durability applies to consenting projects "
+        f"only, yet {journal.count()} row(s) were written"
+    )
+    assert journal.read_by_id(envelope["event_id"]) is None

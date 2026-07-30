@@ -29,9 +29,15 @@ if TYPE_CHECKING:
     from specify_cli.delivery.ledger import SqliteDeliveryLedger
     from specify_cli.delivery.receivers import DeliveryReceiver, GateDecision
     from specify_cli.delivery.retention import RetentionResult
+    from specify_cli.delivery.status_report import (
+        PerProjectStoreReport,
+        ProjectStoreRow,
+        UnresolvedIdentityCandidate,
+    )
     from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
     from specify_cli.event_journal.journal import EventJournal
     from specify_cli.sync.history_import import UploadReport
+    from specify_cli.sync.project_identity import IdentityBackfillResult
     from specify_cli.sync.migrate_journal import (
         CleanupResult,
         ConflictResolution,
@@ -919,6 +925,97 @@ def _event_sync_report(base: dict[str, Any], runtime: _EventSyncRuntime) -> dict
                 audit.close()
 
 
+#: Opening words of the empty-selection diagnosis. One constant because three tests
+#: and two surfaces key on it, and because "nothing was selected" has to be sayable
+#: in words — ``(selected 0)`` inside a counts line is not a diagnosis.
+_NOTHING_TO_DELIVER = "Nothing to deliver."
+
+
+def _empty_selection_cause(report: PerProjectStoreReport) -> str:
+    """Explain WHY a drain selected nothing, using only what the report can prove.
+
+    FR-005 asks the drain to "report the real cause". Before this, `sync now` printed
+    an all-zero counts line ending ``(selected 0)`` and stopped, which collapses four
+    situations that need four different actions:
+
+    * the journal is empty — nothing to do, and emphatically not a consent problem;
+    * no project has consented — the operator's data will never ship until they act,
+      which is the incident's own shape and the only one that is urgent;
+    * every row's identity is unresolved — recoverable, and H4 wired the remedy;
+    * a consented project's rows exist but none is selectable right now.
+
+    That last branch is deliberately the weakest claim. Distinguishing "already
+    delivered" from "terminally drain-blocked" needs ledger state the report does not
+    carry, so it names both possibilities instead of asserting one. Guessing here
+    would recreate exactly the wrong-and-actionable diagnosis the no-Private-Teamspace
+    message was: an operator told the wrong cause acts on the wrong thing.
+
+    Sourced entirely from :func:`build_per_project_store_report` — the same grouping
+    that backs `doctor`, `status` and `migrate`, so the four surfaces cannot disagree
+    about who is in the store (C-003). No second classifier.
+    """
+    if not report.rows:
+        return (
+            "The event journal is empty — no events have been captured for this "
+            "producer scope yet, so there is nothing to send."
+        )
+
+    total = report.counted_event_total
+    if report.unresolved_identity_count >= total > 0:
+        return (
+            f"All {total} retained event(s) have no stored project identity, so none "
+            "of them can be selected for delivery. Run `spec-kitty sync migrate` to "
+            "recover the identity of any whose stored payload still carries it."
+        )
+
+    if not any(row.consent_granted for row in report.rows):
+        named = ", ".join(
+            (row.repo_slug or row.project_slug or row.project_uuid or "<unnamed>")
+            for row in report.named_non_consenting_rows
+        )
+        detail = f": {named}" if named else ""
+        return (
+            f"No project in the event journal has consented to hosted sync{detail}. "
+            f"Its {total} retained event(s) stay on this machine and will never be "
+            "delivered until consent is recorded — run `spec-kitty sync enable` in "
+            "the project that should ship, or `spec-kitty sync doctor` for the full "
+            "per-project breakdown."
+        )
+
+    return (
+        "Every consented project's retained events have already been delivered to "
+        "this target, or are terminally drain-blocked. Nothing is being withheld "
+        "for lack of consent; `spec-kitty sync doctor` shows the per-project state."
+    )
+
+
+def _report_empty_selection(summary: DispatchSummary | None, journal: EventJournal) -> None:
+    """Name the cause when a drain selected nothing (FR-005 / T005, SC-003's fifth path).
+
+    Only fires on a genuinely empty selection. A drain that selected rows and failed
+    to deliver them has its own reporting and its own exit contract; adding a cause
+    line there would compete with a more specific message.
+
+    Never raises: a diagnosis that breaks the command it is explaining would be worse
+    than the silence it replaces.
+    """
+    if summary is None or summary.selected != 0:
+        return
+    from specify_cli.delivery.status_report import build_per_project_store_report
+
+    try:
+        report = build_per_project_store_report(journal)
+    except Exception as exc:  # noqa: BLE001 - explanatory only, never fatal
+        _LOG.debug("empty-selection diagnosis unavailable: %s", exc)
+        console.print(
+            f"[yellow]{_NOTHING_TO_DELIVER}[/yellow] The reason could not be "
+            f"determined ({str(exc)[:80]}); `spec-kitty sync doctor` reports the "
+            "journal's per-project state."
+        )
+        return
+    console.print(f"[yellow]{_NOTHING_TO_DELIVER}[/yellow] {_empty_selection_cause(report)}")
+
+
 def _print_dispatch_summary(summary: DispatchSummary, mode_name: str) -> None:
     """Render the dispatcher's per-outcome counts (sourced, never recomputed)."""
     console.print(
@@ -1046,6 +1143,11 @@ def _run_event_sync_dispatch() -> DispatchSummary | None:
         delivery_target = runtime.registry.register_from_resolved(runtime.target)
         summary = _run_dispatch_batches(runtime, receiver, delivery_target)
         _print_dispatch_summary(summary, config.mode.name)
+        # FR-005/T005: an all-zero summary is four different situations with four
+        # different remedies. Reported from HERE, while `runtime` is still open, so
+        # the diagnosis reads the exact journal the drain just selected from rather
+        # than re-resolving a scope and possibly describing a different store.
+        _report_empty_selection(summary, runtime.journal)
         return summary
     except Exception as exc:  # additive drain must never break the command
         _LOG.debug("event-sync dispatch skipped: %s", exc)
@@ -1190,6 +1292,377 @@ def _materialize_private_source_project() -> None:
     if event is None:
         raise RuntimeError("Could not emit BuildRegistered for this checkout.")
     get_sync_service().sync_now()
+
+
+_PER_PROJECT_SECTION_TITLE = "Event journal by project"
+#: Shown for an unresolved-identity candidate that recorded NO name in any identity
+#: column. One constant, because it has to mean exactly that on every surface: the
+#: N1-a defect was this label appearing for rows that did carry a name, which makes
+#: it untrustworthy precisely when it is the truth (legacy `sync migrate` imports).
+_NO_RECORDED_NAME = "<no name recorded>"
+
+
+def _oldest_age_label(created_at: str | None) -> str:
+    """Render an ISO timestamp as an AGE, which is what FR-015 asks an operator for.
+
+    "2026-06-01T00:00:00+00:00" tells an operator nothing about how long a
+    project's payloads have been sitting there; "58d ago" does. An unparseable
+    value degrades to the raw string rather than to ``n/a`` — losing the only
+    timestamp we have would hide the row's age entirely.
+    """
+    if not created_at:
+        return "[dim]n/a[/dim]"
+    try:
+        parsed = datetime.fromisoformat(created_at)
+    except ValueError:
+        return created_at
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return f"{humanize_timedelta(datetime.now(UTC) - parsed)} ago"
+
+
+def _project_store_label(row: ProjectStoreRow) -> str:
+    """The name an operator can act on, preferred over the one we happen to store.
+
+    ``repo_slug`` is what ``sync purge --project`` and the consent records are
+    keyed on, so it leads; ``project_slug`` is the human name; the uuid is the
+    last resort. The unresolved-identity bucket is labelled as such rather than
+    rendering blank — FR-011 exists so that denial is visible.
+    """
+    if row.is_unresolved_identity:
+        return "[yellow]<identity unresolved>[/yellow]"
+    return row.repo_slug or row.project_slug or row.project_uuid or "?"
+
+
+def _per_project_store_issues(report: PerProjectStoreReport) -> list[str]:
+    """The operator-actionable warnings a per-project breakdown implies.
+
+    Kept separate from the rendering so ``doctor``'s "Issues found" list and
+    ``status``'s warnings cannot say different things about the same report.
+    """
+    issues: list[str] = []
+    # Reconciliation is the load-bearing check: a table that omits rows is the
+    # incident's false-green with a nicer layout.
+    if not report.reconciles:
+        issues.append(
+            f"Per-project totals ({report.counted_event_total}) do not reconcile "
+            f"against the journal's retained count ({report.retained_event_count}). "
+            "The report is incomplete — do not trust it."
+        )
+    if report.unresolved_identity_count:
+        # Deliberately not "permanently undeliverable", and no longer pointing at
+        # `purge` as the only remedy. Since #3030 H4 wired the identity backfill
+        # into `sync migrate`, rows whose stored envelope carries a resolvable uuid
+        # ARE recoverable, and for the operator's own consenting project that is the
+        # difference between their history shipping and being stranded forever.
+        # Sending them to `purge` would destroy recoverable data. What is permanent
+        # is only that a NULL row cannot be SELECTED (FR-011, fail-closed).
+        issues.append(
+            f"{report.unresolved_identity_count} journal event(s) have no stored "
+            "project identity, so they cannot be selected for delivery. Run "
+            "`spec-kitty sync migrate` to recover the identity of any whose stored "
+            "payload still carries it; whatever remains is retained locally and "
+            "removable only with `spec-kitty sync purge`."
+            + _unresolved_origin_clause(report)
+        )
+    # NAMED refusals only. The unresolved-identity bucket is also
+    # `consent_granted=False`, but its consent could not be resolved at all — see
+    # `named_non_consenting_rows`. Naming one of its member repos here told the
+    # operator that repo had refused and should be purged; purging it leaves the
+    # bucket's other repos on disk while the report reads clean.
+    non_consenting = report.named_non_consenting_rows
+    if non_consenting:
+        named = ", ".join(
+            (r.repo_slug or r.project_slug or r.project_uuid or "<unnamed>")
+            for r in non_consenting
+        )
+        issues.append(
+            f"{len(non_consenting)} project(s) in the journal have not consented to "
+            f"hosted sync: {named}. Their events are retained locally and never "
+            "delivered; `spec-kitty sync purge --project <slug>` removes them."
+        )
+    return issues
+
+
+def _unresolved_origin_clause(report: PerProjectStoreReport) -> str:
+    """Name the repos the unresolved rows appear to come from, with counts (SC-004).
+
+    Without this an operator is told a number and nothing else, and has to open
+    SQLite to learn which repos are involved — even though the slugs are already on
+    the rows and in the identity projection. Worded as *appear to come from*: with
+    no uuid these rows' consent cannot be resolved, so this is provenance, never a
+    statement about what any of those projects decided.
+    """
+    candidates: tuple[UnresolvedIdentityCandidate, ...] = tuple(
+        candidate
+        for row in report.rows
+        if row.is_unresolved_identity
+        for candidate in row.unresolved_candidates
+    )
+    if not candidates:
+        return ""
+    from specify_cli.delivery.status_report import unresolved_candidate_name
+
+    named = ", ".join(
+        f"{unresolved_candidate_name(candidate) or _NO_RECORDED_NAME} "
+        f"({candidate.event_count})"
+        for candidate in candidates
+    )
+    return (
+        f" They appear to come from: {named}. Consent for these rows cannot be "
+        "resolved without a project identity, so this is where they were captured, "
+        "not what those projects decided."
+    )
+
+
+def _per_project_store_table(report: PerProjectStoreReport) -> Table:
+    """The count / oldest-age / consent-state grid FR-015 and SC-004 ask for.
+
+    Folds, never ellipsizes. Rich truncates an over-wide cell by default, and a
+    truncated project identity would satisfy the layout while breaking SC-004's
+    "names every project" — the operator would be shown a prefix they cannot pass
+    to ``sync purge``.
+    """
+    from specify_cli.delivery.status_report import unresolved_candidate_name
+
+    table = Table(show_header=True, box=None)
+    table.add_column("Project", style="dim", overflow="fold")
+    table.add_column("Events", justify="right")
+    table.add_column("Oldest", overflow="fold")
+    table.add_column("Consent", overflow="fold")
+    for row in report.rows:
+        state = (
+            "[green]consented[/green]"
+            if row.consent_granted
+            else f"[red]denied[/red] [dim]({row.consent_level})[/dim]"
+        )
+        table.add_row(
+            _project_store_label(row),
+            f"{row.event_count:,}",
+            _oldest_age_label(row.oldest_created_at),
+            state,
+        )
+        # The unresolved bucket spans projects, so it gets a sub-row per RECORDED
+        # IDENTITY — see `_unresolved_identity_candidates` for why the key is the
+        # (repo_slug, project_slug) pair and not the repo slug alone. This is what
+        # makes SC-004's "names every project present with count, oldest age and
+        # consent state" hold for this population — previously the bucket rendered as
+        # one anonymous line and the projects behind it were reachable only by
+        # hand-querying SQLite. Consent reads "unknown", not "denied": without a
+        # uuid there is nothing to resolve, and claiming a refusal here is the N1
+        # false fact.
+        for candidate in row.unresolved_candidates:
+            name = unresolved_candidate_name(candidate)
+            table.add_row(
+                f"  [dim]└[/dim] {name or f'[dim]{_NO_RECORDED_NAME}[/dim]'}",
+                f"{candidate.event_count:,}",
+                _oldest_age_label(candidate.oldest_created_at),
+                "[yellow]unknown[/yellow] [dim](identity unresolved)[/dim]",
+            )
+    return table
+
+
+def _open_journal_readonly() -> EventJournal:
+    """Open ONLY the journal for the current producer scope, read-only (#3030 T021).
+
+    Deliberately not ``_open_event_sync_runtime_readonly``, which also resolves the
+    delivery target and opens the ledger and target registry. A "whose data is in
+    here?" read needs none of those, and sharing that opener meant any
+    target-resolution failure was reported as "the event journal could not be
+    read" — the wrong diagnosis, naming the wrong store, in the one section whose
+    job is to be trustworthy about which store it read.
+
+    Raises ``FileNotFoundError`` when this scope has no journal file yet, which the
+    caller renders as the benign absence it is.
+    """
+    from specify_cli.event_journal.journal import EventJournal, resolve_journal_path
+
+    scope = _current_event_sync_scope()
+    path = resolve_journal_path(user_id=scope.user_id, team_slug=scope.team_slug)
+    if not path.exists():
+        raise FileNotFoundError(f"event-sync journal DB absent: {path}")
+    return EventJournal(path)
+
+
+def _render_per_project_store(console_out: Any, issues: list[str]) -> None:
+    """Render the journal's per-project composition with consent state (#3030 T021).
+
+    Sits beside doctor's queue-health block deliberately rather than replacing it.
+    That block reads ``OfflineQueue().get_queue_stats()``, which is EMPTY after
+    ``sync migrate`` — the source of the incident's false-green, where the operator
+    saw "Queue size 0" while 9,133 events sat in the journal. This section answers
+    "whose data is actually in here?" from the journal itself, so the two cannot
+    disagree silently.
+
+    **Every exit path from this function is observable.** The first cut returned
+    silently on an unopenable runtime, on a failed grouping, and on an empty
+    report, which made three very different states — "nothing is in the journal",
+    "I could not read the journal", and "I never looked" — render identically:
+    doctor's usual healthy table with no journal section and exit 0. That is the
+    incident's false-green rebuilt inside the fix for it. A failure now names what
+    could not be read, and the empty case says so out loud.
+    """
+    from specify_cli.delivery.status_report import build_per_project_store_report
+
+    try:
+        journal = _open_journal_readonly()
+    except FileNotFoundError as exc:
+        # The one benign absence: no journal file has ever been created for this
+        # producer scope, so there is genuinely nothing to group. Still printed,
+        # because "no journal yet" and "I could not look" must not read alike.
+        console_out.print(f"\n[bold]{_PER_PROJECT_SECTION_TITLE}[/bold]")
+        console_out.print(f"  [dim]no journal for this scope yet ({exc})[/dim]")
+        return
+    except Exception as exc:
+        issues.append(
+            f"The event journal could not be opened, so this run cannot say which "
+            f"projects have data in it: {exc}. Until this is resolved, treat a "
+            "clean queue-health block as unproven — it reads a different store."
+        )
+        return
+    try:
+        report = build_per_project_store_report(journal)
+    except Exception as exc:
+        issues.append(
+            f"The event journal opened but its rows could not be grouped by "
+            f"project: {exc}. Whose data is in the journal is currently UNKNOWN; "
+            "the queue-health block above does not answer it."
+        )
+        return
+
+    console_out.print(f"\n[bold]{_PER_PROJECT_SECTION_TITLE}[/bold]")
+    if report.rows:
+        console_out.print(_per_project_store_table(report))
+    else:
+        # Asserted-empty, not silently-empty: this line is the difference between
+        # a journal that holds nothing and a report that never ran.
+        console_out.print(
+            f"  [green]no events retained[/green] "
+            f"[dim](journal count {report.retained_event_count})[/dim]"
+        )
+    # Unconditionally, including on the empty branch. A journal that cannot answer
+    # count() reports -1, which does not reconcile against zero rows — so returning
+    # early on `not report.rows` would have rendered an unreadable journal as "no
+    # events retained". That is the same three-states-look-alike failure the
+    # docstring above is about, one branch further in.
+    issues.extend(_per_project_store_issues(report))
+
+
+def _print_identity_backfill_result(result: IdentityBackfillResult | None) -> None:
+    """Report what convergence recovered into the identity columns (#3030 H4).
+
+    Printed unconditionally, including the zero case, because "nothing needed
+    recovering" and "the backfill did not run" must not look alike — that
+    equivalence is what let the backfill sit unwired with every test green.
+    """
+    if result is None:
+        console.print(
+            "[yellow]![/yellow] The journal identity backfill could not run, so "
+            "rows with no stored identity remain unselectable. Re-run "
+            "`spec-kitty sync migrate`; if it persists, `spec-kitty sync doctor` "
+            "reports how many rows are affected."
+        )
+        return
+    console.print(
+        f"Journal identity: recovered {result.updated}  "
+        f"[dim]unresolvable {result.unresolved}[/dim]"
+    )
+    if result.unresolved:
+        # Not an error, and deliberately not phrased as one: these rows are
+        # fail-closed by design (FR-011). What matters is that they are visible.
+        console.print(
+            f"  [dim]{result.unresolved} row(s) carry no resolvable project "
+            "identity in their stored payload; they stay unselectable rather than "
+            "being assigned one.[/dim]"
+        )
+
+
+def _run_consent_index_backfill() -> None:
+    """Map path-keyed consent records onto the uuid index (#3030 H4, T016).
+
+    Opt-in via ``sync migrate --backfill-consent-index``, and gated for a specific
+    reason rather than caution: the uuid index is consulted at level 2, ABOVE the
+    repo default at level 3, so moving a path record into it can change a project's
+    effective answer — a project currently denied by a repo default becomes granted.
+    A migration that silently flipped delivery on is precisely the invisible consent
+    change this mission exists to eliminate, so the operator asks for it and every
+    change is named.
+
+    Also the only surface on which WP07's ``unresolved``-consent rows are reachable:
+    the result object carries the entries whose checkout no longer resolves to a
+    uuid, which is US2 scenario 3's "consented but unresolvable" population.
+    """
+    from specify_cli.sync.consent import backfill_uuid_consent_index
+
+    console.print()
+    console.print("[bold]Consent index backfill[/bold]")
+    try:
+        result = backfill_uuid_consent_index()
+    except Exception as exc:  # noqa: BLE001 - reported, never fatal to the migration
+        console.print(
+            f"  [yellow]![/yellow] could not be completed: {exc}. Path-keyed "
+            "records remain in place and the drain still cannot see them."
+        )
+        return
+
+    console.print(f"  mapped {result.mapped}  unresolved {result.unresolved}")
+    if result.mapped:
+        console.print(
+            "  [dim]Consent for these projects is now visible to the drain's "
+            "uuid-keyed lookup:[/dim]"
+        )
+        from specify_cli.sync.config import SyncConfig
+
+        for uuid, granted in sorted(SyncConfig().get_all_project_consent().items()):
+            state = "[green]consented[/green]" if granted else "[red]opted out[/red]"
+            console.print(f"    {uuid}  {state}")
+    for entry in result.unresolved_entries:
+        # US2 scenario 3: the decision is retained, but the predicate cannot see
+        # it, so reported state must not imply it is enforced.
+        state = "consented" if entry.enabled else "opted out"
+        console.print(
+            f"  [yellow]unresolved[/yellow] {entry.path} [dim]({state} here, but "
+            "this checkout no longer declares a project uuid, so the drain cannot "
+            "apply it)[/dim]"
+        )
+
+
+def _render_migrated_composition(
+    journal: EventJournal, imported_event_ids: list[str]
+) -> None:
+    """Report the per-project composition of what ``sync migrate`` just MOVED (FR-015).
+
+    `sync migrate` is the command that produced the incident's false-green: it
+    emptied the legacy queue `doctor` reads while pooling every project's payloads
+    into one journal, and it printed only aggregate import/dedupe counts — so the
+    operator was never once told *whose* events had just been lifted into a
+    machine-global store.
+
+    Restricted to the ids this run imported rather than the whole journal: "what I
+    moved" and "what is in here" are different claims, and reporting the latter
+    under the former's heading would overstate the migration. Grouping is the same
+    WP07 report the other two surfaces use (C-003), so the three cannot disagree.
+    """
+    from specify_cli.delivery.status_report import build_per_project_store_report
+
+    console.print()
+    console.print("[bold]Migrated events by project[/bold]")
+    if not imported_event_ids:
+        console.print("  [dim]nothing imported on this run[/dim]")
+        return
+    try:
+        report = build_per_project_store_report(journal, event_ids=imported_event_ids)
+    except Exception as exc:
+        # Named, not swallowed: a migration whose composition cannot be read is a
+        # migration whose confidentiality impact is unknown.
+        console.print(
+            f"  [yellow]![/yellow] imported {len(imported_event_ids)} event(s) but "
+            f"their per-project composition could not be read: {exc}"
+        )
+        return
+    console.print(_per_project_store_table(report))
+    for issue in _per_project_store_issues(report):
+        console.print(f"  [yellow]![/yellow] {issue}")
 
 
 @app.command()
@@ -2446,6 +2919,16 @@ def migrate(
             "Explicit operator recovery; never overwrites the journal."
         ),
     ),
+    backfill_consent_index: bool = typer.Option(
+        False,
+        "--backfill-consent-index",
+        help=(
+            "Also map path-keyed consent records onto the uuid-keyed index the "
+            "drain reads. WRITES machine-global consent records, and the uuid "
+            "index outranks a repo default — so this can change a project's "
+            "effective answer. Opt-in for that reason; every change is listed."
+        ),
+    ),
 ) -> None:
     """Migrate legacy hash-scoped queue DBs into the append-only event journal.
 
@@ -2465,6 +2948,20 @@ def migrate(
     the audit quarantine and the source row removed, so the boundary can
     converge. The journal is never overwritten. Exits non-zero when unresolved
     conflicts still block cleanup (SC-011).
+
+    Convergence also projects each row's stored identity into the journal's
+    ``project_uuid``/``project_slug``/``repo_slug`` columns (#3030 H4). A row with a
+    NULL ``project_uuid`` is permanently unselectable, so before this ran every
+    pre-mission row — including the operator's own consenting project's history —
+    was undeliverable forever. Identity is only recovered from the row's own stored
+    envelope, never invented, so a row that carries none stays NULL and stays
+    unselectable.
+
+    ``--backfill-consent-index`` additionally maps path-keyed consent records onto
+    the uuid index. That one is opt-in because it writes machine-global consent
+    state and the uuid index outranks a repo default, so it can flip a project from
+    denied to delivering; every mapped project and every unresolvable record is
+    listed.
 
     Examples:
         spec-kitty sync migrate
@@ -2497,11 +2994,20 @@ def migrate(
             resolve_conflicts=(resolve_conflicts == "keep-journal"),
             cleanup=not no_cleanup,
         )
+        # FR-015: captured inside the try so the journal handle and the imported-id
+        # list are taken from the same runtime that performed the migration, then
+        # rendered below as a breakdown of the aggregate counts.
+        moved_event_ids = converge.migration.imported_event_ids
+        moved_journal = runtime.journal
     finally:
         with contextlib.suppress(Exception):
             audit.close()
         runtime.close()
     _print_migration_result(converge.migration)
+    _print_identity_backfill_result(converge.identity_backfill)
+    if backfill_consent_index:
+        _run_consent_index_backfill()
+    _render_migrated_composition(moved_journal, moved_event_ids)
     if converge.resolution is not None:
         _print_resolution_result(converge.resolution)
     if converge.cleanup is not None:
@@ -3170,6 +3676,18 @@ def status(  # noqa: C901
         console.print("[green]Queue empty -- all events synced.[/green]")
         console.print()
 
+    # --- Per-project journal composition (#3030 T021 / FR-015, SC-004) -----
+    # Placed immediately after the queue-health block for the same reason as in
+    # `doctor`: "Queue empty -- all events synced" is read off the legacy
+    # `OfflineQueue`, which `sync migrate` empties. Left alone it is the sentence
+    # that made the 2026-07-27 incident invisible for weeks. `status` has no
+    # global issues list, so the warnings are printed inline here.
+    journal_issues: list[str] = []
+    _render_per_project_store(console, journal_issues)
+    for issue in journal_issues:
+        console.print(f"  [yellow]![/yellow] {issue}")
+    console.print()
+
     # --- Identity Boundary section (WP03 / FR-008) -------------------------
     # The boundary view answers: "who do I think I am, who does the recorded
     # daemon think it is, and what state is sitting in the legacy/scoped
@@ -3781,6 +4299,16 @@ def doctor() -> None:  # noqa: C901
             )
 
     console.print(table)
+    console.print()
+
+    # --- 3c. Per-project journal composition (#3030 T021 / FR-015, SC-004) ---
+    # Deliberately rendered right below the queue-health rows it contradicts.
+    # "Queue size 0" above comes from `OfflineQueue().get_queue_stats()`, which
+    # `sync migrate` empties; this section reads the journal those events actually
+    # live in. Throughout the 2026-07-27 incident the block above said healthy
+    # while 9,133 journal events — 1,322 from projects that never opted in — sat
+    # on disk, and the contamination was only found by hand-querying SQLite.
+    _render_per_project_store(console, issues)
     console.print()
 
     if singleton_report is not None and singleton_report.orphan_count > 0:

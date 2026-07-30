@@ -147,8 +147,22 @@ SET_IDENTITY_SQL = (
 # No payload BLOB because an unlimited read that still materialised every payload
 # of a 100k-row project would satisfy NFR-003's letter and miss its point.
 # Payloads are hydrated via ``read_by_ids`` over the ledger-selected batch only.
+# ``project_slug`` is in the projection for #3030 T021/N1: the WP07 per-project
+# report renders a project's human-readable name and, when no ``repo_slug`` was
+# recorded, the slug is the ONLY name it has — grouping the unresolved-identity
+# bucket without it reported nameable projects as nameless (N1-a). Deriving it from
+# the payload instead would mean decoding every BLOB, the exact cost this projection
+# exists to avoid. Label only: like ``repo_slug`` above it is derived, can collide,
+# and never gates delivery — ``project_uuid`` remains the sole selection authority.
 _IDENTITY_PROJECTION_COLUMNS = ", ".join(
-    (COL_EVENT_ID, COL_CREATED_AT, COL_PROJECT_UUID, COL_REPO_SLUG, COL_DRAIN_BLOCKED_REASON)
+    (
+        COL_EVENT_ID,
+        COL_CREATED_AT,
+        COL_PROJECT_UUID,
+        COL_PROJECT_SLUG,
+        COL_REPO_SLUG,
+        COL_DRAIN_BLOCKED_REASON,
+    )
 )
 
 
@@ -178,6 +192,27 @@ def select_identity_projection_sql(project_count: int) -> str:
         f"WHERE {COL_PROJECT_UUID} IN ({placeholders}) "
         f"ORDER BY {COL_CREATED_AT} ASC, {COL_EVENT_ID} ASC"
     )
+
+
+# Reporting-only counterpart of the filtered read above, and deliberately a separate
+# statement rather than a "no filter" mode of it (#3030 T021 / FR-015 / SC-004).
+#
+# `select_identity_projection_sql` makes its project filter mandatory so the DRAIN
+# cannot ask for a scan — that is NFR-003's mechanism and must stay unreachable. The
+# operator report has the opposite requirement and cannot be served by that statement
+# at any parameterisation: it must name the projects that are NOT known to be
+# consented (so the uuid set cannot be supplied up front), and it must surface rows
+# whose `project_uuid` IS NULL, which `DISTINCT_PROJECT_UUIDS_SQL` excludes by
+# definition and which FR-011 exists to make visible.
+#
+# Cost is bounded by CALL SITE, not by this statement: it runs once per explicit
+# `sync doctor` / `sync status` / `sync migrate`, never on a drain tick. Keeping the
+# two statements distinct is what lets a reader tell at a glance which one a caller
+# is allowed to use.
+SELECT_IDENTITY_PROJECTION_ALL_SQL = (
+    f"SELECT {_IDENTITY_PROJECTION_COLUMNS} FROM {TABLE_NAME} "  # noqa: S608 — identifiers are static module constants
+    f"ORDER BY {COL_CREATED_AT} ASC, {COL_EVENT_ID} ASC"
+)
 
 
 def select_by_ids_sql(id_count: int) -> str:
@@ -347,6 +382,7 @@ __all__ = [
     "SET_IDENTITY_SQL",
     "TABLE_NAME",
     "select_by_ids_sql",
+    "SELECT_IDENTITY_PROJECTION_ALL_SQL",
     "select_identity_projection_sql",
     "DRAIN_BLOCKED_DAEMON_LOCK",
     "DRAIN_BLOCKED_MISSING_AUTH",
@@ -359,11 +395,17 @@ __all__ = [
     "INSERT_SQL",
     "MARK_ARCHIVED_SQL",
     "OLDEST_CREATED_AT_SQL",
+    # ORDERED_COLUMNS stays exported: the allowlist grant in
+    # tests/architectural/test_no_dead_symbols.py records the reason (the
+    # journal's canonical column-order contract, consumed inside this module by
+    # _COLUMN_LIST/_PLACEHOLDERS so it has no cross-module import). Its
+    # content-tier key went stale when WP04 appended repo_slug, which is what
+    # surfaced it as an offender; the key is refreshed there rather than the
+    # export being revoked. ``TABLE_NAME`` was listed twice — duplicate dropped.
     "ORDERED_COLUMNS",
     "SELECT_ALL_SQL",
     "SELECT_BLOCKED_SQL",
     "SELECT_BY_ID_SQL",
-    "TABLE_NAME",
     "event_to_params",
     "row_to_event",
 ]

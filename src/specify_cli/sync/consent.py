@@ -643,18 +643,28 @@ def backfill_uuid_consent_index() -> ConsentBackfillResult:
 # module's ``__all__`` stops describing anything. Everything else in this module
 # stays importable; the list regrows as consumers actually land.
 #
-# Notably absent: ``resolve_project_consent``. It has no production caller at all —
-# the drain reaches it only through ``consented_project_uuids``, and no reporting
-# surface calls it yet. That is a real finding, not a packaging detail; trimming the
-# advertised surface records it honestly rather than hiding it behind an allowlist.
-# Also absent, for the same reason and recorded the same way: ``consent_index_health``
-# and ``project_local_consent_fault`` (#3030 FR-020). Both exist for SC-004's
-# ``sync doctor`` — which cannot currently tell an operator their consent index is
-# unreadable — and for ``sync/routing.py``'s fall-through. Both of those surfaces are
-# owned elsewhere and unwired, so the names stay importable and unadvertised until a
-# real consumer lands, rather than entering the gate's allowlist as aspiration.
+# This list is the UNION of the two sides of the #3030 lane-f rebase, recomputed from
+# the merged tree rather than taken from either branch — each side had trimmed against
+# a different set of live callers, so both were correct locally and wrong merged.
+# Verified importers: ``consented_project_uuids`` (emitter, selection, background,
+# local_commit), ``read_project_local_consent`` / ``project_local_consent_fault`` /
+# ``set_project_consent`` (routing), ``resolve_project_consent``
+# (delivery/status_report).
+#
+# ``resolve_project_consent`` is advertised, and the note that previously stood here
+# claiming it "has no production caller at all" is deleted rather than reworded: it is
+# now false. ``delivery/status_report.build_per_project_store_report`` — FR-015's
+# per-project report — is its first production caller, reached from ``sync doctor``,
+# ``sync status`` and ``sync migrate``.
+#
+# Still genuinely unwired, and recorded here rather than allowlisted:
+# ``consent_index_health`` (#3030 FR-020). It exists for SC-004's ``sync doctor``,
+# which still cannot tell an operator their consent index is unreadable. The name
+# stays importable and unadvertised until that consumer lands.
 __all__ = [
     "consented_project_uuids",
+    "project_local_consent_fault",
     "read_project_local_consent",
+    "resolve_project_consent",
     "set_project_consent",
 ]
