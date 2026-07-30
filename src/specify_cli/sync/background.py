@@ -99,9 +99,18 @@ def _count_legacy_event_rows() -> int | None:
     from .queue import detect_legacy_rows_for_scope, read_queue_scope_from_credentials
 
     try:
-        # The legacy DB has no per-scope partitioning, so the callee ignores
-        # this argument; pass the active scope anyway for log context.
-        counts = detect_legacy_rows_for_scope(read_queue_scope_from_credentials() or "")
+        # The legacy DB has no per-scope partitioning, so the callee ignores this
+        # argument (it ``del``s it); it is log context only. A failure to read it
+        # is therefore NOT evidence about legacy rows and must not be reported as
+        # "undetermined" — otherwise an unrelated credentials fault would refuse
+        # the daemon.
+        scope = read_queue_scope_from_credentials() or ""
+    except (OSError, ValueError) as exc:
+        logger.debug("Could not read the queue scope for log context: %s", exc)
+        scope = ""
+
+    try:
+        counts = detect_legacy_rows_for_scope(scope)
     except _UNDETERMINED_LEGACY_COUNT_ERRORS as exc:
         logger.warning("Could not read the legacy queue to count stranded rows: %s", exc)
         return None

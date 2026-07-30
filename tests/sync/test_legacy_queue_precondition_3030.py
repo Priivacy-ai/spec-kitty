@@ -83,16 +83,89 @@ def test_guard_does_not_mutate_the_operators_queues(tmp_path: Path) -> None:
     mock_converge.assert_not_called()
 
 
-def test_an_uncountable_legacy_db_does_not_wedge_the_daemon(tmp_path: Path) -> None:
-    """A broken legacy DB is a preflight concern, not a reason to refuse.
+def test_an_unreadable_legacy_db_refuses_rather_than_reporting_clean(
+    tmp_path: Path,
+) -> None:
+    """DELIBERATE REVERSAL of this test's original contract (#3030 H8).
 
-    Reporting "dirty" on an unrelated fault would strand body uploads too.
+    It previously asserted the opposite — "a broken legacy DB is a preflight
+    concern, not a reason to refuse" — on the grounds that refusing on an
+    unrelated fault would strand body uploads too.
+
+    That reasoning does not survive review of *which* fault this is. This guard's
+    safe default is **permission**, and ``detect_legacy_rows_for_scope`` returns
+    zeros (no exception) when the legacy DB is simply absent. So an exception here
+    means the file exists and could not be read — precisely the case where
+    stranded rows cannot be ruled out. Treating that as "clean" is FR-003's
+    failure mode: inability to determine read as clearance.
+
+    Two things keep the reversal from becoming a lockout: the refusal is a
+    distinguishable ``LegacyQueueUndeterminedError`` naming the file and both
+    remedies, and ``spec-kitty sync migrate`` — the prescribed remedy — does not
+    route through the sync runtime, so it remains runnable (verified live, and it
+    reports an unreadable source as a ``source_errors`` count).
+
+    Scope of the reversal is narrow by construction: a failure to read the queue
+    *scope* (log context the callee discards) is not evidence about legacy rows
+    and still does not refuse. See ``test_a_credentials_read_failure_is_not_evidence``.
+    """
+    import sqlite3
+
+    from specify_cli.sync.background import LegacyQueueUndeterminedError
+
+    service = _service(tmp_path)
+
+    with (
+        patch(
+            "specify_cli.sync.queue.detect_legacy_rows_for_scope",
+            side_effect=sqlite3.DatabaseError("file is not a database"),
+        ),
+        pytest.raises(LegacyQueueUndeterminedError) as excinfo,
+    ):
+        service._assert_legacy_queue_converged()
+
+    assert "queue.db" in str(excinfo.value)
+    assert "sync migrate" in str(excinfo.value)
+
+
+def test_an_unexpected_error_type_propagates_instead_of_being_swallowed(
+    tmp_path: Path,
+) -> None:
+    """Only expected read failures mean "undetermined" (#3030 H8).
+
+    A ``TypeError`` from a changed arity or an ``AttributeError`` from a renamed
+    field is a bug in this guard, not a fact about the operator's queue. Swallowing
+    it into "undetermined" — let alone into ``0`` — silently disables the guard,
+    which is how the mission's earlier swallowed-exception fake green happened.
     """
     service = _service(tmp_path)
 
+    with (
+        patch(
+            "specify_cli.sync.queue.detect_legacy_rows_for_scope",
+            side_effect=TypeError("unexpected keyword argument 'include_bodies'"),
+        ),
+        pytest.raises(TypeError),
+    ):
+        service._assert_legacy_queue_converged()
+
+
+def test_a_credentials_read_failure_is_not_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The scope argument is log context; failing to read it must not refuse.
+
+    Keeps the H8 reversal narrow: only an unreadable *legacy queue* is
+    "undetermined". An unrelated credentials fault falls back to an empty scope
+    (which the callee discards anyway) and the count proceeds normally.
+    """
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
+    (tmp_path / "home").mkdir()
+    service = _service(tmp_path)
+
     with patch(
-        "specify_cli.sync.queue.detect_legacy_rows_for_scope",
-        side_effect=RuntimeError("malformed database"),
+        "specify_cli.sync.queue.read_queue_scope_from_credentials",
+        side_effect=OSError("credentials unreadable"),
     ):
         service._assert_legacy_queue_converged()  # must not raise
 
