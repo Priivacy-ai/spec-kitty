@@ -11,6 +11,15 @@ Covers all nine behaviours from the WP05 spec (T024):
 7. save / load round-trip preserves all fields
 8. flush skips frame whose git_hash matches last_saas_confirmed_hash
 9. record_local_commit_ack leaves other pending entries intact
+
+These are the **lifecycle** behaviours — amend replacement, chronological ordering,
+ack bookkeeping, PII absence. As of #3030 T027 both the emit and the flush path are
+gated on per-project hosted-sync consent, so the fixtures below give the temporary
+checkout a real identity and a recorded grant. That is setup, not a relaxation: an
+identity-less ``tmp_path`` now correctly *denies*, and asserting ordering or amend
+semantics against a project that is refusing egress would assert nothing at all. The
+gate itself is pinned separately in ``test_local_commit_consent_3030.py``, which
+covers the deny cases these tests deliberately step out of.
 """
 
 from __future__ import annotations
@@ -43,10 +52,24 @@ _HASH_C = "c" * 40
 _MISSION_ID = "01HT1AAAAAAAAAAAAAAAAAAAAAA"
 _BUILD_ID_1 = "01HT1BBBBBBBBBBBBBBBBBBBBB1"
 _BUILD_ID_2 = "01HT1BBBBBBBBBBBBBBBBBBBBB2"
+_PROJECT_UUID = "11111111-2222-3333-4444-555555555555"
 _FILES = ["kitty-specs/m/decisions.events.jsonl"]
 _AT_1 = "2026-06-01T07:00:00Z"
 _AT_2 = "2026-06-01T08:00:00Z"
 _AT_3 = "2026-06-01T09:00:00Z"
+
+
+@pytest.fixture(autouse=True)
+def _isolated_consent_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the machine-global consent index out of the developer's real home.
+
+    Without this the consent gate would consult (and reconcile) whatever the machine
+    running the suite happens to have recorded, making these tests answer differently
+    on different machines.
+    """
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "_home"))
+    (tmp_path / "_home").mkdir(parents=True, exist_ok=True)
+    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
 
 
 def _make_frame(
@@ -61,13 +84,27 @@ def _make_frame(
         "git_hash": git_hash,
         "mission_id": mission_id,
         "build_id": build_id,
+        "project_uuid": _PROJECT_UUID,
         "changed_files": changed_files or _FILES,
         "committed_at": committed_at,
     }
 
 
 def _kittify(tmp_path: Path) -> None:
+    """Make *tmp_path* a checkout that has identity and has opted in to hosted sync.
+
+    ``sync.enabled`` is the one canonical project-local consent key (``sync/consent.py``).
+    """
     (tmp_path / ".kittify").mkdir(exist_ok=True)
+    (tmp_path / ".kittify" / "config.yaml").write_text(
+        "project:\n"
+        f"  uuid: {_PROJECT_UUID}\n"
+        "  slug: local-commit-fixture\n"
+        "  node_id: 0123456789ab\n"
+        "sync:\n"
+        "  enabled: true\n",
+        encoding="utf-8",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -119,6 +156,7 @@ def test_load_malformed_file_returns_empty_state(tmp_path: Path) -> None:
 
 
 def test_emit_when_disconnected_stores_only(tmp_path: Path) -> None:
+    _kittify(tmp_path)
     with patch(
         "specify_cli.sync.local_commit._get_saas_client",
         return_value=None,
@@ -149,6 +187,7 @@ def test_emit_when_disconnected_stores_only(tmp_path: Path) -> None:
 
 
 def test_emit_when_connected_stores_and_sends(tmp_path: Path) -> None:
+    _kittify(tmp_path)
     mock_client = MagicMock()
     mock_client.connected = True
     mock_client.send_event = AsyncMock()
@@ -185,6 +224,7 @@ def test_emit_when_connected_stores_and_sends(tmp_path: Path) -> None:
 
 
 def test_amended_commit_replaces_prior_pending_entry(tmp_path: Path) -> None:
+    _kittify(tmp_path)
     with patch("specify_cli.sync.local_commit._get_saas_client", return_value=None):
         # Original commit
         emit_local_commit(tmp_path, _HASH_A, _MISSION_ID, _BUILD_ID_1, _FILES, _AT_1)
@@ -202,6 +242,7 @@ def test_amended_commit_replaces_prior_pending_entry(tmp_path: Path) -> None:
 
 
 def test_different_build_ids_keep_separate_entries(tmp_path: Path) -> None:
+    _kittify(tmp_path)
     with patch("specify_cli.sync.local_commit._get_saas_client", return_value=None):
         emit_local_commit(tmp_path, _HASH_A, _MISSION_ID, _BUILD_ID_1, _FILES, _AT_1)
         emit_local_commit(tmp_path, _HASH_B, _MISSION_ID, _BUILD_ID_2, _FILES, _AT_2)
@@ -216,6 +257,7 @@ def test_different_build_ids_keep_separate_entries(tmp_path: Path) -> None:
 
 
 def test_flush_sends_in_chronological_order(tmp_path: Path) -> None:
+    _kittify(tmp_path)
     # Pre-populate three frames out of order
     state = SyncState(
         pending_local_commits=[
@@ -245,6 +287,7 @@ def test_flush_sends_in_chronological_order(tmp_path: Path) -> None:
 
 
 def test_flush_skips_confirmed_hash(tmp_path: Path) -> None:
+    _kittify(tmp_path)
     state = SyncState(
         last_saas_confirmed_hash=_HASH_A,
         pending_local_commits=[
@@ -294,6 +337,7 @@ def test_ack_removes_entry_and_updates_confirmed_hash(tmp_path: Path) -> None:
 
 
 def test_no_pii_in_frame_or_state_file(tmp_path: Path) -> None:
+    _kittify(tmp_path)
     with patch("specify_cli.sync.local_commit._get_saas_client", return_value=None):
         emit_local_commit(
             tmp_path,
