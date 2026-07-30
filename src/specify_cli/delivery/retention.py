@@ -860,15 +860,28 @@ def _purge_journal_rows(db_path: Path, event_ids: Sequence[str]) -> None:
         connection.close()
 
 
-# ``BodyQueuePurgeResult`` / ``purge_project_body_uploads`` / ``BodyUploadPurgeTarget``
-# are deliberately NOT advertised yet. The symbol-level dead-code gate
-# (``tests/architectural/test_no_dead_symbols.py``) is a shrink-only ratchet over
-# ``__all__``, and WP08's ``sync purge`` command — the production caller — is not
-# implemented. Advertising them now would either fail that gate or need an allowlist
-# entry that outlives the reason for it. They stay importable; WP08 adds them here
-# when it wires the CLI, which is also the moment the names stop being aspirational.
+# The purge surface joins this list now that WP08's ``sync purge`` command imports
+# it — the moment these names stopped being aspirational. Advertising them earlier
+# would have failed the symbol-level dead-code gate
+# (``tests/architectural/test_no_dead_symbols.py``, a shrink-only ratchet over
+# ``__all__``) or needed an allowlist entry that outlived its reason.
+#
+# ``BodyQueuePurgeResult`` / ``BodyUploadPurgeTarget`` / ``IDENTITY_LESS_KEY`` stay
+# off the list deliberately: the CLI consumes what ``purge_project_body_uploads``
+# returns without naming its type, and a name in ``__all__`` with no importer is
+# exactly what that gate exists to catch. They remain importable for tests and for a
+# future caller that needs the annotation.
 __all__ = [
+    "PURGE_ALL_CONFIRMATION",
+    "ProjectPurgeResult",
+    "PurgeNotConfirmedError",
     "RetentionResult",
     "archive_payloads",
     "gc_payloads",
+    "purge_all_events",
+    "purge_identity_less_events",
+    "purge_project_body_uploads",
+    "purge_project_events",
+    "purge_project_events_from_live_stores",
+    "resolve_live_store_paths",
 ]

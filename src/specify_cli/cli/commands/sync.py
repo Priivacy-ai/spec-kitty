@@ -11,7 +11,7 @@ import contextlib
 import logging
 import re
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -2896,6 +2896,1280 @@ def archive() -> None:
     finally:
         runtime.close()
     _print_retention_result(result)
+
+
+# --------------------------------------------------------------------------- #
+# `sync purge` — the operator's remediation path (#3030 WP08 / T022)            #
+#                                                                              #
+# FR-016 / FR-017 / NFR-006 / C-002. `sync gc` only reclaims payloads already   #
+# delivered to every known target, so it cannot clear the retained rows the     #
+# 2026-07-27 incident left on disk. This command is the only path that can, and #
+# it composes the four stores' purge primitives rather than re-deriving any of   #
+# them: `delivery/retention.py` owns the journal, the delivery ledger and the   #
+# body-upload queue; `sync/local_commit.py` owns the per-checkout               #
+# `pending_local_commits` queue. Selection and deletion stay there (C-003);     #
+# what lives here is the operator surface, the differential, and the honesty    #
+# about scope.                                                                  #
+# --------------------------------------------------------------------------- #
+
+#: Census key for a ``NULL`` project identity. Deliberately distinct from ``""``:
+#: a NULL row and a non-NULL blank row are different populations reachable by
+#: different selectors, and a census that folded them together is exactly what
+#: made an NFR-006 differential vacuous earlier in this mission (a population
+#: counted in no bucket has a differential of zero by construction).
+_PURGE_NULL_KEY = "<null>"
+
+_PURGE_JOURNAL = "event_journal"
+_PURGE_LEDGER = "delivery_ledger"
+_PURGE_BODY = "body_upload_queue"
+_PURGE_FRAMES = "local_commit_frames"
+
+_PURGE_STORE_LABELS = {
+    _PURGE_JOURNAL: "event journal",
+    _PURGE_LEDGER: "delivery ledger",
+    _PURGE_BODY: "body-upload queue",
+    # The scope is part of the name because it is not the same as the other three.
+    _PURGE_FRAMES: "local-commit frames (this checkout only)",
+}
+
+#: Where a checkout keeps its queued ``LocalCommit`` frames. Duplicated from
+#: ``sync/local_commit.py``'s private ``_sync_state_path`` on the same reasoning
+#: ``delivery/retention.py`` records for ``_DELIVERY_SUBDIR``: this module needs the
+#: path to *report* it and to read it independently, and reaching into another
+#: module's private helper is the worse coupling. ``tests/cli/commands/
+#: test_sync_purge_3030.py`` asserts the two agree, so a relocation is a red rather
+#: than a purge report pointed at a file nobody writes.
+_PURGE_SYNC_STATE_RELPATH = Path(".kittify") / "sync-state.json"
+
+#: How `--all` is described, in one place, because the wording is a decision and
+#: not a flourish (operator decision, 2026-07-30). The journal, the ledger and the
+#: body queue are machine-global; ``pending_local_commits`` is per-checkout
+#: ``LOCAL_RUNTIME`` state and there is no registry that could enumerate the other
+#: checkouts' files. A registry was rejected as new state to keep correct, and a
+#: filesystem scan because it can never prove completeness — which would leave the
+#: erasure claim unprovable while sounding total. So the command must not present
+#: `--all` as machine-wide erasure: "erased" that silently means "erased here" is
+#: the same class of defect as a gate reporting success for having done nothing.
+_PURGE_ALL_SCOPE_NOTE = (
+    "Scope of --all: this machine's event journal, delivery ledger and body-upload "
+    "queue, plus the queued local-commit frames of THIS CHECKOUT ONLY ({frames_path}). "
+    "Other checkouts on this machine keep their own queued frames in their own "
+    "sync-state.json; there is no registry of checkouts, so they cannot be listed and "
+    "this run has not touched them. Re-run this command from each checkout you need "
+    "cleared."
+)
+
+#: Printed on every destructive run. The ledger delete commits before the journal
+#: delete and they are not one transaction, so an interruption leaves the ledger
+#: purged with the journal intact — the recoverable direction, from which a re-run
+#: converges. A report that implied atomicity would leave the operator with no
+#: reason to re-run.
+_PURGE_NON_ATOMIC_NOTE = (
+    "The delivery ledger is deleted before the journal and the two are not one "
+    "transaction. If a run is interrupted the ledger delete may have committed with "
+    "the journal untouched; re-run the same command — it converges."
+)
+
+
+@dataclass(frozen=True)
+class _RawCensus:
+    """One store's row counts, grouped by the raw identity value it stores.
+
+    Taken by the CLI itself and **not** through the domain censuses the purge
+    primitives report from (NFR-006). Two properties matter:
+
+    * **Total-preserving by construction.** Every row lands in exactly one bucket
+      and ``NULL`` / ``""`` / ``"   "`` are three distinct buckets, so no population
+      can be missing from both the before and after picture — the shape that let a
+      purge move rows and still report "0% of any other project's" truthfully by its
+      own arithmetic.
+    * **Independent of the purge's own reads.** The differential below is measured
+      from two of these snapshots, so it can disagree with what the primitive claims
+      to have deleted. A check whose operands both come from the thing under test
+      was already rejected on this mission, having produced zero failures over 200
+      randomized cases.
+    """
+
+    total: int = 0
+    by_key: dict[str, int] = field(default_factory=dict)
+    unreadable: bool = False
+
+    def count(self, keys: frozenset[str]) -> int:
+        return sum(self.by_key.get(key, 0) for key in keys)
+
+    @property
+    def unbucketed(self) -> int:
+        """Rows the grouping could not account for. Must be ``0``; reported if not."""
+        return self.total - sum(self.by_key.values())
+
+
+@dataclass
+class _PurgeStoreOutcome:
+    """What one store contributed to the purge, as measured rather than as claimed."""
+
+    store: str
+    location: str
+    in_scope: int = 0
+    removed_observed: int = 0
+    removed_reported: int | None = None
+    others_delta_observed: int = 0
+    total_after: int = 0
+    left_behind: dict[str, int] = field(default_factory=dict)
+    states: dict[str, int] = field(default_factory=dict)
+    never_attempted: int = 0
+    unreadable: bool = False
+    note: str = ""
+
+    def as_dict(self) -> dict[str, Any]:
+        data: dict[str, Any] = {
+            "location": self.location,
+            "in_scope": self.in_scope,
+            "removed_observed": self.removed_observed,
+            "removed_reported": self.removed_reported,
+            "others_delta_observed": self.others_delta_observed,
+            "total_after": self.total_after,
+            "left_behind": dict(self.left_behind),
+            "unreadable": self.unreadable,
+        }
+        if self.store == _PURGE_LEDGER:
+            data["states"] = dict(self.states)
+            data["never_attempted"] = self.never_attempted
+        if self.note:
+            data["note"] = self.note
+        return data
+
+
+def _purge_usage_error(message: str) -> None:
+    """Refuse before opening any store. Exit 2: nothing was read, nothing deleted."""
+    console.print(f"[red]Error:[/red] {message}")
+    raise typer.Exit(2)
+
+
+def _purge_journal_census(journal_path: Path) -> _RawCensus:
+    """Raw ``GROUP BY project_uuid`` over the journal — the CLI's own read.
+
+    Not ``retention._journal_census``: that one composes ``distinct_project_uuids``
+    with the identity projection, which *filters falsy uuids*, so a blank-uuid row
+    reaches it only through a derived remainder. For a differential the CLI needs the
+    stored values verbatim, blank and whitespace included, each as its own bucket.
+    """
+    import sqlite3
+
+    from specify_cli.event_journal.models import COL_PROJECT_UUID, TABLE_NAME
+
+    if not journal_path.exists():
+        return _RawCensus()
+    try:
+        connection: Any = sqlite3.connect(str(journal_path))
+    except sqlite3.Error:
+        return _RawCensus(unreadable=True)
+    try:
+        # Static module-constant identifiers, no interpolated values.
+        total_row = connection.execute(f"SELECT COUNT(*) FROM {TABLE_NAME}").fetchone()  # noqa: S608
+        by_key: dict[str, int] = {}
+        for raw, count in connection.execute(
+            f"SELECT {COL_PROJECT_UUID}, COUNT(*) FROM {TABLE_NAME} GROUP BY {COL_PROJECT_UUID}"  # noqa: S608
+        ):
+            by_key[_PURGE_NULL_KEY if raw is None else str(raw)] = int(count)
+    except sqlite3.Error:
+        return _RawCensus(unreadable=True)
+    finally:
+        connection.close()
+    return _RawCensus(total=int(total_row[0]) if total_row else 0, by_key=by_key)
+
+
+def _purge_journal_ids(journal_path: Path, *, project_uuid: str | None, every_row: bool) -> list[str]:
+    """The journal ids the selector covers, resolved by the CLI's own raw read.
+
+    ``project_uuid=None`` means ``IS NULL`` (FR-011's population). Used only to
+    *measure* the ledger half — the deletion still selects through the primitives.
+    """
+    import sqlite3
+
+    from specify_cli.event_journal.models import COL_EVENT_ID, COL_PROJECT_UUID, TABLE_NAME
+
+    if not journal_path.exists():
+        return []
+    if every_row:
+        sql = f"SELECT {COL_EVENT_ID} FROM {TABLE_NAME}"  # noqa: S608
+        params: tuple[Any, ...] = ()
+    elif project_uuid is None:
+        sql = f"SELECT {COL_EVENT_ID} FROM {TABLE_NAME} WHERE {COL_PROJECT_UUID} IS NULL"  # noqa: S608
+        params = ()
+    else:
+        sql = f"SELECT {COL_EVENT_ID} FROM {TABLE_NAME} WHERE {COL_PROJECT_UUID} = ?"  # noqa: S608
+        params = (project_uuid,)
+    try:
+        connection: Any = sqlite3.connect(str(journal_path))
+    except sqlite3.Error:
+        return []
+    try:
+        return [str(row[0]) for row in connection.execute(sql, params)]
+    except sqlite3.Error:
+        return []
+    finally:
+        connection.close()
+
+
+def _purge_ledger_census(ledger_path: Path, event_ids: list[str]) -> _RawCensus:
+    """``(total rows, rows for the selected ids)`` — the ledger has no project column.
+
+    Bucketed under one synthetic key because "another project's ledger rows" is not
+    directly countable: the ledger is keyed ``(event_id, target_id)``. The change
+    outside the selection is therefore derived as *total change minus selected
+    change*, from the CLI's own counts.
+    """
+    import sqlite3
+
+    from specify_cli.delivery.ledger import LEDGER_TABLE
+    from specify_cli.event_journal.models import COL_EVENT_ID
+
+    if not ledger_path.exists():
+        return _RawCensus()
+    try:
+        connection: Any = sqlite3.connect(str(ledger_path))
+    except sqlite3.Error:
+        return _RawCensus(unreadable=True)
+    try:
+        total_row = connection.execute(f"SELECT COUNT(*) FROM {LEDGER_TABLE}").fetchone()  # noqa: S608
+        selected = 0
+        for event_id in event_ids:
+            row = connection.execute(
+                f"SELECT COUNT(*) FROM {LEDGER_TABLE} WHERE {COL_EVENT_ID} = ?",  # noqa: S608
+                (event_id,),
+            ).fetchone()
+            selected += int(row[0]) if row else 0
+    except sqlite3.Error:
+        return _RawCensus(unreadable=True)
+    finally:
+        connection.close()
+    total = int(total_row[0]) if total_row else 0
+    return _RawCensus(total=total, by_key={_PURGE_LEDGER: selected})
+
+
+def _purge_ledger_ghost_count(journal_path: Path, ledger_path: Path) -> int:
+    """Ledger rows whose ``event_id`` has no journal row at all.
+
+    Unreachable by any targeted selector, because every targeted selection collects
+    its ids *from the journal*. Not a contrived state: ``sync gc`` deletes journal
+    payload rows and preserves ledger history by design (FR-010), so every machine
+    that has run it holds some. The two stores are separate SQLite files, so this is
+    a set difference in Python rather than a join.
+    """
+    import sqlite3
+
+    from specify_cli.delivery.ledger import LEDGER_TABLE
+    from specify_cli.event_journal.models import COL_EVENT_ID
+
+    if not ledger_path.exists():
+        return 0
+    journal_ids = set(_purge_journal_ids(journal_path, project_uuid=None, every_row=True))
+    try:
+        connection: Any = sqlite3.connect(str(ledger_path))
+    except sqlite3.Error:
+        return 0
+    try:
+        return sum(
+            int(count)
+            for event_id, count in connection.execute(
+                f"SELECT {COL_EVENT_ID}, COUNT(*) FROM {LEDGER_TABLE} GROUP BY {COL_EVENT_ID}"  # noqa: S608
+            )
+            if str(event_id) not in journal_ids
+        )
+    except sqlite3.Error:
+        return 0
+    finally:
+        connection.close()
+
+
+def _purge_body_census(queue: Any | None) -> _RawCensus:
+    """``count_by_project`` for the buckets, ``size`` for the total.
+
+    Two different reads on purpose: the total cannot be affected by the attribution
+    the buckets depend on, so a population the grouping fails to return shows up as
+    ``unbucketed`` instead of vanishing from the differential.
+    """
+    if queue is None:
+        return _RawCensus()
+    try:
+        by_key = {str(key): int(value) for key, value in queue.count_by_project().items()}
+        total = int(queue.size())
+    except Exception:  # noqa: BLE001 — an unreadable store is reported, never assumed empty
+        return _RawCensus(unreadable=True)
+    return _RawCensus(total=total, by_key=by_key)
+
+
+def _purge_frames_census(repo_root: Path | None) -> _RawCensus:
+    """Count queued frames by reading ``sync-state.json`` directly.
+
+    Independent of ``census_pending_local_commits`` for a concrete reason, not a
+    theoretical one: ``load_sync_state`` resets a malformed file to an empty state
+    and never raises, so the primitive would report "0 frames" over a file still
+    holding mission slugs — client engagement names. Read here, an unparseable file
+    is a reported fault instead of a silent zero.
+    """
+    import json as _json
+
+    if repo_root is None:
+        return _RawCensus()
+    path = repo_root / _PURGE_SYNC_STATE_RELPATH
+    if not path.exists():
+        return _RawCensus()
+    try:
+        data = _json.loads(path.read_text(encoding="utf-8"))
+        frames = data["pending_local_commits"] if isinstance(data, dict) else None
+        if not isinstance(frames, list):
+            raise ValueError("pending_local_commits is not a list")
+    except Exception as exc:  # noqa: BLE001 — the fault is the finding
+        _LOG.debug("sync-state.json unreadable at %s: %s", path, exc)
+        return _RawCensus(unreadable=True)
+    by_key: dict[str, int] = {}
+    for frame in frames:
+        raw = frame.get("project_uuid") if isinstance(frame, dict) else None
+        key = _PURGE_NULL_KEY if raw is None else str(raw)
+        by_key[key] = by_key.get(key, 0) + 1
+    return _RawCensus(total=len(frames), by_key=by_key)
+
+
+def _purge_unattributable_keys(census: _RawCensus) -> frozenset[str]:
+    """Census keys that name no project: ``NULL``, ``""``, and whitespace-only."""
+    return frozenset(key for key in census.by_key if key == _PURGE_NULL_KEY or not key.strip())
+
+
+def _purge_left_behind(census: _RawCensus) -> dict[str, int]:
+    """The unattributable residue of one store, as two named counts."""
+    null_rows = census.by_key.get(_PURGE_NULL_KEY, 0)
+    blank_rows = sum(count for key, count in census.by_key.items() if key != _PURGE_NULL_KEY and not key.strip())
+    residue: dict[str, int] = {}
+    if null_rows:
+        residue["identity_null"] = null_rows
+    if blank_rows:
+        residue["identity_blank"] = blank_rows
+    return residue
+
+
+def _purge_differential(before: _RawCensus, after: _RawCensus, scope: frozenset[str]) -> tuple[int, int]:
+    """``(rows removed inside scope, absolute change outside it)``, both measured.
+
+    Absolute and over the union of both censuses, so a key that *appeared* counts as
+    a change too: a purge must neither remove nor create another project's rows, and
+    a concurrent writer is exactly as much of a finding as an over-reaching selector.
+    """
+    removed = before.count(scope) - after.count(scope)
+    keys = (set(before.by_key) | set(after.by_key)) - scope
+    others = sum(abs(after.by_key.get(key, 0) - before.by_key.get(key, 0)) for key in keys)
+    return removed, others
+
+
+def _purge_ledger_differential(before: _RawCensus, after: _RawCensus) -> tuple[int, int]:
+    """The ledger's ``(removed, changed outside the selection)``, derived not grouped.
+
+    The ledger is keyed ``(event_id, target_id)`` and carries no project column, so
+    "another project's ledger rows" cannot be grouped for. It *is* exactly derivable:
+    total change minus the change the selection accounts for. Both operands come from
+    the CLI's own two reads, so the answer can disagree with what the purge reported —
+    which is the whole point of measuring it here (NFR-006).
+    """
+    removed = before.by_key.get(_PURGE_LEDGER, 0) - after.by_key.get(_PURGE_LEDGER, 0)
+    return removed, abs((before.total - after.total) - removed)
+
+
+def _purge_stored_spelling_conflicts(selector: str, censuses: list[_RawCensus]) -> list[str]:
+    """Stored keys that mean the same project as *selector* but are spelled differently.
+
+    A real cross-store hazard rather than pedantry: the journal matches a
+    ``project_uuid`` by exact string equality, while the frame purge compares
+    case-insensitively. So an upper-cased or dash-less selector would clear a
+    checkout's frames while leaving every journal row in place, and report "0 journal
+    rows in scope" — indistinguishable from a project that was already clean.
+    """
+    from uuid import UUID
+
+    try:
+        wanted: UUID | None = UUID(selector)
+    except (ValueError, AttributeError, TypeError):
+        wanted = None
+    conflicts: set[str] = set()
+    for census in censuses:
+        for key in census.by_key:
+            if key in (selector, _PURGE_NULL_KEY) or not key.strip():
+                continue
+            same = key.strip().casefold() == selector.strip().casefold()
+            if not same and wanted is not None:
+                try:
+                    same = UUID(key.strip()) == wanted
+                except (ValueError, AttributeError, TypeError):
+                    same = False
+            if same:
+                conflicts.add(key)
+    return sorted(conflicts)
+
+
+def _purge_resolve_project(value: str, journal_path: Path, repo_root: Path | None) -> tuple[str, str | None]:
+    """Resolve ``--project`` (a uuid *or* a slug) to ``(project_uuid, matched_slug)``.
+
+    A uuid is taken verbatim, including one no store holds: an operator must be able
+    to purge a project whose rows survive only in the body queue. A slug is resolved
+    against the journal's own identity projection plus the invoking checkout's
+    declared identity, and an unknown or ambiguous slug is **refused** rather than
+    run — "0 rows removed" is indistinguishable from "wrong selector", and this
+    command's report is the only record left after a purge.
+    """
+    from uuid import UUID
+
+    raw = str(value or "").strip()
+    if not raw:
+        _purge_usage_error("--project needs a project uuid or slug; a blank selector matches nothing.")
+    try:
+        UUID(raw)
+    except (ValueError, AttributeError, TypeError):
+        pass
+    else:
+        return raw, None
+
+    candidates: dict[str, set[str]] = {}
+    if journal_path.exists():
+        from specify_cli.event_journal.journal import EventJournal
+
+        for row in EventJournal(journal_path).read_identity_projection_for_report():
+            if row.project_slug and row.project_uuid:
+                candidates.setdefault(row.project_slug.strip().casefold(), set()).add(row.project_uuid)
+    if repo_root is not None:
+        from specify_cli.identity.project import load_identity
+
+        identity = load_identity(repo_root / ".kittify" / "config.yaml")
+        if identity.project_slug and identity.project_uuid:
+            candidates.setdefault(identity.project_slug.strip().casefold(), set()).add(str(identity.project_uuid))
+
+    matches = sorted(candidates.get(raw.casefold(), set()))
+    if not matches:
+        known = ", ".join(sorted(candidates)) or "none recorded"
+        _purge_usage_error(
+            f'No project matches slug "{raw}". Slugs this machine has a record of: {known}. Pass the project uuid to purge a project whose rows carry no slug.'
+        )
+    if len(matches) > 1:
+        _purge_usage_error(
+            f'Slug "{raw}" maps to {len(matches)} project uuids ({", ".join(matches)}); pass the uuid you mean — a purge must not span two projects.'
+        )
+    return matches[0], raw
+
+
+def _purge_open_body_queue(queue_path: Path) -> Any | None:
+    """The real body queue, only when its DB already exists.
+
+    Constructing it creates the file and the schema, and a purge that *materialised*
+    a store in order to report zero rows in it would be reporting on its own side
+    effect.
+    """
+    if not queue_path.exists():
+        return None
+    try:
+        from specify_cli.sync.body_queue import OfflineBodyUploadQueue
+
+        return OfflineBodyUploadQueue(db_path=queue_path)
+    except Exception as exc:  # noqa: BLE001 — reported as unreadable, never as empty
+        _LOG.debug("body-upload queue unavailable for purge: %s", exc)
+        return None
+
+
+def _purge_validate_invocation(
+    *,
+    project: str | None,
+    identity_less: bool,
+    all_events: bool,
+    apply: bool,
+    dry_run: bool,
+    confirm: str,
+    report: Path | None,
+) -> None:
+    """Refuse a malformed or unauthorised invocation before any store is opened."""
+    from specify_cli.delivery.retention import PURGE_ALL_CONFIRMATION
+
+    if report is not None:
+        # Checked before anything is deleted, not at write time. The ledger rows this
+        # command removes are the only durable record of what happened to those
+        # events, so discovering an unwritable report path *after* the delete would
+        # destroy the record and the report of it in one run.
+        try:
+            report.parent.mkdir(parents=True, exist_ok=True)
+            report.touch()
+        except OSError as exc:
+            _purge_usage_error(f"--report path is not writable ({report}): {exc}")
+
+    if apply and dry_run:
+        _purge_usage_error("--apply and --dry-run are mutually exclusive.")
+    selectors = [project is not None, identity_less, all_events]
+    if not any(selectors):
+        _purge_usage_error(
+            "Choose exactly one of --project <slug-or-uuid>, --identity-less or --all."
+        )
+    if sum(1 for chosen in selectors if chosen) > 1:
+        _purge_usage_error("--project, --identity-less and --all are mutually exclusive.")
+
+    # The confirmation phrase gates the destructive `--all` run before anything is
+    # opened. `purge_all_events` enforces the same phrase — that check is the pinned
+    # one and it still runs — but it can only speak for the journal and the ledger,
+    # while the body queue and the frame queue have no gate of their own. One phrase,
+    # one constant, authorising all four stores (C-002, FR-017).
+    if all_events and apply and confirm != PURGE_ALL_CONFIRMATION:
+        console.print(
+            "[red]Refused:[/red] a destructive --all run requires "
+            f'--confirm "{PURGE_ALL_CONFIRMATION}". Nothing was deleted. Run without '
+            "--apply first — its reported counts are exactly what a confirmed run removes."
+        )
+        raise typer.Exit(1)
+
+
+def _purge_journal_selection(
+    journal_path: Path,
+    census: _RawCensus,
+    *,
+    all_events: bool,
+    identity_less: bool,
+    selector_uuid: str,
+) -> tuple[frozenset[str], list[str]]:
+    """``(census keys in scope, journal ids in scope)`` for this selector."""
+    if all_events:
+        return frozenset(census.by_key), _purge_journal_ids(
+            journal_path, project_uuid=None, every_row=True
+        )
+    if identity_less:
+        return frozenset({_PURGE_NULL_KEY}), _purge_journal_ids(
+            journal_path, project_uuid=None, every_row=False
+        )
+    return frozenset({selector_uuid}), _purge_journal_ids(
+        journal_path, project_uuid=selector_uuid, every_row=False
+    )
+
+
+def _purge_ledger_view(census: _RawCensus, *, all_events: bool) -> _RawCensus:
+    """The ledger census as the selector sees it.
+
+    ``--all`` covers the ledger's own rows — including the ghosts whose journal row
+    ``sync gc`` already removed, which no journal-derived id list can name — so the
+    selected count is the whole table.
+    """
+    if not all_events:
+        return census
+    return _RawCensus(
+        total=census.total,
+        by_key={_PURGE_LEDGER: census.total},
+        unreadable=census.unreadable,
+    )
+
+
+def _purge_run_journal_ledger(
+    journal_path: Path,
+    ledger_path: Path,
+    *,
+    all_events: bool,
+    identity_less: bool,
+    selector_uuid: str,
+    dry_run: bool,
+    confirm: str,
+) -> Any | None:
+    """Run the journal+ledger purge primitive for this selector, or ``None``.
+
+    ``None`` when no journal exists: there is nothing to purge, and opening
+    ``EventJournal`` would *create* the store — a purge that materialised a store in
+    order to report zero rows in it would be reporting on its own side effect.
+    """
+    from specify_cli.delivery.ledger import SqliteDeliveryLedger
+    from specify_cli.delivery.retention import (
+        PurgeNotConfirmedError,
+        purge_all_events,
+        purge_identity_less_events,
+        purge_project_events,
+    )
+    from specify_cli.event_journal.journal import EventJournal
+
+    if not journal_path.exists():
+        return None
+    journal = EventJournal(journal_path)
+    ledger = SqliteDeliveryLedger(str(ledger_path) if ledger_path.exists() else ":memory:")
+    try:
+        if all_events:
+            return purge_all_events(
+                journal=journal, ledger=ledger, dry_run=dry_run, confirmation=confirm
+            )
+        if identity_less:
+            return purge_identity_less_events(
+                journal=journal, ledger=ledger, dry_run=dry_run
+            )
+        return purge_project_events(
+            selector_uuid, journal=journal, ledger=ledger, dry_run=dry_run
+        )
+    except PurgeNotConfirmedError as exc:
+        console.print(f"[red]Refused:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    finally:
+        ledger.close()
+
+
+def _purge_frames_scope(
+    census: _RawCensus, frames_result: Any | None, *, all_events: bool, selector_uuid: str
+) -> frozenset[str]:
+    """The frame-census keys this run claims, as the primitive itself scoped them."""
+    if all_events:
+        return frozenset(census.by_key)
+    if frames_result is None:
+        return frozenset()
+    if frames_result.unattributed_in_scope:
+        # This checkout declares the target as its own project, so its unattributable
+        # frames are its own content and are in scope — the pre-fix population the
+        # incident actually produced, which carries no `project_uuid` at all.
+        return frozenset({selector_uuid}) | _purge_unattributable_keys(census)
+    return frozenset({selector_uuid})
+
+
+def _purge_selector_line(
+    *, project: str | None, identity_less: bool, selector_uuid: str, matched_slug: str | None
+) -> str:
+    if project is not None:
+        matched = f' (matched slug "{matched_slug}")' if matched_slug else ""
+        return f"Selector: project [bold]{selector_uuid}[/bold]{matched}"
+    if identity_less:
+        return "Selector: journal rows with no project identity (NULL)"
+    return "Selector: [bold]every event[/bold] in the stores named below"
+
+
+def _purge_body_targets(census: _RawCensus, *, all_events: bool, selector_uuid: str) -> list[str]:
+    """The body-queue uuids this run will hand to the sanctioned per-project removal.
+
+    ``--all`` fans out over the census keys because no ``purge_all_body_uploads``
+    primitive exists — and one is deliberately not invented here. Keys that are blank
+    or padded are excluded: ``remove_project_tasks`` strips its argument, so those rows
+    are unreachable through the sanctioned path and are reported as left behind rather
+    than deleted through a second route the primitive does not own (C-003).
+    """
+    if not all_events:
+        return [selector_uuid]
+    return [key for key in sorted(census.by_key) if key and key == key.strip()]
+
+
+def _purge_outcomes(
+    *,
+    before: dict[str, _RawCensus],
+    after: dict[str, _RawCensus],
+    scopes: dict[str, frozenset[str]],
+    locations: dict[str, str],
+    reported: dict[str, int | None],
+    result: Any | None,
+    ghosts_before: int,
+    identity_less: bool,
+    in_checkout: bool,
+    frames_census_reported: int,
+) -> dict[str, _PurgeStoreOutcome]:
+    """Assemble the per-store outcome from the two independent censuses.
+
+    ``removed_reported`` is carried alongside ``removed_observed`` rather than instead
+    of it: the report shows what the purge said *and* what the stores show, so a
+    disagreement is visible instead of averaged away.
+    """
+    outcomes: dict[str, _PurgeStoreOutcome] = {}
+    for store in (_PURGE_JOURNAL, _PURGE_LEDGER, _PURGE_BODY, _PURGE_FRAMES):
+        if store == _PURGE_LEDGER:
+            removed, others = _purge_ledger_differential(before[store], after[store])
+        else:
+            removed, others = _purge_differential(before[store], after[store], scopes[store])
+        outcomes[store] = _PurgeStoreOutcome(
+            store=store,
+            location=locations[store],
+            in_scope=before[store].count(scopes[store]),
+            removed_observed=removed,
+            removed_reported=reported[store],
+            others_delta_observed=others,
+            total_after=after[store].total,
+            left_behind=_purge_left_behind(after[store]),
+            unreadable=before[store].unreadable or after[store].unreadable,
+        )
+
+    ledger = outcomes[_PURGE_LEDGER]
+    ledger.left_behind = {"without_journal_row": ghosts_before} if ghosts_before else {}
+    if result is not None:
+        ledger.states = {
+            str(name): int(count) for name, count in result.ledger_status_before.items()
+        }
+        ledger.never_attempted = result.never_attempted
+
+    if identity_less:
+        note = (
+            "not spanned by --identity-less: unattributable rows here cannot be "
+            "attributed to any project, and only --all reaches them"
+        )
+        outcomes[_PURGE_BODY].note = note
+        outcomes[_PURGE_FRAMES].note = note
+    if not in_checkout:
+        outcomes[_PURGE_FRAMES].note = (
+            "no checkout resolved from the current directory, so no local-commit queue "
+            "was inspected — re-run from inside the checkout"
+        )
+    elif before[_PURGE_FRAMES].unreadable:
+        outcomes[_PURGE_FRAMES].note = (
+            f"the purge's own census reads {frames_census_reported} queued frame(s) from "
+            "a file this command could not parse, so that number is not evidence of "
+            "what the file holds — repair or remove the file and re-run"
+        )
+    return outcomes
+
+
+def _purge_not_reached(
+    *,
+    after: dict[str, _RawCensus],
+    journal_scope: frozenset[str],
+    frames_scope: frozenset[str],
+    ghosts_before: int,
+    all_events: bool,
+) -> list[dict[str, Any]]:
+    """Name every population this run leaves behind, with its count and its selector.
+
+    A residue nobody names is the same defect as a report that overstates. All five
+    are real rather than hypothetical: the NULL-identity rows the backfill must not
+    delete (C-002), the non-NULL blank and whitespace-only uuids that are visible in
+    the census and reachable by no targeted selector, the ledger rows whose journal row
+    ``sync gc`` already removed (so every machine that has run it holds some), the
+    body-upload rows no selector reaches at all, and the pre-fix frames of a checkout
+    that vouches for nothing.
+    """
+    rows: list[dict[str, Any]] = []
+
+    def add(
+        population: str, description: str, count: int | None, reachable_by: str, text: str
+    ) -> None:
+        rows.append(
+            {
+                "population": population,
+                "description": description,
+                "count": count,
+                "reachable_by": reachable_by,
+                "reachable_by_text": text,
+            }
+        )
+
+    journal = after[_PURGE_JOURNAL]
+    null_left = journal.by_key.get(_PURGE_NULL_KEY, 0)
+    if null_left and _PURGE_NULL_KEY not in journal_scope:
+        add(
+            "journal_identity_null",
+            "journal rows with a NULL project identity",
+            null_left,
+            "--identity-less",
+            "permanently undeliverable and matchable by no project; run "
+            "`sync purge --identity-less`",
+        )
+    blank_left = sum(
+        count
+        for key, count in journal.by_key.items()
+        if key != _PURGE_NULL_KEY and not key.strip() and key not in journal_scope
+    )
+    if blank_left:
+        add(
+            "journal_identity_blank",
+            "journal rows whose project_uuid is blank or whitespace-only",
+            blank_left,
+            "--all",
+            "visible in the census and selectable by nothing else: a project purge "
+            "blanks a falsy selector and the identity-less selector is NULL-only, so "
+            "only `sync purge --all` reaches them",
+        )
+    if ghosts_before:
+        add(
+            "ledger_without_journal_row",
+            "delivery-ledger rows whose journal row is already gone",
+            ghosts_before,
+            "--all",
+            "every targeted selection collects its ids from the journal, and `sync gc` "
+            "removes journal rows while preserving ledger history by design",
+        )
+    body_blank = sum(
+        count for key, count in after[_PURGE_BODY].by_key.items() if not key or key != key.strip()
+    )
+    if body_blank:
+        add(
+            "body_uploads_identity_blank",
+            "queued document bodies whose project_uuid is blank or padded",
+            body_blank,
+            "none",
+            "the body queue has no total-purge primitive and its per-project removal "
+            "strips its argument, so NO selector currently reaches these rows",
+        )
+    frames_unattributed = sum(
+        count
+        for key, count in after[_PURGE_FRAMES].by_key.items()
+        if (key == _PURGE_NULL_KEY or not key.strip()) and key not in frames_scope
+    )
+    if frames_unattributed:
+        add(
+            "local_commit_frames_unattributed",
+            "queued local-commit frames carrying no project_uuid",
+            frames_unattributed,
+            "--all",
+            "this checkout does not declare the purged project as its own, so it "
+            "vouches for nothing; `sync purge --all` run from the owning checkout "
+            "reaches them",
+        )
+    if all_events:
+        add(
+            "local_commit_frames_other_checkouts",
+            "other checkouts' queued local-commit frames",
+            None,
+            "run this command from each checkout",
+            "per-checkout state with no registry to enumerate it — deliberately not "
+            "counted, because a count that cannot be proven complete would be worse "
+            "than none",
+        )
+    return rows
+
+
+def _purge_faults(
+    *,
+    outcomes: dict[str, _PurgeStoreOutcome],
+    before: dict[str, _RawCensus],
+    after: dict[str, _RawCensus],
+    apply: bool,
+    others_total: int,
+    frames_census_reported: int,
+    frames_census_disagrees: bool,
+) -> list[str]:
+    """Everything the measurements say went wrong. Empty means NFR-006 held.
+
+    Each entry is a disagreement between two independently obtained numbers, never a
+    restatement of one of them: the stores' own before/after against what the purge
+    reported, and the purge's census of the frame file against the file itself.
+    """
+    faults: list[str] = []
+    if frames_census_disagrees:
+        faults.append(
+            f"{_PURGE_STORE_LABELS[_PURGE_FRAMES]}: the purge's census reads "
+            f"{frames_census_reported} queued frame(s) where the file holds "
+            f"{before[_PURGE_FRAMES].total} — the purge is not acting on the file's "
+            "actual contents."
+        )
+    if apply:
+        faults.extend(
+            f"{_PURGE_STORE_LABELS[store]}: unreadable, so a destructive run cannot "
+            "claim to have cleared it."
+            for store, outcome in outcomes.items()
+            if outcome.unreadable
+        )
+    if others_total:
+        faults.append(
+            f"{others_total} row(s) outside the selection changed. Either the purge "
+            "over-reached or another writer (a running sync daemon, a concurrent "
+            "capture) touched a store during the run — stop the daemon and re-measure "
+            "before trusting this report."
+        )
+    for store, outcome in outcomes.items():
+        expected = outcome.in_scope if apply else 0
+        if outcome.removed_observed != expected:
+            faults.append(
+                f"{_PURGE_STORE_LABELS[store]}: expected {expected} row(s) to go, "
+                f"measured {outcome.removed_observed}."
+            )
+        # The journal's reported count is not comparable under `--all`: that selection
+        # deliberately includes ledger-only ids that were never journal rows.
+        if (
+            apply
+            and store != _PURGE_JOURNAL
+            and outcome.removed_reported is not None
+            and outcome.removed_reported != outcome.removed_observed
+        ):
+            faults.append(
+                f"{_PURGE_STORE_LABELS[store]}: the purge reported "
+                f"{outcome.removed_reported} removed, the store shows "
+                f"{outcome.removed_observed}."
+            )
+        # The ledger census is deliberately partial — one synthetic bucket for the
+        # selection, because the store has no project column to group by — so its
+        # totality is enforced by `_purge_ledger_differential`'s derivation instead.
+        if store != _PURGE_LEDGER and (before[store].unbucketed or after[store].unbucketed):
+            faults.append(
+                f"{_PURGE_STORE_LABELS[store]}: rows exist that the per-project census "
+                "cannot account for, so this store's differential is not trustworthy."
+            )
+    return faults
+
+
+def _purge_print_verdict(faults: list[str], *, apply: bool, all_events: bool) -> None:
+    """State what the measurements support, and never more than that."""
+    if apply:
+        console.print(f"\n[dim]{_PURGE_NON_ATOMIC_NOTE}[/dim]")
+    if faults:
+        console.print("\n[bold red]NFR-006 not satisfied[/bold red]")
+        for fault in faults:
+            console.print(f"  [red]•[/red] {fault}")
+        return
+    scope_claim = (
+        "nothing outside the scope named above changed"
+        if all_events
+        else "0 rows belonging to any other project changed"
+    )
+    console.print(
+        "\n[green]Differential verified against the stores[/green] (measured by "
+        f"re-reading them, not by summing what the purge reported): {scope_claim}."
+    )
+
+
+def _purge_render(
+    *,
+    selector_line: str,
+    dry_run: bool,
+    outcomes: dict[str, _PurgeStoreOutcome],
+    not_reached: list[dict[str, Any]],
+    scope_note: str | None,
+) -> None:
+    """Print the operator's report: the plan, the residue, and the scope."""
+    header = (
+        "[bold yellow]DRY RUN[/bold yellow] — no rows have been deleted"
+        if dry_run
+        else "[bold red]APPLIED[/bold red] — rows have been deleted"
+    )
+    console.print(f"\n[bold]Purge[/bold] {header}")
+    console.print(selector_line)
+
+    table = Table(show_header=True, header_style="bold cyan", box=None, pad_edge=False)
+    table.add_column("Store")
+    table.add_column("Location", overflow="fold")
+    table.add_column("In scope", justify="right")
+    table.add_column("Removed", justify="right")
+    table.add_column("Store total after", justify="right")
+    for store, outcome in outcomes.items():
+        table.add_row(
+            _PURGE_STORE_LABELS[store],
+            outcome.location,
+            str(outcome.in_scope),
+            str(outcome.removed_observed),
+            str(outcome.total_after),
+        )
+    console.print(table)
+
+    ledger = outcomes[_PURGE_LEDGER]
+    states = "  ".join(f"{name}={count}" for name, count in sorted(ledger.states.items()))
+    console.print(
+        "Delivery state of the events in scope: "
+        f"{states or 'no delivery attempt recorded'}"
+        f"  never-attempted={ledger.never_attempted}"
+    )
+    console.print(
+        "[dim]The ledger rows are deleted, so this breakdown is the only surviving "
+        "record of what happened to those events. Keep it (--report writes it as "
+        "JSON).[/dim]"
+    )
+
+    for outcome in outcomes.values():
+        if outcome.unreadable:
+            console.print(
+                f"[yellow]Warning:[/yellow] the {_PURGE_STORE_LABELS[outcome.store]} store "
+                f"could not be read ({outcome.location}). Its rows are NOT accounted for "
+                "above — treat this purge as incomplete until the store is readable."
+            )
+        if outcome.note:
+            console.print(f"[dim]{_PURGE_STORE_LABELS[outcome.store]}: {outcome.note}[/dim]")
+
+    if all(outcome.in_scope == 0 for outcome in outcomes.values()):
+        # "0 rows removed" and "wrong selector" look identical in a count, and this
+        # report is the operator's only record. Say which one it is.
+        console.print(
+            "[yellow]Nothing matched this selector in any store.[/yellow] If rows were "
+            "expected, check the value: these stores are keyed by project uuid, and "
+            "`spec-kitty sync doctor` lists the projects the journal actually holds."
+        )
+
+    if not_reached:
+        console.print("\n[bold]Not reached by this purge[/bold]")
+        for row in not_reached:
+            count = "unknown" if row["count"] is None else str(row["count"])
+            console.print(f"  • {row['description']}: {count} — {row['reachable_by_text']}")
+
+    if scope_note:
+        console.print(f"\n[bold yellow]{scope_note}[/bold yellow]")
+
+
+@app.command()
+def purge(
+    project: str = typer.Option(
+        None,
+        "--project",
+        help=(
+            "Purge one project's rows, by project uuid or project slug. Dry-run "
+            "unless --apply is given."
+        ),
+    ),
+    identity_less: bool = typer.Option(
+        False,
+        "--identity-less",
+        help=(
+            "Purge journal/ledger rows whose project identity is NULL — permanently "
+            "undeliverable rows that no project selector can match."
+        ),
+    ),
+    all_events: bool = typer.Option(
+        False,
+        "--all",
+        help=(
+            "Purge every row of this machine's journal, delivery ledger and "
+            "body-upload queue, plus THIS checkout's queued local-commit frames. "
+            "Requires --confirm with the confirmation phrase."
+        ),
+    ),
+    apply: bool = typer.Option(
+        False, "--apply", help="Actually delete. Without it this command only reports."
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Report only, deleting nothing (this is the default)."
+    ),
+    confirm: str = typer.Option(
+        "",
+        "--confirm",
+        help=(
+            "Confirmation phrase authorising a destructive --all run. Run without it "
+            "once; the refusal names the exact phrase and deletes nothing."
+        ),
+    ),
+    report: Path = typer.Option(
+        None,
+        "--report",
+        help=(
+            "Write the purge report as JSON. Worth doing: the ledger rows this purge "
+            "deletes are the only durable record of what happened to those events."
+        ),
+    ),
+) -> None:
+    """Remove a project's retained event data from every store that holds it (FR-016/FR-017).
+
+    **Dry-run by default.** Reports per-store, per-delivery-state counts and changes
+    nothing; what it predicts is exactly what ``--apply`` then deletes. Deletion is
+    only ever the operator's explicit act (C-002) — nothing here runs unattended.
+
+    Four stores hold a project's data and all four are covered: the event journal,
+    the delivery ledger (removed, not retained — an orphan ledger row can quote the
+    project it belonged to), the body-upload queue (verbatim ``spec.md`` /
+    ``plan.md`` text, not envelopes), and this checkout's queued local-commit frames
+    (whose ``changed_files`` are mission slugs).
+
+    Every count in the differential is measured by re-reading the stores rather than
+    by adding up what the purge reports deleting, and the report names the
+    populations a targeted purge cannot reach instead of quietly leaving them out.
+
+    ``--all`` is per-checkout for the local-commit frames and the report says so:
+    the other three stores are machine-global, but there is no registry of checkouts,
+    so another checkout's queued frames are neither listed nor touched.
+
+    Examples:
+        spec-kitty sync purge --project acme-migration
+        spec-kitty sync purge --project acme-migration --apply --report purge.json
+        spec-kitty sync purge --all
+        spec-kitty sync purge --all --apply --confirm "purge all events"
+    """
+    import json as _json
+
+    from specify_cli.core.paths import locate_project_root
+    from specify_cli.delivery.retention import (
+        ProjectPurgeResult,
+        purge_project_body_uploads,
+        resolve_live_store_paths,
+    )
+    from specify_cli.sync.local_commit import (
+        census_pending_local_commits,
+        purge_all_pending_local_commits,
+        purge_pending_local_commits,
+    )
+    from specify_cli.sync.queue import default_queue_db_path
+
+    _purge_validate_invocation(
+        project=project,
+        identity_less=identity_less,
+        all_events=all_events,
+        apply=apply,
+        dry_run=dry_run,
+        confirm=confirm,
+        report=report,
+    )
+
+    journal_path, ledger_path = resolve_live_store_paths()
+    queue_path = default_queue_db_path()
+    repo_root = locate_project_root(Path.cwd())
+    frames_location = str(repo_root / _PURGE_SYNC_STATE_RELPATH) if repo_root is not None else "no Spec Kitty checkout resolved from the current directory"
+
+    body_queue = _purge_open_body_queue(queue_path)
+    before = {
+        _PURGE_JOURNAL: _purge_journal_census(journal_path),
+        _PURGE_BODY: _purge_body_census(body_queue),
+        _PURGE_FRAMES: _purge_frames_census(repo_root),
+    }
+    # What the purge's own census sees, taken at the same instant as the CLI's raw
+    # read of the same file so the two are comparable. Not decoration:
+    # ``load_sync_state`` resets a malformed file to empty and never raises, so a
+    # disagreement means the purge is about to act on a picture the file does not
+    # support — the case where it reports "0 frames" over a file full of mission
+    # slugs, i.e. client engagement names.
+    frames_census_reported = sum(census_pending_local_commits(repo_root).values()) if repo_root is not None else 0
+    frames_census_disagrees = repo_root is not None and not before[_PURGE_FRAMES].unreadable and frames_census_reported != before[_PURGE_FRAMES].total
+
+    selector_uuid = ""
+    matched_slug: str | None = None
+    if project is not None:
+        selector_uuid, matched_slug = _purge_resolve_project(project, journal_path, repo_root)
+        conflicts = _purge_stored_spelling_conflicts(selector_uuid, [before[_PURGE_JOURNAL], before[_PURGE_BODY], before[_PURGE_FRAMES]])
+        if conflicts:
+            _purge_usage_error(
+                f'"{selector_uuid}" is not how these stores spell that project. They hold '
+                f"{', '.join(repr(key) for key in conflicts)}. Re-run with the stored "
+                "spelling: the journal matches a uuid exactly while the frame queue "
+                "compares case-insensitively, so a mixed selector would clear one store "
+                "and silently miss the other."
+            )
+
+    # ---- selection scopes, expressed as census keys ------------------------ #
+    journal_scope, journal_ids = _purge_journal_selection(
+        journal_path,
+        before[_PURGE_JOURNAL],
+        all_events=all_events,
+        identity_less=identity_less,
+        selector_uuid=selector_uuid,
+    )
+    before[_PURGE_LEDGER] = _purge_ledger_view(
+        _purge_ledger_census(ledger_path, journal_ids), all_events=all_events
+    )
+    ledger_scope = frozenset({_PURGE_LEDGER})
+    ghosts_before = 0 if all_events else _purge_ledger_ghost_count(journal_path, ledger_path)
+
+    # ---- run the primitives ----------------------------------------------- #
+    result: ProjectPurgeResult | None = _purge_run_journal_ledger(
+        journal_path,
+        ledger_path,
+        all_events=all_events,
+        identity_less=identity_less,
+        selector_uuid=selector_uuid,
+        dry_run=not apply,
+        confirm=confirm,
+    )
+
+    body_removed_reported = 0
+    body_scope: frozenset[str] = frozenset()
+    if body_queue is not None and not identity_less:
+        body_targets = _purge_body_targets(
+            before[_PURGE_BODY], all_events=all_events, selector_uuid=selector_uuid
+        )
+        body_scope = frozenset(body_targets)
+        for target in body_targets:
+            body_removed_reported += purge_project_body_uploads(target, body_queue=body_queue, dry_run=not apply).removed
+
+    frames_result = None
+    if repo_root is not None and not identity_less:
+        if all_events:
+            frames_result = purge_all_pending_local_commits(repo_root, dry_run=not apply)
+        else:
+            frames_result = purge_pending_local_commits(repo_root, selector_uuid, dry_run=not apply)
+    frames_scope = _purge_frames_scope(
+        before[_PURGE_FRAMES],
+        frames_result,
+        all_events=all_events,
+        selector_uuid=selector_uuid,
+    )
+
+    # ---- measure again, independently ------------------------------------- #
+    after = {
+        _PURGE_JOURNAL: _purge_journal_census(journal_path),
+        _PURGE_LEDGER: _purge_ledger_view(
+            _purge_ledger_census(ledger_path, journal_ids), all_events=all_events
+        ),
+        _PURGE_BODY: _purge_body_census(body_queue),
+        _PURGE_FRAMES: _purge_frames_census(repo_root),
+    }
+
+    scopes = {
+        _PURGE_JOURNAL: journal_scope,
+        _PURGE_LEDGER: ledger_scope,
+        _PURGE_BODY: body_scope,
+        _PURGE_FRAMES: frames_scope,
+    }
+    locations = {
+        _PURGE_JOURNAL: str(journal_path),
+        _PURGE_LEDGER: str(ledger_path),
+        _PURGE_BODY: str(queue_path),
+        _PURGE_FRAMES: frames_location,
+    }
+    reported = {
+        _PURGE_JOURNAL: None if result is None else result.purged_count,
+        _PURGE_LEDGER: None if result is None else result.ledger_rows_removed,
+        _PURGE_BODY: body_removed_reported,
+        _PURGE_FRAMES: None if frames_result is None else frames_result.removed,
+    }
+
+    outcomes = _purge_outcomes(
+        before=before,
+        after=after,
+        scopes=scopes,
+        locations=locations,
+        reported=reported,
+        result=result,
+        ghosts_before=ghosts_before,
+        identity_less=identity_less,
+        in_checkout=repo_root is not None,
+        frames_census_reported=frames_census_reported,
+    )
+
+    not_reached = _purge_not_reached(
+        after=after,
+        journal_scope=journal_scope,
+        frames_scope=frames_scope,
+        ghosts_before=ghosts_before,
+        all_events=all_events,
+    )
+
+    scope_note = _PURGE_ALL_SCOPE_NOTE.format(frames_path=frames_location) if all_events else None
+    selector_line = _purge_selector_line(
+        project=project,
+        identity_less=identity_less,
+        selector_uuid=selector_uuid,
+        matched_slug=matched_slug,
+    )
+
+    _purge_render(
+        selector_line=selector_line,
+        dry_run=not apply,
+        outcomes=outcomes,
+        not_reached=not_reached,
+        scope_note=scope_note,
+    )
+
+    # ---- the verdict, from the measurements ------------------------------- #
+    others_total = sum(outcome.others_delta_observed for outcome in outcomes.values())
+    faults = _purge_faults(
+        outcomes=outcomes,
+        before=before,
+        after=after,
+        apply=apply,
+        others_total=others_total,
+        frames_census_reported=frames_census_reported,
+        frames_census_disagrees=frames_census_disagrees,
+    )
+
+    _purge_print_verdict(faults, apply=apply, all_events=all_events)
+
+    if report is not None:
+        payload = {
+            "generated_at": now_utc_iso(),
+            "selector": {
+                "kind": "project" if project is not None else ("identity-less" if identity_less else "all"),
+                "project_uuid": selector_uuid or None,
+                "matched_slug": matched_slug,
+            },
+            "dry_run": not apply,
+            "applied": bool(apply),
+            "stores": {store: outcome.as_dict() for store, outcome in outcomes.items()},
+            "others_delta_total": others_total,
+            "nfr_006_satisfied": not faults,
+            "faults": faults,
+            "not_reached": not_reached,
+            "scope_note": scope_note,
+        }
+        report.write_text(_json.dumps(payload, indent=2), encoding="utf-8")
+        console.print(f"[cyan]Purge report written to {report}[/cyan]")
+
+    if faults:
+        raise typer.Exit(1)
 
 
 @app.command()

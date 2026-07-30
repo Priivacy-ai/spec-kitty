@@ -713,21 +713,27 @@ def _send_event(client: Any, event_dict: dict[str, Any]) -> None:
 _PENDING_SEND_TASKS: set[Any] = set()
 
 
-# ``IDENTITY_LESS_FRAME_KEY`` / ``PendingCommitPurgeResult`` /
-# ``census_pending_local_commits`` / ``purge_pending_local_commits`` /
-# ``purge_all_pending_local_commits`` are deliberately NOT advertised yet, on the same
-# reasoning ``delivery/retention.py`` records for its own purge symbols: the
-# symbol-level dead-code gate (``tests/architectural/test_no_dead_symbols.py``) is a
-# shrink-only ratchet over ``__all__``, and WP08's ``sync purge`` command — the
-# production caller — is a later slice. Advertising them now would either fail that
-# gate or need an allowlist entry that outlives its reason. They stay importable, and
-# join this list (and ``sync/__init__``'s lazy re-exports) when the CLI wires them,
-# which is also the moment the names stop being aspirational.
+# The census + purge names join this list now that WP08's ``sync purge`` command
+# imports them, on the reasoning ``delivery/retention.py`` records for its own purge
+# symbols: the symbol-level dead-code gate
+# (``tests/architectural/test_no_dead_symbols.py``) is a shrink-only ratchet over
+# ``__all__``, so a name goes in when it has a production caller and not before.
+#
+# ``IDENTITY_LESS_FRAME_KEY`` and ``PendingCommitPurgeResult`` stay off it: the CLI
+# takes its own raw census of ``sync-state.json`` — deliberately, so its NFR-006
+# differential does not share a read with the thing it measures — and consumes the
+# result object without naming its type. They remain importable.
+#
+# ``sync/__init__``'s lazy re-exports are NOT extended here: that file belongs to
+# another lane in flight, and the CLI imports from this module directly.
 __all__ = [
     "SyncState",
+    "census_pending_local_commits",
     "load_sync_state",
     "save_sync_state",
     "emit_local_commit",
     "flush_pending_local_commits",
+    "purge_all_pending_local_commits",
+    "purge_pending_local_commits",
     "record_local_commit_ack",
 ]
