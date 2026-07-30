@@ -16,6 +16,29 @@ from specify_cli.sync.queue import DEFAULT_MAX_QUEUE_SIZE, QueueStats
 pytestmark = pytest.mark.fast
 
 
+@pytest.fixture(autouse=True)
+def _isolated_runtime_root(tmp_path, monkeypatch):
+    """Keep these tests off the developer's / runner's real spec-kitty state.
+
+    Every other input to ``doctor`` in this file is mocked, but #3030 T021 added a
+    per-project journal section that opens the event journal for the CURRENT
+    producer scope. Without this the outcome of ``test_doctor_healthy`` depends on
+    whether the machine running the suite happens to have non-consented events in
+    its own journal — green in CI, red on a developer box that has used the tool.
+    An isolated home makes the journal genuinely absent, which the section reports
+    as such without raising an issue.
+    """
+    home = tmp_path / "spec-kitty-home"
+    home.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+    monkeypatch.setenv("HOME", str(tmp_path / "user-home"))
+    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+    from specify_cli.event_journal.journal import reset_journal_cache
+
+    reset_journal_cache()
+
+
 def _make_fake_session(
     *,
     access_expires_at: datetime,

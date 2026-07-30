@@ -186,6 +186,33 @@ def test_doctor_says_so_when_the_journal_is_empty() -> None:
     assert "no events" in result.output.lower()
 
 
+def test_doctor_does_not_call_an_uncountable_journal_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A journal whose count() fails must not render as "no events retained".
+
+    `build_per_project_store_report` reports ``-1`` for an unanswerable count, so
+    the report does not reconcile against zero grouped rows. Red before the fix:
+    the renderer returned early on `not report.rows` and never reached the
+    reconciliation warning, so an unreadable journal printed the same reassuring
+    line as an empty one.
+    """
+    _doctor_journal()  # the file exists, so the runtime opens
+
+    def _boom(_self: object) -> int:
+        raise RuntimeError("database disk image is malformed")
+
+    monkeypatch.setattr(
+        "specify_cli.event_journal.journal.EventJournal.count", _boom, raising=True
+    )
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 0, result.output
+    assert "Issues found" in result.output
+    assert "do not reconcile" in result.output
+
+
 def test_doctor_names_the_journal_it_could_not_open(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -198,16 +225,16 @@ def test_doctor_names_the_journal_it_could_not_open(
     """
     _seed_contaminated_store()
 
-    def _boom(*_args: object, **_kwargs: object) -> object:
+    def _boom() -> object:
         raise PermissionError("journal.db: permission denied")
 
-    monkeypatch.setattr(sync_module, "_open_event_sync_runtime", _boom)
+    monkeypatch.setattr(sync_module, "_open_journal_readonly", _boom)
 
     result = runner.invoke(app, ["doctor"])
 
     assert result.exit_code == 0, result.output
     assert "Issues found" in result.output
-    assert "could not be read" in result.output
+    assert "could not be opened" in result.output
     assert "permission denied" in result.output
 
 

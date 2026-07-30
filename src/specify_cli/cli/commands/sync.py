@@ -1301,6 +1301,28 @@ def _per_project_store_table(report: PerProjectStoreReport) -> Table:
     return table
 
 
+def _open_journal_readonly() -> EventJournal:
+    """Open ONLY the journal for the current producer scope, read-only (#3030 T021).
+
+    Deliberately not ``_open_event_sync_runtime_readonly``, which also resolves the
+    delivery target and opens the ledger and target registry. A "whose data is in
+    here?" read needs none of those, and sharing that opener meant any
+    target-resolution failure was reported as "the event journal could not be
+    read" — the wrong diagnosis, naming the wrong store, in the one section whose
+    job is to be trustworthy about which store it read.
+
+    Raises ``FileNotFoundError`` when this scope has no journal file yet, which the
+    caller renders as the benign absence it is.
+    """
+    from specify_cli.event_journal.journal import EventJournal, resolve_journal_path
+
+    scope = _current_event_sync_scope()
+    path = resolve_journal_path(user_id=scope.user_id, team_slug=scope.team_slug)
+    if not path.exists():
+        raise FileNotFoundError(f"event-sync journal DB absent: {path}")
+    return EventJournal(path)
+
+
 def _render_per_project_store(console_out: Any, issues: list[str]) -> None:
     """Render the journal's per-project composition with consent state (#3030 T021).
 
@@ -1322,7 +1344,7 @@ def _render_per_project_store(console_out: Any, issues: list[str]) -> None:
     from specify_cli.delivery.status_report import build_per_project_store_report
 
     try:
-        runtime = _open_event_sync_runtime_readonly()
+        journal = _open_journal_readonly()
     except FileNotFoundError as exc:
         # The one benign absence: no journal file has ever been created for this
         # producer scope, so there is genuinely nothing to group. Still printed,
@@ -1332,13 +1354,13 @@ def _render_per_project_store(console_out: Any, issues: list[str]) -> None:
         return
     except Exception as exc:
         issues.append(
-            f"The event journal could not be read, so this run cannot say which "
+            f"The event journal could not be opened, so this run cannot say which "
             f"projects have data in it: {exc}. Until this is resolved, treat a "
             "clean queue-health block as unproven — it reads a different store."
         )
         return
     try:
-        report = build_per_project_store_report(runtime.journal)
+        report = build_per_project_store_report(journal)
     except Exception as exc:
         issues.append(
             f"The event journal opened but its rows could not be grouped by "
@@ -1346,21 +1368,22 @@ def _render_per_project_store(console_out: Any, issues: list[str]) -> None:
             "the queue-health block above does not answer it."
         )
         return
-    finally:
-        with contextlib.suppress(Exception):
-            runtime.close()
 
     console_out.print(f"\n[bold]{_PER_PROJECT_SECTION_TITLE}[/bold]")
-    if not report.rows:
+    if report.rows:
+        console_out.print(_per_project_store_table(report))
+    else:
         # Asserted-empty, not silently-empty: this line is the difference between
         # a journal that holds nothing and a report that never ran.
         console_out.print(
             f"  [green]no events retained[/green] "
             f"[dim](journal count {report.retained_event_count})[/dim]"
         )
-        return
-
-    console_out.print(_per_project_store_table(report))
+    # Unconditionally, including on the empty branch. A journal that cannot answer
+    # count() reports -1, which does not reconcile against zero rows — so returning
+    # early on `not report.rows` would have rendered an unreadable journal as "no
+    # events retained". That is the same three-states-look-alike failure the
+    # docstring above is about, one branch further in.
     issues.extend(_per_project_store_issues(report))
 
 

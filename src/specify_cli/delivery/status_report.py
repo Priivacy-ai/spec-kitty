@@ -608,8 +608,8 @@ def build_per_project_store_report(
     is one pass plus one consent lookup per distinct project — not per event.
 
     Identity-less rows are grouped under a single ``project_uuid=None`` row rather
-    than dropped: they are permanently unselectable, and FR-011 exists so that
-    denial is observable instead of silent data loss.
+    than dropped: they are unselectable for as long as the column is NULL, and
+    FR-011 exists so that denial is observable instead of silent data loss.
 
     ``event_ids`` restricts the universe to a named set of rows, which is what
     ``sync migrate`` needs: its claim is about the composition of what IT moved,
@@ -643,8 +643,8 @@ def build_per_project_store_report(
             decision_granted = False
             level = "unresolved_identity"
             reason = (
-                "project identity did not resolve; permanently unselectable and "
-                "counted here rather than dropped (FR-011)"
+                "no stored project identity; unselectable while the column is "
+                "NULL, and counted here rather than dropped (FR-011)"
             )
         else:
             decision = resolve_project_consent(project_uuid, repo_slug=repo_slug)

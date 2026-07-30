@@ -373,10 +373,14 @@ __all__ = [
     "INSERT_SQL",
     "MARK_ARCHIVED_SQL",
     "OLDEST_CREATED_AT_SQL",
-    # ORDERED_COLUMNS is not exported: it is this module's internal INSERT/SELECT
-    # column-order contract (``_COLUMN_LIST`` / ``_PLACEHOLDERS`` /
-    # ``event_to_params`` / ``row_to_event`` all consume it here), and nothing
-    # outside needs it. ``TABLE_NAME`` was listed twice; the duplicate is dropped.
+    # ORDERED_COLUMNS stays exported: the allowlist grant in
+    # tests/architectural/test_no_dead_symbols.py records the reason (the
+    # journal's canonical column-order contract, consumed inside this module by
+    # _COLUMN_LIST/_PLACEHOLDERS so it has no cross-module import). Its
+    # content-tier key went stale when WP04 appended repo_slug, which is what
+    # surfaced it as an offender; the key is refreshed there rather than the
+    # export being revoked. ``TABLE_NAME`` was listed twice — duplicate dropped.
+    "ORDERED_COLUMNS",
     "SELECT_ALL_SQL",
     "SELECT_BLOCKED_SQL",
     "SELECT_BY_ID_SQL",

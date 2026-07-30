@@ -785,6 +785,9 @@ _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[SymbolKey] = frozenset(
         # NOT widened: the constant is consumed inside models.py by
         # _COLUMN_LIST/_PLACEHOLDERS (so no cross-module import can ever exist), and
         # it is exported because it is the journal's canonical column-order contract.
+        # It surfaced twice for one root cause: the stale key made the constant a
+        # fresh offender AND orphaned this entry, which is the double signal
+        # `_compute_dangling` documents and suppresses to a single fix.
         SymbolKey("ORDERED_COLUMNS", "3054068a5131fb488635e1418800da7b405aed699671821becafd2573d9489c7"),  # specify_cli.event_journal.models::ORDERED_COLUMNS
         SymbolKey("KNOWN_PREFIX", "98ecae0739efcb4413e222ecc96031896d1c57e85b9bf934884cbbdb1b2bb838"),  # specify_cli.sync.migrate_journal::KNOWN_PREFIX
         SymbolKey("LEGACY_DIGEST", "170c1daeecd9635cf72713656060e38404f956d4305108275d591c11ecb86d29"),  # specify_cli.sync.migrate_journal::LEGACY_DIGEST
