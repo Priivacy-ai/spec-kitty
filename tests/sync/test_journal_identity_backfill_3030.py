@@ -11,17 +11,35 @@ Assertions are on the public seam — append/read/backfill — not on SQL, per W
 definition of done. The two exceptions are the index check (an index is not
 observable through the API but NFR-003 depends on it) and the raw before/after
 snapshot proving C-002.
+
+Every column projection below is **derived** from ``ORDERED_COLUMNS`` /
+``IDENTITY_COLUMNS`` rather than hand-listed. That is the structural fix for the H6
+defect class: the destructive ``repo_slug`` write was invisible because
+``_raw_snapshot`` — the helper SC-007's entire byte-identical claim rests on — did
+not select that column, so a test asserting losslessness could not see the column
+being lost. Patching the literal fixed the instance; deriving it closes the class,
+because a 12th column is covered without anyone remembering to add it here.
 """
 from __future__ import annotations
 
 import json
 import sqlite3
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from specify_cli.event_journal.journal import EventJournal
-from specify_cli.event_journal.models import Event, TABLE_NAME
+from specify_cli.event_journal.models import (
+    COL_EVENT_ID,
+    COL_PROJECT_SLUG,
+    COL_PROJECT_UUID,
+    COL_REPO_SLUG,
+    IDENTITY_COLUMNS,
+    ORDERED_COLUMNS,
+    Event,
+    TABLE_NAME,
+)
 from specify_cli.sync.project_identity import (
     NIL_PROJECT_UUID,
     backfill_journal_identity,
@@ -44,14 +62,31 @@ def _event(event_id: str, envelope: dict, *, created: str = "2026-07-01T00:00:00
     )
 
 
-def _stored_identity(db_path: Path) -> dict[str, tuple]:
+def _physical_columns(db_path: Path) -> set[str]:
     conn = sqlite3.connect(str(db_path))
     try:
+        return {row[1] for row in conn.execute(f"PRAGMA table_info({TABLE_NAME})")}
+    finally:
+        conn.close()
+
+
+def _stored_identity(db_path: Path) -> dict[str, dict[str, Any]]:
+    """Every identity column of every row, keyed by ``event_id``.
+
+    Derived from :data:`IDENTITY_COLUMNS`, and it previously omitted ``repo_slug`` —
+    the same omission shape as the H6 defect even though nothing depended on it yet.
+    Returning a name-keyed mapping rather than a positional tuple means a fourth
+    identity column cannot be silently skipped: callers that pin the whole mapping
+    will fail until someone states what the new column should hold.
+    """
+    columns = (COL_EVENT_ID, *IDENTITY_COLUMNS)
+    conn = sqlite3.connect(str(db_path))
+    try:
+        rows = conn.execute(
+            f"SELECT {', '.join(columns)} FROM {TABLE_NAME}"  # noqa: S608 - module constants
+        )
         return {
-            row[0]: (row[1], row[2])
-            for row in conn.execute(
-                f"SELECT event_id, project_uuid, project_slug FROM {TABLE_NAME}"
-            )
+            row[0]: dict(zip(IDENTITY_COLUMNS, row[1:], strict=True)) for row in rows
         }
     finally:
         conn.close()
@@ -136,7 +171,14 @@ def test_backfill_resolves_each_writer_site(
 
     result = backfill_journal_identity(journal)
 
-    assert _stored_identity(db_path)["evt-1"] == (UUID_A, "acme")
+    assert _stored_identity(db_path)["evt-1"] == {
+        COL_PROJECT_UUID: UUID_A,
+        COL_PROJECT_SLUG: "acme",
+        # Pinned explicitly rather than ignored: none of these envelopes carries a
+        # repo_slug, so the backfill must leave it NULL. Asserting the whole mapping
+        # is what makes a future identity column impossible to add unnoticed.
+        COL_REPO_SLUG: None,
+    }
     assert result.updated == 1
 
 
@@ -162,10 +204,12 @@ def test_backfill_leaves_unresolvable_rows_null_and_counts_them(
     result = backfill_journal_identity(journal)
 
     identity = _stored_identity(db_path)
-    assert identity["evt-resolvable"][0] == UUID_A
-    assert identity["evt-bare"][0] is None
-    assert identity["evt-nil"][0] is None, "the nil sentinel must not be stored"
-    assert identity["evt-corrupt"][0] is None
+    assert identity["evt-resolvable"][COL_PROJECT_UUID] == UUID_A
+    assert identity["evt-bare"][COL_PROJECT_UUID] is None
+    assert identity["evt-nil"][COL_PROJECT_UUID] is None, (
+        "the nil sentinel must not be stored"
+    )
+    assert identity["evt-corrupt"][COL_PROJECT_UUID] is None
     assert {e.event_id for e in journal.read_all()} == {
         "evt-resolvable",
         "evt-bare",
@@ -227,26 +271,59 @@ def test_sc007_backfill_twice_is_byte_identical(tmp_path: Path) -> None:
     )
 
 
-def _raw_snapshot(db_path: Path) -> list[tuple]:
-    """Every column, ``repo_slug`` included.
+def _raw_snapshot(db_path: Path) -> list[dict[str, Any]]:
+    """Every column of every row, name-keyed, derived from :data:`ORDERED_COLUMNS`.
 
-    ``repo_slug`` was missing from this projection, and that omission was not
+    ``repo_slug`` was once missing from this projection, and the omission was not
     cosmetic: it is a column the backfill *writes*, so SC-007's byte-identical claim
-    simply did not cover it. The proof of that is
-    ``test_backfill_does_not_clear_an_already_stored_repo_slug`` below, which found a
-    real destructive write that this snapshot could not see.
+    simply did not cover it, and
+    ``test_backfill_does_not_clear_an_already_stored_repo_slug`` found a real
+    destructive write this snapshot could not see.
+
+    Deriving the projection is what stops that recurring. The literal it replaces was
+    correct on the day it was written and would have gone stale on the day a 12th
+    column landed, silently — the failure mode being that a losslessness test cannot
+    lose what it does not look at.
+
+    The coverage assertion is the other half. Derivation makes a new
+    ``ORDERED_COLUMNS`` entry appear in the projection automatically; the assertion
+    catches the reverse drift, where the constant and the physical schema disagree,
+    which derivation alone would happily paper over by selecting a shorter row.
     """
+    physical = _physical_columns(db_path)
+    assert physical == set(ORDERED_COLUMNS), (
+        "the losslessness projection and the physical schema disagree, so this "
+        "snapshot no longer proves anything about the columns in the gap: "
+        f"only in the table = {sorted(physical - set(ORDERED_COLUMNS))}, "
+        f"only in ORDERED_COLUMNS = {sorted(set(ORDERED_COLUMNS) - physical)}"
+    )
     conn = sqlite3.connect(str(db_path))
     try:
-        return list(
-            conn.execute(
-                f"SELECT event_id, event_type, payload, occurred_at, created_at, "
-                f"coalesce_key, archived_at, drain_blocked_reason, project_uuid, "
-                f"project_slug, repo_slug FROM {TABLE_NAME} ORDER BY event_id"  # noqa: S608 - constant
-            )
+        rows = conn.execute(
+            f"SELECT {', '.join(ORDERED_COLUMNS)} FROM {TABLE_NAME} "  # noqa: S608 - module constants
+            f"ORDER BY {COL_EVENT_ID}"
         )
+        return [dict(zip(ORDERED_COLUMNS, row, strict=True)) for row in rows]
     finally:
         conn.close()
+
+
+#: The columns NFR-004 promises the backfill never touches: everything this mission
+#: did not add. Derived, so a new column is protected by default rather than on
+#: someone remembering to widen a slice. Defaulting to *protected* is the safe
+#: direction — a column wrongly listed here fails loudly the first time the backfill
+#: legitimately writes it, whereas a column wrongly omitted is silent data loss.
+PRESERVED_COLUMNS: tuple[str, ...] = tuple(
+    column for column in ORDERED_COLUMNS if column not in IDENTITY_COLUMNS
+)
+
+
+def _preserved_view(snapshot: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Project *snapshot* onto the columns the backfill must not modify."""
+    return {
+        row[COL_EVENT_ID]: {column: row[column] for column in PRESERVED_COLUMNS}
+        for row in snapshot
+    }
 
 
 def test_backfill_does_not_clear_an_already_stored_repo_slug(tmp_path: Path) -> None:
@@ -301,13 +378,35 @@ def test_backfill_writes_repo_slug_when_the_payload_carries_one(tmp_path: Path) 
     assert stored.repo_slug == "acme/widgets"
 
 
+def test_the_preserved_column_set_is_neither_empty_nor_everything(tmp_path: Path) -> None:
+    """Guard the derivation itself, so the preservation test cannot go vacuous.
+
+    ``PRESERVED_COLUMNS`` is ``ORDERED_COLUMNS - IDENTITY_COLUMNS``. If
+    ``IDENTITY_COLUMNS`` ever grew to swallow the table, the preservation test below
+    would compare empty dicts and pass forever; if ``IDENTITY_COLUMNS`` were emptied,
+    it would fail for the wrong reason. Both are pinned here rather than left to
+    inference, because a derived projection's failure mode is silence.
+    """
+    assert PRESERVED_COLUMNS, "nothing is being checked for preservation"
+    assert set(PRESERVED_COLUMNS).isdisjoint(IDENTITY_COLUMNS)
+    assert set(PRESERVED_COLUMNS) | set(IDENTITY_COLUMNS) == set(ORDERED_COLUMNS), (
+        "every column must be classified as either written-by-the-backfill or "
+        "preserved; an unclassified column is one no test is asserting about"
+    )
+
+
 def test_backfill_preserves_all_non_identity_columns(tmp_path: Path) -> None:
     """NFR-004: no row mutated outside the new identity columns.
 
-    Three of them, not two: ``repo_slug`` joined ``project_uuid`` and
+    Three identity columns, not two: ``repo_slug`` joined ``project_uuid`` and
     ``project_slug`` after NFR-004's wording was written. The invariant is unchanged
-    — nothing outside the columns this mission added is touched — and the slice
-    below is what enforces it.
+    — nothing outside the columns this mission added is touched — and the derived
+    ``PRESERVED_COLUMNS`` projection is what enforces it.
+
+    This replaced a hand-maintained ``r[1:8]`` slice. The slice was correct and
+    unreadable, and its correctness was positional: it silently stopped covering the
+    truth the moment the column list changed length, which is the same failure that
+    hid the ``repo_slug`` write.
     """
     db_path = tmp_path / "j.db"
     journal = EventJournal(db_path)
@@ -322,11 +421,11 @@ def test_backfill_preserves_all_non_identity_columns(tmp_path: Path) -> None:
             drain_blocked_reason="missing_auth",
         )
     )
-    before = {r[0]: r[1:8] for r in _raw_snapshot(db_path)}
+    before = _preserved_view(_raw_snapshot(db_path))
 
     backfill_journal_identity(journal)
 
-    after = {r[0]: r[1:8] for r in _raw_snapshot(db_path)}
+    after = _preserved_view(_raw_snapshot(db_path))
     assert after == before
 
 
@@ -353,7 +452,7 @@ def test_backfill_does_not_overwrite_an_existing_stored_identity(
 
     result = backfill_journal_identity(journal)
 
-    assert _stored_identity(db_path)["evt-1"][0] == UUID_A
+    assert _stored_identity(db_path)["evt-1"][COL_PROJECT_UUID] == UUID_A
     assert result.updated == 0
 
 
@@ -394,4 +493,4 @@ def test_backfill_migrates_a_pre_migration_file(tmp_path: Path) -> None:
     journal = EventJournal(db_path)
     backfill_journal_identity(journal)
 
-    assert _stored_identity(db_path)["evt-old"][0] == UUID_A
+    assert _stored_identity(db_path)["evt-old"][COL_PROJECT_UUID] == UUID_A
