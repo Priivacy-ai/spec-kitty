@@ -185,3 +185,49 @@ def test_consented_events_deliver_on_the_next_drain_after_a_refusal(
     )
     assert summary.delivered == 1
     assert len(delivered) == 1
+
+
+def test_a_refused_batch_does_not_wedge_the_multi_batch_drain(
+    journal: EventJournal, ledger: SqliteDeliveryLedger, target: Any
+) -> None:
+    """Non-terminal must not mean "re-select the same refusal forever".
+
+    Keeping the events selectable is only safe if the drain loop can still
+    advance. ``sync now`` walks batches with an in-memory ``exclude`` set fed from
+    ``retryable_event_ids``; this reproduces that loop and asserts it terminates.
+    Without the events appearing in ``retryable_event_ids``, the identical
+    cross-project window would be re-selected and re-refused on every iteration.
+    """
+
+    def _never(url: str, *, data: Any, headers: Any, timeout: Any) -> Any:
+        raise AssertionError("a cross-project batch must never be POSTed")
+
+    receiver = TeamspaceReceiver(
+        resolved_server_url=_SERVER_URL, auth_token=_TOKEN, poster=_never
+    )
+
+    skip: set[str] = set()
+    iterations = 0
+    while iterations < 10:
+        iterations += 1
+        batch = dispatch(
+            journal=journal,
+            ledger=ledger,
+            receiver=receiver,
+            target=target,
+            exclude=frozenset(skip),
+        )
+        before = len(skip)
+        skip.update(batch.retryable_event_ids)
+        progressed = (batch.delivered + batch.duplicate + batch.terminal_failed) > 0
+        if batch.selected == 0 or not (progressed or len(skip) > before):
+            break
+
+    assert iterations <= 3, (
+        f"the drain loop must advance past a refused batch, took {iterations} passes"
+    )
+    # And the events are still there for the next command.
+    assert ledger.select_undelivered(
+        target_id=target.target_id,
+        event_universe=["evt-consented", "evt-other"],
+    ) == ["evt-consented", "evt-other"]
