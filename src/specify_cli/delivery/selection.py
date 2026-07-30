@@ -33,9 +33,11 @@ capture taken before login. The split is *policy vs readiness*:
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from specify_cli.delivery.consent_gate import ConsentAnswer, resolve_consent_answer
 from specify_cli.event_journal import (
     DRAIN_BLOCKED_DAEMON_LOCK,
     DRAIN_BLOCKED_MISSING_AUTH,
@@ -125,7 +127,7 @@ def is_terminally_blocked(reason: str | None) -> bool:
 def _drain_consent_memo(predicate: ConsentPredicate) -> ConsentPredicate:
     """Wrap *predicate* so each distinct uuid is resolved at most once per drain.
 
-    :func:`select_consented_event_ids` consults consent twice — once to build the
+    :func:`select_consented` consults consent twice — once to build the
     SQL project filter, once as the row-level gate — and NFR-003 requires it be
     resolved *once per distinct project*. Memoising here satisfies both: the second
     pass's candidates are a subset of the first's, so it issues no new lookups.
@@ -146,11 +148,28 @@ def _drain_consent_memo(predicate: ConsentPredicate) -> ConsentPredicate:
     return _resolve
 
 
-def select_consented_event_ids(
+@dataclass(frozen=True)
+class ConsentedSelection:
+    """A drain's selected ids **plus the answer that cleared them** (#3030 FR-028).
+
+    The answer is carried, not recomputed. ``select_consented`` already resolves
+    consent for every project present in the store in order to build the SQL
+    predicate; the dispatcher needs the very same value to mint the
+    :class:`~specify_cli.delivery.consent_gate.ConsentedBatch` it hands the
+    receiver. Re-asking would be the second consent chain C-003 forbids — and
+    worse than merely wasteful, since two resolutions of a revocable decision
+    can disagree within one drain.
+    """
+
+    event_ids: list[str]
+    answer: ConsentAnswer
+
+
+def select_consented(
     journal: Any,
     *,
     consent_predicate: ConsentPredicate | None = None,
-) -> list[str]:
+) -> ConsentedSelection:
     """Build the drain's universe: consented rows only, oldest first (FR-008/NFR-003).
 
     Three steps, and the order of the first two is the whole point:
@@ -175,12 +194,19 @@ def select_consented_event_ids(
     resolve = _drain_consent_memo(consent_predicate or _default_consent_predicate)
 
     present = journal.distinct_project_uuids()
-    consented = resolve(present) if present else frozenset()
+    # The answer is minted here, from the resolution that builds the SQL predicate
+    # — one question, two consumers (the ``IN (…)`` filter and the receiver's
+    # batch mint). ``resolve`` is the memo, so this costs no extra lookups.
+    answer = resolve_consent_answer(present, consent_predicate=resolve)
+    consented = answer.granted
     if not consented:
-        return []
+        return ConsentedSelection(event_ids=[], answer=answer)
 
     rows = journal.read_identity_projection(project_uuids=sorted(consented))
-    return selectable_event_ids(rows, consent_predicate=resolve)
+    return ConsentedSelection(
+        event_ids=selectable_event_ids(rows, consent_predicate=resolve),
+        answer=answer,
+    )
 
 
 def selectable_event_ids(
@@ -200,7 +226,7 @@ def selectable_event_ids(
     ``tests/delivery/test_nfr003_predicate_cost_3030.py``, this one by
     ``tests/sync/test_consent_resolver_3030.py``, which calls it with a single
     hand-built row and requires a refusal. It is also the gate for any caller
-    holding rows it did not fetch through :func:`select_consented_event_ids`.
+    holding rows it did not fetch through :func:`select_consented`.
     """
     materialised = list(rows)
     predicate = consent_predicate or _default_consent_predicate
@@ -231,7 +257,7 @@ def unselectable_identity_count(rows: Iterable[EventIdentityRow]) -> int:
 
     Note what this can and cannot see since FR-008's read became project-filtered:
     ``project_uuid IS NULL`` rows are excluded by the SQL predicate, so rows fetched
-    through :func:`select_consented_event_ids` never contain one and this would
+    through :func:`select_consented` never contain one and this would
     always return 0 for them. FR-011's report must therefore take its count from
     ``EventJournal.count_missing_identity``, which asks the store directly. This
     helper remains correct for any caller that assembled its own row set.
@@ -253,6 +279,6 @@ def unselectable_identity_count(rows: Iterable[EventIdentityRow]) -> int:
 # and it has — ``delivery/status_report.build_per_project_store_report`` imports it, so
 # FR-011's count has one definition rather than two (C-003).
 __all__ = [
-    "select_consented_event_ids",
+    "select_consented",
     "unselectable_identity_count",
 ]

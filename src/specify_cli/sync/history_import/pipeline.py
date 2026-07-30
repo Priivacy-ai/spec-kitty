@@ -181,7 +181,19 @@ def apply_import(
     # producer (#2884). Raises ContractViolationError, fail-closed, offline.
     validate_import_envelopes(plan.envelopes)
     manifest = build_provenance_manifest(plan.envelopes)
-    upload_kwargs: dict[str, Any] = {"receiver": receiver, "server_url": server_url, "auth_token": auth_token, "poster": poster}
+    # ``checkout_root`` is the repo being imported, offered to the consent chain as
+    # a level-1 root (#3030 FR-028/FR-019): without it the resolver falls straight
+    # through to the machine-global index and a committed, reviewable in-repo
+    # ``sync.enabled: false`` would not be honoured at import time. A root that
+    # declares a different ``project_uuid`` is ignored by the resolver, so offering
+    # this one can only ever answer for the project being imported.
+    upload_kwargs: dict[str, Any] = {
+        "receiver": receiver,
+        "server_url": server_url,
+        "auth_token": auth_token,
+        "poster": poster,
+        "checkout_root": repo_root,
+    }
     if chunk_size is not None:
         upload_kwargs["chunk_size"] = chunk_size
     report = run_import_upload(plan.envelopes, **upload_kwargs)

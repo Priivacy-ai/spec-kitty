@@ -24,11 +24,11 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands import sync as sync_command
 from specify_cli.cli.commands.sync import app
+from specify_cli.delivery.consent_gate import ConsentedBatch
 from specify_cli.delivery.ledger import SqliteDeliveryLedger
 from specify_cli.delivery.receivers import (
     DeliveryResult,
     GateKind,
-    OutboundEvent,
     ReceiverGate,
     StubReceiver,
 )
@@ -203,10 +203,9 @@ def test_sync_now_posts_retained_events_in_1000_event_batches(
             super().__init__()
             self.batch_sizes: list[int] = []
 
-        def deliver(self, batch: Sequence[OutboundEvent]) -> Sequence[DeliveryResult]:
-            events = list(batch)
-            self.batch_sizes.append(len(events))
-            return super().deliver(events)
+        def deliver(self, batch: ConsentedBatch) -> Sequence[DeliveryResult]:
+            self.batch_sizes.append(len(list(batch)))
+            return super().deliver(batch)
 
     receiver = _BatchSpyReceiver()
     monkeypatch.setattr(
@@ -245,7 +244,7 @@ def test_sync_now_gate_block_does_not_call_receiver(
         def gates(self) -> tuple[ReceiverGate, ...]:
             return (ReceiverGate(GateKind.AUTH),)
 
-        def deliver(self, batch: Sequence[OutboundEvent]) -> Sequence[DeliveryResult]:
+        def deliver(self, batch: ConsentedBatch) -> Sequence[DeliveryResult]:
             self.delivered = True
             return super().deliver(batch)
 

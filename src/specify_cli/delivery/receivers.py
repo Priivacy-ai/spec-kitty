@@ -60,6 +60,11 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 import requests
 
 from specify_cli.core.batch_partition import create_aware_midpoint
+from specify_cli.delivery.consent_gate import (
+    ConsentedBatch,
+    ConsentNotResolved,
+    resolve_envelope_project,
+)
 
 # -- Locked wire constants (S1192: hoisted, used across receivers/tests) --------
 BATCH_ENDPOINT_PATH = "/api/v1/events/batch/"
@@ -257,6 +262,14 @@ class DeliveryReceiver(Protocol):
     :meth:`deliver` (per-event result mapping), and retry-via-:class:`DeliveryResult`.
     The dispatcher drives any receiver through this protocol with no target-specific
     conditionals.
+
+    :meth:`deliver` takes a :class:`~specify_cli.delivery.consent_gate.ConsentedBatch`,
+    **not** a ``Sequence[OutboundEvent]`` (#3030 FR-028). This module is the single
+    object both delivery universes share — the journal dispatcher and
+    ``sync/history_import`` — so it is the one place a consent answer can be made
+    unbypassable. It used to take a bare sequence, and ``import-history`` reached it
+    holding a ``project_uuid`` it had never asked about. A batch cannot be minted
+    without a resolved answer, so that call can no longer be *written*.
     """
 
     @property
@@ -266,7 +279,25 @@ class DeliveryReceiver(Protocol):
 
     def gates(self) -> tuple[ReceiverGate, ...]: ...
 
-    def deliver(self, batch: Sequence[OutboundEvent]) -> Sequence[DeliveryResult]: ...
+    def deliver(self, batch: ConsentedBatch) -> Sequence[DeliveryResult]: ...
+
+
+def _consented_events(batch: ConsentedBatch) -> list[OutboundEvent]:
+    """Unwrap a :class:`ConsentedBatch`, refusing anything else (FR-028).
+
+    The runtime half of the type change. An annotation alone is advice — Python
+    would happily deliver a bare list at runtime and only a type-checker run
+    would object, which is the same "a reviewer might notice" enforcement the
+    incident already defeated. ``isinstance`` is sound here because
+    ``ConsentedBatch`` refuses subclassing.
+    """
+    if not isinstance(batch, ConsentedBatch):
+        raise ConsentNotResolved(
+            "deliver() takes a ConsentedBatch, not "
+            f"{type(batch).__name__}; mint one with delivery.consent_gate.consented_batch(), "
+            "which requires a resolved consent answer per project_uuid (#3030 FR-028)"
+        )
+    return list(batch.events)
 
 
 # -- Shared transport poster seam (testable: inject a fake) --------------------
@@ -319,23 +350,18 @@ _CROSS_PROJECT_ERROR = "refused before send: batch spans more than one project (
 def _event_project(event: OutboundEvent) -> str | None:
     """Resolve an event's project identity from the envelope, or ``None``.
 
-    Mirrors the three sites identity is written to (``namespace.project_uuid``,
-    top-level, ``payload.project_uuid``). ``None`` means *unresolvable here* — it is
-    deliberately **not** treated as a project, because counting it as one would
-    refuse ordinary batches containing a legacy identity-less row. Denying
-    unresolvable identity is the selection seam's job, where the stored column is
-    the sole authority.
+    Delegates to :func:`~specify_cli.delivery.consent_gate.resolve_envelope_project`
+    so the refusal below and the batch mint read identity through **one** chain.
+    They were two copies of the same three-site walk until #3030 FR-028; a
+    divergence between them would mean the events a batch was cleared for and the
+    events the refusal counts are attributed differently.
+
+    ``None`` means *unresolvable here* — deliberately **not** treated as a project
+    by the refusal, because counting it as one would refuse ordinary batches
+    containing a legacy identity-less row. Denying unresolvable identity is the
+    mint's and the selection seam's job, where the stored column is the authority.
     """
-    payload = event.payload
-    namespace = payload.get("namespace")
-    if isinstance(namespace, Mapping) and namespace.get("project_uuid"):
-        return str(namespace["project_uuid"])
-    if payload.get("project_uuid"):
-        return str(payload["project_uuid"])
-    subject = payload.get("subject")
-    if isinstance(subject, Mapping) and subject.get("project_uuid"):
-        return str(subject["project_uuid"])
-    return None
+    return resolve_envelope_project(event.payload)
 
 
 def _cross_project_refusal(
@@ -620,10 +646,14 @@ class _HttpReceiver:
     def gates(self) -> tuple[ReceiverGate, ...]:
         return ()
 
-    def deliver(self, batch: Sequence[OutboundEvent]) -> Sequence[DeliveryResult]:
-        events = list(batch)
+    def deliver(self, batch: ConsentedBatch) -> Sequence[DeliveryResult]:
+        events = _consented_events(batch)
         if not events:
             return []
+        # The refusal stays, and stays non-redundant: a ConsentedBatch proves every
+        # event's project consents, which does not mean they are the SAME project.
+        # Two consenting projects in one window is still a scope mismatch between
+        # authorization and delivery, and this is the position that catches it.
         refusal = _cross_project_refusal(events)
         if refusal is not None:
             return refusal
@@ -796,8 +826,8 @@ class StubReceiver:
     def gates(self) -> tuple[ReceiverGate, ...]:
         return ()
 
-    def deliver(self, batch: Sequence[OutboundEvent]) -> Sequence[DeliveryResult]:
-        events = list(batch)
+    def deliver(self, batch: ConsentedBatch) -> Sequence[DeliveryResult]:
+        events = _consented_events(batch)
         if not events:
             return []
         with self._lock:

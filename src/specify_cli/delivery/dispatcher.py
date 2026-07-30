@@ -42,6 +42,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from specify_cli.delivery.consent_gate import ConsentAnswer, consented_batch
 from specify_cli.delivery.ledger import SqliteDeliveryLedger
 from specify_cli.delivery.receivers import (
     DeliveryOutcome,
@@ -50,7 +51,7 @@ from specify_cli.delivery.receivers import (
 )
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
-from .selection import select_consented_event_ids
+from .selection import select_consented
 
 if TYPE_CHECKING:
     from specify_cli.delivery.interfaces import DeliveryTarget
@@ -190,6 +191,20 @@ def _install_coalescing(ledger: SqliteDeliveryLedger) -> bool:
 # --------------------------------------------------------------------------- #
 
 
+@dataclass(frozen=True)
+class _Selected:
+    """The drain's hydrated batch **and** the consent answer that cleared it.
+
+    The pair travels together because the receiver's input type requires the
+    answer (#3030 FR-028) and re-resolving it in phase 2 would be a second
+    consent chain (C-003) — one that could disagree with the SQL predicate that
+    chose these very rows if consent were revoked between the two calls.
+    """
+
+    events: list[Event]
+    answer: ConsentAnswer
+
+
 def _select_undelivered(
     journal: EventJournal,
     ledger: SqliteDeliveryLedger,
@@ -197,7 +212,7 @@ def _select_undelivered(
     *,
     limit: int | None = None,
     exclude: frozenset[str] = frozenset(),
-) -> list[Event]:
+) -> _Selected:
     """Return journal events still needing delivery to *target_id* (FR-004 / FR-015).
 
     The journal supplies the **event universe** via FR-008's project-filtered
@@ -224,9 +239,9 @@ def _select_undelivered(
     # Ordering is load-bearing: consent filtering must precede the ledger's limit,
     # or 2,000 non-consented rows ahead of 10 consented ones fill the window and
     # the drain starves permanently (NFR-002/SC-002).
-    eligible = select_consented_event_ids(journal)
+    selection = select_consented(journal)
     universe_ids = [
-        event_id for event_id in eligible if event_id not in exclude
+        event_id for event_id in selection.event_ids if event_id not in exclude
     ]
 
     selected_ids = ledger.select_undelivered(
@@ -240,7 +255,7 @@ def _select_undelivered(
     # batched read over one connection: the per-event ``read_by_id`` this replaces
     # opened a fresh SQLite connection per event, so a 1,000-event batch cost 1,000
     # connection open/closes.
-    return journal.read_by_ids(selected_ids)
+    return _Selected(events=journal.read_by_ids(selected_ids), answer=selection.answer)
 
 
 # --------------------------------------------------------------------------- #
@@ -266,13 +281,20 @@ def _decode_payload(event: Event) -> Mapping[str, Any]:
 
 
 def _post(
-    receiver: DeliveryReceiver, events: Sequence[Event]
+    receiver: DeliveryReceiver, events: Sequence[Event], answer: ConsentAnswer
 ) -> list[DeliveryResult]:
     """Deliver *events* through the active *receiver* (one path; contract §4).
 
     An empty selection short-circuits without calling the receiver. The receiver
     owns the per-event result mapping (Teamspace / external / stub alike) — the
     dispatcher carries no target-type branch.
+
+    Attribution is taken from the journal's **stored** ``project_uuid`` column,
+    never re-derived from the payload here: C-003 makes the column the sole
+    selection authority, and ``_decode_payload`` wraps an undecodable payload in a
+    minimal envelope that carries no identity at all — deriving from that would
+    turn a legacy row into an unattributable one and refuse a batch selection had
+    already cleared.
     """
     if not events:
         return []
@@ -280,7 +302,15 @@ def _post(
         OutboundEvent(event_id=event.event_id, payload=_decode_payload(event))
         for event in events
     ]
-    return list(receiver.deliver(batch))
+    return list(
+        receiver.deliver(
+            consented_batch(
+                batch,
+                answer=answer,
+                event_projects={event.event_id: event.project_uuid for event in events},
+            )
+        )
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -412,11 +442,11 @@ def dispatch(
     _install_coalescing(ledger)
     if target is None:
         return DispatchSummary.empty()
-    events = _select_undelivered(
+    selected = _select_undelivered(
         journal, ledger, target.target_id, limit=limit, exclude=exclude
     )
-    results = _post(receiver, events)
-    return _record(ledger, target.target_id, results, selected=len(events))
+    results = _post(receiver, selected.events, selected.answer)
+    return _record(ledger, target.target_id, results, selected=len(selected.events))
 
 
 __all__ = [

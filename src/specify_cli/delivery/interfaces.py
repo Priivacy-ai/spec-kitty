@@ -22,7 +22,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    # Import-time only: ``consent_gate`` is a leaf module, but the abstraction
+    # still declares no runtime dependency on anything below it.
+    from specify_cli.delivery.consent_gate import ConsentedBatch
 
 # A deployment-metadata mapping as the registry/health surface exchanges it.
 # Values are nullable because the URL-only MVP (C-004) may omit every field.
@@ -162,8 +167,15 @@ class DeliveryReceiver(Protocol):
 
     def gates_satisfied(self) -> bool: ...
 
-    def deliver(self, *, payloads: Sequence[bytes]) -> Sequence[object]:
+    def deliver(self, batch: ConsentedBatch) -> Sequence[object]:
         # Returns per-event DeliveryResult values — enum implemented in WP06.
+        #
+        # Takes a ``ConsentedBatch``, never a bare sequence (#3030 FR-028): the
+        # receiver is the single object both delivery universes share, so it is
+        # the one place a consent answer can be made unbypassable. The WP04
+        # placeholder here said ``payloads: Sequence[bytes]``, which had already
+        # drifted from ``receivers.py``'s contract-faithful ``Sequence[OutboundEvent]``;
+        # it is realigned rather than left as a third, stale spelling (C-003).
         ...
 
 

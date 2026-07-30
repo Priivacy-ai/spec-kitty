@@ -292,7 +292,7 @@ def test_a_misspelled_refusal_selects_no_event_for_delivery(
     drain's real universe builder through the real default consent predicate, with
     the checkout offered the way the drain offers it (from ``cwd``).
     """
-    from specify_cli.delivery.selection import select_consented_event_ids
+    from specify_cli.delivery.selection import select_consented
 
     root = _checkout_with_stale_grant(tmp_path, _IDENT + "sync:\n  enabled: no\n")
     monkeypatch.chdir(root)
@@ -315,7 +315,7 @@ def test_a_misspelled_refusal_selects_no_event_for_delivery(
 
     journal = _Journal()
 
-    assert select_consented_event_ids(journal) == []
+    assert select_consented(journal).event_ids == []
     assert journal.projection_calls == []
 
 
@@ -328,7 +328,7 @@ def test_the_same_journal_does_deliver_when_the_refusal_is_absent(
     legitimately answers and the projection *is* read. Without this, a selector that
     returned ``[]`` unconditionally would pass the test above.
     """
-    from specify_cli.delivery.selection import select_consented_event_ids
+    from specify_cli.delivery.selection import select_consented
 
     root = _checkout_with_stale_grant(tmp_path, _IDENT)
     monkeypatch.chdir(root)
@@ -346,7 +346,7 @@ def test_the_same_journal_does_deliver_when_the_refusal_is_absent(
 
     journal = _Journal()
 
-    select_consented_event_ids(journal)
+    select_consented(journal)
 
     assert journal.projection_calls == [[UUID_A]], (
         "a project with no local record must still be reachable through the index; "

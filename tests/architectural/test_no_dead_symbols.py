@@ -745,7 +745,7 @@ _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[SymbolKey] = frozenset(
         SymbolKey("HttpResponse", "424e7dd151b9e7abdea1693be40b486e5755f23c7a23fef775d06f3864217935"),  # specify_cli.delivery.receivers::HttpResponse
         SymbolKey("ReceiverGate", "222316c26a75df8f8d97c3423fa0d49fdbd2f6326362a53fd1cb8de155f30298"),  # specify_cli.delivery.receivers::ReceiverGate
         SymbolKey("STUB_ENDPOINT_URL", "bf67c1a0cecca5dd72e30cc6a6a0e2b3cef8c69dd363929c13f96bcd5129079d"),  # specify_cli.delivery.receivers::STUB_ENDPOINT_URL
-        SymbolKey("StubReceiver", "aeba7292204499407e90549f03b49684b4539e6baea89dab4158f58cf41bcbcc"),  # specify_cli.delivery.receivers::StubReceiver
+        SymbolKey("StubReceiver", "0103ed4178fea0da9ecc959a707d248a0effacc5ea9a506ac8afad5285fa0c83"),  # specify_cli.delivery.receivers::StubReceiver (rehashed: deliver() now takes a ConsentedBatch, #3030 FR-028)
         SymbolKey("map_batch_response", "608a6a0ba7eb0439166cd843f95d8fcbb2a1cd61f13e7b081e6daa596f4730d2"),  # specify_cli.delivery.receivers::map_batch_response
         # specify_cli.delivery.status_report::ADDITIVE_SECTION_KEYS
         SymbolKey("ADDITIVE_SECTION_KEYS", "45f0e694af41633f3bf4de2228ba6e52905e1c41a5d9cdbb8c1e67f5b256472a"),

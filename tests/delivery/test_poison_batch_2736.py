@@ -27,6 +27,7 @@ from specify_cli.delivery.receivers import (
     ExternalReceiver,
     OutboundEvent,
 )
+from tests._support.consented_batches import deliverable
 
 from ._poison_batch_poster import _AllOrNothingBatchPoster, _FakeResponse
 
@@ -78,7 +79,7 @@ def test_one_invalid_event_does_not_poison_innocent_events() -> None:
     )
     external = ExternalReceiver(endpoint_url="https://ops.example/ingest/", poster=poster)
 
-    results = {result.event_id: result for result in external.deliver(batch)}
+    results = {result.event_id: result for result in external.deliver(deliverable(batch))}
 
     # 1) Every innocent (valid) event must still deliver — it is not the culprit.
     for event in innocent:

@@ -38,7 +38,37 @@ def _env(
     str, Any
 ]:  # canonical-event-exempt(exception-flow): the TeamSpace wire envelope is not a *Payload model; a raw fixture is the transport's unit-under-test input
     # canonical-event-exempt(exception-flow): minimal wire envelope fed into the upload transport under test
-    return {"event_id": event_id, "event_type": event_type, "payload": {"wp_id": "WP01"}}
+    return {
+        "event_id": event_id,
+        "event_type": event_type,
+        "project_uuid": _FIXTURE_PROJECT_UUID,
+        "payload": {"wp_id": "WP01"},
+    }
+
+
+#: The project every fixture envelope belongs to. Stamped because the upload
+#: stage now refuses an envelope whose project cannot be identified (#3030
+#: FR-028, NFR-001): unresolvable identity can never be shown to consent.
+_FIXTURE_PROJECT_UUID = "00000000-0000-4000-8000-0000000021ce"
+
+
+@pytest.fixture(autouse=True)
+def _fixture_project_consents(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Grant hosted-sync consent for the fixture project, at the one resolver.
+
+    This file pins chunking, preflight ordering and outcome tallying — not the
+    consent decision, which ``tests/sync/test_history_import_consent_3030.py``
+    drives through the real chain against a real checkout. Stubbing
+    ``consented_project_uuids`` (rather than passing a predicate at 15 call
+    sites) keeps that separation while leaving the gate itself live: an envelope
+    carrying a *different* project is still refused here.
+    """
+    import specify_cli.sync.consent as consent_module
+
+    def _grant_the_fixture_project(candidates, *, checkout_roots=None):
+        return frozenset(c for c in candidates if c == _FIXTURE_PROJECT_UUID)
+
+    monkeypatch.setattr(consent_module, "consented_project_uuids", _grant_the_fixture_project)
 
 
 # ── fake poster (preflight transport) ─────────────────────────────────────────
@@ -148,9 +178,8 @@ def test_upload_chunks_by_chunk_size():
             self.sizes: list[int] = []
 
         def deliver(self, batch):
-            events = list(batch)
-            self.sizes.append(len(events))
-            return super().deliver(events)
+            self.sizes.append(len(list(batch)))
+            return super().deliver(batch)
 
     stub = _SpyStub()
     upload_envelopes([_env(f"e{i}") for i in range(5)], receiver=stub, chunk_size=2)
