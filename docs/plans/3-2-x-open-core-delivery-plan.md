@@ -1,6 +1,6 @@
 ---
 title: '3.2.x Open-Core Delivery Plan'
-description: 'PO-facing synthesis: verified 3.2.x status re-read, the open-core breaking-change delivery strategy (charter-as-sole-door, built-in→module extraction, engineer-to-non-impact), and the bounded remaining-work sequence.'
+description: 'PO-facing 3.2.x synthesis: a verified status re-read, the open-core breaking-change delivery strategy, and the bounded remaining-work sequence.'
 doc_status: proposed
 updated: '2026-07-30'
 related:
