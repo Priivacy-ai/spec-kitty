@@ -327,3 +327,31 @@ attributable in a tree three agents were editing simultaneously.
 
 The lesson for scheduling, not just for measurement: **parallel implementation agents are cheap;
 parallel full-suite runs are not.** Fan out the coding, serialise the sweeps.
+
+## Attributing a killed run to contention is itself an unverified attribution
+
+The coordinator reported a killed `pytest tests/cli tests/architectural` run as "almost certainly"
+the documented daemon-reaping hazard, citing the entry above. An implementer then found the same
+`exit 143` on its own run had a simpler cause: **SIGTERM from its own `timeout`**, not contention
+and not a failure.
+
+The coordinator's claim was never verified. It was plausible — there really were 20+ concurrent
+pytest processes and a leaked daemon on 9400 — but a documented hazard that *fits* is not evidence
+that it *fired*. This is the mission's central error one more time, in the place it is hardest to
+notice: reaching for a known explanation instead of checking which one applies.
+
+What checking would have cost: reading whether the elapsed time equalled the `timeout` value.
+
+Consequences worth carrying:
+
+- **`exit 143` on a `timeout N ... | tail` pipeline is triply ambiguous** — the timeout firing,
+  an external kill, or `tail` being signalled. None of the three is a test failure, and the exit
+  code cannot distinguish them. Only elapsed time and the output text can.
+- **A run that was killed was not "a run that failed", and it was also not "a run that passed
+  under contention".** It is *no measurement*, and the correct response is to re-run it, not to
+  explain it. The implementer got this right: on finding its architectural run had been killed, it
+  stopped treating `tests/cli` as covered and re-ran the ten suites that actually touch its files
+  — found by grep rather than by running all sixteen under load — capturing pytest's exit status
+  directly instead of through a pipe.
+- **Narrow the scope instead of raising the timeout.** Selecting the suites that touch the changed
+  files is both faster and more attributable than a broad run that contention will spoil anyway.
