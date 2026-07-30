@@ -177,19 +177,34 @@ def test_backfill_leaves_unresolvable_rows_null_and_counts_them(
     assert count_unresolved_identity(journal) == 3
 
 
+#: SC-007's stated scale. Was 60 — 1/166th of it, which is not a scale test at all.
+#: 10k rows cost ~0.5s here because the fixture seeds through the journal's own
+#: batch-append transaction (0.19s); the per-row ``append`` this file used opens a
+#: fresh SQLite connection per row and costs 4.7s for the same 10k, which is
+#: presumably why the number was 60. No marker is needed at this cost.
+SC007_ROWS = 10_000
+
+
 def test_sc007_backfill_twice_is_byte_identical(tmp_path: Path) -> None:
-    """SC-007/NFR-004: two runs, identical values, unchanged row count."""
+    """SC-007/NFR-004 at its stated 10k-row multi-project scale.
+
+    Seeded through ``EventJournal.transaction`` — the journal's own commit-once
+    batch-append seam, not a test-only shortcut — because 10k per-row ``append``
+    calls are 10k connection open/closes.
+    """
     db_path = tmp_path / "j.db"
     journal = EventJournal(db_path)
-    for i in range(60):
-        envelope = (
-            {"project_uuid": UUID_A, "project_slug": "acme"}
-            if i % 3 == 0
-            else {"payload": {"subject": {"project_uuid": UUID_B}}}
-            if i % 3 == 1
-            else {}
-        )
-        journal.append(_event(f"evt-{i:04d}", envelope))
+    with journal.transaction() as txn:
+        for i in range(SC007_ROWS):
+            envelope = (
+                {"project_uuid": UUID_A, "project_slug": "acme"}
+                if i % 3 == 0
+                else {"payload": {"subject": {"project_uuid": UUID_B}}}
+                if i % 3 == 1
+                else {}
+            )
+            txn.append(_event(f"evt-{i:05d}", envelope))
+        txn.commit()
 
     first = backfill_journal_identity(journal)
     snapshot_1 = _raw_snapshot(db_path)
@@ -198,29 +213,102 @@ def test_sc007_backfill_twice_is_byte_identical(tmp_path: Path) -> None:
     snapshot_2 = _raw_snapshot(db_path)
 
     assert snapshot_1 == snapshot_2, "second backfill mutated stored values"
+    assert len(snapshot_1) == SC007_ROWS, (
+        f"the fixture must actually hold {SC007_ROWS} rows, got {len(snapshot_1)}"
+    )
     assert {e.event_id for e in journal.read_all()} == {
-        f"evt-{i:04d}" for i in range(60)
+        f"evt-{i:05d}" for i in range(SC007_ROWS)
     }, "backfill must neither drop nor invent rows"
     assert second.updated == 0, "an idempotent re-run has nothing left to update"
     assert first.unresolved == second.unresolved
+    assert first.updated + first.unresolved == SC007_ROWS, (
+        "every row must be either identified or counted as unresolved — a row that "
+        "is neither is silently unaccounted for (FR-011)"
+    )
 
 
 def _raw_snapshot(db_path: Path) -> list[tuple]:
+    """Every column, ``repo_slug`` included.
+
+    ``repo_slug`` was missing from this projection, and that omission was not
+    cosmetic: it is a column the backfill *writes*, so SC-007's byte-identical claim
+    simply did not cover it. The proof of that is
+    ``test_backfill_does_not_clear_an_already_stored_repo_slug`` below, which found a
+    real destructive write that this snapshot could not see.
+    """
     conn = sqlite3.connect(str(db_path))
     try:
         return list(
             conn.execute(
                 f"SELECT event_id, event_type, payload, occurred_at, created_at, "
                 f"coalesce_key, archived_at, drain_blocked_reason, project_uuid, "
-                f"project_slug FROM {TABLE_NAME} ORDER BY event_id"  # noqa: S608 - constant
+                f"project_slug, repo_slug FROM {TABLE_NAME} ORDER BY event_id"  # noqa: S608 - constant
             )
         )
     finally:
         conn.close()
 
 
+def test_backfill_does_not_clear_an_already_stored_repo_slug(tmp_path: Path) -> None:
+    """NFR-004 is lossless, and ``repo_slug`` is a column the backfill writes.
+
+    A row can carry ``repo_slug`` while ``project_uuid`` is still NULL: capture
+    stamps the two from different sources (``event.get("repo_slug")`` versus T011's
+    resolution chain), and ``sync/migrate_journal.py`` moves legacy rows in. When the
+    payload carries no ``repo_slug``, ``SET_IDENTITY_SQL`` wrote NULL over the stored
+    value — destroying the only record of which repo the row came from, which is the
+    column's entire purpose (the WP07 per-project report).
+
+    Not a leak: ``repo_slug`` is explicitly never an authorization key (FR-019). It
+    is data loss, and it was invisible because ``_raw_snapshot`` did not select the
+    column.
+    """
+    db_path = tmp_path / "j.db"
+    journal = EventJournal(db_path)
+    journal.append(
+        Event(
+            event_id="evt-migrated",
+            event_type="WPStatusChanged",
+            # Resolvable uuid, and NO repo_slug in the envelope.
+            payload=json.dumps({"project_uuid": UUID_A, "project_slug": "acme"}).encode(),
+            occurred_at="2026-07-01T00:00:00Z",
+            created_at="2026-07-01T00:00:00Z",
+            repo_slug="acme/widgets",
+        )
+    )
+
+    backfill_journal_identity(journal)
+
+    (stored,) = journal.read_all()
+    assert stored.project_uuid == UUID_A, "the backfill must still fill the uuid"
+    assert stored.repo_slug == "acme/widgets", (
+        "the backfill must not overwrite a stored repo_slug with the payload's "
+        "absent one; an absent derived value is not a correction"
+    )
+
+
+def test_backfill_writes_repo_slug_when_the_payload_carries_one(tmp_path: Path) -> None:
+    """The converse, so the guard above cannot be satisfied by never writing at all."""
+    db_path = tmp_path / "j.db"
+    journal = EventJournal(db_path)
+    journal.append(
+        _event("evt-1", {"project_uuid": UUID_A, "repo_slug": "acme/widgets"})
+    )
+
+    backfill_journal_identity(journal)
+
+    (stored,) = journal.read_all()
+    assert stored.repo_slug == "acme/widgets"
+
+
 def test_backfill_preserves_all_non_identity_columns(tmp_path: Path) -> None:
-    """NFR-004: no row mutated outside the two new columns."""
+    """NFR-004: no row mutated outside the new identity columns.
+
+    Three of them, not two: ``repo_slug`` joined ``project_uuid`` and
+    ``project_slug`` after NFR-004's wording was written. The invariant is unchanged
+    — nothing outside the columns this mission added is touched — and the slice
+    below is what enforces it.
+    """
     db_path = tmp_path / "j.db"
     journal = EventJournal(db_path)
     journal.append(

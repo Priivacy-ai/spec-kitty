@@ -170,9 +170,16 @@ def backfill_journal_identity(journal: Any) -> IdentityBackfillResult:
     have needed a charter note.
 
     Idempotent and lossless (NFR-004/SC-007): only rows with a NULL
-    ``project_uuid`` are considered, the write never overwrites an existing
-    value, and nothing outside the two columns is touched. Interruption is safe —
-    unwritten rows stay NULL, which reads as *unselectable*, never as consented.
+    ``project_uuid`` are considered, the write never overwrites an existing value,
+    and nothing outside the **three** identity columns is touched. NFR-004's text
+    says "the two new columns"; ``repo_slug`` was added to the set afterwards, so
+    the invariant is intact and the count in the spec's wording is stale — reported
+    2026-07-30 rather than resolved by narrowing the write, because the WP07
+    per-project report needs a repo name for pre-mission history and ``repo_slug``
+    can never widen consent (FR-019).
+
+    Interruption is safe — unwritten rows stay NULL, which reads as *unselectable*,
+    never as consented.
 
     An unparseable payload resolves to ``None`` rather than raising: a single
     corrupt row must not strand the whole history.

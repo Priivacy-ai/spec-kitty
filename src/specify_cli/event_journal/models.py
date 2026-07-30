@@ -114,8 +114,23 @@ SELECT_MISSING_IDENTITY_SQL = (
     f"SELECT {COL_EVENT_ID}, {COL_PAYLOAD} FROM {TABLE_NAME} "  # noqa: S608 — identifiers are static module constants
     f"WHERE {COL_PROJECT_UUID} IS NULL ORDER BY {COL_CREATED_AT} ASC, {COL_EVENT_ID} ASC"
 )
+# NFR-004 is *lossless*, so the two reporting columns are COALESCEd rather than
+# assigned: an absent derived value is not a correction. Without it, a row that
+# already carried a ``repo_slug`` (capture stamps it from ``event["repo_slug"]``,
+# independently of T011's uuid chain, and ``sync/migrate_journal.py`` moves legacy
+# rows in) had that value overwritten with NULL whenever the payload had none —
+# destroying the only record of which repo the row came from, which is the column's
+# entire purpose. Not a leak, since neither slug is ever an authorization key
+# (FR-019); data loss, and invisible until ``_raw_snapshot`` started selecting the
+# column.
+#
+# ``project_uuid`` is a plain assignment: the ``IS NULL`` guard in the WHERE clause
+# already proves there is no stored value to preserve, and that guard is what makes
+# a resumed backfill unable to change a value the selection predicate already trusts.
 SET_IDENTITY_SQL = (
-    f"UPDATE {TABLE_NAME} SET {COL_PROJECT_UUID} = ?, {COL_PROJECT_SLUG} = ?, {COL_REPO_SLUG} = ? "  # noqa: S608 — identifiers are static module constants
+    f"UPDATE {TABLE_NAME} SET {COL_PROJECT_UUID} = ?, "  # noqa: S608 — identifiers are static module constants
+    f"{COL_PROJECT_SLUG} = COALESCE(?, {COL_PROJECT_SLUG}), "
+    f"{COL_REPO_SLUG} = COALESCE(?, {COL_REPO_SLUG}) "
     f"WHERE {COL_EVENT_ID} = ? AND {COL_PROJECT_UUID} IS NULL"
 )
 # T017 (#3030 FR-008/NFR-003): the project-filtered read is an **identity
