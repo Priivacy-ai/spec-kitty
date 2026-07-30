@@ -119,6 +119,14 @@
       "target_shard": "auth-audit-git"
     },
     {
+      "dir": "identity",
+      "cone_roots": [
+        "tests/specify_cli/identity"
+      ],
+      "target_group": "platform",
+      "target_shard": "specify-cli-rest"
+    },
+    {
       "dir": "intake",
       "cone_roots": [],
       "target_group": "platform",
@@ -303,6 +311,7 @@
     "event_journal",
     "events",
     "git",
+    "identity",
     "intake",
     "invocation",
     "lanes",

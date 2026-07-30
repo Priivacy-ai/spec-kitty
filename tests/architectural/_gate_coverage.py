@@ -1357,6 +1357,7 @@ _COMPOSITE_ROUTING: dict[str, _CompositeRoute] = {
     "events": ("platform", "specify-cli-rest", ("tests/specify_cli/events",)),
     "paths": ("platform", "specify-cli-rest", ("tests/paths",)),
     "saas_client": ("platform", "specify-cli-rest", ("tests/specify_cli/saas_client",)),
+    "identity": ("platform", "specify-cli-rest", ("tests/specify_cli/identity",)),
     "task_utils": ("platform", "specify-cli-rest", ()),
     "intake": ("platform", "specify-cli-rest", ()),
 }
