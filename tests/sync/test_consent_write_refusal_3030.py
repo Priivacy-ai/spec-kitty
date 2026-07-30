@@ -395,6 +395,65 @@ def test_a_refused_reconciliation_does_not_break_the_decision(tmp_path: Path) ->
     _assert_bystanders_survive(path, "resolving a project-local refusal")
 
 
+# --------------------------------------------------------------------------- #
+# The operator surface of the refusal                                          #
+# --------------------------------------------------------------------------- #
+#
+# FR-023's recorded lesson, applied to this fix: "a new exception nobody catches is a
+# crash moved, not fixed", so every caller that assumed the write could not raise is
+# audited. Three CLI commands write through ``SyncConfig`` with no handler —
+# ``sync opt-in``, ``sync opt-out`` and ``sync server`` — and ``opt-in`` is precisely
+# the command ``sync doctor`` sends an operator to consider after reporting an
+# undetermined consent state. Letting the refusal surface there as an unhandled
+# exception (measured: exit 1, empty output) would replace one unhelpful answer with
+# another, on the path this mission exists to make honest.
+
+
+@pytest.mark.parametrize(
+    ("command", "what"),
+    [
+        (["opt-in"], "opt-in"),
+        (["opt-out"], "opt-out"),
+        (["server", "https://example.invalid"], "server URL"),
+    ],
+    ids=["opt-in", "opt-out", "server"],
+)
+def test_a_refused_write_is_reported_rather_than_raised_out_of_the_cli(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, command: list[str], what: str
+) -> None:
+    """The refusal reaches the operator as an actionable message, not a traceback."""
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.sync import app
+
+    repo = tmp_path / "checkout"
+    (repo / ".kittify").mkdir(parents=True, exist_ok=True)
+    (repo / ".kittify" / "config.yaml").write_text(
+        f"project:\n  uuid: {PROJECT_A}\n", encoding="utf-8"
+    )
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo))
+    monkeypatch.setenv("COLUMNS", "220")
+    # ``opt-in`` refuses early and exits non-zero when the rollout flag is off, which
+    # would satisfy the exit-code assertion without ever reaching the write.
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    monkeypatch.chdir(repo)
+
+    path = _plant_records()
+    _corrupt_keeping_the_records(path)
+
+    result = CliRunner().invoke(app, command)
+
+    assert result.exit_code != 0, "a refused write must not report success"
+    assert result.exception is None or isinstance(result.exception, SystemExit), (
+        f"the refusal escaped `sync {command[0]}` as an unhandled "
+        f"{type(result.exception).__name__}: an operator sees a traceback"
+    )
+    flat = " ".join(result.output.split())
+    assert str(path) in flat, "the operator is not told which file to repair"
+    assert "could not be read" in flat
+    _assert_bystanders_survive(path, f"sync {command[0]}")
+
+
 def test_the_backfill_writes_nothing_over_an_unreadable_index() -> None:
     """The backfill reads the same unreadable file it would write.
 

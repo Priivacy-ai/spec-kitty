@@ -1559,6 +1559,41 @@ def _render_per_project_store(console_out: Any, issues: list[str]) -> None:
 # nothing rendered either of them, which SC-004's own note records as owed.     #
 # --------------------------------------------------------------------------- #
 
+@contextlib.contextmanager
+def _reporting_a_refused_config_write(what: str):
+    """Turn a refused write into an actionable message instead of a traceback.
+
+    ``SyncConfig`` refuses to write over a config it cannot read, because the write is
+    a whole-file read-modify-write that would rebuild the file from an empty document
+    and discard every consent record it holds (#3030). That refusal is a
+    ``ConfigNotReadableError``, and FR-023's recorded lesson applies to it directly: *a
+    new exception nobody catches is a crash moved, not fixed*, so every caller that
+    assumed the write could not raise is audited.
+
+    Three commands write with no handler of their own — ``sync opt-in``,
+    ``sync opt-out`` and ``sync server`` — and ``opt-in`` is exactly the command an
+    operator reaches for after ``sync doctor`` reports consent as undetermined.
+    Measured before this wrapper: exit 1 with **no output at all**, which would have
+    replaced one unhelpful answer with another on the path this mission exists to make
+    honest.
+
+    The exception's own message already names the file, the kind and the underlying
+    error, so it is printed rather than paraphrased — a second wording here is how the
+    refusal and the doctor start describing one fault differently (C-003).
+    """
+    from specify_cli.sync.config import ConfigNotReadableError
+
+    try:
+        yield
+    except ConfigNotReadableError as exc:
+        console.print(f"[red]Error:[/red] {what} was not recorded. {exc}")
+        console.print(
+            "[dim]Nothing was changed and no records were lost. "
+            "Run 'spec-kitty sync doctor' for the full consent-readability report.[/dim]"
+        )
+        raise typer.Exit(1) from exc
+
+
 _CONSENT_HEALTH_SECTION_TITLE = "Consent record readability"
 
 #: Every ``ConfigReadFault.kind`` mapped to **the operator action that resolves it**,
@@ -2145,10 +2180,11 @@ def opt_out(
     _require_daemon_owner_coherence("spec-kitty sync opt-out")
 
     routing = _require_active_checkout()
-    result = disable_checkout_sync(
-        routing.repo_root,
-        remember_repo_default=not checkout_only,
-    )
+    with _reporting_a_refused_config_write("This checkout's opt-out"):
+        result = disable_checkout_sync(
+            routing.repo_root,
+            remember_repo_default=not checkout_only,
+        )
 
     console.print(
         f"[green]✓[/green] Disabled SaaS sync for this checkout "
@@ -2292,10 +2328,11 @@ def opt_in(
     )
 
     routing = _require_active_checkout()
-    refreshed = enable_checkout_sync(
-        routing.repo_root,
-        remember_repo_default=not checkout_only,
-    )
+    with _reporting_a_refused_config_write("This checkout's opt-in"):
+        refreshed = enable_checkout_sync(
+            routing.repo_root,
+            remember_repo_default=not checkout_only,
+        )
 
     # Honest confirmation (#2264): opt-in writes LOCAL routing flags only — no
     # auth, no remote round-trip, no history import. The message must not imply
@@ -2983,7 +3020,8 @@ def sync_server(
         )
         raise typer.Exit(1)
 
-    config.set_server_url(normalized_url)
+    with _reporting_a_refused_config_write("The sync server URL"):
+        config.set_server_url(normalized_url)
     console.print(f"[green]✓[/green] Sync server set to [cyan]{normalized_url}[/cyan]")
     console.print(
         "[dim]If you switched environments, run "
