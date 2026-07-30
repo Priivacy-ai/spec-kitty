@@ -134,11 +134,27 @@ def _stub_dossier_resolvers(monkeypatch, tmp_path):
     """
     from specify_cli.identity.project import ProjectIdentity
     from specify_cli.sync.body_queue import OfflineBodyUploadQueue
-    from uuid import uuid4
+    from uuid import UUID
+
+    # #3030 FR-031 (E5): the pipeline now requires the resolved project to consent,
+    # not merely for the machine to be armed. Every caller of this helper is a
+    # *mechanics* test — "the body queue is built directly", "get_runtime is never
+    # called", "no threads are spawned" — so each needs to get past the gate to test
+    # what it is named for. Without the record below, two of them would still pass,
+    # but only because the pipeline returned early and therefore built nothing and
+    # spawned nothing. The uuid is fixed rather than ``uuid4()`` so a consent record
+    # can exist for it at all.
+    fixed_uuid = UUID("6a1d0c4e-0598-4c33-9f2e-000000000598")
+    home = tmp_path / "hangfix-home"
+    home.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+    from specify_cli.sync.consent import set_project_consent
+
+    set_project_consent(str(fixed_uuid), True)
 
     monkeypatch.setattr(
         "specify_cli.identity.project.resolve_identity",
-        lambda _root: ProjectIdentity(project_uuid=uuid4(), project_slug="p"),
+        lambda _root: ProjectIdentity(project_uuid=fixed_uuid, project_slug="p"),
     )
     monkeypatch.setattr(
         "specify_cli.core.paths.get_feature_target_branch",
