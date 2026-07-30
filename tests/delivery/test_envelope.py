@@ -81,13 +81,13 @@ def test_journal_stores_full_envelope_so_dispatch_posts_contract_event(
     from specify_cli.sync import emitter as emitter_mod
 
     monkeypatch.setattr(emitter_mod, "is_saas_sync_enabled", lambda: False)
-    # #3030 T006: capture is now gated on per-project consent, and WP01 made an
-    # unrecorded checkout a denial. This test is about envelope shape surviving
-    # capture→drain, so it consents explicitly; the non-consenting path is pinned
-    # by tests/sync/test_sync_consent_capture_gap_3031.py.
-    monkeypatch.setattr(
-        emitter_mod, "is_sync_enabled_for_checkout", lambda *a, **k: True
-    )
+    # #3030 T006: capture is gated on per-project consent, and WP01 made an unrecorded
+    # checkout a denial. This test is about envelope shape surviving capture→drain, so
+    # it consents explicitly — via the real ``set_project_consent`` record below. The
+    # cwd-derived ``is_sync_enabled_for_checkout`` override that used to stand in for
+    # that record was removed with M1-1: the emitter no longer imports the name, so
+    # patching it asserted nothing. The non-consenting path is pinned by
+    # tests/sync/test_sync_consent_capture_gap_3031.py.
     em = _stub_emitter()
     # #3030 WP06: the stored project_uuid is the sole authority for selection, so
     # an identity-less capture is unselectable and this test's drain would find
