@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import contextlib
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -37,6 +37,7 @@ from .models import (
     CREATE_PROJECT_INDEX_SQL,
     CREATE_TABLE_SQL,
     CREATE_TYPE_INDEX_SQL,
+    DISTINCT_PROJECT_UUIDS_SQL,
     DRAIN_BLOCKED_MISSING_AUTH,
     DRAIN_BLOCKED_MISSING_TEAM,
     DRAIN_BLOCKED_SAAS_DISABLED,
@@ -47,14 +48,22 @@ from .models import (
     SELECT_ALL_SQL,
     SELECT_BLOCKED_SQL,
     SELECT_BY_ID_SQL,
-    SELECT_IDENTITY_PROJECTION_SQL,
     SELECT_MISSING_IDENTITY_SQL,
     SET_IDENTITY_SQL,
     TABLE_NAME,
     Event,
     event_to_params,
     row_to_event,
+    select_by_ids_sql,
+    select_identity_projection_sql,
 )
+
+#: Max ``?`` placeholders per statement. SQLite's compiled ceiling is 999 on older
+#: builds and 32,766 from 3.32; batching well under the lower bound keeps a wide
+#: drain working on any interpreter that ships with the CLI, at the cost of one
+#: extra statement per 500 events — still O(batch/500) rather than O(batch)
+#: connections, which is the property NFR-003 needs.
+_MAX_SQL_VARIABLES = 500
 
 # --- producer-scoped path resolution (NEVER server-scoped) ----------------
 
@@ -319,15 +328,44 @@ class EventJournal:
             row = conn.execute(COUNT_MISSING_IDENTITY_SQL).fetchone()
         return int(row[0]) if row else 0
 
-    def read_identity_projection(self) -> list[EventIdentityRow]:
-        """Return every row's identity, without decoding a single payload (T017).
+    def distinct_project_uuids(self) -> list[str]:
+        """Return the distinct non-NULL ``project_uuid`` values present, ascending.
 
-        The universe-building read for the consent predicate (FR-008, NFR-003).
-        Deliberately unfiltered and unlimited at this layer: the caller applies the
-        project predicate in memory over an already-cheap projection, and pushing a
-        LIMIT down here would reintroduce the NFR-002 starvation the module note on
-        ``SELECT_IDENTITY_PROJECTION_SQL`` describes.
+        The cheap half of FR-008's read: consent must be resolved before a project
+        filter can be applied, so the drain first needs to know *which* projects the
+        store holds. ``DISTINCT_PROJECT_UUIDS_SQL`` answers that with one index seek
+        per distinct project rather than a walk over every row, so the answer costs
+        O(projects x log rows) — this is the read that keeps NFR-003's promise
+        independent of store size.
+
+        NULL is not a project and is excluded. Such rows are permanently
+        unselectable and are reported through :meth:`count_missing_identity`
+        (FR-011), never re-resolved at selection time (T018).
         """
+        with contextlib.closing(self._connect()) as conn:
+            return [str(row[0]) for row in conn.execute(DISTINCT_PROJECT_UUIDS_SQL)]
+
+    def read_identity_projection(
+        self, *, project_uuids: Sequence[str]
+    ) -> list[EventIdentityRow]:
+        """Return the identity of every row belonging to *project_uuids* (T017).
+
+        FR-008's project-filtered universe read, and the only query in the journal
+        with a ``project_uuid`` predicate — i.e. the only reason
+        ``CREATE_PROJECT_INDEX_SQL`` exists. No payload BLOB is decoded and **no
+        LIMIT** is applied; both properties are load-bearing and are explained on
+        :func:`~specify_cli.event_journal.models.select_identity_projection_sql`.
+
+        *project_uuids* is required. The predecessor took no filter at all — it read
+        every row of every project ``ORDER BY created_at`` and left the caller to
+        filter in Python, which is how a 100k-row journal cost a full scan plus a
+        sort per drain batch while the index went unused. An empty sequence returns
+        ``[]`` without querying: no consenting project means nothing to select, and
+        an empty ``IN`` list would read as "every project".
+        """
+        uuids = [uuid for uuid in project_uuids if uuid]
+        if not uuids:
+            return []
         with contextlib.closing(self._connect()) as conn:
             return [
                 EventIdentityRow(
@@ -337,7 +375,9 @@ class EventJournal:
                     repo_slug=None if row[3] is None else str(row[3]),
                     drain_blocked_reason=None if row[4] is None else str(row[4]),
                 )
-                for row in conn.execute(SELECT_IDENTITY_PROJECTION_SQL)
+                for row in conn.execute(
+                    select_identity_projection_sql(len(uuids)), tuple(uuids)
+                )
             ]
 
     def append(self, event: Event) -> None:
@@ -391,6 +431,32 @@ class EventJournal:
         with contextlib.closing(self._connect()) as conn:
             rows = conn.execute(SELECT_BY_ID_SQL, (event_id,)).fetchall()
         return row_to_event(rows[0]) if rows else None
+
+    def read_by_ids(self, event_ids: Sequence[str]) -> list[Event]:
+        """Read many events over **one** connection, in the order requested.
+
+        The drain's payload-hydration seam (NFR-003). Hydration used to call
+        :meth:`read_by_id` per event and :meth:`_connect` opens a fresh SQLite
+        connection — with its own WAL pragma — on every public call, so a
+        1,000-event batch cost 1,000 connection open/closes. Here the whole batch
+        shares one connection and one statement per 500 ids.
+
+        Ids absent from the store are simply missing from the result; the caller
+        does not have to reconcile a ``None`` per event. Order follows *event_ids*,
+        not SQLite's ``IN``-set order, because the ledger's selection order is what
+        makes a drain reproducible and FIFO.
+        """
+        wanted = list(event_ids)
+        if not wanted:
+            return []
+        found: dict[str, Event] = {}
+        with contextlib.closing(self._connect()) as conn:
+            for start in range(0, len(wanted), _MAX_SQL_VARIABLES):
+                chunk = wanted[start : start + _MAX_SQL_VARIABLES]
+                for row in conn.execute(select_by_ids_sql(len(chunk)), tuple(chunk)):
+                    event = row_to_event(row)
+                    found[event.event_id] = event
+        return [found[event_id] for event_id in wanted if event_id in found]
 
     def read_blocked(self) -> list[Event]:
         """Return rows carrying a ``drain_blocked_reason`` (WP11 diagnostics)."""

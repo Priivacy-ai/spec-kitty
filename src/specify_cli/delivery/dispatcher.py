@@ -50,7 +50,7 @@ from specify_cli.delivery.receivers import (
 )
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
-from .selection import selectable_event_ids
+from .selection import select_consented_event_ids
 
 if TYPE_CHECKING:
     from specify_cli.delivery.interfaces import DeliveryTarget
@@ -200,11 +200,12 @@ def _select_undelivered(
 ) -> list[Event]:
     """Return journal events still needing delivery to *target_id* (FR-004 / FR-015).
 
-    The journal supplies the **event universe** via its public ``read_all`` read API
-    (deterministic ``created_at``/``event_id`` order); the WP05 ledger's universe-aware
-    ``select_undelivered`` filters out every event that already has a terminal-success
-    or terminal-failed row for the active target. Order is preserved so re-runs are
-    reproducible. No SQL and no ``queue.py`` import lives here.
+    The journal supplies the **event universe** via FR-008's project-filtered
+    identity read (deterministic ``created_at``/``event_id`` order); the WP05
+    ledger's universe-aware ``select_undelivered`` filters out every event that
+    already has a terminal-success or terminal-failed row for the active target.
+    Order is preserved so re-runs are reproducible. No SQL and no ``queue.py``
+    import lives here.
 
     *exclude* is a caller-supplied, in-memory skip set applied to the universe
     **before** the ledger query, so the ``limit`` still fills with selectable
@@ -212,17 +213,18 @@ def _select_undelivered(
     past events that made no progress this pass); it never changes durable ledger
     state, so the ledger's non-terminal re-selection contract is preserved.
     """
-    # T017/T018 (#3030 FR-007/FR-008): the universe is built from the identity
-    # projection and filtered by consent BEFORE the ledger query and before any
-    # limit. Previously this was ``journal.read_all()`` — every row of every
-    # project, with no project predicate anywhere — which is the seam the
-    # 2026-07-27 leak went through.
+    # T017/T018 (#3030 FR-007/FR-008): the universe is built from a
+    # **project-filtered** identity read — distinct-project probe, consent, then an
+    # indexed ``project_uuid IN (…)`` predicate — BEFORE the ledger query and before
+    # any limit. Previously this was ``journal.read_all()`` (every row of every
+    # project, no project predicate anywhere), which is the seam the 2026-07-27 leak
+    # went through, and then an unfiltered identity read filtered in Python, which
+    # closed the leak but left NFR-003's indexed lookup unimplemented.
     #
     # Ordering is load-bearing: consent filtering must precede the ledger's limit,
     # or 2,000 non-consented rows ahead of 10 consented ones fill the window and
     # the drain starves permanently (NFR-002/SC-002).
-    identity_rows = journal.read_identity_projection()
-    eligible = selectable_event_ids(identity_rows)
+    eligible = select_consented_event_ids(journal)
     universe_ids = [
         event_id for event_id in eligible if event_id not in exclude
     ]
@@ -234,9 +236,11 @@ def _select_undelivered(
     )
 
     # Payloads are hydrated only for the batch the ledger actually selected, so an
-    # unlimited universe read never materialises every payload (NFR-003).
-    hydrated = [journal.read_by_id(event_id) for event_id in selected_ids]
-    return [event for event in hydrated if event is not None]
+    # unlimited universe read never materialises every payload (NFR-003). One
+    # batched read over one connection: the per-event ``read_by_id`` this replaces
+    # opened a fresh SQLite connection per event, so a 1,000-event batch cost 1,000
+    # connection open/closes.
+    return journal.read_by_ids(selected_ids)
 
 
 # --------------------------------------------------------------------------- #

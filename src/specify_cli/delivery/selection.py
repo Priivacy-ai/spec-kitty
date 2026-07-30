@@ -34,6 +34,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
+from typing import Any
 
 from specify_cli.event_journal import (
     DRAIN_BLOCKED_DAEMON_LOCK,
@@ -121,6 +122,67 @@ def is_terminally_blocked(reason: str | None) -> bool:
     return reason not in TRANSIENT_DRAIN_BLOCKED_REASONS
 
 
+def _drain_consent_memo(predicate: ConsentPredicate) -> ConsentPredicate:
+    """Wrap *predicate* so each distinct uuid is resolved at most once per drain.
+
+    :func:`select_consented_event_ids` consults consent twice — once to build the
+    SQL project filter, once as the row-level gate — and NFR-003 requires it be
+    resolved *once per distinct project*. Memoising here satisfies both: the second
+    pass's candidates are a subset of the first's, so it issues no new lookups.
+
+    The memo is per-call, never module-level. A process-lifetime cache would make a
+    revoked consent keep granting until restart, and the daemon is long-lived.
+    """
+    resolved: dict[str, bool] = {}
+
+    def _resolve(candidates: Sequence[str | None]) -> frozenset[str]:
+        unknown = [c for c in candidates if c and c not in resolved]
+        if unknown:
+            granted = predicate(unknown)
+            for uuid in unknown:
+                resolved[uuid] = uuid in granted
+        return frozenset(c for c in candidates if c and resolved[c])
+
+    return _resolve
+
+
+def select_consented_event_ids(
+    journal: Any,
+    *,
+    consent_predicate: ConsentPredicate | None = None,
+) -> list[str]:
+    """Build the drain's universe: consented rows only, oldest first (FR-008/NFR-003).
+
+    Three steps, and the order of the first two is the whole point:
+
+    1. Ask the journal which projects it holds — an index skip-scan costing one seek
+       per distinct project, **not** a walk over the rows.
+    2. Resolve consent over that small set, once per project.
+    3. Read the identity projection **filtered to the consented uuids in SQL**, so
+       the ``project_uuid`` index is what excludes the other projects' rows.
+
+    What this replaces: an unfiltered ``ORDER BY created_at`` read of every row of
+    every project, filtered in Python afterwards. That read was correct — no
+    unconsented row ever shipped — but it made the project index dead weight and
+    cost a full table scan plus a sort on every drain batch, which is the cost
+    NFR-003 exists to bound.
+
+    Still **no LIMIT** anywhere in this path. ``ledger.select_undelivered`` slices
+    the universe this returns; a limit applied before it would let already-delivered
+    terminal rows fill the window and be stripped afterwards, yielding an empty
+    selection with consented undelivered rows behind it (NFR-002 starvation).
+    """
+    resolve = _drain_consent_memo(consent_predicate or _default_consent_predicate)
+
+    present = journal.distinct_project_uuids()
+    consented = resolve(present) if present else frozenset()
+    if not consented:
+        return []
+
+    rows = journal.read_identity_projection(project_uuids=sorted(consented))
+    return selectable_event_ids(rows, consent_predicate=resolve)
+
+
 def selectable_event_ids(
     rows: Iterable[EventIdentityRow],
     *,
@@ -131,6 +193,14 @@ def selectable_event_ids(
     Order is preserved so drains stay reproducible. Consent is resolved once for
     the whole candidate set rather than per row, so a 100k-row journal across 20
     projects costs 20 consent lookups, not 100k (NFR-003).
+
+    On the drain path this runs *after* the SQL project filter, over rows already
+    restricted to consenting projects, and so is a second gate rather than the only
+    one. Both are kept and both are pinned directly — the SQL gate by
+    ``tests/delivery/test_nfr003_predicate_cost_3030.py``, this one by
+    ``tests/sync/test_consent_resolver_3030.py``, which calls it with a single
+    hand-built row and requires a refusal. It is also the gate for any caller
+    holding rows it did not fetch through :func:`select_consented_event_ids`.
     """
     materialised = list(rows)
     predicate = consent_predicate or _default_consent_predicate
@@ -157,16 +227,26 @@ def selectable_event_ids(
 
 
 def unselectable_identity_count(rows: Iterable[EventIdentityRow]) -> int:
-    """Count rows with no resolvable identity (FR-011; WP07 surfaces it)."""
+    """Count rows with no resolvable identity among *rows* (FR-011).
+
+    Note what this can and cannot see since FR-008's read became project-filtered:
+    ``project_uuid IS NULL`` rows are excluded by the SQL predicate, so rows fetched
+    through :func:`select_consented_event_ids` never contain one and this would
+    always return 0 for them. FR-011's report must therefore take its count from
+    ``EventJournal.count_missing_identity``, which asks the store directly. This
+    helper remains correct for any caller that assembled its own row set.
+    """
     return sum(1 for row in rows if not row.project_uuid)
 
 
-# ``selectable_event_ids`` is the module's only name with a real ``src/`` consumer
-# (``delivery/dispatcher.py``); everything else here is used only within this module
-# or by tests. The symbol-level dead-code gate is a shrink-only ratchet, so the
-# advertised surface shrinks to match rather than the allowlist growing to excuse it.
-# All the trimmed names remain importable — notably ``unselectable_identity_count``,
-# which FR-011's report is expected to consume once WP07's surface lands.
+# ``select_consented_event_ids`` is the module's only name with a real ``src/``
+# consumer (``delivery/dispatcher.py``); everything else here is used only within
+# this module or by tests. The symbol-level dead-code gate is a shrink-only ratchet,
+# so the advertised surface shrinks to match rather than the allowlist growing to
+# excuse it. All the trimmed names remain importable — notably
+# ``selectable_event_ids``, which the consent-resolver pin enters through, and
+# ``unselectable_identity_count``, which FR-011's report is expected to consume once
+# WP07's surface lands.
 __all__ = [
-    "selectable_event_ids",
+    "select_consented_event_ids",
 ]

@@ -131,11 +131,83 @@ SET_IDENTITY_SQL = (
 #
 # No payload BLOB because an unlimited read that still materialised every payload
 # of a 100k-row project would satisfy NFR-003's letter and miss its point.
-# Payloads are hydrated via read_by_id over the ledger-selected batch only.
-SELECT_IDENTITY_PROJECTION_SQL = (
-    f"SELECT {COL_EVENT_ID}, {COL_CREATED_AT}, {COL_PROJECT_UUID}, {COL_REPO_SLUG}, "  # noqa: S608 — identifiers are static module constants
-    f"{COL_DRAIN_BLOCKED_REASON} FROM {TABLE_NAME} "
-    f"ORDER BY {COL_CREATED_AT} ASC, {COL_EVENT_ID} ASC"
+# Payloads are hydrated via ``read_by_ids`` over the ledger-selected batch only.
+_IDENTITY_PROJECTION_COLUMNS = ", ".join(
+    (COL_EVENT_ID, COL_CREATED_AT, COL_PROJECT_UUID, COL_REPO_SLUG, COL_DRAIN_BLOCKED_REASON)
+)
+
+
+def select_identity_projection_sql(project_count: int) -> str:
+    """Build FR-008's project-**filtered** identity read for *project_count* uuids.
+
+    The filter is mandatory, and the parameter has no "all projects" spelling on
+    purpose. An unfiltered variant of this statement is what shipped: the drain read
+    every row of every project ordered by ``created_at`` and applied the project
+    predicate in Python afterwards, which left ``CREATE_PROJECT_INDEX_SQL`` created
+    and referenced by no query at all. NFR-003's stated mechanism is "indexed column
+    lookup only", and an ``IN`` predicate on the index's leading column is the only
+    thing that delivers it — so there is no way to ask this module for a scan.
+
+    ``project_count`` must be >= 1. Zero consented projects is not an empty filter
+    (which SQL would read as "every project"); it means there is nothing to select,
+    and the caller returns early rather than issuing a query.
+    """
+    if project_count < 1:
+        raise ValueError(
+            "select_identity_projection_sql requires at least one project uuid: an "
+            "empty IN-list would silently widen to every project on the machine"
+        )
+    placeholders = ", ".join("?" for _ in range(project_count))
+    return (
+        f"SELECT {_IDENTITY_PROJECTION_COLUMNS} FROM {TABLE_NAME} "  # noqa: S608 — identifiers are static module constants
+        f"WHERE {COL_PROJECT_UUID} IN ({placeholders}) "
+        f"ORDER BY {COL_CREATED_AT} ASC, {COL_EVENT_ID} ASC"
+    )
+
+
+def select_by_ids_sql(id_count: int) -> str:
+    """Build a batched by-id payload read for *id_count* event ids.
+
+    Hydration used to run ``SELECT_BY_ID_SQL`` once per event, and
+    ``EventJournal._connect`` opens a **new** SQLite connection per public call — so
+    a 1,000-event batch cost 1,000 connection open/closes plus 1,000 WAL pragmas.
+    Batching lets one connection serve the whole batch. Row *order* is not specified
+    here: SQLite is free to return an ``IN`` set in any order, so the caller
+    re-imposes the ledger's selection order (see ``EventJournal.read_by_ids``).
+    """
+    if id_count < 1:
+        raise ValueError("select_by_ids_sql requires at least one event id")
+    placeholders = ", ".join("?" for _ in range(id_count))
+    return (
+        f"SELECT {_COLUMN_LIST} FROM {TABLE_NAME} "  # noqa: S608 — identifiers are static module constants
+        f"WHERE {COL_EVENT_ID} IN ({placeholders})"
+    )
+
+
+# NFR-003: enumerate the *distinct* projects present without reading every row.
+#
+# ``SELECT DISTINCT project_uuid`` would also use the index, but SQLite has no loose
+# index scan for it: it walks every index entry, so the enumeration would still be
+# O(rows). This recursive formulation is the classic index skip-scan — each step is
+# one ``MIN()`` seek from the previous uuid, so the whole enumeration is
+# O(distinct_projects x log rows) and is what makes consent resolvable without
+# touching the store. Measured on a 100k-row / 20-project journal: 0.18ms here
+# versus 7.8ms for ``SELECT DISTINCT`` and 213ms for the unfiltered read it replaces.
+#
+# NULL is excluded: it is not a project. Rows with no stored identity are
+# permanently unselectable and are counted under FR-011
+# (``COUNT_MISSING_IDENTITY_SQL``), never lazily re-resolved (T018).
+DISTINCT_PROJECT_UUIDS_SQL = (
+    f"WITH RECURSIVE distinct_project({COL_PROJECT_UUID}) AS (\n"  # noqa: S608 — identifiers are static module constants
+    f"    SELECT MIN({COL_PROJECT_UUID}) FROM {TABLE_NAME} "
+    f"WHERE {COL_PROJECT_UUID} IS NOT NULL\n"
+    "    UNION ALL\n"
+    f"    SELECT (SELECT MIN({COL_PROJECT_UUID}) FROM {TABLE_NAME} "
+    f"WHERE {COL_PROJECT_UUID} > distinct_project.{COL_PROJECT_UUID})\n"
+    f"    FROM distinct_project WHERE {COL_PROJECT_UUID} IS NOT NULL\n"
+    ")\n"
+    f"SELECT {COL_PROJECT_UUID} FROM distinct_project "
+    f"WHERE {COL_PROJECT_UUID} IS NOT NULL"
 )
 
 COUNT_MISSING_IDENTITY_SQL = (
@@ -254,11 +326,13 @@ __all__ = [
     "CREATE_TABLE_SQL",
     "CREATE_TYPE_INDEX_SQL",
     "COUNT_SQL",
+    "DISTINCT_PROJECT_UUIDS_SQL",
     "IDENTITY_COLUMNS",
-    "SELECT_IDENTITY_PROJECTION_SQL",
     "SELECT_MISSING_IDENTITY_SQL",
     "SET_IDENTITY_SQL",
     "TABLE_NAME",
+    "select_by_ids_sql",
+    "select_identity_projection_sql",
     "DRAIN_BLOCKED_DAEMON_LOCK",
     "DRAIN_BLOCKED_MISSING_AUTH",
     "DRAIN_BLOCKED_MISSING_TEAM",
