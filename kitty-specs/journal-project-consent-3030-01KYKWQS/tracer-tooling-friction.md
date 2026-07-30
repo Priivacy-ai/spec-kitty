@@ -167,3 +167,35 @@ Worth fixing upstream: either register post-planning WPs in `lanes.json`, or hav
 gates fall back to diffing the WP's `owned_files` against the merge base when no lane
 exists. Failing loudly on an unmappable WP would also be acceptable — anything but a
 skip that prints like a pass.
+
+## A verification run is only honest in a tree you are not editing
+
+WP12's first Mutation A baseline was discarded: the long pre-fix run overlapped the
+implementer's own edits to the file under test. Redone against a pristine
+`git worktree` of the pre-fix commit, which is what made the before/after a
+measurement rather than a recollection.
+
+The standing rule "no source edits during a verification run" is easy to obey in spirit
+and violate in practice, because the natural move after launching a slow suite is to get
+on with work. The durable fix is structural rather than disciplinary: **run the baseline
+in a throwaway worktree**, so the working tree you are editing and the tree being measured
+are different directories and cannot be confused.
+
+This mission has now produced the same class of error from four directions: measuring over
+directory sets that excluded the modified directories (four times), comparing against a
+base that already contained the change, a guard whose own `except` swallowed its arity bug,
+and this. The common shape is that **the thing being measured and the thing being changed
+were the same thing.**
+
+## `getattr(obj, "name", None)` is invisible to the dead-symbol gate
+
+`tests/architectural/test_no_dead_symbols.py` scans the AST for references. An attribute
+reached by string — `getattr(token_manager, "_ws_client", None)` at
+`sync/local_commit.py:378` and `sync/__init__.py:373` — is a string literal, not a
+reference, so a never-assigned attribute read this way is invisible to it. Nothing in
+`src/` assigns `_ws_client`; only tests inject it.
+
+The blind spot is worth recording independently of how that particular question resolves
+(handed to WP12's reviewer, since a gate proven only on a path production never executes
+is a different and worse problem than dead code). Any guard that reasons about symbol
+liveness by AST will under-report wherever the codebase reaches attributes by name.
