@@ -194,6 +194,27 @@ def select_identity_projection_sql(project_count: int) -> str:
     )
 
 
+# Reporting-only counterpart of the filtered read above, and deliberately a separate
+# statement rather than a "no filter" mode of it (#3030 T021 / FR-015 / SC-004).
+#
+# `select_identity_projection_sql` makes its project filter mandatory so the DRAIN
+# cannot ask for a scan — that is NFR-003's mechanism and must stay unreachable. The
+# operator report has the opposite requirement and cannot be served by that statement
+# at any parameterisation: it must name the projects that are NOT known to be
+# consented (so the uuid set cannot be supplied up front), and it must surface rows
+# whose `project_uuid` IS NULL, which `DISTINCT_PROJECT_UUIDS_SQL` excludes by
+# definition and which FR-011 exists to make visible.
+#
+# Cost is bounded by CALL SITE, not by this statement: it runs once per explicit
+# `sync doctor` / `sync status` / `sync migrate`, never on a drain tick. Keeping the
+# two statements distinct is what lets a reader tell at a glance which one a caller
+# is allowed to use.
+SELECT_IDENTITY_PROJECTION_ALL_SQL = (
+    f"SELECT {_IDENTITY_PROJECTION_COLUMNS} FROM {TABLE_NAME} "  # noqa: S608 — identifiers are static module constants
+    f"ORDER BY {COL_CREATED_AT} ASC, {COL_EVENT_ID} ASC"
+)
+
+
 def select_by_ids_sql(id_count: int) -> str:
     """Build a batched by-id payload read for *id_count* event ids.
 
@@ -361,6 +382,7 @@ __all__ = [
     "SET_IDENTITY_SQL",
     "TABLE_NAME",
     "select_by_ids_sql",
+    "SELECT_IDENTITY_PROJECTION_ALL_SQL",
     "select_identity_projection_sql",
     "DRAIN_BLOCKED_DAEMON_LOCK",
     "DRAIN_BLOCKED_MISSING_AUTH",

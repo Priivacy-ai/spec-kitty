@@ -48,6 +48,7 @@ from .models import (
     SELECT_ALL_SQL,
     SELECT_BLOCKED_SQL,
     SELECT_BY_ID_SQL,
+    SELECT_IDENTITY_PROJECTION_ALL_SQL,
     SELECT_MISSING_IDENTITY_SQL,
     SET_IDENTITY_SQL,
     TABLE_NAME,
@@ -348,6 +349,38 @@ class EventJournal:
         """
         with contextlib.closing(self._connect()) as conn:
             return [str(row[0]) for row in conn.execute(DISTINCT_PROJECT_UUIDS_SQL)]
+
+    def read_identity_projection_for_report(self) -> list[EventIdentityRow]:
+        """EVERY row's identity, unfiltered — operator REPORTING only (#3030 T021).
+
+        Deliberately a separate method from :meth:`read_identity_projection`, whose
+        ``project_uuids`` filter is mandatory precisely so the drain cannot ask this
+        module for a scan. That invariant is NFR-003's mechanism and this method does
+        not weaken it: the drain has no reason to call this and must not.
+
+        FR-015/SC-004 asks a question the filtered read cannot answer at any
+        parameterisation — "whose data is in this store?". The projects to name are the
+        ones not yet known to consent, so the uuid set cannot be supplied up front, and
+        the rows whose ``project_uuid`` IS NULL (FR-011's fail-closed denials, which the
+        WP07 report must surface rather than drop) are excluded from
+        ``distinct_project_uuids`` by definition.
+
+        Cost is bounded by call site: once per explicit ``sync doctor`` / ``sync
+        status`` / ``sync migrate``, never on a drain tick. No payload BLOB is read
+        here either, so the cost is a projection scan rather than a materialisation.
+        """
+        with contextlib.closing(self._connect()) as conn:
+            return [
+                EventIdentityRow(
+                    event_id=str(row[0]),
+                    created_at=str(row[1]),
+                    project_uuid=None if row[2] is None else str(row[2]),
+                    project_slug=None if row[3] is None else str(row[3]),
+                    repo_slug=None if row[4] is None else str(row[4]),
+                    drain_blocked_reason=None if row[5] is None else str(row[5]),
+                )
+                for row in conn.execute(SELECT_IDENTITY_PROJECTION_ALL_SQL)
+            ]
 
     def read_identity_projection(
         self, *, project_uuids: Sequence[str]

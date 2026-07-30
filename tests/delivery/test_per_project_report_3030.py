@@ -237,7 +237,7 @@ class _DisagreeingJournal:
         self._rows = rows
         self._true_count = true_count
 
-    def read_identity_projection(self) -> list[object]:
+    def read_identity_projection_for_report(self) -> list[object]:
         return list(self._rows)
 
     def count(self) -> int:
@@ -323,8 +323,17 @@ def test_the_report_carries_the_stored_project_slug(tmp_path: Path) -> None:
     assert row.repo_slug == "my-org/engagement-assistant"
 
 
-def test_the_identity_projection_exposes_the_project_slug(tmp_path: Path) -> None:
-    """The projection is the only seam that can populate the field above."""
+def test_both_identity_projections_expose_the_project_slug(tmp_path: Path) -> None:
+    """The projection is the only seam that can populate the field above.
+
+    Asserted on BOTH reads. There are two since #3030 split them: the drain's
+    ``read_identity_projection`` takes a mandatory uuid filter so it cannot scan
+    (NFR-003), and ``read_identity_projection_for_report`` is unfiltered because
+    FR-015/SC-004 must name projects that are not known to consent and must surface
+    NULL-identity rows. They share ``_IDENTITY_PROJECTION_COLUMNS``, and this pins
+    that they keep sharing it — a column added to one and not the other is how the
+    report would start reporting a project as nameless again (N1-a).
+    """
     journal = EventJournal(tmp_path / "projection.db")
     journal.append(
         _event(
@@ -335,9 +344,11 @@ def test_the_identity_projection_exposes_the_project_slug(tmp_path: Path) -> Non
         )
     )
 
-    (row,) = journal.read_identity_projection()
+    (reported,) = journal.read_identity_projection_for_report()
+    assert reported.project_slug == "engagement-assistant"
 
-    assert row.project_slug == "engagement-assistant"
+    (drained,) = journal.read_identity_projection(project_uuids=[CONSENTED])
+    assert drained.project_slug == "engagement-assistant"
 
 
 # --- FR-015 on `sync migrate`: the composition of what it MOVED -------------

@@ -768,7 +768,11 @@ def build_per_project_store_report(
     """
     from specify_cli.sync.consent import resolve_project_consent
 
-    rows = journal.read_identity_projection()
+    # The REPORTING read, not the drain's filtered one. `read_identity_projection`
+    # requires a uuid filter so the drain cannot scan (NFR-003); this report has the
+    # inverse requirement and must see rows whose project is not known to consent —
+    # including NULL-identity rows, which are the whole of FR-011.
+    rows = journal.read_identity_projection_for_report()
     if event_ids is not None:
         wanted = frozenset(event_ids)
         rows = [row for row in rows if row.event_id in wanted]
@@ -800,7 +804,13 @@ def build_per_project_store_report(
             # among them is not a licence to invent a third value.
             project_slug = next((r.project_slug for r in group if r.project_slug), None)
             repo_slug = next((r.repo_slug for r in group if r.repo_slug), None)
-            decision = resolve_project_consent(project_uuid, repo_slug=repo_slug)
+            # `project_uuid` ONLY. The `repo_slug=` argument this used to pass was
+            # removed when #3030 reverted repo-slug-keyed consent: a repo slug is a
+            # mutable git remote, so keying a grant on it lets a fresh clone, a renamed
+            # remote or a re-`git init`ed repo inherit a decision nobody made (FR-019).
+            # The slug is still READ above and rendered — naming which repo a row came
+            # from is the report's job — but it never influences the decision.
+            decision = resolve_project_consent(project_uuid)
             decision_granted = decision.granted
             level = str(decision.level)
             reason = decision.reason
