@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import enum
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -71,6 +72,13 @@ class ConsentLevel(enum.StrEnum):
 
 #: The chain, highest authority first. Declared once; never re-derived.
 #: ``ABSENT`` is not a level that can answer — it is the terminal default.
+#:
+#: This is the *only* expression of the order. :func:`resolve_project_consent` walks
+#: this tuple and dispatches through :data:`LEVEL_RESOLVERS`, so reordering, adding or
+#: removing an entry here changes what the resolver does. Until 2026-07-30 the same
+#: ordering was also hardcoded in the resolver's if-chain and nothing read this
+#: constant: two representations of one invariant, free to drift silently, in the
+#: module written to be their single definition site (C-003).
 #:
 #: There is deliberately no repo-slug-keyed level. One was added on 2026-07-30 and
 #: removed the same day: FR-019 exists to condemn that record precisely because it is
@@ -210,6 +218,93 @@ def _normalize_uuid(value: Any) -> str | None:
     return text or None
 
 
+def _answer_project_local(uuid: str, roots: list[Path]) -> ConsentDecision | None:
+    """The project's own file. Refusal outranks grant (FR-013's rule)."""
+    votes = _project_local_votes(uuid, roots)
+    if not votes:
+        return None
+    granted = all(votes)
+    _reconcile_index(uuid, granted)
+    reason = (
+        "granted by the project's own .kittify/config.yaml"
+        if granted
+        else "refused by the project's own .kittify/config.yaml"
+        if len(votes) == 1
+        else "at least one checkout of this project is opted out"
+    )
+    return ConsentDecision(
+        granted=granted,
+        level=ConsentLevel.PROJECT_LOCAL,
+        project_uuid=uuid,
+        reason=reason,
+    )
+
+
+def _answer_machine_index(uuid: str, _roots: list[Path]) -> ConsentDecision | None:
+    """The uuid-keyed machine-global index — a cache, not a second source of truth."""
+    recorded = get_project_consent(uuid)
+    if recorded is None:
+        return None
+    return ConsentDecision(
+        granted=recorded,
+        level=ConsentLevel.MACHINE_INDEX,
+        project_uuid=uuid,
+        reason=(
+            "granted by the machine-global consent index"
+            if recorded
+            else "opted out in the machine-global consent index"
+        ),
+    )
+
+
+def _answer_env(_uuid: str, _roots: list[Path]) -> ConsentDecision | None:
+    """``SPEC_KITTY_ENABLE_SAAS_SYNC`` — arming, never per-project consent.
+
+    Returns ``None`` unconditionally, and that *is* the invariant rather than a stub:
+    a machine-global flag carries no per-project decision, so this level can never
+    answer, in any position of the chain. It stays a declared level because FR-013's
+    reconciliation records it as consulted-and-refused, and because a level that is
+    silently absent from the dispatch is how someone re-adds it as a grant. The
+    2026-07-27 incident is exactly this var granting: it was exported, and five
+    projects with no record of their own rode along on it.
+    """
+    return None
+
+
+#: One resolver per level of :data:`PROJECT_CONSENT_PRECEDENCE`. Each answers with a
+#: :class:`ConsentDecision`, or ``None`` for "this level cannot answer — fall through".
+#:
+#: The tuple owns the *order*; this table owns *how* a level answers. The two are held
+#: in bijection at import (:func:`_check_chain_is_dispatchable`) and pinned by
+#: ``test_every_declared_level_has_exactly_one_resolver``, so neither can grow a level
+#: the other does not know about.
+LEVEL_RESOLVERS: dict[ConsentLevel, Callable[[str, list[Path]], ConsentDecision | None]] = {
+    ConsentLevel.PROJECT_LOCAL: _answer_project_local,
+    ConsentLevel.MACHINE_INDEX: _answer_machine_index,
+    ConsentLevel.ENV: _answer_env,
+}
+
+
+def _check_chain_is_dispatchable() -> None:
+    """Fail at import if the chain and the dispatch table disagree.
+
+    A declared level with no resolver would be walked past in silence — the enforced
+    chain would then be shorter than the documented one, which is the divergence this
+    module exists to prevent. Cheaper to refuse to load than to under-enforce consent.
+    """
+    missing = [level for level in PROJECT_CONSENT_PRECEDENCE if level not in LEVEL_RESOLVERS]
+    orphaned = [level for level in LEVEL_RESOLVERS if level not in PROJECT_CONSENT_PRECEDENCE]
+    if missing or orphaned:
+        raise RuntimeError(
+            "consent precedence chain and its dispatch table disagree: "
+            f"declared levels with no resolver={missing}, "
+            f"resolvers for undeclared levels={orphaned}"
+        )
+
+
+_check_chain_is_dispatchable()
+
+
 def resolve_project_consent(
     project_uuid: str | None,
     *,
@@ -219,8 +314,17 @@ def resolve_project_consent(
     """Resolve hosted-sync consent for *project_uuid* down the one chain.
 
     ``repo_root`` / ``checkout_roots`` are the checkouts available to consult for
-    level 1; when none are readable the answer degrades to the index, then to
-    deny. An unresolvable *project_uuid* is never consentable (NFR-001).
+    the project-local level; when none are readable the answer degrades to the next
+    declared level, then to deny. An unresolvable *project_uuid* is never consentable
+    (NFR-001).
+
+    The order is not written here. It is read from
+    :data:`PROJECT_CONSENT_PRECEDENCE` on every call and dispatched through
+    :data:`LEVEL_RESOLVERS`, so the declared chain and the enforced chain are the same
+    object. Nothing is consulted outside it — in particular the repo-slug-keyed
+    ``[sync.repo_defaults]`` record is not a level, because it is keyed on a mutable
+    git remote and a fresh clone or a re-``git init`` would inherit a decision nobody
+    made about it (FR-019).
     """
     uuid = _normalize_uuid(project_uuid)
     if uuid is None:
@@ -235,46 +339,14 @@ def resolve_project_consent(
     if repo_root is not None:
         roots.append(Path(repo_root))
 
-    # Level 1 — the project's own file. Refusal outranks grant (FR-013's rule).
-    votes = _project_local_votes(uuid, roots)
-    if votes:
-        granted = all(votes)
-        _reconcile_index(uuid, granted)
-        reason = (
-            "granted by the project's own .kittify/config.yaml"
-            if granted
-            else "refused by the project's own .kittify/config.yaml"
-            if len(votes) == 1
-            else "at least one checkout of this project is opted out"
-        )
-        return ConsentDecision(
-            granted=granted,
-            level=ConsentLevel.PROJECT_LOCAL,
-            project_uuid=uuid,
-            reason=reason,
-        )
+    for level in PROJECT_CONSENT_PRECEDENCE:
+        decision = LEVEL_RESOLVERS[level](uuid, roots)
+        if decision is not None:
+            return decision
 
-    # Level 2 — the machine-global index.
-    recorded = get_project_consent(uuid)
-    if recorded is not None:
-        return ConsentDecision(
-            granted=recorded,
-            level=ConsentLevel.MACHINE_INDEX,
-            project_uuid=uuid,
-            reason=(
-                "granted by the machine-global consent index"
-                if recorded
-                else "opted out in the machine-global consent index"
-            ),
-        )
-
-    # Level 3 — the env var, which cannot grant on its own. It is reached only to
-    # be refused, so that the reason names the incident's actual mechanism.
-    #
-    # Nothing is consulted between the uuid index and here. In particular the
-    # repo-slug-keyed ``[sync.repo_defaults]`` record is NOT a level of this chain:
-    # it is keyed on a mutable git remote, so a fresh clone or a re-``git init``
-    # inherits a decision that was never made about it (FR-019).
+    # Terminal default (FR-002): absence of a decision is not consent. The reason
+    # names the env var because that is the incident's actual mechanism — the chain
+    # reaches its arming level only to be refused by it.
     return ConsentDecision(
         granted=False,
         level=ConsentLevel.ABSENT,

@@ -23,6 +23,7 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.sync import consent as consent_module
 from specify_cli.sync.consent import (
     PROJECT_CONSENT_PRECEDENCE,
     ConsentLevel,
@@ -415,6 +416,152 @@ def test_precedence_chain_has_one_definition_site() -> None:
         "the consent precedence chain must have exactly one definition site "
         f"(specify_cli/sync/consent.py); found: {offenders}"
     )
+
+
+def _chain(monkeypatch: pytest.MonkeyPatch, *levels: ConsentLevel) -> None:
+    """Rewrite the declared chain for one test.
+
+    Patches the module attribute, not the imported alias, because the resolver must
+    read the constant at call time. A resolver that captured the order at import — or
+    hardcoded it — is unaffected by this, which is exactly what the tests below are
+    for.
+    """
+    monkeypatch.setattr(consent_module, "PROJECT_CONSENT_PRECEDENCE", tuple(levels))
+
+
+def test_reordering_the_declared_chain_reorders_the_resolver(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """C-003: the constant must be load-bearing, not decorative.
+
+    ``PROJECT_CONSENT_PRECEDENCE`` documents itself as the single site where the
+    chain is expressed. That is only true if the resolver *derives* its order from
+    it. Swap the top two levels in the data and the outcome must swap with them: the
+    machine index, promoted above the project's own file, now answers a question that
+    ``test_project_local_refusal_outranks_an_index_grant`` shows the file answers
+    under the declared order.
+
+    Against a resolver with the order baked into an if-chain this asserts the
+    opposite of what happens, so it goes red — the two representations had drifted by
+    construction the moment one was edited.
+    """
+    _index(**{UUID_A: True})
+    root = _checkout(tmp_path, "acme", uuid=UUID_A, hosted=False)
+
+    _chain(
+        monkeypatch,
+        ConsentLevel.MACHINE_INDEX,
+        ConsentLevel.PROJECT_LOCAL,
+        ConsentLevel.ENV,
+    )
+
+    decision = resolve_project_consent(UUID_A, repo_root=root)
+
+    assert decision.level is ConsentLevel.MACHINE_INDEX, (
+        "the resolver consulted the project-local level first even though the "
+        "declared chain puts the machine index first: the order is expressed in a "
+        "second place"
+    )
+    assert decision.granted is True
+
+
+def test_dropping_a_level_from_the_declared_chain_stops_it_being_consulted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Membership is derived too, not just order.
+
+    A level absent from the data must not be reachable. Otherwise a level could be
+    retired from the declared chain and go on answering.
+    """
+    _index(**{UUID_A: True})
+    root = _checkout(tmp_path, "acme", uuid=UUID_A, hosted=False)
+
+    _chain(monkeypatch, ConsentLevel.MACHINE_INDEX, ConsentLevel.ENV)
+
+    decision = resolve_project_consent(UUID_A, repo_root=root)
+
+    assert decision.level is ConsentLevel.MACHINE_INDEX
+    assert decision.granted is True
+
+
+def test_an_empty_declared_chain_denies(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Nothing outside the chain may grant.
+
+    With no levels declared there is no authority to consult, so FR-002's terminal
+    default is the only possible answer — even with a grant sitting in the index.
+    This is the fail-closed half of making the constant load-bearing.
+    """
+    _index(**{UUID_A: True})
+
+    _chain(monkeypatch)
+
+    decision = resolve_project_consent(UUID_A)
+
+    assert decision.granted is False
+    assert decision.level is ConsentLevel.ABSENT
+
+
+def test_the_env_level_cannot_grant_even_promoted_to_the_top(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Deriving the order must not turn the env var into a grantable level.
+
+    ``SPEC_KITTY_ENABLE_SAAS_SYNC`` is machine-global arming. Its place in the chain
+    is a record that it is *consulted and refused*; no position can make it answer.
+    Pinned against position because the dispatch now takes position from data — a
+    future edit that gives the env level a decision to return would leak exactly the
+    2026-07-27 incident.
+    """
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+
+    _chain(
+        monkeypatch,
+        ConsentLevel.ENV,
+        ConsentLevel.PROJECT_LOCAL,
+        ConsentLevel.MACHINE_INDEX,
+    )
+
+    decision = resolve_project_consent(UUID_A)
+
+    assert decision.granted is False
+    assert decision.level is ConsentLevel.ABSENT
+
+
+def test_every_declared_level_has_exactly_one_resolver() -> None:
+    """The dispatch table and the declared chain must be in bijection.
+
+    The tuple owns the *order*; the table owns *how* each level answers. A level in
+    the tuple with no resolver would be silently skipped, and a resolver for a level
+    not in the tuple is unreachable — both are the drift this remediation removes.
+    ``ABSENT`` is the terminal default, never a level that can answer.
+    """
+    resolvers = consent_module.LEVEL_RESOLVERS
+
+    assert set(resolvers) == set(PROJECT_CONSENT_PRECEDENCE)
+    assert ConsentLevel.ABSENT not in resolvers
+
+
+def test_a_declared_level_with_no_resolver_refuses_to_load(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The bijection is enforced at import, not merely asserted by a test.
+
+    Under-enforcing consent silently is the failure this module exists to prevent, so
+    a chain the dispatch cannot walk is a load-time error rather than a level quietly
+    skipped at runtime.
+    """
+    _chain(monkeypatch, ConsentLevel.PROJECT_LOCAL, ConsentLevel.ABSENT)
+
+    with pytest.raises(RuntimeError, match="no resolver"):
+        consent_module._check_chain_is_dispatchable()
+
+    monkeypatch.setitem(
+        consent_module.LEVEL_RESOLVERS, ConsentLevel.ABSENT, lambda _u, _r: None
+    )
+    _chain(monkeypatch, ConsentLevel.PROJECT_LOCAL)
+
+    with pytest.raises(RuntimeError, match="undeclared"):
+        consent_module._check_chain_is_dispatchable()
 
 
 def test_precedence_order_is_pinned() -> None:
