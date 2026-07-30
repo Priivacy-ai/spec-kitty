@@ -472,6 +472,40 @@ class TestAgentProfileRepositoryExceptions:
             "generic-implementer",
         }
 
+    def test_source_path_absent_for_a_project_layer_profile_that_fails_validation(
+        self, shipped_profiles_dir: Path, tmp_path: Path
+    ):
+        """T026 twin-verification regression (WP06, D-M8, mission #3062).
+
+        The ``AssetRepository.__init__`` docstring claims its ``_source_paths``
+        bookkeeping "mirrors AgentProfileRepository" — the pre-planning ledger
+        flagged this as a second instance of the same premature-bookkeeping
+        ordering bug T025 fixed via ``_post_validate``. Reading ``_load_layer``
+        (``src/doctrine/agent_profiles/repository.py:370-496``) shows the
+        ``self._source_paths[profile.profile_id] = yaml_file`` write (line 493)
+        sits *after* the ``try/except ValidationError`` block (lines 463-479,
+        which ``continue``s past line 493 on a validation failure) and after
+        the language-scope gate (lines 481-482) — i.e. already ordered
+        correctly, unlike pre-fix ``AssetRepository._pre_validate``. This test
+        proves that with a live red/green check rather than assuming the
+        ledger's claim: a project-layer profile missing required fields
+        (``purpose``, ``specialization``) must fail ``AgentProfile.model_
+        validate`` and leave no ``get_source_path`` entry.
+        """
+        project = tmp_path / "project"
+        project.mkdir()
+        (project / "broken.agent.yaml").write_text(
+            "profile-id: broken\nname: Broken Profile\nroles:\n  - implementer\n"
+            # 'purpose' and 'specialization' are required and deliberately omitted.
+        )
+
+        repo = AgentProfileRepository(
+            built_in_dir=shipped_profiles_dir, project_dir=project
+        )
+
+        assert repo.get("broken") is None
+        assert repo.get_source_path("broken") is None
+
     def test_cycle_detection(self, tmp_path: Path):
         """Validate hierarchy detects cycles."""
         shipped = tmp_path / "built-in"

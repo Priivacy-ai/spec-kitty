@@ -100,6 +100,7 @@ from charter.drg import (
     DRGNode,
     NodeKind,
     Relation,
+    graph_document_to_dict,
     model_to_graph_dict,
 )
 from ruamel.yaml import YAML
@@ -365,16 +366,28 @@ def _edge_to_dict(edge: DRGEdge) -> dict[str, Any]:
     return rendered
 
 
+def _document_dict(graph: DRGGraph) -> dict[str, Any]:
+    """Serialise a whole ``DRGGraph`` document via the canonical derived writer.
+
+    T020/T021 (#2977): standalone/addressable wrapper around
+    ``graph_document_to_dict`` so ``specify_cli.drg_writers.registry`` can
+    name this module's document writer separately in a W-5 failure message
+    -- mirrors how ``_node_to_dict``/``_edge_to_dict`` above are already
+    separately addressable for ``MAPPING_WRITERS``. Used by
+    :func:`_write_graph`, which used to hand-restate the five document-level
+    keys itself.
+    """
+    # The charter.drg facade is ``follow_imports = "skip"`` for mypy (see
+    # _node_to_dict above), so the helper resolves to ``Any`` here; bind to a
+    # typed local to keep the return precise without a suppression.
+    rendered: dict[str, Any] = graph_document_to_dict(graph)
+    return rendered
+
+
 def _write_graph(pack_root: Path, artifact_type: str, graph: DRGGraph) -> None:
     """Write *graph* to ``<pack_root>/<artifact_type>.graph.yaml``."""
     path = pack_root / _GRAPH_FILENAMES[artifact_type]
-    payload: dict[str, Any] = {
-        "schema_version": graph.schema_version,
-        "generated_at": graph.generated_at,
-        "generated_by": graph.generated_by,
-        "nodes": [_node_to_dict(n) for n in graph.nodes],
-        "edges": [_edge_to_dict(e) for e in graph.edges],
-    }
+    payload = _document_dict(graph)
     yaml_rt = _make_yaml()
     with path.open("w", encoding="utf-8") as fh:
         yaml_rt.dump(payload, fh)

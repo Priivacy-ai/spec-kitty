@@ -8,12 +8,12 @@ import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, UTC
-from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol
 
 if TYPE_CHECKING:
     from charter.pack_context import PackContext
+    from charter.repository_protocol import ArtifactRepository
     from charter.scope import CharterScope
     from doctrine.drg.models import DRGGraph
     import doctrine.service as _doctrine_service_module
@@ -40,6 +40,15 @@ from charter.context_renderers import (
     render_critical_section_bodies,
     render_critical_section_include,
 )
+from charter.context_renderers.delivery_table import (
+    _ACTION_BUNDLE_DELIVERY_BY_KIND as _ACTION_BUNDLE_DELIVERY_BY_KIND,
+    _Gate as _Gate,
+    _KindDelivery as _KindDelivery,
+    _classify_artifact_urns as _classify_artifact_urns,
+    _kind_delivery as _kind_delivery,
+    action_bundle_bucket as action_bundle_bucket,
+    action_bundle_gate as action_bundle_gate,
+)
 from charter.context_renderers.fetch_stanza import (
     fetch_stanza_lines as _shared_fetch_stanza_lines,
 )
@@ -48,7 +57,13 @@ from charter.context_renderers.profile_sections import (
     render_profile_procedures as _render_profile_procedures,
     render_profile_selector_refs as _render_profile_selector_refs,
     render_profile_styleguides as _render_profile_styleguides,
+    render_profile_suggested_doctrine as _render_profile_suggested_doctrine,
     render_profile_toolguides as _render_profile_toolguides,
+)
+from charter.context_renderers.reference_pointers import (
+    _REFERENCE_POINTER_FLOOR as _REFERENCE_POINTER_FLOOR,
+    _REFERENCE_POINTER_LIMIT as _REFERENCE_POINTER_LIMIT,
+    _select_reference_pointers,
 )
 from charter import progressive_disclosure as _pd
 from charter.governance_references import (
@@ -58,7 +73,6 @@ from charter.governance_references import (
 from charter.language_scope import infer_repo_languages
 from charter.schemas import DirectivesConfig, DoctrineSelectionConfig
 from doctrine.agent_profiles import AgentProfile, AgentProfileRepository
-from doctrine.drg.models import NodeKind
 from doctrine.spdd_reasons import append_spdd_reasons_guidance, is_spdd_reasons_active
 from kernel.atomic import atomic_write
 
@@ -133,7 +147,7 @@ class _ActionDoctrineBundle:
     toolguide_ids: list[str]
     procedure_ids: list[str]
     asset_ids: list[str]
-    service: object
+    service: _doctrine_service_module.DoctrineService
     # WP15 (progressive disclosure, out-of-map): the resolved DRG and the
     # traversal roots, carried so the JSON entrypoint can render each artefact's
     # ``references[]`` and split the requires-eager / suggests-linked cadence
@@ -472,9 +486,9 @@ def build_charter_context_include(
 
     service = _build_doctrine_service(repo_root, org_roots=org_roots)
     if canonical_kind == ArtifactKind.DIRECTIVE.value:
-        return _render_directive_include(service, identifier, selector)
+        return _render_directive_include(service.directives, identifier, selector)
     if canonical_kind == ArtifactKind.TACTIC.value:
-        return _render_tactic_include(service, identifier, selector)
+        return _render_tactic_include(service.tactics, identifier, selector)
     artifact = _render_doctrine_artifact_include(service, canonical_kind, identifier)
     if artifact is not None:
         return artifact
@@ -545,11 +559,15 @@ def _default_missions_root() -> Path:
     return MissionTemplateRepository.default_missions_root()
 
 
-def _render_directive_include(service: object, identifier: str, selector: str) -> str:
-    """Render a directive selector for ``--include``."""
+def _render_directive_include(directives: ArtifactRepository[Any], identifier: str, selector: str) -> str:
+    """Render a directive selector for ``--include``.
+
+    Takes the ``directives`` repository directly (not the whole service) —
+    that is the only attribute this renderer needs (WP04 typing pass).
+    """
 
     directive_id = _format_profile_directive_code(identifier)
-    directive = service.directives.get(directive_id)  # type: ignore[attr-defined]
+    directive = directives.get(directive_id)
     if directive is None:
         raise ValueError(f"No directive found for selector '{selector}'.")
     title = getattr(directive, "title", directive_id)
@@ -562,10 +580,14 @@ def _render_directive_include(service: object, identifier: str, selector: str) -
     )
 
 
-def _render_tactic_include(service: object, identifier: str, selector: str) -> str:
-    """Render a tactic selector for ``--include``."""
+def _render_tactic_include(tactics: ArtifactRepository[Any], identifier: str, selector: str) -> str:
+    """Render a tactic selector for ``--include``.
 
-    tactic = service.tactics.get(identifier)  # type: ignore[attr-defined]
+    Takes the ``tactics`` repository directly (not the whole service) — that
+    is the only attribute this renderer needs (WP04 typing pass).
+    """
+
+    tactic = tactics.get(identifier)
     if tactic is None:
         raise ValueError(f"No tactic found for selector '{selector}'.")
     name = getattr(tactic, "name", identifier)
@@ -578,7 +600,9 @@ def _render_tactic_include(service: object, identifier: str, selector: str) -> s
     )
 
 
-def _render_generic_artifact_include(service: object, identifier: str) -> str:
+def _render_generic_artifact_include(
+    service: _doctrine_service_module.DoctrineService, identifier: str
+) -> str:
     """Resolve a best-effort ``artifact:<id>`` selector emitted by activations."""
 
     from doctrine.artifact_kinds import _NON_AUGMENTATION_ELIGIBLE_KINDS, ArtifactKind
@@ -601,9 +625,9 @@ def _render_generic_artifact_include(service: object, identifier: str) -> str:
         try:
             rendered: str | None
             if candidate_kind == "directive":
-                rendered = _render_directive_include(service, identifier, selector)
+                rendered = _render_directive_include(service.directives, identifier, selector)
             elif candidate_kind == "tactic":
-                rendered = _render_tactic_include(service, identifier, selector)
+                rendered = _render_tactic_include(service.tactics, identifier, selector)
             else:
                 rendered = _render_doctrine_artifact_include(
                     service, candidate_kind, identifier
@@ -711,154 +735,17 @@ def _prepare_context_state(
     )
 
 
-class _Gate(Enum):
-    """How a delivered kind is gated (``delivered = gate ∩ reachable``).
-
-    ``ACTIVATED`` -> ``activated(kind) ∩ reachable`` (the kinds
-    ``charter.drg._SINGULAR_TO_PLURAL`` gates on). ``ALL`` -> ``reachable``
-    alone; ``activated(kind)`` is ``∅`` by construction for these, so gating an
-    asset on ``activated ∩ reachable`` would ship ``asset_ids = []`` forever.
-    """
-
-    ACTIVATED = "activated"
-    ALL = "all"
-
-
-class _KindDelivery(NamedTuple):
-    """One row of the NodeKind delivery table: the ``slot`` and ``gate`` columns.
-
-    ``slot`` is the :class:`_ActionDoctrineBundle` list the kind feeds (``None``
-    = not delivered, with a stated reason). ``gate`` is total over ``NodeKind``
-    so ``TEMPLATE``'s exclusion carries a reason rather than being ASSET's
-    untreated twin (B-1a).
-    """
-
-    slot: str | None
-    gate: _Gate
-
-
-#: The NodeKind delivery table -- ``slot`` and ``gate`` as two columns of ONE
-#: total table (B-1: ``gate`` is a column of the same table as the slot).
-#:
-#: WP03 of ``doctrine-silence-guards`` froze the bundle at four slots ("state
-#: the exclusions, do NOT render them"). **WP10 (FR-009/FR-011) reverses that
-#: for PROCEDURE and ASSET**: the criterion is *delivery obligation* -- a
-#: resolved procedure/asset is executing-agent context no other charter surface
-#: delivers on this path (13/18 activated procedures are graph-reachable; assets
-#: arrive only through inbound requires/suggests edges, D4). The ten still
-#: excluded each have a delivery home elsewhere or are not bundle artefacts.
-#:
-#: Totality is enforced, not trusted: ``test_kind_mapping_totality.py`` reddens
-#: on any NodeKind-keyed dict that omits a member.
-_ACTION_BUNDLE_DELIVERY_BY_KIND: dict[NodeKind, _KindDelivery] = {
-    NodeKind.DIRECTIVE: _KindDelivery("directives", _Gate.ACTIVATED),
-    NodeKind.TACTIC: _KindDelivery("tactics", _Gate.ACTIVATED),
-    NodeKind.STYLEGUIDE: _KindDelivery("styleguides", _Gate.ACTIVATED),
-    NodeKind.TOOLGUIDE: _KindDelivery("toolguides", _Gate.ACTIVATED),
-    NodeKind.PROCEDURE: _KindDelivery("procedures", _Gate.ACTIVATED),  # WP10: flipped
-    NodeKind.ASSET: _KindDelivery("assets", _Gate.ALL),  # WP10: flipped, ungated (D4)
-    # Excluded (slot=None) with a stated reason, NOT ASSET's untreated twin:
-    NodeKind.PARADIGM: _KindDelivery(None, _Gate.ACTIVATED),  # charter selection block
-    NodeKind.AGENT_PROFILE: _KindDelivery(None, _Gate.ACTIVATED),  # profile channel (FR-020)
-    NodeKind.MISSION_STEP_CONTRACT: _KindDelivery(None, _Gate.ACTIVATED),  # step executor
-    NodeKind.GLOSSARY_PACK: _KindDelivery(None, _Gate.ACTIVATED),
-    NodeKind.ANTI_PATTERN: _KindDelivery(None, _Gate.ACTIVATED),
-    NodeKind.TEMPLATE: _KindDelivery(None, _Gate.ALL),  # template-file selection (C-004)
-    # Not artefacts this bundle carries:
-    NodeKind.ACTION: _KindDelivery(None, _Gate.ALL),
-    NodeKind.MISSION_TYPE: _KindDelivery(None, _Gate.ALL),
-    NodeKind.GLOSSARY: _KindDelivery(None, _Gate.ALL),
-    NodeKind.GLOSSARY_SCOPE: _KindDelivery(None, _Gate.ALL),
-}
-
-
-def _kind_delivery(kind: NodeKind) -> _KindDelivery:
-    """Look up *kind*'s delivery row, loud on an unruled (new) member."""
-    try:
-        return _ACTION_BUNDLE_DELIVERY_BY_KIND[kind]
-    except KeyError as exc:
-        raise LookupError(
-            f"NodeKind {kind!r} has no delivery row. Add it to "
-            "_ACTION_BUNDLE_DELIVERY_BY_KIND (slot + gate)."
-        ) from exc
-
-
-def action_bundle_bucket(kind: NodeKind) -> str | None:
-    """Return the action-bundle list *kind* feeds, or ``None`` if excluded.
-
-    Raises ``LookupError`` for a kind with no recorded verdict (a new
-    ``NodeKind`` nobody ruled on) -- the defect class this closes.
-    """
-    return _kind_delivery(kind).slot
-
-
-def action_bundle_gate(kind: NodeKind) -> _Gate:
-    """Return the delivery gate for *kind* (``ACTIVATED`` or ``ALL``); total (B-1)."""
-    return _kind_delivery(kind).gate
-
-
-def _empty_slot_map() -> dict[str, list[str]]:
-    """A fresh accumulator with one empty list per delivered slot.
-
-    Derived from the delivery table so a kind flipped into a slot grows an
-    accumulator automatically -- totality and delivery are one statement.
-    """
-    return {
-        row.slot: []
-        for row in _ACTION_BUNDLE_DELIVERY_BY_KIND.values()
-        if row.slot is not None
-    }
-
-
-def _classify_artifact_urns(
-    artifact_urns: frozenset[str] | set[str],
-    merged: DRGGraph,
-    project_directives: set[str],
-    selected_tactics: set[str] | None = None,
-    selected_paradigms: set[str] | None = None,
-) -> Mapping[str, tuple[str, ...]]:
-    """Partition resolved artifact URNs into a slot-keyed mapping.
-
-    Returns ``{slot: (id, ...)}`` for every delivered slot in the delivery
-    table. The mapping is *not* destroyed into a positional tuple: that shape
-    spawned five parallel per-kind projections that drifted apart, and every
-    drift was a delivery defect (WP10/T053). A kind with no recorded verdict
-    raises via :func:`action_bundle_bucket` rather than falling out unnoticed.
-    """
-    from doctrine.drg.models import Relation
-    from doctrine.drg.query import resolve_transitive_refs
-
-    selected_tactics = selected_tactics or set()
-    selected_paradigms = selected_paradigms or set()
-    start_urns = {f"directive:{directive_id}" for directive_id in project_directives}
-    start_urns.update(f"tactic:{tactic_id}" for tactic_id in selected_tactics)
-    start_urns.update(f"paradigm:{paradigm_id}" for paradigm_id in selected_paradigms)
-    selected_closure = resolve_transitive_refs(
-        merged,
-        start_urns=start_urns,
-        relations={Relation.REQUIRES, Relation.SUGGESTS},
-    )
-    artifact_urns = set(artifact_urns)
-    artifact_urns.update(f"directive:{directive_id}" for directive_id in selected_closure.directives)
-    artifact_urns.update(f"tactic:{tactic_id}" for tactic_id in selected_closure.tactics)
-    artifact_urns.update(f"styleguide:{styleguide_id}" for styleguide_id in selected_closure.styleguides)
-    artifact_urns.update(f"toolguide:{toolguide_id}" for toolguide_id in selected_closure.toolguides)
-
-    slots = _empty_slot_map()
-    for urn in sorted(artifact_urns):
-        node = merged.get_node(urn)
-        if node is None:
-            continue
-        # Raises LookupError for a kind nobody has ruled on -- the `else` the
-        # old elif-chain never had.
-        slot = action_bundle_bucket(node.kind)
-        if slot is None:
-            continue
-        artifact_id = urn.split(":", 1)[1] if ":" in urn else urn
-        if node.kind is NodeKind.DIRECTIVE and project_directives and artifact_id not in project_directives:
-            continue
-        slots[slot].append(artifact_id)
-    return {slot: tuple(ids) for slot, ids in slots.items()}
+# ---------------------------------------------------------------------------
+# NodeKind delivery table (B-1) — relocated verbatim to
+# ``context_renderers/delivery_table.py`` (WP04, single-owner, no-net-growth
+# for this file). ``_Gate``, ``_KindDelivery``, ``_ACTION_BUNDLE_DELIVERY_BY_KIND``,
+# ``_kind_delivery``, ``action_bundle_bucket``, ``action_bundle_gate`` and
+# ``_classify_artifact_urns`` are imported below so they stay resolvable as
+# ``charter.context`` attributes for the three external test importers
+# (``tests/charter/test_action_bundle_delivery.py``,
+# ``tests/charter/test_context_display_charter_md.py``,
+# ``tests/doctrine/drg/test_unknown_kind_fails_loudly.py``).
+# ---------------------------------------------------------------------------
 
 
 #: Artifact-kind suffixes for which an org pack may declare a
@@ -1485,7 +1372,7 @@ def _extend_named_artifact_lines(
     lines: list[str],
     heading: str,
     artifact_ids: list[str],
-    repository: object | None,
+    repository: ArtifactRepository[Any] | None,
     title_attr: str,
     summary_attr: str | None,
     org_source_map: dict[str, str] | None = None,
@@ -1517,7 +1404,7 @@ def _extend_named_artifact_lines(
     formatted: list[str] = []
     for artifact_id in artifact_ids:
         suffix = _provenance_suffix(artifact_id, org_source_map)
-        artifact = repository.get(artifact_id) if repository is not None else None  # type: ignore[attr-defined]
+        artifact = repository.get(artifact_id) if repository is not None else None
         if artifact is None:
             formatted.append(f"    - {artifact_id}{suffix}")
             continue
@@ -1699,198 +1586,16 @@ def _normalize_directive_id(raw: str) -> str:
     return raw.upper()
 
 
-def _filter_references_for_action(references: list[dict[str, str]], action: str) -> list[dict[str, str]]:
-    """Filter references for a specific action.
-
-    Non-local_support references are always included.
-    For local_support references:
-      - If the summary contains "(action: XXX)", include only if XXX matches the requested action.
-      - If no "(action: ...)" appears in the summary, include (global).
-    """
-    filtered: list[dict[str, str]] = []
-    for ref in references:
-        kind = ref.get("kind", "")
-        if kind != "local_support":
-            filtered.append(ref)
-            continue
-
-        # local_support: check summary for action scope
-        summary = ref.get("summary", ref.get("title", ""))
-        action_match = re.search(r"\(action:\s*(\w+)\)", summary)
-        if action_match:
-            ref_action = action_match.group(1).strip().lower()
-            if ref_action == action.lower():
-                filtered.append(ref)
-        else:
-            # No action scope in summary → include globally
-            filtered.append(ref)
-
-    return filtered
-
-
 # ---------------------------------------------------------------------------
 # WP13 (FR-013 / FR-014, SC-006) — reference-block distribution + resolution.
 #
-# The retired ``filtered_references[:10]`` window was order-rigged: the catalog
-# leads with ``user_profile`` + 8 ``paradigm`` + ``DIRECTIVE_001`` (indices
-# 0-9), so a naive head cap was exhausted before the first ``tactic`` (index
-# 34) was ever reached. Distribution across kinds makes every kind reachable;
-# the emitted slice is capped at a stated limit so the block stays bounded.
+# WP04 (mission doctrine-delivery-activation): relocated verbatim to
+# ``context_renderers/reference_pointers.py`` (single-owner, no-net-growth
+# for this file). ``_select_reference_pointers`` is imported below for the
+# call site in ``_render_bootstrap_text``; ``_REFERENCE_POINTER_FLOOR`` /
+# ``_REFERENCE_POINTER_LIMIT`` are imported too so they stay resolvable as
+# ``charter.context`` attributes for ``tests/charter/test_reference_block.py``.
 # ---------------------------------------------------------------------------
-
-_REFERENCE_POINTER_LIMIT = 12
-
-# SC-006 non-vacuity floor: the stated minimum number of resolvable pointers
-# the block must emit per software-dev action. Without a floor, "every emitted
-# pointer resolves" would pass vacuously over an emitted set of zero. Held well
-# below ``_REFERENCE_POINTER_LIMIT`` so it stays robust to catalog drift while
-# still forbidding an empty block.
-_REFERENCE_POINTER_FLOOR = 6
-
-# Reference ``kind`` -> doctrine-source subdirectory under the doctrine root.
-# ``user_profile`` / ``template_set`` are project-generated (no doctrine
-# source), so they carry no entry and are dropped when a pointer is resolved.
-_REFERENCE_KIND_DIRS: dict[str, str] = {
-    "tactic": "tactics",
-    "directive": "directives",
-    "paradigm": "paradigms",
-    "procedure": "procedures",
-    "styleguide": "styleguides",
-    "toolguide": "toolguides",
-    "agent_profile": "agent_profiles",
-}
-
-# Process-wide cache of the ``kind -> {key -> source path}`` index, keyed by
-# resolved doctrine root so the filesystem walk runs once per interpreter.
-_REFERENCE_SOURCE_INDEX_CACHE: dict[Path, dict[str, dict[str, Path]]] = {}
-
-
-def _reference_source_index(doctrine_root: Path) -> dict[str, dict[str, Path]]:
-    """Build (and cache) a ``kind -> {lookup key -> source path}`` index.
-
-    Each artifact file contributes its stem (the filename before the first
-    dot, e.g. ``acceptance-test-first``) and, for numerically-prefixed
-    directives (``001-...``), a ``DIRECTIVE_001`` alias so the catalog id form
-    resolves.
-    """
-    cached = _REFERENCE_SOURCE_INDEX_CACHE.get(doctrine_root)
-    if cached is not None:
-        return cached
-
-    index: dict[str, dict[str, Path]] = {}
-    for kind, subdir in _REFERENCE_KIND_DIRS.items():
-        base = doctrine_root / subdir
-        kind_index: dict[str, Path] = {}
-        if base.is_dir():
-            for path in sorted(base.rglob("*.yaml")):
-                stem = path.name.split(".", 1)[0]
-                kind_index.setdefault(stem, path)
-                numeric = re.match(r"^(\d+)-", stem)
-                if numeric:
-                    kind_index.setdefault(f"DIRECTIVE_{numeric.group(1)}", path)
-        index[kind] = kind_index
-
-    _REFERENCE_SOURCE_INDEX_CACHE[doctrine_root] = index
-    return index
-
-
-def _resolve_reference_source(
-    ref: dict[str, str], index: dict[str, dict[str, Path]]
-) -> Path | None:
-    """Resolve *ref* to an existing doctrine-source path, or ``None``.
-
-    Tries the catalog artifact id (the part after ``KIND:``) first, then the
-    slug carried by the ``_LIBRARY/<kind>-<slug>.md`` local path. Returns
-    ``None`` when the reference names no resolvable document (e.g. the
-    project-generated ``user_profile`` / ``template_set`` entries).
-    """
-    kind_index = index.get(ref.get("kind", ""))
-    if not kind_index:
-        return None
-
-    artifact_id = ref.get("id", "").split(":", 1)[-1]
-    resolved = kind_index.get(artifact_id)
-    if resolved is not None:
-        return resolved
-
-    slug = Path(ref.get("local_path", "")).stem
-    prefix = f"{ref.get('kind', '')}-"
-    if slug.startswith(prefix):
-        slug = slug[len(prefix) :]
-    return kind_index.get(slug)
-
-
-def _action_offset(action: str) -> int:
-    """Deterministic, salt-free ordinal seed derived from *action*.
-
-    Used to rotate each kind's window so the emitted slice VARIES by action
-    (FR-014 / SC-006 cross-action variation) rather than always leading with
-    the same fixed head. Deterministic across processes (no ``hash()`` salt).
-    """
-    return sum((position + 1) * ord(char) for position, char in enumerate(action))
-
-
-def _distribute_references_across_kinds(
-    references: list[dict[str, str]], action: str
-) -> list[dict[str, str]]:
-    """Interleave *references* across their kinds (round-robin).
-
-    Groups by ``kind`` (preserving first-seen kind order), rotates each kind's
-    members by an action-seeded offset, then emits one member per kind per
-    round. The result surfaces later kinds early instead of exhausting the
-    first kind in a fixed order (FR-013), and varies by *action* (FR-014).
-    """
-    by_kind: dict[str, list[dict[str, str]]] = {}
-    for ref in references:
-        by_kind.setdefault(ref.get("kind", ""), []).append(ref)
-
-    offset = _action_offset(action)
-    rotated: dict[str, list[dict[str, str]]] = {}
-    for kind, members in by_kind.items():
-        start = offset % len(members) if members else 0
-        rotated[kind] = members[start:] + members[:start]
-
-    ordered: list[dict[str, str]] = []
-    round_index = 0
-    added = True
-    while added:
-        added = False
-        for members in rotated.values():
-            if round_index < len(members):
-                ordered.append(members[round_index])
-                added = True
-        round_index += 1
-    return ordered
-
-
-def _select_reference_pointers(
-    references: list[dict[str, str]],
-    action: str,
-    doctrine_root: Path,
-    *,
-    limit: int = _REFERENCE_POINTER_LIMIT,
-) -> list[tuple[dict[str, str], Path]]:
-    """Return up to *limit* ``(reference, resolved source path)`` pairs.
-
-    The pipeline is: action-scope filter -> per-kind distribution -> resolve
-    each candidate to an existing doctrine document, keeping only pointers that
-    OPEN (FR-013 / F-1). Distribution runs before the cap, so the emitted slice
-    still spreads across kinds; unresolvable entries (``user_profile`` /
-    ``template_set``) are skipped rather than emitted as dead pointers.
-    """
-    filtered = _filter_references_for_action(references, action)
-    distributed = _distribute_references_across_kinds(filtered, action)
-    index = _reference_source_index(doctrine_root)
-
-    selected: list[tuple[dict[str, str], Path]] = []
-    for ref in distributed:
-        resolved = _resolve_reference_source(ref, index)
-        if resolved is None:
-            continue
-        selected.append((ref, resolved))
-        if len(selected) >= limit:
-            break
-    return selected
 
 
 # ---------------------------------------------------------------------------
@@ -2486,7 +2191,7 @@ def _available_catalog_ids(repository: object | None) -> list[str]:
 
 def _render_selected_artifacts(
     selected_ids: list[str],
-    repository: object | None,
+    repository: ArtifactRepository[Any] | None,
     *,
     header: str,
     selector_kind: str,
@@ -2523,7 +2228,7 @@ def _render_selected_artifacts(
         artifact = None
         if repository is not None:
             try:
-                artifact = repository.get(artifact_id)  # type: ignore[attr-defined]
+                artifact = repository.get(artifact_id)
             except Exception:  # noqa: BLE001 — best-effort catalog lookup
                 artifact = None
 
@@ -2732,7 +2437,7 @@ def _render_selected_mission_step_contracts(
 
 
 def _collect_org_source_map(
-    repository: object,
+    repository: ArtifactRepository[Any] | None,
     artifact_ids: list[str],
 ) -> dict[str, str]:
     """Map ``artifact_id → "org"`` (placeholder pack name) for org-sourced IDs.
@@ -2754,7 +2459,7 @@ def _collect_org_source_map(
     org_map: dict[str, str] = {}
     for artifact_id in artifact_ids:
         try:
-            source = repository.get_provenance(artifact_id)  # type: ignore[attr-defined]
+            source = repository.get_provenance(artifact_id)
         except (AttributeError, KeyError):
             source = None
         if source == "org":
@@ -3064,6 +2769,16 @@ def _render_profile_sections(
         _render_profile_styleguides,
         _render_profile_toolguides,
         _render_profile_procedures,
+        # WP01 (doctrine-delivery-activation-01KYQVQK): the channel-resolved
+        # ``suggests``-delivery section — the profile channel now follows
+        # ``suggests``, delivering the #3063 A–E families (paradigm/tactic/…) as
+        # ``when``-labelled links. Distinct from the C-007 deferral of
+        # schema-attested INLINE citation of asset/anti-pattern/paradigm kinds:
+        # this delivers what the CHANNEL reaches, as ``render_profile_procedures``
+        # already does. Renderer body lives in ``context_renderers/profile_sections``
+        # (owned by WP01); this is the one documented out-of-map ``context.py``
+        # tuple registration (WP04 owns this module for IC-08 extraction).
+        _render_profile_suggested_doctrine,
     )
     blocks = [
         "\n".join(lines)
@@ -3372,7 +3087,7 @@ def _project_directive_entries(repo_root: Path) -> list[dict[str, object]]:
         if service is None:
             entries.append({"id": directive_id, "source": "builtin"})
             continue
-        entries.extend(_pd.collect_typed_artifacts(service.directives, [directive_id], kind="directive"))  # type: ignore[attr-defined]
+        entries.extend(_pd.collect_typed_artifacts(service.directives, [directive_id], kind="directive"))
     return entries
 
 
@@ -3398,7 +3113,7 @@ def _load_project_directives(
     return local_by_id, list(dict.fromkeys(list(resolution.directives) + directive_ids))
 
 
-def _maybe_build_doctrine_service(repo_root: Path) -> object | None:
+def _maybe_build_doctrine_service(repo_root: Path) -> _doctrine_service_module.DoctrineService | None:
     try:
         return _build_doctrine_service(repo_root)
     except Exception:  # noqa: BLE001 - local directive IDs are still useful
@@ -3512,10 +3227,10 @@ def build_charter_context_json(
     payload.update(
         _pd.build_disclosure_payload(
             repos_by_kind={
-                "directive": (service.directives, bundle.directive_ids),  # type: ignore[attr-defined]
-                "tactic": (service.tactics, bundle.tactic_ids),  # type: ignore[attr-defined]
-                "styleguide": (service.styleguides, bundle.styleguide_ids),  # type: ignore[attr-defined]
-                "toolguide": (service.toolguides, bundle.toolguide_ids),  # type: ignore[attr-defined]
+                "directive": (service.directives, bundle.directive_ids),
+                "tactic": (service.tactics, bundle.tactic_ids),
+                "styleguide": (service.styleguides, bundle.styleguide_ids),
+                "toolguide": (service.toolguides, bundle.toolguide_ids),
             },
             extra_delivered={"procedure": bundle.procedure_ids, "asset": bundle.asset_ids},
             merged=bundle.merged,

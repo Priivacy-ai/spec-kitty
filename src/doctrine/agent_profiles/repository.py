@@ -22,7 +22,7 @@ from ruamel.yaml.error import YAMLError
 
 from doctrine.drg.loader import DRGLoadError, load_built_in_graph
 from doctrine.drg.models import DRGGraph, NodeKind, Relation
-from doctrine.drg.reachability import profile_channel_reachable
+from doctrine.drg.reachability import agent_profile_seed_urns, profile_channel_reachable
 from doctrine.shared.exceptions import InlineReferenceRejectedError
 from doctrine.shared.scoping import applies_to_languages_match, normalize_languages
 
@@ -852,28 +852,60 @@ class AgentProfileRepository:
 
         return AgentProfile.model_validate(merged)
 
+    @property
+    def drg(self) -> DRGGraph:
+        """The DRG graph this repository resolves profile lineage against.
+
+        Exposed read-only so the charter render layer can project the profile
+        channel's ``suggests`` deliveries (``when`` clauses live on graph edges,
+        surfaced by ``charter.progressive_disclosure.profile_channel_references``)
+        against the *same* graph this repository walked — the doctrine layer holds
+        the graph but must not import the charter projection (layer direction:
+        charter → doctrine).
+        """
+        return self._drg
+
+    def profile_channel_reached(self, profile_id: str) -> frozenset[str]:
+        """Every artefact URN a loaded *profile* reaches through the profile channel.
+
+        The profile channel is :func:`profile_channel_reachable` — a
+        ``walk_edges({requires, specializes_from, suggests})`` transitive closure
+        seeded from the profile URN (WP01/FR-001 widened it to follow
+        ``suggests``). It is deliberately **not** ``resolve_context``:
+        ``agent_profile`` nodes carry zero outbound ``scope`` edges, so a
+        ``resolve_context`` seed would measure zero at any depth (R-3).
+
+        **Fail-closed on the seed's *identity*, not merely its edges:** the seed
+        must be a real ``agent_profile`` node in the graph
+        (:func:`agent_profile_seed_urns`). A URN that is absent, or that names a
+        node of another kind (e.g. a mistaken ``directive:…`` handle), reaches
+        nothing here rather than walking that node's own outbound edges — a
+        stronger guarantee than "an unknown URN happens to have no edges".
+
+        Returns the raw reached artefact URNs (profile seeds stripped by the
+        walk); the render layer applies its NodeKind delivery table (C4).
+        """
+        seed = _profile_urn(profile_id)
+        if seed not in agent_profile_seed_urns(self._drg):
+            return frozenset()
+        return profile_channel_reachable(self._drg, {seed})
+
     def profile_channel_procedure_ids(self, profile_id: str) -> list[str]:
         """Procedure ids a loaded *profile* delivers through the profile channel.
 
-        The profile channel is WP08's :func:`profile_channel_reachable` — a
-        ``walk_edges({requires, specializes_from})`` transitive closure seeded
-        from the profile URN. It is deliberately **not** ``resolve_context``:
-        ``agent_profile`` nodes carry zero outbound ``scope`` edges, so a
-        ``resolve_context`` seed would measure zero at any depth (R-3). This is
-        the mechanism that carries the PR #3007 exemplar
-        ``procedure:onboard-external-agent-to-pack`` — reached from
+        A procedures-only filter over :meth:`profile_channel_reached` (the shared
+        profile-channel walk). This is the mechanism that carries the PR #3007
+        exemplar ``procedure:onboard-external-agent-to-pack`` — reached from
         ``agent_profile:doctrine-daphne`` by a ``requires`` edge — to the agent.
 
-        The channel is fail-closed: an unknown ``profile_id`` seeds a URN with no
-        outbound edges, so the reachable set (and this result) is empty rather
-        than falling open to the whole graph.
+        The channel is fail-closed: an unknown ``profile_id`` reaches nothing
+        rather than falling open to the whole graph.
 
         Returns the reached procedure ids (URN prefix stripped), sorted for
         deterministic render order.
         """
-        seed = _profile_urn(profile_id)
-        reached = profile_channel_reachable(self._drg, {seed})
         prefix = f"{NodeKind.PROCEDURE.value}{_URN_SEP}"
+        reached = self.profile_channel_reached(profile_id)
         return sorted(urn[len(prefix):] for urn in reached if urn.startswith(prefix))
 
     def save(self, profile: AgentProfile) -> None:

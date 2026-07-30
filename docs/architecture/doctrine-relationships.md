@@ -94,7 +94,7 @@ Names the edge from a resolved doctrine artifact to a ``glossary_scope`` node, w
 
 ### Instantiation — `instantiates`
 
-A directional edge from a mission-step action node to the template it produces as its concrete output artifact, e.g. ``action:documentation/design`` --instantiates--> ``template:documentation/documentation-plan-template.md``. Emitted 8 times in the built-in graph, exclusively from ``action`` nodes to ``template`` nodes. Distinct from ``scope``, which links an action to governance content it must follow, not content it produces.
+A directional edge from a mission-step action node to the template it produces as its concrete output artifact, e.g. ``action:documentation/design`` --instantiates--> ``template:documentation/documentation-plan-template.md``. Emitted 11 times in the built-in graph, exclusively from ``action`` nodes to ``template`` nodes. Distinct from ``scope``, which links an action to governance content it must follow, not content it produces.
 
 ### Refinement — `refines`
 

@@ -50,9 +50,28 @@ from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.validator import assert_valid
 
 # ---------------------------------------------------------------------------
-# The six anti-pattern/smell nodes authored in src/doctrine/anti_pattern.graph.yaml
-# (WP02 T009). None of these are ever an edge *source* (rejects edges terminate
-# at them), so they carry no outgoing edges of their own.
+# The thirteen anti-pattern/smell nodes authored in
+# src/doctrine/anti_pattern.graph.yaml. None of these are ever an edge *source*
+# (rejects edges terminate at them), so they carry no outgoing edges of their
+# own.
+#
+# The first six (WP02 of mission doctrine-tension-edges-01KY1WPC) are the
+# paradigm-rejected architectural anti-patterns. The final seven (T008 of mission
+# doctrine-delivery-activation-01KYQVQK, FR-008/C-004) name the code smells the
+# SEVEN grounded refactoring-* tactics solve, each derived from that tactic's own
+# ATTESTED Family-B `when` text (hand_authored_overlay.py:621-728); every one is a
+# REJECTS-target of its rejecting tactic (see HAND_AUTHORED_EDGES below).
+#
+# DEFERRED per C-004 (no invented smells): the other ELEVEN refactoring-* tactics
+# carry NO attested problem/when text anywhere in the shipped tree (verified:
+# refactoring-{change-function-declaration, combine-functions-into-transform,
+# conditional-to-strategy, consolidate-conditional-expression,
+# extract-class-by-responsibility-split, guard-clauses-before-polymorphism,
+# inline-temp, introduce-null-object, replace-magic-number-with-symbolic-constant,
+# replace-temp-with-query, retry-pattern} have neither a Family-B suggests edge
+# with a `when` nor a top-level problem/when/trigger/smell field on the tactic
+# artifact). No anti_pattern node is authored for them — fabricating a smell
+# description would violate C-004's grounding bar.
 # ---------------------------------------------------------------------------
 
 HAND_AUTHORED_NODES: tuple[DRGNode, ...] = (
@@ -91,6 +110,50 @@ HAND_AUTHORED_NODES: tuple[DRGNode, ...] = (
         kind=NodeKind.ANTI_PATTERN,
         label="Single-Diagram Architecture",
         tags=["smell"],
+    ),
+    # T008 (doctrine-delivery-activation-01KYQVQK): the seven refactoring code
+    # smells, each grounded in its rejecting tactic's attested Family-B `when`.
+    DRGNode(
+        urn="anti_pattern:unencapsulated-record",
+        kind=NodeKind.ANTI_PATTERN,
+        label="Unencapsulated Record",
+        tags=["smell"],
+    ),
+    DRGNode(
+        urn="anti_pattern:global-data",
+        kind=NodeKind.ANTI_PATTERN,
+        label="Global Data",
+        tags=["smell"],
+    ),
+    DRGNode(
+        urn="anti_pattern:implicit-concept",
+        kind=NodeKind.ANTI_PATTERN,
+        label="Implicit Concept",
+        tags=["smell"],
+    ),
+    DRGNode(
+        urn="anti_pattern:misplaced-field",
+        kind=NodeKind.ANTI_PATTERN,
+        label="Misplaced Field",
+        tags=["smell"],
+    ),
+    DRGNode(
+        urn="anti_pattern:feature-envy",
+        kind=NodeKind.ANTI_PATTERN,
+        label="Feature Envy",
+        tags=["smell"],
+    ),
+    DRGNode(
+        urn="anti_pattern:repeated-switches-on-state",
+        kind=NodeKind.ANTI_PATTERN,
+        label="Repeated Switches on State",
+        tags=["smell"],
+    ),
+    DRGNode(
+        urn="anti_pattern:big-bang-rewrite",
+        kind=NodeKind.ANTI_PATTERN,
+        label="Big-Bang Rewrite",
+        tags=["anti-pattern"],
     ),
 )
 
@@ -531,10 +594,19 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
             "Activating DDD pulls it in."
         ),
     ),
+    # T006 (mission doctrine-delivery-activation-01KYQVQK, D3/R-M6): each of the
+    # three Family-A profile->DDD `suggests` edges previously carried a `reason=`
+    # but no `when=`, so every delivery fell back to STATED_DEFAULT_WHEN. The
+    # `when` below is derived from each edge's own `reason` trigger clause (the
+    # applicability condition, distinct from the `reason` which stays as-is and
+    # states *why* the edge exists) — matching the Family B/C `when=`/`reason=`
+    # convention in this same file. Content-only edit: no node/edge cardinality
+    # or relation-histogram move.
     DRGEdge(
         source="agent_profile:architect-alphonso",
         target="paradigm:domain-driven-design",
         relation=Relation.SUGGESTS,
+        when="designing or reviewing significant code changes",
         reason=(
             "When designing and reviewing significant code changes, the "
             "architect should reach Domain-Driven Design. Composition-only under "
@@ -546,6 +618,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         source="agent_profile:paula-patterns",
         target="paradigm:domain-driven-design",
         relation=Relation.SUGGESTS,
+        when="investigating or inspecting code",
         reason=(
             "When investigating or inspecting code, the pattern scout should "
             "reach Domain-Driven Design. Composition-only under today's "
@@ -556,6 +629,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         source="agent_profile:randy-reducer",
         target="paradigm:domain-driven-design",
         relation=Relation.SUGGESTS,
+        when="investigating or inspecting code",
         reason=(
             "When investigating or inspecting code, the reducer should reach "
             "Domain-Driven Design. Composition-only under today's traversal, "
@@ -2030,6 +2104,161 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
             "content Contextive stores and enforces (its guide ties glossary-curation "
             "output to Contextive format). It supports the extraction-mapping "
             "workflow's output. INERT: contextive is action-unreachable."
+        ),
+    ),
+    # -----------------------------------------------------------------------
+    # T007 (mission doctrine-delivery-activation-01KYQVQK, FR-007/C-005): the
+    # three `action:documentation/design --instantiates--> template:c4-*-mermaid-
+    # template` edges that complete the canonical topology the wiring table's
+    # Family-C asset assessment records — parallel to the pre-existing
+    # `action:documentation/design --instantiates--> template:documentation/
+    # documentation-plan-template.md` edge in src/doctrine/action.graph.yaml.
+    #
+    # HOME CHOICE (documented per D13 so a future regeneration does not silently
+    # drop these): the precedent documentation-plan-template edge is NOT hand-
+    # authored — it is extractor-derived via
+    # doctrine.missions.step_projection.iter_template_refs (step_projection.py:124,
+    # consumed by extractor.py's "Emit template:<mission>/<file> nodes + action
+    # --instantiates--> template edges"), which mints MISSION-QUALIFIED template
+    # nodes/edges from a MissionStep.template-shaped field. The three C4 templates
+    # are shared/general-purpose nodes (`template:c4-*-mermaid-template`, NOT
+    # mission-qualified) backed by src/doctrine/templates/architecture/ — they are
+    # not one mission's step-output template, so that extractor mechanism does not
+    # derive them, and action.graph.yaml is itself extractor-regenerated (a manual
+    # edit there would be dropped on `spec-kitty doctrine regenerate-graph`). Per
+    # this module's own docstring scope ("content the extractor has no frontmatter
+    # mechanism to mint"), HAND_AUTHORED_EDGES is the correct home. Following the
+    # existing one-edge-per-template convention: 3 edges.
+    #
+    # NOT the delivery vector (D13, topology completion only): the C4 templates
+    # already deliver to the architect via the profile channel's suggests-walk
+    # (WP01) reaching tactic:c4-zoom-in-architecture-documentation, whose own
+    # step-level `references:` already mint edges to all three templates. No
+    # query.py/reachability.py change belongs in this WP — `instantiates` is not
+    # walked by any channel and is not made walkable here.
+    # -----------------------------------------------------------------------
+    DRGEdge(
+        source="action:documentation/design",
+        target="template:c4-context-mermaid-template",
+        relation=Relation.INSTANTIATES,
+        reason=(
+            "The documentation/design action instantiates the C4 System Context "
+            "mermaid template as one of its concrete architecture-diagram outputs, "
+            "completing the canonical Family-C topology (topology only; delivery "
+            "rides the c4-zoom-in tactic's own references, not this edge)."
+        ),
+    ),
+    DRGEdge(
+        source="action:documentation/design",
+        target="template:c4-container-mermaid-template",
+        relation=Relation.INSTANTIATES,
+        reason=(
+            "The documentation/design action instantiates the C4 Container mermaid "
+            "template as one of its concrete architecture-diagram outputs, "
+            "completing the canonical Family-C topology (topology only; delivery "
+            "rides the c4-zoom-in tactic's own references, not this edge)."
+        ),
+    ),
+    DRGEdge(
+        source="action:documentation/design",
+        target="template:c4-component-mermaid-template",
+        relation=Relation.INSTANTIATES,
+        reason=(
+            "The documentation/design action instantiates the C4 Component mermaid "
+            "template as one of its concrete architecture-diagram outputs, "
+            "completing the canonical Family-C topology (topology only; delivery "
+            "rides the c4-zoom-in tactic's own references, not this edge)."
+        ),
+    ),
+    # -----------------------------------------------------------------------
+    # T009 (mission doctrine-delivery-activation-01KYQVQK, FR-008/C-004): the
+    # seven `tactic:refactoring-* --REJECTS--> anti_pattern:<smell>` edges wiring
+    # each grounded refactoring tactic to the code smell it rejects. Same
+    # canonical relation and direction (good artefact -> anti_pattern) as the
+    # eight shipped REJECTS edges above; this WP extends the SOURCE-kind variety
+    # (tactic, not just paradigm). The validator only constrains the TARGET kind
+    # (must be anti_pattern) and requires each anti_pattern have >=1 inbound
+    # rejects edge — both satisfied here. `reason=` is grounded verbatim-in-intent
+    # in each tactic's own attested Family-B `when` text
+    # (hand_authored_overlay.py:621-728). anti_patterns are NEVER delivered/
+    # activated (validation-tier only, D14): no channel walks REJECTS, so these
+    # edges move no reachability pin.
+    # -----------------------------------------------------------------------
+    DRGEdge(
+        source="tactic:refactoring-encapsulate-record",
+        target="anti_pattern:unencapsulated-record",
+        relation=Relation.REJECTS,
+        reason=(
+            "Encapsulate Record rejects the Unencapsulated Record smell: a raw "
+            "data record accessed by field name from many call sites, where the "
+            "direct access blocks adding validation, renaming fields, or changing "
+            "the internal representation (the tactic's own attested `when`)."
+        ),
+    ),
+    DRGEdge(
+        source="tactic:refactoring-encapsulate-variable",
+        target="anti_pattern:global-data",
+        relation=Relation.REJECTS,
+        reason=(
+            "Encapsulate Variable rejects the Global Data smell: a widely-accessed "
+            "module-level or global variable read and written from many locations "
+            "with no single chokepoint for monitoring, validation, or a later "
+            "change of type (the tactic's own attested `when`)."
+        ),
+    ),
+    DRGEdge(
+        source="tactic:refactoring-extract-first-order-concept",
+        target="anti_pattern:implicit-concept",
+        relation=Relation.REJECTS,
+        reason=(
+            "Extract First-Order Concept rejects the Implicit Concept smell: an "
+            "important concept left implicit, duplicated, or scattered across the "
+            "code with no explicit name or single home (the tactic's own attested "
+            "`when`)."
+        ),
+    ),
+    DRGEdge(
+        source="tactic:refactoring-move-field",
+        target="anti_pattern:misplaced-field",
+        relation=Relation.REJECTS,
+        reason=(
+            "Move Field rejects the Misplaced Field smell: a field read and "
+            "modified more by another class than the one that declares it, so data "
+            "ownership has drifted to the wrong owner (the tactic's own attested "
+            "`when`)."
+        ),
+    ),
+    DRGEdge(
+        source="tactic:refactoring-move-method",
+        target="anti_pattern:feature-envy",
+        relation=Relation.REJECTS,
+        reason=(
+            "Move Method rejects the Feature Envy smell: a method that uses more "
+            "of another class's data and behaviour than its own host's (the "
+            "tactic's own attested `when`)."
+        ),
+    ),
+    DRGEdge(
+        source="tactic:refactoring-state-pattern-for-behavior",
+        target="anti_pattern:repeated-switches-on-state",
+        relation=Relation.REJECTS,
+        reason=(
+            "State Pattern for Behavior rejects the Repeated Switches on State "
+            "smell: a class whose methods are full of conditionals branching on "
+            "the same internal state variable, with behaviour driven by lifecycle "
+            "state transitions (the tactic's own attested `when`)."
+        ),
+    ),
+    DRGEdge(
+        source="tactic:refactoring-strangler-fig",
+        target="anti_pattern:big-bang-rewrite",
+        relation=Relation.REJECTS,
+        reason=(
+            "Strangler Fig rejects the Big-Bang Rewrite anti-pattern: replacing a "
+            "legacy component or code path in a single-step cutover when it is too "
+            "risky, instead of running the new implementation alongside the old "
+            "and rerouting callers one at a time (the tactic's own attested "
+            "`when`)."
         ),
     ),
 )

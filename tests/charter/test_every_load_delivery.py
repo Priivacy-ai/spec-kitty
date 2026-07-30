@@ -72,7 +72,15 @@ def project(tmp_path: Path) -> Path:
     src = _repo_root()
     dst_kittify = tmp_path / ".kittify"
     dst_kittify.mkdir()
-    shutil.copytree(src / ".kittify" / "charter", dst_kittify / "charter")
+    # ``context-state.json`` is gitignored ambient state recording prior
+    # ``spec-kitty`` invocations in the source checkout; copying it would leak
+    # the invoking developer's local load history into what every test in
+    # this file expects to be a virgin (never-loaded) project.
+    shutil.copytree(
+        src / ".kittify" / "charter",
+        dst_kittify / "charter",
+        ignore=shutil.ignore_patterns("context-state.json"),
+    )
     shutil.copy(src / ".kittify" / "config.yaml", dst_kittify / "config.yaml")
     subprocess.run(["git", "init", "--quiet", str(tmp_path)], check=False, capture_output=True)
     yield tmp_path

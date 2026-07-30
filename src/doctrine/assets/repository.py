@@ -31,7 +31,6 @@ from __future__ import annotations
 
 from importlib.resources import files
 from pathlib import Path
-from typing import Any
 
 from doctrine.assets.models import AssetManifest
 from doctrine.base import BaseDoctrineRepository
@@ -91,7 +90,7 @@ class AssetRepository(BaseDoctrineRepository[AssetManifest]):
         project_dir: Path | None = None,
     ) -> None:
         # Must exist before ``super().__init__`` triggers ``_load`` -> the
-        # ``_pre_validate`` hook records into it (mirrors AgentProfileRepository).
+        # ``_post_validate`` hook records into it (mirrors AgentProfileRepository).
         self._source_paths: dict[str, Path] = {}
         super().__init__(
             built_in_dir=built_in_dir or self._default_built_in_dir(),
@@ -118,19 +117,20 @@ class AssetRepository(BaseDoctrineRepository[AssetManifest]):
     def _glob(self) -> str:
         return "*.asset.yaml"
 
-    def _pre_validate(self, data: dict[str, Any], yaml_file: Path) -> None:
-        """Record the declaring manifest file per id as each file is scanned.
+    def _post_validate(self, obj: AssetManifest, yaml_file: Path) -> None:
+        """Record the declaring manifest file per id, only on successful load.
 
         The base ``_load`` visits built-in, then org, then project files in
-        precedence order, calling this hook with the raw data and the file for
-        every one. Last-write-wins here mirrors the layer precedence the base
-        applies to ``_items``/``_provenance``, so the tracked path always
-        belongs to the tier that actually won the id.
+        precedence order, calling this hook with the validated manifest and
+        its file for every item that actually enters ``self._items``.
+        Last-write-wins here mirrors the layer precedence the base applies to
+        ``_items``/``_provenance``, so the tracked path always belongs to the
+        tier that actually won the id. Firing on success only (rather than in
+        ``_pre_validate``, before ``model_validate`` can still fail) means a
+        manifest that fails validation never gets a stale ``_source_paths``
+        entry — ``source_path(id)`` and ``get(id)`` agree.
         """
-        if isinstance(data, dict):
-            asset_id = data.get("id")
-            if isinstance(asset_id, str) and asset_id:
-                self._source_paths[asset_id] = yaml_file
+        self._source_paths[obj.id] = yaml_file
 
     def _project_scan(self, project_dir: Path) -> list[Path]:
         """Recurse — org/project asset manifests may live one dir deep (A-3)."""

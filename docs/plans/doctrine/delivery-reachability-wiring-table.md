@@ -208,7 +208,28 @@ delivered but moves no pin. The profile channel is unchanged (measured 39→39):
 three `agent_profile --suggests--> ddd` edges are inert, and the DDD paradigm stays
 profile-unreachable so its new `requires` edges deliver nothing there.
 
+> **SUPERSEDED (WP03, mission `doctrine-delivery-activation-01KYQVQK`, D19):** the
+> "profile channel is unchanged (measured 39→39)" claim above describes the
+> pre-WP01 profile channel ({requires, specializes_from} only). WP01 added
+> `SUGGESTS`, so the live profile channel reaches far more
+> (`_PROFILE_UNREACHABLE` 153 → 60). See "Composition ledger (NFR-002) —
+> profile-channel walk-activation" below for the current record. Left in situ as
+> the historical Family-A record.
+
 ## The deferred set (T052) — the operator's decision surface
+
+> **WP03 reconciliation (mission `doctrine-delivery-activation-01KYQVQK`, D19):**
+> This "**50**" is the **action-channel** deferred set (`_ACTION_UNREACHABLE_D2`),
+> re-measured and **confirmed still 50** — WP02's Family A/B/C topology is
+> action-inert. The "**60**" that appears in the Family B/C ledgers below
+> ("Deferred set unchanged at 60") is a *pre-Family-D snapshot*, not a live
+> baseline (this same section records Family D delivering 10, 60 → 50). The plan's
+> D19 asked to reset 50 → 60; re-measurement shows 50 is the correct current
+> action figure, so it is left at 50. What this mission *does* lower is the
+> **neither-channel** deferred set (delivered by no channel): 48 → 20, via WP01's
+> profile-channel `suggests` walk. See "Composition ledger (NFR-002) —
+> profile-channel walk-activation" for the 30 rescued members and the 20 that
+> remain.
 
 These **50** activated artefacts remain action-unreachable at `d=2` after row 1
 (WP09), Family A (#3063), and Family D (#3063, ACCEPT DELIVERY) land. Each fails C-007(b): no action-reachable source with a textually-attested
@@ -320,6 +341,129 @@ edge is upgraded and no walk is deepened here.
   - `toolguide:python-mutation-tools`
   - `toolguide:terminology-guard`
   - `toolguide:typescript-mutation-tools`
+
+## Composition ledger (NFR-002) — profile-channel walk-activation (mission `doctrine-delivery-activation-01KYQVQK`, WP01 + WP03)
+
+**This section is the successor to the "fast-follow walk-update mission" the
+prose above repeatedly defers to.** Mission `doctrine-delivery-activation-01KYQVQK`
+IS that fast-follow. WP01 added `Relation.SUGGESTS` to `PROFILE_CHANNEL_RELATIONS`
+(`src/doctrine/drg/reachability.py`, FR-001), so the profile channel's unbounded
+`walk_edges` closure now follows the soft-recommendation web out of every activated
+agent profile — animating the previously-inert Family B/C/E `suggests` edges the
+prior mission authored (lines above: *"the profile-channel `suggests`-follow that
+would animate the inert Family B/C/E edges … is deferred to the fast-follow
+walk-update mission"*).
+
+### Pin moves (measured via `profile_channel_reachable` / `action_channel_reachable` only — C-001)
+
+Every number below traces to a call through the canonical reachability helpers
+(no hand-rolled walk). WP03 re-measured against the WP01+WP02 topology:
+
+- **`_PROFILE_UNREACHABLE` 153 → 60** (`tests/doctrine/drg/test_reachability.py`).
+  93 activated artefacts became profile-reachable via a `suggests` chain from an
+  activated profile once WP01's relation addition landed.
+- **`_PROFILE_RESCUES` 2 → 30** (`_ACTION_UNREACHABLE_D2 − _PROFILE_UNREACHABLE`).
+  These 30 are the mission's actual *delivery*: activated artefacts the action
+  channel misses at `d=2` but the profile channel now reaches. Enumerated below.
+- **`_ACTION_UNREACHABLE_D1` (60) and `_ACTION_UNREACHABLE_D2` (50) UNCHANGED** —
+  measured, not assumed. WP02's Family-A `when` backfill, the C4
+  `template:instantiates` edge and the anti-pattern `REJECTS` edges are all
+  action-channel-inert (a `when` guard, an `instantiates` edge no channel walks,
+  and validation-tier `REJECTS` edges — D13/D14). So this mission moves **no**
+  action-channel pin. `_ACTION_UNREACHABLE_D2` staying at 50 is the load-bearing
+  confirmation that the "50 vs 60" contradiction below is a *timeline* artefact,
+  not a live discrepancy (see the reconciliation note).
+
+### The 30 rescued artefacts, by prior-mission family attribution
+
+Each is now delivered through the **profile** channel (the responsible change is
+WP01's `PROFILE_CHANNEL_RELATIONS` `SUGGESTS` addition; the family grouping names
+the `suggests` cluster the artefact sits in, most authored by the prior mission's
+Family B/C topology):
+
+- **Family B (#3063 REFACTORING) — 7**, formerly "topology authored, delivery pending":
+  `tactic:refactoring-encapsulate-record`, `tactic:refactoring-encapsulate-variable`,
+  `tactic:refactoring-extract-first-order-concept`, `tactic:refactoring-move-field`,
+  `tactic:refactoring-move-method`, `tactic:refactoring-state-pattern-for-behavior`,
+  `tactic:refactoring-strangler-fig`.
+- **Family C (#3063 ARCHITECTURE-DOCS / DIAGRAMMING) — 7**, formerly "topology authored, delivery pending":
+  `paradigm:c4-incremental-detail-modeling`, `procedure:drill-down-documentation`,
+  `tactic:architecture-diagram-review-checklist`, `tactic:c4-zoom-in-architecture-documentation`,
+  `tactic:code-documentation-analysis`, `toolguide:mermaid-diagramming`,
+  `toolguide:plantuml-diagramming`.
+- **Depth-gated `suggests` (the "4 of the 50 edge-incident, depth-gated" table above) — 4**:
+  `tactic:ownership-map-leeway`, `tactic:pr-agent-worktree-isolation`,
+  `tactic:zombies-tdd`, `toolguide:github-tracker`. These carried an inbound
+  `suggests` from a reachable source but sat beyond the action-channel `d=2`
+  horizon; the profile channel's unbounded closure now reaches them.
+- **Other `suggests`-web artefacts — 10**:
+  `procedure:event-storming-discovery`, `styleguide:reasons-canvas-writing`,
+  `tactic:canonical-source-unification`, `tactic:mutation-testing-workflow`,
+  `tactic:occurrence-classification-workflow`, `tactic:terminology-extraction-mapping`,
+  `toolguide:contextive`, `toolguide:python-mutation-tools`,
+  `toolguide:terminology-guard`, `toolguide:typescript-mutation-tools`.
+- **Already profile-reachable pre-mission (in the prior `_PROFILE_RESCUES`) — 2**:
+  `directive:DIRECTIVE_044`, `tactic:test-readability-clarity-check` (reached via a
+  profile `requires`/`suggests` edge that pre-dates WP01; carried forward).
+
+### Deferred set (neither channel) — 48 → 20
+
+The wiring table's "deferred set" (the `d=2` action-unreachable list above) is a
+**single-channel** surface. The operator's true decision surface is what **no**
+channel delivers — `_ACTION_UNREACHABLE_D2 ∩ _PROFILE_UNREACHABLE`. Before this
+mission the profile channel rescued only 2 of the 50, so the neither-channel set
+was 48. After WP01 it rescues 30, so the neither-channel deferred set drops to
+**20**:
+
+  - `directive:DIRECTIVE_035`
+  - `directive:DIRECTIVE_038`
+  - `directive:DIRECTIVE_039`
+  - `paradigm:atomic-design`
+  - `paradigm:structured-prompt-driven-development`
+  - `procedure:documentation-gap-prioritization`
+  - `procedure:migrate-project-guidance-to-spec-kitty-charter`
+  - `styleguide:deployable-skill-authoring`
+  - `styleguide:java-conventions`
+  - `tactic:analysis-extract-before-interpret`
+  - `tactic:atomic-design-review-checklist`
+  - `tactic:atomic-state-ownership`
+  - `tactic:chain-of-responsibility-rule-pipeline`
+  - `tactic:compositional-stream-boundaries`
+  - `tactic:cross-cutting-state-via-store`
+  - `tactic:reasons-canvas-fill`
+  - `tactic:reasons-canvas-review`
+  - `tactic:reference-architectural-patterns`
+  - `tactic:secure-regex-catastrophic-backtracking`
+  - `toolguide:maven-review-checks`
+
+### Reconciliation note — the "50 vs 60" / "39→39" stale prose (WP03, D19)
+
+The plan's D19 asked WP03 to treat the main deferred-set section's **50** as
+stale and reset it to **60**. WP03's re-measurement shows the opposite is true, so
+this note records the correct reconciliation instead of a silent inversion
+(NFR-002 forbids moving a golden number without a paired justification, and that
+cuts both ways — including *not* moving a correct one to match a stale premise):
+
+- **`_ACTION_UNREACHABLE_D2` measures 50**, exactly matching the main
+  "Full deferred set (50)" section. The `60 → 50` transition is the same doc's
+  own Family-D ledger ("Family D delivered 10 of the previous 60"). So **50 is the
+  current, correct action-channel figure**; the **60** in the Family B/C ledgers
+  ("Deferred set unchanged at 60") is a *pre-Family-D snapshot* written earlier in
+  the doc's authoring, not a live baseline. The two numbers are a timeline
+  artefact of a multi-pass document, not a contradiction to resolve by picking 60.
+- **The "profile channel … measured 39→39" claims (Family A section) ARE stale**
+  (D19 correct on this point): they describe the profile channel *before* WP01
+  added `SUGGESTS`. Under the live topology the profile channel reaches far more
+  (`_PROFILE_UNREACHABLE` 153 → 60), so those "39→39" figures are superseded by
+  this ledger. They are left in place as the historical Family-A record and
+  explicitly superseded here rather than edited in situ, to keep the Family-A
+  diff legible.
+- **Net**: this mission does not lower the *action-channel* deferred count (it
+  stays 50, correctly). It lowers the *neither-channel* deferred count 48 → 20 via
+  the profile channel — the genuine delivery this mission ships. Per D18 the
+  per-member ledger-vs-diff comparison above is the sole non-delegable correctness
+  gate for the pins; a reviewer should verify each of the 30 rescued members and
+  the 20 remaining against the measured diff.
 
 ## Composition ledger (NFR-004) — counts this WP moves
 

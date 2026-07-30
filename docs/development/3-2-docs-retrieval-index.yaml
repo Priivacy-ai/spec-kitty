@@ -8005,6 +8005,11 @@ pages:
     - {slug: "the-deferred-set-t052-the-operator-s-decision-surface", text: "The deferred set (T052) — the operator's decision surface", level: 2}
     - {slug: "note-4-of-the-50-are-edge-incident-from-a-reachable-source-depth-gated", text: "Note: 4 of the 50 are edge-incident from a reachable source, depth-gated", level: 3}
     - {slug: "full-deferred-set-50-by-kind-directive-4-paradigm-3-procedure-4-styleguide-3-tactic-28-toolguide-8", text: "Full deferred set (50), by kind — directive 4 · paradigm 3 · procedure 4 · styleguide 3 · tactic 28 · toolguide 8", level: 3}
+    - {slug: "composition-ledger-nfr-002-profile-channel-walk-activation-mission-doctrine-delivery-activation-01kyqvqk-wp01-wp03", text: "Composition ledger (NFR-002) — profile-channel walk-activation (mission `doctrine-delivery-activation-01KYQVQK`, WP01 + WP03)", level: 2}
+    - {slug: "pin-moves-measured-via-profile-channel-reachable-action-channel-reachable-only-c-001", text: "Pin moves (measured via `profile_channel_reachable` / `action_channel_reachable` only — C-001)", level: 3}
+    - {slug: "the-30-rescued-artefacts-by-prior-mission-family-attribution", text: "The 30 rescued artefacts, by prior-mission family attribution", level: 3}
+    - {slug: "deferred-set-neither-channel-48-20", text: "Deferred set (neither channel) — 48 → 20", level: 3}
+    - {slug: "reconciliation-note-the-50-vs-60-39-39-stale-prose-wp03-d19", text: "Reconciliation note — the \"50 vs 60\" / \"39→39\" stale prose (WP03, D19)", level: 3}
     - {slug: "composition-ledger-nfr-004-counts-this-wp-moves", text: "Composition ledger (NFR-004) — counts this WP moves", level: 2}
     - {slug: "composition-ledger-nfr-004-family-a-3063-ddd-family", text: "Composition ledger (NFR-004) — Family A (#3063 DDD family)", level: 2}
     - {slug: "family-b-3063-refactoring-family-operator-interview-outcome-inert-composition-only", text: "Family B (#3063 REFACTORING family) — operator interview outcome, INERT (composition-only)", level: 2}

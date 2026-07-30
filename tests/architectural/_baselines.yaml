@@ -283,18 +283,23 @@ test_no_dead_symbols:
   # charter.template_catalog facade landed (the 4 doctrine.template_catalog
   # accessors remain genuinely unimported). Tracker: WP06/T021 (DIRECTIVE_013).
   category_c_org_doctrine_closeout: 15
-  # justification: 19 delivery-rail public symbols authored by mission
+  # justification: 18 delivery-rail public symbols authored by mission
   # doctrine-delivery-reachability-01KYMXD6 on three brand-new modules
   # (charter.pack_context WP07 activation-partition helpers x4,
   # charter.progressive_disclosure WP15 every-load/progressive-disclosure
   # delivery helpers x11, doctrine.drg.reachability WP08 per-channel
-  # reachability helpers x4). Their runtime call sites are the planned
-  # fast-follow "walk-update" mission's job (profile-channel walk follows
-  # `suggests` with `when`), so each is exercised today only by unit tests (a
-  # few by none yet) while the public contract is locked. Tracker:
-  # Priivacy-ai/spec-kitty#3063. Informational only (this section is NOT read
-  # by test_ratchet_baselines). Target = 0 once the fast-follow wires each.
-  category_c_delivery_rail_forward_api: 19
+  # reachability helpers x3). Was 19; WP03 of the fast-follow "walk-update"
+  # mission (doctrine-delivery-activation-01KYQVQK) wired the profile channel,
+  # so ``doctrine.drg.reachability::agent_profile_seed_urns`` gained a runtime
+  # caller (src/doctrine/agent_profiles/repository.py) and was retired from the
+  # allowlist (4->3 for the reachability module). The remaining symbols'
+  # runtime call sites are a later mission's job (the charter-activation and
+  # action-channel concerns this mission builds no consumer for), so each is
+  # exercised today only by unit tests (a few by none yet) while the public
+  # contract is locked. Tracker: Priivacy-ai/spec-kitty#3063. Informational
+  # only (this section is NOT read by test_ratchet_baselines). Target = 0 once
+  # a later mission wires each remaining helper.
+  category_c_delivery_rail_forward_api: 18
   # category_c_upstream_status_service removed by execution-context-unification
   # WP09 (#1622/#391): the 2 truly-dead functions (append_event_log_batch,
   # read_wp_lane_actor) were deleted and the 3 internally-used types

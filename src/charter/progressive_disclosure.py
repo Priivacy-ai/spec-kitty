@@ -18,11 +18,12 @@ WP10 and held near-flat).
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from doctrine.drg.models import Relation
 
 if TYPE_CHECKING:
+    from charter.repository_protocol import ArtifactRepository
     from doctrine.drg.models import DRGEdge, DRGGraph
 
 #: The stated default rendered for an *uncovered* ``suggests`` edge — one of the
@@ -154,6 +155,63 @@ def link_references(
     return out
 
 
+def profile_channel_references(
+    merged: DRGGraph,
+    seeds: Iterable[str],
+    reached: Iterable[str],
+    delivered_urns: Iterable[str],
+) -> list[dict[str, str | None]]:
+    """Suggests-delivered references for the profile channel (WP01, IC-01/C2).
+
+    The profile channel (``doctrine.drg.reachability.profile_channel_reachable``)
+    now follows ``suggests`` edges. For every artefact it reaches *only* through a
+    ``suggests`` edge, the consumer must surface that edge's ``when`` clause as
+    the delivered doctrine's applicability condition (``STATED_DEFAULT_WHEN`` when
+    the edge is ``when``-less). This function is that projection.
+
+    **Why reuse** :func:`link_references` **and not walk per reached node (D11):**
+    ``when`` lives on the *inbound* edge ``source -> target`` that reaches an
+    artefact, and ``profile_channel_reachable`` returns ``visited - seed_set`` —
+    it **strips the profile seeds**, which are exactly the sources of the
+    first-hop Family A/B edges (``architect -> DDD``,
+    ``python-pedro -> DISCIPLINED_REFACTORING``). A per-reached-node
+    ``edges_from(reached, SUGGESTS)`` would therefore miss those edges and surface
+    no ``when`` for the headline families. :func:`link_references` iterates
+    ``roots ∪ delivered ∪ bridge_urns`` as edge sources, so passing the seeds as
+    ``roots`` restores the stripped first-hop edges. Note ``reached ∪ seeds ==
+    visited`` (``walk_edges`` adds the start nodes to ``visited``), so the
+    ``bridge_urns`` here is reconstructed from values the caller already holds —
+    **no second walk**.
+
+    **Requires precedence (C3/A4):** an artefact inside the *seeds'*
+    ``requires``-closure is delivered eager (inline elsewhere) and is *excluded*
+    from this link set — :func:`partition_delivery` computes the split and only
+    the ``link`` side is projected. A diamond artefact reachable via both
+    ``requires`` (from a seed) and ``suggests`` therefore delivers once, eager,
+    and never appears here as a link.
+
+    Args:
+        merged: The merged DRG graph.
+        seeds: The profile-channel seeds (the ``roots``, sources of first-hop
+            ``suggests`` edges the walk stripped).
+        reached: The full reachable set (``profile_channel_reachable``'s return);
+            ``reached ∪ seeds`` reconstructs the walk's ``visited`` for pass-through
+            hops of never-delivered kinds (e.g. a linking ``paradigm``).
+        delivered_urns: The kind-filtered subset of *reached* the consumer renders
+            (the render-layer NodeKind delivery table, C4). Only edges whose
+            target is in this set project a reference.
+
+    Returns:
+        One ``{id, relation, when, reason}`` reference per ``(target-id, relation)``
+        of the ``suggests``-delivered (link) subset, deterministically ordered.
+    """
+    seed_set = set(seeds)
+    delivered = set(delivered_urns)
+    _inline, link = partition_delivery(merged, seed_set, delivered)
+    bridge = set(reached) | seed_set  # == walk_edges ``visited`` (D11)
+    return link_references(merged, seed_set, link, bridge_urns=bridge)
+
+
 def artifact_to_dict(artifact: object, source: str) -> dict[str, object]:
     """Render one doctrine artefact as a JSON DTO (id + provenance + best-effort fields).
 
@@ -213,7 +271,7 @@ def _decorate_entry(
 
 
 def collect_typed_artifacts(
-    repository: object,
+    repository: ArtifactRepository[Any],
     artifact_ids: list[str],
     *,
     kind: str,
@@ -233,11 +291,11 @@ def collect_typed_artifacts(
     entries: list[dict[str, object]] = []
     for artifact_id in artifact_ids:
         try:
-            artifact = repository.get(artifact_id)  # type: ignore[attr-defined]
-            source = repository.get_provenance(artifact_id) or "builtin"  # type: ignore[attr-defined]
+            artifact = repository.get(artifact_id)
+            source = repository.get_provenance(artifact_id) or "builtin"
         except (AttributeError, KeyError):
             artifact, source = None, "builtin"
-        entry = (
+        entry: dict[str, object] = (
             {"id": artifact_id, "source": source}
             if artifact is None
             else artifact_to_dict(artifact, source)
@@ -266,7 +324,7 @@ _ARRAY_BY_KIND: dict[str, str] = {
 
 def build_disclosure_payload(
     *,
-    repos_by_kind: dict[str, tuple[object, list[str]]],
+    repos_by_kind: dict[str, tuple[ArtifactRepository[Any], list[str]]],
     extra_delivered: dict[str, list[str]],
     merged: DRGGraph | None,
     roots: Iterable[str],
@@ -334,5 +392,6 @@ __all__ = [
     "build_disclosure_payload",
     "collect_typed_artifacts",
     "partition_delivery",
+    "profile_channel_references",
     "requires_closure",
 ]

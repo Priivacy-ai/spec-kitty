@@ -977,9 +977,21 @@ edges:
   relation: suggests
   when: When recording the decomposition as part of a prestudy or design document.
 - source: tactic:refactoring-encapsulate-record
+  target: anti_pattern:unencapsulated-record
+  relation: rejects
+  reason: "Encapsulate Record rejects the Unencapsulated Record smell: a raw data record accessed by field name from many call sites, where the direct access blocks adding validation, renaming fields, or changing the internal representation (the tactic's own attested `when`)."
+- source: tactic:refactoring-encapsulate-record
   target: tactic:refactoring-encapsulate-variable
   relation: suggests
   when: The record is accessed via a module-level variable — encapsulate the variable first, then the record.
+- source: tactic:refactoring-encapsulate-variable
+  target: anti_pattern:global-data
+  relation: rejects
+  reason: "Encapsulate Variable rejects the Global Data smell: a widely-accessed module-level or global variable read and written from many locations with no single chokepoint for monitoring, validation, or a later change of type (the tactic's own attested `when`)."
+- source: tactic:refactoring-extract-first-order-concept
+  target: anti_pattern:implicit-concept
+  relation: rejects
+  reason: "Extract First-Order Concept rejects the Implicit Concept smell: an important concept left implicit, duplicated, or scattered across the code with no explicit name or single home (the tactic's own attested `when`)."
 - source: tactic:refactoring-extract-first-order-concept
   target: tactic:refactoring-strangler-fig
   relation: suggests
@@ -989,9 +1001,17 @@ edges:
   relation: suggests
   when: Follow when the flattened variation points represent stable algorithm variants.
 - source: tactic:refactoring-move-field
+  target: anti_pattern:misplaced-field
+  relation: rejects
+  reason: "Move Field rejects the Misplaced Field smell: a field read and modified more by another class than the one that declares it, so data ownership has drifted to the wrong owner (the tactic's own attested `when`)."
+- source: tactic:refactoring-move-field
   target: tactic:refactoring-move-method
   relation: suggests
   when: Use alongside this tactic when behavior and data ownership have drifted together.
+- source: tactic:refactoring-move-method
+  target: anti_pattern:feature-envy
+  relation: rejects
+  reason: "Move Method rejects the Feature Envy smell: a method that uses more of another class's data and behaviour than its own host's (the tactic's own attested `when`)."
 - source: tactic:refactoring-move-method
   target: tactic:refactoring-extract-first-order-concept
   relation: suggests
@@ -1001,9 +1021,17 @@ edges:
   relation: suggests
   when: Use when the move must be staged behind coexistence and gradual caller rerouting.
 - source: tactic:refactoring-state-pattern-for-behavior
+  target: anti_pattern:repeated-switches-on-state
+  relation: rejects
+  reason: "State Pattern for Behavior rejects the Repeated Switches on State smell: a class whose methods are full of conditionals branching on the same internal state variable, with behaviour driven by lifecycle state transitions (the tactic's own attested `when`)."
+- source: tactic:refactoring-state-pattern-for-behavior
   target: tactic:refactoring-conditional-to-strategy
   relation: suggests
   when: Choosing between State and Strategy — State is for lifecycle-driven transitions, Strategy for interchangeable algorithms.
+- source: tactic:refactoring-strangler-fig
+  target: anti_pattern:big-bang-rewrite
+  relation: rejects
+  reason: "Strangler Fig rejects the Big-Bang Rewrite anti-pattern: replacing a legacy component or code path in a single-step cutover when it is too risky, instead of running the new implementation alongside the old and rerouting callers one at a time (the tactic's own attested `when`)."
 - source: tactic:reference-architectural-patterns
   target: tactic:adr-drafting-workflow
   relation: suggests

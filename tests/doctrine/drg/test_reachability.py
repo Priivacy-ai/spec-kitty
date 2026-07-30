@@ -85,6 +85,26 @@ _NORMALIZATION_DELTA = 25
 #: action-scoped DIRECTIVE_030). The pre-existing 7 are unchanged.
 _ACTION_D1_D2_SPREAD = 10
 
+# ---------------------------------------------------------------------------
+# WP03 SUPERSEDING NOTE (mission ``doctrine-delivery-activation-01KYQVQK``)
+# ---------------------------------------------------------------------------
+# The per-family narratives below were authored by the PRIOR mission
+# (``doctrine-delivery-reachability-01KYMXD6``) when the profile channel walked
+# only {requires, specializes_from}. Their PROFILE-channel asides — "the profile
+# channel is unchanged", "_PROFILE_UNREACHABLE unchanged (153)", "measured
+# 39->39", "_PROFILE_RESCUES 4 -> 2", and family E's "profile channel walks
+# {requires, specializes_from} only" — describe that PRE-WP01 state and are now
+# SUPERSEDED. WP01 (FR-001) added ``Relation.SUGGESTS`` to
+# ``PROFILE_CHANNEL_RELATIONS``, so the profile channel now follows ``suggests``:
+# ``_PROFILE_UNREACHABLE`` is 60 (was 153) and ``_PROFILE_RESCUES`` is 30 (was 2).
+# The ACTION-channel claims in these narratives (``_ACTION_UNREACHABLE_D1``/``D2``
+# and their family moves) are UNCHANGED and remain accurate — WP02's topology is
+# action-inert. See the reconciled ``_PROFILE_UNREACHABLE`` / ``_PROFILE_RESCUES``
+# docstrings and the "profile-channel walk-activation" ledger in
+# ``docs/plans/doctrine/delivery-reachability-wiring-table.md`` for the live
+# profile-channel record. These historical narratives are left in place (not
+# edited in situ) to keep the prior mission's action-channel ledger diff legible.
+
 #: The common-docs cluster WP09 wires (mission doctrine-delivery-reachability,
 #: T050, FR-015). One authored `scope` edge —
 #: ``action:documentation/generate --scope--> directive:DIRECTIVE_042`` — makes
@@ -356,176 +376,145 @@ _ACTION_UNREACHABLE_D2: frozenset[str] = frozenset(
 )
 
 #: Activated artefacts NOT reachable via the profile channel (``walk_edges``
-#: over {requires, specializes_from} from every activated agent profile). The
-#: profile channel is a second entry vector, so most action-doctrine is
-#: legitimately outside it; the load-bearing fact is the *difference* from the
-#: action set below, which names the artefacts the profile channel rescues.
+#: over {requires, specializes_from, suggests} from every activated agent
+#: profile). The profile channel is a second entry vector, so some
+#: action-doctrine is legitimately outside it; the load-bearing fact is the
+#: *difference* from the action set below, which names the artefacts the profile
+#: channel rescues.
+#:
+#: WP03 (mission ``doctrine-delivery-activation-01KYQVQK``) reconciliation:
+#: 153 → 60. WP01 added ``Relation.SUGGESTS`` to ``PROFILE_CHANNEL_RELATIONS``
+#: (FR-001), so the unbounded ``walk_edges`` closure now follows the soft-
+#: recommendation web out of every activated profile. 93 members left this set —
+#: they became profile-reachable via a ``suggests`` chain from an activated
+#: profile. The per-member composition ledger (which member, via which family/
+#: edge, WP01 vs WP02) lives in
+#: ``docs/plans/doctrine/delivery-reachability-wiring-table.md`` under the
+#: "profile-channel walk-activation" ledger; the 30 members that this move pushes
+#: into ``_PROFILE_RESCUES`` are cross-checked against that ledger by
+#: ``test_profile_rescues_have_ledger_coverage`` below.
+#:
+#: NFR-002 REVIEW-GATE NOTE (D18): this frozenset is a hardcoded literal asserted
+#: ``measured == pin`` — the test greens the instant a value is pasted in,
+#: whether or not the value is *correct*. That is fundamentally different from a
+#: CI-counted golden. The sole non-delegable correctness gate for these numbers
+#: is the reviewer's per-member ledger-vs-diff comparison against the wiring
+#: table: every member that entered or left this set must trace to a ledger row
+#: naming the responsible edge/WP. A pin change with no matching ledger row is a
+#: hard reject regardless of whether this test is green.
 _PROFILE_UNREACHABLE: frozenset[str] = frozenset(
     {
         "directive:DIRECTIVE_029",
         "directive:DIRECTIVE_033",
         "directive:DIRECTIVE_035",
-        "directive:DIRECTIVE_036",
-        "directive:DIRECTIVE_037",
         "directive:DIRECTIVE_038",
         "directive:DIRECTIVE_039",
         "directive:DIRECTIVE_042",
         "directive:DIRECTIVE_046",
         "paradigm:atomic-design",
-        "paradigm:behaviour-driven-development",
-        "paradigm:brownfield-onboarding",
-        "paradigm:c4-incremental-detail-modeling",
         "paradigm:deep-module-design",
-        "paradigm:domain-driven-design",
-        "paradigm:specification-by-example",
         "paradigm:structured-prompt-driven-development",
-        "procedure:adversarial-squad-deployment",
-        "procedure:bdd-scenario-lifecycle",
         "procedure:disciplined-defect-diagnosis",
         "procedure:documentation-gap-prioritization",
         "procedure:domain-aware-decision-interview",
-        "procedure:drill-down-documentation",
-        "procedure:event-storming-discovery",
-        "procedure:example-mapping-workshop",
         "procedure:issue-triage-state-machine",
-        "procedure:legacy-codebase-triage",
         "procedure:migrate-project-guidance-to-spec-kitty-charter",
-        "procedure:mission-tracer-files",
         "procedure:mission-wrap-up-sequence",
-        "procedure:post-merge-arch-gate-adjudication",
-        "procedure:red-main-release-discipline",
         "procedure:refactoring",
-        "procedure:situational-assessment",
         "procedure:test-first-bug-fixing",
-        "styleguide:adversarial-squad-cadence",
-        "styleguide:aggregate-design-rules",
         "styleguide:common-docs",
         "styleguide:deployable-skill-authoring",
         "styleguide:java-conventions",
-        "styleguide:kitty-glossary-writing",
-        "styleguide:mutation-aware-test-design",
-        "styleguide:planning-and-tracking",
-        "styleguide:python-conventions",
-        "styleguide:reasons-canvas-writing",
-        "styleguide:testing-principles",
-        "styleguide:tiered-standards",
-        "tactic:acceptance-test-first",
-        "tactic:adr-drafting-workflow",
-        "tactic:adversarial-qa-handoff",
-        "tactic:aggregate-boundary-design",
-        "tactic:ammerse-impact-analysis",
         "tactic:analysis-extract-before-interpret",
-        "tactic:architectural-gate-non-vacuity",
-        "tactic:architecture-diagram-review-checklist",
-        "tactic:atdd-adversarial-acceptance",
         "tactic:atomic-design-review-checklist",
         "tactic:atomic-state-ownership",
-        "tactic:autonomous-operation-protocol",
         "tactic:avoid-gold-plating",
-        "tactic:black-box-integration-testing",
         "tactic:boring-code-review",
-        "tactic:bounded-context-canvas-fill",
-        "tactic:bounded-context-identification",
-        "tactic:c4-zoom-in-architecture-documentation",
-        "tactic:canonical-source-unification",
         "tactic:chain-of-responsibility-rule-pipeline",
-        "tactic:change-apply-smallest-viable-diff",
-        "tactic:clean-linear-commit-history",
-        "tactic:code-documentation-analysis",
         "tactic:common-docs-curation",
         "tactic:common-docs-find",
         "tactic:common-docs-scaffold",
         "tactic:common-docs-write",
         "tactic:compositional-stream-boundaries",
-        "tactic:connascence-analysis",
-        "tactic:context-boundary-inference",
-        "tactic:context-mapping-classification",
         "tactic:cross-cutting-state-via-store",
         "tactic:deepening-opportunity-assessment",
         "tactic:dependency-hygiene",
         "tactic:documentation-curation-audit",
         "tactic:easy-to-change",
-        "tactic:eisenhower-prioritisation",
-        "tactic:entity-value-object-classification",
         "tactic:focused-function-complexity-check",
-        "tactic:forensic-repository-audit",
-        "tactic:formalized-constraint-testing",
-        "tactic:frozen-baseline-shrink-only-ratchet",
-        "tactic:function-over-form-testing",
         "tactic:generated-code-stewardship",
-        "tactic:glossary-curation-interview",
-        "tactic:input-validation-fail-fast",
         "tactic:interface-variation-design",
         "tactic:locality-of-change",
-        "tactic:mutation-testing-workflow",
-        "tactic:no-parallel-duplicate-test-runs",
-        "tactic:occurrence-classification-workflow",
-        "tactic:ownership-map-leeway",
-        "tactic:pr-agent-worktree-isolation",
-        "tactic:premortem-risk-identification",
-        "tactic:problem-decomposition",
-        "tactic:quality-gate-verification",
         "tactic:reasons-canvas-fill",
         "tactic:reasons-canvas-review",
         "tactic:refactoring-change-function-declaration",
         "tactic:refactoring-combine-functions-into-transform",
-        "tactic:refactoring-conditional-to-strategy",
         "tactic:refactoring-consolidate-conditional-expression",
-        "tactic:refactoring-encapsulate-record",
-        "tactic:refactoring-encapsulate-variable",
         "tactic:refactoring-extract-class-by-responsibility-split",
-        "tactic:refactoring-extract-first-order-concept",
         "tactic:refactoring-guard-clauses-before-polymorphism",
         "tactic:refactoring-inline-temp",
         "tactic:refactoring-introduce-null-object",
-        "tactic:refactoring-move-field",
-        "tactic:refactoring-move-method",
         "tactic:refactoring-replace-magic-number-with-symbolic-constant",
         "tactic:refactoring-replace-temp-with-query",
         "tactic:refactoring-retry-pattern",
-        "tactic:refactoring-state-pattern-for-behavior",
-        "tactic:refactoring-strangler-fig",
         "tactic:reference-architectural-patterns",
         "tactic:requirements-validation-workflow",
-        "tactic:reviewer-implementer-role-separation",
-        "tactic:safe-to-fail-experiment",
         "tactic:secure-design-checklist",
         "tactic:secure-regex-catastrophic-backtracking",
-        "tactic:stakeholder-alignment",
-        "tactic:stopping-conditions",
-        "tactic:strategic-domain-classification",
-        "tactic:tdd-red-green-refactor",
-        "tactic:terminology-extraction-mapping",
-        "tactic:test-boundaries-by-responsibility",
-        "tactic:test-minimisation",
-        "tactic:test-pyramid-progression",
-        "tactic:test-to-system-reconstruction",
         "tactic:testing-select-appropriate-level",
-        "tactic:usage-examples-sync",
-        "tactic:work-package-completion-validation",
-        "tactic:zombies-tdd",
-        "toolguide:contextive",
-        "toolguide:efficient-local-tooling",
         "toolguide:git-agent-commit-signing",
-        "toolguide:github-tracker",
         "toolguide:maven-review-checks",
-        "toolguide:mermaid-diagramming",
-        "toolguide:plantuml-diagramming",
-        "toolguide:python-mutation-tools",
-        "toolguide:python-review-checks",
-        "toolguide:terminology-guard",
-        "toolguide:typescript-mutation-tools",
     }
 )
 
 #: Activated artefacts the profile channel reaches that the action channel at
 #: d=2 does NOT — i.e. ``_ACTION_UNREACHABLE_D2 - _PROFILE_UNREACHABLE``. Proof
 #: that the profile channel is a genuine, distinct entry vector (R-3): these
-#: artefacts reach an agent only because a profile ``requires`` them.
+#: artefacts reach an agent only because a profile ``requires``, ``suggests`` or
+#: ``specializes_from`` them.
+#:
+#: WP03 reconciliation (mission ``doctrine-delivery-activation-01KYQVQK``): 2 → 30.
+#: ``_ACTION_UNREACHABLE_D2`` is measured-unchanged at 50 (WP02's Family A/B/C
+#: topology is action-inert), but WP01's ``suggests`` walk extension shrank
+#: ``_PROFILE_UNREACHABLE`` 153 → 60, so 28 more of the 50 action-d2-unreachable
+#: artefacts are now delivered via the profile channel. These 30 members are the
+#: mission's actual delivery: the previously "topology authored, delivery pending"
+#: Family B/C artefacts plus the depth-gated ``suggests`` artefacts the wiring
+#: table flagged for the "fast-follow walk-update mission" (this mission). Every
+#: member here is covered by a wiring-table ledger row — enforced by
+#: ``test_profile_rescues_have_ledger_coverage`` below.
 _PROFILE_RESCUES: frozenset[str] = frozenset(
     {
         "directive:DIRECTIVE_044",
+        "paradigm:c4-incremental-detail-modeling",
+        "procedure:drill-down-documentation",
+        "procedure:event-storming-discovery",
+        "styleguide:reasons-canvas-writing",
+        "tactic:architecture-diagram-review-checklist",
+        "tactic:c4-zoom-in-architecture-documentation",
+        "tactic:canonical-source-unification",
+        "tactic:code-documentation-analysis",
+        "tactic:mutation-testing-workflow",
+        "tactic:occurrence-classification-workflow",
+        "tactic:ownership-map-leeway",
+        "tactic:pr-agent-worktree-isolation",
+        "tactic:refactoring-encapsulate-record",
+        "tactic:refactoring-encapsulate-variable",
+        "tactic:refactoring-extract-first-order-concept",
+        "tactic:refactoring-move-field",
+        "tactic:refactoring-move-method",
+        "tactic:refactoring-state-pattern-for-behavior",
+        "tactic:refactoring-strangler-fig",
+        "tactic:terminology-extraction-mapping",
         "tactic:test-readability-clarity-check",
+        "tactic:zombies-tdd",
+        "toolguide:contextive",
+        "toolguide:github-tracker",
+        "toolguide:mermaid-diagramming",
+        "toolguide:plantuml-diagramming",
+        "toolguide:python-mutation-tools",
+        "toolguide:terminology-guard",
+        "toolguide:typescript-mutation-tools",
     }
 )
 
@@ -708,12 +697,18 @@ class TestProfileChannelReachability:
     """The profile channel is a SEPARATE ``walk_edges`` traversal (R-3)."""
 
     def test_profile_relations_are_requires_and_specializes_from(self) -> None:
-        """The channel follows lineage + hard-dependency edges — and crucially
-        NOT ``scope``, the relation ``resolve_context`` seeds on. That absence is
-        why the two channels cannot be folded (R-3)."""
+        """The channel follows lineage + hard-dependency + soft-recommendation
+        edges — and crucially NOT ``scope``, the relation ``resolve_context``
+        seeds on. That absence is why the two channels cannot be folded (R-3).
+
+        ``suggests`` joins the set in mission
+        ``doctrine-delivery-activation-01KYQVQK`` (WP01/FR-001): the profile
+        channel now delivers the #3063 A–E families that were authored inert.
+        """
         assert {r.value for r in PROFILE_CHANNEL_RELATIONS} == {
             "requires",
             "specializes_from",
+            "suggests",
         }
         assert Relation.SCOPE not in PROFILE_CHANNEL_RELATIONS
 
@@ -760,6 +755,79 @@ class TestProfileChannelReachability:
         action_d2 = action_channel_reachable(graph, action_seed_urns(graph), _ACTION_D2_DEPTH)
         assert rescues <= profile_reachable
         assert not (rescues & action_d2)
+
+
+#: The wiring-table composition ledger this WP authored for the profile-channel
+#: walk-activation. The cross-check below scopes its search to THIS section so a
+#: forgotten ledger row genuinely fails (a whole-document scan would pass on a
+#: member that happens to appear elsewhere in the doc).
+_WIRING_TABLE_PATH: Path = (
+    _REPO_ROOT / "docs" / "plans" / "doctrine" / "delivery-reachability-wiring-table.md"
+)
+_LEDGER_SECTION_START = "## Composition ledger (NFR-002) — profile-channel walk-activation"
+_LEDGER_SECTION_END = "## Composition ledger (NFR-004) — counts this WP moves"
+
+
+def _profile_channel_ledger_text() -> str:
+    """The profile-channel walk-activation ledger section, as raw markdown.
+
+    A line-scan between the two known section headers — deliberately NOT a
+    markdown AST (T015: keep the parser cheap). Fails loudly if either header
+    is missing so the cross-check can never silently degrade to "no rows found,
+    therefore vacuously pass".
+    """
+    text = _WIRING_TABLE_PATH.read_text(encoding="utf-8")
+    start = text.find(_LEDGER_SECTION_START)
+    assert start != -1, (
+        f"profile-channel walk-activation ledger header not found in "
+        f"{_WIRING_TABLE_PATH} — the T013 ledger section is missing"
+    )
+    end = text.find(_LEDGER_SECTION_END, start)
+    assert end != -1, (
+        f"ledger section end header {_LEDGER_SECTION_END!r} not found after the "
+        f"start header in {_WIRING_TABLE_PATH}"
+    )
+    return text[start:end]
+
+
+@pytest.mark.doctrine
+class TestProfileRescuesHaveLedgerCoverage:
+    """T015 cross-check: every ``_PROFILE_RESCUES`` member is named in the ledger.
+
+    NFR-002 for the reachability pins is REVIEW-gated, not CI-gated (D18):
+    ``measured == pin`` greens on any pasted value. This cross-check does NOT
+    validate that a pin value is *numerically correct* — that remains the
+    reviewer's per-member ledger-vs-diff comparison. It catches only the most
+    common regression class: a pin edited without a matching wiring-table ledger
+    row. A green here means "every rescued member is documented", never "the
+    numbers are right".
+    """
+
+    def test_every_profile_rescue_member_has_a_ledger_row(self) -> None:
+        ledger = _profile_channel_ledger_text()
+        missing = sorted(m for m in _PROFILE_RESCUES if f"`{m}`" not in ledger)
+        assert not missing, (
+            "Every _PROFILE_RESCUES member must be named (backtick-quoted) in the "
+            "profile-channel walk-activation ledger of "
+            f"{_WIRING_TABLE_PATH.name}. Missing ledger rows for:\n"
+            + "\n".join(f"    - {m}" for m in missing)
+            + "\n\nAdd a ledger entry (which family/edge delivers it, which WP wired "
+            "the edge) before moving the pin — a pin move without a ledger row is an "
+            "NFR-002 violation."
+        )
+
+    def test_cross_check_is_not_vacuous(self) -> None:
+        """The cross-check must have real bite: a fabricated missing member is
+        caught. Guards against the ledger text going empty/unparseable and the
+        membership check silently passing over nothing (D18 vacuity risk)."""
+        ledger = _profile_channel_ledger_text()
+        fabricated = "tactic:__definitely-not-a-real-rescued-member__"
+        assert f"`{fabricated}`" not in ledger
+        # A member NOT in the ledger would be flagged — proving the assertion in
+        # the sibling test is load-bearing, not always-true.
+        pretend_rescues = frozenset({fabricated})
+        missing = sorted(m for m in pretend_rescues if f"`{m}`" not in ledger)
+        assert missing == [fabricated]
 
 
 @pytest.mark.doctrine

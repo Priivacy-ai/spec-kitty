@@ -13,12 +13,17 @@ with its own traversal and its own reachable set:
 
 * **profile channel** — :func:`profile_channel_reachable` is a *distinct*
   :func:`doctrine.drg.query.walk_edges` traversal over
-  ``{requires, specializes_from}`` seeded from activated agent profiles. It is
-  **not** a ``resolve_context`` seed set (R-3): ``agent_profile`` nodes carry 97
-  outbound ``requires``, 4 ``specializes_from`` and **zero** outbound ``scope``,
-  so ``resolve_context`` — whose step 1 walks ``scope`` only — returns nothing
-  from a profile seed at any depth. Folding the profile channel into
-  ``resolve_context`` would silently measure zero.
+  ``{requires, specializes_from, suggests}`` seeded from activated agent
+  profiles. It is **not** a ``resolve_context`` seed set (R-3): ``agent_profile``
+  nodes carry outbound ``requires``, ``specializes_from`` and ``suggests`` edges
+  but **zero** outbound ``scope``, so ``resolve_context`` — whose step 1 walks
+  ``scope`` only — returns nothing from a profile seed at any depth. Folding the
+  profile channel into ``resolve_context`` would silently measure zero: the
+  distinguishing fact is the *absence of* ``scope``, not the presence of
+  ``suggests`` (both channels now follow ``suggests``, but only ``resolve_context``
+  gates it behind a ``scope``-seeded first hop that profiles never satisfy).
+  ``suggests`` joins this set in mission ``doctrine-delivery-activation-01KYQVQK``
+  (WP01/FR-001), animating the #3063 A–E families that PR #3070 authored inert.
 
 Both helpers return the reachable *artefact* URNs (the seed nodes themselves are
 excluded), so a caller can compute ``activated − reachable`` for the
@@ -41,12 +46,18 @@ __all__ = [
 ]
 
 #: The relations the profile entry-vector follows. A profile reaches the
-#: doctrine it ``requires`` and its lineage parents (``specializes_from``). It is
-#: deliberately a two-relation ``walk_edges`` set and **not** the
-#: ``scope``/``requires``/``suggests`` shape of ``resolve_context`` — see the
-#: module docstring (R-3).
+#: doctrine it ``requires``, its lineage parents (``specializes_from``), and the
+#: soft-recommended doctrine it ``suggests`` (WP01/FR-001, mission
+#: ``doctrine-delivery-activation-01KYQVQK``). It is a three-relation
+#: ``walk_edges`` set that deliberately **excludes** ``scope`` — the relation
+#: ``resolve_context`` seeds on. That exclusion, not the relation list itself, is
+#: why the two channels cannot be folded: profiles carry zero outbound ``scope``
+#: (R-3), so a ``resolve_context`` seed measures zero at any depth. The consumer
+#: layer surfaces each ``suggests`` edge's ``when`` as a link (see
+#: ``charter.progressive_disclosure.profile_channel_references``); this node-level
+#: walk stays edge-agnostic.
 PROFILE_CHANNEL_RELATIONS: frozenset[Relation] = frozenset(
-    {Relation.REQUIRES, Relation.SPECIALIZES_FROM}
+    {Relation.REQUIRES, Relation.SPECIALIZES_FROM, Relation.SUGGESTS}
 )
 
 
