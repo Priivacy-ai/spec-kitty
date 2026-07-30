@@ -135,3 +135,35 @@ owning the loop per test.
 Carry forward: for any pin whose assertion is *absence* of egress, ask what else in the
 process could produce that absence. Order-dependent infrastructure failure and a working
 refusal are indistinguishable at the assertion.
+
+## WPs created after planning have no lane, so two gates silently no-op
+
+WP12 was added mid-mission (`2b1cf5a157`) for the third egress path. `lanes.json` was
+written at planning time and maps `lane-a` to **WP01 only**; WP12 appears in it nowhere.
+The tooling defaults such a WP to `lane-a`, with two consequences that both fail quietly.
+
+**The lane-staleness gate becomes inapplicable but still fires.** `move-task WP12 --to
+for_review` refused with *"Your branch is behind by 130 commit(s) … cd
+.worktrees/…-lane-a && git rebase"* — advice which, followed literally, would rebase
+**WP01's approved lane** on WP12's behalf. WP12's commits (`d923f31476`, `d6294245d7`,
+`6c48815fbd`) are on the mission branch itself, which is where a reviewer reads them.
+Overridden with `--force` and the reasoning recorded in the transition note, because the
+check was inapplicable rather than inconvenient.
+
+**The pre-review regression gate skips entirely.** Both WP11 and WP12 transitioned with
+`Pre-review regression gate: no_coverage — no changed files detected for this WP —
+skipping the gate cheaply`. The gate appears to diff the WP's lane worktree, so a WP whose
+work landed directly on the mission branch presents no changed files and is waved through.
+
+That second one is worth more than its friction-tracer placement suggests. Both affected
+WPs are **egress-path confidentiality work** — body uploads and local-commit frames — and
+both received *no* pre-review regression gate while printing a line that reads like a
+gate ran and found nothing to worry about. "Skipping the gate cheaply" is the same
+sentence shape as this mission's other fake greens: a mechanism reporting success for
+having done nothing. The independent reviews and mutation testing are what actually
+covered these two WPs; had we relied on the printed gate, coverage would have been zero.
+
+Worth fixing upstream: either register post-planning WPs in `lanes.json`, or have both
+gates fall back to diffing the WP's `owned_files` against the merge base when no lane
+exists. Failing loudly on an unmappable WP would also be acceptable — anything but a
+skip that prints like a pass.
