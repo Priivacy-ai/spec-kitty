@@ -322,10 +322,7 @@ def register_default_handlers() -> None:
         register_lifecycle_saas_fanout_handler(_lifecycle_saas_fanout_handler)
 
     with _contextlib.suppress(ImportError):
-        from specify_cli.invocation.adapters import (
-            register_egress_consent_resolver,
-            register_saas_client_factory,
-        )
+        from specify_cli.invocation.adapters import register_egress_consent_resolver
 
         def _egress_consent_resolver(path):  # type: ignore[no-untyped-def]
             """Does the PROJECT that owns *path* consent to hosted sync? (#3030 FR-025)
@@ -373,42 +370,36 @@ def register_default_handlers() -> None:
                 [uuid], checkout_roots=[routing.repo_root]
             )
 
-        def _saas_client_factory(repo_root):  # type: ignore[no-untyped-def]  # noqa: ARG001
-            """Return the connected WebSocketClient if authenticated; None otherwise.
-
-            Mirrors the gating logic from invocation/propagator.py::_get_saas_client
-            (NFR-003 behavior-preserving contract):
-              1. is_authenticated must be True
-              2. a current session must exist
-              3. token_manager._ws_client must be present and .connected
-
-            Returns None in every non-connected case so the propagator's
-            local-first fast-path (client is None → early return) is preserved.
-            Returns the EXISTING connected _ws_client rather than constructing a
-            fresh disconnected WebSocketClient (a fresh client has .connected=False
-            and send_event raises ConnectionError immediately).
-            """
-            try:
-                from specify_cli.auth import get_token_manager
-
-                token_manager = get_token_manager()
-                if not bool(token_manager.is_authenticated):
-                    return None
-
-                session = token_manager.get_current_session()
-                if session is None:
-                    return None
-
-                client = getattr(token_manager, "_ws_client", None)
-                if client is None or not getattr(client, "connected", False):
-                    return None
-
-                return client
-            except Exception:  # noqa: BLE001
-                return None
-
         register_egress_consent_resolver(_egress_consent_resolver)
-        register_saas_client_factory(_saas_client_factory)
+
+    # ------------------------------------------------------------------
+    # No SaaS-client factory is registered here, and that is deliberate
+    # (#3030 FR-032).
+    #
+    # A ``_saas_client_factory`` used to be registered at this point. Its whole
+    # body was a lookup of ``getattr(token_manager, "_ws_client", None)`` — an
+    # attribute **nothing in ``src/`` has ever assigned**: no ``=``, no
+    # ``setattr``, and ``specify_cli/auth/`` does not declare it. Only tests
+    # injected it. The live WebSocket client is a different attribute on a
+    # different owner (``SyncRuntime.ws_client``, built in ``sync/runtime.py``
+    # and handed to the emitter), so this factory returned ``None`` on every
+    # production call and ``invocation/propagator.py``'s send has never executed
+    # outside tests.
+    #
+    # Deleting it rather than leaving it removes a real hazard: a one-line
+    # ``token_manager._ws_client = ...`` — the obvious-looking "fix" for "the
+    # propagator never sends" — used to turn three egress paths live at once,
+    # during a P0 confidentiality incident. It now turns on none of them.
+    #
+    # ``invocation/adapters.get_saas_client`` therefore answers ``None`` for
+    # every production caller, which is the documented safe-degrade for that
+    # seam ("no transport, so nothing can leave"). The propagator keeps its
+    # FR-025 consent gate: the gate is checked *before* the client lookup and
+    # protects the path whatever transport is registered later. Wiring this
+    # slot to ``SyncRuntime.ws_client`` was considered and explicitly rejected;
+    # anyone re-registering a factory here is opening a new egress path and
+    # owns proving the gate above it holds.
+    # ------------------------------------------------------------------
 
     # -----------------------------------------------------------------------
     # Surviving MissionCreated SaaS fan-out path (FR-005 collapse, WP03):

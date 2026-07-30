@@ -88,6 +88,31 @@ class _RecordingClient:
         self.sent.append(frame)
 
 
+def _emit_send_spy(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+    """Record every frame ``emit_local_commit`` would put on the wire.
+
+    These cases used to inject a :class:`_RecordingClient` through
+    ``local_commit._get_saas_client``. #3030 FR-032 deleted that helper along with
+    the immediate send it fed — its only client source was the phantom
+    ``token_manager._ws_client``, which ``src/`` never assigns, so the send was
+    unreachable in production and the injection was the only thing that ever made it
+    fire.
+
+    The witness is kept rather than dropped, and moved down to ``_send_event`` — the
+    module's one surviving outbound seam, shared with the live flush. An empty list
+    is still evidence that no request was issued, and it now also catches an
+    immediate send being re-added: a re-added send would call ``_send_event``,
+    whatever it obtained a client from.
+    """
+    sent: list[dict[str, Any]] = []
+
+    def _record(_client: Any, frame: dict[str, Any]) -> None:
+        sent.append(frame)
+
+    monkeypatch.setattr("specify_cli.sync.local_commit._send_event", _record)
+    return sent
+
+
 def _checkout(tmp_path: Path, name: str, *, uuid: str, consents: bool | None) -> Path:
     """A checkout whose ``.kittify/config.yaml`` carries identity and consent.
 
@@ -147,14 +172,11 @@ def test_never_opted_in_checkout_writes_no_frame_and_sends_nothing(
     """
     project = _checkout(tmp_path, "acme", uuid=UUID_A, consents=None)
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    client = _RecordingClient()
-    monkeypatch.setattr(
-        "specify_cli.sync.local_commit._get_saas_client", lambda: client
-    )
+    sent = _emit_send_spy(monkeypatch)
 
     emit_local_commit(project, _HASH_A, _MISSION_ID, _BUILD_ID, _FILES, _AT)
 
-    assert client.sent == [], "a never-opted-in project must issue no LocalCommit request"
+    assert sent == [], "a never-opted-in project must issue no LocalCommit request"
     assert load_sync_state(project).pending_local_commits == [], (
         "the frame must not be staged either: the connect-time flush replays "
         "whatever is on disk"
@@ -171,14 +193,11 @@ def test_explicitly_opted_out_checkout_writes_no_frame(
 ) -> None:
     """A recorded refusal denies as firmly as an absent record."""
     project = _checkout(tmp_path, "acme", uuid=UUID_A, consents=False)
-    client = _RecordingClient()
-    monkeypatch.setattr(
-        "specify_cli.sync.local_commit._get_saas_client", lambda: client
-    )
+    sent = _emit_send_spy(monkeypatch)
 
     emit_local_commit(project, _HASH_A, _MISSION_ID, _BUILD_ID, _FILES, _AT)
 
-    assert client.sent == []
+    assert sent == []
     assert load_sync_state(project).pending_local_commits == []
 
 
@@ -194,9 +213,6 @@ def test_consenting_checkout_stages_frame_carrying_its_project_uuid(
     consult and is forced back onto cwd.
     """
     project = _checkout(tmp_path, "acme", uuid=UUID_A, consents=True)
-    monkeypatch.setattr(
-        "specify_cli.sync.local_commit._get_saas_client", lambda: None
-    )
 
     emit_local_commit(project, _HASH_A, _MISSION_ID, _BUILD_ID, _FILES, _AT)
 
@@ -377,15 +393,14 @@ def test_emit_fails_closed_when_consent_resolution_raises(
     test rather than a comment.
     """
     project = _checkout(tmp_path, "acme", uuid=UUID_A, consents=True)
-    client = _RecordingClient()
-    monkeypatch.setattr("specify_cli.sync.local_commit._get_saas_client", lambda: client)
+    sent = _emit_send_spy(monkeypatch)
     monkeypatch.setattr(
         "specify_cli.sync.consent.consented_project_uuids", _raise_consent_error
     )
 
     emit_local_commit(project, _HASH_A, _MISSION_ID, _BUILD_ID, _FILES, _AT)
 
-    assert client.sent == [], "an unresolvable consent question must not become egress"
+    assert sent == [], "an unresolvable consent question must not become egress"
     assert load_sync_state(project).pending_local_commits == [], (
         "nor may it be staged for the next connect to replay"
     )
@@ -424,8 +439,7 @@ def test_emit_refuses_when_the_consented_set_excludes_this_frames_project(
     than left to a comment a future editor may not read.
     """
     project = _checkout(tmp_path, "acme", uuid=UUID_A, consents=True)
-    client = _RecordingClient()
-    monkeypatch.setattr("specify_cli.sync.local_commit._get_saas_client", lambda: client)
+    sent = _emit_send_spy(monkeypatch)
     monkeypatch.setattr(
         "specify_cli.sync.consent.consented_project_uuids",
         lambda *_a, **_k: frozenset({UUID_B}),
@@ -433,7 +447,7 @@ def test_emit_refuses_when_the_consented_set_excludes_this_frames_project(
 
     emit_local_commit(project, _HASH_A, _MISSION_ID, _BUILD_ID, _FILES, _AT)
 
-    assert client.sent == [], (
+    assert sent == [], (
         "a non-empty consented set that does not contain this frame's project is a "
         "refusal for this frame"
     )

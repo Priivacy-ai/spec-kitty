@@ -272,14 +272,25 @@ def emit_local_commit(
     state.pending_local_commits.append(frame)
     save_sync_state(repo_root, state)
 
-    # Attempt immediate send if connected; errors are swallowed so the caller
-    # (a git-hook or CLI command) is never interrupted.
-    client = _get_saas_client()
-    if client is not None:
-        try:
-            _send_event(client, frame)
-        except Exception:  # noqa: BLE001
-            logger.debug("LocalCommit send failed; frame retained as pending", exc_info=True)
+    # There is deliberately no immediate send here (#3030 FR-032). This function used
+    # to try one, via a local ``_get_saas_client()`` whose only client source was
+    # ``getattr(token_manager, "_ws_client", None)`` — an attribute **nothing in
+    # ``src/`` has ever assigned**. No ``=``, no ``setattr``, and ``specify_cli/auth/``
+    # does not declare it; only tests injected it. The genuinely live WebSocket client
+    # is a different attribute on a different owner (``SyncRuntime.ws_client``,
+    # ``sync/runtime.py``), so the immediate send never executed in production. Its
+    # deletion changes no observable behaviour and removes the standing hazard: an
+    # innocuous-looking ``token_manager._ws_client = ...`` would have turned this path
+    # — and two others reading the same phantom — live simultaneously.
+    #
+    # The frame is not lost. ``flush_pending_local_commits`` replays it on the next
+    # WebSocket connect, and that path IS live because its client arrives as a
+    # parameter from ``sync/client.py``. That is why WP12's per-frame gate on the
+    # flush was the load-bearing half.
+    #
+    # The consent gate above is unaffected by this removal and must stay: it guards
+    # *staging* into ``sync-state.json``, which the live flush reads, not the send
+    # deleted here.
 
 
 # ---------------------------------------------------------------------------
@@ -662,37 +673,18 @@ def purge_all_pending_local_commits(
 # ---------------------------------------------------------------------------
 
 
-def _get_saas_client() -> Any | None:
-    """Return a connected WebSocketClient if available; ``None`` otherwise.
-
-    Mirrors ``specify_cli.invocation.propagator._get_saas_client``.
-    Never raises.
-    """
-    try:
-        from specify_cli.auth import get_token_manager
-        from specify_cli.sync.client import WebSocketClient  # noqa: F401
-
-        token_manager = get_token_manager()
-        if not bool(token_manager.is_authenticated):
-            return None
-
-        session = token_manager.get_current_session()
-        if session is None:
-            return None
-
-        client: Any | None = getattr(token_manager, "_ws_client", None)
-        if client is None or not getattr(client, "connected", False):
-            return None
-        return client
-    except Exception:  # noqa: BLE001
-        return None
+# ``_get_saas_client()`` used to live here and was deleted for #3030 FR-032: its only
+# client source was the phantom ``token_manager._ws_client``, which ``src/`` never
+# assigns, so it could only ever return ``None``. Its sole caller was
+# ``emit_local_commit``'s immediate send, deleted with it. ``_send_event`` below
+# stays — ``flush_pending_local_commits`` is a live sender and receives its client as
+# a parameter.
 
 
 def _send_event(client: Any, event_dict: dict[str, Any]) -> None:
     """Send *event_dict* via *client*.
 
-    Mirrors the call pattern in ``specify_cli.invocation.propagator._send_event``:
-    use ``asyncio.create_task`` when a loop is running, otherwise fall back to
+    Uses ``asyncio.create_task`` when a loop is running, otherwise falls back to
     ``asyncio.run``.
     """
     import asyncio  # noqa: PLC0415

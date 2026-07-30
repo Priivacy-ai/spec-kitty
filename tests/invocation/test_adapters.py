@@ -299,48 +299,26 @@ def _registered_sync_handlers() -> Iterator[None]:
         reset_adapters()
 
 
-def test_registered_saas_factory_returns_none_when_not_authenticated(
+def test_sync_registers_no_saas_client_factory(
     _registered_sync_handlers: None,
 ) -> None:
-    """get_saas_client returns None when token_manager.is_authenticated is False.
+    """The sync package registers a consent resolver and **no** client factory (FR-032).
 
-    No client is constructed and no send attempt is made.
-    """
-    mock_tm = MagicMock()
-    mock_tm.is_authenticated = False
+    Replaces three cases that pinned the behaviour of a factory since deleted
+    (``..._returns_none_when_not_authenticated``,
+    ``..._returns_none_when_ws_client_not_connected``,
+    ``..._returns_existing_client_when_connected``). All three drove that factory by
+    setting ``token_manager._ws_client`` — and setting it in a test was the **only**
+    way that attribute has ever been assigned. ``src/`` contains no ``=`` and no
+    ``setattr`` for it, and ``specify_cli/auth/`` does not declare it, so the factory
+    returned ``None`` in every real process and ``invocation/propagator.py``'s send
+    has never executed outside this suite. Two of the three were passing for the
+    wrong reason (a ``None`` that agreed with their assertion by accident) and the
+    third asserted a production behaviour that did not exist.
 
-    with patch("specify_cli.auth.get_token_manager", return_value=mock_tm):
-        result = get_saas_client(_DUMMY_PATH)
-
-    assert result is None
-    mock_tm.get_current_session.assert_not_called()
-
-
-def test_registered_saas_factory_returns_none_when_ws_client_not_connected(
-    _registered_sync_handlers: None,
-) -> None:
-    """get_saas_client returns None when _ws_client exists but is not connected."""
-    mock_ws = MagicMock()
-    mock_ws.connected = False
-
-    mock_tm = MagicMock()
-    mock_tm.is_authenticated = True
-    mock_tm.get_current_session.return_value = MagicMock()
-    mock_tm._ws_client = mock_ws
-
-    with patch("specify_cli.auth.get_token_manager", return_value=mock_tm):
-        result = get_saas_client(_DUMMY_PATH)
-
-    assert result is None
-
-
-def test_registered_saas_factory_returns_existing_client_when_connected(
-    _registered_sync_handlers: None,
-) -> None:
-    """get_saas_client returns the existing _ws_client when authenticated+connected.
-
-    Must return the SAME connected instance, not a fresh disconnected one.
-    A fresh WebSocketClient has .connected=False; send_event raises immediately.
+    The pin is inverted and kept live: a connected client on the token manager still
+    yields no transport, because there is no factory to find it. This reds if anyone
+    re-registers one — which is the hazard FR-032 removed, not a detail.
     """
     mock_ws = MagicMock()
     mock_ws.connected = True
@@ -353,7 +331,12 @@ def test_registered_saas_factory_returns_existing_client_when_connected(
     with patch("specify_cli.auth.get_token_manager", return_value=mock_tm):
         result = get_saas_client(_DUMMY_PATH)
 
-    assert result is mock_ws
+    assert result is None, (
+        "specify_cli.sync registered a SaaS-client factory. That opens the "
+        "invocation propagator's egress path, which carries request_text verbatim; "
+        "#3030 FR-032 removed it deliberately. If this is intended, prove the "
+        "propagator's consent gate holds against the new transport first."
+    )
 
 
 def test_registered_consent_resolver_denies_non_project_path(

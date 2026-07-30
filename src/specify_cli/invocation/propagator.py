@@ -61,6 +61,24 @@ def _get_saas_client(repo_root: Path) -> Any | None:
     Dispatches through the invocation adapter seam so that propagator.py
     has no direct import edge into the sync package (Leak #3 fix).
     Never raises — the seam guarantees safe-degrade on missing registration.
+
+    **In production this returns ``None`` every time, and has always done so**
+    (#3030 FR-032). No package registers a SaaS-client factory. ``sync`` used to
+    register one, but its whole body read ``token_manager._ws_client`` — an attribute
+    ``src/`` has never assigned — so it answered ``None`` on every call; the
+    registration was deleted rather than left as an accident that happens to be safe.
+    Everything below this lookup in :func:`_propagate_one` is therefore inert until
+    someone registers a real factory, and that is a deliberate state, not an oversight.
+
+    Two things follow, and neither is optional:
+
+    * The consent gate in :func:`_propagate_one` runs **before** this lookup and stays
+      there. It is what makes registering a transport a safe act rather than an
+      egress incident, so it must not be removed on the ground that the send is
+      currently inert.
+    * Registering a factory here opens an egress path carrying ``request_text`` — the
+      verbatim agent prompt. Wiring it to ``SyncRuntime.ws_client`` was considered
+      during #3030 and explicitly rejected.
     """
     return _get_saas_client_from_seam(repo_root)
 

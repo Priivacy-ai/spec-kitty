@@ -193,6 +193,15 @@ def get_saas_client(path: Path) -> Any | None:
     - the registered factory raises any exception.
 
     Never raises.
+
+    **No production code registers a factory today** (#3030 FR-032), so in a real
+    process this is the first branch, every time. The ``sync`` package used to
+    register one whose entire body read ``token_manager._ws_client`` — an attribute
+    nothing in ``src/`` assigns — making it a ``None``-returning phantom; it was
+    deleted rather than wired up, because wiring it would have turned three egress
+    paths live at once in the middle of a confidentiality incident. The slot survives
+    as the seam a real transport would be registered into; whoever does that owns
+    proving the consent gate above each consumer holds.
     """
     if _saas_client_factory is None:
         return None
