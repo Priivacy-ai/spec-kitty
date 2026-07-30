@@ -321,7 +321,7 @@ class TestWriteIssueMatrixThunk:
         content = json.loads(json_path.read_text(encoding="utf-8"))
         assert content["rows"]["#1726"]["verdict"] == "fixed"
 
-        assert len(calls) == 1
+        assert len(calls) == 1  # golden-count: cardinality-is-contract
         assert "stage" in calls[0] and callable(calls[0]["stage"])
         assert calls[0].get("files") is None
 
@@ -348,7 +348,7 @@ class TestWriteIssueMatrixThunk:
         )
 
         assert result.status == "refused"
-        assert len(calls) == 1
+        assert len(calls) == 1  # golden-count: cardinality-is-contract
         json_path = feature_dir / "issue-matrix.json"
         assert not json_path.exists(), "a refused write must leave zero untracked residue"
         assert list(feature_dir.iterdir()) == [], (
@@ -394,7 +394,7 @@ class TestSC008EndToEnd:
         content = json.loads(out_path.read_text(encoding="utf-8"))
         assert "#320" in content["rows"]
         assert content["rows"]["#320"]["source_file"] == "spec.md"
-        assert len(calls) == 1
+        assert len(calls) == 1  # golden-count: cardinality-is-contract
 
     def test_unrelated_cross_repo_url_does_not_newly_block_the_completeness_gate(
         self, tmp_path: Path
