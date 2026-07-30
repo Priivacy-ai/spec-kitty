@@ -236,7 +236,14 @@ def emit_local_commit(
     silent apart from a debug line — a local command must still succeed (FR-010).
 
     When consent is granted the frame is stored in ``sync-state.json`` as a pending
-    entry, and also sent immediately if a WebSocket client is currently connected.
+    entry. It is **not** sent from here: FR-032 removed the immediate-send path,
+    which could never obtain a transport because nothing in ``src/`` ever assigned
+    ``token_manager._ws_client``. The live egress route is the connect-time flush
+    (``flush_pending_local_commits``, called from ``sync/client.py``), which applies
+    its own per-frame consent gate. That is why the gate above is load-bearing: this
+    function's refusal is what keeps a non-consenting project's mission slug off
+    disk in the first place, rather than relying on the flush to withhold it.
+
     The pending entry is only removed once ``record_local_commit_ack`` receives the
     corresponding acknowledgement — this prevents frame loss when a send succeeds
     but the ack is never delivered.

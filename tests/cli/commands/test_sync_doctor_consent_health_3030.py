@@ -402,7 +402,13 @@ def test_an_unknown_fault_kind_is_still_rendered_with_its_detail(
         "specify_cli.sync.consent.consent_index_health",
         lambda: ConsentIndexHealth(
             readable=False,
-            fault=ConfigReadFault(kind="quarantined", detail="/tmp/x.toml: held by an antivirus quarantine"),
+            # Not a real path: this string is fault *detail* the renderer echoes, never opened.
+            # Deliberately not under a shared temp dir — see tmp-literal-offender-burndown-01KWWRW2
+            # FR-002 (category B: a non-shared-temp-dir absolute sentinel).
+            fault=ConfigReadFault(
+                kind="quarantined",
+                detail="/nonexistent/consent-index.toml: held by an antivirus quarantine",
+            ),
         ),
     )
 
