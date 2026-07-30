@@ -341,3 +341,17 @@ So the guard is a latent hazard, not an active one. The durable fix is to key on
 patches**, not on its filename — `test_events.py` already rides the blanket grant with 85
 suppressed installs, so a negative per-project publish pin added *there* later would be
 silently masked.
+
+## FR-017's `--all` is per-checkout, and the CLI must say so (operator decision, 2026-07-30)
+
+For `pending_local_commits`, one `--all` call clears **only the invoking checkout's** queue.
+There is no registry of checkouts, so other `sync-state.json` files cannot be enumerated.
+
+**Decided: per-checkout, named honestly.** The CLI must not present this as machine-wide
+erasure. A registry was rejected as new capability and new state to keep correct; a
+best-effort filesystem scan was rejected because it can never prove completeness, which
+would leave the erasure claim unprovable while sounding total — the worst of the three.
+
+This matters more than a wording choice. An operator purging a client engagement needs to
+know the scope of what they just did; "erased" that silently means "erased here" is the same
+class of defect as a gate that reports success for having done nothing.
