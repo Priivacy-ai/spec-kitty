@@ -45,6 +45,12 @@ remediation attestation on the exact artefacts the incident leaked.
 over all other projects is zero") is only honest if the count covers every store the
 project has rows in; :attr:`BodyQueuePurgeResult.other_project_differential` is that
 number for this one.
+
+:func:`purge_all_body_uploads` is FR-017's half of the same store, added once the
+purge CLI measured that ``--all`` could not empty it: the queue's per-project removal
+strips its argument, so a blank or padded ``project_uuid`` was reachable by no
+selector at all. It is a separate selector rather than a widening of the per-project
+one — see its docstring for the operator decision.
 """
 from __future__ import annotations
 
@@ -61,6 +67,7 @@ from specify_cli.event_journal.models import COL_EVENT_ID, TABLE_NAME
 if TYPE_CHECKING:
     from specify_cli.delivery.ledger import SqliteDeliveryLedger
     from specify_cli.event_journal import EventJournal
+    from specify_cli.sync.body_queue import OfflineBodyUploadQueue
 
 # Built from the journal's own canonical identifiers; ``event_id`` always travels
 # via a ``?`` placeholder, so there is no dynamic SQL and no injection surface
@@ -249,7 +256,7 @@ class BodyUploadPurgeTarget(Protocol):
 
 @dataclass(frozen=True)
 class BodyQueuePurgeResult:
-    """Observable outcome of one project's body-queue purge (FR-016, NFR-006).
+    """Observable outcome of one body-queue purge (FR-016, FR-017, NFR-006).
 
     Carries the **whole census** before and after, not just the target's count, so
     NFR-006's exactness claim is checkable from the result itself rather than
@@ -263,13 +270,23 @@ class BodyQueuePurgeResult:
     removed: int
     before: Mapping[str, int] = field(default_factory=dict)
     after: Mapping[str, int] = field(default_factory=dict)
+    #: ``True`` for FR-017's total purge. A flag rather than a sentinel value in
+    #: ``project_uuid``, for the reason :attr:`ProjectPurgeResult.all_events` records:
+    #: any sentinel string could in principle collide with a stored ``project_uuid``,
+    #: and a census key that sometimes means "one project" and sometimes means "all of
+    #: them" is the ambiguity C-003 forbids.
+    all_uploads: bool = False
 
     @property
     def target_before(self) -> int:
+        if self.all_uploads:
+            return sum(self.before.values())
         return self.before.get(self.project_uuid, 0)
 
     @property
     def target_after(self) -> int:
+        if self.all_uploads:
+            return sum(self.after.values())
         return self.after.get(self.project_uuid, 0)
 
     @property
@@ -279,7 +296,14 @@ class BodyQueuePurgeResult:
         NFR-006 requires this to be ``0``. Absolute, and over the union of both
         censuses, so a project that *appeared* counts as a difference too — a purge
         must neither remove nor create another project's rows.
+
+        For a total purge (:attr:`all_uploads`) there is no "other": the scope is the
+        whole store, so this is ``0`` by definition and carries no information. The
+        load-bearing check for that case is ``target_after == 0``, asserted by
+        :attr:`is_exact` — the same split :class:`ProjectPurgeResult` makes.
         """
+        if self.all_uploads:
+            return 0
         keys = (set(self.before) | set(self.after)) - {self.project_uuid}
         return sum(abs(self.after.get(key, 0) - self.before.get(key, 0)) for key in keys)
 
@@ -332,6 +356,123 @@ def purge_project_body_uploads(
         removed=removed,
         before=before,
         after=after,
+    )
+
+
+class BodyUploadTotalPurgeTarget(Protocol):
+    """What a **total** body-queue purge needs (#3030 FR-017).
+
+    Deliberately not :class:`BodyUploadPurgeTarget` widened with a ``db_path``: the
+    per-project purge deletes through the queue's own ``remove_project_tasks`` and has
+    no business knowing where the store lives, while the total purge is a write this
+    module owns (see :func:`purge_all_body_uploads`). Two different needs, stated
+    separately, so neither function advertises a capability it does not use.
+    """
+
+    db_path: Path
+
+    def count_by_project(self) -> dict[str, int]: ...
+
+
+#: The body queue's own table, duplicated from ``sync/body_queue.py``'s schema on the
+#: same reasoning ``_PURGE_SQL`` records for the journal: this module is the sanctioned
+#: destructive owner and writes the store through its canonical identifier rather than
+#: re-deriving one. ``tests/delivery/test_purge_all_body_uploads_3030.py`` pins it
+#: against the table the live queue actually creates, so a rename there is a red rather
+#: than a purge that silently deletes nothing.
+_BODY_QUEUE_TABLE = "body_upload_queue"
+
+#: FR-017's own delete over that store. No ``WHERE``, which is the entire point — see
+#: :func:`purge_all_body_uploads` for why this cannot compose from the per-project
+#: selector, and why widening that selector instead was rejected.
+_PURGE_ALL_BODY_SQL = f"DELETE FROM {_BODY_QUEUE_TABLE}"  # noqa: S608 — static module-constant identifier, no values interpolated
+
+
+def _purge_all_body_rows(db_path: Path) -> int:
+    """Delete every queued body row. Returns the count. The sole total-purge write.
+
+    A missing DB file removes nothing and is not an error: the queue is created
+    lazily, and materialising it in order to report zero rows in it would be
+    reporting on this function's own side effect.
+
+    Scoped to one table on purpose. The body queue shares its SQLite file with the
+    event offline queue, so dropping the file (or the wrong table) would take a
+    different store's rows with it — those are cleared through the journal/ledger
+    primitives, under their own selector.
+    """
+    if not Path(db_path).exists():
+        return 0
+    connection: Any = sqlite3.connect(str(db_path))
+    try:
+        cursor = connection.execute(_PURGE_ALL_BODY_SQL)
+        connection.commit()
+        return max(int(cursor.rowcount), 0)
+    finally:
+        connection.close()
+
+
+def purge_all_body_uploads(
+    *,
+    body_queue: BodyUploadTotalPurgeTarget | None = None,
+    dry_run: bool = True,
+    confirmation: str = "",
+) -> BodyQueuePurgeResult:
+    """Remove **every** queued document body — FR-017's fourth store.
+
+    Dry-run by default; a destructive run additionally requires *confirmation* to
+    equal :data:`PURGE_ALL_CONFIRMATION` and raises :class:`PurgeNotConfirmedError`
+    otherwise (**C-002**), the same gate :func:`purge_all_events` applies to the
+    journal and the ledger. Confirmation authorises, it does not trigger: ``dry_run``
+    alone decides whether anything is deleted, so a confirmed preview is still a
+    preview. The refusal is raised **before** the store is resolved, so a refused run
+    cannot even create the queue file.
+
+    **This is deliberately not the union of the per-project selectors**, and that was
+    measured rather than assumed. ``remove_project_tasks`` strips its argument and
+    returns ``0`` for a falsy one, while ``count_by_project`` groups rows verbatim —
+    so a row whose ``project_uuid`` is ``''`` or ``'   '`` appears in the census and
+    is removable by no selector at all. Feeding every census key back through the
+    per-project purge leaves exactly those rows behind
+    (``tests/delivery/test_purge_all_body_uploads_3030.py`` pins it, with the
+    attributable rows going as its control).
+
+    **Widening ``remove_project_tasks`` was rejected** (operator decision,
+    2026-07-30): it is shared by other callers, and a blank selector that matches
+    everything is precisely the hazard the frame purge had to guard against
+    (:data:`IDENTITY_LESS_KEY` *is* ``""``, so an unstripped selector would vacuum the
+    population at issue). So the total purge gets its own write here, in the module
+    that already owns destructive writes over the delivery stores, rather than a
+    second meaning for a shared per-project argument.
+
+    The census is taken before and after even on a dry run, for the reason
+    :func:`purge_project_body_uploads` records: "nothing changed" is the claim a dry
+    run has to earn. ``removed`` is the store's own reported row count, carried so a
+    caller can hold it *against* an independently measured differential — never as a
+    substitute for one (NFR-006).
+    """
+    if not dry_run and confirmation != PURGE_ALL_CONFIRMATION:
+        raise PurgeNotConfirmedError(
+            "Refusing to purge every queued document body: a destructive `--all` run "
+            f"requires confirmation={PURGE_ALL_CONFIRMATION!r}. Nothing was deleted. "
+            "Run with dry_run=True first — its reported counts are exactly what a "
+            "confirmed run will remove."
+        )
+
+    queue: BodyUploadTotalPurgeTarget = (
+        body_queue if body_queue is not None else _default_body_queue()
+    )
+
+    before = dict(queue.count_by_project())
+    removed = 0 if dry_run else _purge_all_body_rows(queue.db_path)
+    after = dict(queue.count_by_project())
+
+    return BodyQueuePurgeResult(
+        project_uuid="all",
+        dry_run=dry_run,
+        removed=removed,
+        before=before,
+        after=after,
+        all_uploads=True,
     )
 
 
@@ -840,8 +981,16 @@ def purge_project_events_from_live_stores(
         ledger.close()
 
 
-def _default_body_queue() -> BodyUploadPurgeTarget:
-    """The real body queue, on the DB file it shares with the event offline queue."""
+def _default_body_queue() -> OfflineBodyUploadQueue:
+    """The real body queue, on the DB file it shares with the event offline queue.
+
+    Annotated with the concrete class rather than :class:`BodyUploadPurgeTarget`
+    because it backs both body-store purges and they need different members: the
+    per-project one deletes through ``remove_project_tasks``, the total one needs
+    ``db_path``. Narrowing the default to one protocol would make it unusable as the
+    other's default for no benefit — the *parameters* stay protocol-typed, which is
+    where the decoupling earns its keep.
+    """
     from specify_cli.sync.body_queue import OfflineBodyUploadQueue
     from specify_cli.sync.queue import OfflineQueue
 
@@ -866,11 +1015,12 @@ def _purge_journal_rows(db_path: Path, event_ids: Sequence[str]) -> None:
 # (``tests/architectural/test_no_dead_symbols.py``, a shrink-only ratchet over
 # ``__all__``) or needed an allowlist entry that outlived its reason.
 #
-# ``BodyQueuePurgeResult`` / ``BodyUploadPurgeTarget`` / ``IDENTITY_LESS_KEY`` stay
-# off the list deliberately: the CLI consumes what ``purge_project_body_uploads``
-# returns without naming its type, and a name in ``__all__`` with no importer is
-# exactly what that gate exists to catch. They remain importable for tests and for a
-# future caller that needs the annotation.
+# ``BodyQueuePurgeResult`` / ``BodyUploadPurgeTarget`` / ``BodyUploadTotalPurgeTarget``
+# / ``IDENTITY_LESS_KEY`` stay off the list deliberately: the CLI consumes what
+# ``purge_project_body_uploads`` and ``purge_all_body_uploads`` return without naming
+# their type, and a name in ``__all__`` with no importer is exactly what that gate
+# exists to catch. They remain importable for tests and for a future caller that needs
+# the annotation.
 __all__ = [
     "PURGE_ALL_CONFIRMATION",
     "ProjectPurgeResult",
@@ -878,6 +1028,7 @@ __all__ = [
     "RetentionResult",
     "archive_payloads",
     "gc_payloads",
+    "purge_all_body_uploads",
     "purge_all_events",
     "purge_identity_less_events",
     "purge_project_body_uploads",

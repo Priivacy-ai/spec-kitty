@@ -1548,6 +1548,206 @@ def _render_per_project_store(console_out: Any, issues: list[str]) -> None:
     issues.extend(_per_project_store_issues(report))
 
 
+# --------------------------------------------------------------------------- #
+# Consent-record readability (#3030 FR-020 / FR-027, SC-004)                    #
+#                                                                              #
+# FR-020 exists because a machine fault read as an ABSENCE: an unreadable       #
+# `config.toml` made every project on the machine resolve as never-opted-in,    #
+# the drain delivered nothing, doctor looked idle, and the operator was told to #
+# record consent they had already recorded. `consent_index_health()` and        #
+# `project_local_consent_fault()` keep that distinction alive — and until now   #
+# nothing rendered either of them, which SC-004's own note records as owed.     #
+# --------------------------------------------------------------------------- #
+
+_CONSENT_HEALTH_SECTION_TITLE = "Consent record readability"
+
+#: Every ``ConfigReadFault.kind`` mapped to **the operator action that resolves it**,
+#: never to a restatement of the kind. That is the whole requirement: the defect
+#: FR-020 exists to remove is an operator being told "no consent record for this
+#: project" when the truth is "your index is unreadable", which sends them to record
+#: consent they already recorded — and on the machine index that write *destroys the
+#: other projects' records* (see :data:`_CONSENT_FAULT_NOT_ABSENCE`).
+#:
+#: Three kinds, not one. FR-027 added ``unusable`` — a present-but-uninterpretable
+#: value — alongside the two file-level kinds, and it is the one most easily mistaken
+#: for absence because the file looks perfectly fine.
+#:
+#: **The two file-level tokens do not mean the same thing to both producers**, which
+#: is why the wording below spans rather than narrows. ``sync/config.py`` calls a TOML
+#: *syntax* error ``unparseable`` and an ``OSError`` ``unreadable``; ``sync/consent.py``
+#: calls an open-or-parse failure ``unreadable`` and a non-mapping top level
+#: ``unparseable``. So "unparseable" covers a syntax error on one surface and a wrong
+#: top-level shape on the other. Advice that named only one of those would be false
+#: half the time, on the surface whose entire job is to stop misdirecting operators —
+#: pinned by ``test_the_action_is_true_for_both_producers_of_the_same_kind``.
+_CONSENT_FAULT_ACTIONS: dict[str, tuple[str, str]] = {
+    "unreadable": (
+        "MAKE THE FILE READABLE",
+        "It could not be opened or parsed at all. The error in brackets says which: a "
+        "permission error means fix the file's mode or ownership; a parse error means "
+        "repair the syntax it quotes.",
+    ),
+    "unparseable": (
+        "REPAIR THE FILE'S STRUCTURE",
+        "The file was opened but its content is not a config: either its syntax does "
+        "not parse, or its top level is not a mapping — a list, a bare scalar or a "
+        "merge-conflict marker does the latter. The detail says which.",
+    ),
+    "unusable": (
+        "CORRECT THE FIELD VALUE NAMED IN THE DETAIL",
+        "The file parsed and its shape is fine, but a field holds a value that cannot "
+        'be understood as that field. Only a real boolean records a consent decision, so '
+        '`sync.enabled: "false"` is a quoted string that records nothing, and `enabled: no` '
+        "is the string \"no\" (ruamel is YAML 1.2). A `project.uuid` that is not a uuid "
+        "names no project.",
+    ),
+}
+
+#: The fallback for a kind this build does not recognise. Not defensive padding: this
+#: mission added a kind once already, and a kind-keyed table that renders nothing for
+#: an unrecognised key would turn the next addition into an invisible fault — the
+#: exact defect shape this section exists to close.
+_CONSENT_FAULT_UNKNOWN_ACTION = (
+    "REPAIR THE FILE NAMED IN THE DETAIL",
+    "This build has no specific advice for that fault kind; the detail below is the "
+    "whole of what is known about it.",
+)
+
+#: Printed for every fault, on both surfaces. The second half is measured, not
+#: reasoned: `SyncConfig.set_project_consent` is a whole-file read-modify-write over
+#: `_load()`, which returns `{}` for an unreadable file, so re-recording consent
+#: rewrites the index from an empty document.
+#: ``tests/cli/commands/test_sync_doctor_consent_health_3030.py`` pins it.
+_CONSENT_FAULT_NOT_ABSENCE = (
+    "This is NOT a missing consent record. Recording consent again will not clear it, "
+    "and on the machine-global index it makes things worse: a write rewrites the file "
+    "from an empty document when it cannot be read, discarding every other project's "
+    "record."
+)
+
+#: Why one broken file denies more than its own project, and why that is nonetheless
+#: a self-inflicted local fault rather than a sibling checkout's doing. Both halves
+#: are owed: the first alone would let an operator conclude an unrelated project broke
+#: their machine, and the second alone would understate what is currently denied.
+_CONSENT_FAULT_REACH = (
+    "A read fault cannot be attributed to a project — an unreadable file does not "
+    "disclose which project it declares — so while it stands it denies for every "
+    "project resolved through this checkout, not only this one. Its reach is narrower "
+    "than that sounds: every production caller offers exactly one checkout root, the "
+    "current directory's, so the broken file is this checkout's own and no sibling "
+    "checkout can have caused it."
+)
+
+
+def _render_consent_fault(
+    console_out: Any,
+    issues: list[str],
+    *,
+    scope: str,
+    fault: Any,
+    consequence: str,
+) -> None:
+    """Render one fault as an action, a consequence and its own detail.
+
+    The ``issues`` entry and the printed block are built from the same three strings,
+    so doctor's summary and this section cannot say different things about one fault.
+    """
+    kind = str(getattr(fault, "kind", "") or "unknown")
+    action, remedy = _CONSENT_FAULT_ACTIONS.get(kind, _CONSENT_FAULT_UNKNOWN_ACTION)
+    detail = str(getattr(fault, "detail", "") or "no detail recorded")
+
+    console_out.print(f"  {scope}  [red]UNREADABLE[/red] ({kind})")
+    console_out.print(f"    [bold red]{action}[/bold red] — {remedy}")
+    console_out.print(f"    [dim]{detail}[/dim]")
+    console_out.print(f"    {consequence}")
+    console_out.print(f"    [yellow]{_CONSENT_FAULT_NOT_ABSENCE}[/yellow]")
+    issues.append(f"{scope} ({kind}): {action}. {detail} {consequence} {_CONSENT_FAULT_NOT_ABSENCE}")
+
+
+def _render_consent_readability(console_out: Any, issues: list[str]) -> None:
+    """Say whether the consent records can be read at all (SC-004, FR-020/FR-027).
+
+    Both surfaces, always printed. "Consent is fine", "I could not read it" and "I
+    never looked" must not render identically — that equivalence *is* the incident's
+    false-green, and a section that appears only on failure rebuilds it. The healthy
+    line also states that a missing record is not a fault, so an operator does not
+    set out to repair a file that is simply empty.
+
+    Deliberately reporting only. ``consent_index_health`` is not consulted by
+    ``resolve_project_consent`` (a pre-flight readability check followed by a separate
+    per-project read is two reads that can disagree), and nothing here changes what
+    the drain decides.
+    """
+    console_out.print(f"\n[bold]{_CONSENT_HEALTH_SECTION_TITLE}[/bold]")
+
+    from specify_cli.core.paths import locate_project_root
+
+    try:
+        from specify_cli.sync.consent import consent_index_health
+
+        health = consent_index_health()
+    except Exception as exc:  # noqa: BLE001 — a section that vanishes is the defect
+        console_out.print(
+            f"  [yellow]![/yellow] the machine-global consent index could not be "
+            f"inspected: {exc}"
+        )
+        issues.append(
+            f"Whether the machine-global consent index is readable could not be "
+            f"determined: {exc}. Until it is, treat every consent state reported above "
+            "as unproven."
+        )
+    else:
+        if health.fault is None:
+            console_out.print("  machine-global consent index  [green]readable[/green]")
+        else:
+            _render_consent_fault(
+                console_out,
+                issues,
+                scope="machine-global consent index",
+                fault=health.fault,
+                consequence=(
+                    "Every project on this machine resolves as UNDETERMINED while this "
+                    "stands, so nothing is delivered."
+                ),
+            )
+
+    try:
+        from specify_cli.sync.consent import project_local_consent_fault
+
+        repo_root = locate_project_root(Path.cwd())
+        local_fault = None if repo_root is None else project_local_consent_fault(repo_root)
+    except Exception as exc:  # noqa: BLE001 — reported, never silently skipped
+        console_out.print(
+            f"  [yellow]![/yellow] this checkout's project config could not be "
+            f"inspected: {exc}"
+        )
+        issues.append(
+            f"Whether this checkout's own consent record is readable could not be "
+            f"determined: {exc}."
+        )
+    else:
+        if repo_root is None:
+            console_out.print(
+                "  this checkout  [dim]not inspected — no Spec Kitty checkout resolved "
+                "from the current directory[/dim]"
+            )
+        elif local_fault is None:
+            console_out.print("  this checkout  [green]readable[/green]")
+        else:
+            _render_consent_fault(
+                console_out,
+                issues,
+                scope="this checkout's project config",
+                fault=local_fault,
+                consequence=_CONSENT_FAULT_REACH,
+            )
+
+    console_out.print(
+        "  [dim]A missing record is not a fault: it means no consent was recorded, "
+        "which denies.[/dim]"
+    )
+
+
 def _print_identity_backfill_result(result: IdentityBackfillResult | None) -> None:
     """Report what convergence recovered into the identity columns (#3030 H4).
 
@@ -3533,18 +3733,47 @@ def _purge_selector_line(
     return "Selector: [bold]every event[/bold] in the stores named below"
 
 
-def _purge_body_targets(census: _RawCensus, *, all_events: bool, selector_uuid: str) -> list[str]:
-    """The body-queue uuids this run will hand to the sanctioned per-project removal.
+def _purge_run_body_queue(
+    body_queue: Any,
+    census: _RawCensus,
+    *,
+    all_events: bool,
+    selector_uuid: str,
+    dry_run: bool,
+    confirm: str,
+) -> tuple[frozenset[str], int]:
+    """``(census keys in scope, rows the primitive reports removing)`` for this store.
 
-    ``--all`` fans out over the census keys because no ``purge_all_body_uploads``
-    primitive exists — and one is deliberately not invented here. Keys that are blank
-    or padded are excluded: ``remove_project_tasks`` strips its argument, so those rows
-    are unreachable through the sanctioned path and are reported as left behind rather
-    than deleted through a second route the primitive does not own (C-003).
+    Two selectors, one per primitive, and the total one is **not** the union of the
+    per-project one. ``remove_project_tasks`` strips its argument and returns 0 for a
+    falsy one, so a row whose ``project_uuid`` is blank or padded is reachable by no
+    project value at all — which is why fanning ``--all`` out over the census keys
+    (what this did before ``purge_all_body_uploads`` existed) could not empty the
+    store and had to report those rows as reachable by nothing.
+
+    The returned count is what the primitive *claims*; the differential the operator
+    is shown is measured separately from this module's own two censuses (NFR-006).
     """
+    from specify_cli.delivery.retention import (
+        PurgeNotConfirmedError,
+        purge_all_body_uploads,
+        purge_project_body_uploads,
+    )
+
     if not all_events:
-        return [selector_uuid]
-    return [key for key in sorted(census.by_key) if key and key == key.strip()]
+        result = purge_project_body_uploads(
+            selector_uuid, body_queue=body_queue, dry_run=dry_run
+        )
+        return frozenset({selector_uuid}), result.removed
+
+    try:
+        total = purge_all_body_uploads(
+            body_queue=body_queue, dry_run=dry_run, confirmation=confirm
+        )
+    except PurgeNotConfirmedError as exc:
+        console.print(f"[red]Refused:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    return frozenset(census.by_key), total.removed
 
 
 def _purge_outcomes(
@@ -3618,6 +3847,7 @@ def _purge_not_reached(
     after: dict[str, _RawCensus],
     journal_scope: frozenset[str],
     frames_scope: frozenset[str],
+    body_scope: frozenset[str],
     ghosts_before: int,
     all_events: bool,
 ) -> list[dict[str, Any]]:
@@ -3628,8 +3858,11 @@ def _purge_not_reached(
     delete (C-002), the non-NULL blank and whitespace-only uuids that are visible in
     the census and reachable by no targeted selector, the ledger rows whose journal row
     ``sync gc`` already removed (so every machine that has run it holds some), the
-    body-upload rows no selector reaches at all, and the pre-fix frames of a checkout
-    that vouches for nothing.
+    body-upload rows no *project* selector reaches, and the pre-fix frames of a
+    checkout that vouches for nothing.
+
+    Every population is filtered against the scope this run actually claimed, so a
+    row the current selector already covers is not also listed as left behind.
     """
     rows: list[dict[str, Any]] = []
 
@@ -3682,16 +3915,19 @@ def _purge_not_reached(
             "removes journal rows while preserving ledger history by design",
         )
     body_blank = sum(
-        count for key, count in after[_PURGE_BODY].by_key.items() if not key or key != key.strip()
+        count
+        for key, count in after[_PURGE_BODY].by_key.items()
+        if (not key or key != key.strip()) and key not in body_scope
     )
     if body_blank:
         add(
             "body_uploads_identity_blank",
             "queued document bodies whose project_uuid is blank or padded",
             body_blank,
-            "none",
-            "the body queue has no total-purge primitive and its per-project removal "
-            "strips its argument, so NO selector currently reaches these rows",
+            "--all",
+            "the queue's per-project removal strips its argument and refuses a falsy "
+            "one, so no --project value reaches these rows; `sync purge --all` clears "
+            "the store outright and is the only selector that does",
         )
     frames_unattributed = sum(
         count
@@ -3966,7 +4202,6 @@ def purge(
     from specify_cli.core.paths import locate_project_root
     from specify_cli.delivery.retention import (
         ProjectPurgeResult,
-        purge_project_body_uploads,
         resolve_live_store_paths,
     )
     from specify_cli.sync.local_commit import (
@@ -4048,12 +4283,14 @@ def purge(
     body_removed_reported = 0
     body_scope: frozenset[str] = frozenset()
     if body_queue is not None and not identity_less:
-        body_targets = _purge_body_targets(
-            before[_PURGE_BODY], all_events=all_events, selector_uuid=selector_uuid
+        body_scope, body_removed_reported = _purge_run_body_queue(
+            body_queue,
+            before[_PURGE_BODY],
+            all_events=all_events,
+            selector_uuid=selector_uuid,
+            dry_run=not apply,
+            confirm=confirm,
         )
-        body_scope = frozenset(body_targets)
-        for target in body_targets:
-            body_removed_reported += purge_project_body_uploads(target, body_queue=body_queue, dry_run=not apply).removed
 
     frames_result = None
     if repo_root is not None and not identity_less:
@@ -4114,6 +4351,7 @@ def purge(
         after=after,
         journal_scope=journal_scope,
         frames_scope=frames_scope,
+        body_scope=body_scope,
         ghosts_before=ghosts_before,
         all_events=all_events,
     )
@@ -5583,6 +5821,11 @@ def doctor() -> None:  # noqa: C901
     # while 9,133 journal events — 1,322 from projects that never opted in — sat
     # on disk, and the contamination was only found by hand-querying SQLite.
     _render_per_project_store(console, issues)
+    # --- 3d. Can those consent states be trusted at all? (#3030 FR-020, SC-004) ---
+    # Directly below the table whose "Consent" column it qualifies. Every state in
+    # that column comes from a read that can fault, and a fault reads as ABSENCE
+    # unless something says otherwise — which is the whole of FR-020.
+    _render_consent_readability(console, issues)
     console.print()
 
     if singleton_report is not None and singleton_report.orphan_count > 0:

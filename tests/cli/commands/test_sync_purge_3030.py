@@ -162,7 +162,13 @@ def _seed_body_queue() -> None:
         (TARGET, "acme-migration-01K", "spec.md"),
         (TARGET, "acme-migration-01K", "plan.md"),
         (OTHER, "globex-rollout-01K", "spec.md"),
+        # The two unattributable forms, and they are unattributable *differently*:
+        # ``remove_project_tasks`` returns 0 for a falsy argument and strips a padded
+        # one to the same falsy value, so neither is reachable by a project selector.
+        # ``project_uuid`` is NOT NULL, so these two strings are the only forms a row
+        # can take that name no project.
         ("", "orphan-mission-01K", "spec.md"),
+        ("   ", "orphan-mission-01K", "plan.md"),
     ]
     conn = sqlite3.connect(path)
     try:
@@ -448,7 +454,11 @@ def test_targeted_purge_names_the_populations_it_leaves_behind(checkout: Path, t
     assert not_reached["journal_identity_blank"]["reachable_by"] == "--all"
     assert not_reached["ledger_without_journal_row"]["count"] == 1
     assert not_reached["ledger_without_journal_row"]["reachable_by"] == "--all"
-    assert not_reached["body_uploads_identity_blank"]["count"] == 1
+    assert not_reached["body_uploads_identity_blank"]["count"] == 2, "the '' row and the padded row: remove_project_tasks strips its argument"
+    # FR-017 completeness: these rows now HAVE a selector. Before
+    # ``purge_all_body_uploads`` existed this said "none", and that was the honest
+    # report of a store `--all` could not empty.
+    assert not_reached["body_uploads_identity_blank"]["reachable_by"] == "--all"
 
     out = result.output
     assert "Not reached by this purge" in out
@@ -524,9 +534,71 @@ class TestPurgeAll:
         assert after["journal"] == {}
         assert after["ledger"] == []
         assert after["frames"] == {}
-        # The body store's blank-uuid row has no selector at all — reported, not hidden.
-        assert after["body"] == {"": 1}
-        assert _report(report)["stores"]["body_upload_queue"]["left_behind"] == {"identity_blank": 1}
+        # Including the body store's blank and padded rows. Until
+        # ``purge_all_body_uploads`` existed these survived a confirmed ``--all`` and
+        # were reported as reachable by nothing — a total purge that left verbatim
+        # engagement documents on disk.
+        assert after["body"] == {}
+        assert _report(report)["stores"]["body_upload_queue"]["left_behind"] == {}
+
+    def test_all_reaches_the_body_rows_no_targeted_selector_could(self, checkout: Path, tmp_path: Path) -> None:
+        """FR-017 completeness for the fourth store, from the operator surface.
+
+        ``remove_project_tasks`` strips its argument and returns 0 for a falsy one, so
+        the ``''`` and ``'   '`` rows are reachable by no ``--project`` value at all.
+        The dry run must count them **in scope** — a total purge that silently
+        excluded them would be the false-totality claim this command exists to avoid —
+        and the confirmed run must actually remove them.
+        """
+        _seed_all(checkout)
+        assert {key: count for key, count in _body_by_uuid().items() if not key.strip()} == {
+            "": 1,
+            "   ": 1,
+        }, "precondition: the store holds the rows no project selector reaches"
+        dry_report = tmp_path / "dry.json"
+
+        dry = runner.invoke(app, ["purge", "--all", "--report", str(dry_report)])
+
+        assert dry.exit_code == 0, dry.output
+        assert _report(dry_report)["stores"]["body_upload_queue"]["in_scope"] == 5, "every row, not just the attributable ones"
+
+        applied = runner.invoke(
+            app, ["purge", "--all", "--apply", "--confirm", "purge all events"]
+        )
+
+        assert applied.exit_code == 0, applied.output
+        assert _body_by_uuid() == {}
+
+    def test_the_all_dry_run_predicts_exactly_what_the_confirmed_run_deletes(self, checkout: Path, tmp_path: Path) -> None:
+        """FR-017's preview is the operator's record; if it can drift it is worthless.
+
+        Compared against rows that actually disappear, measured by this test's own
+        reads — never against what the purge says about itself (NFR-006).
+        """
+        _seed_all(checkout)
+        dry_report = tmp_path / "dry.json"
+
+        dry = runner.invoke(app, ["purge", "--all", "--report", str(dry_report)])
+        assert dry.exit_code == 0, dry.output
+        predicted = {name: store["in_scope"] for name, store in _report(dry_report)["stores"].items()}
+        # Positive control: an all-zero prediction would satisfy the equality below
+        # for the wrong reason.
+        assert all(count > 0 for count in predicted.values()), predicted
+
+        before = _snapshot(checkout)
+        applied = runner.invoke(
+            app, ["purge", "--all", "--apply", "--confirm", "purge all events"]
+        )
+        assert applied.exit_code == 0, applied.output
+        after = _snapshot(checkout)
+
+        observed = {
+            "event_journal": sum(before["journal"].values()) - sum(after["journal"].values()),
+            "delivery_ledger": len(before["ledger"]) - len(after["ledger"]),
+            "body_upload_queue": sum(before["body"].values()) - sum(after["body"].values()),
+            "local_commit_frames": sum(before["frames"].values()) - sum(after["frames"].values()),
+        }
+        assert observed == predicted, "the --all dry run predicted counts the real run did not deliver"
 
     def test_all_names_the_per_checkout_scope_and_claims_nothing_wider(self, checkout: Path) -> None:
         """The operator decision of 2026-07-30, in the operator's own output.

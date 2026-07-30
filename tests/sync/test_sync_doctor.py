@@ -11,6 +11,7 @@ import pytest
 from rich.console import Console
 
 from specify_cli.cli.commands.sync import format_queue_health
+from specify_cli.sync.config import ConfigRead
 from specify_cli.sync.queue import DEFAULT_MAX_QUEUE_SIZE, QueueStats
 
 pytestmark = pytest.mark.fast
@@ -158,6 +159,11 @@ class TestDoctorCommand:
         mock_config.resolve_runtime_target.return_value.resolved_server_url = (
             "https://test.example.com"
         )
+        # #3030 FR-020: doctor now asks whether the consent index is READABLE, via
+        # `SyncConfig().read()`. A bare MagicMock answers that with a truthy `.fault`
+        # -- i.e. "unreadable" -- so the healthy answer has to be stated here, or the
+        # command reports a consent fault this test's own stub invented.
+        mock_config.read.return_value = ConfigRead(data={}, fault=None)
         mock_config_cls.return_value = mock_config
 
         now = datetime.now(UTC)
@@ -239,6 +245,11 @@ class TestDoctorCommand:
         mock_config.resolve_runtime_target.return_value.resolved_server_url = (
             "https://test.example.com"
         )
+        # #3030 FR-020: doctor now asks whether the consent index is READABLE, via
+        # `SyncConfig().read()`. A bare MagicMock answers that with a truthy `.fault`
+        # -- i.e. "unreadable" -- so the healthy answer has to be stated here, or the
+        # command reports a consent fault this test's own stub invented.
+        mock_config.read.return_value = ConfigRead(data={}, fault=None)
         mock_config_cls.return_value = mock_config
 
         past = datetime(2020, 1, 1, tzinfo=UTC)
