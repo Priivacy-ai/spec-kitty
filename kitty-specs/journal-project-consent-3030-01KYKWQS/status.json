@@ -1,7 +1,7 @@
 {
-  "event_count": 42,
-  "last_event_id": "01KYRPQ62KMT2TRBQ4WZZ1KBWT",
-  "materialized_at": "2026-07-30T05:07:26.419481+00:00",
+  "event_count": 43,
+  "last_event_id": "01KYRPQ9QBD0XF2KK77AFY7TCN",
+  "materialized_at": "2026-07-30T05:07:30.155936+00:00",
   "mission_number": "",
   "mission_slug": "journal-project-consent-3030-01KYKWQS",
   "mission_type": "software-dev",
@@ -9,12 +9,12 @@
     "approved": 6,
     "blocked": 0,
     "canceled": 0,
-    "claimed": 0,
+    "claimed": 1,
     "done": 0,
     "for_review": 0,
     "in_progress": 1,
     "in_review": 1,
-    "planned": 4
+    "planned": 3
   },
   "work_packages": {
     "WP01": {
@@ -172,13 +172,18 @@
     },
     "WP08": {
       "actor": "python-pedro",
+      "agent": "python-pedro",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "python-pedro",
       "force_count": 0,
       "lane": "in_progress",
       "last_event_id": "01KYRPQ62KMT2TRBQ4WZZ1KBWT",
       "last_transition_at": "2026-07-30T05:07:26.419481+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "WP08 in flight: FR-022 and the retention purge landed; sync purge CLI, purge_all_events and the pending_local_commits purge still owed"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer"
     },
@@ -212,11 +217,16 @@
       "last_transition_at": "2026-07-28T13:57:16.397755+00:00"
     },
     "WP11": {
-      "actor": "finalize-tasks",
+      "actor": "python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01KYMHC3MB59EFWPYNJCXRQWR2",
-      "last_transition_at": "2026-07-28T14:17:02.860006+00:00"
+      "lane": "claimed",
+      "last_event_id": "01KYRPQ9QBD0XF2KK77AFY7TCN",
+      "last_transition_at": "2026-07-30T05:07:30.155936+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer"
     },
     "WP12": {
       "actor": "finalize-tasks",
