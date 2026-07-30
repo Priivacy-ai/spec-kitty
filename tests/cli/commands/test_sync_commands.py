@@ -72,8 +72,24 @@ class _OkPreflight:
         return None
 
 
+#: #3030 WP06: selection requires a consented project identity, so every journal
+#: event these CLI tests seed carries this uuid and ``_consent_to_cli_project``
+#: records consent for it. These tests exercise `sync now`'s dispatch/report
+#: plumbing, not consent; the consent behaviour itself is pinned in
+#: tests/delivery/test_incident_reproduction_3030.py and its siblings.
+_CLI_PROJECT_UUID = "ffffffff-0000-0000-0000-00000000000f"
+
+
+def _consent_to_cli_project() -> None:
+    """Record hosted-sync consent for the uuid these tests' events carry."""
+    from specify_cli.sync.consent import set_project_consent
+
+    set_project_consent(_CLI_PROJECT_UUID, True)
+
+
 def _populate_journal(count: int = 3) -> EventJournal:
     """Append *count* JSON-object events to the CLI-resolved journal."""
+    _consent_to_cli_project()
     journal = EventJournal(resolve_journal_path())
     for index in range(count):
         journal.append(
@@ -83,6 +99,7 @@ def _populate_journal(count: int = 3) -> EventJournal:
                 payload=json.dumps({"n": index}).encode("utf-8"),
                 occurred_at="2026-06-29T00:00:00+00:00",
                 created_at=f"2026-06-29T00:00:0{index}+00:00",
+                project_uuid=_CLI_PROJECT_UUID,
             )
         )
     return journal
@@ -843,6 +860,7 @@ def test_sync_now_posts_exactly_once_and_drains_body(
     # The wire envelope is the event's own JSON payload (``event_id`` is carried
     # on the OutboundEvent, not the body), so embed it in the payload here so the
     # fake server can echo a per-event success result keyed on it.
+    _consent_to_cli_project()
     journal = EventJournal(resolve_journal_path(team_slug="team"))
     journal.append(
         Event(
@@ -851,6 +869,7 @@ def test_sync_now_posts_exactly_once_and_drains_body(
             payload=json.dumps({"event_id": "evt-solo", "n": 1}).encode("utf-8"),
             occurred_at="2026-06-29T00:00:00+00:00",
             created_at="2026-06-29T00:00:00+00:00",
+            project_uuid=_CLI_PROJECT_UUID,
         )
     )
 

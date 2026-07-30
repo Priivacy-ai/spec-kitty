@@ -1192,6 +1192,79 @@ def _materialize_private_source_project() -> None:
     get_sync_service().sync_now()
 
 
+def _render_per_project_store(console_out: Any, issues: list[str]) -> None:
+    """Render the journal's per-project composition with consent state (#3030 T021).
+
+    Sits beside doctor's queue-health block deliberately rather than replacing it.
+    That block reads ``OfflineQueue().get_queue_stats()``, which is EMPTY after
+    ``sync migrate`` — the source of the incident's false-green, where the operator
+    saw "Queue size 0" while 9,133 events sat in the journal. This section answers
+    "whose data is actually in here?" from the journal itself, so the two cannot
+    disagree silently.
+    """
+    from specify_cli.delivery.status_report import build_per_project_store_report
+
+    try:
+        runtime = _open_event_sync_runtime_readonly()
+    except Exception:
+        return
+    try:
+        report = build_per_project_store_report(runtime.journal)
+    except Exception:
+        return
+    finally:
+        with contextlib.suppress(Exception):
+            runtime.close()
+
+    if not report.rows:
+        return
+
+    console_out.print("\n[bold]Event journal by project[/bold]")
+    table = Table(show_header=True, box=None)
+    table.add_column("Project", style="dim", min_width=38)
+    table.add_column("Events", justify="right")
+    table.add_column("Oldest")
+    table.add_column("Consent")
+    for row in report.rows:
+        label = (
+            "[yellow]<identity unresolved>[/yellow]"
+            if row.is_unresolved_identity
+            else (row.repo_slug or row.project_uuid or "?")
+        )
+        state = (
+            "[green]consented[/green]"
+            if row.consent_granted
+            else f"[red]denied[/red] [dim]({row.consent_level})[/dim]"
+        )
+        table.add_row(label, f"{row.event_count:,}", row.oldest_created_at or "n/a", state)
+    console_out.print(table)
+
+    # Reconciliation is the load-bearing check: a table that omits rows is the
+    # incident's false-green with a nicer layout.
+    if not report.reconciles:
+        issues.append(
+            f"Per-project totals ({report.counted_event_total}) do not reconcile "
+            f"against the journal's retained count ({report.retained_event_count}). "
+            "The report is incomplete — do not trust it."
+        )
+    if report.unresolved_identity_count:
+        issues.append(
+            f"{report.unresolved_identity_count} journal event(s) have no resolvable "
+            "project identity. They are permanently undeliverable and can only be "
+            "removed with `spec-kitty sync purge`."
+        )
+    non_consenting = report.non_consenting_rows
+    if non_consenting:
+        named = ", ".join(
+            (r.repo_slug or r.project_uuid or "<unresolved>") for r in non_consenting
+        )
+        issues.append(
+            f"{len(non_consenting)} project(s) in the journal have not consented to "
+            f"hosted sync: {named}. Their events are retained locally and never "
+            "delivered; `spec-kitty sync purge --project <slug>` removes them."
+        )
+
+
 @app.command()
 def routes() -> None:
     """Show where the current checkout sends data and which teams it is shared with."""

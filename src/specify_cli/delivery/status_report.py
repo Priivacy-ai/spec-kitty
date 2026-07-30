@@ -33,6 +33,8 @@ Destructive payload operations live in :mod:`specify_cli.delivery.retention`.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from typing import TYPE_CHECKING, Any
 
 from specify_cli.delivery.ledger import (
@@ -454,3 +456,126 @@ __all__ = [
     "default_status_sections",
     "evaluate_gc_suggestion",
 ]
+
+
+# --- per-project store composition (#3030 WP07 / T021, FR-011 + FR-015) -----
+#
+# `doctor` read healthy throughout the 2026-07-27 incident. Its queue-health block
+# reads `OfflineQueue().get_queue_stats()`, which is EMPTY after `sync migrate` —
+# so the operator was shown "Queue size 0" while 9,133 events sat in the journal,
+# 1,322 of them belonging to projects that had never opted in. Any per-project
+# report rendered from that store reproduces the same false-green, which is why
+# FR-015 reconciles against the journal's retained count instead.
+
+
+@dataclass(frozen=True)
+class ProjectStoreRow:
+    """One project's presence in the journal, with its consent state."""
+
+    project_uuid: str | None
+    project_slug: str | None
+    repo_slug: str | None
+    event_count: int
+    oldest_created_at: str | None
+    consent_granted: bool
+    consent_level: str
+    consent_reason: str
+
+    @property
+    def is_unresolved_identity(self) -> bool:
+        """Rows the predicate can never select (FR-011)."""
+        return self.project_uuid is None
+
+
+@dataclass(frozen=True)
+class PerProjectStoreReport:
+    """The full per-project breakdown plus its reconciliation against the journal."""
+
+    rows: tuple[ProjectStoreRow, ...]
+    retained_event_count: int
+    unresolved_identity_count: int
+
+    @property
+    def counted_event_total(self) -> int:
+        return sum(row.event_count for row in self.rows)
+
+    @property
+    def reconciles(self) -> bool:
+        """Whether the per-project totals account for every retained row.
+
+        FR-015's load-bearing property. If this is ever False the report is lying
+        by omission — exactly the shape of the incident's false-green — so callers
+        must surface the discrepancy rather than print the table alone.
+        """
+        return self.counted_event_total == self.retained_event_count
+
+    @property
+    def non_consenting_rows(self) -> tuple[ProjectStoreRow, ...]:
+        return tuple(row for row in self.rows if not row.consent_granted)
+
+
+def build_per_project_store_report(journal: Any) -> PerProjectStoreReport:
+    """Group the journal by project and resolve each project's consent state.
+
+    Reads the identity projection, so no payload is decoded (NFR-003) and the cost
+    is one pass plus one consent lookup per distinct project — not per event.
+
+    Identity-less rows are grouped under a single ``project_uuid=None`` row rather
+    than dropped: they are permanently unselectable, and FR-011 exists so that
+    denial is observable instead of silent data loss.
+    """
+    from specify_cli.sync.consent import resolve_project_consent
+
+    rows = journal.read_identity_projection()
+
+    grouped: dict[str | None, list[Any]] = {}
+    for row in rows:
+        grouped.setdefault(row.project_uuid, []).append(row)
+
+    report_rows: list[ProjectStoreRow] = []
+    for project_uuid, group in grouped.items():
+        repo_slug = next((r.repo_slug for r in group if r.repo_slug), None)
+        if project_uuid is None:
+            decision_granted = False
+            level = "unresolved_identity"
+            reason = (
+                "project identity did not resolve; permanently unselectable and "
+                "counted here rather than dropped (FR-011)"
+            )
+        else:
+            decision = resolve_project_consent(project_uuid, repo_slug=repo_slug)
+            decision_granted = decision.granted
+            level = str(decision.level)
+            reason = decision.reason
+
+        report_rows.append(
+            ProjectStoreRow(
+                project_uuid=project_uuid,
+                project_slug=None,
+                repo_slug=repo_slug,
+                event_count=len(group),
+                oldest_created_at=min(r.created_at for r in group) if group else None,
+                consent_granted=decision_granted,
+                consent_level=level,
+                consent_reason=reason,
+            )
+        )
+
+    # Deterministic: consenting first, then by count descending, with the
+    # unresolved-identity bucket last so it never hides at the top.
+    report_rows.sort(
+        key=lambda r: (
+            r.project_uuid is None,
+            not r.consent_granted,
+            -r.event_count,
+            r.project_uuid or "",
+        )
+    )
+
+    return PerProjectStoreReport(
+        rows=tuple(report_rows),
+        retained_event_count=len(rows),
+        unresolved_identity_count=sum(
+            1 for row in rows if row.project_uuid is None
+        ),
+    )
