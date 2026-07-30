@@ -64,3 +64,47 @@ file, so no join can rescue it.
 
 Retiring `queue.remove_project_events` needs `disable_checkout_sync` to purge the
 journal instead, and the journal had no `project_uuid` to purge by until WP04.
+
+## The egress point owns its own refusal (M1-1, 2026-07-30)
+
+`drain_blocked_reason` was derived from the **current working directory's** checkout
+routing, so one project's grant published another project's envelope over the
+WebSocket. Two facts settled the shape of the fix, and only one of them was the
+reported bug.
+
+The reported half is the leak. The unreported half is that the same read was
+**simultaneously dead**: with no readable checkout, `resolve_checkout_sync_routing`
+returns `None`, so every event of every project was stamped `sync_disabled` — the
+WebSocket publish was broken for *consenting* projects too, which is the daemon's
+normal case. This is why the fix could not be a gate at `_route_event` alone:
+`test_an_index_grant_publishes_from_outside_any_checkout` would have stayed red
+forever. `_classify_drain_blocked_reason` had to stop being cwd-derived.
+
+The decision therefore lands in **two** places deliberately, which is a considered
+exception to C-003 and not an oversight: `_classify_drain_blocked_reason` resolves
+through the one consent chain with an explicit `project_uuid`, **and** `_route_event`
+re-checks consent independently immediately before publish. The reasoning is M1-1's
+own lesson — the finding *was* the failure of resting a confidentiality boundary on a
+field whose docstring calls it a diagnostic. Both sites must reach the same resolver;
+two sites that could disagree about consent would be the C-003 violation this avoids.
+
+Structural rather than test-enforced: `emitter.py` no longer imports
+`routing.is_sync_enabled_for_checkout` at all, so the cwd-derived substitution cannot
+creep back by someone re-reaching for the convenient helper.
+
+## `queue_event` is deliberately not gated, and what would flip that
+
+Three grounds, in descending durability. (1) It is **not egress** — every
+`drain_queue`/`process_batch_results` call site was enumerated and verified, not
+assumed, and `tests/sync/test_no_queue_drain_constructed_3030.py` pins that no code
+path constructs the drain. Assuming "nothing reads this" is the exact mistake M1-1
+corrected, so this ground was re-derived rather than inherited. (2) Gating it would
+be **data loss, not confidentiality**: the local outbox is documented unconditional
+(#1072), and refusing the write converts "not opted in to hosted sync" into "local
+event history discarded". (3) The residual at-rest pooling is C-006's recorded open
+collection surface, remediated by FR-016's purge rather than by refusing to write.
+
+**Precondition, not a follow-up ticket:** if a queue-backed sender is ever restored,
+this write becomes egress and must be gated *before* the sender lands. Recorded here
+because the WP02 removal is what makes ground (1) true, and a future WP re-opening
+`batch.py` for FR-014 will not otherwise know that.

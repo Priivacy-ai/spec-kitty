@@ -100,3 +100,38 @@ Two consequences worth carrying forward:
 Related: the same mission already fixed `test_issue_1071_singleton_reconfirmation`, whose
 final sweep asserted over a hardcoded port band rather than the ports it allocated. Same
 root cause class — a test reasoning about the machine rather than about its own fixtures.
+
+## A shared fixture whose guard is filename-matched can silence the pins it guards
+
+`tests/sync/conftest.py` applies a package-wide "assume a consenting checkout" fixture,
+with a protected-suite guard so that consent tests are exempt. The guard matched on the
+**filename token `"consent"`** — which does not match
+`test_capture_gate_project_identity_3030.py`.
+
+Extending that fixture naively during M1-1 would have applied a blanket grant to
+**eight bidirectional pins** and converted them into decoration, green forever. Caught
+before landing; the guard is now `("consent", "capture_gate")`.
+
+That widening is a patch, not a fix. The guard still enumerates *names*, so any future
+per-project pin in a file matching neither token is silently granted consent by its own
+conftest. The durable shape is a marker or an explicit opt-in the test declares, not a
+substring the fixture guesses. Flagged as still needing another look.
+
+This is the same class as the swallowed-arity fake green earlier in this mission: the
+mechanism that is supposed to protect a test is capable of disabling it, and nothing
+fails when it does.
+
+## `asyncio.get_event_loop()` makes negative pins pass for the wrong reason
+
+M1-1's own new anchors passed in isolation and failed in the full suite. `_route_event`
+calls `asyncio.get_event_loop()`; a sibling test had closed the loop, so the publish
+raised and was **caught** as "send failed".
+
+The positive controls failed loudly, which is how it was found — but consider the
+negative controls: "no envelope was published" is exactly what a closed loop produces.
+Every refusal pin in that file would have passed with the consent gate deleted. Fixed by
+owning the loop per test.
+
+Carry forward: for any pin whose assertion is *absence* of egress, ask what else in the
+process could produce that absence. Order-dependent infrastructure failure and a working
+refusal are indistinguishable at the assertion.
