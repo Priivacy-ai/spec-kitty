@@ -42,13 +42,62 @@ def mock_sync_feature_flag():
         yield
 
 
+@pytest.fixture
+def auto_start_premise():
+    """Grant the auto-start gate for tests whose subject is *past* that gate.
+
+    These tests ``chdir`` into a bare ``tmp_path`` and then call ``start()`` to
+    assert on background-service / WebSocket wiring. Under #3030 T028 an
+    unlocatable project root denies auto-start, so ``start()`` now returns before
+    the behaviour they measure — a fixture-premise artefact, not a finding.
+
+    Named and requested per-test rather than autouse, so it can never quietly
+    grant permission to ``TestAutoStartEnabled``, which asserts on the gate itself.
+    """
+    with patch("specify_cli.sync.runtime._auto_start_enabled", return_value=True):
+        yield
+
+
 class TestAutoStartEnabled:
     """Tests for _auto_start_enabled() config reading."""
 
-    def test_returns_true_when_no_config(self, tmp_path, monkeypatch):
-        """Returns True when .kittify/config.yaml doesn't exist."""
+    def test_denies_when_no_project_root_is_locatable(self, tmp_path, monkeypatch):
+        """No project root -> no project identity -> no consent (#3030 T028).
+
+        This used to return True: sync auto-started for a checkout whose consent
+        nobody could establish. Consent is per project, so "which project?" being
+        unanswerable is a denial, not a default-allow (FR-003's rule applied to
+        this gate).
+        """
         monkeypatch.chdir(tmp_path)
-        assert _auto_start_enabled() is True
+        with patch("specify_cli.sync.runtime.locate_project_root", return_value=None):
+            assert _auto_start_enabled() is False
+
+    def test_denies_when_routing_resolution_raises(self, tmp_path, monkeypatch):
+        """An unreadable routing config denies rather than auto-starting (#3030 T028)."""
+        monkeypatch.chdir(tmp_path)
+        with (
+            patch("specify_cli.sync.runtime.locate_project_root", return_value=tmp_path),
+            patch(
+                "specify_cli.sync.runtime.is_sync_enabled_for_checkout",
+                side_effect=OSError("routing config unreadable"),
+            ),
+        ):
+            assert _auto_start_enabled() is False
+
+    def test_explicit_project_auto_start_still_wins_over_the_denial(
+        self, tmp_path, monkeypatch
+    ):
+        """The denials must not swallow an explicit local opt-in."""
+        monkeypatch.chdir(tmp_path)
+        config_dir = tmp_path / ".kittify"
+        config_dir.mkdir()
+        (config_dir / "config.yaml").write_text("sync:\n  auto_start: true\n")
+        with patch(
+            "specify_cli.sync.runtime.is_sync_enabled_for_checkout",
+            side_effect=OSError("unreadable"),
+        ):
+            assert _auto_start_enabled() is True
 
     def test_returns_true_when_config_has_no_sync_section(self, tmp_path, monkeypatch):
         """Returns True when config exists but has no sync section."""
@@ -125,7 +174,7 @@ class TestSyncRuntime:
         assert runtime.background_service is None
         assert runtime.ws_client is None
 
-    def test_starts_background_service(self, tmp_path, monkeypatch):
+    def test_starts_background_service(self, tmp_path, monkeypatch, auto_start_premise):
         """start() initializes BackgroundSyncService."""
         monkeypatch.chdir(tmp_path)
         mock_service = MagicMock()
@@ -227,7 +276,7 @@ class TestSyncRuntime:
         runtime.stop()  # Should not raise
         assert runtime.started is False
 
-    def test_stop_cleans_up_services(self, tmp_path, monkeypatch):
+    def test_stop_cleans_up_services(self, tmp_path, monkeypatch, auto_start_premise):
         """stop() cleans up background service and ws_client."""
         monkeypatch.chdir(tmp_path)
         mock_service = MagicMock()
@@ -321,7 +370,7 @@ class TestResetRuntime:
 class TestUnauthenticatedBehavior:
     """Tests for behavior when user is not authenticated."""
 
-    def test_no_websocket_when_unauthenticated(self, tmp_path, monkeypatch):
+    def test_no_websocket_when_unauthenticated(self, tmp_path, monkeypatch, auto_start_premise):
         """WebSocket is not created when not authenticated."""
         monkeypatch.chdir(tmp_path)
         mock_service = MagicMock()
@@ -341,7 +390,7 @@ class TestUnauthenticatedBehavior:
             assert runtime.ws_client is None
             assert runtime.background_service is not None  # Queue still works
 
-    def test_websocket_created_when_authenticated(self, tmp_path, monkeypatch):
+    def test_websocket_created_when_authenticated(self, tmp_path, monkeypatch, auto_start_premise):
         """WebSocket client is created when authenticated."""
         monkeypatch.chdir(tmp_path)
         mock_service = MagicMock()
@@ -381,7 +430,7 @@ class TestUnauthenticatedBehavior:
                         assert runtime.ws_client is mock_ws
                         mock_run_coroutine_threadsafe.assert_called_once_with(mock_connect_coro, runtime._async_loop)
 
-    def test_websocket_connect_scheduled_on_daemon_loop(self, tmp_path, monkeypatch):
+    def test_websocket_connect_scheduled_on_daemon_loop(self, tmp_path, monkeypatch, auto_start_premise):
         """Runtime should schedule async connect on its dedicated daemon loop."""
         monkeypatch.chdir(tmp_path)
         mock_service = MagicMock()

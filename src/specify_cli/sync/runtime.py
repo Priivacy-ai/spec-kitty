@@ -64,10 +64,20 @@ def _auto_start_enabled() -> bool:
 
     Local checkout overrides win. If none is present, the remembered
     repository default from ``~/.spec-kitty/config.toml`` is used.
+
+    Both unknowns deny (#3030 T028). This gate decides whether the daemon starts
+    draining a project's events off the machine, so FR-003's rule applies to it as
+    much as to the routing gate it consults: inability to determine consent is not
+    consent. Previously **both** failure paths returned ``True`` — no locatable
+    project root, and any exception resolving routing — which auto-started sync for
+    a checkout whose consent nobody could establish. An explicit project-local
+    ``sync.auto_start`` still wins; only the unknowns changed.
     """
     project_root = locate_project_root(Path.cwd())
     if project_root is None:
-        return True
+        # No project root means no project identity, and consent is per project.
+        logger.debug("No project root resolvable; sync auto-start denied")
+        return False
 
     project_setting = _read_project_auto_start(project_root)
     if project_setting is not None:
@@ -76,8 +86,8 @@ def _auto_start_enabled() -> bool:
     try:
         return is_sync_enabled_for_checkout(project_root)
     except Exception as e:
-        logger.debug(f"Could not resolve sync routing config: {e}")
-        return True
+        logger.warning("Could not resolve sync routing config; denying auto-start: %s", e)
+        return False
 
 
 def _read_project_auto_start(project_root: Path) -> bool | None:
@@ -420,8 +430,13 @@ def get_runtime() -> SyncRuntime:
     if _runtime is None:
         with _runtime_lock:
             if _runtime is None:
-                _runtime = SyncRuntime()
-                _runtime.start()
+                runtime = SyncRuntime()
+                # Publish only after a successful start (#3030 H8). start() can
+                # raise — e.g. the T007 legacy-queue guard — and assigning first
+                # cached an unstarted runtime that every later call returned
+                # without ever retrying start().
+                runtime.start()
+                _runtime = runtime
     return _runtime
 
 

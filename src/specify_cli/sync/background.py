@@ -17,6 +17,7 @@ import asyncio
 import atexit
 import contextlib
 import logging
+import sqlite3
 import threading
 from dataclasses import dataclass, field
 from datetime import datetime, UTC
@@ -62,12 +63,38 @@ class LegacyQueueNotConvergedError(RuntimeError):
     """
 
 
-def _count_legacy_event_rows() -> int:
-    """Return the number of legacy queue *event* rows, or 0 if uncountable.
+class LegacyQueueUndeterminedError(LegacyQueueNotConvergedError):
+    """Whether legacy rows remain could not be determined (#3030 H8).
+
+    A subclass so every existing handler of the converged error keeps working,
+    while callers and tests can still tell "there are N stranded rows" apart from
+    "the store could not be read". Inability to determine is not permission.
+    """
+
+
+#: Failures of the legacy-count read that mean "could not determine" rather than
+#: "the shape of this API changed". Anything outside this set — a ``TypeError``
+#: from a changed arity, an ``AttributeError`` from a renamed field — must
+#: propagate, because a guard whose safe default is *permission* silently
+#: disables itself otherwise. That is the swallowed-exception fake green this
+#: mission already hit once.
+_UNDETERMINED_LEGACY_COUNT_ERRORS = (sqlite3.Error, OSError, ValueError)
+
+
+def _count_legacy_event_rows() -> int | None:
+    """Return the number of legacy queue *event* rows, or ``None`` if undeterminable.
 
     Read-only: composes the same ``detect_legacy_rows_for_scope`` helper the
     sync preflight uses, so the daemon and ``sync now`` agree on what "legacy
     rows remain" means rather than growing a second definition.
+
+    Returns:
+        The event-row count (``0`` when there is genuinely nothing stranded), or
+        ``None`` when the legacy store could not be read. ``None`` is deliberately
+        a distinct answer from ``0``: this function gates daemon start, so
+        collapsing "unknown" onto "clean" hands out permission on a fault.
+        ``counts.event_rows`` is read directly — no ``getattr`` default — so a
+        renamed field raises instead of degrading to "clean".
     """
     from .queue import detect_legacy_rows_for_scope, read_queue_scope_from_credentials
 
@@ -75,13 +102,11 @@ def _count_legacy_event_rows() -> int:
         # The legacy DB has no per-scope partitioning, so the callee ignores
         # this argument; pass the active scope anyway for log context.
         counts = detect_legacy_rows_for_scope(read_queue_scope_from_credentials() or "")
-    except Exception:
-        # An uncountable legacy DB must not be reported as "dirty" — that would
-        # wedge the daemon on an unrelated fault. The preflight reports it.
-        return 0
+    except _UNDETERMINED_LEGACY_COUNT_ERRORS as exc:
+        logger.warning("Could not read the legacy queue to count stranded rows: %s", exc)
+        return None
 
-    rows = getattr(counts, "event_rows", 0)
-    return rows if isinstance(rows, int) else 0
+    return int(counts.event_rows)
 
 
 def _emit_nonfatal_final_sync_diagnostic(
@@ -239,8 +264,23 @@ class BackgroundSyncService:
 
         Raises:
             LegacyQueueNotConvergedError: legacy event rows remain.
+            LegacyQueueUndeterminedError: the legacy store could not be read, so
+                whether rows are stranded is unknown. Unknown is not permission
+                (#3030 H8) — but the remedy stays reachable: ``sync migrate`` does
+                not route through the sync runtime, so it can still be run (and it
+                reports the unreadable source as a ``source_errors`` count).
         """
         stranded = _count_legacy_event_rows()
+        if stranded is None:
+            undetermined = (
+                "Refusing to start background sync: could not read the legacy "
+                "queue at ~/.spec-kitty/queue.db, so whether undeliverable rows "
+                "remain is unknown. Run `spec-kitty sync migrate` to converge and "
+                "report on it; if the file is corrupt and holds nothing you need, "
+                "move it aside. Inability to determine is not clearance."
+            )
+            logger.error(undetermined)
+            raise LegacyQueueUndeterminedError(undetermined)
         if stranded <= 0:
             return
 
@@ -670,15 +710,22 @@ def get_sync_service() -> BackgroundSyncService:
     if _service is None:
         with _service_lock:
             if _service is None:
-                _service = BackgroundSyncService(
+                service = BackgroundSyncService(
                     queue=OfflineQueue(),
                     config=SyncConfig(),
                 )
+                # Publish the singleton only once start() has succeeded (#3030 H8).
+                # The T007 guard raises from start(); assigning first left the
+                # module holding a constructed-but-never-started service with no
+                # atexit stop hook, and every later call handed that dead object
+                # back without retrying — so sync stayed dead for the life of the
+                # process even after `sync migrate` fixed the cause.
                 if is_saas_sync_enabled():
-                    _service.start()
+                    service.start()
                 else:
                     logger.info("%s Service created without auto-start.", saas_sync_disabled_message())
-                atexit.register(_service.stop)
+                atexit.register(service.stop)
+                _service = service
     return _service
 
 
