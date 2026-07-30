@@ -500,3 +500,30 @@ primary decision point*. Add: **a branch's reachability can depend on the interp
 library version**, so a zero-invocation count is not evidence the code is dead — it may be evidence
 your environment differs from production's. The same asymmetry applies to the code under test: a
 guard that looks redundant locally can be the only thing standing on CI.
+
+## Applying the asymmetry: which worktree claims actually needed re-running
+
+After finding that the editable install's `.pth` defeats worktree isolation, three claims were
+flagged for re-verification. Rather than re-run all three on a contended machine, the asymmetry
+was applied — **the defect can only collapse two states into one, never invent a distinction** —
+and each claim was checked for whether its *conclusion* was a sameness or a difference.
+
+| claim | conclusion type | verdict |
+|---|---|---|
+| FR-027's "byte-identical table" from a clean worktree | The **finding** (19 leaking shapes, before → after) is a **difference**. Only the *attribution* was a sameness. | Finding safe. Attribution corroborated independently — the shapes red before the fix and green after in the live tree too. |
+| FR-027's A/B exonerating 21 purge failures ("identical failure sets") | **Sameness** — the suspect kind. | Conclusion holds on two *independent* grounds that do not depend on the A/B at all: the file is **untracked and was created after** that commit, so it is in neither tree; and the failure is `sqlite3.OperationalError: no such table: events` from the suite's own seeding helper, i.e. another agent's WIP. The A/B was corroboration, not the basis. |
+| NFR-002's "other agents' edits did not reach the measurement" | The **result** (9 pins killed, 264 → 255 passed, each with genuine assertion text) is a **difference**. | Safe. A shared-source defect could not manufacture 9 kills with distinct failure messages. |
+
+**None of the substantive conclusions rest on the compromised property.** In every case the
+sameness claim was about *attribution* — "this result is mine and not contaminated" — and in every
+case the finding itself was a measured difference that the defect is incapable of fabricating.
+
+Recording the reasoning rather than the reruns, because the reasoning is the transferable part:
+when a measurement technique is found faulty, **classify the affected claims by what they assert
+before re-running anything.** A defect that collapses distinctions invalidates conclusions of
+sameness and leaves conclusions of difference intact. Re-running everything would have cost five
+agent-hours on a machine already producing false reds from contention, to re-confirm results the
+failure mode cannot reach.
+
+The one thing this does *not* excuse: every future worktree measurement must set
+`PYTHONPATH=$WT/src` or use a dedicated venv, because the next claim may well be a sameness one.
