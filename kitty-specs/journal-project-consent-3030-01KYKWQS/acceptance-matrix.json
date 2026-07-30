@@ -6,13 +6,13 @@
   "criteria": [
     {
       "criterion_id": "FR-001",
-      "description": "Consent-availability gate exists in the delivery context; a run aborts when consent is unresolvable.",
-      "proof_type": "automated_test",
+      "description": "RETIRED 2026-07-30. Originally: consent-availability gate in the delivery context. Retired on three grounds (see spec.md FR-001). NOTE: the retirement has a recorded SCOPE ERROR -- import-history shares the GateContext but not the dispatcher, so it inherited the retirement without the replacement (FR-028).",
+      "proof_type": "not_applicable",
       "evidence": null,
-      "pass_fail": "pending",
+      "pass_fail": "retired",
       "verified_by": null,
       "verified_at": null,
-      "notes": "Owner: WP01/T004"
+      "notes": "Owner: WP01/T004 (retired). Scope error tracked as FR-028."
     },
     {
       "criterion_id": "FR-002",
@@ -353,6 +353,136 @@
       "verified_by": null,
       "verified_at": null,
       "notes": "Owner: WP09/T023"
+    },
+    {
+      "criterion_id": "FR-020",
+      "description": "Unreadable machine-global consent state must not read as absent.",
+      "proof_type": "automated_test",
+      "evidence": "commit c633c548b0",
+      "pass_fail": "pass",
+      "verified_by": "implementer + independent review, mutation-verified",
+      "verified_at": "2026-07-30",
+      "notes": "Found and fixed mid-mission; owned by no WP. ConsentLevel.UNDETERMINED + fault-preserving read(); consent_index_health() exposes it. Doctor-surface wiring still owed."
+    },
+    {
+      "criterion_id": "FR-021",
+      "description": "An unreadable project-local file must not defer to a stale machine-index grant.",
+      "proof_type": "automated_test",
+      "evidence": "commit c633c548b0",
+      "pass_fail": "pass",
+      "verified_by": "implementer + independent review, mutation-verified",
+      "verified_at": "2026-07-30",
+      "notes": "Found and fixed mid-mission; owned by no WP. Fails OPEN before the fix (a leak), unlike FR-020 which failed closed. Measurement trap recorded: _reconcile_index side effect makes a shared-home probe read as a denial."
+    },
+    {
+      "criterion_id": "FR-022",
+      "description": "An unreadable project config must not defer to a checkout-level grant.",
+      "proof_type": "automated_test",
+      "evidence": "commit 5928ef189b",
+      "pass_fail": "pass",
+      "verified_by": "implementer + independent review, mutation-verified",
+      "verified_at": "2026-07-30",
+      "notes": "Found and fixed mid-mission; owned by no WP. Fence placed BEFORE the identity read, so it closes a leak and a crash together. Proven non-redundant twice by runtime blinding with the bind counted."
+    },
+    {
+      "criterion_id": "FR-023",
+      "description": "A structurally invalid config.yaml must not crash load_identity.",
+      "proof_type": "automated_test",
+      "evidence": "commit a1ae36b13a",
+      "pass_fail": "pass",
+      "verified_by": "implementer + independent review, mutation-verified",
+      "verified_at": "2026-07-30",
+      "notes": "Found and fixed mid-mission; owned by no WP. Reported as one crash; was FIVE, including one on the write path. Mid-write truncation hypothesis disproved by counting mkstemp calls."
+    },
+    {
+      "criterion_id": "FR-024",
+      "description": "A valid mapping with an unusable uuid value must not crash the policy read.",
+      "proof_type": "automated_test",
+      "evidence": "commit 136019c3f8",
+      "pass_fail": "pass",
+      "verified_by": "implementer + independent review, mutation-verified",
+      "verified_at": "2026-07-30",
+      "notes": "Found and fixed mid-mission; owned by no WP. Reported as three shapes; was ELEVEN in three exception flavours, plus an unreported second class in repo_slug where routing died in code entitled to assume a string. Also 11b58403bb, 7ff1ca7dcf (self-caught weak assertions)."
+    },
+    {
+      "criterion_id": "FR-025",
+      "description": "The invocation propagator must not read undetermined consent as consent.",
+      "proof_type": "automated_test",
+      "evidence": "commit 08e3a675fa",
+      "pass_fail": "pass",
+      "verified_by": "implementer + independent review, mutation-verified",
+      "verified_at": "2026-07-30",
+      "notes": "Found and fixed mid-mission; owned by no WP. SEVERITY CORRECTED: the sender is dead in production (FR-032), so the pre-fix 'measured leaking' result had an injected client. Fix lands as defence-in-depth. Three further permissive-default siblings on the same payload fixed in the same commit."
+    },
+    {
+      "criterion_id": "FR-026",
+      "description": "runtime.publish_event must gate on the event's own project_uuid.",
+      "proof_type": "automated_test",
+      "evidence": "commit 1cd50f3f41",
+      "pass_fail": "pass",
+      "verified_by": "implementer + independent review, mutation-verified",
+      "verified_at": "2026-07-30",
+      "notes": "Found and fixed mid-mission; owned by no WP. Twelve production callers, not the one reported: EventEmitter._emit returns the envelope regardless of consent, so the same module POSTed what _route_event had withheld -- M1-1's gate was being routed around by its own module's wrappers."
+    },
+    {
+      "criterion_id": "FR-027",
+      "description": "A field-level shape fault in the consent key must not void a committed refusal.",
+      "proof_type": "automated_test",
+      "evidence": "commit 34e4e16496",
+      "pass_fail": "pass",
+      "verified_by": "implementer + independent review, mutation-verified",
+      "verified_at": "2026-07-30",
+      "notes": "Found and fixed mid-mission; owned by no WP. Reported as four shapes; was NINETEEN. enabled: no is a string under ruamel's YAML 1.2. Honest negative recorded: makes the unattributable-fault denial path more reachable."
+    },
+    {
+      "criterion_id": "FR-028",
+      "description": "import-history is an ungated egress path (sixth).",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "open",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Found mid-mission; owned by no WP; awaiting fold-or-file decision. Egress inventory E1. Holds the project_uuid and never asks it. This is where FR-001's retirement scope error landed."
+    },
+    {
+      "criterion_id": "FR-029",
+      "description": "The tracker SaaS client is an ungated egress path (seventh).",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "open",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Found mid-mission; owned by no WP; awaiting fold-or-file decision. Egress inventory E2. Reachable NON-INTERACTIVELY during mission creation, so no operator action is required."
+    },
+    {
+      "criterion_id": "FR-030",
+      "description": "The generic SaaS client is an ungated egress path (eighth).",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "open",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Found mid-mission; owned by no WP; awaiting fold-or-file decision. Egress inventory E3. Four GETs carry mission_id, documented 'ULID or slug', in URL paths."
+    },
+    {
+      "criterion_id": "FR-031",
+      "description": "The body-upload enqueue gate must not fail open or consult the routing chain.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "open",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Found mid-mission; owned by no WP; awaiting fold-or-file decision. Egress inventory E4. The only fail-open gate found on a live-sender path; two defects in one line."
+    },
+    {
+      "criterion_id": "FR-032",
+      "description": "The phantom _ws_client attribute must be resolved deliberately.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "open",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Found mid-mission; owned by no WP; awaiting fold-or-file decision. Disables three senders. Assigning it -- a plausible one-line fix -- makes all three live at once. Invisible to the AST dead-symbol gate because a string-literal getattr is not a reference."
     }
   ],
   "negative_invariants": [
@@ -361,5 +491,6 @@
     "No transient drain-blocked reason (missing_auth/missing_team/saas_disabled) permanently excludes an event.",
     "No test asserts delivered-project CARDINALITY in place of subset membership.",
     "No mission activity authenticates against or mutates production."
-  ]
+  ],
+  "notes_traceability": "FR-020..FR-032 were discovered and (mostly) fixed mid-mission and are owned by no work package -- the WP structure did not anticipate them. They are recorded here rather than retrofitted into ill-fitting WPs, which would be false attribution. FR-019 is defined as a prose subsection in spec.md rather than a table row, so table-parsing extraction misses it."
 }
