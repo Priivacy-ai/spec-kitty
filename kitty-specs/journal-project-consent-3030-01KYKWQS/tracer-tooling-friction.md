@@ -286,3 +286,44 @@ describe what it did.
 
 Also note the field is written as the **string** `"1"`, not an integer. `status_phase()`
 parses via `int(str(...).strip())` so it works, but the corpus now contains both forms.
+
+## `pytest | tail` throws away pytest's exit status — the shell layer of the same trap
+
+Caught by the FR-027 implementer on its own run: `uv run pytest … 2>&1 | tail -18` reports
+**`tail`'s** exit status, not pytest's. So "exit code 0" from such a pipeline is **not evidence of
+a pass**, and a failing suite can be reported as succeeding by a harness that trusts the code.
+The `N passed` line is the evidence; the exit code is noise.
+
+This is the tally-versus-failure-text rule one layer down, and it had already bitten this session
+in the other direction: a `pytest tests/cli tests/architectural | tail -18` run reported exit 143
+with an **empty** output file, because `tail` buffers until the pipeline ends. The result was
+neither a pass nor a fail — it was *no measurement at all*, and only the empty file revealed that.
+
+Two habits to adopt, both cheap:
+
+- **Do not pipe a suite whose exit status you intend to trust.** Write the full output to a file
+  and read the tail of the file, or check `${PIPESTATUS[0]}` explicitly rather than `$?`.
+- **Quote the count line as the evidence**, never the exit code — "2710 passed, 18 skipped" is a
+  claim that can be checked; "exit 0" is a claim about `tail`.
+
+The same agent also corrected itself here in the right direction: it first reported two
+architectural guards as "verified by inspection, reasoned not executed", flagging the gap rather
+than claiming green — and then, when the slow run (7m25s under contention) actually finished,
+replaced the reasoning with **29 passed**. Reasoning that is labelled as reasoning can be
+upgraded later; reasoning presented as measurement cannot.
+
+## Agent contention became the dominant source of false signal
+
+At peak this session, **20+ concurrent pytest processes** were running across five agents. Effects
+observed and confirmed rather than guessed: two suites killed with no output; four
+`test_issue_1071_singleton_reconfirmation` reds from an exhausted `[9401, 9425)` port band on top
+of a 12-hour-old leaked daemon on 9400; 14 reds in daemon-orphan classification; and one agent's
+7m25s run for a suite that takes well under a minute idle.
+
+Every one of those presents identically to a regression. The mitigations that actually worked were
+(a) killing the leaked daemon, (b) per-case `SPEC_KITTY_HOME`, and (c) isolating a measurement in a
+clean worktree containing only the files under test — which is how FR-027's 19-row table was made
+attributable in a tree three agents were editing simultaneously.
+
+The lesson for scheduling, not just for measurement: **parallel implementation agents are cheap;
+parallel full-suite runs are not.** Fan out the coding, serialise the sweeps.
