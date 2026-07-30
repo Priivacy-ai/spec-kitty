@@ -326,3 +326,28 @@ test_no_inert_schema_slots:
 # see #2976 -- so expect this to SHRINK when it is settled, never grow.
 test_reference_enum_ratchet:
   baseline_members: 34
+
+# tests/architectural/test_egress_consent_boundary.py
+# Issue #3030 (P0 confidentiality). The egress boundary permits a transmit
+# primitive only in a file carrying an explicit allowance. Both sets are
+# ratcheted here so this gate cannot be silenced by a one-line module edit —
+# adding a file requires this diff plus a `# justification:` naming why the
+# sink carries no project data, or why its consent seam is sound.
+test_egress_consent_boundary:
+  # justification: 27 files hold a transmit primitive with a recorded reason —
+  # 12 gated by a named consent seam on the data's own project_uuid (E1/E2/E3
+  # and E6-E13), 1 per-project transport whose every caller is separately
+  # seamed (E14), 1 unreachable retired drain pinned by
+  # tests/sync/test_no_queue_drain_constructed_3030.py (E15), and 13 that are
+  # not project egress at all — auth/OAuth token traffic, the doctrine fetch,
+  # the readiness probe and four localhost control endpoints (E18). Each was
+  # verified individually by the 2026-07-30 sink-first enumeration, not
+  # assumed. Growth here means a new file transmits: argue it in the diff.
+  egress_allowlist_files: 27
+  # justification: 0. The module asserts this set is EMPTY, so any entry is a
+  # red build; pinning the baseline at 0 makes recording one cost a second
+  # visible diff here as well. Growth is a NEW unconsented egress path — the
+  # P0 this mission exists to close — so the intended response to a finding is
+  # to fix the path, never to register it. E1/E2/E3 were the founding entries
+  # (FR-028/029/030) and moved to egress_allowlist_files when they landed.
+  known_ungated_files: 0
