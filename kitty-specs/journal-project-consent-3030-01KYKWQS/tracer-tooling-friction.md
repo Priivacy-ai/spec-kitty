@@ -600,3 +600,46 @@ The divergence is pinned rather than merely intended: a test asserts the token a
 the rendered refusal nor `to_dict()`. Worth recording as the general shape — *"be consistent with
 the house pattern, except where consistency would leak a credential, and then prove the exception
 holds"* — because the natural failure here is to follow a good pattern into a disclosure.
+
+## Tests can pin a production behaviour that has never existed
+
+`tests/invocation/test_adapters.py` carried a block explicitly labelled *"verifying the production
+registration"*: three cases driving the SaaS client factory by setting
+`token_manager._ws_client` — **which was the only way that attribute has ever been assigned
+anywhere.** Production never assigned it (FR-032).
+
+So all three tests pinned a behaviour that did not exist. And the failure mode was mixed, which is
+what makes it instructive:
+
+- one failed on removal (`assert None is <MagicMock name='mock._ws_client'>`);
+- **two passed for the wrong reason**, on a `None` that agreed with their assertion by accident.
+
+A suite can therefore *encode* a phantom feature, and two-thirds of the evidence for it will look
+like healthy passing tests. The tell was not in the tests at all — it was that `src/` had no
+writer for the attribute they set.
+
+Replaced by one **inverted, live** pin (`test_sync_registers_no_saas_client_factory`) that reds if
+anyone re-registers a factory, with a message naming why. That is the durable shape: when the
+correct state is *absence*, pin the absence, or the next author reads the empty seam as an
+oversight and fills it.
+
+Related, same commit: the other reds were `AttributeError: module … has no attribute
+'_get_saas_client'` from `monkeypatch.setattr` on a deleted symbol — **harness failures, not
+behaviour**. Their witness was moved down to `_send_event`, the surviving outbound seam, which
+keeps the "no request was issued" evidence *and* additionally catches an immediate send being
+re-added. A deleted symbol's tests are not automatically deletable; ask what they were witnessing.
+
+## A fake green that only surfaced when the gate arrived
+
+`tests/sync/test_issue_598_hang_fixes.py::_stub_dossier_resolvers` handed the pipeline a fresh
+`uuid4()`, so **no consent record could ever exist** for it. Once E5's gate landed, one test red
+outright — but `test_get_runtime_never_called` and `test_dossier_sync_no_threads_spawned` stayed
+**green for the wrong reason**: the pipeline now returned early, so of course it built no runtime
+and spawned no threads.
+
+Both tests were asserting *absence of an effect*, and a new refusal produces that absence just as
+well as the behaviour under test. This is the third occurrence on this mission of the same trap —
+after the closed asyncio loop turning publishes into caught "send failed", and the exhausted
+`time.monotonic` list making the consent chain refuse. **Any test whose assertion is "X did not
+happen" needs to state why X would otherwise have happened**, or a new short-circuit upstream
+silently adopts it.
