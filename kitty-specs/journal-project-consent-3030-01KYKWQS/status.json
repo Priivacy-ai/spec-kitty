@@ -1,7 +1,7 @@
 {
-  "event_count": 37,
-  "last_event_id": "01KYR4XXVZ9SBRNN7Z97F2DP50",
-  "materialized_at": "2026-07-29T23:56:33.022779+00:00",
+  "event_count": 38,
+  "last_event_id": "01KYR6BR6Z3GMMDQHVFB00QSPZ",
+  "materialized_at": "2026-07-30T00:21:34.559417+00:00",
   "mission_number": "",
   "mission_slug": "journal-project-consent-3030-01KYKWQS",
   "mission_type": "software-dev",
@@ -11,8 +11,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 4
   },
@@ -153,15 +153,19 @@
       "agent": "implement-command",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 0,
-      "lane": "in_progress",
-      "last_event_id": "01KYR4XXVZ9SBRNN7Z97F2DP50",
-      "last_transition_at": "2026-07-29T23:56:33.022779+00:00",
+      "force_count": 1,
+      "lane": "for_review",
+      "last_event_id": "01KYR6BR6Z3GMMDQHVFB00QSPZ",
+      "last_transition_at": "2026-07-30T00:21:34.559417+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 143842,
-      "shell_pid_created_at": "1785369387.83"
+      "shell_pid_created_at": "1785369387.83",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done"
+      }
     },
     "WP08": {
       "actor": "finalize-tasks",
