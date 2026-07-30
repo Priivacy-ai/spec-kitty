@@ -2540,7 +2540,19 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/3-2-x-executive-overview.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/3-2-x-milestone-roadmap.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/3-2-x-open-core-delivery-plan.md
   tag: current
   divio_type: none
   owning_workstream: none
