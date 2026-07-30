@@ -169,3 +169,66 @@ and the reason is the more important half — the behaviour was reasoned about b
 observed, and a pin asserting what an author believes rather than what they measured is
 this mission's recurring failure mode. If the pin is wanted it needs a red-first cycle
 commissioned as work, not a comment claiming knowledge nobody has.
+
+## `--all` cannot compose from the per-project purges, and the reason is measured
+
+FR-017's `purge_all_events` (`d2ad9c8b5f`) is deliberately **its own read of both tables**
+rather than a loop over `distinct_project_uuids()` plus `purge_identity_less_events`. The
+strongest available union was run against a store seeded with every population, and three
+survived:
+
+```
+surviving journal : ['E-blank', 'E-whitespace']
+surviving ledger  : ['E-ghost']
+```
+
+1. **`project_uuid = ''`** — `distinct_project_uuids()` *returns* it (it is not NULL), but
+   `read_identity_projection` filters falsy uuids and `purge_project_events` blanks a falsy
+   selector to select-nothing, while `iter_rows_missing_identity` is `IS NULL`-only.
+   Measured: `purge('')` → `purged=0`.
+2. **`project_uuid = '   '`** — the worse one, and nobody predicted it. The projection *can*
+   return it (`projection(['   ']) → ['E-whitespace']`), but the purge strips its selector to
+   `''` and selects nothing. **Visible in the census, unreachable by any purge.**
+3. **A ledger row whose `event_id` has no journal row** — the union only ever collects ids
+   *from the journal*. Not hypothetical: `gc_payloads` in this same module deletes journal
+   rows while preserving ledger history **by design** (FR-010), so **every machine that has
+   run `sync gc` is in this state.**
+
+C-003 is respected because only *selection* differs — deletion still goes through the one
+shared `_purge` core, so there is no second DELETE path. The non-composability is **pinned**,
+so if a later change makes the union total, that test fails and the decision is revisited
+rather than silently outliving its reason.
+
+## NFR-006's differential was vacuous for one population
+
+`_journal_census` read its identity-less bucket from `count_missing_identity()` (`IS NULL`)
+while attributing every other row through a projection that **drops falsy uuids**. A
+`''`-uuid row was therefore counted in **neither** bucket: measured, `census sum = 5` against
+`count() = 6`.
+
+This matters far beyond a wrong total. **Every NFR-006 differential subtracts this census**,
+so a population absent from both buckets has a differential of zero *by construction* — a
+purge could move those rows and still report, truthfully by its own arithmetic, "0% of any
+other project's rows affected". The mission's own success metric was blind to the exact
+population most likely to be malformed.
+
+Fixed by deriving the bucket as `count() - attributed`. For the ordinary case the derived
+number equals `count_missing_identity()` exactly, so no existing report changes — the fix
+adds a population rather than restating one.
+
+## Two stores, deliberately not one transaction
+
+A failure injected between the two deletes leaves the **ledger** delete committed and the
+journal untouched. That is the recoverable direction — the ordering `_purge` already
+documents — and a re-run converges. Recorded as a **pinned observation** rather than a
+comment, because "this falls the safe way" is a claim that should fail loudly if the
+ordering is ever reversed.
+
+## One deliberate omission, recorded as a decision
+
+`purge_identity_less_events` still cannot remove a `''`-uuid row; only `--all` can. Widening
+it would mean widening `iter_rows_missing_identity`, whose `IS NULL` restriction is exactly
+what makes the backfill **idempotent** (NFR-004/SC-007). It therefore needs its own selector
+rather than a widened one, and belongs to whoever owns FR-011. The census fix above turns
+those rows from *invisible* into *observable-but-only-removable-by-`--all`*, which is
+strictly better and does not pretend to be complete.
