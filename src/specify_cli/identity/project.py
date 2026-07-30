@@ -110,20 +110,32 @@ class ProjectIdentity:
     def from_dict(cls, data: dict[str, Any]) -> ProjectIdentity:
         """Deserialize from dictionary.
 
+        The single parse site for a recorded identity — both directions go through
+        here, :func:`load_identity` to read and :func:`_identity_record_fault` to
+        decide whether a write may proceed — which is why the fix for #3030 FR-024
+        lives here rather than at each caller: ``load_identity`` has seven production
+        callers and patching them would have been six more places to forget.
+
         Args:
             data: Dictionary with optional 'uuid', 'slug', 'node_id', 'repo_slug', 'build_id' keys
 
         Returns:
-            ProjectIdentity instance
+            ProjectIdentity instance whose ``project_uuid`` is a ``UUID`` or ``None``
+            and whose remaining fields are ``str`` or ``None`` — never the raw type
+            YAML happened to resolve, which is what took out ``sync/routing.py``
+            from inside code that had every right to assume a string.
+
+        Raises:
+            ConfigNotUnderstoodError: If a recorded value cannot be understood (see
+                :func:`_identity_from_mapping`). ``load_identity`` converts this to
+                *absence* so its callers still cannot be raised at; the exception
+                exists so no other caller can silently receive an identity with a
+                value quietly dropped.
         """
-        uuid_str = data.get("uuid")
-        return cls(
-            project_uuid=UUID(uuid_str) if uuid_str else None,
-            project_slug=data.get("slug"),
-            node_id=data.get("node_id"),
-            repo_slug=data.get("repo_slug"),
-            build_id=data.get("build_id"),
-        )
+        identity, fault = _identity_from_mapping(data)
+        if fault is not None:
+            raise ConfigNotUnderstoodError(fault)
+        return identity
 
 
 def generate_project_uuid() -> UUID:
@@ -253,12 +265,20 @@ def is_writable(path: Path) -> bool:
 
 
 class ConfigNotUnderstoodError(RuntimeError):
-    """``config.yaml`` exists but cannot be parsed, or its top level is not a mapping.
+    """``config.yaml`` exists but cannot be understood as a config document.
 
-    Raised only by :func:`atomic_write_config`, and deliberately **not** by
+    Three ways, one notion: it cannot be parsed, its top level is not a mapping
+    (FR-023), or its ``project`` section records a value that cannot be understood
+    as the field it sits in (FR-024).
+
+    Escapes only from :func:`atomic_write_config`, and deliberately **not** from
     :func:`load_identity`: reading such a file yields no identity (the answer it
     already gave for a parse error), while *writing over* it is refused. One notion
     of "a config that cannot be understood", two directions.
+
+    :meth:`ProjectIdentity.from_dict` also raises it, as the single parse both
+    directions go through (FR-024), and ``load_identity`` catches it there — so the
+    read contract below is unchanged.
 
     ``load_identity``'s seven production callers therefore learn nothing new — a new
     exception nobody catches is a crash moved, not fixed — and this error is handled
@@ -291,6 +311,149 @@ def _config_shape_fault(config: object, config_path: Path) -> str | None:
     return None
 
 
+#: Types that are not text at all. ``str(CommentedMap(...))`` is a Python repr, and
+#: shipping one upstream as this project's slug is not "understanding" the file.
+_NON_TEXT_TYPES = (dict, list, set, tuple)
+
+
+def _text_value_or_fault(field: str, raw: object) -> tuple[str | None, str | None]:
+    """Return ``(text, fault)`` for one recorded identity value. Never raises.
+
+    ``(None, None)`` is **absence** — nothing was recorded there — and absence must
+    keep minting: a config with no ``node_id`` has not recorded one, it is not
+    broken. ``""`` and whitespace-only strip to absence for the same reason, and
+    because ``sync/consent.py`` already reads this very section as
+    ``str(raw).strip() or None``. Disagreeing with it about which uuid a config
+    declares would put two notions of the same file one function apart, which is
+    the C-003 failure this mission keeps closing.
+
+    YAML's implicit typing is **undone, not rejected**. Someone who hand-writes
+    ``node_id: 123456789012`` — about 1 in 281 generated node ids is all digits — or
+    a dash-less 32-hex ``uuid`` wrote text that the loader resolved to ``int``;
+    ``str`` recovers it exactly, and rejecting it would deny a healthy checkout.
+    (``atomic_write_config`` quotes such a value, verified, so this arrives from a
+    hand edit or another writer rather than from our own round-trip.)
+    """
+    if raw is None:
+        return (None, None)
+    if isinstance(raw, str):
+        return (raw.strip() or None, None)
+    if isinstance(raw, _NON_TEXT_TYPES):
+        return (
+            None,
+            f"project.{field} is not a text value (got {type(raw).__name__})",
+        )
+    return (str(raw).strip() or None, None)
+
+
+def _uuid_value_or_fault(raw: object) -> tuple[UUID | None, str | None]:
+    """Return ``(project_uuid, fault)`` for a recorded ``project.uuid``. Never raises.
+
+    The site #3030 FR-024 is about: ``UUID(uuid_str)`` ran here unguarded and
+    **outside** ``load_identity``'s ``try/except`` (which wrapped only the YAML
+    parse), so a valid mapping whose uuid could not be parsed sailed past FR-023's
+    top-level shape fence and raised out of a function documented to handle
+    malformed config gracefully. 11 of the 13 probed shapes crashed, in three
+    flavours — ``ValueError`` (``not-a-uuid``, ``<<<<<<< HEAD``, a padded uuid,
+    whitespace-only), ``AttributeError`` (``42``, ``1.5``, ``true``, a mapping, a
+    sequence), ``TypeError`` (``2026-07-30``) — out of ``load_identity``,
+    ``resolve_identity``, ``ensure_identity`` and **both** ``sync/routing.py`` entry
+    points. A merge conflict marker in a tracked, hand-edited file is a realistic
+    route to it.
+
+    Parsing to a ``UUID`` rather than keeping the text is what keeps ``''`` and
+    whitespace-only uuids unpersistable, which is the property FR-017 relies on when
+    it calls those journal populations unreachable from production writes.
+    """
+    text, fault = _text_value_or_fault("uuid", raw)
+    if fault is not None or text is None:
+        return (None, fault)
+    try:
+        return (UUID(text), None)
+    except (ValueError, TypeError, AttributeError) as exc:
+        return (None, f"project.uuid is not a UUID ({text!r}: {exc})")
+
+
+def _identity_from_mapping(project: dict[str, Any]) -> tuple[ProjectIdentity, str | None]:
+    """Parse a ``project`` section into ``(identity, fault)``. Never raises.
+
+    The parse behind :meth:`ProjectIdentity.from_dict`, which is the one route both
+    directions take, so "this identity record cannot be understood" cannot come to
+    mean two different things: :func:`load_identity` turns the fault into *absence*
+    (no identity, warned, no exception — the answer it already gave for a parse
+    error) and :func:`_identity_record_fault` turns the same fault into a refusal to
+    write over the record.
+
+    Every fault is reported, not just the first: a hand-merged file tends to carry
+    more than one, and an operator who fixes the uuid only to be denied again for
+    the ``node_id`` learns the tool is guessing.
+    """
+    project_uuid, uuid_fault = _uuid_value_or_fault(project.get("uuid"))
+    project_slug, slug_fault = _text_value_or_fault("slug", project.get("slug"))
+    node_id, node_fault = _text_value_or_fault("node_id", project.get("node_id"))
+    repo_slug, repo_fault = _text_value_or_fault("repo_slug", project.get("repo_slug"))
+    build_id, build_fault = _text_value_or_fault("build_id", project.get("build_id"))
+
+    faults = [
+        fault
+        for fault in (uuid_fault, slug_fault, node_fault, repo_fault, build_fault)
+        if fault is not None
+    ]
+    identity = ProjectIdentity(
+        project_uuid=project_uuid,
+        project_slug=project_slug,
+        node_id=node_id,
+        repo_slug=repo_slug,
+        build_id=build_id,
+    )
+    return (identity, "; ".join(faults) if faults else None)
+
+
+def _project_section(config: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
+    """Return ``(project mapping, fault)`` for a loaded config document.
+
+    ``(None, None)`` is absence: no ``project`` key, or an empty ``project:`` with
+    nothing under it. Both mean "no identity recorded yet" and must keep minting.
+    """
+    project = config.get("project")
+    if project is None:
+        return (None, None)
+    if not isinstance(project, dict):
+        return (
+            None,
+            f"'project' section is not a mapping (got {type(project).__name__})",
+        )
+    return (project, None)
+
+
+def _identity_record_fault(config: object, config_path: Path) -> str | None:
+    """Return why the identity recorded in *config* cannot be understood, or ``None``.
+
+    The write-side half of the question :func:`load_identity` answers on the read
+    side, asked through the same helpers so the two answers cannot drift apart.
+
+    One case deliberately answers ``None`` here while ``load_identity`` reads it as
+    absence: a ``project`` section that is not a mapping (``project: guard-suite``).
+    That is FR-023's recorded decision — read as absence, minted over — and it holds
+    no *field*, so there is nothing recorded for a write to destroy. Re-deciding it
+    one FR later, in the same module, is exactly the churn this mission is closing;
+    reported instead of changed.
+    """
+    shape_fault = _config_shape_fault(config, config_path)
+    if shape_fault is not None:
+        return shape_fault
+    if not isinstance(config, dict):
+        return None
+    project, _section_fault = _project_section(config)
+    if project is None:
+        return None
+    try:
+        ProjectIdentity.from_dict(project)
+    except ConfigNotUnderstoodError as exc:
+        return f"{config_path}: {exc}"
+    return None
+
+
 def _load_mapping_for_merge(config_path: Path, yaml: YAML) -> dict[str, Any]:
     """Load *config_path* as a mapping to merge into, or refuse.
 
@@ -308,7 +471,7 @@ def _load_mapping_for_merge(config_path: Path, yaml: YAML) -> dict[str, Any]:
             f"{config_path}: could not be parsed ({exc}); refusing to overwrite it"
         ) from exc
 
-    fault = _config_shape_fault(loaded, config_path)
+    fault = _identity_record_fault(loaded, config_path)
     if fault is not None:
         raise ConfigNotUnderstoodError(f"{fault}; refusing to overwrite it")
     # Returned as loaded, NOT copied into a plain dict: ruamel's round-trip loader
@@ -335,11 +498,16 @@ def atomic_write_config(config_path: Path, identity: ProjectIdentity) -> None:
 
     Raises:
         OSError: If write fails
-        ConfigNotUnderstoodError: If the file exists but cannot be parsed, or its
-            top level is not a mapping. Refusing is the point: the only way to
-            "succeed" would be to discard a document we could not read, taking the
-            operator's other sections with it. Nothing is written and no temp file
-            is created.
+        ConfigNotUnderstoodError: If the file exists but cannot be parsed, its top
+            level is not a mapping, or its ``project`` section records a value that
+            cannot be understood (#3030 FR-024). Refusing is the point: the only way
+            to "succeed" would be to discard what we could not read, taking the
+            operator's other sections with it — and for a corrupt ``uuid``
+            specifically, minting a new one silently orphans every journal row,
+            ledger row and consent-index entry still keyed on the old value, which
+            is precisely the data the operator's purge is supposed to reach.
+            Nothing is written and no temp file is created: the refusal happens
+            during the merge load, before ``mkstemp``.
     """
     yaml = YAML()
     yaml.preserve_quotes = True
@@ -372,13 +540,18 @@ def atomic_write_config(config_path: Path, identity: ProjectIdentity) -> None:
 def load_identity(config_path: Path) -> ProjectIdentity:
     """Load identity from config.yaml, returning empty if not found.
 
-    Handles malformed config gracefully with warning.
+    Handles malformed config gracefully with warning: this function **never raises**,
+    for any file content. Absent, unreadable, unparseable, not a mapping, and now a
+    recorded value that cannot be understood (#3030 FR-024) all resolve to the same
+    answer — no identity — because it stands in front of the sync policy gate, which
+    has to answer a boolean rather than take out its caller.
 
     Args:
         config_path: Path to config.yaml
 
     Returns:
-        ProjectIdentity (may have None fields if not found)
+        ProjectIdentity (may have None fields if not found). ``project_uuid`` is a
+        ``UUID`` or ``None``; the other fields are ``str`` or ``None``.
     """
     if not config_path.exists():
         return ProjectIdentity()
@@ -402,12 +575,29 @@ def load_identity(config_path: Path) -> ProjectIdentity:
         logger.warning(f"Invalid config.yaml; regenerating identity: {shape_fault}")
         return ProjectIdentity()
 
-    project = config.get("project", {})
-    if not isinstance(project, dict):
-        logger.warning("Invalid 'project' section in config.yaml; regenerating identity")
+    project, section_fault = _project_section(config)
+    if section_fault is not None:
+        logger.warning(
+            f"Invalid 'project' section in config.yaml; regenerating identity: {section_fault}"
+        )
+        return ProjectIdentity()
+    if project is None:
+        # Absence: no ``project`` key, or an empty section. Not a fault — denying on
+        # absence would deny every delivery on the machine.
         return ProjectIdentity()
 
-    return ProjectIdentity.from_dict(project)
+    # A recorded value that cannot be understood as its field gets the same answer as
+    # a parse error and a non-mapping top level: no identity, warned, no exception
+    # (#3030 FR-024). Raising instead would only move the crash — this function has
+    # seven production callers and two of them already wrap it in
+    # ``except Exception -> absence``, so a new exception nobody catches is no fix.
+    # Caught rather than pre-checked so the read goes through the same ``from_dict``
+    # the write direction consults; two routes into one parse is how they drift.
+    try:
+        return ProjectIdentity.from_dict(project)
+    except ConfigNotUnderstoodError as exc:
+        logger.warning(f"Invalid config.yaml; regenerating identity: {exc}")
+        return ProjectIdentity()
 
 
 def ensure_identity(repo_root: Path) -> ProjectIdentity:
