@@ -139,6 +139,48 @@ class GateKind(StrEnum):
     Each value names a field on :class:`GateContext`; evaluation reads that field.
     Gates are pure *data* — they never read globals/env — so the dispatcher can
     answer "are this receiver's gates satisfied?" uniformly (FR-014, §4 rule 1).
+
+    **There is deliberately no consent member (#3030 FR-001, declined 2026-07-30.)**
+    FR-001 asked for exactly that — "a new ``GateKind`` plus a consent port injected
+    into the dispatcher" — and spec.md names its absence the *first* root cause of the
+    2026-07-27 incident. It was audited and declined on three grounds, none of which
+    is "too hard":
+
+    1. **The per-project half is superseded, by an explicit decision.** A gate cannot
+       carry it: :class:`GateContext` is run-scoped booleans with no project
+       dimension, and :func:`evaluate_gates` yields one decision per receiver per
+       run. C-003 (2026-07-29) settled that project consent is represented **once**,
+       in selection, via the stored ``project_uuid`` column plus ``consent.py``'s
+       resolver. A ``GateKind`` would be the second representation C-003 forbids.
+    2. **The machine-level half already ships here, in a better form.** The one thing
+       a run-scoped gate *can* express is a whole-batch, pre-network abort — and
+       :func:`_cross_project_refusal` is that, in this module, at that position. It is
+       strictly better than a gate would have been: a blocked
+       :class:`GateDecision` is binary and has no per-event outcome vocabulary, so a
+       gate could only have aborted the drain. Read
+       :func:`_cross_project_refusal`'s note on why the refusal must be
+       ``TRANSIENT``: routing a locally-decided batch refusal to ``TERMINAL_FAILED``
+       permanently destroyed the *consented* project's events too, making the safety
+       net worse than the leak. A gate has no way to say "refuse this window without
+       parking these events".
+    3. **The one residual case is not computable, so a gate would be decoration.**
+       That case is real: when the machine-global consent index is unreadable or
+       corrupt, ``SyncConfig._load`` returns ``{}`` (its documented "missing or
+       invalid" behaviour), so every project on the machine resolves to
+       ``ConsentLevel.ABSENT`` with reason "no consent record" — a machine fault
+       silently reported as twenty projects that never opted in, and a drain that
+       delivers nothing while looking idle. But **no layer can currently tell
+       "unreadable" from "absent"**: the distinction is destroyed in ``_load``, below
+       both ``consent.py`` and this module. Nothing could populate a
+       ``consent_resolvable`` context field truthfully, so the gate would report a
+       fact no one can observe. Fixing that conflation in ``sync/config.py`` is the
+       prerequisite, and it is an observability defect, not a delivery gate.
+
+       Note the asymmetry: a resolver that *raises* already propagates out of
+       ``dispatch`` — loud, and not the gap. Only the swallowed-fault path is silent.
+
+    If that conflation is ever fixed, revisit — but as a reported abort, and only
+    after deciding what a blocked run does to the events it did not attempt.
     """
 
     SAAS_ENABLED = "saas_enabled"
