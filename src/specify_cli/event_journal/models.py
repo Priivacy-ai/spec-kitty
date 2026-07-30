@@ -373,11 +373,13 @@ __all__ = [
     "INSERT_SQL",
     "MARK_ARCHIVED_SQL",
     "OLDEST_CREATED_AT_SQL",
-    "ORDERED_COLUMNS",
+    # ORDERED_COLUMNS is not exported: it is this module's internal INSERT/SELECT
+    # column-order contract (``_COLUMN_LIST`` / ``_PLACEHOLDERS`` /
+    # ``event_to_params`` / ``row_to_event`` all consume it here), and nothing
+    # outside needs it. ``TABLE_NAME`` was listed twice; the duplicate is dropped.
     "SELECT_ALL_SQL",
     "SELECT_BLOCKED_SQL",
     "SELECT_BY_ID_SQL",
-    "TABLE_NAME",
     "event_to_params",
     "row_to_event",
 ]

@@ -239,14 +239,20 @@ def unselectable_identity_count(rows: Iterable[EventIdentityRow]) -> int:
     return sum(1 for row in rows if not row.project_uuid)
 
 
-# ``select_consented_event_ids`` is the module's only name with a real ``src/``
-# consumer (``delivery/dispatcher.py``); everything else here is used only within
-# this module or by tests. The symbol-level dead-code gate is a shrink-only ratchet,
-# so the advertised surface shrinks to match rather than the allowlist growing to
-# excuse it. All the trimmed names remain importable — notably
-# ``selectable_event_ids``, which the consent-resolver pin enters through, and
-# ``unselectable_identity_count``, which FR-011's report is expected to consume once
-# WP07's surface lands.
+# Only names with a real ``src/`` consumer are advertised; the symbol-level dead-code
+# gate is a shrink-only ratchet, so the advertised surface shrinks to match rather
+# than the allowlist growing to excuse it. Everything trimmed stays importable —
+# notably ``selectable_event_ids``, which the consent-resolver pin enters through,
+# plus ``is_terminally_blocked``, ``ConsentPredicate`` and the two drain-blocked
+# vocabularies, which are consumed inside this module and express the T003 decision
+# rather than a public API.
+#
+# Recomputed from the merged tree during the #3030 lane-f rebase rather than taken
+# from either side. ``unselectable_identity_count`` is now advertised: the HEAD side's
+# note said FR-011's report "is expected to consume [it] once WP07's surface lands",
+# and it has — ``delivery/status_report.build_per_project_store_report`` imports it, so
+# FR-011's count has one definition rather than two (C-003).
 __all__ = [
     "select_consented_event_ids",
+    "unselectable_identity_count",
 ]
