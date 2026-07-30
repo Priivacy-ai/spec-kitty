@@ -199,3 +199,55 @@ The blind spot is worth recording independently of how that particular question 
 (handed to WP12's reviewer, since a gate proven only on a path production never executes
 is a different and worse problem than dead code). Any guard that reasons about symbol
 liveness by AST will under-report wherever the codebase reaches attributes by name.
+
+## Mutation plugins rot, and an obsolete mutation is indistinguishable from a passing gate
+
+Five mutation plugins were built to prove this mission's acceptance pins load-bearing.
+By the time WP07's rebase landed, **three of the five were obsolete** — and two of those
+three would have been mis-reported as evidence by anyone reading tallies:
+
+| Plugin | What it looked like | What it was |
+|---|---|---|
+| `mutA_no_consent` | all green → "pin no longer discriminates" | H5 pushed the consent gate **into SQL**; `selectable_event_ids` is now only a redundant *second* gate, so patching it changes nothing |
+| `mutC_unfiltered` | all green | same cause, same now-secondary gate |
+| `mutB_limit_first` | 3 reds → "mutation works" | the reds are **`TypeError`** from the old `read_identity_projection` signature, not assertion failures |
+| `mutD`, `mutE` | 15 and 4 reds | genuinely valid |
+
+This is the worst failure shape in the whole mission, because it is **symmetrical**. An
+obsolete mutation that leaves everything green says "your pin is fine" in exactly the same
+voice as a mutation that proves the pin load-bearing. And one that reds for a structural
+reason says "the mutation works" in the same voice as one that reds on the invariant. The
+tool built to detect decoration became decoration.
+
+Replacements verified against the current architecture: `mutA2_no_consent_current.py`,
+`mutC2_unfiltered_current.py`. `mutA2` reds the X2 pin on a genuine assertion — *"a project
+that never consented must not have its event shipped… Both rows are drain-open, so consent
+is the only thing that can exclude this one"*.
+
+**Two rules for every future mutation, both structural rather than disciplinary:**
+
+1. **Assert the mutation took effect.** A plugin patching a renamed, re-signatured or
+   relocated symbol silently does nothing. The plugin must fail loudly when its target is
+   absent, so a no-op cannot masquerade as a clean gate.
+2. **Patch the primary decision point, not a redundant one.** Where a decision has been
+   pushed down a layer, mutating the upper layer proves nothing about the invariant. Ask
+   *where does this actually get decided now* before trusting either colour.
+
+And always read failure text over tallies — `mutB`'s three reds look like a working
+mutation right up until you see they are `TypeError`s.
+
+## A textually clean merge can still be a behavioural regression
+
+WP07's rebase produced code that **linted clean, contained zero conflict markers, and
+crashed at runtime** in two places: `read_identity_projection` had become
+`project_uuids`-mandatory (`TypeError` on every `sync doctor`/`status`/`migrate`), and
+repo-slug-keyed consent had been reverted (`TypeError` on
+`resolve_project_consent(..., repo_slug=)`). Both were found by **running** the report, not
+by reading the diff.
+
+Also recorded: an `__all__` conflict is a trap with no correct side. Both branches had
+trimmed theirs against different live callers, so each was locally right and the merge was
+wrong either way. The resolution is to recompute the union from *verified importers in the
+merged tree* — never to pick a side. A stale note claiming `resolve_project_consent` "has
+no production caller at all" was deleted rather than reworded, since
+`build_per_project_store_report` is now its first.
