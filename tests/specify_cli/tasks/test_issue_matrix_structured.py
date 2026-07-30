@@ -140,6 +140,13 @@ def _stub_write_artifact_committed(monkeypatch: pytest.MonkeyPatch) -> list[dict
 
     def _fake_write_artifact(**kwargs: object) -> write_seam.WriteSeamResult:
         calls.append(kwargs)
+        # WP06 (#3073 / T029): issue_matrix.py now passes stage=, not the
+        # historical pre-staged files= contract -- invoke it (mirroring
+        # what production write_artifact does after a successful probe) so
+        # callers asserting on the materialized file still observe it.
+        stage = kwargs.get("stage")
+        if callable(stage):
+            stage()
         return write_seam.WriteSeamResult(
             status="committed",
             entry_id=str(kwargs["entry_id"]),
@@ -187,7 +194,9 @@ class TestWriteIssueMatrix:
         call = calls[0]
         assert call["kind"] == MissionArtifactKind.ISSUE_MATRIX
         assert call["mission_slug"] == _MISSION_SLUG
-        assert call["files"] == (json_path,)
+        # WP06 (#3073 / T029): stage=, not the historical files= contract.
+        assert call.get("files") is None
+        assert callable(call["stage"])
         assert call["entry_id"] == "issue-verdict"
         assert call["primary_paths_created_this_invocation"] == frozenset({json_path})
 

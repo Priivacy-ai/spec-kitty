@@ -13,9 +13,10 @@ from __future__ import annotations
 
 import json
 import subprocess
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field, fields, replace
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from specify_cli.configured_command import ConfiguredCommandUnsupported, run_configured_command
 from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
@@ -23,6 +24,8 @@ from specify_cli.mission_metadata import mission_identity_fields, resolve_missio
 if TYPE_CHECKING:
     from specify_cli.acceptance.execution_context import GateExecutionContext
     from specify_cli.coordination.write_seam import ProtectionPolicyLike, WriteSeamResult
+
+_T = TypeVar("_T")
 
 CRITERION_VERDICTS = frozenset({"pass", "fail", "pending"})
 
@@ -59,6 +62,60 @@ VERDICT_PASS_PENDING_CONSOLIDATION = "pass_pending_consolidation"  # noqa: S105 
 # Stored as the ``LifecyclePhase.POST_CONSOLIDATION`` member NAME (a plain string)
 # so the matrix serialises without importing the phase enum into its storage.
 POST_CONSOLIDATION_PHASE_NAME = "POST_CONSOLIDATION"
+
+
+class AcceptanceMatrixParseError(ValueError):
+    """Raised by :meth:`AcceptanceMatrix.from_dict` on a malformed item (T021).
+
+    WP05 (post-merge-write-authoring-finish-01KYRRM5) / squad hardening
+    (renata M2): the crash this closes is ``AcceptanceMatrix.from_dict`` ->
+    ``NegativeInvariant.from_dict``/``AcceptanceCriterion.from_dict`` at load
+    time (the mgifford ``accept --diagnose`` defect — a crash BEFORE
+    diagnosis). ``read_acceptance_matrix``/``from_dict`` are SHARED by
+    ``acceptance/gates_core.py`` and ``coordination/post_consolidation.py``,
+    so ``from_dict`` deliberately does NOT drop the malformed item or decide
+    an exit code itself — silently accepting a partial matrix would change
+    gate behaviour (a partial matrix passing is worse than a crash). It
+    raises this TYPED error instead of an unhandled ``TypeError``/``KeyError``,
+    so the ONE caller equipped to report "which item, why" and choose an exit
+    code — the ``accept --diagnose`` CLI layer
+    (``cli/commands/accept.py::accept``) — can catch it. Every other caller
+    that does not catch it still fails loudly on malformed input, exactly as
+    before (gate behaviour for well-formed input, and the loud-failure
+    contract for malformed input, are both unchanged).
+    """
+
+    def __init__(self, *, section: str, item_index: int, reason: str) -> None:
+        self.section = section
+        self.item_index = item_index
+        self.reason = reason
+        super().__init__(f"{section}[{item_index}]: malformed shape ({reason})")
+
+
+def _parse_items(
+    raw_items: list[Any],
+    parser: Callable[[dict[str, Any]], _T],
+    *,
+    section: str,
+) -> list[_T]:
+    """Parse each raw dict via ``parser``, wrapping a shape failure per item (T021).
+
+    A per-dataclass ``from_dict`` failure (missing required field, wrong
+    type) surfaces as ``TypeError``/``KeyError`` from the dataclass
+    constructor. This translates it into the typed, item-addressable
+    :class:`AcceptanceMatrixParseError` WITHOUT dropping the item or
+    continuing past it — the caller decides what "malformed" means for its
+    context, this helper only makes the failure identifiable.
+    """
+    parsed: list[_T] = []
+    for idx, raw in enumerate(raw_items):
+        try:
+            parsed.append(parser(raw))
+        except (TypeError, KeyError) as exc:
+            raise AcceptanceMatrixParseError(
+                section=section, item_index=idx, reason=str(exc)
+            ) from exc
+    return parsed
 
 
 def _is_allowed_value(value: Any, allowed: frozenset[str]) -> bool:
@@ -230,20 +287,29 @@ class AcceptanceMatrix:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> AcceptanceMatrix:
+        """Reconstruct a matrix, raising :class:`AcceptanceMatrixParseError`
+        (T021) on a malformed ``criteria``/``negative_invariants`` item
+        instead of an unhandled ``TypeError`` — see that class's docstring
+        for why the drop/exit decision is NOT made here.
+        """
         kwargs, extras = _split_known_fields(cls, data, exclude={"overall_verdict"})
         identity = mission_identity_fields(
             data["mission_slug"],
             data.get("mission_number"),
             data.get("mission_type"),
         )
+        criteria = _parse_items(
+            data.get("criteria", []), AcceptanceCriterion.from_dict, section="criteria"
+        )
+        negative_invariants = _parse_items(
+            data.get("negative_invariants", []),
+            NegativeInvariant.from_dict,
+            section="negative_invariants",
+        )
         return cls(
             mission_slug=identity["mission_slug"],
-            criteria=[
-                AcceptanceCriterion.from_dict(c) for c in data.get("criteria", [])
-            ],
-            negative_invariants=[
-                NegativeInvariant.from_dict(ni) for ni in data.get("negative_invariants", [])
-            ],
+            criteria=criteria,
+            negative_invariants=negative_invariants,
             mission_number=kwargs.get("mission_number", identity["mission_number"]),
             mission_type=kwargs.get("mission_type", identity["mission_type"]),
             extras=extras,
@@ -309,21 +375,36 @@ def write_and_commit_acceptance_matrix(
     :func:`write_acceptance_matrix` directly; the real accept-commit path
     picks the resulting dirt up via ``cli/commands/accept.py``'s residual
     sweep, itself routed through this same seam.
+
+    WP05 (post-merge-write-authoring-finish-01KYRRM5) / T024 (#3073 no-residue
+    thunk): the on-disk write now happens INSIDE a ``stage=`` thunk passed to
+    :func:`~specify_cli.coordination.write_seam.write_artifact`, not
+    eagerly before it — mirrors ``retrospective/tracer_writer.py``'s WP04/T015
+    migration (the write-seam module docstring names this call site as one of
+    exactly three ``stage=`` migration candidates). ``write_artifact`` invokes
+    the thunk ONLY after its routability probe succeeds, so a refused write
+    (unroutable mission, off-checkout) never touches disk and leaves zero
+    untracked residue.
     """
     from mission_runtime import MissionArtifactKind
     from specify_cli.coordination.write_seam import write_artifact
     from specify_cli.git.protection_policy import ProtectionPolicy
 
-    path = write_acceptance_matrix(matrix_dir, matrix)
     resolved_policy = policy if policy is not None else ProtectionPolicy.resolve(repo_root)
+    matrix_path = matrix_dir / MATRIX_FILENAME
+
+    def _stage() -> tuple[Path, ...]:
+        return (write_acceptance_matrix(matrix_dir, matrix),)
+
     return write_artifact(
         repo_root=repo_root,
         mission_slug=mission_slug,
         kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
-        files=(path,),
+        stage=_stage,
         message=message,
         policy=resolved_policy,
         entry_id=entry_id,
+        primary_paths_created_this_invocation=frozenset({matrix_path}),
     )
 
 

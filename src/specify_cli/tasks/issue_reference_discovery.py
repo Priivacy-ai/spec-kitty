@@ -83,8 +83,9 @@ def discover_issue_references(feature_dir: Path) -> list[IssueReference]:
     Ordering is deterministic: the single-file artifacts in the fixed order
     above, then ``tasks/*.md`` sorted by filename, then ``contracts/*.md``
     sorted by filename. Within that scan order, the FIRST file+line a given
-    issue number appears in wins the ``first_line_context`` -- matching the
-    single-file function's existing first-occurrence contract.
+    issue number appears in wins both the ``first_line_context`` AND the
+    ``source_file`` (WP06 / T028, #1738) -- matching the single-file
+    function's existing first-occurrence contract, extended to provenance.
 
     Args:
         feature_dir: The mission's ``kitty-specs/<slug>/`` planning
@@ -105,12 +106,19 @@ def discover_issue_references(feature_dir: Path) -> list[IssueReference]:
     # relied on.
     from specify_cli.tasks.issue_matrix import IssueReference, detect_issue_references
 
-    seen: dict[int, str] = {}
+    # T028 (#1738): keyed by number, valued by (first_line_context,
+    # source_file) TOGETHER so the pair always travels from the same
+    # first-occurrence file -- never independently re-derived, which could
+    # otherwise mismatch context from one file against provenance from
+    # another.
+    seen: dict[int, tuple[str, str]] = {}
     for path in _iter_scan_paths(feature_dir):
         for ref in detect_issue_references(path):
             if ref.number not in seen:
-                seen[ref.number] = ref.first_line_context
-    return [IssueReference(num, ctx) for num, ctx in seen.items()]
+                seen[ref.number] = (ref.first_line_context, ref.source_file)
+    return [
+        IssueReference(num, ctx, source_file) for num, (ctx, source_file) in seen.items()
+    ]
 
 
 __all__ = ["discover_issue_references"]

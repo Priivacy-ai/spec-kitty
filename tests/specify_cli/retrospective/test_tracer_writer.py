@@ -240,7 +240,20 @@ class TestRoutesThroughWriteSeamHelper:
 
         assert result.status == "committed"
         assert captured["kind"] is MissionArtifactKind.TRACER_FILE
-        files = captured["files"]
+
+        # WP04 / T015 (#3073 no-residue thunk): tracer_writer now passes a
+        # ``stage=`` thunk, not pre-staged ``files=`` -- the mkdir+write_text
+        # moved INTO the thunk so a refused write never touches disk. This
+        # mock never routes through write_seam's real probe-before-stage
+        # locus, so it invokes the captured thunk directly to verify what it
+        # WOULD materialize (mirroring what write_artifact does internally
+        # after a successful probe).
+        assert "files" not in captured, (
+            "tracer_writer must pass stage=, not the historical files= contract"
+        )
+        stage = captured["stage"]
+        assert callable(stage)
+        files = stage()
         # golden-count: cardinality-is-contract -- the count merely asserts
         # "exactly one file staged"; the file's actual identity/content is
         # verified by the assertions immediately below (staged_path equality,
@@ -256,10 +269,13 @@ class TestRoutesThroughWriteSeamHelper:
             / "traces"
             / "design-decisions.md"
         )
-        assert staged_path.exists(), "the staged local file must exist on disk before commit"
+        assert staged_path.exists(), "invoking the thunk must materialize the local file on disk"
         assert "Chose X over Y because Z." in staged_path.read_text(encoding="utf-8")
         # Residue cleanup (R6): the staged local copy is eligible for post-stage
         # deletion so it never lingers as an untracked primary-checkout file.
+        # This is populated eagerly (independent of the thunk -- the intended
+        # local path is known before materialization), so it is already
+        # correct even before ``stage()`` above is invoked.
         assert captured["primary_paths_created_this_invocation"] == frozenset({staged_path})
 
     def test_result_is_the_write_seam_result_returned_verbatim(self, tmp_path: Path) -> None:

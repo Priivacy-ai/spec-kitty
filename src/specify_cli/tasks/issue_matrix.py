@@ -25,6 +25,17 @@ write, and the ONE canonical dir-based reader) lives in the sibling module
 The scaffold (:func:`scaffold_issue_matrix`) is **idempotent**: an existing
 matrix (either format, on whichever surface it resolves to) is never
 overwritten, so operator edits survive re-runs.
+
+post-merge-write-authoring-finish-01KYRRM5 WP06 (#1738 FR-012/FR-013)
+------------------------------------------------------------------------
+:func:`detect_issue_references` also recognises a **same-repo** GitHub
+issue URL (``https://github.com/Priivacy-ai/spec-kitty/issues/<n>``), not
+only ``#NNNN`` -- one regex, match-then-filter in Python (see
+``_CANONICAL_REPO_SLUG``); a cross-repo URL is matched but filtered before
+it can ever become an :class:`IssueReference`, so it cannot newly require a
+matrix row. Every discovered reference now also carries ``source_file``
+provenance (the basename of the file it was found in), round-tripped
+through :class:`IssueMatrixEntry`.
 """
 
 from __future__ import annotations
@@ -51,55 +62,110 @@ _SCAFFOLD_EVIDENCE_PLACEHOLDER = "<link or commit>"
 
 # Match ``#NNNN`` GH issue references with 2-6 digits, requiring a non-word
 # leading boundary (start-of-line, whitespace, ``(``, ``[``) and a non-word
-# trailing boundary (whitespace, ``)``, ``]``, ``,``, ``;``, ``.``, EOL).
+# trailing boundary (whitespace, ``)``, ``]``, ``,``, ``;``, ``.``, EOL); OR
+# a GitHub issue URL (``https://github.com/<owner>/<repo>/issues/<n>``,
+# owner/repo captured for the Python-side same-repo/cross-repo split below
+# -- FR-012, #1738). Anchored to ``/issues/`` ONLY -- a ``/pull/`` URL is
+# never treated as an issue reference. The URL arm's trailing boundary
+# additionally admits ``#`` (an anchor, e.g. ``#issuecomment-...``) and a
+# trailing ``/`` so those are captured rather than silently dropped.
 #
 # This deliberately rejects:
 #   * markdown anchor links like ``#section-name`` (alphabetical, not 2-6 digits)
 #   * heading markers like ``# Title`` (no digits)
 #   * tiny one-digit refs like ``#1`` (too few digits)
 #   * runs of seven-plus digits (out of GitHub's typical issue-number range)
+#   * ``/pull/<n>`` URLs (a PR is not an issue)
+#
+# The prefix alternation is written as a non-capturing OUTER group so the
+# hash arm's digit capture stays ``match.group(1)`` exactly as before (the
+# existing ``int(match.group(1))`` call keeps working unmodified) -- no new
+# capturing group is introduced ahead of it. The URL arm's digits land in
+# the named group ``url_number`` instead, since ``owner``/``repo`` must be
+# captured first to mirror the URL's own left-to-right shape.
 _GH_ISSUE_PATTERN = re.compile(
-    r"(?:^|\s|\(|\[)#(\d{2,6})(?=\s|\)|\]|,|;|\.|$)",
+    r"(?:^|\s|\(|\[)#(\d{2,6})(?=\s|\)|\]|,|;|\.|$)"
+    r"|"
+    r"https?://github\.com/(?P<owner>[\w.-]+)/(?P<repo>[\w.-]+)/issues/"
+    r"(?P<url_number>\d{2,6})(?=\s|\)|\]|,|;|\.|#|/|$)",
     re.MULTILINE,
 )
 
+# Canonical own-repo slug (``owner/repo``) used to distinguish same-repo
+# GitHub issue-URL references from cross-repo/prior-art URLs (FR-012,
+# #1738). Deliberately a hardcoded literal, NOT derived from the git
+# remote: ``detect_issue_references`` is a pure text parser that must stay
+# deterministic across the tmp-repo fixtures the test suite builds --
+# git-remote introspection would inject non-determinism and break them.
+# No canonical repo-slug constant existed elsewhere in the codebase to
+# reuse (D7 research finding); this is the single Python-side
+# discrimination point (match-then-filter), not a second regex.
+_CANONICAL_REPO_SLUG = "Priivacy-ai/spec-kitty"
+
+
+def _matched_issue_number(match: re.Match[str]) -> int | None:
+    """Extract the same-repo issue number from a ``_GH_ISSUE_PATTERN`` match.
+
+    Returns ``None`` for a cross-repo GitHub issue URL: the regex matches
+    ANY ``owner/repo``, and this is the single Python-side filter that keeps
+    a cross-repo URL from ever becoming an :class:`IssueReference` -- so it
+    cannot newly require an issue-matrix row / block the completeness gate
+    (SC-008).
+    """
+    if match.group(1) is not None:
+        return int(match.group(1))
+    if f"{match.group('owner')}/{match.group('repo')}" != _CANONICAL_REPO_SLUG:
+        return None
+    return int(match.group("url_number"))
+
 
 class IssueReference(NamedTuple):
-    """A single GH issue reference detected in a mission spec.
+    """A single GH issue reference detected in a mission artifact.
 
     Attributes:
         number: Issue number, e.g. ``1163``.
-        first_line_context: The first line in ``spec.md`` where the issue
-            appears, stripped of leading and trailing whitespace. Useful for
-            generating evidence hints in the matrix.
+        first_line_context: The first line in the source file where the
+            issue appears, stripped of leading and trailing whitespace.
+            Useful for generating evidence hints in the matrix.
+        source_file: Basename of the file the reference was discovered in
+            (e.g. ``"spec.md"``, ``"WP01.md"``) -- provenance for FR-013
+            (#1738).
     """
 
     number: int
     first_line_context: str
+    source_file: str
 
 
 def detect_issue_references(spec_md_path: Path) -> list[IssueReference]:
-    """Return the unique list of GH issue refs in spec.md, ordered by first appearance.
+    """Return the unique list of GH issue refs in a file, ordered by first appearance.
 
-    Skips refs that look like markdown anchor links (``#section-name``) and
-    requires the number to be 2-6 digits to avoid matching markdown headings
-    or trivial single-digit numerics.
+    Recognises ``#NNNN`` (2-6 digits) and same-repo GitHub issue URLs alike
+    (FR-012, #1738; see ``_GH_ISSUE_PATTERN``). Skips refs that look like
+    markdown anchor links (``#section-name``) and cross-repo/prior-art
+    issue URLs (never returned as a reference -- SC-008).
 
     Args:
-        spec_md_path: Filesystem path to the mission's ``spec.md`` file.
+        spec_md_path: Filesystem path to the mission artifact to scan (e.g.
+            ``spec.md``, a ``tasks/WP01.md`` file).
 
     Returns:
-        Ordered list of :class:`IssueReference` entries with no duplicates.
-        Empty list if ``spec_md_path`` contains no GH issue references.
+        Ordered list of :class:`IssueReference` entries with no duplicates,
+        each carrying ``spec_md_path.name`` as its ``source_file``. Empty
+        list if ``spec_md_path`` contains no (same-repo) GH issue
+        references.
     """
     text = spec_md_path.read_text(encoding="utf-8")
+    source_file = spec_md_path.name
     seen: dict[int, str] = {}
     for line in text.splitlines():
         for match in _GH_ISSUE_PATTERN.finditer(line):
-            num = int(match.group(1))
+            num = _matched_issue_number(match)
+            if num is None:
+                continue  # cross-repo URL -- filtered, never a reference (FR-012)
             if num not in seen:
                 seen[num] = line.strip()
-    return [IssueReference(num, ctx) for num, ctx in seen.items()]
+    return [IssueReference(num, ctx, source_file) for num, ctx in seen.items()]
 
 
 # ---------------------------------------------------------------------------
@@ -119,6 +185,7 @@ _ENTRY_FIELDS: tuple[str, ...] = (
     "nfr",
     "sc",
     "repo",
+    "source_file",
 )
 
 
@@ -144,6 +211,7 @@ class IssueMatrixEntry:
     nfr: str | None = None
     sc: str | None = None
     repo: str | None = None
+    source_file: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {name: getattr(self, name) for name in _ENTRY_FIELDS}
@@ -199,22 +267,33 @@ def write_issue_matrix(
     never a hand-rolled commit path (C-001/C-006). No ``issue-matrix.md`` is
     ever emitted by this writer (C-008).
 
-    ``feature_dir`` is written to locally first (the write-seam materialises
-    a coord copy and cleans up the primary residue for coord topologies --
-    see ``commit_router._stage_artifacts_in_coord_worktree`` R6).
+    ``feature_dir``'s local copy is materialized via a ``stage=`` thunk
+    (WP04 / #3073 / T029): :func:`write_artifact`'s single locus invokes it
+    ONLY after the routability probe succeeds, so a refused write never
+    touches disk and leaves zero untracked residue (the write-seam
+    materialises a coord copy and cleans up the primary residue for coord
+    topologies -- see ``commit_router._stage_artifacts_in_coord_worktree``
+    R6).
     """
     from specify_cli.coordination.write_seam import write_artifact
     from mission_runtime import MissionArtifactKind
 
     path = feature_dir / ISSUE_MATRIX_JSON_FILENAME
     document = build_issue_matrix_document(rows)
-    path.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    def _stage() -> tuple[Path, ...]:
+        # T029 (#3073): the write moves INTO the thunk so a refused write
+        # never materializes ``issue-matrix.json`` on disk (no residue).
+        path.write_text(
+            json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        return (path,)
 
     return write_artifact(
         repo_root=repo_root,
         mission_slug=mission_slug,
         kind=MissionArtifactKind.ISSUE_MATRIX,
-        files=(path,),
+        stage=_stage,
         message=f"chore: update issue-matrix for {mission_slug}",
         policy=policy,
         entry_id=actor,
@@ -287,6 +366,7 @@ def scaffold_issue_matrix(
             verdict=_SCAFFOLD_VERDICT_PLACEHOLDER,
             evidence_ref=_SCAFFOLD_EVIDENCE_PLACEHOLDER,
             title=_SCAFFOLD_TITLE_PLACEHOLDER,
+            source_file=ref.source_file,
         )
         for ref in refs
     }

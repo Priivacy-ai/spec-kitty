@@ -58,6 +58,26 @@ _PROTECTED_FLOW_ALLOWLISTS: dict[str, frozenset[str]] = {
     "UPGRADE_BOOKKEEPING": frozenset({_ENUM_HOME, "src/specify_cli/upgrade/autocommit.py"}),
     # No reachable caller today (S6 debt: wire or delete).
     "RELEASE_FLOW": frozenset({_ENUM_HOME}),
+    # post-merge-write-authoring-finish-01KYRRM5 WP04 (#3033 FR-003/FR-004):
+    # the ONE E2 (published) CONSOLIDATED-surface write flow -- a mission
+    # whose Target Ref has been deleted (published to trunk) commits its
+    # evidence to the repository-root checkout on the resolved Primary
+    # Branch instead. Two authorized call sites, each independently
+    # recognising the E2 CONSOLIDATED destination from PUBLIC signals ONLY
+    # (``coordination.write_seam.is_post_consolidation_write_target``) before
+    # asserting the capability -- never from message text or an ambient env
+    # var (C-GUARD-2): ``coordination/write_seam.py`` (the coord-partition
+    # write-seam bypass of the frozen, capability-less
+    # ``commit_router.commit_for_mission``) and
+    # ``cli/commands/safe_commit_cmd.py`` (the mission-aware PRIMARY-kind CLI
+    # path, ``spec-kitty safe-commit`` -- the #3033 canonical repro, C-006).
+    "POST_CONSOLIDATION_WRITE": frozenset(
+        {
+            _ENUM_HOME,
+            "src/specify_cli/coordination/write_seam.py",
+            "src/specify_cli/cli/commands/safe_commit_cmd.py",
+        }
+    ),
 }
 
 
