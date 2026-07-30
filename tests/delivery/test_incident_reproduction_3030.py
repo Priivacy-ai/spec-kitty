@@ -32,9 +32,18 @@ Note on why capture gating (T006) does not already satisfy this: T006 stops
 *new* non-consenting captures, but a real machine's journal already holds weeks
 of rows written before it landed — the incident's own 1,322 are still on disk —
 plus rows captured while a project was consented and later revoked. Those rows
-are seeded here through a capture gate that writes but leaves the row
-machine-blocked, which is exactly that population. The drain predicate is what
-must exclude them.
+are seeded here through a capture gate that is fully OPEN, which is exactly that
+population. The drain predicate is what must exclude them.
+
+Every project on this fixture's machine shares ONE fully open capture gate, so
+every seeded row is drain-open and per-project consent is the only signal that
+can exclude anything. That is asserted, not assumed, before each drain. It is
+also a correction: the non-consenting emitters previously used a gate reporting
+``saas_enabled=False``, whose rows got stamped ``sync_disabled`` — a *terminal*
+``drain_blocked_reason``. ``selection.py`` excluded them on that clause alone, so
+both pins in this file passed with the consent clause deleted from
+``selectable_event_ids`` (proved by mutation, 2026-07-30). ``tasks.md`` records
+that terminal filter as covering ZERO incident rows; the pins were resting on it.
 """
 from __future__ import annotations
 
@@ -96,33 +105,62 @@ def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[
     reset_coalesce_strategy()
 
 
-def _write_consent(home: Path) -> None:
-    """Consent for the ONE project; an explicit opt-out for one other.
+def _record_consent(*, granted: str, refused: str | None = None) -> None:
+    """Record consent **uuid-keyed**, for the one project that opted in.
 
-    The five silent repos are deliberately absent from this file entirely.
+    Keyed on ``project_uuid``, not on a repo slug. A repo-slug-keyed
+    ``[sync.repo_defaults]`` record is not a level of the consent chain (FR-019: it
+    is keyed on a mutable git remote, so a fresh clone or re-``git init`` would
+    inherit a grant nobody gave), and ``sync.consent.set_project_consent`` is what
+    ``enable_checkout_sync`` writes in production anyway — so this fixture now
+    records consent the same way the product does.
+
+    *refused* gets an explicit ``False``, which is a genuinely different population
+    from the five silent repos: those get no record at all, because absence of a
+    decision is what the incident turned on and it must deny on its own.
     """
-    lines = [f'[sync.repo_defaults."{CONSENTED_REPO}"]', "enabled = true", ""]
-    lines += [f'[sync.repo_defaults."{OPTED_OUT_REPO}"]', "enabled = false", ""]
-    (home / "config.toml").write_text("\n".join(lines), encoding="utf-8")
+    from specify_cli.sync.consent import set_project_consent
+
+    set_project_consent(granted, True)
+    if refused is not None:
+        set_project_consent(refused, False)
 
 
-def _captured_but_machine_blocked(_team_slug: str | None) -> CaptureGateState:
-    """Write the row, leave it machine-gate-blocked (pre-T006 history)."""
-    return CaptureGateState(
-        saas_enabled=False, checkout_enabled=True, authenticated=False, team_slug=None
-    )
+def _drain_open_gate(_team_slug: str | None) -> CaptureGateState:
+    """Every project's capture gate: fully open. Consent is the ONLY difference.
 
+    One gate for all six projects, deliberately. This is the incident's actual
+    machine state, and the fixture must reproduce it or the pins below measure
+    nothing. On 2026-07-27 the machine was armed (``SPEC_KITTY_ENABLE_SAAS_SYNC``
+    exported), authenticated, team-resolved, and routing was default-allow for the
+    five client repos — so their journal rows carried ``drain_blocked_reason=None``.
+    Nothing about machine *readiness* distinguished them from the consented
+    project's rows. The only difference was that nobody had ever opted them in.
 
-def _open_gate(_team_slug: str | None) -> CaptureGateState:
-    """A genuinely deliverable row for the consented project."""
+    The non-consenting emitters previously used a second gate returning
+    ``saas_enabled=False``, which made ``classify_drain_blocked_reason`` stamp their
+    rows ``sync_disabled`` — a reason ``delivery/selection.py`` classifies
+    **terminal**. Those rows were therefore excluded by the drain-blocked filter
+    alone and the consent clause never had to fire: three of this mission's four
+    acceptance pins still passed with consent stripped out of
+    ``selectable_event_ids`` entirely (verified by mutation). ``tasks.md`` says of
+    that terminal filter, "Covers ZERO incident rows — never treat as containment";
+    the fixture was resting on exactly it.
+
+    ``checkout_enabled=True`` so #3030 T006's capture refusal does not fire — the
+    rows must exist on disk for a *drain* predicate to be tested at all.
+    """
     return CaptureGateState(
         saas_enabled=True, checkout_enabled=True, authenticated=True, team_slug="team"
     )
 
 
-def _emitter(
-    *, project_slug: str, repo_slug: str | None, open_gate: bool
-) -> EventEmitter:
+def _emitter(*, project_slug: str | None, repo_slug: str | None) -> EventEmitter:
+    """An emitter for one project, with a fully open capture gate.
+
+    No ``open_gate`` switch any more: every project on this fixture's machine is
+    equally drain-open, so consent is the only variable the pins can be reading.
+    """
     from specify_cli.sync.emitter import EventEmitter
     from specify_cli.sync.git_metadata import GitMetadata
 
@@ -131,7 +169,7 @@ def _emitter(
         build_id=f"build-{project_slug}", project_uuid=uuid4(), project_slug=project_slug
     )
     em._get_git_metadata = lambda: GitMetadata(repo_slug=repo_slug)
-    em._capture_gate_state = _open_gate if open_gate else _captured_but_machine_blocked
+    em._capture_gate_state = _drain_open_gate
     return em
 
 
@@ -151,28 +189,31 @@ def _emit_batch(em: EventEmitter, *, n: int = EVENTS_PER_PROJECT) -> list[str]:
 
 def test_sc001_only_the_consented_project_is_delivered(tmp_path: Path) -> None:
     """SC-001: six projects, one consented — only that project's events ship."""
-    _write_consent(tmp_path)
-
     consented = _emitter(
-        project_slug="engagement-assistant", repo_slug=CONSENTED_REPO, open_gate=True
+        project_slug="engagement-assistant", repo_slug=CONSENTED_REPO
     )
+    opted_out = _emitter(
+        project_slug="explicitly-declined", repo_slug=OPTED_OUT_REPO
+    )
+    # Consent is recorded uuid-keyed, so it can only be written once the emitters
+    # exist and their project identities are known.
+    _record_consent(
+        granted=str(consented._identity.project_uuid),
+        refused=str(opted_out._identity.project_uuid),
+    )
+
     consented_ids = set(_emit_batch(consented))
 
     silent_ids: dict[str, set[str]] = {}
     for repo in SILENT_REPOS:
-        em = _emitter(
-            project_slug=repo.split("/")[1], repo_slug=repo, open_gate=False
-        )
+        em = _emitter(project_slug=repo.split("/")[1], repo_slug=repo)
         silent_ids[repo] = set(_emit_batch(em))
 
-    opted_out = _emitter(
-        project_slug="explicitly-declined", repo_slug=OPTED_OUT_REPO, open_gate=False
-    )
     opted_out_ids = set(_emit_batch(opted_out))
 
     # An identity-less capture: NFR-001 is a subset invariant because these
     # collapse to {None} and would satisfy a cardinality check while leaking.
-    identityless = _emitter(project_slug=None, repo_slug=None, open_gate=False)
+    identityless = _emitter(project_slug=None, repo_slug=None)
     identityless._identity = SimpleNamespace(
         build_id="build-anon", project_uuid=None, project_slug=None
     )
@@ -192,6 +233,24 @@ def test_sc001_only_the_consented_project_is_delivered(tmp_path: Path) -> None:
     assert all_seeded <= stored, (
         "every project's events must land in the same producer-scoped journal "
         "for this to reproduce the incident's shared-store premise"
+    )
+
+    # Second premise, and the one that makes this file's pins load-bearing: EVERY
+    # seeded row is drain-open. If any non-consenting row carried a terminal
+    # drain_blocked_reason, selection.py would exclude it on the drain-blocked
+    # clause alone and the leak assertion below would pass with consent stripped out
+    # of the predicate entirely — which is exactly how this file was fake-green.
+    # Asserted, not assumed, so a future fixture edit cannot quietly restore that.
+    blocked = {
+        e.event_id: e.drain_blocked_reason
+        for e in journal.read_all()
+        if e.event_id in all_seeded and e.drain_blocked_reason is not None
+    }
+    assert not blocked, (
+        "every seeded row must be drain-OPEN so that per-project consent is the "
+        f"only thing that can exclude it; these rows are gate-blocked: {blocked}. "
+        "A blocked row is excluded by the terminal drain_blocked_reason filter, "
+        "which tasks.md records as covering ZERO incident rows"
     )
 
     ledger = SqliteDeliveryLedger(":memory:")
@@ -239,20 +298,23 @@ def test_delivered_identities_are_a_subset_of_consented(tmp_path: Path) -> None:
     *identity*: ``delivered ⊆ consented`` **and** ``None ∉ delivered``. A
     cardinality check cannot express the second half.
     """
-    _write_consent(tmp_path)
-
     consented = _emitter(
-        project_slug="engagement-assistant", repo_slug=CONSENTED_REPO, open_gate=True
+        project_slug="engagement-assistant", repo_slug=CONSENTED_REPO
     )
     consented_uuid = str(consented._identity.project_uuid)
+    _record_consent(granted=consented_uuid)
     _emit_batch(consented)
 
     for repo in SILENT_REPOS:
-        _emit_batch(
-            _emitter(project_slug=repo.split("/")[1], repo_slug=repo, open_gate=False)
-        )
+        _emit_batch(_emitter(project_slug=repo.split("/")[1], repo_slug=repo))
 
     journal = get_journal(team_slug=None)
+
+    # Same drain-open premise as SC-001: without it the subset invariant is
+    # satisfiable by the terminal drain-blocked filter alone.
+    assert all(e.drain_blocked_reason is None for e in journal.read_all()), (
+        "every seeded row must be drain-open so consent is the only exclusion"
+    )
     ledger = SqliteDeliveryLedger(":memory:")
     registry = SqliteDeliveryTargetRegistry(":memory:")
     target = registry.register(

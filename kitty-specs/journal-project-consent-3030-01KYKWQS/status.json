@@ -37,8 +37,8 @@
       "shell_pid_created_at": "1785320274.44",
       "subtasks": {
         "T002": "done",
-        "T004": "done",
-        "T005": "done",
+        "T004": "planned",
+        "T005": "planned",
         "T009": "done"
       }
     },

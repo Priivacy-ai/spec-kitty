@@ -282,11 +282,13 @@ class EventJournal:
     ) -> int:
         """Write resolved identity for *entries* as one transaction.
 
-        Each entry is ``(event_id, project_uuid, project_slug)``. Returns the
-        number of rows actually updated. Only ever fills a NULL uuid — an
-        existing value is never overwritten, so a re-run cannot change a value
-        the selection predicate already trusts. Nothing else on the row is
-        touched (NFR-004), and no row is ever deleted (C-002).
+        Each entry is ``(event_id, project_uuid, project_slug, repo_slug)`` and the
+        write sets all three identity columns. Returns the number of rows actually
+        updated. Only ever fills a NULL uuid — ``SET_IDENTITY_SQL``'s
+        ``project_uuid IS NULL`` guard means an already-identified row is never
+        rewritten, so a re-run cannot change a value the selection predicate already
+        trusts. Nothing *outside the three identity columns* is touched (NFR-004),
+        and no row is ever deleted (C-002).
 
         Batched deliberately: a per-row commit over a 42-day history would be
         thousands of fsyncs, and a partial run must leave every remaining row

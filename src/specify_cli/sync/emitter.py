@@ -2087,9 +2087,18 @@ class EventEmitter:
             # Capture-first (FR-017, contract §2; SC-009): durably record the
             # Teamspace-bound fact in the producer-scoped event journal BEFORE
             # any delivery gate (validation, contract gate, project routing,
-            # WebSocket, drain) can decide whether to ship it. The journal write
-            # is unconditional; the gates only set the recorded
-            # drain_blocked_reason, never whether the durable write happens.
+            # WebSocket, drain) can decide whether to ship it.
+            #
+            # Capture-first is scoped to CONSENTING projects only (#3030 T006,
+            # NFR-005 as amended 2026-07-29). The write is therefore NOT
+            # unconditional: `_capture_to_journal` refuses it outright when the
+            # capture gate's `checkout_enabled` is False, because writing a
+            # non-consenting project's payload and merely stamping it with a
+            # `drain_blocked_reason` is what pooled every unrelated local
+            # project's data in one machine-global store. Every *other* gate
+            # still only sets the recorded `drain_blocked_reason` and never
+            # whether the durable write happens — consent is the single
+            # exception, and it is checked at the callee.
             self._capture_to_journal(
                 event_id=event_id,
                 event_type=event_type,

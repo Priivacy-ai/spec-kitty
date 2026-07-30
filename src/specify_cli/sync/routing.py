@@ -9,7 +9,7 @@ from specify_cli.core.paths import locate_project_root
 
 from .body_queue import OfflineBodyUploadQueue
 from .config import SyncConfig
-from .consent import set_project_consent
+from .consent import read_project_local_consent, set_project_consent
 from .git_metadata import GitMetadataResolver
 from specify_cli.identity.project import ProjectIdentity, load_identity, resolve_identity
 from .queue import OfflineQueue
@@ -80,7 +80,23 @@ def _build_checkout_sync_routing(repo_root: Path, identity: ProjectIdentity) -> 
         else None
     )
 
-    if local_sync_enabled is not None:
+    # Level 1 of the consent chain (``sync/consent.py``): the project's OWN
+    # ``.kittify/config.yaml`` ``sync.enabled`` key. Consulted first because it is the
+    # most specific and the only reviewable input — it lives in the repo it governs
+    # and shows up in a diff, where every record below it is machine-global state
+    # invisible to the project.
+    #
+    # This read is why the acceptance pins in
+    # ``tests/sync/test_sync_consent_default_deny.py`` mean anything. Until it landed,
+    # nothing in the tree read that key: the pins wrote ``sync.enabled`` and passed
+    # purely on the default-deny fall-through below, so flipping the fixture to an
+    # explicit ``sync.enabled: true`` grant left them green — they were not testing
+    # refusal-beats-grant at all.
+    project_local_sync_enabled = read_project_local_consent(repo_root)
+
+    if project_local_sync_enabled is not None:
+        effective_sync_enabled = project_local_sync_enabled
+    elif local_sync_enabled is not None:
         effective_sync_enabled = local_sync_enabled
     elif repo_default_sync_enabled is not None:
         effective_sync_enabled = repo_default_sync_enabled

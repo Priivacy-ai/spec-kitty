@@ -81,7 +81,16 @@ def _auto_start_enabled() -> bool:
 
 
 def _read_project_auto_start(project_root: Path) -> bool | None:
-    """Read the legacy project-local ``sync.auto_start`` flag when present."""
+    """Read the legacy project-local ``sync.auto_start`` flag when present.
+
+    ``sync.auto_start`` is NOT consent and must never be unified with
+    ``sync.enabled`` (``sync/consent.py``'s ``PROJECT_CONFIG_ENABLED_KEY``). It
+    answers "should the daemon start itself?" — a runtime convenience. ``sync.enabled``
+    answers "may this project's data leave the machine?". Collapsing the two would let
+    an autostart preference grant hosted-sync consent, which is the class of mistake
+    #3030 exists to close. They live in the same YAML section only for historical
+    reasons.
+    """
     config_path = project_root / ".kittify" / "config.yaml"
     if not config_path.exists():
         return None

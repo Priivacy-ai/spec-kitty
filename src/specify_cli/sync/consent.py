@@ -39,9 +39,20 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-#: Key for project-local consent inside ``.kittify/config.yaml``.
+#: Key for project-local consent inside ``.kittify/config.yaml``: ``sync.enabled``.
+#:
+#: Canonicalised on ``enabled`` (2026-07-30). Three spellings of one invariant had
+#: accumulated — ``sync.enabled`` (written by the acceptance pin, read by nothing),
+#: ``sync.hosted`` (read here, written by nothing) and ``sync.auto_start`` — which is
+#: exactly the "two representations of one invariant" C-003 forbids. ``enabled`` wins
+#: because it is the spelling the acceptance pin and an operator would both reach for.
+#:
+#: ``sync.auto_start`` (``sync/runtime.py``) is deliberately NOT unified into this:
+#: it answers "should the daemon start itself?", a runtime convenience, not "may this
+#: project's data leave the machine?". Conflating them would let a daemon-autostart
+#: preference grant hosted-sync consent.
 PROJECT_CONFIG_SYNC_SECTION = "sync"
-PROJECT_CONFIG_HOSTED_KEY = "hosted"
+PROJECT_CONFIG_ENABLED_KEY = "enabled"
 
 #: Marker retained on a path-keyed record whose checkout could not be resolved to
 #: a uuid. The predicate ignores these; FR-015 renders them so reported state and
@@ -54,17 +65,21 @@ class ConsentLevel(enum.StrEnum):
 
     PROJECT_LOCAL = "project_local"
     MACHINE_INDEX = "machine_index"
-    REPO_DEFAULT = "repo_default"
     ENV = "env"
     ABSENT = "absent"
 
 
 #: The chain, highest authority first. Declared once; never re-derived.
 #: ``ABSENT`` is not a level that can answer — it is the terminal default.
+#:
+#: There is deliberately no repo-slug-keyed level. One was added on 2026-07-30 and
+#: removed the same day: FR-019 exists to condemn that record precisely because it is
+#: keyed on a *mutable git remote*, so it cannot speak for a project. It also broke
+#: spec.md's recorded edge case that a re-``git init``ed repo "starts non-consented" —
+#: the stale repo default for the unchanged remote granted instead.
 PROJECT_CONSENT_PRECEDENCE: tuple[ConsentLevel, ...] = (
     ConsentLevel.PROJECT_LOCAL,
     ConsentLevel.MACHINE_INDEX,
-    ConsentLevel.REPO_DEFAULT,
     ConsentLevel.ENV,
 )
 
@@ -128,11 +143,26 @@ def _read_project_local(repo_root: Path) -> tuple[str | None, bool | None]:
     hosted = None
     section = data.get(PROJECT_CONFIG_SYNC_SECTION)
     if isinstance(section, dict):
-        raw_hosted = section.get(PROJECT_CONFIG_HOSTED_KEY)
+        raw_hosted = section.get(PROJECT_CONFIG_ENABLED_KEY)
         if isinstance(raw_hosted, bool):
             hosted = raw_hosted
 
     return (declared, hosted)
+
+
+def read_project_local_consent(repo_root: Path) -> bool | None:
+    """Read *repo_root*'s own ``sync.enabled`` decision. ``None`` means no decision.
+
+    The side-effect-free reader for level 1, for callers that resolve consent for the
+    checkout in front of them and so do not need the uuid chain. Unlike
+    :func:`resolve_project_consent` it never reconciles the machine-global index, so
+    ``resolve_checkout_sync_routing_readonly`` can use it and keep its promise not to
+    dirty any config.
+
+    Deliberately does not check the declared uuid: the caller already knows which
+    checkout it is asking about, and this file speaks for that checkout.
+    """
+    return _read_project_local(repo_root)[1]
 
 
 def _project_local_votes(
@@ -185,7 +215,6 @@ def resolve_project_consent(
     *,
     repo_root: Path | None = None,
     checkout_roots: list[Path] | None = None,
-    repo_slug: str | None = None,
 ) -> ConsentDecision:
     """Resolve hosted-sync consent for *project_uuid* down the one chain.
 
@@ -239,30 +268,13 @@ def resolve_project_consent(
             ),
         )
 
-    # Level 3 — the repo-slug-keyed default. This is where `sync enable
-    # --remember` has always written, so it is the only record a project may have
-    # when nothing uuid-keyed exists yet. Consulted below the uuid index because a
-    # uuid record is specific to the project while a repo default covers every
-    # checkout of a repo, and consulted above the env var because it is a real
-    # per-repo decision rather than machine-wide arming.
-    if repo_slug:
-        from .config import SyncConfig
-
-        repo_default = SyncConfig().get_repository_sync_enabled(repo_slug)
-        if repo_default is not None:
-            return ConsentDecision(
-                granted=repo_default,
-                level=ConsentLevel.REPO_DEFAULT,
-                project_uuid=uuid,
-                reason=(
-                    f"granted by the repo default for {repo_slug!r}"
-                    if repo_default
-                    else f"opted out by the repo default for {repo_slug!r}"
-                ),
-            )
-
-    # Level 4 — the env var, which cannot grant on its own. It is reached only to
+    # Level 3 — the env var, which cannot grant on its own. It is reached only to
     # be refused, so that the reason names the incident's actual mechanism.
+    #
+    # Nothing is consulted between the uuid index and here. In particular the
+    # repo-slug-keyed ``[sync.repo_defaults]`` record is NOT a level of this chain:
+    # it is keyed on a mutable git remote, so a fresh clone or a re-``git init``
+    # inherits a decision that was never made about it (FR-019).
     return ConsentDecision(
         granted=False,
         level=ConsentLevel.ABSENT,
@@ -294,7 +306,6 @@ def consented_project_uuids(
     candidates: list[str | None],
     *,
     checkout_roots: list[Path] | None = None,
-    repo_slugs: dict[str, str | None] | None = None,
 ) -> frozenset[str]:
     """Return the subset of *candidates* that consent — the drain's seam.
 
@@ -302,17 +313,18 @@ def consented_project_uuids(
     a subset invariant whose second half is ``None ∉ delivered``, and an event
     whose project cannot be identified can never be shown to belong to a
     consenting project.
+
+    ``checkout_roots`` are the checkouts the caller can offer for level 1. The drain
+    passes the checkout it is running in; a root that declares a *different* uuid is
+    ignored by :func:`_project_local_votes`, so offering extra roots can never widen
+    the answer.
     """
     granted: set[str] = set()
     for candidate in candidates:
         uuid = _normalize_uuid(candidate)
         if uuid is None or uuid in granted:
             continue
-        decision = resolve_project_consent(
-            uuid,
-            checkout_roots=checkout_roots,
-            repo_slug=(repo_slugs or {}).get(uuid),
-        )
+        decision = resolve_project_consent(uuid, checkout_roots=checkout_roots)
         if decision.granted:
             granted.add(uuid)
     return frozenset(granted)
@@ -370,18 +382,18 @@ def backfill_uuid_consent_index() -> ConsentBackfillResult:
     )
 
 
+# Only names with a real ``src/`` consumer are advertised — the symbol-level
+# dead-code gate (``tests/architectural/test_no_dead_symbols.py``) is a shrink-only
+# ratchet, and widening its allowlist to carry an aspirational surface is how a
+# module's ``__all__`` stops describing anything. Everything else in this module
+# stays importable; the list regrows as consumers actually land.
+#
+# Notably absent: ``resolve_project_consent``. It has no production caller at all —
+# the drain reaches it only through ``consented_project_uuids``, and no reporting
+# surface calls it yet. That is a real finding, not a packaging detail; trimming the
+# advertised surface records it honestly rather than hiding it behind an allowlist.
 __all__ = [
-    "PROJECT_CONFIG_HOSTED_KEY",
-    "PROJECT_CONFIG_SYNC_SECTION",
-    "PROJECT_CONSENT_PRECEDENCE",
-    "UNRESOLVED_MARKER",
-    "ConsentBackfillResult",
-    "ConsentDecision",
-    "ConsentLevel",
-    "UnresolvedConsentEntry",
-    "backfill_uuid_consent_index",
     "consented_project_uuids",
-    "get_project_consent",
-    "resolve_project_consent",
+    "read_project_local_consent",
     "set_project_consent",
 ]

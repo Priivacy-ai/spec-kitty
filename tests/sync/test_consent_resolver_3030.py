@@ -45,12 +45,19 @@ def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _checkout(tmp_path: Path, name: str, *, uuid: str, hosted: bool | None) -> Path:
-    """A checkout whose .kittify/config.yaml carries identity and consent."""
+    """A checkout whose .kittify/config.yaml carries identity and consent.
+
+    Writes ``sync.enabled`` — the one canonical project-local consent key as of
+    2026-07-30. It previously wrote ``sync.hosted``, a spelling nothing else in the
+    tree used; the acceptance pin in ``test_sync_consent_default_deny.py`` writes
+    ``sync.enabled``, and having both was C-003's "two representations of one
+    invariant".
+    """
     root = tmp_path / name
     (root / ".kittify").mkdir(parents=True, exist_ok=True)
     lines = ["project:", f"  uuid: {uuid}", f"  slug: {name}"]
     if hosted is not None:
-        lines += ["sync:", f"  hosted: {str(hosted).lower()}"]
+        lines += ["sync:", f"  enabled: {str(hosted).lower()}"]
     (root / ".kittify" / "config.yaml").write_text("\n".join(lines) + "\n")
     return root
 
@@ -215,6 +222,81 @@ def test_a_readable_checkout_corrects_a_stale_index(tmp_path: Path) -> None:
     assert resolve_project_consent(UUID_A).granted is False
 
 
+# --- FR-019: a repo slug is never an authorization key --------------------
+
+
+def test_repo_default_grant_does_not_consent_for_an_unrecorded_uuid(
+    tmp_path: Path,
+) -> None:
+    """The re-``git init`` / fresh-clone case: a repo default must NOT grant.
+
+    spec.md records the edge case explicitly — a re-initialised repo "starts
+    non-consented". A repo-slug-keyed ``[sync.repo_defaults]`` grant survives the
+    re-init untouched, because the git *remote* did not change; only the project
+    identity did. If that record were a level of the consent chain, the brand-new
+    uuid would resolve to *granted* on its first emit, having never been asked.
+
+    The same record covers every fresh clone of the repo, on any machine, for any
+    operator — which is precisely why FR-019 condemns "a record keyed on a mutable
+    git remote". A level for it existed briefly on 2026-07-30 and was removed.
+
+    Set up as the incident's own shape: the machine-global config carries an
+    ``enabled = true`` repo default, the project's uuid has no record anywhere, and
+    the answer must still be deny.
+    """
+    from specify_cli.sync.config import SyncConfig
+
+    repo_slug = "client-org/confidential-work"
+    SyncConfig().set_repository_sync_enabled(repo_slug, True)
+    assert SyncConfig().get_repository_sync_enabled(repo_slug) is True, (
+        "premise: the repo default really is recorded as a grant"
+    )
+
+    fresh_uuid = "dddddddd-0000-0000-0000-000000000004"
+    decision = resolve_project_consent(fresh_uuid)
+
+    assert decision.granted is False, (
+        "a repo-slug-keyed default must never grant consent for a project uuid "
+        "that has no record of its own: the slug is a mutable git remote (FR-019), "
+        "so a re-`git init`ed or freshly cloned project would inherit a decision "
+        "nobody made about it"
+    )
+    assert decision.level is ConsentLevel.ABSENT, (
+        "the decision must fall through to the terminal default, naming absence — "
+        "not report a repo-slug level as having answered"
+    )
+
+    # And the drain's seam must agree with the resolver, since that is the path
+    # delivery actually takes.
+    assert consented_project_uuids([fresh_uuid]) == frozenset(), (
+        "the drain predicate must reach the same answer as the resolver"
+    )
+
+    # The load-bearing half. The two assertions above cannot go red on their own
+    # under the reverted implementation, because there the repo slug had to be
+    # *passed in* and neither call passes one. The drain did pass one: the journal
+    # row carries repo_slug, and selection.py forwarded it into the resolver. So the
+    # pin has to enter through selection, or it pins nothing.
+    from specify_cli.delivery.selection import selectable_event_ids
+    from specify_cli.event_journal import EventIdentityRow
+
+    row = EventIdentityRow(
+        event_id="evt-fresh-clone",
+        created_at="2026-07-30T00:00:00Z",
+        project_uuid=fresh_uuid,
+        repo_slug=repo_slug,
+        # Drain-open: nothing about machine readiness may be doing this work.
+        drain_blocked_reason=None,
+    )
+
+    assert selectable_event_ids([row]) == [], (
+        "a drain-open row whose repo_slug carries an `enabled = true` repo default "
+        "must NOT be selectable while its project uuid has no consent record: that "
+        "is the fresh-clone/re-init grant FR-019 forbids, and the row's repo_slug "
+        "must never be forwarded to the consent chain as an authorization key"
+    )
+
+
 # --- the drain's seam -----------------------------------------------------
 
 
@@ -340,11 +422,12 @@ def test_precedence_order_is_pinned() -> None:
     assert PROJECT_CONSENT_PRECEDENCE == (
         ConsentLevel.PROJECT_LOCAL,
         ConsentLevel.MACHINE_INDEX,
-        # Added 2026-07-30: repo-slug-keyed defaults are where `sync enable
-        # --remember` has always written, so they are the only record many projects
-        # have. Below the uuid index (which is project-specific, where a repo
-        # default covers every checkout of a repo) and above the env var (a real
-        # per-repo decision, not machine-wide arming).
-        ConsentLevel.REPO_DEFAULT,
         ConsentLevel.ENV,
+    )
+    assert not hasattr(ConsentLevel, "REPO_DEFAULT"), (
+        "a repo-slug-keyed consent level was added on 2026-07-30 and removed the "
+        "same day: FR-019 condemns that record because it is keyed on a mutable git "
+        "remote. Re-adding it would make a fresh clone or a re-`git init`ed repo "
+        "inherit a grant nobody gave it — see "
+        "test_repo_default_grant_does_not_consent_for_an_unrecorded_uuid"
     )

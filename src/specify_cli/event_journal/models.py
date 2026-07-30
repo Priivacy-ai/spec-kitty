@@ -32,11 +32,20 @@ COL_DRAIN_BLOCKED_REASON = "drain_blocked_reason"
 # journal still knows nothing about *where* an event would be delivered.
 COL_PROJECT_UUID = "project_uuid"
 COL_PROJECT_SLUG = "project_slug"
-# The consent key in today's storage: machine-global consent is recorded as
-# ``[sync.repo_defaults."<repo_slug>"]``. Carried on the row so the drain can
-# resolve consent without standing in the checkout (#3030 WP06, operator decision
-# 2026-07-30). project_slug is derived and can collide, so it is reporting-only and
-# must never be used as an authorization key.
+# Reporting only. **Never an authorization key** (operator decision 2026-07-30).
+#
+# This column was briefly introduced as a consent key, on the reasoning that
+# machine-global consent is recorded as ``[sync.repo_defaults."<repo_slug>"]`` and
+# the drain could then resolve consent without standing in the checkout. That was
+# reverted: a repo slug is a *mutable git remote*, which is exactly the record FR-019
+# condemns. Keying consent on it means a fresh clone, a renamed remote or a
+# re-``git init``ed repo silently inherits a decision nobody made about it — and it
+# broke spec.md's recorded edge case that a re-initialised repo starts non-consented.
+#
+# The column stays because it is genuinely useful for the WP07 per-project report
+# (naming *which* repo a row came from). Consent is resolved from ``project_uuid``
+# alone, down the one chain in ``sync/consent.py``. Like ``project_slug``, this value
+# is derived, can collide, and must never gate delivery.
 COL_REPO_SLUG = "repo_slug"
 
 #: Columns added after the original 8-column schema shipped. ``_ensure_schema``

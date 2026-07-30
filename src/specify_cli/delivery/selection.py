@@ -33,6 +33,7 @@ capture taken before login. The split is *policy vs readiness*:
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Sequence
+from pathlib import Path
 
 from specify_cli.event_journal import (
     DRAIN_BLOCKED_DAEMON_LOCK,
@@ -68,16 +69,43 @@ TRANSIENT_DRAIN_BLOCKED_REASONS: frozenset[str] = frozenset(
 #: A consent predicate: given candidate uuids, return those that consent. Injected
 #: so the dispatcher stays free of a hard dependency on the sync package's
 #: resolution rules, mirroring how ``ReceiverGate`` is passed in as pure data.
-ConsentPredicate = Callable[[Sequence[str | None], dict[str, str | None]], frozenset[str]]
+#:
+#: Deliberately takes uuids and nothing else. It used to also receive a
+#: ``{uuid: repo_slug}`` map, which existed only to feed a repo-slug-keyed consent
+#: level; that level was removed (FR-019 — a mutable git remote cannot speak for a
+#: project), and the parameter went with it so the seam cannot re-acquire a second
+#: authorization key by accident.
+ConsentPredicate = Callable[[Sequence[str | None]], frozenset[str]]
 
 
-def _default_consent_predicate(
-    candidates: Sequence[str | None], repo_slugs: dict[str, str | None]
-) -> frozenset[str]:
-    """Resolve consent through WP05's single resolver."""
+def _default_consent_predicate(candidates: Sequence[str | None]) -> frozenset[str]:
+    """Resolve consent through WP05's single resolver.
+
+    Offers the checkout the drain is running in as a level-1 root, resolved **once
+    per drain** rather than per row. Without it the project-local
+    ``.kittify/config.yaml`` level is unreachable on every real drain — the resolver
+    would fall straight through to the machine-global index, and a committed,
+    reviewable in-repo refusal would silently not be honoured at delivery time.
+
+    A root that declares a different ``project_uuid`` is ignored by the resolver, so
+    passing the current checkout can only ever answer for its own project. When the
+    drain runs outside any checkout (the daemon's usual case) there is no root to
+    offer and the chain degrades to the index, then to deny — never to a grant.
+    """
     from specify_cli.sync.consent import consented_project_uuids
 
-    return consented_project_uuids(list(candidates), repo_slugs=repo_slugs)
+    return consented_project_uuids(list(candidates), checkout_roots=_drain_checkout_roots())
+
+
+def _drain_checkout_roots() -> list[Path]:
+    """The checkout the drain is running in, if it is running in one at all."""
+    try:
+        from specify_cli.core.paths import locate_project_root
+
+        root = locate_project_root(Path.cwd().resolve())
+    except Exception:  # noqa: BLE001 - an unreadable cwd is absence, not a decision
+        return []
+    return [root] if root is not None else []
 
 
 def is_terminally_blocked(reason: str | None) -> bool:
@@ -111,18 +139,13 @@ def selectable_event_ids(
     # purely for deterministic behaviour under a stubbed predicate.
     candidates: list[str | None] = []
     seen: set[str] = set()
-    repo_slugs: dict[str, str | None] = {}
     for row in materialised:
         uuid = row.project_uuid
         if uuid and uuid not in seen:
             seen.add(uuid)
             candidates.append(uuid)
-            # The consent key in today's storage. First row wins; rows of one
-            # project should agree, and a disagreement is not a licence to pick
-            # the permissive one.
-            repo_slugs[uuid] = row.repo_slug
 
-    consented = predicate(candidates, repo_slugs) if candidates else frozenset()
+    consented = predicate(candidates) if candidates else frozenset()
 
     return [
         row.event_id
@@ -138,11 +161,12 @@ def unselectable_identity_count(rows: Iterable[EventIdentityRow]) -> int:
     return sum(1 for row in rows if not row.project_uuid)
 
 
+# ``selectable_event_ids`` is the module's only name with a real ``src/`` consumer
+# (``delivery/dispatcher.py``); everything else here is used only within this module
+# or by tests. The symbol-level dead-code gate is a shrink-only ratchet, so the
+# advertised surface shrinks to match rather than the allowlist growing to excuse it.
+# All the trimmed names remain importable — notably ``unselectable_identity_count``,
+# which FR-011's report is expected to consume once WP07's surface lands.
 __all__ = [
-    "TERMINAL_DRAIN_BLOCKED_REASONS",
-    "TRANSIENT_DRAIN_BLOCKED_REASONS",
-    "ConsentPredicate",
-    "is_terminally_blocked",
     "selectable_event_ids",
-    "unselectable_identity_count",
 ]

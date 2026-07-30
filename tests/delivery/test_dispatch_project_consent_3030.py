@@ -18,13 +18,23 @@ with TWO distinct project identities that land in the SAME shared journal —
 the shared-journal premise is the point, not an accident, and is asserted
 explicitly below before the drain even runs.
 
-Consent bookkeeping (``~/.spec-kitty/config.toml`` -> ``[sync.repo_defaults]``,
-same shape as ``tests/sync/test_sync_consent_default_deny.py:203-207``) is
-recorded for the FIRST project only. The second project deliberately has NO
-entry at all — not an explicit opt-out — because a predicate that reads
-absence-of-a-decision as consent is the actual defect this incident turned on
-(#3031); an explicit opt-out fixture would pass today's code while the real
-leak (silence, not refusal) sailed through.
+Consent is recorded for the FIRST project only, **keyed on its ``project_uuid``**
+via ``sync.consent.set_project_consent`` — the same write ``enable_checkout_sync``
+performs in production. It is deliberately not a ``[sync.repo_defaults]`` entry:
+a repo slug is a mutable git remote, so a grant recorded against it covers every
+fresh clone and survives a re-``git init`` (FR-019).
+
+The second project deliberately has NO entry at all — not an explicit opt-out —
+because a predicate that reads absence-of-a-decision as consent is the actual
+defect this incident turned on (#3031); an explicit opt-out fixture would pass
+today's code while the real leak (silence, not refusal) sailed through.
+
+Both emitters share ONE fully open capture gate, so both journal rows carry
+``drain_blocked_reason=None`` and consent is the only signal that can separate
+their outcomes. That is asserted before the drain runs. Corrected 2026-07-30:
+the non-consenting row used to be left machine-gate-blocked, which stamped it
+``sync_disabled`` — a *terminal* reason ``selection.py`` excludes on its own — so
+this pin passed with the consent clause deleted from ``selectable_event_ids``.
 
 Distinct from, and orthogonal to, the sibling
 ``tests/delivery/test_dispatch_honours_drain_blocked_3031.py`` (#3031 Defect
@@ -92,22 +102,21 @@ def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[
     reset_coalesce_strategy()
 
 
-def _write_consent_for_first_project_only(spec_kitty_home: Path) -> None:
-    """Record hosted-sync consent for ONE project only, in machine-global config.
+def _record_consent_for_first_project_only(project_uuid: str) -> None:
+    """Record hosted-sync consent for ONE project only, keyed on its ``project_uuid``.
 
-    Shape matches ``tests/sync/test_sync_consent_default_deny.py:203-207``
-    (``[sync.repo_defaults."<repo-slug>"]`` / ``enabled = true``).
-    ``SPEC_KITTY_HOME`` is used verbatim as the runtime-root base
-    (``paths/windows_paths.py:65-68`` — "the env path is not suffixed with
-    .spec-kitty"), so the config file lands at ``$SPEC_KITTY_HOME/config.toml``
-    directly. The second project gets NO entry — absence, not an explicit
-    opt-out.
+    Uuid-keyed via ``sync.consent.set_project_consent`` — what
+    ``enable_checkout_sync`` writes in production. It previously wrote
+    ``[sync.repo_defaults."<repo-slug>"]``, which is not a level of the consent chain
+    at all: a repo slug is a mutable git remote, so a grant recorded against it
+    covers every fresh clone and survives a re-``git init`` (FR-019).
+
+    The second project gets NO entry — absence of a decision, not an explicit
+    opt-out, which is the population the incident turned on.
     """
-    config_path = spec_kitty_home / "config.toml"
-    config_path.write_text(
-        f'[sync.repo_defaults."{_CONSENTING_REPO_SLUG}"]\nenabled = true\n',
-        encoding="utf-8",
-    )
+    from specify_cli.sync.consent import set_project_consent
+
+    set_project_consent(project_uuid, True)
 
 
 def _stub_emitter(
@@ -142,42 +151,34 @@ def _stub_emitter(
     return em
 
 
-def _captured_but_machine_blocked_gate(_team_slug: str | None) -> CaptureGateState:
-    """A gate that captures the row but leaves it machine-gate-blocked.
-
-    ``checkout_enabled=True`` so #3030 T006's capture refusal does not fire —
-    this row must exist on disk for the drain predicate to be tested at all.
-    ``saas_enabled=False`` so ``classify_drain_blocked_reason`` still stamps it,
-    keeping the two rows distinguishable.
-
-    Real-world equivalent: any row written before T006 landed, or written while
-    the project was consented and since revoked. Both are populations the drain
-    must still exclude by *consent record*, independently of capture.
-    """
-    return CaptureGateState(
-        saas_enabled=False, checkout_enabled=True, authenticated=False, team_slug=None
-    )
-
-
 def _open_capture_gate(_team_slug: str | None) -> CaptureGateState:
-    """Force one emitter instance's journal-capture gate fully open.
+    """The capture gate for BOTH emitters: fully open. Consent is the only variable.
 
-    Real-world equivalent: a checkout that IS SaaS-enabled, authenticated,
-    and team-resolved — i.e. genuinely ready to ship, unlike its sibling
-    checkout on the same machine. This is an instance-level override
-    (mirrors the ``_get_git_metadata`` override above) rather than a further
-    ``is_saas_sync_enabled`` patch, because every real capture gate
-    (``EventEmitter._capture_gate_state``) is machine-global in the current
-    implementation — see ``test_dispatch_honours_drain_blocked_3031.py`` — so
-    there is no real per-process knob that would open the gate for one
-    project's checkout and not the other's. Overriding it per-instance here
-    keeps both events on the SAME producer-scoped journal (``get_journal`` is
-    still keyed on ``team_slug=None`` for both, since ``is_saas_sync_enabled``
-    stays patched ``False`` at module scope) while giving the two rows
-    different ``drain_blocked_reason`` values, so the sibling #3031 file's
-    "any drain_blocked_reason row must never ship" rule and this file's
-    "the consenting event must ship" rule no longer collide (Defect (a) in
-    the fold that produced this fixture).
+    Real-world equivalent, and the incident's own state: a machine that IS
+    SaaS-enabled, authenticated and team-resolved, with routing default-allow. Both
+    checkouts on it are equally ready to ship; the only difference is that one
+    project has a consent record and the other has none.
+
+    This is an instance-level override (mirroring the ``_get_git_metadata`` override
+    above) rather than a further ``is_saas_sync_enabled`` patch, because every real
+    capture gate (``EventEmitter._capture_gate_state``) is machine-global in the
+    current implementation — see ``test_dispatch_honours_drain_blocked_3031.py``. The
+    per-instance override keeps both events on the SAME producer-scoped journal
+    (``get_journal`` is still keyed on ``team_slug=None`` for both, since
+    ``is_saas_sync_enabled`` stays patched ``False`` at module scope).
+
+    ``checkout_enabled=True`` so #3030 T006's capture refusal does not fire — the
+    rows must exist on disk for a *drain* predicate to be tested at all.
+
+    Corrected 2026-07-30. The non-consenting emitter previously used a second gate
+    returning ``saas_enabled=False``, on the reasoning that giving the two rows
+    *different* ``drain_blocked_reason`` values kept them "distinguishable". It did
+    the opposite: ``classify_drain_blocked_reason`` stamped that row
+    ``sync_disabled``, which ``delivery/selection.py`` classifies **terminal**, so
+    the row was excluded by the drain-blocked clause and the consent clause never had
+    to fire. Mutation testing confirmed this pin still passed with consent stripped
+    out of ``selectable_event_ids`` entirely. Identical gates are what make consent
+    load-bearing.
     """
     return CaptureGateState(
         saas_enabled=True,
@@ -194,14 +195,16 @@ def test_consenting_project_leaks_sibling_project_event_through_shared_journal(
 
     #3030 (per-project consent) — orthogonal to the rescoped
     ``test_dispatch_honours_drain_blocked_3031.py`` (#3031 Defect 5,
-    machine-global drain-blocked-reason filtering). The consenting emitter's
-    capture gate is forced open below (``_open_capture_gate``) so its journal
-    row carries ``drain_blocked_reason=None``, while the non-consenting
-    emitter's row stays machine-gate-blocked (``is_saas_sync_enabled`` is
-    patched ``False`` for the whole process, and its gate is left
-    unoverridden). That keeps this file's "the consenting event must ship"
-    demand from ever colliding with the sibling's "any drain-blocked row must
-    never ship" demand — the two rows are no longer classified identically.
+    machine-global drain-blocked-reason filtering). BOTH emitters' capture gates
+    are forced open below (``_open_capture_gate``), so both journal rows carry
+    ``drain_blocked_reason=None`` and the *only* difference between them is that
+    one project's uuid has a consent record and the other's has none.
+
+    That does not collide with the sibling's "any drain-blocked row must never
+    ship" demand: neither row here is drain-blocked, so the sibling's rule has
+    nothing to say about this population. The two files partition cleanly —
+    the sibling owns machine-readiness exclusion, this file owns consent
+    exclusion — rather than needing the rows classified differently to coexist.
 
     Reds today: the dispatcher ships BOTH events. The journal has no project
     scoping at all (only ``user_id``/``team_slug``), and the drain never
@@ -216,36 +219,36 @@ def test_consenting_project_leaks_sibling_project_event_through_shared_journal(
     from specify_cli.sync import emitter as emitter_mod
 
     monkeypatch.setattr(emitter_mod, "is_saas_sync_enabled", lambda: False)
-    _write_consent_for_first_project_only(tmp_path)
 
     consenting = _stub_emitter(
         project_slug="engagement-assistant",
         build_id="engagement-build-1",
         repo_slug=_CONSENTING_REPO_SLUG,
     )
-    consenting._capture_gate_state = _open_capture_gate
     nonconsenting = _stub_emitter(
         project_slug="client-confidential", build_id="confidential-build-1"
     )
-    # #3030 T006 now refuses the journal WRITE when the capture gate's
-    # checkout_enabled is False, so this emitter needs a gate that still
-    # captures — otherwise the shared-journal premise below can never hold and
-    # this pin would fail on its own setup rather than on the leak.
+    _record_consent_for_first_project_only(str(consenting._identity.project_uuid))
+
+    # BOTH emitters get the same fully open capture gate. #3030 T006 refuses the
+    # journal WRITE when the capture gate's checkout_enabled is False, so the
+    # non-consenting emitter needs a gate that still captures — otherwise the
+    # shared-journal premise below can never hold and this pin would fail on its own
+    # setup rather than on the leak.
     #
-    # That is not a weakening of the fixture: it is the population this pin
-    # exists for. T006 stops *new* non-consenting captures, but the journal on a
-    # real machine already holds weeks of rows written before it landed (the
-    # incident's own 1,322 are still on disk), plus rows captured while a project
-    # was consented and later revoked. Those rows must still be excluded at drain
-    # time, which is exactly FR-007/FR-008's job. Capture gating does not retire
-    # the drain predicate.
+    # That is not a weakening of the fixture: it is the population this pin exists
+    # for. T006 stops *new* non-consenting captures, but the journal on a real
+    # machine already holds weeks of rows written before it landed (the incident's own
+    # 1,322 are still on disk), plus rows captured while a project was consented and
+    # later revoked. Those rows must still be excluded at drain time, which is exactly
+    # FR-007/FR-008's job. Capture gating does not retire the drain predicate.
     #
-    # The two signals are distinct: the capture gate is machine-global (see
-    # _open_capture_gate), while this pin's notion of non-consent is the absent
-    # repo_slug consent RECORD the drain must resolve. saas_enabled stays False
-    # so the row is still genuinely machine-gate-blocked, preserving the
-    # distinguishability premise asserted below.
-    nonconsenting._capture_gate_state = _captured_but_machine_blocked_gate
+    # The gates are deliberately IDENTICAL. The capture gate is machine-global, while
+    # this pin's notion of non-consent is the absent uuid-keyed consent RECORD the
+    # drain must resolve — so the two rows must be indistinguishable on every machine
+    # signal, leaving consent as the only thing that can separate their outcomes.
+    consenting._capture_gate_state = _open_capture_gate
+    nonconsenting._capture_gate_state = _open_capture_gate
 
     consenting_envelope = consenting._emit(
         event_type="ErrorLogged",
@@ -274,23 +277,29 @@ def test_consenting_project_leaks_sibling_project_event_through_shared_journal(
         "for this test to exercise the real cross-project leak"
     )
 
-    # Distinguishability premise, asserted before the drain runs: the two
-    # rows must NOT collide on drain_blocked_reason (that collision was the
-    # earlier defect that made this file and the #3031 sibling mutually
-    # unsatisfiable) — the consenting row is genuinely open, the
-    # non-consenting row is genuinely blocked, and consent resolution must
-    # be what separates their outcomes below, not drain_blocked_reason alone.
+    # Indistinguishability premise, asserted before the drain runs: the two rows must
+    # be IDENTICAL on drain_blocked_reason — both open — so that consent is provably
+    # the only thing that can separate their outcomes below.
+    #
+    # This assertion was inverted on 2026-07-30. It used to require the non-consenting
+    # row to carry a NON-null drain_blocked_reason, while claiming in its own message
+    # that "consent — not drain_blocked_reason — is the only thing distinguishing the
+    # two events". Those two statements contradict each other, and the code was the
+    # one telling the truth: the reason it stamped was ``sync_disabled``, which
+    # ``delivery/selection.py`` treats as **terminal**, so the row was excluded
+    # without consent being consulted at all. Mutation testing confirmed this pin
+    # passed with the consent clause deleted from ``selectable_event_ids``. A shared
+    # drain_blocked_reason of None is what makes the claim true rather than merely
+    # asserted.
     rows_by_id = {event.event_id: event for event in journal.read_all()}
     assert rows_by_id[consenting_envelope["event_id"]].drain_blocked_reason is None, (
         "the consenting row's capture-gate override must have produced an "
         "open (drain_blocked_reason=None) journal row"
     )
-    assert (
-        rows_by_id[nonconsenting_envelope["event_id"]].drain_blocked_reason is not None
-    ), (
-        "the non-consenting row must remain machine-gate-blocked so this "
-        "test's premise is that consent — not drain_blocked_reason — is the "
-        "only thing distinguishing the two events"
+    assert rows_by_id[nonconsenting_envelope["event_id"]].drain_blocked_reason is None, (
+        "the non-consenting row must ALSO be drain-open. If it carries any "
+        "drain_blocked_reason, selection.py's terminal filter excludes it on its own "
+        "and this pin stops testing consent — which is exactly how it was fake-green"
     )
 
     ledger = SqliteDeliveryLedger(":memory:")

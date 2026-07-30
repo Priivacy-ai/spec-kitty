@@ -776,14 +776,16 @@ _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[SymbolKey] = frozenset(
         # specify_cli.event_journal.coalesce::read_supersede_markers
         SymbolKey("read_supersede_markers", "5aef05a234dd7a63b420970cc73a1d2cdf3b2b2acf8aa65add08722b4a5d2905"),
         SymbolKey("JOURNAL_SUBDIR", "43ec497396ce60afcd8ef2916a2646172c1c3775c05813cb212642144d8e1d62"),  # specify_cli.event_journal.journal::JOURNAL_SUBDIR
-        # specify_cli.event_journal.models::ORDERED_COLUMNS — re-keyed for #3030
-        # T012, which appended project_uuid/project_slug. Content-tier keys are
-        # deliberately hash-bound, so amending the tuple re-opens the entry for
-        # adjudication rather than letting a stale grant cover new content. The
-        # grant itself is unchanged: the constant is consumed inside models.py by
-        # _COLUMN_LIST/_PLACEHOLDERS (hence no cross-module import), and it is
-        # exported because it is the journal's canonical column-order contract.
-        SymbolKey("ORDERED_COLUMNS", "0d9d86f9b0e7842166990164bc6de3e8d91d593a4a152eaa25fc27662b57267c"),  # specify_cli.event_journal.models::ORDERED_COLUMNS
+        # specify_cli.event_journal.models::ORDERED_COLUMNS — re-keyed AGAIN for
+        # #3030, which appended repo_slug after the T012 re-key below had already
+        # accounted for project_uuid/project_slug. The hash-bound content tier did
+        # exactly its job: appending a column re-opened the entry instead of letting
+        # the previous grant silently cover new content, which is why this gate went
+        # red on the mission branch. Re-adjudicated on the same unchanged grounds,
+        # NOT widened: the constant is consumed inside models.py by
+        # _COLUMN_LIST/_PLACEHOLDERS (so no cross-module import can ever exist), and
+        # it is exported because it is the journal's canonical column-order contract.
+        SymbolKey("ORDERED_COLUMNS", "3054068a5131fb488635e1418800da7b405aed699671821becafd2573d9489c7"),  # specify_cli.event_journal.models::ORDERED_COLUMNS
         SymbolKey("KNOWN_PREFIX", "98ecae0739efcb4413e222ecc96031896d1c57e85b9bf934884cbbdb1b2bb838"),  # specify_cli.sync.migrate_journal::KNOWN_PREFIX
         SymbolKey("LEGACY_DIGEST", "170c1daeecd9635cf72713656060e38404f956d4305108275d591c11ecb86d29"),  # specify_cli.sync.migrate_journal::LEGACY_DIGEST
         SymbolKey("MIGRATION_NOTE", "5ed3a197746b627274ddde481632dffb952714f486217193e06475ec10ea466d"),  # specify_cli.sync.migrate_journal::MIGRATION_NOTE
