@@ -257,14 +257,23 @@ def append_tracer_finding(
     )
 
     local_path = _local_staging_path(repo_root, mission_slug, filename)
-    local_path.parent.mkdir(parents=True, exist_ok=True)
-    local_path.write_text(merged_content, encoding="utf-8")
+
+    def _stage() -> tuple[Path, ...]:
+        # T015 (WP04 / #3073 / FR-005): the mkdir+write_text moves INTO the
+        # thunk -- write_artifact's single locus invokes this ONLY after the
+        # routability probe succeeds, so a refused write (e.g. FR-006
+        # off-checkout, or a genuinely unroutable mission) never touches disk
+        # and leaves zero untracked residue. Previously this ran eagerly,
+        # before the probe -- the #3073 defect this migration closes.
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        local_path.write_text(merged_content, encoding="utf-8")
+        return (local_path,)
 
     return write_artifact(
         repo_root=repo_root,
         mission_slug=mission_slug,
         kind=MissionArtifactKind.TRACER_FILE,
-        files=(local_path,),
+        stage=_stage,
         message=f"chore(tracer): append {category} finding for {mission_slug}",
         policy=policy,
         entry_id=_entry_id(category, entry_line),

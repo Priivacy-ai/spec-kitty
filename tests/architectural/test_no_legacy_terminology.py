@@ -176,6 +176,237 @@ def test_docs_adr_exemption_is_narrow() -> None:
         )
 
 
+# --------------------------------------------------------------------------- #
+# FR-016 / SC-011 -- lane-consolidation-sense "merge" drift-ratchet guard
+# --------------------------------------------------------------------------- #
+#
+# ``merge`` is a three-sense overloaded term (ADR
+# docs/adr/3.x/2026-07-23-2-post-consolidation-deferral-and-external-enforcement.md):
+# lane consolidation (E1, ``spec-kitty merge``'s LOCAL operation), branch
+# integration (``git merge``), and publish-to-origin. ADR
+# docs/adr/3.x/2026-07-30-1-consolidated-write-surface-and-consolidate-terminology.md
+# canonicalizes ``consolidate`` / ``consolidation`` for the lane-consolidation
+# sense (#3080 foundation) and grandfathers existing "merge" occurrences for
+# that sense pending the full #3080 rename.
+#
+# This is a SEPARATE, curated **phrase** ratchet from the term-level
+# ``_FORBIDDEN_TERMS`` gate above -- a bare "merge" ban would flood every
+# legitimate git-merge / publish-to-origin use, so only phrases that pair a
+# lane concept with a merge-verb are forbidden. A **file-level** baseline
+# (mirroring ``tests/architectural/test_no_tmp_paths_in_tests.py``'s
+# grandfathering pattern) allows the phrase inside files that already carried
+# it before this ratchet landed; any OTHER file introducing one of these
+# phrases fails the gate. The baseline is a ceiling to shrink (full rename via
+# #3080), not a floor to grow.
+
+_LANE_CONSOLIDATION_FORBIDDEN_PHRASES: tuple[str, ...] = (
+    "lane merge",
+    "merge the lanes",
+    "merging lanes",
+    "lane-merge",
+)
+
+_LANE_CONSOLIDATION_SCAN_ROOTS: tuple[str, ...] = ("src", "docs")
+
+# Grandfathered baseline as of mission post-merge-write-authoring-finish-01KYRRM5
+# WP01/T003 (2026-07-30). Every relative path below was verified, at authoring
+# time, to contain at least one of the phrases above via:
+#
+#   for term in "lane merge" "merge the lanes" "merging lanes" "lane-merge"; do
+#     git grep -n -i --fixed-strings "$term" -- src/ docs/
+#   done | grep -v '^docs/adr/'
+#
+# A file leaves this set only by being converted to "consolidate" terminology
+# (#3080) -- entries are removed as they are fixed, never added to
+# (test_lane_consolidation_baseline_does_not_grow pins that direction). The
+# docs/adr/ tree is excluded (immutable historical snapshots, same rationale as
+# the term-level exemption above); kitty-specs/ is excluded by construction
+# (not one of the two scanned roots).
+_LANE_CONSOLIDATION_PHRASE_BASELINE: frozenset[str] = frozenset(
+    {
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/3-2-docs-retrieval-index.yaml",
+        "docs/plans/engineering-notes/naming-identity-ssot-strangler/00-OVERVIEW.md",
+        "docs/plans/engineering-notes/naming-identity-ssot-strangler/randy-reducer-split-brain-map.md",
+        "src/doctrine/procedures/built-in/mission-wrap-up-sequence.procedure.yaml",
+        "src/doctrine/skills/spec-kitty-git-workflow/references/git-operations-matrix.md",
+        "src/doctrine/skills/spec-kitty-implement-review/SKILL.md",
+        "src/specify_cli/lanes/merge.py",
+        "src/specify_cli/lanes/stale_check.py",
+        "src/specify_cli/merge/git_probes.py",
+    }
+)
+
+
+def _grep_for_phrase_ci(phrase: str, *, roots: tuple[str, ...]) -> list[str]:
+    """Case-insensitive ``git grep`` for *phrase* across *roots*, docs/adr/ excluded.
+
+    Returns raw ``<path>:<line>:<content>`` hit lines (unfiltered by baseline --
+    baseline application is a separate, pure step in ``_hits_outside_baseline``
+    so it stays independently testable without a git subprocess).
+    """
+    root = _repo_root()
+    cmd = [
+        "git",
+        "-C",
+        str(root),
+        "grep",
+        "--line-number",
+        "--fixed-strings",
+        "--ignore-case",
+        phrase,
+        "--",
+        *(f"{r}/" for r in roots),
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    # git grep exits 1 when no matches, 0 when matches found, >1 on error.
+    if result.returncode == 1:
+        return []
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"git grep failed for phrase {phrase!r}: exit={result.returncode} "
+            f"stderr={result.stderr!r}"
+        )
+    return [line for line in result.stdout.splitlines() if "docs/adr/" not in line.split(":", 1)[0]]
+
+
+def _hits_outside_baseline(hits: list[str], baseline: frozenset[str]) -> dict[str, list[str]]:
+    """Group ``<path>:<line>:<content>`` hits by path, keeping only non-baseline paths.
+
+    Pure function (no I/O) so the bite fixture and the green-on-legit/baseline
+    proofs can exercise the exact grouping/filtering logic the real gate uses,
+    without shelling out to git (SC-011's red-first + green-on-legit proof).
+    """
+    violations: dict[str, list[str]] = {}
+    for line in hits:
+        rel_path = line.split(":", 1)[0]
+        if rel_path in baseline:
+            continue
+        violations.setdefault(rel_path, []).append(line)
+    return violations
+
+
+def _collect_lane_consolidation_phrase_violations() -> dict[str, list[str]]:
+    """Real-repo scan: every lane-consolidation-sense phrase hit outside the baseline."""
+    violations: dict[str, list[str]] = {}
+    for phrase in _LANE_CONSOLIDATION_FORBIDDEN_PHRASES:
+        hits = _grep_for_phrase_ci(phrase, roots=_LANE_CONSOLIDATION_SCAN_ROOTS)
+        for rel_path, grouped in _hits_outside_baseline(hits, _LANE_CONSOLIDATION_PHRASE_BASELINE).items():
+            violations.setdefault(rel_path, []).extend(grouped)
+    return violations
+
+
+def test_lane_consolidation_phrasing_does_not_grow_beyond_baseline() -> None:
+    """FR-016/SC-011: no NEW lane-consolidation-sense "merge" phrasing outside the baseline.
+
+    The real CI gate. Bare "merge" is never banned (git-merge / publish-to-origin
+    uses are untouched -- see test_lane_consolidation_guard_green_on_legit_uses);
+    only the curated phrases in ``_LANE_CONSOLIDATION_FORBIDDEN_PHRASES`` are
+    forbidden, and only outside the grandfathered ``_LANE_CONSOLIDATION_PHRASE_BASELINE``.
+    """
+    violations = _collect_lane_consolidation_phrase_violations()
+    if violations:
+        formatted = "\n".join(
+            f"  {rel}:\n    " + "\n    ".join(hits) for rel, hits in sorted(violations.items())
+        )
+        pytest.fail(
+            "New lane-consolidation-sense 'merge' phrasing detected outside the "
+            "grandfathered baseline. Canonical term is 'consolidate' / 'consolidation' "
+            "(see docs/adr/3.x/2026-07-30-1-consolidated-write-surface-and-consolidate-"
+            "terminology.md and docs/context/orchestration.md#lane-consolidation).\n"
+            f"Offenders:\n{formatted}"
+        )
+
+
+def test_lane_consolidation_baseline_does_not_grow() -> None:
+    """The grandfathered baseline is a ceiling to shrink, not a floor to grow.
+
+    Regression for the exact class of silent-regrandfathering failure
+    ``test_no_tmp_paths_in_tests.py::test_baseline_is_empty`` guards against:
+    pins the current baseline SIZE so an agent cannot quietly widen the
+    exemption instead of fixing (or genuinely, narrowly, justifying) a new
+    offender.
+    """
+    assert len(_LANE_CONSOLIDATION_PHRASE_BASELINE) <= 10, (
+        f"_LANE_CONSOLIDATION_PHRASE_BASELINE grew to {len(_LANE_CONSOLIDATION_PHRASE_BASELINE)} "
+        "entries (was 10 at mission post-merge-write-authoring-finish-01KYRRM5 WP01/T003). "
+        "Growing the baseline re-grandfathers new drift instead of fixing it or writing new "
+        "code/prose with the canonical 'consolidate' term (C-012 boyscouting) -- if a new "
+        "entry is genuinely unavoidable, widen this ceiling deliberately with a documented "
+        "rationale, do not just raise the number to force green."
+    )
+
+
+def test_lane_consolidation_phrase_bite_fixture_fails_on_new_phrasing() -> None:
+    """SC-011 red-first bite: a NEW (non-baseline) lane-consolidation phrasing is flagged.
+
+    Proves the guard actually bites: a synthetic hit in a file that is NOT in
+    the baseline must surface as a violation.
+    """
+    synthetic_hits = ["src/mission_runtime/some_new_module.py:10:    # lane merge happens here"]
+    violations = _hits_outside_baseline(synthetic_hits, _LANE_CONSOLIDATION_PHRASE_BASELINE)
+    assert "src/mission_runtime/some_new_module.py" in violations, (
+        "The guard must flag a new forbidden phrasing in a file outside the baseline -- "
+        f"got violations={violations}"
+    )
+
+
+def test_lane_consolidation_guard_green_on_legit_uses() -> None:
+    """No false-positive flood: legitimate git-merge / publish-to-origin "merge" uses
+    and bare "merge" never match any curated phrase.
+
+    This is the SC-011 "stays green on legitimate ... uses" half of the bite
+    proof: it directly exercises ``_LANE_CONSOLIDATION_FORBIDDEN_PHRASES``
+    against realistic branch-integration and publish-to-origin lines, so the
+    guard cannot regress into a bare-"merge" ban.
+    """
+    legit_lines = (
+        "src/specify_cli/merge/executor.py:42:    subprocess.run(['git', 'merge', '--no-ff', branch])",
+        "docs/guides/accept-and-merge.md:10:    Publish merged work to origin/main via a pull request.",
+        "src/specify_cli/cli/commands/merge.py:5:    \"\"\"Merge an accepted mission into the target branch.\"\"\"",
+        "docs/context/orchestration.md:568:    This is `merge` **Sense 1** -- the first of three distinct \"merge\" operations.",
+    )
+    for line in legit_lines:
+        content = line.split(":", 2)[-1].lower()
+        matched = [phrase for phrase in _LANE_CONSOLIDATION_FORBIDDEN_PHRASES if phrase in content]
+        assert matched == [], f"Legitimate line falsely matched forbidden phrase(s) {matched}: {line!r}"
+
+
+def test_lane_consolidation_guard_green_on_grandfathered_baseline() -> None:
+    """A hit inside a baseline file is treated as grandfathered, not a violation.
+
+    SC-011 "stays green on ... the grandfathered baseline" half of the bite
+    proof.
+    """
+    hits_from_baseline_files = [
+        f"{rel_path}:1:some lane merge related text"
+        for rel_path in sorted(_LANE_CONSOLIDATION_PHRASE_BASELINE)
+    ]
+    violations = _hits_outside_baseline(hits_from_baseline_files, _LANE_CONSOLIDATION_PHRASE_BASELINE)
+    assert violations == {}, f"Baseline files must be grandfathered, got violations: {violations}"
+
+
+def test_lane_consolidation_baseline_entries_are_currently_real() -> None:
+    """Every baseline entry still exists and still contains a forbidden phrase.
+
+    Guards against baseline staleness (a renamed/deleted file, or a file that
+    was already fixed off the phrase, left in the baseline) -- which would
+    silently weaken the ratchet without anyone noticing, the same
+    stale-grandfather failure class ``test_lane_consolidation_baseline_does_not_grow``
+    guards from the opposite direction (growth instead of staleness).
+    """
+    root = _repo_root()
+    for rel_path in sorted(_LANE_CONSOLIDATION_PHRASE_BASELINE):
+        path = root / rel_path
+        assert path.is_file(), f"Baseline entry {rel_path!r} does not exist on disk."
+        text = path.read_text(encoding="utf-8", errors="replace").lower()
+        assert any(phrase in text for phrase in _LANE_CONSOLIDATION_FORBIDDEN_PHRASES), (
+            f"Baseline entry {rel_path!r} no longer contains any forbidden phrase -- "
+            "it has already been fixed and should be REMOVED from "
+            "_LANE_CONSOLIDATION_PHRASE_BASELINE (shrink-only ratchet), not left in it."
+        )
+
+
 def test_glossary_pack_builtin_exemption_is_narrow() -> None:
     """glossary_packs/built-in/ data is exempt; the rest of the package is not.
 

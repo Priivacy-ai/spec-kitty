@@ -48,12 +48,20 @@ def _stub_write_artifact_committed(monkeypatch: pytest.MonkeyPatch) -> list[dict
     """Patch ``write_artifact`` to a hermetic, always-``committed`` fake.
 
     Returns the list of captured call kwargs so a test can assert routing
-    (``kind`` / ``mission_slug`` / staged ``files``) without a real git repo.
+    (``kind`` / ``mission_slug`` / the staged ``stage=`` thunk) without a
+    real git repo. WP06 (#3073 / T029): ``issue_matrix.py`` now passes a
+    ``stage=`` thunk, not the historical pre-staged ``files=`` contract --
+    this fake invokes it (mirroring what production ``write_artifact`` does
+    internally after a successful routability probe) so callers asserting
+    on the materialized file still observe it on disk.
     """
     calls: list[dict[str, object]] = []
 
     def _fake_write_artifact(**kwargs: object) -> write_seam.WriteSeamResult:
         calls.append(kwargs)
+        stage = kwargs.get("stage")
+        if callable(stage):
+            stage()
         return write_seam.WriteSeamResult(
             status="committed",
             entry_id=str(kwargs["entry_id"]),
@@ -108,7 +116,9 @@ def test_scaffold_creates_matrix_with_multiple_unique_refs(
     assert len(calls) == 1
     assert calls[0]["kind"] == MissionArtifactKind.ISSUE_MATRIX
     assert calls[0]["mission_slug"] == "099-demo"
-    assert calls[0]["files"] == (out_path,)
+    # WP06 (#3073 / T029): stage=, not the historical files= contract.
+    assert calls[0].get("files") is None
+    assert callable(calls[0]["stage"])
 
 
 def test_scaffold_returns_none_when_no_refs(

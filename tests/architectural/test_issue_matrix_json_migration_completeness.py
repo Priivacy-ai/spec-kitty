@@ -123,6 +123,14 @@ def _stub_write_artifact_committed(monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.coordination import write_seam
 
     def _fake_write_artifact(**kwargs: object) -> write_seam.WriteSeamResult:
+        # WP06 (#3073 / T029): issue_matrix.py now passes stage=, not the
+        # historical pre-staged files= contract -- invoke it (mirroring
+        # what production write_artifact does after a successful probe) so
+        # this test's on-disk assertions still observe the materialized
+        # file.
+        stage = kwargs.get("stage")
+        if callable(stage):
+            stage()
         return write_seam.WriteSeamResult(
             status="committed",
             entry_id=str(kwargs["entry_id"]),

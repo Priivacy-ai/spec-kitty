@@ -21,6 +21,7 @@ from specify_cli.acceptance import (
     perform_acceptance,
     resolve_acceptance_actor,
 )
+from specify_cli.acceptance.matrix import AcceptanceMatrixParseError
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.migration.runtime_state_cutover import MissingMissionIdError
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError
@@ -679,6 +680,23 @@ def accept(
             console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
     except AcceptanceError as exc:
+        _safe_emit_error_logged(str(exc))
+        if json_output:
+            print(json.dumps({"error": str(exc)}))
+        else:
+            tracker.error("verify", str(exc))
+            console.print(tracker.render())
+            console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1)
+    except AcceptanceMatrixParseError as exc:
+        # T021 (mgifford, #2318): a malformed acceptance-matrix.json item
+        # (a bad negative_invariants/criteria entry) is REPORTED here —
+        # which item, why — instead of crashing with an unhandled TypeError
+        # at load. This is the actual accept --diagnose defect; catching it
+        # here (rather than inside AcceptanceMatrix.from_dict) also fixes
+        # every OTHER accept mode that hits the same load path, without
+        # weakening gates_core.py's / post_consolidation.py's own loud-crash
+        # contract on malformed input (they still let it propagate).
         _safe_emit_error_logged(str(exc))
         if json_output:
             print(json.dumps({"error": str(exc)}))

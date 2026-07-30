@@ -5,6 +5,10 @@ Covers the multi-file discovery contract: an issue referenced only in
 one referenced in ``spec.md`` -- closing the single-file blind spot the
 merge-time completeness gate (``policy.merge_gates``) and the three
 enforcement sites depend on.
+
+WP06 (#1738, FR-013) note: ``IssueReference`` gained a required
+``source_file`` field (the basename of the file a reference was discovered
+in). Every expected tuple below names it explicitly.
 """
 
 from __future__ import annotations
@@ -35,7 +39,7 @@ class TestDiscoverIssueReferences:
 
         refs = discover_issue_references(feature_dir)
 
-        assert refs == [IssueReference(1582, "Addresses issue #1582.")]
+        assert refs == [IssueReference(1582, "Addresses issue #1582.", "spec.md")]
 
     def test_reference_only_in_wp_file_is_discovered(self, tmp_path: Path) -> None:
         """The FR-004 headline case: a ref buried in ``tasks/WP01.md`` alone."""
@@ -49,7 +53,7 @@ class TestDiscoverIssueReferences:
 
         refs = discover_issue_references(feature_dir)
 
-        assert refs == [IssueReference(4242, "This WP fixes #4242 as a follow-up.")]
+        assert refs == [IssueReference(4242, "This WP fixes #4242 as a follow-up.", "WP01.md")]
 
     def test_reference_only_in_plan_md_is_discovered(self, tmp_path: Path) -> None:
         feature_dir = _mission_dir(tmp_path)
@@ -59,7 +63,7 @@ class TestDiscoverIssueReferences:
 
         refs = discover_issue_references(feature_dir)
 
-        assert refs == [IssueReference(9001, "Design closes #9001.")]
+        assert refs == [IssueReference(9001, "Design closes #9001.", "plan.md")]
 
     def test_reference_only_in_contracts_is_discovered(self, tmp_path: Path) -> None:
         feature_dir = _mission_dir(tmp_path)
@@ -71,7 +75,7 @@ class TestDiscoverIssueReferences:
 
         refs = discover_issue_references(feature_dir)
 
-        assert refs == [IssueReference(5555, "Contract for #5555.")]
+        assert refs == [IssueReference(5555, "Contract for #5555.", "commands.md")]
 
     def test_reference_only_in_research_or_analysis_report_is_discovered(
         self, tmp_path: Path
@@ -103,7 +107,7 @@ class TestDiscoverIssueReferences:
 
         refs = discover_issue_references(feature_dir)
 
-        assert refs == [IssueReference(1582, "Addresses issue #1582 in spec.")]
+        assert refs == [IssueReference(1582, "Addresses issue #1582 in spec.", "spec.md")]
 
     def test_scan_order_is_deterministic_across_multiple_wp_files(
         self, tmp_path: Path

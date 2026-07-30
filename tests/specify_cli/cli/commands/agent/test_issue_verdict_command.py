@@ -61,7 +61,12 @@ class _StatefulWriteArtifactFake:
 
     def __call__(self, **kwargs: object) -> write_seam.WriteSeamResult:
         self.calls.append(kwargs)
-        files = kwargs["files"]
+        # WP06 (#3073 / T029): issue_matrix.py now passes stage=, not the
+        # historical pre-staged files= contract -- invoke it (mirroring
+        # what production write_artifact does after a successful probe) so
+        # the on-disk bytes this fake inspects are actually materialized.
+        stage = kwargs.get("stage")
+        files = stage() if callable(stage) else kwargs["files"]
         assert isinstance(files, tuple)
         path = files[0]
         assert isinstance(path, Path)
