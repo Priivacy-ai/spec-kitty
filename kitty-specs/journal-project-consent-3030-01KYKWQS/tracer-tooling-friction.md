@@ -643,3 +643,43 @@ after the closed asyncio loop turning publishes into caught "send failed", and t
 `time.monotonic` list making the consent chain refuse. **Any test whose assertion is "X did not
 happen" needs to state why X would otherwise have happened**, or a new short-circuit upstream
 silently adopts it.
+
+## A fix can make an existing assertion vacuous — WP12's own pins, after FR-032
+
+WP12's review (APPROVE) found that **after FR-032 deleted `emit_local_commit`'s immediate send,
+every emit-side `sent == []` assertion in WP12's pin file became unfalsifiable.** `emit_local_commit`
+no longer calls `_send_event` at all, so no emit-side mutation can make `sent` non-empty. Measured:
+under a gate-stripped mutant all four emit-side pins red — every one on the **staging** assertion,
+never on the `sent == []` line above it.
+
+Coverage is intact (the staging assertion is genuinely load-bearing) and the spy still earns its
+place as a re-addition guard. What went stale is the **claim**: a module docstring asserting *"what
+is proven is that no request was issued"*, which is no longer what those lines prove.
+
+**The general shape, and it is new:** this mission has repeatedly found absence assertions that
+pass for the wrong reason because something upstream short-circuits. This is the same rule with the
+arrow reversed — *a later, correct fix can remove the mechanism an existing assertion was
+discriminating against, leaving a true statement that proves nothing.* Neither the fix nor the test
+is wrong; the pair has drifted. Nothing reds when that happens, which is why it needs looking for.
+
+## Three tests asserting the mission's own pre-fix default-allow, protected by the guard gap
+
+`tests/sync/test_runtime.py` contains `test_returns_true_when_config_has_no_sync_section`,
+`test_returns_true_when_auto_start_not_set` and `test_returns_true_on_invalid_yaml` — each
+asserting `_auto_start_enabled() is True` for a checkout with **no consent record**, which is the
+incident's exact state and the opposite of FR-002.
+
+They are green only because `tests/sync/conftest.py`'s autouse "assume a consenting checkout"
+fixture patches precisely the seam `_auto_start_enabled` consults, and `test_runtime.py` matches
+neither guard token (`"consent"`, `"capture_gate"`). Proven with a mutant that restores the real
+function at `pytest_runtest_call`: **11 restores, positive control satisfied**, exactly those three
+red while the T028 denial pins stayed green because they install their own patch inside the test
+body.
+
+They predate WP12, but T028 changed the function they cover and left them unreconciled.
+
+**The failure scenario is the reason this matters more than its severity suggests:** the friction
+tracer already recommends replacing the filename-token guard with a marker-based one. The moment
+anyone does that, these three red — and *the natural remedy is to restore `_auto_start_enabled`'s
+default-allow*, undoing T028. A latent instruction to reverse a fix, armed by a hygiene improvement
+the same document recommends.
