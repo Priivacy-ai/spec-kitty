@@ -251,3 +251,38 @@ wrong either way. The resolution is to recompute the union from *verified import
 merged tree* — never to pick a side. A stale note claiming `resolve_project_consent` "has
 no production caller at all" was deleted rather than reworded, since
 `build_per_project_store_report` is now its first.
+
+## A new mission trips the birth invariant, and the remedy under-reports itself
+
+`test_dogfood_corpus_backfilled` failed with `eligible missions not cut over:
+['journal-project-consent-3030-01KYKWQS']` — **our own mission**. Found by another agent's
+sweep and routed here as dossier territory.
+
+Cause: `assert_birth_invariant_holds` requires every *eligible runtime-carrying* mission to
+have `meta.json` `status_phase >= 1`. This mission accumulated runtime evidence in
+`status.events.jsonl` through ordinary `move-task` transitions, which made it eligible,
+while `status_phase` was never written at creation — every other mission in the corpus
+carries `status_phase: 1`. So the failure is a **birth-order artefact**, not a defect in the
+mission's work: a mission born after the event log existed has no legacy frontmatter state
+to seed, so the cutover has nothing to do, so the field never gets set.
+
+Remedied with the documented command, `spec-kitty migrate backfill-runtime-state --mission
+<slug>`. The invariant test now passes (6 passed).
+
+**Two observations about that command, one reassuring and one not.**
+
+`--dry-run` genuinely does not write — verified by reverting the field, running dry-run
+alone, and confirming `status_phase` stayed absent with a clean `git status`. Worth checking
+rather than trusting, since this mission's own FR-016/FR-017 purge rests on exactly that
+contract.
+
+But the live run **wrote `status_phase` while reporting `Flipped: 0` and `Skipped (already
+migrated): 1`.** The field went from absent to `"1"`, and the summary said nothing changed.
+An operator reading that output would conclude the tool declined to act and the mission
+still needs attention — the opposite of what happened. The "already migrated" classification
+is about *seeding*, but the flip is a separate action that the summary folds into the same
+bucket. Same family as the other gates recorded above: a mechanism whose report does not
+describe what it did.
+
+Also note the field is written as the **string** `"1"`, not an integer. `status_phase()`
+parses via `int(str(...).strip())` so it works, but the corpus now contains both forms.
