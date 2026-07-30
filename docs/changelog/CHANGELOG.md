@@ -19,6 +19,48 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
 
+- **Profile-channel `suggests`-edge delivery is now live — the inert `#3063`
+  doctrine topology actually delivers (mission `doctrine-delivery-activation`,
+  fast-follow to `doctrine-delivery-reachability`).** The profile-channel
+  reachability walk now follows `suggests` edges (in addition to `requires` /
+  `specializes_from`) and surfaces each edge's `when` clause as the delivered
+  doctrine's applicability condition — as `when`-labelled links, not eager
+  bodies (respecting the context-bloat budget). Architect and implementer
+  profiles now receive their linked paradigms, tactics, techniques, and
+  canvases: e.g. `architect-alphonso` reaches `domain-driven-design`, the C4
+  model techniques, and the REASONS-canvas guidance; implementer profiles reach
+  the `DISCIPLINED_REFACTORING` refactoring tactics. Companion authoring: a C4
+  `template:instantiates` edge from `action:documentation/design`, and
+  refactoring code-smell `anti_pattern` nodes wired via `REJECTS` (grounded in
+  each tactic's attested `problem`/`when`). The reachability pins, the delivery
+  wiring table, and the forward-API dead-symbol allowlist are reconciled to the
+  now-live topology, each moved count carrying a composition-ledger entry. (#3063)
+- **The `asset` doctrine kind is now reachable end to end — resolve, deliver,
+  and author it (mission `doctrine-delivery-reachability`).** Previously a
+  shipped asset (executable logic or any blob a pack hands to a downstream repo)
+  had no operator surface and no followable how-to, so the documented remedy
+  "ship it as an asset" was not actually followable (#3037). Now:
+  - **`spec-kitty doctrine asset list`** enumerates every resolvable asset with
+    its source tier (built-in / org / project), and **`spec-kitty doctrine asset
+    path <id>`** resolves one identifier to a filesystem path — exit `0` on
+    success, non-zero with the id named on an unknown id or a containment
+    refusal. Nothing is installed into the consumer repo; assets resolve from
+    packaged data plus the project/org overlays (no auto-install). The one
+    built-in asset, `common-docs-structural-lint`, resolves from any
+    installation.
+  - **`spec-kitty doctrine new --kind asset <name>`** scaffolds an asset with
+    the same parity as `validate`, writing into the directory the resolver reads
+    (`.kittify/doctrine/assets/`).
+  - **The action doctrine bundle now delivers every resolved kind**, including
+    procedures and assets. The delivery gate is a total function over kinds:
+    activation-gated kinds deliver `activated ∩ reachable`, while assets are
+    **delivered-but-not-activation-gated** (`gate = ALL`) — a reachable source
+    pulls them in without an activation list. This closes the defect where
+    `asset_ids = []` was the silently-conforming outcome forever.
+  - **Docs**: [Create a doctrine artifact](../doctrine/create-a-doctrine-artifact.md)
+    gains an executable asset how-to (author a manifest, place the blob, resolve
+    it), and [Doctrine artifact kinds](../doctrine/doctrine-kinds.md) documents
+    the shipped built-in asset and the three delivery categories.
 - **New checks that catch a change which looks like it worked and did nothing
   (mission `doctrine-silence-guards`).** Four additions, all aimed at the same
   failure mode — a declaration that loads, validates, reports success, and then
@@ -238,6 +280,25 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **DRG document-writer blind spot closed (mission `doctrine-delivery-activation`;
+  `#3075`, `#2977`).** All three `DRGGraph` document-emit sites
+  (`rewrite_opposed_by`, `charter.synthesizer.project_drg`, and the
+  `pack_assembler` force-dedup path) now route through the canonical
+  `graph_document_to_dict` and are registered `DocumentWriter` members, guarded
+  by a new non-vacuous writer-discovery gate that fails on either an
+  unregistered dict-literal or a `.model_dump()`-shaped emitter. The
+  `pack_assembler` path was additionally crashing `yaml.safe_dump` on the
+  `Relation` enum (and leaking withheld fields). The repository surfaces are
+  typed via a new `ArtifactRepository` `Protocol`, removing 12
+  `# type: ignore[attr-defined]`.
+- **`DRGGraphSchemaError` now surfaces as a structured `doctrine validate`
+  issue instead of an uncaught traceback**, and `AssetRepository.source_path`
+  no longer disagrees with `get` for a manifest that failed validation (a base
+  `_post_validate` success-path hook records the source path only after
+  validation) (`#3062`).
+- **The `test_every_load_delivery` fixture is now hermetic** to an ambient
+  gitignored `.kittify/charter/context-state.json`, eliminating a local-only
+  false-red on the `first_load`/bootstrap assertions.
 - **Read-side placement seam: mission reads route through the kind-aware seam and
   new bypasses are structurally impossible (#2922, #1878; also #2921, #2966
   part-1).** The write side already failed loud when an artifact's coordination

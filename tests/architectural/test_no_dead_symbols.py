@@ -116,7 +116,8 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
         # charter.activations::ALLOWED_MISSION_TYPES (body_hash refreshed WP03/#2669: derived from builtin_mission_type_id_set())
         SymbolKey("ALLOWED_MISSION_TYPES", "66f78adc4726573209f4e4eba6c766601762ead6492b8a86131ef45184ef69fd"),
         SymbolKey("REGISTERED_TRIGGERS", "4582c6fc202160e4708ef2cec5b63a041e7331f9dc704abd9020800abe042c0f"),  # charter.activations::REGISTERED_TRIGGERS
-        SymbolKey("CompactView", "88c5804b596411b484f9a7d6ff3404a60d31a3c554ef77b96491aa4966b5aad2"),  # charter.compact::CompactView
+        # charter.compact::CompactView (body_hash refreshed WP11/T061: widened to carry every delivered kind)
+        SymbolKey("CompactView", "eb8e865d277128be5a9f75d070b2acf3110794ed3650a38ad54507f648d872d9"),
         SymbolKey("extract_section_anchors", "98ff665e1c40a10a69f25707ce30f4be7366667f472fb3abb3f457b8370e6633"),  # charter.compact::extract_section_anchors
         SymbolKey("StagedArtifact", "e5cac178a00a1ab09ab3a43c31edee223c69f455e050f12dd172742c15e25f8b"),  # charter.synthesizer.write_pipeline::StagedArtifact
         SymbolKey("is_re2_active", "1f449ff66fa7793bd2911da921304f2668c6c449879c96292bf8c6a8a8b2efe9"),  # kernel._safe_re::is_re2_active
@@ -266,12 +267,13 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey("get_dashboard_html", "99ab224c187cd9b6ac929157228cd64e5c53eca093745248f868dc8da6008cfa"),  # specify_cli.dashboard.templates::get_dashboard_html
         SymbolKey("GovernancePolicy", "46ddf246ad782f50222cdff721814f7880aa33c8d000a88110475e71b78a6f7c"),  # specify_cli.doctrine.org_charter::GovernancePolicy
         # specify_cli.doctrine.org_charter::REQUIRED_KIND_FIELDS
-        # Hash refreshed for the WP04 glossary-pack tuple extension (added the
-        # ``glossary_packs`` member); still grandfathered-dead (no external src/
-        # importer -- only internal use + a private ``_REQUIRED_KIND_FIELDS`` copy
-        # in ``src/charter/context.py``). Body-sensitive key => extending the
+        # Hash refreshed for the write-side-seam-matrix-tracer landing fold
+        # (Wave B / #3070) ASSET-kind tuple extension (added the ``assets``
+        # member); still grandfathered-dead (no external src/ importer --
+        # only internal use + a private ``_REQUIRED_KIND_FIELDS`` copy in
+        # ``src/charter/context.py``). Body-sensitive key => extending the
         # tuple changes its content hash (see ``_symbol_key.py`` Body-sensitivity).
-        SymbolKey("REQUIRED_KIND_FIELDS", "5e079a10875db742f2fffd782afc057ba2898db8cfb2ded5847e77081edff122"),
+        SymbolKey("REQUIRED_KIND_FIELDS", "6845e2186c122993ab17b0352e5ac72f9c821e031e96de06cb5bd996f2f0f327"),
         # specify_cli.doctrine.org_charter::apply_org_charter_pre_fill
         SymbolKey("apply_org_charter_pre_fill", "559da0a61fd4f6255212b449ad4de219cb758f57501e1c5adcc1f5e5f801385b"),
         SymbolKey("AssemblyResult", "3af243769584cf1b5e44b1a04238c6a9f879b3cd8c34e05414c046d2220202f0"),  # specify_cli.doctrine.pack_assembler::AssemblyResult
@@ -1059,6 +1061,78 @@ _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841: frozenset[SymbolKey] = frozen
 )
 
 
+# ---------- C. Delivery-rail forward API (mission doctrine-delivery-reachability-01KYMXD6) ----------
+# The delivery-rail public API built by mission
+# ``doctrine-delivery-reachability-01KYMXD6``: the WP08 per-channel
+# reachability helpers (``src/doctrine/drg/reachability.py``) and the WP07
+# activation-partition helpers (``src/charter/pack_context.py``).
+#
+# WP03 UPDATE (mission ``doctrine-delivery-activation-01KYQVQK`` — the planned
+# "walk-update" fast-follow itself): this mission wired the *profile* channel.
+# ``profile_channel_reachable`` (never in this frozenset) and
+# ``agent_profile_seed_urns`` (retired below) now have a genuine runtime caller
+# in ``src/doctrine/agent_profiles/repository.py``, so they are no longer
+# forward-only. The remaining eight symbols are a DIFFERENT concern — the
+# charter-activation partition helpers and the *action*-channel reachability
+# helpers — for which this mission builds no ``src/`` consumer; they stay
+# allowlisted-with-note. They are exercised today only by their own unit tests
+# — no ``src/`` caller reaches them yet. Each is a deliberate,
+# ``__all__``-curated public symbol — the forward contract a later mission
+# consumes from runtime ``src/``. This is the "library authored ahead of its
+# runtime caller" shape the gate flags, deliberately deferred here rather than
+# deleted (deletion would forfeit mission-built API with a live forward story).
+# Follow-up tracker: Priivacy-ai/spec-kitty#3063 (the deferred reachability/
+# delivery decision surface; see
+# docs/plans/doctrine/delivery-reachability-wiring-table.md). Target = 0 once a
+# later mission wires each remaining helper from a runtime caller.
+#
+# The WP15 progressive-disclosure module (``src/charter/progressive_disclosure.py``)
+# is a DIFFERENT case, landing-fold-corrected (PR #3070, E1): its delivery
+# entry points (``build_disclosure_payload``, ``collect_typed_artifacts``,
+# ``requires_closure``) ARE wired -- ``charter.context`` calls them directly
+# (``context.py:3513``, ``context.py:3375``, ``context.py:1238``) -- so they
+# carry no allowlist entry at all; the gate's module-attribute detector
+# recognises the caller and never flags them. The module's remaining helpers
+# (``bare_id``, ``edge_to_reference``, ``outbound_references``,
+# ``link_references``, ``reconstruct_urns``, ``artifact_to_dict``, and the
+# ``DELIVERY_INLINE``/``DELIVERY_LINK``/``STATED_DEFAULT_WHEN`` constants) were
+# previously over-exported in ``__all__`` with no external importer, which
+# made the gate mislabel live, intra-module-only implementation detail as
+# "unwired forward API". They were demoted out of ``__all__`` instead
+# (they remain ordinary module-level names -- ``__all__`` only governs
+# ``import *``, and nothing does that here) and so no longer need an
+# allowlist entry either: only genuinely public, genuinely unwired API stays
+# allowlisted below. ``partition_delivery`` is the one progressive-disclosure
+# symbol that is both: still public (``__all__``-declared, per its own
+# forward-API docstring) and has zero ``src/`` callers today.
+_CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
+    {
+        # charter.pack_context::ActivationReachabilityPartition
+        SymbolKey("ActivationReachabilityPartition", "16f04ac28e60241772fae3e88ebe14fa1e4b234c2fc216673cc9d075f285b661"),
+        SymbolKey("charter_activated_urns", "5003eed5e2d30c222f2108ba89da31d8531cdeb468898d01b3fa96020bd62830"),  # charter.pack_context::charter_activated_urns
+        # charter.pack_context::normalize_activation_identifier
+        SymbolKey("normalize_activation_identifier", "8deec4a1dd1a1699b821620bfa64a7ae3f3e64798b76156465ff2bef1e395c0c"),
+        # charter.pack_context::partition_activated_unreachable
+        SymbolKey("partition_activated_unreachable", "a128040a4804e409225402613ffbe128932fa1862881810bbb3bd3cfd1241fb4"),
+        SymbolKey("partition_delivery", "7a90e7fc7bfaa802edcb2f675f4cce8f0e7e6db3fbe184b68b64a4a03d194841"),  # charter.progressive_disclosure::partition_delivery
+        # doctrine.drg.reachability::PROFILE_CHANNEL_RELATIONS (body_hash refreshed
+        # WP03/doctrine-delivery-activation-01KYQVQK: WP01 added Relation.SUGGESTS to
+        # the frozenset, changing its body; still no ``src/`` importer — the sole
+        # reference in src/charter/context_renderers/profile_sections.py:341 is a
+        # prose comment, not an import/call — so it stays allowlisted, hash-refreshed.)
+        SymbolKey("PROFILE_CHANNEL_RELATIONS", "17b05fe56e1ba52f5efca0f1cebe40e0ed1ab3232b80111f8e47e51176203fb5"),
+        # doctrine.drg.reachability::action_channel_reachable
+        SymbolKey("action_channel_reachable", "12033bfeabd0a031f426ef16f55dbc9ee765a0d1c8ad09a822847a1d91b42d10"),
+        SymbolKey("action_seed_urns", "65ce52327f352629e39db6b4d922f14aa86e9e3ef71725a856e70567f0b66d04"),  # doctrine.drg.reachability::action_seed_urns
+        # ``agent_profile_seed_urns`` retired from this allowlist by WP03
+        # (doctrine-delivery-activation-01KYQVQK): it now has a genuine cross-file
+        # ``src/`` consumer — src/doctrine/agent_profiles/repository.py imports it
+        # (line 25) and calls it (line 889) — so the gate correctly no longer
+        # treats it as unwired forward API.
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``). Entries are
@@ -1089,6 +1163,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_YAML_IO_WRITE_HELPER
     | _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED
     | _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841
+    | _CATEGORY_C_DELIVERY_RAIL_FORWARD_API
 )
 
 

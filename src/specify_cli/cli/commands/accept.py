@@ -21,6 +21,7 @@ from specify_cli.acceptance import (
     perform_acceptance,
     resolve_acceptance_actor,
 )
+from specify_cli.acceptance.matrix import AcceptanceMatrixParseError
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.migration.runtime_state_cutover import MissingMissionIdError
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError
@@ -338,38 +339,38 @@ def _commit_coord_residuals(repo_root: Path, mission_slug: str, dirty: list[str]
 
     T007: these files physically live in the coordination worktree (M2), which
     a primary-rooted raw ``git commit`` structurally cannot reach. Routes
-    through :func:`~specify_cli.coordination.commit_router.commit_for_mission`
-    instead — the SAME single canonical commit entry point ``spec_commit_cmd.py``
-    / ``mission_finalize.py`` use. Files are NOT hand-classified here: the
-    router's own ``kind_for_mission_file`` classification (contracts/partition-
-    aware-commit-seam.md) resolves each file's placement and materialises the
-    coordination worktree on demand; ``ACCEPTANCE_MATRIX`` only seeds the
-    fallback for an unrecognised path and which group's outcome is reported.
+    through :func:`~specify_cli.coordination.write_seam.write_artifact` (WP04 /
+    T017, write-side-seam-matrix-tracer-01KYP3MH) — the WP03 seam wrapping the
+    SAME single canonical commit entry point ``spec_commit_cmd.py`` /
+    ``mission_finalize.py`` use (``commit_for_mission``), adding FR-011's
+    structured zero-write refusal on top. Files are NOT hand-classified here:
+    the router's own ``kind_for_mission_file`` classification (contracts/
+    partition-aware-commit-seam.md) resolves each file's placement and
+    materialises the coordination worktree on demand; ``ACCEPTANCE_MATRIX``
+    only seeds the fallback for an unrecognised path and which group's outcome
+    is reported. This IS the real accept-commit boundary that persists the
+    T016 recomputed ``overall_verdict`` write gates_core.py leaves on disk.
     """
-    from mission_runtime import MissionArtifactKind
-    from specify_cli.coordination.commit_router import CommitRouterResult, commit_for_mission
+    from specify_cli.coordination.write_seam import WriteSeamResult, write_artifact
     from specify_cli.git.protection_policy import ProtectionPolicy
+    from mission_runtime import MissionArtifactKind
 
     policy = ProtectionPolicy.resolve(repo_root)
     files = tuple(repo_root / path for path in dirty)
-    # Explicit annotation: under the project's ``follow_imports = "skip"`` mypy
-    # config the cross-module ``commit_for_mission`` return is seen as ``Any``;
-    # the annotation re-narrows it (matching the ``_planning_read_dir`` /
-    # ``spec_commit_cmd.py`` chokepoint pattern) so ``.status`` comparisons below
-    # type-check as ``bool``, not ``Any``.
-    result: CommitRouterResult = commit_for_mission(
+    result: WriteSeamResult = write_artifact(
         repo_root=repo_root,
         mission_slug=mission_slug,
+        kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
         files=files,
         message=f"Finalize acceptance artifacts for {mission_slug}",
         policy=policy,
-        kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
+        entry_id=mission_slug,
     )
 
-    if result.status == "error":
+    if result.status in ("error", "refused"):
         raise TaskCliError(
             f"Residual coordination artifact commit failed for {mission_slug} "
-            f"({result.placement_ref}): {result.diagnostic or 'unknown error'}"
+            f"({result.destination_surface}): {result.diagnostic or 'unknown error'}"
         )
     return bool(result.status == "committed")
 
@@ -679,6 +680,23 @@ def accept(
             console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
     except AcceptanceError as exc:
+        _safe_emit_error_logged(str(exc))
+        if json_output:
+            print(json.dumps({"error": str(exc)}))
+        else:
+            tracker.error("verify", str(exc))
+            console.print(tracker.render())
+            console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1)
+    except AcceptanceMatrixParseError as exc:
+        # T021 (mgifford, #2318): a malformed acceptance-matrix.json item
+        # (a bad negative_invariants/criteria entry) is REPORTED here —
+        # which item, why — instead of crashing with an unhandled TypeError
+        # at load. This is the actual accept --diagnose defect; catching it
+        # here (rather than inside AcceptanceMatrix.from_dict) also fixes
+        # every OTHER accept mode that hits the same load path, without
+        # weakening gates_core.py's / post_consolidation.py's own loud-crash
+        # contract on malformed input (they still let it propagate).
         _safe_emit_error_logged(str(exc))
         if json_output:
             print(json.dumps({"error": str(exc)}))

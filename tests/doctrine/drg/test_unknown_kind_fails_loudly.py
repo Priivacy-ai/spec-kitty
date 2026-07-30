@@ -83,18 +83,35 @@ pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 #: NFR-004 — the shipped graph's content must not move. Re-measured on this
 #: branch. If it moves, that is a finding to ledger, never a number to bump.
 #:
-#: Moved 2026-07-28 by an operator ruling on #3009 (landing pass for PR #3007),
-#: and ledgered — not bumped. The ruling is recorded as entries (6) and (7) of
-#: the composition ledger in
-#: ``tests/doctrine/drg/migration/test_extractor_projection.py``, which is the
-#: authority for the delta; this pin is the shipped-graph (post-overlay) view of
-#: the same two changes:
-#:   (6) ``toolguide:rtk-search-tooling`` deleted outright  -> -1 node
-#:   (7) eight activated-but-unreachable artefacts wired    -> +7 edges
-#: 311/774 - 1/0 + 0/7 = 310/781, and 310/781 = pure 304/764 plus the
-#: hand-authored overlay's 6 nodes / 17 edges.
-_EXPECTED_NODE_COUNT = 310
-_EXPECTED_EDGE_COUNT = 781
+#: The single authority for every delta is the composition ledger in
+#: ``tests/doctrine/drg/migration/test_extractor_projection.py``; this pin is the
+#: shipped-graph (pure + hand-authored overlay) VIEW of that ledger. It is
+#: ledgered, never bumped-to-green:
+#:   (6)/(7) 2026-07-28 #3009 landing: rtk-search-tooling deleted (-1 node),
+#:           eight activated-but-unreachable artefacts wired (+7 edges) -> 310/781
+#:   (8)     WP09: one scope edge action:documentation/generate->DIRECTIVE_042 -> +1 edge
+#:   (9)     #3063 family-A (DDD): +14 overlay edges
+#:   (10)    #3063 family-B (REFACTORING): +1 node (directive) / +14 overlay edges
+#:   (11)    #3063 family-C (ARCHITECTURE-DOCS): +1 node (directive) / +9 overlay edges
+#:   (12)    #3063 family-D (TESTING/BDD/MUTATION): +5 nodes (1 directive, 2
+#:           styleguides, 2 toolguides) / +54 overlay edges
+#:   (13)    #3063 family-E (ANALYSIS/TERMINOLOGY/REASONS-CANVAS): +0 nodes /
+#:           +9 overlay edges (all `suggests`, zero new artefacts) -> 317/882
+#:   (14)    doctrine-delivery-activation-01KYQVQK WP02 (T007/T008/T009): +7
+#:           anti_pattern nodes (the seven grounded refactoring code smells) /
+#:           +10 overlay edges (3 action:documentation/design --instantiates-->
+#:           template:c4-* topology edges + 7 tactic:refactoring-* --REJECTS-->
+#:           anti_pattern:<smell> edges) -> 324/892. T006's Family-A `when`
+#:           backfill is content-only (no count move). Full delta is
+#:           projection-ledger entry (14).
+#: Net: 324/892 = pure 311/764 plus the hand-authored overlay's 13 nodes / 128
+#: edges. (WP09 and families A–D were ledgered in the projection module but this
+#: shipped-graph mirror was left stale at 310/781 through those changes; corrected
+#: with family D, whose full delta is projection-ledger entry (12); family E adds
+#: +9 edges, projection-ledger entry (13); WP02 adds +7 nodes / +10 edges,
+#: projection-ledger entry (14).)
+_EXPECTED_NODE_COUNT = 324
+_EXPECTED_EDGE_COUNT = 892
 
 _DOCTRINE_ROOT = pathlib.Path(__file__).resolve().parents[3] / "src" / "doctrine"
 
@@ -252,11 +269,17 @@ def test_action_bundle_rules_on_every_node_kind() -> None:
     assert not unruled, f"no recorded verdict for kinds: {unruled}"
 
 
-def test_action_bundle_still_projects_exactly_the_four_bundle_slots() -> None:
-    """Closing the drop must not smuggle new kinds into the rendered bundle.
+def test_action_bundle_projects_exactly_the_delivered_slots() -> None:
+    """The bundle projects exactly the *stated* delivered slots -- no more.
 
-    NFR-004 in spirit: the fix is about making the twelve exclusions *stated*,
-    not about starting to render them.
+    WP03 of ``doctrine-silence-guards`` froze this at four slots ("state the
+    exclusions, do not render them"). **WP10 (doctrine-delivery-reachability,
+    FR-009/FR-011) reverses that verdict for PROCEDURE and ASSET**: a resolved
+    procedure/asset is executing-agent context no other charter surface
+    delivers on the action path (the criterion recorded at
+    ``_ACTION_BUNDLE_SLOT_BY_KIND``). The guard's intent is unchanged -- the
+    projected set must equal the *stated* set exactly, so a future kind cannot
+    be smuggled in unstated; only the stated set grew from four to six.
     """
     from charter.context import action_bundle_bucket
 
@@ -271,6 +294,8 @@ def test_action_bundle_still_projects_exactly_the_four_bundle_slots() -> None:
         NodeKind.TACTIC: "tactics",
         NodeKind.STYLEGUIDE: "styleguides",
         NodeKind.TOOLGUIDE: "toolguides",
+        NodeKind.PROCEDURE: "procedures",
+        NodeKind.ASSET: "assets",
     }
 
 

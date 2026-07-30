@@ -1572,6 +1572,8 @@ _Manage org-layer doctrine packs_
 │ pack              Validate or assemble doctrine packs.                       │
 │ org               Manage org-layer doctrine pack authoring (init, validate). │
 │ mission-type      Mission type commands.                                     │
+│ asset             Resolve shipped and overlay doctrine assets (no install —  │
+│                   C-002).                                                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1625,6 +1627,59 @@ _Mission type commands._
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Output as JSON.                                            │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine asset
+
+_Resolve shipped and overlay doctrine assets (no install — C-002)._
+
+```
+ Usage: spec-kitty doctrine asset [OPTIONS] COMMAND [ARGS]...
+
+ Resolve shipped and overlay doctrine assets (no install — C-002).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ list  List all resolvable doctrine assets and their source tiers.            │
+│ path  Resolve an asset identifier to a filesystem path (fail-closed on       │
+│       miss).                                                                 │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine asset list
+
+```
+ Usage: spec-kitty doctrine asset list [OPTIONS]
+
+ List all resolvable doctrine assets and their source tiers.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit machine-readable JSON instead of rich text.           │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine asset path
+
+```
+ Usage: spec-kitty doctrine asset path [OPTIONS] ASSET_ID
+
+ Resolve an asset identifier to a filesystem path (fail-closed on miss).
+
+ Exits 0 and prints the path on success. An unknown id or a containment
+ refusal exits non-zero with the offending id named (A-7 / NFR-006).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    asset_id      ASSET_ID  Identifier of the asset to resolve (see         │
+│                              `doctrine asset list`).                         │
+│                              [required]                                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit machine-readable JSON instead of rich text.           │
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -2151,6 +2206,40 @@ _Query local invocation records._
 │                             [default: 20]                                    │
 │ --json                      Emit a JSON array instead of a table             │
 │ --help     -h               Show this message and exit.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty issue-matrix
+
+_Issue-matrix commands (structured issue-matrix.json)._
+
+```
+ Usage: spec-kitty issue-matrix [OPTIONS] COMMAND [ARGS]...
+
+ Issue-matrix commands (structured issue-matrix.json).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ migrate  Bulk-migrate legacy ``issue-matrix.md`` missions to                 │
+│          ``issue-matrix.json`` (FR-013).                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty issue-matrix migrate
+
+```
+ Usage: spec-kitty issue-matrix migrate [OPTIONS]
+
+ Bulk-migrate legacy ``issue-matrix.md`` missions to ``issue-matrix.json``
+ (FR-013).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --mission          TEXT  Scope to a single mission handle. Omit to migrate   │
+│                          all missions.                                       │
+│ --json                   Emit structured JSON output.                        │
+│ --help     -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3611,6 +3700,10 @@ _Manage invocation records._
 │ complete  Close an open invocation record. --invocation-id and --outcome are │
 │           required.                                                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
+
+ Open:  spec-kitty dispatch "<request>"
+ Close: spec-kitty profile-invocation complete --invocation-id <id> --outcome
+ <outcome>
 ```
 
 ## spec-kitty profile-invocation complete

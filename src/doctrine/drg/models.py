@@ -10,7 +10,7 @@ import re
 from enum import StrEnum
 from typing import Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 # ---------------------------------------------------------------------------
 # URN regex -- anchored, no spaces, only lower-alpha + underscore for kind
@@ -159,7 +159,7 @@ RELATION_DESCRIPTIONS: dict[Relation, str] = {
         "with no depth limit, from an action's ``scope``-resolved artifacts; "
         "``charter activate --cascade`` follows the same edge to pull in "
         "artifacts that must also be active. It is the second-most-emitted "
-        "relation in the built-in graph (262 edges) and is the mandatory "
+        "relation in the built-in graph (272 edges) and is the mandatory "
         "counterpart to ``suggests``, not a stronger synonym for it."
     ),
     Relation.SUGGESTS: (
@@ -169,7 +169,7 @@ RELATION_DESCRIPTIONS: dict[Relation, str] = {
         "unlike the unbounded transitive walk used for ``requires`` -- and "
         "the charter cascade treats a ``suggests`` target as optional, "
         "something an operator may accept or skip. It is the most-emitted "
-        "relation in the built-in graph (337 edges); the boundedness of the "
+        "relation in the built-in graph (426 edges); the boundedness of the "
         "walk, not the edge count, is what distinguishes it from ``requires``."
     ),
     Relation.APPLIES: (
@@ -197,7 +197,7 @@ RELATION_DESCRIPTIONS: dict[Relation, str] = {
         "and tactics that govern performing that action -- the entry point "
         "walked at depth 1 by ``resolve_action_context`` before it expands "
         "through ``requires``/``suggests``. It is the most heavily emitted "
-        "action-adjacent relation in the built-in graph (157 edges). "
+        "action-adjacent relation in the built-in graph (159 edges). "
         "Distinct from ``applies``: ``scope`` says an action is governed by "
         "an artifact; ``applies`` says a profile executes a workflow "
         "artifact. Despite both linking an action-adjacent node to guidance "
@@ -217,7 +217,7 @@ RELATION_DESCRIPTIONS: dict[Relation, str] = {
         "it produces as its concrete output artifact, e.g. "
         "``action:documentation/design`` --instantiates--> "
         "``template:documentation/documentation-plan-template.md``. Emitted "
-        "8 times in the built-in graph, exclusively from ``action`` nodes to "
+        "11 times in the built-in graph, exclusively from ``action`` nodes to "
         "``template`` nodes. Distinct from ``scope``, which links an action "
         "to governance content it must follow, not content it produces."
     ),
@@ -390,6 +390,16 @@ class DRGEdge(BaseModel):
 class DRGGraph(BaseModel):
     """Top-level DRG graph document (``graph.yaml``)."""
 
+    # FR-001 / contract W-4 -- the container matches its members. ``DRGNode``
+    # and ``DRGEdge`` already forbid extras; without the same policy here an
+    # unknown *top-level* key (a typo'd or unmerged document field) was accepted
+    # and silently discarded on load. This is a deliberate, consumer-facing
+    # read-path break: an org-pack graph document with a stray top-level key now
+    # fails to load rather than degrading. The load boundary translates the raw
+    # ``ValidationError`` into :class:`DRGGraphSchemaError`, which names the file
+    # and the offending key (see :func:`load_graph_document`).
+    model_config = ConfigDict(extra="forbid")
+
     schema_version: str = Field(pattern=r"^1\.0$")
     generated_at: str
     generated_by: str
@@ -440,3 +450,71 @@ class DRGGraph(BaseModel):
             if n.urn == urn:
                 return n
         return None
+
+
+# ---------------------------------------------------------------------------
+# Strict graph-document load boundary (FR-001 / contract W-4 / NFR-006)
+# ---------------------------------------------------------------------------
+
+
+class DRGGraphSchemaError(Exception):
+    """A graph document declared a top-level key ``DRGGraph`` does not define.
+
+    Raised at the load boundary (:func:`load_graph_document`) in place of the raw
+    :class:`pydantic.ValidationError`, so the diagnostic names the offending
+    *document* and *key* a consumer must fix rather than dumping a nested pydantic
+    trace.
+
+    Deliberately **not** a subclass of ``doctrine.drg.loader.DRGLoadError``:
+    several call sites ``except DRGLoadError`` and degrade to an empty graph, and
+    a stray top-level key must fail *closed* past those handlers (NFR-006), not be
+    swallowed into a silently-degraded read -- the exact silence this closes.
+    """
+
+    def __init__(self, *, source: str, unknown_keys: tuple[str, ...]) -> None:
+        self.source = source
+        self.unknown_keys = unknown_keys
+        rendered = ", ".join(repr(key) for key in unknown_keys)
+        super().__init__(
+            f"{source}: graph document declares unknown top-level key(s) "
+            f"{rendered}. DRGGraph accepts only {sorted(DRGGraph.model_fields)}. "
+            "Remove the stray key(s); or, if the field is intended, declare it on "
+            "DRGGraph in the same commit as the writer that emits it."
+        )
+
+
+def _unknown_top_level_keys(exc: ValidationError) -> tuple[str, ...]:
+    """Return the top-level ``extra_forbidden`` keys *exc* names, in first-seen order.
+
+    Only single-element locations (top-level document fields) count: a nested
+    node/edge ``extra_forbidden`` (location length > 1) must not masquerade as a
+    document-level stray key -- that case stays on the ordinary
+    :class:`ValidationError` path so callers wrap it as they already do.
+    """
+    keys: list[str] = []
+    for error in exc.errors():
+        location = error.get("loc", ())
+        if error.get("type") != "extra_forbidden" or len(location) != 1:
+            continue
+        key = location[0]
+        if isinstance(key, str) and key not in keys:
+            keys.append(key)
+    return tuple(keys)
+
+
+def load_graph_document(data: object, *, source: str) -> DRGGraph:
+    """Validate *data* as a :class:`DRGGraph`, naming *source* on a stray key.
+
+    The single strict load boundary for a graph *document*. An unknown top-level
+    key raises :class:`DRGGraphSchemaError` naming *source* and the key (T009 /
+    NFR-006). Any other validation failure propagates as the raw
+    :class:`pydantic.ValidationError`, so an existing caller keeps wrapping it as
+    it already does.
+    """
+    try:
+        return DRGGraph.model_validate(data)
+    except ValidationError as exc:
+        unknown = _unknown_top_level_keys(exc)
+        if unknown:
+            raise DRGGraphSchemaError(source=source, unknown_keys=unknown) from exc
+        raise

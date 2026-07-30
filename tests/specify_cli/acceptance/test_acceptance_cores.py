@@ -475,6 +475,12 @@ class TestEvaluateAcceptanceMatrix:
         matrix = SimpleNamespace(negative_invariants=[], overall_verdict=verdict)
         monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: matrix)
         monkeypatch.setattr("specify_cli.acceptance.matrix.validate_matrix_evidence", lambda _m: [])
+        # WP04 / T016 (#2318): the gate now persists the recomputed verdict
+        # unconditionally when mutate_matrix=True, not only when negative
+        # invariants are present. This test's fixture is a bare SimpleNamespace
+        # (no ``to_dict``), so the real writer is stubbed out here -- the write
+        # itself is covered by ``test_acceptance_verdict_command.py``.
+        monkeypatch.setattr("specify_cli.acceptance.matrix.write_acceptance_matrix", lambda _fd, _m: None)
         activity_issues: list[str] = []
 
         _evaluate_acceptance_matrix(tmp_path, tmp_path, activity_issues, [], [], mutate_matrix=True)
@@ -485,6 +491,8 @@ class TestEvaluateAcceptanceMatrix:
         matrix = SimpleNamespace(negative_invariants=[], overall_verdict="pass")
         monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: matrix)
         monkeypatch.setattr("specify_cli.acceptance.matrix.validate_matrix_evidence", lambda _m: [])
+        # WP04 / T016: see the comment in the parametrized test above.
+        monkeypatch.setattr("specify_cli.acceptance.matrix.write_acceptance_matrix", lambda _fd, _m: None)
         activity_issues: list[str] = []
 
         _evaluate_acceptance_matrix(tmp_path, tmp_path, activity_issues, [], [], mutate_matrix=True)

@@ -23,6 +23,9 @@ nodes:
 - urn: styleguide:docs-freshness-sla
   kind: styleguide
   label: Documentation Freshness SLA Styleguide
+- urn: styleguide:given-when-then-authoring
+  kind: styleguide
+  label: Given-When-Then Scenario Authoring
 - urn: styleguide:java-conventions
   kind: styleguide
   label: Java Conventions Styleguide
@@ -44,6 +47,9 @@ nodes:
 - urn: styleguide:python-conventions
   kind: styleguide
   label: Python Conventions Styleguide
+- urn: styleguide:quadruple-a-test-format
+  kind: styleguide
+  label: Quadruple-A Test Format
 - urn: styleguide:reasons-canvas-writing
   kind: styleguide
   label: REASONS Canvas Writing Styleguide

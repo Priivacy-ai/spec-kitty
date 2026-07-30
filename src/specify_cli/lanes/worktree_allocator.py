@@ -72,6 +72,44 @@ class DependencyLaneMergeConflictError(StructuredError):
         return payload
 
 
+class PlanningCommitMergeConflictError(StructuredError):
+    """Raised when merging the recorded planning-artifact commit conflicts.
+
+    FR-009 / ADR ``2026-07-29-1`` (#2993): a freshly created (or reused /
+    recovered) lane worktree merges in the recorded finalize-tasks planning
+    commit (``LanesManifest.planning_commit_sha``) on top of its existing
+    ``coordination_branch`` / ``mission_branch`` parentage, so the lane's own
+    history contains the mission's spec/tasks artifacts. That merge is expected
+    to be conflict-free in practice — ``coordination_branch``'s own commits are
+    COORD-partition status/matrix files, disjoint from the PRIMARY-partition
+    planning files the recorded commit carries — but a genuinely conflicting
+    tree fails CLOSED here rather than leaving a half-merged worktree. The
+    merge is aborted before this is raised.
+    """
+
+    error_code: str = "PLANNING_COMMIT_MERGE_CONFLICT"
+
+    def __init__(self, lane_id: str, planning_commit_sha: str) -> None:
+        self.lane_id = lane_id
+        self.planning_commit_sha = planning_commit_sha
+        self.next_step = (
+            f"merge {planning_commit_sha!r} into the lane {lane_id!r} worktree "
+            "manually, resolve the conflicts, commit, then re-run the implement "
+            "command for this WP."
+        )
+        super().__init__(
+            f"cannot auto-merge the recorded planning commit {planning_commit_sha!r} "
+            f"into lane {lane_id!r}: the merge conflicts. {self.next_step}"
+        )
+
+    def to_dict(self) -> dict[str, object]:
+        payload = super().to_dict()
+        payload["lane_id"] = self.lane_id
+        payload["planning_commit_sha"] = self.planning_commit_sha
+        payload["next_step"] = self.next_step
+        return payload
+
+
 def predict_lane_worktree(
     repo_root: Path, mission_slug: str, lane_id: str
 ) -> tuple[Path, str]:
@@ -153,6 +191,12 @@ def allocate_lane_worktree(
     if worktree_path.exists():
         # Reuse existing lane worktree — validate it is clean first.
         _validate_worktree_clean(worktree_path, lane.lane_id)
+        # FR-009 (#2993) reuse-path self-heal: a lane created before this fix
+        # (or before a later finalize-tasks re-run recorded a newer SHA) picks
+        # up the recorded planning commit here. Idempotent no-op once merged.
+        _merge_recorded_planning_commit(
+            worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha
+        )
         # #1684 reuse-path catch-up: a dependency lane may have been approved
         # *after* this worktree was created. Merge any newly-approved dep tips
         # so the dependent lane sees them. Idempotent: already-merged tips are
@@ -203,6 +247,11 @@ def allocate_lane_worktree(
         _register_sparse_checkout_if_coord(
             worktree_path, mission_slug, coordination_branch, short_id,
         )
+        # FR-009 (#2993) crash-recovery self-heal: mirrors the reuse-path call
+        # below — a re-attached lane picks up the recorded planning commit too.
+        _merge_recorded_planning_commit(
+            worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha
+        )
         _merge_dependency_lane_tips(
             repo_root, worktree_path, mission_slug, lane, lanes_manifest
         )
@@ -226,6 +275,15 @@ def allocate_lane_worktree(
         _ensure_mission_branch(repo_root, mission_branch, lanes_manifest.target_branch)
         _create_lane_worktree(repo_root, worktree_path, branch, mission_branch)
 
+    # FR-009 (#2993) / ADR 2026-07-29-1: merge the recorded finalize-tasks
+    # planning-artifact commit into the freshly created lane, on top of its
+    # coordination_branch / mission_branch parentage (never in place of it —
+    # see the ADR's coord-descent guard). A no-op when the manifest predates
+    # this field (backward compatible).
+    _merge_recorded_planning_commit(
+        worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha
+    )
+
     # #1684 fresh-path propagation: merge approved dependency-lane tips on top
     # of the chosen base (coordination or legacy mission branch) so the
     # dependent lane sees sibling code.
@@ -234,6 +292,68 @@ def allocate_lane_worktree(
     )
 
     return worktree_path, branch
+
+
+def _merge_recorded_planning_commit(
+    worktree_path: Path,
+    lane_id: str,
+    planning_commit_sha: str | None,
+) -> None:
+    """Merge the recorded finalize-tasks planning commit into a lane worktree.
+
+    FR-009 / ADR ``2026-07-29-1`` (#2993): a lane branched purely off
+    ``coordination_branch`` (or the legacy ``mission_branch``) has no common
+    ancestor with the primary ``target_branch`` commit that carries
+    ``spec.md``/``tasks.md``/``tasks/WP*.md`` — ``coordination_branch`` is minted
+    at mission-create time, BEFORE planning exists. Merging the RECORDED
+    (never re-derived live) planning-artifact SHA into the lane gives it BOTH
+    ancestries: the ``coordination_branch`` lineage the sparse-checkout / status
+    machinery and the WP04 (#1348) coord-descent guard still require
+    (unaffected — this only ADDS an ancestor, it never changes the lane's
+    primary parent), and the planning-artifact lineage #2993 requires.
+
+    ``planning_commit_sha`` is ``None`` for a ``lanes.json`` written before this
+    fix (backward compatibility) — a no-op in that case, reproducing pre-WP01
+    behaviour exactly.
+
+    Idempotent: a SHA already an ancestor of ``HEAD`` is skipped (no-op),
+    which is what makes it safe to call from the worktree-reuse and
+    crash-recovery paths as well as fresh creation — an existing lane
+    self-heals the next time it is touched, and a lane re-entered after a
+    ``finalize-tasks`` re-run picks up a newer recorded value.
+
+    Raises:
+        PlanningCommitMergeConflictError: if the merge conflicts (fail closed;
+            the half-merge is aborted before this is raised).
+    """
+    if planning_commit_sha is None:
+        return
+    is_ancestor = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", planning_commit_sha, "HEAD"],
+        cwd=str(worktree_path),
+        capture_output=True,
+        text=True,
+    )
+    if is_ancestor.returncode == 0:
+        return
+    merge = subprocess.run(
+        [
+            "git", "merge", "--no-edit",
+            "-m", f"Merge recorded planning-artifact commit into {lane_id} (FR-009)",
+            planning_commit_sha,
+        ],
+        cwd=str(worktree_path),
+        capture_output=True,
+        text=True,
+    )
+    if merge.returncode != 0:
+        subprocess.run(
+            ["git", "merge", "--abort"],
+            cwd=str(worktree_path),
+            capture_output=True,
+            text=True,
+        )
+        raise PlanningCommitMergeConflictError(lane_id, planning_commit_sha)
 
 
 def _ordered_dependency_lanes(

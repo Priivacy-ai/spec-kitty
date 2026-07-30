@@ -26,6 +26,33 @@ Directory and bulk arguments expand to their contained changed / untracked
 files (validated against the CommitTarget's worktree) with an explicit
 expansion report, so a directory argument no longer trips the staging backstop
 (#1820 / #1330 / F-002).
+
+post-merge-write-authoring-finish-01KYRRM5 WP04 (#3033 T016/T017)
+-------------------------------------------------------------------
+
+**T017 (SC-001).** The single ``safe_commit`` call this command makes
+(:func:`_resolve_capability_for_target`) asserts
+``GuardCapability.POST_CONSOLIDATION_WRITE`` instead of the default
+``STANDARD`` ONLY when the resolved mission-aware target is recognised
+(:func:`~specify_cli.coordination.write_seam.is_post_consolidation_write_target`,
+PUBLIC signals only) as WP03's E2 CONSOLIDATED short-circuit -- a mission
+whose Target Ref has been deleted (published to trunk), now resolving to the
+repository-root checkout on the Primary Branch. Every other commit this
+command performs (mission-aware or generic) keeps asserting ``STANDARD`` --
+refused on a protected destination, exactly as before.
+
+**T016 (FR-006 / SC-004).** When the mission-aware seam signals its
+structured off-checkout refusal (``ActionContextError`` code
+``CONSOLIDATED_CONTENT_ABSENT`` -- the mission is published but this
+checkout does not carry its consolidated content), this command raises
+:class:`MissionAwareCommitRefused` (a ``ValueError`` subclass, so the
+existing top-level exception handler below reports it with exit code 1 and
+performs no commit) INSTEAD OF silently falling back to the generic
+``--to-branch``/HEAD path -- falling through there would land the commit on
+the WRONG branch (the current HEAD) rather than refusing (violating C-004,
+"off-checkout = refuse, not force"). Every OTHER ``ActionContextError``
+(mission genuinely unresolvable, not a real mission path, etc.) keeps
+falling back to the generic path unchanged (#1784).
 """
 from __future__ import annotations
 
@@ -42,14 +69,41 @@ from mission_runtime import (
     MissionArtifactKind,
     kind_for_mission_file,
 )
+from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.git_ops import get_current_branch
+from specify_cli.coordination.write_seam import is_post_consolidation_write_target
 from specify_cli.git import ProtectedBranchCommitError, safe_commit
 from specify_cli.git.commit_helpers import (
     SafeCommitBackstopError,
     SafeCommitError,
 )
 from specify_cli.task_utils import TaskCliError, find_repo_root
+
+# Mirrors resolution.py's private ``_CONSOLIDATED_CONTENT_ABSENT_CODE`` value
+# (mirrored, not imported -- see the same rationale documented in
+# ``coordination.write_seam``'s module docstring / ``_CONSOLIDATED_CONTENT_
+# ABSENT_CODE`` constant: the code string is the resolver's public
+# "structured signal" contract, not a shared importable constant).
+_CONSOLIDATED_CONTENT_ABSENT_CODE = "CONSOLIDATED_CONTENT_ABSENT"
+
+
+class MissionAwareCommitRefused(ValueError):
+    """FR-006 (T016): a mission-aware planning commit refuses off-checkout (SC-004).
+
+    Raised when :func:`mission_runtime.resolve_placement_only` signals its
+    structured ``CONSOLIDATED_CONTENT_ABSENT`` refusal (the mission is
+    published/E2 but this checkout does not carry its consolidated content).
+    Deliberately NOT folded into the generic ``except ActionContextError:
+    return None`` fallback in :func:`_resolve_mission_aware_target` -- that
+    fallback exists for "this doesn't look like a real, resolvable mission,
+    try the generic HEAD path" (#1784); silently falling through here would
+    let the commit land on the WRONG branch (the current HEAD) instead of
+    refusing, defeating C-004 ("off-checkout = refuse, not force"). A
+    ``ValueError`` subclass so the CLI's existing top-level ``except
+    ValueError`` handler reports it with exit code 1 and no commit
+    performed -- no new except arm needed.
+    """
 
 
 
@@ -71,7 +125,14 @@ def _current_worktree_root() -> Path:
     )
     if result.returncode == 0 and result.stdout.strip():
         return Path(result.stdout.strip()).resolve()
-    return find_repo_root()
+    # Explicit annotation (campsite, pre-existing under the project's
+    # ``follow_imports = "skip"`` mypy config): the cross-module
+    # ``task_utils.find_repo_root`` call is seen as returning ``Any`` when
+    # this file is type-checked in isolation; the annotation re-narrows it
+    # back to ``Path`` (matching the sibling chokepoint pattern this WP
+    # already applies in ``coordination/write_seam.py``).
+    fallback_root: Path = find_repo_root()
+    return fallback_root
 
 
 def _changed_paths_under(repo_root: Path, rel_dir: str) -> list[str]:
@@ -229,12 +290,20 @@ def _resolve_mission_aware_target(
     mission (no ``meta.json`` yet / not a real mission), so the caller falls back
     to the generic path rather than failing a legitimate operator commit that
     merely *looks* like it lives under ``kitty-specs/``.
+
+    WP04 / T016 (FR-006 / SC-004): a resolver refusal carrying code
+    ``CONSOLIDATED_CONTENT_ABSENT`` is NOT folded into that ``None`` fallback
+    — see :class:`MissionAwareCommitRefused`'s docstring for why.
     """
     from mission_runtime import ActionContextError, resolve_placement_only
 
     try:
         return resolve_placement_only(repo_root, mission_slug, kind=kind)
-    except (ActionContextError, FileNotFoundError, ValueError):
+    except ActionContextError as exc:
+        if exc.code == _CONSOLIDATED_CONTENT_ABSENT_CODE:
+            raise MissionAwareCommitRefused(str(exc)) from exc
+        return None
+    except (FileNotFoundError, ValueError):
         return None
 
 
@@ -299,6 +368,35 @@ def _resolve_commit_target(
     return CommitTarget(ref=inferred)
 
 
+def _resolve_capability_for_target(
+    repo_root: Path, files: list[Path], target: CommitTarget
+) -> GuardCapability:
+    """WP04 / T017 (#3033 SC-001): select the ONE ``safe_commit`` capability.
+
+    ``GuardCapability.STANDARD`` (default) for every ordinary commit --
+    refused on a protected destination, exactly as before. Only the
+    mission-aware CONSOLIDATED (E2) write authorizes
+    ``GuardCapability.POST_CONSOLIDATION_WRITE``: ``target`` is recognised as
+    WP03's E2 CONSOLIDATED short-circuit purely from PUBLIC signals
+    (:func:`~specify_cli.coordination.write_seam.is_post_consolidation_write_target`)
+    -- never from an ambient env var or message text (commit_guard's own
+    C-GUARD-2 discipline). Re-derives ``mission_slug``/``kind`` from
+    ``files`` (the SAME pure, side-effect-free classifiers
+    :func:`_resolve_commit_target` already calls) rather than threading them
+    through that function's signature, keeping this an orthogonal,
+    additive step.
+    """
+    mission_slug = _mission_slug_from_paths(repo_root, files)
+    if mission_slug is None:
+        return GuardCapability.STANDARD
+    kind = _mission_file_kind(repo_root, files, mission_slug)
+    if kind is None:
+        return GuardCapability.STANDARD
+    if is_post_consolidation_write_target(repo_root, mission_slug, kind, target):
+        return GuardCapability.POST_CONSOLIDATION_WRITE
+    return GuardCapability.STANDARD
+
+
 def safe_commit_command(
     files: list[Path] = typer.Argument(
         ...,
@@ -349,13 +447,18 @@ def safe_commit_command(
             # guard (C-GUARD-1) against the single resolved CommitTarget — this
             # CLI performs no separate protected-branch rim check. The match
             # compares against the EXPANDED set, so directory arguments no
-            # longer trip the staging backstop (#1820 / F-002).
+            # longer trip the staging backstop (#1820 / F-002). ``capability``
+            # (WP04 / T017) is STANDARD for every commit except the recognised
+            # E2 CONSOLIDATED mission-aware write (#3033 SC-001) — see
+            # _resolve_capability_for_target.
+            capability = _resolve_capability_for_target(repo_root, expanded_files, target)
             safe_commit(
                 repo_root=repo_root,
                 worktree_root=repo_root,
                 target=target,
                 message=message,
                 paths=tuple(expanded_files),
+                capability=capability,
             )
             committed = True
 

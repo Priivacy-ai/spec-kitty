@@ -1,7 +1,23 @@
 """Scope: #2804 (P0) -- ``spec-kitty merge`` clobbers filled coordination gate
-artifacts (``acceptance-matrix.json`` / ``issue-matrix.md``) back to their
+artifacts (``acceptance-matrix.json`` / ``issue-matrix.json``) back to their
 empty placeholder scaffold, on the integration branch, AFTER the done-gate has
 already consumed their filled contents.
+
+**WP11 (FR-008) campsite note:** originally fixtured with the retired
+``issue-matrix.md`` shape. WP05 migrated ``issue-matrix`` to the structured
+``.json`` artifact (C-008; no ``.md`` is written by any canonical path any
+more) and WP11 repointed the merge-driver registration to match
+(``kitty-specs/**/issue-matrix.json``) -- the ``.md`` fixture below would
+silently stop exercising ANY reconcile driver (falling through to git's
+default ``-X theirs`` text merge), so it is updated to the real ``.json``
+row schema here. This file is not WP11-owned, but no other work package
+references it (checked); the update is a direct, necessary consequence of
+the T041 registration repoint, not unrelated scope creep. WP11 also
+replaces the acceptance/issue-matrix drivers' whole-file "more-filled-side"
+heuristic with a row-aware, base-aware (3-way) reconciler (FR-008) -- the
+assertions below were updated to require that the real, accepted evidence
+is never silently discarded (the #2804 invariant), matching the new
+driver's behavior verified against this exact fixture.
 
 RED-FIRST P0 reproduction, intentionally FAILING until the product defect is
 fixed. Tracking issue: https://github.com/Priivacy-ai/spec-kitty/issues/2804.
@@ -13,7 +29,7 @@ mission ``charter-deadcode-noop-campsite-01KXW0NY``, reflog entries
 of mission" -> the operator's manual recovery commit "restore terminal
 issue-matrix + acceptance-matrix (merge reset them to placeholders)"):
 
-``acceptance-matrix.json`` / ``issue-matrix.md`` are COORD-partition kinds
+``acceptance-matrix.json`` / ``issue-matrix.json`` are COORD-partition kinds
 (``mission_runtime.artifacts._PLACEMENT_ARTIFACT_KINDS``). ``finalize-tasks``
 scaffolds their placeholder INSIDE the mission-branch checkout (the
 finalize-tasks / lane-provisioning step runs there), while ``spec-kitty
@@ -132,15 +148,22 @@ FILLED_ACCEPTANCE_MATRIX: dict[str, object] = {
     "negative_invariants": [],
 }
 
-FILLED_ISSUE_MATRIX = (
-    "# Issue matrix -- " + MISSION_SLUG + "\n\n"
-    "Per FR-037 of the spec-kitty-mission-review skill Gate-4. One row per "
-    "issue referenced in spec.md.\n\n"
-    "| Issue | Title | Verdict | Evidence ref |\n"
-    "|-------|-------|---------|--------------|\n"
-    "| #2373 | dead-code baseline noop-stability | verified-already-fixed | "
-    "commit d5b8324f9 (WP01) |\n"
-)
+FILLED_ISSUE_MATRIX: dict[str, object] = {
+    "schema_version": 1,
+    "rows": {
+        "#2373": {
+            "verdict": "verified-already-fixed",
+            "evidence_ref": "commit d5b8324f9 (WP01)",
+            "title": "dead-code baseline noop-stability",
+            "scope": None,
+            "wp": None,
+            "fr": None,
+            "nfr": None,
+            "sc": None,
+            "repo": None,
+        }
+    },
+}
 
 # --- The empty scaffold placeholder produced by ``scaffold_acceptance_matrix``
 # / ``scaffold_issue_matrix`` at finalize-tasks time (byte-identical shape to
@@ -160,9 +183,22 @@ PLACEHOLDER_ACCEPTANCE_MATRIX: dict[str, object] = {
     ],
     "negative_invariants": [],
 }
-PLACEHOLDER_ISSUE_MATRIX = (
-    "# Issue Matrix\n\n| Issue | Verdict | Evidence ref |\n| --- | --- | --- |\n"
-)
+PLACEHOLDER_ISSUE_MATRIX: dict[str, object] = {
+    "schema_version": 1,
+    "rows": {
+        "#2373": {
+            "verdict": "unknown",
+            "evidence_ref": "<link or commit>",
+            "title": "<fill at WP-implementation time>",
+            "scope": None,
+            "wp": None,
+            "fr": None,
+            "nfr": None,
+            "sc": None,
+            "repo": None,
+        }
+    },
+}
 
 
 def _run(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
@@ -257,7 +293,7 @@ def _approved_event() -> dict[str, object]:
 
 def _bootstrap_mission(repo: Path) -> Path:
     """Build the real #2804 divergence: mission branch and target each
-    introduce ``acceptance-matrix.json`` / ``issue-matrix.md`` INDEPENDENTLY
+    introduce ``acceptance-matrix.json`` / ``issue-matrix.json`` INDEPENDENTLY
     (an add/add divergence), matching the real incident's history:
 
     1. Shared ancestor WITHOUT either gate artifact (meta/lanes/WP/status only).
@@ -288,7 +324,9 @@ def _bootstrap_mission(repo: Path) -> Path:
     (feature_dir / "acceptance-matrix.json").write_text(
         json.dumps(PLACEHOLDER_ACCEPTANCE_MATRIX, indent=2) + "\n", encoding="utf-8"
     )
-    (feature_dir / "issue-matrix.md").write_text(PLACEHOLDER_ISSUE_MATRIX, encoding="utf-8")
+    (feature_dir / "issue-matrix.json").write_text(
+        json.dumps(PLACEHOLDER_ISSUE_MATRIX, indent=2) + "\n", encoding="utf-8"
+    )
     _git(repo, "add", "kitty-specs")
     _git(
         repo,
@@ -312,7 +350,9 @@ def _bootstrap_mission(repo: Path) -> Path:
     (feature_dir / "acceptance-matrix.json").write_text(
         json.dumps(FILLED_ACCEPTANCE_MATRIX, indent=2) + "\n", encoding="utf-8"
     )
-    (feature_dir / "issue-matrix.md").write_text(FILLED_ISSUE_MATRIX, encoding="utf-8")
+    (feature_dir / "issue-matrix.json").write_text(
+        json.dumps(FILLED_ISSUE_MATRIX, indent=2) + "\n", encoding="utf-8"
+    )
     _git(repo, "add", "kitty-specs")
     _git(repo, "commit", "-m", f"Finalize acceptance artifacts for {MISSION_SLUG}")
 
@@ -382,7 +422,7 @@ def test_merge_resets_filled_gate_artifacts_to_placeholder(tmp_path: Path) -> No
 
     Intentionally FAILS until the product bug is fixed: ``spec-kitty merge``
     must NEVER clobber an already-filled, already-accepted ``acceptance-
-    matrix.json`` / ``issue-matrix.md`` back to the empty scaffold placeholder.
+    matrix.json`` / ``issue-matrix.json`` back to the empty scaffold placeholder.
     Do NOT xfail/skip/quarantine to green -- fix the product (preserve the
     filled coord gate artifacts through the mission->target squash merge,
     e.g. by projecting them like ``_project_status_bookkeeping_to_target``
@@ -402,8 +442,8 @@ def test_merge_resets_filled_gate_artifacts_to_placeholder(tmp_path: Path) -> No
     assert SCAFFOLD_TODO_MARKER not in json.dumps(pre_matrix), (
         "precondition: fixture must start FILLED, not the scaffold placeholder"
     )
-    pre_issue_matrix = (feature_dir / "issue-matrix.md").read_text(encoding="utf-8")
-    assert "verified-already-fixed" in pre_issue_matrix, (
+    pre_issue_matrix = json.loads((feature_dir / "issue-matrix.json").read_text(encoding="utf-8"))
+    assert pre_issue_matrix["rows"]["#2373"]["verdict"] == "verified-already-fixed", (
         "precondition: fixture must start with a real terminal verdict row"
     )
 
@@ -452,8 +492,26 @@ def test_merge_resets_filled_gate_artifacts_to_placeholder(tmp_path: Path) -> No
         f"the real accepted evidence. Post-merge content: {post_matrix!r}"
     )
 
-    post_issue_matrix = (feature_dir / "issue-matrix.md").read_text(encoding="utf-8")
-    assert "verified-already-fixed" in post_issue_matrix, (
-        "#2804: spec-kitty merge reset issue-matrix.md back to the bare "
-        f"scaffold, dropping the terminal verdict row. Post-merge content:\n{post_issue_matrix}"
+    post_issue_matrix = json.loads((feature_dir / "issue-matrix.json").read_text(encoding="utf-8"))
+    merged_row = post_issue_matrix["rows"]["#2373"]
+    # WP11 (FR-008): the row-aware driver reconciles the SAME row key (#2373)
+    # present with genuinely differing content on both sides (an add/add, no
+    # common base -- exactly this fixture's shape). Per the algorithm contract
+    # (contracts/merge-driver-algorithm.md), a genuine same-key divergence with
+    # no base to arbitrate is a structured conflict, NEVER a silent pick either
+    # way -- so the assertion is deliberately narrower than "byte-identical to
+    # FILLED": the scaffold's placeholder verdict must never win OUTRIGHT, and
+    # the real, accepted evidence must never be silently discarded (both are
+    # satisfied whether the merge cleanly resolves to the real verdict or
+    # surfaces it inside a structured conflict marker).
+    assert merged_row["verdict"] != "unknown", (
+        "#2804 (row-aware, FR-008): spec-kitty merge let the mission branch's "
+        f"scaffold verdict ('unknown') win outright over the target's real, "
+        f"accepted verdict. Post-merge row: {merged_row!r}"
+    )
+    assert "verified-already-fixed" in json.dumps(merged_row), (
+        "#2804 (row-aware, FR-008): spec-kitty merge discarded the target's "
+        "real, accepted verdict ('verified-already-fixed') without leaving any "
+        f"trace of it (not even in a structured conflict marker). Post-merge "
+        f"row: {merged_row!r}"
     )

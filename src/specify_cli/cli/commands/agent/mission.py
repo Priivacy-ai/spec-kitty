@@ -176,6 +176,12 @@ from specify_cli.cli.commands.agent.mission_record_analysis import (
     _resolve_record_analysis_placement_ref as _resolve_record_analysis_placement_ref,
 )
 
+# WP04 (write-side-seam-matrix-tracer-01KYP3MH / T015): the acceptance-verdict
+# command is a one-way leaf, same shape as record-analysis above; it is
+# registered on ``app`` below (mirrors the record-analysis registration
+# idiom — the module owns the plain callable, this app registers it).
+from specify_cli.cli.commands.agent.acceptance_verdict import acceptance_verdict
+
 # Seam B / lifecycle families I (#2056 WP05): the branch-context command and the
 # deterministic branch-resolution helpers it shares with setup-plan/finalize-tasks
 # live in a one-way leaf module. Re-imported here so every historical
@@ -328,6 +334,7 @@ app = typer.Typer(name="mission", help="Mission lifecycle commands for AI agents
 # is unchanged (each seam defines the callable; mission.py owns the app — one-way:
 # the seams never import ``app``).
 app.command(name="record-analysis")(record_analysis)
+app.command(name="acceptance-verdict")(acceptance_verdict)
 app.command(name="branch-context")(branch_context)
 app.command(name="create")(create_mission)
 app.command(name="check-prerequisites")(check_prerequisites)

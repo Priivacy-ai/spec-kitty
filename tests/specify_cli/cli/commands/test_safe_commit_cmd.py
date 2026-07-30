@@ -17,6 +17,8 @@ from mission_runtime import (
     resolve_placement_only,
 )
 from specify_cli import app as cli_app
+from specify_cli.merge.baseline import record_baseline_merge_commit
+from specify_cli.mission_metadata import load_meta, write_meta
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -36,13 +38,29 @@ def _init_spec_kitty_repo(repo: Path) -> None:
 
 
 def _seed_merged_and_pruned_mission(tmp_path: Path, mission_slug: str) -> tuple[Path, str, str]:
-    """Seed a mission whose feature branch is merged into ``main`` and pruned.
+    """Seed a genuine E2 (PUBLISHED) mission: consolidated, published, Target Ref pruned.
 
-    Shared #3033 fixture shape -- exactly what ``spec-kitty merge`` + branch
-    cleanup leaves behind: the mission's ``meta.json`` still names the
-    now-deleted feature branch as ``target_branch``, and the working tree
-    ends up on a *different*, freshly-checked-out branch (mirroring a later
-    pass, e.g. authoring the retrospective, that runs from its own branch).
+    Shared #3033 fixture shape -- exactly what ``spec-kitty merge`` +
+    publish-to-trunk + branch cleanup leaves behind. Reproduces the REAL
+    durable post-merge state the shipped write-surface fix keys on (ADR
+    2026-07-30-1, ``LifecyclePhase.PUBLISHED`` == ``baseline_merge_commit``
+    present AND Target Ref absent AND terminal-completion evidence): the
+    mission's ``meta.json`` still names the now-deleted ``target_branch``, but
+    it ALSO carries the ``baseline_merge_commit`` that ``record_baseline_merge_commit``
+    (the real E1 bookkeeping ``spec-kitty merge`` calls) bakes in plus a
+    ``mission_number`` (real merge-time bookkeeping, the terminal-completion
+    evidence C-003 requires). Without those durable signals the phase reader
+    (correctly) resolves ``PRE_CONSOLIDATION`` -- its safe default for a
+    never-materialized Target Ref -- and the E2 write surface never engages;
+    an earlier revision of this fixture omitted them and the pins failed on
+    that gap, not on the product.
+
+    The later authoring pass runs from the **repository-root checkout on the
+    Primary Branch** (``main``), NOT a fresh off-checkout branch: the shipped
+    FR-006 contract *refuses* off-checkout writes with a branch-named recovery
+    hint rather than silently succeeding, so authoring a PRIMARY-kind artifact
+    for a published mission legitimately happens on the Primary Branch. HEAD is
+    left on ``main`` so the CLI pin exercises the sanctioned E2 write path.
 
     Extracted so both the CLI-level #3033 regression
     (``test_public_safe_commit_succeeds_after_merged_branch_deleted_3033``)
@@ -50,21 +68,31 @@ def _seed_merged_and_pruned_mission(tmp_path: Path, mission_slug: str) -> tuple[
     (``test_resolve_placement_only_rejects_pruned_target_branch_3033``) drive
     the identical repo shape without duplicating the git choreography.
 
-    Returns ``(feature_dir, feature_branch, postmerge_branch)``.
+    Returns ``(feature_dir, feature_branch, primary_branch)`` where
+    ``primary_branch`` is the branch HEAD is left on (``main``).
     """
     feature_branch = f"feat/{mission_slug}"
-    postmerge_branch = f"review/{mission_slug}-postmerge"
+    primary_branch = "main"
+    mission_id = "01KYHHR8RELATIONALCUT0001"
 
     _init_spec_kitty_repo(tmp_path)
 
     def _git(*args: str) -> None:
         subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
 
+    baseline_commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
     _git("checkout", "-q", "-b", feature_branch)
     feature_dir = tmp_path / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
     meta = {
-        "mission_id": "01KYHHR8RELATIONALCUT0001",
+        "mission_id": mission_id,
         "mission_slug": mission_slug,
         "mission_type": "software-dev",
         "target_branch": feature_branch,
@@ -79,17 +107,30 @@ def _seed_merged_and_pruned_mission(tmp_path: Path, mission_slug: str) -> tuple[
         capture_output=True,
     )
 
-    # Merge into main and prune the merged branch -- exactly what
-    # `spec-kitty merge` + branch cleanup leaves behind.
-    _git("checkout", "-q", "main")
+    # E1: lane consolidation bakes ``baseline_merge_commit`` (via the REAL
+    # merge-bookkeeping entry point) + assigns ``mission_number`` -- the
+    # terminal-completion evidence a real consolidation produces (C-003 / D2).
+    record_baseline_merge_commit(feature_dir, baseline_commit, mission_id=mission_id)
+    consolidated_meta = load_meta(feature_dir)
+    assert consolidated_meta is not None
+    consolidated_meta["mission_number"] = 214
+    write_meta(feature_dir, consolidated_meta, validate=False)
+    _git("add", ".")
+    _git(
+        "commit",
+        "-m",
+        f"chore({mission_slug}): record baseline_merge_commit + mission_number (E1)",
+    )
+
+    # E2: publish to trunk (a real merge commit, mirroring a PR merge) and
+    # prune the Target Ref -- exactly what publish + branch cleanup leaves
+    # behind. The consolidated ``meta.json`` now lives at the Primary-Branch
+    # tip, so ``content_present_at_primary_tip`` succeeds.
+    _git("checkout", "-q", primary_branch)
     _git("merge", "-q", "--no-ff", feature_branch, "-m", f"Merge {feature_branch}")
     _git("branch", "-D", feature_branch)
 
-    # A later pass (e.g. the retrospective) works from a fresh branch -- the
-    # merged mission branch no longer exists anywhere in this repo.
-    _git("checkout", "-q", "-b", postmerge_branch)
-
-    return feature_dir, feature_branch, postmerge_branch
+    return feature_dir, feature_branch, primary_branch
 
 
 @pytest.mark.parametrize(
@@ -217,11 +258,18 @@ def test_public_safe_commit_succeeds_after_merged_branch_deleted_3033(
     ``target_branch`` with NO existence check against git and no
     lifecycle-phase input. Once the mission's feature branch has been merged
     and pruned (``git branch -D``) -- exactly what happens after
-    ``spec-kitty merge`` -- and a later pass (e.g. authoring the
-    retrospective) works from a *different* checked-out branch, the resolved
-    ``CommitTarget.ref`` still points at the now-nonexistent feature branch.
-    ``safe_commit``'s embedded HEAD-match guard then refuses the commit with
-    ``safe_commit: worktree ... HEAD is 'review/...', expected 'feat/...'``.
+    ``spec-kitty merge`` + publish-to-trunk -- authoring a PRIMARY-kind
+    artifact (e.g. the retrospective) resolved a ``CommitTarget.ref`` that
+    still pointed at the now-nonexistent feature branch, and ``safe_commit``'s
+    embedded HEAD-match guard refused the commit
+    (``safe_commit: worktree ... expected 'feat/...'``).
+
+    The shipped fix (ADR 2026-07-30-1) makes ``resolve_placement_only``
+    lifecycle-aware: for a PUBLISHED mission it resolves the write to the
+    Primary Branch. Authoring therefore runs from the repository-root checkout
+    on ``main`` (FR-006 refuses off-checkout writes rather than silently
+    succeeding), and this test drives that sanctioned E2 write path end-to-end
+    through the public ``safe-commit`` CLI.
 
     ``retrospective.yaml`` is deliberately the changeset here because
     ``mission-review-report.md`` is NOT a member of
@@ -263,7 +311,7 @@ def test_public_safe_commit_succeeds_after_merged_branch_deleted_3033(
     monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
 
     mission_slug = "relational-cutover-01KYHHR8"
-    feature_dir, _feature_branch, _postmerge_branch = _seed_merged_and_pruned_mission(
+    feature_dir, _feature_branch, _primary_branch = _seed_merged_and_pruned_mission(
         tmp_path, mission_slug
     )
 
@@ -390,7 +438,7 @@ def test_resolve_placement_only_rejects_pruned_target_branch_3033(
     that is gone.
     """
     mission_slug = "relational-cutover-01KYHHR8"
-    feature_dir, feature_branch, _postmerge_branch = _seed_merged_and_pruned_mission(
+    feature_dir, feature_branch, _primary_branch = _seed_merged_and_pruned_mission(
         tmp_path, mission_slug
     )
     assert feature_dir.exists()  # sanity: the shared fixture did seed the mission

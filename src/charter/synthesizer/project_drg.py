@@ -28,6 +28,7 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
+from doctrine.drg.migration.extractor import graph_document_to_dict, model_to_graph_dict
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 from charter.synthesizer._constants import GRAPH_FILENAME as _GRAPH_FILENAME
@@ -62,36 +63,43 @@ def _node_kind_for(kind: str) -> NodeKind | None:
     return _KIND_TO_NODE_KIND.get(kind)
 
 
+def _node_to_dict(node: DRGNode) -> dict[str, object]:
+    """Serialise one overlay ``DRGNode`` via the derived ``model_to_graph_dict``.
+
+    T005: repointed from the T003 hand-restated shape at the canonical derived
+    writer. The old shape restated ``{kind, urn, label}`` and silently dropped
+    the declared ``DRGNode.tags`` field; deriving from ``model_fields`` closes
+    that — and any field a later mission adds is emitted without editing here.
+    Registered as a ``MappingWriter`` in ``specify_cli.drg_writers.registry``.
+    """
+    return model_to_graph_dict(node)
+
+
+def _edge_to_dict(edge: DRGEdge) -> dict[str, object]:
+    """Serialise one overlay ``DRGEdge`` via the derived ``model_to_graph_dict``.
+
+    T005 counterpart to :func:`_node_to_dict`.
+    """
+    return model_to_graph_dict(edge)
+
+
+def _document_dict(graph: DRGGraph) -> dict[str, object]:
+    """Serialise a whole ``DRGGraph`` document via the canonical derived writer.
+
+    Standalone/addressable for ``specify_cli.drg_writers.registry``'s
+    ``DOCUMENT_WRITERS`` member -- T020/T021 counterpart to
+    :func:`_node_to_dict`/:func:`_edge_to_dict` above. ``graph_document_to_dict``
+    already recurses ``nodes``/``edges`` through :func:`model_to_graph_dict`
+    internally, so this module's separate node/edge helpers are not called
+    from here (they remain registered ``MappingWriter`` members used
+    elsewhere).
+    """
+    return graph_document_to_dict(graph)
+
+
 def _serialize_graph(graph: DRGGraph) -> str:
     """Return a canonical YAML string for *graph* with sorted keys."""
-    # Build a plain dict with sorted keys for deterministic serialization.
-    nodes_data: list[dict[str, object]] = []
-    for node in graph.nodes:
-        nd: dict[str, object] = {"kind": str(node.kind), "urn": node.urn}
-        if node.label is not None:
-            nd["label"] = node.label
-        nodes_data.append(nd)
-
-    edges_data: list[dict[str, object]] = []
-    for edge in graph.edges:
-        ed: dict[str, object] = {
-            "relation": str(edge.relation),
-            "source": edge.source,
-            "target": edge.target,
-        }
-        if edge.when is not None:
-            ed["when"] = edge.when
-        if edge.reason is not None:
-            ed["reason"] = edge.reason
-        edges_data.append(ed)
-
-    payload: dict[str, object] = {
-        "schema_version": graph.schema_version,
-        "generated_at": graph.generated_at,
-        "generated_by": graph.generated_by,
-        "nodes": nodes_data,
-        "edges": edges_data,
-    }
+    payload = _document_dict(graph)
 
     yaml = YAML()
     yaml.default_flow_style = False

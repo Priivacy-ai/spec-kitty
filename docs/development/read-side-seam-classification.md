@@ -268,20 +268,20 @@ Editing any row here, or the § "Stay-lenient allow-list index" /
 | Verdict | Sites | Files | Primitive |
 |---|---|---|---|
 | migrate-fail-loud | 0 | 0 | `candidate_feature_dir_for_mission` |
-| stay-lenient | 12 | 9 | `candidate_feature_dir_for_mission` |
+| stay-lenient | 13 | 10 | `candidate_feature_dir_for_mission` |
 | sanction-infra | 0 | 0 | `candidate_feature_dir_for_mission` |
 | expected-red (unrouted) | 0 | 0 | `candidate_feature_dir_for_mission` |
-| Total real call sites | 12 | 9 | `candidate_feature_dir_for_mission` |
+| Total real call sites | 13 | 10 | `candidate_feature_dir_for_mission` |
 | migrate-fail-loud | 0 | 0 | `resolve_planning_read_dir` |
 | stay-lenient | 4 | 2 | `resolve_planning_read_dir` |
 | sanction-infra | 0 | 0 | `resolve_planning_read_dir` |
 | expected-red (unrouted) | 0 | 0 | `resolve_planning_read_dir` |
 | Total real call sites | 4 | 2 | `resolve_planning_read_dir` |
 | migrate-fail-loud | 0 | 0 | `resolve_feature_dir_for_mission` |
-| stay-lenient | 8 | 7 | `resolve_feature_dir_for_mission` |
+| stay-lenient | 7 | 6 | `resolve_feature_dir_for_mission` |
 | sanction-infra | 0 | 0 | `resolve_feature_dir_for_mission` |
 | expected-red (unrouted) | 0 | 0 | `resolve_feature_dir_for_mission` |
-| Total real call sites | 8 | 7 | `resolve_feature_dir_for_mission` |
+| Total real call sites | 7 | 6 | `resolve_feature_dir_for_mission` |
 | migrate-fail-loud | 0 | 0 | `primary_feature_dir_for_mission` |
 | stay-lenient | 0 | 0 | `primary_feature_dir_for_mission` |
 | sanction-infra | 5 | 4 | `primary_feature_dir_for_mission` |
@@ -297,8 +297,21 @@ Editing any row here, or the § "Stay-lenient allow-list index" /
 reconciled: its one `migrate-fail-loud` site (`decisions/emit.py:71`) was
 allow-listed rather than routed (reconciliation item #5 — see § below and
 `research/expected-reds.md` § WP08), moving it `migrate-fail-loud 1 → 0` /
-`stay-lenient 7 → 8`, so the declared row above now equals a fresh live
-census exactly (8 sites / 7 files) — no exemption remains for this primitive.
+`stay-lenient 7 → 8`, so the declared row equalled a fresh live census
+exactly (8 sites / 7 files) — no exemption remained for this primitive.
+
+**write-side-seam-matrix-tracer (WP02, FR-010 "Move A") supersession.** The
+allow-list above was transitional. WP02 of the write-side mission then ROUTED
+`decisions/emit.py:71`: `_mission_dir` now resolves through
+`placement_seam(...).read_dir(STATUS_STATE)` instead of the kind-blind
+`resolve_feature_dir_for_mission ( repo_root , mission_slug )` call. That call
+no longer exists in `emit.py`, so it is a **completed migration**, not an
+allow-listed offender. A fresh live census now finds `stay-lenient 8 → 7`
+(**7 sites / 6 files**) — the declared row above was updated to match, its
+`_ALLOW_LIST_SEED` descriptor removed, and the stay-lenient index / per-site
+rows below dropped the `emit.py` entry. #3055's gate-owner follow-up is
+subsumed: the coord-authority gate keeps its own permanent `_mission_dir`
+sanction (`test_resolution_authority_gates.py`), which WP02 re-pinned 4 → 3.
 
 `primary_feature_dir_for_mission` carries a **permanent**, not transitional,
 reconciliation red. The public wrapper is DELETED (T035, SC-001): nothing in
@@ -429,6 +442,7 @@ row here and its descriptor in the gate.
 | `src/specify_cli/dossier/api.py` | `DossierAPIHandler.handle_dossier_snapshot_export` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( self . repo_root , mission_slug )` |
 | `src/specify_cli/dossier/api.py` | `DossierAPIHandler._load_dossier` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( self . repo_root , mission_slug )` |
 | `src/specify_cli/retrospective/summary.py` | `_read_proposal_events` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( project_path , mission_slug )` |
+| `src/specify_cli/retrospective/tracer_writer.py` | `_local_staging_path` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( repo_root , mission_slug )` |
 | `src/specify_cli/status/aggregate.py` | `MissionStatus._find_meta_path` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( repo_root , mission_slug )` |
 | `src/specify_cli/manifest.py` | `WorktreeStatus.get_feature_status` | `candidate_feature_dir_for_mission` | `candidate_feature_dir_for_mission ( worktree_path , feature )` |
 | `src/specify_cli/agent_tasks_ports.py` | `RealCoordCommitRouter.feature_write_dir` | `resolve_feature_dir_for_mission` | `resolve_feature_dir_for_mission (` |
@@ -438,7 +452,6 @@ row here and its descriptor in the gate.
 | `src/specify_cli/context/resolver.py` | `resolve_context` | `resolve_feature_dir_for_mission` | `resolve_feature_dir_for_mission ( repo_root , mission_slug )` |
 | `src/specify_cli/lanes/recovery.py` | `reconcile_status` | `resolve_feature_dir_for_mission` | `resolve_feature_dir_for_mission ( repo_root , mission_slug )` |
 | `src/specify_cli/widen/state.py` | `WidenPendingStore.__init__` | `resolve_feature_dir_for_mission` | `resolve_feature_dir_for_mission ( repo_root , mission_slug )` |
-| `src/specify_cli/decisions/emit.py` | `_mission_dir` | `resolve_feature_dir_for_mission` | `resolve_feature_dir_for_mission ( repo_root , mission_slug )` |
 
 read-side-seam-primary-primitive-closure-01KYKMMT WP08 (T039, reconciliation
 item #5): `decisions/emit.py:71` was WP02's one `migrate-fail-loud` finding
@@ -453,6 +466,24 @@ at <https://github.com/Priivacy-ai/spec-kitty/issues/3055>. This moves the
 primitive's `migrate-fail-loud` count `1 → 0` and `stay-lenient` `7 → 8`
 (files `6 → 7`), which is why § "Live census summary" below now declares
 `Total = 8`, not the previously-declared `7`.
+
+write-side-seam-matrix-tracer-01KYP3MH (commit `2d96492ca`, "route … tracer
+staging through canonical mission-spec-path seams"): the new
+`retrospective/tracer_writer.py::_local_staging_path` replaced a hand-built raw
+`repo_root / KITTY_SPECS_DIR / mission_slug / …` join with
+`candidate_feature_dir_for_mission(repo_root, mission_slug)`, adding one
+`candidate_feature_dir_for_mission` site in a previously-uncensused file. It is
+**stay-lenient**, mirroring the sibling `retrospective/summary.py::_read_proposal_events`
+(`:220`) staging-path pattern: it computes where a LOCAL `traces/<category>.md`
+staging file should LAND before the mission's `traces/` subdir exists (the
+caller `mkdir`s + `write_text`s it), then commits it through the WP03
+`write_seam.write_artifact`, whose FR-011 probe is the canonical routability
+authority. A read-resolver route (`read_dir(kind)`) is wrong here — this
+resolves a write-then-stage destination, not where to READ from — and the raw
+join it replaced was the ghost sink previously carried by the surface-resolution
+and untrusted-path audits (both rows deleted with this change). This moves the
+primitive's `stay-lenient` count `12 → 13` (files `9 → 10`), which is why
+§ "Live census summary" above now declares `Total = 13`, not `12`.
 
 ## Foundation-site sanctions (machine-checked)
 
@@ -513,9 +544,13 @@ exactly as `core/paths.py`/`core/git_ops.py` already were.
 
 ## `resolve_feature_dir_for_mission` — classification (WP02, FR-010/FR-012)
 
-The 8 real call sites (7 files; `mission_type.py` carries two), confirmed by
-the live census above — re-derived, not trusted from the WP prompt or
-#3014 (both stale). Each site is classified on **both** axes (disposition,
+The 8 real call sites (7 files; `mission_type.py` carries two) below were the
+read-side mission's end state — re-derived, not trusted from the WP prompt or
+#3014 (both stale). The live census above now declares **7 sites (6 files)**:
+the write-side-seam-matrix-tracer mission routed `decisions/emit.py:71` to
+`read_dir(STATUS_STATE)` (see the supersession note above), so its row below is
+retained for the historical record but marked ROUTED. Each site is classified
+on **both** axes (disposition,
 and raise-vs-degrade), with its anchoring root and rationale of record. Per
 T012's vacuity guard: the census does **not** yield zero `migrate-fail-loud`
 sites (there is exactly one), so the SC-005 zero-case discharge does not
@@ -531,7 +566,7 @@ Per-disposition counts: **migrate-fail-loud = 1**, **stay-lenient = 7**,
 | `cli/commands/mission_type.py:238` | `current_cmd` | stay-lenient | raise (propagates `ActionContextError`) | `project_root` (`get_project_root_or_exit()`) | n/a | Own comment: mirrors `close_cmd`/`decision.py`; shares the identical existence-probe shape needing the structured-error contract. |
 | `cli/commands/mission_type.py:582` | `close_cmd` | stay-lenient | raise (propagates `ActionContextError`) | `repo_root = _resolve_primary_repo_root(project_root)` | n/a | Own comment: pinned tests require an unresolvable/ambiguous handle to raise the structured error, never a silent "not found" or wrong pick; both `read_dir(kind)` legs are lenient by design and would swallow it. |
 | `context/resolver.py:191` | `resolve_context` | stay-lenient | degrade (catches `ActionContextError`, translates to `FeatureNotFoundError`) | `repo_root` (caller-supplied, main-repo-anchored) | n/a | Own comment: exists to canonicalize the caller's HANDLE to a directory NAME, not to read a PRIMARY-partition artifact off the returned dir; re-routing would over-claim a single funnel over the `*_feature_dir_for_mission` primitives beyond what the gate enforces. |
-| `decisions/emit.py:71` | `_mission_dir` | stay-lenient (WP08 allow-list, gate-owner work pending) | raise (currently propagates whatever the resolver raises; `STATUS_STATE` is fail-loud-appropriate) | `repo_root` (param, passed through) | `STATUS_STATE` | Feeds `_events_path` → the shared `status.events.jsonl` coord-authoritative surface (the same file decision-point events append into). Originally classified `migrate-fail-loud`; WP08 (T039, reconciliation item #5) found `test_resolution_authority_gates.py`'s coord-authority gate PERMANENTLY sanctions this exact call as a legitimate coord-owned write (`_COORD_WRITE_BY_DESIGN`) — routing is directory-identical (WP04 reviewer-verified) but needs gate-owner work (teach that gate the seam idiom, re-token its allow-list, transfer `COORD_AUTHORITY_WRITE_FLOOR`) outside this WP's charter. Allow-listed per the WP08 prompt's escape hatch rather than routed unilaterally or left an unexplained offender; tracked at <https://github.com/Priivacy-ai/spec-kitty/issues/3055>. |
+| `decisions/emit.py:71` | `_mission_dir` | ~~stay-lenient (WP08 allow-list)~~ **ROUTED** (write-side WP02 → `read_dir(STATUS_STATE)`; no longer a live `resolve_feature_dir_for_mission` site — see supersession note above) | raise (`STATUS_STATE` is fail-loud-appropriate) | `repo_root` (param, passed through) | `STATUS_STATE` | Feeds `_events_path` → the shared `status.events.jsonl` coord-authoritative surface (the same file decision-point events append into). Originally classified `migrate-fail-loud`; WP08 (T039, reconciliation item #5) found `test_resolution_authority_gates.py`'s coord-authority gate PERMANENTLY sanctions this exact call as a legitimate coord-owned write (`_COORD_WRITE_BY_DESIGN`) — routing is directory-identical (WP04 reviewer-verified) but needs gate-owner work (teach that gate the seam idiom, re-token its allow-list, transfer `COORD_AUTHORITY_WRITE_FLOOR`) outside this WP's charter. Allow-listed per the WP08 prompt's escape hatch rather than routed unilaterally or left an unexplained offender; tracked at <https://github.com/Priivacy-ai/spec-kitty/issues/3055>. |
 | `lanes/recovery.py:781` | `reconcile_status` | stay-lenient | raise | `repo_root` (param) | n/a | Own comment: "KEEP coord-aware (C-001 / #2155 analog): this `feature_dir` feeds `emit_status_transition_transactional` below — a STATUS-WRITE leg. The status event log lives on the coordination worktree for coord-topology missions, so this MUST stay on the coord-aware resolver — never route it." |
 | `widen/state.py:63` | `WidenPendingStore.__init__` | stay-lenient (ambiguous — reviewer confirm) | raise | `repo_root` (constructor param) | n/a | No protective comment; `widen-pending.jsonl`'s partition (PRIMARY vs COORD) is not established anywhere else in the module, and the store's own "a missing file is equivalent to an empty store — never raises" invariant would be broken by a `read_dir(kind)` swap that CAN raise on a deleted coord branch for a COORD-partition kind. Defaulted lenient pending a bespoke kind decision (not a reason to skip classifying, per T012's vacuity guard). |
 

@@ -272,6 +272,26 @@ def verify_deferred_invariants(
             )
 
     matrix.negative_invariants = rejudged
+    # WP04 / T017 (write-side-seam-matrix-tracer-01KYP3MH,
+    # contracts/write-seam-adoption.md) names this call site as a
+    # caller-resolved-``feature_dir`` matrix writer to route through the WP03
+    # seam (``write_and_commit_acceptance_matrix`` /
+    # ``coordination.write_seam.write_artifact``). Deliberately NOT done: that
+    # seam's ``commit_for_mission`` machinery resolves mission topology and
+    # coordination worktrees relative to the INTERACTIVE primary checkout
+    # (``.worktrees/`` siblings, ``meta.json``-declared ``coordination_branch``,
+    # ``CoordinationWorkspace.resolve``) -- but ``consolidated_tree`` here is
+    # "the repo-root checkout of the consolidated mission branch" (module
+    # docstring), which in the real dispatched-Op / CI usage this module is
+    # built for (see the "Zero merge/ coupling" design constraint above) is not
+    # guaranteed to be that interactive checkout at all (e.g. a bare
+    # CI checkout of the merged PR branch with no ``.worktrees/`` sibling).
+    # Forcing this through ``commit_for_mission`` would reintroduce exactly the
+    # ``merge``/consolidation-machinery coupling this module explicitly stays
+    # free of. The write stays the plain raw writer; the caller (the dispatched
+    # Op / CI job) commits or pushes the result as part of its own workflow,
+    # matching "a plain library function that returns a PostConsolidationResult"
+    # from the module docstring.
     matrix_path = write_acceptance_matrix(feature_dir, matrix)
     return PostConsolidationResult(
         mission_slug=mission_slug,

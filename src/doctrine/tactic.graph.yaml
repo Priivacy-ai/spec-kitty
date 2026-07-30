@@ -977,9 +977,21 @@ edges:
   relation: suggests
   when: When recording the decomposition as part of a prestudy or design document.
 - source: tactic:refactoring-encapsulate-record
+  target: anti_pattern:unencapsulated-record
+  relation: rejects
+  reason: "Encapsulate Record rejects the Unencapsulated Record smell: a raw data record accessed by field name from many call sites, where the direct access blocks adding validation, renaming fields, or changing the internal representation (the tactic's own attested `when`)."
+- source: tactic:refactoring-encapsulate-record
   target: tactic:refactoring-encapsulate-variable
   relation: suggests
   when: The record is accessed via a module-level variable — encapsulate the variable first, then the record.
+- source: tactic:refactoring-encapsulate-variable
+  target: anti_pattern:global-data
+  relation: rejects
+  reason: "Encapsulate Variable rejects the Global Data smell: a widely-accessed module-level or global variable read and written from many locations with no single chokepoint for monitoring, validation, or a later change of type (the tactic's own attested `when`)."
+- source: tactic:refactoring-extract-first-order-concept
+  target: anti_pattern:implicit-concept
+  relation: rejects
+  reason: "Extract First-Order Concept rejects the Implicit Concept smell: an important concept left implicit, duplicated, or scattered across the code with no explicit name or single home (the tactic's own attested `when`)."
 - source: tactic:refactoring-extract-first-order-concept
   target: tactic:refactoring-strangler-fig
   relation: suggests
@@ -989,9 +1001,17 @@ edges:
   relation: suggests
   when: Follow when the flattened variation points represent stable algorithm variants.
 - source: tactic:refactoring-move-field
+  target: anti_pattern:misplaced-field
+  relation: rejects
+  reason: "Move Field rejects the Misplaced Field smell: a field read and modified more by another class than the one that declares it, so data ownership has drifted to the wrong owner (the tactic's own attested `when`)."
+- source: tactic:refactoring-move-field
   target: tactic:refactoring-move-method
   relation: suggests
   when: Use alongside this tactic when behavior and data ownership have drifted together.
+- source: tactic:refactoring-move-method
+  target: anti_pattern:feature-envy
+  relation: rejects
+  reason: "Move Method rejects the Feature Envy smell: a method that uses more of another class's data and behaviour than its own host's (the tactic's own attested `when`)."
 - source: tactic:refactoring-move-method
   target: tactic:refactoring-extract-first-order-concept
   relation: suggests
@@ -1001,9 +1021,17 @@ edges:
   relation: suggests
   when: Use when the move must be staged behind coexistence and gradual caller rerouting.
 - source: tactic:refactoring-state-pattern-for-behavior
+  target: anti_pattern:repeated-switches-on-state
+  relation: rejects
+  reason: "State Pattern for Behavior rejects the Repeated Switches on State smell: a class whose methods are full of conditionals branching on the same internal state variable, with behaviour driven by lifecycle state transitions (the tactic's own attested `when`)."
+- source: tactic:refactoring-state-pattern-for-behavior
   target: tactic:refactoring-conditional-to-strategy
   relation: suggests
   when: Choosing between State and Strategy — State is for lifecycle-driven transitions, Strategy for interchangeable algorithms.
+- source: tactic:refactoring-strangler-fig
+  target: anti_pattern:big-bang-rewrite
+  relation: rejects
+  reason: "Strangler Fig rejects the Big-Bang Rewrite anti-pattern: replacing a legacy component or code path in a single-step cutover when it is too risky, instead of running the new implementation alongside the old and rerouting callers one at a time (the tactic's own attested `when`)."
 - source: tactic:reference-architectural-patterns
   target: tactic:adr-drafting-workflow
   relation: suggests
@@ -1153,9 +1181,24 @@ edges:
   relation: suggests
   when: Understanding relationships between contexts informs classification decisions.
 - source: tactic:terminology-extraction-mapping
+  target: paradigm:brownfield-onboarding
+  relation: suggests
+  when: recovering a shared vocabulary from an existing system's source code and documentation (as a follow-up to code-documentation-analysis) so the terminology latent in the codebase is named before it is changed
+  reason: The tactic's OWN text extracts domain terms from 'source code (class/method names), documentation ... as a follow-up to code-documentation-analysis' -- recovering terminology from an existing system, which is exactly the 'terminology aliases ... inferred from the code' durable artefact brownfield-onboarding's own summary names. INBOUND to the brownfield paradigm from an action-unreachable source, so composition-only under today's traversal.
+- source: tactic:terminology-extraction-mapping
+  target: paradigm:domain-driven-design
+  relation: suggests
+  when: the extracted terms must be owned by a bounded context and cross-context uses translated at the boundary -- the strategic-DDD ubiquitous-language and anti-corruption-layer concerns the mapping surfaces
+  reason: "The terminology-extraction-mapping tactic's OWN text attests DDD strategic design verbatim: it assigns term ownership 'by bounded context', translates cross-context uses 'at the context boundary', and names 'missing ACL or translation layers' as a failure mode -- so it reinforces Domain-Driven Design. INBOUND to the already-action-reachable DDD paradigm (family-A); a member->paradigm edge does not make the source reachable, so it is composition-only under today's traversal."
+- source: tactic:terminology-extraction-mapping
   target: tactic:code-documentation-analysis
   relation: suggests
   when: Use as the upstream term-extraction step before mapping relationships
+- source: tactic:terminology-extraction-mapping
+  target: tactic:glossary-curation-interview
+  relation: suggests
+  when: feeding the extracted, relationship-mapped, validated terms into the HiC-led curation rounds that promote them into the living glossary
+  reason: "The extraction-mapping tactic's OWN purpose is to build 'a comprehensive, maintainable glossary' and its final step publishes the validated terms as 'the authoritative source for the project ubiquitous language' -- the input the glossary-curation-interview curation rounds consume. INERT: terminology-extraction-mapping is action-unreachable. (Its sibling edge to `tactic:language-driven-design` is OMITTED here -- it already exists as an extractor-minted edge.)"
 - source: tactic:terminology-extraction-mapping
   target: tactic:language-driven-design
   relation: suggests

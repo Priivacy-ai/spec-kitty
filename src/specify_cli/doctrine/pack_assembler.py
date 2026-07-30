@@ -29,7 +29,7 @@ import shutil
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
@@ -37,6 +37,15 @@ from ruamel.yaml.error import YAMLError
 from .pack_validator import validate_pack
 from .snapshot import write_pack_manifest
 from .sources.protocol import FetchResult
+
+if TYPE_CHECKING:
+    # Type-checking-only: this module has no static top-level runtime
+    # doctrine import (see ``_copy_drg_fragments``'s dynamic
+    # ``DRGLoadError``/``load_graph`` import below) so it stays importable
+    # when the doctrine package is stripped from a test environment. A
+    # ``TYPE_CHECKING``-guarded import never executes at runtime, so it does
+    # not reintroduce that hard dependency.
+    from doctrine.drg.models import DRGGraph
 
 __all__ = [
     "ConflictItem",
@@ -440,6 +449,29 @@ def _copy_artifacts(
     return count
 
 
+def _document_dict(graph: DRGGraph) -> dict[str, Any]:
+    """Serialise a whole ``DRGGraph`` document via the canonical derived writer.
+
+    T020/T021 (#3075): standalone/addressable wrapper around
+    ``graph_document_to_dict``, registered as this module's ``DocumentWriter``
+    in ``specify_cli.drg_writers.registry`` and used by the force-dedup path
+    in :func:`_copy_drg_fragments` below. Replaces that path's old raw
+    ``n.model_dump()`` / ``e.model_dump()`` calls, which bypassed
+    ``model_to_graph_dict`` entirely and so emitted ``provenance`` (which the
+    canonical path withholds via ``FIELDS_WITHHELD_FROM_GRAPH_OUTPUT``) and
+    skipped the omit-when-empty rule.
+
+    Imports ``graph_document_to_dict`` lazily so this module keeps its
+    existing graceful-degradation shape (importable when the doctrine
+    package is stripped from a test environment) -- mirrors
+    ``_copy_drg_fragments``'s own dynamic ``DRGLoadError``/``load_graph``
+    import.
+    """
+    from doctrine.drg.migration.extractor import graph_document_to_dict
+
+    return graph_document_to_dict(graph)
+
+
 def _copy_drg_fragments(
     fragments_by_pack: dict[Path, list[Path]],
     output_dir: Path,
@@ -491,14 +523,11 @@ def _copy_drg_fragments(
                         continue
                     seen_edges.add(key)
                     kept_edges.append(edge)
-                # Re-emit pruned fragment as YAML.
-                pruned = {
-                    "schema_version": graph.schema_version,
-                    "generated_at": graph.generated_at,
-                    "generated_by": graph.generated_by,
-                    "nodes": [n.model_dump() for n in graph.nodes],
-                    "edges": [e.model_dump() for e in kept_edges],
-                }
+                # Re-emit pruned fragment as YAML via the canonical document
+                # serialiser (T020, #2977/#3075) instead of the raw
+                # .model_dump() this used to call directly on each node/edge.
+                pruned_graph = graph.model_copy(update={"edges": kept_edges})
+                pruned = _document_dict(pruned_graph)
                 import yaml as pyyaml
 
                 dest.write_text(

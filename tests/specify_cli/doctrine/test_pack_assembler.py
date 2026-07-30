@@ -166,6 +166,52 @@ class TestAssemblePack:
         drg_conflicts = [c for c in result.conflicts if c.artifact_type == "drg"]
         assert drg_conflicts, result.conflicts
 
+    def test_force_dedup_prunes_duplicate_edges_via_canonical_serializer(
+        self, tmp_path: Path
+    ) -> None:
+        """WP05/T020 (#3075, #2977): the force-dedup re-emit path used to build
+        its pruned fragment via raw ``n.model_dump()`` / ``e.model_dump()``,
+        bypassing ``model_to_graph_dict`` entirely. That dropped
+        ``FIELDS_WITHHELD_FROM_GRAPH_OUTPUT`` (it emitted a literal
+        ``provenance: null`` key the canonical writer withholds) in addition
+        to the pre-existing duplicate-edge pruning behaviour this test also
+        pins. Regression coverage for the ``_document_dict``-routed rewrite.
+        """
+        a = _make_pack(tmp_path, "alpha", directives=["X-101", "X-102"])
+        b = _make_pack(tmp_path, "bravo", directives=["X-101", "X-102"])
+        # Same edge defined in both packs -- force=True must keep exactly one.
+        _add_drg_fragment(
+            a, "010.graph.yaml", source="directive:X-101", target="directive:X-102"
+        )
+        _add_drg_fragment(
+            b, "010.graph.yaml", source="directive:X-101", target="directive:X-102"
+        )
+        output = tmp_path / "out"
+
+        result = assemble_pack([a, b], output, force=True)
+
+        assert result.ok is True, result.errors
+        fragments = sorted((output / "drg").glob("*.graph.yaml"))
+        assert len(fragments) == 2, "one fragment per pack must survive, renumbered"  # golden-count: cardinality-is-contract
+
+        rendered = [f.read_text(encoding="utf-8") for f in fragments]
+        # The DUPLICATE edge itself (source+target+relation) must appear only
+        # once across both re-emitted fragments -- the pruning behaviour this
+        # path exists for.
+        edge_block_count = sum(text.count("relation: requires") for text in rendered)
+        assert edge_block_count == 1, (  # golden-count: cardinality-is-contract
+            f"expected exactly one surviving duplicate edge, got {edge_block_count}:\n"
+            + "\n---\n".join(rendered)
+        )
+        # The canonical serializer withholds `provenance` (FIELDS_WITHHELD_
+        # FROM_GRAPH_OUTPUT); the old raw .model_dump() path emitted it as a
+        # literal `provenance: null` key on every node/edge.
+        assert not any("provenance" in text for text in rendered), (
+            "pruned fragment(s) leaked the withheld `provenance` field -- "
+            "force-dedup re-emit did not route through the canonical "
+            f"document serializer:\n{rendered}"
+        )
+
     def test_conflicts_out_written(self, tmp_path: Path) -> None:
         a = _make_pack(tmp_path, "alpha", directives=["DUP-003"])
         b = _make_pack(tmp_path, "bravo", directives=["DUP-003"])

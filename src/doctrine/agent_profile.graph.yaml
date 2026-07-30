@@ -79,6 +79,26 @@ edges:
   target: directive:DIRECTIVE_044
   relation: requires
 - source: agent_profile:architect-alphonso
+  target: directive:USE_C4_MODEL_TECHNIQUES
+  relation: suggests
+  when: documenting or reviewing system architecture
+  reason: "The architect profile should reach the C4 architecture-documentation hub when documenting or reviewing system architecture (alphonso's attested scope: system-design / architecture-review / component-design). Composition-only under today's traversal (the profile channel walks requires/specializes_from only), authored per the #3063 family-C operator attestation."
+- source: agent_profile:architect-alphonso
+  target: paradigm:domain-driven-design
+  relation: suggests
+  when: designing or reviewing significant code changes
+  reason: "When designing and reviewing significant code changes, the architect should reach Domain-Driven Design. Composition-only under today's traversal (the profile channel walks requires/specializes_from only), authored per the #3063 operator attestation."
+- source: agent_profile:architect-alphonso
+  target: procedure:event-storming-discovery
+  relation: suggests
+  when: discovering domain events, commands, aggregates, policies, read models, and bounded-context boundaries from real business flows
+  reason: Event Storming is a DDD-cluster discovery procedure (family-A). The operator's earlier guard keeps it OUT of the eager specify delivery (context-overload concern), so it is attached via the architect profile — INERT in the profile channel (requires/specializes_from only) — rather than via paradigm:domain-driven-design, which is scope-resolved (family-A) and would deliver it at specify. It can be switched to paradigm-delivered later if the operator wants it eager.
+- source: agent_profile:architect-alphonso
+  target: styleguide:reasons-canvas-writing
+  relation: suggests
+  when: capturing the change-intent, decision boundaries and safeguards of a mission or a significant architectural change as a REASONS Canvas -- recording architectural decisions with rationale rather than mirroring code
+  reason: "The architect should reach the REASONS Canvas writing styleguide when documenting the intent behind a significant architectural change: alphonso's attested scope is architectural decisions documented with rationale (DIRECTIVE_003, ADR/design outputs), and the styleguide's own purpose is to capture intent -- Safeguard (must) / Norm (should) / Approach (may) -- for a mission or change, not to mirror code. Composition-only under today's traversal (the profile channel walks requires/specializes_from only), authored per the #3063 family-E operator ruling (canvas WRITING only; the reasons-canvas fill/review tactics and the SPDD paradigm stay in the deferred set, untouched)."
+- source: agent_profile:architect-alphonso
   target: tactic:development-bdd
   relation: requires
   reason: Use BDD behavioral contract definition during architecture design to express observable system boundaries in stakeholder-readable terms. Behavioral contracts precede implementation and shape system component boundaries.
@@ -97,6 +117,11 @@ edges:
 - source: agent_profile:debugger-debbie
   target: directive:DIRECTIVE_032
   relation: requires
+- source: agent_profile:debugger-debbie
+  target: directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY
+  relation: suggests
+  when: when assessing whether the tests around a defect actually constrain the behaviour that broke
+  reason: 'The investigator/reviewer profile should reach the mutation hub when checking that the tests around a defect genuinely pin the behaviour. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
 - source: agent_profile:debugger-debbie
   target: tactic:code-review-incremental
   relation: requires
@@ -146,8 +171,33 @@ edges:
   target: directive:DIRECTIVE_030
   relation: requires
 - source: agent_profile:frontend-freddy
+  target: directive:DIRECTIVE_030
+  relation: suggests
+  when: when assessing whether tests meet the quality gate they must pass
+  reason: 'An implementer-role profile should reach the test-quality-gate hub when assessing test quality. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
+- source: agent_profile:frontend-freddy
   target: directive:DIRECTIVE_034
   relation: requires
+- source: agent_profile:frontend-freddy
+  target: directive:DIRECTIVE_034
+  relation: suggests
+  when: when writing or reviewing the tests that accompany an implementation
+  reason: 'An implementer-role profile should reach the test-first hub when writing tests. Composition-only in the profile channel (walks requires/specializes_from only), authored per the #3063 family-D operator attestation.'
+- source: agent_profile:frontend-freddy
+  target: directive:DIRECTIVE_041
+  relation: suggests
+  when: when keeping the tests they write a clear scaffold rather than friction
+  reason: 'An implementer-role profile should reach the tests-as-scaffold hub when writing tests. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
+- source: agent_profile:frontend-freddy
+  target: directive:DISCIPLINED_REFACTORING
+  relation: suggests
+  when: when tidying code, encountering long classes/methods, or discovering convoluted logic
+  reason: "An implementer-role profile should reach the disciplined-refactoring directive when restructuring code. Composition-only under today's traversal (the profile channel walks requires/specializes_from only), authored per the #3063 family-B operator attestation."
+- source: agent_profile:frontend-freddy
+  target: directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY
+  relation: suggests
+  when: when assessing whether the tests around a change actually constrain its behaviour
+  reason: 'An implementer-role profile should reach the mutation hub when assessing test quality. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
 - source: agent_profile:frontend-freddy
   target: tactic:behavior-driven-development
   relation: requires
@@ -159,9 +209,49 @@ edges:
 - source: agent_profile:generic-agent
   target: directive:DIRECTIVE_028
   relation: requires
+- source: agent_profile:generic-agent
+  target: directive:DIRECTIVE_030
+  relation: suggests
+  when: when assessing whether tests meet the quality gate they must pass
+  reason: 'An implementer-role profile should reach the test-quality-gate hub when assessing test quality. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
+- source: agent_profile:generic-agent
+  target: directive:DIRECTIVE_034
+  relation: suggests
+  when: when writing or reviewing the tests that accompany an implementation
+  reason: 'An implementer-role profile should reach the test-first hub when writing tests. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
+- source: agent_profile:generic-agent
+  target: directive:DIRECTIVE_041
+  relation: suggests
+  when: when keeping the tests they write a clear scaffold rather than friction
+  reason: 'An implementer-role profile should reach the tests-as-scaffold hub when writing tests. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
+- source: agent_profile:generic-agent
+  target: directive:DISCIPLINED_REFACTORING
+  relation: suggests
+  when: when tidying code, encountering long classes/methods, or discovering convoluted logic
+  reason: "An implementer-role profile should reach the disciplined-refactoring directive when restructuring code. Composition-only under today's traversal, authored per the #3063 family-B operator attestation."
+- source: agent_profile:generic-agent
+  target: directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY
+  relation: suggests
+  when: when assessing whether the tests around a change actually constrain its behaviour
+  reason: 'An implementer-role profile should reach the mutation hub when assessing test quality. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
 - source: agent_profile:implementer-ivan
   target: directive:DIRECTIVE_010
   relation: requires
+- source: agent_profile:implementer-ivan
+  target: directive:DIRECTIVE_030
+  relation: suggests
+  when: when assessing whether tests meet the quality gate they must pass
+  reason: 'An implementer-role profile should reach the test-quality-gate hub when assessing test quality. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
+- source: agent_profile:implementer-ivan
+  target: directive:DIRECTIVE_034
+  relation: suggests
+  when: when writing or reviewing the tests that accompany an implementation
+  reason: 'An implementer-role profile should reach the test-first hub when writing tests. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
+- source: agent_profile:implementer-ivan
+  target: directive:DIRECTIVE_041
+  relation: suggests
+  when: when keeping the tests they write a clear scaffold rather than friction
+  reason: 'An implementer-role profile should reach the tests-as-scaffold hub when writing tests. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
 - source: agent_profile:implementer-ivan
   target: directive:DIRECTIVE_043
   relation: requires
@@ -171,6 +261,16 @@ edges:
 - source: agent_profile:implementer-ivan
   target: directive:DIRECTIVE_045
   relation: requires
+- source: agent_profile:implementer-ivan
+  target: directive:DISCIPLINED_REFACTORING
+  relation: suggests
+  when: when tidying code, encountering long classes/methods, or discovering convoluted logic
+  reason: "An implementer-role profile should reach the disciplined-refactoring directive when restructuring code. Composition-only under today's traversal, authored per the #3063 family-B operator attestation."
+- source: agent_profile:implementer-ivan
+  target: directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY
+  relation: suggests
+  when: when assessing whether the tests around a change actually constrain its behaviour
+  reason: 'An implementer-role profile should reach the mutation hub when assessing test quality. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
 - source: agent_profile:implementer-ivan
   target: tactic:bug-fixing-checklist
   relation: requires
@@ -191,8 +291,33 @@ edges:
   target: directive:DIRECTIVE_030
   relation: requires
 - source: agent_profile:java-jenny
+  target: directive:DIRECTIVE_030
+  relation: suggests
+  when: when assessing whether tests meet the quality gate they must pass
+  reason: 'An implementer-role profile should reach the test-quality-gate hub when assessing test quality. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
+- source: agent_profile:java-jenny
   target: directive:DIRECTIVE_034
   relation: requires
+- source: agent_profile:java-jenny
+  target: directive:DIRECTIVE_034
+  relation: suggests
+  when: when writing or reviewing the tests that accompany an implementation
+  reason: 'An implementer-role profile should reach the test-first hub when writing tests. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
+- source: agent_profile:java-jenny
+  target: directive:DIRECTIVE_041
+  relation: suggests
+  when: when keeping the tests they write a clear scaffold rather than friction
+  reason: 'An implementer-role profile should reach the tests-as-scaffold hub when writing tests. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
+- source: agent_profile:java-jenny
+  target: directive:DISCIPLINED_REFACTORING
+  relation: suggests
+  when: when tidying code, encountering long classes/methods, or discovering convoluted logic
+  reason: "An implementer-role profile should reach the disciplined-refactoring directive when restructuring code. Composition-only under today's traversal, authored per the #3063 family-B operator attestation."
+- source: agent_profile:java-jenny
+  target: directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY
+  relation: suggests
+  when: when assessing whether the tests around a change actually constrain its behaviour
+  reason: 'An implementer-role profile should reach the mutation hub when assessing test quality. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
 - source: agent_profile:java-jenny
   target: tactic:behavior-driven-development
   relation: requires
@@ -213,8 +338,33 @@ edges:
   target: directive:DIRECTIVE_030
   relation: requires
 - source: agent_profile:node-norris
+  target: directive:DIRECTIVE_030
+  relation: suggests
+  when: when assessing whether tests meet the quality gate they must pass
+  reason: 'An implementer-role profile should reach the test-quality-gate hub when assessing test quality. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
+- source: agent_profile:node-norris
   target: directive:DIRECTIVE_034
   relation: requires
+- source: agent_profile:node-norris
+  target: directive:DIRECTIVE_034
+  relation: suggests
+  when: when writing or reviewing the tests that accompany an implementation
+  reason: 'An implementer-role profile should reach the test-first hub when writing tests. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
+- source: agent_profile:node-norris
+  target: directive:DIRECTIVE_041
+  relation: suggests
+  when: when keeping the tests they write a clear scaffold rather than friction
+  reason: 'An implementer-role profile should reach the tests-as-scaffold hub when writing tests. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
+- source: agent_profile:node-norris
+  target: directive:DISCIPLINED_REFACTORING
+  relation: suggests
+  when: when tidying code, encountering long classes/methods, or discovering convoluted logic
+  reason: "An implementer-role profile should reach the disciplined-refactoring directive when restructuring code. Composition-only under today's traversal, authored per the #3063 family-B operator attestation."
+- source: agent_profile:node-norris
+  target: directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY
+  relation: suggests
+  when: when assessing whether the tests around a change actually constrain its behaviour
+  reason: 'An implementer-role profile should reach the mutation hub when assessing test quality. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
 - source: agent_profile:node-norris
   target: tactic:behavior-driven-development
   relation: requires
@@ -238,6 +388,11 @@ edges:
 - source: agent_profile:paula-patterns
   target: directive:DIRECTIVE_041
   relation: requires
+- source: agent_profile:paula-patterns
+  target: paradigm:domain-driven-design
+  relation: suggests
+  when: investigating or inspecting code
+  reason: "When investigating or inspecting code, the pattern scout should reach Domain-Driven Design. Composition-only under today's traversal, authored per the #3063 operator attestation."
 - source: agent_profile:paula-patterns
   target: tactic:anti-corruption-layer
   relation: requires
@@ -273,8 +428,23 @@ edges:
   target: directive:DIRECTIVE_030
   relation: requires
 - source: agent_profile:python-pedro
+  target: directive:DIRECTIVE_030
+  relation: suggests
+  when: when assessing whether tests meet the quality gate they must pass
+  reason: 'The primary implementer-role profile should reach the test-quality-gate hub when assessing test quality. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
+- source: agent_profile:python-pedro
+  target: directive:DIRECTIVE_034
+  relation: suggests
+  when: when writing or reviewing the tests that accompany an implementation
+  reason: 'The primary implementer-role profile should reach the test-first hub when writing tests. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
+- source: agent_profile:python-pedro
   target: directive:DIRECTIVE_041
   relation: requires
+- source: agent_profile:python-pedro
+  target: directive:DIRECTIVE_041
+  relation: suggests
+  when: when keeping the tests they write a clear scaffold rather than friction
+  reason: 'The primary implementer-role profile should reach the tests-as-scaffold hub when writing tests. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
 - source: agent_profile:python-pedro
   target: directive:DIRECTIVE_043
   relation: requires
@@ -284,6 +454,16 @@ edges:
 - source: agent_profile:python-pedro
   target: directive:DIRECTIVE_045
   relation: requires
+- source: agent_profile:python-pedro
+  target: directive:DISCIPLINED_REFACTORING
+  relation: suggests
+  when: when tidying code, encountering long classes/methods, or discovering convoluted logic
+  reason: "The primary implementer-role profile should reach the disciplined-refactoring directive when restructuring code. Composition-only under today's traversal, authored per the #3063 family-B operator attestation."
+- source: agent_profile:python-pedro
+  target: directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY
+  relation: suggests
+  when: when assessing whether the tests around a change actually constrain its behaviour
+  reason: 'The primary implementer-role profile should reach the mutation hub when assessing test quality. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
 - source: agent_profile:python-pedro
   target: tactic:delete-the-assertion-not-the-test
   relation: requires
@@ -305,11 +485,41 @@ edges:
   target: directive:DIRECTIVE_030
   relation: requires
 - source: agent_profile:randy-reducer
+  target: directive:DIRECTIVE_030
+  relation: suggests
+  when: when assessing whether tests meet the quality gate they must pass
+  reason: 'An implementer-role profile should reach the test-quality-gate hub when assessing test quality. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
+- source: agent_profile:randy-reducer
   target: directive:DIRECTIVE_034
   relation: requires
 - source: agent_profile:randy-reducer
+  target: directive:DIRECTIVE_034
+  relation: suggests
+  when: when writing or reviewing the tests that accompany an implementation
+  reason: 'An implementer-role profile should reach the test-first hub when writing tests. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
+- source: agent_profile:randy-reducer
   target: directive:DIRECTIVE_041
   relation: requires
+- source: agent_profile:randy-reducer
+  target: directive:DIRECTIVE_041
+  relation: suggests
+  when: when keeping the tests they write a clear scaffold rather than friction
+  reason: 'An implementer-role profile should reach the tests-as-scaffold hub when writing tests. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
+- source: agent_profile:randy-reducer
+  target: directive:DISCIPLINED_REFACTORING
+  relation: suggests
+  when: when tidying code, encountering long classes/methods, or discovering convoluted logic
+  reason: "An implementer-role profile should reach the disciplined-refactoring directive when restructuring code. Composition-only under today's traversal, authored per the #3063 family-B operator attestation."
+- source: agent_profile:randy-reducer
+  target: directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY
+  relation: suggests
+  when: when assessing whether the tests around a change actually constrain its behaviour
+  reason: 'An implementer-role profile should reach the mutation hub when assessing test quality. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
+- source: agent_profile:randy-reducer
+  target: paradigm:domain-driven-design
+  relation: suggests
+  when: investigating or inspecting code
+  reason: "When investigating or inspecting code, the reducer should reach Domain-Driven Design. Composition-only under today's traversal, authored per the #3063 operator attestation."
 - source: agent_profile:randy-reducer
   target: tactic:semantic-compression-abstraction-extraction
   relation: requires
@@ -360,11 +570,26 @@ edges:
   target: directive:DIRECTIVE_030
   relation: requires
 - source: agent_profile:reviewer-renata
+  target: directive:DIRECTIVE_030
+  relation: suggests
+  when: when assessing the quality of the tests under review
+  reason: 'The reviewer profile should reach the test-quality-gate hub when assessing the tests under review. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
+- source: agent_profile:reviewer-renata
   target: directive:DIRECTIVE_032
   relation: requires
 - source: agent_profile:reviewer-renata
   target: directive:DIRECTIVE_041
   relation: requires
+- source: agent_profile:reviewer-renata
+  target: directive:DIRECTIVE_041
+  relation: suggests
+  when: when assessing whether the tests under review are a clear scaffold rather than friction
+  reason: 'The reviewer profile should reach the tests-as-scaffold hub when assessing the tests under review. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
+- source: agent_profile:reviewer-renata
+  target: directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY
+  relation: suggests
+  when: when assessing whether the tests under review actually constrain behaviour
+  reason: 'The reviewer profile should reach the mutation hub when assessing test quality under review. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
 - source: agent_profile:reviewer-renata
   target: tactic:code-review-incremental
   relation: requires

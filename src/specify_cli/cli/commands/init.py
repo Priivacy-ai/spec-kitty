@@ -70,7 +70,9 @@ _TRACES_GITATTRIBUTES_ENTRY = "kitty-specs/**/traces/*.md merge=spec-kitty-trace
 _ACCEPTANCE_MATRIX_GITATTRIBUTES_ENTRY = (
     "kitty-specs/**/acceptance-matrix.json merge=spec-kitty-acceptance-matrix"
 )
-_ISSUE_MATRIX_GITATTRIBUTES_ENTRY = "kitty-specs/**/issue-matrix.md merge=spec-kitty-issue-matrix"
+# WP11 (FR-008): repointed from issue-matrix.md -- WP05 migrated the canonical
+# artifact to structured JSON (C-008); the .md pattern is inert on new repos.
+_ISSUE_MATRIX_GITATTRIBUTES_ENTRY = "kitty-specs/**/issue-matrix.json merge=spec-kitty-issue-matrix"
 _COMMAND_SKILL_AGENTS = {"codex", "vibe", "pi", "letta"}
 _GITHUB_DIFF_GITATTRIBUTES_ENTRIES = (
     "kitty-specs/**/status.json linguist-generated=true",

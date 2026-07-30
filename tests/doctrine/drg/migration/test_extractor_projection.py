@@ -144,13 +144,13 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 #:     affect test execution, so shipping an activated toolguide for it is a
 #:     liability rather than an oversight to be wired.
 #:     -1 node / +0 edges / -1 orphan. Composed: 305/757/32 - 1/0/1 = 304/757/31.
-#:     It was one of the nine ``_ACTIVATED_BUT_UNREACHABLE`` entries below; the
+#:     It was one of the nine ``_ACTIVATED_BUT_ORPHANED`` entries below; the
 #:     other eight are oversights and are wired rather than deleted, so this is
 #:     the only member that leaves by deletion. The node carried no edges in
 #:     either direction (verified: its sole graph appearance was its own node
 #:     line), so nothing else in the graph moves.
 #: (7) Same ruling, the other half of #3009 remedy 4: the eight remaining
-#:     ``_ACTIVATED_BUT_UNREACHABLE`` artefacts are WIRED via
+#:     ``_ACTIVATED_BUT_ORPHANED`` artefacts are WIRED via
 #:     ``_CURATED_ARTIFACT_EDGES``. The charter activated them while the graph
 #:     gave them no inbound edge, so cascade reached none of them -- the same
 #:     failure WP09 fixed once (entry 5), with no edge at all rather than an
@@ -170,11 +170,264 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 #:     place, and ``DIRECTIVE_028 -> no-parallel-duplicate-test-runs`` was
 #:     re-pointed to ``DIRECTIVE_030`` (028 scopes tool SELECTION; the tactic is
 #:     a discipline on how a suite is RUN). Totals are unchanged; only
-#:     ``_ACTIVATED_BUT_UNREACHABLE``'s membership moved. A bare cardinality
+#:     ``_ACTIVATED_BUT_ORPHANED``'s membership moved. A bare cardinality
 #:     could not have shown that swap -- which is the case for naming members.
 #:     ``styleguide:deployable-skill-authoring`` is now the one deliberately NOT
-#:     wired -- see ``_ACTIVATED_BUT_UNREACHABLE``.
-_EXPECTED_NODE_COUNT = 304
+#:     wired -- see ``_ACTIVATED_BUT_ORPHANED``.
+#: (8) Mission doctrine-delivery-reachability-01KYMXD6, WP09 (T050, FR-015): one
+#:     hand-authored SCOPE edge, ``action:documentation/generate --scope-->
+#:     directive:DIRECTIVE_042``, added to ``HAND_AUTHORED_EDGES``. It is the
+#:     REACHING edge for the common-docs cluster: DIRECTIVE_042 and the asset /
+#:     styleguide / four common-docs tactics it heads were all measured
+#:     action-UNREACHABLE (a strongly-connected island no action scoped), so the
+#:     four pre-existing ``requires`` edges into ``asset:common-docs-structural-lint``
+#:     de-orphaned it by incidence while it still reached nobody. This edge makes
+#:     042 action-reachable, delivering the cluster transitively.
+#:     +0 nodes / +1 edge (overlay) / +0 orphans. The PURE golden counts below are
+#:     UNCHANGED -- the edge is overlay-authored, not extractor-derived -- so
+#:     ``test_shipped_graph_is_fresh_and_byte_identical`` stays green because it
+#:     asserts ``_EXPECTED_EDGE_COUNT + len(HAND_AUTHORED_EDGES)`` (764 + 18 = 782,
+#:     was 764 + 17 = 781) against the regenerated shipped graph. The moved counts
+#:     are: shipped edges 781 -> 782; ``len(HAND_AUTHORED_EDGES)`` 17 -> 18; the
+#:     ``scope`` relation histogram 157 -> 158 (pinned by
+#:     ``tests/architectural/test_no_authored_applies_edge.py`` and mirrored in
+#:     ``RELATION_DESCRIPTIONS`` / ``docs/architecture/doctrine-relationships.md``,
+#:     both updated). Orphan sets are unaffected: 042 and the asset were already
+#:     edge-incident. The per-channel reachability move (six artefacts leave
+#:     ``_ACTION_UNREACHABLE_D1``/``D2``) is ledgered in
+#:     ``tests/doctrine/drg/test_reachability.py``. Canonical home / B2 handoff:
+#:     the scope edge belongs in the documentation step-contract action index;
+#:     mission B2 migrates it when it retires this overlay generator. See
+#:     ``docs/plans/doctrine/delivery-reachability-wiring-table.md``.
+#: (9) #3063 family-A (DDD family), operator interview outcome: FOURTEEN
+#:     hand-authored edges added to ``HAND_AUTHORED_EDGES`` (hub
+#:     ``paradigm:domain-driven-design``). One reaching ``scope`` edge
+#:     ``action:software-dev/specify --scope--> paradigm:domain-driven-design``;
+#:     ten ``requires`` edges from the DDD paradigm to its genuine family members
+#:     (bounded-context-identification / context-mapping-classification /
+#:     context-boundary-inference / bounded-context-canvas-fill /
+#:     strategic-domain-classification / aggregate-boundary-design /
+#:     entity-value-object-classification / domain-event-capture /
+#:     anti-corruption-layer / styleguide:aggregate-design-rules -- each attests
+#:     DDD in its OWN text); and three composition-only ``suggests`` edges from
+#:     agent profiles (architect-alphonso, paula-patterns, randy-reducer) to the
+#:     paradigm. +0 nodes / +14 edges (overlay) / +0 orphans -- every endpoint
+#:     was already edge-incident, so the orphan sets above are unchanged. The
+#:     PURE golden counts below are UNCHANGED (overlay-authored, not extractor-
+#:     derived), so ``test_shipped_graph_is_fresh_and_byte_identical`` stays green:
+#:     it asserts ``_EXPECTED_EDGE_COUNT + len(HAND_AUTHORED_EDGES)`` (764 + 32 =
+#:     796, was 764 + 18 = 782). Moved counts: shipped edges 782 -> 796;
+#:     ``len(HAND_AUTHORED_EDGES)`` 18 -> 32; relation histogram ``requires``
+#:     262 -> 272, ``suggests`` 337 -> 340, ``scope`` 158 -> 159 (all three pinned
+#:     by ``tests/architectural/test_no_authored_applies_edge.py`` and mirrored in
+#:     ``RELATION_DESCRIPTIONS`` / ``docs/architecture/doctrine-relationships.md``,
+#:     all updated). The per-channel reachability move (twelve artefacts leave
+#:     ``_ACTION_UNREACHABLE_D1``/``D2``; four leave ``_PROFILE_RESCUES``) is
+#:     ledgered in ``tests/doctrine/drg/test_reachability.py``. NOTE the specify
+#:     edge is ``scope`` not the ``suggests`` the #3063 wiring table named: a
+#:     ``suggests`` edge sourced at an action node is measured inert (see the
+#:     wiring-table doc); only ``scope`` delivers, per the WP09 precedent.
+#:     EXCLUDED as non-attested: ``tactic:reference-architectural-patterns`` (its
+#:     own text is general reference-architecture selection, not DDD) and the
+#:     state/UI tactics compositional-stream-boundaries / cross-cutting-state-via-
+#:     store / atomic-state-ownership. DEFERRED: the DDD<->documentation edge (B1).
+#: (10) #3063 family-B (REFACTORING family), operator interview outcome: a NEW
+#:     built-in directive ``directive:DISCIPLINED_REFACTORING``
+#:     (``directives/built-in/disciplined-refactoring.directive.yaml``) plus
+#:     FOURTEEN hand-authored ``suggests`` edges added to ``HAND_AUTHORED_EDGES``.
+#:     The directive carries NO inline references (relationships are edges, per the
+#:     frozen-legacy references surface), so a PURE ``generate_graph`` run mints its
+#:     node but zero edges -- exactly the ``RECONCILE_CHANGE_SCOPE_TENSIONS`` shape.
+#:     So the PURE golden counts move +1 NODE / +0 edges: ``_EXPECTED_NODE_COUNT``
+#:     304 -> 305, ``_EXPECTED_EDGE_COUNT`` UNCHANGED at 764. In a pure run the
+#:     directive is an ORPHAN (its only edges are overlay-authored), so it joins
+#:     ``_AWAITING_REFERENCES`` (pure orphans 23 -> 24) and, because the overlay
+#:     wires it (7 outbound directive->tactic + 7 inbound profile->directive),
+#:     ``_ORPHANS_RESOLVED_BY_OVERLAY`` (2 -> 3); shipped orphans stay 21.
+#:     The fourteen overlay edges are ALL ``suggests``: 7 from the directive to the
+#:     refactoring tactics (encapsulate-record / encapsulate-variable /
+#:     extract-first-order-concept / move-field / move-method /
+#:     state-pattern-for-behavior / strangler-fig), each with a per-tactic ``when``
+#:     derived from the tactic's OWN applicability text; and 7 from the
+#:     implementer-role agent profiles (frontend-freddy, generic-agent,
+#:     implementer-ivan, java-jenny, node-norris, python-pedro, randy-reducer) to
+#:     the directive. Moved counts: shipped nodes 310 -> 311; shipped edges
+#:     796 -> 810; ``len(HAND_AUTHORED_EDGES)`` 32 -> 46; relation histogram
+#:     ``suggests`` 340 -> 354 (``requires``/``scope`` UNCHANGED) -- pinned by
+#:     ``tests/architectural/test_no_authored_applies_edge.py`` and mirrored in
+#:     ``RELATION_DESCRIPTIONS`` / ``docs/architecture/doctrine-relationships.md``,
+#:     both updated. This family is INERT: the directive is not charter-activated
+#:     (so it never enters the reachability pins' ``_activated()`` universe) and
+#:     both edge legs are ``suggests`` on channels that do not follow ``suggests``
+#:     into delivery, so ``_ACTION_UNREACHABLE_D1``/``D2``, ``_PROFILE_UNREACHABLE``
+#:     and ``_PROFILE_RESCUES`` in ``tests/doctrine/drg/test_reachability.py`` are
+#:     UNCHANGED (measured, not assumed). The seven refactoring tactics remain in
+#:     the delivery-reachability DEFERRED set (topology authored, delivery pending a
+#:     profile-channel walk update). URN CASING: the wiring named
+#:     ``directive:disciplined-refactoring``; the Directive model's ``id`` pattern +
+#:     ``id_normalizer`` upper-case it, so the canonical URN is
+#:     ``directive:DISCIPLINED_REFACTORING`` (the ``RECONCILE_CHANGE_SCOPE_TENSIONS``
+#:     precedent). See ``docs/plans/doctrine/delivery-reachability-wiring-table.md``.
+#: (11) #3063 family-C (ARCHITECTURE-DOCS / DIAGRAMMING family), operator interview
+#:     outcome: a NEW built-in directive ``directive:USE_C4_MODEL_TECHNIQUES``
+#:     (``directives/built-in/use-c4-model-techniques.directive.yaml``) plus NINE
+#:     hand-authored ``suggests`` edges added to ``HAND_AUTHORED_EDGES``. The
+#:     directive carries NO inline references (relationships are edges), so a PURE
+#:     ``generate_graph`` run mints its node but zero edges -- the
+#:     ``DISCIPLINED_REFACTORING`` / ``RECONCILE_CHANGE_SCOPE_TENSIONS`` shape. So the
+#:     PURE golden counts move +1 NODE / +0 edges: ``_EXPECTED_NODE_COUNT`` 305 -> 306,
+#:     ``_EXPECTED_EDGE_COUNT`` UNCHANGED at 764. In a pure run the directive is an
+#:     ORPHAN (its only edges are overlay-authored), so it joins
+#:     ``_AWAITING_REFERENCES`` (pure orphans 24 -> 25) and, because the overlay wires
+#:     it (7 outbound directive->member + 1 outbound directive->DDD + 1 inbound
+#:     architect-alphonso->directive), ``_ORPHANS_RESOLVED_BY_OVERLAY`` (3 -> 4);
+#:     shipped orphans stay 21. The nine overlay edges are ALL ``suggests``: 7 from
+#:     the directive to the attested architecture-documentation techniques
+#:     (paradigm:c4-incremental-detail-modeling, tactic:c4-zoom-in-architecture-
+#:     documentation, tactic:architecture-diagram-review-checklist,
+#:     toolguide:mermaid-diagramming, toolguide:plantuml-diagramming,
+#:     procedure:drill-down-documentation, tactic:code-documentation-analysis), each
+#:     with a per-member ``when`` grounded in the member's OWN purpose/scope text; 1
+#:     the reinforcement bridge to ``paradigm:domain-driven-design`` (the attested
+#:     "supporting" leg — ``suggests`` is the closest attested relation, no new kind
+#:     invented); and 1 from ``agent_profile:architect-alphonso`` to the directive.
+#:     Moved counts: shipped nodes 311 -> 312; shipped edges 810 -> 819;
+#:     ``len(HAND_AUTHORED_EDGES)`` 46 -> 55; relation histogram ``suggests``
+#:     354 -> 363 (``requires``/``scope`` UNCHANGED) -- pinned by
+#:     ``tests/architectural/test_no_authored_applies_edge.py`` and mirrored in
+#:     ``RELATION_DESCRIPTIONS`` / ``docs/architecture/doctrine-relationships.md``,
+#:     both updated. This family is INERT: the directive is not charter-activated (so
+#:     it never enters the reachability pins' ``_activated()`` universe) and all nine
+#:     edges are ``suggests`` on channels that do not follow ``suggests`` into
+#:     delivery, so ``_ACTION_UNREACHABLE_D1``/``D2``, ``_PROFILE_UNREACHABLE`` and
+#:     ``_PROFILE_RESCUES`` in ``tests/doctrine/drg/test_reachability.py`` are
+#:     UNCHANGED (measured, not assumed). The DDD-bridge edge is INBOUND to the
+#:     already-action-reachable DDD paradigm (family-A), so it delivers nothing new.
+#:     The seven architecture-doc technique members remain in the delivery-
+#:     reachability DEFERRED set (topology authored, delivery pending fast-follow).
+#:     EXCLUDED as non-attested: ``procedure:documentation-gap-prioritization`` (its
+#:     own text triages documentation gaps by user impact across all doc types -- a
+#:     documentation-project-management technique, not a C4 / architecture-doc one).
+#:     URN CASING: the wiring named ``directive:use-c4-model-techniques``; the
+#:     Directive model's ``id`` pattern + ``id_normalizer`` upper-case it, so the
+#:     canonical URN is ``directive:USE_C4_MODEL_TECHNIQUES``. See
+#:     ``docs/plans/doctrine/delivery-reachability-wiring-table.md``.
+#: (12) #3063 family-D (TESTING / BDD / MUTATION family), operator interview
+#:     outcome + ACCEPT-DELIVERY ruling (2026-07-29). FIVE new built-in artefacts
+#:     plus FIFTY-FOUR hand-authored ``suggests`` edges. The artefacts:
+#:     ``directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY``
+#:     (``directives/built-in/use-mutation-testing-to-validate-test-quality.
+#:     directive.yaml``), ``styleguide:quadruple-a-test-format``,
+#:     ``styleguide:given-when-then-authoring``, ``toolguide:sonar`` (+ SONAR.md)
+#:     and ``toolguide:gherkin`` (+ GHERKIN.md). Each carries NO inline references
+#:     (relationships are edges), so a PURE ``generate_graph`` run mints five nodes
+#:     but zero edges. PURE golden counts move +5 NODES / +0 edges:
+#:     ``_EXPECTED_NODE_COUNT`` 306 -> 311, ``_EXPECTED_EDGE_COUNT`` UNCHANGED at
+#:     764. In a pure run all five are ORPHANS (their only edges are overlay-
+#:     authored), so they join ``_AWAITING_REFERENCES`` (pure orphans 25 -> 30) and,
+#:     because the overlay wires every one of them, ``_ORPHANS_RESOLVED_BY_OVERLAY``
+#:     (4 -> 9); shipped orphans stay 21.
+#:     Unlike families B/C, family D is REACHABILITY-AFFECTING (operator ACCEPT-
+#:     DELIVERY), because two hubs are EXISTING action-scoped directives:
+#:     ``directive:DIRECTIVE_034`` and ``directive:DIRECTIVE_030`` are both
+#:     ``scope``-linked from ``action:software-dev/implement`` and
+#:     ``action:software-dev/review``, so ``resolve_context`` walks their outbound
+#:     ``suggests`` and DELIVERS the targets at implement/review. The 54 edges: 7
+#:     from DIRECTIVE_034 (BDD/ATDD family; DELIVERS 5 activated members + the 2 new
+#:     BDD artefacts); 2 from ``paradigm:brownfield-onboarding`` (DELIVERS at d=2
+#:     only, via a <=2-hop suggests chain); 4 from the new mutation directive
+#:     (INERT — new hub not action-scoped); 5 from DIRECTIVE_030 + 3 from
+#:     ``directive:DIRECTIVE_041`` (test-quality fan-out split per fit; 030 DELIVERS,
+#:     041 INERT as it is not action-scoped); 32 profile->hub edges (INERT in the
+#:     profile channel); and 1 inert ``architect-alphonso --suggests-->
+#:     event-storming-discovery``. Moved counts: shipped nodes 312 -> 317; shipped
+#:     edges 819 -> 873; ``len(HAND_AUTHORED_EDGES)`` 55 -> 109; relation histogram
+#:     ``suggests`` 363 -> 417 (``requires`` 272 / ``scope`` 159 UNCHANGED) -- pinned
+#:     by ``tests/architectural/test_no_authored_applies_edge.py`` and mirrored in
+#:     ``RELATION_DESCRIPTIONS`` / ``docs/architecture/doctrine-relationships.md``,
+#:     both updated. The per-channel reachability move is ledgered in
+#:     ``tests/doctrine/drg/test_reachability.py``: ``_ACTION_UNREACHABLE_D1`` 67 ->
+#:     60, ``_ACTION_UNREACHABLE_D2`` 60 -> 50, ``_ACTION_D1_D2_SPREAD`` 7 -> 10,
+#:     ``_PROFILE_RESCUES`` 4 -> 2 (``_PROFILE_UNREACHABLE`` UNCHANGED at 153). URN
+#:     CASING: the wiring named the mutation hub lower-kebab; the Directive model's
+#:     ``id`` pattern + ``id_normalizer`` upper-case it, so the canonical URN is
+#:     ``directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY``. See
+#:     ``docs/plans/doctrine/delivery-reachability-wiring-table.md``.
+#: (13) #3063 family-E (ANALYSIS / TERMINOLOGY / REASONS-CANVAS family), operator
+#:     interview outcome: NINE hand-authored ``suggests`` edges added to
+#:     ``HAND_AUTHORED_EDGES`` and ZERO new artefacts -- every endpoint already
+#:     exists, so the PURE golden counts below are UNCHANGED
+#:     (``_EXPECTED_NODE_COUNT`` 311, ``_EXPECTED_EDGE_COUNT`` 764). The nine
+#:     edges: 1 from ``agent_profile:architect-alphonso`` to
+#:     ``styleguide:reasons-canvas-writing`` (E1, canvas-writing only); 2
+#:     reinforcement edges from ``tactic:terminology-extraction-mapping`` to
+#:     ``paradigm:domain-driven-design`` and ``paradigm:brownfield-onboarding``
+#:     (E2 group 1 -- the only terminology/analysis tactic whose OWN text attests a
+#:     paradigm); 3 glossary/language links (``toolguide:contextive`` ->
+#:     ``tactic:glossary-curation-interview`` and ``tactic:language-driven-design``;
+#:     ``tactic:terminology-extraction-mapping`` -> ``tactic:glossary-curation-
+#:     interview`` -- the fourth implied edge, terminology-extraction-mapping ->
+#:     language-driven-design, was OMITTED as it already exists extractor-minted
+#:     from that tactic's own ``references:`` block); and 3 tool-support edges
+#:     (``toolguide:terminology-guard`` -> ``tactic:canonical-source-unification``
+#:     and ``tactic:occurrence-classification-workflow``; ``toolguide:contextive``
+#:     -> ``tactic:terminology-extraction-mapping``). Moved counts: shipped edges
+#:     873 -> 882; ``len(HAND_AUTHORED_EDGES)`` 109 -> 118; relation histogram
+#:     ``suggests`` 417 -> 426 (``requires`` 272 / ``scope`` 159 UNCHANGED) --
+#:     pinned by ``tests/architectural/test_no_authored_applies_edge.py`` and
+#:     mirrored in ``RELATION_DESCRIPTIONS`` / ``docs/architecture/doctrine-
+#:     relationships.md``, both updated. ``test_shipped_graph_is_fresh_and_byte_
+#:     identical`` stays green by construction (764 + 118 = 882). Orphan sets are
+#:     UNCHANGED -- every one of the nine endpoints was already edge-incident, so
+#:     no artefact enters or leaves ``_AWAITING_REFERENCES`` /
+#:     ``_ORPHANS_RESOLVED_BY_OVERLAY``. Family E is INERT: every source is either
+#:     the architect profile (inert in the profile channel) or an action-
+#:     unreachable tactic/toolguide, and the reinforcement edges point INTO
+#:     already-reachable paradigms, so ``_ACTION_UNREACHABLE_D1``/``D2``,
+#:     ``_PROFILE_UNREACHABLE`` and ``_PROFILE_RESCUES`` in
+#:     ``tests/doctrine/drg/test_reachability.py`` are UNCHANGED (measured, not
+#:     assumed). The delivery-reachability DEFERRED set stays at 50 -- no artefact
+#:     leaves (delivery is the fast-follow's job). See
+#:     ``docs/plans/doctrine/delivery-reachability-wiring-table.md``.
+#: (14) doctrine-delivery-activation-01KYQVQK WP02 (T007/T008/T009): SEVEN new
+#:     ``anti_pattern`` nodes and TEN hand-authored edges added to the overlay,
+#:     with the PURE golden counts below UNCHANGED (``_EXPECTED_NODE_COUNT`` 311,
+#:     ``_EXPECTED_EDGE_COUNT`` 764) because every edge endpoint already existed
+#:     (the three ``template:c4-*-mermaid-template`` nodes, ``action:documentation/
+#:     design``, and the seven ``tactic:refactoring-*`` sources) and the seven
+#:     anti_pattern nodes are overlay content (``HAND_AUTHORED_NODES``), never
+#:     extractor-minted. The ten edges: 3 ``action:documentation/design
+#:     --instantiates--> template:c4-{context,container,component}-mermaid-
+#:     template`` (T007, canonical Family-C topology completion, parallel to the
+#:     pre-existing ``documentation-plan-template.md`` instantiates edge; NOT the
+#:     delivery vector -- the templates already deliver to architect-alphonso via
+#:     the profile channel's suggests-walk reaching ``tactic:c4-zoom-in-
+#:     architecture-documentation``, WP01); and 7 ``tactic:refactoring-*
+#:     --REJECTS--> anti_pattern:<smell>`` (T009, one per grounded refactoring
+#:     tactic: encapsulate-record->unencapsulated-record, encapsulate-variable->
+#:     global-data, extract-first-order-concept->implicit-concept, move-field->
+#:     misplaced-field, move-method->feature-envy, state-pattern-for-behavior->
+#:     repeated-switches-on-state, strangler-fig->big-bang-rewrite). Moved counts:
+#:     shipped nodes 317 -> 324, shipped edges 882 -> 892; ``len(HAND_AUTHORED_
+#:     NODES)`` 6 -> 13; ``len(HAND_AUTHORED_EDGES)`` 118 -> 128; relation
+#:     histogram ``instantiates`` 8 -> 11 and ``rejects`` 8 -> 15 (``suggests``
+#:     426 / ``requires`` 272 / ``scope`` 159 UNCHANGED). Only ``instantiates``
+#:     carries a stated count in ``RELATION_DESCRIPTIONS`` (8 -> 11, mirrored in
+#:     ``docs/architecture/doctrine-relationships.md``); ``rejects`` states no
+#:     count, left unstated per the existing convention. ``test_shipped_graph_is_
+#:     fresh_and_byte_identical`` stays green by construction (311 + 13 = 324;
+#:     764 + 128 = 892). T006's Family-A ``when`` backfill on the three
+#:     agent_profile->DDD ``suggests`` edges is content-only (no count or
+#:     histogram move). Orphan sets UNCHANGED: the seven anti_pattern nodes each
+#:     gain an inbound ``rejects`` edge, so none is orphaned, and every other
+#:     endpoint was already edge-incident. Family is INERT/validation-tier: no
+#:     channel walks ``instantiates`` or ``rejects`` into delivery, and
+#:     anti_pattern is a non-activatable kind (D14/C-004), so
+#:     ``_ACTION_UNREACHABLE_D1``/``D2``, ``_PROFILE_UNREACHABLE`` and
+#:     ``_PROFILE_RESCUES`` in ``tests/doctrine/drg/test_reachability.py`` are
+#:     UNCHANGED (measured, not assumed). See
+#:     ``docs/plans/doctrine/delivery-reachability-wiring-table.md``.
+_EXPECTED_NODE_COUNT = 311
 _EXPECTED_EDGE_COUNT = 764
 
 # ---------------------------------------------------------------------------
@@ -248,6 +501,30 @@ _AWAITING_REFERENCES: frozenset[str] = frozenset(
         # ``reconciles_tension`` ones the extractor cannot mint. Wired by the
         # overlay -- see _ORPHANS_RESOLVED_BY_OVERLAY.
         "directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
+        # Ledger (10) #3063 family-B: the new disciplined-refactoring hub
+        # directive. It carries no inline references, so a pure ``generate_graph``
+        # mints its node but no edge; its only edges are the hand-authored
+        # family-B ``suggests`` edges (to the seven refactoring tactics, and from
+        # the seven implementer-role profiles). Wired by the overlay -- see
+        # _ORPHANS_RESOLVED_BY_OVERLAY.
+        "directive:DISCIPLINED_REFACTORING",
+        # Ledger (11) #3063 family-C: the new use-c4-model-techniques hub directive.
+        # It carries no inline references, so a pure ``generate_graph`` mints its
+        # node but no edge; its only edges are the hand-authored family-C
+        # ``suggests`` edges (7 to the architecture-documentation techniques, 1 to
+        # the DDD paradigm, and 1 from architect-alphonso). Wired by the overlay --
+        # see _ORPHANS_RESOLVED_BY_OVERLAY.
+        "directive:USE_C4_MODEL_TECHNIQUES",
+        # Ledger (12) #3063 family-D: the five new TESTING/BDD/MUTATION artefacts.
+        # Each carries no inline references, so a pure ``generate_graph`` mints its
+        # node but no edge; every one is wired only by the hand-authored family-D
+        # ``suggests`` edges. Wired by the overlay -- see
+        # _ORPHANS_RESOLVED_BY_OVERLAY.
+        "directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        "styleguide:quadruple-a-test-format",
+        "styleguide:given-when-then-authoring",
+        "toolguide:sonar",
+        "toolguide:gherkin",
     }
 )
 
@@ -257,6 +534,13 @@ _AWAITING_REFERENCES: frozenset[str] = frozenset(
 _NOT_A_TRAVERSAL_TARGET: frozenset[str] = frozenset({"agent_profile:human-in-charge"})
 
 #: **Tracked defect -- issue #3009. This set must only ever SHRINK.**
+#: Renamed from ``_ACTIVATED_BUT_UNREACHABLE`` (WP08/T044): it is measured by
+#: ``_orphan_urns``, which counts edge INCIDENCE, so it names activated nodes
+#: with no edge in *either* direction -- an orphan, not the stricter
+#: "unreachable from an action/profile traversal". Per-channel REACHABILITY (the
+#: activated-but-unreachable membership sets that a nominal inbound edge from an
+#: unreachable source does NOT satisfy) lives in
+#: ``tests/doctrine/drg/test_reachability.py`` (WP08).
 #: Every URN here is ACTIVATED in ``.kittify/config.yaml`` yet has no edge at
 #: all, so ``charter activate --cascade`` pulls in nothing for it, deactivation
 #: frees nothing, and no action's context resolution can surface it. The
@@ -296,25 +580,28 @@ _NOT_A_TRAVERSAL_TARGET: frozenset[str] = frozenset({"agent_profile:human-in-cha
 #: times, and the styleguide is a distribution-surface concern, not a
 #: pack-authoring one. Corrected so the standard is applied once: record
 #: relationships that exist, refuse to invent ones that do not.
-_ACTIVATED_BUT_UNREACHABLE: frozenset[str] = frozenset(
+_ACTIVATED_BUT_ORPHANED: frozenset[str] = frozenset(
     {
         "styleguide:deployable-skill-authoring",
     }
 )
 
 #: Every node a PURE ``generate_graph`` run leaves incident to no edge.
-#: 17 + 4 + 1 + 1 = 23. The retired ``_EXPECTED_ORPHAN_COUNT`` pinned 32; the
-#: difference is ledger entries (6) and (7) -- one deletion and eight wirings --
-#: and is now a consequence of the membership rather than the whole contract.
+#: 17 + 11 + 1 + 1 = 30 (``_AWAITING_REFERENCES`` grew to 11 with ledger entry (12)'s
+#: five new family-D artefacts, atop entry (11)'s ``directive:USE_C4_MODEL_TECHNIQUES``
+#: and entry (10)'s ``directive:DISCIPLINED_REFACTORING``). The retired
+#: ``_EXPECTED_ORPHAN_COUNT`` pinned 32; the difference is ledger entries (6) and (7)
+#: -- one deletion and eight wirings -- and is now a consequence of the membership
+#: rather than the whole contract.
 _INTENTIONAL_ORPHANS: frozenset[str] = (
     _EDGELESS_BY_CONSTRUCTION
     | _AWAITING_REFERENCES
     | _NOT_A_TRAVERSAL_TARGET
-    | _ACTIVATED_BUT_UNREACHABLE
+    | _ACTIVATED_BUT_ORPHANED
 )
 
-#: The pure-extractor figure (23) and the shipped-graph figure (21) differ by
-#: exactly these two, and by nothing else: the hand-authored overlay
+#: The pure-extractor figure (25) and the shipped-graph figure (21) differ by
+#: exactly these four, and by nothing else: the hand-authored overlay
 #: (``doctrine.drg.migration.hand_authored_overlay``) carries edges the
 #: extractor has no frontmatter mechanism to mint, and they land on these nodes.
 #: Naming them keeps the two figures related by a stated cause instead of by two
@@ -323,6 +610,19 @@ _ORPHANS_RESOLVED_BY_OVERLAY: frozenset[str] = frozenset(
     {
         "asset:common-docs-structural-lint",
         "directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
+        # Ledger (10) #3063 family-B: the disciplined-refactoring hub directive.
+        # Pure-orphan (no inline refs), wired only by the family-B overlay edges.
+        "directive:DISCIPLINED_REFACTORING",
+        # Ledger (11) #3063 family-C: the use-c4-model-techniques hub directive.
+        # Pure-orphan (no inline refs), wired only by the family-C overlay edges.
+        "directive:USE_C4_MODEL_TECHNIQUES",
+        # Ledger (12) #3063 family-D: the five new TESTING/BDD/MUTATION artefacts.
+        # Pure-orphans (no inline refs), wired only by the family-D overlay edges.
+        "directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        "styleguide:quadruple-a-test-format",
+        "styleguide:given-when-then-authoring",
+        "toolguide:sonar",
+        "toolguide:gherkin",
     }
 )
 
@@ -386,7 +686,7 @@ def _describe_orphan_drift(measured: set[str], expected: frozenset[str]) -> str:
             "NO LONGER orphans -- these are still declared as edge-less:\n"
             + "\n".join(f"    - {urn}" for urn in resolved)
             + "\n  Drop them from the declaration; if one left "
-            "_ACTIVATED_BUT_UNREACHABLE, note the fix on issue #3009."
+            "_ACTIVATED_BUT_ORPHANED, note the fix on issue #3009."
         )
     return "orphan membership drifted.\n  " + "\n  ".join(lines)
 
@@ -394,42 +694,24 @@ def _describe_orphan_drift(measured: set[str], expected: frozenset[str]) -> str:
 def _charter_activated_urns() -> set[str]:
     """Return every ``<kind>:<id>`` the project charter currently activates.
 
+    WP07/T035 repoint (FR-017): this now delegates to the single activation
+    authority, :func:`charter.pack_context.charter_activated_urns`, which reads
+    the store resolved through the ``config.yaml`` ``charter:`` pointer
+    (``charter.yaml`` when migrated, else the legacy config-embedded keys) —
+    never the retired ``config.yaml`` ``activated_*`` mirror. Repointing here
+    BEFORE the mirror is removed (T036) is load-bearing: consulting the mirror
+    after its removal would return the empty set, failing this gate's floor
+    assertion while its stray guard went vacuously true.
+
     Directives are the reason this needs a mapping rather than a bare id
     comparison: a directive node's URN carries its ``code``
-    (``directive:DIRECTIVE_035``) while ``.kittify/config.yaml`` activates the
-    file slug (``035-bulk-edit-occurrence-classification``).
+    (``directive:DIRECTIVE_035``) while the store activates the file slug
+    (``035-bulk-edit-occurrence-classification``). That reconciliation now
+    happens inside the authority via the single C-009 normalization boundary.
     """
-    import yaml
+    from charter.pack_context import charter_activated_urns
 
-    config = yaml.safe_load((_REPO_ROOT / ".kittify" / "config.yaml").read_text())
-    kind_for_key = {
-        "activated_directives": "directive",
-        "activated_tactics": "tactic",
-        "activated_toolguides": "toolguide",
-        "activated_procedures": "procedure",
-        "activated_paradigms": "paradigm",
-        "activated_styleguides": "styleguide",
-    }
-    slug_to_code: dict[str, str] = {}
-    for path in (DOCTRINE_ROOT / "directives" / "built-in").glob("*.directive.yaml"):
-        loaded = yaml.safe_load(path.read_text())
-        code = loaded.get("id") if isinstance(loaded, dict) else None
-        if code:
-            slug_to_code[path.name.removesuffix(".directive.yaml")] = str(code)
-    assert slug_to_code, (
-        "no directive slug->id mapping was built, so every directive would "
-        "silently fail to match an activation entry -- which is the exact "
-        "blind spot that made issue #3009 report nine instead of ten"
-    )
-
-    urns: set[str] = set()
-    for key, kind in kind_for_key.items():
-        for entry in config.get(key) or []:
-            identifier = str(entry)
-            if kind == "directive":
-                identifier = slug_to_code.get(identifier, identifier)
-            urns.add(f"{kind}:{identifier}")
-    return urns
+    return charter_activated_urns(_REPO_ROOT)
 
 
 @pytest.mark.doctrine
@@ -448,7 +730,7 @@ class TestDRGZeroDelta:
         )
 
     def test_shipped_graph_orphans_are_the_pure_set_minus_the_overlay(self) -> None:
-        """The two figures (pure 23, shipped 21) differ by a stated cause.
+        """The two figures (pure 25, shipped 21) differ by a stated cause.
 
         Asserting each against its own constant would let them drift apart while
         both stayed green. Here the shipped set is *derived* from the pure set,
@@ -491,7 +773,7 @@ class TestDRGZeroDelta:
             _EDGELESS_BY_CONSTRUCTION,
             _AWAITING_REFERENCES,
             _NOT_A_TRAVERSAL_TARGET,
-            _ACTIVATED_BUT_UNREACHABLE,
+            _ACTIVATED_BUT_ORPHANED,
         )
         assert sum(len(part) for part in parts) == len(_INTENTIONAL_ORPHANS), (
             "the orphan buckets overlap -- a URN is filed under two reasons"
@@ -509,16 +791,16 @@ class TestDRGZeroDelta:
         mapping issue #3009's own matcher lacks.
         """
         activated = _charter_activated_urns()
-        assert activated >= _ACTIVATED_BUT_UNREACHABLE, (
+        assert activated >= _ACTIVATED_BUT_ORPHANED, (
             "these are filed as activated-yet-orphaned but the charter no "
             "longer activates them -- move them to another bucket: "
-            f"{sorted(_ACTIVATED_BUT_UNREACHABLE - activated)}"
+            f"{sorted(_ACTIVATED_BUT_ORPHANED - activated)}"
         )
-        strays = (_INTENTIONAL_ORPHANS & activated) - _ACTIVATED_BUT_UNREACHABLE
+        strays = (_INTENTIONAL_ORPHANS & activated) - _ACTIVATED_BUT_ORPHANED
         assert not strays, (
             "these orphans are charter-ACTIVATED but are filed under an "
             f"'acceptable' reason: {sorted(strays)}. Activating them cascades "
-            "to nothing -- add them to _ACTIVATED_BUT_UNREACHABLE and #3009."
+            "to nothing -- add them to _ACTIVATED_BUT_ORPHANED and #3009."
         )
 
     def test_shipped_graph_is_fresh_and_byte_identical(self) -> None:

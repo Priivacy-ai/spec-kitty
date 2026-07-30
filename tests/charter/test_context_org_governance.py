@@ -150,12 +150,23 @@ class TestNoOrgPacksGovernanceRegression:
         _reset_agent_profile_cache()
         second = _governance_text(repo, _BUILTIN_ID)
 
-        # Byte-identical across calls — the no-org-packs path is unchanged.
+        # Byte-identical across calls — the no-org-packs governance path is
+        # deterministic.
         assert first == second
         # The org sentinel can never appear without a declared pack.
         assert _ORG_SENTINEL not in first
-        # A built-in profile still resolves through the unchanged fast path.
-        assert _BUILTIN_ID in first
+        # The built-in profile still resolves through the fast path and emits a
+        # governance payload. (#3079 — doctrine-delivery-activation: the
+        # profile-channel `suggests`-walk now enriches this built-in's
+        # profile-citations section past the per-section budget, so it is
+        # delivered as a links-not-bodies fetch pointer rather than inline
+        # (NFR-003 context-bloat guard). The profile-id string is therefore no
+        # longer emitted inline in the compact `advise` render, so we pin the
+        # stable structural anchors + a profile-cited directive instead of the
+        # now-budget-substituted profile-id header.)
+        assert first.strip()
+        assert "Directive IDs:" in first
+        assert "DISCIPLINED_REFACTORING" in first
 
 
 # ---------------------------------------------------------------------------

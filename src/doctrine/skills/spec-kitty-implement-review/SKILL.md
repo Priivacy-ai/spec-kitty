@@ -496,7 +496,9 @@ cat /tmp/review-result-<mission>-WP##.md
 ```
 
 Before final approval, if `spec.md` references GitHub issues, ensure
-`issue-matrix.md` exists and every referenced issue has a verdict:
+`issue-matrix.json` (JSON-first canonical artifact; legacy `issue-matrix.md`
+missions are read via failover, never re-authored) exists and every
+referenced issue has a verdict:
 `fixed`, `verified-already-fixed`, a documented follow-up
 (`deferred-with-followup`), or `in-mission` (being closed by a later WP in this
 same mission). `unknown`/empty verdicts block approval. The CLI enforces this

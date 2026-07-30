@@ -1,0 +1,129 @@
+{
+  "mission_slug": "doctrine-delivery-activation-01KYQVQK",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/drg/test_profile_suggests_delivery.py (A0-A2): profile_channel_reachable follows suggests; architect reaches domain-driven-design",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-30T07:40:16Z",
+      "notes": "Delivered by WP01; independent opus review approved; targeted gates green"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_profile_suggests_delivery.py (A1-A3): each suggests edge's when surfaced; STATED_DEFAULT_WHEN fallback",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-30T07:40:16Z",
+      "notes": "Delivered by WP01; independent opus review approved; targeted gates green"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_profile_suggests_delivery.py (A5): suggested doctrine delivered as when-labelled links, not bodies (NFR-003)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-30T07:40:16Z",
+      "notes": "Delivered by WP01; independent opus review approved; targeted gates green"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/drg/test_reachability.py: _PROFILE_UNREACHABLE 153->60, _PROFILE_RESCUES 2->30 reconciled to canonical-helper measurement",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-30T07:40:16Z",
+      "notes": "Delivered by WP03; independent opus review approved; targeted gates green"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/plans/doctrine/delivery-reachability-wiring-table.md: neither-channel deferred 48->20 + per-member NFR-002 ledger; TestProfileRescuesHaveLedgerCoverage",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-30T07:40:16Z",
+      "notes": "Delivered by WP03; independent opus review approved; targeted gates green"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_no_dead_symbols.py: agent_profile_seed_urns wired+retired; 8 kept allowlisted-with-note",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-30T07:40:16Z",
+      "notes": "Delivered by WP01+WP03; independent opus review approved; targeted gates green"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctrine/drg/test_c4_and_anti_pattern_topology.py: architect reaches all 3 template:c4-* via profile channel; instantiates edge authored",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-30T07:40:16Z",
+      "notes": "Delivered by WP02; independent opus review approved; targeted gates green"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_c4_and_anti_pattern_topology.py + anti-pattern validator: 7 anti_patterns via tactic--REJECTS-->anti_pattern (11 deferred, un-attested, C-004)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-30T07:40:16Z",
+      "notes": "Delivered by WP02; independent opus review approved; targeted gates green"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_every_load_delivery.py: fixture excludes context-state.json; hermetic (10 passed ambient present+absent)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-30T07:40:16Z",
+      "notes": "Delivered by WP07; independent opus review approved; targeted gates green"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_drg_writer_discovery.py: 3 emit sites -> graph_document_to_dict + registered + non-vacuous gate; 12 type:ignore net-removed (mypy --strict)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-30T07:40:16Z",
+      "notes": "Delivered by WP05+WP04; independent opus review approved; targeted gates green"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/doctrine/test_pack_validator.py + tests/doctrine/assets/: DRGGraphSchemaError structured; _post_validate hook fixes source_path split-brain",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-30T07:40:16Z",
+      "notes": "Delivered by WP06; independent opus review approved; targeted gates green"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/ consumer sweep (153 passed byte-identical): reference-pointer + delivery-table helpers extracted to context_renderers/ (NFR-001)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-30T07:40:16Z",
+      "notes": "Delivered by WP04; independent opus review approved; targeted gates green"
+    }
+  ],
+  "negative_invariants": []
+}

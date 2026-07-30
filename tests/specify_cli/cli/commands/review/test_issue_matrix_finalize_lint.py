@@ -246,5 +246,31 @@ def test_finalize_lint_never_blocks_even_if_engine_raises(
     exit_code = _run_finalize(
         _common_patches(tmp_path), extra={REVIEW_ENGINE: _boom}
     )
+    assert exit_code == 0
+
+
+def test_finalize_lint_validates_a_json_only_mission(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """C1 fold (write-side-seam-matrix-tracer-01KYP3MH WP05): a mission with
+    ONLY ``issue-matrix.json`` (no ``.md``) must still be linted -- the prior
+    ``.md``-only ``.exists()`` precheck returned early for exactly this case,
+    silently skipping the lint (dead code behind the precheck)."""
+    feature_dir = _setup_mission(tmp_path, matrix=None)
+    (feature_dir / "issue-matrix.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "rows": {"#2223": {"verdict": "not-a-real-verdict", "evidence_ref": "x"}},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    exit_code = _run_finalize(_common_patches(tmp_path))
+
+    out = _clean(capsys.readouterr().out)
+    assert "Advisory" in out
+    assert exit_code == 0
 
     assert exit_code == 0

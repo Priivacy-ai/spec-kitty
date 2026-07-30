@@ -1,0 +1,20 @@
+{
+  "baseline_merge_commit": "498f6f967cfefed92bcda329844fa9cd6a9538d8",
+  "coordination_branch": "kitty/mission-doctrine-delivery-reachability-01KYMXD6",
+  "created_at": "2026-07-28T17:47:21.380666+00:00",
+  "flattened": false,
+  "friendly_name": "Doctrine Delivery Reachability",
+  "mission_id": "01KYMXD6D4JKA3FW9603ZYMDBB",
+  "mission_number": null,
+  "mission_slug": "doctrine-delivery-reachability-01KYMXD6",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Spec Kitty's doctrine layer lets a project declare rules, assets, and governance that shape how every agent works. Mission A proved those declarations load and validate correctly. This mission closes the next gap: a declaration can pass every check and still reach nobody -- assets that ship in the package but cannot be addressed, activated governance that never appears in an agent's working context, and graph fields silently dropped on write. The outcome is that what a project declares is what its agents actually receive.",
+  "purpose_tldr": "Make declared doctrine actually reach the agents and consumers that need it, instead of validating cleanly and going nowhere.",
+  "slug": "doctrine-delivery-reachability-01KYMXD6",
+  "status_phase": "1",
+  "target_branch": "feat/doctrine-delivery-reachability",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-28T20:51:16.372790+00:00"
+}

@@ -66,16 +66,27 @@ _EXEMPT_GET_PARTIALS: frozenset[str] = frozenset(
         # for every kind that doesn't override it.
         "charter.kind_vocabulary::_ID_FIELD_BY_KIND",
         "charter.pack_manager::_ID_FIELD_BY_KIND",
-        # Both fall back to ArtifactKind.plural for kinds without a
-        # hand-mapped project directory name.
-        "charter.kind_vocabulary::_PROJECT_KIND_DIRS",
-        "charter.pack_manager::_PROJECT_KIND_DIRS",
+        # NOTE (WP03 T014): the two charter `_PROJECT_KIND_DIRS` partials were
+        # retired here -- both modules now import the single total authority
+        # `doctrine.artifact_kinds.PROJECT_KIND_DIRS` (guard-visible, total), so
+        # there is no local partial left to exempt.
         # WP01 (doctrine-tension-edges-01KY1WPC) added ArtifactKind.ANTI_PATTERN.
         # The sole read site (`executor.py`'s step-contract kind resolution)
         # reads via `_ARTIFACT_TO_NODE_KIND.get(kind)` and treats a miss as
         # "no delegatable node kind" -- correct here, since an anti-pattern
         # node is never a mission-step-contract delegation target (D2).
         "specify_cli.mission_step_contracts.executor::_ARTIFACT_TO_NODE_KIND",
+        # WP03 (T016): the `doctrine new` scaffolder's per-kind stub table.
+        # Intentionally partial -- `template` (empty glob, unscaffoldable),
+        # `glossary_pack` and `anti_pattern` (hand-authored) carry no stub. The
+        # sole read site (`new()` -> `_stub_template`) is gated by the
+        # `_resolve_scaffoldable_kind` membership check, so a missing kind is a
+        # deliberate "not scaffoldable" rejection, never a silent KeyError. This
+        # table's keys ARE the set of scaffoldable kinds. It was formerly an
+        # eight-arm if-chain no dict-scanning guard could see; converting it to a
+        # dict makes the projection guard-visible (this exemption is the
+        # documented reason it stays partial).
+        "specify_cli.cli.commands.doctrine::_STUB_TEMPLATES",
     }
 )
 
@@ -274,6 +285,111 @@ def test_synthetic_partial_dict_is_flagged_and_exempt_names_are_skippable() -> N
     exempt = {"synthetic::_SYNTHETIC_PARTIAL"}
     assert "synthetic::_SYNTHETIC_PARTIAL" in exempt
     assert "synthetic::_SYNTHETIC_TOTAL" not in exempt
+
+
+def test_project_kind_dirs_authority_is_discovered_and_total() -> None:
+    """T012/T017: the hoisted authority is guard-visible and total.
+
+    Before WP03 the project-tier directory mapping lived in two
+    string-keyed copies (``doctrine.service`` / the ``doctrine new`` CLI) that
+    the AST scan cannot see at all, plus two enum-keyed but partial charter
+    copies. The hoist collapses them into a single enum-keyed **total** literal
+    at ``doctrine.artifact_kinds::PROJECT_KIND_DIRS`` that the scan discovers
+    and the totality check certifies — so a future ArtifactKind added without
+    an entry here fails loudly rather than falling through a silent default.
+    """
+    discovered = {entry.qualified_name: entry for entry in _discover_kind_keyed_dicts()}
+    authority = "doctrine.artifact_kinds::PROJECT_KIND_DIRS"
+    assert authority in discovered, (
+        "the hoisted project-tier directory authority is not guard-visible"
+    )
+    assert not _missing_members(discovered[authority]), (
+        "PROJECT_KIND_DIRS must be total over ArtifactKind (fail-closed)"
+    )
+    # And it needs no exemption precisely because it is total.
+    assert authority not in _EXEMPT_GET_PARTIALS
+
+
+def test_charter_project_kind_dirs_copies_no_longer_declared() -> None:
+    """T014: the two enum-keyed charter copies are retired to the authority.
+
+    After the hoist neither charter module re-declares a ``_PROJECT_KIND_DIRS``
+    dict literal — they import the single authority — so the AST scan finds
+    neither, and their former exemptions are gone from
+    :data:`_EXEMPT_GET_PARTIALS`.
+    """
+    discovered = {entry.qualified_name for entry in _discover_kind_keyed_dicts()}
+    assert "charter.kind_vocabulary::_PROJECT_KIND_DIRS" not in discovered
+    assert "charter.pack_manager::_PROJECT_KIND_DIRS" not in discovered
+    assert "charter.kind_vocabulary::_PROJECT_KIND_DIRS" not in _EXEMPT_GET_PARTIALS
+    assert "charter.pack_manager::_PROJECT_KIND_DIRS" not in _EXEMPT_GET_PARTIALS
+
+
+def test_stub_templates_mapping_is_discovered_and_exempt() -> None:
+    """T016: the scaffolder's stub table is a guard-visible enum-keyed mapping.
+
+    Converting ``_stub_template``'s eight-arm if-chain to a
+    ``dict[ArtifactKind, str]`` brings a kind projection the guard structurally
+    could not see into its reach. The table is intentionally *partial* —
+    ``template`` (empty glob), ``glossary_pack`` and ``anti_pattern`` are not
+    hand-scaffolded — so it is a membership-gated partial carried in
+    :data:`_EXEMPT_GET_PARTIALS` with a documented reason, not left invisible.
+    """
+    discovered = {entry.qualified_name: entry for entry in _discover_kind_keyed_dicts()}
+    stub_table = "specify_cli.cli.commands.doctrine::_STUB_TEMPLATES"
+    assert stub_table in discovered, (
+        "the stub-template mapping must be a guard-visible enum-keyed dict"
+    )
+    assert _missing_members(discovered[stub_table]), (
+        "the stub table is expected to be a genuine partial (no template/"
+        "glossary_pack/anti_pattern stubs)"
+    )
+    assert stub_table in _EXEMPT_GET_PARTIALS
+
+
+def test_cli_project_dir_and_singular_plural_copies_are_retired() -> None:
+    """T013/T015: the CLI's two string-keyed copies are retired to the authority.
+
+    ``doctrine new`` previously carried a singular-string ``_PROJECT_KIND_DIRS``
+    and a ``_CANONICAL_KIND_SINGULAR_TO_PLURAL`` that duplicated
+    ``ArtifactKind._PLURALS``. Both are string-keyed and therefore invisible to
+    the guard's AST scan — a worse failure than exemption. After the hoist the
+    module consumes ``PROJECT_KIND_DIRS`` / ``ArtifactKind.plural`` and neither
+    private table survives as a module attribute.
+    """
+    import specify_cli.cli.commands.doctrine as doctrine_cli
+
+    assert not hasattr(doctrine_cli, "_PROJECT_KIND_DIRS")
+    assert not hasattr(doctrine_cli, "_CANONICAL_KIND_SINGULAR_TO_PLURAL")
+
+
+def test_authority_missing_a_member_is_flagged_by_the_guard() -> None:
+    """T017: a future ArtifactKind added without a PROJECT_KIND_DIRS entry fails.
+
+    Simulates the exact regression the hoist protects against: the authority
+    dropping (or never gaining) an entry for a kind. Against a synthetic copy of
+    the authority missing ``ASSET``, the discovery + totality building blocks
+    must report it by name — the same machinery ``test_kind_keyed_dicts_are_
+    total_or_exempt`` runs over the real ``PROJECT_KIND_DIRS`` (which, being
+    string-keyed before WP03, no scan could have caught).
+    """
+    source = (
+        "from doctrine.artifact_kinds import ArtifactKind\n"
+        "PROJECT_KIND_DIRS: dict[ArtifactKind, str] = {\n"
+        + "".join(
+            f"    ArtifactKind.{member.name}: 'x',\n"
+            for member in ArtifactKind
+            if member is not ArtifactKind.ASSET
+        )
+        + "}\n"
+    )
+    tree = ast.parse(source, filename="<synthetic-authority>")
+    found = {
+        entry.qualified_name: entry
+        for entry in _kind_keyed_dicts_in_module(tree, "synthetic")
+    }
+    entry = found["synthetic::PROJECT_KIND_DIRS"]
+    assert _missing_members(entry) == {"ASSET"}
 
 
 def test_mixed_enum_and_plain_keys_raise_instead_of_silently_skipping() -> None:

@@ -1,0 +1,81 @@
+{
+  "event_count": 42,
+  "last_event_id": "01KYSYTN0427Q75YF0RRG8EVZ1",
+  "materialized_at": "2026-07-30T16:48:23.044491+00:00",
+  "mission_number": "",
+  "mission_slug": "post-merge-write-authoring-finish-01KYRRM5",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYSYTGV2K4078EX8MCQ7W7CD",
+      "last_transition_at": "2026-07-30T16:48:18.786252+00:00",
+      "shell_pid": 1797882,
+      "shell_pid_created_at": "1785415770.39"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYSYTHRTEBFDR128CTBHMKVX",
+      "last_transition_at": "2026-07-30T16:48:19.738627+00:00",
+      "shell_pid": 1814813,
+      "shell_pid_created_at": "1785416099.05"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYSYTJJSP68DE7C8H8Z57NJ1",
+      "last_transition_at": "2026-07-30T16:48:20.569372+00:00",
+      "shell_pid": 1881232,
+      "shell_pid_created_at": "1785418194.73"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYSYTKCJY7ZTTGV4PDTM0HKW",
+      "last_transition_at": "2026-07-30T16:48:21.394284+00:00",
+      "shell_pid": 1995978,
+      "shell_pid_created_at": "1785421268.03"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYSYTM6FERQXXGD4MBZ44T5D",
+      "last_transition_at": "2026-07-30T16:48:22.223134+00:00",
+      "shell_pid": 2121130,
+      "shell_pid_created_at": "1785425970.86"
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYSYTN0427Q75YF0RRG8EVZ1",
+      "last_transition_at": "2026-07-30T16:48:23.044491+00:00",
+      "shell_pid": 1,
+      "shell_pid_created_at": "1785055726.14"
+    }
+  }
+}

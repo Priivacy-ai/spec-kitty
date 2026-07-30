@@ -112,6 +112,18 @@ edges:
   target: tactic:requirements-validation-workflow
   relation: scope
 - source: action:documentation/design
+  target: template:c4-component-mermaid-template
+  relation: instantiates
+  reason: The documentation/design action instantiates the C4 Component mermaid template as one of its concrete architecture-diagram outputs, completing the canonical Family-C topology (topology only; delivery rides the c4-zoom-in tactic's own references, not this edge).
+- source: action:documentation/design
+  target: template:c4-container-mermaid-template
+  relation: instantiates
+  reason: The documentation/design action instantiates the C4 Container mermaid template as one of its concrete architecture-diagram outputs, completing the canonical Family-C topology (topology only; delivery rides the c4-zoom-in tactic's own references, not this edge).
+- source: action:documentation/design
+  target: template:c4-context-mermaid-template
+  relation: instantiates
+  reason: The documentation/design action instantiates the C4 System Context mermaid template as one of its concrete architecture-diagram outputs, completing the canonical Family-C topology (topology only; delivery rides the c4-zoom-in tactic's own references, not this edge).
+- source: action:documentation/design
   target: template:documentation/documentation-plan-template.md
   relation: instantiates
 - source: action:documentation/discover
@@ -138,6 +150,10 @@ edges:
 - source: action:documentation/generate
   target: directive:DIRECTIVE_037
   relation: scope
+- source: action:documentation/generate
+  target: directive:DIRECTIVE_042
+  relation: scope
+  reason: The documentation/generate action creates documentation files (its write_docs step writes docs/**/*.md), which is DIRECTIVE_042's stated trigger ('whenever a documentation file under the Common Docs root is created'); the action is therefore governed by the common-docs documentation standard. This scope edge is the reaching entry point that delivers the common-docs styleguide, tactics and structural-lint asset, which were otherwise a strongly-connected island no action scoped (WP09 / FR-015).
 - source: action:documentation/generate
   target: tactic:requirements-validation-workflow
   relation: scope
@@ -543,6 +559,10 @@ edges:
 - source: action:software-dev/specify
   target: directive:DIRECTIVE_010
   relation: scope
+- source: action:software-dev/specify
+  target: paradigm:domain-driven-design
+  relation: scope
+  reason: The software-dev specify step aligns the mission design with architectural intent; Domain-Driven Design is the paradigm that governs aligning that design with a deep model of the business domain (DDD's own summary). This scope edge is the reaching entry point that makes the DDD paradigm action-reachable at the specify grain and delivers its strategic-design family transitively (#3063 family-A). It is `scope` not `suggests` because a suggests edge sourced at an action node is inert under resolve_context.
 - source: action:software-dev/specify
   target: tactic:requirements-validation-workflow
   relation: scope

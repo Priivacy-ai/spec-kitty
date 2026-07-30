@@ -51,6 +51,16 @@ def context(
             "`org_charter` describes imported org packs."
         ),
     ),
+    include_all: bool = typer.Option(
+        False,
+        "--include-all",
+        help=(
+            "Escape hatch: materialise the entire reachable closure inline in the "
+            "structured (--json) payload instead of the default progressive "
+            "disclosure (requires eager, suggests linked). Output is a superset of "
+            "the progressive render for the same grain."
+        ),
+    ),
 ) -> None:
     """Render charter context for a specific workflow action."""
     from charter.context import (
@@ -119,6 +129,7 @@ def context(
                 org_root=org_root,
                 org_charter_block=org_charter_block,
                 mission_type=mission_type,
+                include_all=include_all,
             )
             print(
                 json.dumps(
@@ -136,6 +147,7 @@ def context(
                         "tactics": structured.get("tactics", []),
                         "styleguides": structured.get("styleguides", []),
                         "toolguides": structured.get("toolguides", []),
+                        "references": structured.get("references", []),
                         "governance_references": structured.get(
                             "governance_references", []
                         ),

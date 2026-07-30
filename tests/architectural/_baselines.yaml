@@ -31,7 +31,7 @@ test_no_dead_modules:
   # wp-lane-state-machine-fsm): upstream #1756 added m_3_3_0_session_presence_all_harnesses
   # and m_3_3_0_session_presence_claude_code; both auto-discovered via
   # pkgutil.iter_modules, never statically imported. Growth here is expected/routine.
-  category_1_auto_discovered_migrations: 96  # justification: 96 after PR #3007 added m_3_2_6_retire_rtk_search_tooling, an auto-discovered upgrade migration that cleans up the retired rtk-search-tooling toolguide activation from existing consumer configs (#3009 operator ruling). Category 1 exists precisely to enumerate auto-discovered migration modules that have no static importer, so this is registration, not suppression.
+  category_1_auto_discovered_migrations: 98  # justification: 96 after PR #3007 added m_3_2_6_retire_rtk_search_tooling, an auto-discovered upgrade migration that cleans up the retired rtk-search-tooling toolguide activation from existing consumer configs (#3009 operator ruling). +1 (96->97, PR #3070): m_3_2_x_normalize_activation_absence, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules) that normalizes activation absence during charter-activation unification — no static importer, so registration not suppression. +1 (97->98, write-side-seam-matrix-tracer-01KYP3MH WP05/FR-008, commit 09f740bd4): m_3_2_6_issue_matrix_driver_repoint, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules, wired via cli/commands/upgrade.py's auto_discover_migrations()) that repoints the #2804 gate-artifact merge driver from issue-matrix.md to issue-matrix.json — no static importer, same false-positive class as every sibling m_3_2_6_* entry. Category 1 exists precisely to enumerate auto-discovered migration modules that have no static importer.
   # justification: 3 schema generator modules consumed by
   # scripts/generate_schemas.py via importlib.import_module.
   # Shrunk from 4 → 3 when doctrine.missions.models gained a live
@@ -283,6 +283,23 @@ test_no_dead_symbols:
   # charter.template_catalog facade landed (the 4 doctrine.template_catalog
   # accessors remain genuinely unimported). Tracker: WP06/T021 (DIRECTIVE_013).
   category_c_org_doctrine_closeout: 15
+  # justification: 18 delivery-rail public symbols authored by mission
+  # doctrine-delivery-reachability-01KYMXD6 on three brand-new modules
+  # (charter.pack_context WP07 activation-partition helpers x4,
+  # charter.progressive_disclosure WP15 every-load/progressive-disclosure
+  # delivery helpers x11, doctrine.drg.reachability WP08 per-channel
+  # reachability helpers x3). Was 19; WP03 of the fast-follow "walk-update"
+  # mission (doctrine-delivery-activation-01KYQVQK) wired the profile channel,
+  # so ``doctrine.drg.reachability::agent_profile_seed_urns`` gained a runtime
+  # caller (src/doctrine/agent_profiles/repository.py) and was retired from the
+  # allowlist (4->3 for the reachability module). The remaining symbols'
+  # runtime call sites are a later mission's job (the charter-activation and
+  # action-channel concerns this mission builds no consumer for), so each is
+  # exercised today only by unit tests (a few by none yet) while the public
+  # contract is locked. Tracker: Priivacy-ai/spec-kitty#3063. Informational
+  # only (this section is NOT read by test_ratchet_baselines). Target = 0 once
+  # a later mission wires each remaining helper.
+  category_c_delivery_rail_forward_api: 18
   # category_c_upstream_status_service removed by execution-context-unification
   # WP09 (#1622/#391): the 2 truly-dead functions (append_event_log_batch,
   # read_wp_lane_actor) were deleted and the 3 internally-used types

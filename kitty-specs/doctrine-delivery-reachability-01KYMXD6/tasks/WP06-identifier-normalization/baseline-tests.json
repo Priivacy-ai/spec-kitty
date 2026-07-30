@@ -1,0 +1,19 @@
+{
+  "wp_id": "WP06",
+  "captured_at": "2026-07-28T22:00:26Z",
+  "base_branch": "feat/doctrine-delivery-reachability",
+  "base_commit": "aed7fdf6ea689a0c9d799bac18fb781bfc5ca93a",
+  "test_runner": "pytest",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "<gate-coverage-junit>",
+      "error": "no JUnit XML artifact produced by the scoped run",
+      "file": "unknown"
+    }
+  ],
+  "source_identity": "GateCoverageScopeSource/junit_xml"
+}

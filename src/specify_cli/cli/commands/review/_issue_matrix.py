@@ -192,12 +192,22 @@ def _normalize_header(raw: str) -> str:
 
 
 def validate_issue_matrix(path: Path) -> IssueMatrixValidationResult:  # noqa: C901
-    """Validate an issue-matrix.md file against the closed-set schema.
+    """Validate an issue-matrix against the closed-set schema.
+
+    JSON-first (M7 / write-side-seam-matrix-tracer-01KYP3MH WP05 / T023):
+    when ``issue-matrix.json`` exists at ``path``'s directory (the structured,
+    canonical artifact -- C-008), it is validated via the ONE canonical
+    dir-based reader (:func:`specify_cli.tasks.issue_matrix_migration.
+    load_issue_matrix`) and NO markdown parsing happens. Otherwise falls back
+    to the legacy markdown parser below (FR-013 back-compat).
 
     Parameters
     ----------
     path:
-        Absolute path to the ``issue-matrix.md`` file to validate.
+        Absolute path to the ``issue-matrix.md`` (or ``.json``) file to
+        validate -- historically always ``<feature_dir>/issue-matrix.md``;
+        ``path.parent`` is treated as the mission's issue-matrix directory
+        for the JSON-first check.
 
     Returns
     -------
@@ -205,6 +215,10 @@ def validate_issue_matrix(path: Path) -> IssueMatrixValidationResult:  # noqa: C
         ``passed`` is ``True`` only when no violations are found.
     """
     result = IssueMatrixValidationResult(path=path, passed=True)
+
+    json_path = path if path.name == "issue-matrix.json" else path.parent / "issue-matrix.json"
+    if json_path.exists():
+        return _validate_structured_issue_matrix(json_path, result)
 
     if not path.exists():
         result.add_diagnostic(
@@ -362,6 +376,36 @@ def validate_issue_matrix(path: Path) -> IssueMatrixValidationResult:  # noqa: C
             )
             result.rows.append(row)
 
+    return result
+
+
+def _validate_structured_issue_matrix(
+    json_path: Path, result: IssueMatrixValidationResult
+) -> IssueMatrixValidationResult:
+    """Validate ``issue-matrix.json`` business rules (M7 / T023).
+
+    Re-points onto the ONE canonical dir-based reader
+    (:func:`specify_cli.tasks.issue_matrix_migration.load_issue_matrix`) for
+    ``.rows`` -- deferred import to avoid a module-load cycle (``issue_matrix_
+    migration`` also imports FROM this module for row construction). The
+    markdown-only structural diagnostics (``ISSUE_MATRIX_MULTI_TABLE`` /
+    unknown-column ``ISSUE_MATRIX_SCHEMA_DRIFT``) do not apply to a
+    machine-written, already-structured JSON document; only the semantic
+    business rules (verdict allow-list, non-empty evidence, deferred-with-
+    followup handle) are re-checked here, against the RAW rows (so a
+    scaffolded placeholder verdict like ``"unknown"`` is still flagged even
+    though it is excluded from the canonical ``.rows`` list -- mirroring the
+    markdown validator's existing row-filtering contract).
+    """
+    from specify_cli.tasks.issue_matrix_migration import (
+        diagnose_structured_issue_matrix,
+        load_issue_matrix,
+    )
+
+    result.path = json_path
+    result.diagnostics = diagnose_structured_issue_matrix(json_path)
+    result.rows = load_issue_matrix(json_path.parent)
+    result.passed = not result.diagnostics
     return result
 
 

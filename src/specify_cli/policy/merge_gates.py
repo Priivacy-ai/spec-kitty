@@ -135,6 +135,10 @@ def evaluate_merge_gates(
             _evaluate_dependency_gate(feature_dir, wp_ids, is_blocking)
         )
 
+    evaluation.gates.append(
+        _evaluate_issue_matrix_completeness_gate(feature_dir, is_blocking)
+    )
+
     return evaluation
 
 
@@ -273,4 +277,66 @@ def _evaluate_dependency_gate(
             verdict=GateVerdict.SKIP,
             details=f"Dependency check unavailable: {exc}",
             blocking=False,
+        )
+
+
+def _evaluate_issue_matrix_completeness_gate(
+    feature_dir: Path, is_blocking: bool,
+) -> GateResult:
+    """Check that every discovered issue reference has an issue-matrix row.
+
+    T030 (WP08, FR-004, #1738): a net-new reader for ``merge_gates`` — this
+    module is not a WP05 migration target, it gains its first issue-matrix
+    read here. Uses the SAME two canonical definitions the finalization/
+    approval path uses (no third/fourth definition): WP08's multi-file
+    :func:`~specify_cli.tasks.issue_reference_discovery.
+    discover_issue_references` for "what is referenced", and WP05's
+    dir-based :func:`~specify_cli.tasks.issue_matrix_migration.
+    load_issue_matrix` for "what the matrix says".
+
+    Fail-closed only when references exist: zero discovered references is a
+    PASS (nothing to enforce). WP09 owns the formal ``not_applicable``
+    Gate-4 verdict for the post-merge review surface; this merge gate's
+    zero-reference branch is intentionally the simpler "nothing to check"
+    case, not a re-definition of ``not_applicable``.
+    """
+    try:
+        from specify_cli.tasks.issue_matrix_migration import load_issue_matrix
+        from specify_cli.tasks.issue_reference_discovery import discover_issue_references
+
+        refs = discover_issue_references(feature_dir)
+        if not refs:
+            return GateResult(
+                gate_name="issue_matrix_completeness",
+                verdict=GateVerdict.PASS,
+                details="No issue references discovered — nothing to enforce",
+                blocking=False,
+            )
+
+        referenced_issues = {f"#{ref.number}" for ref in refs}
+        matrix_issues = {row.issue for row in load_issue_matrix(feature_dir)}
+        missing_issues = sorted(referenced_issues - matrix_issues)
+
+        if missing_issues:
+            return GateResult(
+                gate_name="issue_matrix_completeness",
+                verdict=GateVerdict.FAIL,
+                details=(
+                    "Issue-matrix is missing rows for referenced issue(s): "
+                    f"{', '.join(missing_issues)}"
+                ),
+                blocking=is_blocking,
+            )
+        return GateResult(
+            gate_name="issue_matrix_completeness",
+            verdict=GateVerdict.PASS,
+            details=f"All {len(referenced_issues)} referenced issue(s) have matrix rows",
+            blocking=False,
+        )
+    except Exception as exc:
+        return GateResult(
+            gate_name="issue_matrix_completeness",
+            verdict=GateVerdict.FAIL,
+            details=f"Could not evaluate issue-matrix completeness: {exc}",
+            blocking=is_blocking,
         )

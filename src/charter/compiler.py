@@ -85,6 +85,21 @@ class ConfigActivatedRoots:
     agent_profiles: list[str]
 
 
+#: The ``PackContext`` per-artifact activation fields this compiler resolves.
+#: Used to decide whether a project is "configured" (activates at least one
+#: kind) for the FR-018 absence-is-empty delivery rule in
+#: :func:`_resolve_config_activated_roots`.
+_CONFIG_ACTIVATION_FIELDS: tuple[str, ...] = (
+    "activated_directives",
+    "activated_paradigms",
+    "activated_tactics",
+    "activated_styleguides",
+    "activated_toolguides",
+    "activated_procedures",
+    "activated_agent_profiles",
+)
+
+
 def _resolve_config_activated_ids(
     kind: ArtifactKind,
     activated_stems: frozenset[str] | None,
@@ -133,8 +148,27 @@ def _resolve_config_activated_roots(
 ) -> ConfigActivatedRoots:
     """Build the full config-sourced activation bundle for one compile."""
 
+    # FR-018 (WP07/T038): retire the "absence => all built-ins" fallback at this
+    # delivery boundary for CONFIGURED projects. A project that activates at
+    # least one per-artifact kind but OMITS an ``activated_<kind>`` key delivers
+    # NOTHING for that kind -- the absent key resolves to ``frozenset()``, never
+    # the built-in fallback (spec scenario 7: "a project whose charter omits an
+    # activated_<kind> key ... receives nothing for that kind"). A wholly
+    # UNCONFIGURED project (no pack_context, or a pack_context with no
+    # per-artifact activation at all -- a scaffold with no charter) keeps the
+    # all-built-ins convenience default, which is not a per-project delivery
+    # boundary.
+    project_configured = pack_context is not None and any(
+        getattr(pack_context, field) is not None for field in _CONFIG_ACTIVATION_FIELDS
+    )
+
     def _stems(field_name: str) -> frozenset[str] | None:
-        return getattr(pack_context, field_name) if pack_context is not None else None
+        if pack_context is None:
+            return None
+        value: frozenset[str] | None = getattr(pack_context, field_name)
+        if value is None and project_configured:
+            return frozenset()
+        return value
 
     # ``pack_context.pack_roots`` is ``(builtin_root, *org_pack_roots)``
     # (``PackContext.from_config``); the built-in root is already threaded

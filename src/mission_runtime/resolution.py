@@ -46,6 +46,11 @@ from mission_runtime.context import (
     routes_through_coordination,
 )
 from mission_runtime.identity import mid8_from_slug, resolve_mid8
+from mission_runtime.lifecycle_phase import (
+    LifecyclePhase,
+    content_present_at_primary_tip,
+    resolve_lifecycle_phase,
+)
 from mission_runtime.mission_resolver_port import MissionResolver
 
 
@@ -103,6 +108,70 @@ class ActionContextError(RuntimeError):
 # ``mission_context_for``, ``resolve_placement_only``) restated the literal
 # string. Hoisted to one module constant.
 _FEATURE_CONTEXT_UNRESOLVED_CODE = "FEATURE_CONTEXT_UNRESOLVED"
+
+# #3033 WP03 (ADR 2026-07-30-1 Decision 1 §6, operator HiC): the E2
+# (PUBLISHED) CONSOLIDATED-surface write routing is SCOPED, not blanket. It
+# applies to every PRIMARY-partition kind PLUS exactly the three coord
+# write kinds named by the ADR. ``STATUS_STATE`` and ``DECISION_LOG`` are
+# DELIBERATELY excluded -- their post-consolidation resolution stays
+# unchanged (SC-005 / C-005 non-regression). This is resolver-INTERNAL kind
+# selection (the resolver already keys on ``MissionArtifactKind`` for the
+# existing ``_PRIMARY_ARTIFACT_KINDS`` split), never call-site
+# kind-conditioning (C-006 preserved).
+_E2_CONSOLIDATED_ELIGIBLE_KINDS: frozenset[MissionArtifactKind] = frozenset(
+    _PRIMARY_ARTIFACT_KINDS
+    | {
+        MissionArtifactKind.ISSUE_MATRIX,
+        MissionArtifactKind.TRACER_FILE,
+        MissionArtifactKind.ACCEPTANCE_MATRIX,
+    }
+)
+
+# The ``ActionContextError`` code raised when a PUBLISHED (E2) mission's
+# CONSOLIDATED content is not present on the current checkout (FR-006
+# refuse-with-recovery; the actual write-seam refusal UX is WP04's — this
+# module only raises the structured signal WP04 catches).
+_CONSOLIDATED_CONTENT_ABSENT_CODE = "CONSOLIDATED_CONTENT_ABSENT"
+
+
+def _resolve_consolidated_e2_target(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    resolver: MissionResolver | None,
+) -> CommitTarget:
+    """Resolve the E2 (published) CONSOLIDATED write target (D1/D2/D3, FR-003).
+
+    The repository-root checkout on the resolved Primary Branch, gated by the
+    squash-robust content-presence predicate (D1 —
+    :func:`~mission_runtime.lifecycle_phase.content_present_at_primary_tip`).
+    The returned ref is ALWAYS the resolved Primary-Branch NAME — an existing
+    branch — never a SHA and never literal ``HEAD`` (paula MINOR-2): this
+    keeps ``commit_router.use_coord`` ``False`` and skips coord-worktree
+    materialisation, matching how a genuine PRIMARY-kind write already
+    resolves today.
+
+    Raises:
+        ActionContextError: When the current checkout does not carry the
+            mission's consolidated content — FR-006 refuse-with-recovery,
+            naming the checkout to use. The write-seam-level refusal UX
+            (zero-residue, structured diagnostic) is WP04's; this is the
+            signal WP04's catch clause consumes.
+    """
+    from specify_cli.core.git_ops import resolve_primary_branch
+    from specify_cli.core.paths import get_main_repo_root
+
+    main_root = get_main_repo_root(repo_root)
+    primary_branch = resolve_primary_branch(main_root, bias=False)
+    if not content_present_at_primary_tip(mission_slug, repo_root, resolver=resolver):
+        raise ActionContextError(
+            _CONSOLIDATED_CONTENT_ABSENT_CODE,
+            f"mission {mission_slug!r} is published (its Target Ref has been "
+            f"deleted) but this checkout does not carry its consolidated "
+            f"content; check out {primary_branch!r} (the resolved Primary "
+            "Branch) and retry.",
+        )
+    return CommitTarget(ref=primary_branch)
 
 
 # Mission-level lifecycle actions resolve the mission context without a work
@@ -1314,11 +1383,20 @@ def resolve_placement_only(
     Returns:
         The single :class:`CommitTarget` the artifact commits to — the primary
         ``target_branch`` ref for a primary kind, else the topology-routed
-        ``destination_ref`` (the value object status events resolve to).
+        ``destination_ref`` (the value object status events resolve to). For a
+        PUBLISHED (E2) mission and an E2-in-scope ``kind`` (every PRIMARY kind
+        plus ``ISSUE_MATRIX`` / ``TRACER_FILE`` / ``ACCEPTANCE_MATRIX`` — ADR
+        2026-07-30-1 Decision 1 §6), this is instead the resolved Primary
+        Branch NAME (#3033, T009) — the lifecycle phase is derived internally
+        from durable ``meta.json`` + git state (D2), never threaded as a
+        parameter.
 
     Raises:
         ActionContextError: when the mission slug cannot be resolved (no silent
-            fallback — mirrors :func:`resolve_action_context`).
+            fallback — mirrors :func:`resolve_action_context`), OR when a
+            PUBLISHED (E2) mission's consolidated content is not present on
+            the current checkout (FR-006 refuse-with-recovery; code
+            ``CONSOLIDATED_CONTENT_ABSENT``).
     """
     from specify_cli.core.paths import get_feature_target_branch
     from specify_cli.missions._read_path_resolver import (
@@ -1356,6 +1434,24 @@ def resolve_placement_only(
         raise ActionContextError(exc.error_code, str(exc)) from exc
     if candidate_dir.exists():
         mission_slug = candidate_dir.name
+
+    # T009 (D2/D3, NFR-001): derive lifecycle phase INTERNALLY — no phase
+    # parameter is threaded through this function's callers
+    # (``PlacementSeam.write_target`` / ``commit_for_mission``), both of which
+    # re-derive the identical phase from this SAME durable signal on their own
+    # call into this function, so they can never disagree (no split-brain).
+    # A PUBLISHED (E2) mission short-circuits straight to the CONSOLIDATED
+    # target for the in-scope kinds (PRIMARY + the 3 coord write kinds — ADR
+    # Decision 1 §6) BEFORE the unconditional coordination-surface probe
+    # below, which would otherwise raise ``CoordinationBranchDeleted`` on a
+    # fully-retired E2 mission whose coordination branch has ALSO been
+    # cleaned up (#3033 T007). PRE_CONSOLIDATION and CONSOLIDATED (E1) fall
+    # through completely UNCHANGED (#3076 regression floor, T012) — including
+    # for ``STATUS_STATE`` / ``DECISION_LOG``, which are never in the E2
+    # in-scope set (SC-005 non-regression).
+    phase = resolve_lifecycle_phase(mission_slug, repo_root, resolver=resolver)
+    if phase is LifecyclePhase.PUBLISHED and kind in _E2_CONSOLIDATED_ELIGIBLE_KINDS:
+        return _resolve_consolidated_e2_target(repo_root, mission_slug, resolver=resolver)
 
     # FR-012 / C-CTX-3: ``target_branch`` is resolved exactly once here, exactly
     # as ``resolve_action_context`` does, and threaded into the shared builder.
@@ -1809,7 +1905,27 @@ def resolve_artifact_surface(
         primary_dir=primary_dir,
         resolver=resolver,
     )
-    locations = SurfaceLocations(primary=primary_dir, coord=coord_dir)
+    # T010 / renata M1: populate the previously-always-``None``
+    # ``SurfaceLocations.consolidated`` field. This is the SAME phase
+    # derivation ``resolve_placement_only`` calls (no second derivation,
+    # NFR-001 no-split-brain) — it does NOT alter ``surface_kind`` /
+    # ``translate_surface``'s selection above, so every existing caller's
+    # returned ``.path`` is byte-identical (SC-005: ``STATUS_STATE`` /
+    # ``DECISION_LOG`` resolution is unaffected, exactly like every other
+    # kind not explicitly wired into the E2 write-routing short-circuit in
+    # ``resolve_placement_only``). E1 and E2 both resolve the integrated tree
+    # to the same ``primary_dir`` this function already anchors on the
+    # canonical primary root (C-CTX-2): in E1 that root is (by construction)
+    # the Target Ref tree while checked out there; in E2 it is the
+    # repository-root checkout on the Primary Branch. PRE_CONSOLIDATION
+    # leaves ``consolidated`` ``None`` — "n/a" per data-model.md — so
+    # ``translate_surface(CONSOLIDATED, …)`` keeps refusing with its
+    # existing "no resolved location" guard before any consolidation exists.
+    phase = resolve_lifecycle_phase(canonical_slug, primary_root, resolver=resolver)
+    consolidated_dir = None if phase is LifecyclePhase.PRE_CONSOLIDATION else primary_dir
+    locations = SurfaceLocations(
+        primary=primary_dir, coord=coord_dir, consolidated=consolidated_dir
+    )
     return ResolvedSurface(
         path=translate_surface(surface_kind, locations),
         surface_kind=surface_kind,

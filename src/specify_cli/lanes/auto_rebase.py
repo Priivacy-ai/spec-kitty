@@ -461,6 +461,31 @@ def _refuse_preexisting_lane_status_deletions(
     worktree: Path,
     mission_branch: str,
 ) -> str | None:
+    """Refuse a lane-side pre-existing deletion of a coordination-owned status file.
+
+    FR-009 reconciliation (ADR ``2026-07-29-1``, T004, #1684): this function's
+    ``git merge-base HEAD <mission_branch>`` reasoning is UNCHANGED by the WP01
+    lane-base fix. That fix merges the recorded finalize-tasks planning commit
+    INTO a lane on top of its existing ``coordination_branch`` /
+    ``mission_branch`` parentage — it never replaces that parentage — so the
+    lane still descends directly from whatever branch ``mission_branch`` names
+    here (either ``coordination_branch`` verbatim, via
+    ``lifecycle_sync.py``'s call, or ``lanes_manifest.mission_branch``, via
+    ``lanes/merge.py``'s ``consolidate_lane_into_mission`` — the SAME branch
+    for coordination-topology missions, since both are composed by the
+    identical ``branch_naming.mission_branch_name`` grammar). The merge-base
+    computed here is therefore exactly what it was before WP01: the lane's own
+    fork point off ``mission_branch``, unaffected by the additional
+    planning-commit ancestor now present elsewhere in the lane's history.
+
+    Note (not fixed here, out of WP01 scope): a SEPARATE lane-hygiene guard
+    (#2274) compares ``kitty-specs/`` by commit-history rather than content and
+    can false-positive immediately after this fix ships, because the extra
+    planning-commit merge changes a lane's commit history under
+    ``kitty-specs/<slug>/`` without changing its content relative to the
+    planning branch. See ADR ``2026-07-29-1`` "More Information" for the
+    coordinating issues (#2273/#2626/#2570).
+    """
     merge_base = _run(["git", "merge-base", "HEAD", mission_branch], worktree)
     if merge_base.returncode != 0:
         return (

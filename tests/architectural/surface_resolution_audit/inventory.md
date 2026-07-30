@@ -90,8 +90,8 @@ own definition body, discovered under its new qualname
 | --- | --- | --- |
 | routed-through-resolver | 12 | goes through a canonical blessed resolver (cite it) |
 | topology-blind-by-design | 2 | deliberately primary-only; the leaf's own definition (live) + the one `[inventory-only]` foundation-site row (WP08 T038) |
-| raw-bypass | 2 | composes KITTY_SPECS_DIR/slug inline for a fail-closed diagnostic `raise` payload (no FS sink) |
-| **total** | **16** | all AST-discovered ResolutionRow callsites (15 live-matching + 1 `[inventory-only]`) |
+| raw-bypass | 3 | 2 compose KITTY_SPECS_DIR/slug inline for a fail-closed diagnostic `raise` payload (no FS sink); 1 composes it for a write-side local staging path (genuine FS write, deferred CLI-arg) |
+| **total** | **17** | all AST-discovered ResolutionRow callsites (16 live-matching + 1 `[inventory-only]`) |
 
 ## Read-SELECTION callsites (FR-006a)
 

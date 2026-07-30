@@ -848,6 +848,24 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-07-28-1-progressive-disclosure-of-doctrine-context.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-07-29-1-lane-base-recorded-planning-commit.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-07-30-1-consolidated-write-surface-and-consolidate-terminology.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/README.md
   tag: current
   divio_type: none
@@ -2528,7 +2546,19 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/3-2-x-executive-overview.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/3-2-x-milestone-roadmap.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/3-2-x-open-core-delivery-plan.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -2565,6 +2595,12 @@
   current_target: true
   notes: null
 - path: docs/plans/doctrine/creed-and-values-design-hardened.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/delivery-reachability-wiring-table.md
   tag: current
   divio_type: none
   owning_workstream: none

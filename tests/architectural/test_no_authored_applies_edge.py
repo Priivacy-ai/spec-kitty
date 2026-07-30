@@ -747,13 +747,13 @@ class TestGateNonVacuity:
         """
         drifted = dict(RELATION_DESCRIPTIONS)
         drifted[Relation.REQUIRES] = drifted[Relation.REQUIRES].replace(
-            "(262 edges)", "(255 edges)"
+            "(272 edges)", "(265 edges)"
         )
         assert drifted != RELATION_DESCRIPTIONS, "the mutation did not apply"
 
         measured = measured_edge_counts(shipped_graph)
         claims = claimed_edge_counts(drifted)
-        assert claims[Relation.REQUIRES] == 255
+        assert claims[Relation.REQUIRES] == 265
         wrong = {
             relation.value
             for relation, claimed in claims.items()
@@ -769,8 +769,8 @@ class TestGateNonVacuity:
         checked claim, actually unchecked.
         """
         claims = claimed_edge_counts()
-        assert claims[Relation.REQUIRES] == 262  # "(262 edges)"
-        assert claims[Relation.INSTANTIATES] == 8  # "Emitted 8 times"
+        assert claims[Relation.REQUIRES] == 272  # "(272 edges)"
+        assert claims[Relation.INSTANTIATES] == 11  # "Emitted 11 times"
 
     def test_an_unrecognised_count_phrasing_is_flagged(self) -> None:
         """A third phrasing must red the sweep rather than parse to nothing."""

@@ -12,11 +12,58 @@ related:
 ---
 # 3.2.x Milestone — Roadmap
 
-*Planner synthesis (planner-priti), 2026-07-04. Sources: milestone #4 census, the native epic dependency graph encoded in the tracker on 2026-07-04, [`degod-unshim-roadmap.md`](refactor/degod-unshim-roadmap.md), and the epic bodies of #1619 / #1797 / #2071 / #1868 / #2173 / #1746. Addendum, 2026-07-10: #2519 hot-list entry from epic #2519, member issues #2520/#2521/#2522/#2526, and current tracker metadata. Addendum, 2026-07-13: CI test-topology-performance mission shipped (PR #2609, under #1931); #1797 ↔ #2071 tidy-first intra-pair sequencing ruling recorded in Watch items + [`qa-tidy-first-sequencing.md`](testing/qa-tidy-first-sequencing.md). Addendum, 2026-07-26: doctrine canonical-structure remediation programme recorded — one mission specced then split into five sequenced missions (#2948–#2952) by operator ruling; see the dedicated section below.*
+*Planner synthesis (planner-priti), 2026-07-04. Sources: milestone #4 census, the native epic dependency graph encoded in the tracker on 2026-07-04, [`degod-unshim-roadmap.md`](refactor/degod-unshim-roadmap.md), and the epic bodies of #1619 / #1797 / #2071 / #1868 / #2173 / #1746. Addendum, 2026-07-10: #2519 hot-list entry from epic #2519, member issues #2520/#2521/#2522/#2526, and current tracker metadata. Addendum, 2026-07-13: CI test-topology-performance mission shipped (PR #2609, under #1931); #1797 ↔ #2071 tidy-first intra-pair sequencing ruling recorded in Watch items + [`qa-tidy-first-sequencing.md`](testing/qa-tidy-first-sequencing.md). Addendum, 2026-07-26: doctrine canonical-structure remediation programme recorded — one mission specced then split into five sequenced missions (#2948–#2952) by operator ruling; see the dedicated section below. **Addendum, 2026-07-30: verified status re-read + spine re-anchoring — the body below (2026-07-04 vintage) predates the work that delivered the milestone's goals and mis-reads it as idle; see [Addendum 2026-07-30](#addendum-2026-07-30--verified-status-re-read--spine-re-anchoring) immediately below, and the PO-facing [3.2.x Open-Core Delivery Plan](3-2-x-open-core-delivery-plan.md) which supersedes the "G2-is-the-blocking-spine / G1-is-off-spine" framing.*
 
 ## Intent of 3.2.x
 
 3.2.x is the **stabilization + structural debt paydown** cycle: (G1) deepen Doctrine/Charter/DRG impact on runtime execution, (G2) strangle the core domains — naming, identity, read/write paths — onto canonical SSOTs by *adopting* the existing execution-context machinery rather than building new construction, and (G3) land the DevEx enablers that make (G1)/(G2) enforceable. No new shadow paths. The milestone stays open until all three goals hold (full declaration: [`docs/release-goals/3.2.x.md`](../release-goals/3.2.x.md)). Everything experience-shaped — UX, dashboard, SaaS tie-in — is deliberately deferred to 3.3.x, which builds on the SSOTs this cycle establishes.
+
+## Addendum 2026-07-30 — verified status re-read + spine re-anchoring
+
+*Two read-only audits (G1 doctrine/charter; G2/G3 + release posture) grounded in the
+code and the live tracker on 2026-07-30 found the body below has drifted from reality.
+The corrections, in brief — full PO-facing detail in the
+[3.2.x Open-Core Delivery Plan](3-2-x-open-core-delivery-plan.md):*
+
+1. **The G2 "spine" is substantially DELIVERED, not idle — filed under new numbers.**
+   The placement-seam swarm is the delivery of the named spine, and burn-down keys on
+   the wrong anchors:
+   - #2906 (read) / #2841 (write) / #2917 (birth-cutover) **deliver #1619** exec-context
+     unification (old `core/execution_context.py` deleted, not shimmed; SSOT in
+     `src/mission_runtime/`).
+   - #2884 / #2262 / the MissionResolver port **deliver #2173** infra-port binding.
+   - the coord-authority trio degod (`workflow.py` / `review.py` → 0 LOC) +
+     `runtime_bridge` decomposition **deliver #1797** (shim registry drained to
+     `shims: []`). Only `_read_path_resolver` (~1677 LOC) is parked.
+   **Action R (re-anchor):** adopt the swarm as executing children of #1619/#2173/#1797
+   and re-score the milestone against real coverage. The spine is not idle; its anchors
+   went stale — the inverse of this doc's own "anchor to issue numbers" watch item.
+
+2. **G1 mission-types-as-doctrine is BUILT and ACTIVE, not an unbuilt keystone.** The
+   three types (+`plan`) resolve through charter → mission-type-profile → runtime; the
+   data plane is 100% doctrine-sourced (profiles, step contracts, action indices,
+   templates, prompts). Only the execution engine is code. **G1's done-signal is
+   demonstrated doctrine→runtime governance (already true), not pack-split completion.**
+   The real open G1 work is a bounded ~22-door list to make the **charter the sole
+   access path** to provisioned assets (it gates only ~3 of ~10 kinds today).
+
+3. **The cycle's organizing frame is an open-core breaking-change window**, not a
+   feature-completeness sprint: draw + version the consumer seam, extract built-in
+   doctrine into the already-declared `spec-kitty-doctrine` module (~90% done
+   structurally; one import-cycle blocker), and ship the still-design-only schema
+   (Creed / Values / the ADR-accepted `impacts` relation) behind migration rails +
+   deprecation shims to a small consenting consumer set. No hard freeze. See the
+   delivery plan and [3.2.x Delivery Approach](3-2-x-approach.md) (doctrine-first,
+   confirmed).
+
+4. **Release posture: `main` is NOT tag-ready** — CI red 10+ consecutive runs
+   (2026-07-28→07-30), 9 failing jobs incl. `regression tests (blocking)`. Partly the
+   red-main-is-honest baseline P0 pins (#2736/#2772/#1834); **unverified** whether a
+   fresh write-side-seam regression is mixed in. Resolve that classification before any
+   tag conversation.
+
+*The dependency-spine section below is retained as the historical 2026-07-04 encoding;
+read it through the corrections above.*
 
 ## The dependency spine
 

@@ -24,6 +24,7 @@ Covered surfaces (one test class per owned module):
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -96,8 +97,16 @@ class TestContextGenericArtifactIncludeExcludesNonBareProbeableKinds:
             _fake_doctrine_artifact_include,
         )
 
+        # Stub service exposing the `.directives`/`.tactics` repositories the
+        # probe reads at the call site. (doctrine-delivery-activation WP04
+        # narrowed _render_directive_include/_render_tactic_include to take the
+        # repository directly, so `service.directives`/`service.tactics` is now
+        # evaluated at the call site — before the monkeypatched includes — so a
+        # bare `object()` no longer suffices. The fakes ignore the value;
+        # production always passes a full DoctrineService.)
+        _probe_service = SimpleNamespace(directives=object(), tactics=object())
         with pytest.raises(ValueError, match="No artifact found"):
-            context_mod._render_generic_artifact_include(object(), "some-id")
+            context_mod._render_generic_artifact_include(_probe_service, "some-id")
 
         queried = set(queried_kinds)
         assert "template" not in queried

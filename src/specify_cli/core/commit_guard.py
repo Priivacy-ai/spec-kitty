@@ -88,6 +88,17 @@ class GuardCapability(enum.Enum):
     UPGRADE_BOOKKEEPING = "upgrade_bookkeeping"
     MERGE_BOOKKEEPING = "merge_bookkeeping"
     TEST_MODE = "test_mode"
+    #: post-merge-write-authoring-finish-01KYRRM5 WP04 (#3033 FR-003/FR-004):
+    #: authorizes the ONE E2 (published) CONSOLIDATED-surface write flow --
+    #: a mission whose Target Ref has been deleted (published to trunk) commits
+    #: its evidence to the repository-root checkout on the resolved Primary
+    #: Branch instead. Asserted ONLY where
+    #: ``coordination.write_seam.is_post_consolidation_write_target`` has
+    #: independently recognised the resolved destination as that exact
+    #: surface (never derived from message text or an ambient env var,
+    #: C-GUARD-2) -- see the per-flow allowlist in
+    #: ``tests/architectural/test_guard_capability_call_sites.py``.
+    POST_CONSOLIDATION_WRITE = "post_consolidation_write"
 
 
 # Capabilities that authorize landing a bookkeeping commit on a *protected* ref.
@@ -99,6 +110,7 @@ _PROTECTED_FLOW_CAPABILITIES = frozenset(
         GuardCapability.UPGRADE_BOOKKEEPING,
         GuardCapability.MERGE_BOOKKEEPING,
         GuardCapability.TEST_MODE,
+        GuardCapability.POST_CONSOLIDATION_WRITE,
     }
 )
 

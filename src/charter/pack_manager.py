@@ -76,6 +76,7 @@ from charter.pack_context import CharterPackConfigError, resolve_charter_yaml_po
 from doctrine.artifact_kinds import (
     CHARTER_KIND_TOKENS,
     MISSION_TYPE_TOKEN,
+    PROJECT_KIND_DIRS as _PROJECT_KIND_DIRS,
     ArtifactKind,
     MissionTypeNotAnArtifactKind,
 )
@@ -133,12 +134,11 @@ _LAYER_SEGMENTS: tuple[str, ...] = ("built-in", "org", "project")
 _KITTIFY_DIRNAME = ".kittify"
 _CONFIG_FILENAME = "config.yaml"
 _CHARTER_FILENAME = "charter.md"
-_PROJECT_KIND_DIRS: dict[ArtifactKind, str] = {
-    ArtifactKind.DIRECTIVE: "directive",
-    ArtifactKind.TACTIC: "tactic",
-    ArtifactKind.STYLEGUIDE: "styleguide",
-    ArtifactKind.PROCEDURE: "procedure",
-}
+#: The project-tier overlay directory name per kind is the single canonical
+#: authority :data:`doctrine.artifact_kinds.PROJECT_KIND_DIRS` (imported above
+#: as ``_PROJECT_KIND_DIRS``). It is *total*, so the ``.get(kind, kind.plural)``
+#: read below never actually falls back; the default is retained defensively.
+#: No mapping is re-declared here (WP03 T014).
 
 
 def _resolve_kind(token: str) -> ArtifactKind | None:

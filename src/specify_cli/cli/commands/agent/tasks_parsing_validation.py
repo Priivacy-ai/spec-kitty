@@ -81,9 +81,13 @@ def _issue_matrix_evaluation(
         IssueMatrixVerdict,
         validate_issue_matrix,
     )
-    from specify_cli.tasks.issue_matrix import detect_issue_references
+    from specify_cli.tasks.issue_reference_discovery import discover_issue_references
 
-    refs = detect_issue_references((spec_feature_dir or feature_dir) / SPEC_MD_FILENAME)
+    # WP08 T029/FR-004: discovery scans every PRIMARY-partition mission
+    # artifact (spec.md, plan.md, research.md, analysis-report.md,
+    # tasks/*.md, contracts/*.md) under the resolved primary dir, not
+    # spec.md alone.
+    refs = discover_issue_references(spec_feature_dir or feature_dir)
     result = validate_issue_matrix(feature_dir / "issue-matrix.md")
     referenced_issues = {f"#{ref.number}" for ref in refs}
     matrix_issues = _issue_matrix_row_issues(result)
@@ -166,22 +170,21 @@ def _issue_matrix_approval_blocker(
     coord / lanes-with-coord topology; the primary dir when coord-less). There is
     NO PRIMARY fallback: a PRIMARY fallback for a COORD kind was the split-brain
     anti-pattern (a stale primary copy silently satisfying a stale/unfilled coord
-    matrix). ``primary_feature_dir`` is consulted ONLY for ``spec.md`` — a genuine
-    PRIMARY-partition kind — to detect the referenced issues.
+    matrix). ``primary_feature_dir`` is consulted ONLY for discovery (WP08
+    T029/FR-004: spec.md, plan.md, research.md, analysis-report.md,
+    tasks/*.md, contracts/*.md — all genuine PRIMARY-partition kinds) — to
+    detect the referenced issues.
     """
     spec_feature_dir = (
         primary_feature_dir
         if primary_feature_dir is not None and (primary_feature_dir / SPEC_MD_FILENAME).exists()
         else feature_dir
     )
-    spec_path = spec_feature_dir / SPEC_MD_FILENAME
-    if not spec_path.exists():
-        return None
 
     try:
-        from specify_cli.tasks.issue_matrix import detect_issue_references
+        from specify_cli.tasks.issue_reference_discovery import discover_issue_references
 
-        refs = detect_issue_references(spec_path)
+        refs = discover_issue_references(spec_feature_dir)
     except Exception as exc:  # noqa: BLE001 -- approval guard must fail closed
         logger.debug("Could not evaluate issue-matrix approval blocker: %s", exc)
         return (
@@ -193,8 +196,16 @@ def _issue_matrix_approval_blocker(
     if not refs:
         return None
 
-    matrix_path = feature_dir / "issue-matrix.md"
-    if not matrix_path.exists():
+    # T043 (C-008 / B-1 fix): presence is a dir-based check
+    # (:func:`issue_matrix_artifact_present`), not a ``.md``-only
+    # ``.exists()`` — the prior precheck made a JSON-only mission (B3) hard-
+    # fail approval before ``_issue_matrix_evaluation`` (which already
+    # resolves JSON-first via WP05's canonical dir-based reader,
+    # :func:`~specify_cli.tasks.issue_matrix_migration.load_issue_matrix`)
+    # ever ran.
+    from specify_cli.tasks.issue_matrix_migration import issue_matrix_artifact_present
+
+    if not issue_matrix_artifact_present(feature_dir):
         issue_list = ", ".join(f"#{ref.number}" for ref in refs)
         return (
             f"{_ISSUE_MATRIX_ERROR_PREFIX} is required before approval.\n"
