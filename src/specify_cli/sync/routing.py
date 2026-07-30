@@ -216,7 +216,16 @@ def disable_checkout_sync(
     *,
     remember_repo_default: bool = True,
 ) -> SyncOptOutResult:
-    """Disable SaaS sync for this checkout and purge its pending uploads."""
+    """Disable SaaS sync for this checkout and purge its pending uploads.
+
+    "Pending uploads" spans two live stores: the event journal's rows for this
+    project that have not been delivered anywhere, and the project's queued document
+    bodies. Already-delivered journal rows are **kept** — see the C-004 note in the
+    body — and removing everything is the operator's explicit ``sync purge``
+    (FR-016), which is dry-run by default.
+    """
+    from specify_cli.delivery.retention import purge_project_events_from_live_stores
+
     routing = resolve_checkout_sync_routing(repo_root)
     if routing is None:
         raise ValueError("Could not resolve the active checkout.")
@@ -230,13 +239,31 @@ def disable_checkout_sync(
         # honours it from any checkout and after this one moves or is deleted.
         set_project_consent(str(routing.project_uuid), False)
 
-    queue = OfflineQueue()
-    removed_events = (
-        queue.remove_project_events(routing.project_uuid)
-        if routing.project_uuid
-        else 0
-    )
-    body_queue = OfflineBodyUploadQueue(db_path=queue.db_path)
+    # C-004 (#3030 WP08): the legacy-queue purge is retired. It targeted the store
+    # WP02 removed the drain from — nothing ships out of it — and full-decoded every
+    # row to find the project. The store that *does* ship is the event journal, which
+    # only gained a ``project_uuid`` column in WP04; that is why C-004 had to wait
+    # for this WP.
+    #
+    # Scope is deliberately "queued" (no terminal-success delivery anywhere), not
+    # everything: C-002 reserves wholesale deletion for the operator's explicit
+    # ``sync purge`` (FR-016/FR-017, dry-run by default), and ``removed_events`` is
+    # printed as "Removed N queued event(s)". Destroying the record of what already
+    # left the machine on a routing toggle would be both a surprise and the loss of
+    # the incident's own evidence.
+    removed_events = 0
+    if routing.project_uuid:
+        purge = purge_project_events_from_live_stores(
+            str(routing.project_uuid), dry_run=False, undelivered_only=True
+        )
+        # ``None`` means there is no journal on disk yet — nothing to purge, and no
+        # store is created just to report zero.
+        removed_events = 0 if purge is None else purge.purged_count
+
+    # Body uploads stay: they are a *separate* store the daemon still drains (WP11
+    # gated it per task, it did not remove it), so this purge is live, not
+    # superseded. Removing this call would reopen the path WP11 just closed.
+    body_queue = OfflineBodyUploadQueue(db_path=OfflineQueue().db_path)
     removed_body_uploads = (
         body_queue.remove_project_tasks(routing.project_uuid)
         if routing.project_uuid

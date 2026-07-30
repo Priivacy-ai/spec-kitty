@@ -279,32 +279,13 @@ class TestLegacyDossierQueueMigration:
         assert "artifact_key" not in payload
         assert "content_hash_sha256" not in payload
 
-    def test_remove_project_events_uses_nested_namespace(self, temp_queue: OfflineQueue):
-        temp_queue.queue_event(
-            {
-                "event_id": "a-1",
-                "event_type": "MissionDossierArtifactIndexed",
-                "payload": {
-                    "namespace": {"project_uuid": "proj-a", "mission_slug": "010-feat"},
-                    "artifact_id": {"path": "spec.md"},
-                },
-            }
-        )
-        temp_queue.queue_event(
-            {
-                "event_id": "b-1",
-                "event_type": "MissionDossierArtifactIndexed",
-                "payload": {
-                    "namespace": {"project_uuid": "proj-b", "mission_slug": "010-feat"},
-                    "artifact_id": {"path": "spec.md"},
-                },
-            }
-        )
-
-        assert temp_queue.remove_project_events("proj-a") == 1
-        remaining = temp_queue.drain_queue()
-        assert [event["event_id"] for event in remaining] == ["b-1"]
-
+    # ``test_remove_project_events_uses_nested_namespace`` was deleted here
+    # (#3030 C-004 / WP08). It pinned that the legacy-queue project purge resolved
+    # identity through the shared ``resolve_event_project_uuid`` chain — a real
+    # contract, but of a method that no longer exists: nothing drains that store and
+    # its one caller now purges the journal. The identity chain itself is still
+    # pinned at its definition site (``tests/sync/test_project_identity*.py``), so no
+    # coverage of the resolution rule is lost — only of a deleted caller.
 
 # ---------------------------------------------------------------------------
 # B. Configurable queue cap

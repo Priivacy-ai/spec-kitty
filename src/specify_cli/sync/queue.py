@@ -33,7 +33,6 @@ import toml
 
 from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.paths import get_runtime_root
-from specify_cli.sync.project_identity import resolve_event_project_uuid
 
 if TYPE_CHECKING:  # pragma: no cover - typing-only; avoids the queue<->authority cycle
     from specify_cli.sync.target_authority import ResolvedSyncTarget
@@ -1700,48 +1699,19 @@ class OfflineQueue:
                     self._row_count = max(0, self._row_count - removed)
         return removed
 
-    def remove_project_events(self, project_uuid: str) -> int:
-        """Remove queued events that belong to one project UUID."""
-        if not project_uuid:
-            return 0
-
-        matching_ids: list[str] = []
-        removed = 0
-        conn = sqlite3.connect(self.db_path)
-        try:
-            cursor = conn.execute("SELECT event_id, data FROM queue")
-            for event_id, raw_data in cursor:
-                try:
-                    event = json.loads(raw_data)
-                except (TypeError, ValueError):
-                    continue
-                payload = event.get("payload") or {}
-                # #3030 T011: delegate to the single definition site. The
-                # private three-site chain that used to live here missed
-                # ``payload.subject.project_uuid`` and would have disagreed with
-                # the backfill and the selection predicate (NFR-001).
-                event_project_uuid = resolve_event_project_uuid(event, payload)
-                if str(event_project_uuid or "") == project_uuid:
-                    matching_ids.append(str(event_id))
-
-            if not matching_ids:
-                return 0
-
-            placeholders = ",".join("?" * len(matching_ids))
-            conn.execute(
-                f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608  # nosec B608 - placeholders are count-derived only
-                matching_ids,
-            )
-            conn.commit()
-            removed = len(matching_ids)
-        finally:
-            conn.close()
-        # Mission 6: decrement the cache by exactly the removed count.
-        if removed > 0:
-            with self._row_count_lock:
-                if self._row_count is not None:
-                    self._row_count = max(0, self._row_count - removed)
-        return removed
+    # ``remove_project_events`` was deleted here (#3030 C-004 / WP08).
+    #
+    # It purged one project's rows from THIS store, which WP02 removed the event
+    # drain from — nothing ships out of it any more — and it full-decoded every row
+    # to find the project uuid. Its one caller, ``routing.disable_checkout_sync``,
+    # now purges the store that actually ships (the event journal) through
+    # ``delivery/retention.py``. Deleting rather than merely unwiring it: a second,
+    # disagreeing definition of "purge this project's events" left lying around is
+    # what a future caller picks up by accident. Legacy rows still on disk converge
+    # into the journal via ``spec-kitty sync migrate`` and are purgeable there.
+    #
+    # The body-upload tables in this module are UNAFFECTED (C-006, module header):
+    # they remain owned here and operational.
 
     def process_batch_results(self, results: list[_BatchEventResultLike]) -> None:
         """Process batch sync results by status.

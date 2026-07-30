@@ -590,6 +590,82 @@ def purge_identity_less_events(
     )
 
 
+#: Layout of the live delivery store under the spec-kitty home. Duplicated from
+#: ``cli/commands/sync.py``'s private ``_DELIVERY_SUBDIR`` / ``_LEDGER_DB_NAME``
+#: **deliberately and temporarily**: non-CLI callers (``sync/routing.py``'s opt-out
+#: purge) need the same path, and the CLI's copies are private to a module another
+#: lane owns. ``tests/sync/test_routing.py`` asserts the two agree, so a drift is a
+#: red rather than a purge quietly pointed at the wrong file. The CLI's lane should
+#: collapse onto this one.
+_DELIVERY_SUBDIR = "delivery"
+_LEDGER_DB_NAME = "ledger.db"
+
+
+def resolve_live_store_paths() -> tuple[Path, Path]:
+    """Return ``(journal_path, ledger_path)`` for the store the drain actually reads.
+
+    Resolved through the *same* public seams the dispatcher's runtime uses —
+    :func:`~specify_cli.event_journal.journal.resolve_journal_path` under the live
+    producer scope, and the delivery directory under the spec-kitty home — so a
+    purge cannot end up pointed at a differently-scoped twin. That failure mode is
+    silent by nature: a purge over an empty journal reports "0 removed", which is
+    indistinguishable from "nothing to remove".
+
+    Creates nothing. Callers decide whether an absent file means "no work" (opt-out)
+    or an error (a diagnostic read).
+    """
+    from specify_cli.event_journal.journal import resolve_journal_path
+    from specify_cli.paths import get_runtime_root
+
+    journal_path = resolve_journal_path(user_id=None, team_slug=_live_team_slug())
+    base: Path = get_runtime_root().base
+    return journal_path, base / _DELIVERY_SUBDIR / _LEDGER_DB_NAME
+
+
+def _live_team_slug() -> str | None:
+    """The producer scope live capture writes under, or ``None`` if unresolvable."""
+    try:
+        from specify_cli.sync.emitter import EventEmitter
+
+        return EventEmitter._current_team_slug()
+    except Exception:  # noqa: BLE001 — scope is best-effort; None is the anonymous journal
+        return None
+
+
+def purge_project_events_from_live_stores(
+    project_uuid: str,
+    *,
+    dry_run: bool = True,
+    undelivered_only: bool = False,
+) -> ProjectPurgeResult | None:
+    """Run :func:`purge_project_events` against the live journal + ledger.
+
+    Returns ``None`` when the journal does not exist yet: there is nothing to purge,
+    and a routing toggle must not materialise an empty journal/ledger as a side
+    effect of reporting zero. ``None`` is deliberately distinct from a result whose
+    counts are zero — the caller can tell "no store" from "store, nothing matched".
+    """
+    journal_path, ledger_path = resolve_live_store_paths()
+    if not journal_path.exists():
+        return None
+
+    from specify_cli.delivery.ledger import SqliteDeliveryLedger
+    from specify_cli.event_journal.journal import EventJournal
+
+    journal = EventJournal(journal_path)
+    ledger = SqliteDeliveryLedger(str(ledger_path) if ledger_path.exists() else ":memory:")
+    try:
+        return purge_project_events(
+            project_uuid,
+            journal=journal,
+            ledger=ledger,
+            dry_run=dry_run,
+            undelivered_only=undelivered_only,
+        )
+    finally:
+        ledger.close()
+
+
 def _default_body_queue() -> BodyUploadPurgeTarget:
     """The real body queue, on the DB file it shares with the event offline queue."""
     from specify_cli.sync.body_queue import OfflineBodyUploadQueue

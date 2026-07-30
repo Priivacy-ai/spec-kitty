@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -128,7 +130,7 @@ def test_local_override_is_persisted_outside_repo_config(tmp_path: Path, monkeyp
     assert "enabled = false" in config_toml
 
 
-def test_disable_checkout_sync_purges_only_matching_project_data(
+def test_disable_checkout_sync_purges_only_matching_project_body_uploads(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -190,9 +192,20 @@ def test_disable_checkout_sync_purges_only_matching_project_data(
     result = disable_checkout_sync(repo_root)
 
     assert result.routing.effective_sync_enabled is False
-    assert result.removed_events == 1
+    # C-004 (#3030 WP08): opt-out no longer purges the LEGACY queue. That store has
+    # had no drain since WP02, so purging it was retention housekeeping dressed as a
+    # delivery control, and it full-decoded every row to do it. Both projects' legacy
+    # rows therefore survive here; they converge into the journal via
+    # `spec-kitty sync migrate` and are purgeable there.
+    #
+    # ``removed_events`` now counts journal rows. This fixture seeds no journal, so 0
+    # is the honest answer for it; the non-zero journal path is pinned by
+    # ``test_disable_checkout_sync_purges_the_projects_queued_journal_rows`` — without
+    # that companion this assertion would be the "always 0" the WP warns about.
+    assert result.removed_events == 0
+    assert queue.size() == 2, "the retired legacy-queue purge no longer runs"
+    # Body uploads are a separate, live store and are still purged per project.
     assert result.removed_body_uploads == 1
-    assert queue.size() == 1
     assert body_queue.size() == 1
     config_toml = (home / ".spec-kitty" / "config.toml").read_text(encoding="utf-8")
     assert "acme/spec-kitty" in config_toml
@@ -247,3 +260,155 @@ def test_absence_of_consent_record_denies_capture_and_delivery(
     assert routing.local_sync_enabled is None
     assert routing.repo_default_sync_enabled is None
     assert routing.effective_sync_enabled is False
+
+
+# --- C-004: opt-out purges the store that actually ships (#3030 WP08) ---------
+
+
+def _seed_journal_row(
+    journal: Any, event_id: str, project_uuid: str | None, index: int
+) -> None:
+    from specify_cli.event_journal.models import Event
+
+    payload = {"event_id": event_id, "event_type": "mission.updated"}
+    if project_uuid is not None:
+        payload["project_uuid"] = project_uuid
+    journal.append(
+        Event(
+            event_id=event_id,
+            event_type="mission.updated",
+            payload=json.dumps(payload).encode("utf-8"),
+            occurred_at="2026-07-29T00:00:00+00:00",
+            created_at=f"2026-07-29T00:00:{index:02d}+00:00",
+            project_uuid=project_uuid,
+        )
+    )
+
+
+def test_opt_out_purge_targets_the_same_stores_the_drain_reads(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The purge must open the journal/ledger the dispatcher drains, not a twin.
+
+    If opt-out resolved a different producer scope than live capture, it would
+    silently purge an empty journal and report 0 removed — the "always 0" failure
+    C-004 warns about, invisible in any test that only checks the count it
+    produced itself. The CLI's ``sync now`` runtime is the authority for those
+    paths, so this compares against it directly.
+    """
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
+    from specify_cli.cli.commands import sync as sync_cli
+    from specify_cli.delivery.retention import resolve_live_store_paths
+    from specify_cli.event_journal.journal import resolve_journal_path
+
+    journal_path, ledger_path = resolve_live_store_paths()
+    cli_scope = sync_cli._current_event_sync_scope()
+
+    assert journal_path == resolve_journal_path(
+        user_id=cli_scope.user_id, team_slug=cli_scope.team_slug
+    ), "opt-out must purge the journal the drain reads, not a differently-scoped twin"
+    assert ledger_path == sync_cli._ledger_db_path(), (
+        "the ledger path is duplicated from the CLI's private constants; this "
+        "assertion is what turns a drift into a red instead of a silent no-op purge"
+    )
+
+
+def test_disable_checkout_sync_purges_the_projects_queued_journal_rows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """C-004: the retired legacy-queue purge is replaced by a journal purge.
+
+    ``removed_events`` is user-visible ("Removed N queued event(s)"), so it now
+    counts journal rows — the store that actually ships — rather than rows in the
+    inert legacy queue. Scope is *queued* (no terminal-success delivery): C-002
+    reserves wholesale deletion for the operator's explicit ``sync purge``, and a
+    routing toggle must not destroy the record of what already left the machine.
+    """
+    from specify_cli.delivery.ledger import SqliteDeliveryLedger
+    from specify_cli.delivery.retention import resolve_live_store_paths
+    from specify_cli.event_journal.journal import EventJournal
+
+    home = tmp_path / "home"
+    repo_root = tmp_path / "repo"
+    home.mkdir()
+    repo_root.mkdir()
+    project_uuid = str(uuid4())
+    other_uuid = str(uuid4())
+    _write_repo_config(repo_root, project_uuid=project_uuid)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".spec-kitty"))
+    monkeypatch.chdir(repo_root)
+
+    journal_path, ledger_path = resolve_live_store_paths()
+    journal_path.parent.mkdir(parents=True, exist_ok=True)
+    ledger_path.parent.mkdir(parents=True, exist_ok=True)
+    journal = EventJournal(journal_path)
+    _seed_journal_row(journal, "mine-queued", project_uuid, 1)
+    _seed_journal_row(journal, "mine-delivered", project_uuid, 2)
+    _seed_journal_row(journal, "theirs", other_uuid, 3)
+    ledger = SqliteDeliveryLedger(str(ledger_path))
+    ledger.record_success("mine-delivered", "tgt")
+    ledger.close()
+
+    body_queue = OfflineBodyUploadQueue(db_path=OfflineQueue().db_path)
+    body_queue.enqueue(
+        NamespaceRef(
+            project_uuid=project_uuid,
+            mission_slug="001-test",
+            target_branch="main",
+            mission_type="software-dev",
+            manifest_version="1",
+        ),
+        artifact_path="spec.md",
+        content_hash="abc123",
+        content_body="# Spec\n",
+        size_bytes=7,
+    )
+
+    result = disable_checkout_sync(repo_root)
+
+    assert result.removed_events == 1, (
+        "one queued row for this project; the delivered one is not 'queued'"
+    )
+    assert result.removed_body_uploads == 1, "body uploads are a live, separate store"
+
+    remaining = {event.event_id for event in EventJournal(journal_path).read_all()}
+    assert remaining == {"mine-delivered", "theirs"}
+
+
+def test_disable_checkout_sync_reports_zero_without_lying_when_no_store_exists(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No journal on disk yet: nothing to purge, and opt-out must not create one.
+
+    A routing toggle that materialised an empty ledger/journal as a side effect
+    would be a surprising write, and 0 here is the true answer rather than the
+    "always 0" the WP warns about — the case above proves the non-zero path.
+    """
+    from specify_cli.delivery.retention import resolve_live_store_paths
+
+    home = tmp_path / "home"
+    repo_root = tmp_path / "repo"
+    home.mkdir()
+    repo_root.mkdir()
+    _write_repo_config(repo_root, project_uuid=str(uuid4()))
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".spec-kitty"))
+    monkeypatch.chdir(repo_root)
+
+    result = disable_checkout_sync(repo_root)
+
+    assert result.removed_events == 0
+    journal_path, ledger_path = resolve_live_store_paths()
+    assert not journal_path.exists()
+    assert not ledger_path.exists()
+
+
+def test_the_retired_legacy_queue_purge_is_gone(tmp_path: Path) -> None:
+    """C-004: ``OfflineQueue.remove_project_events`` is deleted, not just unused.
+
+    It targeted the store WP02 retired for delivery and full-decoded every row to
+    do it. Leaving the method behind would leave a second, disagreeing definition
+    of "purge this project's events" for a future caller to pick up.
+    """
+    assert not hasattr(OfflineQueue, "remove_project_events")
