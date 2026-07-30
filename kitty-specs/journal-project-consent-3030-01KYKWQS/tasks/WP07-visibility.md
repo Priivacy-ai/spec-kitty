@@ -22,6 +22,8 @@ tracker_refs: []
 authoritative_surface: src/specify_cli/
 owned_files:
 - src/specify_cli/cli/commands/sync.py
+- tests/delivery/test_per_project_report_3030.py
+- tests/cli/commands/test_sync_commands.py
 - src/specify_cli/delivery/status_report.py
 - src/specify_cli/sync/migrate_journal.py
 ---
