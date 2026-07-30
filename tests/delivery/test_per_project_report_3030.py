@@ -42,7 +42,14 @@ def _home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     # SILENT deliberately gets no record — absence, not refusal.
 
 
-def _event(event_id: str, uuid: str | None, created_at: str) -> Event:
+def _event(
+    event_id: str,
+    uuid: str | None,
+    created_at: str,
+    *,
+    project_slug: str | None = None,
+    repo_slug: str | None = None,
+) -> Event:
     return Event(
         event_id=event_id,
         event_type="WorkPackageApproved",
@@ -50,6 +57,8 @@ def _event(event_id: str, uuid: str | None, created_at: str) -> Event:
         occurred_at=created_at,
         created_at=created_at,
         project_uuid=uuid,
+        project_slug=project_slug,
+        repo_slug=repo_slug,
     )
 
 
@@ -148,7 +157,7 @@ def test_an_empty_journal_reconciles_trivially(tmp_path: Path) -> None:
     assert result.reconciles is True
 
 
-# --- T020 / NFR-007: the report must not read the retired store --------------
+# --- FR-015 / #3004: the report must not read the retired store --------------
 
 
 def test_report_does_not_read_the_legacy_offline_queue(tmp_path: Path) -> None:
@@ -158,6 +167,14 @@ def test_report_does_not_read_the_legacy_offline_queue(tmp_path: Path) -> None:
     per-project report ever reads it, a contaminated store shows as healthy again.
     This asserts the report is built purely from the journal by proving it still
     reports correctly when the legacy queue is untouched and empty.
+
+    NOT T020/NFR-007, despite an earlier revision of this file labelling it so.
+    NFR-007 is about the live dispatch window (`_EVENT_SYNC_DISPATCH_BATCH_LIMIT`
+    in `_run_dispatch_batches`) and a recording ingress, neither of which this
+    test touches: `build_per_project_store_report` takes a journal and holds no
+    `OfflineQueue` reference at all, which makes the `legacy.size() == 0` line
+    below a precondition, not the property. T020 lives in
+    tests/delivery/test_dispatch_window_consent_3030.py.
     """
     journal = _seeded_journal(tmp_path)
 
@@ -173,3 +190,170 @@ def test_report_does_not_read_the_legacy_offline_queue(tmp_path: Path) -> None:
         "empty legacy queue must never make a contaminated journal look healthy"
     )
     assert len(result.non_consenting_rows) == 3
+
+
+# --- F2: reconciliation must be falsifiable ---------------------------------
+
+
+class _DisagreeingJournal:
+    """A journal whose projection read omits rows that ``count()`` still sees.
+
+    This is the failure FR-015 exists to catch and the one the report's own
+    reconciliation was blind to: the *read* returning the wrong universe. The
+    first implementation derived both sides of the comparison from the single
+    projection read, making ``reconciles`` a mathematical identity that no input
+    could falsify — the incident's false-green with a nicer layout.
+
+    Concretely this models a projection that silently drops rows (a stale
+    prepared statement, a WHERE clause added to the projection SQL, a partially
+    written column) while the table still holds them.
+    """
+
+    def __init__(self, rows: list[object], true_count: int) -> None:
+        self._rows = rows
+        self._true_count = true_count
+
+    def read_identity_projection(self) -> list[object]:
+        return list(self._rows)
+
+    def count(self) -> int:
+        return self._true_count
+
+
+def test_reconciliation_fails_when_the_projection_omits_rows() -> None:
+    """The report must NOT reconcile when its read disagrees with the journal.
+
+    Red before the fix: both operands were computed from the projection, so this
+    returned True with 3 rows reported against 10 actually stored.
+    """
+    from specify_cli.event_journal.journal import EventIdentityRow
+
+    rows = [
+        EventIdentityRow(
+            event_id=f"evt-{i}",
+            created_at=f"2026-07-01T00:00:0{i}Z",
+            project_uuid=CONSENTED,
+            repo_slug=None,
+            drain_blocked_reason=None,
+        )
+        for i in range(3)
+    ]
+    journal = _DisagreeingJournal(rows, true_count=10)
+
+    report = build_per_project_store_report(journal)
+
+    assert report.counted_event_total == 3
+    assert report.retained_event_count == 10, (
+        "retained count must come from an INDEPENDENT source, not from the "
+        "projection the report was built from"
+    )
+    assert report.reconciles is False, (
+        "a report that accounts for 3 of 10 stored events must not claim to "
+        "reconcile — this is exactly the omission FR-015 exists to surface"
+    )
+
+
+def test_reconciliation_holds_when_the_two_sources_agree() -> None:
+    """The negative case, so the check is not merely always-False either."""
+    from specify_cli.event_journal.journal import EventIdentityRow
+
+    rows = [
+        EventIdentityRow(
+            event_id="evt-0",
+            created_at="2026-07-01T00:00:00Z",
+            project_uuid=CONSENTED,
+            repo_slug=None,
+            drain_blocked_reason=None,
+        )
+    ]
+    report = build_per_project_store_report(_DisagreeingJournal(rows, true_count=1))
+    assert report.reconciles is True
+
+
+# --- F7: project_slug must be real data, not a hardcoded None ---------------
+
+
+def test_the_report_carries_the_stored_project_slug(tmp_path: Path) -> None:
+    """A declared field that is always ``None`` is a lie the caller cannot detect.
+
+    Red before the fix: ``ProjectStoreRow.project_slug`` was declared, hardcoded
+    ``project_slug=None`` at construction, and ``SELECT_IDENTITY_PROJECTION_SQL``
+    did not select the column — so the field existed purely as documentation of
+    an intention.
+    """
+    journal = EventJournal(tmp_path / "slugged.db")
+    journal.append(
+        _event(
+            "evt-slugged",
+            CONSENTED,
+            "2026-07-01T00:00:00+00:00",
+            project_slug="engagement-assistant",
+            repo_slug="my-org/engagement-assistant",
+        )
+    )
+
+    result = build_per_project_store_report(journal)
+
+    row = next(r for r in result.rows if r.project_uuid == CONSENTED)
+    assert row.project_slug == "engagement-assistant"
+    assert row.repo_slug == "my-org/engagement-assistant"
+
+
+def test_the_identity_projection_exposes_the_project_slug(tmp_path: Path) -> None:
+    """The projection is the only seam that can populate the field above."""
+    journal = EventJournal(tmp_path / "projection.db")
+    journal.append(
+        _event(
+            "evt-slugged",
+            CONSENTED,
+            "2026-07-01T00:00:00+00:00",
+            project_slug="engagement-assistant",
+        )
+    )
+
+    (row,) = journal.read_identity_projection()
+
+    assert row.project_slug == "engagement-assistant"
+
+
+# --- FR-015 on `sync migrate`: the composition of what it MOVED -------------
+
+
+def test_a_restricted_report_groups_only_the_named_events(tmp_path: Path) -> None:
+    """`sync migrate` must report what IT moved, not the whole journal.
+
+    A migration that imported 2 rows into a journal already holding 14 would
+    otherwise report all 14 as "moved", which is a different (and false) claim.
+    """
+    journal = _seeded_journal(tmp_path)
+
+    result = build_per_project_store_report(
+        journal, event_ids=["evt-silent-0", "evt-silent-1", "evt-out-0"]
+    )
+
+    by_uuid = {row.project_uuid: row for row in result.rows}
+    assert set(by_uuid) == {SILENT, OPTED_OUT}
+    assert by_uuid[SILENT].event_count == 2
+    assert by_uuid[OPTED_OUT].event_count == 1
+    assert result.reconciles is True
+
+
+def test_a_restricted_report_does_not_reconcile_when_a_named_event_is_missing(
+    tmp_path: Path,
+) -> None:
+    """The falsifiable half: the caller's tally is the independent operand.
+
+    A migration that claims to have imported an event the journal cannot show is
+    exactly the "reported success, row never landed" failure the reconciliation
+    exists to surface. The operands stay independent here too — the requested id
+    count comes from the caller, the rows from the journal's own read.
+    """
+    journal = _seeded_journal(tmp_path)
+
+    result = build_per_project_store_report(
+        journal, event_ids=["evt-silent-0", "evt-never-landed"]
+    )
+
+    assert result.counted_event_total == 1
+    assert result.retained_event_count == 2
+    assert result.reconciles is False

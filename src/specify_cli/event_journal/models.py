@@ -147,8 +147,22 @@ SET_IDENTITY_SQL = (
 # No payload BLOB because an unlimited read that still materialised every payload
 # of a 100k-row project would satisfy NFR-003's letter and miss its point.
 # Payloads are hydrated via ``read_by_ids`` over the ledger-selected batch only.
+# ``project_slug`` is in the projection for #3030 T021/N1: the WP07 per-project
+# report renders a project's human-readable name and, when no ``repo_slug`` was
+# recorded, the slug is the ONLY name it has — grouping the unresolved-identity
+# bucket without it reported nameable projects as nameless (N1-a). Deriving it from
+# the payload instead would mean decoding every BLOB, the exact cost this projection
+# exists to avoid. Label only: like ``repo_slug`` above it is derived, can collide,
+# and never gates delivery — ``project_uuid`` remains the sole selection authority.
 _IDENTITY_PROJECTION_COLUMNS = ", ".join(
-    (COL_EVENT_ID, COL_CREATED_AT, COL_PROJECT_UUID, COL_REPO_SLUG, COL_DRAIN_BLOCKED_REASON)
+    (
+        COL_EVENT_ID,
+        COL_CREATED_AT,
+        COL_PROJECT_UUID,
+        COL_PROJECT_SLUG,
+        COL_REPO_SLUG,
+        COL_DRAIN_BLOCKED_REASON,
+    )
 )
 
 

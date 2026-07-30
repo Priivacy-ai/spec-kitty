@@ -922,3 +922,77 @@ def test_sync_migrate_imports_queue_db_into_journal() -> None:
     journal = EventJournal(resolve_journal_path())
     assert journal.read_by_id("evt-m0") is not None
     assert journal.read_by_id("evt-m1") is not None
+
+
+# ---------------------------------------------------------------------------
+# #3030 FR-015 — `sync migrate` must report the composition of what it MOVED
+# ---------------------------------------------------------------------------
+
+
+def _seed_legacy_queue(rows: Sequence[tuple[str, str]]) -> None:
+    """Write ``(event_id, json_payload)`` pairs into the legacy ``queue.db``."""
+    import sqlite3
+
+    from specify_cli.paths import get_runtime_root
+
+    base = get_runtime_root().base
+    base.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(base / "queue.db"))
+    conn.execute(
+        "CREATE TABLE queue (id INTEGER PRIMARY KEY, event_id TEXT, "
+        "event_type TEXT, data TEXT, timestamp INTEGER)"
+    )
+    conn.executemany(
+        "INSERT INTO queue (event_id, event_type, data, timestamp) VALUES (?, ?, ?, ?)",
+        [
+            (event_id, "mission.updated", payload, 1700000000 + index)
+            for index, (event_id, payload) in enumerate(rows)
+        ],
+    )
+    conn.commit()
+    conn.close()
+
+
+def test_sync_migrate_reports_the_per_project_composition_of_what_it_moved() -> None:
+    """FR-015's third surface. `sync migrate` produced the incident's false-green.
+
+    It emptied the legacy queue `doctor` reads while pooling every local project's
+    payloads into one machine-global journal, and printed nothing but aggregate
+    import/dedupe counts — so the operator was never told *whose* events had just
+    been lifted. Red before the fix: `sync migrate` had a zero diff for this WP and
+    printed no composition at all.
+
+    The composition of legacy rows is also a substantive finding rather than a
+    formality: `migrate_journal._build_event` sets no identity columns, so every
+    migrated row lands with a NULL ``project_uuid`` and is therefore unselectable
+    until an identity backfill runs. FR-011 exists so that is visible instead of
+    silent.
+    """
+    _seed_legacy_queue(
+        [
+            ("evt-m0", json.dumps({"event_id": "evt-m0"})),
+            ("evt-m1", json.dumps({"event_id": "evt-m1"})),
+        ]
+    )
+
+    result = runner.invoke(app, ["migrate"])
+
+    assert result.exit_code == 0, result.output
+    assert "imported 2" in result.output
+    assert "Migrated events by project" in result.output
+    # Two identity-less rows, grouped and counted rather than dropped (FR-011).
+    assert "identity unresolved" in result.output
+    assert "no stored project identity" in result.output
+
+
+def test_sync_migrate_says_so_when_it_moved_nothing() -> None:
+    """A re-run must state that explicitly, not omit the section.
+
+    An absent section is how the first cut of this WP's `doctor` renderer failed:
+    "nothing to move" and "the composition could not be read" looked identical.
+    """
+    result = runner.invoke(app, ["migrate"])
+
+    assert result.exit_code == 0, result.output
+    assert "Migrated events by project" in result.output
+    assert "nothing imported on this run" in result.output

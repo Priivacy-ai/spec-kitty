@@ -214,6 +214,10 @@ class EventIdentityRow:
     project_uuid: str | None
     repo_slug: str | None
     drain_blocked_reason: str | None
+    # Label only, added for #3030 T021's operator report. Defaulted so the field
+    # order stays stable for existing keyword constructions; selection never reads
+    # it — ``project_uuid`` is the sole authority (delivery/selection.py).
+    project_slug: str | None = None
 
 
 class EventJournal:
@@ -372,8 +376,9 @@ class EventJournal:
                     event_id=str(row[0]),
                     created_at=str(row[1]),
                     project_uuid=None if row[2] is None else str(row[2]),
-                    repo_slug=None if row[3] is None else str(row[3]),
-                    drain_blocked_reason=None if row[4] is None else str(row[4]),
+                    project_slug=None if row[3] is None else str(row[3]),
+                    repo_slug=None if row[4] is None else str(row[4]),
+                    drain_blocked_reason=None if row[5] is None else str(row[5]),
                 )
                 for row in conn.execute(
                     select_identity_projection_sql(len(uuids)), tuple(uuids)

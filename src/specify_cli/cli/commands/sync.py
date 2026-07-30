@@ -29,6 +29,10 @@ if TYPE_CHECKING:
     from specify_cli.delivery.ledger import SqliteDeliveryLedger
     from specify_cli.delivery.receivers import DeliveryReceiver, GateDecision
     from specify_cli.delivery.retention import RetentionResult
+    from specify_cli.delivery.status_report import (
+        PerProjectStoreReport,
+        ProjectStoreRow,
+    )
     from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
     from specify_cli.event_journal.journal import EventJournal
     from specify_cli.sync.history_import import UploadReport
@@ -1192,53 +1196,48 @@ def _materialize_private_source_project() -> None:
     get_sync_service().sync_now()
 
 
-def _render_per_project_store(console_out: Any, issues: list[str]) -> None:
-    """Render the journal's per-project composition with consent state (#3030 T021).
+_PER_PROJECT_SECTION_TITLE = "Event journal by project"
 
-    Sits beside doctor's queue-health block deliberately rather than replacing it.
-    That block reads ``OfflineQueue().get_queue_stats()``, which is EMPTY after
-    ``sync migrate`` — the source of the incident's false-green, where the operator
-    saw "Queue size 0" while 9,133 events sat in the journal. This section answers
-    "whose data is actually in here?" from the journal itself, so the two cannot
-    disagree silently.
+
+def _oldest_age_label(created_at: str | None) -> str:
+    """Render an ISO timestamp as an AGE, which is what FR-015 asks an operator for.
+
+    "2026-06-01T00:00:00+00:00" tells an operator nothing about how long a
+    project's payloads have been sitting there; "58d ago" does. An unparseable
+    value degrades to the raw string rather than to ``n/a`` — losing the only
+    timestamp we have would hide the row's age entirely.
     """
-    from specify_cli.delivery.status_report import build_per_project_store_report
-
+    if not created_at:
+        return "[dim]n/a[/dim]"
     try:
-        runtime = _open_event_sync_runtime_readonly()
-    except Exception:
-        return
-    try:
-        report = build_per_project_store_report(runtime.journal)
-    except Exception:
-        return
-    finally:
-        with contextlib.suppress(Exception):
-            runtime.close()
+        parsed = datetime.fromisoformat(created_at)
+    except ValueError:
+        return created_at
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return f"{humanize_timedelta(datetime.now(UTC) - parsed)} ago"
 
-    if not report.rows:
-        return
 
-    console_out.print("\n[bold]Event journal by project[/bold]")
-    table = Table(show_header=True, box=None)
-    table.add_column("Project", style="dim", min_width=38)
-    table.add_column("Events", justify="right")
-    table.add_column("Oldest")
-    table.add_column("Consent")
-    for row in report.rows:
-        label = (
-            "[yellow]<identity unresolved>[/yellow]"
-            if row.is_unresolved_identity
-            else (row.repo_slug or row.project_uuid or "?")
-        )
-        state = (
-            "[green]consented[/green]"
-            if row.consent_granted
-            else f"[red]denied[/red] [dim]({row.consent_level})[/dim]"
-        )
-        table.add_row(label, f"{row.event_count:,}", row.oldest_created_at or "n/a", state)
-    console_out.print(table)
+def _project_store_label(row: ProjectStoreRow) -> str:
+    """The name an operator can act on, preferred over the one we happen to store.
 
+    ``repo_slug`` is what ``sync purge --project`` and the consent records are
+    keyed on, so it leads; ``project_slug`` is the human name; the uuid is the
+    last resort. The unresolved-identity bucket is labelled as such rather than
+    rendering blank — FR-011 exists so that denial is visible.
+    """
+    if row.is_unresolved_identity:
+        return "[yellow]<identity unresolved>[/yellow]"
+    return row.repo_slug or row.project_slug or row.project_uuid or "?"
+
+
+def _per_project_store_issues(report: PerProjectStoreReport) -> list[str]:
+    """The operator-actionable warnings a per-project breakdown implies.
+
+    Kept separate from the rendering so ``doctor``'s "Issues found" list and
+    ``status``'s warnings cannot say different things about the same report.
+    """
+    issues: list[str] = []
     # Reconciliation is the load-bearing check: a table that omits rows is the
     # incident's false-green with a nicer layout.
     if not report.reconciles:
@@ -1248,21 +1247,159 @@ def _render_per_project_store(console_out: Any, issues: list[str]) -> None:
             "The report is incomplete — do not trust it."
         )
     if report.unresolved_identity_count:
+        # Deliberately not "permanently undeliverable": `sync migrate` imports
+        # legacy queue rows with NULL identity columns, and
+        # ``sync.project_identity.backfill_journal_identity`` can still resolve
+        # those from the stored payload. Overstating it would send an operator to
+        # `purge` for rows that are recoverable. What IS permanent is that they
+        # cannot be SELECTED while the column is NULL (FR-011, fail-closed).
         issues.append(
-            f"{report.unresolved_identity_count} journal event(s) have no resolvable "
-            "project identity. They are permanently undeliverable and can only be "
-            "removed with `spec-kitty sync purge`."
+            f"{report.unresolved_identity_count} journal event(s) have no stored "
+            "project identity, so they can never be selected for delivery. They "
+            "are retained locally; `spec-kitty sync purge` is the only way to "
+            "remove them."
         )
     non_consenting = report.non_consenting_rows
     if non_consenting:
         named = ", ".join(
-            (r.repo_slug or r.project_uuid or "<unresolved>") for r in non_consenting
+            (r.repo_slug or r.project_slug or r.project_uuid or "<unresolved>")
+            for r in non_consenting
         )
         issues.append(
             f"{len(non_consenting)} project(s) in the journal have not consented to "
             f"hosted sync: {named}. Their events are retained locally and never "
             "delivered; `spec-kitty sync purge --project <slug>` removes them."
         )
+    return issues
+
+
+def _per_project_store_table(report: PerProjectStoreReport) -> Table:
+    """The count / oldest-age / consent-state grid FR-015 and SC-004 ask for.
+
+    Folds, never ellipsizes. Rich truncates an over-wide cell by default, and a
+    truncated project identity would satisfy the layout while breaking SC-004's
+    "names every project" — the operator would be shown a prefix they cannot pass
+    to ``sync purge``.
+    """
+    table = Table(show_header=True, box=None)
+    table.add_column("Project", style="dim", overflow="fold")
+    table.add_column("Events", justify="right")
+    table.add_column("Oldest", overflow="fold")
+    table.add_column("Consent", overflow="fold")
+    for row in report.rows:
+        state = (
+            "[green]consented[/green]"
+            if row.consent_granted
+            else f"[red]denied[/red] [dim]({row.consent_level})[/dim]"
+        )
+        table.add_row(
+            _project_store_label(row),
+            f"{row.event_count:,}",
+            _oldest_age_label(row.oldest_created_at),
+            state,
+        )
+    return table
+
+
+def _render_per_project_store(console_out: Any, issues: list[str]) -> None:
+    """Render the journal's per-project composition with consent state (#3030 T021).
+
+    Sits beside doctor's queue-health block deliberately rather than replacing it.
+    That block reads ``OfflineQueue().get_queue_stats()``, which is EMPTY after
+    ``sync migrate`` — the source of the incident's false-green, where the operator
+    saw "Queue size 0" while 9,133 events sat in the journal. This section answers
+    "whose data is actually in here?" from the journal itself, so the two cannot
+    disagree silently.
+
+    **Every exit path from this function is observable.** The first cut returned
+    silently on an unopenable runtime, on a failed grouping, and on an empty
+    report, which made three very different states — "nothing is in the journal",
+    "I could not read the journal", and "I never looked" — render identically:
+    doctor's usual healthy table with no journal section and exit 0. That is the
+    incident's false-green rebuilt inside the fix for it. A failure now names what
+    could not be read, and the empty case says so out loud.
+    """
+    from specify_cli.delivery.status_report import build_per_project_store_report
+
+    try:
+        runtime = _open_event_sync_runtime_readonly()
+    except FileNotFoundError as exc:
+        # The one benign absence: no journal file has ever been created for this
+        # producer scope, so there is genuinely nothing to group. Still printed,
+        # because "no journal yet" and "I could not look" must not read alike.
+        console_out.print(f"\n[bold]{_PER_PROJECT_SECTION_TITLE}[/bold]")
+        console_out.print(f"  [dim]no journal for this scope yet ({exc})[/dim]")
+        return
+    except Exception as exc:
+        issues.append(
+            f"The event journal could not be read, so this run cannot say which "
+            f"projects have data in it: {exc}. Until this is resolved, treat a "
+            "clean queue-health block as unproven — it reads a different store."
+        )
+        return
+    try:
+        report = build_per_project_store_report(runtime.journal)
+    except Exception as exc:
+        issues.append(
+            f"The event journal opened but its rows could not be grouped by "
+            f"project: {exc}. Whose data is in the journal is currently UNKNOWN; "
+            "the queue-health block above does not answer it."
+        )
+        return
+    finally:
+        with contextlib.suppress(Exception):
+            runtime.close()
+
+    console_out.print(f"\n[bold]{_PER_PROJECT_SECTION_TITLE}[/bold]")
+    if not report.rows:
+        # Asserted-empty, not silently-empty: this line is the difference between
+        # a journal that holds nothing and a report that never ran.
+        console_out.print(
+            f"  [green]no events retained[/green] "
+            f"[dim](journal count {report.retained_event_count})[/dim]"
+        )
+        return
+
+    console_out.print(_per_project_store_table(report))
+    issues.extend(_per_project_store_issues(report))
+
+
+def _render_migrated_composition(
+    journal: EventJournal, imported_event_ids: list[str]
+) -> None:
+    """Report the per-project composition of what ``sync migrate`` just MOVED (FR-015).
+
+    `sync migrate` is the command that produced the incident's false-green: it
+    emptied the legacy queue `doctor` reads while pooling every project's payloads
+    into one journal, and it printed only aggregate import/dedupe counts — so the
+    operator was never once told *whose* events had just been lifted into a
+    machine-global store.
+
+    Restricted to the ids this run imported rather than the whole journal: "what I
+    moved" and "what is in here" are different claims, and reporting the latter
+    under the former's heading would overstate the migration. Grouping is the same
+    WP07 report the other two surfaces use (C-003), so the three cannot disagree.
+    """
+    from specify_cli.delivery.status_report import build_per_project_store_report
+
+    console.print()
+    console.print("[bold]Migrated events by project[/bold]")
+    if not imported_event_ids:
+        console.print("  [dim]nothing imported on this run[/dim]")
+        return
+    try:
+        report = build_per_project_store_report(journal, event_ids=imported_event_ids)
+    except Exception as exc:
+        # Named, not swallowed: a migration whose composition cannot be read is a
+        # migration whose confidentiality impact is unknown.
+        console.print(
+            f"  [yellow]![/yellow] imported {len(imported_event_ids)} event(s) but "
+            f"their per-project composition could not be read: {exc}"
+        )
+        return
+    console.print(_per_project_store_table(report))
+    for issue in _per_project_store_issues(report):
+        console.print(f"  [yellow]![/yellow] {issue}")
 
 
 @app.command()
@@ -2570,11 +2707,17 @@ def migrate(
             resolve_conflicts=(resolve_conflicts == "keep-journal"),
             cleanup=not no_cleanup,
         )
+        # FR-015: captured inside the try so the journal handle and the imported-id
+        # list are taken from the same runtime that performed the migration, then
+        # rendered below as a breakdown of the aggregate counts.
+        moved_event_ids = converge.migration.imported_event_ids
+        moved_journal = runtime.journal
     finally:
         with contextlib.suppress(Exception):
             audit.close()
         runtime.close()
     _print_migration_result(converge.migration)
+    _render_migrated_composition(moved_journal, moved_event_ids)
     if converge.resolution is not None:
         _print_resolution_result(converge.resolution)
     if converge.cleanup is not None:
@@ -3243,6 +3386,18 @@ def status(  # noqa: C901
         console.print("[green]Queue empty -- all events synced.[/green]")
         console.print()
 
+    # --- Per-project journal composition (#3030 T021 / FR-015, SC-004) -----
+    # Placed immediately after the queue-health block for the same reason as in
+    # `doctor`: "Queue empty -- all events synced" is read off the legacy
+    # `OfflineQueue`, which `sync migrate` empties. Left alone it is the sentence
+    # that made the 2026-07-27 incident invisible for weeks. `status` has no
+    # global issues list, so the warnings are printed inline here.
+    journal_issues: list[str] = []
+    _render_per_project_store(console, journal_issues)
+    for issue in journal_issues:
+        console.print(f"  [yellow]![/yellow] {issue}")
+    console.print()
+
     # --- Identity Boundary section (WP03 / FR-008) -------------------------
     # The boundary view answers: "who do I think I am, who does the recorded
     # daemon think it is, and what state is sitting in the legacy/scoped
@@ -3854,6 +4009,16 @@ def doctor() -> None:  # noqa: C901
             )
 
     console.print(table)
+    console.print()
+
+    # --- 3c. Per-project journal composition (#3030 T021 / FR-015, SC-004) ---
+    # Deliberately rendered right below the queue-health rows it contradicts.
+    # "Queue size 0" above comes from `OfflineQueue().get_queue_stats()`, which
+    # `sync migrate` empties; this section reads the journal those events actually
+    # live in. Throughout the 2026-07-27 incident the block above said healthy
+    # while 9,133 journal events — 1,322 from projects that never opted in — sat
+    # on disk, and the contamination was only found by hand-querying SQLite.
+    _render_per_project_store(console, issues)
     console.print()
 
     if singleton_report is not None and singleton_report.orphan_count > 0:

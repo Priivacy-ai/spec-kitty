@@ -1,9 +1,10 @@
 """Status-report assembly for ``sync status --check --json`` (WP11, IC-08).
 
-This module is the *logic half* of plan concern IC-08: it assembles the seven
-**additive** JSON sections mandated by contract §6 (Status And Compatibility) so
-the WP12 CLI wiring stays thin. It is a pure, side-effect-free reader: it only
-consumes the already-resolved domain surfaces it is handed —
+This module is the *logic half* of plan concern IC-08: it assembles the
+**additive** JSON sections mandated by contract §6 (Status And Compatibility) —
+the seven from WP11 plus #3030 FR-015's ``per_project_store`` — so the WP12 CLI
+wiring stays thin. It is a pure, side-effect-free reader: it only consumes the
+already-resolved domain surfaces it is handed —
 
 * WP01 :class:`~specify_cli.sync.target_authority.ResolvedSyncTarget` →
   ``target_authority`` (env/config disagreement made observable, contract §1);
@@ -17,7 +18,10 @@ consumes the already-resolved domain surfaces it is handed —
 * WP10 :class:`~specify_cli.sync.migrate_journal.MigrationAudit` →
   ``migration_conflicts`` (unresolved divergent duplicates that block cleanup);
 * the existing ``sync/queue.py`` body-upload surface →
-  ``body_upload_compatibility``.
+  ``body_upload_compatibility``;
+* #3030 WP07 :func:`build_per_project_store_report` → ``per_project_store``
+  (whose data is in the journal, each project's consent state, and whether the
+  breakdown accounts for every retained row — FR-011 / FR-015 / SC-004).
 
 **C-006 / NFR-006 separation invariant (do not break):** the
 ``body_upload_queue`` / ``body_upload_failure_log`` counts live ONLY in the
@@ -33,6 +37,7 @@ Destructive payload operations live in :mod:`specify_cli.delivery.retention`.
 """
 from __future__ import annotations
 
+from collections.abc import Collection
 from dataclasses import dataclass
 
 from typing import TYPE_CHECKING, Any
@@ -47,6 +52,7 @@ from specify_cli.delivery.ledger import (
     STATUS_TERMINAL_FAILED,
     TERMINAL_SUCCESS_STATUSES,
 )
+from specify_cli.delivery.selection import unselectable_identity_count
 from specify_cli.delivery.targets import (
     InvalidTargetUrlError,
     canonicalize_url,
@@ -68,10 +74,14 @@ DELIVERY_LEDGER_KEY = "delivery_ledger"
 MIGRATION_CONFLICTS_KEY = "migration_conflicts"
 TERMINAL_FAILURES_KEY = "terminal_failures"
 BODY_UPLOAD_COMPAT_KEY = "body_upload_compatibility"
+#: #3030 FR-015: `sync status` is one of the three surfaces that must answer
+#: "whose data is in the journal?". Added after the seven WP11 sections, so the
+#: additive-only compatibility rule (SC-010) still holds — no existing key moves.
+PER_PROJECT_STORE_KEY = "per_project_store"
 
 
 def default_status_sections() -> dict[str, Any]:
-    """Return all seven additive sections in their empty/default shape.
+    """Return every additive section in their empty/default shape.
 
     This is the canonical, side-effect-free *zero state* of the additive
     status surface (contract §6): every section key is present with a fully
@@ -79,7 +89,9 @@ def default_status_sections() -> dict[str, Any]:
     CLI can seed a status payload — or fall back when a domain surface is
     unavailable — without ever emitting a partial section. The same shape is
     what :func:`build_status_report` converges to when handed empty journal /
-    ledger / registry inputs (e.g. zero retained events, zero ledger rows).
+    ledger / registry inputs (e.g. zero retained events, zero ledger rows) —
+    with one deliberate exception, ``per_project_store["reconciles"]``, whose
+    comment below explains why the zero state must not claim ``true``.
 
     The key set is **single-sourced** here: :data:`ADDITIVE_SECTION_KEYS` is
     derived from this dict (``tuple(default_status_sections())``) so
@@ -110,6 +122,22 @@ def default_status_sections() -> dict[str, Any]:
         BODY_UPLOAD_COMPAT_KEY: {
             "body_upload_queue_count": 0,
             "body_upload_failure_log_count": 0,
+        },
+        PER_PROJECT_STORE_KEY: {
+            # ``None``, not ``True``. This zero state is also the CLI's fallback
+            # when the runtime could NOT be opened, and a section that claims
+            # "reconciles: true" about a store it never read is the incident's
+            # false-green in JSON. ``null`` means unanswered, so a consumer
+            # checking truthiness alarms instead of relaxing. It is the one
+            # section whose default therefore does NOT equal what a real,
+            # empty-journal ``build_status_report`` converges to (that reports
+            # ``true``) — deliberately.
+            "reconciles": None,
+            "retained_event_count": 0,
+            "counted_event_total": 0,
+            "unresolved_identity_count": 0,
+            "non_consenting_project_count": 0,
+            "projects": [],
         },
     }
 
@@ -397,6 +425,43 @@ def _body_upload_compatibility_section(body_upload_queue: Any) -> dict[str, Any]
     }
 
 
+def _per_project_store_section(journal: EventJournal) -> dict[str, Any]:
+    """Who has data in the journal, with consent state (#3030 FR-015, SC-004).
+
+    FR-015 names three surfaces — ``sync doctor``, ``sync status`` and ``sync
+    migrate`` — and this is ``status``'s. Sourced from
+    :func:`build_per_project_store_report` rather than re-grouping here, so the
+    machine-readable section and the two rendered ones cannot disagree about the
+    same invariant (C-003).
+
+    ``reconciles`` is the field a monitor should key on: ``false`` means the
+    per-project rows do not account for every retained event, i.e. the breakdown
+    is incomplete and must not be trusted.
+    """
+    report = build_per_project_store_report(journal)
+    return {
+        "reconciles": report.reconciles,
+        "retained_event_count": report.retained_event_count,
+        "counted_event_total": report.counted_event_total,
+        "unresolved_identity_count": report.unresolved_identity_count,
+        "non_consenting_project_count": len(report.non_consenting_rows),
+        "projects": [
+            {
+                "project_uuid": row.project_uuid,
+                "project_slug": row.project_slug,
+                "repo_slug": row.repo_slug,
+                "event_count": row.event_count,
+                "oldest_created_at": row.oldest_created_at,
+                "consent_granted": row.consent_granted,
+                "consent_level": row.consent_level,
+                "consent_reason": row.consent_reason,
+                "unresolved_identity": row.is_unresolved_identity,
+            }
+            for row in report.rows
+        ],
+    }
+
+
 # ---------------------------------------------------------------------------
 # Public entry point (consumed by the thin WP12 CLI wiring)
 # ---------------------------------------------------------------------------
@@ -413,10 +478,10 @@ def build_status_report(
     base: dict[str, Any] | None = None,
     large_threshold_bytes: int | None = None,
 ) -> dict[str, Any]:
-    """Assemble the seven additive status sections (contract §6, FR-019, SC-010).
+    """Assemble the additive status sections (contract §6, FR-019, SC-010).
 
     Returns a JSON-serializable dict. When *base* (an existing
-    ``sync status --check --json`` payload) is supplied, the seven sections are
+    ``sync status --check --json`` payload) is supplied, the sections are
     merged in **additively** — every pre-existing top-level field is preserved
     unchanged (the additive section keys never collide with the legacy keys), so
     old consumers keep working (SC-010, contract §6 compatibility rules).
@@ -436,6 +501,7 @@ def build_status_report(
         MIGRATION_CONFLICTS_KEY: _migration_conflicts_section(migration_audit),
         TERMINAL_FAILURES_KEY: _terminal_failures_section(ledger),
         BODY_UPLOAD_COMPAT_KEY: _body_upload_compatibility_section(body_upload_queue),
+        PER_PROJECT_STORE_KEY: _per_project_store_section(journal),
     }
     report: dict[str, Any] = dict(base) if base else {}
     report.update(sections)
@@ -450,8 +516,17 @@ __all__ = [
     "EVENT_JOURNAL_KEY",
     "GC_LARGE_JOURNAL_THRESHOLD_BYTES",
     "MIGRATION_CONFLICTS_KEY",
+    # PER_PROJECT_STORE_KEY is deliberately NOT exported. Its seven siblings are,
+    # but each of those sits in the dead-symbol gate's allowlist because no src/
+    # file imports them; exporting an eighth would mean widening that allowlist to
+    # accommodate a name nothing consumes. The constant stays importable, and the
+    # key set consumers actually read is single-sourced through
+    # ADDITIVE_SECTION_KEYS above.
+    "PerProjectStoreReport",
+    "ProjectStoreRow",
     "TARGET_AUTHORITY_KEY",
     "TERMINAL_FAILURES_KEY",
+    "build_per_project_store_report",
     "build_status_report",
     "default_status_sections",
     "evaluate_gc_suggestion",
@@ -503,9 +578,17 @@ class PerProjectStoreReport:
     def reconciles(self) -> bool:
         """Whether the per-project totals account for every retained row.
 
-        FR-015's load-bearing property. If this is ever False the report is lying
-        by omission — exactly the shape of the incident's false-green — so callers
-        must surface the discrepancy rather than print the table alone.
+        FR-015's load-bearing property. If this is False the report is lying by
+        omission — the shape of the incident's false-green — so callers must
+        surface the discrepancy rather than print the table alone.
+
+        The two operands MUST come from independent sources or this check is a
+        mathematical identity that no input can falsify. The first implementation
+        derived ``retained_event_count`` from the same projection read that
+        produced ``rows``, so it was exactly that: always True, including over an
+        empty or wrong journal. ``retained_event_count`` now comes from the
+        journal's own ``count()`` (a separate ``COUNT(*)``), which is what makes
+        the disagreement the check exists to catch actually reachable.
         """
         return self.counted_event_total == self.retained_event_count
 
@@ -514,7 +597,11 @@ class PerProjectStoreReport:
         return tuple(row for row in self.rows if not row.consent_granted)
 
 
-def build_per_project_store_report(journal: Any) -> PerProjectStoreReport:
+def build_per_project_store_report(
+    journal: Any,
+    *,
+    event_ids: Collection[str] | None = None,
+) -> PerProjectStoreReport:
     """Group the journal by project and resolve each project's consent state.
 
     Reads the identity projection, so no payload is decoded (NFR-003) and the cost
@@ -523,10 +610,26 @@ def build_per_project_store_report(journal: Any) -> PerProjectStoreReport:
     Identity-less rows are grouped under a single ``project_uuid=None`` row rather
     than dropped: they are permanently unselectable, and FR-011 exists so that
     denial is observable instead of silent data loss.
+
+    ``event_ids`` restricts the universe to a named set of rows, which is what
+    ``sync migrate`` needs: its claim is about the composition of what IT moved,
+    not of the whole journal it moved them into. Restricting rather than adding a
+    second grouping implementation keeps FR-015's one invariant expressed once
+    (C-003), and the reconciliation stays falsifiable because the requested-id
+    count comes from the CALLER while the rows come from the journal's own read —
+    a migration that reports an import the journal cannot show fails to reconcile.
+
+    Read-only, deliberately: ``resolve_project_consent`` is called WITHOUT
+    ``repo_root``/``checkout_roots``, so its level-1 branch (the only one that
+    writes, via ``_reconcile_index``) is unreachable from here. A diagnostic must
+    not mutate the consent index it is reporting on (C-001).
     """
     from specify_cli.sync.consent import resolve_project_consent
 
     rows = journal.read_identity_projection()
+    if event_ids is not None:
+        wanted = frozenset(event_ids)
+        rows = [row for row in rows if row.event_id in wanted]
 
     grouped: dict[str | None, list[Any]] = {}
     for row in rows:
@@ -534,6 +637,7 @@ def build_per_project_store_report(journal: Any) -> PerProjectStoreReport:
 
     report_rows: list[ProjectStoreRow] = []
     for project_uuid, group in grouped.items():
+        project_slug = next((r.project_slug for r in group if r.project_slug), None)
         repo_slug = next((r.repo_slug for r in group if r.repo_slug), None)
         if project_uuid is None:
             decision_granted = False
@@ -551,7 +655,7 @@ def build_per_project_store_report(journal: Any) -> PerProjectStoreReport:
         report_rows.append(
             ProjectStoreRow(
                 project_uuid=project_uuid,
-                project_slug=None,
+                project_slug=project_slug,
                 repo_slug=repo_slug,
                 event_count=len(group),
                 oldest_created_at=min(r.created_at for r in group) if group else None,
@@ -572,10 +676,31 @@ def build_per_project_store_report(journal: Any) -> PerProjectStoreReport:
         )
     )
 
+    # INDEPENDENT of the projection above, deliberately. Using len(rows) here
+    # would make `reconciles` a tautology — see its docstring. A journal that
+    # cannot answer count() reports -1, which never equals a non-negative total,
+    # so an unanswerable count surfaces as "does not reconcile" rather than as
+    # silent agreement.
+    #
+    # For a restricted report the independent operand is the caller's own tally of
+    # the ids it asked about; journal.count() counts the whole table and could
+    # never match a subset, so reusing it there would turn `reconciles` into a
+    # permanent False — an alarm that always fires is as useless as one that never
+    # does.
+    if event_ids is not None:
+        retained = len(frozenset(event_ids))
+    else:
+        try:
+            retained = int(journal.count())
+        except Exception:
+            retained = -1
+
     return PerProjectStoreReport(
         rows=tuple(report_rows),
-        retained_event_count=len(rows),
-        unresolved_identity_count=sum(
-            1 for row in rows if row.project_uuid is None
-        ),
+        retained_event_count=retained,
+        # WP06's counter, not a second one: `selection.unselectable_identity_count`
+        # already defines "rows the predicate can never select" and its docstring
+        # names WP07 as the surface. Re-deriving it here would be two
+        # representations of one invariant (C-003) that could drift.
+        unresolved_identity_count=unselectable_identity_count(rows),
     )

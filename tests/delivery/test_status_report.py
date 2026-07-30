@@ -5,8 +5,9 @@ never internal call order or mock invocation sequence. They lock the contract
 §6 "Required tests" plus SC-010 / SC-003 / US4 / NFR-004 / FR-010 / NFR-006 /
 C-006:
 
-* the seven additive JSON sections are present AND the old top-level fields are
-  preserved unchanged (SC-010);
+* every additive JSON section is present AND the old top-level fields are
+  preserved unchanged (SC-010) — the seven WP11 sections plus #3030 FR-015's
+  ``per_project_store``;
 * the distinct counts (retained / current-target delivered / previous-target
   delivered / terminal-failed / body-upload) plus oldest retained timestamp are
   separate JSON values, not one number reused (SC-003, US4 scenario 1);
@@ -40,6 +41,7 @@ from specify_cli.delivery.status_report import (
     EVENT_JOURNAL_KEY,
     GC_LARGE_JOURNAL_THRESHOLD_BYTES,
     MIGRATION_CONFLICTS_KEY,
+    PER_PROJECT_STORE_KEY,
     TARGET_AUTHORITY_KEY,
     TERMINAL_FAILURES_KEY,
     build_status_report,
@@ -150,11 +152,11 @@ def _insert_body_upload_row(db_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# default_status_sections — zero-state with all seven keys (single-sourced)
+# default_status_sections — zero-state with every key (single-sourced)
 # ---------------------------------------------------------------------------
 
 
-def test_default_status_sections_has_all_seven_keys() -> None:
+def test_default_status_sections_has_every_additive_key() -> None:
     sections = default_status_sections()
 
     # Key set is single-sourced: exactly the exported additive keys, no drift.
@@ -189,6 +191,17 @@ def test_default_status_sections_has_all_seven_keys() -> None:
         "body_upload_queue_count": 0,
         "body_upload_failure_log_count": 0,
     }
+    # #3030 FR-015. ``reconciles`` is null, not true: this zero state doubles as
+    # the CLI's fallback when the runtime could not be opened, and a section that
+    # claims to reconcile a store it never read is the incident's false-green.
+    assert sections[PER_PROJECT_STORE_KEY] == {
+        "reconciles": None,
+        "retained_event_count": 0,
+        "counted_event_total": 0,
+        "unresolved_identity_count": 0,
+        "non_consenting_project_count": 0,
+        "projects": [],
+    }
 
     # The zero-state is JSON-serializable (FR-019 round-trip) and a fresh dict
     # each call (no shared mutable default that a caller could mutate).
@@ -198,11 +211,11 @@ def test_default_status_sections_has_all_seven_keys() -> None:
 
 
 # ---------------------------------------------------------------------------
-# SC-010 — seven additive sections present + old top-level fields preserved
+# SC-010 — every additive section present + old top-level fields preserved
 # ---------------------------------------------------------------------------
 
 
-def test_report_has_seven_sections_and_preserves_base(
+def test_report_has_every_additive_section_and_preserves_base(
     journal: EventJournal, ledger: object, registry: object
 ) -> None:
     base = _legacy_base()
@@ -214,7 +227,8 @@ def test_report_has_seven_sections_and_preserves_base(
         target_registry=registry,
     )
 
-    # All seven additive sections present.
+    # Every additive section present. The set is pinned exactly, so adding or
+    # dropping a section is a deliberate contract change, never a silent one.
     for key in ADDITIVE_SECTION_KEYS:
         assert key in report, f"missing additive section {key!r}"
     assert set(ADDITIVE_SECTION_KEYS) == {
@@ -225,6 +239,7 @@ def test_report_has_seven_sections_and_preserves_base(
         MIGRATION_CONFLICTS_KEY,
         TERMINAL_FAILURES_KEY,
         BODY_UPLOAD_COMPAT_KEY,
+        PER_PROJECT_STORE_KEY,
     }
 
     # Every old top-level field is preserved unchanged (additive only).
@@ -665,3 +680,78 @@ def test_empty_journal_report(journal: EventJournal, ledger: object, registry: o
     assert section["oldest_retained_event_at"] is None
     assert section["gc_suggested"] is False
     assert report[DELIVERY_TARGETS_KEY]["previous"] == []
+
+
+# ---------------------------------------------------------------------------
+# #3030 FR-015 — `sync status` must answer "whose data is in the journal?"
+# ---------------------------------------------------------------------------
+
+
+def test_status_report_carries_the_per_project_store_section(
+    journal: EventJournal,
+    ledger: object,
+    registry: object,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """FR-015 names three surfaces; this is the machine-readable one.
+
+    Red before the fix: `build_status_report` had no `per_project_store` section
+    at all, so `sync status --check --json` reported an aggregate
+    `retained_event_count` and nothing about who those events belonged to — the
+    same number the operator was reassured by during the incident.
+    """
+    home = tmp_path / "consent-home"
+    home.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    from specify_cli.sync.consent import set_project_consent
+
+    consented = "aaaaaaaa-0000-0000-0000-000000000001"
+    silent = "bbbbbbbb-0000-0000-0000-000000000002"
+    set_project_consent(consented, True)
+
+    journal.append(
+        Event(
+            event_id="evt-ok",
+            event_type="WorkPackageApproved",
+            payload=b"{}",
+            occurred_at="2026-06-01T00:00:00+00:00",
+            created_at="2026-06-01T00:00:00+00:00",
+            project_uuid=consented,
+            project_slug="engagement-assistant",
+        )
+    )
+    journal.append(
+        Event(
+            event_id="evt-leak",
+            event_type="WorkPackageApproved",
+            payload=b"{}",
+            occurred_at="2026-06-02T00:00:00+00:00",
+            created_at="2026-06-02T00:00:00+00:00",
+            project_uuid=silent,
+        )
+    )
+
+    report = build_status_report(
+        resolved_target=_resolved(),
+        journal=journal,
+        ledger=ledger,
+        target_registry=registry,
+    )
+
+    section = report[PER_PROJECT_STORE_KEY]
+    assert section["reconciles"] is True
+    assert section["retained_event_count"] == 2
+    assert section["counted_event_total"] == 2
+    assert section["non_consenting_project_count"] == 1
+
+    by_uuid = {row["project_uuid"]: row for row in section["projects"]}
+    assert set(by_uuid) == {consented, silent}
+    assert by_uuid[consented]["consent_granted"] is True
+    assert by_uuid[consented]["project_slug"] == "engagement-assistant"
+    assert by_uuid[silent]["consent_granted"] is False, "absence of a record is not consent"
+    assert by_uuid[silent]["consent_level"] == "absent"
+
+    # FR-019 round-trip: the new section must not break JSON serialisation.
+    assert json.loads(json.dumps(report))[PER_PROJECT_STORE_KEY] == section
