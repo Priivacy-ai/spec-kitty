@@ -24,8 +24,8 @@ genuinely is the current checkout.
 | # | Sink | Reachable via | Verdict | Carries |
 |---|---|---|---|---|
 | **E1** | `sync/history_import/upload.py:290` → `receivers.deliver` → `requests.post` | `sync import-history --apply` (`cli/commands/sync.py:2390`) | **UNGATED** — zero consent hits in the whole package. Its only gate is the `GateKind` set that this spec's own root-cause §1 states has **no consent field**. Single-project by construction, so it **holds the uuid and never asks it**. | full synthesized mission history: `mission_slug`, `project_slug`, envelope payloads |
-| **E2** | `tracker/saas_client.py:301` → `httpx` (10 endpoints; `push`/`run`/`bind_mission_origin` are POSTs) | `sync push`/`run`/`pull`, `mission_type.py:309`, **and non-interactively during mission creation** via `core/mission_creation.py:617` → `origin_consumer.py:55` → `bind_mission_origin` | **UNGATED** — auth + `X-Team-Slug` only. No `project_uuid` in the module at all. | `mission_slug`, `project_slug`, `mission_id`, external issue `title`, `items[]` |
-| **E3** | `saas_client/client.py:146` `_post` / `:127` `_get` → `httpx` | `decision.py:558`, `charter/interview.py:216`, `plan/{plan,specify}_interview.py:150`, `widen/*` | **UNGATED** — four GETs carry `mission_id`, documented "**ULID or slug**", in the URL path | `mission_id`/slug, `decision_id` |
+| **E2** | `tracker/saas_client.py:301` → `httpx` (10 endpoints; `push`/`run`/`bind_mission_origin` are POSTs) | `sync push`/`run`/`pull`, `mission_type.py:309`, **and non-interactively during mission creation** via `core/mission_creation.py:617` → `origin_consumer.py:55` → `bind_mission_origin` | **CLOSED 2026-07-30 (`bc5332a979`, FR-029).** Gate at `_request` — the chokepoint all 12 endpoints and the operation poller share — placed **before the token fetch**. Refuses with `TrackerEgressRefusedError`, subclassed so mission creation reports it through an existing channel and the mission is still created locally. Reached through `invocation.adapters.resolve_egress_consent`, the same registry slot the drain, emitter, daemon and `local_commit` use; layering did **not** force that choice (both packages are on the INTEGRATION side and may import `sync` directly) — it was taken on C-003 grounds, to avoid writing the derivation a third time. **Open point:** resolves from `self._project_root`, a proxy, sound only under an unwritten locality argument — routed back for the precondition. | `mission_slug`, `project_slug`, `mission_id`, external issue `title`, `items[]` |
+| **E3** | `saas_client/client.py:146` `_post` / `:127` `_get` → `httpx` | `decision.py:558`, `charter/interview.py:216`, `plan/{plan,specify}_interview.py:150`, `widen/*` | **CLOSED 2026-07-30 (`bc5332a979`, FR-030).** `_refuse_unless_project_consents()` in both `_get` and `_post`, **before the URL is built**, since four of five endpoints carry `mission_id` in the path. `health_probe` gated with **no carve-out** — an exemption parameter was rejected because "a bypass switch on a chokepoint is what the next endpoint author will find". Same open locality point as E2. | `mission_id`/slug, `decision_id` |
 | **E4** | `sync/body_upload.py:150` — the **enqueue** gate | `dossier_pipeline.py:274` ← 6+ agent commands (`mission_finalize`, `tasks_mark_status`, `research`, `mission_record_analysis`, `mission_setup_plan`, `backfill_identity`) | **PROXY-GATED and FAIL-OPEN — two defects in one line.** (a) when `locate_project_root` returns `None` the gate is **skipped entirely** (undetermined → proceed, FR-003 verbatim); (b) it uses the **routing** chain, not the consent chain — and `sync/__init__.py:348-352` records exactly why that is wrong ("also honours the repo-slug-keyed `[sync.repo_defaults]` record, which FR-019 condemns"). Two sites on one path using two different chains = C-003 divergence. Not itself a leak (E10 gates the send) but **the only fail-open gate found on a live-sender path**. | verbatim `spec.md` / `plan.md` / `tasks/WP*.md` text |
 | **E5** | `dossier_pipeline.py:232` (the gate above E4) | as E4; also `sync/__init__.py:320` via `register_dossier_sync_handler` | **PROXY-GATED** on `is_saas_sync_enabled()` — machine-global arming, which this spec states is never a grant and which is the incident's own mechanism. Identity resolves from `repo_root`, so no cross-project reach; the proxy is the arming flag. | as E4 |
 | **E6** | `invocation/propagator.py:219` → `client.send_event` (**FR-025**) | `dispatch.py:46`, `doctor/ops.py:150` | **Fix correct in shape; severity overstated.** `resolve_egress_consent` is now a 4-member enum where `NO_RESOLVER`/`UNANSWERABLE`/non-bool all refuse. **But the sender is dead in production** — its only client source is `getattr(token_manager, "_ws_client", None)` and `src/` has **zero writers**. The "measured leaking" result must have injected a client. Land as defence-in-depth; do not call it Critical. `repo_root` is safe here only by a **locality argument nowhere written down** (both construction sites pass the invoking checkout) — same argument WP08 made for `pending_local_commits`. | `request_text` (verbatim agent prompt) |
@@ -133,3 +133,34 @@ dispatch, future registry registration, or at-rest pooling.
 **Closing judgement from the enumerator**: spend remaining budget on the guard and the
 `ConsentedBatch` type rather than on more enumeration. Enumeration is what has been tried five
 times.
+
+
+## Status update — 2026-07-30, after the fold-in decision
+
+The operator folded **FR-028 … FR-032** into this mission and chose "guard and type first, then the
+paths". Current state of everything this file listed as ungated or proxy-gated:
+
+| Path | Then | Now |
+|---|---|---|
+| **E1** / FR-028 `import-history` | UNGATED | Closing via the **`ConsentedBatch`** type — `deliver()` will accept only a batch that cannot be constructed without a consent decision, so the sink is unforgeable rather than merely reviewed. In flight. |
+| **E2** / FR-029 tracker client | UNGATED | **Closed** (`bc5332a979`) |
+| **E3** / FR-030 widen client | UNGATED | **Closed** (`bc5332a979`) |
+| **E4** / FR-031 body-upload enqueue | PROXY-GATED, fail-open | In flight. Note the guard **correctly declined to list this file**: it holds no transmit primitive, and an entry a guard can never clear by its own evidence is a standing false accusation rather than a work-list. |
+| **E6/E16** / FR-032 phantom `_ws_client` | UNREACHABLE | Dead readers being removed, so the one-line "fix" that would activate three paths at once cannot be made by accident. In flight. |
+
+**The boundary guard is built and green** (`72fbc1fb94`,
+`tests/architectural/test_egress_consent_boundary.py`): 58 sink sites across 27 files, a closed
+reason vocabulary so "no seam needed" cannot become an escape hatch, `_KNOWN_UNGATED` asserted
+**empty** and ratcheted at 0, and the allowlist itself ratcheted at 27 — because the allowlist,
+not the work-list, is the surface someone would edit to silence the gate. Blinding evidence:
+emptying the allowlist reds all 58 sites; removing any one of the 12 `SEAM` allowances reds its own
+file, **0 of 12 inert**.
+
+Two properties of the guard worth knowing when reading a future red:
+
+- **Its green depends on the seams staying alive.** `test_seam_allowances_name_a_live_seam` already
+  caught `select_consented_event_ids` being renamed mid-session, which is why E9 is now anchored on
+  `consented_batch` — the construction the receiver will not accept a batch without.
+- **E17 stays invisible to it until someone registers a handler**, at which point it reds. That is
+  intended, and it is documented as a stated limit rather than implied away — a sink that does not
+  exist yet cannot be found by scanning for sinks.
