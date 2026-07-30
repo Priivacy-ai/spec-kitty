@@ -498,3 +498,59 @@ checkout→project derivation on the ground that an Op's owning project *is* the
 recorded in — the same locality argument WP08 made for `pending_local_commits` and E6. Putting a
 `project_uuid` on the envelope is a schema change (`record.py`, the writer,
 `contracts/op-record-events.md`) and remains an open operator decision.
+
+## An Op's project is derived from its checkout, not carried on the envelope (operator, 2026-07-30)
+
+Neither `OpStartedEvent` nor `OpCompletedEvent` carries a `project_uuid`
+(`invocation/record.py:45,72`). FR-025's implementer declined to invent a fallback and
+escalated the schema question rather than deciding it.
+
+**Decided: keep the locality derivation.** An Op's owning project *is* the checkout it was
+recorded in, and that derivation reuses the mission's single checkout→project seam rather than
+adding a second source of truth. No schema change, no migration of existing `kitty-ops` records
+during a P0 mission.
+
+This is the **third** time this mission has reached for the same argument, which is why it is
+worth naming as a pattern rather than a one-off: WP08 used it to attribute pre-fix
+`pending_local_commits` frames (a frame in project X's per-checkout file is X's own content, since
+its `changed_files` are paths in X's repository), and the egress enumeration accepted it for E6.
+
+**Its precondition, stated so the derivation is falsifiable:** it holds only while both
+`InvocationSaaSPropagator` construction sites pass the *invoking* checkout, and while the Op
+records read are that checkout's own `kitty-ops/`. If either ever becomes true of a different
+checkout — a daemon sweeping other projects' Op records, say — the derivation silently becomes a
+cross-project substitution of exactly the kind this mission exists to close, and the envelope
+schema change becomes mandatory. The enumeration flagged that this locality argument was "nowhere
+written down"; it is now.
+
+## `--all` must reach the body-upload queue (operator, 2026-07-30)
+
+The purge CLI found that `--all` cannot empty the body-upload store: there is no
+`purge_all_body_uploads`, and `remove_project_tasks` strips its argument, so a blank or
+whitespace `project_uuid` row is reachable by **no selector at all**. The implementer reported it
+rather than calling `remove_project_tasks` directly, which would have been a second deletion path
+outside the primitives — the right call.
+
+**Decided: add the missing primitive.** One deletion path per store, and `--all` means all four.
+Widening `remove_project_tasks` was rejected: it is shared by other callers, and a blank selector
+that matches everything is precisely the hazard the frame purge had to guard against
+(`IDENTITY_LESS_FRAME_KEY` *is* `""`, so an unstripped selector would vacuum the population at
+issue).
+
+## Two non-egress fail-open permission decisions, folded in (operator, 2026-07-30)
+
+FR-025's pattern census found the consent surface fails closed everywhere except the seam it
+fixed — a genuinely reassuring result. It also found two **non-egress** permission decisions that
+lean permissive on "unknown":
+
+- `sync/owner.py:503,730` — a swallowed exception permits `remove_owner_record` and reports a
+  successful kill. Bounded (it never signals a PID) and documented, but "unknown ⇒ permit a
+  cleanup action" is the shape.
+- `invocation/executor.py:474` `_read_started_mode` — **absent** and **malformed**
+  `mode_of_work` both collapse to `None` and skip FR-009 evidence-mode enforcement, so a
+  hand-edited `kitty-ops` line buys evidence promotion on an advisory or query Op. The remedy is
+  the same absent/malformed split FR-027 needed for `enabled: null` versus a missing key, and
+  FR-025 needed for `_coerce_mode`. **Three occurrences of one distinction in one mission.**
+
+Folded in rather than filed: both are the fail-open shape this mission exists to close, and the
+audit that found them is already done — refiling costs more than fixing.
