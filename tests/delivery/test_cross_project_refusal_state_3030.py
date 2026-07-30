@@ -17,6 +17,7 @@ selectable, and they really do deliver on the next drain.
 """
 from __future__ import annotations
 
+import gzip
 import json
 from typing import Any
 
@@ -184,7 +185,14 @@ def test_consented_events_deliver_on_the_next_drain_after_a_refusal(
         "the consented event must still be selectable after the refusal"
     )
     assert summary.delivered == 1
-    assert len(delivered) == 1
+    # One POST, and its body carries only the consented project's event. Asserted
+    # by identity rather than by counting the POSTs: a count cannot tell "the
+    # consented event was delivered" from "some event was delivered". The body is
+    # gzipped on the wire, hence the decompress.
+    assert [
+        json.loads(gzip.decompress(body))["events"][0]["event_id"]
+        for body in delivered
+    ] == ["evt-consented"]
 
 
 def test_a_refused_batch_does_not_wedge_the_multi_batch_drain(

@@ -201,7 +201,7 @@ class TestExactness:
 
         assert result.purged_event_ids == ()
         assert result.other_project_journal_differential == 0
-        assert len(_journal_ids(journal)) == 6
+        assert _journal_ids(journal) == {"a-1", "a-2", "a-3", "b-1", "b-2", "none-1"}
 
     def test_a_blank_selector_removes_nothing(
         self, journal: EventJournal, ledger: SqliteDeliveryLedger
@@ -210,8 +210,8 @@ class TestExactness:
         result = purge_project_events("", journal=journal, ledger=ledger, dry_run=False)
 
         assert result.purged_event_ids == ()
-        assert len(_journal_ids(journal)) == 6
-        assert len(_ledger_ids(ledger)) == 5
+        assert _journal_ids(journal) == {"a-1", "a-2", "a-3", "b-1", "b-2", "none-1"}
+        assert _ledger_ids(ledger) == {"a-1", "a-2", "b-1", "b-2", "none-1"}
 
 
 class TestIdentityLessRows:
@@ -239,7 +239,7 @@ class TestIdentityLessRows:
         preview = purge_identity_less_events(journal=journal, ledger=ledger)
         assert preview.dry_run is True
         assert set(preview.purged_event_ids) == {"none-1"}
-        assert len(_journal_ids(journal)) == 6
+        assert _journal_ids(journal) == {"a-1", "a-2", "a-3", "b-1", "b-2", "none-1"}
 
         result = purge_identity_less_events(
             journal=journal, ledger=ledger, dry_run=False

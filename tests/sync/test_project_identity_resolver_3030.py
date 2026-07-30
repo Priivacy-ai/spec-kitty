@@ -178,11 +178,29 @@ def test_the_resolution_chain_has_exactly_one_definition_site() -> None:
 
 
 def test_the_legacy_queue_helper_delegates_rather_than_reimplementing() -> None:
-    """``queue.py``'s inline chain must be gone, not merely duplicated."""
+    """``queue.py`` must never resolve event identity with a private chain.
+
+    Re-pointed by #3030 C-004/WP08. The original form required ``queue.py`` to
+    *import* ``resolve_event_project_uuid``, because its ``remove_project_events``
+    walked a hand-rolled three-site chain that missed
+    ``payload.subject.project_uuid`` — the divergence NFR-001 exists to prevent.
+    C-004 deleted that method (its store has had no drain since WP02, and its one
+    caller now purges the journal through ``delivery/retention.py``), so
+    ``queue.py`` resolves no event's project identity at all and the import
+    requirement became vacuously satisfiable — it would pass on a module that had
+    reintroduced a private chain *and* left an unused import behind.
+
+    The invariant that actually matters is stated directly: if this module ever
+    resolves an event's project identity again, it delegates. Either arm is a real
+    contract — the second arm fails the moment a project-events purge returns here
+    without delegating.
+    """
     source = (_src_root() / "specify_cli/sync/queue.py").read_text(encoding="utf-8")
-    assert "resolve_event_project_uuid" in source, (
-        "sync/queue.py must consume the shared resolver; its private "
-        "three-site chain was the original divergence risk."
+    delegates = "resolve_event_project_uuid" in source
+    has_project_event_purge = "def remove_project_events" in source
+    assert delegates or not has_project_event_purge, (
+        "sync/queue.py resolves an event's project identity without the shared "
+        "resolver; its private three-site chain was the original divergence risk."
     )
 
 
