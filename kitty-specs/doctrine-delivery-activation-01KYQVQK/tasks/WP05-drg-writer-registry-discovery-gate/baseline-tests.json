@@ -1,0 +1,19 @@
+{
+  "wp_id": "WP05",
+  "captured_at": "2026-07-30T05:26:30Z",
+  "base_branch": "feat/doctrine-delivery-activation",
+  "base_commit": "a39c11d69591f281e6611c04250c5a9fcc192438",
+  "test_runner": "pytest",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "<gate-coverage-junit>",
+      "error": "no JUnit XML artifact produced by the scoped run",
+      "file": "unknown"
+    }
+  ],
+  "source_identity": "GateCoverageScopeSource/junit_xml"
+}
