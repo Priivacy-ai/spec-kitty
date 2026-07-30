@@ -527,3 +527,37 @@ failure mode cannot reach.
 
 The one thing this does *not* excuse: every future worktree measurement must set
 `PYTHONPATH=$WT/src` or use a dedicated venv, because the next claim may well be a sameness one.
+
+## Control your diagnostic, not just your test
+
+The guard agent asked `_gate_coverage`'s model directly whether its new file was selected by any
+CI gate. The answer was **0 gates** — which, on a freshly added architectural test, reads as a
+serious finding: an orphan file that CI never runs.
+
+Before reporting it, the agent ran the identical probe against
+`tests/architectural/test_auth_transport_singleton.py` — a long-established file that is
+definitely covered. **Also 0.** `CompiledGate.selects()` needs markers and node-ids from a real
+collection, which is exactly why the genuine test performs the expensive `collect_universe()`
+sweep. The probe was invalid; the file was fine.
+
+**The lesson is the positive-control principle applied one level up.** This mission already
+requires a control in every *test* — "include a case that must pass, or you cannot distinguish
+'nothing broke' from 'the harness never ran the code'". The same rule applies to any **diagnostic,
+probe or ad-hoc query** used to reach a conclusion: run it against a case whose answer you already
+know before you trust what it says about the case you care about.
+
+Without that control, a false alarm would have been reported against the agent's own commit —
+and the natural response to "my new file is an orphan" is to change the file, which would have
+been fixing something that was never broken.
+
+Related failures already recorded, all the same shape from different angles: a probe that passed a
+directory where a file path was wanted and returned "no identity" for all five cases *including
+the valid one*; a mutation plugin inert on the local interpreter and live on CI's, reporting zero
+invocations; and a coordinator attributing a killed run to a documented hazard that fitted but had
+not fired.
+
+Also worth noting as correct practice: the same agent re-ran a `PYTEST_EXIT=124` gate-coverage
+run narrowed rather than explaining it, **and checked the attribution** — elapsed time equal to the
+`timeout` value means the timeout fired, not an external kill. It then labelled its remaining
+workflow-text claim as **reasoning, not measurement**, leaving it upgradeable rather than passing
+it off as a result.
