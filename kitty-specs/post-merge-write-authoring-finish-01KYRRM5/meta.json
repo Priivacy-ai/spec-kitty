@@ -1,0 +1,34 @@
+{
+  "accept_commit": "ce6e30680b28a226e7965f1e1902127cb968a741",
+  "acceptance_history": [
+    {
+      "accept_commit": "ce6e30680b28a226e7965f1e1902127cb968a741",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-30T16:47:30.670387+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "2401de3e165583baff5a4ced4afaf53a50040327"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-30T16:47:30.670387+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "2401de3e165583baff5a4ced4afaf53a50040327",
+  "baseline_merge_commit": "f4df3c7db350bf15cff4bd703acaac6a7486878c",
+  "coordination_branch": "kitty/mission-post-merge-write-authoring-finish-01KYRRM5",
+  "created_at": "2026-07-30T05:40:44.324707+00:00",
+  "flattened": false,
+  "friendly_name": "Post-Merge Write Mode and Authoring Finish",
+  "mission_id": "01KYRRM554DDW6XCMYVCFH74S2",
+  "mission_number": null,
+  "mission_slug": "post-merge-write-authoring-finish-01KYRRM5",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "PR #3076 shipped the write-side placement seam but deferred the post-merge write mode (evidence writes fail against a deleted target branch, #3033) and left two authoring commands half-built (#2318 negative-invariant handling, #1738 URL-form issue references). This mission lands the deferred P0 write-mode fix and the remaining authoring finish-work so the write-side seam is complete.",
+  "purpose_tldr": "Let evidence writes succeed after a mission merges, and finish the deterministic authoring commands PR #3076 left partial.",
+  "slug": "post-merge-write-authoring-finish-01KYRRM5",
+  "status_phase": "1",
+  "target_branch": "feat/post-merge-write-authoring-finish",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-30T12:45:44.256412+00:00"
+}
