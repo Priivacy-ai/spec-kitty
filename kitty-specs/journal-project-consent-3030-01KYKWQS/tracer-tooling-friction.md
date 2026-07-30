@@ -390,3 +390,46 @@ Two corollaries:
 - **Suspect your own reds as hard as your greens.** This mission spent most of its effort on fake
   greens, but the two nearest misses at the end were fake *reds* — someone else's failure, and a
   killed run — either of which would have sent an agent to fix code that was already correct.
+
+## A hang is not a measurement, and two suites hang instead of failing
+
+Found while pinning NFR-002's permanence clause. `tests/delivery/test_dispatch_window_consent_3030.py`'s
+two loop-driving tests do **not** red when the drain fails to terminate — they **hang**. Under a
+mutant implementing the "just loop a few more times" fix, they logged **1,603 empty selections
+retried** and reported only `Failed: Timeout (>30.0s) from pytest-timeout`, and that only because
+the run was forced to `--timeout-method=signal`.
+
+`pytest.ini` **registers** the `timeout` marker but sets **no timeout in `addopts`**. So in the real
+suite a non-terminating drain hangs indefinitely rather than failing — in CI that is a job that
+burns its wall clock and reports a timeout, not a test naming the defect.
+
+The first attempt to measure this was itself killed by pytest-timeout's thread method mid-session,
+producing no summary and therefore **no verdict** — the same "empty output is not a failure" trap
+recorded above, arriving from a third direction.
+
+Two consequences:
+
+- **A pin whose failure mode is a hang is not a pin.** The replacement counts `dispatch` calls
+  through a wrapper with a hard cap, so non-termination is a clean red naming the call count
+  rather than a stalled job. Any assertion about *termination* needs a counter, never a timeout.
+- Worth fixing upstream: either set a default timeout in `addopts`, or mark the loop-driving tests
+  with an explicit `@pytest.mark.timeout(...)`. Registering a marker that nothing applies is the
+  same shape as an allowlist with no enforcement.
+
+## A mutation must not hard-code what the tests vary
+
+`mutB2` recovers the dispatch window **from the calling frame** rather than hard-coding the
+default 1000. This is not defensiveness: `test_dispatch_window_consent_3030` monkeypatches the
+window to 4, so a mutation hard-coded to 1000 would have been a **no-op for exactly the tests most
+likely to catch the defect** — and a no-op mutation reads as a passing gate, which is how three
+earlier plugins on this mission reported false confidence.
+
+Generalisation: before trusting a mutation's colour, ask **what the tests vary that the mutation
+assumes is fixed.** The mutant reported 43/43 calls recovering a real window, 15 truncations, 1,135
+rows discarded and 4 starved windows — counts that make a no-op impossible to mistake for a pass.
+
+Its isolation control deserves copying too: a second mode running the pre-H5
+correct-but-slow implementation (unfiltered read, consent applied in Python, **no** truncation)
+separated the 8 ordering-attributable kills from the 1 that detects the missing SQL filter — and
+doubled as the positive control, since 12 tests exercising the mutated function still passed. One
+switch, three jobs.
