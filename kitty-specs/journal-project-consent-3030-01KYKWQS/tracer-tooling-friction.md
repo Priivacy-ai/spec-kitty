@@ -561,3 +561,42 @@ run narrowed rather than explaining it, **and checked the attribution** — elap
 `timeout` value means the timeout fired, not an external kill. It then labelled its remaining
 workflow-text claim as **reasoning, not measurement**, leaving it upgradeable rather than passing
 it off as a result.
+
+## Fifth rot mode: `from X import f` rebinds, so patching X leaves the caller inert
+
+The preflight mutant reported **34 binds — but split `owner=20, preflight=14`**. That split is the
+finding.
+
+`sync/preflight.py` does `from specify_cli.sync.owner import classify_owner_record`, which binds
+the function **by value** into preflight's own namespace at import time. So **14 of the 34
+decisions run through preflight's binding, not owner's**. A mutant patching only
+`specify_cli.sync.owner.classify_owner_record` would have reported a healthy non-zero bind count
+while **the deciding module ran unmutated** — a green that means nothing, wearing the appearance of
+a bound, exercised mutation.
+
+This is the same shape as the interpreter-dependent rot recorded above, in a different costume:
+the bind counter says "I patched something and it was called", which is not the same claim as "the
+decision under test went through my patch".
+
+**Rule: patch every name the symbol is reachable by, and report the per-site split.** A single
+aggregate count cannot distinguish "both sites mutated" from "one site mutated, the other inert".
+If the split is uneven or a site reports zero, that is a finding about your mutation, not about the
+code.
+
+The five recorded rot modes now: (1) the architecture moved and the patched gate became redundant;
+(2) the reds were `TypeError`s from a changed signature, not assertion failures; (3) the mutation
+hard-coded a value the tests vary, no-opping for exactly the tests most likely to catch the defect;
+(4) the branch was unreachable on the local interpreter and live on CI's; (5) a `from`-import
+rebinding left the deciding module unpatched.
+
+## Follow the house pattern except where it would leak — and pin the exception
+
+The same fix deliberately diverged from `c9e33dda62`'s `_UndeterminedMode(raw)`, which carries the
+raw input so a refusal can name what it could not read. Here the fault carries `reason` + `detail`
+(the exception text) and **not the file's bytes**, because `owner.json` holds the daemon's
+**control-plane bearer token**.
+
+The divergence is pinned rather than merely intended: a test asserts the token appears in neither
+the rendered refusal nor `to_dict()`. Worth recording as the general shape — *"be consistent with
+the house pattern, except where consistency would leak a credential, and then prove the exception
+holds"* — because the natural failure here is to follow a good pattern into a disclosure.
