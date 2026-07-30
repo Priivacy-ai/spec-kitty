@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from unittest.mock import MagicMock, patch
 from uuid import UUID
 
@@ -139,6 +140,87 @@ class TestAutoStartEnabled:
         config_dir.mkdir()
         (config_dir / "config.yaml").write_text("invalid: yaml: content: [")
         assert _auto_start_enabled() is True
+
+
+class TestAutoStartDenialNamesItsCause:
+    """The reported cause must be the cause that actually fired (#3030 WP12 MINOR-3).
+
+    The unresolvable-project-root denial was logged at ``debug`` while ``start()``
+    then told the operator, at INFO, "Sync auto-start disabled via config". An
+    operator on such a checkout is sent to edit ``sync.auto_start``, which was never
+    consulted, and nothing changes — the real cause sits behind a log level they
+    have not enabled. The routing-exception path already got this right with a
+    ``logger.warning`` naming its cause, so the two denials disagreed about how to
+    report themselves.
+
+    These assert on the operator-visible record, not on the boolean: the boolean was
+    already correct, and it is the *explanation* that was wrong.
+    """
+
+    def _visible(self, caplog) -> str:
+        """Everything an operator without debug logging would see."""
+        return "\n".join(
+            r.getMessage() for r in caplog.records if r.levelno >= logging.INFO
+        )
+
+    def test_unresolvable_project_root_is_reported_as_such(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        monkeypatch.chdir(tmp_path)
+        with (
+            caplog.at_level(logging.DEBUG, logger="specify_cli.sync.runtime"),
+            patch("specify_cli.sync.runtime.locate_project_root", return_value=None),
+        ):
+            assert _auto_start_enabled() is False
+
+        visible = self._visible(caplog)
+        assert "project root" in visible, (
+            f"the real cause is invisible above debug; operator saw: {visible!r}"
+        )
+        assert "via config" not in visible, (
+            "reporting a config cause sends the operator to edit a file that was "
+            "never consulted"
+        )
+
+    def test_config_denial_is_still_reported_as_a_config_denial(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        """The honest case must stay honest: a real config opt-out names the config.
+
+        Without this, 'stop claiming config' could be satisfied by never mentioning
+        config at all, which trades one misdirection for another.
+        """
+        monkeypatch.chdir(tmp_path)
+        config_dir = tmp_path / ".kittify"
+        config_dir.mkdir()
+        (config_dir / "config.yaml").write_text("sync:\n  auto_start: false\n")
+
+        with caplog.at_level(logging.DEBUG, logger="specify_cli.sync.runtime"):
+            assert _auto_start_enabled() is False
+
+        visible = self._visible(caplog)
+        assert "auto_start" in visible, (
+            f"a genuine config opt-out must name the config key; operator saw: {visible!r}"
+        )
+
+    def test_start_does_not_restate_a_cause_it_cannot_know(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        """``start()`` receives only a boolean, so it must not name a cause.
+
+        This is the assertion that would have caught the original defect: the lie
+        lived at the call site, which guessed 'via config' for every denial.
+        """
+        monkeypatch.chdir(tmp_path)
+        runtime = SyncRuntime()
+        with (
+            caplog.at_level(logging.DEBUG, logger="specify_cli.sync.runtime"),
+            patch("specify_cli.sync.runtime._auto_start_enabled", return_value=False),
+        ):
+            runtime.start()
+
+        assert runtime.started is False
+        assert "via config" not in self._visible(caplog)
 
 
 class TestSyncRuntime:

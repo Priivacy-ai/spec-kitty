@@ -72,22 +72,48 @@ def _auto_start_enabled() -> bool:
     project root, and any exception resolving routing — which auto-started sync for
     a checkout whose consent nobody could establish. An explicit project-local
     ``sync.auto_start`` still wins; only the unknowns changed.
+
+    Every denial is reported **here**, at a level the operator will actually see and
+    naming the cause that actually fired (WP12 MINOR-3). The caller receives only a
+    boolean, so it cannot know why, and the cause it used to guess — "disabled via
+    config" — sent operators on a checkout with an unresolvable project root to edit
+    a ``sync.auto_start`` key that was never consulted. Reporting the wrong cause is
+    its own defect class: the operator's next action is decided by the explanation,
+    not by the boolean.
     """
-    project_root = locate_project_root(Path.cwd())
+    cwd = Path.cwd()
+    project_root = locate_project_root(cwd)
     if project_root is None:
         # No project root means no project identity, and consent is per project.
-        logger.debug("No project root resolvable; sync auto-start denied")
+        logger.warning(
+            "Sync auto-start denied: no spec-kitty project root is resolvable from %s. "
+            "Consent is per project, so an unidentifiable project cannot consent. "
+            "This is not a config setting — editing sync.auto_start will not change it.",
+            cwd,
+        )
         return False
 
     project_setting = _read_project_auto_start(project_root)
     if project_setting is not None:
+        if not project_setting:
+            logger.info(
+                "Sync auto-start disabled by sync.auto_start in %s",
+                project_root / ".kittify" / "config.yaml",
+            )
         return project_setting
 
     try:
-        return is_sync_enabled_for_checkout(project_root)
+        routing_enabled = is_sync_enabled_for_checkout(project_root)
     except Exception as e:
         logger.warning("Could not resolve sync routing config; denying auto-start: %s", e)
         return False
+
+    if not routing_enabled:
+        logger.info(
+            "Sync auto-start denied: hosted sync is not enabled for checkout %s",
+            project_root,
+        )
+    return routing_enabled
 
 
 def _read_project_auto_start(project_root: Path) -> bool | None:
@@ -161,9 +187,12 @@ class SyncRuntime:
             logger.info("%s SyncRuntime not started.", saas_sync_disabled_message())
             return
 
-        # Check config for opt-out (project-level)
+        # Check the auto-start gate. It has already reported *why* it denied, at a
+        # level the operator sees; restating a cause here would be a guess, and the
+        # guess this line used to make ("via config") was wrong for every denial
+        # except the config one (WP12 MINOR-3).
         if not _auto_start_enabled():
-            logger.info("Sync auto-start disabled via config")
+            logger.debug("Sync auto-start gate denied; SyncRuntime not started.")
             return
 
         # Start background service (use existing singleton)

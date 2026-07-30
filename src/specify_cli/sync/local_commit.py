@@ -167,16 +167,26 @@ def _frame_project_consents(frame: Mapping[str, Any], *, offered_roots: list[Pat
     the answer — only supply the authoritative file when cwd *is* the frame's
     project.
 
+    The resolver returns the consenting **subset** of its candidates, so the answer
+    is checked for *this* uuid's membership rather than for the subset being
+    non-empty. Emptiness is equivalent only while exactly one candidate is passed;
+    the day anyone batches frames through here, one consenting project would
+    authorize every other project in the batch — the "returned set not checked for
+    the right element" shape T025 names for body uploads. Membership costs nothing
+    and does not depend on a future editor reading this paragraph.
+
     Fails **closed** on any error. Everything else in this module swallows
     exceptions so a git hook is never interrupted; here that same instinct would
     turn an unanswerable consent question into egress, and inability to determine
-    consent is not consent (FR-003's rule).
+    consent is not consent (FR-003's rule). This branch is pinned by a test rather
+    than trusted: an ``except`` that quietly starts returning ``True`` is how a
+    guard reports "clean" forever.
     """
     uuid = _frame_project_uuid(frame)
     try:
         from specify_cli.sync.consent import consented_project_uuids  # noqa: PLC0415
 
-        granted = bool(consented_project_uuids([uuid], checkout_roots=offered_roots))
+        granted = uuid in consented_project_uuids([uuid], checkout_roots=offered_roots)
     except Exception:  # noqa: BLE001 - unanswerable is not granted
         logger.warning(
             "Could not resolve hosted-sync consent for a LocalCommit frame; refusing to send it",

@@ -347,3 +347,111 @@ def test_flush_of_blank_project_uuid_is_refused(tmp_path: Path) -> None:
     flush_pending_local_commits(project, client)
 
     assert client.sent == []
+
+
+# ---------------------------------------------------------------------------
+# The gate's own failure modes (MINOR-1, Nit)
+# ---------------------------------------------------------------------------
+#
+# These two groups pin the *inside* of ``_frame_project_consents``. Both were
+# verified only by probe when WP12 was reviewed, which is how a guard comes to
+# report "clean" forever: this mission has already been bitten three times by an
+# ``except`` that swallowed the evidence of its own bug. A behaviour nothing
+# executes is a behaviour a refactor may delete for free.
+
+
+def _raise_consent_error(*_args: Any, **_kwargs: Any) -> frozenset[str]:
+    raise RuntimeError("consent index unreadable")
+
+
+def test_emit_fails_closed_when_consent_resolution_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An unanswerable consent question must deny, not fall through to egress.
+
+    This module's house style is to swallow every exception so a git hook is never
+    interrupted, and applying that instinct here — ``except: return True``, or
+    merely moving the ``try`` boundary so the raise escapes the guard — converts
+    every unreadable consent index into a leak while the suite stays green. That is
+    the exact shape of the swallowed-exception fake green, so the branch gets a
+    test rather than a comment.
+    """
+    project = _checkout(tmp_path, "acme", uuid=UUID_A, consents=True)
+    client = _RecordingClient()
+    monkeypatch.setattr("specify_cli.sync.local_commit._get_saas_client", lambda: client)
+    monkeypatch.setattr(
+        "specify_cli.sync.consent.consented_project_uuids", _raise_consent_error
+    )
+
+    emit_local_commit(project, _HASH_A, _MISSION_ID, _BUILD_ID, _FILES, _AT)
+
+    assert client.sent == [], "an unresolvable consent question must not become egress"
+    assert load_sync_state(project).pending_local_commits == [], (
+        "nor may it be staged for the next connect to replay"
+    )
+
+
+def test_flush_fails_closed_when_consent_resolution_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Same rule on the live path: consent that cannot be resolved is not granted."""
+    project = _checkout(tmp_path, "acme", uuid=UUID_A, consents=True)
+    save_sync_state(project, SyncState(pending_local_commits=[_frame(project_uuid=UUID_A)]))
+    client = _RecordingClient()
+    monkeypatch.setattr(
+        "specify_cli.sync.consent.consented_project_uuids", _raise_consent_error
+    )
+
+    flush_pending_local_commits(project, client)
+
+    assert client.sent == []
+    assert len(load_sync_state(project).pending_local_commits) == 1, (
+        "retained-and-ignored: an unresolvable answer is not a reason to lose the frame"
+    )
+
+
+def test_emit_refuses_when_the_consented_set_excludes_this_frames_project(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The resolver's answer must be checked for *this* uuid, not for emptiness.
+
+    ``consented_project_uuids`` returns the consenting *subset* of its candidates.
+    Testing that subset for non-emptiness happens to be correct while exactly one
+    candidate is passed, but it is the "returned set not checked for the right
+    element" shape T025 names for body uploads: the day anyone batches frames
+    through this helper, one consenting project in the batch authorises every other
+    project in it. Membership costs nothing, so the constraint is pinned here rather
+    than left to a comment a future editor may not read.
+    """
+    project = _checkout(tmp_path, "acme", uuid=UUID_A, consents=True)
+    client = _RecordingClient()
+    monkeypatch.setattr("specify_cli.sync.local_commit._get_saas_client", lambda: client)
+    monkeypatch.setattr(
+        "specify_cli.sync.consent.consented_project_uuids",
+        lambda *_a, **_k: frozenset({UUID_B}),
+    )
+
+    emit_local_commit(project, _HASH_A, _MISSION_ID, _BUILD_ID, _FILES, _AT)
+
+    assert client.sent == [], (
+        "a non-empty consented set that does not contain this frame's project is a "
+        "refusal for this frame"
+    )
+    assert load_sync_state(project).pending_local_commits == []
+
+
+def test_flush_refuses_when_the_consented_set_excludes_this_frames_project(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The same membership rule on the live path."""
+    project = _checkout(tmp_path, "acme", uuid=UUID_A, consents=True)
+    save_sync_state(project, SyncState(pending_local_commits=[_frame(project_uuid=UUID_A)]))
+    client = _RecordingClient()
+    monkeypatch.setattr(
+        "specify_cli.sync.consent.consented_project_uuids",
+        lambda *_a, **_k: frozenset({UUID_B}),
+    )
+
+    flush_pending_local_commits(project, client)
+
+    assert client.sent == []
