@@ -38,6 +38,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .config import ConfigReadFault
+
 logger = logging.getLogger(__name__)
 
 #: Key for project-local consent inside ``.kittify/config.yaml``: ``sync.enabled``.
@@ -62,12 +64,26 @@ UNRESOLVED_MARKER = "unresolved"
 
 
 class ConsentLevel(enum.StrEnum):
-    """Which level of the chain answered. Rendered by FR-015's report."""
+    """Which level of the chain answered. Rendered by FR-015's report.
+
+    Two members are *outcomes* rather than levels — :attr:`ABSENT` and
+    :attr:`UNDETERMINED`. Neither appears in :data:`PROJECT_CONSENT_PRECEDENCE` or
+    :data:`LEVEL_RESOLVERS`, so neither participates in dispatch; both are terminal
+    answers the walk produces. Naming them here rather than as a separate flag on
+    :class:`ConsentDecision` keeps "how was this answered" in one field instead of two
+    that can disagree.
+    """
 
     PROJECT_LOCAL = "project_local"
     MACHINE_INDEX = "machine_index"
     ENV = "env"
     ABSENT = "absent"
+    #: Consent could not be determined because a consent record could not be *read*
+    #: (#3030 FR-020) — distinct from :attr:`ABSENT`, which means nothing was
+    #: recorded. It denies exactly as ABSENT does; what it changes is the report.
+    #: An operator told "no consent record" for a project they opted in will go and
+    #: opt it in again; one told "your consent index is unreadable" will fix the file.
+    UNDETERMINED = "undetermined"
 
 
 #: The chain, highest authority first. Declared once; never re-derived.
@@ -122,25 +138,57 @@ class ConsentBackfillResult:
 # --- project-local (level 1) ----------------------------------------------
 
 
-def _read_project_local(repo_root: Path) -> tuple[str | None, bool | None]:
-    """Return ``(declared_uuid, hosted)`` from a checkout's config, or ``(None, None)``.
+def _read_project_local(
+    repo_root: Path,
+) -> tuple[str | None, bool | None, ConfigReadFault | None]:
+    """Return ``(declared_uuid, hosted, fault)`` from a checkout's config.
 
-    Never raises: a missing, unreadable or malformed file is *absence*, which the
-    caller degrades to the next level rather than treating as a decision.
+    Never raises: a fault is *carried*, not thrown.
+
+    The third element is #3030 FR-020, and it closes a **leak**, not a silence. A
+    missing file is absence and yields ``fault=None``, exactly as before. But an
+    unreadable or malformed file used to yield absence too, and absence falls through
+    to the machine index — so a committed ``sync.enabled: false`` that a YAML error
+    made unreadable was silently replaced by whatever the index happened to hold.
+    Measured before the fix, with the index carrying a grant: ``granted=True,
+    level=machine_index``. FR-013's refusal-outranks-grant rule, voided by a syntax
+    error, on the record type that survives a clone or a rename — so a stale grant is
+    precisely what is sitting there.
+
+    A malformed *shape* (top-level not a mapping) is treated as a fault for the same
+    reason: it is a file that exists and cannot be understood, not a file that says
+    nothing.
     """
     config_path = Path(repo_root) / ".kittify" / "config.yaml"
     if not config_path.is_file():
-        return (None, None)
+        # Absence, and the common case: the drain and the capture path both offer
+        # whatever checkout they stand in, and most have no project config at all.
+        # Calling this a fault would deny every delivery on the machine.
+        return (None, None, None)
     try:
         from ruamel.yaml import YAML
 
         with open(config_path, encoding="utf-8") as handle:
             data = YAML().load(handle) or {}
-    except Exception as exc:  # noqa: BLE001 - malformed config is absence
+    except Exception as exc:  # noqa: BLE001 - carried as a fault, never raised
         logger.debug("Unreadable project config at %s: %s", config_path, exc)
-        return (None, None)
+        return (
+            None,
+            None,
+            ConfigReadFault(
+                kind="unreadable",
+                detail=f"{config_path}: could not be read or parsed ({exc})",
+            ),
+        )
     if not isinstance(data, dict):
-        return (None, None)
+        return (
+            None,
+            None,
+            ConfigReadFault(
+                kind="unparseable",
+                detail=f"{config_path}: top-level content is not a mapping",
+            ),
+        )
 
     project = data.get("project")
     declared = None
@@ -155,7 +203,7 @@ def _read_project_local(repo_root: Path) -> tuple[str | None, bool | None]:
         if isinstance(raw_hosted, bool):
             hosted = raw_hosted
 
-    return (declared, hosted)
+    return (declared, hosted, None)
 
 
 def read_project_local_consent(repo_root: Path) -> bool | None:
@@ -169,26 +217,56 @@ def read_project_local_consent(repo_root: Path) -> bool | None:
 
     Deliberately does not check the declared uuid: the caller already knows which
     checkout it is asking about, and this file speaks for that checkout.
+
+    **Signature and semantics deliberately unchanged by #3030 FR-020**, including the
+    fault-becomes-``None`` conflation. Its only production caller is
+    ``sync/routing.py``, whose own chain then falls through ``local_sync_enabled`` and
+    ``repo_default_sync_enabled`` before default-deny — so an unreadable project file
+    can still be overridden by a checkout-level grant there. That is the same defect
+    this function's own level-1 fix closes for the uuid chain, but the fall-through
+    lives in ``routing.py`` and cannot be repaired from here. Reported, not silently
+    half-fixed by changing this return value under a caller that is not expecting it.
+    Use :func:`project_local_consent_fault` to ask about readability.
     """
     return _read_project_local(repo_root)[1]
 
 
+def project_local_consent_fault(repo_root: Path) -> ConfigReadFault | None:
+    """Return why *repo_root*'s project config could not be read, or ``None``.
+
+    The readability half of :func:`read_project_local_consent`, split out so
+    ``sync/routing.py`` can adopt it without that function changing shape under its
+    other callers (FR-020; the routing wiring is owed).
+    """
+    return _read_project_local(repo_root)[2]
+
+
 def _project_local_votes(
     project_uuid: str, checkout_roots: list[Path]
-) -> list[bool]:
-    """Collect hosted-consent votes from checkouts that declare *project_uuid*.
+) -> tuple[list[bool], list[ConfigReadFault]]:
+    """Collect hosted-consent votes, and read faults, from the offered checkouts.
 
     A checkout that declares a different uuid is ignored: its file speaks only for
     its own project. Letting it answer would be the fuzzy correspondence FR-013's
     conflict rule and #3031 Defect 2 both exist to eliminate.
+
+    Faults cannot be attributed that way, and that is the point (#3030 FR-020): an
+    unreadable file does not disclose which uuid it declares, so it can neither be
+    matched to this project nor excluded from it. It is therefore returned for the
+    caller to treat fail-closed. The alternative — dropping it, as before — is what
+    let a stale index grant stand in for an unreadable committed refusal.
     """
     votes: list[bool] = []
+    faults: list[ConfigReadFault] = []
     for root in checkout_roots:
-        declared, hosted = _read_project_local(root)
+        declared, hosted, fault = _read_project_local(root)
+        if fault is not None:
+            faults.append(fault)
+            continue
         if declared is None or declared != project_uuid or hosted is None:
             continue
         votes.append(hosted)
-    return votes
+    return votes, faults
 
 
 # --- machine-global index (level 2) ---------------------------------------
@@ -219,19 +297,55 @@ def _normalize_uuid(value: Any) -> str | None:
 
 
 def _answer_project_local(uuid: str, roots: list[Path]) -> ConsentDecision | None:
-    """The project's own file. Refusal outranks grant (FR-013's rule)."""
-    votes = _project_local_votes(uuid, roots)
+    """The project's own file. Refusal outranks grant (FR-013's rule).
+
+    Order of the three branches below is the FR-020 fix, and each is chosen for the
+    fail-closed direction:
+
+    1. **A readable refusal wins outright**, faults or not. The answer is already
+       known and attributable; a sibling root nobody could read cannot make a denial
+       *less* certain, and downgrading it to UNDETERMINED would lose the attribution
+       an operator needs.
+    2. **A fault then outranks a grant.** An unreadable file may have refused, and
+       falling through to the machine index means a stale grant answers for a
+       committed refusal — the leak measured before this fix. Denying here is the
+       only direction that cannot leak.
+    3. Otherwise the readable votes decide, or the level abstains.
+    """
+    votes, faults = _project_local_votes(uuid, roots)
+
+    if votes and not all(votes):
+        _reconcile_index(uuid, False)
+        return ConsentDecision(
+            granted=False,
+            level=ConsentLevel.PROJECT_LOCAL,
+            project_uuid=uuid,
+            reason=(
+                "refused by the project's own .kittify/config.yaml"
+                if len(votes) == 1
+                else "at least one checkout of this project is opted out"
+            ),
+        )
+
+    if faults:
+        # No index reconciliation: we do not know what the file says, so writing a
+        # verdict into the cache would launder a fault into a recorded decision.
+        return ConsentDecision(
+            granted=False,
+            level=ConsentLevel.UNDETERMINED,
+            project_uuid=uuid,
+            reason=(
+                "a checkout's own .kittify/config.yaml could not be read, so a "
+                "committed refusal cannot be ruled out; refusing rather than "
+                f"deferring to the machine index ({faults[0].detail})"
+            ),
+        )
+
     if not votes:
         return None
     granted = all(votes)
     _reconcile_index(uuid, granted)
-    reason = (
-        "granted by the project's own .kittify/config.yaml"
-        if granted
-        else "refused by the project's own .kittify/config.yaml"
-        if len(votes) == 1
-        else "at least one checkout of this project is opted out"
-    )
+    reason = "granted by the project's own .kittify/config.yaml"
     return ConsentDecision(
         granted=granted,
         level=ConsentLevel.PROJECT_LOCAL,
@@ -241,17 +355,38 @@ def _answer_project_local(uuid: str, roots: list[Path]) -> ConsentDecision | Non
 
 
 def _answer_machine_index(uuid: str, _roots: list[Path]) -> ConsentDecision | None:
-    """The uuid-keyed machine-global index — a cache, not a second source of truth."""
-    recorded = get_project_consent(uuid)
-    if recorded is None:
+    """The uuid-keyed machine-global index — a cache, not a second source of truth.
+
+    Reads through :meth:`SyncConfig.read_project_consent` so an *unreadable* index is
+    answered as :attr:`ConsentLevel.UNDETERMINED` rather than falling through to the
+    terminal "no consent record" default (#3030 FR-020). Both deny; only one of them
+    tells the operator something true. One file read yields both the record and the
+    readability, so "no record, index healthy" cannot be assembled from two reads that
+    disagree.
+    """
+    from .config import SyncConfig
+
+    read = SyncConfig().read_project_consent(uuid)
+    if read.fault is not None:
+        return ConsentDecision(
+            granted=False,
+            level=ConsentLevel.UNDETERMINED,
+            project_uuid=uuid,
+            reason=(
+                "the machine-global consent index could not be read, so this "
+                "project's recorded decision is unknown; refusing rather than "
+                f"treating it as unrecorded ({read.fault.detail})"
+            ),
+        )
+    if read.enabled is None:
         return None
     return ConsentDecision(
-        granted=recorded,
+        granted=read.enabled,
         level=ConsentLevel.MACHINE_INDEX,
         project_uuid=uuid,
         reason=(
             "granted by the machine-global consent index"
-            if recorded
+            if read.enabled
             else "opted out in the machine-global consent index"
         ),
     )
@@ -402,6 +537,49 @@ def consented_project_uuids(
     return frozenset(granted)
 
 
+# --- FR-020: the machine-level readability question (SC-004's seam) --------
+
+
+@dataclass(frozen=True)
+class ConsentIndexHealth:
+    """Whether the machine-global consent index can be read at all.
+
+    The question ``sync doctor`` must ask **once**, rather than inferring a machine
+    fault from N projects that each came back undetermined. SC-004 requires the doctor
+    to name every project present with its consent state; on an unreadable index every
+    one of those states is unknown for a single shared reason, and reporting the reason
+    once is the difference between an operator fixing a file and an operator opting
+    twenty projects in again.
+
+    Deliberately *not* consulted by :func:`resolve_project_consent`. A pre-flight
+    readability check followed by a separate per-project read is two reads that can
+    disagree; the resolver gets its fault from the same read that produced the record
+    (:meth:`SyncConfig.read_project_consent`). This type is for reporting only.
+    """
+
+    readable: bool
+    fault: ConfigReadFault | None
+
+    @property
+    def summary(self) -> str:
+        """One operator-facing line. Names the file, because it must be fixed."""
+        if self.fault is None:
+            return "consent index readable"
+        return f"consent index UNREADABLE — every project resolves as undetermined and nothing will be delivered: {self.fault.detail}"
+
+
+def consent_index_health() -> ConsentIndexHealth:
+    """Report whether the machine-global consent index is readable (FR-020).
+
+    A **missing** index is healthy: an unconfigured machine has recorded no consent,
+    which denies under FR-002 and is not a fault to repair.
+    """
+    from .config import SyncConfig
+
+    read = SyncConfig().read()
+    return ConsentIndexHealth(readable=read.readable, fault=read.fault)
+
+
 # --- T016: backfill path-keyed records into the uuid index ----------------
 
 
@@ -430,7 +608,12 @@ def backfill_uuid_consent_index() -> ConsentBackfillResult:
     unresolved: list[UnresolvedConsentEntry] = []
 
     for raw_path, enabled in path_records.items():
-        declared, _hosted = _read_project_local(Path(raw_path))
+        # A read fault lands in the same bucket as a missing uuid: *unresolved*, which
+        # is marked and reported rather than dropped (:data:`UNRESOLVED_MARKER`). That
+        # is already the fail-closed answer here — an unmappable record contributes no
+        # vote, so it can never manufacture a grant — and unlike the resolver, the
+        # backfill has no next level to defer to, so it needs no UNDETERMINED branch.
+        declared, _hosted, _fault = _read_project_local(Path(raw_path))
         if declared is None:
             unresolved.append(UnresolvedConsentEntry(path=raw_path, enabled=enabled))
             continue
@@ -464,6 +647,12 @@ def backfill_uuid_consent_index() -> ConsentBackfillResult:
 # the drain reaches it only through ``consented_project_uuids``, and no reporting
 # surface calls it yet. That is a real finding, not a packaging detail; trimming the
 # advertised surface records it honestly rather than hiding it behind an allowlist.
+# Also absent, for the same reason and recorded the same way: ``consent_index_health``
+# and ``project_local_consent_fault`` (#3030 FR-020). Both exist for SC-004's
+# ``sync doctor`` — which cannot currently tell an operator their consent index is
+# unreadable — and for ``sync/routing.py``'s fall-through. Both of those surfaces are
+# owned elsewhere and unwired, so the names stay importable and unadvertised until a
+# real consumer lands, rather than entering the gate's allowlist as aspiration.
 __all__ = [
     "consented_project_uuids",
     "read_project_local_consent",

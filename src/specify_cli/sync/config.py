@@ -10,6 +10,7 @@ precedence and derives the queue scope) rather than treating the raw
 ``get_server_url`` value as the target.
 """
 import sys
+from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -38,6 +39,74 @@ _BACKGROUND_DAEMON_VALUES: dict[str, BackgroundDaemonPolicy] = {
 }
 
 
+@dataclass(frozen=True)
+class ConfigReadFault:
+    """Why ``config.toml`` could not be read (#3030 FR-020).
+
+    Carried, never raised. ``kind`` is a stable token for programmatic handling
+    (``unparseable`` | ``unreadable``); ``detail`` names the file and the underlying
+    error, because an operator told "consent is undetermined" with no path cannot act.
+
+    A **missing** file is not a fault and produces ``None`` — absence of a record is a
+    legitimate, common state that denies under FR-002, and collapsing it into this
+    would bury the ordinary case under a fault nobody has.
+    """
+
+    kind: str
+    detail: str
+
+
+@dataclass(frozen=True)
+class ConfigRead:
+    """The outcome of one ``config.toml`` read: its data, and any fault."""
+
+    data: dict[str, Any]
+    fault: ConfigReadFault | None
+
+    @property
+    def readable(self) -> bool:
+        return self.fault is None
+
+
+@dataclass(frozen=True)
+class ProjectConsentRead:
+    """One project's recorded consent, together with the index's readability.
+
+    ``enabled`` is ``None`` for *no record* and also ``None`` when ``fault`` is set —
+    so a caller that ignores ``fault`` still sees "no record" and still denies. The
+    fail-closed default survives being ignored, which is the property that lets this
+    ship without auditing every consumer.
+    """
+
+    enabled: bool | None
+    fault: ConfigReadFault | None
+
+    @property
+    def undetermined(self) -> bool:
+        return self.fault is not None
+
+
+def _project_consent_entry(config: dict[str, Any], project_uuid: str) -> bool | None:
+    """Decode one uuid's consent entry from already-loaded config data.
+
+    Shared by :meth:`SyncConfig.get_project_consent` and
+    :meth:`SyncConfig.read_project_consent` so the two cannot disagree about what a
+    malformed entry means — a second copy of this decode is how a reported state and
+    an enforced state drift apart.
+    """
+    section = config.get("sync", {})
+    if not isinstance(section, dict):
+        return None
+    consent = section.get("project_consent", {})
+    if not isinstance(consent, dict):
+        return None
+    entry = consent.get(project_uuid)
+    if not isinstance(entry, dict):
+        return None
+    enabled = entry.get("enabled")
+    return enabled if isinstance(enabled, bool) else None
+
+
 class SyncConfig:
     """Manage sync configuration"""
 
@@ -51,15 +120,75 @@ class SyncConfig:
         self.config_dir: Path = get_runtime_root().base
         self.config_file = self.config_dir / 'config.toml'
 
-    def _load(self) -> dict[str, Any]:
-        """Load config.toml, returning empty dict when missing or invalid."""
+    def read(self) -> ConfigRead:
+        """Load config.toml, reporting *why* it is empty (#3030 FR-020).
+
+        The fault-preserving read. :meth:`_load` is the lossy projection of this and
+        keeps its exact contract; use this one whenever "no record" and "could not
+        read the records" must not be the same answer.
+
+        Why this exists: ``_load`` returns ``{}`` for a file that is missing **and**
+        for one that is corrupt or unreadable, and that conflation is destroyed here,
+        below every consumer. It made a machine fault indistinguishable from an
+        unconfigured machine — for consent specifically, an unreadable index reported
+        every project on the box as "no consent record", which is a per-project fact
+        an operator would act on by recording consent they had already recorded.
+
+        Never raises: a fault is *carried*, not thrown. The callers on this path
+        include a delivery gate, and converting an unreadable file into a traceback
+        out of a drain is not an improvement over converting it into a wrong answer.
+        """
         if not self.config_file.exists():
-            return {}
+            # Absence is not a fault. This is the overwhelmingly common case on a
+            # fresh machine and must stay distinguishable from the two below.
+            return ConfigRead(data={}, fault=None)
         try:
             data: dict[str, Any] = toml.load(self.config_file)
-            return data
-        except (toml.TomlDecodeError, OSError):
-            return {}
+        except toml.TomlDecodeError as exc:
+            return ConfigRead(
+                data={},
+                fault=ConfigReadFault(
+                    kind="unparseable",
+                    detail=f"{self.config_file}: not valid TOML ({exc})",
+                ),
+            )
+        except OSError as exc:
+            return ConfigRead(
+                data={},
+                fault=ConfigReadFault(
+                    kind="unreadable",
+                    detail=f"{self.config_file}: could not be read ({exc})",
+                ),
+            )
+        return ConfigRead(data=data, fault=None)
+
+    def _load(self) -> dict[str, Any]:
+        """Load config.toml, returning empty dict when missing or invalid.
+
+        Contract deliberately unchanged (#3030 FR-020): fourteen readers in this
+        module plus the accessors they back depend on "empty dict on any problem",
+        and widening that to a tuple or an exception would touch every one of them for
+        the benefit of a single caller. :meth:`read` is the narrow addition; this stays
+        the lossy projection of it so there is still exactly one place that opens the
+        file.
+        """
+        return self.read().data
+
+    def read_project_consent(self, project_uuid: str) -> ProjectConsentRead:
+        """Read one project's recorded consent **and** the index's readability.
+
+        One file read answers both, deliberately. Asking
+        :meth:`get_project_consent` and then separately asking whether the file was
+        readable would be two ``_load`` calls that can disagree — the file may be
+        repaired or corrupted between them — and the pair "no record, index healthy"
+        is precisely the false-clean combination that must not be constructible.
+        """
+        read = self.read()
+        if read.fault is not None:
+            return ProjectConsentRead(enabled=None, fault=read.fault)
+        return ProjectConsentRead(
+            enabled=_project_consent_entry(read.data, project_uuid), fault=None
+        )
 
     def _save(self, config: dict[str, Any]) -> None:
         """Write config dict back to config.toml atomically."""
@@ -241,12 +370,13 @@ class SyncConfig:
     # the precedence chain. Nothing here decides consent; it only stores it.
 
     def get_project_consent(self, project_uuid: str) -> bool | None:
-        """Return the recorded consent for *project_uuid*, or ``None`` if absent."""
-        entry = self._project_consent_section().get(project_uuid)
-        if not isinstance(entry, dict):
-            return None
-        enabled = entry.get("enabled")
-        return enabled if isinstance(enabled, bool) else None
+        """Return the recorded consent for *project_uuid*, or ``None`` if absent.
+
+        ``None`` conflates "no record" with "index unreadable"; callers that must
+        tell them apart use :meth:`read_project_consent`. Kept as-is because ``None``
+        denies either way, so existing callers stay correct without change.
+        """
+        return _project_consent_entry(self._load(), project_uuid)
 
     def get_all_project_consent(self) -> dict[str, bool]:
         """Return every recorded uuid → consent pair."""
