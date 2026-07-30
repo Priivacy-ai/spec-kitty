@@ -425,3 +425,76 @@ rationale stands and is not resolvable from within `consent.py`/`config.py`/`rou
   without denying every pre-`init` checkout. Reachability is low because `enable_checkout_sync`
   refuses to write a grant without a uuid, so the grant must be a leftover from a config that
   once had identity and lost it.
+
+## FR-025's severity, settled by tracing rather than by preferring one report
+
+Two agents appeared to contradict each other and did not. The FR-025 implementer measured **1
+envelope with verbatim `request_text`** in a clean pre-fix worktree "with the real sync-side
+registration — no stubbed resolver". The egress enumerator reported the same path **dead in
+production**. Resolved by tracing the transport, which neither claim covered:
+
+`propagator._get_saas_client` → `adapters.get_saas_client` → the factory registered at
+`sync/__init__.py:411` → `getattr(token_manager, "_ws_client", None)` → **no writer anywhere in
+`src/`**. So the factory returns `None` and `_propagate_one` early-returns before sending.
+
+Both statements were true. "No stubbed **resolver**" is a claim about the *consent* seam, not the
+*transport*; the leak measurement supplied a client by other means. The lesson is about reading
+reports, not about either agent: **two accurate reports can look contradictory when each is
+precise about a different half of the same path.** The resolution came from tracing the half
+neither had claimed.
+
+**What stands, and what is corrected.** The guard defect was real and is fixed, together with
+three siblings on the same payload. Its *reachability* argument also stands on its own terms —
+`cli/commands/dispatch.py` takes `repo_root` from `find_repo_root()`, whose comment reads
+"Fallback: support plain git repositories that do not contain `.kittify` yet", while consent
+resolution needs a `.kittify` root, so in any plain git checkout the two disagree and the
+undetermined branch is taken **with nothing misconfigured**. What is corrected is the leak's
+*consequence*: with the transport dead, the undetermined branch reached a `None` client rather
+than the network. "Critical / measured leaking" overstated it; the fix is correct
+defence-in-depth, and it is now in place *before* the transport could be wired, which is the
+right order.
+
+## Three permissive defaults on one payload, found only by assuming the report was a sample
+
+FR-025 was reported as one guard. The implementer found three more of the **same shape** on the
+same egress payload, all in its own scope, all fixed in the same commit:
+
+- `_coerce_event_kind` — an unclassifiable `event` fell to `EventKind.STARTED`, whose rule is the
+  permissive one. Now: unclassifiable ⇒ not projected.
+- `_coerce_mode` — **absent** and **malformed** `mode_of_work` both became `None` ⇒
+  `task_execution`, which includes the body. Now split: absence keeps its documented default
+  (every completed event legitimately has no mode); malformation refuses. The absent/malformed
+  distinction is the same one FR-027 needed for `enabled: null` versus a missing key.
+- `projection_policy.py:80` — `POLICY_TABLE.get(key, _DEFAULT_RULE)` where the default arm was
+  **the most permissive rule**, so a pair with no row disclosed the body. Now `_NO_POLICY_RULE`,
+  pinned by deleting a table row at runtime.
+
+**Generalisation worth carrying:** a `dict.get(key, DEFAULT)` on a policy table is a fail-open
+guard wearing different syntax. The "unknown state treated as a definite answer" invariant covers
+`is False`, a truthiness test on a legitimately-falsy value, a `match` with no default arm, **and
+a lookup whose default is the permissive row.** Grepping for `is False` alone would have found one
+of these four.
+
+## The `sync/__init__.py` change was unavoidable, and the rename was deliberate
+
+`tests/architectural/test_integration_boundary.py` forbids `invocation/` from importing
+`specify_cli.sync.*` in **any** form — full-AST walk including lazy function-body imports, with an
+empty `ALLOWLIST` ratcheted at `== 0`. So the consent funnel can only reach CORE through a
+registry slot that `sync` fills, and the contested edit was the only way to satisfy "resolve from
+the consent chain".
+
+`register_sync_routing_resolver` was **renamed** to `register_egress_consent_resolver` rather than
+a second slot added, on the implementer's reasoning: an additive slot would have left the old one
+registered and production-dead, **and a seam named "sync routing" that answers a consent question
+is the naming lie that caused this bug.** Recorded because a prior mission's dossier
+(`kitty-specs/integration-boundary-01KW0PBE/`) documents the old names, and that divergence should
+not later read as drift.
+
+## `project_uuid` is not on the Op envelope — reported, not invented
+
+Neither `OpStartedEvent` nor `OpCompletedEvent` carries a `project_uuid`
+(`invocation/record.py:45,72`). Rather than invent a fallback, the fix reuses the mission's single
+checkout→project derivation on the ground that an Op's owning project *is* the checkout it was
+recorded in — the same locality argument WP08 made for `pending_local_commits` and E6. Putting a
+`project_uuid` on the envelope is a schema change (`record.py`, the writer,
+`contracts/op-record-events.md`) and remains an open operator decision.
