@@ -433,3 +433,50 @@ correct-but-slow implementation (unfiltered read, consent applied in Python, **n
 separated the 8 ordering-attributable kills from the 1 that detects the missing SQL filter — and
 doubled as the positive control, since 12 tests exercising the mutated function still passed. One
 switch, three jobs.
+
+## CRITICAL ADDENDUM: an editable install defeats worktree isolation silently
+
+The rule "measure in a worktree pinned to a commit" is **not sufficient on its own** in this
+repo. `.venv/lib/python3.11/site-packages/_editable_impl_spec_kitty_cli.pth` contains the
+**absolute path of the main checkout**:
+
+```
+/home/jeroennouws/dev/spec-kitty/src
+```
+
+So pytest run *inside* a throwaway worktree, using the main `.venv`, imports
+`/home/jeroennouws/dev/spec-kitty/src/specify_cli` — the **live tree**, not the worktree's
+source. Verified directly: `uv run python -c "import specify_cli; print(...)"` resolves to the
+main checkout.
+
+**This makes the failure worse than no isolation at all**, because the isolation *looks*
+performed. A before/after across two pinned worktrees would import identical source on both
+sides and report "byte-identical" or "identical failure sets" — which reads as a clean
+exoneration and is actually a tautology.
+
+**Required, in addition to the worktree:** either `PYTHONPATH=$WT/src`, or a dedicated `.venv`
+created inside the worktree (`uv run` from within a fresh worktree will create one, which is why
+some runs were unaffected).
+
+Two agents handled it correctly and are worth naming as the pattern: the CI-routing agent used a
+"clean worktree pinned to `23f81350ce`, **dedicated `.venv`**"; the purge-CLI agent found its
+**first baseline had silently measured the change under test**, discarded it, and re-ran with
+`PYTHONPATH` set.
+
+**Claims that may need re-verification** — any worktree-based measurement in this mission that did
+not state a dedicated venv or `PYTHONPATH`. Most at risk are the ones whose *conclusion was
+sameness*, since that is exactly what this defect manufactures:
+
+- FR-027's "clean HEAD worktree with only my three source files copied in → byte-identical table"
+- FR-027's A/B exonerating the 21 purge failures ("identical 21-failure sets" on both trees)
+- NFR-002's "three other agents' edits landed in the main tree during the run; none reached the
+  measurement"
+
+Note the asymmetry before re-running everything: a measurement whose conclusion was a
+**difference** (a red that turned green, a mutant that killed pins) is largely unaffected — the
+defect can only collapse two states into one, not invent a distinction. It is the
+*sameness* conclusions that are suspect.
+
+This is the session's own central lesson turned on the fix for that lesson: the remedy for
+"the thing you measured is not the thing you changed" itself had a way of measuring the wrong
+thing.
