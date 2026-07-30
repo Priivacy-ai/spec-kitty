@@ -129,3 +129,43 @@ human-invoked command whose subject is "this checkout" is right to read cwd —
 question about a *specific event's* project, which is why the fix everywhere was to
 thread the event's own `project_uuid` rather than to purge `Path.cwd()` from the
 codebase.
+
+## Derive projections from `ORDERED_COLUMNS` — but judge per site (H6 class closure)
+
+H6 was one symptom of a class: four hand-maintained column projections that a new
+column silently falsifies. Closed in `6c48815fbd` by deriving them from
+`ORDERED_COLUMNS` / `IDENTITY_COLUMNS`, proven by mutation rather than by argument.
+
+**Mutation A** (a hypothetical 12th non-identity column `tenant_id`, created in the DDL
+and written by `SET_IDENTITY_SQL`) made `test_backfill_preserves_all_non_identity_columns`
+**pass pre-fix while the backfill damaged that column** — the class was open exactly as
+the reviewer claimed. Post-fix it fails and names the column.
+**Mutation B** (drop `repo_slug` from the ALTER loop) produced, pre-fix, a single failure
+in an *unrelated* test via `read_all()` raising `no such column`, while all four C-001
+pins passed. Post-fix, four failures including the pins.
+
+**One site was deliberately not derived.** `_read_raw` exists to prove the migration did
+not disturb values that existed *before* it ran, so it must keep asking about the
+historical eight columns as the schema grows — deriving it would make it select the
+columns the migration just added and compare them against themselves, which is the
+tautology class. Resolved by naming the literal `_PRE_MIGRATION_COLUMNS` and asserting it
+**equals** `ORDERED_COLUMNS - IDENTITY_COLUMNS`, so drift fails loudly without losing the
+freeze. Blanket-deriving is the wrong lesson; the rule is *derive where the projection
+should track the schema, freeze where it should track history, and assert the relationship
+between them either way.*
+
+Two guards were added on the derivations themselves, because **a derived projection fails
+by going silent rather than by returning a wrong answer**: `PRESERVED_COLUMNS` must be
+non-empty and disjoint from `IDENTITY_COLUMNS`, and every column must be classified as
+either written-by-the-backfill or preserved. Same reasoning as the shrink-only ratchet — a
+computed guard that quietly computes to nothing asserts nothing.
+
+## An unpinned MINOR, recorded rather than asserted
+
+A differing payload `repo_slug` overwriting a stored one on a `project_uuid IS NULL` row
+is **permitted**: it is NFR-004's letter, and `repo_slug` is never an authorization key
+(FR-019), so there is no confidentiality consequence. It is deliberately **not pinned**,
+and the reason is the more important half — the behaviour was reasoned about but never
+observed, and a pin asserting what an author believes rather than what they measured is
+this mission's recurring failure mode. If the pin is wanted it needs a red-first cycle
+commissioned as work, not a comment claiming knowledge nobody has.
