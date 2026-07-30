@@ -925,6 +925,97 @@ def _event_sync_report(base: dict[str, Any], runtime: _EventSyncRuntime) -> dict
                 audit.close()
 
 
+#: Opening words of the empty-selection diagnosis. One constant because three tests
+#: and two surfaces key on it, and because "nothing was selected" has to be sayable
+#: in words — ``(selected 0)`` inside a counts line is not a diagnosis.
+_NOTHING_TO_DELIVER = "Nothing to deliver."
+
+
+def _empty_selection_cause(report: PerProjectStoreReport) -> str:
+    """Explain WHY a drain selected nothing, using only what the report can prove.
+
+    FR-005 asks the drain to "report the real cause". Before this, `sync now` printed
+    an all-zero counts line ending ``(selected 0)`` and stopped, which collapses four
+    situations that need four different actions:
+
+    * the journal is empty — nothing to do, and emphatically not a consent problem;
+    * no project has consented — the operator's data will never ship until they act,
+      which is the incident's own shape and the only one that is urgent;
+    * every row's identity is unresolved — recoverable, and H4 wired the remedy;
+    * a consented project's rows exist but none is selectable right now.
+
+    That last branch is deliberately the weakest claim. Distinguishing "already
+    delivered" from "terminally drain-blocked" needs ledger state the report does not
+    carry, so it names both possibilities instead of asserting one. Guessing here
+    would recreate exactly the wrong-and-actionable diagnosis the no-Private-Teamspace
+    message was: an operator told the wrong cause acts on the wrong thing.
+
+    Sourced entirely from :func:`build_per_project_store_report` — the same grouping
+    that backs `doctor`, `status` and `migrate`, so the four surfaces cannot disagree
+    about who is in the store (C-003). No second classifier.
+    """
+    if not report.rows:
+        return (
+            "The event journal is empty — no events have been captured for this "
+            "producer scope yet, so there is nothing to send."
+        )
+
+    total = report.counted_event_total
+    if report.unresolved_identity_count >= total > 0:
+        return (
+            f"All {total} retained event(s) have no stored project identity, so none "
+            "of them can be selected for delivery. Run `spec-kitty sync migrate` to "
+            "recover the identity of any whose stored payload still carries it."
+        )
+
+    if not any(row.consent_granted for row in report.rows):
+        named = ", ".join(
+            (row.repo_slug or row.project_slug or row.project_uuid or "<unnamed>")
+            for row in report.named_non_consenting_rows
+        )
+        detail = f": {named}" if named else ""
+        return (
+            f"No project in the event journal has consented to hosted sync{detail}. "
+            f"Its {total} retained event(s) stay on this machine and will never be "
+            "delivered until consent is recorded — run `spec-kitty sync enable` in "
+            "the project that should ship, or `spec-kitty sync doctor` for the full "
+            "per-project breakdown."
+        )
+
+    return (
+        "Every consented project's retained events have already been delivered to "
+        "this target, or are terminally drain-blocked. Nothing is being withheld "
+        "for lack of consent; `spec-kitty sync doctor` shows the per-project state."
+    )
+
+
+def _report_empty_selection(summary: DispatchSummary | None, journal: EventJournal) -> None:
+    """Name the cause when a drain selected nothing (FR-005 / T005, SC-003's fifth path).
+
+    Only fires on a genuinely empty selection. A drain that selected rows and failed
+    to deliver them has its own reporting and its own exit contract; adding a cause
+    line there would compete with a more specific message.
+
+    Never raises: a diagnosis that breaks the command it is explaining would be worse
+    than the silence it replaces.
+    """
+    if summary is None or summary.selected != 0:
+        return
+    from specify_cli.delivery.status_report import build_per_project_store_report
+
+    try:
+        report = build_per_project_store_report(journal)
+    except Exception as exc:  # noqa: BLE001 - explanatory only, never fatal
+        _LOG.debug("empty-selection diagnosis unavailable: %s", exc)
+        console.print(
+            f"[yellow]{_NOTHING_TO_DELIVER}[/yellow] The reason could not be "
+            f"determined ({str(exc)[:80]}); `spec-kitty sync doctor` reports the "
+            "journal's per-project state."
+        )
+        return
+    console.print(f"[yellow]{_NOTHING_TO_DELIVER}[/yellow] {_empty_selection_cause(report)}")
+
+
 def _print_dispatch_summary(summary: DispatchSummary, mode_name: str) -> None:
     """Render the dispatcher's per-outcome counts (sourced, never recomputed)."""
     console.print(
@@ -1052,6 +1143,11 @@ def _run_event_sync_dispatch() -> DispatchSummary | None:
         delivery_target = runtime.registry.register_from_resolved(runtime.target)
         summary = _run_dispatch_batches(runtime, receiver, delivery_target)
         _print_dispatch_summary(summary, config.mode.name)
+        # FR-005/T005: an all-zero summary is four different situations with four
+        # different remedies. Reported from HERE, while `runtime` is still open, so
+        # the diagnosis reads the exact journal the drain just selected from rather
+        # than re-resolving a scope and possibly describing a different store.
+        _report_empty_selection(summary, runtime.journal)
         return summary
     except Exception as exc:  # additive drain must never break the command
         _LOG.debug("event-sync dispatch skipped: %s", exc)
