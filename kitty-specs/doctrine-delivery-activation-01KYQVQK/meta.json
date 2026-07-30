@@ -1,0 +1,41 @@
+{
+  "accept_commit": "68a87467b6c58e9e3cc7e071e5d3cb77b65aac4d",
+  "acceptance_history": [
+    {
+      "accept_commit": "6d55a41c061bc839928e2de371da58bd11acc5bd",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-30T07:41:09.558373+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "0275fdd867873787696470704249eb0cc46278fd"
+    },
+    {
+      "accept_commit": "68a87467b6c58e9e3cc7e071e5d3cb77b65aac4d",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-30T07:49:13.838407+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "439cfa30185f229222e5382eb11ab6ac8195d0aa"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-30T07:49:13.838407+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "439cfa30185f229222e5382eb11ab6ac8195d0aa",
+  "baseline_merge_commit": "24c7e551d904e5f504ed1863a2c0bacdf505b4fc",
+  "coordination_branch": "kitty/mission-doctrine-delivery-activation-01KYQVQK",
+  "created_at": "2026-07-29T21:15:48.248330+00:00",
+  "flattened": false,
+  "friendly_name": "Doctrine Delivery Activation Fast-Follow",
+  "mission_id": "01KYQVQK4Q0HXQB5T591KFXM23",
+  "mission_number": null,
+  "mission_slug": "doctrine-delivery-activation-01KYQVQK",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "PR #3070 authored the doctrine delivery-reachability edges but the profile-channel walk still ignores suggests, so the wired A-E edge families are inert. This fast-follow animates the topology (suggests-walk + when-surfacing), reconciles the reachability pins and wiring table, retires the forward-API allowlist as symbols get consumed, delivers the C4 templates and refactoring anti-patterns via edges, and closes the trailing code-hygiene tickets (#3075, #3062, #2532, hermetic fixture).",
+  "purpose_tldr": "Make the doctrine delivery topology actually deliver: walk suggests-edges with when-conditions so architect/implementer profiles receive their linked paradigms, tactics, techniques, and canvases.",
+  "slug": "doctrine-delivery-activation-01KYQVQK",
+  "status_phase": "1",
+  "target_branch": "feat/doctrine-delivery-activation",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-30T04:59:46.806420+00:00"
+}
