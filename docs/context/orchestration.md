@@ -2,7 +2,7 @@
 title: 'Context: Orchestration'
 description: 'Glossary context for orchestration: lifecycle and runtime orchestration semantics, including the repository, project, and mission-run terms.'
 doc_status: active
-updated: '2026-07-23'
+updated: '2026-07-30'
 related:
 - docs/context/doctrine.md
 - docs/context/identity.md
@@ -569,7 +569,8 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Do NOT use when** | The concept is the `git merge` that integrates the mission branch into its target branch — use [Branch Integration / Git Merge](#branch-integration--git-merge). The concept is publishing merged work to `origin/main` — use [Publish to origin/main](#publish-to-originmain). Never write bare "merge"; name the operation. |
+| **Canonical term (2026-07-30)** | `consolidate` / `consolidation` is the **canonical word** for this sense (ADR [2026-07-30-1](../adr/3.x/2026-07-30-1-consolidated-write-surface-and-consolidate-terminology.md), #3080 foundation). The bare word "merge" for lane consolidation is now a **legacy alias**: existing occurrences are grandfathered (not rewritten by this ADR), but NEW code, new symbols, and touched prose must say "consolidate" / "consolidation" for this sense (boyscouting, C-012). Existing public symbols (`spec-kitty merge`, `MergeState`, `baseline_merge_commit`, `consolidate_lane_into_mission`'s own name) are renamed only by the full #3080 rename, not by this entry. |
+| **Do NOT use when** | The concept is the `git merge` that integrates the mission branch into its target branch — use [Branch Integration / Git Merge](#branch-integration--git-merge). The concept is publishing merged work to `origin/main` — use [Publish to origin/main](#publish-to-originmain). Never write bare "merge"; name the operation. In NEW code or prose, prefer "consolidate" / "consolidation" over "merge" for this sense — see **Canonical term** above; a CI drift-ratchet guard (`tests/architectural/test_no_legacy_terminology.py`, `_LANE_CONSOLIDATION_FORBIDDEN_PHRASES`) blocks the specific legacy lane-plus-merge-verb phrasings from growing beyond their grandfathered baseline (FR-016). |
 | **Related terms** | [Branch Integration / Git Merge](#branch-integration--git-merge), [Publish to origin/main](#publish-to-originmain), [Merge target branch](#merge-target-branch), [Lane](#lane), [Topology Surface](#topology-surface) |
 
 ---
