@@ -34,7 +34,6 @@ if TYPE_CHECKING:
 
 __all__ = [
     "LifecyclePhase",
-    "LifecyclePhaseProbeError",
     "content_present_at_primary_tip",
     "resolve_lifecycle_phase",
 ]
