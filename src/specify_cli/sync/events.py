@@ -142,8 +142,34 @@ def _resolve_mission_id_for_slug(repo_root: Path | None, mission_slug: str | Non
 
 
 def _publish_event_via_sync_daemon(event: dict[str, Any], repo_root: Path | None) -> None:
-    """Best-effort real-time publish through the machine-global sync daemon."""
+    """Best-effort real-time publish through the machine-global sync daemon.
+
+    Consent-gated on the **event's own** ``project_uuid`` (#3030 FR-026). The two
+    pre-existing conditions are preconditions, not grants: ``repo_root`` establishes
+    that we are in *a* project (scope, not consent — and the daemon it relays to is
+    machine-global, so the project it publishes for need not be this one), and
+    ``is_saas_sync_enabled()`` is machine-global arming, which the spec states is never
+    a grant and which is the 2026-07-27 incident's own mechanism.
+
+    Twelve production callers reach this function — the eleven ``emit_*`` wrappers
+    below and the ``MissionCreated`` branch of ``_lifecycle_saas_fanout_handler`` in
+    ``sync/__init__.py`` — and every one of them receives its envelope from
+    ``EventEmitter._emit``, which returns the event whether or not its project
+    consented. Gating here covers all twelve at their single shared funnel.
+
+    The gate is deliberately also applied at the far end, inside
+    ``SyncRuntime.publish_event`` (the true egress point, which owns its own refusal).
+    Both sites call the same resolver, so this is not a second representation of
+    consent (C-003); it means a client engagement name never crosses the loopback
+    socket into a long-lived machine-global daemon that may be running an older build
+    than the CLI that is talking to it.
+    """
     if repo_root is None or not is_saas_sync_enabled():
+        return
+
+    from .runtime import event_project_consents_to_publish
+
+    if not event_project_consents_to_publish(event):
         return
 
     try:
