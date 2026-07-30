@@ -273,3 +273,71 @@ steady-state send — had it gated only the immediate send, it would have gated 
 and left the live one open. The gate's placement was correct for a reason nobody had
 established at the time it was written, which is worth recording as luck converted into
 evidence rather than as vindication.
+
+## The egress inventory was incomplete, and the mutants that proved M1-1 also proved a gap
+
+An independent re-review of the four consent-gate commits **approved all four** and then found
+two egress paths the dossier never named (FR-025, FR-026), plus FR-021's defect still open at
+field level (FR-027). Recording what generalises.
+
+**The bug class is narrower than "cwd" and wider than "the journal".** Every path found so far
+fails the same test: *does it reach a consent answer through something other than the data's
+own `project_uuid`?* FR-025 reaches it through `repo_root`; FR-026 through machine-global
+arming plus daemon scope. Neither involves cwd, and neither touches the journal — which is why
+searching for cwd-derived reads in `sync/` and `delivery/` could not have found them.
+`invocation/` was never searched because it was never listed.
+
+**`is False` is not `not`.** FR-025's guard reads `if sync_enabled is False: return`, and its
+resolver returns `None` for *both* "no resolver registered" and "the resolver raised". A
+tri-state where two of the three states mean "unknown" and the guard only tests one of them is
+FR-003's defect with different syntax. Worth grepping for as a pattern, not a one-off.
+
+**M1-1's two-place gate is vindicated by measurement, not argument.** Both sites call the same
+`_project_consents_to_capture` funnel, so there is one chain and C-003 holds; and `_route_event`
+composes them **conjunctively** (`drain_blocked_reason is None` AND consent), so any
+disagreement can only narrow egress, never widen it — structural rather than lucky. Both sites
+are load-bearing for *different* invariants: site 1 for the stored `drain_blocked_reason` column
+that `delivery/selection.py` treats as terminal, site 2 for the network. Proven by mutation:
+stripping site 1 leaves all 9 anchor pins green and is killed only by
+`test_lifecycle_readiness.py`; stripping site 2 is killed by 2 anchor pins with the leak text
+`published_uuids == [A,B,A,B]`.
+
+**An honest coverage gap inside a passing verdict:** M1-1's own anchor file does not pin site 1.
+That coverage lives in a file the commit only touched incidentally.
+
+## The `queue_event` precondition must be a test, because the existing guard is name-shaped
+
+The judgement that `queue_event` is not egress was independently re-verified — every live
+reader traced by hand (`sync diagnose` → local validation, `_unauthenticated_sync_result` →
+local classification, `drain_queue` non-mutating, `batch_sync`/`sync_all_queued_events` with
+zero callers in `src/`). The substance holds.
+
+The **enforcement** does not. `RETIRED_DRAIN_NAMES` is two literal names, probed directly
+against synthetic sources:
+
+| fed to `_offending_references` | result |
+|---|---|
+| `from .batch import batch_sync` | CAUGHT |
+| `batch_sync(queue=q)` | CAUGHT |
+| `queue.drain_queue(...)` then `urllib.request.urlopen(...)` | **MISSED** |
+| `for e in queue.drain_queue(...): await ws.send_event(e)` | **MISSED** |
+
+So the guard is non-vacuous for a *literal restoration* and blind to **any new queue-backed
+sender** — precisely the shape that flips the recorded precondition. Prose says "if a
+queue-backed sender is ever restored this must be gated first"; enforcement covers two names.
+It should key on `drain_queue`/`process_batch_results` readers reaching a network sink.
+
+## Nothing is currently decoration — verified file by file
+
+The filename-matched conftest guard was checked against **every** pin file rather than argued
+about. Protected by token: seven files. Unprotected but provably unmasked: `test_routing.py`
+(the fixture patches the `batch`/`runtime` re-exports, never `sync.routing`'s own function),
+`test_background_body.py` / `test_body_integration.py` (body path, not patched),
+`test_target_authority_wiring.py` (records real consent). Unprotected and steering its own
+predicate: `test_lifecycle_readiness.py` — proven live, it is what killed the site-1 mutant.
+`tests/specify_cli/sync/` is a different package the conftest does not reach.
+
+So the guard is a latent hazard, not an active one. The durable fix is to key on **what a test
+patches**, not on its filename — `test_events.py` already rides the blanket grant with 85
+suppressed installs, so a negative per-project publish pin added *there* later would be
+silently masked.
