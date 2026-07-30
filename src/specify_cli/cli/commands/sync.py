@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
     from specify_cli.event_journal.journal import EventJournal
     from specify_cli.sync.history_import import UploadReport
+    from specify_cli.sync.project_identity import IdentityBackfillResult
     from specify_cli.sync.migrate_journal import (
         CleanupResult,
         ConflictResolution,
@@ -1253,17 +1254,19 @@ def _per_project_store_issues(report: PerProjectStoreReport) -> list[str]:
             "The report is incomplete — do not trust it."
         )
     if report.unresolved_identity_count:
-        # Deliberately not "permanently undeliverable": `sync migrate` imports
-        # legacy queue rows with NULL identity columns, and
-        # ``sync.project_identity.backfill_journal_identity`` can still resolve
-        # those from the stored payload. Overstating it would send an operator to
-        # `purge` for rows that are recoverable. What IS permanent is that they
-        # cannot be SELECTED while the column is NULL (FR-011, fail-closed).
+        # Deliberately not "permanently undeliverable", and no longer pointing at
+        # `purge` as the only remedy. Since #3030 H4 wired the identity backfill
+        # into `sync migrate`, rows whose stored envelope carries a resolvable uuid
+        # ARE recoverable, and for the operator's own consenting project that is the
+        # difference between their history shipping and being stranded forever.
+        # Sending them to `purge` would destroy recoverable data. What is permanent
+        # is only that a NULL row cannot be SELECTED (FR-011, fail-closed).
         issues.append(
             f"{report.unresolved_identity_count} journal event(s) have no stored "
-            "project identity, so they can never be selected for delivery. They "
-            "are retained locally; `spec-kitty sync purge` is the only way to "
-            "remove them."
+            "project identity, so they cannot be selected for delivery. Run "
+            "`spec-kitty sync migrate` to recover the identity of any whose stored "
+            "payload still carries it; whatever remains is retained locally and "
+            "removable only with `spec-kitty sync purge`."
             + _unresolved_origin_clause(report)
         )
     # NAMED refusals only. The unresolved-identity bucket is also
@@ -1447,6 +1450,85 @@ def _render_per_project_store(console_out: Any, issues: list[str]) -> None:
     # events retained". That is the same three-states-look-alike failure the
     # docstring above is about, one branch further in.
     issues.extend(_per_project_store_issues(report))
+
+
+def _print_identity_backfill_result(result: IdentityBackfillResult | None) -> None:
+    """Report what convergence recovered into the identity columns (#3030 H4).
+
+    Printed unconditionally, including the zero case, because "nothing needed
+    recovering" and "the backfill did not run" must not look alike — that
+    equivalence is what let the backfill sit unwired with every test green.
+    """
+    if result is None:
+        console.print(
+            "[yellow]![/yellow] The journal identity backfill could not run, so "
+            "rows with no stored identity remain unselectable. Re-run "
+            "`spec-kitty sync migrate`; if it persists, `spec-kitty sync doctor` "
+            "reports how many rows are affected."
+        )
+        return
+    console.print(
+        f"Journal identity: recovered {result.updated}  "
+        f"[dim]unresolvable {result.unresolved}[/dim]"
+    )
+    if result.unresolved:
+        # Not an error, and deliberately not phrased as one: these rows are
+        # fail-closed by design (FR-011). What matters is that they are visible.
+        console.print(
+            f"  [dim]{result.unresolved} row(s) carry no resolvable project "
+            "identity in their stored payload; they stay unselectable rather than "
+            "being assigned one.[/dim]"
+        )
+
+
+def _run_consent_index_backfill() -> None:
+    """Map path-keyed consent records onto the uuid index (#3030 H4, T016).
+
+    Opt-in via ``sync migrate --backfill-consent-index``, and gated for a specific
+    reason rather than caution: the uuid index is consulted at level 2, ABOVE the
+    repo default at level 3, so moving a path record into it can change a project's
+    effective answer — a project currently denied by a repo default becomes granted.
+    A migration that silently flipped delivery on is precisely the invisible consent
+    change this mission exists to eliminate, so the operator asks for it and every
+    change is named.
+
+    Also the only surface on which WP07's ``unresolved``-consent rows are reachable:
+    the result object carries the entries whose checkout no longer resolves to a
+    uuid, which is US2 scenario 3's "consented but unresolvable" population.
+    """
+    from specify_cli.sync.consent import backfill_uuid_consent_index
+
+    console.print()
+    console.print("[bold]Consent index backfill[/bold]")
+    try:
+        result = backfill_uuid_consent_index()
+    except Exception as exc:  # noqa: BLE001 - reported, never fatal to the migration
+        console.print(
+            f"  [yellow]![/yellow] could not be completed: {exc}. Path-keyed "
+            "records remain in place and the drain still cannot see them."
+        )
+        return
+
+    console.print(f"  mapped {result.mapped}  unresolved {result.unresolved}")
+    if result.mapped:
+        console.print(
+            "  [dim]Consent for these projects is now visible to the drain's "
+            "uuid-keyed lookup:[/dim]"
+        )
+        from specify_cli.sync.config import SyncConfig
+
+        for uuid, granted in sorted(SyncConfig().get_all_project_consent().items()):
+            state = "[green]consented[/green]" if granted else "[red]opted out[/red]"
+            console.print(f"    {uuid}  {state}")
+    for entry in result.unresolved_entries:
+        # US2 scenario 3: the decision is retained, but the predicate cannot see
+        # it, so reported state must not imply it is enforced.
+        state = "consented" if entry.enabled else "opted out"
+        console.print(
+            f"  [yellow]unresolved[/yellow] {entry.path} [dim]({state} here, but "
+            "this checkout no longer declares a project uuid, so the drain cannot "
+            "apply it)[/dim]"
+        )
 
 
 def _render_migrated_composition(
@@ -2741,6 +2823,16 @@ def migrate(
             "Explicit operator recovery; never overwrites the journal."
         ),
     ),
+    backfill_consent_index: bool = typer.Option(
+        False,
+        "--backfill-consent-index",
+        help=(
+            "Also map path-keyed consent records onto the uuid-keyed index the "
+            "drain reads. WRITES machine-global consent records, and the uuid "
+            "index outranks a repo default — so this can change a project's "
+            "effective answer. Opt-in for that reason; every change is listed."
+        ),
+    ),
 ) -> None:
     """Migrate legacy hash-scoped queue DBs into the append-only event journal.
 
@@ -2760,6 +2852,20 @@ def migrate(
     the audit quarantine and the source row removed, so the boundary can
     converge. The journal is never overwritten. Exits non-zero when unresolved
     conflicts still block cleanup (SC-011).
+
+    Convergence also projects each row's stored identity into the journal's
+    ``project_uuid``/``project_slug``/``repo_slug`` columns (#3030 H4). A row with a
+    NULL ``project_uuid`` is permanently unselectable, so before this ran every
+    pre-mission row — including the operator's own consenting project's history —
+    was undeliverable forever. Identity is only recovered from the row's own stored
+    envelope, never invented, so a row that carries none stays NULL and stays
+    unselectable.
+
+    ``--backfill-consent-index`` additionally maps path-keyed consent records onto
+    the uuid index. That one is opt-in because it writes machine-global consent
+    state and the uuid index outranks a repo default, so it can flip a project from
+    denied to delivering; every mapped project and every unresolvable record is
+    listed.
 
     Examples:
         spec-kitty sync migrate
@@ -2802,6 +2908,9 @@ def migrate(
             audit.close()
         runtime.close()
     _print_migration_result(converge.migration)
+    _print_identity_backfill_result(converge.identity_backfill)
+    if backfill_consent_index:
+        _run_consent_index_backfill()
     _render_migrated_composition(moved_journal, moved_event_ids)
     if converge.resolution is not None:
         _print_resolution_result(converge.resolution)
