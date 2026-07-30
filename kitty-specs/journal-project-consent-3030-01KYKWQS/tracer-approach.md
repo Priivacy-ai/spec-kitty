@@ -44,3 +44,44 @@ unconditional, or selection without identity). Each was given a consented identi
 and kept asserting what it always did; the non-consenting halves are pinned
 separately. Two tests were deleted outright because their contract was removed, not
 changed (event→body drain ordering, and the "events failed, skip bodies" gate).
+
+## Pre-PR landing check (2026-07-30)
+
+Done **before** the agents finished, so the merge is not a surprise at PR time.
+
+- **Base is `origin/main`** (repo default; recent PRs all target it). Branch is **211 ahead, 51
+  behind** and main is still moving.
+- **Main touches none of this mission's packages** — no `sync/`, `delivery/`, `identity/`,
+  `invocation/`, `tracker/`, `saas_client/`. Its diff is docs, ADRs, other missions' dossiers,
+  and three files that do overlap.
+- **`.github/workflows/ci-quality.yml`** — main added `src/specify_cli/tasks/**` to the
+  `closeout` filter group; we added `src/specify_cli/identity/**` to `platform`. Different
+  groups, different hunks.
+- **`tests/architectural/_gate_coverage.py` + `ci_topology_census.json`** — **both branches
+  changed the same derived artifact.** Main routed `tasks` → `closeout`/`misc`; we routed
+  `identity` → `platform`/`specify-cli-rest`. Each regenerated the census independently, so both
+  committed a 35-entry file derived from a *different* 35.
+
+That last one is the hazard this mission already learned the expensive way (N2: a clean textual
+merge that linted, carried no conflict markers, and crashed at runtime). A derived artifact merged
+textually can end up matching **neither** derivation. So it was checked semantically rather than
+trusted:
+
+```
+merged tree: entries 36 | identity present: True | tasks present: True
+             unrouted: none | sorted correctly: True
+_COMPOSITE_ROUTING in merged tree: both entries present
+```
+
+Both additions survive, the merged census matches the merged derivation, and nothing is unrouted.
+**Still regenerate with `--emit-census` after the actual merge and confirm it is a no-op** — the
+check above verifies the tree git *would* produce, not that a human resolving a later conflict
+reproduces it.
+
+## One incidental finding that bears on the canary
+
+This repository's own `.kittify/config.yaml` has **no `sync:` section**, so its project-local
+consent reads as **absent** — which under FR-002/FR-003 means **deny**. Anyone planning the live
+two-project canary (WP10/SC-008) should know the host repo starts from default-deny, and that a
+grant has to be recorded deliberately rather than assumed present. That is the correct posture,
+and it is also exactly the state the incident's five victim projects were in.
