@@ -1,19 +1,35 @@
-"""Invocation adapter registry for sync-routing and SaaS-client seams.
+"""Invocation adapter registry for egress-consent and SaaS-client seams.
 
 Provides a decoupled resolver boundary so that invocation/propagator.py
 does not need to depend on the sync package.  The sync package registers
 its concrete implementations at startup; sync -> invocation.adapters is
 the clean dependency direction.
 
-All dispatch functions are non-raising: when no implementation is
-registered, or when a registered implementation raises, the function
-returns ``None`` (safe-degrade).  An unregistered registry is a no-op.
+The dispatch functions are non-raising, but "non-raising" is not the same
+as "safe": what a failed lookup *degrades to* is the whole question, and
+one of these two seams guards a confidentiality boundary while the other
+does not.
+
+* :func:`get_saas_client` degrades to ``None``, which means "no transport"
+  — nothing can leave, so absence is safe.
+* :func:`resolve_egress_consent` degrades to a **refusal**.  It used to be
+  ``resolve_sync_routing``, returning ``bool | None`` where ``None`` meant
+  both "no resolver registered" *and* "the registered resolver raised";
+  the propagator then tested ``if answer is False: return``, so both
+  undetermined cases were read as permission to send.  Measured on
+  2026-07-30 with no consent record anywhere: a ``repo_root`` that is not a
+  project root sent one envelope carrying ``request_text`` verbatim, and so
+  did a resolver that raised (#3030 FR-025).  The tri-state is gone: the
+  seam now answers with :class:`EgressConsent`, only ``GRANTED`` permits
+  egress, and the two undetermined causes are distinguishable for
+  diagnosis while both refuse.
 
 Mirrors the ``status/adapters.py`` idiom (C-007, FR-008).
 """
 
 from __future__ import annotations
 
+import enum
 import logging
 from collections.abc import Callable
 from pathlib import Path
@@ -21,11 +37,48 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
+class EgressConsent(enum.Enum):
+    """Whether an Op recorded in a checkout may be transmitted off the machine.
+
+    Four members rather than a boolean or a ``bool | None``, because the
+    caller's decision must be impossible to spell wrongly.  ``None`` carried two
+    unrelated meanings and the guard tested only one of them; here every member
+    is asked the same question — :attr:`permits_egress` — and only one answers
+    yes.  The two undetermined members stay separate because they need different
+    operator responses (load a package vs. fix a fault), not because they differ
+    in verdict: neither is consent (FR-003's rule, re-derived here because this
+    path never called ``is_sync_enabled_for_checkout``).
+    """
+
+    #: The project that owns the checkout has consented to hosted sync.
+    GRANTED = "granted"
+    #: A consent decision exists and it is a refusal (or the project could not be
+    #: identified, which is permanently non-consentable — NFR-001).
+    DENIED = "denied"
+    #: No resolver is registered: the INTEGRATION sync package was never loaded.
+    #: Costless to refuse — without sync there is also no client to send through.
+    NO_RESOLVER = "no_resolver"
+    #: The registered resolver raised, or answered with something that is not a
+    #: bool.  Consent could not be determined, so it was not given.
+    UNANSWERABLE = "unanswerable"
+
+    @property
+    def permits_egress(self) -> bool:
+        """True only for :attr:`GRANTED`.
+
+        The single place this verdict is turned into a branch.  Callers must ask
+        this rather than comparing against a member, so that adding a future
+        member cannot silently widen egress.
+        """
+        return self is EgressConsent.GRANTED
+
+
 # Single-slot registries — the sync package registers one concrete
 # implementation per slot at startup.  Using ``None`` as the sentinel
 # means "no implementation registered" which is the correct initial
 # state for CORE modules that are loaded before INTEGRATION packages.
-_sync_routing_resolver: Callable[[Path], bool | None] | None = None
+_egress_consent_resolver: Callable[[Path], bool] | None = None
 _saas_client_factory: Callable[[Path], Any | None] | None = None
 
 
@@ -46,10 +99,16 @@ def _callable_key(fn: Callable[..., Any]) -> str:
     return repr(fn)
 
 
-def register_sync_routing_resolver(
-    fn: Callable[[Path], bool | None],
+def register_egress_consent_resolver(
+    fn: Callable[[Path], bool],
 ) -> None:
-    """Register the sync-routing resolver (idempotent by qualified name).
+    """Register the egress-consent resolver (idempotent by qualified name).
+
+    The resolver is asked "does the project that owns this checkout consent to
+    hosted sync?" and must answer with a bool.  It is *not* asked "is sync
+    configured for this checkout" — that question was what this slot used to
+    hold, and answering it is how one project's Ops travelled under another
+    project's configuration (#3030 FR-025).
 
     Called once at sync package startup.  Re-registration of a callable
     with the same ``__qualname__`` replaces the existing entry, so that
@@ -58,14 +117,14 @@ def register_sync_routing_resolver(
     Not thread-safe by design (registration runs before concurrent
     access begins).
     """
-    global _sync_routing_resolver  # noqa: PLW0603
+    global _egress_consent_resolver  # noqa: PLW0603
     new_key = _callable_key(fn)
-    if _sync_routing_resolver is not None:
-        existing_key = _callable_key(_sync_routing_resolver)
+    if _egress_consent_resolver is not None:
+        existing_key = _callable_key(_egress_consent_resolver)
         if existing_key == new_key:
-            _sync_routing_resolver = fn
+            _egress_consent_resolver = fn
             return
-    _sync_routing_resolver = fn
+    _egress_consent_resolver = fn
 
 
 def register_saas_client_factory(
@@ -86,25 +145,44 @@ def register_saas_client_factory(
     _saas_client_factory = fn
 
 
-def resolve_sync_routing(path: Path) -> bool | None:
-    """Dispatch to the registered sync-routing resolver.
+def resolve_egress_consent(path: Path) -> EgressConsent:
+    """Ask the registered resolver whether *path*'s project consents to egress.
 
-    Returns the resolver's result, or ``None`` when:
-    - no resolver has been registered (safe-degrade on missing sync package), or
-    - the registered resolver raises any exception.
+    Never raises, and never degrades to permission:
 
-    Never raises.
+    - no resolver registered → :attr:`EgressConsent.NO_RESOLVER`
+    - resolver raised → :attr:`EgressConsent.UNANSWERABLE`
+    - resolver answered with a non-bool → :attr:`EgressConsent.UNANSWERABLE`
+      (this catches a resolver written against the retired ``bool | None``
+      contract: returning ``None`` used to mean "proceed" and must not silently
+      keep meaning that)
+    - ``True`` / ``False`` → :attr:`EgressConsent.GRANTED` / :attr:`DENIED`
+
+    A raising resolver is logged at WARNING, not DEBUG.  It is not routine
+    degradation: some project's audit trail is being dropped, and #3030 FR-023
+    counted five distinct config shapes that make the consent chain raise.
     """
-    if _sync_routing_resolver is None:
-        return None
+    if _egress_consent_resolver is None:
+        return EgressConsent.NO_RESOLVER
     try:
-        return _sync_routing_resolver(path)
+        answer = _egress_consent_resolver(path)
     except Exception:  # noqa: BLE001
-        logger.debug(
-            "sync-routing resolver raised; safe-degrading to None",
+        logger.warning(
+            "egress-consent resolver raised for %s; refusing to propagate (consent could not be determined, which is not consent)",
+            path,
             exc_info=True,
         )
-        return None
+        return EgressConsent.UNANSWERABLE
+    if answer is True:
+        return EgressConsent.GRANTED
+    if answer is False:
+        return EgressConsent.DENIED
+    logger.warning(
+        "egress-consent resolver returned %r (not a bool) for %s; refusing to propagate",
+        answer,
+        path,
+    )
+    return EgressConsent.UNANSWERABLE
 
 
 def get_saas_client(path: Path) -> Any | None:
@@ -134,6 +212,6 @@ def reset_adapters() -> None:
     Call only from test teardown to prevent state bleed between tests.
     Production code must never call this.
     """
-    global _sync_routing_resolver, _saas_client_factory  # noqa: PLW0603
-    _sync_routing_resolver = None
+    global _egress_consent_resolver, _saas_client_factory  # noqa: PLW0603
+    _egress_consent_resolver = None
     _saas_client_factory = None

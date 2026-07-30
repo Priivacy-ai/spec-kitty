@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.invocation.adapters import get_saas_client as _get_saas_client_from_seam
-from specify_cli.invocation.adapters import resolve_sync_routing
+from specify_cli.invocation.adapters import resolve_egress_consent
 from specify_cli.invocation.projection_policy import EventKind, ModeOfWork, resolve_projection
 from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent
 
@@ -76,19 +76,44 @@ def _propagate_one(record: OpEvent, repo_root: Path) -> None:
     Call pattern mirrors src/specify_cli/sync/emitter.py lines 993-1000.
 
     Check ordering (invariant — do not reorder):
-      1. Sync-gate (routing.effective_sync_enabled=False → early return)
+      1. Consent gate (anything other than GRANTED → early return)
       2. Auth/client lookup (_get_saas_client returns None → early return)
       3. Policy lookup (resolve_projection → project=False → early return)
       4. Envelope build + send
     """
-    # 1. Sync-gate: LOCAL-FIRST invariant (C-002, FR-012). Must remain first.
-    # resolve_sync_routing returns bool | None via the invocation adapter seam:
-    #   None  → no resolver registered (safe-degrade, proceed)
-    #   True  → sync explicitly enabled (proceed)
-    #   False → sync explicitly disabled (early return, no-op)
-    sync_enabled = resolve_sync_routing(repo_root)
-    if sync_enabled is False:
-        return  # Sync explicitly disabled for this checkout → no-op
+    # 1. Consent gate: LOCAL-FIRST invariant (C-002, FR-012) and the
+    # confidentiality boundary itself (#3030 FR-025). Must remain first — it is a
+    # purely local read, so nothing touches auth or the network ahead of it.
+    #
+    # This gate used to ask the adapter seam whether *sync was enabled for this
+    # checkout* and skip only on an explicit ``is False``. Two things were wrong
+    # with that, and they compounded:
+    #
+    #   (a) ``repo_root`` answers "which checkout am I in", never "may this
+    #       project's data leave". The seam now resolves the owning project's
+    #       uuid and puts it through the one consent funnel
+    #       (``sync.consent.consented_project_uuids``), the same funnel the drain
+    #       and the emitter use (C-003 — one representation of one invariant).
+    #
+    #   (b) "Could not determine" was spelled the same way as "no resolver
+    #       registered" (both ``None``) and the ``is False`` test read both as
+    #       permission. Measured with no consent record anywhere: a repo_root
+    #       that is not a project root sent one envelope with ``request_text``
+    #       — the verbatim agent prompt — and a resolver that raised sent the
+    #       same one. Neither needed a fault in the consent chain to reach it.
+    #
+    # ``EgressConsent.permits_egress`` is now the only way to spell the decision,
+    # and it is true for exactly one member. Refusing when no resolver is
+    # registered costs nothing: without the sync package there is no client to
+    # send through either, so step 2 already ended in a no-op.
+    consent = resolve_egress_consent(repo_root)
+    if not consent.permits_egress:
+        logger.debug(
+            "Op propagation withheld for %s: egress consent is %s",
+            repo_root,
+            consent.value,
+        )
+        return
 
     # 2. Auth/client lookup. Must remain second.
     client = _get_saas_client(repo_root)
@@ -96,9 +121,9 @@ def _propagate_one(record: OpEvent, repo_root: Path) -> None:
         return  # No SaaS token / client not connected → no-op, no log
 
     # 3. Policy lookup (read-only, never raises, never blocks).
-    event_kind = _coerce_event_kind(record.event)
-    mode = _coerce_mode(getattr(record, "mode_of_work", None))
-    rule = resolve_projection(mode, event_kind)
+    rule = _projection_rule_for(record)
+    if rule is None:
+        return  # Record could not be classified → no policy row → no projection.
     if not rule.project:
         return  # Policy says no projection for this (mode, event) pair.
 
@@ -123,25 +148,53 @@ def _propagate_one(record: OpEvent, repo_root: Path) -> None:
     #       ...and consult rule.project before calling client.send_event.
 
 
-def _coerce_event_kind(raw_event: str) -> EventKind:
-    try:
-        return EventKind(raw_event)
-    except ValueError:
-        # Unknown event kind (e.g., future EventKind added before table extended).
-        # Use STARTED as the conservative fallback so resolve_projection returns
-        # _DEFAULT_RULE (project=True), which preserves existing behaviour.
-        return EventKind.STARTED
+def _projection_rule_for(record: OpEvent) -> Any | None:
+    """Resolve the projection rule for *record*, or ``None`` if it cannot be classified.
 
+    ``None`` means "this record's policy row is unknown", and the caller drops the
+    record rather than projecting it. That is a behaviour change from the two
+    coercions this replaced, both of which resolved an *unintelligible* value to the
+    most permissive rule available — an unknown ``event`` became ``STARTED`` and a
+    malformed ``mode_of_work`` became ``None``, and both land on a rule with
+    ``project=True, include_request_text=True``. Same shape as FR-025's guard: a
+    value meaning "unknown" was spelled the same way as a definite answer, and the
+    definite answer it borrowed was the permissive one. Reachable only through a
+    schema change (the models validate both fields against Literals today), which
+    is exactly when nobody is looking.
 
-def _coerce_mode(raw_mode: str | None) -> ModeOfWork | None:
-    if not raw_mode:
-        return None
+    **Absence is not malformation, and the two must not re-collapse.**
+    ``OpCompletedEvent`` carries no ``mode_of_work`` at all, and neither do pre-v2
+    records; those keep the documented legacy default (``None`` → treated as
+    ``TASK_EXECUTION`` by ``resolve_projection``). Refusing on absence instead would
+    silently stop propagating every completed event — a fail-closed answer to a
+    question nobody asked.
+    """
     try:
-        return ModeOfWork(raw_mode)
+        event_kind = EventKind(record.event)
     except ValueError:
-        # Malformed mode_of_work on the record. Treat as None (legacy) rather than
-        # crashing the background propagation thread silently.
+        logger.warning(
+            "Op %s has an unrecognised event kind %r; not projecting it "
+            "(no projection-policy row applies)",
+            record.invocation_id,
+            record.event,
+        )
         return None
+
+    raw_mode = getattr(record, "mode_of_work", None)
+    if raw_mode is None or raw_mode == "":
+        # Absent: legacy records and every OpCompletedEvent. Documented default.
+        return resolve_projection(None, event_kind)
+    try:
+        mode = ModeOfWork(raw_mode)
+    except ValueError:
+        logger.warning(
+            "Op %s declares an unrecognised mode_of_work %r; not projecting it "
+            "(the record's disclosure policy cannot be determined)",
+            record.invocation_id,
+            raw_mode,
+        )
+        return None
+    return resolve_projection(mode, event_kind)
 
 
 def _build_event_dict(

@@ -1,15 +1,20 @@
-"""Tests for the effective_sync_enabled gate in _propagate_one().
+"""Tests for the consent gate in _propagate_one() — check ordering and no-raise.
 
 Verifies:
-- When sync is disabled, _get_saas_client is never called (T002)
-- When sync is enabled, _get_saas_client is called (T003)
+- When consent is granted, _get_saas_client is called (T003)
 - A SaaS client exception does not propagate out of _propagate_one (T004)
 
-Updated for Leak #3 fix (WP01 integration-boundary mission): propagator now
-routes through ``resolve_sync_routing`` from the invocation adapter seam rather
-than importing ``resolve_checkout_sync_routing`` directly from the sync package.
-The resolver now returns ``bool | None`` instead of a ``CheckoutSyncRouting``
-object; these tests patch the seam accordingly.
+Updated for Leak #3 fix (WP01 integration-boundary mission): propagator routes
+through the invocation adapter seam rather than importing
+``resolve_checkout_sync_routing`` directly from the sync package.
+
+Updated again for #3030 FR-025: the seam answers ``EgressConsent`` — "may this
+project's data leave" — instead of ``bool | None`` "is sync enabled for this
+checkout". The tri-state is gone because the propagator's ``is False`` test read
+its ``None`` (no resolver / resolver raised) as permission to send. The verdicts
+the *gate* produces are pinned in ``test_propagator_consent_gate_3030.py``,
+against the real sync-side resolver; these two patch the seam so they can isolate
+the check ORDER, which is a different property.
 """
 
 from __future__ import annotations
@@ -19,6 +24,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from specify_cli.invocation.adapters import EgressConsent
 from specify_cli.invocation.propagator import _propagate_one
 from specify_cli.invocation.record import OpStartedEvent
 
@@ -45,28 +51,30 @@ def _make_started_record() -> OpStartedEvent:
 
 
 # ---------------------------------------------------------------------------
-# T003 — sync enabled proceeds to auth gate
+# T003 — granted consent proceeds to the auth gate
 # ---------------------------------------------------------------------------
 
 
-def test_local_sync_enabled_proceeds_to_auth_gate(tmp_path: Path) -> None:
-    """When sync is enabled, _propagate_one proceeds to the SaaS client check.
+def test_granted_consent_proceeds_to_auth_gate(tmp_path: Path) -> None:
+    """When the project consents, _propagate_one proceeds to the SaaS client check.
 
-    The seam now returns ``bool | None``; True means sync is enabled, so the
-    sync-gate does NOT fire and _get_saas_client is called.
+    GRANTED is the one verdict that does not fire the gate, so _get_saas_client is
+    reached. Its converse — that every other verdict stops here — is pinned in
+    ``test_propagator_consent_gate_3030.py`` on the payload rather than on this
+    call, because a gate can be reached and still send.
     """
     record = _make_started_record()
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_sync_routing",
-        return_value=True,  # sync explicitly enabled
+        "specify_cli.invocation.propagator.resolve_egress_consent",
+        return_value=EgressConsent.GRANTED,  # the project consents
     ):
         with patch(
             "specify_cli.invocation.propagator._get_saas_client",
             return_value=None,  # auth not connected → returns None, no emit, but gate was reached
         ) as mock_client:
             _propagate_one(record, tmp_path)
-            mock_client.assert_called_once_with(tmp_path)  # key: sync-gate was NOT hit
+            mock_client.assert_called_once_with(tmp_path)  # key: consent gate was NOT hit
 
 
 # ---------------------------------------------------------------------------
@@ -81,8 +89,8 @@ def test_saas_exception_does_not_raise(tmp_path: Path) -> None:
     mock_client.send_event = MagicMock(side_effect=RuntimeError("network timeout"))
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_sync_routing",
-        return_value=True,  # sync explicitly enabled
+        "specify_cli.invocation.propagator.resolve_egress_consent",
+        return_value=EgressConsent.GRANTED,  # the project consents
     ):
         with patch(
             "specify_cli.invocation.propagator._get_saas_client",

@@ -1,8 +1,16 @@
 """Unit tests for specify_cli.invocation.adapters.
 
-Covers the safe-degrade contract (unregistered → None), the register/
-dispatch round-trip, idempotency by qualified name, exception suppression,
-and the propagator safe-degrade behaviour when the seam is unregistered.
+Covers the two seams' *different* degradation contracts, the register/dispatch
+round-trip, idempotency by qualified name, and exception suppression.
+
+The two seams degrade differently on purpose (#3030 FR-025). ``get_saas_client``
+degrades to ``None`` — no transport, so nothing can leave. The consent seam
+degrades to a **refusal**: it used to return ``bool | None`` where ``None`` meant
+both "unregistered" and "the resolver raised", and the propagator tested
+``is False``, so both undetermined cases were read as permission to transmit.
+Every verdict here is asserted through ``permits_egress``, the one property the
+propagator branches on, because asserting the member alone would not catch a
+member that starts permitting egress.
 """
 
 from __future__ import annotations
@@ -15,11 +23,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from specify_cli.invocation.adapters import (
+    EgressConsent,
     get_saas_client,
+    register_egress_consent_resolver,
     register_saas_client_factory,
-    register_sync_routing_resolver,
     reset_adapters,
-    resolve_sync_routing,
+    resolve_egress_consent,
 )
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -39,14 +48,20 @@ def _clean_adapters() -> None:  # type: ignore[return]
 
 
 # ---------------------------------------------------------------------------
-# resolve_sync_routing — safe-degrade when no resolver is registered
+# resolve_egress_consent — an unanswered question is not consent
 # ---------------------------------------------------------------------------
 
 
-def test_resolve_sync_routing_returns_none_when_unregistered() -> None:
-    """Dispatching with no registered resolver must return None."""
-    result = resolve_sync_routing(_DUMMY_PATH)
-    assert result is None
+def test_resolve_egress_consent_refuses_when_unregistered() -> None:
+    """No registered resolver must NOT permit egress.
+
+    Distinguishable from a fault (``NO_RESOLVER`` names the cause: the sync
+    package was never loaded) but identical in verdict.
+    """
+    result = resolve_egress_consent(_DUMMY_PATH)
+
+    assert result is EgressConsent.NO_RESOLVER
+    assert result.permits_egress is False
 
 
 # ---------------------------------------------------------------------------
@@ -61,28 +76,57 @@ def test_get_saas_client_returns_none_when_unregistered() -> None:
 
 
 # ---------------------------------------------------------------------------
-# register_sync_routing_resolver — dispatch round-trip
+# register_egress_consent_resolver — dispatch round-trip
 # ---------------------------------------------------------------------------
 
 
-def test_resolve_sync_routing_calls_registered_resolver() -> None:
-    """After registration the resolver is called with the path and result is returned."""
+def test_resolve_egress_consent_grants_from_registered_resolver() -> None:
+    """A resolver answering True is the ONE verdict that permits egress."""
     mock_resolver = MagicMock(return_value=True)
-    register_sync_routing_resolver(mock_resolver)
+    register_egress_consent_resolver(mock_resolver)
 
-    result = resolve_sync_routing(_DUMMY_PATH)
+    result = resolve_egress_consent(_DUMMY_PATH)
 
     mock_resolver.assert_called_once_with(_DUMMY_PATH)
-    assert result is True
+    assert result is EgressConsent.GRANTED
+    assert result.permits_egress is True
 
 
-def test_resolve_sync_routing_returns_false_from_resolver() -> None:
-    """A resolver returning False signals sync explicitly disabled."""
-    register_sync_routing_resolver(lambda _path: False)
+def test_resolve_egress_consent_denies_from_registered_resolver() -> None:
+    """A resolver answering False is an explicit refusal."""
+    register_egress_consent_resolver(lambda _path: False)
 
-    result = resolve_sync_routing(_DUMMY_PATH)
+    result = resolve_egress_consent(_DUMMY_PATH)
 
-    assert result is False
+    assert result is EgressConsent.DENIED
+    assert result.permits_egress is False
+
+
+def test_resolve_egress_consent_refuses_a_none_answer() -> None:
+    """A resolver written against the RETIRED ``bool | None`` contract refuses.
+
+    ``None`` was the value that meant "proceed" at the old call site. A resolver
+    that survives a rewrite and keeps returning it must not keep meaning that —
+    the seam cannot tell an obsolete resolver from a broken one, and neither is
+    consent.
+    """
+    register_egress_consent_resolver(lambda _path: None)  # type: ignore[arg-type,return-value]
+
+    result = resolve_egress_consent(_DUMMY_PATH)
+
+    assert result is EgressConsent.UNANSWERABLE
+    assert result.permits_egress is False
+
+
+def test_only_granted_permits_egress() -> None:
+    """Exactly one member of the enum permits egress — the whole point of it.
+
+    Iterates the enum rather than listing members, so a member added later is
+    covered by this assertion instead of quietly defaulting to permitted.
+    """
+    permitting = [member for member in EgressConsent if member.permits_egress]
+
+    assert permitting == [EgressConsent.GRANTED]
 
 
 # ---------------------------------------------------------------------------
@@ -107,15 +151,15 @@ def test_get_saas_client_calls_registered_factory() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_register_sync_routing_resolver_idempotent_by_qualname() -> None:
+def test_register_egress_consent_resolver_idempotent_by_qualname() -> None:
     """Re-registering a resolver with the same qualname replaces it."""
     call_log: list[str] = []
 
-    def _resolver_v1(path: Path) -> bool | None:  # noqa: ARG001
+    def _resolver_v1(path: Path) -> bool:  # noqa: ARG001
         call_log.append("v1")
         return True
 
-    def _resolver_v2(path: Path) -> bool | None:  # noqa: ARG001
+    def _resolver_v2(path: Path) -> bool:  # noqa: ARG001
         call_log.append("v2")
         return False
 
@@ -123,10 +167,10 @@ def test_register_sync_routing_resolver_idempotent_by_qualname() -> None:
     _resolver_v2.__qualname__ = _resolver_v1.__qualname__
     _resolver_v2.__module__ = _resolver_v1.__module__
 
-    register_sync_routing_resolver(_resolver_v1)
-    register_sync_routing_resolver(_resolver_v2)
+    register_egress_consent_resolver(_resolver_v1)
+    register_egress_consent_resolver(_resolver_v2)
 
-    resolve_sync_routing(_DUMMY_PATH)
+    resolve_egress_consent(_DUMMY_PATH)
 
     # Only v2 (the replacement) should have been called
     assert call_log == ["v2"]
@@ -156,21 +200,28 @@ def test_register_saas_client_factory_idempotent_by_qualname() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Exception suppression — a raising handler degrades to None
+# Exception suppression — a raising handler degrades, but never to permission
 # ---------------------------------------------------------------------------
 
 
-def test_resolve_sync_routing_returns_none_on_resolver_exception() -> None:
-    """An exception in the resolver is caught; dispatch returns None."""
+def test_resolve_egress_consent_refuses_on_resolver_exception() -> None:
+    """A raising resolver is caught AND refused.
 
-    def _exploding_resolver(_path: Path) -> bool | None:
+    The measured half of FR-025 that needed no bad configuration to reach: five
+    ``config.yaml`` shapes (FR-023) make the consent chain raise, and the raise
+    used to land on the same ``None`` as "no resolver", which the propagator sent
+    through.
+    """
+
+    def _exploding_resolver(_path: Path) -> bool:
         raise RuntimeError("boom")
 
-    register_sync_routing_resolver(_exploding_resolver)
+    register_egress_consent_resolver(_exploding_resolver)
 
-    result = resolve_sync_routing(_DUMMY_PATH)
+    result = resolve_egress_consent(_DUMMY_PATH)
 
-    assert result is None
+    assert result is EgressConsent.UNANSWERABLE
+    assert result.permits_egress is False
 
 
 def test_get_saas_client_returns_none_on_factory_exception() -> None:
@@ -194,10 +245,11 @@ def test_get_saas_client_returns_none_on_factory_exception() -> None:
 def test_propagator_safe_degrades_when_seam_unregistered(tmp_path: Path) -> None:
     """propagator._propagate_one must not raise when no adapters are registered.
 
-    With no resolver or factory registered both dispatch calls return None,
-    and _propagate_one should perform an early return at the sync-gate step
-    (resolve_sync_routing returns None → not False → gate does not fire;
-    _get_saas_client returns None → auth-gate fires → early return).
+    With nothing registered the consent gate answers ``NO_RESOLVER`` and fires
+    first, so no client lookup and no send happens. (Before FR-025 this early
+    return came from the *auth* gate instead: the consent gate did not fire,
+    because an unregistered seam was read as permission — a no-op that depended
+    on there being no transport rather than on there being no consent.)
     This test imports propagator directly to verify the wiring without
     requiring the sync package.
     """
@@ -304,35 +356,110 @@ def test_registered_saas_factory_returns_existing_client_when_connected(
     assert result is mock_ws
 
 
-def test_registered_routing_resolver_returns_none_for_non_project_path(
+def test_registered_consent_resolver_denies_non_project_path(
     _registered_sync_handlers: None,
 ) -> None:
-    """resolve_sync_routing returns None cleanly for a non-project path.
+    """A path that is no project denies cleanly — as DENIED, not as a fault.
 
-    Previously the lambda called .effective_sync_enabled on a None result,
-    raising AttributeError which was swallowed with exc_info=True — a spurious
-    DEBUG traceback on every normal non-project path traversal.
+    Answered with a plain ``False`` rather than by raising or returning ``None``:
+    the ordinary non-project traversal is not a fault and must not land on the
+    fault log, while still refusing. This is the case the leak was measured on —
+    it needs no bad configuration anywhere, only a ``repo_root`` that is not a
+    project root.
     """
     with patch(
-        "specify_cli.sync.routing.resolve_checkout_sync_routing",
+        "specify_cli.sync.routing.resolve_checkout_sync_routing_readonly",
         return_value=None,
     ):
-        result = resolve_sync_routing(_DUMMY_PATH)
+        result = resolve_egress_consent(_DUMMY_PATH)
 
-    assert result is None
+    assert result is EgressConsent.DENIED
+    assert result.permits_egress is False
 
 
-def test_registered_routing_resolver_returns_flag_when_routing_present(
+def test_registered_consent_resolver_denies_unidentifiable_project(
     _registered_sync_handlers: None,
 ) -> None:
-    """resolve_sync_routing returns routing.effective_sync_enabled when routing resolves."""
+    """Routing resolved but named no project → not consentable (NFR-001).
+
+    This is the shape an unreadable or non-mapping ``.kittify/config.yaml`` takes
+    after FR-022 / FR-023: routing answers with ``project_uuid=None`` instead of
+    raising. There is no uuid to ask about, so the consent funnel is not consulted
+    at all.
+    """
     mock_routing = MagicMock()
-    mock_routing.effective_sync_enabled = True
+    mock_routing.project_uuid = None
 
-    with patch(
-        "specify_cli.sync.routing.resolve_checkout_sync_routing",
-        return_value=mock_routing,
+    with (
+        patch(
+            "specify_cli.sync.routing.resolve_checkout_sync_routing_readonly",
+            return_value=mock_routing,
+        ),
+        patch("specify_cli.sync.consent.consented_project_uuids") as mock_consent,
     ):
-        result = resolve_sync_routing(_DUMMY_PATH)
+        result = resolve_egress_consent(_DUMMY_PATH)
 
-    assert result is True
+    assert result is EgressConsent.DENIED
+    mock_consent.assert_not_called()
+
+
+def test_registered_consent_resolver_asks_the_funnel_for_the_projects_uuid(
+    _registered_sync_handlers: None,
+) -> None:
+    """GRANTED comes from the consent funnel, keyed on the project's own uuid.
+
+    Pins the two arguments as well as the verdict: the uuid is the project's, and
+    the checkout is offered as a level-1 root, without which a committed in-repo
+    refusal would be unreachable at decision time.
+    """
+    mock_routing = MagicMock()
+    mock_routing.project_uuid = "11111111-1111-4111-8111-111111111111"
+    mock_routing.repo_root = _DUMMY_PATH
+
+    with (
+        patch(
+            "specify_cli.sync.routing.resolve_checkout_sync_routing_readonly",
+            return_value=mock_routing,
+        ),
+        patch(
+            "specify_cli.sync.consent.consented_project_uuids",
+            return_value=frozenset({"11111111-1111-4111-8111-111111111111"}),
+        ) as mock_consent,
+    ):
+        result = resolve_egress_consent(_DUMMY_PATH)
+
+    assert result is EgressConsent.GRANTED
+    mock_consent.assert_called_once_with(
+        ["11111111-1111-4111-8111-111111111111"],
+        checkout_roots=[_DUMMY_PATH],
+    )
+
+
+def test_registered_consent_resolver_denies_when_another_project_consents(
+    _registered_sync_handlers: None,
+) -> None:
+    """A non-empty answer that does not contain THIS uuid is still a refusal.
+
+    The funnel returns the consenting *subset* of its candidates. Testing it for
+    emptiness instead of membership is the bug this mission is about — one
+    consenting project authorising a batch it does not belong to — and it is
+    indistinguishable from correct code while exactly one candidate is passed.
+    """
+    mock_routing = MagicMock()
+    mock_routing.project_uuid = "11111111-1111-4111-8111-111111111111"
+    mock_routing.repo_root = _DUMMY_PATH
+
+    with (
+        patch(
+            "specify_cli.sync.routing.resolve_checkout_sync_routing_readonly",
+            return_value=mock_routing,
+        ),
+        patch(
+            "specify_cli.sync.consent.consented_project_uuids",
+            return_value=frozenset({"22222222-2222-4222-8222-222222222222"}),
+        ),
+    ):
+        result = resolve_egress_consent(_DUMMY_PATH)
+
+    assert result is EgressConsent.DENIED
+    assert result.permits_egress is False

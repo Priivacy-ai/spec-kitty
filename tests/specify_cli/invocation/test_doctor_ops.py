@@ -14,6 +14,7 @@ from typer.testing import CliRunner
 from specify_cli import app as cli_app
 from specify_cli.doctor import ops as ops_module
 from specify_cli.doctor.ops import close_stale_ops, list_orphan_ops
+from specify_cli.invocation.adapters import EgressConsent
 from specify_cli.invocation.executor import ProfileInvocationExecutor
 from specify_cli.invocation.record import OpCompletedEvent
 from specify_cli.invocation.writer import EVENTS_DIR
@@ -186,7 +187,9 @@ def test_sweep_sync_disabled_closes_locally_without_propagation(tmp_path: Path) 
     with (
         patch.object(propagator_mod.InvocationSaaSPropagator, "submit", _sync_submit),
         patch.object(
-            propagator_mod, "resolve_sync_routing", return_value=False  # sync explicitly disabled
+            propagator_mod,
+            "resolve_egress_consent",
+            return_value=EgressConsent.DENIED,  # the project has not consented
         ),
         patch.object(propagator_mod, "_get_saas_client", client_spy),
     ):

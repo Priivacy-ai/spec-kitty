@@ -323,26 +323,55 @@ def register_default_handlers() -> None:
 
     with _contextlib.suppress(ImportError):
         from specify_cli.invocation.adapters import (
+            register_egress_consent_resolver,
             register_saas_client_factory,
-            register_sync_routing_resolver,
         )
 
-        def _sync_routing_resolver(path):  # type: ignore[no-untyped-def]
-            """Return effective_sync_enabled, or None for non-project paths.
+        def _egress_consent_resolver(path):  # type: ignore[no-untyped-def]
+            """Does the PROJECT that owns *path* consent to hosted sync? (#3030 FR-025)
 
-            Never raises — resolves None cleanly when the path is not a
-            spec-kitty project so the normal non-project fast-path does
-            not produce a spurious exc_info=True DEBUG log.
+            This slot used to answer ``routing.effective_sync_enabled`` — "is sync
+            configured for this checkout" — and returned ``None`` for a path that is
+            not a project root, which the propagator read as permission to send. Two
+            corrections, in the two halves of the answer:
 
-            Imports resolve_checkout_sync_routing at call time (not closure)
-            so that test patches on specify_cli.sync.routing are respected.
+            **Which project is asking** comes from the checkout's resolved identity,
+            via the read-only routing resolver. That is the mission's single
+            derivation of checkout → project, and it already carries the FR-022 /
+            FR-023 hardening: an unreadable or non-mapping ``.kittify/config.yaml``
+            yields ``project_uuid=None`` instead of raising, and an unidentifiable
+            project is never consentable (NFR-001), so it denies here.
+
+            **Whether that project consents** comes from
+            ``consent.consented_project_uuids`` — the same funnel the drain
+            (``delivery/selection.py``) and the emitter use, walking the one declared
+            precedence chain (project-local → machine index → env). Deliberately NOT
+            ``effective_sync_enabled``: that chain also honours the repo-slug-keyed
+            ``[sync.repo_defaults]`` record, which FR-019 condemns precisely because
+            it is keyed on a mutable git remote and cannot speak for a project. One
+            representation of one invariant (C-003).
+
+            Membership is checked for *this* uuid rather than for the returned set
+            being non-empty — the resolver returns the consenting subset, and the two
+            are equivalent only while exactly one candidate is passed.
+
+            Returns a bool, never ``None``. The seam maps a raise to
+            ``UNANSWERABLE`` (a refusal), but answering the ordinary non-project case
+            with a plain ``False`` keeps that path off the fault log.
+
+            Imports at call time (not closure) so that test patches on
+            ``specify_cli.sync.routing`` / ``specify_cli.sync.consent`` are respected.
             """
-            from specify_cli.sync.routing import resolve_checkout_sync_routing
+            from specify_cli.sync.consent import consented_project_uuids
+            from specify_cli.sync.routing import resolve_checkout_sync_routing_readonly
 
-            routing = resolve_checkout_sync_routing(path)
-            if routing is None:
-                return None
-            return routing.effective_sync_enabled
+            routing = resolve_checkout_sync_routing_readonly(path)
+            if routing is None or not routing.project_uuid:
+                return False
+            uuid = str(routing.project_uuid)
+            return uuid in consented_project_uuids(
+                [uuid], checkout_roots=[routing.repo_root]
+            )
 
         def _saas_client_factory(repo_root):  # type: ignore[no-untyped-def]  # noqa: ARG001
             """Return the connected WebSocketClient if authenticated; None otherwise.
@@ -378,7 +407,7 @@ def register_default_handlers() -> None:
             except Exception:  # noqa: BLE001
                 return None
 
-        register_sync_routing_resolver(_sync_routing_resolver)
+        register_egress_consent_resolver(_egress_consent_resolver)
         register_saas_client_factory(_saas_client_factory)
 
     # -----------------------------------------------------------------------
