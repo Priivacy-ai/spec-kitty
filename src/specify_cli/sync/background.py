@@ -606,8 +606,13 @@ class BackgroundSyncService:
             logger.warning("Not authenticated, skipping sync")
         self._consecutive_failures += 1
         self._backoff_seconds = min(self._backoff_seconds * 2, 30.0)
-        if not result.error_count:
-            result.error_count = 1
+        # Reported through ``error_messages`` only — ``error_count`` is
+        # deliberately left as the caller set it. ``_should_retry_final_sync_result``
+        # keys off ``error_count > 0`` with no error *categories*, so fabricating a
+        # count here made the exit-time final sync retry three times with 1s sleeps
+        # for an unauthenticated tick over an *empty* queue: added exit latency on
+        # the #598 hang path, for a tick with nothing to send. The non-empty-queue
+        # case already carries a real count plus the ``unauthenticated`` category.
         if _UNAUTHENTICATED_SYNC_ERROR not in result.error_messages:
             result.error_messages.append(_UNAUTHENTICATED_SYNC_ERROR)
         return result

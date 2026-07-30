@@ -130,7 +130,17 @@ class TestBodyDrainAuthFailureIsNotSuccess:
         )
         assert service._consecutive_failures == 4
         assert service._backoff_seconds == 8.0
-        assert result.error_count >= 1, "the failure must be reported, not swallowed"
+        # Reported, not swallowed. Via error_messages rather than error_count: a
+        # fabricated count makes _should_retry_final_sync_result retry the
+        # exit-time final sync (3 attempts, 1s sleeps) for a tick with nothing to
+        # send — added latency on the #598 hang path.
+        assert any(
+            "Not authenticated" in message for message in result.error_messages
+        ), "the failure must be reported, not swallowed"
+        assert result.error_count == 0, (
+            "no fabricated error count: it would re-trigger the final-sync retry "
+            "loop for an unauthenticated tick over an empty queue (#598)"
+        )
 
 
 class TestGenuineSuccessStillResetsAndStamps:
