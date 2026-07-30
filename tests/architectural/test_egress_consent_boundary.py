@@ -190,7 +190,7 @@ _WEBSOCKET_RECEIVERS: frozenset[str] = frozenset({"ws", "_ws", "websocket", "_we
 _SEAM_GUIDANCE: dict[SinkKind, str] = {
     SinkKind.RECEIVER_DELIVER: (
         "resolve consent from the batch's own project_uuid before calling "
-        "DeliveryReceiver.deliver — delivery/selection.py::select_consented_event_ids "
+        "DeliveryReceiver.deliver — delivery/selection.py::select_consented "
         "already computes exactly that value (E9)"
     ),
     SinkKind.SEND_EVENT: (

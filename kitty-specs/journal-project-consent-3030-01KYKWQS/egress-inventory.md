@@ -164,3 +164,45 @@ Two properties of the guard worth knowing when reading a future red:
 - **E17 stays invisible to it until someone registers a handler**, at which point it reds. That is
   intended, and it is documented as a stated limit rather than implied away — a sink that does not
   exist yet cannot be found by scanning for sinks.
+
+
+## E1 closed — and the enumeration had missed a sink on that very path
+
+**FR-028 is closed by the `ConsentedBatch` type** (`2bdc793277`), not by a local gate — and the
+type immediately earned its keep.
+
+**This inventory named one sink on the import path (`upload.py:290`). There are two.**
+`run_server_preflight` POSTs the **full envelope stream** before the delivery call ever runs. In
+the implementer's words: *"A gate at the delivery call alone would have leaked every envelope
+while looking closed."*
+
+That is the sharpest available argument for the structural approach over another local fix, and it
+arrived from the method rather than from more looking: `_consented_batches()` runs **before** the
+preflight, and the batches it returns are the only thing `deliver()` will accept, so a caller who
+skips it has nothing to hand the receiver. A gate placed where this document pointed would have
+been a correct-looking fix over a live leak — the sixth time on this mission that a reported
+instance turned out to be a sample.
+
+It also records a limit of **this file's own method**: sink-first enumeration finds sinks, and it
+found `receivers.post`; it did not notice that a *second* caller reached the same package by a
+different route. Tracing a sink backwards to its callers is not the same as tracing a *path*
+forwards through every request it makes.
+
+**How the type is unforgeable**, four mechanisms, each pinned: a module-private mint witness
+compared by identity; **the witness burned in `__post_init__`** — the hole a plain sentinel leaves,
+since `dataclasses.replace` copies field values and a live witness would let a cleared batch's
+events be swapped for another project's; `__init_subclass__` refusing subclassing, or one
+overridden `__post_init__` defeats the receivers' `isinstance`; and **runtime enforcement rather
+than only mypy**, because an annotation is advice and this incident already defeated review.
+
+Explicitly **not** claimed, and stated in the module docstring: immunity to `object.__new__` +
+`object.__setattr__`, or to a caller passing a fabricated `consent_predicate`.
+
+Consent is keyed on **each envelope's own `project_uuid`** — not on `plan.identity.project_uuid`,
+not on a root. `checkout_root` is offered only as a level-1 lookup aid, and
+`consent._project_local_votes` discards any root whose declared uuid differs, so a wrong root can
+only be ignored (→ machine index → deny) or contribute a fault (→ deny). The precondition and its
+two falsifiers are written into `_consent_answer`'s docstring.
+
+`_cross_project_refusal` is kept and is now **provably non-redundant**: a `ConsentedBatch` proves
+every event's project consents, which does not mean they are the *same* project.
