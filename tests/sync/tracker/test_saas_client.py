@@ -8,6 +8,7 @@ parsing, and network errors.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterator
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -26,6 +27,39 @@ pytestmark = pytest.mark.fast
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
+
+def _advancing_clock(step: float = 1.0) -> Iterator[float]:
+    """An unbounded, monotonically increasing clock for ``time.monotonic`` mocks.
+
+    The polling tests used to hand ``mock_monotonic.side_effect`` an exact list
+    sized to the number of clock reads ``_poll_operation`` made — ``[0.0, 1.0,
+    3.0]`` and friends. That coupled each test to the *total* number of
+    ``time.monotonic()`` calls anywhere in the process, because
+    ``@patch("...saas_client.time.monotonic")`` patches the attribute on the
+    shared :mod:`time` module rather than a module-local alias.
+
+    #3030 FR-029 made that coupling bite: ``_request`` now resolves per-project
+    consent, and the consent chain reads the clock too
+    (``sync/git_metadata.py``). The lists ran out, the resolver raised
+    ``StopIteration``, and the gate did exactly what it should — refused, because
+    consent could not be determined. The tests were red for a fixture reason
+    dressed up as a confidentiality verdict.
+
+    None of these tests assert on clock *values* or on how often the clock is
+    read; they assert on poll results and on ``sleep`` delays, which are driven by
+    the backoff schedule and ``secrets.randbelow``. So an unbounded advancing
+    clock preserves every assertion while removing a brittleness that would have
+    caught the next person to add any clock read on this path.
+
+    ``test_timeout_after_5_minutes`` deliberately keeps its exact ``[0.0,
+    301.0]``: there the second value *is* the assertion, and it never reaches
+    ``_request``.
+    """
+    current = 0.0
+    while True:
+        yield current
+        current += step
 
 
 def _make_response(
@@ -370,7 +404,7 @@ class TestPush:
             _make_response(200, {"status": "pending"}),
             _make_response(200, {"status": "completed", "result": {"pushed": 2}}),
         ]
-        mock_monotonic.side_effect = [0.0, 1.0, 3.0]
+        mock_monotonic.side_effect = _advancing_clock()
 
         result = client.push("jira", "proj-1", [{"title": "X"}])
         assert result == {"pushed": 2}
@@ -393,7 +427,7 @@ class TestPush:
             _make_response(202, {"operation_id": "op-2"}),
             _make_response(200, {"status": "failed", "error": "Provider rejected"}),
         ]
-        mock_monotonic.side_effect = [0.0, 1.0]
+        mock_monotonic.side_effect = _advancing_clock()
 
         with pytest.raises(SaaSTrackerClientError, match="Provider rejected"):
             client.push("jira", "proj-1", [{"title": "Y"}])
@@ -449,7 +483,7 @@ class TestRun:
             _make_response(200, {"status": "running"}),
             _make_response(200, {"status": "completed", "result": {"synced": 10}}),
         ]
-        mock_monotonic.side_effect = [0.0, 1.0, 3.0]
+        mock_monotonic.side_effect = _advancing_clock()
 
         result = client.run("jira", "proj-1")
         assert result == {"synced": 10}
@@ -488,7 +522,7 @@ class TestPolling:
             _make_response(200, {"status": "completed", "result": {"done": True}}),
         ]
         # Provide enough time values: start, check1, check2, check3, check4
-        mock_monotonic.side_effect = [0.0, 1.0, 3.0, 7.0, 15.0]
+        mock_monotonic.side_effect = _advancing_clock()
 
         result = client._poll_operation("op-backoff")
         assert result == {"done": True}
@@ -541,7 +575,7 @@ class TestPolling:
             _make_response(200, {"status": "running"}),
             _make_response(200, {"status": "completed", "result": {"items": 5}}),
         ]
-        mock_monotonic.side_effect = [0.0, 1.0, 3.0, 7.0]
+        mock_monotonic.side_effect = _advancing_clock()
 
         result = client._poll_operation("op-progress")
         assert result == {"items": 5}
@@ -808,7 +842,7 @@ class TestAsyncErrorEnvelopeParsing:
             _make_response(202, {"operation_id": "op-err-envelope"}),
             _make_response(200, {"status": "failed", "error": error_envelope}),
         ]
-        mock_monotonic.side_effect = [0.0, 1.0]
+        mock_monotonic.side_effect = _advancing_clock()
 
         with pytest.raises(SaaSTrackerClientError) as exc_info:
             client.push("jira", "proj-1", [{"title": "Bug"}])
@@ -841,7 +875,7 @@ class TestAsyncErrorEnvelopeParsing:
             _make_response(202, {"operation_id": "op-str-err"}),
             _make_response(200, {"status": "failed", "error": "Something went wrong"}),
         ]
-        mock_monotonic.side_effect = [0.0, 1.0]
+        mock_monotonic.side_effect = _advancing_clock()
 
         with pytest.raises(SaaSTrackerClientError, match="Something went wrong"):
             client.push("jira", "proj-1", [{"title": "Bug"}])
@@ -865,7 +899,7 @@ class TestAsyncErrorEnvelopeParsing:
             _make_response(202, {"operation_id": "op-no-err"}),
             _make_response(200, {"status": "failed"}),
         ]
-        mock_monotonic.side_effect = [0.0, 1.0]
+        mock_monotonic.side_effect = _advancing_clock()
 
         with pytest.raises(SaaSTrackerClientError, match="Operation failed"):
             client.push("jira", "proj-1", [{"title": "Bug"}])

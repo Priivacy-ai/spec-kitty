@@ -14,15 +14,18 @@ All public methods:
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 import httpx
 
 from specify_cli.saas_client.auth import AuthContext, load_auth_context
+from specify_cli.saas_client.egress_consent import project_egress_refusal
 from specify_cli.saas_client.endpoints import AudienceMember, DiscussionData, DiscussionMessage, WidenResponse
 from specify_cli.saas_client.errors import (
     SaasAuthError,
     SaasClientError,
+    SaasConsentError,
     SaasNotFoundError,
     SaasTimeoutError,
 )
@@ -64,6 +67,15 @@ class SaasClient:
             override this for their specific use-case.
         _http: Optional pre-constructed ``httpx.Client``.  Pass a mock client
             in tests to intercept HTTP calls without network access.
+        project_root: The checkout that **owns the data this client will send**
+            (#3030 FR-030) — the repository holding the mission or decision
+            record, not the process's current working directory.  Every request
+            is refused unless that project has consented to hosted sync.
+            ``None`` **denies**: a transport that has not been told whose data it
+            carries cannot resolve consent, and inability to determine consent is
+            never consent.  The refusing default is deliberate so that a future
+            construction site which forgets to pass it fails loudly rather than
+            leaking silently.
     """
 
     def __init__(
@@ -73,11 +85,13 @@ class SaasClient:
         team_slug: str | None = None,
         timeout: float = _TIMEOUT_DEFAULT,
         _http: httpx.Client | None = None,
+        project_root: Path | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._token = token
         self._team_slug = team_slug
         self._timeout = timeout
+        self._project_root = Path(project_root) if project_root is not None else None
         self._http = _http or httpx.Client(
             headers={"Authorization": f"Bearer {token}"},
             timeout=timeout,
@@ -106,7 +120,11 @@ class SaasClient:
 
         Args:
             repo_root: Optional :class:`~pathlib.Path` to the repo root, passed
-                through to :func:`~specify_cli.saas_client.auth.load_auth_context`.
+                through to :func:`~specify_cli.saas_client.auth.load_auth_context`
+                **and** carried on the client as the project whose consent gates
+                every send (#3030 FR-030).  Omitting it yields a client that
+                refuses every request, because there is then no project whose
+                consent could be resolved.
 
         Returns:
             A fully initialised :class:`SaasClient`.
@@ -114,15 +132,31 @@ class SaasClient:
         Raises:
             SaasAuthError: If authentication credentials cannot be resolved.
         """
-        from pathlib import Path
-
         root: Path | None = Path(str(repo_root)) if repo_root is not None else None
         ctx: AuthContext = load_auth_context(repo_root=root)
-        return cls(base_url=ctx.saas_url, token=ctx.token, team_slug=ctx.team_slug)
+        return cls(
+            base_url=ctx.saas_url,
+            token=ctx.token,
+            team_slug=ctx.team_slug,
+            project_root=root,
+        )
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _refuse_unless_project_consents(self) -> None:
+        """Raise :class:`SaasConsentError` unless the owning project consents.
+
+        Called from both :meth:`_get` and :meth:`_post` — the package's only two
+        sinks — **before the URL is even used**, because four of this client's
+        five endpoints put ``mission_id`` (documented "ULID or slug", and a slug
+        is a client engagement name) in the *request path*. A gate that inspected
+        only the JSON body would miss every one of them.
+        """
+        refusal = project_egress_refusal(self._project_root)
+        if refusal is not None:
+            raise SaasConsentError(refusal)
 
     def _get(
         self,
@@ -131,6 +165,7 @@ class SaasClient:
         timeout: float | None = None,
     ) -> httpx.Response:
         """Issue a GET request, mapping exceptions to ``SaasClientError``."""
+        self._refuse_unless_project_consents()
         url = f"{self._base_url}{path}"
         effective_timeout = timeout if timeout is not None else self._timeout
         try:
@@ -151,6 +186,7 @@ class SaasClient:
         timeout: float | None = None,
     ) -> httpx.Response:
         """Issue a POST request with a JSON body, mapping exceptions to ``SaasClientError``."""
+        self._refuse_unless_project_consents()
         url = f"{self._base_url}{path}"
         effective_timeout = timeout if timeout is not None else self._timeout
         try:
