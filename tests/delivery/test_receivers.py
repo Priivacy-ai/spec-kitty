@@ -535,7 +535,10 @@ def test_batch_spanning_two_projects_is_refused_before_any_post() -> None:
     results = receiver.deliver([_evt("e1", "aaaaaaaa-0000-0000-0000-000000000001"), _evt("e2", "bbbbbbbb-0000-0000-0000-000000000002")])
 
     assert calls == [], "no HTTP request may be made for a cross-project batch"
-    assert {r.outcome for r in results} == {DeliveryOutcome.TERMINAL_FAILED}
+    # NOT terminal_failed: that status leaves select_undelivered forever, so the
+    # net destroyed the consented project's events along with the refusal (#3030
+    # H1). The round-trip is pinned in test_cross_project_refusal_state_3030.py.
+    assert {r.outcome for r in results} == {DeliveryOutcome.TRANSIENT}
     assert all("more than one project" in (r.error or "") for r in results)
     # The refusal must name the projects so the operator can act on it.
     assert any("aaaaaaaa" in (r.error or "") for r in results)

@@ -302,14 +302,35 @@ def _cross_project_refusal(
     """Refuse a batch that spans >1 project, **before** any network call (FR-004).
 
     Belt-and-braces behind the selection predicate: if selection ever regresses,
-    this turns a silent cross-project leak into a loud, terminal refusal rather
-    than letting it reach the wire.
+    this turns a silent cross-project leak into a loud refusal rather than letting
+    it reach the wire.
+
+    The refusal is ``TRANSIENT``, deliberately **not** ``TERMINAL_FAILED``. This
+    net fires on a batch whose events are individually deliverable — what
+    regressed is the *window*, not the events. ``TERMINAL_FAILED`` routes to
+    ``ledger.record_terminal_failed`` -> ``STATUS_TERMINAL_FAILED``, which
+    ``select_undelivered`` excludes **forever**: one refused window permanently
+    destroyed the *consented* project's events as well, making the safety net more
+    destructive than the leak it catches. Spec US1a AS-1 requires the opposite —
+    refuse "without mutating delivery state or bumping retry counts".
+
+    ``TRANSIENT`` is the closest outcome the §4 vocabulary has to "not attempted,
+    still selectable": it is non-terminal, so the events round-trip back into
+    ``select_undelivered`` and deliver once the window narrows to one project; it
+    carries no ceiling that could later escalate to a terminal park; and unlike
+    ``PENDING`` it does not falsely claim the server accepted anything. The
+    residual deviation from AS-1 is one ``attempt_count`` increment plus a
+    ``last_error`` stamp per event — provenance, not destruction. Expressing the
+    refusal with **zero** ledger writes needs a seventh, local-only outcome the
+    dispatcher skips recording, which cannot be wired truthfully without also
+    changing ``DispatchSummary`` and its per-field combiner in
+    ``cli/commands/sync.py``.
     """
     projects = {p for p in (_event_project(e) for e in events) if p is not None}
     if len(projects) <= 1:
         return None
     error = _CROSS_PROJECT_ERROR.format(projects=", ".join(sorted(projects)))
-    return _all_outcome(events, DeliveryOutcome.TERMINAL_FAILED, http_status=None, error=error, body=None)
+    return _all_outcome(events, DeliveryOutcome.TRANSIENT, http_status=None, error=error, body=None)
 
 
 _PER_EVENT_OUTCOME: dict[str, DeliveryOutcome] = {
