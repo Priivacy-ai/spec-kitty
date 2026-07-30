@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import logging
+from contextlib import contextmanager
+from collections.abc import Iterator
+from pathlib import Path
 from unittest.mock import MagicMock, patch
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -16,6 +19,33 @@ from specify_cli.sync.runtime import (
     reset_runtime,
     _auto_start_enabled,
 )
+
+# Captured from its defining module at import time, i.e. before any fixture runs, so
+# this name is the real resolver even inside a test that ``tests/sync/conftest.py``'s
+# autouse ``_consented_checkout_by_default`` has granted blanket consent to. That
+# fixture patches the *rebound* copy on ``specify_cli.sync.runtime``; it never touches
+# ``sync.routing``.
+from specify_cli.sync.routing import (
+    is_sync_enabled_for_checkout as _real_is_sync_enabled_for_checkout,
+)
+
+
+@contextmanager
+def _consent_gate(answer: bool) -> Iterator[None]:
+    """State a test's consent premise explicitly, instead of inheriting one.
+
+    ``_auto_start_enabled`` consults ``is_sync_enabled_for_checkout`` for every
+    checkout that does not carry an explicit project-local ``sync.auto_start``.
+    ``tests/sync/conftest.py`` grants that seam unconditionally for any file whose
+    name contains neither ``"consent"`` nor ``"capture_gate"`` — which this file's
+    name does not — so a test here that does not say what it assumes is silently
+    assuming *consent granted*, the one premise #3030 exists to stop defaulting to.
+
+    Wrapping the call site makes the premise part of the test rather than part of the
+    package, and keeps these tests correct whatever that guard becomes.
+    """
+    with patch("specify_cli.sync.runtime.is_sync_enabled_for_checkout", return_value=answer):
+        yield
 
 
 @pytest.fixture(autouse=True)
@@ -100,21 +130,51 @@ class TestAutoStartEnabled:
         ):
             assert _auto_start_enabled() is True
 
-    def test_returns_true_when_config_has_no_sync_section(self, tmp_path, monkeypatch):
-        """Returns True when config exists but has no sync section."""
+    def test_absent_sync_section_defers_to_the_consent_gate(self, tmp_path, monkeypatch):
+        """A config with no ``sync`` section states no auto-start preference.
+
+        The subject is the *absence of a key*, not a permission: with nothing local
+        to honour, ``_auto_start_enabled`` must hand the decision to the
+        consent-derived gate and return its answer unchanged, in **both**
+        directions. Pinning only the granting direction is what this test used to
+        do — ``assert _auto_start_enabled() is True`` on a checkout with no consent
+        record, which is the incident's exact state and the opposite of FR-002. It
+        passed solely because ``tests/sync/conftest.py`` had patched the gate this
+        file never mentions; with the real resolver the answer here is ``False``
+        (see ``TestAutoStartWithoutTheConsentFixture``).
+        """
         monkeypatch.chdir(tmp_path)
         config_dir = tmp_path / ".kittify"
         config_dir.mkdir()
         (config_dir / "config.yaml").write_text("agents:\n  available: []\n")
-        assert _auto_start_enabled() is True
 
-    def test_returns_true_when_auto_start_not_set(self, tmp_path, monkeypatch):
-        """Returns True when sync section exists but auto_start not set."""
+        with _consent_gate(False):
+            assert _auto_start_enabled() is False, (
+                "no sync section is not a local grant; a denying gate must be obeyed"
+            )
+        with _consent_gate(True):
+            assert _auto_start_enabled() is True, (
+                "and the deny above must come from the gate, not from the missing section"
+            )
+
+    def test_absent_auto_start_key_defers_to_the_consent_gate(self, tmp_path, monkeypatch):
+        """A ``sync`` section that omits ``auto_start`` decides nothing either.
+
+        Distinct from the test above because it exercises the other branch of
+        ``_read_project_auto_start``: the section parses as a mapping, it simply has
+        no ``auto_start`` key. Same contract — the gate's answer, both ways.
+        """
         monkeypatch.chdir(tmp_path)
         config_dir = tmp_path / ".kittify"
         config_dir.mkdir()
         (config_dir / "config.yaml").write_text("sync:\n  server_url: https://example.com\n")
-        assert _auto_start_enabled() is True
+
+        with _consent_gate(False):
+            assert _auto_start_enabled() is False, (
+                "a sync section without auto_start is not an opt-in to auto-start"
+            )
+        with _consent_gate(True):
+            assert _auto_start_enabled() is True
 
     def test_returns_true_when_auto_start_true(self, tmp_path, monkeypatch):
         """Returns True when auto_start is explicitly True."""
@@ -133,13 +193,113 @@ class TestAutoStartEnabled:
         ):
             assert _auto_start_enabled() is False
 
-    def test_returns_true_on_invalid_yaml(self, tmp_path, monkeypatch):
-        """Returns True when config file is invalid YAML."""
+    def test_unparseable_config_is_not_read_as_a_grant(self, tmp_path, monkeypatch):
+        """An unparseable config must not crash the gate, and must not open it.
+
+        The subject is the parse failure: ``_read_project_auto_start`` swallows the
+        YAML error and reports "no local preference", so the decision falls through
+        to the consent gate exactly as an absent key does. The consent answer is
+        therefore incidental to what is being tested — which is why it is pinned
+        deliberately in both directions rather than left to a package fixture.
+
+        The denying direction is the one that carries weight: this test previously
+        read ``assert _auto_start_enabled() is True`` for a checkout with no consent
+        record, i.e. it stated that a config file nobody could parse auto-starts
+        sync. Under the real resolver an unparseable project config is itself a
+        denial (``routing.py`` treats it as a consent fault), so that reading was
+        wrong twice over.
+        """
         monkeypatch.chdir(tmp_path)
         config_dir = tmp_path / ".kittify"
         config_dir.mkdir()
         (config_dir / "config.yaml").write_text("invalid: yaml: content: [")
-        assert _auto_start_enabled() is True
+
+        with _consent_gate(False):
+            assert _auto_start_enabled() is False, (
+                "an unreadable config is not an opt-in to anything"
+            )
+        with _consent_gate(True):
+            assert _auto_start_enabled() is True, (
+                "no exception escaped the parse failure: the gate was still consulted"
+            )
+
+
+class TestAutoStartWithoutTheConsentFixture:
+    """``_auto_start_enabled`` against the **real** consent resolver (#3030 FR-002).
+
+    Every test in ``TestAutoStartEnabled`` states its consent premise by patching the
+    gate — which is what makes them statements about ``_auto_start_enabled`` rather
+    than about consent. The case none of them can cover is the one the incident was:
+    a checkout with **no consent record at all**, decided end to end by production
+    code. Its absence is what let three tests in the class above go on asserting the
+    pre-T028 default-allow after T028 changed it; a test naming the real answer would
+    have contradicted them out loud.
+
+    Both tests restore the real resolver inside the test body, the way T028's denial
+    pins do, so they survive any future change to ``tests/sync/conftest.py``'s
+    filename-token guard rather than depending on it.
+    """
+
+    @staticmethod
+    def _checkout(tmp_path: Path, monkeypatch, *, sync_enabled: bool | None) -> None:
+        """A fresh checkout under a fresh HOME with no machine-global sync config.
+
+        Mirrors ``tests/sync/test_sync_consent_default_deny.py::isolated_machine``:
+        the state of every project on a machine where nobody has ever run
+        ``sync opt-in``. The identity block is complete so routing resolves normally
+        and the *consent* decision is the only variable.
+        """
+        home = tmp_path / "home"
+        repo = tmp_path / "repo"
+        home.mkdir()
+        (repo / ".kittify").mkdir(parents=True)
+        monkeypatch.setenv("HOME", str(home))
+        monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
+
+        lines = [
+            "project:",
+            f"  uuid: {uuid4()}",
+            "  slug: engagement-assistant",
+            "  node_id: node12345678",
+            "  repo_slug: regnology-example/engagement-assistant",
+            "  build_id: 8a4a7da6-a97c-4bb4-893a-b31664abfee4",
+        ]
+        if sync_enabled is not None:
+            lines += ["sync:", f"  enabled: {str(sync_enabled).lower()}"]
+        (repo / ".kittify" / "config.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
+        monkeypatch.chdir(repo)
+
+    def test_no_consent_record_denies_auto_start(self, tmp_path, monkeypatch):
+        """The incident's state: identity resolves, nobody ever opted in -> no daemon.
+
+        This gate decides whether the background daemon starts draining a project's
+        events off the machine, so FR-002 applies to it directly: absence of a record
+        is not consent. Verified against the production resolver, not against a
+        patched seam.
+        """
+        self._checkout(tmp_path, monkeypatch, sync_enabled=None)
+
+        with patch(
+            "specify_cli.sync.runtime.is_sync_enabled_for_checkout",
+            _real_is_sync_enabled_for_checkout,
+        ):
+            assert _auto_start_enabled() is False
+
+    def test_project_config_consent_grants_auto_start(self, tmp_path, monkeypatch):
+        """POSITIVE CONTROL for the test above — it must not be allowed to pass alone.
+
+        Same fixture, same real resolver, one line of ``sync.enabled: true`` added.
+        Without this, a denial from any unrelated cause — an unresolvable project
+        root, a stray consent fault, the restore silently not taking — would read as
+        the FR-002 denial being proven.
+        """
+        self._checkout(tmp_path, monkeypatch, sync_enabled=True)
+
+        with patch(
+            "specify_cli.sync.runtime.is_sync_enabled_for_checkout",
+            _real_is_sync_enabled_for_checkout,
+        ):
+            assert _auto_start_enabled() is True
 
 
 class TestAutoStartDenialNamesItsCause:

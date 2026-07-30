@@ -23,11 +23,25 @@ Two invariants are pinned here, and the second is the one that makes the fix rea
    and ``test_flush_sends_frame_whose_own_project_consents_even_when_cwd_denies``
    fails for a blanket-deny one. Neither passes by accident.
 
-Every assertion here is against a recording client at the **egress seam**
-(``client.send_event`` is the only call ``local_commit`` makes on its way to the
-socket), not against a predicate's return value — SC-003's pattern. A gate that
-returns ``False`` while something else still posts the frame is the failure mode
-this mission exists to close.
+No assertion here reads a predicate's return value — SC-003's pattern. A gate that
+returns ``False`` while something else still posts the frame is the failure mode this
+mission exists to close. What the two halves actually witness differs, and saying so
+is the point:
+
+* **Flush** asserts on a recording client at the **egress seam**.
+  ``client.send_event`` is the only call ``flush_pending_local_commits`` makes on its
+  way to the socket, and the live path really does reach it, so ``client.sent == []``
+  is evidence that *no request was issued*.
+* **Emit** has had no send path since FR-032 deleted ``emit_local_commit``'s
+  immediate send (it fed on the phantom ``token_manager._ws_client``). What its
+  ``sent == []`` lines can still prove is bounded by that: no emit-side mutation can
+  make the list non-empty today, so the load-bearing emit assertion is the one below
+  it — **no frame reached ``sync-state.json``, the store the live sender reads.** The
+  ``_send_event`` spy is retained as a *re-addition guard*, not as this file's
+  evidence; see ``_emit_send_spy``.
+
+Measured, not assumed: under a gate-stripped mutant all four emit-side cases red on
+their staging assertion, never on the ``sent == []`` line above it.
 """
 
 from __future__ import annotations
@@ -75,9 +89,12 @@ def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 class _RecordingClient:
     """Stands in for the live ``WebSocketClient`` at the single egress seam.
 
-    ``send_event`` is the only outbound call ``local_commit`` makes, so an empty
-    ``sent`` list is evidence that *no request was issued* — stronger than
-    asserting a consent predicate returned ``False``.
+    ``send_event`` is the only outbound call ``flush_pending_local_commits`` makes,
+    and the flush is the live path — it does reach that call for a consenting frame
+    (``test_flush_sends_frame_whose_own_project_consents_even_when_cwd_denies``
+    exercises it). So here, and only here, an empty ``sent`` list is evidence that
+    *no request was issued* — stronger than asserting a consent predicate returned
+    ``False``. The emit-side spy is a different instrument; see ``_emit_send_spy``.
     """
 
     def __init__(self) -> None:
@@ -89,20 +106,26 @@ class _RecordingClient:
 
 
 def _emit_send_spy(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
-    """Record every frame ``emit_local_commit`` would put on the wire.
+    """Guard against an immediate send being **re-added** to ``emit_local_commit``.
+
+    That is this spy's whole remaining job, and it is worth stating plainly because
+    the ``sent == []`` assertions it feeds look like the file's evidence and are not.
 
     These cases used to inject a :class:`_RecordingClient` through
     ``local_commit._get_saas_client``. #3030 FR-032 deleted that helper along with
     the immediate send it fed — its only client source was the phantom
     ``token_manager._ws_client``, which ``src/`` never assigns, so the send was
     unreachable in production and the injection was the only thing that ever made it
-    fire.
+    fire. The witness was kept rather than dropped, and moved down to ``_send_event``,
+    the module's one surviving outbound seam, shared with the live flush.
 
-    The witness is kept rather than dropped, and moved down to ``_send_event`` — the
-    module's one surviving outbound seam, shared with the live flush. An empty list
-    is still evidence that no request was issued, and it now also catches an
-    immediate send being re-added: a re-added send would call ``_send_event``,
-    whatever it obtained a client from.
+    Consequence, measured under a gate-stripped mutant: ``emit_local_commit`` no
+    longer calls ``_send_event`` on any path, so **no emit-side defect can make this
+    list non-empty** — the ``sent == []`` assertions are true but unfalsifiable, and
+    every emit-side red lands on the staging assertion beside them. They are retained
+    anyway because they cost nothing and a re-added send would call ``_send_event``
+    whatever it obtained a client from, which is precisely the hazard FR-032's
+    deletion was meant to retire.
     """
     sent: list[dict[str, Any]] = []
 
@@ -166,9 +189,11 @@ def test_never_opted_in_checkout_writes_no_frame_and_sends_nothing(
 ) -> None:
     """The incident's machine state: authenticated, armed, no consent record.
 
-    Both halves matter. No frame on disk means the connect-time flush has nothing
-    to replay; no send means the immediate-send attempt is gated too, whether or
-    not a production writer for ``token_manager._ws_client`` ever appears.
+    The load-bearing half is the staging assertion: **no frame reached the store the
+    live sender reads**, so the connect-time flush has nothing to replay and the
+    mission slug never touches disk. The ``sent == []`` line above it is a guard, not
+    the evidence — since FR-032 ``emit_local_commit`` attempts no immediate send, so
+    that list can only become non-empty if one is re-added (see ``_emit_send_spy``).
     """
     project = _checkout(tmp_path, "acme", uuid=UUID_A, consents=None)
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
@@ -176,7 +201,9 @@ def test_never_opted_in_checkout_writes_no_frame_and_sends_nothing(
 
     emit_local_commit(project, _HASH_A, _MISSION_ID, _BUILD_ID, _FILES, _AT)
 
-    assert sent == [], "a never-opted-in project must issue no LocalCommit request"
+    assert sent == [], (
+        "re-addition guard: an immediate send was added back and it is not gated"
+    )
     assert load_sync_state(project).pending_local_commits == [], (
         "the frame must not be staged either: the connect-time flush replays "
         "whatever is on disk"
@@ -197,8 +224,10 @@ def test_explicitly_opted_out_checkout_writes_no_frame(
 
     emit_local_commit(project, _HASH_A, _MISSION_ID, _BUILD_ID, _FILES, _AT)
 
-    assert sent == []
-    assert load_sync_state(project).pending_local_commits == []
+    assert sent == [], "re-addition guard: a re-added immediate send ignores the refusal"
+    assert load_sync_state(project).pending_local_commits == [], (
+        "a recorded refusal must leave nothing on disk for the flush to replay"
+    )
 
 
 def test_consenting_checkout_stages_frame_carrying_its_project_uuid(
@@ -400,9 +429,12 @@ def test_emit_fails_closed_when_consent_resolution_raises(
 
     emit_local_commit(project, _HASH_A, _MISSION_ID, _BUILD_ID, _FILES, _AT)
 
-    assert sent == [], "an unresolvable consent question must not become egress"
+    assert sent == [], (
+        "re-addition guard: a re-added immediate send ignores the unresolvable answer"
+    )
     assert load_sync_state(project).pending_local_commits == [], (
-        "nor may it be staged for the next connect to replay"
+        "an unresolvable consent question must not be staged for the next connect "
+        "to replay — this is the assertion that proves the fail-closed branch fired"
     )
 
 
@@ -447,11 +479,11 @@ def test_emit_refuses_when_the_consented_set_excludes_this_frames_project(
 
     emit_local_commit(project, _HASH_A, _MISSION_ID, _BUILD_ID, _FILES, _AT)
 
-    assert sent == [], (
+    assert sent == [], "re-addition guard: a re-added immediate send skips the membership test"
+    assert load_sync_state(project).pending_local_commits == [], (
         "a non-empty consented set that does not contain this frame's project is a "
-        "refusal for this frame"
+        "refusal for this frame — nothing may be staged for the flush to replay"
     )
-    assert load_sync_state(project).pending_local_commits == []
 
 
 def test_flush_refuses_when_the_consented_set_excludes_this_frames_project(
