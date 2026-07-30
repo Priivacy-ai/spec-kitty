@@ -382,16 +382,25 @@ class TestWritingOverAnUnusableIdentityRecord:
         assert [p.name for p in path.parent.iterdir()] == ["config.yaml"]
 
     def test_the_operator_is_told_the_cause_and_the_field(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """A denial whose reported cause is wrong sends the operator to the wrong
-        remedy — the misdirected-cause class this mission keeps closing."""
+        remedy — the misdirected-cause class this mission keeps closing. The file
+        here is perfectly writable, so "not writable" would be a lie, and naming the
+        field is what turns "fix your config" into an actionable line number.
+        """
         path = _config(tmp_path, "cause", _project("uuid", '"<<<<<<< HEAD"'))
 
-        ensure_identity(path.parent.parent)
+        with caplog.at_level("WARNING"):
+            ensure_identity(path.parent.parent)
 
-        assert "could not be understood" in capsys.readouterr().err
-        assert "not writable" not in capsys.readouterr().err
+        stderr = capsys.readouterr().err
+        assert "could not be understood" in stderr
+        assert "not writable" not in stderr
+        assert "project.uuid" in caplog.text, "the operator needs the field, not just the file"
 
     @pytest.mark.parametrize("case", sorted(ABSENT_UUIDS))
     def test_an_unrecorded_uuid_still_mints_and_persists(
