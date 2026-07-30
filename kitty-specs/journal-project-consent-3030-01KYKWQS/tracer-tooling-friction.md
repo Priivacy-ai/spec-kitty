@@ -355,3 +355,38 @@ Consequences worth carrying:
   directly instead of through a pipe.
 - **Narrow the scope instead of raising the timeout.** Selecting the suites that touch the changed
   files is both faster and more attributable than a broad run that contention will spoil anyway.
+
+## The consolidated rule: a shared working tree is not a measurement substrate
+
+This subsumes most of the entries above, and it was arrived at independently by two agents after
+each was nearly misled by the same thing.
+
+**Every claim about your own change must be measured in a worktree pinned to a commit** — not in
+the live shared tree. Not because contention makes runs slow, but because in a tree several agents
+are editing, *the thing you measured is not the thing you changed.*
+
+The episodes that established it, all real, all this session:
+
+| What happened | What it would have caused |
+|---|---|
+| A `21 failed` result came from an **untracked file another agent created mid-run**, failing on its own WIP schema setup (`no such table: events`) | Absorbing unrelated remediation, or hunting a defect that did not exist in the change under test |
+| A mutation baseline overlapped the implementer's own edits to the file under test | A before/after that measured neither state |
+| Four measurements were taken over directory sets that **excluded the modified directories** | Green reported for code that was never run |
+| A comparison was made against a base that **already contained the change** | A no-op diff read as "no regression" |
+| A killed run was attributed to a documented hazard that fitted but had not fired | An explanation standing in for a measurement |
+
+The remedy is mechanical rather than disciplinary, and it worked every time it was used: **create a
+throwaway `git worktree` at the commit you want, copy in only the files under test, run there.**
+FR-027's 19-row shape table was made attributable that way while three agents edited the live tree
+simultaneously; FR-025's leak measurement likewise; WP12 redid a contaminated baseline that way;
+FR-023's fence-necessity proof used runtime blinding with the bind counted rather than a source
+edit.
+
+Two corollaries:
+
+- **Narrow the scope rather than raising the timeout.** Select the suites that touch the changed
+  files, found by grep. A broad run is both slower and less attributable, and contention will spoil
+  it anyway.
+- **Suspect your own reds as hard as your greens.** This mission spent most of its effort on fake
+  greens, but the two nearest misses at the end were fake *reds* — someone else's failure, and a
+  killed run — either of which would have sent an agent to fix code that was already correct.
