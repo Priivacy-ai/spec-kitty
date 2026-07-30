@@ -284,3 +284,99 @@ def test_synthetic_profile_with_no_suggests_reach_renders_empty(
         }
     )
     assert render_profile_suggested_doctrine(profile, service) == []
+
+
+# ---------------------------------------------------------------------------
+# Defensive-degrade branches: a service/repo that cannot answer the profile
+# channel query must never crash the renderer, and a kind whose delivered
+# set is empty (or whose delivered id has no projectable reference) must be
+# skipped rather than emitting an empty/garbage section.
+# ---------------------------------------------------------------------------
+
+
+def _minimal_profile(profile_id: str) -> AgentProfile:
+    return AgentProfile.model_validate(
+        {
+            "profile-id": profile_id,
+            "name": profile_id,
+            "roles": ["implementer"],
+            "purpose": "test fixture",
+            "specialization": {"primary-focus": "testing"},
+        }
+    )
+
+
+def test_service_without_agent_profiles_repo_renders_nothing() -> None:
+    """A ``service`` missing the ``agent_profiles`` repo degrades to no section.
+
+    ``getattr(service, "agent_profiles", None)`` is the guard -- a service
+    object that never wired the profile repository (e.g. a partial/legacy
+    ``DoctrineService``-like object) must not raise; the profile channel is
+    simply unavailable, so the renderer contributes nothing.
+    """
+
+    class _ServiceWithoutAgentProfiles:
+        """No ``agent_profiles`` attribute -- mirrors an under-wired service."""
+
+    profile = _minimal_profile("synthetic-no-repo")
+    assert render_profile_suggested_doctrine(profile, _ServiceWithoutAgentProfiles()) == []
+
+
+def test_channel_lookup_exception_renders_nothing() -> None:
+    """A ``profile_channel_reached`` that raises degrades to no section, not a crash.
+
+    Mirrors :func:`render_profile_procedures`'s existing best-effort catch --
+    the profile channel is advisory context, never a hard dependency the
+    resolver can be broken by.
+    """
+
+    class _RaisingAgentProfiles:
+        def profile_channel_reached(self, profile_id: str) -> frozenset[str]:
+            raise RuntimeError(f"channel lookup exploded for {profile_id!r}")
+
+    class _ServiceWithRaisingAgentProfiles:
+        agent_profiles = _RaisingAgentProfiles()
+
+    profile = _minimal_profile("synthetic-raising-channel")
+    assert (
+        render_profile_suggested_doctrine(profile, _ServiceWithRaisingAgentProfiles())
+        == []
+    )
+
+
+def test_delivered_kind_with_no_projectable_reference_is_skipped() -> None:
+    """A delivered id with no inbound graph edge is skipped, not KeyError'd.
+
+    ``reached`` is normally derived from a real graph walk, so every delivered
+    artefact has an inbound edge from within ``reached ∪ seeds`` by
+    construction (see :func:`~charter.progressive_disclosure.profile_channel_references`).
+    This fixture decouples the two on purpose -- the fake channel reports a
+    tactic as reached even though the (edgeless) graph carries no path to it
+    -- to exercise two per-kind guards in the same pass: every non-tactic kind
+    in the render loop sees an empty ``delivered_ids`` for this profile
+    (continue), and the tactic kind sees a non-empty ``delivered_ids`` whose
+    projected reference set is nonetheless empty (continue) -- so the section
+    is silently omitted rather than rendered as an empty/garbage header.
+    """
+    orphan_graph = DRGGraph(
+        schema_version="1.0",
+        generated_at="1970-01-01T00:00:00Z",
+        generated_by="test_profile_suggests_delivery:orphan_graph",
+        nodes=[
+            DRGNode(urn="agent_profile:test-orphan", kind=NodeKind.AGENT_PROFILE),
+            DRGNode(urn="tactic:orphan-tac", kind=NodeKind.TACTIC),
+        ],
+        edges=[],  # deliberately no edges -- orphan-tac is unreachable via any path
+    )
+
+    class _OrphanReachRepo:
+        drg = orphan_graph
+
+        def profile_channel_reached(self, profile_id: str) -> frozenset[str]:
+            return frozenset({"tactic:orphan-tac"})
+
+    class _ServiceWithOrphanReach:
+        agent_profiles = _OrphanReachRepo()
+
+    profile = _minimal_profile("test-orphan")
+    assert render_profile_suggested_doctrine(profile, _ServiceWithOrphanReach()) == []

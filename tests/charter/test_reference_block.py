@@ -28,6 +28,10 @@ from charter.context import (
     _load_references,
     _render_bootstrap_text,
 )
+from charter.context_renderers.reference_pointers import (
+    _filter_references_for_action,
+    _resolve_reference_source,
+)
 
 pytestmark = pytest.mark.fast
 
@@ -243,3 +247,67 @@ def test_distribution_is_pinned_against_mutation() -> None:
         f"{len(kinds)} kind(s); a per-kind distribution must span several. "
         "A fixed-order head window would surface only the leading kinds."
     )
+
+
+# ---------------------------------------------------------------------------
+# Unit-level pipeline branches: the action-scope filter and the fallback
+# resolution path, exercised directly rather than only through the assembled
+# catalog (a fixture drift in ``.kittify/`` should not be the only way to
+# reach these branches).
+# ---------------------------------------------------------------------------
+
+
+def test_filter_local_support_included_when_action_matches() -> None:
+    """A local_support ref scoped ``(action: implement)`` survives for that action."""
+    refs = [{"kind": "local_support", "summary": "worktree hygiene (action: implement)"}]
+    assert _filter_references_for_action(refs, "implement") == refs
+
+
+def test_filter_local_support_excluded_when_action_does_not_match() -> None:
+    """The same scoped ref is dropped for a different action."""
+    refs = [{"kind": "local_support", "summary": "worktree hygiene (action: implement)"}]
+    assert _filter_references_for_action(refs, "plan") == []
+
+
+def test_filter_local_support_included_when_no_action_scope_stated() -> None:
+    """A local_support ref with no ``(action: ...)`` marker is global -- always included."""
+    refs = [{"kind": "local_support", "summary": "always-relevant repo guidance"}]
+    assert _filter_references_for_action(refs, "specify") == refs
+
+
+def test_filter_non_local_support_always_included_regardless_of_action() -> None:
+    """Non-``local_support`` kinds bypass the scope filter entirely."""
+    refs = [{"kind": "tactic", "summary": "no action scoping applies to tactics"}]
+    assert _filter_references_for_action(refs, "review") == refs
+
+
+def test_resolve_reference_source_falls_back_to_local_path_slug() -> None:
+    """When the catalog id misses, resolution falls back to the local-path slug.
+
+    ``ref["id"]`` sometimes carries a catalog id the on-disk index does not
+    recognise (e.g. a stale or renamed artifact), but the reference's own
+    ``local_path`` (``_LIBRARY/<kind>-<slug>.md``) still names a resolvable
+    doctrine document once the ``<kind>-`` prefix is stripped.
+    """
+    index = {"tactic": {"my-slug": Path("/doctrine/tactics/my-slug.yaml")}}
+    ref = {
+        "kind": "tactic",
+        "id": "tactic:nonexistent-catalog-id",
+        "local_path": "_LIBRARY/tactic-my-slug.md",
+    }
+
+    resolved = _resolve_reference_source(ref, index)
+
+    assert resolved == Path("/doctrine/tactics/my-slug.yaml")
+
+
+def test_resolve_reference_source_returns_none_when_neither_id_nor_slug_resolve() -> None:
+    """Neither the catalog id nor the local-path slug resolve -- a clean miss."""
+    index = {"tactic": {"my-slug": Path("/doctrine/tactics/my-slug.yaml")}}
+    ref = {
+        "kind": "tactic",
+        "id": "tactic:nonexistent-catalog-id",
+        "local_path": "_LIBRARY/tactic-also-missing.md",
+    }
+
+    assert _resolve_reference_source(ref, index) is None
