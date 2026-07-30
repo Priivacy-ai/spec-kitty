@@ -455,9 +455,9 @@ class BackgroundSyncService:
             except RefreshLockTimeoutError as exc:
                 return self._record_transient_token_fetch_failure(exc)
             if access_token is None:
-                if report_once("sync.unauthenticated"):
-                    logger.warning("Not authenticated, skipping sync")
-                return _unauthenticated_sync_result(self.queue)
+                return self._record_unauthenticated_tick(
+                    _unauthenticated_sync_result(self.queue)
+                )
 
             try:
                 # FR-012 (spec-kitty#3030): the queue-backed event drain is GONE.
@@ -473,8 +473,8 @@ class BackgroundSyncService:
                 # Body uploads still drain here; they are a separate store and are
                 # gated separately (WP11).
                 result = BatchSyncResult()
-                if self._body_queue is not None:
-                    self._drain_body_queue()
+                if self._body_queue is not None and not self._drain_body_queue():
+                    return self._record_unauthenticated_tick(result)
                 self._consecutive_failures = 0
                 self._backoff_seconds = 0.5
                 self._last_sync = datetime.now(UTC)
@@ -498,7 +498,9 @@ class BackgroundSyncService:
 
         Events are no longer drained here (#3030 FR-012); body uploads are the
         only work this performs. Success resets backoff and stamps
-        ``last_sync``; a raising drain escalates backoff instead.
+        ``last_sync``; a tick that raised **or could not authenticate** escalates
+        backoff and leaves ``last_sync`` alone (#3030 H7 — #598's auth-failure
+        backoff property, re-pointed at the surviving body drain).
         """
         if not is_saas_sync_enabled():
             logger.info("%s Single-batch sync skipped.", saas_sync_disabled_message())
@@ -511,9 +513,9 @@ class BackgroundSyncService:
         except RefreshLockTimeoutError as exc:
             return self._record_transient_token_fetch_failure(exc)
         if access_token is None:
-            if report_once("sync.unauthenticated"):
-                logger.warning("Not authenticated, skipping sync")
-            return _unauthenticated_sync_result(self.queue, limit=1000)
+            return self._record_unauthenticated_tick(
+                _unauthenticated_sync_result(self.queue, limit=1000)
+            )
 
         try:
             # FR-012 (spec-kitty#3030): the queue-backed event drain is GONE.
@@ -521,8 +523,11 @@ class BackgroundSyncService:
             # journal dispatcher is the sole event drain; body uploads are a
             # separate store, gated separately (WP11).
             result = BatchSyncResult()
-            if self._body_queue is not None:
-                self._drain_body_queue()
+            if self._body_queue is not None and not self._drain_body_queue():
+                # The drain has its own token fetch. When *that* one comes back
+                # empty nothing was delivered, so the tick must not fall through
+                # to the success bookkeeping below (#3030 H7 / #3004).
+                return self._record_unauthenticated_tick(result)
             self._consecutive_failures = 0
             self._backoff_seconds = 0.5
             self._last_sync = datetime.now(UTC)
@@ -541,6 +546,32 @@ class BackgroundSyncService:
             result.error_messages.append(str(exc))
             return result
 
+    def _record_unauthenticated_tick(self, result: BatchSyncResult) -> BatchSyncResult:
+        """Book a tick that could not authenticate as the failure it is (#3030 H7).
+
+        #598 pinned "an auth failure escalates backoff" against the event POST's
+        401. WP02 deleted that POST and the property lost its only witness: an
+        expired token made the tick return early with backoff untouched, and — via
+        the body drain's own silent token bail — could even reset
+        ``consecutive_failures`` and stamp ``last_sync``, so ``sync status``
+        reported a healthy sync while nothing moved (the #3004 class).
+
+        Escalating matters concretely: ``_schedule_next_sync`` only consults
+        ``_backoff_seconds`` while ``_consecutive_failures > 0``, so a tick that
+        does not register its failure waits the full steady-state interval instead
+        of retrying on the (≤30s) failure schedule. ``last_sync`` is deliberately
+        *not* stamped.
+        """
+        if report_once("sync.unauthenticated"):
+            logger.warning("Not authenticated, skipping sync")
+        self._consecutive_failures += 1
+        self._backoff_seconds = min(self._backoff_seconds * 2, 30.0)
+        if not result.error_count:
+            result.error_count = 1
+        if _UNAUTHENTICATED_SYNC_ERROR not in result.error_messages:
+            result.error_messages.append(_UNAUTHENTICATED_SYNC_ERROR)
+        return result
+
     def _record_transient_token_fetch_failure(
         self,
         exc: RefreshLockTimeoutError,
@@ -558,13 +589,21 @@ class BackgroundSyncService:
         result.error_messages.append(str(exc))
         return result
 
-    def _drain_body_queue(self) -> None:
+    def _drain_body_queue(self) -> bool:
         """Drain body upload queue, processing tasks one at a time.
 
         Backoff progression (NFR-003):
         retry 0 → 1s, retry 1 → 2s, retry 2 → 4s, retry 3 → 8s,
         retry 4 → 16s, retry 5 → 32s, retry 6 → 64s, retry 7 → 128s,
         retry 8 → 256s, retry 9+ → 300s (5 min cap)
+
+        Returns:
+            ``True`` when the drain ran under a valid token (an empty queue counts
+            — there was simply nothing to move). ``False`` when no token could be
+            obtained, so the caller can book the tick as a failure instead of
+            success. This return value is the contract: an unauthenticated bail
+            used to be a bare ``return``, and the caller then reset backoff and
+            stamped ``last_sync`` for a tick that delivered nothing (#3030 H7).
         """
         from .body_transport import push_content
 
@@ -578,16 +617,17 @@ class BackgroundSyncService:
         access_token = _fetch_access_token_sync()
         if access_token is None:
             logger.debug("No auth token available, skipping body queue drain")
-            return
+            return False
 
         tasks = self._body_queue.drain(limit=50)
         if not tasks:
-            return
+            return True
 
         server_url = self.config.resolve_runtime_target().resolved_server_url
         for task in tasks:
             outcome = push_content(task, access_token, server_url)
             self._handle_body_outcome(task, outcome)
+        return True
 
     def _handle_body_outcome(
         self, task: BodyUploadTask, outcome: UploadOutcome,
