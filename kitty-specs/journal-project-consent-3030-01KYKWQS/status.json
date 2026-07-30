@@ -182,7 +182,8 @@
       "last_transition_at": "2026-07-30T22:47:33.105610+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "WP08 in flight: FR-022 and the retention purge landed; sync purge CLI, purge_all_events and the pending_local_commits purge still owed"
+        "WP08 in flight: FR-022 and the retention purge landed; sync purge CLI, purge_all_events and the pending_local_commits purge still owed",
+        "All four store primitives (journal+ledger, body uploads, local-commit frames, purge_all), the sync purge CLI with honest per-checkout --all scope, and the doctor consent-fault surfacing are landed. --force: WP08 has no lane worktree; its work landed on the mission branch."
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
