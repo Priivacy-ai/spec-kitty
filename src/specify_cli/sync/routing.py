@@ -2,17 +2,24 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
 from specify_cli.core.paths import locate_project_root
 
 from .body_queue import OfflineBodyUploadQueue
-from .config import SyncConfig
-from .consent import read_project_local_consent, set_project_consent
+from .config import ConfigReadFault, SyncConfig
+from .consent import (
+    project_local_consent_fault,
+    read_project_local_consent,
+    set_project_consent,
+)
 from .git_metadata import GitMetadataResolver
 from specify_cli.identity.project import ProjectIdentity, load_identity, resolve_identity
 from .queue import OfflineQueue
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -27,6 +34,13 @@ class CheckoutSyncRouting:
     local_sync_enabled: bool | None
     repo_default_sync_enabled: bool | None
     effective_sync_enabled: bool
+    #: Why the project-local ``.kittify/config.yaml`` could not be read, when it
+    #: exists but is unreadable or unparseable (#3030 FR-022). ``None`` for the
+    #: ordinary cases — a readable file, or no file at all. Present so a denial on
+    #: this ground is distinguishable from the far more common "no record" denial:
+    #: an operator told only "sync is disabled" goes looking for a missing opt-in
+    #: instead of the broken file that actually caused it.
+    project_local_fault: ConfigReadFault | None = None
 
 
 @dataclass(frozen=True)
@@ -52,6 +66,10 @@ def resolve_checkout_sync_routing(start: Path | None = None) -> CheckoutSyncRout
     if repo_root is None:
         return None
 
+    unreadable = _routing_for_unreadable_project_config(repo_root)
+    if unreadable is not None:
+        return unreadable
+
     identity = resolve_identity(repo_root)
     return _build_checkout_sync_routing(repo_root, identity)
 
@@ -62,8 +80,72 @@ def resolve_checkout_sync_routing_readonly(start: Path | None = None) -> Checkou
     if repo_root is None:
         return None
 
+    unreadable = _routing_for_unreadable_project_config(repo_root)
+    if unreadable is not None:
+        return unreadable
+
     identity = load_identity(repo_root / ".kittify" / "config.yaml")
     return _build_checkout_sync_routing(repo_root, identity)
+
+
+def _routing_for_unreadable_project_config(
+    repo_root: Path,
+) -> CheckoutSyncRouting | None:
+    """Deny, without reading identity, when the project's own config is unreadable.
+
+    ``None`` when there is no fault — the ordinary path, including the very common
+    "no project config at all", which is absence and must keep falling through to the
+    machine-level records (denying on absence would deny every delivery on the
+    machine; ``ConfigReadFault`` draws that line, and this function inherits it).
+
+    **The leak this closes (#3030 FR-022).** ``read_project_local_consent`` returns
+    ``None`` for an unreadable or unparseable file exactly as it does for an absent
+    one, and the chain below then falls through to ``local_sync_enabled`` — a
+    *checkout-level grant*. So a committed ``sync.enabled: false`` that a later edit
+    turned into a YAML syntax error was silently replaced by whatever the machine
+    happened to hold. Measured before this fix, with a checkout grant present:
+    ``chmod 000`` and unparseable YAML both resolved to **enabled**. FR-013's
+    refusal-outranks-grant rule, voidable by a syntax error — and the record that
+    wins is the one that survives a clone or a rename, so what stands in for the
+    refusal is precisely a *stale grant*.
+
+    ``consent.py`` split :func:`~specify_cli.sync.consent.project_local_consent_fault`
+    out for this wiring rather than change ``read_project_local_consent``'s shape
+    under its callers; this is that function's first production consumer.
+
+    Deliberately placed **before** the identity read, not merely before the consent
+    fall-through. A list-shaped ``config.yaml`` makes ``load_identity`` raise
+    ``AttributeError: 'CommentedSeq' object has no attribute 'get'``
+    (``identity/project.py:322``), so a policy read that is supposed to answer a
+    boolean crashed the caller instead. Answering "deny" from here means an
+    unreadable project file cannot take out any command that consults the gate.
+    (The ``load_identity`` fault itself is still latent for its other callers and is
+    reported separately — it is not this module's to fix.)
+    """
+    fault = project_local_consent_fault(repo_root)
+    if fault is None:
+        return None
+
+    logger.warning(
+        "Denying hosted sync for %s: its project config could not be read (%s). %s",
+        repo_root,
+        fault.kind,
+        fault.detail,
+    )
+    return CheckoutSyncRouting(
+        repo_root=repo_root,
+        project_uuid=None,
+        project_slug=None,
+        build_id=None,
+        repo_slug=None,
+        # Reported truthfully so the operator can see the grant that was NOT
+        # honoured; the repo default is left unread because no value it could take
+        # can change a fail-closed answer.
+        local_sync_enabled=read_local_sync_enabled(repo_root),
+        repo_default_sync_enabled=None,
+        effective_sync_enabled=False,
+        project_local_fault=fault,
+    )
 
 
 def _build_checkout_sync_routing(repo_root: Path, identity: ProjectIdentity) -> CheckoutSyncRouting:

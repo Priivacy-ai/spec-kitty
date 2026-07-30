@@ -14,6 +14,8 @@ from specify_cli.sync.namespace import NamespaceRef
 from specify_cli.sync.queue import OfflineQueue
 from specify_cli.sync.routing import (
     disable_checkout_sync,
+    is_sync_enabled_for_checkout,
+    read_local_sync_enabled,
     resolve_checkout_sync_routing,
     resolve_checkout_sync_routing_readonly,
     write_local_sync_enabled,
@@ -412,3 +414,164 @@ def test_the_retired_legacy_queue_purge_is_gone(tmp_path: Path) -> None:
     of "purge this project's events" for a future caller to pick up.
     """
     assert not hasattr(OfflineQueue, "remove_project_events")
+
+
+# --- FR-022: an unreadable project-local file must not defer to a stale grant --
+
+
+def _make_checkout_with_grant(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, case: str
+) -> Path:
+    """A checkout carrying a machine-level GRANT, in a home of its very own.
+
+    Per-case ``SPEC_KITTY_HOME`` is load-bearing, not hygiene. ``consent.py``'s
+    ``_answer_project_local`` reconciles the machine index as a side effect, so a
+    readable-refusal case run earlier in a shared home rewrites the index and the
+    next case's leak presents as a denial. The FR-021 implementer's first probe read
+    "denied" for exactly that reason.
+    """
+    home = tmp_path / f"{case}-home"
+    repo_root = tmp_path / f"{case}-repo"
+    home.mkdir()
+    repo_root.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".spec-kitty"))
+    (repo_root / ".kittify").mkdir()
+    # The record that survives a clone or a rename — i.e. the one that goes stale.
+    write_local_sync_enabled(repo_root, True)
+    return repo_root
+
+
+def _write_project_config(repo_root: Path, body: str) -> Path:
+    path = repo_root / ".kittify" / "config.yaml"
+    path.write_text(body, encoding="utf-8")
+    return path
+
+
+_VALID_REFUSAL = "\n".join(
+    [
+        "project:",
+        "  uuid: 11111111-1111-1111-1111-111111111111",
+        "  slug: spec-kitty-local",
+        "  repo_slug: acme/spec-kitty",
+        "sync:",
+        "  enabled: false",
+        "",
+    ]
+)
+
+
+def test_readable_project_refusal_still_outranks_a_checkout_grant(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The control case: FR-013's rule works when the file parses."""
+    repo_root = _make_checkout_with_grant(tmp_path, monkeypatch, case="readable")
+    _write_project_config(repo_root, _VALID_REFUSAL)
+
+    assert is_sync_enabled_for_checkout(repo_root) is False
+
+
+def test_unparseable_project_config_denies_instead_of_deferring_to_the_grant(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-022: a syntax error must not void a committed refusal.
+
+    The live path is mundane: an operator commits ``sync.enabled: false``, a later
+    edit breaks the YAML, and egress resumes silently. What wins is the checkout
+    override — the record that survives a clone or a rename — so what actually
+    stands in for the refusal is a *stale grant*.
+    """
+    repo_root = _make_checkout_with_grant(tmp_path, monkeypatch, case="unparseable")
+    _write_project_config(repo_root, "sync:\n  enabled: false\n  broken: [unclosed\n")
+
+    assert is_sync_enabled_for_checkout(repo_root) is False
+
+
+def test_top_level_non_mapping_project_config_denies(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A file that exists and cannot be understood is not a file that says nothing."""
+    repo_root = _make_checkout_with_grant(tmp_path, monkeypatch, case="nonmapping")
+    _write_project_config(repo_root, "- just\n- a\n- list\n")
+
+    assert is_sync_enabled_for_checkout(repo_root) is False
+
+
+def test_unreadable_project_config_denies_instead_of_deferring_to_the_grant(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """chmod 000: unreadable is undetermined, and undetermined is not consent."""
+    repo_root = _make_checkout_with_grant(tmp_path, monkeypatch, case="unreadable")
+    path = _write_project_config(repo_root, _VALID_REFUSAL)
+    path.chmod(0o000)
+    try:
+        assert is_sync_enabled_for_checkout(repo_root) is False
+    finally:
+        path.chmod(0o644)
+
+
+def test_an_absent_project_config_is_absence_not_a_fault(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The regression guard on the fix: absence must keep falling through.
+
+    Most checkouts on a machine have no project config at all. Treating absence as
+    a fault would deny every delivery — so the fix must discriminate "exists and
+    unreadable" from "not there", exactly as ``ConfigReadFault`` does.
+    """
+    repo_root = _make_checkout_with_grant(tmp_path, monkeypatch, case="absent")
+
+    assert is_sync_enabled_for_checkout(repo_root) is True
+
+
+def test_the_fault_is_reported_not_silently_folded_into_absence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Denying is half the fix; an operator also has to be able to see why.
+
+    A denial indistinguishable from "no record" sends them looking for a missing
+    opt-in instead of a broken file.
+    """
+    repo_root = _make_checkout_with_grant(tmp_path, monkeypatch, case="reported")
+    _write_project_config(repo_root, "sync:\n  enabled: false\n  broken: [unclosed\n")
+
+    routing = resolve_checkout_sync_routing_readonly(repo_root)
+
+    assert routing is not None
+    assert routing.effective_sync_enabled is False
+    assert routing.project_local_fault is not None
+    assert "config.yaml" in routing.project_local_fault.detail
+
+
+def test_opt_in_on_an_unreadable_project_config_refuses_to_write_a_grant(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """You cannot grant consent for a project whose own config cannot be read.
+
+    Without this, the remedy for the FR-022 denial would be to run ``sync opt-in``,
+    which would write exactly the machine-level grant that then outlives the broken
+    file — manufacturing the stale grant this fix exists to stop honouring. The
+    identity guard (T016) already refuses; pinned here because it now also stands in
+    front of the fault path, and because it must refuse *before* writing anything.
+    """
+    from specify_cli.sync.routing import (
+        ConsentIdentityUnresolvedError,
+        enable_checkout_sync,
+    )
+
+    home = tmp_path / "optin-home"
+    repo_root = tmp_path / "optin-repo"
+    home.mkdir()
+    repo_root.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".spec-kitty"))
+    (repo_root / ".kittify").mkdir()
+    _write_project_config(repo_root, "sync:\n  enabled: false\n  broken: [unclosed\n")
+
+    with pytest.raises(ConsentIdentityUnresolvedError):
+        enable_checkout_sync(repo_root)
+
+    assert read_local_sync_enabled(repo_root) is None, (
+        "no checkout-level grant may be written on the way out"
+    )
+    assert is_sync_enabled_for_checkout(repo_root) is False
