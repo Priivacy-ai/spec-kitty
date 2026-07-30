@@ -1,17 +1,17 @@
 {
-  "event_count": 49,
-  "last_event_id": "01KYTKC9ZHRQJYKZ4M9HG5SKJQ",
-  "materialized_at": "2026-07-30T22:47:33.105610+00:00",
+  "event_count": 50,
+  "last_event_id": "01KYTNJ5YMS9FGXZ9XQR0SQN1M",
+  "materialized_at": "2026-07-30T23:25:42.740437+00:00",
   "mission_number": "",
   "mission_slug": "journal-project-consent-3030-01KYKWQS",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 6,
+    "approved": 7,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 3,
+    "for_review": 2,
     "in_progress": 0,
     "in_review": 1,
     "planned": 2
@@ -243,15 +243,15 @@
       }
     },
     "WP12": {
-      "actor": "python-pedro",
+      "actor": "reviewer-renata",
       "agent": "python-pedro",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "assignee": "python-pedro",
-      "force_count": 1,
-      "lane": "for_review",
-      "last_event_id": "01KYRQVD31RWBP84WH4QH6X715",
-      "last_transition_at": "2026-07-30T05:27:13.249631+00:00",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KYTNJ5YMS9FGXZ9XQR0SQN1M",
+      "last_transition_at": "2026-07-30T23:25:42.740437+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "WP12 T027/T028 implemented; local-commit frame consent gate landed, MINOR remediation in flight",
