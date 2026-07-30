@@ -46,6 +46,8 @@
 | T023 | Document that `SPEC_KITTY_ENABLE_SAAS_SYNC`/`SPEC_KITTY_SAAS_URL` are machine-global; CI-checkable anchor (FR-018) | WP09 | Y |
 | T025 | Body-upload consent: `prepare_body_uploads` gates once at enqueue on `is_sync_enabled_for_checkout(repo_root)` (`body_upload.py:150`), which is default-allow on absence; `_drain_body_queue` then POSTs every task under only the machine-global `is_saas_sync_enabled()`. Resolve consent **per task at drain time** from the task's namespace project identity, not cwd. Bodies are full `spec.md`/`plan.md`/`tasks/WP*.md` text (`body_upload.py:33-52`) | WP11 | |
 | T026 | Add the body-upload queue to the purge differential — it shares the offline-queue DB file, so a purge reporting 100% today leaves queued bodies behind | WP11 | |
+| T027 | Gate local-commit frame emission **and** the connect-time flush on per-project consent, resolved from the **frame's own** identity rather than cwd (`sync/local_commit.py`, `git/commit_helpers.py:1141-1157`, flushed via `sync/client.py:181-189`). Found by the post-WP06 review; ships mission slugs = client engagement names with zero consent check (FR-002, NFR-001) | WP12 | |
+| T028 | Close `_auto_start_enabled`'s two fail-open `return True` paths (`sync/runtime.py:70,80`) — inability to determine consent is not consent (FR-003's rule) | WP12 | |
 | T024 | Live drain against **`spec-kitty-dev`** at the incident's shape — **≥6 projects**: 1 consented, ≥3 with no consent record, ≥1 explicit opt-out, ≥1 identity-less. Evidence artefact records **before/after counts per `project_slug`**, the drain's own delivered count, and the CLI commit SHA (SC-008) | WP10 | |
 
 ## Ownership resolution (2026-07-28)
@@ -142,6 +144,13 @@ previously unowned.
 ## WP09 — Documentation
 
 Subtasks: T023. Dependencies: none. `execution_mode: code_change`. Requirements: FR-018.
+
+## WP12 — Local-commit frames (third uncovered egress path)
+
+Subtasks: T027–T028. Dependencies: WP05. `execution_mode: code_change`. Requirements: FR-002, NFR-001.
+**Found by the post-WP06 adversarial review (2026-07-30); no earlier artefact mentions it.** Same breach
+class as WP11 — a live path shipping project identity with no consent check — folded in rather than
+deferred. See `tasks/WP12-local-commit-consent.md` for the full trace.
 
 ## WP10 — Live verification
 
