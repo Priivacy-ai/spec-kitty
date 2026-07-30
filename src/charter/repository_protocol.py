@@ -37,10 +37,10 @@ class ArtifactRepository(Protocol[T]):
     site needs another repository method (keep one clean typed seam).
     """
 
-    def get(self, artifact_id: str) -> T | None:
+    def get(self, artifact_id: str) -> T | None:  # pragma: no cover -- Protocol stub, never executed
         """Return the artifact for *artifact_id*, or ``None`` if absent."""
         ...
 
-    def get_provenance(self, artifact_id: str) -> str | None:
+    def get_provenance(self, artifact_id: str) -> str | None:  # pragma: no cover -- Protocol stub, never executed
         """Return the source layer (``"builtin"``/``"org"``/``"project"``) for *artifact_id*, or ``None``."""
         ...

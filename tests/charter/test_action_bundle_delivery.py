@@ -99,6 +99,31 @@ def test_classify_returns_slot_keyed_mapping() -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_classify_skips_unresolvable_urn_and_out_of_scope_directive() -> None:
+    """Two ``_classify_artifact_urns`` guards: a stale URN and directive scoping.
+
+    ``artifact_urns`` is caller-supplied and can include a URN the merged
+    graph carries no node for (a stale/mismatched reference) -- that entry is
+    skipped rather than raising ``AttributeError`` on ``node.kind``. Separately,
+    a resolved ``DIRECTIVE`` whose id is not in a non-empty
+    ``project_directives`` is scope-filtered out -- a project only receives
+    the directives it actually selected, not every directive reachable from
+    the graph.
+    """
+    graph = _scope_graph()
+
+    result = context._classify_artifact_urns(
+        artifact_urns={"directive:d1", "tactic:ghost-urn-with-no-node"},
+        merged=graph,
+        project_directives={"some-other-directive"},
+    )
+
+    # d1 resolves to a real DIRECTIVE node but is not in project_directives.
+    assert result["directives"] == ()
+    # the ghost URN has no node in the graph; it never reaches a slot at all.
+    assert result.get("tactics", ()) == ()
+
+
 def test_bundle_carries_procedure_and_asset_fields() -> None:
     field_names = {f.name for f in dataclasses.fields(context._ActionDoctrineBundle)}
 
