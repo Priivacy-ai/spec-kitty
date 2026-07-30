@@ -55,6 +55,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 from specify_cli.core.time_utils import now_utc_iso
+from specify_cli.delivery.ledger import LEDGER_TABLE
 from specify_cli.event_journal.models import COL_EVENT_ID, TABLE_NAME
 
 if TYPE_CHECKING:
@@ -302,6 +303,290 @@ def purge_project_body_uploads(
         removed=removed,
         before=before,
         after=after,
+    )
+
+
+#: Census key for rows whose ``project_uuid`` is NULL. Mirrors the body-queue
+#: census convention (``count_by_project`` groups blank identity under ``""``), so
+#: one purge report can present all three stores without a per-store special case.
+IDENTITY_LESS_KEY = ""
+
+_LEDGER_STATUS_CENSUS_SQL = f"SELECT status, COUNT(*) FROM {LEDGER_TABLE} GROUP BY status"  # noqa: S608 — static module-constant identifier
+_LEDGER_TOTAL_SQL = f"SELECT COUNT(*) FROM {LEDGER_TABLE}"  # noqa: S608 — static module-constant identifier
+
+
+@dataclass(frozen=True)
+class ProjectPurgeResult:
+    """Observable outcome of one purge across the journal and the delivery ledger.
+
+    Carries whole **censuses** rather than only the target's numbers, for the same
+    reason :class:`BodyQueuePurgeResult` does: NFR-006 is a differential ("0% of any
+    other project's rows"), and a result that reports only what it removed cannot
+    substantiate that claim. ``ledger_status_before`` is additionally the *forensic*
+    record — how many of the project's events had been delivered, rejected or never
+    attempted — because the purge removes those rows (see
+    :func:`purge_project_events`).
+    """
+
+    selector: str
+    dry_run: bool
+    undelivered_only: bool
+    purged_event_ids: tuple[str, ...] = ()
+    ledger_rows_removed: int = 0
+    journal_before: Mapping[str, int] = field(default_factory=dict)
+    journal_after: Mapping[str, int] = field(default_factory=dict)
+    ledger_status_before: Mapping[str, int] = field(default_factory=dict)
+    ledger_status_after: Mapping[str, int] = field(default_factory=dict)
+    ledger_total_before: int = 0
+    ledger_total_after: int = 0
+
+    @property
+    def target_before(self) -> int:
+        return self.journal_before.get(self.selector, 0)
+
+    @property
+    def target_after(self) -> int:
+        return self.journal_after.get(self.selector, 0)
+
+    @property
+    def purged_count(self) -> int:
+        return len(self.purged_event_ids)
+
+    @property
+    def ledger_rows_selected(self) -> int:
+        """Ledger rows the selection covers — what a real run *would* remove.
+
+        Distinct from :attr:`ledger_rows_removed`, which is ``0`` on a dry run
+        because a dry run removes nothing. A preview that could only report ``0``
+        would tell the operator nothing about the ledger half of the purge.
+        """
+        return sum(self.ledger_status_before.values())
+
+    @property
+    def never_attempted(self) -> int:
+        """Selected events with no ledger row at all — never even attempted.
+
+        Part of the forensic breakdown: ``ledger_status_before`` accounts for the
+        events that reached a delivery attempt, and this is the remainder.
+        """
+        return max(self.purged_count - sum(self.ledger_status_before.values()), 0)
+
+    @property
+    def other_project_journal_differential(self) -> int:
+        """Absolute journal row-count change across every key that is not the target.
+
+        Over the union of both censuses, so a project that *appeared* counts as a
+        difference too — a purge must neither remove nor create another project's
+        rows. NFR-006 requires ``0``.
+        """
+        keys = (set(self.journal_before) | set(self.journal_after)) - {self.selector}
+        return sum(
+            abs(self.journal_after.get(key, 0) - self.journal_before.get(key, 0))
+            for key in keys
+        )
+
+    @property
+    def other_ledger_differential(self) -> int:
+        """Ledger rows lost or gained that were **not** the target's.
+
+        The ledger is keyed ``(event_id, target_id)`` and carries no project column,
+        so "another project's ledger rows" is not directly countable. It is derivable
+        exactly: total change minus the change this purge accounts for. NFR-006
+        requires ``0``.
+        """
+        total_change = self.ledger_total_before - self.ledger_total_after
+        return abs(total_change - self.ledger_rows_removed)
+
+    @property
+    def is_exact(self) -> bool:
+        """Everything selected went, nothing else moved (SC-006 / NFR-006)."""
+        expected_after = self.target_before if self.dry_run else self.target_before - self.purged_count
+        return (
+            self.target_after == expected_after
+            and self.other_project_journal_differential == 0
+            and self.other_ledger_differential == 0
+        )
+
+
+def _journal_census(journal: EventJournal) -> dict[str, int]:
+    """Per-project journal row counts, with identity-less rows under ``""``.
+
+    Composed from the journal's public identity reads (``distinct_project_uuids`` +
+    the filtered projection + ``count_missing_identity``) rather than a GROUP BY of
+    our own: the destructive write below is this module's sanctioned business, but a
+    *census* has a public API and should not grow a second definition of "which
+    projects does the store hold".
+    """
+    census: dict[str, int] = {}
+    for uuid in journal.distinct_project_uuids():
+        census[uuid] = len(journal.read_identity_projection(project_uuids=[uuid]))
+    missing = journal.count_missing_identity()
+    if missing:
+        census[IDENTITY_LESS_KEY] = missing
+    return census
+
+
+def _ledger_status_census(
+    ledger: SqliteDeliveryLedger, event_ids: Sequence[str]
+) -> dict[str, int]:
+    """Per-status ledger counts restricted to *event_ids* (the forensic breakdown)."""
+    census: dict[str, int] = {}
+    for event_id in event_ids:
+        for row in ledger.connection.execute(
+            f"SELECT status FROM {LEDGER_TABLE} WHERE {COL_EVENT_ID} = ?",  # noqa: S608 — static module-constant identifiers
+            (event_id,),
+        ):
+            status = str(row["status"])
+            census[status] = census.get(status, 0) + 1
+    return census
+
+
+def _ledger_total(ledger: SqliteDeliveryLedger) -> int:
+    row = ledger.connection.execute(_LEDGER_TOTAL_SQL).fetchone()
+    return int(row[0]) if row else 0
+
+
+def _purge_ledger_rows(ledger: SqliteDeliveryLedger, event_ids: Sequence[str]) -> int:
+    """Delete every ledger row for *event_ids*, across all targets. Returns the count."""
+    if not event_ids:
+        return 0
+    removed = 0
+    with ledger.transaction():
+        for event_id in event_ids:
+            cursor = ledger.connection.execute(
+                f"DELETE FROM {LEDGER_TABLE} WHERE {COL_EVENT_ID} = ?",  # noqa: S608 — static module-constant identifiers
+                (event_id,),
+            )
+            removed += max(int(cursor.rowcount), 0)
+    return removed
+
+
+def _purge(
+    *,
+    selector: str,
+    event_ids: Sequence[str],
+    journal: EventJournal,
+    ledger: SqliteDeliveryLedger,
+    dry_run: bool,
+    undelivered_only: bool,
+) -> ProjectPurgeResult:
+    """Shared core: census, (optionally) delete both stores, census again."""
+    if undelivered_only:
+        event_ids = [
+            event_id for event_id in event_ids if not ledger.delivered_anywhere(event_id)
+        ]
+
+    journal_before = _journal_census(journal)
+    ledger_status_before = _ledger_status_census(ledger, event_ids)
+    ledger_total_before = _ledger_total(ledger)
+
+    ledger_rows_removed = 0
+    if not dry_run and event_ids:
+        # Ledger first: a journal row without its ledger rows is merely undelivered
+        # (and unselectable, since it is gone from the universe on the next read),
+        # whereas a ledger row without its journal row is an unresolvable orphan. If
+        # the process dies between the two, the recoverable ordering is this one.
+        ledger_rows_removed = _purge_ledger_rows(ledger, event_ids)
+        _purge_journal_rows(journal.db_path, event_ids)
+
+    # Re-read both stores even on a dry run. "Nothing changed" is precisely the
+    # claim a dry run has to earn, and this is the only place a dry run that
+    # quietly mutated could still be caught.
+    return ProjectPurgeResult(
+        selector=selector,
+        dry_run=dry_run,
+        undelivered_only=undelivered_only,
+        purged_event_ids=tuple(event_ids),
+        ledger_rows_removed=ledger_rows_removed,
+        journal_before=journal_before,
+        journal_after=_journal_census(journal),
+        ledger_status_before=ledger_status_before,
+        ledger_status_after=_ledger_status_census(ledger, event_ids),
+        ledger_total_before=ledger_total_before,
+        ledger_total_after=_ledger_total(ledger),
+    )
+
+
+def purge_project_events(
+    project_uuid: str,
+    *,
+    journal: EventJournal,
+    ledger: SqliteDeliveryLedger,
+    dry_run: bool = True,
+    undelivered_only: bool = False,
+) -> ProjectPurgeResult:
+    """Remove one project's rows from the journal **and** the delivery ledger (FR-016).
+
+    Dry-run by **default**, at the primitive and not only at a future CLI: this
+    deletes confidential payloads, and the per-state breakdown a dry run reports is
+    the operator's only chance to record what was there.
+
+    **Research decision 2 (ledger history): removed, not retained.** Three reasons.
+    A ledger row that outlives its journal row is an orphan keyed to an event that
+    no longer exists — permanently unresolvable, and it inflates every status count
+    forever. Its ``last_error`` / ``last_response_json`` can quote the project it
+    belongs to, so keeping it would make "100% of X removed" a false attestation of
+    exactly the kind that omitting the body-upload store would have produced. And
+    the forensic value it carries — *what happened* to those events — is preserved
+    as :attr:`ProjectPurgeResult.ledger_status_before` plus
+    :attr:`ProjectPurgeResult.never_attempted`, produced by the mandatory-by-default
+    dry run *before* anything is deleted. The record moves from a durable row that
+    names a purged project to the operator's purge report.
+
+    **Identity-less rows are never matched here.** ``project_uuid IS NULL`` rows
+    cannot be attributed to any project, so deleting them under a project's purge
+    would be a silent overreach — the same call the body-queue purge makes. They are
+    visible in :attr:`ProjectPurgeResult.journal_before` under
+    :data:`IDENTITY_LESS_KEY` and are removable through
+    :func:`purge_identity_less_events`.
+
+    A blank *project_uuid* selects nothing: it must never degrade into "match every
+    row". *undelivered_only* restricts the selection to events with no
+    terminal-success delivery anywhere — the scope ``sync opt-out`` uses, which must
+    not destroy the record of what already left the machine (C-002).
+    """
+    target = str(project_uuid or "").strip()
+    event_ids = (
+        [row.event_id for row in journal.read_identity_projection(project_uuids=[target])]
+        if target
+        else []
+    )
+    return _purge(
+        selector=target,
+        event_ids=event_ids,
+        journal=journal,
+        ledger=ledger,
+        dry_run=dry_run,
+        undelivered_only=undelivered_only,
+    )
+
+
+def purge_identity_less_events(
+    *,
+    journal: EventJournal,
+    ledger: SqliteDeliveryLedger,
+    dry_run: bool = True,
+) -> ProjectPurgeResult:
+    """Remove rows whose project identity is unresolvable (FR-011's population).
+
+    A real and permanent population: the backfill leaves a row NULL when the
+    envelope carries no identity anywhere (C-002 forbids deleting it), the consent
+    predicate then denies it forever, and FR-011 counts it so the denial is
+    observable. Without a selector of their own those rows would be
+    *observable but unremovable* — the operator would see a number they could do
+    nothing about, which is why a uuid purge deliberately not matching them is only
+    defensible alongside this function.
+
+    Dry-run by default, same as :func:`purge_project_events`.
+    """
+    event_ids = [event_id for event_id, _payload in journal.iter_rows_missing_identity()]
+    return _purge(
+        selector=IDENTITY_LESS_KEY,
+        event_ids=event_ids,
+        journal=journal,
+        ledger=ledger,
+        dry_run=dry_run,
+        undelivered_only=False,
     )
 
 
