@@ -52,6 +52,13 @@ The sink vocabulary
 * ``.send_event(...)`` and ``<ws-ish>.send(...)`` — the WebSocket senders.
 * ``.deliver(...)`` — ``DeliveryReceiver.deliver``, the shared transmit facade
   one call above ``requests.post`` (the "no chokepoint" finding above).
+* **Any call carrying both ``headers=`` and a body** (``data``/``json``/
+  ``content``/``files``), whatever the callee is named. This is the
+  callee-agnostic rule, and it is the one that sees a transport **injected as a
+  parameter** — ``poster(url, data=..., headers=...)`` is a bare ``Name`` call
+  that no method-name rule can match. Request/response *value* constructors
+  (``urllib.request.Request``) are excluded: they build a value, they do not
+  transmit, and the ``urlopen`` that follows is already matched.
 
 The work-list, and why it is empty
 ----------------------------------
@@ -125,8 +132,17 @@ It does **not** see:
    ``endpoint``/...). ``client.put(some_var)`` with no keywords is consequently
    **missed**. ``timeout`` is excluded from the keyword set on purpose —
    ``queue.put(item, timeout=1)`` has one. ``post``/``patch``/``request`` carry
-   no such collision in ``src/`` (measured: 58 sites, zero non-transport
-   matches) and are matched unconditionally.
+   no such collision in ``src/`` and are matched unconditionally.
+7. **A file may hold more than one sink, and an allowance covers them all.** E20
+   is the recorded case: the egress inventory traced the import path *backwards*
+   from ``requests.post`` and named one sink, but ``run_server_preflight`` POSTs
+   the same envelope stream earlier in the same function, so a gate placed where
+   the inventory pointed would have leaked every envelope while looking closed.
+   Tracing a sink backwards to its callers is not the same as tracing a path
+   forwards through every request it makes. This gate keys on files, so it
+   cannot tell you a *second* sink in an already-allowlisted file is ungated —
+   the seam annotation is per file, not per call. Adding a sink to a listed file
+   is therefore the cheapest way to evade this gate, and only review catches it.
 
 Spec: FR-002, FR-003, FR-019, FR-025-FR-032, C-003.
 """
@@ -159,6 +175,7 @@ class SinkKind(StrEnum):
     SEND_EVENT = "send-event"
     WEBSOCKET_SEND = "websocket-send"
     RECEIVER_DELIVER = "receiver-deliver"
+    TRANSPORT_CALL = "transport-call"
 
 
 #: HTTP methods that transmit a body or an arbitrary request. Measured against
@@ -178,6 +195,19 @@ _HTTP_KWARGS: frozenset[str] = frozenset({"json", "data", "content", "headers", 
 
 #: Argument names that mean the first positional is a URL.
 _URL_ARG_NAMES: frozenset[str] = frozenset({"url", "uri", "endpoint", "href", "base_url", "full_url", "request_url", "target_url"})
+
+#: Body-carrying keywords. A call taking one of these **and** ``headers`` is an
+#: HTTP request whatever its callee is named — which is how an *injected*
+#: transport is caught. ``sync/history_import/upload.py::run_server_preflight``
+#: POSTs the full envelope stream through a ``poster(...)`` parameter, a bare
+#: ``Name`` call that no method-name rule can see; it was found only because
+#: FR-028's implementer traced the path *forwards*. See limit 7.
+_REQUEST_BODY_KWARGS: frozenset[str] = frozenset({"json", "data", "content", "files"})
+
+#: Callees that build a request/response *value* rather than transmitting one.
+#: ``urllib.request.Request(url, data=..., headers=...)`` is HTTP-shaped but sends
+#: nothing — the ``urlopen`` that follows is the sink, and it is already matched.
+_VALUE_CONSTRUCTORS: frozenset[str] = frozenset({"Request", "Response"})
 
 #: Receiver names that make a bare ``.send(...)`` a websocket frame rather than
 #: a queue put. Kept narrow on purpose: ``.send`` is too common a name to match
@@ -212,6 +242,13 @@ _SEAM_GUIDANCE: dict[SinkKind, str] = {
         "if this is a loopback control endpoint, allowlist it as LOOPBACK_CONTROL; "
         "otherwise gate on the payload's own project_uuid via specify_cli.sync.consent "
         "before the call (E8 does this before crossing the loopback socket)"
+    ),
+    SinkKind.TRANSPORT_CALL: (
+        "this transmits a body through an injected/aliased transport, so the "
+        "method name hides nothing — gate on the payload's own project_uuid via "
+        "specify_cli.sync.consent BEFORE the call. E20 is the precedent: the "
+        "import path had two sinks and gating only the visible one would have "
+        "leaked every envelope while looking closed"
     ),
 }
 
@@ -255,12 +292,28 @@ def _looks_like_http_call(node: ast.Call) -> bool:
     return tail is not None and tail.lower().lstrip("_") in _URL_ARG_NAMES
 
 
+def _transmits_a_body(node: ast.Call) -> bool:
+    """True when *node* carries both headers and a request body.
+
+    Callee-agnostic on purpose. This is the rule that sees a transport passed in
+    as a parameter (``poster(url, data=..., headers=...)``) or reached through an
+    alias, neither of which any method-name rule can match.
+    """
+    tail = _attr_tail(node.func)
+    if tail in _VALUE_CONSTRUCTORS:
+        return False
+    kwargs = {kw.arg for kw in node.keywords if kw.arg is not None}
+    return "headers" in kwargs and bool(kwargs & _REQUEST_BODY_KWARGS)
+
+
 def _classify(node: ast.Call) -> SinkKind | None:
     """Return the :class:`SinkKind` of *node*, or ``None`` when it is not a sink."""
     func = node.func
     if isinstance(func, ast.Name):
         # A bare ``urlopen(...)`` after ``from urllib.request import urlopen``.
-        return SinkKind.URLOPEN if func.id == "urlopen" else None
+        if func.id == "urlopen":
+            return SinkKind.URLOPEN
+        return SinkKind.TRANSPORT_CALL if _transmits_a_body(node) else None
     if not isinstance(func, ast.Attribute):
         return None
     if func.attr in _HTTP_VERBS:
@@ -275,7 +328,7 @@ def _classify(node: ast.Call) -> SinkKind | None:
         return SinkKind.RECEIVER_DELIVER
     if func.attr == "send" and _attr_tail(func.value) in _WEBSOCKET_RECEIVERS:
         return SinkKind.WEBSOCKET_SEND
-    return None
+    return SinkKind.TRANSPORT_CALL if _transmits_a_body(node) else None
 
 
 def _find_sinks(path: Path, root: Path) -> list[SinkSite]:
@@ -539,6 +592,18 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
         kind=AllowanceKind.NOT_PROJECT_DATA,
         inventory_id="E18",
         note="Server reachability probe; sends no payload.",
+    ),
+    "specify_cli/cli/commands/sync.py": Allowance(
+        kind=AllowanceKind.NOT_PROJECT_DATA,
+        inventory_id="E18",
+        note=(
+            "`sync doctor`'s connectivity probe: a GET to /sync/health/ and, on "
+            "404/405, a POST of the literal empty body b'{\"events\": []}' to the "
+            "legacy batch endpoint to distinguish a reachable old server from an "
+            "unreachable one. No journal row, no envelope, no identity. Surfaced "
+            "by the injected-transport rule (it calls request_with_fallback_sync, "
+            "not requests.post) — a file nobody had reasoned about until then."
+        ),
     ),
     "specify_cli/doctrine/sources/api_source.py": Allowance(
         kind=AllowanceKind.NOT_PROJECT_DATA,
@@ -853,6 +918,16 @@ class TestGuardBites:
                 SinkKind.RECEIVER_DELIVER,
                 id="receiver-deliver",
             ),
+            pytest.param(
+                "def go(poster, url, body, hdrs):\n    return poster(url, data=body, headers=hdrs, timeout=5.0)\n",
+                SinkKind.TRANSPORT_CALL,
+                id="injected-transport-parameter",
+            ),
+            pytest.param(
+                "def go(self, url, body, hdrs):\n    return self._send(url, json=body, headers=hdrs)\n",
+                SinkKind.TRANSPORT_CALL,
+                id="aliased-transport-method",
+            ),
         ],
     )
     def test_scanner_detects_each_sink_shape(self, tmp_path: Path, source: str, expected: SinkKind) -> None:
@@ -914,6 +989,40 @@ class TestGuardBites:
             _KNOWN_UNGATED_FILES,
         )
         assert cleared == []
+
+    def test_the_e20_preflight_shape_is_caught(self, tmp_path: Path) -> None:
+        """A second sink reached through an injected transport is not invisible.
+
+        E20: ``run_server_preflight`` POSTs the full envelope stream through a
+        ``poster(...)`` parameter, earlier in the same function as the delivery
+        call the inventory named. A method-name rule cannot see a bare ``Name``
+        call, so gating where the inventory pointed would have left the leak.
+        """
+        pkg = tmp_path / "specify_cli" / "sync" / "history_import"
+        pkg.mkdir(parents=True)
+        (pkg / "preflight.py").write_text(
+            "import gzip, json\n"
+            "def preflight(envelopes, *, url, token, poster):\n"
+            "    body = gzip.compress(json.dumps({'events': list(envelopes)}).encode())\n"
+            "    return poster(url, data=body, headers={'Authorization': token}, timeout=30)\n",
+            encoding="utf-8",
+        )
+        offenders = _collect_offenders(tmp_path, _EGRESS_ALLOWLIST_FILES, _KNOWN_UNGATED_FILES)
+        assert [(s.relpath, s.kind) for s in offenders] == [("specify_cli/sync/history_import/preflight.py", SinkKind.TRANSPORT_CALL)]
+        assert "project_uuid" in _format(offenders)
+
+    def test_request_value_constructors_are_not_sinks(self, tmp_path: Path) -> None:
+        """``Request(url, data=..., headers=...)`` builds a value; it transmits nothing.
+
+        Without this the callee-agnostic rule would flag every stdlib request
+        construction, and the noise is what gets a gate weakened.
+        """
+        module = tmp_path / "build.py"
+        module.write_text(
+            "import urllib.request\ndef build(url, body, hdrs):\n    return urllib.request.Request(url, data=body, headers=hdrs)\n",
+            encoding="utf-8",
+        )
+        assert _find_sinks(module, tmp_path) == []
 
     def test_recording_an_open_path_reds_with_its_requirement(self) -> None:
         """The work-list's reporting path stays proven while the set is empty.
