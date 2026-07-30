@@ -37,6 +37,20 @@ body uploads and M1 names for capture. ``build_id`` cannot substitute: it is a
 one-way uuid5 of ``(project_uuid, node_id)`` and degrades to a random uuid4 when
 identity is incomplete, and ``mission_id`` is a repo-local slug. So the frame
 carries ``project_uuid`` explicitly.
+
+Operator purge (#3030 T022, FR-016/FR-017/NFR-006)
+--------------------------------------------------
+Withheld frames are retained, so the queue is a fourth store the operator's purge
+must clear alongside the journal, the delivery ledger and the body-upload queue:
+:func:`purge_pending_local_commits`, :func:`purge_all_pending_local_commits` and
+:func:`census_pending_local_commits`. Dry-run by default, and never reachable from
+an unattended path (C-002).
+
+Unlike the other three, this store is **per-checkout** ``LOCAL_RUNTIME`` state, and
+that locality is load-bearing rather than incidental: it is what makes the pre-fix
+frames — written before ``project_uuid`` existed, i.e. the incident's own population —
+attributable at all. See :func:`purge_pending_local_commits` for the decision and its
+reasoning.
 """
 
 from __future__ import annotations
@@ -292,7 +306,9 @@ def flush_pending_local_commits(repo_root: Path, client: Any) -> None:
     Withheld frames are **retained**, not dropped. A frame from a project that later
     consents becomes sendable; one that carries no resolvable identity never does,
     and staying on disk keeps it available as evidence of what a pre-gate build
-    queued. WP08 owns the operator's purge path.
+    queued. The operator's purge path is :func:`purge_pending_local_commits` in this
+    module (WP08 T022) — a named function rather than the promise this docstring used
+    to carry, which pointed at a work package whose surface did not include this file.
     """
     state = load_sync_state(repo_root)
 
@@ -353,6 +369,295 @@ def record_local_commit_ack(repo_root: Path, git_hash: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Operator purge of the pending queue (#3030 WP08 T022 — FR-016/FR-017/NFR-006)
+# ---------------------------------------------------------------------------
+
+#: Census key for frames carrying no resolvable ``project_uuid``. Mirrors
+#: ``delivery.retention.IDENTITY_LESS_KEY`` — the journal and body-queue censuses
+#: group blank identity under ``""`` — so one purge report can present all three
+#: stores without a per-store special case. Defined here rather than imported: a
+#: per-checkout JSON queue should not take an import dependency on the delivery
+#: stores to borrow a one-character constant, and ``delivery/`` deliberately
+#: reaches into ``sync/`` at call time only.
+IDENTITY_LESS_FRAME_KEY = ""
+
+
+def _frame_census_key(frame: Mapping[str, Any]) -> str:
+    """The census bucket *frame* belongs to: its own uuid, or the identity-less key.
+
+    Selection and census are both defined as this one function of a frame, so the two
+    cannot disagree about which bucket a frame is in. A purge that deleted by one rule
+    and counted by another would satisfy its own differential while moving frames
+    nobody counted.
+    """
+    return _frame_project_uuid(frame) or IDENTITY_LESS_FRAME_KEY
+
+
+@dataclass(frozen=True)
+class PendingCommitPurgeResult:
+    """Observable outcome of one purge over a checkout's ``pending_local_commits``.
+
+    Carries the **whole census** before and after rather than only the target's
+    number, for the same reason
+    :class:`~specify_cli.delivery.retention.BodyQueuePurgeResult` does: NFR-006 is a
+    differential ("0% of any other project's entries"), and a result that reports only
+    what it removed cannot substantiate that claim. Callers should still measure
+    independently where they can — a purge reporting its own arithmetic proves only
+    that it is self-consistent.
+    """
+
+    selector: str
+    dry_run: bool
+    removed: int
+    before: Mapping[str, int] = field(default_factory=dict)
+    after: Mapping[str, int] = field(default_factory=dict)
+    #: ``True`` for FR-017's total purge over this checkout's queue. A flag rather
+    #: than a sentinel selector, because :data:`IDENTITY_LESS_FRAME_KEY` is already
+    #: the empty string and any other sentinel could collide with a stored uuid.
+    all_frames: bool = False
+    #: Whether the identity-less bucket was in scope — i.e. whether this checkout's
+    #: own declared identity vouched for its unattributable frames. Part of the
+    #: result because it changes what "100% of the target" means, and the operator
+    #: needs to see whether the pre-fix population was covered.
+    unattributed_in_scope: bool = False
+
+    @property
+    def scope_keys(self) -> frozenset[str]:
+        """The census buckets this purge claims. Empty for a selector matching nothing."""
+        if self.all_frames:
+            return frozenset(self.before) | frozenset(self.after)
+        if not self.selector:
+            return frozenset()
+        keys = {self.selector}
+        if self.unattributed_in_scope:
+            keys.add(IDENTITY_LESS_FRAME_KEY)
+        return frozenset(keys)
+
+    @property
+    def target_before(self) -> int:
+        return sum(self.before.get(key, 0) for key in self.scope_keys)
+
+    @property
+    def target_after(self) -> int:
+        return sum(self.after.get(key, 0) for key in self.scope_keys)
+
+    @property
+    def selected(self) -> int:
+        """Entries the selection covers — what a real run *will* remove.
+
+        Distinct from :attr:`removed`, which is ``0`` on a dry run because a dry run
+        removes nothing. A preview that could only ever report ``0`` would tell the
+        operator nothing, and WP08's definition of done requires the preview's count
+        to equal what the real run then deletes.
+        """
+        return self.target_before
+
+    @property
+    def other_project_differential(self) -> int:
+        """Absolute entry-count change across every bucket **not** in scope.
+
+        Over the union of both censuses, so a bucket that *appeared* counts as a
+        difference too — a purge must neither remove nor create another project's
+        entries. NFR-006 requires ``0``. For a total purge there is no "other" and
+        this is ``0`` by definition; the load-bearing check there is
+        ``target_after == 0``.
+        """
+        keys = (set(self.before) | set(self.after)) - self.scope_keys
+        return sum(abs(self.after.get(key, 0) - self.before.get(key, 0)) for key in keys)
+
+    @property
+    def is_exact(self) -> bool:
+        """100% of the selection gone, 0% of anything else moved (SC-006 / NFR-006)."""
+        expected_after = self.target_before if self.dry_run else 0
+        return self.target_after == expected_after and self.other_project_differential == 0
+
+
+def census_pending_local_commits(repo_root: Path) -> dict[str, int]:
+    """Per-project counts of the frames queued in *repo_root*'s ``sync-state.json``.
+
+    Unattributable frames are grouped under :data:`IDENTITY_LESS_FRAME_KEY`, so the
+    pre-fix population is **visible** rather than silently folded into some project's
+    number. An operator cannot ask for the erasure of entries the report never shows
+    them.
+
+    Total-preserving by construction: every frame maps to exactly one bucket via
+    :func:`_frame_census_key`. That is a correctness property, not tidiness — every
+    NFR-006 differential subtracts this census, so a population counted in no bucket
+    could be moved by a purge that still reported "0% of any other project's entries".
+    The journal census had exactly that hole for non-NULL blank uuids.
+    """
+    census: dict[str, int] = {}
+    for frame in load_sync_state(Path(repo_root)).pending_local_commits:
+        key = _frame_census_key(frame)
+        census[key] = census.get(key, 0) + 1
+    return census
+
+
+def _checkout_vouches_for(repo_root: Path, target: str) -> bool:
+    """Is *repo_root* the store of project *target*, by its own declaration?
+
+    The question locality attribution rests on. Compared case-insensitively, because a
+    uuid hand-written in upper case in ``config.yaml`` must not silently leave the
+    incident's frames behind; answered ``False`` for an unreadable or absent identity,
+    because absence must no more authorise deletion than it authorises egress.
+    """
+    declared = _checkout_project_uuid(Path(repo_root))
+    if not declared or not target:
+        return False
+    return declared.strip().casefold() == target.strip().casefold()
+
+
+def _purge_frames(
+    repo_root: Path,
+    *,
+    selector: str,
+    scope_keys: frozenset[str] | None,
+    dry_run: bool,
+    all_frames: bool = False,
+    unattributed_in_scope: bool = False,
+) -> PendingCommitPurgeResult:
+    """Shared core: census, (optionally) drop the selected frames, census again.
+
+    The **only** path that removes an entry from ``pending_local_commits`` other than
+    an ack, so every selector composes onto it (C-003). ``scope_keys=None`` means
+    "every frame" — FR-017's total purge — and is deliberately distinct from the empty
+    set, which means "nothing matched" and must never degrade into "match everything".
+
+    The second census is a fresh read even on a dry run rather than a copy of the
+    first. "Nothing changed" is precisely the claim a dry run has to earn, and this is
+    the only place a dry run that quietly mutated could still be caught.
+    """
+    root = Path(repo_root)
+    before = census_pending_local_commits(root)
+
+    removed = 0
+    if not dry_run and (scope_keys is None or scope_keys):
+        state = load_sync_state(root)
+        retained = [
+            frame
+            for frame in state.pending_local_commits
+            if not (scope_keys is None or _frame_census_key(frame) in scope_keys)
+        ]
+        removed = len(state.pending_local_commits) - len(retained)
+        if removed:
+            # Write only when something is actually removed: reporting zero must not
+            # materialise a queue file for a checkout that never had one.
+            state.pending_local_commits = retained
+            save_sync_state(root, state)
+
+    return PendingCommitPurgeResult(
+        selector=selector,
+        dry_run=dry_run,
+        removed=removed,
+        before=before,
+        after=census_pending_local_commits(root),
+        all_frames=all_frames,
+        unattributed_in_scope=unattributed_in_scope,
+    )
+
+
+def purge_pending_local_commits(
+    repo_root: Path,
+    project_uuid: str,
+    *,
+    dry_run: bool = True,
+) -> PendingCommitPurgeResult:
+    """Remove one project's queued ``LocalCommit`` frames — the fourth purge store (T022).
+
+    Dry-run by **default**, matching FR-016's ``sync purge`` contract and
+    :func:`~specify_cli.delivery.retention.purge_project_body_uploads`: the census is
+    taken either way, so a preview reports exactly what a confirmed run will remove
+    without removing it. What it reports as :attr:`~PendingCommitPurgeResult.selected`
+    is what a real run then deletes.
+
+    Why this store belongs to the purge at all: ``changed_files`` are repo-relative
+    paths under ``kitty-specs/``, i.e. **mission slugs**, and for the 2026-07-27
+    incident's population those slugs are client engagement names. WP12 gates the
+    egress path and *retains* the frames it withholds; without this function an
+    operator would purge the journal and the ledger, be told the project was erased,
+    and still have those names sitting on disk.
+
+    **The pre-fix population is attributed by store locality, and that is the
+    decision T022 had to make.** WP12 added ``project_uuid`` to the frame
+    *additively*, so frames written before it — precisely the set the incident
+    produced — carry no such key and cannot be matched by uuid. They are still
+    purgeable here, because this store is per-checkout rather than machine-global:
+    ``.kittify/sync-state.json`` lives in the checkout whose commits wrote it
+    (:func:`_sync_state_path`), and ``safe_commit`` calls :func:`emit_local_commit`
+    with that same checkout's root, so an unattributable frame in project X's file is
+    X's own content — its ``changed_files`` are paths in X's repository. Attributing
+    it to X therefore cannot reach another project's entries, which is what keeps
+    NFR-006's "0% of any other project's" true.
+
+    The vouching is **checked, not assumed**: the identity-less bucket is in scope
+    only when this checkout declares *project_uuid* as its own
+    (:func:`_checkout_vouches_for`). A checkout that declares a different project, or
+    declares none, vouches for nothing, and its unattributable frames stay for
+    :func:`purge_all_pending_local_commits`. The rejected alternative was matching the
+    mission slug inside ``changed_files``: the slug is not a project-scoped
+    identifier, no project→slug mapping exists at purge time, and it would make the
+    operator hand-type the client engagement name they are trying to erase — while
+    still reducing, in the end, to this same locality argument.
+
+    A blank *project_uuid* selects nothing. Sharper here than in the journal purge:
+    :data:`IDENTITY_LESS_FRAME_KEY` *is* the empty string, so a selector that reached
+    the matcher unstripped would silently vacuum the unattributable population.
+
+    ``last_saas_confirmed_hash`` is deliberately left alone. It is the ack watermark,
+    not a census key: clearing it would make already acknowledged frames eligible to
+    send again. It holds a git hash of the operator's own checkout and no mission
+    slug, so retaining it takes nothing away from FR-016's claim.
+
+    **C-002**: this deletes, so it may only ever run as the operator's explicit act.
+    Nothing in ``src/`` calls it from an unattended path — in particular
+    :func:`flush_pending_local_commits`, which runs on every WebSocket connect,
+    retains what it withholds instead of purging it.
+    """
+    target = str(project_uuid or "").strip()
+    if not target:
+        return _purge_frames(repo_root, selector="", scope_keys=frozenset(), dry_run=dry_run)
+
+    vouches = _checkout_vouches_for(repo_root, target)
+    scope = {target} | ({IDENTITY_LESS_FRAME_KEY} if vouches else set())
+    return _purge_frames(
+        repo_root,
+        selector=target,
+        scope_keys=frozenset(scope),
+        dry_run=dry_run,
+        unattributed_in_scope=vouches,
+    )
+
+
+def purge_all_pending_local_commits(
+    repo_root: Path,
+    *,
+    dry_run: bool = True,
+) -> PendingCommitPurgeResult:
+    """Remove **every** queued frame from *repo_root*'s ``sync-state.json`` (FR-017).
+
+    Dry-run by default, like every other selector. The confirmation FR-017 requires
+    belongs to the operator-facing CLI, alongside the one already guarding the
+    journal/ledger total purge: a second confirmation prompt per store would train the
+    operator to type the token without reading it.
+
+    **This store bounds ``--all`` differently from the other three, and a caller must
+    not paper over that.** The journal, the ledger and the body queue are
+    machine-global, so one call erases the machine. ``pending_local_commits`` is
+    per-checkout ``LOCAL_RUNTIME`` state (``state/contract.py``:
+    ``sync_local_commit_state``), so this clears *this* checkout's queue only —
+    another checkout's frames live in another file this function never sees. Reporting
+    a machine-wide "all frames purged" from one call would be a false attestation.
+    """
+    return _purge_frames(
+        repo_root,
+        selector="all",
+        scope_keys=None,
+        dry_run=dry_run,
+        all_frames=True,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Internal helpers (mirrors invocation/propagator.py)
 # ---------------------------------------------------------------------------
 
@@ -408,6 +713,16 @@ def _send_event(client: Any, event_dict: dict[str, Any]) -> None:
 _PENDING_SEND_TASKS: set[Any] = set()
 
 
+# ``IDENTITY_LESS_FRAME_KEY`` / ``PendingCommitPurgeResult`` /
+# ``census_pending_local_commits`` / ``purge_pending_local_commits`` /
+# ``purge_all_pending_local_commits`` are deliberately NOT advertised yet, on the same
+# reasoning ``delivery/retention.py`` records for its own purge symbols: the
+# symbol-level dead-code gate (``tests/architectural/test_no_dead_symbols.py``) is a
+# shrink-only ratchet over ``__all__``, and WP08's ``sync purge`` command — the
+# production caller — is a later slice. Advertising them now would either fail that
+# gate or need an allowlist entry that outlives its reason. They stay importable, and
+# join this list (and ``sync/__init__``'s lazy re-exports) when the CLI wires them,
+# which is also the moment the names stop being aspirational.
 __all__ = [
     "SyncState",
     "load_sync_state",
