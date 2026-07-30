@@ -543,9 +543,23 @@ FR-025's pattern census found the consent surface fails closed everywhere except
 fixed — a genuinely reassuring result. It also found two **non-egress** permission decisions that
 lean permissive on "unknown":
 
-- `sync/owner.py:503,730` — a swallowed exception permits `remove_owner_record` and reports a
-  successful kill. Bounded (it never signals a PID) and documented, but "unknown ⇒ permit a
-  cleanup action" is the shape.
+- ~~`sync/owner.py:503,730` — a swallowed exception permits `remove_owner_record` and reports a
+  successful kill.~~ **This bullet was WRONG in two places and is corrected 2026-07-30.** Measured
+  end to end: `True` is the **refusing** answer — `is_orphan` True yields
+  `daemon_status == "orphan"`, `BoundaryFailureSet.ok is False`, and every mutating sync command
+  refuses at preflight. **No caller of `is_orphan`/`list_orphan_records` calls
+  `remove_owner_record`**; the only `src/` call is the daemon's own pid/port-guarded shutdown hook,
+  and the "cleanup" is a `rm <owner.json>` **hint printed for a human to type**. `:730` points at an
+  `except TypeError` test-double branch, not a swallowed-exception permission. **Flipping it would
+  have been the actual fail-open**: an unverifiable daemon would report `present`, the orphan row
+  would vanish, and the preflight would pass. Left alone deliberately.
+
+  A third reason it must stay, which nobody anticipated: **the guard is interpreter-dependent.**
+  Measured on three interpreters — Python 3.11.15 and 3.12.13 (**CI's version**) propagate `EACCES`
+  out of `Path.exists()`, so `except OSError` is the only thing stopping a documented *pure
+  predicate* from raising `PermissionError` through `sync status`/`doctor`/preflight. Python 3.14.4
+  delegates to `os.path.exists`, swallows it, and reaches the same verdict by another route.
+  Deleting the guard breaks 3.11/3.12 **only** — green locally, red on CI.
 - `invocation/executor.py:474` `_read_started_mode` — **absent** and **malformed**
   `mode_of_work` both collapse to `None` and skip FR-009 evidence-mode enforcement, so a
   hand-edited `kitty-ops` line buys evidence promotion on an advisory or query Op. The remedy is

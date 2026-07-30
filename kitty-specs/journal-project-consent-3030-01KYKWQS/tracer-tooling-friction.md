@@ -480,3 +480,23 @@ defect can only collapse two states into one, not invent a distinction. It is th
 This is the session's own central lesson turned on the fix for that lesson: the remedy for
 "the thing you measured is not the thing you changed" itself had a way of measuring the wrong
 thing.
+
+## A mutation can be inert on your interpreter and live on CI's
+
+A fourth way for a mutation plugin to rot, found while auditing `sync/owner.py`. The first
+version patched the obvious line — `except OSError: return False` — and reported
+`unknown_branch=0` with the suite green. That reads exactly like "the pin does not hold".
+
+It was neither. On **Python 3.14** that branch is unreachable, because `Path.exists()` delegates to
+`os.path.exists` and swallows `EACCES` itself. On **Python 3.11/3.12 — CI's version** — the
+exception propagates and the branch is live. So the mutant was inert on the interpreter it ran on
+while the code it targeted was load-bearing on the interpreter that matters.
+
+Caught only because the plugin asserted its own reachability. Rewritten against `os.stat`
+(identical across 3.11–3.14) it killed all four unverifiable-path pins.
+
+**Generalisation:** the standing rules already say *assert the mutation bound* and *patch the
+primary decision point*. Add: **a branch's reachability can depend on the interpreter, the OS or a
+library version**, so a zero-invocation count is not evidence the code is dead — it may be evidence
+your environment differs from production's. The same asymmetry applies to the code under test: a
+guard that looks redundant locally can be the only thing standing on CI.
