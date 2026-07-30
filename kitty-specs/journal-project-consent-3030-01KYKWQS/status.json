@@ -1,7 +1,7 @@
 {
-  "event_count": 46,
-  "last_event_id": "01KYRPQGWNH8FAABT0K01GSS3Q",
-  "materialized_at": "2026-07-30T05:07:37.493966+00:00",
+  "event_count": 47,
+  "last_event_id": "01KYRPRDQQ5K8EN2A513QHR44X",
+  "materialized_at": "2026-07-30T05:08:07.031932+00:00",
   "mission_number": "",
   "mission_slug": "journal-project-consent-3030-01KYKWQS",
   "mission_type": "software-dev",
@@ -11,8 +11,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 3,
+    "for_review": 1,
+    "in_progress": 2,
     "in_review": 1,
     "planned": 2
   },
@@ -223,27 +223,39 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "assignee": "python-pedro",
       "force_count": 0,
-      "lane": "in_progress",
-      "last_event_id": "01KYRPQBATT2K326MH5M9T08MA",
-      "last_transition_at": "2026-07-30T05:07:31.802475+00:00",
+      "lane": "for_review",
+      "last_event_id": "01KYRPRDQQ5K8EN2A513QHR44X",
+      "last_transition_at": "2026-07-30T05:08:07.031932+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "WP11 T025/T026 implemented; body-upload consent gate and other_project_differential landed"
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer"
+      "role": "implementer",
+      "subtasks": {
+        "T025": "done",
+        "T026": "done"
+      }
     },
     "WP12": {
       "actor": "python-pedro",
+      "agent": "python-pedro",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "python-pedro",
       "force_count": 0,
       "lane": "in_progress",
       "last_event_id": "01KYRPQGWNH8FAABT0K01GSS3Q",
       "last_transition_at": "2026-07-30T05:07:37.493966+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "WP12 T027/T028 implemented; local-commit frame consent gate landed, MINOR remediation in flight"
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer"
+      "role": "implementer",
+      "subtasks": {
+        "T028": "done"
+      }
     }
   }
 }
