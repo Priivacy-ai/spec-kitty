@@ -17,6 +17,10 @@ durable architecture/reference docs it is retired.
 
 ## Portfolio-level planning
 
+- [3.2.x Executive Overview](3-2-x-executive-overview.md) — **PO / C-suite / customer
+  synthesis (2026-07-30):** goals and progress since the 3.2.4 release, framed as
+  business outcomes; the top-level entry point that distils the delivery plan, roadmap,
+  and release goals for a stakeholder audience.
 - [3.2.x Open-Core Delivery Plan](3-2-x-open-core-delivery-plan.md) — **PO-facing
   synthesis (2026-07-30):** verified status re-read (what's actually delivered vs what
   the roadmap shows), the open-core breaking-change delivery strategy
