@@ -62,3 +62,26 @@ session that `cd`s between checkouts, one project's consent is applied to anothe
   file (`OfflineBodyUploadQueue(db_path=OfflineQueue().db_path)`), so a purge that reports 100% today
   leaves queued bodies behind — a false remediation attestation.
 - `sync/routing.py`'s call sites are passed an explicit repo root rather than defaulting to cwd.
+  ✅ **Closed 2026-07-30, with one recorded precondition.** The WP11 implementer correctly
+  flagged this bullet as outside its file scope and unverified, so it was traced rather than
+  assumed. Every live caller now passes an explicit root: `_auth_recovery.py:103` (`repo_root`),
+  `body_upload.py:150` (`repo_root`), `runtime.py:106` (`project_root`), `sync/__init__.py:342`
+  (`path`). The two `cli/commands/sync.py` sites (`:1107`, `:1204`) call with no argument, and
+  that is **correct** — they are human-invoked commands whose subject genuinely is the current
+  checkout. The bug class was never "cwd is used"; it was "cwd answers a question about a
+  *specific event's* project".
+
+  One cwd-derived residue survives, and it is inert rather than fixed:
+  `_is_checkout_sync_enabled_for_batch` (`batch.py:335`) calls
+  `is_sync_enabled_for_checkout()` with no argument. Traced to exhaustion rather than
+  trusting the anchor test's name: its only caller is `batch_sync` (`:1070`, enclosing def
+  `:990`), whose only caller is `sync_all_queued_events` (`:1417`, enclosing def `:1374`),
+  and **neither entry point has any production reference outside `batch.py`** — the only
+  cross-module mentions are comments at `sync/__init__.py:61` and `background.py:494,580`.
+  WP02 un-exported both and `tests/sync/test_no_queue_drain_constructed_3030.py` pins that
+  no code path constructs the drain.
+
+  **Precondition, identical in shape to the `queue_event` one:** the moment FR-014 re-opens
+  `batch.py` and restores a queue-backed sender, this cwd-derived read becomes live egress
+  and must be given an explicit root *in the same change*. It is not a follow-up ticket,
+  because the WP that restores the sender is the only one positioned to notice.

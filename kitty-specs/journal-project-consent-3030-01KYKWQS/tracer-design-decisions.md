@@ -108,3 +108,24 @@ collection surface, remediated by FR-016's purge rather than by refusing to writ
 this write becomes egress and must be gated *before* the sender lands. Recorded here
 because the WP02 removal is what makes ground (1) true, and a future WP re-opening
 `batch.py` for FR-014 will not otherwise know that.
+
+## Two cwd-derived reads survive, both inert, both with the same trigger
+
+`batch.py` retains a second one alongside `queue_event`'s at-rest pooling:
+`_is_checkout_sync_enabled_for_batch` (`:335`) reads consent from the current working
+directory. Reachability was traced rather than inferred from the anchor test's name —
+`batch_sync` (`:990`) is its only caller, `sync_all_queued_events` (`:1374`) is
+`batch_sync`'s only caller, and neither has a production reference outside `batch.py`.
+
+Both residues share one trigger: **FR-014 re-opening `batch.py` to restore a
+queue-backed sender.** That single change would simultaneously make `queue_event` an
+egress write and make this read a live cross-project consent decision. Neither is
+filed as an issue, because an issue in a tracker is not read by the person editing
+`batch.py`; both are recorded at the code and in the WP that would be re-opened.
+
+The general rule this mission keeps re-deriving: **cwd is not the bug.** A
+human-invoked command whose subject is "this checkout" is right to read cwd —
+`cli/commands/sync.py:1107,1204` are correct as written. The bug is cwd answering a
+question about a *specific event's* project, which is why the fix everywhere was to
+thread the event's own `project_uuid` rather than to purge `Path.cwd()` from the
+codebase.
