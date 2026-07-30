@@ -165,6 +165,13 @@ class TestGenuineSuccessStillResetsAndStamps:
         assert service._backoff_seconds == 0.5
         assert service.last_sync is not None
 
+    # NOTE: the post-upload-loop ``return True`` inside ``_drain_body_queue`` is
+    # deliberately NOT pinned here. As of T025 that path runs through the
+    # consent-windowed task collection, so a test for it has to speak that seam's
+    # API; pinning it belongs with T025's own suite rather than coupling this
+    # auth-backoff file to it. The empty-queue exit above covers the True side of
+    # the contract that this file owns.
+
     def test_failing_body_drain_still_escalates_backoff(
         self, service: BackgroundSyncService
     ) -> None:
