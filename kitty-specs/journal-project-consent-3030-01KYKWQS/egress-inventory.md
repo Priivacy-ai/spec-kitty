@@ -270,3 +270,43 @@ machine-wide credential with **no per-project refusal available**.
 **Recorded as an open collection surface under C-006**, not as a leak and not as settled:
 *operator-configured tracker connectors — project-scoped destination binding, machine-scoped
 credential, no expressible refusal.*
+
+## The guard had the same blind spot the inventory did — injected transports
+
+E20 exposed a hole in the boundary guard itself, closed in `fe1c6f7d44`.
+
+`run_server_preflight` transmits through **`poster(url, data=..., headers=...)`** — an *injected
+transport*, i.e. a bare `Name` call. No method-name rule can match it, so the guard saw that file
+only through its `.deliver(` line. **The exact sink class the guard exists to catch was invisible
+to it.**
+
+Fixed with a **callee-agnostic** rule: any call carrying both `headers=` and a body
+(`data`/`json`/`content`/`files`) transmits, whatever it is named. That is sink-*shaped* rather
+than name-shaped, so it does not reintroduce the `RETIRED_DRAIN_NAMES` failure mode the guard was
+built to replace. Value constructors are excluded — `urllib.request.Request(...)` builds a value
+and sends nothing, and the `urlopen` after it already matched.
+
+The rule was **measured before adoption**: 25 sites, 13 files, **zero false positives**. Coverage
+went 58 sites / 27 files → **72 / 28**. Blinding the allowlist reds all 72 across all 28, and none
+of the 28 entries is inert — 12 `SEAM` and 16 non-`SEAM` each red their own file when removed.
+
+It surfaced one new file: `cli/commands/sync.py`'s `sync doctor` connectivity probe (a GET to
+`/sync/health/`, and on 404/405 a POST of the literal `b'{"events": []}'` to distinguish a
+reachable old server from an unreachable one). No journal row, no envelope, no identity →
+`NOT_PROJECT_DATA`. It reaches the network via `request_with_fallback_sync`, which is why no
+method-name rule saw it either. **A file nobody had reasoned about, now reasoned about — the gate
+working, not a new leak.**
+
+### Limit 7, and it is the cheapest way to evade this gate
+
+**A file may hold more than one sink, and an allowance covers them all.** E20 is exactly that
+shape. So adding a *second* sink to an **already-allowlisted** file passes the guard silently, and
+only review catches it.
+
+This is the same lesson the inventory learned about its own method — *tracing a sink backwards to
+its callers is not the same as tracing a path forwards through every request it makes* — arriving
+now at the tool built to replace the enumeration. Stated in the guard's docstring rather than left
+to be rediscovered.
+
+**The guard's green no longer depends on uncommitted work**: FR-028 through FR-032 are all
+committed, so the seam allowances point at landed code.
