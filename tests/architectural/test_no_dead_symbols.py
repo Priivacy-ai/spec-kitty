@@ -400,7 +400,8 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # specify_cli.text_sanitization::sanitize_markdown_text
         SymbolKey("sanitize_markdown_text", "1531f4eece348d60d229144a81fc098028060a79d91d8ccd0fad3f8ec0ca2f34"),
         # specify_cli.tracker.origin::search_origin_candidates
-        SymbolKey("search_origin_candidates", "b8ff826597fe523e0b2fa3297300ff1ffceff4f39c8bd0e9e061104aae7b019a"),
+        # (rehashed: the client is now constructed with project_root=repo_root, #3030 FR-029)
+        SymbolKey("search_origin_candidates", "5901b7aef2a3cf420da33994b0db298b2b96d9bf23b9da263eba3c1003305069"),
         # specify_cli.tracker.origin::start_mission_from_ticket
         SymbolKey("start_mission_from_ticket", "16f1e4cf5ba62e5e10c1d4622b62549922f9b149432897f11696e00e7e8cac8a"),
         # specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle::MIGRATION_ID

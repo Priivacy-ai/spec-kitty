@@ -296,6 +296,67 @@ def test_every_endpoint_refuses_without_consent(
         assert refusal is not None, f"{endpoint} did not refuse"
 
 
+def test_every_production_construction_site_attributes_its_project() -> None:
+    """The attribution precondition, made executable.
+
+    Every production site reaches the client through ``from_env``, which threads
+    its ``repo_root`` onto the client as the project whose consent gates the send.
+    A ``from_env()`` with no root produces a client that refuses everything, so
+    the failure mode is loud rather than leaky — but it is still a broken caller,
+    and a direct ``SaasClient(...)`` without ``project_root`` is the same.
+
+    Scans ``src/`` for both shapes. It cannot prove the root is the *right* one;
+    that is enumerated per site in ``saas_client/egress_consent.py``, including
+    the one site (``decision widen``) where root and subject can legitimately
+    diverge and why that is bounded today.
+    """
+    import ast
+
+    src = Path(__file__).resolve().parents[3] / "src" / "specify_cli"
+    assert src.is_dir(), f"source tree not found at {src} — path regression?"
+
+    unattributed: list[str] = []
+    scanned = 0
+    for path in sorted(src.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            # ``SaasClient(...)`` or ``SaasClient.from_env(...)``
+            is_direct = isinstance(func, ast.Name) and func.id == "SaasClient"
+            is_from_env = (
+                isinstance(func, ast.Attribute)
+                and func.attr == "from_env"
+                and isinstance(func.value, ast.Name)
+                and func.value.id == "SaasClient"
+            )
+            if not (is_direct or is_from_env):
+                continue
+            scanned += 1
+            if is_from_env:
+                attributed = bool(node.args) or any(
+                    kw.arg == "repo_root" for kw in node.keywords
+                )
+            else:
+                attributed = any(kw.arg == "project_root" for kw in node.keywords)
+            if not attributed:
+                unattributed.append(f"{path.relative_to(src.parent.parent)}:{node.lineno}")
+
+    assert scanned, (
+        "no SaasClient construction found in src/ — the scan is vacuous, which "
+        "would make this guard decoration"
+    )
+    assert not unattributed, (
+        "SaasClient built without a project attribution at:\n  "
+        + "\n  ".join(unattributed)
+        + "\n\nPass the root of the project that OWNS the mission or decision "
+        "record the request carries (#3030 FR-030) — `from_env(repo_root=...)`, or "
+        "`project_root=` on a direct construction. See "
+        "saas_client/egress_consent.py for the precondition and what falsifies it."
+    )
+
+
 def test_no_attribution_is_a_refusal_at_the_gate_itself() -> None:
     """The invariant, asserted below the transport and below every fixture.
 

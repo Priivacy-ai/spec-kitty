@@ -59,6 +59,74 @@ unresolvable project is a **refusal** (FR-003 / NFR-001): inability to determine
 consent is never consent. This mission has now found that same defect
 independently in four places, most recently as ``if sync_enabled is False`` where
 the resolver returned ``None`` for two unrelated causes.
+
+The attribution precondition — stated, because it is load-bearing
+-----------------------------------------------------------------
+
+The gate is handed a **checkout root**, and the funnel resolves it to that
+checkout's ``project.uuid`` before asking consent. So consent is answered
+per-*uuid*, not per-path — the root is an input to the resolution, not a
+substitute for it. What the root *does* decide is **whose** consent gets asked,
+and that is a real precondition:
+
+    **Every construction site must pass the root of the project that owns the
+    record the request will carry.**
+
+If it ever passes some other root, the gate answers correctly for the wrong
+project — which is this mission's entire bug class (cwd, ``repo_root``,
+machine-global arming, daemon scope and a checkout-level grant were each a place
+where consent was answered by *where the code was standing* rather than *whose
+data was moving*). It is written down here rather than left implicit because an
+unstated locality argument reads as obviously fine until someone adds the caller
+that breaks it, and nothing tells them they broke it.
+
+Enumerated for the three sites that exist today:
+
+1. :func:`~specify_cli.tracker.origin.bind_mission_origin` — **derived from the
+   data, not from locality.** ``_resolve_repo_root(feature_dir)`` walks *up* from
+   the very directory whose ``meta.json`` supplies the ``mission_id`` and
+   ``mission_slug`` being sent. The non-interactive creation path closes the loop:
+   ``core/mission_creation.py`` builds ``feature_dir = resolved_root /
+   kitty-specs / <slug>`` and passes both, ``origin_consumer`` reads the issue
+   ``title`` from ``resolved_root/.kittify/pending-origin.yaml``, and walking back
+   up from ``feature_dir`` returns ``resolved_root``. Every field in the payload
+   originates under the root the client is attributed to. This holds even when
+   ``create_mission_core`` is given an explicit ``repo_root`` that differs from
+   the cwd, because the dossier, the meta and the pending origin all live under
+   *that* root — so a cwd/owner divergence cannot arise here.
+2. :class:`~specify_cli.tracker.saas_service.SaaSTrackerService` — an
+   operator-invoked command's own checkout (``require_repo_root()`` ->
+   ``locate_project_root(Path.cwd())``). A locality argument, in its benign form:
+   the routing keys (``project_slug`` / ``binding_ref``) and the pushed items are
+   read from *that same* root's config and store, so the subject of the command
+   genuinely is the checkout the operator is standing in. Same ground on which the
+   egress inventory rules ``cli/commands/sync.py:1107,1204`` correct rather than
+   defective.
+3. :func:`~specify_cli.tracker.origin.search_origin_candidates` — takes the root
+   from its caller and has **no production caller today**. Whoever wires one owes
+   this precondition.
+
+What would falsify it — check these before adding a caller:
+
+* A **daemon, sweep or batch** that iterates projects: constructing one client
+  and reusing it across projects, or building it from the sweep's own checkout
+  while the payload comes from a different project's dossier, breaks the
+  invariant without changing a line in this module. Such a caller must construct
+  a client per project, from that project's root.
+* Passing a ``feature_dir`` that is **not** under the ``repo_root`` whose
+  ``pending-origin.yaml`` supplied the issue title — the two halves of the payload
+  would then belong to different projects. Today ``mission_creation`` derives both
+  from one root, so it cannot happen.
+* Resolving the root from ``Path.cwd()`` at a call site whose data came from
+  somewhere else.
+
+Two safety nets stand behind the precondition, and neither replaces it: a root
+that is not a project root at all resolves to no uuid and therefore **denies**
+(so ``_resolve_repo_root``'s last-resort ``parent.parent`` and
+``_service(allow_unbound=True)``'s ``Path.cwd()`` fallback both fail closed), and
+a checkout that declares a *different* uuid than the one being asked about is
+ignored by ``consent.py``'s level-1 vote. What neither net catches is the case
+this precondition exists for: a *valid* root for the *wrong* project.
 """
 
 from __future__ import annotations

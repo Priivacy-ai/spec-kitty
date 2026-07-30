@@ -345,6 +345,57 @@ def test_undetermined_project_denies(
     assert "could not be determined" in str(refusal)
 
 
+def test_every_production_construction_site_attributes_its_project() -> None:
+    """The attribution precondition, made executable.
+
+    The gate resolves consent from the checkout root it is handed, so it is only
+    sound while **every** construction site passes the root of the project that
+    owns the record the request will carry. That condition is stated in
+    ``tracker/egress_consent.py``; a prose statement alone is how this class
+    regenerates, because it reads as obviously fine until someone adds the caller
+    that breaks it and nothing tells them they broke it.
+
+    This scans ``src/`` and fails on a ``SaaSTrackerClient(...)`` built without an
+    explicit ``project_root``. It cannot prove the root passed is the *right* one
+    — that is the reviewable part, enumerated per site in the module docstring —
+    but it does make the omission a red build rather than a silent refusing
+    client, and it forces a new caller to think about whose data it is sending.
+    """
+    import ast
+
+    src = Path(__file__).resolve().parents[3] / "src" / "specify_cli"
+    assert src.is_dir(), f"source tree not found at {src} — path regression?"
+
+    unattributed: list[str] = []
+    scanned = 0
+    for path in sorted(src.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            name = func.id if isinstance(func, ast.Name) else getattr(func, "attr", None)
+            if name != "SaaSTrackerClient":
+                continue
+            scanned += 1
+            if not any(kw.arg == "project_root" for kw in node.keywords):
+                unattributed.append(f"{path.relative_to(src.parent.parent)}:{node.lineno}")
+
+    assert scanned, (
+        "no SaaSTrackerClient construction found in src/ — the scan is vacuous, "
+        "which would make this guard decoration"
+    )
+    assert not unattributed, (
+        "SaaSTrackerClient constructed without project_root at:\n  "
+        + "\n  ".join(unattributed)
+        + "\n\nEvery construction site must pass the root of the project that OWNS "
+        "the data the request carries (#3030 FR-029) — never the process cwd, and "
+        "never another project's root. Without it the client refuses every request; "
+        "with the wrong one it asks the wrong project. See "
+        "tracker/egress_consent.py for the precondition and what falsifies it."
+    )
+
+
 def test_no_attribution_is_a_refusal_at_the_gate_itself() -> None:
     """The invariant, asserted below the transport and below every fixture.
 

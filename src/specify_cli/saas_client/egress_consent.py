@@ -34,6 +34,46 @@ This module is a near-duplicate of its ``tracker/`` sibling **by necessity**: th
 two packages share no parent inside this change's scope, and inventing one would
 be an architectural decision recorded nowhere. What is duplicated is the *call*,
 not the chain — the chain is still resolved in exactly one place.
+
+The attribution precondition — stated, because it is load-bearing
+-----------------------------------------------------------------
+
+The gate is handed a **checkout root** and the funnel resolves it to that
+checkout's ``project.uuid`` before asking consent, so consent is answered
+per-*uuid*. What the root decides is **whose** consent gets asked:
+
+    **Every construction site must pass the root of the project that owns the
+    record the request will carry.**
+
+See ``tracker/egress_consent.py`` for the full statement of why this is written
+down rather than assumed. Enumerated for this package's four sites, all of which
+reach the client through :meth:`~specify_cli.saas_client.client.SaasClient.from_env`:
+
+1. ``cli/commands/charter/interview.py``, 2. ``missions/plan/plan_interview.py``,
+3. ``missions/plan/specify_interview.py`` — the interview's own ``repo_root``, and
+   the data is read back from that same root: ``mission_id`` comes from
+   ``_get_mission_id(repo_root, mission_slug)`` (i.e. ``kitty-specs/<slug>/meta.json``
+   under that root) and the discussion ``decision_id``\\ s come from
+   ``WidenPendingStore(repo_root, mission_slug)``. Owner and root agree by
+   derivation.
+4. ``cli/commands/decision.py`` (``spec-kitty decision widen``) — **the weakest of
+   the four, and recorded as such.** The root is ``locate_project_root() or
+   Path.cwd()``, while ``decision_id`` is an operator-supplied CLI argument, so an
+   operator *could* name a decision belonging to a different project than the
+   checkout they are standing in. Two things bound the exposure rather than
+   remove it: the POST body carries only ``invited_user_ids``, and ``decision_id``
+   is a ULID rather than a slug — so no engagement name crosses the wire on this
+   path even when root and subject diverge. Consent is still answered for the
+   checkout the operator is acting from. If this endpoint ever grows a
+   slug-accepting form, this entry stops being benign and the id must be resolved
+   to its owning project first.
+
+What would falsify it: a daemon, sweep or batch constructing one client and
+reusing it across projects; a widen flow driven from a checkout other than the
+mission's own; or any future endpoint that accepts a **slug** where these accept
+a ULID. A root that is not a project root resolves to no uuid and therefore
+denies — a safety net, not a substitute, because it does not catch a *valid* root
+for the *wrong* project.
 """
 
 from __future__ import annotations
