@@ -24,6 +24,28 @@ from specify_cli.sync.namespace import NamespaceRef, UploadOutcome, UploadStatus
 
 pytestmark = pytest.mark.fast
 
+
+@pytest.fixture(autouse=True)
+def _the_fixture_project_consents(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Record hosted-sync consent for ``uuid-1``, the project every namespace here uses.
+
+    #3030 T025 made the body drain resolve consent per task from the task's own
+    ``project_uuid``, deny-on-absence. These SC-001…SC-006 pins are about the upload
+    pipeline — enqueue filtering, idempotency, retry/recovery, restart replay — so a
+    consenting project is their precondition, not their subject. The refusal path has
+    its own pins in ``test_body_drain_consent_3030.py``.
+
+    Written through the real ``set_project_consent`` writer into a per-test
+    ``SPEC_KITTY_HOME`` so no grant leaks into another test's default-deny.
+    """
+    from specify_cli.sync.consent import set_project_consent
+
+    home = tmp_path / "consent-home"
+    home.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+    set_project_consent("uuid-1", True)
+
+
 def _ns(
     mission_slug: str = "047-feat",
     target_branch: str = "main",

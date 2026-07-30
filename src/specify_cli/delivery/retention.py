@@ -29,14 +29,30 @@ surfaces. The destructive purge writes the journal store directly using the
 journal's *own* canonical schema identifiers (:mod:`specify_cli.event_journal.models`)
 rather than re-deriving the table name — this module is the sanctioned
 destructive owner the journal explicitly defers ``gc``/``archive`` to.
+
+Third store, added by #3030 T026
+--------------------------------
+:func:`purge_project_body_uploads` extends the same ownership to the **body-upload
+queue**. FR-016's ``sync purge --project X`` spans the journal and the delivery
+ledger; the body queue is a *third* store holding X's data — and it is the one that
+holds verbatim ``spec.md`` / ``plan.md`` / ``tasks/WP*.md`` text, not envelopes. It
+lives in the offline-queue DB file (``OfflineBodyUploadQueue(db_path=OfflineQueue().db_path)``),
+which a journal+ledger purge never opens, so a purge that omitted it would report
+"100% of X removed" while X's documents stayed queued for the next drain — a false
+remediation attestation on the exact artefacts the incident leaked.
+
+**WP08 must call it.** NFR-006 ("after purging project X, a differential row count
+over all other projects is zero") is only honest if the count covers every store the
+project has rows in; :attr:`BodyQueuePurgeResult.other_project_differential` is that
+number for this one.
 """
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Sequence
-from dataclasses import dataclass
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.event_journal.models import COL_EVENT_ID, TABLE_NAME
@@ -186,6 +202,117 @@ def gc_payloads(
     )
 
 
+class BodyUploadPurgeTarget(Protocol):
+    """The two body-queue operations a project purge needs (#3030 T026).
+
+    A structural type rather than an import of ``sync.body_queue``: ``delivery/``
+    stays free of a hard dependency on the sync package, the same way
+    ``delivery/selection.py`` keeps ``sync.consent`` behind a call-time import and a
+    ``ConsentPredicate`` alias. The concrete implementation is
+    :class:`specify_cli.sync.body_queue.OfflineBodyUploadQueue`.
+    """
+
+    def count_by_project(self) -> dict[str, int]: ...
+
+    def remove_project_tasks(self, project_uuid: str) -> int: ...
+
+
+@dataclass(frozen=True)
+class BodyQueuePurgeResult:
+    """Observable outcome of one project's body-queue purge (FR-016, NFR-006).
+
+    Carries the **whole census** before and after, not just the target's count, so
+    NFR-006's exactness claim is checkable from the result itself rather than
+    re-derived by the caller (or by a report that could drift from what ran). A purge
+    that reports success while some other project lost rows is the failure this
+    record exists to make impossible to state.
+    """
+
+    project_uuid: str
+    dry_run: bool
+    removed: int
+    before: Mapping[str, int] = field(default_factory=dict)
+    after: Mapping[str, int] = field(default_factory=dict)
+
+    @property
+    def target_before(self) -> int:
+        return self.before.get(self.project_uuid, 0)
+
+    @property
+    def target_after(self) -> int:
+        return self.after.get(self.project_uuid, 0)
+
+    @property
+    def other_project_differential(self) -> int:
+        """Total absolute row-count change across every **other** project.
+
+        NFR-006 requires this to be ``0``. Absolute, and over the union of both
+        censuses, so a project that *appeared* counts as a difference too — a purge
+        must neither remove nor create another project's rows.
+        """
+        keys = (set(self.before) | set(self.after)) - {self.project_uuid}
+        return sum(abs(self.after.get(key, 0) - self.before.get(key, 0)) for key in keys)
+
+    @property
+    def is_exact(self) -> bool:
+        """100% of the target removed, 0% of anything else (SC-006)."""
+        if self.dry_run:
+            return self.target_after == self.target_before and self.other_project_differential == 0
+        return self.target_after == 0 and self.other_project_differential == 0
+
+
+def purge_project_body_uploads(
+    project_uuid: str,
+    *,
+    body_queue: BodyUploadPurgeTarget | None = None,
+    dry_run: bool = True,
+) -> BodyQueuePurgeResult:
+    """Remove *project_uuid*'s queued document bodies — the third purge store (T026).
+
+    Dry-run by **default**, matching FR-016's ``sync purge`` contract: the census is
+    still taken, so a dry run reports exactly what a real run would remove without
+    removing it. That is the whole point of a dry run on a destructive operation over
+    confidential text.
+
+    A blank *project_uuid* removes nothing and is reported as such. Rows whose own
+    ``project_uuid`` is blank are grouped under ``""`` by
+    :meth:`~specify_cli.sync.body_queue.OfflineBodyUploadQueue.count_by_project` and
+    are therefore visible in the census but not purgeable by project — deliberately:
+    they cannot be attributed to a project, and deleting unattributable confidential
+    text under another project's purge would be a silent overreach. ``sync purge
+    --all`` (FR-017) is where they belong.
+
+    *body_queue* defaults to the real queue over the shared offline-queue DB file,
+    resolved at call time so ``delivery/`` keeps no import-time dependency on
+    ``sync/``.
+    """
+    queue = body_queue if body_queue is not None else _default_body_queue()
+    target = str(project_uuid or "").strip()
+
+    before = dict(queue.count_by_project())
+    removed = 0 if (dry_run or not target) else int(queue.remove_project_tasks(target))
+    # Re-read even on a dry run rather than copying ``before``. Asserting "nothing
+    # changed" is exactly the claim a dry run is supposed to *earn*, and this is the
+    # only place a dry run that quietly mutated could still be caught.
+    after = dict(queue.count_by_project())
+
+    return BodyQueuePurgeResult(
+        project_uuid=target,
+        dry_run=dry_run,
+        removed=removed,
+        before=before,
+        after=after,
+    )
+
+
+def _default_body_queue() -> BodyUploadPurgeTarget:
+    """The real body queue, on the DB file it shares with the event offline queue."""
+    from specify_cli.sync.body_queue import OfflineBodyUploadQueue
+    from specify_cli.sync.queue import OfflineQueue
+
+    return OfflineBodyUploadQueue(db_path=OfflineQueue().db_path)
+
+
 def _purge_journal_rows(db_path: Path, event_ids: Sequence[str]) -> None:
     """Delete the named journal payload rows (the sole destructive write)."""
     if not event_ids:
@@ -198,6 +325,13 @@ def _purge_journal_rows(db_path: Path, event_ids: Sequence[str]) -> None:
         connection.close()
 
 
+# ``BodyQueuePurgeResult`` / ``purge_project_body_uploads`` / ``BodyUploadPurgeTarget``
+# are deliberately NOT advertised yet. The symbol-level dead-code gate
+# (``tests/architectural/test_no_dead_symbols.py``) is a shrink-only ratchet over
+# ``__all__``, and WP08's ``sync purge`` command — the production caller — is not
+# implemented. Advertising them now would either fail that gate or need an allowlist
+# entry that outlives the reason for it. They stay importable; WP08 adds them here
+# when it wires the CLI, which is also the moment the names stop being aspirational.
 __all__ = [
     "RetentionResult",
     "archive_payloads",

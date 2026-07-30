@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import sqlite3
 import time
+from collections.abc import Collection
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .queue import (
     DEFAULT_MAX_QUEUE_SIZE,
@@ -172,21 +173,60 @@ class OfflineBodyUploadQueue:
         finally:
             conn.close()
 
-    def drain(self, limit: int = 100) -> list[BodyUploadTask]:
-        """Retrieve tasks ready for delivery (next_attempt_at <= now)."""
-        conn = sqlite3.connect(self.db_path)
-        try:
-            cursor = conn.execute(
-                """SELECT id, project_uuid, mission_slug, target_branch, mission_type,
+    def drain(
+        self,
+        limit: int = 100,
+        *,
+        exclude_project_uuids: Collection[str] | None = None,
+        exclude_row_ids: Collection[int] | None = None,
+    ) -> list[BodyUploadTask]:
+        """Retrieve tasks ready for delivery (next_attempt_at <= now).
+
+        ``exclude_project_uuids`` / ``exclude_row_ids`` narrow the read **before**
+        ``LIMIT`` is applied. That ordering is the point, not an optimisation: the
+        drain withholds a non-consenting project's bodies and leaves them queued
+        (``sync/background.py:_drain_body_queue``), so filtering *after* the window
+        would let a wall of retained non-consenting rows sit at the head of the
+        FIFO forever and starve a consenting project's bodies behind it — the
+        NFR-002 starvation this mission names for the event drain, on this store.
+
+        Blank ``project_uuid`` rows are matched by an explicit ``""`` entry in
+        *exclude_project_uuids* and by nothing else. Passing it is how the drain steps
+        past unattributable rows wholesale after refusing them once — they are never
+        consentable, and there can be arbitrarily many, so they must be excludable as
+        a group rather than one ``row_id`` at a time. (The column is ``NOT NULL``, so
+        the empty string is the only unattributable form a row can take.)
+        """
+        where = ["next_attempt_at <= ?"]
+        params: list[Any] = [time.time()]
+
+        denied_uuids = sorted({str(u).strip() for u in (exclude_project_uuids or ())})
+        if denied_uuids:
+            placeholders = ", ".join("?" for _ in denied_uuids)
+            where.append(f"project_uuid NOT IN ({placeholders})")
+            params.extend(denied_uuids)
+
+        denied_rows = sorted({int(r) for r in (exclude_row_ids or ())})
+        if denied_rows:
+            placeholders = ", ".join("?" for _ in denied_rows)
+            where.append(f"id NOT IN ({placeholders})")
+            params.extend(denied_rows)
+
+        params.append(limit)
+        # Every value travels via a ``?`` placeholder; the only interpolation is
+        # the placeholder count itself, so there is no injection surface (same
+        # pattern as ``delivery/retention.py``'s static-identifier SQL).
+        query = f"""SELECT id, project_uuid, mission_slug, target_branch, mission_type,
                           manifest_version, artifact_path, content_hash, hash_algorithm,
                           content_body, size_bytes, retry_count, next_attempt_at,
                           created_at, last_error
                    FROM body_upload_queue
-                   WHERE next_attempt_at <= ?
+                   WHERE {" AND ".join(where)}
                    ORDER BY created_at ASC, id ASC
-                   LIMIT ?""",
-                (time.time(), limit),
-            )
+                   LIMIT ?"""  # noqa: S608 — placeholder counts only; all values bound
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cursor = conn.execute(query, params)
             tasks: list[BodyUploadTask] = []
             for row in cursor:
                 tasks.append(
@@ -380,6 +420,30 @@ class OfflineBodyUploadQueue:
             )
             conn.commit()
             return cursor.rowcount
+        finally:
+            conn.close()
+
+    def count_by_project(self) -> dict[str, int]:
+        """Queued body-upload counts keyed by ``project_uuid`` (#3030 T026).
+
+        The per-project census FR-016's purge differential is computed from: a
+        purge that reports "100% of project X removed" has to be able to show that
+        the count for **every other** project is unchanged (NFR-006), and this
+        store shares its DB file with the event offline queue, so a journal+ledger
+        differential alone would have said nothing about the document bodies still
+        queued here.
+
+        Rows with a blank ``project_uuid`` (the column is ``NOT NULL``, so blank is
+        the only unattributable form) are reported under ``""`` rather than dropped.
+        They can never be purged *by project* and can never be delivered either;
+        hiding them would make the census disagree with the store.
+        """
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cursor = conn.execute(
+                "SELECT project_uuid, COUNT(*) FROM body_upload_queue GROUP BY project_uuid"
+            )
+            return {str(row[0]): int(row[1]) for row in cursor}
         finally:
             conn.close()
 

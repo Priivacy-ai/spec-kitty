@@ -14,6 +14,29 @@ pytestmark = pytest.mark.fast
 
 
 @pytest.fixture(autouse=True)
+def _the_fixture_project_consents(tmp_path: Path, monkeypatch) -> None:
+    """Record hosted-sync consent for the project these fixtures upload as.
+
+    #3030 T025 made the body drain resolve consent per task from the task's own
+    ``project_uuid``, deny-on-absence. Every task built below belongs to
+    ``proj-uuid``, and without a consent record for it the drain now (correctly)
+    withholds them — which would leave this file measuring the refusal rather than
+    the upload mechanics it exists to pin (queue lifecycle, backoff, outcome
+    handling, timer wiring). Consent is a *precondition* here, not the subject; the
+    refusal itself is pinned in ``test_body_drain_consent_3030.py``.
+
+    Written through the real ``set_project_consent`` writer into a per-test
+    ``SPEC_KITTY_HOME`` so no grant leaks into another test's default-deny.
+    """
+    from specify_cli.sync.consent import set_project_consent
+
+    home = tmp_path / "consent-home"
+    home.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+    set_project_consent("proj-uuid", True)
+
+
+@pytest.fixture(autouse=True)
 def _patch_bg_token_fetch(monkeypatch):
     """Autouse: patch the background-sync token-fetch bridge so tests stay hermetic.
 

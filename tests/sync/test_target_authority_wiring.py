@@ -334,9 +334,22 @@ def test_background_full_sync_posts_to_resolved_target(
     )
     monkeypatch.setattr("specify_cli.sync.body_transport.push_content", _fake_push_content)
 
+    # #3030 T025: the body drain resolves consent from each task's own
+    # ``project_uuid`` and denies on absence, so the queued task needs a real,
+    # consenting identity for the poster to be reached at all. Consent is a
+    # precondition here — this test's subject is *which* server_url the daemon posts
+    # to; the refusal path is pinned in ``tests/sync/test_body_drain_consent_3030.py``.
+    # ``wiring_root`` already isolates ``SPEC_KITTY_HOME``, so the grant is throwaway.
+    from specify_cli.sync.consent import set_project_consent
+
+    consenting_uuid = "11111111-2222-3333-4444-555555555555"
+    set_project_consent(consenting_uuid, True)
+    task = MagicMock()
+    task.project_uuid = consenting_uuid
+
     body_queue = MagicMock()
     body_queue.remove_stale.return_value = 0
-    body_queue.drain.return_value = [MagicMock()]
+    body_queue.drain.return_value = [task]
     service = BackgroundSyncService(queue=MagicMock(), config=SyncConfig())
     service._body_queue = body_queue
     service._perform_full_sync()

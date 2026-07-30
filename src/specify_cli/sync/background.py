@@ -21,6 +21,7 @@ import sqlite3
 import threading
 from dataclasses import dataclass, field
 from datetime import datetime, UTC
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from specify_cli.auth import get_token_manager
@@ -53,6 +54,17 @@ _UNAUTHENTICATED_SYNC_ERROR = (
 _DIRECT_INGRESS_SKIPPED_ERROR = (
     "direct_ingress_missing_private_team: direct ingress skipped before final sync auth"
 )
+
+#: Body uploads delivered per drain. Unchanged in effect from the historical
+#: ``drain(limit=50)``: it is a *delivery* budget, not a read budget.
+_BODY_DRAIN_BATCH_LIMIT = 50
+
+#: How many filtered reads one drain may make while stepping past withheld rows
+#: (#3030 T025). Non-consenting bodies are retained, so they stay at the head of the
+#: FIFO and each window has to exclude the projects the previous one refused. Bounded
+#: so a queue that is entirely non-consenting costs a fixed number of queries per
+#: tick rather than a full scan; the rows are not going anywhere.
+_BODY_DRAIN_MAX_WINDOWS = 20
 
 
 class LegacyQueueNotConvergedError(RuntimeError):
@@ -238,6 +250,60 @@ def _fetch_access_token_sync() -> str | None:
     except Exception as exc:  # defensive
         logger.debug("Unexpected error fetching access token: %s", exc)
         return None
+
+
+def _drain_checkout_roots() -> list[Path]:
+    """The checkout the drain is running in, if it is running in one at all.
+
+    Offered to the consent resolver as a level-1 (project-local) root, never as the
+    identity a decision is made from. ``_project_local_votes`` ignores a root that
+    declares a different ``project_uuid``, so offering the working directory can only
+    ever supply the authoritative ``.kittify/config.yaml`` for *its own* project — it
+    can never widen the answer for someone else's. Without it the project-local level
+    is unreachable from this drain, and a committed, reviewable in-repo refusal would
+    silently not be honoured at upload time.
+
+    Same rule, same reasoning as ``delivery/selection.py``'s identically-named helper
+    on the event drain; both are thin uses of the one ``locate_project_root``
+    primitive, and neither is a second consent chain — that stays solely in
+    ``sync/consent.py``.
+    """
+    try:
+        from specify_cli.core.paths import locate_project_root
+
+        root = locate_project_root(Path.cwd().resolve())
+    except Exception:  # noqa: BLE001 - an unreadable cwd is absence, not a decision
+        return []
+    return [root] if root is not None else []
+
+
+def _consenting_body_project_uuids(tasks: list[BodyUploadTask]) -> frozenset[str]:
+    """Which of *tasks*' projects consent to hosted sync (#3030 T025, FR-002).
+
+    Resolved from each task's stored ``project_uuid`` through WP05's single resolver,
+    once per distinct project rather than once per task. A cwd-derived answer is the
+    defect: in a daemon, a monorepo of worktrees, or any agent session that ``cd``s
+    between checkouts, it authorizes project B and uploads project A.
+
+    Fails **closed** on any error. Everywhere else in this module an exception is
+    swallowed so a background thread never dies; here that same instinct would turn an
+    unanswerable consent question into egress, and inability to determine consent is
+    not consent.
+    """
+    try:
+        from .consent import consented_project_uuids
+
+        return consented_project_uuids(
+            [task.project_uuid for task in tasks],
+            checkout_roots=_drain_checkout_roots(),
+        )
+    except Exception:  # noqa: BLE001 - unanswerable is not granted
+        logger.warning(
+            "Could not resolve hosted-sync consent for queued artifact bodies; "
+            "withholding all of them",
+            exc_info=True,
+        )
+        return frozenset()
 
 
 @dataclass
@@ -644,20 +710,30 @@ class BackgroundSyncService:
         return result
 
     def _drain_body_queue(self) -> bool:
-        """Drain body upload queue, processing tasks one at a time.
+        """Drain body upload queue, processing consenting tasks one at a time.
 
         Backoff progression (NFR-003):
         retry 0 → 1s, retry 1 → 2s, retry 2 → 4s, retry 3 → 8s,
         retry 4 → 16s, retry 5 → 32s, retry 6 → 64s, retry 7 → 128s,
         retry 8 → 256s, retry 9+ → 300s (5 min cap)
 
+        Consent is resolved **per task, from the task** (#3030 T025). Until this
+        landed the only gate on this path was the machine-global
+        ``is_saas_sync_enabled()``, so ``sync now`` POSTed every queued body —
+        verbatim ``spec.md`` / ``plan.md`` / ``tasks/WP*.md`` text — for every
+        project on the machine. WP01 closed the *enqueue* side, which stops new
+        non-consenting bodies being queued but says nothing about the ones already
+        on disk; those are precisely the rows this gate withholds.
+
         Returns:
             ``True`` when the drain ran under a valid token (an empty queue counts
-            — there was simply nothing to move). ``False`` when no token could be
-            obtained, so the caller can book the tick as a failure instead of
-            success. This return value is the contract: an unauthenticated bail
-            used to be a bare ``return``, and the caller then reset backoff and
-            stamped ``last_sync`` for a tick that delivered nothing (#3030 H7).
+            — there was simply nothing to move, and so does a queue holding only
+            withheld rows: withholding is a decision, not a delivery failure).
+            ``False`` when no token could be obtained, so the caller can book the
+            tick as a failure instead of success. This return value is the contract:
+            an unauthenticated bail used to be a bare ``return``, and the caller then
+            reset backoff and stamped ``last_sync`` for a tick that delivered
+            nothing (#3030 H7).
         """
         from .body_transport import push_content
 
@@ -673,7 +749,7 @@ class BackgroundSyncService:
             logger.debug("No auth token available, skipping body queue drain")
             return False
 
-        tasks = self._body_queue.drain(limit=50)
+        tasks = self._collect_consenting_body_tasks(_BODY_DRAIN_BATCH_LIMIT)
         if not tasks:
             return True
 
@@ -682,6 +758,85 @@ class BackgroundSyncService:
             outcome = push_content(task, access_token, server_url)
             self._handle_body_outcome(task, outcome)
         return True
+
+    def _collect_consenting_body_tasks(self, budget: int) -> list[BodyUploadTask]:
+        """Read up to *budget* queued bodies whose **own** project consents (T025).
+
+        Withheld tasks are left in the queue untouched — no retry increment, no
+        delete. Retained-and-ignored is deliberate (see
+        ``flush_pending_local_commits`` for the same recorded choice on LocalCommit
+        frames): a body from a project that later consents becomes sendable, deleting
+        it would destroy the operator's only evidence of what a pre-gate build
+        queued, and FR-016's ``sync purge`` is the explicit deletion path. Not
+        touching ``retry_count`` matters concretely — ``remove_stale`` deletes at 20
+        retries, so booking a refusal as a failure would quietly erase that evidence
+        after twenty ticks.
+
+        Because withheld rows stay at the head of the FIFO, the exclusion has to go
+        *into* the read rather than filter its result: a window taken without it
+        would return the same refused rows on every tick and a consenting project's
+        bodies behind them would never be reached at all (NFR-002's starvation, on
+        this store). Each pass therefore excludes every project the previous pass
+        refused — ``""`` covering the unattributable rows as one group — plus the
+        rows already collected, which are still in the queue at this point because
+        nothing is deleted until its upload has actually succeeded.
+
+        Termination: a pass that withheld nothing breaks; a pass that withheld
+        something adds at least one project identity to the exclusion set that was
+        not there before (a row whose identity was already excluded could not have
+        been read), and there are finitely many.
+        """
+        assert self._body_queue is not None
+
+        collected: list[BodyUploadTask] = []
+        collected_row_ids: set[int] = set()
+        denied_identities: set[str] = set()
+        withheld_total = 0
+
+        for _window in range(_BODY_DRAIN_MAX_WINDOWS):
+            remaining = budget - len(collected)
+            if remaining <= 0:
+                break
+            window = self._body_queue.drain(
+                limit=remaining,
+                exclude_project_uuids=denied_identities,
+                exclude_row_ids=collected_row_ids,
+            )
+            if not window:
+                break
+
+            granted = _consenting_body_project_uuids(window)
+            withheld_here = 0
+            for task in window:
+                uuid = str(task.project_uuid or "").strip()
+                if uuid and uuid in granted:
+                    collected.append(task)
+                    collected_row_ids.add(task.row_id)
+                    continue
+                withheld_here += 1
+                # A blank identity is added as ``""``: unattributable rows are never
+                # consentable, and grouping them lets one exclusion step past all of
+                # them instead of accumulating a row id per legacy row.
+                denied_identities.add(uuid)
+                logger.debug(
+                    "Body upload withheld: project %s has not consented to hosted sync (%s)",
+                    uuid or "<unidentified>",
+                    task.artifact_path,
+                )
+            withheld_total += withheld_here
+            if withheld_here == 0:
+                break
+
+        if withheld_total and report_once("sync.body_upload_withheld"):
+            logger.warning(
+                "Withholding queued artifact bodies from hosted sync: %d task(s) across "
+                "%d project identit(y/ies) with no consent record. They stay queued; run "
+                "`spec-kitty sync enable` in a project to allow them, or `spec-kitty sync "
+                "purge` to remove them.",
+                withheld_total,
+                len(denied_identities),
+            )
+        return collected
 
     def _handle_body_outcome(
         self, task: BodyUploadTask, outcome: UploadOutcome,
