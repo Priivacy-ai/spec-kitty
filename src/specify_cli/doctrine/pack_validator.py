@@ -497,6 +497,7 @@ def _validate_drg(
 
     try:
         from doctrine.drg.loader import DRGLoadError, load_built_in_graph, load_graph
+        from doctrine.drg.models import DRGGraphSchemaError
     except ModuleNotFoundError:  # pragma: no cover - doctrine package always present
         return errors, advisories
 
@@ -523,6 +524,18 @@ def _validate_drg(
     for fragment in fragments:
         try:
             graph = load_graph(fragment)
+        except DRGGraphSchemaError as exc:
+            errors.append(
+                ValidationIssue(
+                    severity="error",
+                    artifact_type="drg",
+                    artifact_id=None,
+                    file=str(fragment),
+                    message=str(exc),
+                    category="schema_invalid",
+                )
+            )
+            continue
         except DRGLoadError as exc:
             errors.append(
                 ValidationIssue(
@@ -965,6 +978,7 @@ def _collect_fragment_edge_intent(
 
     try:
         from doctrine.drg.loader import DRGLoadError, load_graph
+        from doctrine.drg.models import DRGGraphSchemaError
     except ModuleNotFoundError:  # pragma: no cover - doctrine always present
         return {}
 
@@ -973,7 +987,7 @@ def _collect_fragment_edge_intent(
     for fragment in sorted(drg_dir.glob("*.graph.yaml")):
         try:
             graph = load_graph(fragment)
-        except DRGLoadError:
+        except (DRGLoadError, DRGGraphSchemaError):
             continue
         for edge in graph.edges:
             relation = edge.relation.value

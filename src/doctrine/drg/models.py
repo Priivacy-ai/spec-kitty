@@ -217,7 +217,7 @@ RELATION_DESCRIPTIONS: dict[Relation, str] = {
         "it produces as its concrete output artifact, e.g. "
         "``action:documentation/design`` --instantiates--> "
         "``template:documentation/documentation-plan-template.md``. Emitted "
-        "8 times in the built-in graph, exclusively from ``action`` nodes to "
+        "11 times in the built-in graph, exclusively from ``action`` nodes to "
         "``template`` nodes. Distinct from ``scope``, which links an action "
         "to governance content it must follow, not content it produces."
     ),

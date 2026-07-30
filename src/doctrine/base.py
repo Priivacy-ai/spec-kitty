@@ -133,6 +133,19 @@ class BaseDoctrineRepository(ABC, Generic[T]):
         Override to add inline-ref rejection or other pre-checks.
         """
 
+    def _post_validate(self, obj: T, yaml_file: Path) -> None:
+        """Called after a successful ``model_validate``/merge. Default: no-op.
+
+        Fired at all three item-entry points (built-in load, overlay merge
+        branch, overlay new-item branch), gated by the same
+        ``_include_item`` condition that gates the actual ``self._items``
+        write — so a scope-filtered-but-valid item is not recorded here
+        either. Use this (not ``_pre_validate``) for bookkeeping that must
+        reflect only artifacts that actually loaded, e.g. a source-path
+        index: ``_pre_validate`` runs before the validation/merge that can
+        still fail, so success-gated state belongs here instead.
+        """
+
     def _key(self, obj: T) -> str:
         """Extract the dict key for a loaded asset. Default: ``obj.id``."""
         return obj.id  # type: ignore[attr-defined, no-any-return]
@@ -176,6 +189,7 @@ class BaseDoctrineRepository(ABC, Generic[T]):
                 if not self._include_item(obj):
                     self._scope_filtered_ids.add(self._key(obj))
                     continue
+                self._post_validate(obj, yaml_file)
                 built_in[self._key(obj)] = obj
             except (YAMLError, ValidationError, OSError) as exc:
                 warnings.warn(
@@ -262,6 +276,7 @@ class BaseDoctrineRepository(ABC, Generic[T]):
                                 higher_layer=layer_name,
                                 higher_data=data,
                             )
+                            self._post_validate(merged, yaml_file)
                             self._items[item_id] = merged
                             self._provenance[item_id] = layer_name
                         else:
@@ -275,6 +290,7 @@ class BaseDoctrineRepository(ABC, Generic[T]):
                                 higher_layer=layer_name,
                                 higher_data=data,
                             )
+                            self._post_validate(obj, yaml_file)
                             self._items[key] = obj
                             self._provenance[key] = layer_name
                         else:

@@ -770,7 +770,7 @@ class TestGateNonVacuity:
         """
         claims = claimed_edge_counts()
         assert claims[Relation.REQUIRES] == 272  # "(272 edges)"
-        assert claims[Relation.INSTANTIATES] == 8  # "Emitted 8 times"
+        assert claims[Relation.INSTANTIATES] == 11  # "Emitted 11 times"
 
     def test_an_unrecognised_count_phrasing_is_flagged(self) -> None:
         """A third phrasing must red the sweep rather than parse to nothing."""

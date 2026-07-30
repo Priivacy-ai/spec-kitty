@@ -389,6 +389,44 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 #:     assumed). The delivery-reachability DEFERRED set stays at 50 -- no artefact
 #:     leaves (delivery is the fast-follow's job). See
 #:     ``docs/plans/doctrine/delivery-reachability-wiring-table.md``.
+#: (14) doctrine-delivery-activation-01KYQVQK WP02 (T007/T008/T009): SEVEN new
+#:     ``anti_pattern`` nodes and TEN hand-authored edges added to the overlay,
+#:     with the PURE golden counts below UNCHANGED (``_EXPECTED_NODE_COUNT`` 311,
+#:     ``_EXPECTED_EDGE_COUNT`` 764) because every edge endpoint already existed
+#:     (the three ``template:c4-*-mermaid-template`` nodes, ``action:documentation/
+#:     design``, and the seven ``tactic:refactoring-*`` sources) and the seven
+#:     anti_pattern nodes are overlay content (``HAND_AUTHORED_NODES``), never
+#:     extractor-minted. The ten edges: 3 ``action:documentation/design
+#:     --instantiates--> template:c4-{context,container,component}-mermaid-
+#:     template`` (T007, canonical Family-C topology completion, parallel to the
+#:     pre-existing ``documentation-plan-template.md`` instantiates edge; NOT the
+#:     delivery vector -- the templates already deliver to architect-alphonso via
+#:     the profile channel's suggests-walk reaching ``tactic:c4-zoom-in-
+#:     architecture-documentation``, WP01); and 7 ``tactic:refactoring-*
+#:     --REJECTS--> anti_pattern:<smell>`` (T009, one per grounded refactoring
+#:     tactic: encapsulate-record->unencapsulated-record, encapsulate-variable->
+#:     global-data, extract-first-order-concept->implicit-concept, move-field->
+#:     misplaced-field, move-method->feature-envy, state-pattern-for-behavior->
+#:     repeated-switches-on-state, strangler-fig->big-bang-rewrite). Moved counts:
+#:     shipped nodes 317 -> 324, shipped edges 882 -> 892; ``len(HAND_AUTHORED_
+#:     NODES)`` 6 -> 13; ``len(HAND_AUTHORED_EDGES)`` 118 -> 128; relation
+#:     histogram ``instantiates`` 8 -> 11 and ``rejects`` 8 -> 15 (``suggests``
+#:     426 / ``requires`` 272 / ``scope`` 159 UNCHANGED). Only ``instantiates``
+#:     carries a stated count in ``RELATION_DESCRIPTIONS`` (8 -> 11, mirrored in
+#:     ``docs/architecture/doctrine-relationships.md``); ``rejects`` states no
+#:     count, left unstated per the existing convention. ``test_shipped_graph_is_
+#:     fresh_and_byte_identical`` stays green by construction (311 + 13 = 324;
+#:     764 + 128 = 892). T006's Family-A ``when`` backfill on the three
+#:     agent_profile->DDD ``suggests`` edges is content-only (no count or
+#:     histogram move). Orphan sets UNCHANGED: the seven anti_pattern nodes each
+#:     gain an inbound ``rejects`` edge, so none is orphaned, and every other
+#:     endpoint was already edge-incident. Family is INERT/validation-tier: no
+#:     channel walks ``instantiates`` or ``rejects`` into delivery, and
+#:     anti_pattern is a non-activatable kind (D14/C-004), so
+#:     ``_ACTION_UNREACHABLE_D1``/``D2``, ``_PROFILE_UNREACHABLE`` and
+#:     ``_PROFILE_RESCUES`` in ``tests/doctrine/drg/test_reachability.py`` are
+#:     UNCHANGED (measured, not assumed). See
+#:     ``docs/plans/doctrine/delivery-reachability-wiring-table.md``.
 _EXPECTED_NODE_COUNT = 311
 _EXPECTED_EDGE_COUNT = 764
 

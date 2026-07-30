@@ -182,6 +182,42 @@ class TestValidatePack:
         ]
         assert dangling, result.errors
 
+    def test_drg_fragment_stray_top_level_key_reports_structured_issue(
+        self, tmp_path: Path
+    ) -> None:
+        # A DRG fragment declaring a top-level key ``DRGGraph`` does not define
+        # raises ``DRGGraphSchemaError`` at the load boundary (T009, NFR-006).
+        # ``validate_pack`` must surface this as a structured ``ValidationIssue``
+        # (category ``schema_invalid``) rather than let the exception escape as
+        # an uncaught traceback (#3062).
+        drg = tmp_path / "drg"
+        drg.mkdir()
+        (drg / "010-stray-key.graph.yaml").write_text(
+            textwrap.dedent(
+                """\
+                schema_version: "1.0"
+                generated_at: STATIC
+                generated_by: test
+                nodes: []
+                edges: []
+                not_a_real_field: surprise
+                """
+            ),
+            encoding="utf-8",
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is False
+        schema_errors = [
+            e
+            for e in result.errors
+            if e.artifact_type == "drg" and e.category == "schema_invalid"
+        ]
+        assert schema_errors, result.errors
+        assert "not_a_real_field" in schema_errors[0].message
+        assert schema_errors[0].file == str(drg / "010-stray-key.graph.yaml")
+
     def test_drg_edge_resolves_against_pack_artifacts(
         self, tmp_path: Path
     ) -> None:

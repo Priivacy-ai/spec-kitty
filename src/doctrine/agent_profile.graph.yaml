@@ -86,6 +86,7 @@ edges:
 - source: agent_profile:architect-alphonso
   target: paradigm:domain-driven-design
   relation: suggests
+  when: designing or reviewing significant code changes
   reason: "When designing and reviewing significant code changes, the architect should reach Domain-Driven Design. Composition-only under today's traversal (the profile channel walks requires/specializes_from only), authored per the #3063 operator attestation."
 - source: agent_profile:architect-alphonso
   target: procedure:event-storming-discovery
@@ -390,6 +391,7 @@ edges:
 - source: agent_profile:paula-patterns
   target: paradigm:domain-driven-design
   relation: suggests
+  when: investigating or inspecting code
   reason: "When investigating or inspecting code, the pattern scout should reach Domain-Driven Design. Composition-only under today's traversal, authored per the #3063 operator attestation."
 - source: agent_profile:paula-patterns
   target: tactic:anti-corruption-layer
@@ -516,6 +518,7 @@ edges:
 - source: agent_profile:randy-reducer
   target: paradigm:domain-driven-design
   relation: suggests
+  when: investigating or inspecting code
   reason: "When investigating or inspecting code, the reducer should reach Domain-Driven Design. Composition-only under today's traversal, authored per the #3063 operator attestation."
 - source: agent_profile:randy-reducer
   target: tactic:semantic-compression-abstraction-extraction

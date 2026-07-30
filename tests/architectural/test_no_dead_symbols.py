@@ -1052,20 +1052,26 @@ _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841: frozenset[SymbolKey] = frozen
 # The delivery-rail public API built by mission
 # ``doctrine-delivery-reachability-01KYMXD6``: the WP08 per-channel
 # reachability helpers (``src/doctrine/drg/reachability.py``) and the WP07
-# activation-partition helpers (``src/charter/pack_context.py``) are exercised
-# today only by their own unit tests -- no ``src/`` caller reaches them yet.
-# Each is a deliberate, ``__all__``-curated public symbol on a brand-new
-# module — the forward contract the planned **fast-follow "walk-update"
-# mission** consumes from runtime ``src/`` (the profile-channel walk that
-# follows ``suggests`` edges with their ``when`` guard). This is the
-# WP08-cycle-1 "library authored ahead of its runtime caller" shape the gate
-# flags, deliberately deferred here rather than deleted (deletion would
-# forfeit mission-built API with a live forward story). Follow-up tracker:
-# Priivacy-ai/spec-kitty#3063 (the deferred reachability/delivery decision
-# surface whose fast-follow owns the runtime wiring; see
-# docs/plans/doctrine/delivery-reachability-wiring-table.md "deferred to the
-# fast-follow walk-update mission"). Target = 0 once the fast-follow wires
-# each helper from a runtime caller.
+# activation-partition helpers (``src/charter/pack_context.py``).
+#
+# WP03 UPDATE (mission ``doctrine-delivery-activation-01KYQVQK`` — the planned
+# "walk-update" fast-follow itself): this mission wired the *profile* channel.
+# ``profile_channel_reachable`` (never in this frozenset) and
+# ``agent_profile_seed_urns`` (retired below) now have a genuine runtime caller
+# in ``src/doctrine/agent_profiles/repository.py``, so they are no longer
+# forward-only. The remaining eight symbols are a DIFFERENT concern — the
+# charter-activation partition helpers and the *action*-channel reachability
+# helpers — for which this mission builds no ``src/`` consumer; they stay
+# allowlisted-with-note. They are exercised today only by their own unit tests
+# — no ``src/`` caller reaches them yet. Each is a deliberate,
+# ``__all__``-curated public symbol — the forward contract a later mission
+# consumes from runtime ``src/``. This is the "library authored ahead of its
+# runtime caller" shape the gate flags, deliberately deferred here rather than
+# deleted (deletion would forfeit mission-built API with a live forward story).
+# Follow-up tracker: Priivacy-ai/spec-kitty#3063 (the deferred reachability/
+# delivery decision surface; see
+# docs/plans/doctrine/delivery-reachability-wiring-table.md). Target = 0 once a
+# later mission wires each remaining helper from a runtime caller.
 #
 # The WP15 progressive-disclosure module (``src/charter/progressive_disclosure.py``)
 # is a DIFFERENT case, landing-fold-corrected (PR #3070, E1): its delivery
@@ -1096,13 +1102,20 @@ _CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
         # charter.pack_context::partition_activated_unreachable
         SymbolKey("partition_activated_unreachable", "a128040a4804e409225402613ffbe128932fa1862881810bbb3bd3cfd1241fb4"),
         SymbolKey("partition_delivery", "7a90e7fc7bfaa802edcb2f675f4cce8f0e7e6db3fbe184b68b64a4a03d194841"),  # charter.progressive_disclosure::partition_delivery
-        # doctrine.drg.reachability::PROFILE_CHANNEL_RELATIONS
-        SymbolKey("PROFILE_CHANNEL_RELATIONS", "7b7692bd08f78e457a5782fda61b7e013ef79da030d9ae226780617f9bce4cce"),
+        # doctrine.drg.reachability::PROFILE_CHANNEL_RELATIONS (body_hash refreshed
+        # WP03/doctrine-delivery-activation-01KYQVQK: WP01 added Relation.SUGGESTS to
+        # the frozenset, changing its body; still no ``src/`` importer — the sole
+        # reference in src/charter/context_renderers/profile_sections.py:341 is a
+        # prose comment, not an import/call — so it stays allowlisted, hash-refreshed.)
+        SymbolKey("PROFILE_CHANNEL_RELATIONS", "17b05fe56e1ba52f5efca0f1cebe40e0ed1ab3232b80111f8e47e51176203fb5"),
         # doctrine.drg.reachability::action_channel_reachable
         SymbolKey("action_channel_reachable", "12033bfeabd0a031f426ef16f55dbc9ee765a0d1c8ad09a822847a1d91b42d10"),
         SymbolKey("action_seed_urns", "65ce52327f352629e39db6b4d922f14aa86e9e3ef71725a856e70567f0b66d04"),  # doctrine.drg.reachability::action_seed_urns
-        # doctrine.drg.reachability::agent_profile_seed_urns
-        SymbolKey("agent_profile_seed_urns", "8b8a028aae488d7d97df995e1adfca92c5a52ba08fa00e4c2e53c432bf01c2ca"),
+        # ``agent_profile_seed_urns`` retired from this allowlist by WP03
+        # (doctrine-delivery-activation-01KYQVQK): it now has a genuine cross-file
+        # ``src/`` consumer — src/doctrine/agent_profiles/repository.py imports it
+        # (line 25) and calls it (line 889) — so the gate correctly no longer
+        # treats it as unwired forward API.
     }
 )
 

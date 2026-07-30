@@ -97,13 +97,21 @@ pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 #:           styleguides, 2 toolguides) / +54 overlay edges
 #:   (13)    #3063 family-E (ANALYSIS/TERMINOLOGY/REASONS-CANVAS): +0 nodes /
 #:           +9 overlay edges (all `suggests`, zero new artefacts) -> 317/882
-#: Net: 317/882 = pure 311/764 plus the hand-authored overlay's 6 nodes / 118
+#:   (14)    doctrine-delivery-activation-01KYQVQK WP02 (T007/T008/T009): +7
+#:           anti_pattern nodes (the seven grounded refactoring code smells) /
+#:           +10 overlay edges (3 action:documentation/design --instantiates-->
+#:           template:c4-* topology edges + 7 tactic:refactoring-* --REJECTS-->
+#:           anti_pattern:<smell> edges) -> 324/892. T006's Family-A `when`
+#:           backfill is content-only (no count move). Full delta is
+#:           projection-ledger entry (14).
+#: Net: 324/892 = pure 311/764 plus the hand-authored overlay's 13 nodes / 128
 #: edges. (WP09 and families A–D were ledgered in the projection module but this
 #: shipped-graph mirror was left stale at 310/781 through those changes; corrected
 #: with family D, whose full delta is projection-ledger entry (12); family E adds
-#: +9 edges, projection-ledger entry (13).)
-_EXPECTED_NODE_COUNT = 317
-_EXPECTED_EDGE_COUNT = 882
+#: +9 edges, projection-ledger entry (13); WP02 adds +7 nodes / +10 edges,
+#: projection-ledger entry (14).)
+_EXPECTED_NODE_COUNT = 324
+_EXPECTED_EDGE_COUNT = 892
 
 _DOCTRINE_ROOT = pathlib.Path(__file__).resolve().parents[3] / "src" / "doctrine"
 

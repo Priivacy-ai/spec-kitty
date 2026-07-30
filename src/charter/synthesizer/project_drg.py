@@ -28,7 +28,7 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
-from doctrine.drg.migration.extractor import model_to_graph_dict
+from doctrine.drg.migration.extractor import graph_document_to_dict, model_to_graph_dict
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 from charter.synthesizer._constants import GRAPH_FILENAME as _GRAPH_FILENAME
@@ -83,19 +83,23 @@ def _edge_to_dict(edge: DRGEdge) -> dict[str, object]:
     return model_to_graph_dict(edge)
 
 
+def _document_dict(graph: DRGGraph) -> dict[str, object]:
+    """Serialise a whole ``DRGGraph`` document via the canonical derived writer.
+
+    Standalone/addressable for ``specify_cli.drg_writers.registry``'s
+    ``DOCUMENT_WRITERS`` member -- T020/T021 counterpart to
+    :func:`_node_to_dict`/:func:`_edge_to_dict` above. ``graph_document_to_dict``
+    already recurses ``nodes``/``edges`` through :func:`model_to_graph_dict`
+    internally, so this module's separate node/edge helpers are not called
+    from here (they remain registered ``MappingWriter`` members used
+    elsewhere).
+    """
+    return graph_document_to_dict(graph)
+
+
 def _serialize_graph(graph: DRGGraph) -> str:
     """Return a canonical YAML string for *graph* with sorted keys."""
-    # Build a plain dict with sorted keys for deterministic serialization.
-    nodes_data = [_node_to_dict(node) for node in graph.nodes]
-    edges_data = [_edge_to_dict(edge) for edge in graph.edges]
-
-    payload: dict[str, object] = {
-        "schema_version": graph.schema_version,
-        "generated_at": graph.generated_at,
-        "generated_by": graph.generated_by,
-        "nodes": nodes_data,
-        "edges": edges_data,
-    }
+    payload = _document_dict(graph)
 
     yaml = YAML()
     yaml.default_flow_style = False

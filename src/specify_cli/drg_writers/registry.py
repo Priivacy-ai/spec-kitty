@@ -7,7 +7,7 @@ remembered to update. The completeness gate
 (``tests/specify_cli/drg_writers/test_registry_completeness.py``) iterates the
 registry; it carries no hand-written list of writers.
 
-The registry has **three shapes** because the five members are three different
+The registry has **three shapes** because its members are three different
 kinds of thing (contract ``writer-registry.md``):
 
 - :class:`MappingWriter` — ``(DRGNode) -> dict`` / ``(DRGEdge) -> dict``.
@@ -15,6 +15,16 @@ kinds of thing (contract ``writer-registry.md``):
 - :class:`ModelBridge` — *constructs* a ``DRGEdge`` from a foreign fragment edge;
   its input is not a ``DRGEdge`` and its output is not a mapping, so its defect
   class is model→model field coverage, not serialization.
+
+Mission ``doctrine-delivery-activation`` WP05 (#3075/#2977) grew
+``DOCUMENT_WRITERS`` from one member to four: the three sites that used to
+hand-restate the five document-level keys (``charter.synthesizer.project_drg``,
+``specify_cli.migration.rewrite_opposed_by``,
+``specify_cli.doctrine.pack_assembler``) now delegate to
+``graph_document_to_dict`` and join the registry. A companion static-scan
+discovery gate (``tests/architectural/test_drg_writer_discovery.py``) scans
+``src/`` directly for the two known bypass shapes, so a FUTURE hand-restating
+site cannot repeat this blind spot by simply never joining this tuple.
 
 **Hosting (layer constraint).** This module lives in ``src/specify_cli/`` — the
 top layer — because a ``Final`` tuple naming ``charter.synthesizer.project_drg``
@@ -43,6 +53,7 @@ from charter.drg import (
 )
 from charter.synthesizer import project_drg as _project_drg
 
+from specify_cli.doctrine import pack_assembler as _pack_assembler
 from specify_cli.migration import rewrite_opposed_by as _rewrite_opposed_by
 
 # ---------------------------------------------------------------------------
@@ -172,6 +183,18 @@ DOCUMENT_WRITERS: Final[tuple[DocumentWriter, ...]] = (
     _FunctionDocumentWriter(
         name="extractor._dump_graph_document",
         document_fn=graph_document_to_dict,
+    ),
+    _FunctionDocumentWriter(
+        name="charter.synthesizer.project_drg._document_dict",
+        document_fn=_project_drg._document_dict,
+    ),
+    _FunctionDocumentWriter(
+        name="specify_cli.migration.rewrite_opposed_by._document_dict",
+        document_fn=_rewrite_opposed_by._document_dict,
+    ),
+    _FunctionDocumentWriter(
+        name="specify_cli.doctrine.pack_assembler._document_dict",
+        document_fn=_pack_assembler._document_dict,
     ),
 )
 

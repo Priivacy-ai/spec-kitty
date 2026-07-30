@@ -74,6 +74,35 @@ def test_source_path_missing_id_raises_typed_error(tmp_path: Path) -> None:
     assert exc.value.asset_id == "nope"
 
 
+def test_source_path_absent_for_a_project_layer_manifest_that_fails_validation(
+    tmp_path: Path,
+) -> None:
+    """T025 regression: a manifest that fails validation must not be tracked.
+
+    Before the ``_post_validate`` fix, ``_pre_validate`` recorded
+    ``_source_paths[id]`` from the raw YAML *before* ``AssetManifest.model_
+    validate`` ran, so a manifest failing validation still left a stale
+    ``source_path`` entry even though ``get(id)`` returns ``None`` — a
+    split-brain a caller could observe. ``path`` is a required field
+    (``min_length=1``); omitting it fails validation.
+    """
+    built_in = tmp_path / "shipped" / "assets" / "built-in"
+    built_in.mkdir(parents=True)
+    project_assets = tmp_path / "proj" / "assets"
+    project_assets.mkdir(parents=True)
+    yaml = YAML()
+    yaml.default_flow_style = False
+    with (project_assets / "broken.asset.yaml").open("w", encoding="utf-8") as handle:
+        yaml.dump({"id": "broken", "mime": "text/plain"}, handle)  # no "path"
+
+    with pytest.warns(UserWarning, match="Skipping invalid project"):
+        repo = AssetRepository(built_in_dir=built_in, project_dir=project_assets)
+
+    assert repo.get("broken") is None
+    with pytest.raises(AssetNotFoundError):
+        repo.source_path("broken")
+
+
 def test_org_tier_overrides_builtin_and_reports_the_shadow(tmp_path: Path) -> None:
     """T025: more-specific tier wins; the shadowed tier is *reported*, not silent."""
     built_in = tmp_path / "shipped" / "assets" / "built-in"

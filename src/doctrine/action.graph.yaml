@@ -112,6 +112,18 @@ edges:
   target: tactic:requirements-validation-workflow
   relation: scope
 - source: action:documentation/design
+  target: template:c4-component-mermaid-template
+  relation: instantiates
+  reason: The documentation/design action instantiates the C4 Component mermaid template as one of its concrete architecture-diagram outputs, completing the canonical Family-C topology (topology only; delivery rides the c4-zoom-in tactic's own references, not this edge).
+- source: action:documentation/design
+  target: template:c4-container-mermaid-template
+  relation: instantiates
+  reason: The documentation/design action instantiates the C4 Container mermaid template as one of its concrete architecture-diagram outputs, completing the canonical Family-C topology (topology only; delivery rides the c4-zoom-in tactic's own references, not this edge).
+- source: action:documentation/design
+  target: template:c4-context-mermaid-template
+  relation: instantiates
+  reason: The documentation/design action instantiates the C4 System Context mermaid template as one of its concrete architecture-diagram outputs, completing the canonical Family-C topology (topology only; delivery rides the c4-zoom-in tactic's own references, not this edge).
+- source: action:documentation/design
   target: template:documentation/documentation-plan-template.md
   relation: instantiates
 - source: action:documentation/discover
