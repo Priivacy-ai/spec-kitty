@@ -252,11 +252,82 @@ def is_writable(path: Path) -> bool:
     return False
 
 
+class ConfigNotUnderstoodError(RuntimeError):
+    """``config.yaml`` exists but cannot be parsed, or its top level is not a mapping.
+
+    Raised only by :func:`atomic_write_config`, and deliberately **not** by
+    :func:`load_identity`: reading such a file yields no identity (the answer it
+    already gave for a parse error), while *writing over* it is refused. One notion
+    of "a config that cannot be understood", two directions.
+
+    ``load_identity``'s seven production callers therefore learn nothing new — a new
+    exception nobody catches is a crash moved, not fixed — and this error is handled
+    inside :func:`ensure_identity`, so its own callers (``init``, ``tracker``,
+    history-import) see the in-memory-identity degradation they already handle for an
+    unwritable config rather than a new failure.
+
+    Mirrors ``sync/consent.py``'s ``ConfigReadFault(kind="unparseable", detail="…top-level
+    content is not a mapping")`` so the two modules do not grow separate notions of
+    the same broken file (#3030 FR-022 follow-up).
+    """
+
+
+def _config_shape_fault(config: object, config_path: Path) -> str | None:
+    """Return why *config* is not a usable config document, or ``None``.
+
+    A YAML document is not necessarily a mapping: ``- a\\n- list`` loads as a
+    sequence, ``hello`` as a string, ``42`` as an int. Every one of those reached
+    ``config.get("project")`` and raised ``AttributeError`` out of functions whose
+    contract is to answer. ``None``/empty is *absence*, not a fault — an empty file
+    legitimately means "no identity recorded yet" and must keep minting.
+    """
+    if config is None:
+        return None
+    if not isinstance(config, dict):
+        return (
+            f"{config_path}: top-level content is not a mapping "
+            f"(got {type(config).__name__})"
+        )
+    return None
+
+
+def _load_mapping_for_merge(config_path: Path, yaml: YAML) -> dict[str, Any]:
+    """Load *config_path* as a mapping to merge into, or refuse.
+
+    The refusal is what stops an identity write from replacing a document it could
+    not read. Both failure directions are converted to one typed error so callers do
+    not have to know whether ruamel raised or returned the wrong shape.
+    """
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            loaded = yaml.load(f)
+    except OSError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - re-raised as the typed refusal below
+        raise ConfigNotUnderstoodError(
+            f"{config_path}: could not be parsed ({exc}); refusing to overwrite it"
+        ) from exc
+
+    fault = _config_shape_fault(loaded, config_path)
+    if fault is not None:
+        raise ConfigNotUnderstoodError(f"{fault}; refusing to overwrite it")
+    # Returned as loaded, NOT copied into a plain dict: ruamel's round-trip loader
+    # returns a CommentedMap (itself a dict subclass) carrying the file's comments,
+    # and rebuilding it as a dict would silently strip every comment the operator
+    # wrote on the next identity write.
+    return loaded if loaded else {}
+
+
 def atomic_write_config(config_path: Path, identity: ProjectIdentity) -> None:
     """Atomically write identity to config.yaml (temp file + rename).
 
     Uses the POSIX-compliant os.replace() for atomic rename.
     Temp file is created in the same directory to ensure same filesystem.
+
+    Existing content is **merged**, not overwritten: the file is re-loaded and only
+    its ``project`` section is replaced, so unrelated sections (``sync.enabled``,
+    comments) survive an identity write. That merge is only meaningful over a
+    document that can be understood — hence the refusal below.
 
     Args:
         config_path: Path to config.yaml
@@ -264,6 +335,11 @@ def atomic_write_config(config_path: Path, identity: ProjectIdentity) -> None:
 
     Raises:
         OSError: If write fails
+        ConfigNotUnderstoodError: If the file exists but cannot be parsed, or its
+            top level is not a mapping. Refusing is the point: the only way to
+            "succeed" would be to discard a document we could not read, taking the
+            operator's other sections with it. Nothing is written and no temp file
+            is created.
     """
     yaml = YAML()
     yaml.preserve_quotes = True
@@ -271,12 +347,8 @@ def atomic_write_config(config_path: Path, identity: ProjectIdentity) -> None:
     # Ensure parent directory exists
     config_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Load existing config or create new
-    if config_path.exists():
-        with open(config_path, encoding="utf-8") as f:
-            config = yaml.load(f) or {}
-    else:
-        config = {}
+    # Load existing config to merge into, or start fresh when there is no file
+    config = _load_mapping_for_merge(config_path, yaml) if config_path.exists() else {}
 
     # Update project section
     config["project"] = identity.to_dict()
@@ -319,6 +391,17 @@ def load_identity(config_path: Path) -> ProjectIdentity:
         logger.warning(f"Invalid config.yaml; regenerating identity: {e}")
         return ProjectIdentity()
 
+    # A YAML document need not be a mapping. ``- a\n- list`` loads as a sequence,
+    # ``hello`` as a str, ``42`` as an int — and each one made the ``.get`` below
+    # raise ``AttributeError`` out of a function documented to handle malformed
+    # config gracefully. That crashed every caller, including the sync policy gate
+    # (``sync/routing.py``), which is supposed to answer a boolean. Treated exactly
+    # like the parse error above: no identity, warned, no exception.
+    shape_fault = _config_shape_fault(config, config_path)
+    if shape_fault is not None:
+        logger.warning(f"Invalid config.yaml; regenerating identity: {shape_fault}")
+        return ProjectIdentity()
+
     project = config.get("project", {})
     if not isinstance(project, dict):
         logger.warning("Invalid 'project' section in config.yaml; regenerating identity")
@@ -355,6 +438,15 @@ def ensure_identity(repo_root: Path) -> ProjectIdentity:
         try:
             atomic_write_config(config_path, identity)
             logger.debug(f"Persisted project identity to {config_path}")
+        except ConfigNotUnderstoodError as e:
+            # The file is writable but not understandable, so persisting would mean
+            # replacing a document we could not read — taking the operator's other
+            # sections with it. Degrade down the path this function already has for
+            # an unwritable config: usable in-memory identity, file untouched,
+            # operator warned. Handled HERE so that ``init`` / ``tracker`` /
+            # history-import see no new exception (#3030 FR-022 follow-up).
+            logger.warning(f"Refusing to persist identity: {e}")
+            _warn_in_memory("Config exists but could not be understood")
         except OSError as e:
             logger.warning(f"Failed to persist identity: {e}")
             _warn_in_memory()
@@ -408,7 +500,14 @@ def resolve_identity(repo_root: Path) -> ProjectIdentity:
     return identity.with_defaults(repo_root)
 
 
-def _warn_in_memory() -> None:
-    """Log warning about using in-memory identity."""
+def _warn_in_memory(reason: str = "Config not writable") -> None:
+    """Warn that identity is in-memory only, naming the actual cause.
+
+    *reason* defaults to the historical wording (an unwritable config). It is a
+    parameter because there is now a second cause with a different remedy: a config
+    that is writable but cannot be understood. Telling that operator "not writable"
+    sends them to ``chmod`` when the fix is a YAML error — the misdirected-cause
+    class this mission has been closing elsewhere (#3030).
+    """
     console = Console(stderr=True)
-    console.print("[yellow]Warning: Config not writable; using in-memory identity[/yellow]")
+    console.print(f"[yellow]Warning: {reason}; using in-memory identity[/yellow]")
