@@ -43,3 +43,36 @@ evidence measured manually instead.
 
 The mission spec scores 4/4 on bulk-edit heuristics because it discusses a schema
 migration, requiring `--acknowledge-not-bulk-edit` on every lane allocation.
+
+## Concurrent implementers in one working tree: `git add -A` swallows their edits
+
+Self-inflicted, 2026-07-30, and worth recording because the loop invites it.
+
+Four implementers were dispatched in parallel on disjoint *file* sets — sound for
+content, but three of them shared one working tree on `feat/journal-project-consent-3030`.
+The orchestrator (me) then ran `git add -A && git commit` for a dossier-only change
+while one of them had uncommitted source edits in flight.
+
+Result: commit `2e6aa1d78f`, whose message describes un-marking T004/T005, actually
+carries eight source files plus a test — `delivery/selection.py`,
+`event_journal/{journal,models}.py`, `sync/{consent,emitter,routing,runtime}.py`,
+`tests/architectural/test_no_dead_symbols.py`. The implementer noticed, correctly
+refused to rewrite history unasked, and reported it.
+
+**Not rewritten.** Two other implementers were mid-commit on the same branch; a
+`reset --soft` between their commits risks destroying uncommitted work. The content
+is correct and wanted, so an honest note beats surgery. History is misleading in one
+commit message; nothing is lost.
+
+**Rules adopted mid-mission**, and they should be standing practice whenever more
+than one agent shares a checkout:
+
+- Never `git add -A` / `git add .` / `git commit -a`. Enumerate owned paths.
+- `git status --short` before every commit; unstage anything outside your ownership.
+- Never `reset`, `checkout --`, `stash` or `rebase` on a shared branch — report instead.
+- Modifications to your own files that you did not make are a signal, not yours to
+  revert.
+
+Better still: give each concurrent implementer its **own lane worktree** even when
+file sets are disjoint. Disjoint files do not make a shared index safe, because
+`git add -A` is index-wide, not path-aware.
