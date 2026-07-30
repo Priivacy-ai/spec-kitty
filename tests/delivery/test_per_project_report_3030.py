@@ -126,11 +126,25 @@ def test_identity_less_rows_are_counted_not_dropped(tmp_path: Path) -> None:
 
 
 def test_non_consenting_projects_are_flagged_for_the_operator(tmp_path: Path) -> None:
+    """Only projects KNOWN to have withheld consent may be named as such.
+
+    This asserted ``{SILENT, OPTED_OUT, None}`` before N1 — it included the
+    unresolved-identity bucket, which is how the CLI came to name one of that
+    bucket's member repos as a project that had refused. The bucket is still
+    reported, and asserted below to be: it is a row of the report, it counts toward
+    ``unresolved_identity_count``, and it never reads as consented. What it is not
+    is a NAMED refusal, because with no uuid there was no decision to read.
+    """
     journal = _seeded_journal(tmp_path)
     result = build_per_project_store_report(journal)
 
-    flagged = {row.project_uuid for row in result.non_consenting_rows}
-    assert flagged == {SILENT, OPTED_OUT, None}
+    named = {row.project_uuid for row in result.named_non_consenting_rows}
+    assert named == {SILENT, OPTED_OUT}
+
+    # The bucket is not dropped by that exclusion — it is surfaced its own way.
+    bucket = next(row for row in result.rows if row.is_unresolved_identity)
+    assert bucket.consent_granted is False, "it must never read as consented"
+    assert result.unresolved_identity_count == 1
 
 
 def test_the_unresolved_identity_bucket_sorts_last(tmp_path: Path) -> None:
@@ -189,7 +203,10 @@ def test_report_does_not_read_the_legacy_offline_queue(tmp_path: Path) -> None:
         "the report must derive from the journal, not the retired queue — an "
         "empty legacy queue must never make a contaminated journal look healthy"
     )
-    assert len(result.non_consenting_rows) == 3
+    # Two named refusals plus the unresolved bucket — three populations the
+    # contaminated store holds, none of them dropped by the N1 split.
+    assert len(result.named_non_consenting_rows) == 2
+    assert result.unresolved_identity_count == 1
 
 
 # --- F2: reconciliation must be falsifiable ---------------------------------
@@ -357,3 +374,111 @@ def test_a_restricted_report_does_not_reconcile_when_a_named_event_is_missing(
     assert result.counted_event_total == 1
     assert result.retained_event_count == 2
     assert result.reconciles is False
+
+
+# --- N1: the unresolved bucket spans projects and must not be attributed to one --
+
+
+def test_the_unresolved_bucket_is_never_attributed_to_one_arbitrary_repo(
+    tmp_path: Path,
+) -> None:
+    """Identity-less rows from three repos must not be reported as one named repo.
+
+    Red before the fix: the bucket took ``next((r.repo_slug for r in group ...))``,
+    so it carried ``acme/app`` — whichever row happened to sort first — and
+    ``non_consenting_rows`` then had the CLI tell the operator that ``acme/app``
+    refused consent and should be purged. Purging it leaves ``beta/svc`` and
+    ``gamma/tool`` on disk, unnamed, while the report reads clean: the 2026-07-27
+    false-green rebuilt inside the fix for it.
+
+    Reachable in production: ``emitter.py`` resolves ``project_uuid`` and
+    ``repo_slug`` independently and gates capture on ``checkout_enabled``, not on
+    uuid resolvability, so a consenting checkout whose uuid resolution fails writes
+    exactly this row.
+    """
+    journal = EventJournal(tmp_path / "unresolved-multi.db")
+    for index, (slug, repo) in enumerate(
+        (
+            ("acme-app", "acme/app"),
+            ("beta-svc", "beta/svc"),
+            ("gamma-tool", "gamma/tool"),
+        )
+    ):
+        journal.append(
+            _event(
+                f"evt-anon-{index}",
+                None,
+                f"2026-07-01T00:00:0{index}+00:00",
+                project_slug=slug,
+                repo_slug=repo,
+            )
+        )
+
+    result = build_per_project_store_report(journal)
+
+    (bucket,) = result.rows
+    assert bucket.is_unresolved_identity
+    assert bucket.event_count == 3
+    # The lie at its source: the bucket must claim NO single identity, because it
+    # does not have one.
+    assert bucket.repo_slug is None, "the bucket must not adopt one member's repo slug"
+    assert bucket.project_slug is None
+
+    # And it is not a project that refused consent — its consent is UNRESOLVABLE,
+    # which is a different fact with a different remedy.
+    assert result.named_non_consenting_rows == ()
+
+
+def test_the_unresolved_bucket_names_every_candidate_repo_with_its_count(
+    tmp_path: Path,
+) -> None:
+    """SC-004 for this population: zero hand-written SQL to answer "whose data?".
+
+    The slugs are already on the rows and already in the identity projection, so
+    an operator having to open SQLite to find out which repos the unresolved rows
+    came from is exactly the gap SC-004 forbids.
+    """
+    journal = EventJournal(tmp_path / "unresolved-counts.db")
+    seeds = (
+        ("acme-app", "acme/app"),
+        ("acme-app", "acme/app"),
+        ("beta-svc", "beta/svc"),
+        (None, None),
+    )
+    for index, (slug, repo) in enumerate(seeds):
+        journal.append(
+            _event(
+                f"evt-anon-{index}",
+                None,
+                f"2026-07-01T00:00:0{index}+00:00",
+                project_slug=slug,
+                repo_slug=repo,
+            )
+        )
+
+    (bucket,) = build_per_project_store_report(journal).rows
+
+    by_label = {c.repo_slug: c for c in bucket.unresolved_candidates}
+    assert set(by_label) == {"acme/app", "beta/svc", None}
+    assert by_label["acme/app"].event_count == 2
+    assert by_label["beta/svc"].event_count == 1
+    # Rows carrying no slug at all are their own candidate rather than being
+    # dropped or folded into a named one — they genuinely cannot be attributed.
+    assert by_label[None].event_count == 1
+    assert by_label[None].project_slug is None
+
+    # Counts reconcile with the bucket, so the breakdown cannot hide a row.
+    assert sum(c.event_count for c in bucket.unresolved_candidates) == bucket.event_count
+    assert by_label["acme/app"].project_slug == "acme-app"
+    assert by_label["acme/app"].oldest_created_at == "2026-07-01T00:00:00+00:00"
+
+
+def test_a_resolved_project_carries_no_unresolved_candidates(tmp_path: Path) -> None:
+    """The field is meaningful only for the bucket; a named project has one identity."""
+    journal = _seeded_journal(tmp_path)
+    result = build_per_project_store_report(journal)
+
+    for row in result.rows:
+        if row.is_unresolved_identity:
+            continue
+        assert row.unresolved_candidates == ()

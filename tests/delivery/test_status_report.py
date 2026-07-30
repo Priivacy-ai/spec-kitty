@@ -755,3 +755,63 @@ def test_status_report_carries_the_per_project_store_section(
 
     # FR-019 round-trip: the new section must not break JSON serialisation.
     assert json.loads(json.dumps(report))[PER_PROJECT_STORE_KEY] == section
+
+
+def test_the_json_section_never_names_the_unresolved_bucket_as_a_refusal(
+    journal: EventJournal,
+    ledger: object,
+    registry: object,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#3030 N1 on the machine-readable surface.
+
+    A monitor keying on ``non_consenting_project_count`` must not be told a project
+    refused consent when that cannot be known. Red before the fix: the
+    unresolved-identity bucket counted as a refusal and carried the first-found repo
+    slug, so this reported ``1`` with ``repo_slug='acme/app'``.
+    """
+    home = tmp_path / "n1-home"
+    home.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+
+    for index, (slug, repo) in enumerate(
+        (("acme-app", "acme/app"), ("beta-svc", "beta/svc"))
+    ):
+        journal.append(
+            Event(
+                event_id=f"evt-anon-{index}",
+                event_type="WorkPackageApproved",
+                payload=b"{}",
+                occurred_at=f"2026-06-0{index + 1}T00:00:00+00:00",
+                created_at=f"2026-06-0{index + 1}T00:00:00+00:00",
+                project_uuid=None,
+                project_slug=slug,
+                repo_slug=repo,
+            )
+        )
+
+    section = build_status_report(
+        resolved_target=_resolved(),
+        journal=journal,
+        ledger=ledger,
+        target_registry=registry,
+    )[PER_PROJECT_STORE_KEY]
+
+    assert section["non_consenting_project_count"] == 0, (
+        "no project is KNOWN to have refused here — consent could not be resolved"
+    )
+    assert section["unresolved_identity_count"] == 2
+
+    (bucket,) = section["projects"]
+    assert bucket["unresolved_identity"] is True
+    assert bucket["repo_slug"] is None, "the bucket must claim no single identity"
+    assert bucket["project_slug"] is None
+    # Both repos are still named, with counts, so SC-004 holds for this population.
+    assert {c["repo_slug"] for c in bucket["unresolved_candidates"]} == {
+        "acme/app",
+        "beta/svc",
+    }
+    assert all(c["event_count"] == 1 for c in bucket["unresolved_candidates"])
+    assert json.loads(json.dumps(section)) == section

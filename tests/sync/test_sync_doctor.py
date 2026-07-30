@@ -22,11 +22,22 @@ def _isolated_runtime_root(tmp_path, monkeypatch):
 
     Every other input to ``doctor`` in this file is mocked, but #3030 T021 added a
     per-project journal section that opens the event journal for the CURRENT
-    producer scope. Without this the outcome of ``test_doctor_healthy`` depends on
-    whether the machine running the suite happens to have non-consented events in
-    its own journal — green in CI, red on a developer box that has used the tool.
-    An isolated home makes the journal genuinely absent, which the section reports
-    as such without raising an issue.
+    producer scope. Without this fixture, ``test_doctor_healthy``'s verdict depends
+    on what happens to be in the journal of the machine running the suite. An
+    isolated home makes that journal genuinely absent, which the section reports as
+    such without raising an issue.
+
+    Precisely which contents would redden it is narrower than it looks, and the
+    first version of this docstring got it wrong: it is NOT "non-consented events".
+    ``@patch("specify_cli.sync.config.SyncConfig")`` reaches the lazy import inside
+    ``consent.py``'s resolver, so every project resolves to a truthy ``MagicMock``
+    and reads as consented. Only unresolved-identity rows, or a report that fails to
+    reconcile, can redden this test. The fixture is still load-bearing — it is what
+    keeps that from depending on the host.
+
+    Not a mirror of a production fail-open: ``get_repository_sync_enabled`` guards
+    with ``isinstance(enabled, bool)``, so only a mocked ``SyncConfig`` behaves this
+    way.
     """
     home = tmp_path / "spec-kitty-home"
     home.mkdir(parents=True, exist_ok=True)

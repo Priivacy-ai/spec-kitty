@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from specify_cli.delivery.status_report import (
         PerProjectStoreReport,
         ProjectStoreRow,
+        UnresolvedIdentityCandidate,
     )
     from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
     from specify_cli.event_journal.journal import EventJournal
@@ -1258,11 +1259,17 @@ def _per_project_store_issues(report: PerProjectStoreReport) -> list[str]:
             "project identity, so they can never be selected for delivery. They "
             "are retained locally; `spec-kitty sync purge` is the only way to "
             "remove them."
+            + _unresolved_origin_clause(report)
         )
-    non_consenting = report.non_consenting_rows
+    # NAMED refusals only. The unresolved-identity bucket is also
+    # `consent_granted=False`, but its consent could not be resolved at all — see
+    # `named_non_consenting_rows`. Naming one of its member repos here told the
+    # operator that repo had refused and should be purged; purging it leaves the
+    # bucket's other repos on disk while the report reads clean.
+    non_consenting = report.named_non_consenting_rows
     if non_consenting:
         named = ", ".join(
-            (r.repo_slug or r.project_slug or r.project_uuid or "<unresolved>")
+            (r.repo_slug or r.project_slug or r.project_uuid or "<unnamed>")
             for r in non_consenting
         )
         issues.append(
@@ -1271,6 +1278,34 @@ def _per_project_store_issues(report: PerProjectStoreReport) -> list[str]:
             "delivered; `spec-kitty sync purge --project <slug>` removes them."
         )
     return issues
+
+
+def _unresolved_origin_clause(report: PerProjectStoreReport) -> str:
+    """Name the repos the unresolved rows appear to come from, with counts (SC-004).
+
+    Without this an operator is told a number and nothing else, and has to open
+    SQLite to learn which repos are involved — even though the slugs are already on
+    the rows and in the identity projection. Worded as *appear to come from*: with
+    no uuid these rows' consent cannot be resolved, so this is provenance, never a
+    statement about what any of those projects decided.
+    """
+    candidates: tuple[UnresolvedIdentityCandidate, ...] = tuple(
+        candidate
+        for row in report.rows
+        if row.is_unresolved_identity
+        for candidate in row.unresolved_candidates
+    )
+    if not candidates:
+        return ""
+    named = ", ".join(
+        f"{candidate.repo_slug or '<no repo recorded>'} ({candidate.event_count})"
+        for candidate in candidates
+    )
+    return (
+        f" They appear to come from: {named}. Consent for these rows cannot be "
+        "resolved without a project identity, so this is where they were captured, "
+        "not what those projects decided."
+    )
 
 
 def _per_project_store_table(report: PerProjectStoreReport) -> Table:
@@ -1298,6 +1333,20 @@ def _per_project_store_table(report: PerProjectStoreReport) -> Table:
             _oldest_age_label(row.oldest_created_at),
             state,
         )
+        # The unresolved bucket spans repos, so it gets a sub-row per repo. This is
+        # what makes SC-004's "names every project present with count, oldest age
+        # and consent state" hold for this population — previously the bucket
+        # rendered as one anonymous line and the repos behind it were reachable only
+        # by hand-querying SQLite. Consent reads "unknown", not "denied": without a
+        # uuid there is nothing to resolve, and claiming a refusal here is the N1
+        # false fact.
+        for candidate in row.unresolved_candidates:
+            table.add_row(
+                f"  [dim]└[/dim] {candidate.repo_slug or '[dim]<no repo recorded>[/dim]'}",
+                f"{candidate.event_count:,}",
+                _oldest_age_label(candidate.oldest_created_at),
+                "[yellow]unknown[/yellow] [dim](identity unresolved)[/dim]",
+            )
     return table
 
 

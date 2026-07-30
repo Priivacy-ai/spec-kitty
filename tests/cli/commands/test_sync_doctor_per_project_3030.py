@@ -285,3 +285,95 @@ def test_doctor_prefers_the_repo_slug_label_and_falls_back_to_the_uuid() -> None
     # No slug recorded for the second project, so the uuid stands in rather than
     # the row rendering blank.
     assert SILENT in result.output
+
+
+# --- N1: the unresolved bucket must not be pinned on one named repo -----------
+
+
+def _seed_three_repos_with_unresolved_identity() -> EventJournal:
+    """Three identity-less rows, one per repo — the `sync migrate` legacy shape."""
+    journal = _doctor_journal()
+    for index, (slug, repo) in enumerate(
+        (
+            ("acme-app", "acme/app"),
+            ("beta-svc", "beta/svc"),
+            ("gamma-tool", "gamma/tool"),
+        )
+    ):
+        journal.append(
+            Event(
+                event_id=f"evt-anon-{index}",
+                event_type="WorkPackageApproved",
+                payload=b"{}",
+                occurred_at=f"2026-07-01T00:00:0{index}+00:00",
+                created_at=f"2026-07-01T00:00:0{index}+00:00",
+                project_uuid=None,
+                project_slug=slug,
+                repo_slug=repo,
+            )
+        )
+    return journal
+
+
+def test_doctor_does_not_tell_the_operator_one_named_repo_refused_consent() -> None:
+    """The false fact that closes an incident early.
+
+    Red before the fix: the unresolved bucket adopted the first row's repo slug and
+    landed in `non_consenting_rows`, so doctor printed "1 project(s) in the journal
+    have not consented to hosted sync: acme/app ... `sync purge --project <slug>`
+    removes them". An operator purges `acme/app`, sees a clean report, and closes
+    the confidentiality incident with `beta/svc` and `gamma/tool` still on disk.
+    """
+    journal = _seed_three_repos_with_unresolved_identity()
+    assert journal.count() == 3
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 0, result.output
+    out = result.output
+    assert "have not consented to hosted sync" not in out, (
+        "no project here is known to have refused consent — their consent cannot "
+        "be resolved at all, which is a different fact with a different remedy"
+    )
+    # The count must not claim one project either.
+    assert "1 project(s) in the journal have not consented" not in out
+
+
+def test_doctor_names_every_repo_behind_the_unresolved_rows() -> None:
+    """SC-004 must hold for this population too, with per-repo counts.
+
+    The slugs are on the rows and in the projection already; requiring a
+    hand-written SQLite query to learn which repos are present is precisely the
+    gap SC-004 closes.
+    """
+    _seed_three_repos_with_unresolved_identity()
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 0, result.output
+    out = result.output
+    for repo in ("acme/app", "beta/svc", "gamma/tool"):
+        assert repo in out, f"{repo} has payloads in the journal but was never named"
+    # Still surfaced as the fail-closed denial it is (FR-011).
+    assert "identity unresolved" in out
+    assert "no stored project identity" in out
+    assert "Issues found" in out
+
+
+def test_doctor_still_names_a_genuine_refusal_alongside_unresolved_rows() -> None:
+    """Dropping the bucket from the refusal list must not drop real refusals.
+
+    Without this, "no project refused" could be satisfied by never reporting a
+    refusal at all — the opposite failure, and just as quiet.
+    """
+    _seed_three_repos_with_unresolved_identity()
+    journal = _doctor_journal()
+    journal.append(_event("evt-silent-0", SILENT, "2026-07-02T00:00:00+00:00"))
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 0, result.output
+    assert "have not consented to hosted sync" in result.output
+    assert SILENT in result.output
+    # ...and the unresolved rows are still not among the named refusals.
+    assert "acme/app, " not in result.output.replace("\n", " ")

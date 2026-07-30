@@ -444,7 +444,10 @@ def _per_project_store_section(journal: EventJournal) -> dict[str, Any]:
         "retained_event_count": report.retained_event_count,
         "counted_event_total": report.counted_event_total,
         "unresolved_identity_count": report.unresolved_identity_count,
-        "non_consenting_project_count": len(report.non_consenting_rows),
+        # Counts projects KNOWN to have withheld consent. The unresolved-identity
+        # bucket is excluded on purpose — see ``named_non_consenting_rows`` — so a
+        # monitor keying on this never reports a refusal that cannot be known.
+        "non_consenting_project_count": len(report.named_non_consenting_rows),
         "projects": [
             {
                 "project_uuid": row.project_uuid,
@@ -456,6 +459,17 @@ def _per_project_store_section(journal: EventJournal) -> dict[str, Any]:
                 "consent_level": row.consent_level,
                 "consent_reason": row.consent_reason,
                 "unresolved_identity": row.is_unresolved_identity,
+                # Where the bucket's rows appear to have come from, per repo. Empty
+                # for a resolved project. Never an attribution of consent.
+                "unresolved_candidates": [
+                    {
+                        "repo_slug": candidate.repo_slug,
+                        "project_slug": candidate.project_slug,
+                        "event_count": candidate.event_count,
+                        "oldest_created_at": candidate.oldest_created_at,
+                    }
+                    for candidate in row.unresolved_candidates
+                ],
             }
             for row in report.rows
         ],
@@ -525,6 +539,7 @@ __all__ = [
     "PerProjectStoreReport",
     "ProjectStoreRow",
     "TARGET_AUTHORITY_KEY",
+    "UnresolvedIdentityCandidate",
     "TERMINAL_FAILURES_KEY",
     "build_per_project_store_report",
     "build_status_report",
@@ -544,6 +559,30 @@ __all__ = [
 
 
 @dataclass(frozen=True)
+class UnresolvedIdentityCandidate:
+    """One repo's share of the unresolved-identity bucket (#3030 N1, FR-011/SC-004).
+
+    The bucket groups every row whose ``project_uuid`` is NULL, and those rows can
+    come from DIFFERENT repos — ``emitter.py`` resolves ``project_uuid`` and
+    ``repo_slug`` independently, and gates capture on ``checkout_enabled`` rather
+    than on uuid resolvability, so a consenting checkout whose uuid resolution fails
+    writes one. The bucket therefore has no single identity to report, but the slugs
+    ARE on the rows, so declining to report them would force an operator back to
+    hand-written SQLite to answer "whose data is in here?" — the exact gap SC-004
+    closes.
+
+    A *candidate*, not an attribution: without a uuid, consent cannot be resolved
+    for these rows, so this names where they appear to have come from and never
+    claims what that project decided.
+    """
+
+    repo_slug: str | None
+    project_slug: str | None
+    event_count: int
+    oldest_created_at: str | None
+
+
+@dataclass(frozen=True)
 class ProjectStoreRow:
     """One project's presence in the journal, with its consent state."""
 
@@ -555,6 +594,10 @@ class ProjectStoreRow:
     consent_granted: bool
     consent_level: str
     consent_reason: str
+    #: Populated for the unresolved-identity bucket ONLY, where the row spans
+    #: several repos and ``project_slug``/``repo_slug`` are therefore both None.
+    #: Empty for a resolved project, which has exactly one identity.
+    unresolved_candidates: tuple[UnresolvedIdentityCandidate, ...] = ()
 
     @property
     def is_unresolved_identity(self) -> bool:
@@ -593,8 +636,55 @@ class PerProjectStoreReport:
         return self.counted_event_total == self.retained_event_count
 
     @property
-    def non_consenting_rows(self) -> tuple[ProjectStoreRow, ...]:
-        return tuple(row for row in self.rows if not row.consent_granted)
+    def named_non_consenting_rows(self) -> tuple[ProjectStoreRow, ...]:
+        """Projects that are KNOWN to have withheld consent — safe to name.
+
+        Excludes the unresolved-identity bucket, deliberately and load-bearingly.
+        That bucket is also ``consent_granted=False`` (it must never read as
+        consented), but for a different reason: its consent could not be resolved at
+        all. Including it here made the CLI tell an operator that one arbitrarily
+        chosen repo had refused consent and should be purged — a false fact whose
+        remedy closes an incident early, leaving the bucket's other repos on disk
+        and unnamed. The bucket speaks through ``unresolved_identity_count`` and its
+        own FR-011 warning instead, so no row is reported twice under two diagnoses.
+        """
+        return tuple(
+            row
+            for row in self.rows
+            if not row.consent_granted and not row.is_unresolved_identity
+        )
+
+
+def _unresolved_identity_candidates(
+    group: list[Any],
+) -> tuple[UnresolvedIdentityCandidate, ...]:
+    """Break the unresolved bucket down by the repo slug its rows carry (N1).
+
+    Keyed on ``repo_slug`` because that is what ``sync purge --project`` and the
+    consent records use, so it is the name an operator can act on. Rows carrying no
+    slug at all become a single ``repo_slug=None`` candidate rather than being
+    dropped or folded into a named one: they genuinely cannot be attributed, and
+    hiding them would let the breakdown under-report the bucket it explains.
+
+    Every row lands in exactly one candidate, so the candidate counts always sum to
+    the bucket's ``event_count`` — the breakdown cannot omit a row.
+    """
+    by_repo: dict[str | None, list[Any]] = {}
+    for row in group:
+        by_repo.setdefault(row.repo_slug or None, []).append(row)
+
+    candidates = [
+        UnresolvedIdentityCandidate(
+            repo_slug=repo_slug,
+            project_slug=next((r.project_slug for r in rows if r.project_slug), None),
+            event_count=len(rows),
+            oldest_created_at=min(r.created_at for r in rows),
+        )
+        for repo_slug, rows in by_repo.items()
+    ]
+    # Largest first, unnameable rows last so they never head the list.
+    candidates.sort(key=lambda c: (c.repo_slug is None, -c.event_count, c.repo_slug or ""))
+    return tuple(candidates)
 
 
 def build_per_project_store_report(
@@ -637,9 +727,15 @@ def build_per_project_store_report(
 
     report_rows: list[ProjectStoreRow] = []
     for project_uuid, group in grouped.items():
-        project_slug = next((r.project_slug for r in group if r.project_slug), None)
-        repo_slug = next((r.repo_slug for r in group if r.repo_slug), None)
+        candidates: tuple[UnresolvedIdentityCandidate, ...] = ()
         if project_uuid is None:
+            # NO first-found slug here. The bucket spans repos, so adopting one
+            # member's slug reports a project identity the bucket does not have —
+            # and, via the consent warning, a refusal that cannot be known. The
+            # slugs are surfaced as candidates instead (SC-004 without the lie).
+            project_slug = None
+            repo_slug = None
+            candidates = _unresolved_identity_candidates(group)
             decision_granted = False
             level = "unresolved_identity"
             reason = (
@@ -647,6 +743,11 @@ def build_per_project_store_report(
                 "NULL, and counted here rather than dropped (FR-011)"
             )
         else:
+            # Safe for a resolved project: every row in this group shares one
+            # ``project_uuid``, so the slugs describe one identity. A disagreement
+            # among them is not a licence to invent a third value.
+            project_slug = next((r.project_slug for r in group if r.project_slug), None)
+            repo_slug = next((r.repo_slug for r in group if r.repo_slug), None)
             decision = resolve_project_consent(project_uuid, repo_slug=repo_slug)
             decision_granted = decision.granted
             level = str(decision.level)
@@ -662,6 +763,7 @@ def build_per_project_store_report(
                 consent_granted=decision_granted,
                 consent_level=level,
                 consent_reason=reason,
+                unresolved_candidates=candidates,
             )
         )
 
