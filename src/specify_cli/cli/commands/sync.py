@@ -1568,32 +1568,46 @@ _CONSENT_HEALTH_SECTION_TITLE = "Consent record readability"
 #: consent they already recorded — and on the machine index that write *destroys the
 #: other projects' records* (see :data:`_CONSENT_FAULT_NOT_ABSENCE`).
 #:
-#: Three kinds, not one. FR-027 added ``unusable`` — a present-but-uninterpretable
-#: value — alongside the two file-level kinds, and it is the one most easily mistaken
-#: for absence because the file looks perfectly fine.
+#: Four kinds. FR-027 added ``unusable`` — a present-but-uninterpretable value —
+#: alongside the file-level kinds, and it is the one most easily mistaken for absence
+#: because the file looks perfectly fine.
 #:
-#: **The two file-level tokens do not mean the same thing to both producers**, which
-#: is why the wording below spans rather than narrows. ``sync/config.py`` calls a TOML
-#: *syntax* error ``unparseable`` and an ``OSError`` ``unreadable``; ``sync/consent.py``
-#: calls an open-or-parse failure ``unreadable`` and a non-mapping top level
-#: ``unparseable``. So "unparseable" covers a syntax error on one surface and a wrong
-#: top-level shape on the other. Advice that named only one of those would be false
-#: half the time, on the surface whose entire job is to stop misdirecting operators —
-#: pinned by ``test_the_action_is_true_for_both_producers_of_the_same_kind``.
-_CONSENT_FAULT_ACTIONS: dict[str, tuple[str, str]] = {
+#: **The wording narrows because the vocabulary was unified.** Until 2026-07-30 the two
+#: file-level tokens did not mean the same thing to both producers: ``sync/config.py``
+#: called a TOML *syntax* error ``unparseable`` and an ``OSError`` ``unreadable``, while
+#: ``sync/consent.py`` called an open-*or*-parse failure ``unreadable`` and a non-mapping
+#: top level ``unparseable``. One kind-keyed string therefore had to span both readings
+#: — "either its syntax does not parse, or its top level is not a mapping" — which meant
+#: telling every reader one true thing and one false one. ``sync/consent.py`` now splits
+#: cannot-open from cannot-parse and mints ``wrong_shape`` for a non-mapping top level
+#: (see ``sync.config.CONFIG_FAULT_KINDS``), so each entry below names one state and one
+#: remedy. Pinned by ``test_the_action_is_true_for_both_producers_of_the_same_kind``,
+#: which now asserts the two producers agree rather than that the advice hedges.
+#:
+#: The first element of each triple is the status word printed beside the scope, so a
+#: field-level fault is no longer announced as an unreadable file.
+_CONSENT_FAULT_ACTIONS: dict[str, tuple[str, str, str]] = {
     "unreadable": (
+        "UNREADABLE",
         "MAKE THE FILE READABLE",
-        "It could not be opened or parsed at all. The error in brackets says which: a "
-        "permission error means fix the file's mode or ownership; a parse error means "
-        "repair the syntax it quotes.",
+        "It could not be opened at all — a permission or ownership problem. Fix the "
+        "file's mode or its owner; the error in brackets says which applies.",
     ),
     "unparseable": (
-        "REPAIR THE FILE'S STRUCTURE",
-        "The file was opened but its content is not a config: either its syntax does "
-        "not parse, or its top level is not a mapping — a list, a bare scalar or a "
-        "merge-conflict marker does the latter. The detail says which.",
+        "UNPARSEABLE",
+        "REPAIR THE FILE'S SYNTAX",
+        "The file was opened and its syntax does not parse. Repair the error quoted in "
+        "the detail — it names the line the parser stopped on.",
+    ),
+    "wrong_shape": (
+        "WRONG SHAPE",
+        "MAKE THE DOCUMENT A MAPPING",
+        "The file parsed cleanly; its top level is simply not a set of keys. A list, a "
+        "bare scalar or a leftover merge-conflict marker does this. Do not go looking "
+        "for a syntax error — there is none.",
     ),
     "unusable": (
+        "UNUSABLE VALUE",
         "CORRECT THE FIELD VALUE NAMED IN THE DETAIL",
         "The file parsed and its shape is fine, but a field holds a value that cannot "
         'be understood as that field. Only a real boolean records a consent decision, so '
@@ -1608,21 +1622,30 @@ _CONSENT_FAULT_ACTIONS: dict[str, tuple[str, str]] = {
 #: an unrecognised key would turn the next addition into an invisible fault — the
 #: exact defect shape this section exists to close.
 _CONSENT_FAULT_UNKNOWN_ACTION = (
+    "UNREADABLE",
     "REPAIR THE FILE NAMED IN THE DETAIL",
     "This build has no specific advice for that fault kind; the detail below is the "
     "whole of what is known about it.",
 )
 
 #: Printed for every fault, on both surfaces. The second half is measured, not
-#: reasoned: `SyncConfig.set_project_consent` is a whole-file read-modify-write over
-#: `_load()`, which returns `{}` for an unreadable file, so re-recording consent
-#: rewrites the index from an empty document.
-#: ``tests/cli/commands/test_sync_doctor_consent_health_3030.py`` pins it.
+#: reasoned — and it was **rewritten on 2026-07-30 because the hazard it described was
+#: fixed**, which is the only honest reason to change operator advice. It used to read
+#: "a write rewrites the file from an empty document when it cannot be read, discarding
+#: every other project's record", and that was true: every `SyncConfig` setter was a
+#: whole-file read-modify-write over `_load()`, which answers `{}` for an unreadable
+#: file. Seven of the eight destroyed a bystander project's grant, and the same
+#: destruction was reachable from a plain *read* via `consent._reconcile_index`.
+#:
+#: A write over an unreadable config is now refused
+#: (`sync.config.ConfigNotReadableError`), so the records survive. Leaving the old
+#: sentence standing would have been the same defect this section exists to remove, one
+#: turn later: advice that was true when written and is false when read.
+#: ``tests/cli/commands/test_sync_doctor_consent_health_3030.py`` pins both halves.
 _CONSENT_FAULT_NOT_ABSENCE = (
-    "This is NOT a missing consent record. Recording consent again will not clear it, "
-    "and on the machine-global index it makes things worse: a write rewrites the file "
-    "from an empty document when it cannot be read, discarding every other project's "
-    "record."
+    "This is NOT a missing consent record. Recording consent again will not clear it: "
+    "a write over a config that cannot be read is refused, so your other projects' "
+    "records are safe, but nothing is delivered until the file itself is repaired."
 )
 
 #: Why one broken file denies more than its own project, and why that is nonetheless
@@ -1653,10 +1676,10 @@ def _render_consent_fault(
     so doctor's summary and this section cannot say different things about one fault.
     """
     kind = str(getattr(fault, "kind", "") or "unknown")
-    action, remedy = _CONSENT_FAULT_ACTIONS.get(kind, _CONSENT_FAULT_UNKNOWN_ACTION)
+    status, action, remedy = _CONSENT_FAULT_ACTIONS.get(kind, _CONSENT_FAULT_UNKNOWN_ACTION)
     detail = str(getattr(fault, "detail", "") or "no detail recorded")
 
-    console_out.print(f"  {scope}  [red]UNREADABLE[/red] ({kind})")
+    console_out.print(f"  {scope}  [red]{status}[/red] ({kind})")
     console_out.print(f"    [bold red]{action}[/bold red] — {remedy}")
     console_out.print(f"    [dim]{detail}[/dim]")
     console_out.print(f"    {consequence}")

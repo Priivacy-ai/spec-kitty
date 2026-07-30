@@ -262,6 +262,15 @@ def _read_project_local(
     reason: it is a file that exists and cannot be understood, not a file that says
     nothing.
 
+    **Which fault, though, is one vocabulary shared with ``sync/config.py``** — see
+    :data:`~specify_cli.sync.config.CONFIG_FAULT_KINDS`, which declares all four kinds
+    and why there are four. This function used to mint two of those tokens with
+    meanings the other producer did not share: an open-*or*-parse failure as
+    ``unreadable`` and a non-mapping top level as ``unparseable``, where ``config.py``
+    meant "could not open" and "bad syntax" by the same two words. The three branches
+    below now separate cannot-open, opened-but-unparseable and parsed-but-wrong-shape,
+    and the field-level branch further down keeps ``unusable``.
+
     **FR-027 extends that one notion from the file to the field**, because stopping at
     the file left FR-021's own defect open one level down. This function defined a
     fault as unreadable-or-wrong-shape and *not* as an unusable **value**, so a
@@ -293,22 +302,45 @@ def _read_project_local(
 
         with open(config_path, encoding="utf-8") as handle:
             data = YAML().load(handle) or {}
-    except Exception as exc:  # noqa: BLE001 - carried as a fault, never raised
-        logger.debug("Unreadable project config at %s: %s", config_path, exc)
+    except OSError as exc:
+        # Could not be *opened*: a permission or ownership problem, or a vanished
+        # file. Split out from the parse failure below because the operator action is
+        # different — chmod, not an edit — and one token covering both forced the
+        # ``sync doctor`` advice to name two remedies and be wrong about one of them
+        # every time it printed (#3030 C-003).
+        logger.debug("Unopenable project config at %s: %s", config_path, exc)
         return (
             None,
             None,
             ConfigReadFault(
                 kind="unreadable",
-                detail=f"{config_path}: could not be read or parsed ({exc})",
+                detail=f"{config_path}: could not be opened ({exc})",
             ),
         )
-    if not isinstance(data, dict):
+    except Exception as exc:  # noqa: BLE001 - carried as a fault, never raised
+        # It opened and its syntax does not parse. In practice this is a
+        # ``ruamel.yaml.YAMLError``; the catch stays broad because this function's
+        # contract is to answer rather than raise, and anything else escaping the
+        # loader is still "opened, and could not be turned into a document".
+        logger.debug("Unparseable project config at %s: %s", config_path, exc)
         return (
             None,
             None,
             ConfigReadFault(
                 kind="unparseable",
+                detail=f"{config_path}: could not be parsed ({exc})",
+            ),
+        )
+    if not isinstance(data, dict):
+        # It parsed, and the document is not a mapping — ``- a\n- list``, a bare
+        # scalar, a merge-conflict marker. Its own kind rather than ``unparseable``,
+        # which this branch used to borrow: telling an operator with a valid YAML list
+        # to repair their syntax sends them to look for a fault that is not there.
+        return (
+            None,
+            None,
+            ConfigReadFault(
+                kind="wrong_shape",
                 detail=f"{config_path}: top-level content is not a mapping",
             ),
         )
@@ -634,6 +666,23 @@ def _reconcile_index(project_uuid: str, granted: bool) -> None:
     resurrect a stale grant, and the reported state would contradict the enforced
     one. Best-effort: a write failure must not turn an answered question into an
     error.
+
+    **This is the most dangerous writer of the consent index, because it is reached
+    from a read.** Nothing here is an operator action: ``resolve_project_consent``
+    calls it on any drain tick that consults a checkout. On an unreadable index
+    :func:`get_project_consent` answers ``None``, which differs from every verdict, so
+    the correction always fired — and the write rebuilt the file from an empty
+    document. Measured before the fix: resolving one project's consent left the index
+    holding that project's single entry, with a bystander project's grant and an
+    unrelated checkout override gone.
+
+    ``SyncConfig`` now refuses that write
+    (:class:`~specify_cli.sync.config.ConfigNotReadableError`) and the refusal lands in
+    the ``except`` below, which is the right place for it: the authoritative file *was*
+    read, the verdict is known and returned, and only the cache correction is declined.
+    That is precisely the "a write failure must not turn an answered question into an
+    error" contract this function already had — the swallow is not hiding the refusal,
+    it is the refusal's intended landing.
     """
     try:
         if get_project_consent(project_uuid) != granted:

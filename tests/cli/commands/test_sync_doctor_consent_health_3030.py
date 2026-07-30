@@ -10,10 +10,16 @@ checkout's own ``.kittify/config.yaml``. **Neither had a renderer.** SC-004's ow
 note says so: "``sync doctor`` currently cannot tell an operator their consent index
 is unreadable."
 
-Three fault kinds have to be rendered, not one — FR-027 added ``unusable`` (a
+Four fault kinds have to be rendered, not one. FR-027 added ``unusable`` (a
 present-but-uninterpretable value, e.g. ``sync.enabled: "false"`` as a string, or a
-``project.uuid`` that is not a uuid) alongside ``unreadable`` and ``unparseable`` —
-and each must name **the operator action that resolves it**. Naming the kind alone
+``project.uuid`` that is not a uuid), and the 2026-07-30 vocabulary unification split
+the two file-level tokens that the two producers had been using for different states,
+adding ``wrong_shape`` — so the set is now ``unreadable`` (cannot open),
+``unparseable`` (opened, syntax does not parse), ``wrong_shape`` (parsed, top level is
+not a mapping) and ``unusable`` (right shape, unusable value). See
+``sync.config.CONFIG_FAULT_KINDS``, which declares it and the reasoning for its size.
+
+Each must name **the operator action that resolves it**. Naming the kind alone
 would reproduce FR-020's own defect one layer up: an operator told "undetermined"
 who then re-records consent has not only failed to fix it, they have *destroyed the
 other records*. That last claim is measured here rather than asserted, in
@@ -104,30 +110,40 @@ def _project_config(repo: Path, text: str) -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_re_recording_consent_on_a_corrupt_index_discards_the_other_records() -> None:
-    """The concrete harm behind the wording this section is required to use.
+def test_re_recording_consent_on_a_corrupt_index_is_refused() -> None:
+    """The premise behind the wording this section uses — now the *fixed* premise.
 
-    ``set_project_consent`` is an unlocked whole-file read-modify-write over
-    ``_load()``, which returns ``{}`` for an unreadable file. So the "obvious"
-    operator response to being told consent is undetermined does not merely fail to
-    help — it rewrites the index from an empty document and every other project's
-    record is gone.
+    This test previously pinned the harm: ``set_project_consent`` is an unlocked
+    whole-file read-modify-write over ``_load()``, which returns ``{}`` for an
+    unreadable file, so the "obvious" operator response to being told consent is
+    undetermined rewrote the index from an empty document and every other project's
+    record was gone. That is fixed — the write is refused — so the assertion is
+    replaced rather than the test deleted, and the doctor's wording moved with it.
+
+    Its old assertion was also not discriminating, which is worth recording: it
+    corrupted the index by *overwriting* the file, which had already removed the grant
+    whose loss it then claimed to detect, so ``"aaaaaaaa" not in surviving`` could not
+    fail either way. The full-strength measurement — corruption that keeps a bystander
+    project's bytes on disk, asserted against a project the call never names — lives in
+    ``tests/sync/test_consent_write_refusal_3030.py``.
     """
-    from specify_cli.sync.config import SyncConfig
+    from specify_cli.sync.config import ConfigNotReadableError, SyncConfig
 
     _record_consent()
     path = _index_path()
-    assert "aaaaaaaa" in path.read_text(encoding="utf-8"), "precondition: the grant is on disk"
+    original = path.read_text(encoding="utf-8")
+    assert "aaaaaaaa" in original, "precondition: the grant is on disk"
 
-    path.write_text("[sync\nbroken = ", encoding="utf-8")
-    SyncConfig().set_project_consent("bbbbbbbb-0000-0000-0000-000000000002", True)
+    # Corrupt while KEEPING the existing record in the bytes, so its survival is a
+    # real observation rather than an artefact of the setup.
+    path.write_text(original + "\n[sync\nbroken = ", encoding="utf-8")
+
+    with pytest.raises(ConfigNotReadableError):
+        SyncConfig().set_project_consent("bbbbbbbb-0000-0000-0000-000000000002", True)
 
     surviving = path.read_text(encoding="utf-8")
-    assert "bbbbbbbb" in surviving
-    assert "aaaaaaaa" not in surviving, (
-        "re-recording consent over an unreadable index destroyed the other project's "
-        "record — which is why doctor must not send an operator here"
-    )
+    assert "aaaaaaaa" in surviving, "the refusal must leave the existing record intact"
+    assert "bbbbbbbb" not in surviving, "and must not write the refused grant either"
 
 
 # --------------------------------------------------------------------------- #
@@ -136,11 +152,15 @@ def test_re_recording_consent_on_a_corrupt_index_discards_the_other_records() ->
 
 
 def test_doctor_says_the_consent_index_is_unreadable_and_names_the_action() -> None:
-    """SC-004's owed half: the operator learns their index is unreadable.
+    """SC-004's owed half: the operator learns their index cannot be read.
 
     Red before this section existed: ``consent_index_health()`` had no renderer, so
     doctor printed its usual table and "No issues detected", while every project on
     the machine silently resolved as undetermined.
+
+    The status word is now the *kind's* own — a broken-TOML index is announced as
+    UNPARSEABLE, not as UNREADABLE, because it opened perfectly well and the remedy is
+    an edit rather than a chmod.
     """
     _record_consent()
     _index_path().write_text("[sync\nbroken = ", encoding="utf-8")
@@ -150,9 +170,9 @@ def test_doctor_says_the_consent_index_is_unreadable_and_names_the_action() -> N
     assert result.exit_code == 0, result.output
     flat = _flat(result.output)
     assert "Consent record readability" in flat
-    assert "UNREADABLE" in flat
+    assert "UNPARSEABLE" in flat
     # The action, not the kind: an operator told "unparseable" still has to guess.
-    assert "REPAIR THE FILE'S STRUCTURE" in flat
+    assert "REPAIR THE FILE'S SYNTAX" in flat
     assert str(_index_path()) in flat
     # The consequence, so a silent machine is explained rather than just flagged.
     assert "every project on this machine" in flat.lower()
@@ -162,12 +182,17 @@ def test_doctor_says_the_consent_index_is_unreadable_and_names_the_action() -> N
     assert "No issues detected" not in result.output
 
 
-def test_doctor_warns_that_re_recording_consent_destroys_the_other_records() -> None:
-    """The measured hazard above, in the operator's own output.
+def test_doctor_says_re_recording_consent_is_refused_rather_than_destructive() -> None:
+    """The measured premise above, in the operator's own output — and kept true.
 
-    Without it the natural next move after "consent is undetermined" is
-    `spec-kitty sync enable` — the one action that turns a repairable file into
-    permanently lost records.
+    Without this line the natural next move after "consent is undetermined" is
+    `spec-kitty sync enable`, which cannot help: the write is refused and the file
+    still needs repairing.
+
+    The asserted wording changed with the fix. It used to be "discarding every other
+    project's record", which was accurate until the write started refusing; advice that
+    was true when written and false when read is the defect this whole section exists
+    to remove, so the old sentence must NOT still be printed.
     """
     _record_consent()
     _index_path().write_text("not = [valid toml", encoding="utf-8")
@@ -175,7 +200,11 @@ def test_doctor_warns_that_re_recording_consent_destroys_the_other_records() -> 
     result = runner.invoke(app, ["doctor"])
 
     flat = _flat(result.output)
-    assert "discarding every other project's record" in flat
+    assert "your other projects' records are safe" in flat
+    assert "nothing is delivered until the file itself is repaired" in flat
+    assert "discarding every other project's record" not in flat, (
+        "the doctor still describes a hazard that no longer exists"
+    )
 
 
 def test_a_readable_index_is_stated_rather_than_left_silent() -> None:
@@ -207,12 +236,14 @@ def test_a_readable_index_is_stated_rather_than_left_silent() -> None:
 @pytest.mark.parametrize(
     ("label", "config_text", "action"),
     [
-        # `_read_project_local` catches every exception out of the YAML load — a
-        # permission error and a syntax error land in the same kind, so the action
-        # has to cover both and the detail discriminates.
-        ("unreadable", "project:\n  uuid: [unclosed\n", "MAKE THE FILE READABLE"),
-        # Parsed, but the top level is not a mapping.
-        ("unparseable", "- one\n- two\n", "REPAIR THE FILE'S STRUCTURE"),
+        # Opened, and the YAML syntax does not parse. This used to be reported as
+        # ``unreadable`` — the same token a chmod 000 file gets — which is why that
+        # token's advice had to name two different remedies.
+        ("unparseable", "project:\n  uuid: [unclosed\n", "REPAIR THE FILE'S SYNTAX"),
+        # Parsed, but the top level is not a mapping. Its own kind now: it used to
+        # borrow ``unparseable``, sending an operator to hunt a syntax error that
+        # does not exist.
+        ("wrong_shape", "- one\n- two\n", "MAKE THE DOCUMENT A MAPPING"),
         # FR-027: parsed, shape fine, a *field* records something unusable. Only a
         # real YAML bool records a decision, so a quoted "false" records nothing.
         ("unusable", f'project:\n  uuid: {PROJECT}\nsync:\n  enabled: "false"\n', "CORRECT THE FIELD VALUE"),
@@ -221,11 +252,12 @@ def test_a_readable_index_is_stated_rather_than_left_silent() -> None:
 def test_doctor_names_the_action_for_each_project_local_fault_kind(
     checkout: Path, label: str, config_text: str, action: str
 ) -> None:
-    """All three kinds render, and each names what the operator must do.
+    """Each kind renders, and each names what the operator must do.
 
     ``unusable`` is the one FR-027 added and the one most easily mistaken for
     absence: the file looks fine, so an operator who is told only "no consent
-    record" edits nothing and re-runs `sync enable` forever.
+    record" edits nothing and re-runs `sync enable` forever. The permission fault,
+    the fourth kind, needs a real chmod and has its own test below.
     """
     _project_config(checkout, config_text)
 
@@ -291,22 +323,21 @@ def test_a_readable_project_config_is_stated_too(checkout: Path) -> None:
 
 
 def test_the_action_is_true_for_both_producers_of_the_same_kind(checkout: Path) -> None:
-    """``unparseable`` does not mean the same thing on the two surfaces.
+    """``unparseable`` now means the same thing on both surfaces, so the advice narrows.
 
-    Measured, not assumed: ``sync/config.py`` tags a TOML **syntax** error
-    ``unparseable`` (an ``OSError`` is its ``unreadable``), while ``sync/consent.py``
-    tags a **non-mapping top level** ``unparseable`` (an open-or-parse failure is its
-    ``unreadable``). One kind-keyed advice string therefore has to be true of both, or
-    it is false half the time — on the one surface whose entire job is to stop
-    misdirecting operators.
+    Before the 2026-07-30 unification it did not: ``sync/config.py`` tagged a TOML
+    **syntax** error ``unparseable`` while ``sync/consent.py`` tagged a **non-mapping
+    top level** ``unparseable``, so one kind-keyed advice string had to span both
+    readings and was therefore false about one of them for every reader. Both producers
+    now mean "opened, and the syntax does not parse".
 
     Both faults are produced in the same run so the shared advice is checked against
-    both at once. This is a constraint on the wording, not a claim that the divergence
-    is correct; the divergence itself is reported rather than fixed here.
+    both at once — a TOML syntax error on the index and a YAML syntax error on the
+    project config.
     """
     _record_consent()
     _index_path().write_text("[sync\nbroken = ", encoding="utf-8")  # config.py: syntax
-    _project_config(checkout, "- one\n- two\n")  # consent.py: non-mapping top level
+    _project_config(checkout, "project:\n  uuid: [unclosed\n")  # consent.py: syntax
 
     result = runner.invoke(app, ["doctor"])
 
@@ -314,12 +345,38 @@ def test_the_action_is_true_for_both_producers_of_the_same_kind(checkout: Path) 
     # Four: two faults, each named once in the section and once in doctor's summary.
     # The count also pins that the two cannot drift apart — they are built from the
     # same strings precisely so the summary can never say something milder.
-    assert flat.count("REPAIR THE FILE'S STRUCTURE") == 4, "both surfaces reported the same kind, in both places"
-    # The advice names both possibilities, so neither reader is told something false.
+    assert flat.count("REPAIR THE FILE'S SYNTAX") == 4, "both surfaces reported the same kind, in both places"
+    # The advice is now about syntax alone. The shape wording must be *absent*: no
+    # wrong-shape fault exists in this run, so its presence would mean the advice is
+    # still hedging across two states and telling half its readers something false.
     assert "syntax does not parse" in flat
-    assert "top level is not a mapping" in flat
-    # And the detail, which is what actually discriminates them, is printed for each.
+    assert "top level is not a mapping" not in flat, (
+        "the unparseable advice still spans the wrong-shape state, which is the "
+        "divergence this unification removed"
+    )
+    # And the detail, which names the actual file and error, is printed for each.
     assert "not valid TOML" in flat
+    assert "could not be parsed" in flat
+
+
+def test_a_wrong_shape_is_not_given_the_syntax_error_advice(checkout: Path) -> None:
+    """The half the old vocabulary got wrong, in the operator's own output.
+
+    A valid YAML document whose top level is a list has no syntax error to find. Told
+    to "repair the file's structure" alongside advice about syntax, an operator hunts
+    for a fault that is not there. The two states are produced in one run and must
+    render as two different kinds with two different actions.
+    """
+    _record_consent()
+    _index_path().write_text("[sync\nbroken = ", encoding="utf-8")  # unparseable
+    _project_config(checkout, "- one\n- two\n")  # wrong_shape
+
+    result = runner.invoke(app, ["doctor"])
+
+    flat = _flat(result.output)
+    assert flat.count("REPAIR THE FILE'S SYNTAX") == 2, "the index's syntax fault, in both places"
+    assert flat.count("MAKE THE DOCUMENT A MAPPING") == 2, "the checkout's shape fault, in both places"
+    assert "there is none" in flat, "the shape advice must say there is no syntax error to find"
     assert "top-level content is not a mapping" in flat
 
 

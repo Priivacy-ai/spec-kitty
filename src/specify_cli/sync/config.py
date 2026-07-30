@@ -39,21 +39,63 @@ _BACKGROUND_DAEMON_VALUES: dict[str, BackgroundDaemonPolicy] = {
 }
 
 
+#: The **whole** fault vocabulary, declared once and shared by both producers
+#: (``sync/config.py`` and ``sync/consent.py``) — #3030 C-003.
+#:
+#: Until 2026-07-30 the two modules used the same two tokens for different states, one
+#: module apart: ``config.py`` tagged a TOML *syntax* error ``unparseable`` and an
+#: ``OSError`` ``unreadable``, while ``consent.py`` tagged an *open-or-parse* failure
+#: ``unreadable`` and a *non-mapping top level* ``unparseable``. So ``unreadable`` meant
+#: "could not open" on one surface and "could not open **or** parse" on the other, and
+#: ``unparseable`` meant "bad syntax" on one and "parsed fine, wrong shape" on the
+#: other. It had already produced a false operator message — ``sync doctor`` advised
+#: *"it parsed, but its top level is not a mapping"* over a ``not valid TOML`` fault —
+#: and the wrong text passed the suite, because an ``or`` across two acceptable
+#: wordings let either satisfy the assertion.
+#:
+#: **Four kinds, not three.** The set is cut by *the operator action that resolves the
+#: fault*, and no two of these share one:
+#:
+#: * ``unreadable``  — the file could not be opened at all. Fix its mode or ownership.
+#: * ``unparseable`` — it opened, and its syntax does not parse. Repair the syntax.
+#: * ``wrong_shape`` — it parsed, and its top level is not a mapping (a list, a bare
+#:   scalar, a merge-conflict marker). Make the document a mapping.
+#: * ``unusable``    — the shape is fine and a *field* holds a value that cannot be
+#:   understood as that field (#3030 FR-027). Correct that value.
+#:
+#: Three would mean collapsing a pair. Collapsing the first two is what the old
+#: ``consent.py`` did, and it forced the doctor's ``unreadable`` advice to name two
+#: remedies — "a permission error means fix the mode; a parse error means repair the
+#: syntax" — so it was half wrong for every reader. Collapsing the middle two is the
+#: divergence itself: "your YAML has a syntax error" and "your YAML is valid and its
+#: top level is a list" are different edits to different bytes.
+#:
+#: ``config.py`` mints only three of the four: TOML's top level is a table by
+#: construction, so ``toml.load`` cannot return a non-mapping and a ``wrong_shape``
+#: branch here would be unreachable code asserting a state that cannot occur.
+#: ``config.py`` keeps both of its original tokens with their original meanings — they
+#: were already the coherent pair — and ``consent.py`` moved onto them.
+CONFIG_FAULT_KINDS: tuple[str, ...] = (
+    "unreadable",
+    "unparseable",
+    "wrong_shape",
+    "unusable",
+)
+
+
 @dataclass(frozen=True)
 class ConfigReadFault:
-    """Why ``config.toml`` could not be read (#3030 FR-020).
+    """Why a config file could not be read (#3030 FR-020).
 
-    Carried, never raised. ``kind`` is a stable token for programmatic handling
-    (``unparseable`` | ``unreadable`` | ``unusable``); ``detail`` names the file and
-    the underlying error, because an operator told "consent is undetermined" with no
-    path cannot act.
+    Carried, never raised. ``kind`` is a stable token for programmatic handling, drawn
+    from :data:`CONFIG_FAULT_KINDS`, which declares the vocabulary and the reasoning
+    for its size; ``detail`` names the file and the underlying error, because an
+    operator told "consent is undetermined" with no path cannot act.
 
-    ``unusable`` is #3030 FR-027: the file parsed and its shape is fine, but a *field*
-    records a value that cannot be understood as the field it sits in. It is the same
-    notion as the other two — "exists and cannot be understood" — one level down, and
-    it is deliberately the same type rather than a fourth vocabulary, because three
-    modules independently deciding what a broken config means is how this defect class
-    regenerates (C-003).
+    Deliberately one type shared by both producers rather than a vocabulary per
+    module: two modules independently deciding what a broken config means is how this
+    defect class regenerates (C-003), and it is exactly what happened to the two
+    file-level tokens before they were unified.
 
     A **missing** file is not a fault and produces ``None`` — absence of a record is a
     legitimate, common state that denies under FR-002, and collapsing it into this
@@ -62,6 +104,42 @@ class ConfigReadFault:
 
     kind: str
     detail: str
+
+
+class ConfigNotReadableError(RuntimeError):
+    """A write refused because the existing config could not be read (#3030).
+
+    Every setter on :class:`SyncConfig` is a whole-file read-modify-write over
+    :meth:`SyncConfig._load`, which returns ``{}`` for a file it cannot read. Writing
+    from that ``{}`` re-emits the file from an empty document, so a single unrelated
+    write discards every other project's consent record — measured, on seven of the
+    eight setters, including ``set_server_url``, which has nothing to do with consent.
+    The eighth (``mark_checkout_records_unresolved``) survived only because its input
+    is ``_load()``-derived too and it therefore found nothing to mark.
+
+    Worse, the same destruction was reachable from a **read**: ``_reconcile_index``
+    corrects the cache as a side effect of ``resolve_project_consent``, so merely
+    asking whether one project consents flattened the index to that project's single
+    entry.
+
+    This is FR-022's rule applied to the machine-global store — *a write refuses when
+    the existing record cannot be read* — and it is refused **loudly** rather than
+    skipped: an operator whose opt-in silently did nothing is in the same position as
+    one told "no consent record", which is the FR-020 defect over again. The fault is
+    carried so the message and ``sync doctor`` describe one fault the same way.
+
+    Absence is not a fault and never reaches here: :meth:`SyncConfig.read` returns
+    ``fault=None`` for a missing file, so a first-run opt-in on a fresh machine writes
+    normally. That line is drawn in ``read`` alone, not restated here.
+    """
+
+    def __init__(self, fault: ConfigReadFault) -> None:
+        self.fault = fault
+        super().__init__(
+            f"Refusing to write: the existing configuration could not be read "
+            f"({fault.kind}) and writing would rebuild it from an empty document, "
+            f"discarding every record it holds. Repair the file first — {fault.detail}"
+        )
 
 
 @dataclass(frozen=True)
@@ -202,6 +280,11 @@ class SyncConfig:
                     detail=f"{self.config_file}: could not be read ({exc})",
                 ),
             )
+        # No ``wrong_shape`` branch, and its absence is deliberate rather than an
+        # omission: TOML's top level is a table by construction, so ``toml.load``
+        # cannot return a non-mapping. A branch here would be unreachable code
+        # asserting a state that cannot occur. ``sync/consent.py`` mints that kind
+        # because YAML's top level *can* be a list or a bare scalar.
         return ConfigRead(data=data, fault=None)
 
     def _load(self) -> dict[str, Any]:
@@ -213,8 +296,54 @@ class SyncConfig:
         the benefit of a single caller. :meth:`read` is the narrow addition; this stays
         the lossy projection of it so there is still exactly one place that opens the
         file.
+
+        **Read-only.** Every write goes through :meth:`_load_for_update` instead —
+        "empty dict on any problem" is a safe answer to a question and a catastrophic
+        basis for a whole-file rewrite.
         """
         return self.read().data
+
+    def _load_for_update(self) -> dict[str, Any]:
+        """Load config.toml for a read-modify-write, refusing an unreadable file.
+
+        The one seam every setter in this class goes through, because every setter is
+        a whole-file read-modify-write and they all read *this* file — the one holding
+        the uuid-keyed consent index. On an unreadable file :meth:`_load` answers
+        ``{}``, and re-emitting the config from ``{}`` discards every record it held.
+        Measured before the fix, with a bystander project's grant and a checkout
+        override planted alongside: seven of the eight setters destroyed both, silently
+        and with no error, ``set_server_url`` and ``set_max_queue_size`` among them —
+        writers with no connection to consent at all. The eighth,
+        :meth:`mark_checkout_records_unresolved`, survived only because its input is
+        ``_load()``-derived too, so it found nothing to mark and never reached its
+        save; it refuses here with the rest, because that accident is one edit from
+        ending.
+
+        The same destruction was reachable from a **read**: ``consent._reconcile_index``
+        corrects the cache as a side effect of ``resolve_project_consent``, so resolving
+        one project's consent rewrote the index down to that project's single entry.
+
+        This is FR-022's rule applied to the machine-global store — *a write refuses
+        when the existing record cannot be read* — which FR-022 recorded for the
+        project-local store on the reasoning that otherwise "the natural remedy for the
+        new denial would manufacture exactly the stale grant the fix stops honouring".
+        Here the natural remedy did something worse: it destroyed the records of
+        projects nobody was asking about.
+
+        **Absent is not unreadable.** The distinction is inherited from :meth:`read`,
+        which draws it in exactly one place — a missing file is ``fault=None`` — and is
+        not restated here, because two definitions of "absent" one function apart is
+        the shape this mission keeps closing. A first-run opt-in on a fresh machine, an
+        empty ``config.toml``, and a config with no ``[sync]`` table all write normally.
+
+        Refusing *loudly* rather than skipping the write: a silent no-op leaves an
+        operator exactly where FR-020 found them — having taken an action that appeared
+        to work and changed nothing.
+        """
+        read = self.read()
+        if read.fault is not None:
+            raise ConfigNotReadableError(read.fault)
+        return read.data
 
     def read_project_consent(self, project_uuid: str) -> ProjectConsentRead:
         """Read one project's recorded consent **and** the index's readability.
@@ -254,7 +383,7 @@ class SyncConfig:
 
     def set_server_url(self, url: str) -> None:
         """Set server URL in config"""
-        config = self._load()
+        config = self._load_for_update()
         if 'sync' not in config:
             config['sync'] = {}
         config['sync']['server_url'] = url
@@ -301,7 +430,7 @@ class SyncConfig:
 
     def set_max_queue_size(self, size: int) -> None:
         """Set maximum offline queue size in config."""
-        config = self._load()
+        config = self._load_for_update()
         if "sync" not in config:
             config["sync"] = {}
         config["sync"]["max_queue_size"] = size
@@ -347,7 +476,7 @@ class SyncConfig:
 
     def set_background_daemon(self, policy: BackgroundDaemonPolicy) -> None:
         """Set background daemon policy in config."""
-        config = self._load()
+        config = self._load_for_update()
         if "sync" not in config:
             config["sync"] = {}
         config["sync"]["background_daemon"] = policy.value
@@ -377,7 +506,7 @@ class SyncConfig:
 
     def set_repository_sync_enabled(self, repo_slug: str, enabled: bool) -> None:
         """Persist the default sync preference for future checkouts of a repo."""
-        config = self._load()
+        config = self._load_for_update()
         if "sync" not in config:
             config["sync"] = {}
         repo_defaults = config["sync"].setdefault("repo_defaults", {})
@@ -403,7 +532,7 @@ class SyncConfig:
 
     def set_checkout_sync_enabled(self, repo_root: Path, enabled: bool) -> None:
         """Persist the sync preference for one local checkout path only."""
-        config = self._load()
+        config = self._load_for_update()
         if "sync" not in config:
             config["sync"] = {}
         checkout_overrides = config["sync"].setdefault("checkout_overrides", {})
@@ -453,7 +582,7 @@ class SyncConfig:
         """
         if not entries:
             return
-        config = self._load()
+        config = self._load_for_update()
         section = config.setdefault("sync", {})
         if not isinstance(section, dict):
             section = {}
@@ -476,7 +605,7 @@ class SyncConfig:
         """
         if not paths:
             return
-        config = self._load()
+        config = self._load_for_update()
         overrides = config.get("sync", {}).get("checkout_overrides", {})
         if not isinstance(overrides, dict):
             return
