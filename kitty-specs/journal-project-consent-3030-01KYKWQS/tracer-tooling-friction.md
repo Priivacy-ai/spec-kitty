@@ -76,3 +76,27 @@ than one agent shares a checkout:
 Better still: give each concurrent implementer its **own lane worktree** even when
 file sets are disjoint. Disjoint files do not make a shared index safe, because
 `git add -A` is index-wide, not path-aware.
+
+## Concurrent pytest sessions over `tests/sync` and `tests/cli` produce false reds
+
+Found 2026-07-30 by an implementer that ran two sessions in parallel to save wall-clock
+and got **16 failing daemon tests** that pass in isolation.
+
+Cause: those tests spawn real `run_sync_daemon` processes and then `pgrep`/port-scan to
+find them. A sibling pytest session's daemons are indistinguishable from orphans, so each
+session reaps or trips over the other's. The failures look exactly like a regression in
+daemon lifecycle handling.
+
+Two consequences worth carrying forward:
+
+- **Do not parallelise those two paths on one machine** to save time. The 16 reds cost
+  more to diagnose than the parallelism saved, and one of them (`test_issue_1071_…`) was
+  *already* a genuine port-band-collision bug earlier in this mission — so a real defect
+  and this artefact present identically.
+- **If CI ever shards `tests/sync` and `tests/cli` into parallel jobs on a single runner,
+  this reproduces.** Worth a port-range or `SPEC_KITTY_HOME` partition per shard before
+  anyone tries it.
+
+Related: the same mission already fixed `test_issue_1071_singleton_reconfirmation`, whose
+final sweep asserted over a hardcoded port band rather than the ports it allocated. Same
+root cause class — a test reasoning about the machine rather than about its own fixtures.
