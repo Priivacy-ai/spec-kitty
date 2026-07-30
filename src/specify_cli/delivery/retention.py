@@ -67,6 +67,35 @@ if TYPE_CHECKING:
 # (mirrors the static-identifier pattern in ``event_journal/models.py``).
 _PURGE_SQL = f"DELETE FROM {TABLE_NAME} WHERE {COL_EVENT_ID} = ?"  # noqa: S608 — static module-constant identifiers; value via ?
 
+#: FR-017's own reads. ``--all`` cannot be assembled from the per-project selectors
+#: (see :func:`purge_all_events` for the three populations they miss), so it takes the
+#: id sets straight from both tables. Ids only — no payload BLOB is decoded, because
+#: the whole store is about to be deleted and hydrating it first would be pointless
+#: I/O over exactly the confidential text this operation exists to remove.
+_ALL_JOURNAL_IDS_SQL = f"SELECT {COL_EVENT_ID} FROM {TABLE_NAME}"  # noqa: S608 — static module-constant identifiers
+_ALL_LEDGER_IDS_SQL = f"SELECT DISTINCT {COL_EVENT_ID} FROM {LEDGER_TABLE}"  # noqa: S608 — static module-constant identifiers
+
+#: The literal an operator must produce for a destructive ``--all`` run.
+#:
+#: A phrase and not a boolean, deliberately (**C-002**: deletion is only ever the
+#: operator's explicit act). A ``confirm=True`` flag is one keyword away from any
+#: unattended code path that already builds its kwargs dynamically; a sentence is not
+#: something a scheduler, a retry loop or a default-argument mistake produces. This is
+#: also exactly what a CLI prompt can echo back, so the store-level guard and the
+#: operator-level guard are the same string rather than two representations of one
+#: rule.
+PURGE_ALL_CONFIRMATION = "purge all events"
+
+
+class PurgeNotConfirmedError(RuntimeError):
+    """A destructive ``--all`` purge was requested without the confirmation phrase.
+
+    Raised rather than returning a zero-count result. A silent no-op is
+    indistinguishable from "there was nothing to purge" — the reporting failure this
+    mission keeps finding — and it would let a caller believe it had wiped a store it
+    had not touched.
+    """
+
 
 @dataclass(frozen=True)
 class RetentionResult:
@@ -339,13 +368,22 @@ class ProjectPurgeResult:
     ledger_status_after: Mapping[str, int] = field(default_factory=dict)
     ledger_total_before: int = 0
     ledger_total_after: int = 0
+    #: ``True`` for FR-017's total purge. A flag rather than a sentinel value in
+    #: ``selector``: any sentinel string could in principle collide with a stored
+    #: ``project_uuid``, and a census key that sometimes means "one project" and
+    #: sometimes means "all of them" is the ambiguity C-003 forbids.
+    all_events: bool = False
 
     @property
     def target_before(self) -> int:
+        if self.all_events:
+            return sum(self.journal_before.values())
         return self.journal_before.get(self.selector, 0)
 
     @property
     def target_after(self) -> int:
+        if self.all_events:
+            return sum(self.journal_after.values())
         return self.journal_after.get(self.selector, 0)
 
     @property
@@ -378,7 +416,16 @@ class ProjectPurgeResult:
         Over the union of both censuses, so a project that *appeared* counts as a
         difference too — a purge must neither remove nor create another project's
         rows. NFR-006 requires ``0``.
+
+        For a total purge (:attr:`all_events`) there is no "other": the scope is the
+        whole store, so this is ``0`` by definition and carries no information. The
+        load-bearing check for that case is ``target_after == 0`` — asserted by
+        :attr:`is_exact` — together with :attr:`other_ledger_differential`, which
+        stays meaningful because it compares the ledger's *total* change against the
+        change this purge accounts for.
         """
+        if self.all_events:
+            return 0
         keys = (set(self.journal_before) | set(self.journal_after)) - {self.selector}
         return sum(
             abs(self.journal_after.get(key, 0) - self.journal_before.get(key, 0))
@@ -399,7 +446,16 @@ class ProjectPurgeResult:
 
     @property
     def is_exact(self) -> bool:
-        """Everything selected went, nothing else moved (SC-006 / NFR-006)."""
+        """Everything selected went, nothing else moved (SC-006 / NFR-006).
+
+        For a total purge the expected end state is simply zero journal rows. It is
+        *not* ``target_before - purged_count``: the selection deliberately includes
+        ledger-only event ids that were never journal rows, so that arithmetic would
+        undershoot by exactly the number of ghost ledger events.
+        """
+        if self.all_events:
+            expected_after = self.target_before if self.dry_run else 0
+            return expected_after == self.target_after and self.other_ledger_differential == 0
         expected_after = self.target_before if self.dry_run else self.target_before - self.purged_count
         return (
             self.target_after == expected_after
@@ -409,20 +465,43 @@ class ProjectPurgeResult:
 
 
 def _journal_census(journal: EventJournal) -> dict[str, int]:
-    """Per-project journal row counts, with identity-less rows under ``""``.
+    """Per-project journal row counts, with unattributable rows under ``""``.
 
     Composed from the journal's public identity reads (``distinct_project_uuids`` +
-    the filtered projection + ``count_missing_identity``) rather than a GROUP BY of
-    our own: the destructive write below is this module's sanctioned business, but a
-    *census* has a public API and should not grow a second definition of "which
-    projects does the store hold".
+    the filtered projection) rather than a GROUP BY of our own: the destructive write
+    below is this module's sanctioned business, but a *census* has a public API and
+    should not grow a second definition of "which projects does the store hold".
+
+    **Total-preserving, and that is a correctness property rather than a nicety.**
+    The unattributable bucket is derived as ``count() - (rows the projection can
+    attribute)``, not read from ``count_missing_identity()``. The two differ: a row
+    whose ``project_uuid`` is a non-NULL empty string is returned by
+    ``distinct_project_uuids()`` (it is not NULL) but dropped by
+    ``read_identity_projection``, which filters falsy uuids — and it is not
+    ``IS NULL``, so ``count_missing_identity()`` does not see it either. Such a row
+    was previously counted **nowhere**, and every NFR-006 differential subtracts this
+    census: a population absent from both the before and after censuses has a
+    differential of zero by construction, so a purge could move it and still report
+    "0% of any other project's rows". Measured on a seeded store: the census summed
+    to 5 against ``count() == 6``.
+
+    For the ordinary case — identity either resolved or NULL — the derived number is
+    exactly ``count_missing_identity()``, so this changes no existing report.
     """
     census: dict[str, int] = {}
+    attributed = 0
     for uuid in journal.distinct_project_uuids():
-        census[uuid] = len(journal.read_identity_projection(project_uuids=[uuid]))
-    missing = journal.count_missing_identity()
-    if missing:
-        census[IDENTITY_LESS_KEY] = missing
+        rows = len(journal.read_identity_projection(project_uuids=[uuid]))
+        if not rows:
+            # A uuid the store admits to holding but the projection cannot return:
+            # the falsy-uuid case above. Its rows fall into the unattributable
+            # remainder rather than being recorded as an empty project.
+            continue
+        census[uuid] = rows
+        attributed += rows
+    unattributable = max(journal.count() - attributed, 0)
+    if unattributable:
+        census[IDENTITY_LESS_KEY] = unattributable
     return census
 
 
@@ -469,8 +548,14 @@ def _purge(
     ledger: SqliteDeliveryLedger,
     dry_run: bool,
     undelivered_only: bool,
+    all_events: bool = False,
 ) -> ProjectPurgeResult:
-    """Shared core: census, (optionally) delete both stores, census again."""
+    """Shared core: census, (optionally) delete both stores, census again.
+
+    The **only** DELETE path over these two stores; every selector composes onto it
+    (C-003). ``all_events`` is carried through purely so the result can interpret its
+    own censuses — it changes no behaviour here.
+    """
     if undelivered_only:
         event_ids = [
             event_id for event_id in event_ids if not ledger.delivered_anywhere(event_id)
@@ -504,6 +589,7 @@ def _purge(
         ledger_status_after=_ledger_status_census(ledger, event_ids),
         ledger_total_before=ledger_total_before,
         ledger_total_after=_ledger_total(ledger),
+        all_events=all_events,
     )
 
 
@@ -587,6 +673,94 @@ def purge_identity_less_events(
         ledger=ledger,
         dry_run=dry_run,
         undelivered_only=False,
+    )
+
+
+def _all_event_ids(journal: EventJournal, ledger: SqliteDeliveryLedger) -> list[str]:
+    """Every event id present in **either** store, journal order first then ledger.
+
+    Order matters only for reproducibility of the reported id list; the delete is
+    id-keyed and order-independent.
+    """
+    connection: Any = sqlite3.connect(str(journal.db_path))
+    try:
+        journal_ids = [str(row[0]) for row in connection.execute(_ALL_JOURNAL_IDS_SQL)]
+    finally:
+        connection.close()
+
+    seen = set(journal_ids)
+    ledger_only = [
+        event_id
+        for event_id in (
+            str(row[0]) for row in ledger.connection.execute(_ALL_LEDGER_IDS_SQL)
+        )
+        if event_id not in seen
+    ]
+    return journal_ids + ledger_only
+
+
+def purge_all_events(
+    *,
+    journal: EventJournal,
+    ledger: SqliteDeliveryLedger,
+    dry_run: bool = True,
+    confirmation: str = "",
+) -> ProjectPurgeResult:
+    """Remove **every** row from the journal and the delivery ledger (FR-017).
+
+    Dry-run by default; a destructive run additionally requires *confirmation* to
+    equal :data:`PURGE_ALL_CONFIRMATION` and raises :class:`PurgeNotConfirmedError`
+    otherwise (**C-002**). Confirmation authorises, it does not trigger: ``dry_run``
+    alone decides whether anything is deleted, so a confirmed preview is still a
+    preview.
+
+    **This is deliberately not the union of the per-project selectors**, and that was
+    measured rather than assumed. Running every uuid from
+    ``journal.distinct_project_uuids()`` through :func:`purge_project_events` and then
+    :func:`purge_identity_less_events` leaves three populations behind:
+
+    1. ``project_uuid = ''``. ``distinct_project_uuids()`` returns it (not NULL), but
+       ``read_identity_projection`` filters falsy uuids and
+       :func:`purge_project_events` blanks a falsy selector to "select nothing";
+       ``iter_rows_missing_identity`` matches ``IS NULL`` only. Owned by neither.
+    2. ``project_uuid = '   '``. The projection *can* return it, but
+       :func:`purge_project_events` strips its selector, so the row is visible in the
+       census and unreachable by any purge.
+    3. A ledger row whose ``event_id`` has no journal row. The union only ever
+       collects ids *from the journal*. Not a contrived state: :func:`gc_payloads` in
+       this module deletes journal payload rows and preserves ledger history on
+       purpose (FR-010), so every machine that has run ``sync gc`` holds some.
+
+    So the selection is FR-017's own read of both tables — while the *deletion* still
+    goes through the one shared :func:`_purge` core, so there is no second DELETE path
+    over these stores (C-003). ``tests/delivery/test_purge_all_events_3030.py`` pins
+    the non-composability, and fails if a later change makes the union total.
+
+    ``undelivered_only`` is not offered: "purge everything except what already
+    shipped" is not FR-017, and a total purge that quietly retained rows would be the
+    false-totality claim this function exists to avoid.
+
+    There is intentionally **no** ``purge_all_from_live_stores`` companion to
+    :func:`purge_project_events_from_live_stores`. A zero-argument "erase every event
+    on this machine" helper is precisely the shape C-002 warns about; resolving the
+    live stores for ``--all`` belongs to the confirmed, operator-facing CLI path.
+    """
+    if not dry_run and confirmation != PURGE_ALL_CONFIRMATION:
+        raise PurgeNotConfirmedError(
+            "Refusing to purge every event: a destructive `--all` run requires "
+            f"confirmation={PURGE_ALL_CONFIRMATION!r}. Nothing was deleted. Run with "
+            "dry_run=True first — its reported counts are exactly what a confirmed "
+            "run will remove."
+        )
+
+    return _purge(
+        selector="all",
+        event_ids=_all_event_ids(journal, ledger),
+        journal=journal,
+        ledger=ledger,
+        dry_run=dry_run,
+        undelivered_only=False,
+        all_events=True,
     )
 
 
