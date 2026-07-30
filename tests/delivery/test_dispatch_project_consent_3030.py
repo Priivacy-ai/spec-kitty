@@ -154,7 +154,7 @@ def _stub_emitter(
     return em
 
 
-def _open_capture_gate(_team_slug: str | None) -> CaptureGateState:
+def _open_capture_gate(_team_slug: str | None, **_kwargs: object) -> CaptureGateState:
     """The capture gate for BOTH emitters: fully open. Consent is the only variable.
 
     Real-world equivalent, and the incident's own state: a machine that IS
@@ -163,15 +163,24 @@ def _open_capture_gate(_team_slug: str | None) -> CaptureGateState:
     project has a consent record and the other has none.
 
     This is an instance-level override (mirroring the ``_get_git_metadata`` override
-    above) rather than a further ``is_saas_sync_enabled`` patch, because every real
-    capture gate (``EventEmitter._capture_gate_state``) is machine-global in the
-    current implementation — see ``test_dispatch_honours_drain_blocked_3031.py``. The
-    per-instance override keeps both events on the SAME producer-scoped journal
-    (``get_journal`` is still keyed on ``team_slug=None`` for both, since
-    ``is_saas_sync_enabled`` stays patched ``False`` at module scope).
+    above) rather than a further ``is_saas_sync_enabled`` patch. The per-instance
+    override keeps both events on the SAME producer-scoped journal (``get_journal``
+    is still keyed on ``team_slug=None`` for both, since ``is_saas_sync_enabled``
+    stays patched ``False`` at module scope).
 
     ``checkout_enabled=True`` so #3030 T006's capture refusal does not fire — the
-    rows must exist on disk for a *drain* predicate to be tested at all.
+    rows must exist on disk for a *drain* predicate to be tested at all. Overriding
+    the whole method is what makes that possible, and as of #3030 M1 it is also
+    *necessary*: ``_capture_gate_state`` now resolves ``checkout_enabled`` from the
+    event's own ``project_uuid`` (it used to read ``is_sync_enabled_for_checkout()``
+    against cwd, and was machine-global), so the real gate would refuse to write the
+    non-consenting project's row at all and this file's premise — two rows on disk,
+    both drain-open, separated only by the *drain*'s consent predicate — could not be
+    set up. Keeping capture and drain independently testable is the point of the
+    override, not a way around the capture gate.
+
+    ``**_kwargs`` absorbs that ``project_uuid=`` keyword. Arity repair only; no
+    assertion in this file changed.
 
     Corrected 2026-07-30. The non-consenting emitter previously used a second gate
     returning ``saas_enabled=False``, on the reasoning that giving the two rows
@@ -246,7 +255,8 @@ def test_consenting_project_leaks_sibling_project_event_through_shared_journal(
     # later revoked. Those rows must still be excluded at drain time, which is exactly
     # FR-007/FR-008's job. Capture gating does not retire the drain predicate.
     #
-    # The gates are deliberately IDENTICAL. The capture gate is machine-global, while
+    # The gates are deliberately IDENTICAL. The capture gate is per-project as of
+    # #3030 M1 (it was machine-global, reading cwd), while
     # this pin's notion of non-consent is the absent uuid-keyed consent RECORD the
     # drain must resolve — so the two rows must be indistinguishable on every machine
     # signal, leaving consent as the only thing that can separate their outcomes.

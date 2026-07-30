@@ -164,24 +164,43 @@ def test_journal_path_is_producer_scoped_not_server_scoped(tmp_path: Path) -> No
 # ── live emit-path integration (capture-first is actually wired) ─────
 
 
+#: The project the emit-path tests below belong to. It needs to be a real uuid, not
+#: ``None`` — see ``_consenting_checkout``.
+_STUB_PROJECT_UUID = "cccccccc-0000-0000-0000-00000000000c"
+
+
 @pytest.fixture
 def _consenting_checkout(monkeypatch: pytest.MonkeyPatch) -> None:
     """Open the per-project consent axis for the emit-path tests below.
 
     Capture-first means the journal write precedes the *delivery* gates — SaaS
     enablement, auth, team resolution. Since #3030 T006 it no longer outranks
-    *consent*: a checkout that has not consented never reaches the journal
+    *consent*: a project that has not consented never reaches the journal
     (NFR-005 as amended), and WP01 made absence of a consent record a denial, so
-    an unconfigured test checkout now resolves to non-consenting.
+    an unconfigured test project now resolves to non-consenting.
 
-    These tests are about the ordering property, not about consent, so they
-    consent explicitly and keep asserting exactly what they always did. The
-    non-consenting half of the contract is pinned separately by
+    These tests are about the ordering property, not about consent, so they consent
+    explicitly and keep asserting exactly what they always did. The non-consenting
+    half of the contract is pinned separately by
     ``tests/sync/test_sync_consent_capture_gap_3031.py``.
-    """
-    from specify_cli.sync import emitter as emitter_mod
 
-    monkeypatch.setattr(emitter_mod, "is_sync_enabled_for_checkout", lambda *a, **k: True)
+    **Rewritten for #3030 M1.** This used to patch
+    ``emitter.is_sync_enabled_for_checkout``, which the capture gate no longer calls:
+    the gate is resolved from the *event's own* ``project_uuid`` down
+    ``sync/consent.py``'s chain instead of from ``Path.cwd()``. So consent is now
+    recorded through its real writer, keyed on the uuid ``_stub_emitter`` stamps.
+
+    That is also why ``_stub_emitter`` gained a ``project_uuid``: it had ``None``, and
+    an event whose project cannot be identified can never be shown to belong to a
+    consenting one (NFR-001), so it is correctly refused. Asserting a capture-ordering
+    property against an event that is being refused would assert nothing at all — the
+    same repaired-setup call ``test_local_commit.py`` made for T027. Every assertion
+    in the two tests below is unchanged.
+    """
+    from specify_cli.sync.consent import set_project_consent
+
+    del monkeypatch  # consent is recorded in the per-test SPEC_KITTY_HOME, not patched
+    set_project_consent(_STUB_PROJECT_UUID, True)
 
 
 def _stub_emitter():
@@ -190,7 +209,9 @@ def _stub_emitter():
 
     em = EventEmitter()
     em._identity = SimpleNamespace(  # type: ignore[assignment]
-        build_id="build-1", project_uuid=None, project_slug=None
+        build_id="build-1",
+        project_uuid=_STUB_PROJECT_UUID,
+        project_slug="stub-project",
     )
     em._get_git_metadata = lambda: GitMetadata()  # type: ignore[method-assign]
     return em

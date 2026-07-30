@@ -138,14 +138,14 @@ def _stub_emitter(*, project_slug: str, build_id: str) -> EventEmitter:
     return em
 
 
-def _consenting_gate(_team_slug: str | None) -> CaptureGateState:
+def _consenting_gate(_team_slug: str | None, **_kwargs: object) -> CaptureGateState:
     """The per-project consent signal open (``checkout_enabled=True``)."""
     return CaptureGateState(
         saas_enabled=False, checkout_enabled=True, authenticated=False, team_slug=None
     )
 
 
-def _non_consenting_gate(_team_slug: str | None) -> CaptureGateState:
+def _non_consenting_gate(_team_slug: str | None, **_kwargs: object) -> CaptureGateState:
     """The per-project consent signal closed — the #3031 incident shape.
 
     ``saas_enabled`` and ``authenticated`` are held identical to

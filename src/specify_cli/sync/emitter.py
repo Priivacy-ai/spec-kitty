@@ -1883,6 +1883,16 @@ class EventEmitter:
         Order matters: the most coarse-grained gate (sync feature flag)
         wins so operators see "the checkout is opted out" rather than a
         downstream symptom like "no_team".
+
+        This is the **legacy offline queue's** advisory field, not the journal's. It
+        keeps the cwd-derived ``is_sync_enabled_for_checkout()`` read that #3030 M1
+        removed from the capture gate (:meth:`_capture_gate_state`), and that is
+        deliberate rather than a missed site: WP02 removed the queue-backed event
+        drain outright (FR-012, guarded by
+        ``tests/sync/test_legacy_queue_precondition_3030.py``), so nothing reads this
+        value to decide whether anything ships. Making it per-project would change a
+        field on a retiring path with no consumer. Re-examine if that drain ever
+        returns.
         """
         try:
             if not is_saas_sync_enabled():
@@ -1906,21 +1916,98 @@ class EventEmitter:
 
         return None
 
-    def _capture_gate_state(self, team_slug: str | None) -> CaptureGateState:
+    @staticmethod
+    def _offered_consent_roots() -> list[Path]:
+        """The checkout available to offer ``sync/consent.py`` for its level-1 read.
+
+        Offering the working directory here is **narrowing-only**, not the cwd
+        shortcut this method exists to remove: ``consent._project_local_votes``
+        ignores any root whose ``.kittify/config.yaml`` declares a *different*
+        ``project_uuid``, so a root can only ever answer for its own project. When
+        the emitter is standing in project B and the event belongs to A, B's file is
+        discarded and the chain falls through to the uuid-keyed index — which is the
+        correct answer for A.
+
+        Without offering it, the project-local level would be unreachable on every
+        real capture and a committed, reviewable in-repo refusal would silently not
+        be honoured (the same gap ``delivery/selection.py`` documents for the drain).
+        """
+        try:
+            from specify_cli.core.paths import locate_project_root
+
+            root = locate_project_root(Path.cwd().resolve())
+        except Exception:  # noqa: BLE001 - an unreadable cwd is absence, not a decision
+            return []
+        return [root] if root is not None else []
+
+    def _project_consents_to_capture(self, project_uuid: str | None) -> bool:
+        """Does the project *this event belongs to* consent to hosted sync? (#3030 M1)
+
+        Resolved from the event's own ``project_uuid`` down ``sync/consent.py``'s one
+        chain — the same resolver the drain, the body upload and the LocalCommit
+        flush use (C-003: no second copy of the precedence chain).
+
+        This replaces ``is_sync_enabled_for_checkout()`` called with no argument, i.e.
+        against ``Path.cwd()``. That read answered for whichever project the process
+        happened to be standing in while the row was stamped with the identity from
+        ``_get_identity()``, which caches for the emitter's lifetime. The two agree in
+        a short-lived CLI process and diverge under the long-lived ``SyncRuntime``
+        singleton the moment anything calls ``os.chdir`` — the cwd-vs-identity defect
+        T025 names for body uploads and T027 for local-commit frames.
+
+        The leaking direction was already closed downstream (the drain keys on the
+        stored uuid, so a row stamped A cannot ship on B's grant); what this fixes is
+        **silent capture loss** — a consenting project's event dropped because cwd
+        refused, or stamped ``saas_disabled`` from cwd's answer, which
+        ``delivery/selection.py`` treats as terminal and therefore permanently
+        unselectable.
+
+        An unresolvable uuid is denied, never waved through: NFR-001's second half is
+        that an event whose project cannot be identified can never be shown to belong
+        to a consenting one. Fails **closed** on error, departing from this module's
+        habit of swallowing and continuing — here that instinct would convert an
+        unanswerable consent question into a stored payload (FR-003's rule).
+        """
+        if not project_uuid:
+            return False
+        try:
+            from .consent import consented_project_uuids
+
+            return bool(
+                consented_project_uuids(
+                    [project_uuid], checkout_roots=self._offered_consent_roots()
+                )
+            )
+        except Exception as exc:  # noqa: BLE001 - inability to determine is not consent
+            logger.debug(
+                "Could not resolve hosted-sync consent for project %s; refusing capture: %s",
+                project_uuid,
+                exc,
+            )
+            return False
+
+    def _capture_gate_state(
+        self, team_slug: str | None, *, project_uuid: str | None = None
+    ) -> CaptureGateState:
         """Snapshot the drain gates for the journal's blocked-reason audit (T017).
 
-        Defensive: any gate-read failure is treated as "blocked" so capture
-        still records a durable, audit-tagged row — it never raises and never
-        drops the fact (contract §2 bullet 3).
+        ``checkout_enabled`` is resolved from *project_uuid* — the event's own
+        identity, the value the row is stamped with — and not from the working
+        directory (#3030 M1); see :meth:`_project_consents_to_capture`. It keeps the
+        name ``checkout_enabled`` because that is the ``CaptureGateState`` field
+        ``classify_drain_blocked_reason`` reads, but the question it now answers is
+        "does *this event's project* consent?".
+
+        Defensive on the machine-global gates: a read failure there is treated as
+        "blocked" so capture still records a durable, audit-tagged row and never
+        raises (contract §2 bullet 3). Per-project consent is the one gate that fails
+        closed to *no row at all*, because that is the confidentiality boundary.
         """
         try:
             saas_enabled = is_saas_sync_enabled()
         except Exception:
             saas_enabled = False
-        try:
-            checkout_enabled = is_sync_enabled_for_checkout()
-        except Exception:
-            checkout_enabled = False
+        checkout_enabled = self._project_consents_to_capture(project_uuid)
         try:
             authenticated = self._is_authenticated()
         except Exception:
@@ -1976,16 +2063,23 @@ class EventEmitter:
         )
 
         try:
-            gate = self._capture_gate_state(team_slug)
+            # Resolved through T011's single chain so the stored column, the gate that
+            # authorizes the write, and the backfill can never disagree (NFR-001).
+            # This must precede the gate: the gate's consent question is *about* this
+            # uuid (#3030 M1). It used to be resolved afterwards, which is how the
+            # gate came to answer for the working directory instead.
+            project_uuid = resolve_event_project_uuid(event)
+            gate = self._capture_gate_state(team_slug, project_uuid=project_uuid)
             if not gate.checkout_enabled:
                 # Refuse the write, loudly enough to be diagnosable but without
                 # failing emission — the local command still succeeds, exactly
                 # as it does when a delivery gate blocks.
                 logger.debug(
-                    "Journal capture refused for event %s (%s): checkout has not "
+                    "Journal capture refused for event %s (%s): project %s has not "
                     "consented to sync (#3030 NFR-005)",
                     event_id,
                     event_type,
+                    project_uuid or "<unidentified>",
                 )
                 return
             payload_bytes = json.dumps(event, sort_keys=True, default=str).encode("utf-8")
@@ -1996,9 +2090,7 @@ class EventEmitter:
                 payload=payload_bytes,
                 occurred_at=occurred_at,
                 gate=gate,
-                # Resolved through T011's single chain so the stored column and the
-                # backfill can never disagree (NFR-001).
-                project_uuid=resolve_event_project_uuid(event),
+                project_uuid=project_uuid,
                 project_slug=resolve_event_project_slug(event),
                 repo_slug=event.get("repo_slug"),
             )

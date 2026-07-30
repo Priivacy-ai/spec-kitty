@@ -112,7 +112,7 @@ def test_journal_stores_full_envelope_so_dispatch_posts_contract_event(
     # therefore excludes. Same instance-level override the sibling consent pins use.
     from specify_cli.event_journal import CaptureGateState
 
-    em._capture_gate_state = lambda _team: CaptureGateState(
+    em._capture_gate_state = lambda _team, **_kwargs: CaptureGateState(
         saas_enabled=True, checkout_enabled=True, authenticated=True, team_slug="team"
     )
 

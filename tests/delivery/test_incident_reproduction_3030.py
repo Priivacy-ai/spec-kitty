@@ -126,7 +126,7 @@ def _record_consent(*, granted: str, refused: str | None = None) -> None:
         set_project_consent(refused, False)
 
 
-def _drain_open_gate(_team_slug: str | None) -> CaptureGateState:
+def _drain_open_gate(_team_slug: str | None, **_kwargs: object) -> CaptureGateState:
     """Every project's capture gate: fully open. Consent is the ONLY difference.
 
     One gate for all six projects, deliberately. This is the incident's actual
