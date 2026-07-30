@@ -232,3 +232,44 @@ what makes the backfill **idempotent** (NFR-004/SC-007). It therefore needs its 
 rather than a widened one, and belongs to whoever owns FR-011. The census fix above turns
 those rows from *invisible* into *observable-but-only-removable-by-`--all`*, which is
 strictly better and does not pretend to be complete.
+
+## Pre-fix local-commit frames are attributed by store locality, not by slug
+
+WP08's brief offered two ways to purge frames written before WP12 added `project_uuid`:
+`--all`-shaped, or match the mission slug in `changed_files`. The implementer took
+**neither** and grounded a third better (`b6b3598ecc`).
+
+`pending_local_commits` is **per-checkout** state — `_sync_state_path` puts the file inside
+the checkout, and `git/commit_helpers.py:1150` calls `emit_local_commit(repo_root=repo_root)`
+for that same checkout. So an unattributable frame in project X's file **is X's own content**:
+its `changed_files` are paths in X's repository. Attributing it to X therefore cannot reach
+another project's entries, which is exactly what keeps NFR-006's "0% of any other project's"
+true, and it needs no new operator input.
+
+The vouching is checked rather than assumed: `_checkout_vouches_for` admits the
+identity-less bucket only when the checkout declares the target as its own uuid
+(case-insensitively). A checkout declaring a *different* project, or none, vouches for
+nothing and its frames remain for the `--all` selector.
+
+Slug-matching was rejected on four grounds: the slug is not a project-scoped identifier,
+no project→slug map exists at purge time, it would make the operator hand-type the
+engagement name they are trying to erase, and it reduces to the same locality argument
+anyway.
+
+One sharp detail: blank selectors must select nothing, and this matters **more** here than
+in the journal, because `IDENTITY_LESS_FRAME_KEY` *is* `""` — an unstripped selector would
+silently vacuum precisely the population at issue.
+
+## `_ws_client` is dead; the connect-time flush is the live path
+
+Settled independently while building the frame purge, and it answers the question left open
+after WP12: four occurrences of `_ws_client` in `src/`, **all reads or comments**
+(`sync/local_commit.py:683`, `sync/__init__.py:354,358,373`), with no writer and no
+`setattr`. So `emit_local_commit`'s **immediate send cannot fire in production**, and the
+**connect-time flush is the live egress route**.
+
+Consequence for WP12's gate: it is right that T027 gated the flush and not only the
+steady-state send — had it gated only the immediate send, it would have gated the dead half
+and left the live one open. The gate's placement was correct for a reason nobody had
+established at the time it was written, which is worth recording as luck converted into
+evidence rather than as vindication.
