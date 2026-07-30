@@ -334,6 +334,55 @@ def test_check_issue_matrix_no_refs_is_clean(tmp_path: Path) -> None:
     assert check_issue_matrix(feature_dir) == []
 
 
+def test_check_issue_matrix_discovers_reference_only_in_wp_file(tmp_path: Path) -> None:
+    """WP08/T029/FR-004: a ref buried in ``tasks/WP01.md`` alone is discovered.
+
+    Prior to the multi-file discovery module, ``check_issue_matrix`` only
+    ever scanned ``spec.md``, so an issue referenced solely inside a WP
+    prompt file was invisible to this health check.
+    """
+    feature_dir = tmp_path / "kitty-specs" / "034-test"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("No GitHub issue references here.\n", encoding="utf-8")
+    (tasks_dir / "WP01.md").write_text("This WP fixes #7777.\n", encoding="utf-8")
+
+    findings = check_issue_matrix(feature_dir)
+
+    assert len(findings) == 1
+    assert "#7777" in findings[0].message
+
+
+def test_check_issue_matrix_json_only_mission_is_not_falsely_flagged_missing(
+    tmp_path: Path,
+) -> None:
+    """WP08/T043 (C-008/B-1): a JSON-only matrix is no longer a false "missing".
+
+    Before the reader switch, the ``.md``-only ``.exists()`` precheck made a
+    greenfield JSON-only mission (B3) look like the issue-matrix was
+    missing, even though ``issue-matrix.json`` already carried the row.
+    """
+    feature_dir = tmp_path / "kitty-specs" / "034-test"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("Addresses issue #1582.\n", encoding="utf-8")
+    (feature_dir / "issue-matrix.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "rows": {
+                    "#1582": {
+                        "verdict": "fixed",
+                        "evidence_ref": "tests/test_demo.py",
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert check_issue_matrix(feature_dir) == []
+
+
 # ---------------------------------------------------------------------------
 # check_stale_claims tests
 # ---------------------------------------------------------------------------

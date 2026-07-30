@@ -93,10 +93,10 @@ guard's exact reconciliation purpose.
 | disposition | count | meaning |
 | --- | --- | --- |
 | routed-through-seam | 14 | already safe (seam cited) |
-| routed-through-seam (TODO) | 7 | 2 RESOLVED-at-source by WP02 (FR-009; matcher-per-site artifact) + 5 deferred CLI-arg low-risk (follow-up #2037) |
+| routed-through-seam (TODO) | 8 | 2 RESOLVED-at-source by WP02 (FR-009; matcher-per-site artifact) + 6 deferred CLI-arg low-risk (follow-up #2037) |
 | trusted-source | 8 | derived directory-name / on-disk index / SHA-256 hex provenance |
 | unreachable | 8 | no FS open/write reachable with an untrusted segment |
-| **total** | **37** | dispositioned rows in the sink table |
+| **total** | **38** | dispositioned rows in the sink table |
 
 Of the 35 rows, 30 are AST-discovered (the live matcher prints
 the exact discovered count each run) and 5 are `[inventory-only]`

@@ -2523,6 +2523,25 @@ pages:
     - {slug: "negative-risks", text: "Negative / risks", level: 3}
     - {slug: "neutral", text: "Neutral", level: 3}
     - {slug: "folding-decision-mission-doctrine-delivery-reachability-01kymxd6", text: "Folding decision (mission `doctrine-delivery-reachability-01KYMXD6`)", level: 2}
+  - path: "docs/adr/3.x/2026-07-29-1-lane-base-recorded-planning-commit.md"
+    title: "ADR: Lane Base Merges the Recorded Planning-Artifact Commit (FR-009)"
+    divio_type: "none"
+    abstract: "ADR [2026-04-03-1](./2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md) made the execution lane the git branch/worktree unit and required \"every mission gets one integration branch.\" WP04 (#1348) extended lane parenting so a coordination-topology mission's lanes branch from `coordination_branch` (`meta.json`), not the legacy `mission_branch` field, and registered the status-files sparse-checkout exclusion so a lane worktree cannot see `status.events.jsonl` / `status.json`."
+    anchors:
+    - {slug: "context", text: "Context", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "1-the-recorded-sha-is-captured-once-at-finalize-tasks-and-is-immutable-thereafter", text: "1. The recorded SHA is captured once, at `finalize-tasks`, and is immutable thereafter", level: 3}
+    - {slug: "2-the-lane-s-git-parent-coordination-branch-mission-branch-does-not-change", text: "2. The lane's git parent (`coordination_branch` / `mission_branch`) does not change", level: 3}
+    - {slug: "3-the-recorded-commit-is-merged-into-the-lane-immediately-after-creation-idempotent-per-lane-non-mutating", text: "3. The recorded commit is merged into the lane immediately after creation — idempotent, per-lane, non-mutating", level: 3}
+    - {slug: "4-resolving-the-coord-status-lineage-question-fr-007-adr-2026-06-24-1-5", text: "4. Resolving the coord-status-lineage question (FR-007 / ADR 2026-06-24-1 §5)", level: 3}
+    - {slug: "5-the-fr-008-merge-driver-o-partition-is-orthogonal-to-this-adr-e-b-adjudicated-2026-07-29", text: "5. The FR-008 merge-driver `%O` partition is orthogonal to this ADR (E-B, adjudicated 2026-07-29)", level: 3}
+    - {slug: "6-no-consolidation-abort-path", text: "6. No consolidation abort path", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "positive", text: "Positive", level: 3}
+    - {slug: "negative-accepted-trade-offs", text: "Negative / accepted trade-offs", level: 3}
+    - {slug: "neutral", text: "Neutral", level: 3}
+    - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
@@ -2640,8 +2659,10 @@ pages:
     - {slug: "spec-kitty-agent-decision-open", text: "spec-kitty agent decision open", level: 2}
     - {slug: "spec-kitty-agent-decision-resolve", text: "spec-kitty agent decision resolve", level: 2}
     - {slug: "spec-kitty-agent-decision-verify", text: "spec-kitty agent decision verify", level: 2}
+    - {slug: "spec-kitty-agent-issue-verdict", text: "spec-kitty agent issue-verdict", level: 2}
     - {slug: "spec-kitty-agent-mission", text: "spec-kitty agent mission", level: 2}
     - {slug: "spec-kitty-agent-mission-accept", text: "spec-kitty agent mission accept", level: 2}
+    - {slug: "spec-kitty-agent-mission-acceptance-verdict", text: "spec-kitty agent mission acceptance-verdict", level: 2}
     - {slug: "spec-kitty-agent-mission-branch-context", text: "spec-kitty agent mission branch-context", level: 2}
     - {slug: "spec-kitty-agent-mission-check-prerequisites", text: "spec-kitty agent mission check-prerequisites", level: 2}
     - {slug: "spec-kitty-agent-mission-create", text: "spec-kitty agent mission create", level: 2}
@@ -2677,6 +2698,7 @@ pages:
     - {slug: "spec-kitty-agent-tasks-validate-workflow", text: "spec-kitty agent tasks validate-workflow", level: 2}
     - {slug: "spec-kitty-agent-tests", text: "spec-kitty agent tests", level: 2}
     - {slug: "spec-kitty-agent-tests-stale-check", text: "spec-kitty agent tests stale-check", level: 2}
+    - {slug: "spec-kitty-agent-tracer-append", text: "spec-kitty agent tracer-append", level: 2}
   - path: "docs/api/bulk-edit-gate.md"
     title: "Bulk-edit gate reference"
     divio_type: "none"
@@ -2801,6 +2823,8 @@ pages:
     - {slug: "spec-kitty-intake", text: "spec-kitty intake", level: 2}
     - {slug: "spec-kitty-invocations", text: "spec-kitty invocations", level: 2}
     - {slug: "spec-kitty-invocations-list", text: "spec-kitty invocations list", level: 2}
+    - {slug: "spec-kitty-issue-matrix", text: "spec-kitty issue-matrix", level: 2}
+    - {slug: "spec-kitty-issue-matrix-migrate", text: "spec-kitty issue-matrix migrate", level: 2}
     - {slug: "spec-kitty-issue-search", text: "spec-kitty issue-search", level: 2}
     - {slug: "spec-kitty-lint", text: "spec-kitty lint", level: 2}
     - {slug: "spec-kitty-materialize", text: "spec-kitty materialize", level: 2}

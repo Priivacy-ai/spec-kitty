@@ -10,6 +10,7 @@ not only through the broad command-level integration tests.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -247,6 +248,59 @@ def test_issue_matrix_approval_blocker_keeps_missing_rows_when_parsed(tmp_path: 
     blocker = _issue_matrix_approval_blocker(feature_dir)
     assert blocker is not None
     assert "Missing rows: #1582" in blocker
+
+
+def test_issue_matrix_approval_blocker_discovers_reference_only_in_wp_file(
+    tmp_path: Path,
+) -> None:
+    """WP08/T029/T031/FR-004: a ref buried in ``tasks/WP01.md`` alone blocks
+    approval exactly like a ``spec.md`` reference would — the approval
+    blocker must share the same discovery definition as finalization
+    (WP08's ``discover_issue_references``), not a spec.md-only re-scan.
+    """
+    feature_dir = tmp_path / "kitty-specs" / "demo"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("No issues mentioned here.\n", encoding="utf-8")
+    (tasks_dir / "WP01.md").write_text("This WP fixes #8888.\n", encoding="utf-8")
+
+    blocker = _issue_matrix_approval_blocker(feature_dir)
+
+    assert blocker is not None
+    assert "#8888" in blocker
+
+    _write_issue_matrix(feature_dir, "fixed", issue="#8888")
+    assert _issue_matrix_approval_blocker(feature_dir) is None
+
+
+def test_issue_matrix_approval_blocker_json_only_mission_not_falsely_blocked(
+    tmp_path: Path,
+) -> None:
+    """WP08/T043 (C-008/B-1): a JSON-only matrix no longer false-blocks approval.
+
+    Before the reader switch, the ``.md``-only ``.exists()`` precheck made a
+    greenfield JSON-only mission (B3) hard-fail approval even though
+    ``issue-matrix.json`` already carried the resolved row.
+    """
+    feature_dir = tmp_path / "kitty-specs" / "demo"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("Fix Priivacy-ai/spec-kitty issue #1582.\n", encoding="utf-8")
+    (feature_dir / "issue-matrix.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "rows": {
+                    "#1582": {
+                        "verdict": "fixed",
+                        "evidence_ref": "tests/test_demo.py",
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert _issue_matrix_approval_blocker(feature_dir) is None
 
 
 def test_issue_matrix_read_is_coord_authoritative_no_primary_fallback(tmp_path: Path) -> None:

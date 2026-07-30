@@ -240,6 +240,14 @@
       "target_shard": "specify-cli-rest"
     },
     {
+      "dir": "tasks",
+      "cone_roots": [
+        "tests/tasks"
+      ],
+      "target_group": "closeout",
+      "target_shard": "misc"
+    },
+    {
       "dir": "template",
       "cone_roots": [
         "tests/test_template"
@@ -329,6 +337,7 @@
     "status",
     "sync",
     "task_utils",
+    "tasks",
     "template",
     "tool_surface",
     "tracker",

@@ -676,8 +676,8 @@ terms:
   surface: lightweight mode
 - confidence: 0.95
   definition: '`spec-kitty review` invocation that enforces the full mission-review
-    release-gate contract; requires `issue-matrix.md`, Gate 1-4 records, and `mission-exception.md`
-    when applicable.'
+    release-gate contract; requires `issue-matrix.md`, Gate 1-4 records, and
+    `mission-exception.md` when applicable.'
   status: active
   surface: post-merge mode
 - confidence: 0.95
@@ -691,6 +691,13 @@ terms:
     outside the canonical mandatory + named-optional vocabulary.
   status: active
   surface: issue-matrix schema drift
+- confidence: 0.95
+  definition: The canonical machine-readable issue-matrix artifact,
+    `issue-matrix.json`, recording each mission issue's verdict; supersedes the
+    legacy `issue-matrix.md`, which is still read via failover for pre-migration
+    missions.
+  status: active
+  surface: canonical issue-matrix
 - confidence: 0.95
   definition: The single ingestion boundary at which charter content's source 
     encoding is detected and recorded as provenance before downstream consumers 

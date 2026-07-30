@@ -279,11 +279,23 @@ def test_review_post_merge_requires_issue_matrix(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Post-merge mode must fail when issue-matrix.md is missing."""
+    """Post-merge mode must fail-closed when references exist but no matrix.
+
+    WP09 / FR-005 (#3035): Gate 4 is only ``not_applicable`` when the mission
+    declares ZERO canonical issue references. This fixture's ``spec.md``
+    references ``#1234``, so the fail-closed branch must still fire when
+    ``issue-matrix.md``/``issue-matrix.json`` is missing entirely -- the
+    zero-reference regression lives in
+    ``tests/specify_cli/cli/commands/review/test_zero_reference_not_applicable.py``.
+    """
     repo_root, feature_dir = _setup_fixture(
         tmp_path,
         {"WP01": "done"},
         baseline_merge_commit="0000000000000000000000000000000000000000",
+    )
+    (feature_dir / "spec.md").write_text(
+        "# Spec\n\nSee #1234 for background.\n",
+        encoding="utf-8",
     )
 
     monkeypatch.chdir(repo_root)
@@ -317,11 +329,21 @@ def test_review_post_merge_invalid_issue_matrix_exits_nonzero(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Post-merge mode must fail when issue-matrix.md validator diagnostics fire."""
+    """Post-merge mode must fail when issue-matrix.md validator diagnostics fire.
+
+    WP09 / FR-005 (#3035): this mission's ``spec.md`` references ``#123`` (the
+    same issue the malformed matrix row below covers), so Gate 4 is NOT
+    ``not_applicable`` here -- the fail-closed schema-diagnostic path must
+    still fire against a present-but-invalid matrix.
+    """
     repo_root, feature_dir = _setup_fixture(
         tmp_path,
         {"WP01": "done"},
         baseline_merge_commit="0000000000000000000000000000000000000000",
+    )
+    (feature_dir / "spec.md").write_text(
+        "# Spec\n\nTracks #123 for this mission.\n",
+        encoding="utf-8",
     )
     (feature_dir / "issue-matrix.md").write_text(
         "\n".join(

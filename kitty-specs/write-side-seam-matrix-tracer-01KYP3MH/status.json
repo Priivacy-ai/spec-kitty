@@ -1,0 +1,131 @@
+{
+  "event_count": 77,
+  "last_event_id": "01KYQ70D7XQD1113PX2NSJCZHF",
+  "materialized_at": "2026-07-29T15:13:37.021479+00:00",
+  "mission_number": "",
+  "mission_slug": "write-side-seam-matrix-tracer-01KYP3MH",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 11,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYQ704WK4X3NNPZ3GZSGT7DB",
+      "last_transition_at": "2026-07-29T15:13:28.467752+00:00",
+      "shell_pid": 50322,
+      "shell_pid_created_at": "1785321538.5"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYQ705RSPSEWVRYMCQE9YQP3",
+      "last_transition_at": "2026-07-29T15:13:29.369765+00:00",
+      "shell_pid": 50322,
+      "shell_pid_created_at": "1785321538.5"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KYQ706JYSWZATMQ9115WGFM4",
+      "last_transition_at": "2026-07-29T15:13:30.206795+00:00",
+      "shell_pid": 42193,
+      "shell_pid_created_at": "1785321332.13"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYQ707D37BE4RQB0DV5CG16X",
+      "last_transition_at": "2026-07-29T15:13:31.043066+00:00",
+      "shell_pid": 267345,
+      "shell_pid_created_at": "1785326706.03"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYQ7087X5EFZNWV5FWV3X8GM",
+      "last_transition_at": "2026-07-29T15:13:31.901609+00:00",
+      "shell_pid": 267345,
+      "shell_pid_created_at": "1785326706.03"
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYQ70D7XQD1113PX2NSJCZHF",
+      "last_transition_at": "2026-07-29T15:13:37.021479+00:00",
+      "shell_pid": 760576,
+      "shell_pid_created_at": "1785335268.82"
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYQ709WG9NSM8ZTJ13CN4J8X",
+      "last_transition_at": "2026-07-29T15:13:33.584817+00:00",
+      "shell_pid": 512290,
+      "shell_pid_created_at": "1785330991.07"
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYQ70APVNGQPW61Y9Q31CGCP",
+      "last_transition_at": "2026-07-29T15:13:34.427886+00:00",
+      "shell_pid": 512290,
+      "shell_pid_created_at": "1785330991.07"
+    },
+    "WP09": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYQ70CD4TS3V838F3RRWNCSR",
+      "last_transition_at": "2026-07-29T15:13:36.164289+00:00",
+      "shell_pid": 688257,
+      "shell_pid_created_at": "1785333882.63"
+    },
+    "WP10": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYQ70924MJQEPGRB17E7PE3Q",
+      "last_transition_at": "2026-07-29T15:13:32.740194+00:00",
+      "shell_pid": 267345,
+      "shell_pid_created_at": "1785326706.03"
+    },
+    "WP11": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYQ70BJ2PD0986XXNFG4P6XW",
+      "last_transition_at": "2026-07-29T15:13:35.298549+00:00",
+      "shell_pid": 512290,
+      "shell_pid_created_at": "1785330991.07"
+    }
+  }
+}

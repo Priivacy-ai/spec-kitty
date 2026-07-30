@@ -158,6 +158,13 @@ _LEGACY_WALKER_ALLOWLIST: frozenset[str] = frozenset(
         # Partial-match handle-to-dir fallback scan (pre-dates the resolver;
         # a candidate for folding in a later #2173 phase, not this one).
         "src/specify_cli/retrospective/generator.py",
+        # `spec-kitty issue-matrix migrate` bulk command: `_iter_primary_mission_dirs`
+        # enumerates every `kitty-specs/<slug>/` directory carrying a `meta.json`
+        # to find ALL missions with a legacy `issue-matrix.md` to migrate --
+        # a corpus-wide discovery scan, not a single-mission identity
+        # resolution. Same rationale class as `_coordination_doctor.py` /
+        # `validate_tasks.py` / `backfill_provenance.py` above.
+        "src/specify_cli/tasks/issue_matrix_migration.py",
     }
 )
 

@@ -1,23 +1,53 @@
-"""Scaffold ``issue-matrix.md`` from GitHub-issue references in a mission spec.
+"""Structured issue-matrix core: schema, canonical writer, and scaffold.
 
-Per FR-009 of the test-stabilization-and-debt-pass mission. Closes #1163.
+Per FR-009 of the test-stabilization-and-debt-pass mission (closes #1163),
+migrated to a structured JSON artifact by write-side-seam-matrix-tracer-
+01KYP3MH WP05 (C-008 / FR-002 / FR-013).
 
-The matrix schema mirrors the Gate-4 contract from the
-``spec-kitty-mission-review`` skill: columns ``Issue``, ``Title``,
-``Verdict``, ``Evidence ref``. The scaffold is created during the
-``/spec-kitty.tasks`` flow (specifically
-``spec-kitty agent mission finalize-tasks``) when ``spec.md`` references
-one or more GitHub issues such as ``#1298`` or ``#1163``.
+``issue-matrix.json`` is the **single canonical artifact** going forward --
+no ``issue-matrix.md`` render is emitted (D-2 / decisions/index.json). The
+row schema mirrors the closed-set vocabulary NFR-007 already encodes ONCE in
+``specify_cli.cli.commands.review._issue_matrix`` (``MANDATORY_COLUMNS`` /
+``NAMED_OPTIONAL_COLUMNS`` / ``IssueMatrixVerdict``) rather than inventing a
+second one: ``verdict`` and ``evidence_ref`` are stored as free-form strings
+here (a freshly scaffolded row starts as the placeholder ``"unknown"``
+verdict, exactly like the retired markdown scaffold) -- the closed-set
+ENFORCEMENT lives solely in ``validate_issue_matrix`` (one validator).
 
-The scaffold is **idempotent**: an existing ``issue-matrix.md`` is never
+The canonical writer (:func:`write_issue_matrix`) routes every commit
+through the WP03 write-seam helper
+(:func:`specify_cli.coordination.write_seam.write_artifact`,
+``write_target(ISSUE_MATRIX)``) -- never a hand-rolled commit path
+(C-001/C-006). Back-compat (failover-read of a legacy ``.md``, migrate-on-
+write, and the ONE canonical dir-based reader) lives in the sibling module
+``specify_cli.tasks.issue_matrix_migration`` (T022/T023, FR-013).
+
+The scaffold (:func:`scaffold_issue_matrix`) is **idempotent**: an existing
+matrix (either format, on whichever surface it resolves to) is never
 overwritten, so operator edits survive re-runs.
 """
 
 from __future__ import annotations
 
+import json
 import re
+from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
-from typing import NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
+
+if TYPE_CHECKING:
+    from specify_cli.coordination.write_seam import ProtectionPolicyLike, WriteSeamResult
+
+ISSUE_MATRIX_JSON_FILENAME = "issue-matrix.json"
+ISSUE_MATRIX_MD_FILENAME = "issue-matrix.md"
+ISSUE_MATRIX_SCHEMA_VERSION = 1
+
+# Scaffold placeholders (T021) -- unchanged wording from the retired markdown
+# scaffold so the "fill this in" signal stays familiar to operators/agents.
+_SCAFFOLD_VERDICT_PLACEHOLDER = "unknown"
+_SCAFFOLD_TITLE_PLACEHOLDER = "<fill at WP-implementation time>"
+_SCAFFOLD_EVIDENCE_PLACEHOLDER = "<link or commit>"
 
 # Match ``#NNNN`` GH issue references with 2-6 digits, requiring a non-word
 # leading boundary (start-of-line, whitespace, ``(``, ``[``) and a non-word
@@ -72,54 +102,207 @@ def detect_issue_references(spec_md_path: Path) -> list[IssueReference]:
     return [IssueReference(num, ctx) for num, ctx in seen.items()]
 
 
+# ---------------------------------------------------------------------------
+# T020 -- structured schema + canonical writer
+# ---------------------------------------------------------------------------
+
+# Field names persisted per row -- kept in one tuple so the round-trip
+# (to_dict/from_dict) and any future schema-drift check share one spelling
+# (S1192).
+_ENTRY_FIELDS: tuple[str, ...] = (
+    "verdict",
+    "evidence_ref",
+    "title",
+    "scope",
+    "wp",
+    "fr",
+    "nfr",
+    "sc",
+    "repo",
+)
+
+
+@dataclass(frozen=True)
+class IssueMatrixEntry:
+    """One row of the structured ``issue-matrix.json`` (T020).
+
+    Mirrors the closed-set column vocabulary NFR-007 already encodes in
+    ``review._issue_matrix`` (``MANDATORY_COLUMNS`` / ``NAMED_OPTIONAL_COLUMNS``)
+    rather than a second one. ``verdict`` / ``evidence_ref`` are free-form
+    strings by design: a freshly scaffolded row is not yet a valid
+    ``IssueMatrixVerdict`` member (the placeholder ``"unknown"``) --
+    membership enforcement is ``validate_issue_matrix``'s job, not the
+    writer's.
+    """
+
+    verdict: str = _SCAFFOLD_VERDICT_PLACEHOLDER
+    evidence_ref: str = ""
+    title: str | None = None
+    scope: str | None = None
+    wp: str | None = None
+    fr: str | None = None
+    nfr: str | None = None
+    sc: str | None = None
+    repo: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {name: getattr(self, name) for name in _ENTRY_FIELDS}
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> IssueMatrixEntry:
+        kwargs = {name: data.get(name) for name in _ENTRY_FIELDS if name in data}
+        verdict = kwargs.pop("verdict", None)
+        evidence_ref = kwargs.pop("evidence_ref", None)
+        return cls(
+            verdict=str(verdict) if verdict is not None else _SCAFFOLD_VERDICT_PLACEHOLDER,
+            evidence_ref=str(evidence_ref) if evidence_ref is not None else "",
+            **kwargs,
+        )
+
+
+def build_issue_matrix_document(rows: Mapping[str, IssueMatrixEntry]) -> dict[str, Any]:
+    """Serialize ``rows`` (keyed by canonicalized issue ref) to the JSON document shape."""
+    return {
+        "schema_version": ISSUE_MATRIX_SCHEMA_VERSION,
+        "rows": {issue_ref: entry.to_dict() for issue_ref, entry in rows.items()},
+    }
+
+
+def parse_issue_matrix_document(data: Mapping[str, Any]) -> dict[str, IssueMatrixEntry]:
+    """Inverse of :func:`build_issue_matrix_document` -- round-trips ``rows``."""
+    raw_rows = data.get("rows", {})
+    if not isinstance(raw_rows, Mapping):
+        return {}
+    return {
+        str(issue_ref): IssueMatrixEntry.from_dict(entry)
+        for issue_ref, entry in raw_rows.items()
+        if isinstance(entry, Mapping)
+    }
+
+
+def write_issue_matrix(
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    feature_dir: Path,
+    rows: Mapping[str, IssueMatrixEntry],
+    policy: ProtectionPolicyLike,
+    actor: str = "system",
+    target_branch: str | None = None,
+) -> WriteSeamResult:
+    """The ONE canonical ``issue-matrix.json`` writer (T020).
+
+    Serializes ``rows`` to ``feature_dir/issue-matrix.json`` and routes the
+    commit through :func:`write_target(ISSUE_MATRIX)
+    <mission_runtime.PlacementSeam.write_target>` via the WP03 write-seam
+    helper (:func:`specify_cli.coordination.write_seam.write_artifact`) --
+    never a hand-rolled commit path (C-001/C-006). No ``issue-matrix.md`` is
+    ever emitted by this writer (C-008).
+
+    ``feature_dir`` is written to locally first (the write-seam materialises
+    a coord copy and cleans up the primary residue for coord topologies --
+    see ``commit_router._stage_artifacts_in_coord_worktree`` R6).
+    """
+    from specify_cli.coordination.write_seam import write_artifact
+    from mission_runtime import MissionArtifactKind
+
+    path = feature_dir / ISSUE_MATRIX_JSON_FILENAME
+    document = build_issue_matrix_document(rows)
+    path.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    return write_artifact(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        kind=MissionArtifactKind.ISSUE_MATRIX,
+        files=(path,),
+        message=f"chore: update issue-matrix for {mission_slug}",
+        policy=policy,
+        entry_id=actor,
+        target_branch=target_branch,
+        primary_paths_created_this_invocation=frozenset({path}),
+    )
+
+
+# ---------------------------------------------------------------------------
+# T021 (B3) -- finalize scaffold, COORD via write_target(ISSUE_MATRIX)
+# ---------------------------------------------------------------------------
+
+
 def scaffold_issue_matrix(
     feature_dir: Path,
     spec_md_path: Path,
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    policy: ProtectionPolicyLike,
+    target_branch: str | None = None,
 ) -> Path | None:
-    """Author ``feature_dir/issue-matrix.md`` from detected GH issue refs.
+    """Author ``issue-matrix.json`` from detected GH issue refs (B3).
 
-    The scaffold is **idempotent**: if ``issue-matrix.md`` already exists
-    in ``feature_dir``, this function returns that path unchanged without
-    overwriting operator-curated content.
+    Routed via :func:`write_issue_matrix` (``write_target(ISSUE_MATRIX)``) --
+    lands on COORD for coord/lanes-with-coord topologies, never a stray
+    ``issue-matrix.md`` on the planning (primary) dir. This closes B3: the
+    former ``.md``-on-primary scaffold meant FR-013 migrate-on-write never
+    fired for a greenfield mission (permanent split-brain).
+
+    The scaffold is **idempotent**: an existing matrix -- either format, on
+    whichever surface (coord or primary) it resolves to -- is never
+    overwritten, so operator edits (or an already-migrated mission) survive
+    re-runs. The existence check is COORD-aware (:func:`coord_read_dir_for`)
+    because a prior write may already have unlinked the local primary copy
+    (write-seam residue cleanup, R6) -- a bare ``feature_dir``-local
+    ``.exists()`` would then wrongly see "nothing here" and re-scaffold.
 
     Args:
-        feature_dir: The ``kitty-specs/<slug>/`` directory for the mission.
+        feature_dir: The ``kitty-specs/<slug>/`` planning directory.
         spec_md_path: The mission's ``spec.md`` (used to detect issue refs).
+        repo_root: Primary checkout root.
+        mission_slug: Mission handle.
+        policy: A duck-typed ``is_protected(ref) -> bool`` protection policy.
+        target_branch: Optional short primary branch name (ff-advance).
 
     Returns:
-        Path to the scaffolded (or pre-existing) ``issue-matrix.md``, or
-        ``None`` when ``spec.md`` references no GH issues — in which case
-        no file is created.
+        Path to the scaffolded (or pre-existing) ``issue-matrix.json``, or
+        ``None`` when ``spec.md`` references no GH issues (no file created)
+        or the write was refused/failed (best-effort, never blocking).
     """
-    out_path = feature_dir / "issue-matrix.md"
-    if out_path.exists():
-        # Respect existing operator-curated file. Idempotent re-runs are a hard
-        # requirement: the WP09 reviewer guidance explicitly checks this.
-        return out_path
+    from mission_runtime import MissionArtifactKind, coord_read_dir_for
+
+    issue_matrix_dir = (
+        coord_read_dir_for(repo_root, mission_slug, MissionArtifactKind.ISSUE_MATRIX)
+        or feature_dir
+    )
+    json_path = issue_matrix_dir / ISSUE_MATRIX_JSON_FILENAME
+    if json_path.exists() or (issue_matrix_dir / ISSUE_MATRIX_MD_FILENAME).exists():
+        # Respect existing content (JSON or legacy .md) -- idempotent re-runs
+        # are a hard requirement (WP09-era reviewer guidance still applies).
+        return json_path
+
     refs = detect_issue_references(spec_md_path)
     if not refs:
         return None
-    lines = [
-        f"# Issue matrix — {feature_dir.name}",
-        "",
-        (
-            "Per FR-037 of the spec-kitty-mission-review skill Gate-4. One row "
-            "per issue referenced in spec.md."
-        ),
-        "",
-        "| Issue | Title | Verdict | Evidence ref |",
-        "|-------|-------|---------|--------------|",
-    ]
-    for ref in refs:
-        lines.append(
-            f"| #{ref.number} | <fill at WP-implementation time> | unknown | <link or commit> |"
+
+    rows = {
+        f"#{ref.number}": IssueMatrixEntry(
+            verdict=_SCAFFOLD_VERDICT_PLACEHOLDER,
+            evidence_ref=_SCAFFOLD_EVIDENCE_PLACEHOLDER,
+            title=_SCAFFOLD_TITLE_PLACEHOLDER,
         )
-    lines.append("")
-    lines.append(
-        "Valid `Verdict` values: `fixed`, `verified-already-fixed`, "
-        "`deferred-with-followup`, `in-mission` (being fixed by a later WP in "
-        "this mission; must reach a terminal verdict before mission `done`)."
+        for ref in refs
+    }
+    result = write_issue_matrix(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        feature_dir=feature_dir,
+        rows=rows,
+        policy=policy,
+        actor="finalize-scaffold",
+        target_branch=target_branch,
     )
-    lines.append("")
-    out_path.write_text("\n".join(lines), encoding="utf-8")
-    return out_path
+    if result.status in ("committed", "unchanged"):
+        # ``issue_matrix_dir`` was resolved BEFORE the write and is unaffected
+        # by it (routing is topology-derived, not write-order-derived) --
+        # reuse it rather than ``feature_dir``, which write-seam residue
+        # cleanup (R6) may already have unlinked for a coord-routed mission.
+        return json_path
+    return None

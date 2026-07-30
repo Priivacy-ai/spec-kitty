@@ -131,6 +131,13 @@ class LanesManifest:
             authoritative source; use ``lane_for_wp()`` instead.  As of 3.1.1
             planning-artifact WPs are first-class lane-owned entities assigned to
             the canonical ``"lane-planning"`` lane.
+        planning_commit_sha: FR-009 / ADR ``2026-07-29-1``: the recorded
+            finalize-tasks planning-artifact commit on ``target_branch``, captured
+            ONCE by ``mission_finalize._compute_and_write_lanes`` and frozen —
+            never re-derived live at lane-allocation time (the moving-tip trap the
+            ADR closes). ``None`` for a ``lanes.json`` written before this field
+            existed; the allocator's merge step is a no-op in that case,
+            reproducing pre-fix behaviour exactly (backward compatible).
     """
 
     version: int
@@ -143,6 +150,7 @@ class LanesManifest:
     computed_from: str
     planning_artifact_wps: list[str] = field(default_factory=list)
     collapse_report: CollapseReport | None = field(default=None)
+    planning_commit_sha: str | None = field(default=None)
 
     def lane_for_wp(self, wp_id: str) -> ExecutionLane | None:
         """Return the lane containing the given WP, or None."""
@@ -169,6 +177,7 @@ class LanesManifest:
             "computed_at": self.computed_at,
             "computed_from": self.computed_from,
             "planning_artifact_wps": self.planning_artifact_wps,
+            "planning_commit_sha": self.planning_commit_sha,
         }
         if self.collapse_report and self.collapse_report.events:
             d["collapse_report"] = self.collapse_report.to_dict()
@@ -203,4 +212,5 @@ class LanesManifest:
             computed_from=data["computed_from"],
             planning_artifact_wps=data.get("planning_artifact_wps", []),
             collapse_report=collapse_report,
+            planning_commit_sha=data.get("planning_commit_sha"),
         )

@@ -2209,6 +2209,40 @@ _Query local invocation records._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty issue-matrix
+
+_Issue-matrix commands (structured issue-matrix.json)._
+
+```
+ Usage: spec-kitty issue-matrix [OPTIONS] COMMAND [ARGS]...
+
+ Issue-matrix commands (structured issue-matrix.json).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ migrate  Bulk-migrate legacy ``issue-matrix.md`` missions to                 │
+│          ``issue-matrix.json`` (FR-013).                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty issue-matrix migrate
+
+```
+ Usage: spec-kitty issue-matrix migrate [OPTIONS]
+
+ Bulk-migrate legacy ``issue-matrix.md`` missions to ``issue-matrix.json``
+ (FR-013).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --mission          TEXT  Scope to a single mission handle. Omit to migrate   │
+│                          all missions.                                       │
+│ --json                   Emit structured JSON output.                        │
+│ --help     -h            Show this message and exit.                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty issue-search
 
 _Search tracker issues via the hosted read path_
@@ -3666,6 +3700,10 @@ _Manage invocation records._
 │ complete  Close an open invocation record. --invocation-id and --outcome are │
 │           required.                                                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
+
+ Open:  spec-kitty dispatch "<request>"
+ Close: spec-kitty profile-invocation complete --invocation-id <id> --outcome
+ <outcome>
 ```
 
 ## spec-kitty profile-invocation complete

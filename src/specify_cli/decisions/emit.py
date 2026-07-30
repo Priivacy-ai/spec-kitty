@@ -24,7 +24,7 @@ Public API:
 
 from __future__ import annotations
 
-from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
+from mission_runtime import MissionArtifactKind, placement_seam
 import json
 from datetime import UTC, datetime
 from pathlib import Path
@@ -67,8 +67,22 @@ def _now_utc() -> datetime:
 
 
 def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
-    """Return ``kitty-specs/<mission_slug>/``."""
-    return resolve_feature_dir_for_mission(repo_root, mission_slug)
+    """Return ``kitty-specs/<mission_slug>/`` via the kind-aware placement seam.
+
+    write-side-seam-matrix-tracer-01KYP3MH WP02 (FR-010, #3055) Move A: routed
+    through ``placement_seam(...).read_dir(STATUS_STATE)`` instead of the
+    kind-blind ``resolve_feature_dir_for_mission`` — this drops
+    ``decisions/emit.py`` off the coord-authority gate's allow-list (it no
+    longer calls the kind-blind resolver at all). ``status.events.jsonl`` is
+    the ``STATUS_STATE`` kind (``mission_runtime.artifacts``), matching
+    ``decisions/service.py``'s existing read of the SAME directory — reads and
+    writes agree on where the coord-owned decision/status log lives under
+    every topology, closing a prior read/write split-brain risk.
+    """
+    mission_dir: Path = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.STATUS_STATE
+    )
+    return mission_dir
 
 
 def _events_path(repo_root: Path, mission_slug: str) -> Path:

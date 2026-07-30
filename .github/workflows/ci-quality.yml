@@ -408,6 +408,7 @@ jobs:
               - 'src/specify_cli/decisions/**'
               - 'src/specify_cli/doc_analysis/**'
               - 'src/specify_cli/widen/**'
+              - 'src/specify_cli/tasks/**'
             governance:
               - 'src/specify_cli/doctrine/**'
               - 'src/specify_cli/policy/**'

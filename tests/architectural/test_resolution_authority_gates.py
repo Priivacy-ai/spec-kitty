@@ -53,6 +53,7 @@ line-drift theater); its keys are NOT modified by this mission.
 from __future__ import annotations
 
 import ast
+import inspect
 import time
 from collections import Counter
 from collections.abc import Callable, Sequence
@@ -62,6 +63,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from mission_runtime import PlacementSeam
 from tests.architectural._ratchet_keys import code_tokens_by_line
 
 pytestmark = pytest.mark.architectural
@@ -90,6 +92,11 @@ CANONICALIZER_PRIMITIVE_NAMES = frozenset(
     {CANONICALIZER_PRIMITIVE, "_compose_primary_feature_dir"}
 )
 COORD_BLIND_RESOLVER = "resolve_feature_dir_for_mission"
+
+# write-side-seam-matrix-tracer-01KYP3MH WP02 (FR-010, #3055): the relative
+# path Move A routes off the coord-authority gate entirely (T007/T008/T009 —
+# hoisted to a constant per the repeated-literal standing order, 3+ uses).
+EMIT_PY_REL_PATH = "src/specify_cli/decisions/emit.py"
 
 # The canonical fold the handle arg must flow from (intra-function def-use).
 CANONICAL_FOLD_SEAM = "_canonicalize_primary_read_handle"
@@ -166,7 +173,16 @@ COORD_KIND_AWARE_AUTHORITY = "commit_for_mission(kind=) / resolve_planning_read_
 # census: 2 -> 4. Floor raised 2 -> 4 to the honest re-measured count (the two
 # new sites were UNSEEN before, not un-routed — this is a visibility fix, not a
 # regression to route away).
-COORD_AUTHORITY_WRITE_FLOOR = 4
+# write-side-seam-matrix-tracer-01KYP3MH WP02 (FR-010, #3055) Move A,
+# STRENGTHENING: T007 routed ``decisions/emit.py:_mission_dir:71`` off the
+# kind-blind resolver entirely (onto ``placement_seam(...).read_dir(STATUS_STATE)``),
+# and T008 dropped it from ``_COORD_WRITE_BY_DESIGN`` + the YAML allowlist in
+# the SAME change. This is a genuine routing shrink (not a re-pin masking an
+# un-routed write): live write census 4 -> 3. Floor lowered 4 -> 3 to match.
+# The three surviving by-design sites (widen/state.py, agent_tasks_ports.py,
+# lanes/recovery.py) keep the floor non-vacuous — see
+# ``test_coord_authority_by_design_survives_at_three_non_vacuous``.
+COORD_AUTHORITY_WRITE_FLOOR = 3
 
 # tasks-py-degod WP09 — coord-authority write-floor margin gate (anti-masking).
 # The floor must track the honest live write census: setting it materially BELOW
@@ -715,9 +731,17 @@ _WRITE_INDICATOR_NAMES: frozenset[str] = frozenset(
 # Widening the by-design set to file-scope (matching the existing two entries'
 # shape) makes them WRITE-classified and forces an explicit allowlist sanction
 # (see resolution_gate_allowlist.yaml) instead of leaving them unseen.
+# write-side-seam-matrix-tracer-01KYP3MH WP02 (FR-010, #3055) Move A: dropped
+# ``src/specify_cli/decisions/emit.py`` — T007 routed its only
+# ``resolve_feature_dir_for_mission`` call site (``_mission_dir:71``) through
+# the kind-aware ``placement_seam(...).read_dir(STATUS_STATE)`` seam, so the
+# file no longer calls the kind-blind resolver at all (see
+# ``test_emit_py_has_no_live_coord_blind_resolver_call_sites``). Route ONLY
+# emit.py — the three surviving sites below are by-design and MUST stay
+# kind-blind (routing them too would collapse the census to 0, a vacuous
+# gate; see ``test_coord_authority_by_design_survives_at_three_non_vacuous``).
 _COORD_WRITE_BY_DESIGN: frozenset[str] = frozenset(
     {
-        "src/specify_cli/decisions/emit.py",
         "src/specify_cli/widen/state.py",
         "src/specify_cli/agent_tasks_ports.py",
         "src/specify_cli/lanes/recovery.py",
@@ -780,8 +804,10 @@ def scan_coord_authority_call_sites(src_root: Path) -> list[CoordAuthoritySite]:
 
     The ``is_write`` flag applies the documented write predicate: the enclosing
     function contains a write indicator, OR the call site lives in a
-    coord-owned-write-by-design module (``decisions/emit.py`` / ``widen/state.py``).
-    The composite key's ``token`` is the frozen ``code_tokens_by_line`` string;
+    coord-owned-write-by-design module (``widen/state.py`` / ``agent_tasks_ports.py``
+    / ``lanes/recovery.py``). ``decisions/emit.py`` was removed from this set by
+    WP02 Move A (it no longer calls the kind-blind resolver at all). The
+    composite key's ``token`` is the frozen ``code_tokens_by_line`` string;
     ``node.lineno`` indexes the token map only.
     """
     sites: list[CoordAuthoritySite] = []
@@ -1145,11 +1171,19 @@ def test_coord_authority_open_write_mode_is_write() -> None:
 
 
 def test_coord_authority_by_design_modules_classified_write() -> None:
-    """``decisions/emit.py`` and ``widen/state.py`` are write-by-design sites."""
+    """``widen/state.py`` and its siblings are write-by-design sites (T009).
+
+    WP02 Move A dropped ``decisions/emit.py`` from ``_COORD_WRITE_BY_DESIGN``
+    (it no longer calls the kind-blind resolver — see
+    ``test_emit_py_has_no_live_coord_blind_resolver_call_sites``); it must NOT
+    reappear here as write-by-design.
+    """
     sites = scan_coord_authority_call_sites(SRC_ROOT)
     by_design = {s.rel_path for s in sites if s.is_write and s.rel_path in _COORD_WRITE_BY_DESIGN}
-    assert "src/specify_cli/decisions/emit.py" in by_design
     assert "src/specify_cli/widen/state.py" in by_design
+    assert "src/specify_cli/agent_tasks_ports.py" in by_design
+    assert "src/specify_cli/lanes/recovery.py" in by_design
+    assert EMIT_PY_REL_PATH not in by_design
 
 
 # --- T004: seeded allowlist is green ---------------------------------------
@@ -1225,7 +1259,7 @@ def test_canonicalizer_permanent_allowlist_is_exactly_3() -> None:
 
 
 def test_coord_by_design_writes_in_allowlist() -> None:
-    """``decisions/emit.py`` and ``widen/state.py`` are sanctioned by design."""
+    """``widen/state.py`` and its siblings are sanctioned by design (T009)."""
     sites = {
         (s.rel_path, s.key)
         for s in scan_coord_authority_call_sites(SRC_ROOT)
@@ -1612,9 +1646,9 @@ def test_real_allowlist_declares_no_count_qualifiers() -> None:
 
 
 def test_coord_authority_gate_floor() -> None:
-    """Concrete floor: >= 4 WRITE-classified coord call sites (NFR-002), floor tight.
+    """Concrete floor: >= 3 WRITE-classified coord call sites (NFR-002), floor tight.
 
-    4 is the hard-coded live write-candidate census (NOT ``>= len(scanned)`` —
+    3 is the hard-coded live write-candidate census (NOT ``>= len(scanned)`` —
     that is tautological). Sites that sit in a function carrying a write indicator,
     OR that live in a file listed in ``_COORD_WRITE_BY_DESIGN`` (write-classified
     by design and sanctioned in the allowlist). History: WP08 set this to the
@@ -1649,7 +1683,16 @@ def test_coord_authority_gate_floor() -> None:
     the live census 2 → 4; floor raised 2 → 4 to match, and both new sites are
     sanctioned in the allowlist (baseline 2 → 4). The ``coord_authority_baseline``
     scalar caps the allowlist *entry count*, a different quantity from the write
-    *site* census (which they happen to equal here).
+    *site* census (which they happen to equal here). write-side-seam-matrix-tracer-01KYP3MH
+    WP02 (FR-010, #3055) Move A, STRENGTHENING: T007 routed
+    ``decisions/emit.py:_mission_dir:71`` off the kind-blind resolver entirely
+    (onto ``placement_seam(...).read_dir(STATUS_STATE)``), so it no longer
+    calls ``resolve_feature_dir_for_mission`` at all — a genuine routing
+    shrink, not a re-pin masking an un-routed write. T008 dropped it from
+    ``_COORD_WRITE_BY_DESIGN`` and the YAML allowlist in the same change,
+    shrinking the live census 4 → 3; floor lowered 4 → 3 to match (baseline
+    4 → 3). The three surviving by-design sites keep the floor non-vacuous
+    (``test_coord_authority_by_design_survives_at_three_non_vacuous``).
 
     Two bounds are asserted (mirroring ``test_routed_count_floor``):
     * lower — ``live >= floor``: the census may not silently drop below the floor;
@@ -1670,6 +1713,122 @@ def test_coord_authority_gate_floor() -> None:
         f"below the live write census ({len(writes)}); raise the floor to the honest "
         "live count so it cannot mask un-routed kind-blind writes."
     )
+
+
+# --- WP02 (write-side-seam-matrix-tracer-01KYP3MH, FR-010, #3055): emit.py
+# Move A non-vacuity proof (contracts/coord-authority-gate.md "Non-vacuity
+# proof"). NOTE: this file's own pre-existing "T006" label (concrete floors,
+# above) belongs to a DIFFERENT mission's task numbering
+# (single-authority-resolution-gates-01KW1P0F WP01); the T006a/T006b markers
+# below are THIS mission's tasks.md subtask IDs, not a re-use of that label. --
+def test_placement_seam_write_target_and_read_dir_require_kind() -> None:
+    """T006a non-vacuity: the kind-aware seam offers no blind escape hatch.
+
+    ``PlacementSeam.write_target`` / ``.read_dir`` both take a MANDATORY
+    ``kind: MissionArtifactKind`` positional parameter with no default -- there
+    is no call shape that resolves a write/read target without naming a kind.
+    The literal "a ``write_target()`` call with no ``kind``" the contract's
+    non-vacuity proof asks for never type-checks / never executes: this test
+    pins that as a signature-level invariant rather than a literal-vs-literal
+    assertion (which would be vacuous per DIRECTIVE_003/the contract). This is
+    the seam-level complement to ``test_emit_py_has_no_live_coord_blind_resolver_call_sites``
+    (T006b): that test guards against a REVERT reintroducing the kind-blind
+    resolver call in ``decisions/emit.py``; this test guards the REPLACEMENT
+    such a revert would have to route around, proving it cannot silently
+    degrade to kind-blind.
+    """
+    write_sig = inspect.signature(PlacementSeam.write_target)
+    read_sig = inspect.signature(PlacementSeam.read_dir)
+    for sig, name in ((write_sig, "write_target"), (read_sig, "read_dir")):
+        kind_param = sig.parameters["kind"]
+        assert kind_param.default is inspect.Parameter.empty, (
+            f"PlacementSeam.{name} must not default `kind` — a defaulted "
+            "kind would let a caller resolve a write/read target blind"
+        )
+
+
+def test_emit_py_has_no_live_coord_blind_resolver_call_sites() -> None:
+    """T006b non-vacuity: ``decisions/emit.py`` carries ZERO live
+    ``resolve_feature_dir_for_mission`` call sites (Move A, T007).
+
+    Before T007, ``emit.py:_mission_dir:71`` called the kind-blind resolver
+    directly (the removed ``_COORD_WRITE_BY_DESIGN`` / allowlist entry) — this
+    test is RED against pre-T007 ``emit.py`` (one live site) and GREEN once
+    T007 routes ``_mission_dir`` through the kind-aware
+    ``placement_seam(...).read_dir(STATUS_STATE)`` seam.
+
+    Guarding for ANY re-appearance of the call (not merely a WRITE-classified
+    one) closes a gap ``check_coord_authority_gate`` alone cannot: emit.py's
+    actual filesystem write happens one function-hop away from the resolve()
+    call (in ``_append_raw_event``, which receives the already-resolved path
+    as a parameter, not in ``_mission_dir`` itself) — exactly the multi-hop
+    shape that made ``_COORD_WRITE_BY_DESIGN`` necessary in the first place.
+    So a bare revert of ``_mission_dir`` alone would NOT be re-classified
+    WRITE by ``_function_has_write_indicator`` once ``emit.py`` leaves
+    ``_COORD_WRITE_BY_DESIGN`` (T008) — widening that predicate to close this
+    is the explicitly out-of-scope Move B (``contracts/coord-authority-gate.md``).
+    This presence check is the Move-A-scoped substitute: it catches the call
+    re-appearing at all, regardless of write classification, standing in for
+    the write-classification proof until/unless Move B is triggered.
+    """
+    sites = scan_coord_authority_call_sites(SRC_ROOT)
+    emit_sites = [s for s in sites if s.rel_path == EMIT_PY_REL_PATH]
+    assert emit_sites == [], (
+        f"decisions/emit.py must no longer call {COORD_BLIND_RESOLVER!r} "
+        f"(Move A, FR-010, #3055); found: {emit_sites}"
+    )
+
+
+def test_coord_authority_by_design_survives_at_three_non_vacuous() -> None:
+    """T009: the three surviving by-design sites are counted; floor 3 is tight.
+
+    After Move A (T008) drops ``decisions/emit.py`` from
+    ``_COORD_WRITE_BY_DESIGN``, exactly three by-design coord-owned writes
+    remain: ``widen/state.py``, ``agent_tasks_ports.py``, ``lanes/recovery.py``.
+    Non-vacuity invariant (per contracts/coord-authority-gate.md): the live
+    kind-blind coord-write census MUST NOT drop below the re-pinned floor of 3.
+    This test proves the floor has teeth two ways:
+
+    1. all three surviving sites are live WRITE-classified today (sanity — a
+       vacuous "floor of 3 with 0 real sites" would slip through otherwise);
+    2. removing ANY ONE of the three from the live write set (simulating that
+       site's by-design classification being reverted, mirroring
+       ``test_coord_authority_floor_non_vacuous_against_reverted_by_design_write``'s
+       shape for the WP11 pair) drops the count below
+       ``COORD_AUTHORITY_WRITE_FLOOR`` — so ``test_coord_authority_gate_floor``'s
+       ``>= COORD_AUTHORITY_WRITE_FLOOR`` assertion would fire RED for any single
+       one of these regressions, not stay vacuously green.
+    """
+    surviving_by_design = frozenset(
+        {
+            "src/specify_cli/widen/state.py",
+            "src/specify_cli/agent_tasks_ports.py",
+            "src/specify_cli/lanes/recovery.py",
+        }
+    )
+    live_sites = scan_coord_authority_call_sites(SRC_ROOT)
+    live_writes = [s for s in live_sites if s.is_write]
+    live_by_design_paths = {s.rel_path for s in live_writes if s.rel_path in surviving_by_design}
+    assert live_by_design_paths == surviving_by_design, (
+        "sanity check failed: expected all 3 surviving by-design sites to be "
+        f"live WRITE-classified, got {live_by_design_paths} — the tightness "
+        "simulation below would be vacuous"
+    )
+    assert EMIT_PY_REL_PATH not in {s.rel_path for s in live_writes}, (
+        "decisions/emit.py must no longer be WRITE-classified after Move A — "
+        "it was dropped from _COORD_WRITE_BY_DESIGN (T008) and no longer "
+        "calls the kind-blind resolver (T006b)"
+    )
+    for excluded in surviving_by_design:
+        regressed = [s for s in live_writes if s.rel_path != excluded]
+        assert len(regressed) < COORD_AUTHORITY_WRITE_FLOOR, (
+            f"non-vacuity broken: excluding {excluded} alone leaves "
+            f"{len(regressed)} write-classified sites, which must be < "
+            f"COORD_AUTHORITY_WRITE_FLOOR ({COORD_AUTHORITY_WRITE_FLOOR}) for "
+            "the floor test to catch this regression shape — the floor of 3 "
+            "is pinned too high to be tight against a single by-design "
+            "reversion."
+        )
 
 
 # --- T036: NFR-002 non-vacuity — the floor cannot be pinned above a

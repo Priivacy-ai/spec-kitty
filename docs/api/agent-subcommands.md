@@ -39,17 +39,22 @@ _Commands for AI agents to execute spec-kitty mission actions programmatically_
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ config      Manage project AI agent configuration (add, remove, list agents) │
-│ mission     Mission lifecycle commands for AI agents                         │
-│ tasks       Task workflow commands for AI agents                             │
-│ context     Agent context management commands                                │
-│ release     Release packaging commands for AI agents                         │
-│ action      Mission action commands that display prompts and instructions    │
-│             for agents                                                       │
-│ status      Canonical status management commands                             │
-│ tests       Test-related commands for AI agents                              │
-│ decision    Decision Moment ledger for interview questions.                  │
-│ retrospect  Retrospective synthesis commands                                 │
+│ tracer-append  Append a dated, attributed finding to the mission's tracer    │
+│                surface.                                                      │
+│ issue-verdict  Set an issue-matrix row's verdict, routed via                 │
+│                ``write_target(ISSUE_MATRIX)``.                               │
+│ config         Manage project AI agent configuration (add, remove, list      │
+│                agents)                                                       │
+│ mission        Mission lifecycle commands for AI agents                      │
+│ tasks          Task workflow commands for AI agents                          │
+│ context        Agent context management commands                             │
+│ release        Release packaging commands for AI agents                      │
+│ action         Mission action commands that display prompts and instructions │
+│                for agents                                                    │
+│ status         Canonical status management commands                          │
+│ tests          Test-related commands for AI agents                           │
+│ decision       Decision Moment ledger for interview questions.               │
+│ retrospect     Retrospective synthesis commands                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -498,6 +503,28 @@ _Decision Moment ledger for interview questions._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty agent issue-verdict
+
+```
+ Usage: spec-kitty agent issue-verdict [OPTIONS]
+
+ Set an issue-matrix row's verdict, routed via ``write_target(ISSUE_MATRIX)``.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission               TEXT  Mission handle (slug, mission_id, or mid8). │
+│                                  [required]                                  │
+│ *  --issue                 TEXT  Issue reference, e.g. "#1726". [required]   │
+│ *  --verdict               TEXT  fixed | verified-already-fixed |            │
+│                                  deferred-with-followup | in-mission         │
+│                                  [required]                                  │
+│ *  --actor                 TEXT  Identity of the acting agent. [required]    │
+│    --wp                    TEXT  Owning work-package id (e.g. WP01).         │
+│    --evidence-ref          TEXT  Evidence text or link for the verdict.      │
+│    --json                        Output JSON format.                         │
+│    --help          -h            Show this message and exit.                 │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty agent mission
 
 _Mission lifecycle commands for AI agents_
@@ -513,6 +540,8 @@ _Mission lifecycle commands for AI agents_
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ record-analysis      Persist `/spec-kitty.analyze` output as                 │
 │                      `analysis-report.md`.                                   │
+│ acceptance-verdict   Record one acceptance-criterion verdict, routed through │
+│                      the WP03 write seam.                                    │
 │ branch-context       Return deterministic branch contract for planning-stage │
 │                      prompts.                                                │
 │ create               Create new mission directory structure in the project   │
@@ -564,6 +593,29 @@ _Mission lifecycle commands for AI agents_
 │ --no-commit                Skip auto-commit (report only)                    │
 │ --diagnose                 Diagnose acceptance blockers without mutation     │
 │ --help       -h            Show this message and exit.                       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty agent mission acceptance-verdict
+
+```
+ Usage: spec-kitty agent mission acceptance-verdict [OPTIONS]
+
+ Record one acceptance-criterion verdict, routed through the WP03 write seam.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission                      TEXT  Mission slug, mid8, or mission_id    │
+│                                         [required]                           │
+│ *  --criterion                    TEXT  Acceptance criterion id (e.g.        │
+│                                         FR-001)                              │
+│                                         [required]                           │
+│ *  --result                       TEXT  pass | fail | pending [required]     │
+│    --verification-method          TEXT  How this was verified (updates       │
+│                                         proof_type)                          │
+│    --actor                        TEXT  Actor recording this verdict         │
+│    --evidence                     TEXT  Evidence reference (URL/path/etc.)   │
+│    --json                               Output JSON format                   │
+│    --help                 -h            Show this message and exit.          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1713,6 +1765,26 @@ _Test-related commands for AI agents_
 │                          [default: .]                                        │
 │    --json                Emit JSON instead of human-readable text            │
 │    --help  -h            Show this message and exit.                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty agent tracer-append
+
+```
+ Usage: spec-kitty agent tracer-append [OPTIONS]
+
+ Append a dated, attributed finding to the mission's tracer surface.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission           TEXT  Mission handle (e.g. 'my-mission-01ABCDEF')     │
+│                              [required]                                      │
+│ *  --category          TEXT  Tracer category: approach | design-decisions |  │
+│                              tooling-friction                                │
+│                              [required]                                      │
+│ *  --entry             TEXT  Finding text [required]                         │
+│ *  --actor             TEXT  Attribution (required, non-empty) [required]    │
+│    --json                    Output JSON format                              │
+│    --help      -h            Show this message and exit.                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 <!-- END GENERATED -->

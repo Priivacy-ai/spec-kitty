@@ -350,19 +350,40 @@ def _read_spec_requirement_ids(planning_dir: Path, *, json_output: bool) -> tupl
 
 
 def _scaffold_issue_matrix_if_present(
-    planning_dir: Path, repo_root: Path, *, validate_only: bool, json_output: bool
+    planning_dir: Path,
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    target_branch: str | None,
+    validate_only: bool,
+    json_output: bool,
 ) -> None:
-    """Phase: FR-009 / WP09 issue-matrix.md scaffold (idempotent, planning-only)."""
+    """Phase: B3 / T021 issue-matrix.json scaffold (idempotent), routed COORD.
+
+    write-side-seam-matrix-tracer-01KYP3MH WP05 (B3): authors
+    ``issue-matrix.json`` via ``write_target(ISSUE_MATRIX)`` -- COORD for
+    coord/lanes-with-coord topologies -- NEVER a stray ``issue-matrix.md`` on
+    the planning (primary) dir. The former ``.md``-on-primary scaffold meant
+    FR-013 migrate-on-write never fired for a greenfield mission.
+    """
     if validate_only:
         return
     try:
+        from specify_cli.git.protection_policy import ProtectionPolicy
         from specify_cli.tasks.issue_matrix import scaffold_issue_matrix
 
         spec_md = planning_dir / "spec.md"
-        issue_matrix_path = scaffold_issue_matrix(planning_dir, spec_md)
+        issue_matrix_path = scaffold_issue_matrix(
+            planning_dir,
+            spec_md,
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            policy=ProtectionPolicy.resolve(repo_root),
+            target_branch=target_branch,
+        )
     except Exception as issue_matrix_exc:  # noqa: BLE001 — convenience artifact never blocks finalize
         if not json_output:
-            console.print(f"[yellow]Warning:[/yellow] could not scaffold issue-matrix.md: {issue_matrix_exc}")
+            console.print(f"[yellow]Warning:[/yellow] could not scaffold issue-matrix.json: {issue_matrix_exc}")
         return
     if issue_matrix_path is not None and not json_output:
         try:
@@ -373,7 +394,7 @@ def _scaffold_issue_matrix_if_present(
 
 
 def _advisory_issue_matrix_lint(planning_dir: Path, *, json_output: bool) -> None:
-    """Phase: FR-009 advisory (never-blocking) ``issue-matrix.md`` lint (#2223).
+    """Phase: FR-009 advisory (never-blocking) issue-matrix lint (#2223).
 
     Reuses the SAME exported ``validate_issue_matrix`` rule engine the approve
     gate calls (NFR-002 — one engine, two callers). Findings are surfaced as
@@ -386,14 +407,25 @@ def _advisory_issue_matrix_lint(planning_dir: Path, *, json_output: bool) -> Non
     The engine is imported at call time from the ``review`` package so the
     symbol resolves to the exact callable the approve gate uses (and stays
     monkeypatchable for call-identity tests) without an import cycle.
+
+    C1 fix (write-side-seam-matrix-tracer-01KYP3MH WP05): the precheck is
+    dir-based (:func:`issue_matrix_artifact_present`), not a ``.md``-only
+    ``.exists()`` -- the prior precheck made a ``.json``-only mission (B3)
+    return here BEFORE ``validate_issue_matrix`` ever ran, silently skipping
+    the lint entirely (the same dead-code-behind-a-precheck class the reader
+    migration fixes elsewhere).
     """
-    issue_matrix_path = planning_dir / ISSUE_MATRIX_FILENAME
-    if not issue_matrix_path.exists():
+    from specify_cli.tasks.issue_matrix import ISSUE_MATRIX_JSON_FILENAME
+    from specify_cli.tasks.issue_matrix_migration import issue_matrix_artifact_present
+
+    if not issue_matrix_artifact_present(planning_dir):
         return
+    json_path = planning_dir / ISSUE_MATRIX_JSON_FILENAME
+    matrix_path = json_path if json_path.exists() else planning_dir / ISSUE_MATRIX_FILENAME
     try:
         from specify_cli.cli.commands.review import validate_issue_matrix
 
-        result = validate_issue_matrix(issue_matrix_path)
+        result = validate_issue_matrix(matrix_path)
     except Exception as lint_exc:  # noqa: BLE001 — advisory lint never blocks finalize
         if not json_output:
             console.print(
@@ -1136,6 +1168,36 @@ def _emit_local_canonical_events(
             console.print(f"[yellow]Warning:[/yellow] Local canonical WPCreated/TasksCompleted persistence failed: {local_wp_exc}")
 
 
+def _capture_target_branch_tip(repo_root: Path, target_branch: str) -> str | None:
+    """Capture ``target_branch``'s current tip SHA — the FR-009 recorded planning SHA.
+
+    ADR ``2026-07-29-1`` (WP01, out-of-map producer edit — justified: T002 requires
+    the recorded SHA to exist in ``lanes.json`` at finalize time, and this is the
+    single write authority for that file; ``lanes/worktree_allocator.py`` alone
+    cannot manufacture a value nobody ever persisted). By the time
+    ``_compute_and_write_lanes`` runs, every earlier planning-artifact commit
+    (spec-commit, setup-plan, tasks-commit) has already landed on ``target_branch``
+    (ADR ``2026-06-24-1``: PRIMARY-partition kinds commit there for every topology),
+    so this snapshot is, by construction, the recorded planning-artifact tip — never
+    re-read live at lane-allocation time (the moving-tip trap the ADR closes).
+
+    Returns ``None`` (never raises) on any git failure — a capture failure degrades
+    gracefully to the allocator's pre-WP01 fallback rather than blocking finalize.
+    """
+    import subprocess
+
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", target_branch],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    sha = result.stdout.strip()
+    return sha or None
+
+
 def _compute_and_write_lanes(
     planning_dir: Path,
     repo_root: Path,
@@ -1179,6 +1241,10 @@ def _compute_and_write_lanes(
         wp_bodies=wp_bodies,
         mission_id=mission_id,
     )
+    # FR-009 / ADR 2026-07-29-1 (T002): freeze the recorded planning-artifact SHA
+    # into the SAME write as the rest of lanes.json — no second commit, no
+    # chicken-and-egg with this invocation's own finalize commit hash.
+    lanes_manifest.planning_commit_sha = _capture_target_branch_tip(repo_root, target_branch)
     lanes_path = write_lanes_json(planning_dir, lanes_manifest)
     if not json_output:
         console.print(f"[green]✓[/green] Computed {len(lanes_manifest.lanes)} execution lane(s)")
@@ -1681,7 +1747,12 @@ def finalize_tasks(
         preexisting_primary_files: set[Path] = {p for p in planning_dir.rglob("*") if p.is_file()}
 
         _scaffold_issue_matrix_if_present(
-            planning_dir, repo_root, validate_only=validate_only, json_output=json_output
+            planning_dir,
+            repo_root,
+            mission_slug,
+            target_branch=target_branch,
+            validate_only=validate_only,
+            json_output=json_output,
         )
         _advisory_issue_matrix_lint(planning_dir, json_output=json_output)
 

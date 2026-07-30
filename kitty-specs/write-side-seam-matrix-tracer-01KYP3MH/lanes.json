@@ -1,0 +1,236 @@
+{
+  "version": 1,
+  "mission_slug": "write-side-seam-matrix-tracer-01KYP3MH",
+  "mission_id": "01KYP3MHBPB22TGAT5VRRPT66G",
+  "mission_branch": "kitty/mission-write-side-seam-matrix-tracer-01KYP3MH",
+  "target_branch": "feat/write-side-seam-matrix-tracer",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-07-29-1-lane-base-recorded-planning-commit.md",
+        "src/specify_cli/lanes/auto_rebase.py",
+        "src/specify_cli/lanes/worktree_allocator.py",
+        "src/specify_cli/merge/executor.py",
+        "src/specify_cli/merge/ordering.py",
+        "tests/lanes/test_lane_base_common_ancestor.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-06-26-1-single-authority-seam-and-call-site-gate.md",
+        "src/specify_cli/decisions/emit.py",
+        "tests/architectural/resolution_gate_allowlist.yaml",
+        "tests/architectural/test_resolution_authority_gates.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/coordination/write_seam.py",
+        "src/specify_cli/status/emit.py",
+        "tests/coordination/test_write_seam_adoption.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/acceptance/gates_core.py",
+        "src/specify_cli/acceptance/matrix.py",
+        "src/specify_cli/acceptance/post_consolidation.py",
+        "src/specify_cli/cli/commands/accept.py",
+        "src/specify_cli/cli/commands/agent/acceptance_verdict.py",
+        "src/specify_cli/cli/commands/migrate/backfill_provenance.py",
+        "tests/specify_cli/acceptance/test_acceptance_verdict_command.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/mission_runtime/artifacts.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize.py",
+        "src/specify_cli/cli/commands/review/_issue_matrix.py",
+        "src/specify_cli/tasks/issue_matrix.py",
+        "src/specify_cli/tasks/issue_matrix_migration.py",
+        "tests/specify_cli/tasks/test_issue_matrix_structured.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-j",
+      "wp_ids": [
+        "WP10"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tracer_append.py",
+        "src/specify_cli/retrospective/tracer_writer.py",
+        "tests/specify_cli/retrospective/test_tracer_writer.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/issue_verdict.py",
+        "tests/specify_cli/cli/commands/agent/test_issue_verdict_command.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-e"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission.py",
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py",
+        "src/specify_cli/policy/merge_gates.py",
+        "src/specify_cli/status/doctor.py",
+        "src/specify_cli/tasks/issue_reference_discovery.py",
+        "tests/specify_cli/tasks/test_issue_reference_discovery.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-e"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-k",
+      "wp_ids": [
+        "WP11"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/init.py",
+        "src/specify_cli/cli/commands/merge_driver.py",
+        "src/specify_cli/lanes/merge.py",
+        "src/specify_cli/upgrade/migrations/m_3_2_7_issue_matrix_driver_repoint.py",
+        "tests/specify_cli/cli/commands/test_row_aware_merge_driver.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-e"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/review/__init__.py",
+        "tests/specify_cli/cli/commands/review/test_zero_reference_not_applicable.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-h"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/doctrine/glossary_packs/built-in/spec-kitty-core.glossary-pack.yaml",
+        "src/doctrine/skills/spec-kitty-implement-review/SKILL.md",
+        "src/doctrine/skills/spec-kitty-mission-review/SKILL.md",
+        "tests/architectural/test_issue_matrix_json_migration_completeness.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-e",
+        "lane-h",
+        "lane-i"
+      ],
+      "parallel_group": 4
+    }
+  ],
+  "computed_at": "2026-07-29T10:12:40.329615+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

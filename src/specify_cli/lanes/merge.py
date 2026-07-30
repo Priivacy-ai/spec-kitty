@@ -98,9 +98,12 @@ _MERGE_DRIVERS: tuple[_MergeDriverSpec, ...] = (
     ),
     _MergeDriverSpec(
         config_key="spec-kitty-issue-matrix",
-        name="Spec Kitty issue matrix filled-side merge",
+        name="Spec Kitty issue matrix row-aware merge",
         command="spec-kitty merge-driver-issue-matrix %O %A %B",
-        pattern="kitty-specs/**/issue-matrix.md",
+        # WP11 (FR-008): repointed from issue-matrix.md -- WP05 migrated the
+        # canonical artifact to structured JSON (C-008); no .md is written by
+        # any canonical path any more, so the .md pattern would be inert.
+        pattern="kitty-specs/**/issue-matrix.json",
     ),
 )
 

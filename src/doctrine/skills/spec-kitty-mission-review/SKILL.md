@@ -578,12 +578,14 @@ Record the result under `## Gate Results — Cross-Repo E2E`.
 ### Gate 4: Issue matrix (FR-037)
 
 ```bash
-cat kitty-specs/<slug>/issue-matrix.md
+cat kitty-specs/<slug>/issue-matrix.json
 ```
 
-This file is scaffolded automatically during `spec-kitty tasks` (finalize-tasks)
-for any mission whose `spec.md` references GitHub issues — it should already
-exist by review time. If it is missing, regenerate it with
+`issue-matrix.json` is the single canonical artifact (C-008); a legacy
+`issue-matrix.md` mission is still read via failover, never re-authored as
+markdown. This file is scaffolded automatically during `spec-kitty tasks`
+(finalize-tasks) for any mission whose `spec.md` references GitHub issues —
+it should already exist by review time. If it is missing, regenerate it with
 `spec-kitty agent mission finalize-tasks --mission <slug>` rather than
 hand-authoring one; schema and a worked example live at
 `src/specify_cli/cli/commands/review/ERROR_CODES.md`.
@@ -692,7 +694,8 @@ must be able to understand each finding from the report alone.
 - Notes: <failing scenarios; if EXCEPTION, quote the operator narrative>
 
 ### Gate 4 — Issue Matrix
-- File: `kitty-specs/<slug>/issue-matrix.md`
+- File: `kitty-specs/<slug>/issue-matrix.json` (or the legacy `issue-matrix.md`
+  failover for a pre-migration mission)
 - Rows: <count>
 - Empty / `unknown` verdicts: <count, ideally 0>
 - `deferred-with-followup` rows missing a follow-up handle: <count, ideally 0>

@@ -266,6 +266,14 @@ class TestNi7AssignmentTimeDisclosure:
         monkeypatch.setattr(
             "specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: matrix
         )
+        # WP04 / T016 (#2318): the gate now persists the recomputed verdict
+        # unconditionally when mutate_matrix=True, even with zero negative
+        # invariants (this test's exact scenario). The write itself is not
+        # under test here (see test_acceptance_verdict_command.py for that);
+        # stub it out rather than materialize the resolved surface directory.
+        monkeypatch.setattr(
+            "specify_cli.acceptance.matrix.write_acceptance_matrix", lambda _fd, _m: None
+        )
 
         skipped: list[AcceptanceCheckDiagnostic] = []
         _evaluate_acceptance_matrix(tmp_path, tmp_path, [], skipped, [], mutate_matrix=True)

@@ -345,21 +345,22 @@ def check_issue_matrix(
     """Flag missions with issue references whose issue-matrix verdicts are missing.
 
     ``issue_matrix_dir`` (coord-commit-integrity SURFACE A #1c): the COORD-partition
-    read surface for ``issue-matrix.md`` — the coordination worktree under
+    read surface for the issue-matrix artifact — the coordination worktree under
     coord/lanes-with-coord topology, resolved by the caller through the shared
     placement seam (:func:`mission_runtime.coord_read_dir_for`). Defaults to
     ``feature_dir`` when ``None`` (coord-less missions and legacy callers).
-    ``spec.md`` is ALWAYS read from ``feature_dir`` — it is a PRIMARY-partition kind.
+
+    Discovery scans every mission artifact that can carry a load-bearing GH
+    issue reference — ``spec.md``, ``plan.md``, ``research.md``,
+    ``analysis-report.md``, ``tasks/*.md``, ``contracts/*.md`` — not
+    ``spec.md`` alone (write-side-seam-matrix-tracer-01KYP3MH WP08 T029,
+    FR-004). All of those are PRIMARY-partition kinds, so discovery ALWAYS
+    reads ``feature_dir`` — never ``issue_matrix_dir``.
     """
-    spec_path = feature_dir / "spec.md"
-    if not spec_path.exists():
-        return []
-
     try:
-        from specify_cli.cli.commands.review._issue_matrix import validate_issue_matrix
-        from specify_cli.tasks.issue_matrix import detect_issue_references
+        from specify_cli.tasks.issue_reference_discovery import discover_issue_references
 
-        refs = detect_issue_references(spec_path)
+        refs = discover_issue_references(feature_dir)
     except Exception as exc:
         logger.debug("Could not evaluate issue-matrix doctor check", exc_info=True)
         return [
@@ -367,7 +368,7 @@ def check_issue_matrix(
                 severity=Severity.WARNING,
                 category=Category.ISSUE_MATRIX,
                 wp_id=None,
-                message=f"issue-matrix.md could not be evaluated: {exc}",
+                message=f"issue-matrix could not be evaluated: {exc}",
                 recommended_action="Fix the issue-matrix check before approval/merge.",
             )
         ]
@@ -375,20 +376,31 @@ def check_issue_matrix(
     if not refs:
         return []
 
-    matrix_path = (issue_matrix_dir or feature_dir) / "issue-matrix.md"
-    if not matrix_path.exists():
+    # T043 (C-008 / B-1 fix): presence is a dir-based check
+    # (:func:`issue_matrix_artifact_present`), not a ``.md``-only
+    # ``.exists()`` — the prior precheck made a JSON-only mission (B3) look
+    # like the matrix was missing before ``validate_issue_matrix`` (which
+    # already resolves JSON-first via WP05's canonical dir-based reader,
+    # :func:`~specify_cli.tasks.issue_matrix_migration.load_issue_matrix`)
+    # ever ran.
+    from specify_cli.cli.commands.review._issue_matrix import validate_issue_matrix
+    from specify_cli.tasks.issue_matrix import ISSUE_MATRIX_MD_FILENAME
+    from specify_cli.tasks.issue_matrix_migration import issue_matrix_artifact_present
+
+    matrix_dir = issue_matrix_dir or feature_dir
+    if not issue_matrix_artifact_present(matrix_dir):
         issue_list = ", ".join(f"#{ref.number}" for ref in refs)
         return [
             Finding(
                 severity=Severity.WARNING,
                 category=Category.ISSUE_MATRIX,
                 wp_id=None,
-                message=f"spec.md references GitHub issues but issue-matrix.md is missing: {issue_list}.",
-                recommended_action="Create issue-matrix.md and record final verdicts before approval/merge.",
+                message=f"Mission references GitHub issues but the issue-matrix is missing: {issue_list}.",
+                recommended_action="Create the issue-matrix and record final verdicts before approval/merge.",
             )
         ]
 
-    result = validate_issue_matrix(matrix_path)
+    result = validate_issue_matrix(matrix_dir / ISSUE_MATRIX_MD_FILENAME)
     findings: list[Finding] = []
     referenced_issues = {f"#{ref.number}" for ref in refs}
     matrix_issues = {row.issue for row in result.rows}
