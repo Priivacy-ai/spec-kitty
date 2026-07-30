@@ -251,11 +251,21 @@ class TestEveryRecordedFieldIsTextOrAbsent:
 
     @pytest.mark.parametrize("field", ("uuid", *TEXT_FIELDS))
     @pytest.mark.parametrize(
-        "yaml_value",
-        sorted({*UNUSABLE_UUIDS.values(), *CONTAINER_VALUES.values(), *ABSENT_UUIDS.values()}),
+        "index,yaml_value",
+        list(
+            enumerate(
+                sorted(
+                    {
+                        *UNUSABLE_UUIDS.values(),
+                        *CONTAINER_VALUES.values(),
+                        *ABSENT_UUIDS.values(),
+                    }
+                )
+            )
+        ),
     )
     def test_no_shape_of_any_field_produces_a_wrongly_typed_identity(
-        self, tmp_path: Path, field: str, yaml_value: str
+        self, tmp_path: Path, field: str, index: int, yaml_value: str
     ) -> None:
         """The class-closing invariant, asserted over the whole probed matrix.
 
@@ -264,8 +274,7 @@ class TestEveryRecordedFieldIsTextOrAbsent:
         this parse — a wrongly typed field is the shape that killed routing from
         inside someone else's function.
         """
-        case = f"{field}-{abs(hash(yaml_value))}"
-        path = _config(tmp_path, case, _project(field, yaml_value))
+        path = _config(tmp_path, f"{field}-{index}", _project(field, yaml_value))
 
         identity = load_identity(path)
 
@@ -429,7 +438,9 @@ class TestWritingOverAnUnusableIdentityRecord:
         identity = ensure_identity(path.parent.parent)
 
         assert identity.project_uuid == UUID(_UUID)
-        assert f'"{_UUID}"' not in path.read_text(encoding="utf-8").replace(" ", "")
+        assert f"uuid: {_UUID}\n" in path.read_text(encoding="utf-8"), (
+            "the persisted value carries neither the padding nor its quotes"
+        )
         assert load_identity(path).project_uuid == UUID(_UUID)
 
     def test_atomic_write_still_merges_into_a_valid_document(self, tmp_path: Path) -> None:
