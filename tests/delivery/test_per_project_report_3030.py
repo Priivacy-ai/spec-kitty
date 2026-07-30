@@ -207,6 +207,13 @@ def test_report_does_not_read_the_legacy_offline_queue(tmp_path: Path) -> None:
     # contaminated store holds, none of them dropped by the N1 split.
     assert len(result.named_non_consenting_rows) == 2
     assert result.unresolved_identity_count == 1
+    # ...and the bucket is a ROW, asserted from `rows` itself. The line above is
+    # derived from the projection (`unselectable_identity_count`), so it survives a
+    # report that drops the bucket from `rows` entirely — which means the pair alone
+    # cannot support the "none of them dropped" claim this comment makes. The
+    # retired `len(non_consenting_rows) == 3` did catch that; this restores it.
+    assert sum(1 for row in result.rows if row.is_unresolved_identity) == 1
+    assert result.reconciles, "a dropped bucket must also break reconciliation"
 
 
 # --- F2: reconciliation must be falsifiable ---------------------------------
@@ -482,3 +489,106 @@ def test_a_resolved_project_carries_no_unresolved_candidates(tmp_path: Path) -> 
         if row.is_unresolved_identity:
             continue
         assert row.unresolved_candidates == ()
+
+
+# --- N1-a / N1-b: a recorded name must never be dropped or merged -------------
+
+
+def test_candidates_split_on_project_slug_when_no_repo_slug_was_recorded(
+    tmp_path: Path,
+) -> None:
+    """N1-a/N1-b: ``repo_slug`` null does not mean nameless.
+
+    The three identity columns are resolved INDEPENDENTLY at capture:
+    ``project_slug`` walks a three-path chain over the envelope and the payload,
+    while ``repo_slug`` is a single top-level ``.get()``. A nil-sentinel uuid also
+    normalises to ``None`` while the slug resolves fine. So
+    ``(uuid=None, project_slug='acme-app', repo_slug=None)`` is a production row,
+    not a contrivance.
+
+    Red before the fix, twice over:
+
+    * N1-a — candidates were keyed on ``repo_slug`` alone, so every such row
+      collapsed into the ``None`` key and rendered as ``<no repo recorded>``, with
+      the name sitting unread in the adjacent column.
+    * N1-b — that single candidate then took
+      ``next((r.project_slug for r in rows if r.project_slug), None)``, publishing
+      ``project_slug='acme-app'`` for a group spanning ``acme-app`` AND
+      ``beta-svc``. Structurally the same first-found attribution N1 rejected one
+      level up, and the count sum-check cannot see it: 3 == 3 reconciles while two
+      distinct names are merged.
+    """
+    journal = EventJournal(tmp_path / "slug-only.db")
+    for index, slug in enumerate(("acme-app", "acme-app", "beta-svc")):
+        journal.append(
+            _event(
+                f"evt-anon-{index}",
+                None,
+                f"2026-07-01T00:00:0{index}+00:00",
+                project_slug=slug,
+                repo_slug=None,
+            )
+        )
+
+    (bucket,) = build_per_project_store_report(journal).rows
+
+    by_slug = {c.project_slug: c for c in bucket.unresolved_candidates}
+    assert set(by_slug) == {"acme-app", "beta-svc"}, (
+        "both recorded names must survive as their own candidate; neither may be "
+        "merged into the other nor collapsed into an unnamed bucket"
+    )
+    assert by_slug["acme-app"].event_count == 2
+    assert by_slug["beta-svc"].event_count == 1
+    # Nothing here is genuinely nameless, so no candidate may claim to be.
+    assert all(c.repo_slug is None for c in bucket.unresolved_candidates)
+    assert sum(c.event_count for c in bucket.unresolved_candidates) == 3
+
+
+def test_no_candidate_ever_spans_two_distinct_recorded_names(tmp_path: Path) -> None:
+    """The invariant, over a population mixing every combination of the two columns.
+
+    ``status_report`` states the governing rule for a resolved group — "a
+    disagreement among them is not a licence to invent a third value" — and it
+    binds the candidate breakdown just as hard. A candidate is a *recorded
+    identity*, so two rows may share one only if they agree on both columns.
+
+    The count sum-check does not imply this: merging two names keeps the totals
+    reconciled. This asserts the names directly.
+    """
+    journal = EventJournal(tmp_path / "mixed-identity.db")
+    population = (
+        ("acme-app", "acme/app"),
+        ("acme-app", "acme/app"),
+        ("acme-app", None),  # same project name, no repo recorded
+        ("beta-svc", None),
+        (None, "gamma/tool"),  # repo recorded, no project name
+        (None, None),  # genuinely nameless
+    )
+    for index, (slug, repo) in enumerate(population):
+        journal.append(
+            _event(
+                f"evt-anon-{index}",
+                None,
+                f"2026-07-01T00:00:0{index}+00:00",
+                project_slug=slug,
+                repo_slug=repo,
+            )
+        )
+
+    (bucket,) = build_per_project_store_report(journal).rows
+    candidates = bucket.unresolved_candidates
+
+    identities = [(c.repo_slug, c.project_slug) for c in candidates]
+    assert len(identities) == len(set(identities)), "candidates must be distinct"
+    assert set(identities) == {
+        ("acme/app", "acme-app"),
+        (None, "acme-app"),
+        (None, "beta-svc"),
+        ("gamma/tool", None),
+        (None, None),
+    }
+    assert next(c for c in candidates if c.repo_slug == "acme/app").event_count == 2
+    # Every row accounted for, and exactly one genuinely-nameless candidate.
+    assert sum(c.event_count for c in candidates) == bucket.event_count == 6
+    nameless = [c for c in candidates if not c.repo_slug and not c.project_slug]
+    assert len(nameless) == 1 and nameless[0].event_count == 1

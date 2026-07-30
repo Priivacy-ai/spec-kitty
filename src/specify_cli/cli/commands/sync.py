@@ -1198,6 +1198,11 @@ def _materialize_private_source_project() -> None:
 
 
 _PER_PROJECT_SECTION_TITLE = "Event journal by project"
+#: Shown for an unresolved-identity candidate that recorded NO name in any identity
+#: column. One constant, because it has to mean exactly that on every surface: the
+#: N1-a defect was this label appearing for rows that did carry a name, which makes
+#: it untrustworthy precisely when it is the truth (legacy `sync migrate` imports).
+_NO_RECORDED_NAME = "<no name recorded>"
 
 
 def _oldest_age_label(created_at: str | None) -> str:
@@ -1297,8 +1302,11 @@ def _unresolved_origin_clause(report: PerProjectStoreReport) -> str:
     )
     if not candidates:
         return ""
+    from specify_cli.delivery.status_report import unresolved_candidate_name
+
     named = ", ".join(
-        f"{candidate.repo_slug or '<no repo recorded>'} ({candidate.event_count})"
+        f"{unresolved_candidate_name(candidate) or _NO_RECORDED_NAME} "
+        f"({candidate.event_count})"
         for candidate in candidates
     )
     return (
@@ -1316,6 +1324,8 @@ def _per_project_store_table(report: PerProjectStoreReport) -> Table:
     "names every project" — the operator would be shown a prefix they cannot pass
     to ``sync purge``.
     """
+    from specify_cli.delivery.status_report import unresolved_candidate_name
+
     table = Table(show_header=True, box=None)
     table.add_column("Project", style="dim", overflow="fold")
     table.add_column("Events", justify="right")
@@ -1333,16 +1343,19 @@ def _per_project_store_table(report: PerProjectStoreReport) -> Table:
             _oldest_age_label(row.oldest_created_at),
             state,
         )
-        # The unresolved bucket spans repos, so it gets a sub-row per repo. This is
-        # what makes SC-004's "names every project present with count, oldest age
-        # and consent state" hold for this population — previously the bucket
-        # rendered as one anonymous line and the repos behind it were reachable only
-        # by hand-querying SQLite. Consent reads "unknown", not "denied": without a
+        # The unresolved bucket spans projects, so it gets a sub-row per RECORDED
+        # IDENTITY — see `_unresolved_identity_candidates` for why the key is the
+        # (repo_slug, project_slug) pair and not the repo slug alone. This is what
+        # makes SC-004's "names every project present with count, oldest age and
+        # consent state" hold for this population — previously the bucket rendered as
+        # one anonymous line and the projects behind it were reachable only by
+        # hand-querying SQLite. Consent reads "unknown", not "denied": without a
         # uuid there is nothing to resolve, and claiming a refusal here is the N1
         # false fact.
         for candidate in row.unresolved_candidates:
+            name = unresolved_candidate_name(candidate)
             table.add_row(
-                f"  [dim]└[/dim] {candidate.repo_slug or '[dim]<no repo recorded>[/dim]'}",
+                f"  [dim]└[/dim] {name or f'[dim]{_NO_RECORDED_NAME}[/dim]'}",
                 f"{candidate.event_count:,}",
                 _oldest_age_label(candidate.oldest_created_at),
                 "[yellow]unknown[/yellow] [dim](identity unresolved)[/dim]",

@@ -62,11 +62,21 @@ BOTH events with the same ``drain_blocked_reason=saas_disabled``, which made
 this file's "must ship" demand and the sibling's "any such row must never
 ship" demand directly contradictory — no implementation could satisfy both),
 the consenting checkout's capture gate is forced open below so its journal
-row is genuinely unblocked (``drain_blocked_reason=None``); only the
-never-opted-in row carries ``saas_disabled``. The two files now key on
-different, non-overlapping columns: 3031 on ``Event.drain_blocked_reason``
-values it constructs directly; this file on the ABSENCE of a ``repo_slug``-keyed
-consent record for a project whose row is on disk regardless.
+row is genuinely unblocked (``drain_blocked_reason=None``); only the residual
+row carries ``saas_disabled``. The two files now key on different,
+non-overlapping columns: 3031 on ``Event.drain_blocked_reason`` values it
+constructs directly; this file on the ABSENCE of a ``repo_slug``-keyed consent
+record for a project whose row is on disk regardless.
+
+That separation had a cost this file used to pay wrongly, and the fix is why both
+gates are now identical. ``saas_disabled`` is the SOLE member of
+``selection.TERMINAL_DRAIN_BLOCKED_REASONS``, so while the two rows carried
+*different* drain-blocked reasons, T003's filter excluded the non-consenting one on
+its own and the consent clause never had to fire — the pin stayed green with the
+consent predicate stripped out entirely. Two independent investigations reached that
+same conclusion and it was fixed the same way: make the rows indistinguishable on
+every machine signal, so consent is the only thing left that can separate their
+outcomes.
 """
 from __future__ import annotations
 
@@ -230,6 +240,13 @@ def test_consenting_project_leaks_sibling_project_event_through_shared_journal(
     the sibling owns machine-readiness exclusion, this file owns consent
     exclusion — rather than needing the rows classified differently to coexist.
 
+    Which is precisely why a third row is needed to pin CONSENT. An earlier
+    revision of this docstring claimed the two rows established that "consent — not
+    drain_blocked_reason — is the only thing distinguishing the two events", and
+    that was false: the assertions below establish that they differ on exactly that
+    field, and ``saas_disabled`` is on its own a terminal exclusion under T003. The
+    open never-opted-in row added below carries the consent claim instead.
+
     Originally red because the dispatcher shipped BOTH events: the journal has no
     project scoping (only ``user_id``/``team_slug``), and the drain never decoded
     ``project_slug`` from the payload to gate delivery — so once two projects
@@ -238,10 +255,11 @@ def test_consenting_project_leaks_sibling_project_event_through_shared_journal(
     indiscriminately, exactly as the incident (five non-consenting projects'
     events shipped alongside a consenting one) played out.
 
-    Still falsifiable today, which is the point of keeping it: replacing
-    ``selectable_event_ids`` in ``_select_undelivered`` with the unfiltered
-    universe makes the residual row ship and this test fail on the final
-    assertion.
+    Still falsifiable today, which is the point of keeping it, and falsifiable by
+    the regression that matters: reverting the consent predicate while leaving
+    T003's drain-blocked filter intact ships the open never-opted-in row and reds
+    this test. Replacing ``selectable_event_ids`` with the wholly unfiltered
+    universe reds it too, on the residual row as well.
     """
     from specify_cli.sync import emitter as emitter_mod
 
@@ -298,11 +316,12 @@ def test_consenting_project_leaks_sibling_project_event_through_shared_journal(
 
     journal = get_journal(team_slug=None)
 
+    # A THIRD row, and it is what makes this file a consent pin at all. The residual
     # The shared-journal premise, asserted explicitly before the drain runs: both
     # events sit in the SAME journal file (team_slug=None, since
     # is_saas_sync_enabled() is stubbed False for this process).
     assert journal.count() == 2, (
-        "both projects' events must sit in the same producer-scoped journal "
+        "every project's event must sit in the same producer-scoped journal "
         "for this test to exercise the real cross-project leak"
     )
 

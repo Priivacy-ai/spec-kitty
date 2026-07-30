@@ -89,6 +89,23 @@ def _event(event_id: str, uuid: str | None, created_at: str) -> Event:
     )
 
 
+def _named_refusals(output: str) -> list[str]:
+    """The exact name list from doctor's "have not consented" sentence.
+
+    Reads the sentence's own payload so a test can constrain WHICH projects are
+    named, instead of grepping the whole report for a slug plus punctuation — that
+    form silently passes when a regression names the slug last. Returns ``[]`` when
+    no refusal was reported at all. Rich wraps at the console width, so whitespace
+    is normalised before slicing.
+    """
+    flat = " ".join(output.split())
+    marker = "have not consented to hosted sync: "
+    if marker not in flat:
+        return []
+    tail = flat.split(marker, 1)[1]
+    return [name.strip() for name in tail.split(".", 1)[0].split(",") if name.strip()]
+
+
 def _doctor_journal() -> EventJournal:
     """Open the journal doctor itself will resolve, at the same producer scope."""
     scope = sync_module._current_event_sync_scope()
@@ -375,5 +392,99 @@ def test_doctor_still_names_a_genuine_refusal_alongside_unresolved_rows() -> Non
     assert result.exit_code == 0, result.output
     assert "have not consented to hosted sync" in result.output
     assert SILENT in result.output
-    # ...and the unresolved rows are still not among the named refusals.
-    assert "acme/app, " not in result.output.replace("\n", " ")
+
+    # ...and the refusal names EXACTLY the one project that refused. Asserted by
+    # reading the sentence's own name list rather than by searching the whole output
+    # for "acme/app, " — that earlier form only fired when the slug was followed by
+    # a comma, so it passed if a regression named acme/app last in the list.
+    named = _named_refusals(result.output)
+    assert named == [SILENT], (
+        f"the refusal sentence must name only the project known to have refused, "
+        f"not {named}"
+    )
+
+
+# --- N1-a: a recorded project name must reach the operator -------------------
+
+
+def _seed_slug_only_unresolved_rows() -> EventJournal:
+    """Rows carrying ``project_slug`` but no ``repo_slug`` — a production shape.
+
+    The emitter resolves the three identity columns independently: ``project_slug``
+    walks a chain over the envelope and the payload, ``repo_slug`` is a single
+    top-level lookup, and a nil-sentinel uuid normalises to ``None``. A row with a
+    resolvable project name and neither uuid nor repo slug is therefore ordinary.
+    """
+    journal = _doctor_journal()
+    for index, slug in enumerate(("acme-app", "acme-app", "beta-svc")):
+        journal.append(
+            Event(
+                event_id=f"evt-slugonly-{index}",
+                event_type="WorkPackageApproved",
+                payload=b"{}",
+                occurred_at=f"2026-07-01T00:00:0{index}+00:00",
+                created_at=f"2026-07-01T00:00:0{index}+00:00",
+                project_uuid=None,
+                project_slug=slug,
+                repo_slug=None,
+            )
+        )
+    return journal
+
+
+def test_doctor_names_projects_that_recorded_only_a_project_slug() -> None:
+    """SC-004 must not depend on which of the two name columns happens to be set.
+
+    Red before the fix: both surfaces labelled with
+    ``candidate.repo_slug or '<no repo recorded>'``, dropping the
+    ``project_slug`` fallback that the named-refusal path at ``sync.py`` already
+    had. Two nameable projects were present, both names were in the projection,
+    and the operator was shown ``<no repo recorded> (3)`` — told to open SQLite by
+    the very report whose job is to make that unnecessary.
+    """
+    _seed_slug_only_unresolved_rows()
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 0, result.output
+    out = result.output
+    for name in ("acme-app", "beta-svc"):
+        assert name in out, f"{name} has payloads in the journal but was never named"
+    assert "no name recorded" not in out, (
+        "nothing in this journal is genuinely nameless — that label must mean what "
+        "it says, or it cannot be trusted when it is the truth"
+    )
+
+
+def test_doctor_still_says_no_name_recorded_when_nothing_was_recorded() -> None:
+    """The guard against over-correcting N1-a.
+
+    Legacy `sync migrate` imports genuinely carry no identity at all
+    (``_build_event`` sets none of the three columns). For those the label is
+    correct and the remedy is an identity backfill, so a fix that removed it —
+    or invented a name for them — would trade one wrong label for another.
+
+    The wording is now "no NAME recorded", not "no repo recorded": with candidates
+    keyed on the (repo_slug, project_slug) pair, an unnamed candidate is one that
+    recorded neither, and the narrower label would understate that.
+    """
+    journal = _doctor_journal()
+    journal.append(
+        Event(
+            event_id="evt-nameless",
+            event_type="WorkPackageApproved",
+            payload=b"{}",
+            occurred_at="2026-07-01T00:00:00+00:00",
+            created_at="2026-07-01T00:00:00+00:00",
+            project_uuid=None,
+            project_slug=None,
+            repo_slug=None,
+        )
+    )
+    assert journal.count() == 1
+
+    result = runner.invoke(app, ["doctor"])
+
+    assert result.exit_code == 0, result.output
+    assert "no name recorded" in result.output
+    assert "no stored project identity" in result.output

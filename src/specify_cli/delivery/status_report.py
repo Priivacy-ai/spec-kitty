@@ -465,6 +465,11 @@ def _per_project_store_section(journal: EventJournal) -> dict[str, Any]:
                     {
                         "repo_slug": candidate.repo_slug,
                         "project_slug": candidate.project_slug,
+                        # The name the CLI renders, resolved here so a machine
+                        # consumer does not re-implement the fallback chain — two
+                        # copies of it is exactly how N1-a happened. ``null`` means
+                        # nothing was recorded in either column.
+                        "name": unresolved_candidate_name(candidate),
                         "event_count": candidate.event_count,
                         "oldest_created_at": candidate.oldest_created_at,
                     }
@@ -545,6 +550,7 @@ __all__ = [
     "build_status_report",
     "default_status_sections",
     "evaluate_gc_suggestion",
+    "unresolved_candidate_name",
 ]
 
 
@@ -580,6 +586,26 @@ class UnresolvedIdentityCandidate:
     project_slug: str | None
     event_count: int
     oldest_created_at: str | None
+
+
+def unresolved_candidate_name(candidate: UnresolvedIdentityCandidate) -> str | None:
+    """The recorded name to show for *candidate*, or ``None`` if it recorded none.
+
+    Lives here rather than in the CLI because both operator surfaces (the table
+    sub-row and the FR-011 warning) render it, and two copies of a fallback chain is
+    how N1-a happened: the named-refusal path already fell back
+    ``repo_slug -> project_slug -> uuid``, while the candidate path stopped at
+    ``repo_slug`` and reported a named project as nameless.
+
+    ``repo_slug`` leads because ``sync purge --project`` and the consent records are
+    keyed on it, so it is the name an operator can act on. ``project_slug`` is the
+    fallback. There is no uuid in the chain — for this bucket it is NULL by
+    definition, which is why the rows are in it.
+
+    ``None`` means *nothing was recorded*, which callers must render as such rather
+    than inventing a substitute.
+    """
+    return candidate.repo_slug or candidate.project_slug or None
 
 
 @dataclass(frozen=True)
@@ -658,32 +684,58 @@ class PerProjectStoreReport:
 def _unresolved_identity_candidates(
     group: list[Any],
 ) -> tuple[UnresolvedIdentityCandidate, ...]:
-    """Break the unresolved bucket down by the repo slug its rows carry (N1).
+    """Break the unresolved bucket down by the RECORDED IDENTITY of its rows (N1).
 
-    Keyed on ``repo_slug`` because that is what ``sync purge --project`` and the
-    consent records use, so it is the name an operator can act on. Rows carrying no
-    slug at all become a single ``repo_slug=None`` candidate rather than being
-    dropped or folded into a named one: they genuinely cannot be attributed, and
-    hiding them would let the breakdown under-report the bucket it explains.
+    Keyed on the ``(repo_slug, project_slug)`` PAIR, not on ``repo_slug`` alone.
+    Keying on the repo slug alone reproduced, one level down, the very defect the
+    candidate breakdown was introduced to fix:
 
-    Every row lands in exactly one candidate, so the candidate counts always sum to
-    the bucket's ``event_count`` — the breakdown cannot omit a row.
+    * rows whose ``repo_slug`` was never recorded but whose ``project_slug`` was
+      all collapsed into one anonymous candidate and rendered "no repo recorded",
+      with the name sitting unread in the adjacent column (N1-a); and
+    * that candidate then took the first-found ``project_slug``, so a group
+      spanning ``acme-app`` and ``beta-svc`` published one of them as its name
+      (N1-b) — the same heterogeneous-group attribution this module forbids for a
+      resolved group a few lines below ("a disagreement among them is not a licence
+      to invent a third value").
+
+    The three columns are resolved independently at capture — ``project_slug``
+    walks a chain over the envelope and the payload, ``repo_slug`` is a single
+    top-level lookup, and a nil-sentinel uuid normalises to ``None`` — so
+    "``repo_slug`` is null" carries no implication that the row is nameless.
+
+    Two rows therefore share a candidate only when they agree on BOTH columns. Rows
+    that recorded neither are still one candidate of their own: they are genuinely
+    unattributable (every legacy ``sync migrate`` import is one), and that label has
+    to keep meaning what it says or it cannot be trusted when it is the truth.
+
+    Note the count sum-check below is NOT this invariant: merging two distinct names
+    keeps the totals perfectly reconciled. It constrains counts; only the pair key
+    constrains names.
     """
-    by_repo: dict[str | None, list[Any]] = {}
+    by_identity: dict[tuple[str | None, str | None], list[Any]] = {}
     for row in group:
-        by_repo.setdefault(row.repo_slug or None, []).append(row)
+        identity = (row.repo_slug or None, row.project_slug or None)
+        by_identity.setdefault(identity, []).append(row)
 
     candidates = [
         UnresolvedIdentityCandidate(
             repo_slug=repo_slug,
-            project_slug=next((r.project_slug for r in rows if r.project_slug), None),
+            project_slug=project_slug,
             event_count=len(rows),
             oldest_created_at=min(r.created_at for r in rows),
         )
-        for repo_slug, rows in by_repo.items()
+        for (repo_slug, project_slug), rows in by_identity.items()
     ]
-    # Largest first, unnameable rows last so they never head the list.
-    candidates.sort(key=lambda c: (c.repo_slug is None, -c.event_count, c.repo_slug or ""))
+    # Largest first, with the genuinely unnameable candidate last so it never heads
+    # the list. Ties break on the rendered name so the order is deterministic.
+    candidates.sort(
+        key=lambda c: (
+            unresolved_candidate_name(c) is None,
+            -c.event_count,
+            unresolved_candidate_name(c) or "",
+        )
+    )
     return tuple(candidates)
 
 
