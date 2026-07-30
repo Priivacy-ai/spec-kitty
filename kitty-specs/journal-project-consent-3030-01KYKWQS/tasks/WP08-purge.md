@@ -21,6 +21,7 @@ tracker_refs: []
 authoritative_surface: src/specify_cli/delivery/
 owned_files:
 - src/specify_cli/delivery/retention.py
+- src/specify_cli/sync/local_commit.py
 ---
 
 # WP08 — Purge
@@ -45,6 +46,29 @@ project retained or removed? It changes NFR-006's differential count.
 - SC-006 / NFR-006: 100% of the target project's rows gone, **0%** of any other project's, measured by
   differential row counts across journal and ledger.
 - `queue.remove_project_events` is not used, **and is deleted here** (C-004).
+
+## WP12's residual frames are WP08's to purge (corrected 2026-07-30)
+
+WP12's T027 gate records its residual-state decision as "retained-and-ignored, WP08 owns
+the operator's purge path" — in `sync/local_commit.py`, in its commit message, and in its
+test docstring. **That was false when written**: this WP's surface was `delivery/` only,
+its scope was journal rows plus delivery-ledger history, and `sync-state.json` appeared
+nowhere in it. An operator reading that decision would run WP08's purge and find pre-fix
+mission slugs still sitting in `.kittify/sync-state.json` with no command that clears them.
+
+Now true rather than aspirational: `sync/local_commit.py` is in `owned_files` and T022's
+purge must clear `pending_local_commits` entries for the target project alongside the
+journal and ledger rows.
+
+Two properties this adds to T022:
+
+- Pre-fix frames carry **no** `project_uuid` (WP12 added the field additively), so they
+  cannot be matched by uuid. Purging them is `--all`-shaped, or matches on the
+  `changed_files` mission slug. Decide and record which; do not leave the pre-fix
+  population unpurgeable, because it is the exact set the incident produced.
+- The frames are gitignored, machine-local `LOCAL_RUNTIME` state
+  (`state/contract.py:169-178`), so purging them is not a git operation and needs no
+  worktree coordination.
 
 ## C-004 lands here, not in WP02 (corrected 2026-07-29)
 

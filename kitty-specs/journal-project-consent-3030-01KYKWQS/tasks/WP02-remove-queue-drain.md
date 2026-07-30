@@ -60,3 +60,28 @@ precondition is satisfied per `cli/commands/sync.py:2360-2367`.
   has no `project_uuid` column to purge by until WP04 lands (`event_journal/models.py:30-39`).
   Deleting the call unilaterally would also zero the user-visible
   `SyncOptOutResult.removed_events`. See WP08 for the full note.
+
+
+## T007's unreadable-legacy-DB decision, and its reversal (recorded 2026-07-30)
+
+Neither the original decision nor its reversal was ever written down; a reviewer found the
+reversal living only in a commit message. Recording both, because a landed contract that
+changes silently is the drift this mission exists to end.
+
+**WP02 decided (2026-07-29):** `_count_legacy_event_rows` returns `0` when
+`detect_legacy_rows_for_scope` raises, on the reasoning that wedging the daemon — and with
+it body uploads — on an unrelated SQLite fault is worse than starting. That reasoning was
+wrong, and it was the fail-open shape this same WP criticised elsewhere in the same file.
+
+**Reversed (2026-07-30, commits `07a5d10b69` / `aba6312fbe`, H8):** an unreadable legacy DB
+now refuses. The decisive fact is that `sync/queue.py:918-921` returns an empty
+`LegacyRowCounts()` when the DB is merely **absent**, so an exception can only mean *the
+file exists and could not be read* — precisely the state where stranded undeliverable rows
+cannot be ruled out. "Unrelated fault" never fit that fault, and the guard's safe default
+was permission, which is FR-003's failure mode.
+
+The reversal is deliberately narrow: a credentials/scope read failure still falls back to
+`""` and does **not** refuse (pinned by `test_a_credentials_read_failure_is_not_evidence`),
+and the swallowed set is `(sqlite3.Error, OSError, ValueError)` so a `TypeError` from a
+changed arity propagates instead of degrading to "clean" — the fake-green that WP02's own
+anchor test caught once already.
