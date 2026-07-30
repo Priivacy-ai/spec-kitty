@@ -2542,6 +2542,22 @@ pages:
     - {slug: "neutral", text: "Neutral", level: 3}
     - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/3.x/2026-07-30-1-consolidated-write-surface-and-consolidate-terminology.md"
+    title: "ADR: CONSOLIDATED Write-Surface Wiring and `consolidate` as Canonical Lane-Consolidation Terminology"
+    divio_type: "none"
+    abstract: "PR #3076 shipped the write-side placement seam but deferred the CONSOLIDATED half of it. ADR [2026-07-23-1](./2026-07-23-1-surface-vocabulary-two-domains-and-topology-surface-rename.md) declared `TopologySurface.CONSOLIDATED` as a member and gave `translate_surface` a **total** arm for it — every `TopologySurface` member has a translation entry, asserted by `assert_surface_totality`. But `SurfaceLocations.consolidated` (the field that arm reads) has never been populated in production: `translate_surface(CONSOLIDATED, …)` raises `ValueError` rather than resolving anything, because no caller has ever supplied the location. `resolve_placement_only` instead resolves PRIMARY-kind writes to the mission's Target Ref (`target_branch`) unconditionally, regardless of lifecycle phase."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "decision-1-consolidated-surface-wiring-design", text: "Decision 1 — CONSOLIDATED surface wiring (design)", level: 3}
+    - {slug: "decision-2-consolidate-consolidation-is-canonical-for-the-lane-consolidation-sense-terminology-3080-foundation", text: "Decision 2 — `consolidate` / `consolidation` is canonical for the lane-consolidation sense (terminology, #3080 foundation)", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "positive", text: "Positive", level: 3}
+    - {slug: "negative-accepted-trade-offs", text: "Negative / accepted trade-offs", level: 3}
+    - {slug: "neutral", text: "Neutral", level: 3}
+    - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
