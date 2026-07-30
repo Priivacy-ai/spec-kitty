@@ -131,14 +131,17 @@ def _stub_emitter(
     different projects on the same machine still resolve to the SAME journal
     file (``team_slug=None``) once SaaS sync is globally disabled.
 
-    ``repo_slug`` is the ONLY field a per-project consent lookup can key on
-    (``sync/config.py:get_repository_sync_enabled`` does
-    ``repo_defaults.get(repo_slug)``) — a resolver that instead tried to
-    match on ``project_slug`` would be the fragile fuzzy correspondence
-    #3031 Defect 2 exists to eliminate, so this fixture never invents one.
+    ``repo_slug`` is carried for reporting only. Consent is keyed on
+    ``project_uuid`` and nothing else (FR-019: a repo slug is a mutable git
+    remote, so it cannot speak for a project), and a resolver that instead
+    matched on ``project_slug`` would be the fragile fuzzy correspondence
+    #3031 Defect 2 exists to eliminate — so this fixture never invents one.
+
     Passing ``repo_slug=None`` (the default) reproduces an unresolvable git
-    identity — genuinely absent from the consent record, not an explicit
-    opt-out.
+    identity. It is deliberately NOT what makes the second project
+    non-consenting; the absence of a uuid-keyed consent record is. Consent must
+    deny for that project even though its row reaches the journal and is
+    drain-open.
     """
     from specify_cli.sync.emitter import EventEmitter
     from specify_cli.sync.git_metadata import GitMetadata
@@ -319,9 +322,9 @@ def test_consenting_project_leaks_sibling_project_event_through_shared_journal(
         "about breaking a healthy consenting drain"
     )
     assert nonconsenting_envelope["event_id"] not in received_ids, (
-        "a project that never consented (no repo_defaults entry at all for "
-        f"{_CONSENTING_REPO_SLUG!r}'s sibling) must not have its event "
-        "shipped merely because it shares a journal file with a project "
-        "that did consent — today it does, because the drain has no notion "
-        "of project identity at all"
+        "a project that never consented (no uuid-keyed consent record at all for "
+        f"{_CONSENTING_REPO_SLUG!r}'s sibling) must not have its event shipped "
+        "merely because it shares a journal file with a project that did consent. "
+        "Both rows are drain-open, so consent is the only thing that can exclude "
+        "this one"
     )
