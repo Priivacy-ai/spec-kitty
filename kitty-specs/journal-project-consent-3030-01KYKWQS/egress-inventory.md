@@ -206,3 +206,67 @@ two falsifiers are written into `_consent_answer`'s docstring.
 
 `_cross_project_refusal` is kept and is now **provably non-redundant**: a `ConsentedBatch` proves
 every event's project consents, which does not mean they are the *same* project.
+
+## E2/E3's locality question, answered — and it was not a locality argument
+
+All **7** construction sites enumerated by a live scan (3/3 tracker, 4/4 widen):
+
+| Site | Root from | Owner = root? |
+|---|---|---|
+| `origin.py:265` `bind_mission_origin` | `_resolve_repo_root(feature_dir)` | **Derived from the data** |
+| `saas_service.py:109` | `require_repo_root()` → cwd | Benign locality |
+| `origin.py:165` `search_origin_candidates` | caller | No production caller |
+| 3 × interview sites | interview's `repo_root` | Derived — data read back from the same root |
+| `decision.py:558` `decision widen` | cwd | **Can diverge; bounded** |
+
+**The non-interactive creation path — the one that made FR-029 the worst open path — turns out
+not to rest on locality at all.** `_resolve_repo_root` walks *up* from the directory whose
+`meta.json` supplies the `mission_id`/`mission_slug` being sent, so the loop closes:
+`mission_creation.py:374` builds `feature_dir = resolved_root/kitty-specs/<slug>`, `:588` passes
+both, `origin_consumer` reads the issue `title` from `resolved_root/.kittify/pending-origin.yaml`,
+and walking back up returns `resolved_root`. Every payload field originates under the root the
+client is attributed to — **including** when `create_mission_core` is handed an explicit
+`repo_root` differing from cwd, because dossier, meta and pending-origin all live under *that*
+root. A cwd/owner divergence cannot arise there.
+
+**The weakest site is `decision widen`**: cwd-derived root, operator-supplied `decision_id`.
+Bounded rather than removed — the body carries only `invited_user_ids` and the id is a **ULID, not
+a slug**, so no engagement name crosses even when root and owner diverge. **Precondition: if that
+endpoint ever accepts a slug, the entry stops being benign.**
+
+**The precondition was made executable rather than left as prose.** Each package carries a guard
+that scans `src/` and reds on an unattributed construction site, naming file and line — proven to
+bite in both directions (removing the attribution at `saas_service.py` and `decision.py` reds with
+the intended message; restoring returns green), each with its own non-vacuity assertion so a
+zero-site scan fails rather than passes.
+
+## E20 — operator-configured tracker connectors (open collection surface, C-006)
+
+`tracker/local_service.py` sends project data (issue titles, items) to Jira/Linear. Initially
+called settled by the E19 `git push` analogy; that judgement was **revised on inspection**, and the
+split is the answer:
+
+- **The credential is the machine's** — `~/.spec-kitty/credentials`, keyed *by provider*, shared by
+  every project on the machine. Structurally the same shape as `SPEC_KITTY_ENABLE_SAAS_SYNC`:
+  arming, authorizing nothing about a specific project.
+- **The binding is the project's own recorded decision** — `.kittify/config.yaml`'s `tracker:`
+  block, verified git-tracked and not ignored, so it is committed, version-controlled, reviewable
+  in a diff and travels with the repo. Those are exactly the properties **FR-019 demands**, and
+  materially unlike the incident's mechanism.
+
+So it is **not merely the machine's** — but it is **not this mission's consent either**:
+
+- The binding is keyed on nothing. No `project_uuid`, no machine index, no
+  `consented_project_uuids`, and **no way for a project to record a refusal** of tracker egress.
+- FR-013's "deny if any checkout of the project is opted out" has no analogue.
+- Most tellingly: **a project with a committed `sync.enabled: false` — an explicit refusal — can
+  still push its issue titles to Jira.** The two answers are reconciled nowhere.
+
+The half of the E19 analogy that survives: operator-invoked only, from `cli/commands/tracker.py`,
+no daemon path. The half that does not: `git push origin` is opt-in per invocation to the
+project's **own** remote, whereas this routes project data to a **third party** under a
+machine-wide credential with **no per-project refusal available**.
+
+**Recorded as an open collection surface under C-006**, not as a leak and not as settled:
+*operator-configured tracker connectors — project-scoped destination binding, machine-scoped
+credential, no expressible refusal.*
