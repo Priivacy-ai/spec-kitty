@@ -1,4 +1,4 @@
-"""RED pins: the drain must filter *per event*, not per process (#3031 Defect 5).
+"""Regression guard: the drain filters *per event*, not per process (#3031 Defect 5).
 
 Rescoped from an earlier #3030 framing (see git history / PR #3050 landing
 notes): this file's original docstring claimed a ``drain_blocked_reason``
@@ -99,7 +99,7 @@ from specify_cli.sync.target_authority import (
 if TYPE_CHECKING:
     from specify_cli.delivery.interfaces import DeliveryTarget
 
-pytestmark = [pytest.mark.regression, pytest.mark.fast]
+pytestmark = pytest.mark.fast
 
 _TARGET_URL = "https://hosted.example.com"
 _TARGET_TEAM_SLUG = "team"
@@ -199,12 +199,13 @@ def test_dispatch_excludes_events_with_recorded_drain_blocked_reason(
     checkout-enabled / auth / team resolution), not a per-project decision;
     a fix satisfying this test alone implements no project-scoped consent.
 
-    Reds today: the dispatcher delivers BOTH events. ``_select_undelivered``
-    only excludes rows with a terminal-success or terminal-failed *ledger*
-    row for the target (``ledger.select_undelivered``); it applies no
-    predicate over ``Event.drain_blocked_reason`` at all, so a row the capture
-    layer explicitly classified as not-ready-to-ship is drained exactly like
-    any other row.
+    Previously red because the dispatcher delivered BOTH events:
+    ``_select_undelivered`` only excluded rows with a terminal-success or
+    terminal-failed *ledger* row for the target (``ledger.select_undelivered``)
+    and applied no predicate over ``Event.drain_blocked_reason`` at all, so a
+    row the capture layer explicitly classified as not-ready-to-ship was
+    drained exactly like any other row. The drain now inspects
+    ``Event.drain_blocked_reason`` on each row, so this guard is green.
     """
     journal = EventJournal(tmp_path / "journal.db")
     unblocked = _make_event(
@@ -282,12 +283,12 @@ def test_consent_predicate_must_apply_before_limit_not_after(
     10-event backlog forces truncation within a single batch instead of
     requiring a 1000+-event fixture — the property under test (predicate
     placement relative to ``LIMIT``) is unaffected by the constant's value.
-    With today's code (no predicate over ``drain_blocked_reason`` at all,
-    inside or outside the filtered read), the loop simply keeps calling
+    Previously red: with no predicate over ``drain_blocked_reason`` at all
+    (inside or outside the filtered read), the loop simply kept calling
     ``dispatch`` with a growing limit until the whole backlog — blocked and
-    unblocked alike — is delivered, so this test currently reds on the
-    negative assertion below: all 10 blocked ids ship alongside the unblocked
-    one.
+    unblocked alike — was delivered, so this test used to red on the negative
+    assertion below (all 10 blocked ids shipped alongside the unblocked one).
+    The drain now filters per event before the limit is applied.
 
     The negative assertion below (none of the 10 blocked ids ship) closes the
     cheap-green this test previously left open: reversing

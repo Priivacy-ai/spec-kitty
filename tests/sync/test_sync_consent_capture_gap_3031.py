@@ -1,4 +1,4 @@
-"""P0 red-main pin for the #3031 capture-gate gap (Defect 3, ungated capture).
+"""Regression guard for the #3031 capture-gate gap (Defect 3, ungated capture).
 
 Companion to ``tests/sync/test_sync_consent_default_deny.py`` (#3031). That
 file's own docstring names two gaps its five tests do NOT cover:
@@ -91,7 +91,7 @@ from specify_cli.event_journal import (
 if TYPE_CHECKING:
     from specify_cli.sync.emitter import EventEmitter
 
-pytestmark = [pytest.mark.regression, pytest.mark.fast]
+pytestmark = pytest.mark.fast
 
 _OCCURRED_AT = "2026-06-29T00:00:00+00:00"
 
@@ -162,17 +162,18 @@ def _non_consenting_gate(_team_slug: str | None, **_kwargs: object) -> CaptureGa
 def test_non_consenting_project_event_never_reaches_the_journal() -> None:
     """#3031 Defect 3: a non-consenting project's events must never reach the journal.
 
-    Reds today: both emitters' events land in the same machine-global
-    journal file. ``EventEmitter._capture_to_journal`` calls
+    Previously red: both emitters' events landed in the same machine-global
+    journal file. ``EventEmitter._capture_to_journal`` called
     ``capture_teamspace_bound`` unconditionally (``sync/emitter.py:1961``),
-    and ``capture_teamspace_bound`` itself only ever uses ``gate`` to compute
+    and ``capture_teamspace_bound`` itself only ever used ``gate`` to compute
     the *recorded* ``drain_blocked_reason`` column (``classify_drain_blocked_reason``,
     ``event_journal/journal.py:400``) before an unconditional
     ``journal.append(event)`` (``event_journal/journal.py:402``) — the write
-    itself never consults ``gate.checkout_enabled``. So today the
-    non-consenting project's event is captured exactly like its consenting
+    itself never consulted ``gate.checkout_enabled``. So the non-consenting
+    project's event used to be captured exactly like its consenting
     sibling's, differing only in the ``drain_blocked_reason`` value stamped
-    on the row already sitting in the journal.
+    on the row already sitting in the journal. The write now gates on
+    ``checkout_enabled`` directly.
     """
     consenting = _stub_emitter(project_slug="engagement-assistant", build_id="build-consenting-1")
     consenting._capture_gate_state = _consenting_gate

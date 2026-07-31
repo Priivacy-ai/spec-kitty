@@ -39,7 +39,7 @@ import pytest
 from specify_cli.delivery.receivers import TeamspaceReceiver
 from specify_cli.sync.history_import.upload import run_import_upload, upload_envelopes
 
-pytestmark = [pytest.mark.fast, pytest.mark.regression]
+pytestmark = pytest.mark.fast
 
 # A mission slug in this product IS a client engagement name (spec.md, FR-026).
 # It is the string whose presence on the wire is the confidentiality breach.

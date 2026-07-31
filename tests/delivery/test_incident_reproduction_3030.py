@@ -23,10 +23,11 @@ proves the *incident* is closed, and the difference is not cosmetic.
   because identity-less events collapse to ``{None}`` and would satisfy a
   cardinality check while leaking.
 
-RED until WP06 lands the filtered read (FR-007/FR-008). It is red *for the right
-reason*: the drain has no notion of project identity, so it ships the whole
-journal. Landing a failing reproduction for an accepted P0 is the charter's
-red-main discipline (standing order 9), not an oversight.
+Was red until WP06 landed the filtered read (FR-007/FR-008): the drain had no
+notion of project identity, so it shipped the whole journal. Landing a
+failing reproduction for an accepted P0 was the charter's red-main discipline
+(standing order 9), not an oversight — this file now stays green as the
+regression guard for that fix.
 
 Note on why capture gating (T006) does not already satisfy this: T006 stops
 *new* non-consenting captures, but a real machine's journal already holds weeks
@@ -70,7 +71,7 @@ from specify_cli.sync.project_identity import resolve_event_project_uuid
 if TYPE_CHECKING:
     from specify_cli.sync.emitter import EventEmitter
 
-pytestmark = [pytest.mark.regression, pytest.mark.fast]
+pytestmark = pytest.mark.fast
 
 #: The one project the operator actually opted in — the incident's 7,811 events.
 CONSENTED_REPO = "my-org/engagement-assistant"
