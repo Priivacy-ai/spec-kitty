@@ -597,10 +597,17 @@ def unresolved_candidate_name(candidate: UnresolvedIdentityCandidate) -> str | N
     ``repo_slug -> project_slug -> uuid``, while the candidate path stopped at
     ``repo_slug`` and reported a named project as nameless.
 
-    ``repo_slug`` leads because ``sync purge --project`` and the consent records are
-    keyed on it, so it is the name an operator can act on. ``project_slug`` is the
-    fallback. There is no uuid in the chain — for this bucket it is NULL by
-    definition, which is why the rows are in it.
+    ``repo_slug`` leads because it is the name an operator recognises — the
+    repository in front of them — with ``project_slug`` as the fallback. It is
+    **not** keyed on by anything: consent records are keyed on ``project_uuid``, and
+    ``sync purge --project`` keyed on ``project_slug`` alone until #3030 WP07 made it
+    accept both names. The earlier wording here claimed both, and a green test
+    (``test_doctor_prefers_the_repo_slug_label_…``) repeated the claim in its own
+    docstring, which is how a report that printed unusable names survived three
+    reviews. There is no uuid in the chain — for this bucket it is NULL by
+    definition, which is why the rows are in it, and that same NULL is why these
+    particular rows are reachable by ``sync purge --identity-less`` rather than by
+    ``--project`` under any name at all.
 
     ``None`` means *nothing was recorded*, which callers must render as such rather
     than inventing a substitute.

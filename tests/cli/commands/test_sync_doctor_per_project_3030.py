@@ -277,7 +277,21 @@ def test_doctor_names_the_journal_it_could_not_group(
 
 
 def test_doctor_prefers_the_repo_slug_label_and_falls_back_to_the_uuid() -> None:
-    """A uuid is unusable in a purge command; the repo slug is what operators type."""
+    """The repo slug is the name an operator recognises; the uuid is the last resort.
+
+    **Premise corrected (#3030 WP07 cycle 4).** This docstring used to read *"a uuid
+    is unusable in a purge command; the repo slug is what operators type"* — and it
+    was false in the more dangerous direction. The uuid was the one selector
+    ``sync purge --project`` had always accepted; ``repo_slug`` was the one it
+    refused, while this very report led its label with it. So a passing test
+    documented the ordering with the same false premise as the code, and the pair
+    defended a report that printed names the tool rejected.
+
+    The ordering is right for a different reason — recognition, not actionability —
+    and actionability is now enforced rather than assumed:
+    ``test_sync_report_label_is_a_purge_selector_3030.py`` feeds the label this test
+    asserts on to the purge resolver and requires it to resolve.
+    """
     from specify_cli.sync.consent import set_project_consent
 
     set_project_consent(CONSENTED, True)

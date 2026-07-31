@@ -1322,12 +1322,23 @@ def _oldest_age_label(created_at: str | None) -> str:
 
 
 def _project_store_label(row: ProjectStoreRow) -> str:
-    """The name an operator can act on, preferred over the one we happen to store.
+    """The name an operator recognises, and — load-bearingly — one they can act on.
 
-    ``repo_slug`` is what ``sync purge --project`` and the consent records are
-    keyed on, so it leads; ``project_slug`` is the human name; the uuid is the
-    last resort. The unresolved-identity bucket is labelled as such rather than
-    rendering blank — FR-011 exists so that denial is visible.
+    ``repo_slug`` leads because it is the name an operator recognises: it is the
+    repository in front of them, where ``project_slug`` is a derived form and the
+    uuid is unrecognisable. ``project_slug`` is the fallback; the uuid is the last
+    resort. The unresolved-identity bucket is labelled as such rather than rendering
+    blank — FR-011 exists so that denial is visible.
+
+    **It is not the case that anything is "keyed on" ``repo_slug``.** Consent records
+    are keyed on ``project_uuid`` (see :func:`sync.consent.set_project_consent`), and
+    ``sync purge --project`` used to key on ``project_slug`` alone — so the earlier
+    version of this docstring justified the ordering with a claim that was false on
+    both halves, and the report printed names that ``sync purge`` then refused. What
+    makes the ordering correct is enforced elsewhere instead of asserted here:
+    :func:`_purge_resolve_project` accepts every name in this chain, and
+    ``tests/cli/commands/test_sync_report_label_is_a_purge_selector_3030.py`` feeds
+    this function's own output to that resolver. Change either end and that pin reds.
     """
     if row.is_unresolved_identity:
         return "[yellow]<identity unresolved>[/yellow]"
@@ -3567,20 +3578,42 @@ def _purge_stored_spelling_conflicts(selector: str, censuses: list[_RawCensus]) 
 
 
 def _purge_resolve_project(value: str, journal_path: Path, repo_root: Path | None) -> tuple[str, str | None]:
-    """Resolve ``--project`` (a uuid *or* a slug) to ``(project_uuid, matched_slug)``.
+    """Resolve ``--project`` (a uuid *or* either recorded name) to ``(uuid, matched)``.
 
     A uuid is taken verbatim, including one no store holds: an operator must be able
-    to purge a project whose rows survive only in the body queue. A slug is resolved
+    to purge a project whose rows survive only in the body queue. A name is resolved
     against the journal's own identity projection plus the invoking checkout's
-    declared identity, and an unknown or ambiguous slug is **refused** rather than
+    declared identity, and an unknown or ambiguous name is **refused** rather than
     run — "0 rows removed" is indistinguishable from "wrong selector", and this
     command's report is the only record left after a purge.
+
+    **Both name columns are selectors, and that is the whole point (#3030 WP07).**
+    This resolver used to key on ``project_slug`` alone while
+    ``_project_store_label`` and ``_per_project_store_issues`` lead their label with
+    ``repo_slug`` — so ``sync doctor`` printed
+
+        ``2 project(s) ... have not consented ...: acme/app, beta/svc.``
+        ``... `spec-kitty sync purge --project <slug>` removes them.``
+
+    and the very next command refused the names it had just recommended:
+    ``No project matches slug "acme/app"``. The operator running the incident's own
+    remediation was handed a name the tool would not accept, which is exactly the
+    hand-written-SQLite detour SC-004 exists to remove. Rather than stop printing the
+    name an operator recognises, the resolver now accepts every name the report can
+    print, so the whole label chain ``repo_slug -> project_slug -> project_uuid`` is
+    copy-pasteable into the command the report recommends.
+
+    Collisions are the cost, and they are already paid: two projects can share a repo
+    slug, and a repo slug can even collide with another project's project slug. Both
+    land in the same ``name -> {uuid}`` map, so both take the existing ambiguity
+    refusal below — a purge must not span two projects, and refusing is the only safe
+    answer to a selector that means two things.
     """
     from uuid import UUID
 
     raw = str(value or "").strip()
     if not raw:
-        _purge_usage_error("--project needs a project uuid or slug; a blank selector matches nothing.")
+        _purge_usage_error("--project needs a project uuid or name; a blank selector matches nothing.")
     try:
         UUID(raw)
     except (ValueError, AttributeError, TypeError):
@@ -3589,28 +3622,45 @@ def _purge_resolve_project(value: str, journal_path: Path, repo_root: Path | Non
         return raw, None
 
     candidates: dict[str, set[str]] = {}
+
+    def _offer(name: str | None, uuid: str | None) -> None:
+        """Record *name* as a selector for *uuid*, if both were recorded.
+
+        The uuid guard is deliberately plain truthiness and NOT ``.strip()`` —
+        matching what this function did before repo slugs were added. Whether a
+        whitespace-only ``project_uuid`` is identity-less is a live question being
+        settled in ``delivery/status_report.py``; tightening it here as a side
+        effect of a naming change would decide it by accident, in the wrong module.
+        The name guard does strip, because a whitespace-only name would otherwise
+        key the map on ``""`` and answer for every unnamed row.
+        """
+        if name and name.strip() and uuid:
+            candidates.setdefault(name.strip().casefold(), set()).add(str(uuid))
+
     if journal_path.exists():
         from specify_cli.event_journal.journal import EventJournal
 
         for row in EventJournal(journal_path).read_identity_projection_for_report():
-            if row.project_slug and row.project_uuid:
-                candidates.setdefault(row.project_slug.strip().casefold(), set()).add(row.project_uuid)
+            _offer(row.repo_slug, row.project_uuid)
+            _offer(row.project_slug, row.project_uuid)
     if repo_root is not None:
         from specify_cli.identity.project import load_identity
 
         identity = load_identity(repo_root / ".kittify" / "config.yaml")
-        if identity.project_slug and identity.project_uuid:
-            candidates.setdefault(identity.project_slug.strip().casefold(), set()).add(str(identity.project_uuid))
+        _offer(identity.repo_slug, identity.project_uuid)
+        _offer(identity.project_slug, identity.project_uuid)
 
     matches = sorted(candidates.get(raw.casefold(), set()))
     if not matches:
         known = ", ".join(sorted(candidates)) or "none recorded"
         _purge_usage_error(
-            f'No project matches slug "{raw}". Slugs this machine has a record of: {known}. Pass the project uuid to purge a project whose rows carry no slug.'
+            f'No project matches "{raw}". Names this machine has a record of '
+            f"(repo slugs and project slugs alike): {known}. Pass the project uuid "
+            "to purge a project whose rows carry no name."
         )
     if len(matches) > 1:
         _purge_usage_error(
-            f'Slug "{raw}" maps to {len(matches)} project uuids ({", ".join(matches)}); pass the uuid you mean — a purge must not span two projects.'
+            f'"{raw}" maps to {len(matches)} project uuids ({", ".join(matches)}); pass the uuid you mean — a purge must not span two projects.'
         )
     return matches[0], raw
 
@@ -4188,8 +4238,9 @@ def purge(
         None,
         "--project",
         help=(
-            "Purge one project's rows, by project uuid or project slug. Dry-run "
-            "unless --apply is given."
+            "Purge one project's rows, by project uuid, project slug or repo slug "
+            "— any name `sync doctor` / `sync status` prints for the project. "
+            "Dry-run unless --apply is given."
         ),
     ),
     identity_less: bool = typer.Option(
