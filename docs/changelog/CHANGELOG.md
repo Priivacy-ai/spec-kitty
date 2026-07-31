@@ -19,6 +19,29 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
 
+- **Empty/unconfigured charter now dispatches to a warned generic agent instead
+  of silently applying every built-in doctrine artefact (mission
+  `charter-delivery-finish-context-degod`; `#3064`).** Previously, running a
+  dispatch in a repository with no charter activated silently fell back to
+  "all built-ins" — the entire shipped doctrine catalogue was applied in both
+  routing and the governance context injected into the prompt. Now, when
+  nothing is activated (a composite check across every charter-activatable
+  dimension), auto-routing resolves to a **generic agent using no charter
+  doctrine** — verified across both routing **and** the governance block, so no
+  directive canon leaks into the prompt — and the user gets a **clear warning**
+  to activate a charter first. The `software-dev` mission type stays
+  always-available, and explicitly passing `--profile <name>` still resolves the
+  specialist even under an empty charter (only the no-hint auto-route path
+  changes; the shared activation gate is untouched).
+- **A minimal starter charter now ships as a first-class, on-demand charter
+  pack (mission `charter-delivery-finish-context-degod`; `#3064`).** It ships
+  as `src/charter/packs/minimal.yaml`, alongside `default.yaml`. Run
+  `spec-kitty charter pack list` to see the shipped built-in packs,
+  `spec-kitty charter pack path minimal` to resolve the file, or
+  `spec-kitty charter pack apply minimal` to merge its small, curated
+  activation set into `.kittify/config.yaml` instead of authoring one from
+  scratch — it is additive by default and never silently overwrites an
+  existing activation (`--force` to overwrite explicitly).
 - **Profile-channel `suggests`-edge delivery is now live — the inert `#3063`
   doctrine topology actually delivers (mission `doctrine-delivery-activation`,
   fast-follow to `doctrine-delivery-reachability`).** The profile-channel
@@ -292,6 +315,15 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   now fails closed (refuses to send) instead of failing open. If you use
   hosted sync for more than one local project, only the project(s) you
   explicitly opted in now have their data sent.
+- **Generated agent guidance reads grammatically again (mission
+  `charter-delivery-finish-context-degod`; `#3082`).** The "verbatim-or-fetch"
+  disclosure lines every agent receives in charter context were frequently
+  ungrammatical — e.g. `When you designing or reviewing significant code
+  changes, run this command`. The authored `when` clause is now normalized into
+  the closed contract lead-in set (`When you are about to …`) for every clause
+  shape, and the prompt-governance contract is asserted **per stanza** so a
+  regression can't hide behind another matching line. (A second, independent
+  render surface in `section_bodies.py` is tracked separately as `#3093`.)
 - **DRG document-writer blind spot closed (mission `doctrine-delivery-activation`;
   `#3075`, `#2977`).** All three `DRGGraph` document-emit sites
   (`rewrite_opposed_by`, `charter.synthesizer.project_drg`, and the
@@ -780,6 +812,17 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ♻️ Changed
 
+- **The `charter/context.py` god-module was decomposed 3243 → 570 lines (mission
+  `charter-delivery-finish-context-degod`; `#2532`).** The charter-context
+  engine — previously a single 3243-line module — is now a thin orchestration
+  surface delegating to 16 focused sibling modules under `src/charter/`
+  (catalog diagnosis, token budget, artifact bodies, selection rendering,
+  activation, bootstrap text, compact governance, JSON builder, profile
+  resolution, doctrine-service builder, …), and a long-standing internal import
+  cycle is dissolved. This is a pure maintainability change: a byte-for-byte
+  parity fixture over the three public entry points (`build_charter_context` /
+  `_include` / `_json`) is green before and after, and a completion gate asserts
+  each seam is really used. No behaviour or output changes.
 - **Glossary-term casing gate is prose-only; the baseline ratchet is retired (#2830, #2823).**
   All pre-existing non-canonical glossary-term casing across `docs/` prose was paid down and the
   frozen baseline (`tests/architectural/glossary_canonical_terms_baseline.txt`) deleted, so
