@@ -25,9 +25,12 @@ does not answer, so they are deferred under C-007.
 
 The renderer lives here rather than in :mod:`charter.context` so the shared,
 WP-contended ``context.py`` does not grow: ``context.py`` imports these functions
-and keeps only its directive/tactic paths. The catalog-miss + fetch-stanza + budget
-primitives are re-used from ``context.py`` via a function-local import to avoid a
-module-load cycle (``context`` imports this module at top level).
+and keeps only its directive/tactic paths. The catalog-miss + fetch-stanza +
+budget primitives previously lived in ``charter.context`` and were re-used here
+via a function-local import to avoid a module-load cycle (``context`` imports
+this module at top level). WP04 (#2532) dissolved that cycle by relocating the
+three cycle symbols to their own leaf homes (none of which import ``context``),
+so they are now imported at top level like every other dependency.
 """
 
 from __future__ import annotations
@@ -35,6 +38,22 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Protocol
 
+from charter._catalog_miss import (
+    emit_catalog_miss_warning,
+    format_catalog_miss_stanza,
+)
+from charter.context_renderers.artifact_bodies import (
+    _format_inline_directive_body,
+    _format_profile_directive_code,
+)
+from charter.context_renderers.catalog_diagnosis import _diagnose_catalog_miss
+from charter.context_renderers.fetch_stanza import (
+    render_fetch_stanza as _render_fetch_stanza,
+)
+from charter.context_renderers.token_budget import (
+    _PROFILE_INLINE_BODY_LIMIT_CHARS,
+    _budget_estimate,
+)
 from charter.progressive_disclosure import (
     STATED_DEFAULT_WHEN,
     profile_channel_references,
@@ -45,15 +64,14 @@ if TYPE_CHECKING:
     from doctrine.agent_profiles import AgentProfile
 
 __all__ = [
-    "format_inline_named_body",
-    "render_profile_procedures",
-    "render_profile_selector_refs",
-    "render_profile_styleguides",
-    "render_profile_suggested_doctrine",
-    "render_profile_toolguides",
+    "_render_profile_directives",
+    "_render_profile_sections",
+    "_render_profile_tactics",
 ]
 
 
+_PROFILE_DIRECTIVES_HEADER_TPL = "Profile-Cited Directives ({profile_id}):"
+_PROFILE_TACTICS_HEADER_TPL = "Profile-Cited Tactics ({profile_id}):"
 _PROFILE_STYLEGUIDES_HEADER_TPL = "Profile-Cited Styleguides ({profile_id}):"
 _PROFILE_TOOLGUIDES_HEADER_TPL = "Profile-Cited Toolguides ({profile_id}):"
 # Procedures arrive through the profile *channel* (a ``requires`` DRG edge), not an
@@ -155,18 +173,6 @@ def render_profile_selector_refs(
     procedure) are unaffected when they pass no mapping.
     """
     per_entry_when = when_by_id or {}
-    # Deferred to avoid a module-load cycle: ``charter.context`` imports this
-    # module at top level, so these primitives cannot be imported there.
-    from charter.context import (  # noqa: PLC0415 — cycle-avoidance
-        _PROFILE_INLINE_BODY_LIMIT_CHARS,
-        _budget_estimate,
-        _diagnose_catalog_miss,
-        _render_fetch_stanza,
-    )
-    from charter._catalog_miss import (  # noqa: PLC0415 — cycle-avoidance
-        emit_catalog_miss_warning,
-        format_catalog_miss_stanza,
-    )
 
     lines: list[str] = [header]
     for raw_id, rationale in entries:
@@ -390,3 +396,156 @@ def render_profile_suggested_doctrine(
             )
         )
     return lines
+
+
+# ---------------------------------------------------------------------------
+# Directive / tactic profile sections + the whole-profile assembler (WP06
+# T029 campsite, #2532). Relocated verbatim from ``charter.context`` — the
+# data-model.md seam→home map already named this the "render half" of the
+# profile-cited-render consolidation; no WP in the mission's task breakdown
+# claimed the move explicitly, so it stayed behind after WP04/WP05 until
+# WP06's residual-LOC ceiling required completing it. ``charter.context``
+# keeps a ``# FR-009 preserved surface`` re-export (leading-underscore
+# aliases, matching every other symbol re-exported from this module) for the
+# existing test imports.
+# ---------------------------------------------------------------------------
+
+
+def _render_profile_directives(
+    profile: AgentProfile,
+    service: object,
+) -> list[str]:
+    """Render the ``Profile-Cited Directives (<profile-id>):`` section as a list of lines.
+
+    Returns an empty list when the profile has no ``directive_references``
+    so the caller can filter out the header. Each entry is either the
+    verbatim body (when under the per-entry budget) OR the
+    fetch + when-doing stanza pinned by the ATDD contract.
+    """
+    refs = list(profile.directive_references)
+    if not refs:
+        return []
+
+    header = _PROFILE_DIRECTIVES_HEADER_TPL.format(profile_id=profile.profile_id)
+    lines: list[str] = [header]
+    repo = getattr(service, "directives", None)
+
+    for ref in refs:
+        code = _format_profile_directive_code(getattr(ref, "code", ""))
+        title = getattr(ref, "name", "") or ""
+        rationale = getattr(ref, "rationale", "") or ""
+        header_line = f"  - {code}: {title}"
+        if rationale:
+            header_line = f"{header_line} — {rationale}"
+        lines.append(header_line)
+
+        directive = None
+        if repo is not None:
+            try:
+                directive = repo.get(code)
+            except Exception:  # noqa: BLE001 — best-effort catalog lookup
+                directive = None
+
+        if directive is None:
+            # RISK-3 (Mission B post-merge): structured catalog-miss
+            # stanza + warning instead of the generic placeholder.
+            # FR-013: _diagnose_catalog_miss checks scope_filtered_ids
+            # first so a scope-filtered directive surfaces SCOPE_FILTERED
+            # rather than MISSING_ARTIFACT.
+            diagnosis = _diagnose_catalog_miss(code, repo)
+            lines.extend(
+                format_catalog_miss_stanza(
+                    selector_kind="directive",
+                    artifact_id=code,
+                    diagnosis=diagnosis,
+                    indent="    ",
+                )
+            )
+            emit_catalog_miss_warning(
+                selector_kind="directive",
+                artifact_id=code,
+                diagnosis=diagnosis,
+                context=f"profile:{profile.profile_id}",
+            )
+            continue
+
+        body_lines = _format_inline_directive_body(directive)
+        if body_lines and _budget_estimate(body_lines) <= _PROFILE_INLINE_BODY_LIMIT_CHARS:
+            lines.extend(body_lines)
+        else:
+            lines.extend(
+                _render_fetch_stanza(
+                    selector=f"directive:{code}",
+                    when_clause="are about to apply a code change",
+                )
+            )
+
+    return lines
+
+
+def _render_profile_tactics(
+    profile: AgentProfile,
+    service: object,
+) -> list[str]:
+    """Render the ``Profile-Cited Tactics (<profile-id>):`` section as a list of lines.
+
+    Returns an empty list when the profile has no ``tactic_references``.
+    The fetch stanza uses ``--include tactic:<id>``. Tactics do not carry
+    a ``when:`` field today; the conditional falls back to "apply a code
+    change" so the prompt remains actionable.
+    """
+    refs = list(profile.tactic_references)
+    if not refs:
+        return []
+    # WP12/T067: shares the profile-section renderer with the styleguide /
+    # toolguide / procedure paths. Byte-identical to the prior inline body.
+    return render_profile_selector_refs(
+        header=_PROFILE_TACTICS_HEADER_TPL.format(profile_id=profile.profile_id),
+        entries=[
+            (getattr(ref, "id", ""), getattr(ref, "rationale", "") or "")
+            for ref in refs
+        ],
+        repo=getattr(service, "tactics", None),
+        selector_kind="tactic",
+        profile_id=profile.profile_id,
+        when_clause="are about to apply a code change",
+        body_fn=format_inline_named_body,
+    )
+
+
+def _render_profile_sections(
+    profile: AgentProfile | None,
+    service: object,
+) -> str:
+    """Render every profile-channel section the profile attests.
+
+    Returns an empty string when *profile* is ``None`` (T069 — an absent
+    profile renders nothing, never a fail-open whole-graph fallback) or when
+    no section has entries. WP12/T067 widens this beyond directives/tactics to
+    the schema-attested styleguide/toolguide kinds and the channel-resolved
+    procedure kind (T068). Unattested kinds (asset/anti-pattern/paradigm) are
+    C-007 deferrals and contribute no section.
+    """
+    if profile is None:
+        return ""
+    section_renderers = (
+        _render_profile_directives,
+        _render_profile_tactics,
+        render_profile_styleguides,
+        render_profile_toolguides,
+        render_profile_procedures,
+        # WP01 (doctrine-delivery-activation-01KYQVQK): the channel-resolved
+        # ``suggests``-delivery section — the profile channel now follows
+        # ``suggests``, delivering the #3063 A–E families (paradigm/tactic/…) as
+        # ``when``-labelled links. Distinct from the C-007 deferral of
+        # schema-attested INLINE citation of asset/anti-pattern/paradigm kinds:
+        # this delivers what the CHANNEL reaches, as ``render_profile_procedures``
+        # already does.
+        render_profile_suggested_doctrine,
+    )
+    blocks = [
+        "\n".join(lines)
+        for renderer in section_renderers
+        if (lines := renderer(profile, service))
+    ]
+    return "\n\n".join(blocks)

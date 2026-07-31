@@ -1113,7 +1113,13 @@ _CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
     {
         # charter.pack_context::ActivationReachabilityPartition
         SymbolKey("ActivationReachabilityPartition", "16f04ac28e60241772fae3e88ebe14fa1e4b234c2fc216673cc9d075f285b661"),
-        SymbolKey("charter_activated_urns", "5003eed5e2d30c222f2108ba89da31d8531cdeb468898d01b3fa96020bd62830"),  # charter.pack_context::charter_activated_urns
+        # charter_activated_urns is REMOVED here (WP06/#2532, T033): WP02
+        # (doctrine-delivery-activation) added a real caller at
+        # src/specify_cli/invocation/empty_charter.py:56, so the grandfathered
+        # entry is now stale -- the shrink-only dead-symbol ratchet allows
+        # removing it. Confirmed not pre-existing at the upstream base (no
+        # caller there); this is this mission's fallout, fixed here per the
+        # WP06 task file's required mission-fallout campsite.
         # charter.pack_context::normalize_activation_identifier
         SymbolKey("normalize_activation_identifier", "8deec4a1dd1a1699b821620bfa64a7ae3f3e64798b76156465ff2bef1e395c0c"),
         # charter.pack_context::partition_activated_unreachable

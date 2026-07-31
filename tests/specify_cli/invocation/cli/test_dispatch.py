@@ -12,9 +12,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from click.testing import Result
+from ruamel.yaml import YAML
 from typer import Typer
 from typer.testing import CliRunner
 
+from charter.pack_context import PackContext
 from glossary.chokepoint import GlossaryObservationBundle
 from glossary.models import ConflictType, SemanticConflict, SenseRef, Severity, TermSurface
 from specify_cli import app as cli_app
@@ -55,6 +57,23 @@ def _setup_project(tmp_path: Path) -> Path:
     for yaml_file in FIXTURES_DIR.glob("*.agent.yaml"):
         shutil.copy(yaml_file, profiles_dir / yaml_file.name)
     return tmp_path
+
+
+def _write_configured_charter(project: Path) -> None:
+    """Write a ``.kittify/config.yaml`` that activates one directive.
+
+    WP02/#3064: ``resolve_generic_fallback`` reads the REAL project charter on
+    disk (not any mocked ``ProfileRegistry``). A project fixture with no
+    ``config.yaml`` at all is genuinely "empty charter" under the new
+    composite predicate and would now auto-route to ``generic-agent`` --
+    tests exercising the pre-WP02 mocked-router auto-route path need an
+    explicit non-empty charter so they keep proving router behaviour, not the
+    empty-charter fallback (which has its own dedicated tests below).
+    """
+    kittify = project / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    with (kittify / "config.yaml").open("w", encoding="utf-8") as fh:
+        YAML().dump({"activated_directives": ["028-efficient-local-tooling"]}, fh)
 
 
 def _make_mock_registry(profile_specs: list[dict[str, object]]) -> MagicMock:
@@ -180,6 +199,7 @@ def test_dispatch_with_profile_opens_task_execution_op(tmp_path: Path) -> None:
 
 def test_dispatch_auto_routes_and_writes_single_started_record(tmp_path: Path) -> None:
     project = _setup_project(tmp_path)
+    _write_configured_charter(project)
     result = _run_with_registry(
         project,
         ["dispatch", "implement the payment module", "--json"],
@@ -266,3 +286,79 @@ def test_dispatch_writes_single_jsonl_file(tmp_path: Path) -> None:
     jsonl = [p for p in (project / EVENTS_DIR).glob("*.jsonl") if p.name != "ops-index.jsonl"]
     assert len(jsonl) == 1
     assert jsonl[0].stem == str(envelope["invocation_id"])
+
+
+# ---------------------------------------------------------------------------
+# WP02/#3064 — empty-charter generic-agent routing fallback + warning
+# ---------------------------------------------------------------------------
+#
+# These use the REAL ProfileRegistry/ActionRouter (no mocked registry): the
+# fixture project from `_setup_project` carries no `.kittify/config.yaml`,
+# which is a genuinely empty charter under the composite predicate
+# (research.md Decision 3), and `generic-agent`/`architect-alphonso` are real
+# shipped built-in profiles so resolution needs no mock.
+
+
+def test_dispatch_empty_charter_auto_routes_to_generic_agent(tmp_path: Path) -> None:
+    """No --profile hint, wholly-empty charter -> pins generic-agent (Decision 2/3)."""
+    project = _setup_project(tmp_path)
+
+    envelope = _invoke_json(project, ["dispatch", "implement the payment module", "--json"])
+
+    assert envelope["profile_id"] == "generic-agent"
+    assert envelope["router_confidence"] == "generic_fallback"
+    assert envelope["action"] == "implement"
+    assert envelope["empty_charter_fallback"] is True
+
+
+def test_dispatch_empty_charter_rich_output_shows_warning_panel(tmp_path: Path) -> None:
+    """The one-shot warning (Decision 5) renders in the rich (non-JSON) path.
+
+    The wording is honest about what applying a pack does and does not do
+    (#3064 follow-up): it must not promise a working dispatch route --
+    applying a pack only records activations in config.yaml, and an
+    unmatched request may still need an explicit --profile.
+    """
+    project = _setup_project(tmp_path)
+
+    result = _run(project, ["dispatch", "implement the payment module"])
+
+    assert result.exit_code == 0, result.output
+    assert "Empty Charter" in result.output
+    assert "generic-agent" in result.output
+    assert "charter pack apply minimal" in result.output
+    # Honest caveat: applying a pack is not a promise of a working dispatch.
+    assert "--profile" in result.output
+
+
+def test_dispatch_explicit_profile_bypasses_empty_charter_fallback(tmp_path: Path) -> None:
+    """An explicit --profile hint resolves the specialist normally under an empty
+    charter -- the fallback pre-check only engages on the no-hint auto-route
+    branch (research.md Decision 2); it must never override an explicit hint.
+    """
+    project = _setup_project(tmp_path)
+
+    envelope = _invoke_json(
+        project,
+        ["dispatch", "design the system architecture", "--profile", "architect-alphonso", "--json"],
+    )
+
+    assert envelope["profile_id"] == "architect-alphonso"
+    assert envelope["empty_charter_fallback"] is False
+
+    result = _run(project, ["dispatch", "design the system architecture", "--profile", "architect-alphonso"])
+    assert result.exit_code == 0, result.output
+    assert "Empty Charter" not in result.output
+
+
+def test_dispatch_empty_charter_software_dev_mission_type_still_available(tmp_path: Path) -> None:
+    """The routing fallback is scoped to invocation dispatch only -- mission-type
+    activation is a separate PackContext dimension and stays "admit all
+    built-ins" (three-state None) under the very same empty-charter repo the
+    dispatch tests above exercise.
+    """
+    project = _setup_project(tmp_path)
+
+    pack_context = PackContext.from_config(project)
+
+    assert "software-dev" in pack_context.activated_mission_types

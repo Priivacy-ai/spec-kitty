@@ -35,6 +35,7 @@ import pytest
 import charter.context as context_module
 from charter.pack_context import CharterPackConfigError
 from charter.context import build_charter_context_include
+from charter.context_renderers import template_include as template_include_module
 
 
 pytestmark = pytest.mark.fast
@@ -250,7 +251,15 @@ class TestTemplateInclude:
         def _raise_pack_config_error(_repo_root: Path) -> Path | None:
             raise CharterPackConfigError("broken pack config")
 
-        monkeypatch.setattr(context_module, "resolve_project_root", _raise_pack_config_error)
+        # WP05 (#2532): ``_render_template_include`` relocated to
+        # ``context_renderers/template_include.py``; it resolves
+        # ``resolve_project_root`` through ITS OWN module globals (a bare
+        # name reference), so the patch target must follow the code, not
+        # stay on ``charter.context`` (which merely re-exports the render
+        # function for FR-009 test-import preservation).
+        monkeypatch.setattr(
+            template_include_module, "resolve_project_root", _raise_pack_config_error
+        )
 
         with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID"):
             build_charter_context_include(

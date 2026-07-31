@@ -32,6 +32,7 @@ from charter.context import build_charter_context
 from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git import safe_commit
+from specify_cli.invocation.empty_charter import resolve_generic_fallback
 from specify_cli.invocation.errors import (
     InvalidModeForEvidenceError,
     InvocationError,
@@ -207,6 +208,7 @@ class InvocationPayload:
     glossary_observations: GlossaryObservationBundle | None
     mode_of_work: str | None
     recommendation: RoutingRecommendation | None
+    empty_charter_fallback: bool
 
     __slots__ = (
         "invocation_id",
@@ -220,6 +222,7 @@ class InvocationPayload:
         "glossary_observations",
         "mode_of_work",
         "recommendation",
+        "empty_charter_fallback",
     )
 
     def __init__(self, **kwargs: object) -> None:
@@ -305,6 +308,7 @@ class ProfileInvocationExecutor:
 
         # 1. Resolve (profile_id, action)
         router_confidence: str | None = None
+        empty_charter_fallback = False
         if profile_hint is not None:
             profile = self._registry.resolve(profile_hint)  # raises ProfileNotFoundError
             # FR-009/FR-010/FR-011/EDGE-005: when caller supplies a truthy action_hint,
@@ -313,11 +317,19 @@ class ProfileInvocationExecutor:
             action = action_hint or self._derive_action_from_request(request_text, profile.role)
             router_confidence = None  # caller supplied explicit hint
         elif self._router is not None:
+            # WP02/#3064: pre-check the composite empty-charter predicate BEFORE
+            # routing. resolve_generic_fallback returns a RouterDecision only when
+            # the charter is wholly empty (Decision 2/3, research.md); otherwise it
+            # returns None and route() runs exactly as before. This does NOT touch
+            # ProfileRegistry or the shared activation gate -- explicit --profile
+            # (the branch above) is never affected by this pre-check.
+            fallback_decision = resolve_generic_fallback(self._repo_root, request_text)
             # route() returns RouterDecision or raises RouterAmbiguityError (never returns error)
-            result: RouterDecision = self._router.route(request_text)
+            result: RouterDecision = fallback_decision or self._router.route(request_text)
             profile = self._registry.resolve(result.profile_id)
             action = result.action
             router_confidence = result.confidence
+            empty_charter_fallback = fallback_decision is not None
         else:
             raise RuntimeError("No profile_hint and no router configured. Use 'spec-kitty dispatch \"<request>\" --profile <profile>' or supply a router.")
 
@@ -333,11 +345,20 @@ class ProfileInvocationExecutor:
         # 2. Assemble governance context (mark_loaded=False — critical)
         # NEVER pass mark_loaded=True here — would corrupt context-state.json
         # and break the specify/plan first-load detection.
+        # WP03/#3064: thread the already-known empty-charter-fallback signal
+        # through as suppress_project_resolver so the compact governance
+        # block does not merge the project catalog-fallback directive canon
+        # (research.md Decision 4 — see charter/compact.py:render_compact_view
+        # for the full rationale). A declared, bounded, out-of-map coupled
+        # edit to charter/context.py (owned by WP06) — no other caller of
+        # build_charter_context passes this kwarg, so behaviour there is
+        # unchanged.
         ctx_result = build_charter_context(
             self._repo_root,
             profile=profile.profile_id,
             action=action,
             mark_loaded=False,
+            suppress_project_resolver=empty_charter_fallback,
         )
         ctx_hash = hashlib.sha256(ctx_result.text.encode()).hexdigest()[:16]  # noqa: TID251 - production raw SHA-256 owner
         ctx_available = ctx_result.mode != "missing"
@@ -405,6 +426,7 @@ class ProfileInvocationExecutor:
             glossary_observations=bundle,
             mode_of_work=record.mode_of_work,
             recommendation=recommendation,
+            empty_charter_fallback=empty_charter_fallback,
         )
 
     def complete_invocation(

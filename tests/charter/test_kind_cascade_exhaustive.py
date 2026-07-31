@@ -30,6 +30,7 @@ import pytest
 
 import charter.context as context_mod
 from charter._activation_render import _infer_kind, _singular_kind
+from charter.context_renderers import template_include as template_include_mod
 from charter.consistency_check import YAML_KEY_MAP as CONSISTENCY_YAML_KEY_MAP
 from charter.kind_vocabulary import (
     UnknownArtifactIdError,
@@ -85,14 +86,20 @@ class TestContextGenericArtifactIncludeExcludesNonBareProbeableKinds:
             queried_kinds.append(kind)
             return None
 
+        # WP05 (#2532): ``_render_generic_artifact_include`` relocated to
+        # ``context_renderers/template_include.py``; it resolves its three
+        # collaborators through ITS OWN module globals (bare name
+        # references), so the patch target must follow the code, not stay
+        # on ``charter.context`` (which merely re-exports these names for
+        # FR-009 test-import preservation and the orchestrator's own calls).
         monkeypatch.setattr(
-            context_mod, "_render_directive_include", _fake_directive_include
+            template_include_mod, "_render_directive_include", _fake_directive_include
         )
         monkeypatch.setattr(
-            context_mod, "_render_tactic_include", _fake_tactic_include
+            template_include_mod, "_render_tactic_include", _fake_tactic_include
         )
         monkeypatch.setattr(
-            context_mod,
+            template_include_mod,
             "_render_doctrine_artifact_include",
             _fake_doctrine_artifact_include,
         )
