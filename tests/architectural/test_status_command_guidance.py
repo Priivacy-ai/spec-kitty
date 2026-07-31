@@ -56,7 +56,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 #: The exact #2983 source set WP04 owns. Asserted as a denominator so that a
 #: deleted or renamed file fails the gate instead of shrinking it to nothing.
 _SCOPED_SOURCE_FILES = (
-    Path("src/doctrine/styleguides/built-in/plain-language.styleguide.yaml"),
+    Path("packs/built-in/styleguides/plain-language.styleguide.yaml"),
     Path("docs/api/environment-variables.md"),
     Path("docs/api/upgrade-lifecycle.md"),
     Path("docs/architecture/launch-readiness-future.md"),

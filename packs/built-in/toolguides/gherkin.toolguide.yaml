@@ -2,7 +2,7 @@ schema_version: "1.0"
 id: gherkin
 tool: gherkin
 title: The Gherkin Scenario Language
-guide_path: src/doctrine/toolguides/built-in/GHERKIN.md
+guide_path: packs/built-in/toolguides/GHERKIN.md
 applies_to_languages: []
 summary: >
   Reference for the Gherkin DSL itself — the language, not any runner. Covers

@@ -5,7 +5,7 @@ behavioural scenarios. This guide covers the notation only. It is deliberately
 **not** stack-specific: the runners that execute Gherkin (Cucumber, behave,
 SpecFlow, Behat, Godog, and others) each bind steps to code in their own way and
 are out of scope here. Author scenarios per the
-[Given-When-Then Authoring](../../styleguides/built-in/given-when-then-authoring.styleguide.yaml)
+[Given-When-Then Authoring](../styleguides/given-when-then-authoring.styleguide.yaml)
 styleguide; this guide is the grammar those scenarios are written in.
 
 ## The Building Blocks

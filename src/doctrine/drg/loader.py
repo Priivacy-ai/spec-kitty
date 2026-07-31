@@ -5,7 +5,6 @@ Uses ``ruamel.yaml`` for round-trip safe YAML parsing.
 
 from __future__ import annotations
 
-from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +13,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from doctrine.drg.models import DRGGraph, DRGNode, load_graph_document
+from doctrine.pack_paths import resolve_pack_root
 
 __all__ = [
     "DRGLoadError",
@@ -115,23 +115,24 @@ def load_graph_or_dir(path: Path) -> DRGGraph:
 def built_in_graph_source() -> Path:
     """Return the directory that ships the built-in DRG graph source.
 
-    This is the doctrine package root, which holds the per-kind ``*.graph.yaml``
-    fragments (mission #2680 sharded the former single ``graph.yaml`` monolith).
-    Resolving to the *directory* -- rather than a specific ``graph.yaml`` file --
-    is what let :func:`load_built_in_graph` absorb the monolith->fragment
-    migration transparently, with no call-site changes, and keeps either layout
-    loadable going forward.
+    This is the ``packs/built-in/`` pack root, which holds the per-kind
+    ``*.graph.yaml`` fragments (mission #2680 sharded the former single
+    ``graph.yaml`` monolith; the relocation mission flattened the fragments out
+    of ``src/doctrine/`` into ``packs/built-in/``). Resolving to the *directory*
+    -- rather than a specific ``graph.yaml`` file -- is what let
+    :func:`load_built_in_graph` absorb the monolith->fragment migration
+    transparently, with no call-site changes, and keeps either layout loadable
+    going forward.
 
-    Resolution mirrors the doctrine-local package lookup used elsewhere in this
-    package (e.g. ``agent_profiles.repository``). It deliberately does NOT import
-    ``charter.catalog.resolve_doctrine_root``: doctrine sits below charter in the
-    dependency graph (C-004) and must not import upward. In the dev/editable and
-    packaged layouts both resolve to the same ``doctrine`` directory.
+    Resolution routes through the single shared seam
+    :func:`doctrine.pack_paths.resolve_pack_root`. This is deliberately
+    **fail-closed**: if no ``packs/built-in/`` root can be located,
+    :class:`~doctrine.pack_paths.PackRootNotFound` propagates rather than falling
+    back to an emptied ``src/doctrine/`` tree that would silently yield a partial
+    or empty graph (DIR-005). The resolver stays in-layer (doctrine) and never
+    imports upward into charter (C-004).
     """
-    try:
-        return Path(str(files("doctrine")))
-    except (ModuleNotFoundError, TypeError):
-        return Path(__file__).parent.parent
+    return resolve_pack_root("built-in")
 
 
 def load_built_in_graph() -> DRGGraph:

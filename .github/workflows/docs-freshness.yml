@@ -44,8 +44,8 @@ jobs:
       # (WP03/WP04/WP05).
       - name: Structural docs lint (FR-008)
         run: >-
-          uv run python src/doctrine/assets/built-in/docs_structural_lint.py
-          --styleguide src/doctrine/styleguides/built-in/common-docs.styleguide.yaml
+          uv run python packs/built-in/assets/docs_structural_lint.py
+          --styleguide packs/built-in/styleguides/common-docs.styleguide.yaml
       - name: Check CHANGELOG sync (canonical → root)
         run: uv run python scripts/docs/sync_changelog.py --check
       - name: Check CONTRIBUTING sync (canonical → root)

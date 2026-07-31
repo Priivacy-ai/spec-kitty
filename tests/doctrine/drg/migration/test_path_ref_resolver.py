@@ -116,6 +116,72 @@ class TestResolvePathRefHitPatterns:
 
 
 # ---------------------------------------------------------------------------
+# _resolve_path_ref: flattened packs/built-in home (relocate-builtin-doctrine-packs)
+# ---------------------------------------------------------------------------
+
+
+class TestResolvePathRefFlattenedHome:
+    """The flattened ``packs/built-in/<kind>/…`` home (inner ``built-in`` dropped)
+    resolves to the *same* ``(kind, stem)`` pair as the legacy
+    ``src/doctrine/<kind>/built-in/…`` home — the URN is keyed on the stem, not
+    the prefix, so the graph is prefix-invariant (T017)."""
+
+    def test_tactic_flattened_flat(self) -> None:
+        assert _resolve_path_ref(
+            "packs/built-in/tactics/tdd-red-green-refactor.tactic.yaml"
+        ) == ("tactic", "tdd-red-green-refactor")
+
+    def test_tactic_flattened_subdirectory(self) -> None:
+        assert _resolve_path_ref(
+            "packs/built-in/tactics/testing/acceptance-test-first.tactic.yaml"
+        ) == ("tactic", "acceptance-test-first")
+
+    def test_paradigm_flattened(self) -> None:
+        assert _resolve_path_ref(
+            "packs/built-in/paradigms/domain-driven-design.paradigm.yaml"
+        ) == ("paradigm", "domain-driven-design")
+
+    def test_directive_flattened(self) -> None:
+        result = _resolve_path_ref(
+            "packs/built-in/directives/030-test-and-typecheck-quality-gate.directive.yaml"
+        )
+        assert result is not None
+        kind, raw_id = result
+        assert kind == "directive"
+        assert raw_id.startswith("030-")
+
+    def test_styleguide_flattened(self) -> None:
+        assert _resolve_path_ref(
+            "packs/built-in/styleguides/testing-principles.styleguide.yaml"
+        ) == ("styleguide", "testing-principles")
+
+    def test_toolguide_flattened(self) -> None:
+        assert _resolve_path_ref(
+            "packs/built-in/toolguides/maven-review-checks.toolguide.yaml"
+        ) == ("toolguide", "maven-review-checks")
+
+    def test_procedure_flattened(self) -> None:
+        assert _resolve_path_ref(
+            "packs/built-in/procedures/some-workflow.procedure.yaml"
+        ) == ("procedure", "some-workflow")
+
+    def test_agent_profile_flattened(self) -> None:
+        assert _resolve_path_ref(
+            "packs/built-in/agent_profiles/java-jenny.agent.yaml"
+        ) == ("agent_profile", "java-jenny")
+
+    def test_flattened_home_never_reintroduces_inner_built_in(self) -> None:
+        """A path that keeps the retired inner ``built-in`` under the flattened
+        home is NOT the shipped layout; the pattern must not silently accept the
+        double-``built-in`` shape as if it were flattened."""
+        assert _resolve_path_ref(
+            "packs/built-in/tactics/built-in/tdd-red-green-refactor.tactic.yaml"
+        ) == ("tactic", "tdd-red-green-refactor")
+        # ...it resolves only because ``(?:.+/)?`` treats the stray ``built-in/``
+        # as an ordinary subdir, still keying on the stem — never a new home.
+
+
+# ---------------------------------------------------------------------------
 # _resolve_path_ref: miss cases (must return None)
 # ---------------------------------------------------------------------------
 

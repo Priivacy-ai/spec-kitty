@@ -508,14 +508,14 @@ code_only_suppressions:
 
   - name: lines
     declared_at: src/doctrine/import_candidates/models.py
-    producer: src/doctrine/assets/built-in/docs_structural_lint.py
+    producer: packs/built-in/assets/docs_structural_lint.py
     verdict: name-collision
     note: >-
       `lines = text.splitlines()`, plus two more bare bindings elsewhere. Nothing
       to do with the import-candidate field.
   - name: lines
     declared_at: src/doctrine/schemas/import-candidate.schema.yaml
-    producer: src/doctrine/assets/built-in/docs_structural_lint.py
+    producer: packs/built-in/assets/docs_structural_lint.py
     verdict: name-collision
     note: Schema twin of the `import_candidates/models.py` row above.
 

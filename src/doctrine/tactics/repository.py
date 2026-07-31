@@ -11,9 +11,9 @@ Provides:
 from pathlib import Path
 from typing import Any
 
-from importlib.resources import files
 from ruamel.yaml import YAML
 
+from doctrine.pack_paths import resolve_pack_root
 from doctrine.base import BaseDoctrineRepository
 from .models import Tactic
 from .validation import reject_tactic_inline_refs
@@ -40,13 +40,7 @@ class TacticRepository(BaseDoctrineRepository[Tactic]):
     @staticmethod
     def _default_built_in_dir() -> Path:
         """Get default built-in tactics directory from package data."""
-        try:
-            resource = files("doctrine.tactics")
-            if hasattr(resource, "joinpath"):
-                return Path(str(resource.joinpath("built-in")))
-            return Path(str(resource)) / "built-in"
-        except (ModuleNotFoundError, TypeError):
-            return Path(__file__).parent / "built-in"
+        return resolve_pack_root("built-in") / "tactics"
 
     @property
     def _schema(self) -> type[Tactic]:

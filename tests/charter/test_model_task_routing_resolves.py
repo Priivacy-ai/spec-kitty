@@ -71,7 +71,11 @@ def _load_shipped_graph() -> DRGGraph:
 
 
 def _real_doctrine_service() -> DoctrineService:
-    return DoctrineService(built_in_root=REPO_ROOT / "src" / "doctrine")
+    # Built-in pack content relocated to ``packs/built-in`` (relocate-builtin-doctrine-packs).
+    # ``built_in_root=None`` lets the per-kind repositories self-resolve the flattened
+    # ``packs/built-in/<kind>`` layout via the WP04 seam (as production does); passing an
+    # explicit root would force the retired ``<root>/<kind>/built-in`` layout.
+    return DoctrineService(built_in_root=None)
 
 
 def test_model_task_routing_tactic_reachable_via_drg_traversal() -> None:

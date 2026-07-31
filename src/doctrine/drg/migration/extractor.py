@@ -18,6 +18,7 @@ import re
 from collections import defaultdict
 from collections.abc import Iterator
 from enum import Enum
+from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
@@ -30,6 +31,7 @@ from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.validator import assert_valid
 from doctrine.missions.mission_step_repository import MissionStepRepository
 from doctrine.missions.step_projection import iter_template_refs, project_action_sequence
+from doctrine.pack_paths import resolve_pack_root
 from doctrine.template_catalog import template_id_for, template_urn
 
 SPECIFICATION_BY_EXAMPLE = "paradigm:specification-by-example"
@@ -41,6 +43,98 @@ SPECIFICATION_BY_EXAMPLE = "paradigm:specification-by-example"
 
 _yaml = YAML(typ="safe")
 
+
+# ---------------------------------------------------------------------------
+# Root resolution (post-flatten: built-in *content* lives in ``packs/built-in/``
+# while ``missions/`` stays inside the ``doctrine`` package).
+# ---------------------------------------------------------------------------
+
+
+def _doctrine_package_dir() -> Path | None:
+    """Return the installed ``doctrine`` package directory, or ``None``.
+
+    ``files("doctrine")`` is resolved lazily (mirroring
+    :mod:`doctrine.pack_paths`) so importing this module never triggers the
+    ``doctrine/__init__.py`` import cycle.
+    """
+    try:
+        return Path(str(files("doctrine")))
+    except (ModuleNotFoundError, TypeError):
+        return None
+
+
+def _same_path(a: Path, b: Path) -> bool:
+    try:
+        return a.resolve() == b.resolve()
+    except OSError:
+        return False
+
+
+def _is_pack_root(root: Path) -> bool:
+    """True iff *root* is a flattened built-in **pack** root.
+
+    A pack root ships artifact YAML directly under ``<kind>/`` (post-flatten,
+    WP03), so a populated ``directives/`` block is a reliable proxy. The
+    ``doctrine`` **package** root (``src/doctrine``) fails this test — its
+    ``directives/`` holds only Python modules — as does an artifact-free
+    synthetic or nonexistent test root. ``Path.glob`` on a missing directory
+    yields nothing.
+    """
+    return any((root / "directives").glob("*.directive.yaml"))
+
+
+def _is_doctrine_package_root(root: Path) -> bool:
+    """True iff *root* is the installed ``doctrine`` package directory itself
+    (``src/doctrine`` in a checkout) — the legacy caller shape whose built-in
+    artifacts were relocated out to ``packs/built-in``."""
+    pkg = _doctrine_package_dir()
+    return pkg is not None and _same_path(root, pkg)
+
+
+def _artifacts_root(doctrine_root: Path) -> Path:
+    """Resolve the flattened built-in **artifact** pack root for *doctrine_root*.
+
+    Post-flatten, the nine artifact kinds live at ``packs/built-in/<kind>/``
+    (WP03) — the inner ``built-in/`` level is gone. Three caller shapes exist:
+
+    * A *flattened pack root* (:func:`_is_pack_root` true) is honoured unchanged
+      — this is what the CLI command and the shipped-graph tests pass.
+    * The ``doctrine`` **package** root (``src/doctrine``,
+      :func:`_is_doctrine_package_root`) no longer carries artifacts — they were
+      relocated to ``packs/built-in`` — so the canonical pack root is resolved
+      via :func:`resolve_pack_root` (the same fail-closed seam the loader uses).
+    * Any **other** root is a synthetic test fixture and is honoured as-is, so a
+      unit test can inject artifacts under an arbitrary temp root without the
+      resolver silently substituting the real shipped tree.
+    """
+    if _is_pack_root(doctrine_root):
+        return doctrine_root
+    if _is_doctrine_package_root(doctrine_root):
+        return resolve_pack_root("built-in")
+    return doctrine_root
+
+
+def _missions_root(doctrine_root: Path) -> Path:
+    """Resolve the ``missions/`` root for *doctrine_root*.
+
+    Missions were **not** relocated by the flatten (WP03 left ``missions/`` and
+    ``schemas/`` in place), so they still live inside the ``doctrine`` package.
+
+    * A flattened **pack** root (``packs/built-in``) does not carry ``missions/``,
+      so the package's own ``missions/`` is resolved via ``files("doctrine")`` —
+      the same in-layer self-reference :mod:`doctrine.pack_paths` uses, valid in
+      both an editable checkout and an installed wheel.
+    * Any **other** root (the package root ``src/doctrine`` that carries
+      ``missions/`` directly, or a synthetic/nonexistent test root that carries
+      none) uses its own ``<root>/missions`` — so a nonexistent root still
+      resolves to an absent, empty missions tree rather than the package's.
+    """
+    if _is_pack_root(doctrine_root):
+        pkg = _doctrine_package_dir()
+        if pkg is not None:
+            return pkg / "missions"
+    return doctrine_root / "missions"
+
 # ---------------------------------------------------------------------------
 # T027: Path-string reference resolver for styleguide / toolguide ``references``
 # ---------------------------------------------------------------------------
@@ -48,55 +142,47 @@ _yaml = YAML(typ="safe")
 #: Ordered list of (compiled-pattern, kind) pairs.  Each pattern captures the
 #: filename stem (without kind extension and without any subdirectory prefix) in
 #: group 1.  The ``(?:.+/)?`` non-capturing optional subdir fragment ensures that
-#: both flat paths (``built-in/foo.tactic.yaml``) and paths rooted under a
-#: subdirectory (``built-in/testing/foo.tactic.yaml``) resolve to the same stem.
+#: both flat paths (``<kind>/foo.tactic.yaml``) and paths rooted under a
+#: subdirectory (``<kind>/testing/foo.tactic.yaml``) resolve to the same stem.
+#:
+#: **Two path shapes are matched (relocate-builtin-doctrine-packs).** The flatten
+#: (WP03) moved artifact *files* from ``src/doctrine/<kind>/built-in/`` to the
+#: flattened ``packs/built-in/<kind>/``, but the ``references:`` path strings
+#: authored *inside* the styleguide/toolguide YAML were deliberately **not**
+#: rewritten (that move was a pure ``git mv`` — no in-file edits). Those strings
+#: are the actual input :func:`_resolve_path_ref` reads, so the legacy
+#: ``src/doctrine/<kind>/built-in/`` branch is load-bearing: dropping it would
+#: silently lose every reference-derived ``suggests`` edge and shrink the shipped
+#: graph. The flattened ``packs/built-in/<kind>/`` branch (inner ``built-in``
+#: dropped) resolves any reference authored in the new home. A path string
+#: resolves via **either** branch to the same ``(kind, stem)`` because the URN is
+#: keyed on the stem, not the prefix — so the graph is prefix-invariant.
 #:
 #: Only **built-in** artifact directories are covered; ``_proposed`` profiles and
 #: non-artifact files (README, glossary YAML, URLs) will not match any pattern
 #: and therefore return ``None`` from :func:`_resolve_path_ref`.
+
+
+def _kind_path_pattern(kind_dir: str, extension: str) -> re.Pattern[str]:
+    """Compile a dual-home path-ref pattern for one artifact *kind_dir*.
+
+    Matches both the legacy ``src/doctrine/<kind_dir>/built-in/…`` home (the
+    format the shipped ``references:`` strings still carry) and the flattened
+    ``packs/built-in/<kind_dir>/…`` home (inner ``built-in`` dropped), capturing
+    the subdir-stripped filename stem (``*extension*`` = e.g. ``tactic``).
+    """
+    home = rf"(?:src/doctrine/{kind_dir}/built-in|packs/built-in/{kind_dir})"
+    return re.compile(rf"{home}/(?:.+/)?([^/]+)\.{extension}\.yaml$")
+
+
 _PATH_KIND_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (
-        re.compile(
-            r"src/doctrine/tactics/built-in/(?:.+/)?([^/]+)\.tactic\.yaml$"
-        ),
-        "tactic",
-    ),
-    (
-        re.compile(
-            r"src/doctrine/paradigms/built-in/(?:.+/)?([^/]+)\.paradigm\.yaml$"
-        ),
-        "paradigm",
-    ),
-    (
-        re.compile(
-            r"src/doctrine/directives/built-in/(?:.+/)?([^/]+)\.directive\.yaml$"
-        ),
-        "directive",
-    ),
-    (
-        re.compile(
-            r"src/doctrine/styleguides/built-in/(?:.+/)?([^/]+)\.styleguide\.yaml$"
-        ),
-        "styleguide",
-    ),
-    (
-        re.compile(
-            r"src/doctrine/toolguides/built-in/(?:.+/)?([^/]+)\.toolguide\.yaml$"
-        ),
-        "toolguide",
-    ),
-    (
-        re.compile(
-            r"src/doctrine/procedures/built-in/(?:.+/)?([^/]+)\.procedure\.yaml$"
-        ),
-        "procedure",
-    ),
-    (
-        re.compile(
-            r"src/doctrine/agent_profiles/built-in/(?:.+/)?([^/]+)\.agent\.yaml$"
-        ),
-        "agent_profile",
-    ),
+    (_kind_path_pattern("tactics", "tactic"), "tactic"),
+    (_kind_path_pattern("paradigms", "paradigm"), "paradigm"),
+    (_kind_path_pattern("directives", "directive"), "directive"),
+    (_kind_path_pattern("styleguides", "styleguide"), "styleguide"),
+    (_kind_path_pattern("toolguides", "toolguide"), "toolguide"),
+    (_kind_path_pattern("procedures", "procedure"), "procedure"),
+    (_kind_path_pattern("agent_profiles", "agent"), "agent_profile"),
 ]
 
 
@@ -104,13 +190,15 @@ def _resolve_path_ref(path_str: str) -> tuple[str, str] | None:
     """Return ``(kind, raw_id)`` for a raw path-string reference, or ``None``.
 
     Styleguide and toolguide ``references`` fields carry plain file paths such as
-    ``src/doctrine/tactics/built-in/tdd-red-green-refactor.tactic.yaml``.  This
-    helper maps such a path to the canonical ``(kind, raw_id)`` pair that
-    :func:`doctrine.drg.migration.id_normalizer.artifact_to_urn` can resolve into
-    a full URN.
+    ``src/doctrine/tactics/built-in/tdd-red-green-refactor.tactic.yaml`` (legacy
+    home, still authored in the shipped YAML) or
+    ``packs/built-in/tactics/tdd-red-green-refactor.tactic.yaml`` (flattened
+    home).  This helper maps such a path to the canonical ``(kind, raw_id)`` pair
+    that :func:`doctrine.drg.migration.id_normalizer.artifact_to_urn` can resolve
+    into a full URN — the two homes resolve to the same pair.
 
-    Only **built-in** artifact paths under ``src/doctrine/`` are matched; URLs,
-    glossary files, ADR documents, ``_proposed`` profiles, and any other path that
+    Only **built-in** artifact paths (either home) are matched; URLs, glossary
+    files, ADR documents, ``_proposed`` profiles, and any other path that
     does not match one of the recognised patterns return ``None`` (fail-closed per
     NFR-003 — never silently infer identity from an unrecognised path).
 
@@ -421,7 +509,7 @@ def _merge_edge_metadata(existing: DRGEdge, incoming: DRGEdge) -> DRGEdge:
 
 
 def _emit_glossary_pack_nodes(
-    doctrine_root: Path, nodes_by_urn: dict[str, DRGNode]
+    packs_root: Path, nodes_by_urn: dict[str, DRGNode]
 ) -> None:
     """Register a ``glossary_pack:<id>`` source node for each built-in pack.
 
@@ -433,8 +521,11 @@ def _emit_glossary_pack_nodes(
     Glossary packs carry no outbound DRG references in Mission A (the
     enforcement fields are inert until Mission B), so only the pack's own
     node is emitted here -- there are no edges to extract.
+
+    *packs_root* is the flattened built-in pack root (``packs/built-in``); the
+    packs live directly under ``<packs_root>/glossary_packs/`` (WP03 flatten).
     """
-    packs_dir = doctrine_root / "glossary_packs" / "built-in"
+    packs_dir = packs_root / "glossary_packs"
     if not packs_dir.is_dir():
         return
     for path in sorted(packs_dir.glob("*.glossary-pack.yaml")):
@@ -463,6 +554,7 @@ def extract_artifact_edges(  # noqa: C901
     """
     nodes_by_urn: dict[str, DRGNode] = {}
     edges_by_triple: dict[tuple[str, str, str], DRGEdge] = {}
+    packs_root = _artifacts_root(doctrine_root)
 
     def _add_edge(edge: DRGEdge) -> None:
         triple = (edge.source, edge.target, edge.relation.value)
@@ -474,7 +566,7 @@ def extract_artifact_edges(  # noqa: C901
             edges_by_triple[triple] = edge
 
     # --- Directives ---
-    directives_dir = doctrine_root / "directives" / "built-in"
+    directives_dir = packs_root / "directives"
     if directives_dir.is_dir():
         for path in sorted(directives_dir.glob("*.directive.yaml")):
             data = _load_yaml(path)
@@ -518,7 +610,7 @@ def extract_artifact_edges(  # noqa: C901
                 )
 
     # --- Tactics ---
-    tactics_dir = doctrine_root / "tactics" / "built-in"
+    tactics_dir = packs_root / "tactics"
     if tactics_dir.is_dir():
         # Include top-level *.tactic.yaml and any in subdirectories
         tactic_files = sorted(tactics_dir.rglob("*.tactic.yaml"))
@@ -573,7 +665,7 @@ def extract_artifact_edges(  # noqa: C901
                     )
 
     # --- Paradigms ---
-    paradigms_dir = doctrine_root / "paradigms" / "built-in"
+    paradigms_dir = packs_root / "paradigms"
     if paradigms_dir.is_dir():
         for path in sorted(paradigms_dir.glob("*.paradigm.yaml")):
             data = _load_yaml(path)
@@ -625,7 +717,7 @@ def extract_artifact_edges(  # noqa: C901
                 )
 
     # --- Procedures ---
-    procedures_dir = doctrine_root / "procedures" / "built-in"
+    procedures_dir = packs_root / "procedures"
     if procedures_dir.is_dir():
         for path in sorted(procedures_dir.glob("*.procedure.yaml")):
             data = _load_yaml(path)
@@ -655,7 +747,7 @@ def extract_artifact_edges(  # noqa: C901
                 )
 
     # --- Agent profiles ---
-    profiles_dir = doctrine_root / "agent_profiles" / "built-in"
+    profiles_dir = packs_root / "agent_profiles"
     if profiles_dir.is_dir():
         for path in sorted(profiles_dir.glob("*.agent.yaml")):
             data = _load_yaml(path)
@@ -696,7 +788,7 @@ def extract_artifact_edges(  # noqa: C901
     # Styleguide ``references`` is a plain ``list[str]`` of file paths — NOT the
     # structured ``{type, id}`` form used by tactics/directives.  Use
     # :func:`_resolve_path_ref` to map each path to a (kind, raw_id) pair.
-    styleguides_dir = doctrine_root / "styleguides" / "built-in"
+    styleguides_dir = packs_root / "styleguides"
     if styleguides_dir.is_dir():
         for path in sorted(styleguides_dir.rglob("*.styleguide.yaml")):
             data = _load_yaml(path)
@@ -733,7 +825,7 @@ def extract_artifact_edges(  # noqa: C901
     # Toolguides may now carry a ``references`` field (additive schema change per
     # DIRECTIVE_018 — see toolguide.schema.yaml).  Like styleguides, the field is
     # a ``list[str]`` of file paths resolved via :func:`_resolve_path_ref`.
-    toolguides_dir = doctrine_root / "toolguides" / "built-in"
+    toolguides_dir = packs_root / "toolguides"
     if toolguides_dir.is_dir():
         for path in sorted(toolguides_dir.rglob("*.toolguide.yaml")):
             data = _load_yaml(path)
@@ -767,7 +859,7 @@ def extract_artifact_edges(  # noqa: C901
                 )
 
     # --- Glossary packs (source-node emission only, WP03) ---
-    _emit_glossary_pack_nodes(doctrine_root, nodes_by_urn)
+    _emit_glossary_pack_nodes(packs_root, nodes_by_urn)
 
     for source, target, relation in _CURATED_ARTIFACT_EDGES:
         source_kind = source.split(":", 1)[0]
@@ -798,7 +890,7 @@ def extract_action_edges(
             seen_triples.add(triple)
             edges.append(edge)
 
-    missions_dir = doctrine_root / "missions"
+    missions_dir = _missions_root(doctrine_root)
     if not missions_dir.is_dir():
         return [], []
 
@@ -854,15 +946,16 @@ def _discover_built_in_artifact_nodes(
     # ``system_tools/``, styleguides under ``writing/``) are always discovered.
     # Each (subdir, kind, node_kind) triple maps to a ``rglob`` pattern; the
     # previous ``glob`` form missed files in second-level subdirectories.
+    packs_root = _artifacts_root(doctrine_root)
     scan_dirs: list[tuple[str, str, NodeKind]] = [
-        ("styleguides/built-in", "styleguide", NodeKind.STYLEGUIDE),
-        ("toolguides/built-in", "toolguide", NodeKind.TOOLGUIDE),
-        ("procedures/built-in", "procedure", NodeKind.PROCEDURE),
-        ("agent_profiles/built-in", "agent_profile", NodeKind.AGENT_PROFILE),
-        ("assets/built-in", "asset", NodeKind.ASSET),
+        ("styleguides", "styleguide", NodeKind.STYLEGUIDE),
+        ("toolguides", "toolguide", NodeKind.TOOLGUIDE),
+        ("procedures", "procedure", NodeKind.PROCEDURE),
+        ("agent_profiles", "agent_profile", NodeKind.AGENT_PROFILE),
+        ("assets", "asset", NodeKind.ASSET),
     ]
     for subdir, kind, node_kind in scan_dirs:
-        built_in_dir = doctrine_root / subdir
+        built_in_dir = packs_root / subdir
         if not built_in_dir.is_dir():
             continue
         glob_pattern = "*.agent.yaml" if kind == "agent_profile" else f"*.{kind}.yaml"
@@ -889,7 +982,7 @@ def _iter_mission_type_data(
     :func:`extract_mission_type_edges` (edges) consume it so the glob is defined
     once. Files without an ``id`` or that fail to parse are skipped.
     """
-    mission_types_dir = doctrine_root / "missions" / "mission_types"
+    mission_types_dir = _missions_root(doctrine_root) / "mission_types"
     if not mission_types_dir.is_dir():
         return
     for path in sorted(mission_types_dir.glob("*.yaml")):
@@ -962,7 +1055,7 @@ def _discover_mission_step_contract_nodes(
             pair onto one URN, masking an authoring collision behind a
             freshness-clean graph.
     """
-    contracts_dir = doctrine_root / "missions" / "built_in_step_contracts"
+    contracts_dir = _missions_root(doctrine_root) / "built_in_step_contracts"
     if not contracts_dir.is_dir():
         return
     seen_urns: dict[str, Path] = {}
@@ -1028,7 +1121,7 @@ def extract_mission_type_edges(doctrine_root: Path) -> list[DRGEdge]:
     duplicate/dangling/cycle safety is enforced by ``assert_valid``.
     """
     edges: list[DRGEdge] = []
-    step_repo = MissionStepRepository(doctrine_root / "missions" / "mission-steps")
+    step_repo = MissionStepRepository(_missions_root(doctrine_root) / "mission-steps")
     for mission_type_id, data, _path in _iter_mission_type_data(doctrine_root):
         source_urn = artifact_to_urn("mission_type", mission_type_id)
         sequence = _resolve_action_sequence(step_repo, mission_type_id, data)
@@ -1082,7 +1175,7 @@ def extract_template_instantiation_edges(
     nodes: list[DRGNode] = []
     edges: list[DRGEdge] = []
     seen_node_urns: set[str] = set()
-    step_repo = MissionStepRepository(doctrine_root / "missions" / "mission-steps")
+    step_repo = MissionStepRepository(_missions_root(doctrine_root) / "mission-steps")
     for mission_type_id, _data, _path in _iter_mission_type_data(doctrine_root):
         steps = step_repo.resolve_all_for_mission_type(
             mission_type_id, pack_context=None

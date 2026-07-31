@@ -22,9 +22,6 @@ reviewer can map test → acceptance at a glance.
 
 from __future__ import annotations
 
-from importlib.resources import files
-from pathlib import Path
-
 import pytest
 
 from charter.context import _render_profile_sections
@@ -70,8 +67,14 @@ def graph() -> DRGGraph:
 
 @pytest.fixture(scope="module")
 def service() -> DoctrineService:
-    """A DoctrineService over the shipped built-in doctrine tree."""
-    return DoctrineService(built_in_root=Path(str(files("doctrine"))))
+    """A DoctrineService over the shipped built-in doctrine tree.
+
+    ``built_in_root=None`` lets each repository self-resolve the flattened
+    built-in tier via ``resolve_pack_root("built-in")`` (packs/built-in/<kind>).
+    Post-relocation, ``files("doctrine")`` points at the emptied src/doctrine
+    tree and would load nothing.
+    """
+    return DoctrineService(built_in_root=None)
 
 
 def _kind_filtered(reached: frozenset[str]) -> set[str]:

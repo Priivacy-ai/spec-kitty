@@ -57,10 +57,9 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SCRIPT = _REPO_ROOT / "scripts" / "generate_schemas.py"
 _COMMON_DOCS_STYLEGUIDE = (
     _REPO_ROOT
-    / "src"
-    / "doctrine"
-    / "styleguides"
+    / "packs"
     / "built-in"
+    / "styleguides"
     / "common-docs.styleguide.yaml"
 )
 

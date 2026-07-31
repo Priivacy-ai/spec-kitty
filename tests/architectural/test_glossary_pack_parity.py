@@ -39,7 +39,7 @@ def _repo_root() -> Path:
 
 
 _SEED_PATH: Path = _repo_root() / ".kittify" / "glossaries" / "spec_kitty_core.yaml"
-_BUILT_IN_DIR: Path = _repo_root() / "src" / "doctrine" / "glossary_packs" / "built-in"
+_BUILT_IN_DIR: Path = _repo_root() / "packs" / "built-in" / "glossary_packs"
 _PACK_ID = "spec-kitty-core"
 
 #: The optional keys the seed carries beyond the four obvious fields

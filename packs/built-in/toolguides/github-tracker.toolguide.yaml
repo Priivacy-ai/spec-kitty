@@ -2,7 +2,7 @@ schema_version: "1.0"
 id: github-tracker
 tool: gh
 title: GitHub Issue-Tracker Operations (gh CLI + GraphQL)
-guide_path: src/doctrine/toolguides/built-in/GITHUB_TRACKER.md
+guide_path: packs/built-in/toolguides/GITHUB_TRACKER.md
 summary: >
   Driving the GitHub issue tracker from the CLI — native sub-issues (parent/child),
   issue types, parent-chain walks, auth, and the rate-limit and node-id-vs-db-id

@@ -74,6 +74,8 @@ ALLOWLIST: frozenset[str] = frozenset()
 
 _SRC = "src"
 _DOCTRINE = "doctrine"
+_PACKS = "packs"
+_BUILT_IN = "built-in"
 _SCHEMAS = "schemas"
 _SCHEMA_GLOB = "*.schema.yaml"
 _MODELS_FILENAME = "models.py"
@@ -176,6 +178,29 @@ def _model_slots(root: Path) -> Iterator[InertSlot]:
 # ----------------------------------------------------------------------- producers
 
 
+def _producer_roots(root: Path) -> list[Path]:
+    """Directories that make up the doctrine tree for producer harvesting.
+
+    Two roots, both the doctrine layer proper. Mission
+    ``relocate-builtin-doctrine-packs-01KYT87F`` relocated the shipped built-in
+    *artefacts* (and the ``docs_structural_lint.py`` code producer) out of
+    ``src/doctrine/<kind>/built-in/`` into a flattened ``packs/built-in/<kind>/``;
+    the ``schemas/``, ``models.py``, ``templates/`` and the remaining ``.py`` code
+    stayed under ``src/doctrine/``. Producers therefore live in *both* trees now, so
+    both are walked.
+
+    This is emphatically **not** the whole-``src`` widening the docstring warns
+    against. That hole (bare-name collisions from unrelated CLI code masking a
+    doctrine slot — it defeated the ``aliases``/``overrides`` guards) came from
+    harvesting all of ``src/``. ``packs/built-in`` is where the doctrine artefacts
+    now physically live; scanning it restores the *same* producer set the move
+    displaced, no more. The slot walks are deliberately left pointed at
+    ``src/doctrine/`` alone — schemas and models did not move.
+    """
+    candidates = (root / _SRC / _DOCTRINE, root / _PACKS / _BUILT_IN)
+    return [base for base in candidates if base.is_dir()]
+
+
 def _iter_mapping_keys(node: object) -> Iterator[str]:
     if isinstance(node, dict):
         for key, value in node.items():
@@ -189,19 +214,21 @@ def _iter_mapping_keys(node: object) -> Iterator[str]:
 def _artefact_producers(root: Path) -> set[str]:
     """Keys carried by shipped doctrine artefacts — the dominant producer form here.
 
-    Excludes ``src/doctrine/schemas/``: the generated schemas are what is being
-    checked, and admitting them makes every schema property self-producing.
+    Walks both doctrine roots (see :func:`_producer_roots`) — the artefacts now live
+    under ``packs/built-in/`` after the relocation, while a few still-authored trees
+    (missions, templates, workflows, the routing catalog) remain under
+    ``src/doctrine/``. Excludes ``src/doctrine/schemas/``: the generated schemas are
+    what is being checked, and admitting them makes every schema property
+    self-producing.
     """
-    doctrine = root / _SRC / _DOCTRINE
-    schemas = doctrine / _SCHEMAS
+    schemas = root / _SRC / _DOCTRINE / _SCHEMAS
     produced: set[str] = set()
-    if not doctrine.is_dir():
-        return produced
-    for path in sorted(doctrine.rglob("*")):
-        if path.suffix not in _ARTEFACT_SUFFIXES or schemas in path.parents:
-            continue
-        for document in _load_keys_verbatim(path.read_text(encoding="utf-8")):
-            produced.update(_iter_mapping_keys(document))
+    for base in _producer_roots(root):
+        for path in sorted(base.rglob("*")):
+            if path.suffix not in _ARTEFACT_SUFFIXES or schemas in path.parents:
+                continue
+            for document in _load_keys_verbatim(path.read_text(encoding="utf-8")):
+                produced.update(_iter_mapping_keys(document))
     return produced
 
 
@@ -269,14 +296,18 @@ def _code_producers(root: Path) -> set[str]:
     ``aliases`` and ``overrides`` — i.e. it defeated SC-001's ``aliases`` guard
     outright and hid half of the FR-028 ``enhances``/``overrides`` pair. Widening
     this back is not a refactor; it is a hole.
+
+    Both doctrine roots are walked (see :func:`_producer_roots`): the
+    ``docs_structural_lint.py`` code producer relocated to ``packs/built-in/assets/``,
+    while the rest of the doctrine ``.py`` code stayed under ``src/doctrine/``.
+    ``packs/built-in`` is the doctrine layer's new home, not the whole-``src``
+    widening the paragraph above forbids.
     """
-    doctrine = root / _SRC / _DOCTRINE
     produced: set[str] = set()
-    if not doctrine.is_dir():
-        return produced
-    for path in sorted(doctrine.rglob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        produced.update(_iter_code_producer_names(tree))
+    for base in _producer_roots(root):
+        for path in sorted(base.rglob("*.py")):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            produced.update(_iter_code_producer_names(tree))
     return produced
 
 

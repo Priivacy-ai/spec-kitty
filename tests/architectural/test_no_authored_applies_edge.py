@@ -127,12 +127,15 @@ from doctrine.drg.models import (
 
 pytestmark = pytest.mark.architectural
 
-_DOCTRINE_ROOT = Path(__file__).resolve().parents[2] / "src" / "doctrine"
+# Relocated built-in pack root (mission relocate-builtin-doctrine-packs-01KYT87F):
+# the checked-in per-kind ``*.graph.yaml`` fragments now live under
+# ``packs/built-in/``, no longer under ``src/doctrine/``.
+_DOCTRINE_ROOT = Path(__file__).resolve().parents[2] / "packs" / "built-in"
 
 #: The relation this gate forbids in authored content.
 _FORBIDDEN = Relation.APPLIES
 
-#: Fragment paths (relative to ``src/doctrine/``) exempted from the rule. Deliberately
+#: Fragment paths (relative to ``packs/built-in/``) exempted from the rule. Deliberately
 #: EMPTY: the one pre-existing ``applies`` edge was retyped to ``requires``, not frozen.
 #: An entry here re-opens the unreachable-artefact class for that fragment.
 _ALLOWLIST: frozenset[str] = frozenset()

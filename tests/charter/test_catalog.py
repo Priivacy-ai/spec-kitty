@@ -106,6 +106,9 @@ def test_catalog_filters_language_scoped_artifacts(monkeypatch: pytest.MonkeyPat
             yaml.dump(data, handle)
 
     monkeypatch.setattr("charter.catalog.resolve_doctrine_root", lambda: doctrine_root)
+    # Built-in pack content relocated to ``packs/built-in`` and is resolved via
+    # ``resolve_pack_root`` (relocate-builtin-doctrine-packs); point it at the tmp root.
+    monkeypatch.setattr("charter.catalog.resolve_pack_root", lambda tier="built-in", **kw: doctrine_root)
 
     catalog = load_doctrine_catalog(active_languages=["typescript"])
 
@@ -163,6 +166,9 @@ def test_catalog_keeps_language_scoped_artifacts_when_active_languages_are_unset
             yaml.dump(data, handle)
 
     monkeypatch.setattr("charter.catalog.resolve_doctrine_root", lambda: doctrine_root)
+    # Built-in pack content relocated to ``packs/built-in`` and is resolved via
+    # ``resolve_pack_root`` (relocate-builtin-doctrine-packs); point it at the tmp root.
+    monkeypatch.setattr("charter.catalog.resolve_pack_root", lambda tier="built-in", **kw: doctrine_root)
 
     catalog = load_doctrine_catalog()
 

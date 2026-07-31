@@ -42,4 +42,4 @@ publication corpora.
 2. All example templates use `{{placeholder}}` double-brace convention for
    fill-in values.
 3. For full PlantUML usage guidance, see the
-   [PlantUML Diagramming Toolguide](../../../toolguides/built-in/PLANTUML_DIAGRAMMING.md).
+   [PlantUML Diagramming Toolguide](../../../../../packs/built-in/toolguides/PLANTUML_DIAGRAMMING.md).

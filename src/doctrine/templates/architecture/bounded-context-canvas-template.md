@@ -3,7 +3,7 @@
 A structured one-page summary for a single bounded context, based on the
 DDD Crew Bounded Context Canvas v5.
 
-Use the [bounded-context-canvas-fill](../../tactics/built-in/analysis/bounded-context-canvas-fill.tactic.yaml)
+Use the [bounded-context-canvas-fill](../../../../packs/built-in/tactics/analysis/bounded-context-canvas-fill.tactic.yaml)
 tactic for guidance on the reasoning process behind each section.
 
 ---
@@ -74,7 +74,7 @@ __________________
 | | | |
 
 See also: [Glossary Template](glossary-template.md) for a structured
-glossary file compatible with [Contextive](../../toolguides/built-in/CONTEXTIVE.md).
+glossary file compatible with [Contextive](../../../../packs/built-in/toolguides/CONTEXTIVE.md).
 
 ### 8. Business Decisions
 
@@ -198,6 +198,6 @@ inbound --> "Bounded Context: __NAME__"
 
 ## Traceability
 
-- Tactic: [bounded-context-canvas-fill](../../tactics/built-in/analysis/bounded-context-canvas-fill.tactic.yaml)
+- Tactic: [bounded-context-canvas-fill](../../../../packs/built-in/tactics/analysis/bounded-context-canvas-fill.tactic.yaml)
 - Glossary: [glossary-template](glossary-template.md)
-- Toolguide: [Contextive](../../toolguides/built-in/CONTEXTIVE.md)
+- Toolguide: [Contextive](../../../../packs/built-in/toolguides/CONTEXTIVE.md)

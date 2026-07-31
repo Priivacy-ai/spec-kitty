@@ -73,6 +73,7 @@ from charter.activation_engine import (
 )
 from charter.charter_yaml_io import load_charter_yaml, update_charter_yaml_section
 from charter.pack_context import CharterPackConfigError, resolve_charter_yaml_pointer
+from doctrine.pack_paths import resolve_pack_root
 from doctrine.artifact_kinds import (
     CHARTER_KIND_TOKENS,
     MISSION_TYPE_TOKEN,
@@ -649,6 +650,12 @@ class CharterPackManager:
                 candidate = root / "doctrine" / kind_dir
             elif layered and layer == "org" and kind is not None:
                 candidate = _resolve_org_layer_dir(root, kind, base_dir)
+            elif layered and layer == "built-in" and kind is not None:
+                # The built-in layer relocated from ``src/doctrine/<plural>/built-in``
+                # to the flattened ``packs/built-in/<plural>`` tree
+                # (mission relocate-builtin-doctrine-packs). Resolve it through the
+                # shared pack-root seam rather than the legacy ``src/doctrine`` root.
+                candidate = resolve_pack_root("built-in") / kind.plural
             elif layered:
                 candidate = root / base_dir / layer
             elif layer == "built-in":

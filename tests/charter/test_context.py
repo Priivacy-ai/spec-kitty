@@ -1025,8 +1025,14 @@ def test_build_doctrine_service_prefers_repo_src_overlay(
     service = _build_doctrine_service(tmp_path)
 
     assert isinstance(service, StubDoctrineService)
+    # Relocation (WP07): _build_doctrine_service now passes built_in_root=None so
+    # each repository self-resolves the flattened built-in tier via
+    # resolve_pack_root("built-in") (packs/built-in/<kind>). Pointing at
+    # resolve_doctrine_root() post-relocation would yield the emptied
+    # src/doctrine/<kind>/built-in and silently load nothing. The project-root
+    # overlay wiring is unchanged.
     assert calls == {
-        "built_in_root": built_in_root,
+        "built_in_root": None,
         "project_root": project_root,
         "active_languages": ["python", "typescript"],
     }

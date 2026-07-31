@@ -32,7 +32,11 @@ from doctrine.drg.validator import assert_valid
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-DOCTRINE_ROOT = Path(__file__).resolve().parents[3] / "src" / "doctrine"
+# Relocated to the flattened built-in pack root (mission
+# relocate-builtin-doctrine-packs-01KYT87F): the shipped ``*.graph.yaml``
+# fragments and per-kind content now live under ``packs/built-in/``, no longer
+# under ``src/doctrine/``.
+DOCTRINE_ROOT = Path(__file__).resolve().parents[3] / "packs" / "built-in"
 
 _FRAGMENT_SUFFIX = ".graph.yaml"
 
@@ -49,7 +53,7 @@ def test_monolith_absent_from_shipped_doctrine() -> None:
     a silent stale read.
     """
     assert not (DOCTRINE_ROOT / "graph.yaml").exists(), (
-        "src/doctrine/graph.yaml must be deleted atomically with the fragment "
+        "packs/built-in/graph.yaml must be deleted atomically with the fragment "
         "writes (DD-7); its presence masks the *.graph.yaml fragments on load."
     )
 
@@ -57,7 +61,7 @@ def test_monolith_absent_from_shipped_doctrine() -> None:
 def test_shipped_doctrine_has_graph_fragments() -> None:
     """At least one per-kind fragment must ship under the loader glob root."""
     fragments = sorted(DOCTRINE_ROOT.glob(f"*{_FRAGMENT_SUFFIX}"))
-    assert fragments, "no src/doctrine/*.graph.yaml fragments present"
+    assert fragments, "no packs/built-in/*.graph.yaml fragments present"
 
 
 def test_built_in_graph_source_resolves_to_a_directory() -> None:

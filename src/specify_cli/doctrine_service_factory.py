@@ -66,18 +66,20 @@ def build_activation_aware_doctrine_service(
         The activation-aware wrapper around the inner doctrine service.
     """
     from charter._doctrine_paths import resolve_project_root
-    from charter.catalog import resolve_doctrine_root
     from charter.pack_context import PackContext
     from charter.resolver import DoctrineService as ActivationDoctrineService
     from doctrine.drg.org_pack_config import resolve_org_roots
     from doctrine.service import DoctrineService
 
-    doctrine_root = resolve_doctrine_root()
     project_root = resolve_project_root(repo_root)
     org_roots = [root for root in resolve_org_roots(repo_root) if root.exists()]
 
+    # built_in_root=None lets each repository self-resolve the built-in tier via
+    # ``resolve_pack_root("built-in")`` (packs/built-in/<kind>) — the WP04 seam.
+    # Passing resolve_doctrine_root() here post-relocation yields the emptied
+    # ``src/doctrine/<kind>/built-in`` and silently loads nothing.
     inner = DoctrineService(
-        built_in_root=doctrine_root,
+        built_in_root=None,
         project_root=project_root,
         org_roots=org_roots,
     )

@@ -34,6 +34,7 @@ from charter.schemas import (
     DirectivesConfig,
     GovernanceConfig,
 )
+from doctrine.pack_paths import resolve_pack_root
 
 logger = logging.getLogger(__name__)
 
@@ -790,11 +791,12 @@ def _default_doctrine_service(repo_root: Path | None) -> DoctrineService:
     """
     from doctrine.service import DoctrineService
 
-    doctrine_root = resolve_doctrine_root()
     project_root: Path | None = None
     if repo_root is not None:
         project_root = resolve_project_root(repo_root)
-    return DoctrineService(built_in_root=doctrine_root, project_root=project_root)
+    # built_in_root=None → repositories self-resolve packs/built-in/<kind> (WP04 seam);
+    # resolve_doctrine_root() post-relocation points at the emptied src/doctrine tree.
+    return DoctrineService(built_in_root=None, project_root=project_root)
 
 
 def _build_references(
@@ -837,8 +839,8 @@ def _build_references_from_yaml(
     """Load references by scanning YAML files directly (fallback path)."""
     references: list[CharterReference] = []
 
-    paradigm_sources = _index_yaml_assets(doctrine_root / "paradigms", "*.paradigm.yaml")
-    directive_sources = _index_yaml_assets(doctrine_root / "directives", "*.directive.yaml")
+    paradigm_sources = _index_yaml_assets(resolve_pack_root("built-in") / "paradigms", "*.paradigm.yaml")
+    directive_sources = _index_yaml_assets(resolve_pack_root("built-in") / "directives", "*.directive.yaml")
 
     for paradigm in paradigms:
         references.append(
@@ -862,7 +864,13 @@ def _build_references_from_yaml(
 
     language_hints = interview.answers.get("languages_frameworks", "").lower()
     if "python" in language_hints:
-        styleguide_path = doctrine_root / "styleguides" / "python-implementation.styleguide.yaml"
+        # Built-in styleguides were flattened out of ``<doctrine_root>/styleguides``
+        # into ``packs/built-in/styleguides`` (relocation mission); resolve through
+        # the shared pack-root seam, matching the paradigm/directive reads above.
+        # ``doctrine_root`` stays for the template reference (templates remain under
+        # ``src/doctrine``). The file is currently absent, but repointing the root
+        # keeps this ``.exists()``-guarded read correct if/when it ships again.
+        styleguide_path = resolve_pack_root("built-in") / "styleguides" / "python-implementation.styleguide.yaml"
         if styleguide_path.exists():
             references.append(
                 _doctrine_yaml_reference(
@@ -923,7 +931,7 @@ def _build_references_from_service(
 
     # Paradigms: still loaded via YAML scanning (no typed paradigm references in graph).
     # Selection-only per the mission decision -- never DRG-reachable.
-    paradigm_sources = _index_yaml_assets(doctrine_root / "paradigms", "*.paradigm.yaml")
+    paradigm_sources = _index_yaml_assets(resolve_pack_root("built-in") / "paradigms", "*.paradigm.yaml")
     for paradigm in config_roots.paradigms:
         references.append(
             _doctrine_yaml_reference(

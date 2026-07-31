@@ -1,0 +1,72 @@
+"""Fail-closed contract for the built-in DRG loader (DIR-005).
+
+After the relocation mission flattened the built-in DRG fragments out of
+``src/doctrine/`` into ``packs/built-in/``, :func:`built_in_graph_source`
+resolves through the shared :func:`doctrine.pack_paths.resolve_pack_root`
+seam. That seam is deliberately fail-closed: when no ``packs/built-in/`` root
+can be located it raises :class:`~doctrine.pack_paths.PackRootNotFound`.
+
+These tests pin that the loader *propagates* the failure rather than
+re-swallowing it into an empty/partial graph (the old ``except -> Path(__file__)``
+fallback that would now silently point at the emptied ``src/doctrine/`` tree and
+yield ``0`` nodes / ``0`` edges build-green).
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from doctrine.drg.loader import (
+    built_in_graph_source,
+    load_built_in_graph,
+)
+from doctrine.pack_paths import PackRootNotFound
+
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+
+
+def _raise_pack_root_not_found(tier: str) -> None:
+    raise PackRootNotFound(tier)
+
+
+def test_built_in_graph_source_resolves_packs_root_by_default() -> None:
+    """Positive control: the seam resolves the flattened ``packs/built-in`` root."""
+    source = built_in_graph_source()
+    assert source.name == "built-in"
+    assert source.parent.name == "packs"
+    assert source.is_dir()
+
+
+def test_built_in_graph_source_propagates_pack_root_not_found(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``built_in_graph_source`` must NOT swallow ``PackRootNotFound``."""
+    monkeypatch.setattr(
+        "doctrine.drg.loader.resolve_pack_root",
+        _raise_pack_root_not_found,
+    )
+    with pytest.raises(PackRootNotFound):
+        built_in_graph_source()
+
+
+def test_load_built_in_graph_fails_closed_when_pack_root_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The loader raises (fail-closed) instead of returning an empty graph.
+
+    Proves DIR-005: with no resolvable ``packs/built-in`` root the loader
+    propagates ``PackRootNotFound`` rather than degrading to a ``0/0`` graph.
+    """
+    monkeypatch.setattr(
+        "doctrine.drg.loader.resolve_pack_root",
+        _raise_pack_root_not_found,
+    )
+    with pytest.raises(PackRootNotFound):
+        load_built_in_graph()
+
+
+def test_load_built_in_graph_loads_full_corpus_when_pack_root_present() -> None:
+    """Positive control: the unpatched loader yields the full built-in corpus."""
+    graph = load_built_in_graph()
+    assert len(graph.nodes) == 324  # golden-count: cardinality-is-contract
+    assert len(graph.edges) == 892  # golden-count: cardinality-is-contract

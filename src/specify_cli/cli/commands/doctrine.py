@@ -6,7 +6,7 @@ Surface area:
   all configured org doctrine packs into their local snapshot directories.
 * ``spec-kitty doctrine regenerate-graph [--check] [--json]`` — deterministically
   regenerate the shipped DRG from the built-in doctrine tree as per-kind
-  ``src/doctrine/*.graph.yaml`` fragments (FR-009 / WP09; sharded per mission
+  ``packs/built-in/*.graph.yaml`` fragments (FR-009 / WP09; sharded per mission
   #2680 WP05). ``--check`` compares without writing and exits non-zero when the
   committed graph source is stale.
 * ``spec-kitty doctrine pack validate <pack-path> [--json]`` — validate a
@@ -180,29 +180,34 @@ def fetch(
 # regenerate-graph — deterministic DRG regeneration (FR-009 / WP09 T026)
 # ----------------------------------------------------------------------
 def _doctrine_root() -> Path:
-    """Return the built-in doctrine root that owns the shipped DRG graph source.
+    """Return the built-in pack root that owns the shipped DRG graph source.
 
-    The extractor walks ``<doctrine_root>/directives/built-in`` etc. and writes
-    the sharded ``<doctrine_root>/*.graph.yaml`` fragments (mission #2680 WP05).
-    Regeneration must target the *working-tree* source (``src/doctrine``) when
-    invoked from inside a spec-kitty checkout — that is the directory the
-    freshness gate reads and that a developer commits.
+    Post-flatten (relocate-builtin-doctrine-packs, WP03) the built-in artifact
+    content and the sharded ``*.graph.yaml`` fragments live in
+    ``packs/built-in/`` — no longer under ``src/doctrine/<kind>/built-in``. This
+    root is both the extractor's artifact input *and* the fragment write-target /
+    freshness read source; the extractor resolves ``missions/`` (which did NOT
+    move) internally.
+
+    Regeneration must target the *working-tree* source when invoked from inside a
+    spec-kitty checkout — that is the directory the freshness gate reads and that
+    a developer commits.
 
     Resolution order:
-      1. Walk up from CWD for a ``src/doctrine`` dir carrying built-in
-         artifacts (``directives/built-in``).
-      2. Fall back to the installed :mod:`doctrine` package directory (e.g. a
-         consumer project running the CLI from a non-editable install).
+      1. Walk up from CWD for a ``packs/built-in`` directory (the working-tree
+         checkout the operator is standing in).
+      2. Fall back to the canonical resolver (:func:`resolve_pack_root`), which
+         covers editable checkouts and installed wheels fail-closed.
     """
+    from doctrine.pack_paths import resolve_pack_root
+
     cwd = Path.cwd().resolve()
     for candidate in [cwd, *cwd.parents]:
-        src_doctrine = candidate / "src" / "doctrine"
-        if (src_doctrine / "directives" / "built-in").is_dir():
-            return src_doctrine
+        packs_built_in = candidate / "packs" / "built-in"
+        if packs_built_in.is_dir():
+            return packs_built_in
 
-    import doctrine
-
-    return Path(doctrine.__file__).resolve().parent
+    return resolve_pack_root("built-in")
 
 
 @app.command(name="regenerate-graph")
@@ -212,7 +217,7 @@ def regenerate_graph(
         "--check",
         help=(
             "Do not write; regenerate into a temp directory and compare the "
-            "per-kind graph fragments against the committed src/doctrine source. "
+            "per-kind graph fragments against the committed packs/built-in source. "
             "Exit 1 when stale (operator-runnable freshness gate). Exit 0 when "
             "fresh."
         ),
@@ -226,7 +231,8 @@ def regenerate_graph(
     """Regenerate the shipped DRG graph source deterministically (FR-009).
 
     Composes the DRG extractor + calibrator into per-populated-node-kind
-    ``src/doctrine/*.graph.yaml`` fragments (sharded per mission #2680 WP05),
+    ``packs/built-in/*.graph.yaml`` fragments (sharded per mission #2680 WP05;
+    relocated from ``src/doctrine/`` by the pack flatten),
     retiring the legacy ``graph.yaml`` monolith in the same write. Running twice
     on unchanged inputs yields byte-identical fragments. With ``--check`` the
     command never writes: it regenerates into a temp directory and compares the

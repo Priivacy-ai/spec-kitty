@@ -96,3 +96,9 @@ tests/specify_cli/migration/test_dogfood_corpus_backfilled.py::test_reked_lock_r
 # budget-motivated re-mark. Carries [slow, distribution, non_sandbox].
 tests/docs/test_asset_resolution_wheel.py::test_shipped_asset_resolves_from_clean_wheel_install
 tests/docs/test_asset_resolution_wheel.py::test_unknown_asset_id_exits_nonzero_from_clean_wheel_install
+# Deliberate regen (2026-07-31, relocate-builtin-doctrine-packs post-merge
+# remediation): the clean-install full-graph proof builds and installs a real
+# wheel into a throwaway venv (>30s) to prove packs/built-in resolves the full
+# 324/892 identity after the built-in doctrine relocation — genuinely slow, not
+# a budget-motivated re-mark. Carries [slow, non_sandbox, doctrine].
+tests/doctrine/test_pack_relocation_doctor_gate.py::test_clean_install_resolves_full_built_in_graph

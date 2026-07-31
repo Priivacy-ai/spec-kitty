@@ -83,6 +83,9 @@ def test_resolve_governance_reads_charter_selections_first(
         "name: software-dev\n"
     )
     monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
+    # Built-in pack content resolves via ``resolve_pack_root`` post-relocation
+    # (relocate-builtin-doctrine-packs); point it at the synthetic root too.
+    monkeypatch.setattr(catalog_module, "resolve_pack_root", lambda tier="built-in", **kw: doctrine_root)
 
     repo_root = tmp_path / "repo"
     _write_charter_files(
@@ -502,6 +505,10 @@ def test_paradigm_failure_skipped_when_shipped_dir_absent(tmp_path: Path, monkey
     (doctrine_root / "missions" / "software-dev").mkdir(parents=True)
     (doctrine_root / "missions" / "software-dev" / "mission.yaml").write_text("name: software-dev\n")
     monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
+    # Built-in pack content resolves via ``resolve_pack_root`` post-relocation
+    # (relocate-builtin-doctrine-packs); the synthetic root has no paradigms dir,
+    # so validation must skip gracefully.
+    monkeypatch.setattr(catalog_module, "resolve_pack_root", lambda tier="built-in", **kw: doctrine_root)
 
     repo_root = tmp_path / "repo"
     _write_charter_files(

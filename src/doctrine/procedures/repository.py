@@ -5,9 +5,9 @@ Procedure repository with two-source loading (built-in + project).
 from pathlib import Path
 from typing import Any
 
-from importlib.resources import files
 from ruamel.yaml import YAML
 
+from doctrine.pack_paths import resolve_pack_root
 from doctrine.base import BaseDoctrineRepository
 from .models import Procedure
 from .validation import reject_procedure_inline_refs
@@ -34,13 +34,7 @@ class ProcedureRepository(BaseDoctrineRepository[Procedure]):
     @staticmethod
     def _default_built_in_dir() -> Path:
         """Get default built-in procedures directory from package data."""
-        try:
-            resource = files("doctrine.procedures")
-            if hasattr(resource, "joinpath"):
-                return Path(str(resource.joinpath("built-in")))
-            return Path(str(resource)) / "built-in"
-        except (ModuleNotFoundError, TypeError):
-            return Path(__file__).parent / "built-in"
+        return resolve_pack_root("built-in") / "procedures"
 
     @property
     def _schema(self) -> type[Procedure]:

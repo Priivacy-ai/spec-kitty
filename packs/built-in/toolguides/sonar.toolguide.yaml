@@ -2,7 +2,7 @@ schema_version: "1.0"
 id: sonar
 tool: sonarqube
 title: SonarQube Static Analysis and Quality Gate
-guide_path: src/doctrine/toolguides/built-in/SONAR.md
+guide_path: packs/built-in/toolguides/SONAR.md
 applies_to_languages: []
 summary: >
   Operator reference for SonarQube static analysis and its quality gate. Covers

@@ -17,6 +17,7 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCTRINE_ROOT = REPO_ROOT / "src" / "doctrine"
+PACKS_BUILT_IN = REPO_ROOT / "packs" / "built-in"
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -26,24 +27,26 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 
 
 def test_curated_doctrine_artifacts_exist_with_expected_kinds() -> None:
+    # Pack content relocated to the flattened ``packs/built-in`` root; templates
+    # stay under ``src/doctrine/templates`` (relocate-builtin-doctrine-packs).
     expected_paths = [
-        "procedures/built-in/disciplined-defect-diagnosis.procedure.yaml",
-        "paradigms/built-in/deep-module-design.paradigm.yaml",
-        "tactics/built-in/architecture/deepening-opportunity-assessment.tactic.yaml",
-        "tactics/built-in/architecture/interface-variation-design.tactic.yaml",
-        "procedures/built-in/domain-aware-decision-interview.procedure.yaml",
-        "procedures/built-in/issue-triage-state-machine.procedure.yaml",
-        "styleguides/built-in/deployable-skill-authoring.styleguide.yaml",
-        "templates/triage/agent-brief-template.md",
-        "templates/triage/out-of-scope-record-template.md",
+        PACKS_BUILT_IN / "procedures/disciplined-defect-diagnosis.procedure.yaml",
+        PACKS_BUILT_IN / "paradigms/deep-module-design.paradigm.yaml",
+        PACKS_BUILT_IN / "tactics/architecture/deepening-opportunity-assessment.tactic.yaml",
+        PACKS_BUILT_IN / "tactics/architecture/interface-variation-design.tactic.yaml",
+        PACKS_BUILT_IN / "procedures/domain-aware-decision-interview.procedure.yaml",
+        PACKS_BUILT_IN / "procedures/issue-triage-state-machine.procedure.yaml",
+        PACKS_BUILT_IN / "styleguides/deployable-skill-authoring.styleguide.yaml",
+        DOCTRINE_ROOT / "templates/triage/agent-brief-template.md",
+        DOCTRINE_ROOT / "templates/triage/out-of-scope-record-template.md",
     ]
 
-    missing = [relative for relative in expected_paths if not (DOCTRINE_ROOT / relative).exists()]
+    missing = [str(path) for path in expected_paths if not path.exists()]
     assert missing == []
 
-    assert _load_yaml(DOCTRINE_ROOT / expected_paths[0])["id"] == "disciplined-defect-diagnosis"
-    assert _load_yaml(DOCTRINE_ROOT / expected_paths[1])["id"] == "deep-module-design"
-    assert _load_yaml(DOCTRINE_ROOT / expected_paths[6])["id"] == "deployable-skill-authoring"
+    assert _load_yaml(expected_paths[0])["id"] == "disciplined-defect-diagnosis"
+    assert _load_yaml(expected_paths[1])["id"] == "deep-module-design"
+    assert _load_yaml(expected_paths[6])["id"] == "deployable-skill-authoring"
 
 
 def test_shipped_graph_links_curated_artifacts_and_templates(built_in_graph: DRGGraph) -> None:
@@ -93,7 +96,7 @@ def test_software_dev_action_indexes_expose_design_and_triage_doctrine() -> None
 
 def test_diagnosis_procedure_preserves_hypothesis_and_feedback_loop_discipline() -> None:
     procedure = _load_yaml(
-        DOCTRINE_ROOT / "procedures" / "built-in" / "disciplined-defect-diagnosis.procedure.yaml"
+        PACKS_BUILT_IN / "procedures" / "disciplined-defect-diagnosis.procedure.yaml"
     )
 
     step_text = "\n".join(step["title"] + " " + step.get("description", "") for step in procedure["steps"])

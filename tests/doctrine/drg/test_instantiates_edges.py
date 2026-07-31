@@ -39,7 +39,9 @@ from doctrine.drg.models import NodeKind, Relation
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
-DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[3] / "src" / "doctrine"
+# Relocated built-in pack root (mission relocate-builtin-doctrine-packs-01KYT87F):
+# the shipped ``*.graph.yaml`` fragments now live under ``packs/built-in/``.
+DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[3] / "packs" / "built-in"
 
 #: The expected ``(mission_type, step_id, template_file)`` triples, hand-pinned
 #: against the shipped ``step.yaml`` authoring (independent of the extractor

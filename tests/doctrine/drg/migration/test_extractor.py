@@ -16,6 +16,7 @@ from typing import Any
 import pytest
 from ruamel.yaml import YAML
 
+from doctrine.drg.loader import built_in_graph_source
 from doctrine.drg.migration.calibrator import measure_surface
 from doctrine.drg.migration.extractor import (
     _SKIP_REF_TYPES,
@@ -48,7 +49,7 @@ def _count_inline_refs(doctrine_root: Path) -> int:  # noqa: C901
     total = 0
 
     # Directives
-    directives_dir = doctrine_root / "directives" / "built-in"
+    directives_dir = built_in_graph_source() / "directives"
     if directives_dir.is_dir():
         for path in sorted(directives_dir.glob("*.directive.yaml")):
             data: Any = _yaml.load(path)
@@ -60,7 +61,7 @@ def _count_inline_refs(doctrine_root: Path) -> int:  # noqa: C901
                     total += 1
 
     # Tactics
-    tactics_dir = doctrine_root / "tactics" / "built-in"
+    tactics_dir = built_in_graph_source() / "tactics"
     if tactics_dir.is_dir():
         for path in sorted(tactics_dir.rglob("*.tactic.yaml")):
             data = _yaml.load(path)
@@ -75,7 +76,7 @@ def _count_inline_refs(doctrine_root: Path) -> int:  # noqa: C901
                         total += 1
 
     # Paradigms
-    paradigms_dir = doctrine_root / "paradigms" / "built-in"
+    paradigms_dir = built_in_graph_source() / "paradigms"
     if paradigms_dir.is_dir():
         for path in sorted(paradigms_dir.glob("*.paradigm.yaml")):
             data = _yaml.load(path)
@@ -88,7 +89,7 @@ def _count_inline_refs(doctrine_root: Path) -> int:  # noqa: C901
                     total += 1
 
     # Procedures
-    procedures_dir = doctrine_root / "procedures" / "built-in"
+    procedures_dir = built_in_graph_source() / "procedures"
     if procedures_dir.is_dir():
         for path in sorted(procedures_dir.glob("*.procedure.yaml")):
             data = _yaml.load(path)
@@ -117,7 +118,7 @@ def _count_inline_refs(doctrine_root: Path) -> int:  # noqa: C901
                 total += len(data.get(field, []) or [])
 
     # Agent profiles
-    profiles_dir = doctrine_root / "agent_profiles" / "built-in"
+    profiles_dir = built_in_graph_source() / "agent_profiles"
     if profiles_dir.is_dir():
         for path in sorted(profiles_dir.glob("*.agent.yaml")):
             data = _yaml.load(path)
@@ -221,9 +222,14 @@ class TestExtractArtifactEdges:
         assert "tactic:eisenhower-prioritisation" in targets
 
     def test_duplicate_tactic_refs_preserve_metadata(self, tmp_path: Path) -> None:
-        """Duplicate triples merge metadata instead of keeping the bare edge."""
-        doctrine_root = tmp_path / "doctrine"
-        tactics_dir = doctrine_root / "tactics" / "built-in"
+        """Duplicate triples merge metadata instead of keeping the bare edge.
+
+        Injects a synthetic tactic under a flattened pack root (``<root>/tactics``
+        — no inner ``built-in``); a synthetic root is honoured as-is by the
+        extractor's artifact-root resolver.
+        """
+        doctrine_root = tmp_path / "pack"
+        tactics_dir = doctrine_root / "tactics"
         tactics_dir.mkdir(parents=True)
         (tactics_dir / "metadata-merge.tactic.yaml").write_text(
             "\n".join(
@@ -288,7 +294,7 @@ class TestExtractArtifactEdges:
         nodes, _ = extract_artifact_edges(DOCTRINE_ROOT)
         directive_count = len(
             list(
-                (DOCTRINE_ROOT / "directives" / "built-in").glob("*.directive.yaml")
+                (built_in_graph_source() / "directives").glob("*.directive.yaml")
             )
         )
         graph_directive_nodes = [
@@ -301,7 +307,7 @@ class TestExtractArtifactEdges:
     def test_walks_all_shipped_paradigms(self) -> None:
         nodes, _ = extract_artifact_edges(DOCTRINE_ROOT)
         paradigm_files = list(
-            (DOCTRINE_ROOT / "paradigms" / "built-in").glob("*.paradigm.yaml")
+            (built_in_graph_source() / "paradigms").glob("*.paradigm.yaml")
         )
         graph_paradigm_nodes = [
             n for n in nodes
@@ -506,10 +512,10 @@ class TestGenerateGraph:
             }
 
         regenerated = _fragments(tmp_path)
-        committed = _fragments(DOCTRINE_ROOT)
+        committed = _fragments(built_in_graph_source())
         assert regenerated, "generate_graph produced no fragments"
         assert regenerated == committed, (
-            "src/doctrine/*.graph.yaml fragments are stale. Regenerate the "
+            "packs/built-in/*.graph.yaml fragments are stale. Regenerate the "
             "shipped DRG with `spec-kitty doctrine regenerate-graph` and commit "
             "the result."
         )
@@ -606,7 +612,7 @@ class TestEdgeCountCompleteness:
     def test_per_directive_edges_complete(self) -> None:
         """Each directive's inline refs should have corresponding edges."""
         _, edges = extract_artifact_edges(DOCTRINE_ROOT)
-        directives_dir = DOCTRINE_ROOT / "directives" / "built-in"
+        directives_dir = built_in_graph_source() / "directives"
         for path in sorted(directives_dir.glob("*.directive.yaml")):
             data: Any = _yaml.load(path)
             if not data:
@@ -628,7 +634,7 @@ class TestEdgeCountCompleteness:
     def test_per_paradigm_edges_complete(self) -> None:
         """Each paradigm's inline refs should have corresponding edges."""
         _, edges = extract_artifact_edges(DOCTRINE_ROOT)
-        paradigms_dir = DOCTRINE_ROOT / "paradigms" / "built-in"
+        paradigms_dir = built_in_graph_source() / "paradigms"
         for path in sorted(paradigms_dir.glob("*.paradigm.yaml")):
             data: Any = _yaml.load(path)
             if not data:

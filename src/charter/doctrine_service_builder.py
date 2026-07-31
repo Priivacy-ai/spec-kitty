@@ -65,23 +65,26 @@ def _build_doctrine_service(
     omit the argument and get the built-in-plus-project baseline.
     """
     from doctrine.service import DoctrineService
-    from charter.catalog import resolve_doctrine_root
     from charter.context import infer_repo_languages  # noqa: PLC0415 — patch seam, see module docstring
 
-    doctrine_root = resolve_doctrine_root()
+    # built_in_root=None → the repositories self-resolve ``packs/built-in/<kind>``
+    # (WP04 seam). Mission relocate-builtin-doctrine-packs moved the built-in
+    # artefacts out of ``src/doctrine`` into ``packs/built-in``; a
+    # ``resolve_doctrine_root()`` here would point at the emptied ``src/doctrine``
+    # tree and silently load nothing.
     project_root = resolve_project_root(repo_root)
     # Only pass ``org_roots`` when it carries paths so charter-internal
     # callers see byte-identical kwargs (preserves existing test stubs and
     # downstream constructors that may not declare the parameter).
     if org_roots:
         return DoctrineService(
-            built_in_root=doctrine_root,
+            built_in_root=None,
             project_root=project_root,
             active_languages=infer_repo_languages(repo_root),
             org_roots=org_roots,
         )
     return DoctrineService(
-        built_in_root=doctrine_root,
+        built_in_root=None,
         project_root=project_root,
         active_languages=infer_repo_languages(repo_root),
     )

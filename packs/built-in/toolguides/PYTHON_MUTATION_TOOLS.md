@@ -1,8 +1,8 @@
 # Python Mutation Testing with mutmut
 
 Operator reference and workflow for mutation testing Python code with mutmut. Use alongside the
-[Mutation-Aware Test Design](../../styleguides/built-in/mutation-aware-test-design.styleguide.yaml)
-styleguide and the [Mutation Testing Workflow](../../tactics/built-in/testing/mutation-testing-workflow.tactic.yaml) tactic.
+[Mutation-Aware Test Design](../styleguides/mutation-aware-test-design.styleguide.yaml)
+styleguide and the [Mutation Testing Workflow](../tactics/testing/mutation-testing-workflow.tactic.yaml) tactic.
 
 ## Installation and Configuration
 

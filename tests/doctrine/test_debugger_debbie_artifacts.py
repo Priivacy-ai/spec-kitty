@@ -7,17 +7,15 @@ import pytest
 from doctrine.drg.models import DRGGraph
 from doctrine.service import DoctrineService
 
-from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
-
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
-
-
-BUILT_IN_ROOT = DOCTRINE_SOURCE_ROOT
 
 
 @pytest.fixture(scope="module")
 def service() -> DoctrineService:
-    return DoctrineService(built_in_root=BUILT_IN_ROOT)
+    # built_in_root=None → each repository self-resolves the flattened built-in
+    # tier via resolve_pack_root("built-in") (packs/built-in/<kind>). Post-
+    # relocation, pointing at src/doctrine would load an emptied tree.
+    return DoctrineService(built_in_root=None)
 
 
 def test_debugger_debbie_profile_loads(service: DoctrineService) -> None:

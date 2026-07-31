@@ -1,12 +1,12 @@
 # Glossary Template
 
 A structured glossary for capturing ubiquitous language terms within a
-bounded context. Compatible with [Contextive](../../toolguides/built-in/CONTEXTIVE.md)
+bounded context. Compatible with [Contextive](../../../../packs/built-in/toolguides/CONTEXTIVE.md)
 glossary file format.
 
-Use the [glossary-curation-interview](../../tactics/built-in/communication/glossary-curation-interview.tactic.yaml)
+Use the [glossary-curation-interview](../../../../packs/built-in/tactics/communication/glossary-curation-interview.tactic.yaml)
 tactic for the curation process and the
-[kitty-glossary-writing](../../styleguides/built-in/writing/kitty-glossary-writing.styleguide.yaml)
+[kitty-glossary-writing](../../../../packs/built-in/styleguides/writing/kitty-glossary-writing.styleguide.yaml)
 styleguide for writing conventions.
 
 ---
@@ -95,7 +95,7 @@ repo-root/
 
 ## Traceability
 
-- Tactic: [glossary-curation-interview](../../tactics/built-in/communication/glossary-curation-interview.tactic.yaml)
-- Styleguide: [kitty-glossary-writing](../../styleguides/built-in/writing/kitty-glossary-writing.styleguide.yaml)
+- Tactic: [glossary-curation-interview](../../../../packs/built-in/tactics/communication/glossary-curation-interview.tactic.yaml)
+- Styleguide: [kitty-glossary-writing](../../../../packs/built-in/styleguides/writing/kitty-glossary-writing.styleguide.yaml)
 - Canvas: [bounded-context-canvas-template](../architecture/bounded-context-canvas-template.md)
-- Toolguide: [Contextive](../../toolguides/built-in/CONTEXTIVE.md)
+- Toolguide: [Contextive](../../../../packs/built-in/toolguides/CONTEXTIVE.md)

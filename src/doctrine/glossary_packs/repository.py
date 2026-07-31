@@ -8,8 +8,8 @@ from :class:`doctrine.base.BaseDoctrineRepository` (built-in rglob + org glob
 
 from pathlib import Path
 
-from importlib.resources import files
 
+from doctrine.pack_paths import resolve_pack_root
 from doctrine.base import BaseDoctrineRepository
 from .models import GlossaryPack
 
@@ -33,13 +33,7 @@ class GlossaryPackRepository(BaseDoctrineRepository[GlossaryPack]):
     @staticmethod
     def _default_built_in_dir() -> Path:
         """Get default built-in glossary-packs directory from package data."""
-        try:
-            resource = files("doctrine.glossary_packs")
-            if hasattr(resource, "joinpath"):
-                return Path(str(resource.joinpath("built-in")))
-            return Path(str(resource)) / "built-in"
-        except (ModuleNotFoundError, TypeError):
-            return Path(__file__).parent / "built-in"
+        return resolve_pack_root("built-in") / "glossary_packs"
 
     @property
     def _schema(self) -> type[GlossaryPack]:

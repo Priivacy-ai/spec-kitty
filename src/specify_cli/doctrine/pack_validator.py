@@ -79,6 +79,7 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 from doctrine.drg.org_pack_loader import augmentation_plural_kinds
+from doctrine.pack_paths import PackRootNotFound, resolve_pack_root
 
 _AUGMENTATION_PLURAL_KINDS: frozenset[str] = augmentation_plural_kinds()
 FragmentIntent = dict[str, dict[str, tuple[dict[str, str], Path]]]
@@ -778,20 +779,18 @@ def _load_built_in_ids_per_kind() -> dict[str, set[str]]:
     intent-aware pass to a no-op for that kind.
     """
     ids_per_kind: dict[str, set[str]] = {}
+    # Built-in content flattened to packs/built-in/<kind>/ (relocation mission);
+    # resolve via the shared pack-root seam rather than the retired
+    # <doctrine_root>/<kind>/built-in nesting.
     try:
-        from charter.catalog import resolve_doctrine_root
-    except ModuleNotFoundError:  # pragma: no cover - doctrine always present
-        return ids_per_kind
-
-    try:
-        built_in_root = resolve_doctrine_root()
-    except (RuntimeError, OSError):  # pragma: no cover - defensive
+        built_in_root = resolve_pack_root("built-in")
+    except PackRootNotFound:  # pragma: no cover - defensive; packs always present
         return ids_per_kind
 
     registry = _artifact_schema_registry()
     parser = _yaml_parser()
     for plural, (glob, _schema) in registry.items():
-        built_in_dir = built_in_root / plural / "built-in"
+        built_in_dir = built_in_root / plural
         if not built_in_dir.is_dir():
             continue
         collected: set[str] = set()

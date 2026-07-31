@@ -50,6 +50,7 @@ from doctrine.artifact_kinds import (
     ArtifactKind,
     MissionTypeNotAnArtifactKind,
 )
+from doctrine.pack_paths import PackRootNotFound, resolve_pack_root
 
 #: Public re-export of :data:`doctrine.artifact_kinds.PROJECT_KIND_DIRS`.
 #:
@@ -159,10 +160,21 @@ def _scan_roots(
     non-recursive scan would silently miss — the exact silent-drop failure
     mode C-006 forbids.
     """
+    dirs: list[tuple[Path, bool]] = []
+    # Built-in content was flattened out of ``<doctrine_root>/<kind>/built-in``
+    # into ``packs/built-in/<kind>`` (relocation mission); resolve it via the
+    # shared pack-root seam. ``doctrine_root`` is retained below for the legacy
+    # nested layout still used by org packs (and for the surrounding
+    # diagnostics), and is harmless once its built-in subtree is empty.
+    try:
+        flattened_built_in = resolve_pack_root("built-in") / kind.plural
+    except PackRootNotFound:
+        flattened_built_in = None
+    if flattened_built_in is not None and flattened_built_in.is_dir():
+        dirs.append((flattened_built_in, True))
     roots: list[Path] = [doctrine_root]
     if org_roots:
         roots.extend(org_roots)
-    dirs: list[tuple[Path, bool]] = []
     for root in roots:
         candidate = root / kind.plural / "built-in"
         if candidate.is_dir():

@@ -2,7 +2,7 @@ schema_version: "1.0"
 id: git-worktree-pr-workflow
 tool: git
 title: Git Worktree and PR-Landing Workflow
-guide_path: src/doctrine/toolguides/built-in/GIT_WORKTREE_PR_WORKFLOW.md
+guide_path: packs/built-in/toolguides/GIT_WORKTREE_PR_WORKFLOW.md
 summary: >
   Operational gotchas for multi-worktree git repositories and PR-landing pushes:
   the shared stash stack across worktrees, moving HEAD under a running
