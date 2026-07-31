@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#1278": {
+      "evidence_ref": "Referenced as adjacent doctrine-content context (research.md carry-forward); not a deliverable of this mission; remains tracked upstream as #1278.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#2399": {
+      "evidence_ref": "Adjacent P1 (structural agent-profile loading enforcement); noted so its future work accounts for the new generic-agent fallback path; not addressed in-mission. Follow-up: #2399.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#2532": {
+      "evidence_ref": "context.py decomposed 3243->570 lines across 16 cohesive seams (WP04 leaf/cycle, WP05 render, WP06 service); byte-parity 7/7 preserved throughout; non-fakeable completion gate (seam-existence manifest + LOC<=600); cycle dissolved; all arch gates green.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP06"
+    },
+    "#3064": {
+      "evidence_ref": "WP02 (executor auto-route generic-agent fallback + composite predicate + warning) + WP03 (empty-charter governance-block scoping, no DIR-canon leak; minimal charter scaffold asset, activatability proven). All reviewed+approved.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#3081": {
+      "evidence_ref": "Parent mission doctrine-delivery-activation already merged as PR #3081; referenced as fast-follow context only.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#3082": {
+      "evidence_ref": "WP01 normalized the profile suggests-delivery fetch-stanza choke-point (fetch_stanza.py::fetch_stanza_lines->_normalize_when_clause; RED-first). A separately-discovered second composer (section_bodies.py CRITICAL_SECTION path, distinct from #3082's profile-delivery scope) is tracked as follow-up #3093.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
