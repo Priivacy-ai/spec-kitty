@@ -231,6 +231,24 @@ class TestBootstrapCorpusParity:
                 "charter.catalog.resolve_doctrine_root",
                 return_value=doctrine_root,
             ),
+            # Post-relocation (mission relocate-builtin-doctrine-packs) the built-in
+            # directive catalog is sourced through ``resolve_pack_root("built-in")``,
+            # NOT ``resolve_doctrine_root`` (which now only serves template sets under
+            # src/doctrine). The profile-cited directive miss is diagnosed against the
+            # ``DoctrineService.directives`` repo, which self-resolves via its OWN
+            # ``resolve_pack_root`` binding. Patch both the charter-catalog seam and the
+            # directive repository's seam to the SAME empty root so the miss stanza stays
+            # decoupled from the live, evolving built-in canon — otherwise the fixture
+            # leaks into the ambient dev-checkout ``packs/built-in`` and the golden
+            # re-couples to real directive IDs (e.g. DIRECTIVE_039).
+            patch(
+                "charter.catalog.resolve_pack_root",
+                return_value=doctrine_root,
+            ),
+            patch(
+                "doctrine.directives.repository.resolve_pack_root",
+                return_value=doctrine_root,
+            ),
         ):
             result = build_charter_context(
                 tmp_path,
