@@ -138,7 +138,21 @@ def _routing_for_unreadable_project_config(
     fault = project_local_consent_fault(repo_root)
     if fault is None:
         return None
+    return _deny_routing_for_project_local_fault(repo_root, fault)
 
+
+def _deny_routing_for_project_local_fault(
+    repo_root: Path, fault: ConfigReadFault
+) -> CheckoutSyncRouting:
+    """Build the fail-closed routing for an unreadable/unusable project-local file.
+
+    Shared by the pre-identity fence (:func:`_routing_for_unreadable_project_config`)
+    and by :func:`_build_checkout_sync_routing` itself (#3112), so "an unreadable
+    project-local consent file fails closed" is guaranteed by the function that
+    builds routing rather than only by callers running the fence first. The fence
+    calls remain in place (defence-in-depth) — this is the local backstop for a
+    caller that reaches ``_build_checkout_sync_routing`` directly.
+    """
     logger.warning(
         "Denying hosted sync for %s: its project config could not be read (%s). %s",
         repo_root,
@@ -162,6 +176,15 @@ def _routing_for_unreadable_project_config(
 
 
 def _build_checkout_sync_routing(repo_root: Path, identity: ProjectIdentity) -> CheckoutSyncRouting:
+    # #3112: fold the fault check in locally so the fail-closed invariant does not
+    # depend on the caller having run ``_routing_for_unreadable_project_config``
+    # first. Both current production callers already fence before reaching here, so
+    # this branch is presently unreachable from them (defence-in-depth); it exists
+    # for a future caller that invokes this function directly.
+    fault = project_local_consent_fault(repo_root)
+    if fault is not None:
+        return _deny_routing_for_project_local_fault(repo_root, fault)
+
     git_metadata = GitMetadataResolver(
         repo_root=repo_root,
         repo_slug_override=identity.repo_slug,
