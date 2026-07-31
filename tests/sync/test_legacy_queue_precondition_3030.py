@@ -187,7 +187,9 @@ def test_counter_reads_a_real_legacy_queue_db(tmp_path: Path, monkeypatch: pytes
     spec_kitty_dir.mkdir(parents=True, exist_ok=True)
 
     legacy = OfflineQueue(db_path=spec_kitty_dir / "queue.db")
+    # canonical-event-exempt(exception-flow): stranded legacy queue rows predate canonical Payload models; guard is a migration check
     legacy.queue_event({"event_id": "evt-legacy-001", "event_type": "Test", "payload": {}})
+    # canonical-event-exempt(exception-flow): stranded legacy queue rows predate canonical Payload models; guard is a migration check
     legacy.queue_event({"event_id": "evt-legacy-002", "event_type": "Test", "payload": {}})
 
     assert _count_legacy_event_rows() == 2
