@@ -1,0 +1,17 @@
+Governance:
+  - Template set: software-dev-default
+  - Paradigms: (none)
+  - Tools: git, spec-kitty
+Directive IDs:
+  - (none)
+Tactic IDs:
+  - (none)
+Section Anchors:
+  - (none)
+  - Diagnostics: No available_tools selection provided; using runtime tool registry fallback. | Template set not selected in charter; fallback 'software-dev-default' applied.
+  - Project root: None
+
+  Run: spec-kitty charter context --include section:profile-citations
+  When you need to consult the profile-cited directives and tactics, run this command and apply the returned rule.
+
+# Governance payload: 1 sections substituted with fetch commands (budget=32000).

@@ -115,6 +115,7 @@ def render_compact_view(
     asset_ids: Iterable[str] = (),
     section_anchors: Iterable[str] | None = None,
     charter_text: str | None = None,
+    suppress_project_resolver: bool = False,
 ) -> CompactView:
     """Render the compact governance block with IDs + anchors preserved.
 
@@ -135,6 +136,19 @@ def render_compact_view(
             when present).
         charter_text: Optional charter body text used for anchor
             extraction; convenient for tests.
+        suppress_project_resolver: WP03/#3064 -- when ``True``, the
+            ``resolver_directives`` computed by
+            :func:`~charter.resolver.resolve_project_governance` (via
+            :func:`_resolve_governance_summary`) are NOT merged into the
+            ``Directive IDs:`` block; only the caller-supplied
+            ``directive_ids`` are emitted. Under a wholly-empty charter,
+            ``_resolve_directives_selection`` catalog-falls-back to the
+            FULL built-in directive canon (research.md Decision 4) --
+            this flag exists so the empty-charter/generic-agent dispatch
+            path can suppress that specific merge without changing
+            ``_resolve_directives_selection`` (or this function's default
+            behaviour) for any other caller. Defaults to ``False`` so every
+            existing consumer is unaffected.
 
     Returns:
         :class:`CompactView` carrying the rendered text and the per-kind
@@ -174,6 +188,7 @@ def render_compact_view(
         procedure_tuple,
         asset_tuple,
         anchor_tuple,
+        suppress_project_resolver=suppress_project_resolver,
     )
 
     return CompactView(
@@ -197,6 +212,8 @@ def _render_text(
     procedure_ids: tuple[str, ...],
     asset_ids: tuple[str, ...],
     section_anchors: tuple[str, ...],
+    *,
+    suppress_project_resolver: bool = False,
 ) -> str:
     """Render the human-readable compact governance block.
 
@@ -207,6 +224,14 @@ def _render_text(
     every supplied directive ID, tactic ID, and section anchor — the
     FR-034 contract is "no IDs are silently dropped", so a degraded
     governance block must not erase the IDs the caller already knows.
+
+    ``suppress_project_resolver`` (WP03/#3064) drops the resolver's
+    catalog-fallback directives from the merge -- see
+    :func:`render_compact_view` for the full rationale. Only the merge is
+    affected; ``template_set``/``paradigms``/``tools``/``diagnostics`` still
+    come from :func:`_resolve_governance_summary` unconditionally since
+    those are not the leaking surface (research.md Decision 4 / the
+    contract scope both name the ``Directive IDs:`` block specifically).
     """
     (
         template_set,
@@ -216,8 +241,11 @@ def _render_text(
         resolver_directives,
     ) = _resolve_governance_summary(repo_root)
 
+    effective_resolver_directives: list[str] = (
+        [] if suppress_project_resolver else resolver_directives
+    )
     merged_directive_ids = tuple(
-        dict.fromkeys(list(directive_ids) + resolver_directives)
+        dict.fromkeys(list(directive_ids) + effective_resolver_directives)
     )
 
     lines: list[str] = [

@@ -40,11 +40,15 @@ from dataclasses import dataclass
 from charter.context_renderers.fetch_stanza import (
     DEFAULT_WHEN_CLAUSE,
     fetch_stanza,
+    fetch_stanza_lines,
 )
 
 __all__ = [
     "BUDGET_DEFAULT",
     "RenderedSection",
+    "_PROFILE_INLINE_BODY_LIMIT_CHARS",
+    "_budget_estimate",
+    "_enforce_token_budget",
     "apply_token_budget",
     "budget_without_warning_line",
     "warning_line",
@@ -53,6 +57,12 @@ __all__ = [
 
 BUDGET_DEFAULT: int = 32_000
 """Default character budget — NFR-001 pin (~8000 tokens at 4 chars/token)."""
+
+_PROFILE_INLINE_BODY_LIMIT_CHARS = 2_400
+"""Per-entry inline-body character ceiling (WP03/WP12): a profile-cited
+artifact's verbatim body renders inline only when its estimated size (see
+:func:`_budget_estimate`) is at or under this limit; otherwise the entry
+renders as the canonical fetch + when-doing stanza instead."""
 
 
 @dataclass(frozen=True)
@@ -237,3 +247,108 @@ def apply_token_budget(
         joined = f"{joined}\n\n{warning_line(len(notes), budget)}"
 
     return joined, notes
+
+
+def _budget_estimate(lines: list[str]) -> int:
+    """Total character cost of *lines* including newlines."""
+    return sum(len(line) + 1 for line in lines)
+
+
+def _enforce_token_budget(
+    text: str,
+    *,
+    action: str,
+    profile_block: str,
+    section_block: str,
+    budget: int = BUDGET_DEFAULT,
+) -> str:
+    """Apply the NFR-001 token budget to *text* (WP05, consolidated WP04 T019).
+
+    When ``len(text) <= budget`` the text is returned unchanged.  Over
+    budget, the largest substitutable governance block is swapped for
+    the canonical fetch + when-doing stanza, and the substitution loop
+    iterates over the remaining blocks (longest first) until the budget
+    holds or no swap candidates remain.
+
+    Substitution preference (in order of preferred swap):
+      1. action-critical section bodies (`section_block`) — largest
+      2. profile-cited directives + tactics (`profile_block`)
+
+    Authority paths and core action-doctrine sections stay inline (they
+    are small + critical to the prompt's actionable surface, per
+    WP05 NFR-001 spec).
+    """
+
+    if len(text) <= budget:
+        return text
+
+    # Decompose the rendered ``text`` into a fixed-section model and run
+    # the substitution loop.  We do this by replacing whole blocks in
+    # the original text rather than re-joining, so the surrounding
+    # structure (Charter Context header, Policy Summary, Action
+    # Doctrine, References) stays byte-identical.
+    candidates: list[RenderedSection] = []
+    if section_block:
+        candidates.append(
+            RenderedSection(
+                section_id="action-critical-sections",
+                header="",
+                body=section_block,
+                selector=f"section:critical-{action}",
+                when_doing_clause=(
+                    "need to consult the action-critical charter sections"
+                ),
+                substitutable=True,
+                indent="  ",
+            )
+        )
+    if profile_block:
+        candidates.append(
+            RenderedSection(
+                section_id="profile-cited-sections",
+                header="",
+                body=profile_block,
+                selector="section:profile-citations",
+                when_doing_clause=(
+                    "need to consult the profile-cited directives and tactics"
+                ),
+                substitutable=True,
+                indent="  ",
+            )
+        )
+
+    if not candidates:
+        # Nothing safe to substitute — return the original text so we
+        # don't silently drop content.  The caller (the WP prompt
+        # builder) sees over-budget text rather than missing content;
+        # operators will spot the regression via the measurement script.
+        return text
+
+    # Sort longest first, ties broken on section_id for determinism.
+    candidates.sort(key=lambda sec: (-len(sec.body), sec.section_id))
+
+    current_text = text
+    swapped_ids: list[str] = []
+    for section in candidates:
+        if len(current_text) <= budget_without_warning_line(len(swapped_ids), budget):
+            break
+        stanza = "\n".join(
+            fetch_stanza_lines(
+                section.selector,
+                section.when_doing_clause,
+                indent=section.indent,
+            )
+        )
+        # Replace only the first occurrence — the block is rendered
+        # exactly once in the bootstrap text.
+        new_text = current_text.replace(section.body, stanza, 1)
+        if new_text == current_text:
+            # Defensive: block not found (renderer drift).  Skip it.
+            continue
+        current_text = new_text
+        swapped_ids.append(section.section_id)
+
+    if swapped_ids:
+        current_text = f"{current_text}\n\n{warning_line(len(swapped_ids), budget)}"
+
+    return current_text

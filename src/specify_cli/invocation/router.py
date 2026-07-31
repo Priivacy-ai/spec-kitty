@@ -158,7 +158,11 @@ class RouterDecision:
 
     profile_id: str
     action: str
-    confidence: Literal["exact", "canonical_verb", "domain_keyword"]
+    # "generic_fallback" (WP02/#3064): pinned by
+    # specify_cli.invocation.empty_charter.resolve_generic_fallback when the
+    # project charter is wholly empty -- never produced by ActionRouter.route()
+    # itself (that seam pre-empts the router entirely at the executor branch).
+    confidence: Literal["exact", "canonical_verb", "domain_keyword", "generic_fallback"]
     match_reason: str
 
 

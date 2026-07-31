@@ -43,9 +43,14 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from ruamel.yaml.error import YAMLError
+
+from charter.bundle import CHARTER_YAML
+
 __all__ = [
     "_REFERENCE_POINTER_FLOOR",
     "_REFERENCE_POINTER_LIMIT",
+    "_load_references",
     "_select_reference_pointers",
 ]
 
@@ -232,3 +237,45 @@ def _select_reference_pointers(
         if len(selected) >= limit:
             break
     return selected
+
+
+def _load_references(canonical_root: Path) -> list[dict[str, str]]:
+    """Load the doctrine reference catalog from charter.yaml's ``catalog.references``.
+
+    consolidate-charter-bundle (#2773): the retired ``references.yaml`` body is now
+    the DERIVED ``catalog`` projection inside the authoritative ``charter.yaml``
+    (``charter.schemas.CharterCatalog`` — item shape mirrors the old file verbatim).
+    Reading it here keeps the injected "Reference Docs" bootstrap block sourced from
+    the authoritative charter, not the file the fold migration deletes. Returns
+    ``[]`` when charter.yaml or its ``catalog`` section is absent.
+    """
+    from charter.charter_yaml_io import load_charter_yaml  # noqa: PLC0415 — same-layer, lazy to avoid import cycles
+
+    charter_yaml_path = canonical_root / CHARTER_YAML
+    if not charter_yaml_path.exists():
+        return []
+
+    try:
+        document = load_charter_yaml(charter_yaml_path)
+    except (YAMLError, UnicodeDecodeError, OSError):
+        return []
+
+    catalog = document.get("catalog") if isinstance(document, dict) else None
+    raw_references = catalog.get("references") if isinstance(catalog, dict) else []
+    if not isinstance(raw_references, list):
+        return []
+
+    refs: list[dict[str, str]] = []
+    for item in raw_references:
+        if not isinstance(item, dict):
+            continue
+        refs.append(
+            {
+                "id": str(item.get("id", "")),
+                "title": str(item.get("title", "")),
+                "local_path": str(item.get("local_path", "")),
+                "kind": str(item.get("kind", "")),
+                "summary": str(item.get("summary", "")),
+            }
+        )
+    return refs

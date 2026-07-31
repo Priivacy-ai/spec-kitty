@@ -1,0 +1,23 @@
+Charter Context (Bootstrap):
+  - Source: <REPO_ROOT>/.kittify/charter/charter.md
+  - This is the first load for this action. Use the summary and follow references as needed.
+
+Policy Summary:
+  - Intent: deterministic parity fixture
+  - Testing: pytest golden comparison
+
+  Run: spec-kitty charter context --include section:critical-implement
+  When you need to consult the action-critical charter sections, run this command and apply the returned rule.
+
+Profile-Cited Directives (parity-fixture-agent):
+  - DIRECTIVE_998: Ghost Directive — force a catalog-miss fall-through
+    (catalog entry not found for directive:DIRECTIVE_998)
+      Cause: missing_artifact
+      Suggestion: confirm the artifact exists (check project, org, and built-in layers) or run `spec-kitty doctrine validate` to check for a silent schema validation drop.
+
+Action Doctrine (implement):
+
+Reference Docs:
+  - No references manifest found.
+
+# Governance payload: 1 sections substituted with fetch commands (budget=32000).

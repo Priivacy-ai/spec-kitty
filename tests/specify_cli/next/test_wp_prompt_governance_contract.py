@@ -238,6 +238,39 @@ def _contains_either_body_or_fetch_with_conditional(text: str, *body_markers: st
     return bool(_FETCH_CMD_RE.search(text) and _WHEN_DOING_RE.search(text))
 
 
+_RUN_CMD_SELECTOR_RE = re.compile(
+    r"Run:\s+spec-kitty\s+charter\s+context\s+--include\s+(\S+)", re.IGNORECASE
+)
+
+
+def _when_you_stanzas(prompt: str) -> list[tuple[str | None, str]]:
+    """Pair every rendered ``When you …`` stanza line with its selector.
+
+    NFR-003 / SC-003 (#3082): ``_WHEN_DOING_RE.search(prompt)`` (used
+    throughout this module above) passes if ANY single line anywhere in the
+    whole prompt matches — it says nothing about the other stanzas. This
+    per-line extraction lets a caller assert EVERY emitted stanza
+    individually, which is the real per-stanza grammaticality guarantee.
+
+    Returns ``(selector, when_you_line)`` tuples in document order. The
+    selector is read from the fetch-command line immediately preceding the
+    ``When you ...`` line (every current renderer emits the pair together);
+    it is ``None`` if no such line precedes (defensive).
+    """
+    lines = prompt.splitlines()
+    stanzas: list[tuple[str | None, str]] = []
+    for index, line in enumerate(lines):
+        if not re.match(r"^\s*When you\b", line, re.IGNORECASE):
+            continue
+        selector = None
+        if index > 0:
+            match = _RUN_CMD_SELECTOR_RE.search(lines[index - 1])
+            if match:
+                selector = match.group(1)
+        stanzas.append((selector, line.strip()))
+    return stanzas
+
+
 # ---------------------------------------------------------------------------
 # Contract 1 — The implement / review WP prompt MUST invoke the charter
 #              pipeline and inject its output into the prompt.
@@ -1063,3 +1096,70 @@ class TestGovernanceContextUsesMonorepoAwarePath:
             pytest.raises(CharterScopeNotFound),
         ):
             _governance_context(repo_root, feature_dir=feature_dir, action="implement")
+
+
+# ---------------------------------------------------------------------------
+# Contract 6 — Every rendered "When you ..." stanza, individually, must match
+#              the closed _WHEN_DOING_RE lead-in set (#3082, WP01 T004).
+# ---------------------------------------------------------------------------
+
+
+class TestPerStanzaWhenDoingGrammaticality:
+    """SC-003 (#3082): the whole-prompt ``_WHEN_DOING_RE.search(prompt)``
+    check used throughout this module passes if ANY one line matches
+    anywhere in the prompt. That is not the real guarantee — every rendered
+    stanza must individually be grammatical and match the closed lead-in
+    set. This is the per-stanza authority the fetch-stanza normalization
+    fix (``charter.context_renderers.fetch_stanza._normalize_when_clause``)
+    is pinned against; see also
+    ``tests/charter/test_fetch_stanza_normalization.py`` for the isolated
+    unit coverage of the normalization helper itself (gerund clauses, full
+    sentences, and the authored double-``when`` shape).
+
+    Scope note (WP01/#3082 discovery, flagged rather than silently
+    absorbed): ``section:*`` selector stanzas are rendered by a SEPARATE,
+    hand-rolled composer — ``charter.context_renderers.section_bodies.
+    _render_fetch_stanza`` / ``CRITICAL_SECTION_WHEN_CLAUSES`` — that does
+    NOT go through ``fetch_stanza.fetch_stanza_lines`` and pre-dates this
+    mission. Two of its authored clauses ("prepare a WP for review",
+    "perform a terminology cutover") do not match the closed lead-in set
+    either, but fixing that duplicate choke point is outside WP01's
+    authoritative surface (``src/charter/context_renderers/fetch_stanza.py``
+    only); ``section_bodies.py`` is not in WP01's owned files. This check is
+    scoped to the fetch_stanza.py-owned selector kinds (directive, tactic,
+    styleguide, toolguide, procedure, paradigm, mission_step_contract,
+    agent_profile) so it asserts what WP01 actually delivers, and the
+    ``section:`` gap is left for a follow-up rather than masked here.
+    """
+
+    def test_every_fetch_stanza_when_you_line_matches_the_closed_lead_in_set(
+        self, project_with_implement_wp: tuple[Path, Path, str]
+    ) -> None:
+        repo_root, feature_dir, mission_slug = project_with_implement_wp
+        prompt = _build_wp_prompt(
+            action="implement",
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            wp_id="WP01",
+            agent="claude",
+            repo_root=repo_root,
+            mission_type="software-dev",
+        )
+        stanzas = _when_you_stanzas(prompt)
+        fetch_stanza_owned = [
+            (selector, line)
+            for selector, line in stanzas
+            if selector is None or not selector.startswith("section:")
+        ]
+        assert fetch_stanza_owned, (
+            "Expected at least one fetch_stanza.py-rendered 'When you ...' "
+            "stanza line in the implement WP prompt for python-pedro (whose "
+            "profile carries directive/tactic references rendered via the "
+            "fetch stanza)."
+        )
+        for selector, line in fetch_stanza_owned:
+            assert _WHEN_DOING_RE.search(line), (
+                "Rendered stanza line does not match the closed _WHEN_DOING_RE "
+                f"lead-in set (#3082 SC-003 per-stanza guarantee) for selector "
+                f"{selector!r}: {line!r}"
+            )

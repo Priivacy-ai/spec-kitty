@@ -1,0 +1,3 @@
+### Terminology Canon
+- Canonical product term is "Mission"; "Feature" is prohibited.
+- "primary" and "merge" are overloaded — always name the sense.

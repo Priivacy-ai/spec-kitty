@@ -56,6 +56,35 @@ def _detect_actor() -> str:
     return "operator"
 
 
+def _render_empty_charter_warning(payload: InvocationPayload) -> None:
+    """One-shot warning (WP02/#3064) when dispatch auto-routed under a wholly-empty charter.
+
+    Gated on the dedicated ``empty_charter_fallback`` flag -- NOT on
+    ``payload.profile_id == "generic-agent"`` -- so a deliberate
+    ``--profile generic-agent`` dispatch on a configured charter never
+    false-warns (research.md Decision 5). Read via ``getattr`` with a
+    default: ``InvocationPayload.__init__`` only sets keys callers pass, so
+    payloads built without the kwarg (e.g. pre-WP02 test fixtures) must not
+    raise ``AttributeError`` here.
+    """
+    if not getattr(payload, "empty_charter_fallback", False):
+        return
+    console.print(
+        Panel(
+            "No charter activations found in this project -- routed to the generic agent.\n"
+            "To set a governance baseline, run (see all packs with "
+            "`spec-kitty charter pack list`):\n"
+            "  spec-kitty charter pack apply minimal\n"
+            "This activates config entries -- it does not by itself make an "
+            "unmatched request route to a specialist; you may still need an "
+            "explicit --profile <name>.",
+            title="Empty Charter",
+            border_style="yellow",
+            expand=False,
+        )
+    )
+
+
 def _render_rich_payload(payload: InvocationPayload) -> None:
     """Rich console output for profile/action/context."""
     console.print(f"[bold green]Profile:[/bold green] {payload.profile_friendly_name} ({payload.profile_id})")
@@ -63,6 +92,7 @@ def _render_rich_payload(payload: InvocationPayload) -> None:
     if payload.router_confidence:
         console.print(f"[dim]Router confidence:[/dim] {payload.router_confidence}")
     console.print(f"[dim]Invocation ID:[/dim] {payload.invocation_id}")
+    _render_empty_charter_warning(payload)
     observations = payload.glossary_observations
     if observations is not None and observations.high_severity:
         warning_lines = [
