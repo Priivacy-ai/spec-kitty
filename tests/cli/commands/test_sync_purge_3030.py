@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -61,14 +62,27 @@ _WIDE_TERMINAL = "240"
 
 
 @pytest.fixture(autouse=True)
-def checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+def checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     """Pin every store this command can reach under ``tmp_path``.
 
     ``SPECIFY_REPO_ROOT`` is not optional here: without it ``locate_project_root``
     walks up from the cwd and finds the *real* spec-kitty checkout, and a
     ``--apply`` test would then delete the developer's own queued local-commit
     frames — gitignored machine-local state with no way back.
+
+    Also resets the process-wide ``TokenManager`` singleton (#3030 landing-pass
+    hardening): ``sync`` commands unconditionally call ``get_token_manager()``,
+    which lazily caches its instance for the lifetime of the worker process. In a
+    ``--dist loadfile`` run that worker executes many other CLI test files first,
+    so a sibling test that authenticates a fake session (or otherwise mutates the
+    singleton) would otherwise leak into this file's producer-scope resolution.
+    Reset in BOTH setup and teardown so this file starts clean and never poisons
+    whichever file the worker runs next — mirroring the existing
+    ``reset_journal_cache()`` isolation below.
     """
+    from specify_cli.auth.manager import reset_token_manager
+
+    reset_token_manager()
     home = tmp_path / "home"
     home.mkdir(parents=True, exist_ok=True)
     repo = tmp_path / "checkout"
@@ -86,7 +100,10 @@ def checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
     monkeypatch.chdir(repo)
     reset_journal_cache()
-    return repo
+    try:
+        yield repo
+    finally:
+        reset_token_manager()
 
 
 # --------------------------------------------------------------------------- #
