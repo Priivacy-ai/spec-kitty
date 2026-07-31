@@ -588,6 +588,39 @@ _Charter pack management commands._
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ consistency-check  Run consistency check against activated doctrine          │
 │                    artifacts (FR-011).                                       │
+│ list               List the built-in charter packs shipped with spec-kitty   │
+│                    (#3064).                                                  │
+│ path               Resolve a built-in charter pack name to its shipped       │
+│                    filesystem path (#3064).                                  │
+│ apply              Apply a built-in charter pack's activation keys into      │
+│                    .kittify/config.yaml (#3064).                             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter pack apply
+
+```
+ Usage: spec-kitty charter pack apply [OPTIONS] NAME
+
+ Apply a built-in charter pack's activation keys into .kittify/config.yaml
+ (#3064).
+
+ User Customization Preservation: by default this is an additive merge —
+ a ``config.yaml`` key the pack declares is only written when it is
+ currently absent. An already-present key (even an empty list a user
+ explicitly authored) is left untouched unless ``--force`` is passed, in
+ which case every key the pack declares is overwritten.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    name      TEXT  Built-in pack name to apply (e.g. 'default',            │
+│                      'minimal').                                             │
+│                      [required]                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --force            Overwrite activation keys already present in config.yaml  │
+│                    (default: leave them untouched).                          │
+│ --json             Output as JSON.                                           │
+│ --help   -h        Show this message and exit.                               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -598,6 +631,38 @@ _Charter pack management commands._
 
  Run consistency check against activated doctrine artifacts (FR-011).
 
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Output as JSON.                                            │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter pack list
+
+```
+ Usage: spec-kitty charter pack list [OPTIONS]
+
+ List the built-in charter packs shipped with spec-kitty (#3064).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Output as JSON.                                            │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter pack path
+
+```
+ Usage: spec-kitty charter pack path [OPTIONS] NAME
+
+ Resolve a built-in charter pack name to its shipped filesystem path (#3064).
+
+ Fails closed (exit 1) on an unknown pack name, naming it and the valid set.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    name      TEXT  Built-in pack name (e.g. 'default', 'minimal').         │
+│                      [required]                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Output as JSON.                                            │
 │ --help  -h        Show this message and exit.                                │
