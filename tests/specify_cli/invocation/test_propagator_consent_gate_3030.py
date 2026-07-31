@@ -109,7 +109,19 @@ def wiring(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[_Recordi
         yield client
     finally:
         os.environ.pop("SPEC_KITTY_SYNC_MINIMAL_IMPORT", None)
+        # Restore, do not merely clear. ``reset_adapters()`` alone leaves the
+        # *process* with no consent resolver, and the registry is module-global —
+        # so every later test file in the same session that expects the production
+        # registration fails with "no hosted-sync consent resolver is registered".
+        # That is a refusal, so the casualties are the positive controls of other
+        # suites, which on a consent mission reads as a gate defect rather than as
+        # fixture teardown order. Reproduced deterministically in alphabetical
+        # order: this file runs before tests/specify_cli/saas_client/ and
+        # tests/sync/tracker/, and took three of their transmit pins with it.
         reset_adapters()
+        from specify_cli.sync import register_default_handlers as _restore_handlers
+
+        _restore_handlers()
 
 
 def _started_record() -> OpStartedEvent:

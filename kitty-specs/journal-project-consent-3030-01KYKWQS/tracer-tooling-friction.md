@@ -726,3 +726,39 @@ order, which is the expensive kind of misattribution.
 Also noted: a full `tests/architectural` run died with `INTERNALERROR … FileNotFoundError` on a
 scratch file another agent created and deleted mid-scan. That is a collection-time internal error,
 not a test failure, and is easy to misread as one.
+
+## A fixture that clears global state fails other suites' positive controls, in your own vocabulary
+
+Found while regression-checking converted assertions, and it is **ours** — FR-025's
+`tests/specify_cli/invocation/test_propagator_consent_gate_3030.py` called `reset_adapters()` in
+teardown, clearing the module-global registry and leaving the **process** with no consent resolver.
+
+Every later file in the same session that expects the production registration then failed with:
+
+```
+no hosted-sync consent resolver is registered, so this project's consent could not be
+resolved; refusing to transmit
+```
+
+**Three properties made this expensive out of proportion to the bug:**
+
+1. **The casualties are positive controls.** A missing resolver makes everything *refuse*, so the
+   tests that break are the ones asserting transmission succeeds. A run reads as "the consent gate
+   is over-refusing" — the opposite of a leak, and a plausible-looking regression in the very code
+   the mission changed.
+2. **The failure text is domain-specific and true.** It is not a fixture error; it is the
+   production refusal saying exactly what happened. On a consent mission that sends you into
+   `consent.py` hunting a defect that is not there.
+3. **It is deterministic, not random.** Initially characterised as a random-order hazard. In fact
+   `tests/specify_cli/invocation/` sorts before `tests/specify_cli/saas_client/` and
+   `tests/sync/tracker/`, so a plain alphabetical run fires it. The mission's own sweeps missed it
+   only because their root ordering happened to put `tests/invocation` after `tests/sync`.
+
+**Fixed by restoring rather than clearing**: teardown now re-registers the default handlers, with
+the reproduction recorded at the site so it is not re-simplified back. Verified on the exact set
+that produced the three failures, plus the other `reset_adapters` caller: **123 passed, 0 failed**
+(was 3 failed, 103 passed).
+
+**The general rule:** a fixture that mutates process-global state must restore what it found, not
+reset to empty. "Reset" is only safe for state nothing outside the fixture reads — and a
+*registry* is by definition not that.
