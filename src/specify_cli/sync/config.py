@@ -629,7 +629,7 @@ class SyncConfig:
                 records[str(path)] = entry["enabled"]
         return records
 
-    def _project_consent_section(self) -> dict:
+    def _project_consent_section(self) -> dict[str, Any]:
         section = self._load().get("sync", {})
         if not isinstance(section, dict):
             return {}
