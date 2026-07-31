@@ -2,10 +2,12 @@
 title: 'Review Gates: Pre-PR / Pre-Review Checklist'
 description: The pre-PR/pre-review hygiene checklist contributors run locally — environment sync and test gates — so review focuses on substance, not avoidable environment drift.
 doc_status: active
-updated: '2026-07-07'
+updated: '2026-07-31'
 type: how-to
 related:
 - docs/development/local-overrides.md
+- docs/development/pr-landing.md
+- docs/development/contributing.md
 ---
 # Review Gates: Pre-PR / Pre-Review Checklist
 
@@ -202,6 +204,28 @@ rejects by design: requesting review while WIP-titled must not pass. To land,
 either drop the `WIP` / `[WIP]` prefix from the title, or keep the PR in draft
 until it is ready. (See the `DRAFT_GATED_JOBS` note in
 [`.github/workflows/ci-quality.yml`](../../.github/workflows/ci-quality.yml).)
+
+## PR body style: consumer-focused BLUF
+
+A PR description leads with **impact** — what changes for a user or operator
+of Spec Kitty, stated plainly, in the first paragraph. Technical detail
+(architecture, seams, test strategy) comes after, for the reviewer who wants
+it. The first paragraph should make sense to someone who will *use* the
+change, not only to someone who will *review* it — a PR body is not a
+maintainer diary.
+
+This is checked again at landing time; see
+[Landing runbook, step 7](pr-landing.md#7-review-focus-areas-beyond-ci).
+
+## Changelog update and style
+
+Every user-facing change updates `docs/changelog/CHANGELOG.md` (the root
+`CHANGELOG.md` is a symlink to it — there is one canonical file). The entry
+mirrors the PR body's style: consumer-focused, impact-first, one line a user
+understands — e.g. "Fixed: sync could deliver one project's events to
+another project's workspace" — not an internal-mechanism summary. Add it
+under the relevant `[Unreleased]` category in
+[`docs/changelog/CHANGELOG.md`](../changelog/CHANGELOG.md).
 
 ## Shippable doctrine: built-in doctrine must work in a consumer repo
 
