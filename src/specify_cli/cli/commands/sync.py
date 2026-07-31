@@ -3337,10 +3337,10 @@ def _purge_journal_census(journal_path: Path) -> _RawCensus:
         return _RawCensus(unreadable=True)
     try:
         # Static module-constant identifiers, no interpolated values.
-        total_row = connection.execute(f"SELECT COUNT(*) FROM {TABLE_NAME}").fetchone()  # noqa: S608
+        total_row = connection.execute(f"SELECT COUNT(*) FROM {TABLE_NAME}").fetchone()  # noqa: S608  # nosec B608 — static module-constant identifiers
         by_key: dict[str, int] = {}
         for raw, count in connection.execute(
-            f"SELECT {COL_PROJECT_UUID}, COUNT(*) FROM {TABLE_NAME} GROUP BY {COL_PROJECT_UUID}"  # noqa: S608
+            f"SELECT {COL_PROJECT_UUID}, COUNT(*) FROM {TABLE_NAME} GROUP BY {COL_PROJECT_UUID}"  # noqa: S608  # nosec B608 — static module-constant identifiers
         ):
             by_key[_PURGE_NULL_KEY if raw is None else str(raw)] = int(count)
     except sqlite3.Error:
@@ -3363,13 +3363,13 @@ def _purge_journal_ids(journal_path: Path, *, project_uuid: str | None, every_ro
     if not journal_path.exists():
         return []
     if every_row:
-        sql = f"SELECT {COL_EVENT_ID} FROM {TABLE_NAME}"  # noqa: S608
+        sql = f"SELECT {COL_EVENT_ID} FROM {TABLE_NAME}"  # noqa: S608  # nosec B608 — static module-constant identifiers
         params: tuple[Any, ...] = ()
     elif project_uuid is None:
-        sql = f"SELECT {COL_EVENT_ID} FROM {TABLE_NAME} WHERE {COL_PROJECT_UUID} IS NULL"  # noqa: S608
+        sql = f"SELECT {COL_EVENT_ID} FROM {TABLE_NAME} WHERE {COL_PROJECT_UUID} IS NULL"  # noqa: S608  # nosec B608 — static module-constant identifiers
         params = ()
     else:
-        sql = f"SELECT {COL_EVENT_ID} FROM {TABLE_NAME} WHERE {COL_PROJECT_UUID} = ?"  # noqa: S608
+        sql = f"SELECT {COL_EVENT_ID} FROM {TABLE_NAME} WHERE {COL_PROJECT_UUID} = ?"  # noqa: S608  # nosec B608 — static module-constant identifiers
         params = (project_uuid,)
     try:
         connection: Any = sqlite3.connect(str(journal_path))
@@ -3403,11 +3403,11 @@ def _purge_ledger_census(ledger_path: Path, event_ids: list[str]) -> _RawCensus:
     except sqlite3.Error:
         return _RawCensus(unreadable=True)
     try:
-        total_row = connection.execute(f"SELECT COUNT(*) FROM {LEDGER_TABLE}").fetchone()  # noqa: S608
+        total_row = connection.execute(f"SELECT COUNT(*) FROM {LEDGER_TABLE}").fetchone()  # noqa: S608  # nosec B608 — static module-constant identifiers
         selected = 0
         for event_id in event_ids:
             row = connection.execute(
-                f"SELECT COUNT(*) FROM {LEDGER_TABLE} WHERE {COL_EVENT_ID} = ?",  # noqa: S608
+                f"SELECT COUNT(*) FROM {LEDGER_TABLE} WHERE {COL_EVENT_ID} = ?",  # noqa: S608  # nosec B608 — static module-constant identifiers
                 (event_id,),
             ).fetchone()
             selected += int(row[0]) if row else 0
@@ -3444,7 +3444,7 @@ def _purge_ledger_ghost_count(journal_path: Path, ledger_path: Path) -> int:
         return sum(
             int(count)
             for event_id, count in connection.execute(
-                f"SELECT {COL_EVENT_ID}, COUNT(*) FROM {LEDGER_TABLE} GROUP BY {COL_EVENT_ID}"  # noqa: S608
+                f"SELECT {COL_EVENT_ID}, COUNT(*) FROM {LEDGER_TABLE} GROUP BY {COL_EVENT_ID}"  # noqa: S608  # nosec B608 — static module-constant identifiers
             )
             if str(event_id) not in journal_ids
         )

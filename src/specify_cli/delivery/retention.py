@@ -72,15 +72,15 @@ if TYPE_CHECKING:
 # Built from the journal's own canonical identifiers; ``event_id`` always travels
 # via a ``?`` placeholder, so there is no dynamic SQL and no injection surface
 # (mirrors the static-identifier pattern in ``event_journal/models.py``).
-_PURGE_SQL = f"DELETE FROM {TABLE_NAME} WHERE {COL_EVENT_ID} = ?"  # noqa: S608 — static module-constant identifiers; value via ?
+_PURGE_SQL = f"DELETE FROM {TABLE_NAME} WHERE {COL_EVENT_ID} = ?"  # noqa: S608  # nosec B608 — static module-constant identifiers; value via ?
 
 #: FR-017's own reads. ``--all`` cannot be assembled from the per-project selectors
 #: (see :func:`purge_all_events` for the three populations they miss), so it takes the
 #: id sets straight from both tables. Ids only — no payload BLOB is decoded, because
 #: the whole store is about to be deleted and hydrating it first would be pointless
 #: I/O over exactly the confidential text this operation exists to remove.
-_ALL_JOURNAL_IDS_SQL = f"SELECT {COL_EVENT_ID} FROM {TABLE_NAME}"  # noqa: S608 — static module-constant identifiers
-_ALL_LEDGER_IDS_SQL = f"SELECT DISTINCT {COL_EVENT_ID} FROM {LEDGER_TABLE}"  # noqa: S608 — static module-constant identifiers
+_ALL_JOURNAL_IDS_SQL = f"SELECT {COL_EVENT_ID} FROM {TABLE_NAME}"  # noqa: S608  # nosec B608 — static module-constant identifiers
+_ALL_LEDGER_IDS_SQL = f"SELECT DISTINCT {COL_EVENT_ID} FROM {LEDGER_TABLE}"  # noqa: S608  # nosec B608 — static module-constant identifiers
 
 #: The literal an operator must produce for a destructive ``--all`` run.
 #:
@@ -385,7 +385,7 @@ _BODY_QUEUE_TABLE = "body_upload_queue"
 #: FR-017's own delete over that store. No ``WHERE``, which is the entire point — see
 #: :func:`purge_all_body_uploads` for why this cannot compose from the per-project
 #: selector, and why widening that selector instead was rejected.
-_PURGE_ALL_BODY_SQL = f"DELETE FROM {_BODY_QUEUE_TABLE}"  # noqa: S608 — static module-constant identifier, no values interpolated
+_PURGE_ALL_BODY_SQL = f"DELETE FROM {_BODY_QUEUE_TABLE}"  # noqa: S608  # nosec B608 — static module-constant identifier, no values interpolated
 
 
 def _purge_all_body_rows(db_path: Path) -> int:
@@ -481,8 +481,8 @@ def purge_all_body_uploads(
 #: one purge report can present all three stores without a per-store special case.
 IDENTITY_LESS_KEY = ""
 
-_LEDGER_STATUS_CENSUS_SQL = f"SELECT status, COUNT(*) FROM {LEDGER_TABLE} GROUP BY status"  # noqa: S608 — static module-constant identifier
-_LEDGER_TOTAL_SQL = f"SELECT COUNT(*) FROM {LEDGER_TABLE}"  # noqa: S608 — static module-constant identifier
+_LEDGER_STATUS_CENSUS_SQL = f"SELECT status, COUNT(*) FROM {LEDGER_TABLE} GROUP BY status"  # noqa: S608  # nosec B608 — static module-constant identifier
+_LEDGER_TOTAL_SQL = f"SELECT COUNT(*) FROM {LEDGER_TABLE}"  # noqa: S608  # nosec B608 — static module-constant identifier
 
 
 @dataclass(frozen=True)
@@ -653,7 +653,7 @@ def _ledger_status_census(
     census: dict[str, int] = {}
     for event_id in event_ids:
         for row in ledger.connection.execute(
-            f"SELECT status FROM {LEDGER_TABLE} WHERE {COL_EVENT_ID} = ?",  # noqa: S608 — static module-constant identifiers
+            f"SELECT status FROM {LEDGER_TABLE} WHERE {COL_EVENT_ID} = ?",  # noqa: S608  # nosec B608 — static module-constant identifiers
             (event_id,),
         ):
             status = str(row["status"])
@@ -674,7 +674,7 @@ def _purge_ledger_rows(ledger: SqliteDeliveryLedger, event_ids: Sequence[str]) -
     with ledger.transaction():
         for event_id in event_ids:
             cursor = ledger.connection.execute(
-                f"DELETE FROM {LEDGER_TABLE} WHERE {COL_EVENT_ID} = ?",  # noqa: S608 — static module-constant identifiers
+                f"DELETE FROM {LEDGER_TABLE} WHERE {COL_EVENT_ID} = ?",  # noqa: S608  # nosec B608 — static module-constant identifiers
                 (event_id,),
             )
             removed += max(int(cursor.rowcount), 0)
