@@ -58,12 +58,16 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     # Lazy-loaded names that require heavier optional/runtime dependencies.
     "BatchEventResult": (".batch", "BatchEventResult"),
     "BatchSyncResult": (".batch", "BatchSyncResult"),
-    "batch_sync": (".batch", "batch_sync"),
+    # NOTE (#3030 FR-012): ``batch_sync`` and ``sync_all_queued_events`` are
+    # deliberately absent. They are the retired queue-backed event drain, which
+    # carries no per-project consent; the journal dispatcher
+    # (``delivery/dispatcher.py``) is the sole event drain. Re-exporting them
+    # reinstates the cross-project leak — guarded by
+    # ``tests/sync/test_no_queue_drain_constructed_3030.py``.
     "categorize_error": (".batch", "categorize_error"),
     "format_sync_summary": (".batch", "format_sync_summary"),
     "generate_failure_report": (".batch", "generate_failure_report"),
     "write_failure_report": (".batch", "write_failure_report"),
-    "sync_all_queued_events": (".batch", "sync_all_queued_events"),
     "WebSocketClient": (".client", "WebSocketClient"),
     "SyncConfig": (".config", "SyncConfig"),
     "BackgroundSyncService": (".background", "BackgroundSyncService"),
@@ -100,8 +104,6 @@ __all__ = [
     "WebSocketClient",
     "SyncConfig",
     "OfflineQueue",
-    "batch_sync",
-    "sync_all_queued_events",
     "BatchEventResult",
     "BatchSyncResult",
     "categorize_error",
@@ -320,64 +322,84 @@ def register_default_handlers() -> None:
         register_lifecycle_saas_fanout_handler(_lifecycle_saas_fanout_handler)
 
     with _contextlib.suppress(ImportError):
-        from specify_cli.invocation.adapters import (
-            register_saas_client_factory,
-            register_sync_routing_resolver,
-        )
+        from specify_cli.invocation.adapters import register_egress_consent_resolver
 
-        def _sync_routing_resolver(path):  # type: ignore[no-untyped-def]
-            """Return effective_sync_enabled, or None for non-project paths.
+        def _egress_consent_resolver(path):  # type: ignore[no-untyped-def]
+            """Does the PROJECT that owns *path* consent to hosted sync? (#3030 FR-025)
 
-            Never raises — resolves None cleanly when the path is not a
-            spec-kitty project so the normal non-project fast-path does
-            not produce a spurious exc_info=True DEBUG log.
+            This slot used to answer ``routing.effective_sync_enabled`` — "is sync
+            configured for this checkout" — and returned ``None`` for a path that is
+            not a project root, which the propagator read as permission to send. Two
+            corrections, in the two halves of the answer:
 
-            Imports resolve_checkout_sync_routing at call time (not closure)
-            so that test patches on specify_cli.sync.routing are respected.
+            **Which project is asking** comes from the checkout's resolved identity,
+            via the read-only routing resolver. That is the mission's single
+            derivation of checkout → project, and it already carries the FR-022 /
+            FR-023 hardening: an unreadable or non-mapping ``.kittify/config.yaml``
+            yields ``project_uuid=None`` instead of raising, and an unidentifiable
+            project is never consentable (NFR-001), so it denies here.
+
+            **Whether that project consents** comes from
+            ``consent.consented_project_uuids`` — the same funnel the drain
+            (``delivery/selection.py``) and the emitter use, walking the one declared
+            precedence chain (project-local → machine index → env). Deliberately NOT
+            ``effective_sync_enabled``: that chain also honours the repo-slug-keyed
+            ``[sync.repo_defaults]`` record, which FR-019 condemns precisely because
+            it is keyed on a mutable git remote and cannot speak for a project. One
+            representation of one invariant (C-003).
+
+            Membership is checked for *this* uuid rather than for the returned set
+            being non-empty — the resolver returns the consenting subset, and the two
+            are equivalent only while exactly one candidate is passed.
+
+            Returns a bool, never ``None``. The seam maps a raise to
+            ``UNANSWERABLE`` (a refusal), but answering the ordinary non-project case
+            with a plain ``False`` keeps that path off the fault log.
+
+            Imports at call time (not closure) so that test patches on
+            ``specify_cli.sync.routing`` / ``specify_cli.sync.consent`` are respected.
             """
-            from specify_cli.sync.routing import resolve_checkout_sync_routing
+            from specify_cli.sync.consent import consented_project_uuids
+            from specify_cli.sync.routing import resolve_checkout_sync_routing_readonly
 
-            routing = resolve_checkout_sync_routing(path)
-            if routing is None:
-                return None
-            return routing.effective_sync_enabled
+            routing = resolve_checkout_sync_routing_readonly(path)
+            if routing is None or not routing.project_uuid:
+                return False
+            uuid = str(routing.project_uuid)
+            return uuid in consented_project_uuids(
+                [uuid], checkout_roots=[routing.repo_root]
+            )
 
-        def _saas_client_factory(repo_root):  # type: ignore[no-untyped-def]  # noqa: ARG001
-            """Return the connected WebSocketClient if authenticated; None otherwise.
+        register_egress_consent_resolver(_egress_consent_resolver)
 
-            Mirrors the gating logic from invocation/propagator.py::_get_saas_client
-            (NFR-003 behavior-preserving contract):
-              1. is_authenticated must be True
-              2. a current session must exist
-              3. token_manager._ws_client must be present and .connected
-
-            Returns None in every non-connected case so the propagator's
-            local-first fast-path (client is None → early return) is preserved.
-            Returns the EXISTING connected _ws_client rather than constructing a
-            fresh disconnected WebSocketClient (a fresh client has .connected=False
-            and send_event raises ConnectionError immediately).
-            """
-            try:
-                from specify_cli.auth import get_token_manager
-
-                token_manager = get_token_manager()
-                if not bool(token_manager.is_authenticated):
-                    return None
-
-                session = token_manager.get_current_session()
-                if session is None:
-                    return None
-
-                client = getattr(token_manager, "_ws_client", None)
-                if client is None or not getattr(client, "connected", False):
-                    return None
-
-                return client
-            except Exception:  # noqa: BLE001
-                return None
-
-        register_sync_routing_resolver(_sync_routing_resolver)
-        register_saas_client_factory(_saas_client_factory)
+    # ------------------------------------------------------------------
+    # No SaaS-client factory is registered here, and that is deliberate
+    # (#3030 FR-032).
+    #
+    # A ``_saas_client_factory`` used to be registered at this point. Its whole
+    # body was a lookup of ``getattr(token_manager, "_ws_client", None)`` — an
+    # attribute **nothing in ``src/`` has ever assigned**: no ``=``, no
+    # ``setattr``, and ``specify_cli/auth/`` does not declare it. Only tests
+    # injected it. The live WebSocket client is a different attribute on a
+    # different owner (``SyncRuntime.ws_client``, built in ``sync/runtime.py``
+    # and handed to the emitter), so this factory returned ``None`` on every
+    # production call and ``invocation/propagator.py``'s send has never executed
+    # outside tests.
+    #
+    # Deleting it rather than leaving it removes a real hazard: a one-line
+    # ``token_manager._ws_client = ...`` — the obvious-looking "fix" for "the
+    # propagator never sends" — used to turn three egress paths live at once,
+    # during a P0 confidentiality incident. It now turns on none of them.
+    #
+    # ``invocation/adapters.get_saas_client`` therefore answers ``None`` for
+    # every production caller, which is the documented safe-degrade for that
+    # seam ("no transport, so nothing can leave"). The propagator keeps its
+    # FR-025 consent gate: the gate is checked *before* the client lookup and
+    # protects the path whatever transport is registered later. Wiring this
+    # slot to ``SyncRuntime.ws_client`` was considered and explicitly rejected;
+    # anyone re-registering a factory here is opening a new egress path and
+    # owns proving the gate above it holds.
+    # ------------------------------------------------------------------
 
     # -----------------------------------------------------------------------
     # Surviving MissionCreated SaaS fan-out path (FR-005 collapse, WP03):

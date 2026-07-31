@@ -47,6 +47,7 @@ from specify_cli.delivery.receivers import (
     StubReceiver,
     TeamspaceReceiver,
 )
+from tests._support.consented_batches import deliverable
 
 pytestmark = pytest.mark.fast
 
@@ -106,7 +107,7 @@ def _simulate_cycle(
         journal.commit()
     if policy.receiver is not None:
         batch = [OutboundEvent(event_id=eid, payload={"event_id": eid}) for eid in event_ids]
-        for result in policy.receiver.deliver(batch):
+        for result in policy.receiver.deliver(deliverable(batch)):
             ledger.record_result(
                 event_id=result.event_id, target_id=_TARGET_ID, result=result.outcome
             )

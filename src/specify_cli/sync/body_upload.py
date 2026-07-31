@@ -17,7 +17,6 @@ from specify_cli.core.paths import locate_project_root
 
 from .body_queue import BodyEnqueueResult
 from .namespace import UploadOutcome, UploadStatus, is_supported_format
-from .routing import is_sync_enabled_for_checkout
 
 if TYPE_CHECKING:
     from specify_cli.dossier.models import ArtifactRef
@@ -50,6 +49,81 @@ _DIRECTORY_PREFIXES: tuple[str, ...] = (
 )
 
 _WP_PATTERN = re.compile(r"^tasks/WP\d+.*\.md$")
+
+
+def project_consents_to_hosted_sync(
+    project_uuid: str | None,
+    *,
+    feature_dir: Path | None = None,
+    repo_root: Path | None = None,
+) -> bool:
+    """Does *project_uuid* consent to hosted sync? (#3030 FR-031)
+
+    The one consent question for the dossier path — the enqueue gate below and the
+    pipeline gate in :mod:`~specify_cli.sync.dossier_pipeline` both ask it here, so the
+    path cannot grow two answers again.
+
+    **This replaces ``is_sync_enabled_for_checkout(repo_root)``, and both halves of
+    that call were wrong.**
+
+    *Which project is asking* now comes from the data's **own** ``project_uuid`` — the
+    one on the ``NamespaceRef`` the bodies are being staged under, which is the same
+    value ``background._consenting_body_project_uuids`` re-reads off the queued row
+    before the actual POST (E10). Deriving it from the checkout instead is the bug
+    class: a checkout answers "where am I standing", never "may this project's
+    documents leave", and the two differ in exactly the monorepo/worktree/``cd``
+    situations the 2026-07-27 incident occurred in.
+
+    *Whether it consents* now comes from ``consent.consented_project_uuids`` rather
+    than ``routing.effective_sync_enabled``. The routing chain also honours the
+    repo-slug-keyed ``[sync.repo_defaults]`` record, which FR-019 condemns because it
+    is keyed on a mutable git remote — a fresh clone or a re-``git init`` inherits a
+    decision nobody made about it. One path holding two gates that walked two
+    different chains is the C-003 divergence; both now walk the declared one.
+
+    **Fails closed, and the fail-open branch is gone.** The old gate read
+    ``repo_root is not None and not is_sync_enabled_for_checkout(repo_root)``, so an
+    unresolvable project root skipped the gate altogether — undetermined read as
+    consent, FR-003's rule verbatim. Here an unusable uuid and a raising chain both
+    deny. Note this is *not* "deny whenever the checkout is unresolvable": the uuid
+    still carries a determinable answer through the machine-global index, so an
+    unresolvable checkout costs the project-local *level*, not the decision.
+
+    *feature_dir* / *repo_root* are only **offered** as checkouts for the project-local
+    level. A root that declares a different uuid is ignored by the resolver, so
+    offering one can never widen the answer.
+    """
+    uuid = str(project_uuid or "").strip()
+    if not uuid:
+        return False
+
+    offered: list[Path] = []
+    if repo_root is not None:
+        offered.append(Path(repo_root))
+    elif feature_dir is not None:
+        located = locate_project_root(feature_dir)
+        if located is not None:
+            offered.append(located)
+
+    try:
+        from .consent import consented_project_uuids  # noqa: PLC0415
+
+        granted = uuid in consented_project_uuids([uuid], checkout_roots=offered or None)
+    except Exception:  # noqa: BLE001 - unanswerable is not granted
+        logger.warning(
+            "Could not resolve hosted-sync consent for project %s; withholding its "
+            "artifact bodies",
+            uuid,
+            exc_info=True,
+        )
+        return False
+
+    if not granted:
+        logger.debug(
+            "Artifact bodies withheld: project %s has not consented to hosted sync",
+            uuid,
+        )
+    return granted
 
 
 def _is_supported_surface(relative_path: str) -> bool:
@@ -146,13 +220,17 @@ def prepare_body_uploads(
     Returns a list of UploadOutcome for every artifact processed
     (including skipped ones for diagnostics per FR-012).
     """
-    repo_root = locate_project_root(feature_dir)
-    if repo_root is not None and not is_sync_enabled_for_checkout(repo_root):
+    # #3030 FR-031: the bodies' own project must consent, and an undetermined answer
+    # is a refusal. See ``project_consents_to_hosted_sync`` for why neither half of
+    # the previous ``is_sync_enabled_for_checkout(repo_root)`` gate survived.
+    if not project_consents_to_hosted_sync(
+        namespace_ref.project_uuid, feature_dir=feature_dir
+    ):
         return [
             UploadOutcome(
                 artifact_path=artifact.relative_path,
                 status=UploadStatus.SKIPPED,
-                reason="sync_disabled",
+                reason="project_not_consented",
             )
             for artifact in artifacts
         ]

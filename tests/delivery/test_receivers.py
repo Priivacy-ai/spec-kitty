@@ -16,6 +16,7 @@ order. They lock the contract §4 behaviours:
 * gate evaluation is per-receiver data driven by a shared helper — no target-type
   ``if`` (FR-014).
 """
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -25,6 +26,7 @@ import pytest
 import requests
 
 from specify_cli.delivery.receivers import (
+    BATCH_ENDPOINT_PATH,
     DeliveryOutcome,
     DeliveryReceiver,
     DeliveryResult,
@@ -38,6 +40,7 @@ from specify_cli.delivery.receivers import (
     evaluate_gates,
     map_batch_response,
 )
+from tests._support.consented_batches import deliverable
 
 pytestmark = pytest.mark.fast
 
@@ -90,9 +93,7 @@ class _FakePoster:
         self._raise = raise_exc
         self.calls: list[dict[str, Any]] = []
 
-    def __call__(
-        self, url: str, *, data: bytes, headers: Mapping[str, str], timeout: float
-    ) -> _FakeResponse:
+    def __call__(self, url: str, *, data: bytes, headers: Mapping[str, str], timeout: float) -> _FakeResponse:
         self.calls.append({"url": url, "data": data, "headers": dict(headers), "timeout": timeout})
         if self._raise is not None:
             raise self._raise
@@ -147,7 +148,7 @@ def test_stub_records_events_with_no_teamspace_credentials(
     assert stub.gates() == ()
 
     batch = [_event("01JMBY00000000000000000001"), _event("01JMBY00000000000000000002")]
-    results = stub.deliver(batch)
+    results = stub.deliver(deliverable(batch))
 
     assert [r.outcome for r in results] == [DeliveryOutcome.SUCCESS, DeliveryOutcome.SUCCESS]
     assert stub.received_event_ids() == (
@@ -171,13 +172,11 @@ def test_stub_and_teamspace_produce_identical_outcomes_for_equivalent_payloads()
             ),
         )
     )
-    teamspace = TeamspaceReceiver(
-        resolved_server_url=SERVER_URL, auth_token=_TOKEN, poster=poster
-    )
+    teamspace = TeamspaceReceiver(resolved_server_url=SERVER_URL, auth_token=_TOKEN, poster=poster)
     stub = StubReceiver()
 
-    ts_results = list(teamspace.deliver(batch))
-    stub_results = list(stub.deliver(batch))
+    ts_results = list(teamspace.deliver(deliverable(batch)))
+    stub_results = list(stub.deliver(deliverable(batch)))
 
     ts_map = {r.event_id: r.outcome for r in ts_results}
     stub_map = {r.event_id: r.outcome for r in stub_results}
@@ -192,15 +191,13 @@ def test_stub_and_teamspace_agree_on_duplicate_redelivery() -> None:
         _FakeResponse(200, _ok_body(("01JMBY0000000000000000000C", "success"))),
         _FakeResponse(200, _ok_body(("01JMBY0000000000000000000C", "duplicate"))),
     )
-    teamspace = TeamspaceReceiver(
-        resolved_server_url=SERVER_URL, auth_token=_TOKEN, poster=poster
-    )
+    teamspace = TeamspaceReceiver(resolved_server_url=SERVER_URL, auth_token=_TOKEN, poster=poster)
     stub = StubReceiver()
 
-    teamspace.deliver(batch)
-    stub.deliver(batch)
-    ts_second = list(teamspace.deliver(batch))
-    stub_second = list(stub.deliver(batch))
+    teamspace.deliver(deliverable(batch))
+    stub.deliver(deliverable(batch))
+    ts_second = list(teamspace.deliver(deliverable(batch)))
+    stub_second = list(stub.deliver(deliverable(batch)))
 
     assert ts_second[0].outcome is DeliveryOutcome.DUPLICATE
     assert stub_second[0].outcome is DeliveryOutcome.DUPLICATE
@@ -224,10 +221,8 @@ def test_teamspace_gate_set_is_saas_private_teamspace_auth() -> None:
 def test_teamspace_posts_to_resolved_endpoint_with_bearer_header() -> None:
     batch = [_event("01JMBY0000000000000000000D")]
     poster = _FakePoster(_FakeResponse(200, _ok_body(("01JMBY0000000000000000000D", "success"))))
-    teamspace = TeamspaceReceiver(
-        resolved_server_url=SERVER_URL, auth_token=_TOKEN, poster=poster
-    )
-    teamspace.deliver(batch)
+    teamspace = TeamspaceReceiver(resolved_server_url=SERVER_URL, auth_token=_TOKEN, poster=poster)
+    teamspace.deliver(deliverable(batch))
     call = poster.calls[0]
     assert call["url"] == EXPECTED_BATCH_ENDPOINT
     assert call["headers"]["Authorization"] == f"Bearer {_TOKEN}"
@@ -267,7 +262,7 @@ def test_external_reuses_the_shared_batch_mapper() -> None:
     batch = [_event("01JMBY0000000000000000000E")]
     poster = _FakePoster(_FakeResponse(200, _ok_body(("01JMBY0000000000000000000E", "success"))))
     external = ExternalReceiver(endpoint_url="https://ops.example/ingest/", poster=poster)
-    results = list(external.deliver(batch))
+    results = list(external.deliver(deliverable(batch)))
     assert results[0].outcome is DeliveryOutcome.SUCCESS
 
 
@@ -275,7 +270,7 @@ def test_external_non_batch_shape_maps_transient_not_silent_success() -> None:
     batch = [_event("01JMBY0000000000000000000F")]
     poster = _FakePoster(_FakeResponse(200, {"ok": True}))  # not the batch shape
     external = ExternalReceiver(endpoint_url="https://ops.example/ingest/", poster=poster)
-    results = list(external.deliver(batch))
+    results = list(external.deliver(deliverable(batch)))
     assert results[0].outcome is DeliveryOutcome.TRANSIENT
 
 
@@ -397,10 +392,8 @@ def test_http_400_maps_per_event_rejected_with_details() -> None:
 def test_transport_timeout_maps_transient_without_poisoning_retries() -> None:
     batch = [_event("01JMBY0000000000000000000P")]
     poster = _FakePoster(raise_exc=requests.Timeout("timed out"))
-    teamspace = TeamspaceReceiver(
-        resolved_server_url=SERVER_URL, auth_token=_TOKEN, poster=poster
-    )
-    results = list(teamspace.deliver(batch))
+    teamspace = TeamspaceReceiver(resolved_server_url=SERVER_URL, auth_token=_TOKEN, poster=poster)
+    results = list(teamspace.deliver(deliverable(batch)))
     assert results[0].outcome is DeliveryOutcome.TRANSIENT
     assert results[0].http_status is None
 
@@ -416,7 +409,7 @@ def test_transport_failure_error_carries_underlying_exception_text() -> None:
     batch = [_event("01JMBY0000000000000000000Q")]
     poster = _FakePoster(raise_exc=requests.ConnectionError("boom"))
     external = ExternalReceiver(endpoint_url="https://ops.example/ingest/", poster=poster)
-    results = list(external.deliver(batch))
+    results = list(external.deliver(deliverable(batch)))
     assert results[0].outcome is DeliveryOutcome.TRANSIENT
     assert results[0].http_status is None
     error = results[0].error or ""
@@ -427,8 +420,8 @@ def test_transport_failure_error_carries_underlying_exception_text() -> None:
 def test_empty_batch_returns_empty_results() -> None:
     teamspace = TeamspaceReceiver(resolved_server_url=SERVER_URL, auth_token=_TOKEN)
     stub = StubReceiver()
-    assert list(teamspace.deliver([])) == []
-    assert list(stub.deliver([])) == []
+    assert list(teamspace.deliver(deliverable([]))) == []
+    assert list(stub.deliver(deliverable([]))) == []
 
 
 def test_bisect_send_is_self_defending_on_empty_batch() -> None:
@@ -491,18 +484,16 @@ def test_non_json_response_body_maps_transient() -> None:
     batch = [_event("01JMBY0000000000000000000U")]
     poster = _FakePoster(_FakeResponse(200, ValueError("not json")))
     external = ExternalReceiver(endpoint_url="https://ops.example/ingest/", poster=poster)
-    results = list(external.deliver(batch))
+    results = list(external.deliver(deliverable(batch)))
     assert results[0].outcome is DeliveryOutcome.TRANSIENT
 
 
 def test_stub_received_events_read_surface() -> None:
     stub = StubReceiver()
     batch = [_event("01JMBY0000000000000000000V")]
-    stub.deliver(batch)
+    stub.deliver(deliverable(batch))
     received = stub.received_events()
-    assert frozenset(e.event_id for e in received) == frozenset(
-        {"01JMBY0000000000000000000V"}
-    )
+    assert frozenset(e.event_id for e in received) == frozenset({"01JMBY0000000000000000000V"})
 
 
 def test_delivery_result_is_transport_agnostic_value() -> None:
@@ -515,3 +506,138 @@ def test_delivery_result_is_transport_agnostic_value() -> None:
     )
     # The outcome's wire value folds onto the WP05 ledger vocabulary.
     assert result.outcome.value == "success"
+
+
+# --- WP01 / spec-kitty#3030: cross-project refusal + terminal rejection -------
+
+
+def _evt(event_id: str, project_uuid: str | None) -> OutboundEvent:
+    payload: dict[str, Any] = {"event_id": event_id, "event_type": "WPStatusChanged"}
+    if project_uuid is not None:
+        payload["project_uuid"] = project_uuid
+    return OutboundEvent(event_id=event_id, payload=payload)
+
+
+def test_batch_spanning_two_projects_is_refused_before_any_post() -> None:
+    """FR-004: a multi-project batch must refuse pre-POST and make NO request.
+
+    This is the incident's shape. The drain selected 13,384 events spanning six
+    projects and shipped them; nothing between selection and POST looked at
+    project identity.
+    """
+    calls: list[str] = []
+
+    def _never_called(url, *, data, headers, timeout):  # pragma: no cover - must not run
+        calls.append(url)
+        raise AssertionError("a cross-project batch must never be POSTed")
+
+    receiver = TeamspaceReceiver(resolved_server_url=SERVER_URL, auth_token=_TOKEN, poster=_never_called)
+
+    results = receiver.deliver(deliverable([_evt("e1", "aaaaaaaa-0000-0000-0000-000000000001"), _evt("e2", "bbbbbbbb-0000-0000-0000-000000000002")]))
+
+    assert calls == [], "no HTTP request may be made for a cross-project batch"
+    # NOT terminal_failed: that status leaves select_undelivered forever, so the
+    # net destroyed the consented project's events along with the refusal (#3030
+    # H1). The round-trip is pinned in test_cross_project_refusal_state_3030.py.
+    assert {r.outcome for r in results} == {DeliveryOutcome.TRANSIENT}
+    assert all("more than one project" in (r.error or "") for r in results)
+    # The refusal must name the projects so the operator can act on it.
+    assert any("aaaaaaaa" in (r.error or "") for r in results)
+
+
+def test_single_project_batch_still_delivers() -> None:
+    """The refusal must not fire on a homogeneous batch (no false positives)."""
+    seen: list[str] = []
+
+    def _ok(url, *, data, headers, timeout):
+        seen.append(url)
+        return _FakeResponse(200, {"results": [{"event_id": "e1", "status": "success"}]})
+
+    receiver = TeamspaceReceiver(resolved_server_url=SERVER_URL, auth_token=_TOKEN, poster=_ok)
+    results = receiver.deliver(deliverable([_evt("e1", "aaaaaaaa-0000-0000-0000-000000000001")]))
+
+    assert seen == [SERVER_URL + BATCH_ENDPOINT_PATH], (
+        "a single-project batch must POST exactly once, to the batch endpoint"
+    )
+    assert [r.outcome for r in results] == [DeliveryOutcome.SUCCESS]
+
+
+def test_identity_less_events_do_not_count_as_a_project_at_this_seam() -> None:
+    """Identity-less events must not fabricate a second project here.
+
+    An event with no ``project_uuid`` resolves to ``None``. Counting ``None`` as
+    a project would refuse ordinary single-project batches that happen to
+    contain a legacy identity-less row. Denying unresolvable identity is
+    WP06's job at the *selection* seam, where the stored column is the sole
+    authority — not the receiver's.
+
+    The ``{None}`` cardinality trap this could invite is handled by NFR-001
+    being stated as a subset invariant, not a count.
+
+    The batch is minted with **explicit** attribution (#3030 FR-028) because that
+    is the real shape: the legacy row's identity lives in the journal's stored
+    ``project_uuid`` column, which C-003 makes the sole selection authority, while
+    its envelope carries none. So consent is answered for the project the row
+    belongs to, and the refusal — which reads the envelope — still sees one
+    project. Attributing ``e2`` from its envelope instead would deny it, which is
+    the *mint's* documented behaviour and a different seam from the one under test.
+    """
+    project = "aaaaaaaa-0000-0000-0000-000000000001"
+    seen: list[str] = []
+
+    def _ok(url, *, data, headers, timeout):
+        seen.append(url)
+        return _FakeResponse(
+            200,
+            {"results": [{"event_id": "e1", "status": "success"}, {"event_id": "e2", "status": "success"}]},
+        )
+
+    receiver = TeamspaceReceiver(resolved_server_url=SERVER_URL, auth_token=_TOKEN, poster=_ok)
+    results = receiver.deliver(
+        deliverable(
+            [_evt("e1", project), _evt("e2", None)],
+            event_projects={"e1": project, "e2": project},
+        )
+    )
+
+    assert seen == [SERVER_URL + BATCH_ENDPOINT_PATH], (
+        "a single-project batch with a legacy row still delivers, once, to the "
+        "batch endpoint"
+    )
+    assert {r.outcome for r in results} == {DeliveryOutcome.SUCCESS}
+
+
+def test_server_refusal_category_maps_to_terminal_failed() -> None:
+    """FR-014 / #3005: a refused project must be TERMINAL, not endlessly retried.
+
+    Today TERMINAL_FAILED is reachable from exactly one predicate (oversized
+    single event), so every server refusal became REJECTED -> retried forever
+    with no ceiling. That is the '4,141 rejected / 0 terminal failures' signal.
+    """
+
+    def _refuse(url, *, data, headers, timeout):
+        return _FakeResponse(
+            200,
+            {
+                "results": [
+                    {"event_id": "e1", "status": "rejected", "error_category": "project_not_consented", "error": "project has not been admitted to this teamspace"}
+                ]
+            },
+        )
+
+    receiver = TeamspaceReceiver(resolved_server_url=SERVER_URL, auth_token=_TOKEN, poster=_refuse)
+    results = receiver.deliver(deliverable([_evt("e1", "aaaaaaaa-0000-0000-0000-000000000001")]))
+
+    assert [r.outcome for r in results] == [DeliveryOutcome.TERMINAL_FAILED]
+
+
+def test_ordinary_rejection_stays_retryable() -> None:
+    """A rejection WITHOUT a terminal category must stay REJECTED (retryable)."""
+
+    def _reject(url, *, data, headers, timeout):
+        return _FakeResponse(200, {"results": [{"event_id": "e1", "status": "rejected", "error": "schema drift"}]})
+
+    receiver = TeamspaceReceiver(resolved_server_url=SERVER_URL, auth_token=_TOKEN, poster=_reject)
+    results = receiver.deliver(deliverable([_evt("e1", "aaaaaaaa-0000-0000-0000-000000000001")]))
+
+    assert [r.outcome for r in results] == [DeliveryOutcome.REJECTED]

@@ -162,32 +162,11 @@ class TestRowCountCache:
         assert temp_queue._row_count == 0
         assert temp_queue._size_from_disk() == 0
 
-    def test_counter_after_remove_project_events(
-        self, temp_queue: OfflineQueue
-    ) -> None:
-        # Two projects, two events each.
-        for i in range(2):
-            temp_queue.queue_event(
-                {
-                    "event_id": f"a-{i}",
-                    "event_type": "BuildRegistered",
-                    "project_uuid": "proj-a",
-                    "payload": {"project_uuid": "proj-a"},
-                }
-            )
-            temp_queue.queue_event(
-                {
-                    "event_id": f"b-{i}",
-                    "event_type": "BuildRegistered",
-                    "project_uuid": "proj-b",
-                    "payload": {"project_uuid": "proj-b"},
-                }
-            )
-        assert temp_queue._row_count == 4
-        removed = temp_queue.remove_project_events("proj-a")
-        assert removed == 2
-        assert temp_queue._row_count == 2
-        assert temp_queue._size_from_disk() == 2
+    # ``test_counter_after_remove_project_events`` was deleted here (#3030 C-004 /
+    # WP08): it exercised the cached row-count decrement through
+    # ``remove_project_events``, which no longer exists. The decrement contract it
+    # covered is still pinned by the sibling tests over ``clear`` and
+    # ``process_batch_results``, which drive the same ``_row_count`` bookkeeping.
 
     def test_counter_after_process_batch_results(
         self, temp_queue: OfflineQueue

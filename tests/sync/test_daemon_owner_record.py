@@ -451,29 +451,14 @@ def test_mismatched_fields_detects_each_d3_field(
     assert mismatched_fields(record, fg) == [field]
 
 
-def test_check_daemon_owner_match_no_record_is_ok(_scoped_home: Path) -> None:
-    from specify_cli.sync.owner import check_daemon_owner_match
-
-    ok, diff = check_daemon_owner_match()
-    assert ok is True
-    assert diff == []
-
-
-def test_check_daemon_owner_match_detects_mismatch(
-    _scoped_home: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    from specify_cli.sync import owner as owner_mod
-
-    record = _build_record()
-    owner_mod.write_owner_record(record)
-
-    fg = _fg_from_record(record)
-    fg["package_version"] = "9.9.9-test"
-    monkeypatch.setattr(owner_mod, "compute_foreground_identity", lambda: fg)
-
-    ok, diff = owner_mod.check_daemon_owner_match()
-    assert ok is False
-    assert diff == ["package_version"]
+# ``test_check_daemon_owner_match_{no_record_is_ok,detects_mismatch}`` were
+# deleted with the function itself in #3030 (it answered "yes, right daemon" on
+# an owner record it could not read, and had zero src/ callers). Neither test's
+# coverage is lost: the field comparison is pinned above by
+# ``test_mismatched_fields_detects_each_d3_field``, and the live gate's
+# no-record / unreadable-record / valid-record verdicts are pinned in
+# ``tests/sync/test_owner_record_unreadable_3030.py`` against
+# ``preflight.build_boundary_failure_set``, which is what actually runs.
 
 
 # ---------------------------------------------------------------------------

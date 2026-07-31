@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import contextlib
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -31,23 +31,40 @@ from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.paths import get_runtime_root
 
 from .models import (
+    COUNT_MISSING_IDENTITY_SQL,
     COUNT_SQL,
     CREATE_COALESCE_INDEX_SQL,
+    CREATE_PROJECT_INDEX_SQL,
     CREATE_TABLE_SQL,
     CREATE_TYPE_INDEX_SQL,
+    DISTINCT_PROJECT_UUIDS_SQL,
     DRAIN_BLOCKED_MISSING_AUTH,
     DRAIN_BLOCKED_MISSING_TEAM,
     DRAIN_BLOCKED_SAAS_DISABLED,
+    IDENTITY_COLUMNS,
     INSERT_SQL,
     MARK_ARCHIVED_SQL,
     OLDEST_CREATED_AT_SQL,
     SELECT_ALL_SQL,
     SELECT_BLOCKED_SQL,
     SELECT_BY_ID_SQL,
+    SELECT_IDENTITY_PROJECTION_ALL_SQL,
+    SELECT_MISSING_IDENTITY_SQL,
+    SET_IDENTITY_SQL,
+    TABLE_NAME,
     Event,
     event_to_params,
     row_to_event,
+    select_by_ids_sql,
+    select_identity_projection_sql,
 )
+
+#: Max ``?`` placeholders per statement. SQLite's compiled ceiling is 999 on older
+#: builds and 32,766 from 3.32; batching well under the lower bound keeps a wide
+#: drain working on any interpreter that ships with the CLI, at the cost of one
+#: extra statement per 500 events — still O(batch/500) rather than O(batch)
+#: connections, which is the property NFR-003 needs.
+_MAX_SQL_VARIABLES = 500
 
 # --- producer-scoped path resolution (NEVER server-scoped) ----------------
 
@@ -185,6 +202,25 @@ class JournalTransaction:
 # --- the append-only store ------------------------------------------------
 
 
+@dataclass(frozen=True)
+class EventIdentityRow:
+    """One journal row's identity, with no payload attached (#3030 T017).
+
+    The unit the consent predicate operates on. Carrying no payload is what makes
+    an unlimited universe read cheap enough for NFR-003.
+    """
+
+    event_id: str
+    created_at: str
+    project_uuid: str | None
+    repo_slug: str | None
+    drain_blocked_reason: str | None
+    # Label only, added for #3030 T021's operator report. Defaulted so the field
+    # order stays stable for existing keyword constructions; selection never reads
+    # it — ``project_uuid`` is the sole authority (delivery/selection.py).
+    project_slug: str | None = None
+
+
 class EventJournal:
     """SQLite-backed, append-only, producer-scoped payload store."""
 
@@ -209,9 +245,188 @@ class EventJournal:
     def _ensure_schema(self) -> None:
         with contextlib.closing(self._connect()) as conn:
             conn.execute(CREATE_TABLE_SQL)
+            # #3030 T010: must run BEFORE any statement derived from
+            # ``_COLUMN_LIST``. ``CREATE TABLE IF NOT EXISTS`` is a no-op on an
+            # existing file, so without this every journal written before the
+            # identity columns existed would raise ``no such column`` on the
+            # first read.
+            self._migrate_add_identity_columns(conn)
             conn.execute(CREATE_COALESCE_INDEX_SQL)
             conn.execute(CREATE_TYPE_INDEX_SQL)
+            conn.execute(CREATE_PROJECT_INDEX_SQL)
             conn.commit()
+
+    @staticmethod
+    def _migrate_add_identity_columns(conn: sqlite3.Connection) -> None:
+        """Add the project-identity columns to journals that predate them.
+
+        Additive and idempotent, mirroring the in-repo precedent at
+        ``sync/queue.py`` (``PRAGMA table_info`` → ``ALTER TABLE … ADD COLUMN``).
+        Nothing is dropped, retyped or rewritten, so an older CLI keeps reading
+        and writing the same file (C-001, C-002).
+
+        Lives inside ``_ensure_schema`` deliberately: that runs unconditionally
+        on construction, so ``get_journal``'s instance cache cannot skip it.
+        """
+        existing = {
+            row[1] for row in conn.execute(f"PRAGMA table_info({TABLE_NAME})")
+        }
+        for column in IDENTITY_COLUMNS:
+            if column not in existing:
+                conn.execute(f"ALTER TABLE {TABLE_NAME} ADD COLUMN {column} TEXT")  # noqa: S608 - identifiers are module constants, not input
+        conn.commit()
+
+    def iter_rows_missing_identity(self) -> list[tuple[str, bytes]]:
+        """Return ``(event_id, payload)`` for rows with no stored identity yet.
+
+        Storage-level seam for the #3030 T012 backfill. The journal deliberately
+        does not resolve identity itself — that chain lives in
+        ``sync/project_identity.py`` and the journal must stay ignorant of
+        consent policy (C-003). Restricting to ``project_uuid IS NULL`` is what
+        makes a resumed backfill idempotent.
+        """
+        with contextlib.closing(self._connect()) as conn:
+            return [
+                (str(event_id), bytes(payload) if payload is not None else b"")
+                for event_id, payload in conn.execute(SELECT_MISSING_IDENTITY_SQL)
+            ]
+
+    def set_project_identity(
+        self, entries: list[tuple[str, str | None, str | None, str | None]]
+    ) -> int:
+        """Write resolved identity for *entries* as one transaction.
+
+        Each entry is ``(event_id, project_uuid, project_slug, repo_slug)`` and the
+        write sets all three identity columns. Returns the number of rows actually
+        updated. Only ever fills a NULL uuid — ``SET_IDENTITY_SQL``'s
+        ``project_uuid IS NULL`` guard means an already-identified row is never
+        rewritten, so a re-run cannot change a value the selection predicate already
+        trusts. Nothing *outside the three identity columns* is touched (NFR-004),
+        and no row is ever deleted (C-002).
+
+        Batched deliberately: a per-row commit over a 42-day history would be
+        thousands of fsyncs, and a partial run must leave every remaining row
+        NULL — i.e. unselectable — rather than *appearing* consented.
+        """
+        if not entries:
+            return 0
+        with contextlib.closing(self._connect()) as conn:
+            cursor = conn.executemany(
+                SET_IDENTITY_SQL,
+                [
+                    (uuid, slug, repo, event_id)
+                    for event_id, uuid, slug, repo in entries
+                ],
+            )
+            updated = cursor.rowcount
+            conn.commit()
+        return max(updated, 0)
+
+    def count_missing_identity(self) -> int:
+        """Count rows with no resolvable project identity (#3030 T013/FR-011).
+
+        These are permanently unselectable by the consent predicate, so the
+        count is what makes fail-closed denial observable instead of silent
+        data loss. WP07 surfaces it.
+        """
+        with contextlib.closing(self._connect()) as conn:
+            row = conn.execute(COUNT_MISSING_IDENTITY_SQL).fetchone()
+        return int(row[0]) if row else 0
+
+    def distinct_project_uuids(self) -> list[str]:
+        """Return the distinct non-NULL ``project_uuid`` values present, ascending.
+
+        The cheap half of FR-008's read: consent must be resolved before a project
+        filter can be applied, so the drain first needs to know *which* projects the
+        store holds. ``DISTINCT_PROJECT_UUIDS_SQL`` answers that with one index seek
+        per distinct project rather than a walk over every row, so the answer costs
+        O(projects x log rows) — this is the read that keeps NFR-003's promise
+        independent of store size.
+
+        NULL is not a project and is excluded. Such rows are permanently
+        unselectable and are reported through :meth:`count_missing_identity`
+        (FR-011), never re-resolved at selection time (T018).
+        """
+        with contextlib.closing(self._connect()) as conn:
+            return [str(row[0]) for row in conn.execute(DISTINCT_PROJECT_UUIDS_SQL)]
+
+    def read_identity_projection_for_report(self) -> list[EventIdentityRow]:
+        """EVERY row's identity, unfiltered — operator REPORTING only (#3030 T021).
+
+        Deliberately a separate method from :meth:`read_identity_projection`, whose
+        ``project_uuids`` filter is mandatory. That filter still cannot be
+        *parameterised* into a scan — no argument widens it — and the two statements
+        share only their column list, so editing one predicate cannot silently change
+        the other.
+
+        What this method does weaken is the **capability removal**. Before it existed,
+        an unfiltered read was unwritable; now it is one substituted call. Keeping it
+        out of the drain is therefore **convention, not structure** — the convention
+        held six hours in practice (a second, non-reporting consumer landed the same
+        day), which is why `tests/architectural/` carries a guard on this symbol.
+        NFR-001's structural fence is `ConsentedBatch`: a receiver cannot be handed
+        events without a resolved consent answer, so even a scanning drain cannot
+        deliver an unconsented row.
+
+        FR-015/SC-004 asks a question the filtered read cannot answer at any
+        parameterisation — "whose data is in this store?". The projects to name are the
+        ones not yet known to consent, so the uuid set cannot be supplied up front, and
+        the rows whose ``project_uuid`` IS NULL (FR-011's fail-closed denials, which the
+        WP07 report must surface rather than drop) are excluded from
+        ``distinct_project_uuids`` by definition.
+
+        Cost is bounded by call site: once per explicit ``sync doctor`` / ``sync
+        status`` / ``sync migrate``, never on a drain tick. No payload BLOB is read
+        here either, so the cost is a projection scan rather than a materialisation.
+        """
+        with contextlib.closing(self._connect()) as conn:
+            return [
+                EventIdentityRow(
+                    event_id=str(row[0]),
+                    created_at=str(row[1]),
+                    project_uuid=None if row[2] is None else str(row[2]),
+                    project_slug=None if row[3] is None else str(row[3]),
+                    repo_slug=None if row[4] is None else str(row[4]),
+                    drain_blocked_reason=None if row[5] is None else str(row[5]),
+                )
+                for row in conn.execute(SELECT_IDENTITY_PROJECTION_ALL_SQL)
+            ]
+
+    def read_identity_projection(
+        self, *, project_uuids: Sequence[str]
+    ) -> list[EventIdentityRow]:
+        """Return the identity of every row belonging to *project_uuids* (T017).
+
+        FR-008's project-filtered universe read, and the only query in the journal
+        with a ``project_uuid`` predicate — i.e. the only reason
+        ``CREATE_PROJECT_INDEX_SQL`` exists. No payload BLOB is decoded and **no
+        LIMIT** is applied; both properties are load-bearing and are explained on
+        :func:`~specify_cli.event_journal.models.select_identity_projection_sql`.
+
+        *project_uuids* is required. The predecessor took no filter at all — it read
+        every row of every project ``ORDER BY created_at`` and left the caller to
+        filter in Python, which is how a 100k-row journal cost a full scan plus a
+        sort per drain batch while the index went unused. An empty sequence returns
+        ``[]`` without querying: no consenting project means nothing to select, and
+        an empty ``IN`` list would read as "every project".
+        """
+        uuids = [uuid for uuid in project_uuids if uuid]
+        if not uuids:
+            return []
+        with contextlib.closing(self._connect()) as conn:
+            return [
+                EventIdentityRow(
+                    event_id=str(row[0]),
+                    created_at=str(row[1]),
+                    project_uuid=None if row[2] is None else str(row[2]),
+                    project_slug=None if row[3] is None else str(row[3]),
+                    repo_slug=None if row[4] is None else str(row[4]),
+                    drain_blocked_reason=None if row[5] is None else str(row[5]),
+                )
+                for row in conn.execute(
+                    select_identity_projection_sql(len(uuids)), tuple(uuids)
+                )
+            ]
 
     def append(self, event: Event) -> None:
         """Append an event as a distinct row (idempotent on ``event_id``).
@@ -264,6 +479,32 @@ class EventJournal:
         with contextlib.closing(self._connect()) as conn:
             rows = conn.execute(SELECT_BY_ID_SQL, (event_id,)).fetchall()
         return row_to_event(rows[0]) if rows else None
+
+    def read_by_ids(self, event_ids: Sequence[str]) -> list[Event]:
+        """Read many events over **one** connection, in the order requested.
+
+        The drain's payload-hydration seam (NFR-003). Hydration used to call
+        :meth:`read_by_id` per event and :meth:`_connect` opens a fresh SQLite
+        connection — with its own WAL pragma — on every public call, so a
+        1,000-event batch cost 1,000 connection open/closes. Here the whole batch
+        shares one connection and one statement per 500 ids.
+
+        Ids absent from the store are simply missing from the result; the caller
+        does not have to reconcile a ``None`` per event. Order follows *event_ids*,
+        not SQLite's ``IN``-set order, because the ledger's selection order is what
+        makes a drain reproducible and FIFO.
+        """
+        wanted = list(event_ids)
+        if not wanted:
+            return []
+        found: dict[str, Event] = {}
+        with contextlib.closing(self._connect()) as conn:
+            for start in range(0, len(wanted), _MAX_SQL_VARIABLES):
+                chunk = wanted[start : start + _MAX_SQL_VARIABLES]
+                for row in conn.execute(select_by_ids_sql(len(chunk)), tuple(chunk)):
+                    event = row_to_event(row)
+                    found[event.event_id] = event
+        return [found[event_id] for event_id in wanted if event_id in found]
 
     def read_blocked(self) -> list[Event]:
         """Return rows carrying a ``drain_blocked_reason`` (WP11 diagnostics)."""
@@ -379,13 +620,37 @@ def capture_teamspace_bound(
     is_teamspace_bound: bool = True,
     skip_journal: bool = False,
     created_at: str | None = None,
+    project_uuid: str | None = None,
+    project_slug: str | None = None,
+    repo_slug: str | None = None,
 ) -> Event:
     """Durably capture a Teamspace-bound fact *before* the delivery gates.
 
-    The journal write is unconditional for Teamspace-bound families; ``gate``
-    only decides the recorded ``drain_blocked_reason`` (delivery eligibility),
-    never whether the write happens (FR-017, contract §2). A request to skip the
-    write for a Teamspace-bound family fails loudly (C-008, T018).
+    For every event that reaches this function the write is unconditional:
+    ``gate`` decides only the recorded ``drain_blocked_reason`` (delivery
+    eligibility), never whether the write happens (FR-017, contract §2). A
+    request to skip the write for a Teamspace-bound family fails loudly
+    (C-008, T018).
+
+    **Amended 2026-07-29 (#3030 NFR-005, operator decision).** "Unconditional"
+    is now scoped to events that get here. Whether a capture happens at all is
+    decided *upstream* by per-project consent: ``EventEmitter._capture_to_journal``
+    (``sync/emitter.py``) refuses to call this function when the checkout has
+    not consented, so a non-consenting project's events never reach the journal.
+    Capture-first durability therefore applies to consenting projects only.
+
+    This deliberately reverses the original contract, which held that a
+    Teamspace-bound fact must survive even when every gate blocks. The reason:
+    that invariant made the journal a machine-global pool of every local
+    project's payloads, and one consenting checkout shipped the lot (the
+    2026-07-27 incident, 1,322 events from 5 never-opted-in projects). The
+    invariant is preserved *within* a consenting project and abandoned across
+    project boundaries.
+
+    Note the axis: consent, not Teamspace-boundedness. Nothing here decides an
+    event is not Teamspace-bound in order to skip it — ``TeamspaceBoundDropError``
+    still fires for that, and the consent refusal happens before this function
+    is ever called.
     """
     if is_teamspace_bound and skip_journal:
         raise TeamspaceBoundDropError(event_id=event_id)
@@ -398,6 +663,13 @@ def capture_teamspace_bound(
         coalesce_key=coalesce_key,
         archived_at=None,
         drain_blocked_reason=classify_drain_blocked_reason(gate),
+        # #3030 FR-006: the identity projection is written at capture time, not
+        # only by T012's backfill. Without this every NEW row lands with a NULL
+        # project_uuid, and NULL is permanently unselectable — the drain would go
+        # silent for live traffic while the backfill kept history deliverable.
+        project_uuid=project_uuid,
+        project_slug=project_slug,
+        repo_slug=repo_slug,
     )
     journal.append(event)
     return event
@@ -408,6 +680,7 @@ __all__ = [
     "CaptureGateState",
     "CoalesceDecision",
     "CoalesceStrategy",
+    "EventIdentityRow",
     "EventJournal",
     "JOURNAL_SUBDIR",
     "JournalTransaction",

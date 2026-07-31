@@ -45,8 +45,9 @@ def test_gate_no_op_when_no_owner_record_exists() -> None:
 
     from specify_cli.cli.commands.sync import _require_daemon_owner_coherence
 
-    # ``check_daemon_owner_match`` returns (True, []) when no record exists.
-    # The gate must not raise.
+    # The gate runs the preflight, which reports ``daemon_status == "absent"``
+    # and no failure when no record exists (#3030 keeps absence permissive and
+    # separates it from an unreadable record). The gate must not raise.
     _require_daemon_owner_coherence("spec-kitty sync now")
 
 

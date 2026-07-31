@@ -64,24 +64,69 @@ def _auto_start_enabled() -> bool:
 
     Local checkout overrides win. If none is present, the remembered
     repository default from ``~/.spec-kitty/config.toml`` is used.
+
+    Both unknowns deny (#3030 T028). This gate decides whether the daemon starts
+    draining a project's events off the machine, so FR-003's rule applies to it as
+    much as to the routing gate it consults: inability to determine consent is not
+    consent. Previously **both** failure paths returned ``True`` — no locatable
+    project root, and any exception resolving routing — which auto-started sync for
+    a checkout whose consent nobody could establish. An explicit project-local
+    ``sync.auto_start`` still wins; only the unknowns changed.
+
+    Every denial is reported **here**, at a level the operator will actually see and
+    naming the cause that actually fired (WP12 MINOR-3). The caller receives only a
+    boolean, so it cannot know why, and the cause it used to guess — "disabled via
+    config" — sent operators on a checkout with an unresolvable project root to edit
+    a ``sync.auto_start`` key that was never consulted. Reporting the wrong cause is
+    its own defect class: the operator's next action is decided by the explanation,
+    not by the boolean.
     """
-    project_root = locate_project_root(Path.cwd())
+    cwd = Path.cwd()
+    project_root = locate_project_root(cwd)
     if project_root is None:
-        return True
+        # No project root means no project identity, and consent is per project.
+        logger.warning(
+            "Sync auto-start denied: no spec-kitty project root is resolvable from %s. "
+            "Consent is per project, so an unidentifiable project cannot consent. "
+            "This is not a config setting — editing sync.auto_start will not change it.",
+            cwd,
+        )
+        return False
 
     project_setting = _read_project_auto_start(project_root)
     if project_setting is not None:
+        if not project_setting:
+            logger.info(
+                "Sync auto-start disabled by sync.auto_start in %s",
+                project_root / ".kittify" / "config.yaml",
+            )
         return project_setting
 
     try:
-        return is_sync_enabled_for_checkout(project_root)
+        routing_enabled = is_sync_enabled_for_checkout(project_root)
     except Exception as e:
-        logger.debug(f"Could not resolve sync routing config: {e}")
-        return True
+        logger.warning("Could not resolve sync routing config; denying auto-start: %s", e)
+        return False
+
+    if not routing_enabled:
+        logger.info(
+            "Sync auto-start denied: hosted sync is not enabled for checkout %s",
+            project_root,
+        )
+    return routing_enabled
 
 
 def _read_project_auto_start(project_root: Path) -> bool | None:
-    """Read the legacy project-local ``sync.auto_start`` flag when present."""
+    """Read the legacy project-local ``sync.auto_start`` flag when present.
+
+    ``sync.auto_start`` is NOT consent and must never be unified with
+    ``sync.enabled`` (``sync/consent.py``'s ``PROJECT_CONFIG_ENABLED_KEY``). It
+    answers "should the daemon start itself?" — a runtime convenience. ``sync.enabled``
+    answers "may this project's data leave the machine?". Collapsing the two would let
+    an autostart preference grant hosted-sync consent, which is the class of mistake
+    #3030 exists to close. They live in the same YAML section only for historical
+    reasons.
+    """
     config_path = project_root / ".kittify" / "config.yaml"
     if not config_path.exists():
         return None
@@ -101,6 +146,116 @@ def _read_project_auto_start(project_root: Path) -> bool | None:
 
     auto_start = sync_section.get("auto_start")
     return auto_start if isinstance(auto_start, bool) else None
+
+
+def _offered_consent_roots() -> list[Path]:
+    """The checkout available to offer ``sync/consent.py`` for its level-1 read.
+
+    Offering the working directory is **narrowing-only**, not the cwd shortcut this
+    module's gate exists to remove: ``consent._project_local_votes`` ignores any root
+    whose ``.kittify/config.yaml`` declares a *different* ``project_uuid``, so a root
+    can only ever answer for its own project. Without offering it, a project's own
+    committed refusal would silently not be honoured on the one publish where the
+    daemon does stand in that checkout.
+
+    This is not a second copy of the precedence chain — it decides nothing. It only
+    hands the resolver the file it is allowed to read.
+    """
+    try:
+        root = locate_project_root(Path.cwd().resolve())
+    except Exception:  # noqa: BLE001 - an unreadable cwd is absence, not a decision
+        return []
+    return [root] if root is not None else []
+
+
+#: Projects already reported as refused, so the machine-global daemon does not warn
+#: once per event for the lifetime of the process. Log-level state only: it can never
+#: affect a decision, and a leaked entry only downgrades a message.
+_reported_publish_refusals: set[str] = set()
+
+
+def _report_publish_refusal(project_uuid: str | None, detail: str) -> None:
+    """Report a refused publish once per project, at a level the operator will see.
+
+    The first refusal for a project warns — an armed machine with a healthy daemon
+    silently withholding a project's events is a misconfiguration the operator has to
+    be told about, and this mission has already found that reporting the wrong cause
+    (or none) decides the operator's next action. Every later refusal for the same
+    project drops to debug: the daemon is long-lived and would otherwise bury its own
+    log under one line per event forever.
+    """
+    key = project_uuid or "<unidentified>"
+    template = "Real-time publish refused for project %s (#3030 FR-026): %s"
+    if key in _reported_publish_refusals:
+        logger.debug(template, key, detail)
+        return
+    _reported_publish_refusals.add(key)
+    logger.warning(template, key, detail)
+
+
+def event_project_consents_to_publish(event: object) -> bool:
+    """May *this envelope's* project be published off the machine? (#3030 FR-026)
+
+    The one predicate behind both daemon publish seams: :meth:`SyncRuntime.publish_event`
+    (which the daemon's ``POST /api/sync/publish`` endpoint calls) and
+    ``events._publish_event_via_sync_daemon`` (which the eleven ``emit_*`` wrappers and
+    the ``MissionCreated`` lifecycle fan-out call). Both reach ``sync/consent.py``'s
+    single chain through ``consented_project_uuids`` — the same seam the capture gate,
+    the drain, the body upload and the LocalCommit flush use, so no second
+    representation of consent is created (C-003).
+
+    Resolved from **the event's own identity** via ``resolve_event_project_uuid``
+    (T011's single chain, the same resolution the journal's stored column uses), and
+    never from:
+
+    * the working directory — cwd is whichever project the process happens to stand
+      in, and the ``SyncRuntime``/daemon singleton outlives any ``os.chdir``;
+    * the daemon's scope or the caller's ``repo_root`` — that is *scope*, not consent,
+      and a scope grant authorising another project's publish is exactly the M1-1
+      finding one level up;
+    * ``is_saas_sync_enabled()`` — machine-global arming is never a grant, and it is
+      the 2026-07-27 incident's own mechanism.
+
+    An unresolvable uuid **denies** (FR-003, NFR-001): a missing, blank or nil-sentinel
+    identity cannot be shown to belong to a consenting project. Fails **closed** on
+    any error, departing from this module's best-effort habit — here that instinct
+    would turn an unanswerable consent question into egress.
+
+    Membership in the returned subset is checked for *this* uuid rather than the
+    subset being non-empty. Equivalent only while exactly one candidate is passed; the
+    day anyone batches envelopes through here, one consenting project would otherwise
+    authorize every other project in the batch.
+    """
+    project_uuid: str | None = None
+    try:
+        from .consent import consented_project_uuids
+        from .project_identity import resolve_event_project_uuid
+
+        project_uuid = resolve_event_project_uuid(event if isinstance(event, dict) else None)
+        if not project_uuid:
+            _report_publish_refusal(
+                None,
+                "the event carries no resolvable project_uuid, so it cannot be shown "
+                "to belong to a consenting project",
+            )
+            return False
+        granted = project_uuid in consented_project_uuids(
+            [project_uuid], checkout_roots=_offered_consent_roots()
+        )
+    except Exception as exc:  # noqa: BLE001 - inability to determine is not consent
+        _report_publish_refusal(
+            project_uuid, f"hosted-sync consent could not be resolved: {exc}"
+        )
+        return False
+
+    if not granted:
+        _report_publish_refusal(
+            project_uuid,
+            "the project has not consented to hosted sync. Arming the machine "
+            "(SPEC_KITTY_ENABLE_SAAS_SYNC) is not consent — run `spec-kitty sync "
+            "opt-in` inside that project's own checkout",
+        )
+    return granted
 
 
 @dataclass
@@ -142,9 +297,12 @@ class SyncRuntime:
             logger.info("%s SyncRuntime not started.", saas_sync_disabled_message())
             return
 
-        # Check config for opt-out (project-level)
+        # Check the auto-start gate. It has already reported *why* it denied, at a
+        # level the operator sees; restating a cause here would be a guess, and the
+        # guess this line used to make ("via config") was wrong for every denial
+        # except the config one (WP12 MINOR-3).
         if not _auto_start_enabled():
-            logger.info("Sync auto-start disabled via config")
+            logger.debug("Sync auto-start gate denied; SyncRuntime not started.")
             return
 
         # Start background service (use existing singleton)
@@ -292,7 +450,29 @@ class SyncRuntime:
         return self.ws_client.get_status()
 
     def publish_event(self, event: dict[str, object]) -> bool:
-        """Best-effort real-time event publish via the daemon-owned WebSocket."""
+        """Best-effort real-time event publish via the daemon-owned WebSocket.
+
+        **This is an egress point, so it owns its own refusal (#3030 FR-026).** The
+        consent decision is made here, from the envelope's own ``project_uuid``, and is
+        not inherited from anything the caller computed: the daemon is machine-global
+        and auto-starts for whichever project ``cwd`` belonged to, so its scope, its
+        arming flag and its caller's ``repo_root`` all describe a *different* project
+        than the envelope may. M1-1 was exactly the failure of resting this boundary on
+        a value computed elsewhere.
+
+        The refusal precedes every side effect, ``start()`` included: a non-consenting
+        project's envelope must not be the thing that brings the transport up, and
+        placing the gate first keeps the refusal independent of auth, arming and the
+        auto-start gate.
+
+        Refusal is **transmission-only** — the callers' durable outbox write already
+        happened and is deliberately not consent-gated (see the recorded ``queue_event``
+        judgement above ``emitter._route_event``), so nothing is dropped here that
+        would otherwise have been kept.
+        """
+        if not event_project_consents_to_publish(event):
+            return False
+
         if not self.started:
             self.start()
 
@@ -411,8 +591,13 @@ def get_runtime() -> SyncRuntime:
     if _runtime is None:
         with _runtime_lock:
             if _runtime is None:
-                _runtime = SyncRuntime()
-                _runtime.start()
+                runtime = SyncRuntime()
+                # Publish only after a successful start (#3030 H8). start() can
+                # raise — e.g. the T007 legacy-queue guard — and assigning first
+                # cached an unstarted runtime that every later call returned
+                # without ever retrying start().
+                runtime.start()
+                _runtime = runtime
     return _runtime
 
 

@@ -22,8 +22,8 @@ import pytest
 from specify_cli.saas import readiness
 from specify_cli.sync import sharing_client
 from specify_cli.sync.background import BackgroundSyncService
-from specify_cli.sync.batch import BatchSyncResult
 from specify_cli.sync.config import SyncConfig
+from specify_cli.sync.namespace import UploadOutcome, UploadStatus
 from specify_cli.sync.owner import compute_foreground_identity
 from specify_cli.sync.preflight import collect_foreground_identity
 from specify_cli.sync.queue import write_active_scope
@@ -302,26 +302,29 @@ def test_sharing_client_base_url_follows_resolved_target(
 def test_background_full_sync_posts_to_resolved_target(
     wiring_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The background daemon posts queued events to the resolved (env) target.
+    """The background daemon posts body uploads to the resolved (env) target.
 
-    Captures the ``server_url`` the daemon actually hands to the batch poster —
+    Captures the ``server_url`` the daemon actually hands to the body poster —
     observable state, not call order (NFR-001) — under a whole-process override.
+
+    The daemon's *event* drain was removed with the legacy queue (#3030 FR-012);
+    body uploads are the surviving daemon POST surface, and the Target Authority
+    contract (§1, C-002) still binds it.
     """
     _write_config(wiring_root, CONFIG_URL)
     monkeypatch.setenv("SPEC_KITTY_SAAS_URL", ENV_URL)
 
     captured: dict[str, str] = {}
 
-    def _fake_sync_all(
-        *,
-        queue: object,
-        auth_token: str,
-        server_url: str,
-        batch_size: int,
-        show_progress: bool,
-    ) -> BatchSyncResult:
+    def _fake_push_content(
+        task: object, auth_token: str, server_url: str
+    ) -> UploadOutcome:
         captured["server_url"] = server_url
-        return BatchSyncResult()
+        return UploadOutcome(
+            artifact_path="spec.md",
+            status=UploadStatus.UPLOADED,
+            reason="ok",
+        )
 
     monkeypatch.setattr(
         "specify_cli.sync.background.is_saas_sync_enabled", lambda: True
@@ -329,13 +332,30 @@ def test_background_full_sync_posts_to_resolved_target(
     monkeypatch.setattr(
         "specify_cli.sync.background._fetch_access_token_sync", lambda: "tok"
     )
-    monkeypatch.setattr(
-        "specify_cli.sync.background.sync_all_queued_events", _fake_sync_all
-    )
+    monkeypatch.setattr("specify_cli.sync.body_transport.push_content", _fake_push_content)
 
+    # #3030 T025: the body drain resolves consent from each task's own
+    # ``project_uuid`` and denies on absence, so the queued task needs a real,
+    # consenting identity for the poster to be reached at all. Consent is a
+    # precondition here — this test's subject is *which* server_url the daemon posts
+    # to; the refusal path is pinned in ``tests/sync/test_body_drain_consent_3030.py``.
+    # ``wiring_root`` already isolates ``SPEC_KITTY_HOME``, so the grant is throwaway.
+    from specify_cli.sync.consent import set_project_consent
+
+    consenting_uuid = "11111111-2222-3333-4444-555555555555"
+    set_project_consent(consenting_uuid, True)
+    task = MagicMock()
+    task.project_uuid = consenting_uuid
+
+    body_queue = MagicMock()
+    body_queue.remove_stale.return_value = 0
+    body_queue.drain.return_value = [task]
     service = BackgroundSyncService(queue=MagicMock(), config=SyncConfig())
+    service._body_queue = body_queue
     service._perform_full_sync()
 
-    assert "server_url" in captured, "_fake_sync_all was not called — _perform_full_sync did not reach the batch poster"
+    assert "server_url" in captured, (
+        "_fake_push_content was not called — _perform_full_sync did not reach the body poster"
+    )
     assert captured["server_url"] == ENV_URL
     assert captured["server_url"] == resolve_sync_target().resolved_server_url

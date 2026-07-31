@@ -66,7 +66,20 @@ _SCOPED_SOURCE_DENOMINATOR = 5
 
 #: Concrete invocations currently extracted from the scoped sources. Bump this
 #: deliberately when guidance gains or loses an example; drift fails the gate.
-_SCOPED_INVOCATION_DENOMINATOR = 79
+#:
+#: 79 -> 82 (2026-07-30, #3030 WP09). The machine-global env-var warning added
+#: exactly three invocations to docs/api/environment-variables.md (lines 126/131/137):
+#: `spec-kitty sync opt-in`, `SPEC_KITTY_ENABLE_SAAS_SYNC=1 spec-kitty sync now`,
+#: `spec-kitty sync doctor`. All three resolve in the live Click tree, so the gate's
+#: substantive contract — guidance never names a command the CLI does not expose —
+#: still holds; only the count moved. Verified per-source: the other four scoped
+#: files are unchanged at 3/21/12/27, and the merge-base measured 16 for this file
+#: against 19 now.
+#:
+#: Bumped rather than reworded: shedding three legitimate, resolving CLI examples to
+#: satisfy a counter would weaken the guidance to reach green. The doc is correct and
+#: the ratchet was stale.
+_SCOPED_INVOCATION_DENOMINATOR = 82
 
 _CLI_NAME = "spec-kitty"
 

@@ -13,8 +13,9 @@ issues #1072, #1073, #1074, #1075, #1076):
   see why the queue is not draining.
 
 These tests run with the SaaS feature flag implicitly enabled inside
-``EventEmitter._emit`` (we monkeypatch ``is_sync_enabled_for_checkout``
-where the contract under test requires the gate to be open). The
+``EventEmitter._emit``. Per-project hosted-sync consent is steered through
+``_steer_consent`` below — ``tests/sync/conftest.py`` grants by default for this
+package, and a test whose subject is the *refusal* opts out explicitly. The
 real CLI is invoked via ``typer.testing.CliRunner`` for the init
 scenario so the cross-cutting integration is exercised.
 """
@@ -100,19 +101,36 @@ def _make_emitter(
     )
 
 
+def _steer_consent(monkeypatch, *, granted: bool) -> None:
+    """Steer the emitter's one per-project consent predicate (#3030 M1/M1-1).
+
+    Replaces ``monkeypatch.setattr("...emitter.is_sync_enabled_for_checkout", ...)``.
+    That cwd-derived seam is gone: the capture gate, ``_classify_drain_blocked_reason``
+    and the WebSocket publish decision all resolve consent from the *event's own*
+    ``project_uuid`` through ``EventEmitter._project_consents_to_capture``. Patching
+    the removed name steered nothing, so these tests would have gone quietly green on
+    whatever the ambient repo's consent record happened to say.
+
+    ``tests/sync/conftest.py`` grants by default for this package; call this with
+    ``granted=False`` where the *refusal* is the subject.
+    """
+    monkeypatch.setattr(
+        "specify_cli.sync.emitter.EventEmitter._project_consents_to_capture",
+        lambda *_args, **_kwargs: granted,
+    )
+
+
 def test_event_durable_when_sync_feature_flag_disabled(
     fresh_queue, fresh_clock, identity_with_remote, authed_token_manager, monkeypatch
 ):
-    """FR-2 / issue #1072: opted-out checkouts still produce locally-durable events.
+    """FR-2 / issue #1072: opted-out projects still produce locally-durable events.
 
-    The remote drain side will skip these events (drain logic re-resolves
-    ``is_sync_enabled_for_checkout`` per tick), but they must survive on
-    disk so a later opt-in can replay them.
+    The remote drain skips them, but they must survive on disk so a later opt-in can
+    replay them. Reinforced by #3030 M1-1's recorded judgement: local durability is
+    deliberately not consent-gated, because refusing the write would turn "not opted
+    in to hosted sync" into "local history discarded".
     """
-    monkeypatch.setattr(
-        "specify_cli.sync.emitter.is_sync_enabled_for_checkout",
-        lambda: False,
-    )
+    _steer_consent(monkeypatch, granted=False)
 
     em = _make_emitter(fresh_queue, fresh_clock, identity_with_remote, "org/repo")
     event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
@@ -227,10 +245,7 @@ def test_event_ready_to_drain_when_authed_and_team_resolved(
     Establishes the positive control for the durability tests above so we
     can prove ``drain_blocked_reason`` is wired into the live envelope.
     """
-    monkeypatch.setattr(
-        "specify_cli.sync.emitter.is_sync_enabled_for_checkout",
-        lambda: True,
-    )
+    _steer_consent(monkeypatch, granted=True)
     monkeypatch.setattr(
         "specify_cli.sync._team.resolve_private_team_id_for_ingress",
         lambda *_a, **_kw: "private-team-id",
@@ -255,9 +270,7 @@ def test_drain_blocked_counts_aggregate_on_queue(
     em = _make_emitter(fresh_queue, fresh_clock, identity_with_remote, "org/repo")
 
     # 1 ready
-    monkeypatch.setattr(
-        "specify_cli.sync.emitter.is_sync_enabled_for_checkout", lambda: True
-    )
+    _steer_consent(monkeypatch, granted=True)
     monkeypatch.setattr(
         "specify_cli.sync._team.resolve_private_team_id_for_ingress",
         lambda *_a, **_kw: "private-team-id",
@@ -268,17 +281,13 @@ def test_drain_blocked_counts_aggregate_on_queue(
     monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: tm)
     em.emit_wp_status_changed("WP01", "planned", "in_progress")
 
-    # 2 sync_disabled
-    monkeypatch.setattr(
-        "specify_cli.sync.emitter.is_sync_enabled_for_checkout", lambda: False
-    )
+    # 2 sync_disabled — this event's own project does not consent (#3030 M1-1)
+    _steer_consent(monkeypatch, granted=False)
     em.emit_wp_status_changed("WP02", "planned", "in_progress")
     em.emit_wp_status_changed("WP03", "planned", "in_progress")
 
     # 1 no_team
-    monkeypatch.setattr(
-        "specify_cli.sync.emitter.is_sync_enabled_for_checkout", lambda: True
-    )
+    _steer_consent(monkeypatch, granted=True)
     monkeypatch.setattr(
         "specify_cli.sync._team.resolve_private_team_id_for_ingress",
         lambda *_a, **_kw: None,

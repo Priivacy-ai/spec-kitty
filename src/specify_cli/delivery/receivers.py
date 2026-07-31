@@ -46,6 +46,7 @@ not in this WP's ``owned_files``). WP07 imports the protocol from this module.
 Per **C-001** nothing here imports ``sync/queue.py`` or ``specify_cli.events``; the
 batch transport pattern mirrors ``sync/batch.py`` as a read-only reference only.
 """
+
 from __future__ import annotations
 
 import gzip
@@ -59,6 +60,11 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 import requests
 
 from specify_cli.core.batch_partition import create_aware_midpoint
+from specify_cli.delivery.consent_gate import (
+    ConsentedBatch,
+    ConsentNotResolved,
+    resolve_envelope_project,
+)
 
 # -- Locked wire constants (S1192: hoisted, used across receivers/tests) --------
 BATCH_ENDPOINT_PATH = "/api/v1/events/batch/"
@@ -138,6 +144,48 @@ class GateKind(StrEnum):
     Each value names a field on :class:`GateContext`; evaluation reads that field.
     Gates are pure *data* — they never read globals/env — so the dispatcher can
     answer "are this receiver's gates satisfied?" uniformly (FR-014, §4 rule 1).
+
+    **There is deliberately no consent member (#3030 FR-001, declined 2026-07-30.)**
+    FR-001 asked for exactly that — "a new ``GateKind`` plus a consent port injected
+    into the dispatcher" — and spec.md names its absence the *first* root cause of the
+    2026-07-27 incident. It was audited and declined on three grounds, none of which
+    is "too hard":
+
+    1. **The per-project half is superseded, by an explicit decision.** A gate cannot
+       carry it: :class:`GateContext` is run-scoped booleans with no project
+       dimension, and :func:`evaluate_gates` yields one decision per receiver per
+       run. C-003 (2026-07-29) settled that project consent is represented **once**,
+       in selection, via the stored ``project_uuid`` column plus ``consent.py``'s
+       resolver. A ``GateKind`` would be the second representation C-003 forbids.
+    2. **The machine-level half already ships here, in a better form.** The one thing
+       a run-scoped gate *can* express is a whole-batch, pre-network abort — and
+       :func:`_cross_project_refusal` is that, in this module, at that position. It is
+       strictly better than a gate would have been: a blocked
+       :class:`GateDecision` is binary and has no per-event outcome vocabulary, so a
+       gate could only have aborted the drain. Read
+       :func:`_cross_project_refusal`'s note on why the refusal must be
+       ``TRANSIENT``: routing a locally-decided batch refusal to ``TERMINAL_FAILED``
+       permanently destroyed the *consented* project's events too, making the safety
+       net worse than the leak. A gate has no way to say "refuse this window without
+       parking these events".
+    3. **The one residual case is not computable, so a gate would be decoration.**
+       That case is real: when the machine-global consent index is unreadable or
+       corrupt, ``SyncConfig._load`` returns ``{}`` (its documented "missing or
+       invalid" behaviour), so every project on the machine resolves to
+       ``ConsentLevel.ABSENT`` with reason "no consent record" — a machine fault
+       silently reported as twenty projects that never opted in, and a drain that
+       delivers nothing while looking idle. But **no layer can currently tell
+       "unreadable" from "absent"**: the distinction is destroyed in ``_load``, below
+       both ``consent.py`` and this module. Nothing could populate a
+       ``consent_resolvable`` context field truthfully, so the gate would report a
+       fact no one can observe. Fixing that conflation in ``sync/config.py`` is the
+       prerequisite, and it is an observability defect, not a delivery gate.
+
+       Note the asymmetry: a resolver that *raises* already propagates out of
+       ``dispatch`` — loud, and not the gap. Only the swallowed-fault path is silent.
+
+    If that conflation is ever fixed, revisit — but as a reported abort, and only
+    after deciding what a blocked run does to the events it did not attempt.
     """
 
     SAAS_ENABLED = "saas_enabled"
@@ -214,6 +262,14 @@ class DeliveryReceiver(Protocol):
     :meth:`deliver` (per-event result mapping), and retry-via-:class:`DeliveryResult`.
     The dispatcher drives any receiver through this protocol with no target-specific
     conditionals.
+
+    :meth:`deliver` takes a :class:`~specify_cli.delivery.consent_gate.ConsentedBatch`,
+    **not** a ``Sequence[OutboundEvent]`` (#3030 FR-028). This module is the single
+    object both delivery universes share — the journal dispatcher and
+    ``sync/history_import`` — so it is the one place a consent answer can be made
+    unbypassable. It used to take a bare sequence, and ``import-history`` reached it
+    holding a ``project_uuid`` it had never asked about. A batch cannot be minted
+    without a resolved answer, so that call can no longer be *written*.
     """
 
     @property
@@ -223,7 +279,25 @@ class DeliveryReceiver(Protocol):
 
     def gates(self) -> tuple[ReceiverGate, ...]: ...
 
-    def deliver(self, batch: Sequence[OutboundEvent]) -> Sequence[DeliveryResult]: ...
+    def deliver(self, batch: ConsentedBatch) -> Sequence[DeliveryResult]: ...
+
+
+def _consented_events(batch: ConsentedBatch) -> list[OutboundEvent]:
+    """Unwrap a :class:`ConsentedBatch`, refusing anything else (FR-028).
+
+    The runtime half of the type change. An annotation alone is advice — Python
+    would happily deliver a bare list at runtime and only a type-checker run
+    would object, which is the same "a reviewer might notice" enforcement the
+    incident already defeated. ``isinstance`` is sound here because
+    ``ConsentedBatch`` refuses subclassing.
+    """
+    if not isinstance(batch, ConsentedBatch):
+        raise ConsentNotResolved(
+            "deliver() takes a ConsentedBatch, not "
+            f"{type(batch).__name__}; mint one with delivery.consent_gate.consented_batch(), "
+            "which requires a resolved consent answer per project_uuid (#3030 FR-028)"
+        )
+    return list(batch.events)
 
 
 # -- Shared transport poster seam (testable: inject a fake) --------------------
@@ -242,14 +316,10 @@ class HttpResponse(Protocol):
 class HttpPoster(Protocol):
     """A POST transport. ``requests.post`` is the default; tests inject a fake."""
 
-    def __call__(
-        self, url: str, *, data: bytes, headers: Mapping[str, str], timeout: float
-    ) -> HttpResponse: ...
+    def __call__(self, url: str, *, data: bytes, headers: Mapping[str, str], timeout: float) -> HttpResponse: ...
 
 
-def default_http_poster(
-    url: str, *, data: bytes, headers: Mapping[str, str], timeout: float
-) -> HttpResponse:
+def default_http_poster(url: str, *, data: bytes, headers: Mapping[str, str], timeout: float) -> HttpResponse:
     """Default poster: a thin, typed wrapper over ``requests.post`` (mirrors batch.py).
 
     The single public name for the default poster (#2884) — cross-package
@@ -260,6 +330,75 @@ def default_http_poster(
 
 
 # -- The shared result mapper (one mapper, reused by all three receivers) -------
+
+
+# -- Cross-project refusal + terminal rejection (spec-kitty#3030, WP01) --------
+
+#: Server ``error_category`` values that mean "never retry this event".
+#:
+#: Must match the literal the SaaS ingress emits — see ``spec-kitty-saas#585``
+#: FR-004, which sends a per-event refusal inside the 200 ``results`` list. Before
+#: this, ``TERMINAL_FAILED`` was reachable from exactly one predicate (an oversized
+#: single event), so *every* server refusal became ``REJECTED`` and was retried
+#: forever with no ceiling — the "4,141 rejected / 0 terminal failures" signal in
+#: the 2026-07-27 incident (folds spec-kitty#3005).
+TERMINAL_REJECTION_CATEGORIES: frozenset[str] = frozenset({"project_not_consented", "project_refused"})
+
+_CROSS_PROJECT_ERROR = "refused before send: batch spans more than one project ({projects}); authorization and delivery must be scoped to the same project"
+
+
+def _event_project(event: OutboundEvent) -> str | None:
+    """Resolve an event's project identity from the envelope, or ``None``.
+
+    Delegates to :func:`~specify_cli.delivery.consent_gate.resolve_envelope_project`
+    so the refusal below and the batch mint read identity through **one** chain.
+    They were two copies of the same three-site walk until #3030 FR-028; a
+    divergence between them would mean the events a batch was cleared for and the
+    events the refusal counts are attributed differently.
+
+    ``None`` means *unresolvable here* — deliberately **not** treated as a project
+    by the refusal, because counting it as one would refuse ordinary batches
+    containing a legacy identity-less row. Denying unresolvable identity is the
+    mint's and the selection seam's job, where the stored column is the authority.
+    """
+    return resolve_envelope_project(event.payload)
+
+
+def _cross_project_refusal(
+    events: Sequence[OutboundEvent],
+) -> list[DeliveryResult] | None:
+    """Refuse a batch that spans >1 project, **before** any network call (FR-004).
+
+    Belt-and-braces behind the selection predicate: if selection ever regresses,
+    this turns a silent cross-project leak into a loud refusal rather than letting
+    it reach the wire.
+
+    The refusal is ``TRANSIENT``, deliberately **not** ``TERMINAL_FAILED``. This
+    net fires on a batch whose events are individually deliverable — what
+    regressed is the *window*, not the events. ``TERMINAL_FAILED`` routes to
+    ``ledger.record_terminal_failed`` -> ``STATUS_TERMINAL_FAILED``, which
+    ``select_undelivered`` excludes **forever**: one refused window permanently
+    destroyed the *consented* project's events as well, making the safety net more
+    destructive than the leak it catches. Spec US1a AS-1 requires the opposite —
+    refuse "without mutating delivery state or bumping retry counts".
+
+    ``TRANSIENT`` is the closest outcome the §4 vocabulary has to "not attempted,
+    still selectable": it is non-terminal, so the events round-trip back into
+    ``select_undelivered`` and deliver once the window narrows to one project; it
+    carries no ceiling that could later escalate to a terminal park; and unlike
+    ``PENDING`` it does not falsely claim the server accepted anything. The
+    residual deviation from AS-1 is one ``attempt_count`` increment plus a
+    ``last_error`` stamp per event — provenance, not destruction. Expressing the
+    refusal with **zero** ledger writes needs a seventh, local-only outcome the
+    dispatcher skips recording, which cannot be wired truthfully without also
+    changing ``DispatchSummary`` and its per-field combiner in
+    ``cli/commands/sync.py``.
+    """
+    projects = {p for p in (_event_project(e) for e in events) if p is not None}
+    if len(projects) <= 1:
+        return None
+    error = _CROSS_PROJECT_ERROR.format(projects=", ".join(sorted(projects)))
+    return _all_outcome(events, DeliveryOutcome.TRANSIENT, http_status=None, error=error, body=None)
 
 
 _PER_EVENT_OUTCOME: dict[str, DeliveryOutcome] = {
@@ -324,25 +463,22 @@ def _map_single_ok(event: OutboundEvent, entry: Mapping[str, Any] | None) -> Del
             raw=entry,
         )
     error = _error_text(entry) if outcome is DeliveryOutcome.REJECTED else None
-    return DeliveryResult(
-        event_id=event.event_id, outcome=outcome, http_status=200, error=error, raw=entry
-    )
+    if outcome is DeliveryOutcome.REJECTED:
+        category = str(entry.get("error_category", "")).strip().lower()
+        if category in TERMINAL_REJECTION_CATEGORIES:
+            # FR-014: a refusal the server will never accept is terminal, not
+            # retryable. Without this the event re-POSTs on every drain forever
+            # and is reported as a non-failure.
+            outcome = DeliveryOutcome.TERMINAL_FAILED
+    return DeliveryResult(event_id=event.event_id, outcome=outcome, http_status=200, error=error, raw=entry)
 
 
-def _map_ok_results(
-    events: Sequence[OutboundEvent], body: Mapping[str, Any] | None
-) -> list[DeliveryResult]:
+def _map_ok_results(events: Sequence[OutboundEvent], body: Mapping[str, Any] | None) -> list[DeliveryResult]:
     """Map an HTTP 200 batch response. A non-batch shape → transient (defensive)."""
     if not _looks_like_batch_response(body):
-        return _all_outcome(
-            events, DeliveryOutcome.TRANSIENT, http_status=200, error=_NON_BATCH_BODY_ERROR, body=body
-        )
+        return _all_outcome(events, DeliveryOutcome.TRANSIENT, http_status=200, error=_NON_BATCH_BODY_ERROR, body=body)
     assert body is not None  # narrowed by _looks_like_batch_response
-    by_id: dict[Any, Mapping[str, Any]] = {
-        entry.get("event_id"): entry
-        for entry in body["results"]
-        if isinstance(entry, Mapping)
-    }
+    by_id: dict[Any, Mapping[str, Any]] = {entry.get("event_id"): entry for entry in body["results"] if isinstance(entry, Mapping)}
     return [_map_single_ok(event, by_id.get(event.event_id)) for event in events]
 
 
@@ -398,9 +534,7 @@ def _http_error_text(http_status: int, body: Mapping[str, Any] | None) -> str:
     return str(reason) if reason else f"HTTP {http_status}"
 
 
-def _map_batch_failure(
-    events: Sequence[OutboundEvent], *, http_status: int, body: Mapping[str, Any] | None
-) -> list[DeliveryResult]:
+def _map_batch_failure(events: Sequence[OutboundEvent], *, http_status: int, body: Mapping[str, Any] | None) -> list[DeliveryResult]:
     """Classify a non-200 batch response.
 
     Oversized/permanent → ``terminal_failed`` (FR-015); 400 content failure →
@@ -409,9 +543,7 @@ def _map_batch_failure(
     transient failure").
     """
     if _is_oversized(http_status, body) and len(events) == 1:
-        return _all_outcome(
-            events, DeliveryOutcome.TERMINAL_FAILED, http_status=http_status, error=_OVERSIZED_ERROR, body=body
-        )
+        return _all_outcome(events, DeliveryOutcome.TERMINAL_FAILED, http_status=http_status, error=_OVERSIZED_ERROR, body=body)
     if _is_oversized(http_status, body):
         return _all_outcome(
             events,
@@ -514,15 +646,20 @@ class _HttpReceiver:
     def gates(self) -> tuple[ReceiverGate, ...]:
         return ()
 
-    def deliver(self, batch: Sequence[OutboundEvent]) -> Sequence[DeliveryResult]:
-        events = list(batch)
+    def deliver(self, batch: ConsentedBatch) -> Sequence[DeliveryResult]:
+        events = _consented_events(batch)
         if not events:
             return []
+        # The refusal stays, and stays non-redundant: a ConsentedBatch proves every
+        # event's project consents, which does not mean they are the SAME project.
+        # Two consenting projects in one window is still a scope mismatch between
+        # authorization and delivery, and this is the position that catches it.
+        refusal = _cross_project_refusal(events)
+        if refusal is not None:
+            return refusal
         return self._bisect_send(events)
 
-    def _attempt_batch_send(
-        self, events: Sequence[OutboundEvent]
-    ) -> tuple[int | None, Mapping[str, Any] | None]:
+    def _attempt_batch_send(self, events: Sequence[OutboundEvent]) -> tuple[int | None, Mapping[str, Any] | None]:
         """POST *events* once and return ``(status, body)``; a single clean send seam.
 
         A transport-level timeout/connection error returns ``(None, {"error": <exc>})``
@@ -536,9 +673,7 @@ class _HttpReceiver:
         headers = {**self.auth_headers(), _H_CONTENT_ENCODING: _GZIP, _H_CONTENT_TYPE: _JSON}
         payload = gzip.compress(_build_payload(events))
         try:
-            response = self._poster(
-                self.endpoint_url, data=payload, headers=headers, timeout=BATCH_TIMEOUT_SECONDS
-            )
+            response = self._poster(self.endpoint_url, data=payload, headers=headers, timeout=BATCH_TIMEOUT_SECONDS)
         except requests.RequestException as exc:
             return None, {"error": str(exc)}
         return response.status_code, _safe_json(response)
@@ -691,8 +826,8 @@ class StubReceiver:
     def gates(self) -> tuple[ReceiverGate, ...]:
         return ()
 
-    def deliver(self, batch: Sequence[OutboundEvent]) -> Sequence[DeliveryResult]:
-        events = list(batch)
+    def deliver(self, batch: ConsentedBatch) -> Sequence[DeliveryResult]:
+        events = _consented_events(batch)
         if not events:
             return []
         with self._lock:

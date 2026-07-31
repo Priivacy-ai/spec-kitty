@@ -425,6 +425,7 @@ jobs:
               - 'src/specify_cli/events/**'
               - 'src/specify_cli/paths/**'
               - 'src/specify_cli/saas_client/**'
+              - 'src/specify_cli/identity/**'
               - 'src/specify_cli/task_utils/**'
               - 'src/specify_cli/intake/**'
             # FR-010 probe group (Decision 7b): matches ANY src change. The

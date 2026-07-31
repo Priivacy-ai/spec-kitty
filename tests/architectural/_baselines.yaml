@@ -343,3 +343,58 @@ test_no_inert_schema_slots:
 # see #2976 -- so expect this to SHRINK when it is settled, never grow.
 test_reference_enum_ratchet:
   baseline_members: 34
+
+# tests/architectural/test_egress_consent_boundary.py
+# Issue #3030 (P0 confidentiality). The egress boundary permits a transmit
+# primitive only in a file carrying an explicit allowance. Both sets are
+# ratcheted here so this gate cannot be silenced by a one-line module edit —
+# adding a file requires this diff plus a `# justification:` naming why the
+# sink carries no project data, or why its consent seam is sound.
+test_egress_consent_boundary:
+  # justification: 28 files hold a transmit primitive with a recorded reason —
+  # 12 gated by a named consent seam on the data's own project_uuid (E1/E2/E3
+  # and E6-E13), 1 per-project transport whose every caller is separately
+  # seamed (E14), 1 unreachable retired drain pinned by
+  # tests/sync/test_no_queue_drain_constructed_3030.py (E15), and 14 that are
+  # not project egress at all — auth/OAuth token traffic, the doctrine fetch,
+  # the readiness probe, four localhost control endpoints and `sync doctor`'s
+  # empty-body connectivity probe (E18). Each was verified individually, not
+  # assumed. 27 -> 28: the callee-agnostic injected-transport rule (added after
+  # E20 showed a `poster(...)` parameter is invisible to any method-name rule)
+  # surfaced cli/commands/sync.py, which calls request_with_fallback_sync
+  # rather than requests.post. That is the gate finding a file nobody had
+  # reasoned about, which is its purpose — not a new leak.
+  # Growth here means a new file transmits: argue it in the diff.
+  egress_allowlist_files: 28
+  # justification: 0. The module asserts this set is EMPTY, so any entry is a
+  # red build; pinning the baseline at 0 makes recording one cost a second
+  # visible diff here as well. Growth is a NEW unconsented egress path — the
+  # P0 this mission exists to close — so the intended response to a finding is
+  # to fix the path, never to register it. E1/E2/E3 were the founding entries
+  # (FR-028/029/030) and moved to egress_allowlist_files when they landed.
+  known_ungated_files: 0
+
+# tests/architectural/test_unfiltered_journal_read_boundary.py
+# Issue #3030 (P0 confidentiality). The project-unfiltered journal read
+# (`read_identity_projection_for_report` / `SELECT_IDENTITY_PROJECTION_ALL_SQL`)
+# may only be named by a listed consumer. Keyed per-SYMBOL
+# (`<relpath>::<qualname>`), not per-file: the one legitimate consumer lives in
+# `delivery/status_report.py`, so a file- or package-keyed rule would have to
+# exempt the very package the pre-fix unfiltered drain read was written in.
+# Registered here for the same reason the egress allowlist is — the allowlist is
+# itself the surface an author would edit to silence the gate.
+test_unfiltered_journal_read_boundary:
+  # justification: 4 functions name an unfiltered-read symbol, and the module's
+  # own test_removing_any_entry_reds_exactly_its_own_key proves all 4 are live
+  # (0 inert): 2 in the owning module (event_journal/journal.py — the module-scope
+  # import of the SQL constant, and the implementation that executes it), 1
+  # operator report (delivery/status_report.py::build_per_project_store_report,
+  # FR-015/SC-004 — it must name projects NOT known to consent and surface the
+  # FR-011 NULL-identity rows, neither of which the filtered read can answer),
+  # and 1 operator selector (cli/commands/sync.py::_purge_resolve_project, the
+  # `sync purge --project <name>` resolver — the precedent that motivated the
+  # gate, added six hours after the method was documented "REPORTING only").
+  # Growth here means a NEW consumer can reach the read that shipped 1,322
+  # never-opted-in events on 2026-07-27: argue it in the diff, or use
+  # `read_identity_projection(project_uuids=...)` instead.
+  unfiltered_read_allowlist_sites: 4

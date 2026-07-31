@@ -49,6 +49,21 @@ def _reset_diagnostics():
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@pytest.fixture(autouse=True)
+def _isolate_legacy_queue(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Give every test its own runtime home so ``start()`` sees a clean legacy queue.
+
+    ``BackgroundSyncService.start()`` now refuses when unmigrated legacy queue
+    rows remain (#3030 T007). The root conftest's isolated home is shared for
+    the whole session, so rows any earlier test queues at the legacy path make
+    these lifecycle tests order-dependent — they passed alone and failed in a
+    full run. Pinning the home per test removes the coupling; tests that want
+    stranded rows create them explicitly (see
+    ``test_legacy_queue_precondition_3030.py``).
+    """
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime-home"))
+
+
 @pytest.fixture
 def full_queue(tmp_path: Path):
     """A real SQLite OfflineQueue at capacity.
@@ -119,11 +134,27 @@ def _stub_dossier_resolvers(monkeypatch, tmp_path):
     """
     from specify_cli.identity.project import ProjectIdentity
     from specify_cli.sync.body_queue import OfflineBodyUploadQueue
-    from uuid import uuid4
+    from uuid import UUID
+
+    # #3030 FR-031 (E5): the pipeline now requires the resolved project to consent,
+    # not merely for the machine to be armed. Every caller of this helper is a
+    # *mechanics* test — "the body queue is built directly", "get_runtime is never
+    # called", "no threads are spawned" — so each needs to get past the gate to test
+    # what it is named for. Without the record below, two of them would still pass,
+    # but only because the pipeline returned early and therefore built nothing and
+    # spawned nothing. The uuid is fixed rather than ``uuid4()`` so a consent record
+    # can exist for it at all.
+    fixed_uuid = UUID("6a1d0c4e-0598-4c33-9f2e-000000000598")
+    home = tmp_path / "hangfix-home"
+    home.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+    from specify_cli.sync.consent import set_project_consent
+
+    set_project_consent(str(fixed_uuid), True)
 
     monkeypatch.setattr(
         "specify_cli.identity.project.resolve_identity",
-        lambda _root: ProjectIdentity(project_uuid=uuid4(), project_slug="p"),
+        lambda _root: ProjectIdentity(project_uuid=fixed_uuid, project_slug="p"),
     )
     monkeypatch.setattr(
         "specify_cli.core.paths.get_feature_target_branch",
@@ -448,30 +479,19 @@ class TestBackgroundStopBounded:
     # ── _guarded_final_sync ───────────────────────────────────────
 
     @patch("specify_cli.sync.background._fetch_access_token_sync", return_value="tok")
-    @patch("specify_cli.sync.background.batch_sync")
     def test_guarded_final_sync_calls_perform_sync(
-        self, mock_batch, _tok, full_queue,
+        self, _tok, full_queue,
     ):
         """_guarded_final_sync delegates to _perform_sync."""
         from specify_cli.sync.batch import BatchSyncResult
 
-        mock_batch.return_value = BatchSyncResult()
         svc = self._make_service(full_queue)
 
-        svc._guarded_final_sync()
-        mock_batch.assert_called_once()
-
-    @patch("specify_cli.sync.background._fetch_access_token_sync", return_value="tok")
-    @patch("specify_cli.sync.background.batch_sync")
-    def test_guarded_final_sync_swallows_exceptions(
-        self, mock_batch, _tok, full_queue,
-    ):
-        """_guarded_final_sync catches and swallows all exceptions."""
-        mock_batch.side_effect = RuntimeError("network down")
-        svc = self._make_service(full_queue)
-
-        # Must not raise
-        svc._guarded_final_sync()
+        with patch.object(
+            svc, "_perform_sync", return_value=BatchSyncResult()
+        ) as mock_perform:
+            svc._guarded_final_sync()
+            mock_perform.assert_called_once()
 
     def test_guarded_final_sync_swallows_perform_sync_exception(self, full_queue):
         """The except branch in _guarded_final_sync fires when _perform_sync raises."""
@@ -481,68 +501,17 @@ class TestBackgroundStopBounded:
             # Must not raise — the except Exception: pass branch handles it
             svc._guarded_final_sync()
 
-    # ── 401 treated as hard auth failure ─────────────────────────
-
-    @patch("specify_cli.sync.background._fetch_access_token_sync", return_value="stale-token")
-    @patch("specify_cli.sync.background.batch_sync")
-    def test_sync_once_401_escalates_backoff(self, mock_batch, _tok, full_queue):
-        """A 401 from batch_sync must escalate backoff, not reset it."""
-        from specify_cli.sync.batch import BatchSyncResult, BatchEventResult
-
-        auth_fail = BatchSyncResult()
-        auth_fail.error_count = 10
-        auth_fail.event_results = [
-            BatchEventResult(event_id="e1", status="rejected",
-                             error="Authentication failed",
-                             error_category="auth_expired"),
-        ]
-        mock_batch.return_value = auth_fail
-
-        svc = self._make_service(full_queue)
-        assert svc._consecutive_failures == 0
-        assert svc._backoff_seconds == 0.5
-
-        svc._sync_once()
-
-        assert svc._consecutive_failures == 1
-        assert svc._backoff_seconds == 1.0
-        # last_sync must NOT be updated on auth failure
-        assert svc.last_sync is None
-
-    @patch("specify_cli.sync.background._fetch_access_token_sync", return_value="stale-token")
-    @patch("specify_cli.sync.background.batch_sync")
-    def test_sync_once_401_does_not_drain_body_queue(self, mock_batch, _tok, full_queue, full_body_queue):
-        """On auth failure, body queue must not be drained."""
-        from specify_cli.sync.batch import BatchSyncResult, BatchEventResult
-
-        auth_fail = BatchSyncResult()
-        auth_fail.error_count = 1
-        auth_fail.event_results = [
-            BatchEventResult(event_id="e1", status="rejected",
-                             error="Authentication failed",
-                             error_category="auth_expired"),
-        ]
-        mock_batch.return_value = auth_fail
-
-        svc = self._make_service(full_queue, body_queue=full_body_queue)
-
-        with patch.object(svc, "_drain_body_queue") as mock_drain:
-            svc._sync_once()
-            mock_drain.assert_not_called()
+    # ── backoff on the surviving daemon work ─────────────────────
+    #
+    # The 401-from-``batch_sync`` cases that used to live here are gone with the
+    # queue-backed event drain (#3030 FR-012): ``_sync_once`` no longer POSTs
+    # events, so there is no event-side auth result to classify and no
+    # "events failed, therefore skip bodies" ordering left to assert. Token
+    # acquisition failure is still covered by the unauthenticated paths above.
 
     @patch("specify_cli.sync.background._fetch_access_token_sync", return_value="good-token")
-    @patch("specify_cli.sync.background.batch_sync")
-    def test_sync_once_success_resets_backoff(self, mock_batch, _tok, full_queue):
-        """A genuine success (no auth_expired) resets backoff."""
-        from specify_cli.sync.batch import BatchSyncResult, BatchEventResult
-
-        ok = BatchSyncResult()
-        ok.synced_count = 5
-        ok.event_results = [
-            BatchEventResult(event_id="e1", status="success"),
-        ]
-        mock_batch.return_value = ok
-
+    def test_sync_once_success_resets_backoff(self, _tok, full_queue):
+        """A successful tick resets backoff and stamps last_sync."""
         svc = self._make_service(full_queue)
         svc._consecutive_failures = 3
         svc._backoff_seconds = 8.0
@@ -554,15 +523,8 @@ class TestBackgroundStopBounded:
         assert svc.last_sync is not None
 
     @patch("specify_cli.sync.background._fetch_access_token_sync", return_value="good-token")
-    @patch("specify_cli.sync.background.sync_all_queued_events")
-    def test_full_sync_success_drains_body_queue(self, mock_sync_all, _tok, full_queue, full_body_queue):
-        """sync_now() drains body queue after successful event sync."""
-        from specify_cli.sync.batch import BatchSyncResult
-
-        ok = BatchSyncResult()
-        ok.synced_count = 5
-        mock_sync_all.return_value = ok
-
+    def test_full_sync_success_drains_body_queue(self, _tok, full_queue, full_body_queue):
+        """sync_now() drains the body queue (FR-007 — bodies still drain)."""
         svc = self._make_service(full_queue, body_queue=full_body_queue)
 
         with patch.object(svc, "_drain_body_queue") as mock_drain:
@@ -577,39 +539,20 @@ class TestBackgroundStopBounded:
         assert svc.consecutive_failures == 7
 
     @patch("specify_cli.sync.background._fetch_access_token_sync", return_value="tok")
-    @patch("specify_cli.sync.background.sync_all_queued_events")
-    def test_full_sync_exception_escalates_backoff(self, mock_sync_all, _tok, full_queue):
-        """sync_now() escalates backoff when sync_all_queued_events raises."""
-        mock_sync_all.side_effect = RuntimeError("network down")
+    def test_full_sync_exception_escalates_backoff(self, _tok, full_queue, full_body_queue):
+        """sync_now() escalates backoff when the surviving drain raises."""
+        svc = self._make_service(full_queue, body_queue=full_body_queue)
 
-        svc = self._make_service(full_queue)
-        result = svc.sync_now()
+        with patch.object(
+            svc, "_drain_body_queue", side_effect=RuntimeError("network down")
+        ):
+            result = svc.sync_now()
 
         assert svc._consecutive_failures == 1
         assert svc._backoff_seconds == 1.0
         assert result.error_count == 1
         assert "network down" in result.error_messages[0]
-
-    @patch("specify_cli.sync.background._fetch_access_token_sync", return_value="stale-token")
-    @patch("specify_cli.sync.background.sync_all_queued_events")
-    def test_full_sync_401_escalates_backoff(self, mock_sync_all, _tok, full_queue):
-        """sync_now() (full sync) also treats 401 as a hard auth failure."""
-        from specify_cli.sync.batch import BatchSyncResult, BatchEventResult
-
-        auth_fail = BatchSyncResult()
-        auth_fail.error_count = 10
-        auth_fail.event_results = [
-            BatchEventResult(event_id="e1", status="rejected",
-                             error="Authentication failed",
-                             error_category="auth_expired"),
-        ]
-        mock_sync_all.return_value = auth_fail
-
-        svc = self._make_service(full_queue)
-        svc.sync_now()
-
-        assert svc._consecutive_failures == 1
-        assert svc._backoff_seconds == 1.0
+        # A failed tick must not be stamped as a successful sync.
         assert svc.last_sync is None
 
     # ── Idempotency ───────────────────────────────────────────────

@@ -49,6 +49,7 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import json
+import logging
 import re
 import sqlite3
 from dataclasses import dataclass, field
@@ -60,7 +61,10 @@ from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.event_journal import Event, EventJournal, JournalTransaction
 
 if TYPE_CHECKING:  # pragma: no cover - typing-only (avoid the queue<->authority cycle)
+    from specify_cli.sync.project_identity import IdentityBackfillResult
     from specify_cli.sync.target_authority import ResolvedSyncTarget
+
+logger = logging.getLogger(__name__)
 
 # --- naming / identifier safety -------------------------------------------
 
@@ -899,6 +903,11 @@ class ConvergeResult:
     migration: MigrationResult
     resolution: ConflictResolution | None = None
     cleanup: CleanupResult | None = None
+    #: #3030 H4. Rows whose identity columns this run recovered from their stored
+    #: envelope, and rows whose envelope carried no resolvable identity (which stay
+    #: NULL, i.e. unselectable — never invented). ``None`` when the step could not
+    #: run, which the CLI reports rather than swallowing.
+    identity_backfill: IdentityBackfillResult | None = None
 
     @property
     def converged(self) -> bool:
@@ -928,13 +937,38 @@ def converge_legacy_runtime(
     2. optionally resolve divergent-duplicate conflicts journal-wins (archiving
        each divergent source payload to the quarantine), then re-import so the
        result reflects the converged state;
-    3. optionally delete the confirmed-migrated rows from their sources so the
+    3. **project stored identity into the journal's identity columns** (#3030 H4);
+    4. optionally delete the confirmed-migrated rows from their sources so the
        legacy-row boundary converges.
+
+    Step 3 belongs to convergence, not beside it: a row sitting in the journal with
+    ``project_uuid IS NULL`` is *not* converged. ``delivery/selection.py`` makes
+    NULL permanently unselectable, so before this step every pre-mission row — and
+    every row this very function imports, since ``_build_event`` sets no identity
+    columns — was undeliverable forever, including the operator's OWN consenting
+    project's history. That is a data-availability defect that reads as "sync is
+    broken", and nothing in ``src/`` ran the backfill that recovers it.
+
+    It runs after import so freshly-imported rows are included, and before cleanup
+    so a run that converges the boundary also converges the identity columns.
+    Identity is only ever RECOVERED from the row's own stored envelope, never
+    invented: a row whose payload carries no resolvable uuid stays NULL and stays
+    unselectable, so the fail-closed egress boundary is untouched.
+
+    Consent records are deliberately NOT backfilled here. That write is
+    machine-global, and because the uuid index outranks the repo default it can
+    change a project's effective answer — see ``sync migrate``'s
+    ``--backfill-consent-index`` flag, which is opt-in for exactly that reason.
+    This function is also reached from ``sync enable``'s auto-convergence, which
+    must never rewrite consent as a side effect of enabling one checkout.
 
     Idempotent: on an already-converged runtime every step is a no-op. Nothing
     is ever lost — import is read-only, conflict resolution quarantines before
-    removing, and cleanup deletes only journal-confirmed rows by id.
+    removing, cleanup deletes only journal-confirmed rows by id, and the identity
+    backfill considers only NULL rows and never overwrites a stored value.
     """
+    from specify_cli.sync.project_identity import backfill_journal_identity
+
     result = migrate_queues_to_journal(
         spec_kitty_dir, journal=journal, audit=audit, resolved_target=resolved_target
     )
@@ -944,12 +978,26 @@ def converge_legacy_runtime(
         result = migrate_queues_to_journal(
             spec_kitty_dir, journal=journal, audit=audit, resolved_target=resolved_target
         )
+    # Best-effort: a journal that cannot be backfilled must not abort a migration
+    # that has already imported rows successfully. The CLI reports ``None`` as an
+    # outstanding backfill rather than treating it as "nothing to do".
+    identity: IdentityBackfillResult | None = None
+    try:
+        identity = backfill_journal_identity(journal)
+    except Exception as exc:  # noqa: BLE001 - reported by the caller, never fatal
+        logger.warning("Journal identity backfill failed: %s", exc)
+
     cleanup_result: CleanupResult | None = None
     if cleanup and not result.cleanup_blocked:
         cleanup_result = cleanup_migrated_sources(
             spec_kitty_dir, journal=journal, audit=audit, result=result
         )
-    return ConvergeResult(migration=result, resolution=resolution, cleanup=cleanup_result)
+    return ConvergeResult(
+        migration=result,
+        resolution=resolution,
+        cleanup=cleanup_result,
+        identity_backfill=identity,
+    )
 
 
 __all__ = [

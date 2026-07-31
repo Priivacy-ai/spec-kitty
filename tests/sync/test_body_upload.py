@@ -229,6 +229,26 @@ class TestReHashGuard:
 
 
 class TestPrepareBodyUploads:
+    """The artifact *filters* — surface, format, size, re-hash, empty, queue state.
+
+    Every case here needs to get **past** the consent gate to reach the filter it is
+    about. Until #3030 FR-031 they did so by accident: their feature dirs are bare
+    ``tmp_path``s with no project root, and the old gate skipped itself entirely when
+    ``locate_project_root`` returned ``None`` — the fail-open that requirement exists
+    to remove. The consent record below is what a real consenting project would carry,
+    and it keeps these tests about filtering. Refusal is covered by
+    ``test_body_upload_consent_3030.py``.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _consenting_project(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        home = tmp_path / "consent-home"
+        home.mkdir(parents=True, exist_ok=True)
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+        from specify_cli.sync.consent import set_project_consent
+
+        set_project_consent(_ns().project_uuid, True)
+
     def test_full_pipeline_with_valid_artifact(self, tmp_path: Path) -> None:
         content = "# Spec\n"
         file_path = tmp_path / "spec.md"

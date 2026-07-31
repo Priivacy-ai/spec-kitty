@@ -53,6 +53,7 @@ from specify_cli.delivery.receivers import (
 from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
+from tests._support.consented_batches import granting
 
 if TYPE_CHECKING:
     from specify_cli.delivery.interfaces import DeliveryTarget
@@ -60,6 +61,23 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.fast
 
 _OCCURRED_AT = "2026-06-29T00:00:00+00:00"
+
+# #3030 WP06: selection now requires a consented project identity. These tests are
+# about ledger/limit/multi-batch mechanics, so they carry one consented project and
+# keep asserting exactly what they always did. Identity-less and non-consenting
+# selection are pinned separately (test_incident_reproduction_3030.py,
+# test_dispatch_project_consent_3030.py).
+_TEST_PROJECT_UUID = "dddddddd-0000-0000-0000-00000000000d"
+
+
+@pytest.fixture(autouse=True)
+def _consent_to_the_test_project(tmp_path: Any, monkeypatch: Any) -> None:
+    """Record hosted-sync consent for this module's single project."""
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "consent-home"))
+    (tmp_path / "consent-home").mkdir(parents=True, exist_ok=True)
+    from specify_cli.sync.consent import set_project_consent
+
+    set_project_consent(_TEST_PROJECT_UUID, True)
 
 
 # --------------------------------------------------------------------------- #
@@ -79,6 +97,7 @@ def _make_event(index: int) -> Event:
         payload=payload,
         occurred_at=_OCCURRED_AT,
         created_at=f"2026-06-29T00:00:0{index}+00:00",
+        project_uuid=_TEST_PROJECT_UUID,
     )
 
 
@@ -346,7 +365,7 @@ def test_terminal_failed_parks_event_and_drain_progresses(
     # The next drain does NOT re-select the parked event (selector-exclusion is how
     # we keep the drain progressing without destroying the payload).
     next_selection = _select_undelivered(journal, ledger, target_a.target_id)
-    assert [event.event_id for event in next_selection] == []
+    assert [event.event_id for event in next_selection.events] == []
 
     second = dispatch(journal=journal, ledger=ledger, receiver=stub, target=target_a)
     assert second.selected == 0  # parked + delivered all excluded
@@ -363,7 +382,7 @@ def test_terminal_failed_is_per_target(
     # An event terminal-failed on A is still selectable for B (terminal-failed is
     # per-target, contract §3 / T043 edge case).
     selectable_for_b = _select_undelivered(journal, ledger, target_b.target_id)
-    assert "evt-1" in [event.event_id for event in selectable_for_b]
+    assert "evt-1" in [event.event_id for event in selectable_for_b.events]
 
 
 # --------------------------------------------------------------------------- #
@@ -377,14 +396,15 @@ def test_idempotent_redelivery_yields_duplicate(
     target_a: DeliveryTarget,
 ) -> None:
     stub = StubReceiver()
-    events = _select_undelivered(journal, ledger, target_a.target_id)
+    selection = _select_undelivered(journal, ledger, target_a.target_id)
+    events = selection.events
 
-    first_results = _post(stub, events)
+    first_results = _post(stub, events, selection.answer)
     _record(ledger, target_a.target_id, first_results, selected=len(events))
 
     # Re-post the SAME events through the SAME stub: the server reports duplicates;
     # recording is idempotent — no row duplication and the event IDs are unchanged.
-    repeat_results = _post(stub, events)
+    repeat_results = _post(stub, events, selection.answer)
     summary = _record(ledger, target_a.target_id, repeat_results, selected=len(events))
 
     assert summary.duplicate == 3
@@ -454,13 +474,13 @@ def test_select_undelivered_uses_universe_and_excludes_terminal(
 ) -> None:
     # Initially every journal event is undelivered for A.
     selected = _select_undelivered(journal, ledger, target_a.target_id)
-    assert [event.event_id for event in selected] == ["evt-0", "evt-1", "evt-2"]
+    assert [event.event_id for event in selected.events] == ["evt-0", "evt-1", "evt-2"]
 
     # Mark one delivered and one terminal-failed → both leave the selection set.
     ledger.record_success("evt-0", target_a.target_id)
     ledger.record_terminal_failed("evt-2", target_a.target_id)
     remaining = _select_undelivered(journal, ledger, target_a.target_id)
-    assert [event.event_id for event in remaining] == ["evt-1"]
+    assert [event.event_id for event in remaining.events] == ["evt-1"]
 
 
 def test_select_undelivered_honours_limit(
@@ -469,12 +489,12 @@ def test_select_undelivered_honours_limit(
     target_a: DeliveryTarget,
 ) -> None:
     selected = _select_undelivered(journal, ledger, target_a.target_id, limit=2)
-    assert [event.event_id for event in selected] == ["evt-0", "evt-1"]
+    assert [event.event_id for event in selected.events] == ["evt-0", "evt-1"]
 
 
 def test_post_empty_selection_short_circuits() -> None:
     stub = StubReceiver()
-    assert _post(stub, []) == []
+    assert _post(stub, [], granting()) == []
     assert stub.received_event_ids() == ()  # receiver not called for an empty batch
 
 
@@ -592,7 +612,7 @@ def test_multi_batch_drain_skips_pending_head_through_live_dispatcher(
     assert summary.pending == 2
     assert summary.delivered == 2
     remaining = _select_undelivered(journal, ledger, target_a.target_id)
-    assert [event.event_id for event in remaining] == ["evt-0", "evt-1"]
+    assert [event.event_id for event in remaining.events] == ["evt-0", "evt-1"]
 
 
 def test_multi_batch_drain_continues_after_singleton_terminal_failure(
@@ -623,7 +643,7 @@ def test_multi_batch_drain_continues_after_singleton_terminal_failure(
     assert summary.selected == 3
     assert summary.terminal_failed == 1
     assert summary.delivered == 2
-    assert _select_undelivered(journal, ledger, target_a.target_id) == []
+    assert _select_undelivered(journal, ledger, target_a.target_id).events == []
 
 
 # --------------------------------------------------------------------------- #
