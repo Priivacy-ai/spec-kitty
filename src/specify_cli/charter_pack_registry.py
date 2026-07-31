@@ -33,7 +33,6 @@ from ruamel.yaml import YAML
 from charter.pack_manager import YAML_KEY_MAP
 
 __all__ = [
-    "ACTIVATION_KEYS",
     "PER_KIND_ACTIVATION_KEYS",
     "BUILTIN_PACKS",
     "UnknownPackError",

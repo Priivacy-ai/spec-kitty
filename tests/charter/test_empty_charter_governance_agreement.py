@@ -32,7 +32,12 @@ import pytest
 from charter.context import build_charter_context
 from specify_cli.invocation.empty_charter import resolve_generic_fallback
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
+#: This module git-inits a real repo via subprocess (`_init_wholly_empty_repo`)
+#: and reproduces the dispatch seam end-to-end, so it is `integration` (not
+#: `unit`) and must carry `git_repo` per the subprocess-git convention; `fast`
+#: is disqualified because subprocess/git work is not sub-second pure logic
+#: (docs/context/testing-taxonomy.md -> 'Fast', 'Git Repo').
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 # generic-agent's OWN directive-references citation (built-in/generic-agent.agent.yaml).
 # The contract permits the Directive IDs block to be empty OR to carry
