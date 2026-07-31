@@ -1,4 +1,4 @@
-"""RED pin: one consenting checkout must not ship a sibling project's events (#3030).
+"""Regression guard: one consenting checkout must not ship a sibling project's events (#3030).
 
 Background. The producer journal is scoped on ``(user_id, team_slug)`` only
 (``event_journal/journal.py:_producer_token``) — one DB per producer covering
@@ -119,7 +119,7 @@ from specify_cli.event_journal import (
 if TYPE_CHECKING:
     from specify_cli.sync.emitter import EventEmitter
 
-pytestmark = [pytest.mark.regression, pytest.mark.fast]
+pytestmark = pytest.mark.fast
 
 # A realistic owner/repo pair — consent keying must not depend on the slug
 # looking special (mirrors tests/sync/test_sync_consent_default_deny.py:48).

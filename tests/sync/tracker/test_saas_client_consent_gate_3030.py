@@ -36,7 +36,7 @@ import pytest
 
 from specify_cli.tracker.saas_client import SaaSTrackerClient, SaaSTrackerClientError
 
-pytestmark = [pytest.mark.fast, pytest.mark.regression]
+pytestmark = pytest.mark.fast
 
 
 # ---------------------------------------------------------------------------

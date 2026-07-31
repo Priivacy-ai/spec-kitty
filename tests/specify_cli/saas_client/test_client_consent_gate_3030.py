@@ -25,7 +25,7 @@ import pytest
 from specify_cli.saas_client import SaasClient, SaasClientError
 from specify_cli.saas_client.errors import SaasConsentError
 
-pytestmark = [pytest.mark.fast, pytest.mark.regression]
+pytestmark = pytest.mark.fast
 
 
 ENGAGEMENT = "acme-holdings-carve-out"
