@@ -106,6 +106,20 @@ _TARGET_TEAM_SLUG = "team"
 _TARGET_USER_EMAIL = "operator@example.com"
 
 
+_CONSENTED_UUID = "eeeeeeee-0000-0000-0000-00000000000e"
+
+
+@pytest.fixture(autouse=True)
+def _consent_to_the_single_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Consent to this file's one project so drain_blocked_reason is the variable."""
+    home = tmp_path / "consent-home"
+    home.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+    from specify_cli.sync.consent import set_project_consent
+
+    set_project_consent(_CONSENTED_UUID, True)
+
+
 def _make_event(
     event_id: str,
     *,
@@ -114,6 +128,13 @@ def _make_event(
     created_at: str,
 ) -> Event:
     """Build a realistic, production-shaped journal event.
+
+    Carries one consented ``project_uuid`` for every event in this file. #3030 WP06
+    made the stored identity column the sole authority for selection, so an
+    identity-less row is unselectable regardless of its drain_blocked_reason — which
+    would make this file's subject unobservable. Holding identity constant and
+    consented is what keeps ``drain_blocked_reason`` the only variable, exactly as
+    this docstring's next paragraph requires.
 
     The payload carries the wire envelope's project correlation field
     (``project_slug`` — see ``sync/emitter.py:2038``) for payload-shape
@@ -137,6 +158,8 @@ def _make_event(
         occurred_at=created_at,
         created_at=created_at,
         drain_blocked_reason=drain_blocked_reason,
+        project_uuid=_CONSENTED_UUID,
+        project_slug=project_slug,
     )
 
 

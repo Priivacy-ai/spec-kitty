@@ -81,7 +81,40 @@ def test_journal_stores_full_envelope_so_dispatch_posts_contract_event(
     from specify_cli.sync import emitter as emitter_mod
 
     monkeypatch.setattr(emitter_mod, "is_saas_sync_enabled", lambda: False)
+    # #3030 T006: capture is gated on per-project consent, and WP01 made an unrecorded
+    # checkout a denial. This test is about envelope shape surviving capture→drain, so
+    # it consents explicitly — via the real ``set_project_consent`` record below. The
+    # cwd-derived ``is_sync_enabled_for_checkout`` override that used to stand in for
+    # that record was removed with M1-1: the emitter no longer imports the name, so
+    # patching it asserted nothing. The non-consenting path is pinned by
+    # tests/sync/test_sync_consent_capture_gap_3031.py.
     em = _stub_emitter()
+    # #3030 WP06: the stored project_uuid is the sole authority for selection, so
+    # an identity-less capture is unselectable and this test's drain would find
+    # nothing. Give the stub a real identity and consent to it — the subject here
+    # is envelope shape surviving capture->drain, not consent.
+    from types import SimpleNamespace
+    from uuid import uuid4
+
+    from specify_cli.sync.consent import set_project_consent
+
+    project_uuid = str(uuid4())
+    em._identity = SimpleNamespace(
+        build_id="build-envelope", project_uuid=project_uuid, project_slug="envelope"
+    )
+    set_project_consent(project_uuid, True)
+
+    # The capture gate is forced open so the row lands with
+    # drain_blocked_reason=None. is_saas_sync_enabled stays patched False only to
+    # keep this test off the network and on the team_slug=None journal; without the
+    # override the row would be stamped saas_disabled, which #3030 T003 classifies
+    # as terminal (the operator's policy did not permit shipping it) and selection
+    # therefore excludes. Same instance-level override the sibling consent pins use.
+    from specify_cli.event_journal import CaptureGateState
+
+    em._capture_gate_state = lambda _team, **_kwargs: CaptureGateState(
+        saas_enabled=True, checkout_enabled=True, authenticated=True, team_slug="team"
+    )
 
     inner = {"error_type": "runtime", "error_message": "boom", "wp_id": "WP01"}
     envelope = em._emit(

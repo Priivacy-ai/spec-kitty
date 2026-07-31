@@ -102,7 +102,11 @@ class SaaSTrackerService:
     ) -> None:
         self._repo_root = repo_root
         self._config = config
-        self._client = client or SaaSTrackerClient()
+        # #3030 FR-029: every send this service makes carries the repo's mission
+        # and engagement identifiers, so the transport is told which project owns
+        # them. ``repo_root`` here is the checkout the service was built for, not
+        # the process cwd.
+        self._client = client or SaaSTrackerClient(project_root=repo_root)
         # Last binding_ref upgrade *reported* by a read-like op (status/sync_*/
         # map_list).  Read paths never persist; this records what an explicit
         # ``apply_binding_upgrade`` would write.  ``None`` means nothing pending.

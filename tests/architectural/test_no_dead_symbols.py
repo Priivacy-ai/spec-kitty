@@ -402,7 +402,8 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # specify_cli.text_sanitization::sanitize_markdown_text
         SymbolKey("sanitize_markdown_text", "1531f4eece348d60d229144a81fc098028060a79d91d8ccd0fad3f8ec0ca2f34"),
         # specify_cli.tracker.origin::search_origin_candidates
-        SymbolKey("search_origin_candidates", "b8ff826597fe523e0b2fa3297300ff1ffceff4f39c8bd0e9e061104aae7b019a"),
+        # (rehashed: the client is now constructed with project_root=repo_root, #3030 FR-029)
+        SymbolKey("search_origin_candidates", "5901b7aef2a3cf420da33994b0db298b2b96d9bf23b9da263eba3c1003305069"),
         # specify_cli.tracker.origin::start_mission_from_ticket
         SymbolKey("start_mission_from_ticket", "16f1e4cf5ba62e5e10c1d4622b62549922f9b149432897f11696e00e7e8cac8a"),
         # specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle::MIGRATION_ID
@@ -747,7 +748,11 @@ _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[SymbolKey] = frozenset(
         SymbolKey("HttpResponse", "424e7dd151b9e7abdea1693be40b486e5755f23c7a23fef775d06f3864217935"),  # specify_cli.delivery.receivers::HttpResponse
         SymbolKey("ReceiverGate", "222316c26a75df8f8d97c3423fa0d49fdbd2f6326362a53fd1cb8de155f30298"),  # specify_cli.delivery.receivers::ReceiverGate
         SymbolKey("STUB_ENDPOINT_URL", "bf67c1a0cecca5dd72e30cc6a6a0e2b3cef8c69dd363929c13f96bcd5129079d"),  # specify_cli.delivery.receivers::STUB_ENDPOINT_URL
-        SymbolKey("StubReceiver", "aeba7292204499407e90549f03b49684b4539e6baea89dab4158f58cf41bcbcc"),  # specify_cli.delivery.receivers::StubReceiver
+        # specify_cli.delivery.receivers::StubReceiver
+        # Rehashed for #3030 FR-028: deliver() now takes a ConsentedBatch. The entry is
+        # content-addressed on the symbol body, so ANY edit to an allowlisted symbol
+        # invalidates its key — a red here is not necessarily a new death.
+        SymbolKey("StubReceiver", "0103ed4178fea0da9ecc959a707d248a0effacc5ea9a506ac8afad5285fa0c83"),
         SymbolKey("map_batch_response", "608a6a0ba7eb0439166cd843f95d8fcbb2a1cd61f13e7b081e6daa596f4730d2"),  # specify_cli.delivery.receivers::map_batch_response
         # specify_cli.delivery.status_report::ADDITIVE_SECTION_KEYS
         SymbolKey("ADDITIVE_SECTION_KEYS", "45f0e694af41633f3bf4de2228ba6e52905e1c41a5d9cdbb8c1e67f5b256472a"),
@@ -778,7 +783,19 @@ _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[SymbolKey] = frozenset(
         # specify_cli.event_journal.coalesce::read_supersede_markers
         SymbolKey("read_supersede_markers", "5aef05a234dd7a63b420970cc73a1d2cdf3b2b2acf8aa65add08722b4a5d2905"),
         SymbolKey("JOURNAL_SUBDIR", "43ec497396ce60afcd8ef2916a2646172c1c3775c05813cb212642144d8e1d62"),  # specify_cli.event_journal.journal::JOURNAL_SUBDIR
-        SymbolKey("ORDERED_COLUMNS", "37527823ca5422a7d0efeec9b8c3d4843e8ebff3a1da0714b53a483cf9f2e4ca"),  # specify_cli.event_journal.models::ORDERED_COLUMNS
+        # specify_cli.event_journal.models::ORDERED_COLUMNS — re-keyed AGAIN for
+        # #3030, which appended repo_slug after the T012 re-key below had already
+        # accounted for project_uuid/project_slug. The hash-bound content tier did
+        # exactly its job: appending a column re-opened the entry instead of letting
+        # the previous grant silently cover new content, which is why this gate went
+        # red on the mission branch. Re-adjudicated on the same unchanged grounds,
+        # NOT widened: the constant is consumed inside models.py by
+        # _COLUMN_LIST/_PLACEHOLDERS (so no cross-module import can ever exist), and
+        # it is exported because it is the journal's canonical column-order contract.
+        # It surfaced twice for one root cause: the stale key made the constant a
+        # fresh offender AND orphaned this entry, which is the double signal
+        # `_compute_dangling` documents and suppresses to a single fix.
+        SymbolKey("ORDERED_COLUMNS", "3054068a5131fb488635e1418800da7b405aed699671821becafd2573d9489c7"),  # specify_cli.event_journal.models::ORDERED_COLUMNS
         SymbolKey("KNOWN_PREFIX", "98ecae0739efcb4413e222ecc96031896d1c57e85b9bf934884cbbdb1b2bb838"),  # specify_cli.sync.migrate_journal::KNOWN_PREFIX
         SymbolKey("LEGACY_DIGEST", "170c1daeecd9635cf72713656060e38404f956d4305108275d591c11ecb86d29"),  # specify_cli.sync.migrate_journal::LEGACY_DIGEST
         SymbolKey("MIGRATION_NOTE", "5ed3a197746b627274ddde481632dffb952714f486217193e06475ec10ea466d"),  # specify_cli.sync.migrate_journal::MIGRATION_NOTE

@@ -343,6 +343,11 @@ def test_apply_import_uploads_every_envelope_under_the_real_uuid(tmp_path, monke
     contract gate — an envelope-shape drift (e.g. ``schema_version`` off the
     pinned contract version) would fail here first."""
     (tmp_path / ".kittify").mkdir()  # a real (uninitialized) checkout → apply mints the UUID
+    # The project records its own consent, in its own repo (#3030 FR-019/FR-028).
+    # ``ensure_identity`` preserves ``sync:`` as a foreign section while minting the
+    # uuid, so this is the real project-local grant rather than a stubbed resolver —
+    # and it keeps the end-to-end proof end-to-end.
+    (tmp_path / ".kittify" / "config.yaml").write_text("sync:\n  enabled: true\n", encoding="utf-8")
     legacy_dir = _build_legacy_shape_mission(
         tmp_path,
         slug="087-e2e-legacy-mission",

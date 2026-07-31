@@ -246,6 +246,28 @@ def trigger_feature_dossier_sync_if_enabled(
             logger.warning("No project UUID; skipping dossier sync")
             return None
 
+        # #3030 FR-031 (E5): ``is_saas_sync_enabled()`` above is machine-global
+        # *arming*, and arming is never a grant — it is the 2026-07-27 incident's own
+        # mechanism, exported once and ridden by five projects that had never opted in.
+        # Until now nothing between it and ``prepare_body_uploads`` asked the project.
+        # Asked here as well as at the enqueue because this gate stands in front of
+        # more than the bodies: everything below it emits dossier events carrying the
+        # mission slug, computes and saves a snapshot, and runs drift detection. Both
+        # gates now read the one consent chain, so this is defence in depth rather than
+        # the two-chains divergence C-003 forbids (the same shape as
+        # ``emit_local_commit`` + ``flush_pending_local_commits``).
+        from .body_upload import project_consents_to_hosted_sync
+
+        if not project_consents_to_hosted_sync(
+            str(identity.project_uuid), repo_root=repo_root
+        ):
+            logger.debug(
+                "Dossier sync skipped for %s: project %s has not consented to hosted sync",
+                mission_slug,
+                identity.project_uuid,
+            )
+            return None
+
         target_branch = get_feature_target_branch(repo_root, mission_slug)
         resolved_mission = get_mission_type(feature_dir) or mission_type
         manifest_version = resolve_manifest_version(resolved_mission)

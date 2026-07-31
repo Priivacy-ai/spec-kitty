@@ -19,6 +19,7 @@ import secrets
 import time
 import uuid
 from datetime import datetime, timedelta, UTC
+from pathlib import Path
 from typing import Any, cast
 
 import httpx
@@ -30,6 +31,7 @@ from specify_cli.auth.errors import (
 )
 from specify_cli.sync.config import SyncConfig
 from specify_cli.core.contract_gate import validate_outbound_payload
+from specify_cli.tracker.egress_consent import project_egress_refusal
 
 _SESSION_EXPIRED_MESSAGE = (
     "Session expired. Run `spec-kitty auth login` to re-authenticate."
@@ -60,6 +62,31 @@ class SaaSTrackerClientError(RuntimeError):
         self.status_code = status_code
         self.details = details or {}
         self.user_action_required = user_action_required
+
+
+class TrackerEgressRefusedError(SaaSTrackerClientError):
+    """Raised when the project owning the data has not consented to hosted sync.
+
+    A subclass of :class:`SaaSTrackerClientError` deliberately: every existing
+    caller already handles that type (``tracker/origin.py`` converts it to
+    ``OriginBindingError``; ``saas_service.py`` to ``TrackerServiceError``), so a
+    refusal degrades along the paths the codebase already has instead of arriving
+    as an unhandled exception. ``error_code="project_consent_denied"`` makes it
+    distinguishable from a transport or authorization failure — an operator told
+    "HTTP 403" would go and check their token, which is not the problem.
+
+    It is an **error**, not a silent no-op: these are interactive commands, and
+    someone running ``sync push`` deserves to be told the push refused and why.
+    """
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(
+            f"Refusing to send tracker data to Spec Kitty SaaS: {reason}",
+            error_code="project_consent_denied",
+            status_code=None,
+            details={"category": "project_consent_denied", "reason": reason},
+            user_action_required=True,
+        )
 
 
 def _poll_jitter_multiplier() -> float:
@@ -183,6 +210,16 @@ class SaaSTrackerClient:
         precedence folded in via ``resolve_runtime_target()``).  Falls back
         to a default ``SyncConfig()`` when *None*.  The URL is resolved at
         construction time and cached for the object lifetime.
+    project_root:
+        The checkout that **owns the data this client will send** — the mission's
+        own repository, not the process's current working directory (#3030
+        FR-029).  Every request is refused unless that project has consented to
+        hosted sync.  Defaults to ``None``, which **denies**: a transport
+        constructed without being told whose data it carries cannot resolve
+        consent, and inability to determine consent is never consent (FR-003 /
+        NFR-001).  The default is deliberately the refusing one so that a future
+        construction site that forgets to pass it fails loudly rather than
+        leaking silently.
     timeout:
         Per-request HTTP timeout in seconds (default 30).
 
@@ -190,15 +227,19 @@ class SaaSTrackerClient:
     -----
     Tokens and team slug are sourced from the process-wide TokenManager
     (see module docstring). Callers no longer pass a credential store.
+    Authentication and team scope are **not** consent: the 2026-07-27 incident
+    was carried by a correctly authenticated client with a correct team header.
     """
 
     def __init__(
         self,
         sync_config: SyncConfig | None = None,
         *,
+        project_root: Path | None = None,
         timeout: float = 30.0,
     ) -> None:
         self._sync_config = sync_config or SyncConfig()
+        self._project_root = Path(project_root) if project_root is not None else None
         # Canonical runtime target authority (#2146): resolve the URL we will
         # actually hit — folding in SPEC_KITTY_SAAS_URL precedence — instead of
         # the raw config.toml accessor, which returns the hardcoded default and
@@ -265,7 +306,16 @@ class SaaSTrackerClient:
         via the sync bridge helpers at the top of this module. No direct
         filesystem or credential-store access.
 
-        FR-030 / WP06 deferral note: this module remains on the legacy
+        **The per-project consent gate lives here** (#3030 FR-029), at the one
+        chokepoint all ten endpoints and the operation poller pass through, so a
+        new endpoint method cannot be added without inheriting it. It runs
+        *before* the token is fetched: a refusal must not depend on auth state,
+        must not mint a token for a project that may not transmit, and must be
+        reported as a consent decision rather than as an authentication failure.
+
+        Transport-migration note (an *unrelated* mission's FR-030 — not #3030's,
+        which is the ``saas_client/`` package's gate; the two are adjacent here by
+        accident of numbering): this module remains on the legacy
         ``httpx.Client(...)`` instantiation pattern because 130+
         downstream tests (under ``tests/sync/tracker/``) patch
         ``specify_cli.tracker.saas_client.httpx.Client`` directly. The
@@ -276,6 +326,10 @@ class SaaSTrackerClient:
         target for the next migration wave (sync, websocket, and
         widen-mode SaaS).
         """
+        refusal = project_egress_refusal(self._project_root)
+        if refusal is not None:
+            raise TrackerEgressRefusedError(refusal)
+
         access_token = _fetch_access_token_sync()
         if access_token is None:
             raise _unauthenticated_error(

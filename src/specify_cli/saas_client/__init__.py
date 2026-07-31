@@ -13,12 +13,19 @@ All failures surface as ``SaasClientError`` or a typed subclass.  Callers
 should use ``contextlib.suppress(SaasClientError)`` for non-fatal paths
 (C-007 local-first).
 
+Every call is gated on the consent of the project that owns the data (#3030
+FR-030); see ``egress_consent.py``.  ``from_env`` must therefore be given the
+``repo_root`` of that project — a client built without one refuses every request,
+because there is then no project whose consent could be resolved.  Refusals
+arrive as ``SaasConsentError``, a ``SaasClientError`` subclass, so the
+``contextlib.suppress`` idiom below keeps degrading locally rather than raising.
+
 Example::
 
     import contextlib
     from specify_cli.saas_client import SaasClient, SaasClientError
 
-    client = SaasClient.from_env()
+    client = SaasClient.from_env(repo_root=repo_root)
     members = []
     with contextlib.suppress(SaasClientError):
         members = client.get_audience_default(mission_id)

@@ -24,19 +24,41 @@ than hand-rolling HTTP:
 The transport is injectable: production passes an authed ``TeamspaceReceiver``
 and the default ``requests`` poster; tests pass a ``StubReceiver`` and a fake
 poster, so the whole stage runs with no network.
+
+**CONSENT (#3030 FR-028).** Until 2026-07-30 this whole stage was ungated: a
+grep for consent across ``sync/history_import/`` returned zero hits, and the only
+gate was ``_resolve_gated_receiver``'s ``GateKind`` set — the exact set the
+mission's root-cause §1 names as having no consent field — plus a
+``Mode.TEAMSPACE`` check. The path is single-project by construction
+(``build_import_plan`` yields one ``plan.identity.project_uuid``), so it held the
+uuid and never asked it. It is now gated by construction rather than by another
+check: :func:`_consented_batches` mints one
+:class:`~specify_cli.delivery.consent_gate.ConsentedBatch` per chunk, which is
+the only thing ``receiver.deliver`` accepts, and it runs **before the preflight**
+— because ``run_server_preflight`` is a second sink carrying the same envelopes,
+and a gate placed at the delivery call alone would have leaked every one of them.
 """
 
 from __future__ import annotations
 
 import gzip
 import json
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import requests
 
 from specify_cli.core.contract_gate import validate_outbound_payload
+from specify_cli.delivery.consent_gate import (
+    ConsentAnswer,
+    ConsentedBatch,
+    UnconsentedDelivery,
+    consented_batch,
+    resolve_consent_answer,
+    resolve_envelope_project,
+)
 from specify_cli.delivery.receivers import (
     BATCH_TIMEOUT_SECONDS,
     DeliveryOutcome,
@@ -206,6 +228,12 @@ class UploadReport:
     partial: bool = False
     delivered_through_chunk: int = 0
     undelivered_event_count: int = 0
+    #: The run was refused locally before any network call because the project did
+    #: not consent (FR-028). Distinct from ``rejected``, which is a server verdict:
+    #: here nothing was transmitted, so there is nothing for the server to have
+    #: judged. It counts into ``rejected`` as well, so ``ok`` is False and the
+    #: caller's exit code is non-zero without needing to know about this field.
+    refused: bool = False
 
     @property
     def total(self) -> int:
@@ -216,22 +244,108 @@ class UploadReport:
         return self.pending == 0 and self.rejected == 0 and not self.partial
 
 
+ConsentPredicate = Callable[[Sequence[str | None]], frozenset[str]]
+
+
+def _refusal_report(envelopes: Sequence[Envelope], exc: UnconsentedDelivery) -> UploadReport:
+    """Turn a local consent refusal into a non-zero, self-explaining report.
+
+    Not an exception escaping to the CLI, deliberately: ``_run_import_apply``
+    catches five specific exception types, and a sixth would surface as a
+    traceback. Routing the refusal through the report the command already renders
+    gives the operator the reason, the project, and exit 1 — the US1a AS-1
+    contract ("refuses, names the projects, exits non-zero without POSTing")
+    without a second rendering path.
+    """
+    return UploadReport(
+        rejected=len(envelopes),
+        rejected_samples=[str(exc)],
+        refused=True,
+    )
+
+
+def _consent_answer(
+    envelopes: Sequence[Envelope],
+    *,
+    checkout_root: Path | None,
+    consent_predicate: ConsentPredicate | None,
+) -> ConsentAnswer:
+    """Ask the one resolver about every project present in the stream.
+
+    **The question is keyed on the data, not on a root.** Candidates are the
+    ``project_uuid`` of each envelope about to be sent, resolved through the same
+    three-site chain the refusal uses — not ``plan.identity.project_uuid`` and not
+    ``checkout_root``. That matters because "consent answered by where the code is
+    standing rather than by whose data is moving" is this mission's recurring
+    defect (cwd, ``repo_root``, machine-global arming, daemon scope, a
+    checkout-level grant — five substitutions, five leaks). Asking about what is
+    actually on the wire also keeps a future ``synthesize`` bug that mixed two
+    projects into one stream from being authorised by an identity nobody
+    re-checked: it would be refused here.
+
+    ``checkout_root`` is therefore a **lookup aid, never an authorization key**.
+    It is offered to the resolver only as a level-1 root so the project's own
+    committed ``.kittify/config.yaml`` can be read at all; ``consent.py``'s
+    ``_project_local_votes`` discards any root whose declared uuid differs from
+    the one being asked about. So a wrong root cannot widen the answer — it can
+    only be ignored (falling through to the machine index, then to deny) or, if
+    it is unreadable, contribute a fault, which denies. Both directions are
+    fail-closed, which is what makes this safe without a locality precondition.
+
+    What would falsify that, and should be re-checked if either changes: (a) if
+    ``_project_local_votes`` ever stopped filtering on the declared uuid, an
+    offered root would begin speaking for a project that is not its own; (b) if a
+    caller ever passed several roots harvested from elsewhere on the machine
+    rather than the one checkout being imported.
+    """
+    projects = [resolve_envelope_project(env) for env in envelopes]
+    roots = [checkout_root] if checkout_root is not None else None
+    return resolve_consent_answer(projects, consent_predicate=consent_predicate, checkout_roots=roots)
+
+
+def _consented_batches(
+    chunks: Sequence[Sequence[Envelope]],
+    answer: ConsentAnswer,
+) -> list[ConsentedBatch]:
+    """Mint one batch per chunk, or raise :class:`UnconsentedDelivery`.
+
+    This is the gate. It is not an ``if``: the batches it returns are the only
+    values ``receiver.deliver`` accepts, so a future caller that skips this step
+    has nothing to hand the receiver.
+    """
+    return [
+        consented_batch(
+            [OutboundEvent(event_id=str(env["event_id"]), payload=env) for env in chunk],
+            answer=answer,
+        )
+        for chunk in chunks
+    ]
+
+
 def upload_envelopes(
     envelopes: Sequence[Envelope],
     *,
     receiver: DeliveryReceiver,
     chunk_size: int = _IMPORT_CHUNK_SIZE,
+    checkout_root: Path | None = None,
+    consent_predicate: ConsentPredicate | None = None,
 ) -> UploadReport:
     """Chunk the stream (mission-atomically) and deliver, stopping on failure.
 
     Same delivery semantics as :func:`run_import_upload` minus the preflight:
     the first chunk with a failure outcome halts the run and the report records
-    the partial state.
+    the partial state. Consent is resolved and the batches minted before the
+    first chunk is handed to the receiver (FR-028).
     """
     chunks = list(_chunked(envelopes, chunk_size))
     _assert_batches_within_cap(chunks)
+    answer = _consent_answer(envelopes, checkout_root=checkout_root, consent_predicate=consent_predicate)
+    try:
+        batches = _consented_batches(chunks, answer)
+    except UnconsentedDelivery as exc:
+        return _refusal_report(envelopes, exc)
     report = UploadReport()
-    _deliver_chunks(chunks, receiver, report)
+    _deliver_chunks(batches, receiver, report)
     return report
 
 
@@ -243,6 +357,8 @@ def run_import_upload(
     auth_token: str,
     poster: HttpPoster = default_http_poster,
     chunk_size: int = _IMPORT_CHUNK_SIZE,
+    checkout_root: Path | None = None,
+    consent_predicate: ConsentPredicate | None = None,
 ) -> UploadReport:
     """Preflight every chunk, then (only if all pass) upload chunks in order.
 
@@ -264,17 +380,27 @@ def run_import_upload(
     """
     chunks = list(_chunked(envelopes, chunk_size))
     _assert_batches_within_cap(chunks)
+    # The consent gate runs BEFORE the preflight. ``run_server_preflight`` POSTs
+    # the full envelope stream — mission slugs, project slug, payloads — so it is
+    # a sink in its own right, and gating only the ``receiver.deliver`` call would
+    # have left the leak intact while looking closed (E1's entry in the egress
+    # inventory names the delivery line; the preflight line is the same breach).
+    answer = _consent_answer(envelopes, checkout_root=checkout_root, consent_predicate=consent_predicate)
+    try:
+        batches = _consented_batches(chunks, answer)
+    except UnconsentedDelivery as exc:
+        return _refusal_report(envelopes, exc)
     for chunk in chunks:
         run_server_preflight(chunk, server_url=server_url, auth_token=auth_token, poster=poster)
     report = UploadReport()
-    _deliver_chunks(chunks, receiver, report)
+    _deliver_chunks(batches, receiver, report)
     return report
 
 
 # ── internals ─────────────────────────────────────────────────────────────────
 
 
-def _deliver_chunks(chunks: Sequence[Sequence[Envelope]], receiver: DeliveryReceiver, report: UploadReport) -> None:
+def _deliver_chunks(batches: Sequence[ConsentedBatch], receiver: DeliveryReceiver, report: UploadReport) -> None:
     """Deliver chunks in order, stopping at the first chunk with a failure.
 
     A chunk whose delivery reports any outcome outside {success, duplicate,
@@ -284,14 +410,13 @@ def _deliver_chunks(chunks: Sequence[Sequence[Envelope]], receiver: DeliveryRece
     whole missions (mission-atomic chunks, monotonic Lamport clocks), and a
     re-run resumes idempotently (the server dedups on ``event_id``).
     """
-    for index, chunk in enumerate(chunks):
-        outbound = [OutboundEvent(event_id=str(env["event_id"]), payload=env) for env in chunk]
+    for index, batch in enumerate(batches):
         failures_before = report.rejected
-        for result in receiver.deliver(outbound):
+        for result in receiver.deliver(batch):
             _tally(report, result)
         if report.rejected > failures_before:
             report.delivered_through_chunk = index
-            report.undelivered_event_count = sum(len(later) for later in chunks[index + 1 :])
+            report.undelivered_event_count = sum(len(later) for later in batches[index + 1 :])
             report.partial = report.undelivered_event_count > 0
             return
         report.delivered_through_chunk = index + 1

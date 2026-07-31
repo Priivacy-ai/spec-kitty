@@ -11,7 +11,7 @@ import contextlib
 import logging
 import re
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -29,9 +29,15 @@ if TYPE_CHECKING:
     from specify_cli.delivery.ledger import SqliteDeliveryLedger
     from specify_cli.delivery.receivers import DeliveryReceiver, GateDecision
     from specify_cli.delivery.retention import RetentionResult
+    from specify_cli.delivery.status_report import (
+        PerProjectStoreReport,
+        ProjectStoreRow,
+        UnresolvedIdentityCandidate,
+    )
     from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
     from specify_cli.event_journal.journal import EventJournal
     from specify_cli.sync.history_import import UploadReport
+    from specify_cli.sync.project_identity import IdentityBackfillResult
     from specify_cli.sync.migrate_journal import (
         CleanupResult,
         ConflictResolution,
@@ -919,6 +925,97 @@ def _event_sync_report(base: dict[str, Any], runtime: _EventSyncRuntime) -> dict
                 audit.close()
 
 
+#: Opening words of the empty-selection diagnosis. One constant because three tests
+#: and two surfaces key on it, and because "nothing was selected" has to be sayable
+#: in words — ``(selected 0)`` inside a counts line is not a diagnosis.
+_NOTHING_TO_DELIVER = "Nothing to deliver."
+
+
+def _empty_selection_cause(report: PerProjectStoreReport) -> str:
+    """Explain WHY a drain selected nothing, using only what the report can prove.
+
+    FR-005 asks the drain to "report the real cause". Before this, `sync now` printed
+    an all-zero counts line ending ``(selected 0)`` and stopped, which collapses four
+    situations that need four different actions:
+
+    * the journal is empty — nothing to do, and emphatically not a consent problem;
+    * no project has consented — the operator's data will never ship until they act,
+      which is the incident's own shape and the only one that is urgent;
+    * every row's identity is unresolved — recoverable, and H4 wired the remedy;
+    * a consented project's rows exist but none is selectable right now.
+
+    That last branch is deliberately the weakest claim. Distinguishing "already
+    delivered" from "terminally drain-blocked" needs ledger state the report does not
+    carry, so it names both possibilities instead of asserting one. Guessing here
+    would recreate exactly the wrong-and-actionable diagnosis the no-Private-Teamspace
+    message was: an operator told the wrong cause acts on the wrong thing.
+
+    Sourced entirely from :func:`build_per_project_store_report` — the same grouping
+    that backs `doctor`, `status` and `migrate`, so the four surfaces cannot disagree
+    about who is in the store (C-003). No second classifier.
+    """
+    if not report.rows:
+        return (
+            "The event journal is empty — no events have been captured for this "
+            "producer scope yet, so there is nothing to send."
+        )
+
+    total = report.counted_event_total
+    if report.unresolved_identity_count >= total > 0:
+        return (
+            f"All {total} retained event(s) have no stored project identity, so none "
+            "of them can be selected for delivery. Run `spec-kitty sync migrate` to "
+            "recover the identity of any whose stored payload still carries it."
+        )
+
+    if not any(row.consent_granted for row in report.rows):
+        named = ", ".join(
+            (row.repo_slug or row.project_slug or row.project_uuid or "<unnamed>")
+            for row in report.named_non_consenting_rows
+        )
+        detail = f": {named}" if named else ""
+        return (
+            f"No project in the event journal has consented to hosted sync{detail}. "
+            f"Its {total} retained event(s) stay on this machine and will never be "
+            "delivered until consent is recorded — run `spec-kitty sync enable` in "
+            "the project that should ship, or `spec-kitty sync doctor` for the full "
+            "per-project breakdown."
+        )
+
+    return (
+        "Every consented project's retained events have already been delivered to "
+        "this target, or are terminally drain-blocked. Nothing is being withheld "
+        "for lack of consent; `spec-kitty sync doctor` shows the per-project state."
+    )
+
+
+def _report_empty_selection(summary: DispatchSummary | None, journal: EventJournal) -> None:
+    """Name the cause when a drain selected nothing (FR-005 / T005, SC-003's fifth path).
+
+    Only fires on a genuinely empty selection. A drain that selected rows and failed
+    to deliver them has its own reporting and its own exit contract; adding a cause
+    line there would compete with a more specific message.
+
+    Never raises: a diagnosis that breaks the command it is explaining would be worse
+    than the silence it replaces.
+    """
+    if summary is None or summary.selected != 0:
+        return
+    from specify_cli.delivery.status_report import build_per_project_store_report
+
+    try:
+        report = build_per_project_store_report(journal)
+    except Exception as exc:  # noqa: BLE001 - explanatory only, never fatal
+        _LOG.debug("empty-selection diagnosis unavailable: %s", exc)
+        console.print(
+            f"[yellow]{_NOTHING_TO_DELIVER}[/yellow] The reason could not be "
+            f"determined ({str(exc)[:80]}); `spec-kitty sync doctor` reports the "
+            "journal's per-project state."
+        )
+        return
+    console.print(f"[yellow]{_NOTHING_TO_DELIVER}[/yellow] {_empty_selection_cause(report)}")
+
+
 def _print_dispatch_summary(summary: DispatchSummary, mode_name: str) -> None:
     """Render the dispatcher's per-outcome counts (sourced, never recomputed)."""
     console.print(
@@ -1046,6 +1143,11 @@ def _run_event_sync_dispatch() -> DispatchSummary | None:
         delivery_target = runtime.registry.register_from_resolved(runtime.target)
         summary = _run_dispatch_batches(runtime, receiver, delivery_target)
         _print_dispatch_summary(summary, config.mode.name)
+        # FR-005/T005: an all-zero summary is four different situations with four
+        # different remedies. Reported from HERE, while `runtime` is still open, so
+        # the diagnosis reads the exact journal the drain just selected from rather
+        # than re-resolving a scope and possibly describing a different store.
+        _report_empty_selection(summary, runtime.journal)
         return summary
     except Exception as exc:  # additive drain must never break the command
         _LOG.debug("event-sync dispatch skipped: %s", exc)
@@ -1190,6 +1292,646 @@ def _materialize_private_source_project() -> None:
     if event is None:
         raise RuntimeError("Could not emit BuildRegistered for this checkout.")
     get_sync_service().sync_now()
+
+
+_PER_PROJECT_SECTION_TITLE = "Event journal by project"
+#: Shown for an unresolved-identity candidate that recorded NO name in any identity
+#: column. One constant, because it has to mean exactly that on every surface: the
+#: N1-a defect was this label appearing for rows that did carry a name, which makes
+#: it untrustworthy precisely when it is the truth (legacy `sync migrate` imports).
+_NO_RECORDED_NAME = "<no name recorded>"
+
+
+def _oldest_age_label(created_at: str | None) -> str:
+    """Render an ISO timestamp as an AGE, which is what FR-015 asks an operator for.
+
+    "2026-06-01T00:00:00+00:00" tells an operator nothing about how long a
+    project's payloads have been sitting there; "58d ago" does. An unparseable
+    value degrades to the raw string rather than to ``n/a`` — losing the only
+    timestamp we have would hide the row's age entirely.
+    """
+    if not created_at:
+        return "[dim]n/a[/dim]"
+    try:
+        parsed = datetime.fromisoformat(created_at)
+    except ValueError:
+        return created_at
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return f"{humanize_timedelta(datetime.now(UTC) - parsed)} ago"
+
+
+def _project_store_label(row: ProjectStoreRow) -> str:
+    """The name an operator recognises, and — load-bearingly — one they can act on.
+
+    ``repo_slug`` leads because it is the name an operator recognises: it is the
+    repository in front of them, where ``project_slug`` is a derived form and the
+    uuid is unrecognisable. ``project_slug`` is the fallback; the uuid is the last
+    resort. The unresolved-identity bucket is labelled as such rather than rendering
+    blank — FR-011 exists so that denial is visible.
+
+    **It is not the case that anything is "keyed on" ``repo_slug``.** Consent records
+    are keyed on ``project_uuid`` (see :func:`sync.consent.set_project_consent`), and
+    ``sync purge --project`` used to key on ``project_slug`` alone — so the earlier
+    version of this docstring justified the ordering with a claim that was false on
+    both halves, and the report printed names that ``sync purge`` then refused. What
+    makes the ordering correct is enforced elsewhere instead of asserted here:
+    :func:`_purge_resolve_project` accepts every name in this chain, and
+    ``tests/cli/commands/test_sync_report_label_is_a_purge_selector_3030.py`` feeds
+    this function's own output to that resolver. Change either end and that pin reds.
+    """
+    if row.is_unresolved_identity:
+        return "[yellow]<identity unresolved>[/yellow]"
+    return row.repo_slug or row.project_slug or row.project_uuid or "?"
+
+
+def _per_project_store_issues(report: PerProjectStoreReport) -> list[str]:
+    """The operator-actionable warnings a per-project breakdown implies.
+
+    Kept separate from the rendering so ``doctor``'s "Issues found" list and
+    ``status``'s warnings cannot say different things about the same report.
+    """
+    issues: list[str] = []
+    # Reconciliation is the load-bearing check: a table that omits rows is the
+    # incident's false-green with a nicer layout.
+    if not report.reconciles:
+        issues.append(
+            f"Per-project totals ({report.counted_event_total}) do not reconcile "
+            f"against the journal's retained count ({report.retained_event_count}). "
+            "The report is incomplete — do not trust it."
+        )
+    if report.unresolved_identity_count:
+        # Deliberately not "permanently undeliverable", and no longer pointing at
+        # `purge` as the only remedy. Since #3030 H4 wired the identity backfill
+        # into `sync migrate`, rows whose stored envelope carries a resolvable uuid
+        # ARE recoverable, and for the operator's own consenting project that is the
+        # difference between their history shipping and being stranded forever.
+        # Sending them to `purge` would destroy recoverable data. What is permanent
+        # is only that a NULL row cannot be SELECTED (FR-011, fail-closed).
+        issues.append(
+            f"{report.unresolved_identity_count} journal event(s) have no stored "
+            "project identity, so they cannot be selected for delivery. Run "
+            "`spec-kitty sync migrate` to recover the identity of any whose stored "
+            "payload still carries it; whatever remains is retained locally and "
+            "removable only with `spec-kitty sync purge`."
+            + _unresolved_origin_clause(report)
+        )
+    # NAMED refusals only. The unresolved-identity bucket is also
+    # `consent_granted=False`, but its consent could not be resolved at all — see
+    # `named_non_consenting_rows`. Naming one of its member repos here told the
+    # operator that repo had refused and should be purged; purging it leaves the
+    # bucket's other repos on disk while the report reads clean.
+    non_consenting = report.named_non_consenting_rows
+    if non_consenting:
+        named = ", ".join(
+            (r.repo_slug or r.project_slug or r.project_uuid or "<unnamed>")
+            for r in non_consenting
+        )
+        issues.append(
+            f"{len(non_consenting)} project(s) in the journal have not consented to "
+            f"hosted sync: {named}. Their events are retained locally and never "
+            "delivered; `spec-kitty sync purge --project <slug>` removes them."
+        )
+    return issues
+
+
+def _unresolved_origin_clause(report: PerProjectStoreReport) -> str:
+    """Name the repos the unresolved rows appear to come from, with counts (SC-004).
+
+    Without this an operator is told a number and nothing else, and has to open
+    SQLite to learn which repos are involved — even though the slugs are already on
+    the rows and in the identity projection. Worded as *appear to come from*: with
+    no uuid these rows' consent cannot be resolved, so this is provenance, never a
+    statement about what any of those projects decided.
+    """
+    candidates: tuple[UnresolvedIdentityCandidate, ...] = tuple(
+        candidate
+        for row in report.rows
+        if row.is_unresolved_identity
+        for candidate in row.unresolved_candidates
+    )
+    if not candidates:
+        return ""
+    from specify_cli.delivery.status_report import unresolved_candidate_name
+
+    named = ", ".join(
+        f"{unresolved_candidate_name(candidate) or _NO_RECORDED_NAME} "
+        f"({candidate.event_count})"
+        for candidate in candidates
+    )
+    return (
+        f" They appear to come from: {named}. Consent for these rows cannot be "
+        "resolved without a project identity, so this is where they were captured, "
+        "not what those projects decided."
+    )
+
+
+def _per_project_store_table(report: PerProjectStoreReport) -> Table:
+    """The count / oldest-age / consent-state grid FR-015 and SC-004 ask for.
+
+    Folds, never ellipsizes. Rich truncates an over-wide cell by default, and a
+    truncated project identity would satisfy the layout while breaking SC-004's
+    "names every project" — the operator would be shown a prefix they cannot pass
+    to ``sync purge``.
+    """
+    from specify_cli.delivery.status_report import unresolved_candidate_name
+
+    table = Table(show_header=True, box=None)
+    table.add_column("Project", style="dim", overflow="fold")
+    table.add_column("Events", justify="right")
+    table.add_column("Oldest", overflow="fold")
+    table.add_column("Consent", overflow="fold")
+    for row in report.rows:
+        state = (
+            "[green]consented[/green]"
+            if row.consent_granted
+            else f"[red]denied[/red] [dim]({row.consent_level})[/dim]"
+        )
+        table.add_row(
+            _project_store_label(row),
+            f"{row.event_count:,}",
+            _oldest_age_label(row.oldest_created_at),
+            state,
+        )
+        # The unresolved bucket spans projects, so it gets a sub-row per RECORDED
+        # IDENTITY — see `_unresolved_identity_candidates` for why the key is the
+        # (repo_slug, project_slug) pair and not the repo slug alone. This is what
+        # makes SC-004's "names every project present with count, oldest age and
+        # consent state" hold for this population — previously the bucket rendered as
+        # one anonymous line and the projects behind it were reachable only by
+        # hand-querying SQLite. Consent reads "unknown", not "denied": without a
+        # uuid there is nothing to resolve, and claiming a refusal here is the N1
+        # false fact.
+        for candidate in row.unresolved_candidates:
+            name = unresolved_candidate_name(candidate)
+            table.add_row(
+                f"  [dim]└[/dim] {name or f'[dim]{_NO_RECORDED_NAME}[/dim]'}",
+                f"{candidate.event_count:,}",
+                _oldest_age_label(candidate.oldest_created_at),
+                "[yellow]unknown[/yellow] [dim](identity unresolved)[/dim]",
+            )
+    return table
+
+
+def _open_journal_readonly() -> EventJournal:
+    """Open ONLY the journal for the current producer scope, read-only (#3030 T021).
+
+    Deliberately not ``_open_event_sync_runtime_readonly``, which also resolves the
+    delivery target and opens the ledger and target registry. A "whose data is in
+    here?" read needs none of those, and sharing that opener meant any
+    target-resolution failure was reported as "the event journal could not be
+    read" — the wrong diagnosis, naming the wrong store, in the one section whose
+    job is to be trustworthy about which store it read.
+
+    Raises ``FileNotFoundError`` when this scope has no journal file yet, which the
+    caller renders as the benign absence it is.
+    """
+    from specify_cli.event_journal.journal import EventJournal, resolve_journal_path
+
+    scope = _current_event_sync_scope()
+    path = resolve_journal_path(user_id=scope.user_id, team_slug=scope.team_slug)
+    if not path.exists():
+        raise FileNotFoundError(f"event-sync journal DB absent: {path}")
+    return EventJournal(path)
+
+
+def _render_per_project_store(console_out: Any, issues: list[str]) -> None:
+    """Render the journal's per-project composition with consent state (#3030 T021).
+
+    Sits beside doctor's queue-health block deliberately rather than replacing it.
+    That block reads ``OfflineQueue().get_queue_stats()``, which is EMPTY after
+    ``sync migrate`` — the source of the incident's false-green, where the operator
+    saw "Queue size 0" while 9,133 events sat in the journal. This section answers
+    "whose data is actually in here?" from the journal itself, so the two cannot
+    disagree silently.
+
+    **Every exit path from this function is observable.** The first cut returned
+    silently on an unopenable runtime, on a failed grouping, and on an empty
+    report, which made three very different states — "nothing is in the journal",
+    "I could not read the journal", and "I never looked" — render identically:
+    doctor's usual healthy table with no journal section and exit 0. That is the
+    incident's false-green rebuilt inside the fix for it. A failure now names what
+    could not be read, and the empty case says so out loud.
+    """
+    from specify_cli.delivery.status_report import build_per_project_store_report
+
+    try:
+        journal = _open_journal_readonly()
+    except FileNotFoundError as exc:
+        # The one benign absence: no journal file has ever been created for this
+        # producer scope, so there is genuinely nothing to group. Still printed,
+        # because "no journal yet" and "I could not look" must not read alike.
+        console_out.print(f"\n[bold]{_PER_PROJECT_SECTION_TITLE}[/bold]")
+        console_out.print(f"  [dim]no journal for this scope yet ({exc})[/dim]")
+        return
+    except Exception as exc:
+        issues.append(
+            f"The event journal could not be opened, so this run cannot say which "
+            f"projects have data in it: {exc}. Until this is resolved, treat a "
+            "clean queue-health block as unproven — it reads a different store."
+        )
+        return
+    try:
+        report = build_per_project_store_report(journal)
+    except Exception as exc:
+        issues.append(
+            f"The event journal opened but its rows could not be grouped by "
+            f"project: {exc}. Whose data is in the journal is currently UNKNOWN; "
+            "the queue-health block above does not answer it."
+        )
+        return
+
+    console_out.print(f"\n[bold]{_PER_PROJECT_SECTION_TITLE}[/bold]")
+    if report.rows:
+        console_out.print(_per_project_store_table(report))
+    else:
+        # Asserted-empty, not silently-empty: this line is the difference between
+        # a journal that holds nothing and a report that never ran.
+        console_out.print(
+            f"  [green]no events retained[/green] "
+            f"[dim](journal count {report.retained_event_count})[/dim]"
+        )
+    # Unconditionally, including on the empty branch. A journal that cannot answer
+    # count() reports -1, which does not reconcile against zero rows — so returning
+    # early on `not report.rows` would have rendered an unreadable journal as "no
+    # events retained". That is the same three-states-look-alike failure the
+    # docstring above is about, one branch further in.
+    issues.extend(_per_project_store_issues(report))
+
+
+# --------------------------------------------------------------------------- #
+# Consent-record readability (#3030 FR-020 / FR-027, SC-004)                    #
+#                                                                              #
+# FR-020 exists because a machine fault read as an ABSENCE: an unreadable       #
+# `config.toml` made every project on the machine resolve as never-opted-in,    #
+# the drain delivered nothing, doctor looked idle, and the operator was told to #
+# record consent they had already recorded. `consent_index_health()` and        #
+# `project_local_consent_fault()` keep that distinction alive — and until now   #
+# nothing rendered either of them, which SC-004's own note records as owed.     #
+# --------------------------------------------------------------------------- #
+
+@contextlib.contextmanager
+def _reporting_a_refused_config_write(what: str):
+    """Turn a refused write into an actionable message instead of a traceback.
+
+    ``SyncConfig`` refuses to write over a config it cannot read, because the write is
+    a whole-file read-modify-write that would rebuild the file from an empty document
+    and discard every consent record it holds (#3030). That refusal is a
+    ``ConfigNotReadableError``, and FR-023's recorded lesson applies to it directly: *a
+    new exception nobody catches is a crash moved, not fixed*, so every caller that
+    assumed the write could not raise is audited.
+
+    Three commands write with no handler of their own — ``sync opt-in``,
+    ``sync opt-out`` and ``sync server`` — and ``opt-in`` is exactly the command an
+    operator reaches for after ``sync doctor`` reports consent as undetermined.
+    Measured before this wrapper: exit 1 with **no output at all**, which would have
+    replaced one unhelpful answer with another on the path this mission exists to make
+    honest.
+
+    The exception's own message already names the file, the kind and the underlying
+    error, so it is printed rather than paraphrased — a second wording here is how the
+    refusal and the doctor start describing one fault differently (C-003).
+    """
+    from specify_cli.sync.config import ConfigNotReadableError
+
+    try:
+        yield
+    except ConfigNotReadableError as exc:
+        console.print(f"[red]Error:[/red] {what} was not recorded. {exc}")
+        console.print(
+            "[dim]Nothing was changed and no records were lost. "
+            "Run 'spec-kitty sync doctor' for the full consent-readability report.[/dim]"
+        )
+        raise typer.Exit(1) from exc
+
+
+_CONSENT_HEALTH_SECTION_TITLE = "Consent record readability"
+
+#: Every ``ConfigReadFault.kind`` mapped to **the operator action that resolves it**,
+#: never to a restatement of the kind. That is the whole requirement: the defect
+#: FR-020 exists to remove is an operator being told "no consent record for this
+#: project" when the truth is "your index is unreadable", which sends them to record
+#: consent they already recorded — and on the machine index that write *destroys the
+#: other projects' records* (see :data:`_CONSENT_FAULT_NOT_ABSENCE`).
+#:
+#: Four kinds. FR-027 added ``unusable`` — a present-but-uninterpretable value —
+#: alongside the file-level kinds, and it is the one most easily mistaken for absence
+#: because the file looks perfectly fine.
+#:
+#: **The wording narrows because the vocabulary was unified.** Until 2026-07-30 the two
+#: file-level tokens did not mean the same thing to both producers: ``sync/config.py``
+#: called a TOML *syntax* error ``unparseable`` and an ``OSError`` ``unreadable``, while
+#: ``sync/consent.py`` called an open-*or*-parse failure ``unreadable`` and a non-mapping
+#: top level ``unparseable``. One kind-keyed string therefore had to span both readings
+#: — "either its syntax does not parse, or its top level is not a mapping" — which meant
+#: telling every reader one true thing and one false one. ``sync/consent.py`` now splits
+#: cannot-open from cannot-parse and mints ``wrong_shape`` for a non-mapping top level
+#: (see ``sync.config.CONFIG_FAULT_KINDS``), so each entry below names one state and one
+#: remedy. Pinned by ``test_the_action_is_true_for_both_producers_of_the_same_kind``,
+#: which now asserts the two producers agree rather than that the advice hedges.
+#:
+#: The first element of each triple is the status word printed beside the scope, so a
+#: field-level fault is no longer announced as an unreadable file.
+_CONSENT_FAULT_ACTIONS: dict[str, tuple[str, str, str]] = {
+    "unreadable": (
+        "UNREADABLE",
+        "MAKE THE FILE READABLE",
+        "It could not be opened at all — a permission or ownership problem. Fix the "
+        "file's mode or its owner; the error in brackets says which applies.",
+    ),
+    "unparseable": (
+        "UNPARSEABLE",
+        "REPAIR THE FILE'S SYNTAX",
+        "The file was opened and its syntax does not parse. Repair the error quoted in "
+        "the detail — it names the line the parser stopped on.",
+    ),
+    "wrong_shape": (
+        "WRONG SHAPE",
+        "MAKE THE DOCUMENT A MAPPING",
+        "The file parsed cleanly; its top level is simply not a set of keys. A list, a "
+        "bare scalar or a leftover merge-conflict marker does this. Do not go looking "
+        "for a syntax error — there is none.",
+    ),
+    "unusable": (
+        "UNUSABLE VALUE",
+        "CORRECT THE FIELD VALUE NAMED IN THE DETAIL",
+        "The file parsed and its shape is fine, but a field holds a value that cannot "
+        'be understood as that field. Only a real boolean records a consent decision, so '
+        '`sync.enabled: "false"` is a quoted string that records nothing, and `enabled: no` '
+        "is the string \"no\" (ruamel is YAML 1.2). A `project.uuid` that is not a uuid "
+        "names no project.",
+    ),
+}
+
+#: The fallback for a kind this build does not recognise. Not defensive padding: this
+#: mission added a kind once already, and a kind-keyed table that renders nothing for
+#: an unrecognised key would turn the next addition into an invisible fault — the
+#: exact defect shape this section exists to close.
+_CONSENT_FAULT_UNKNOWN_ACTION = (
+    "UNREADABLE",
+    "REPAIR THE FILE NAMED IN THE DETAIL",
+    "This build has no specific advice for that fault kind; the detail below is the "
+    "whole of what is known about it.",
+)
+
+#: Printed for every fault, on both surfaces. The second half is measured, not
+#: reasoned — and it was **rewritten on 2026-07-30 because the hazard it described was
+#: fixed**, which is the only honest reason to change operator advice. It used to read
+#: "a write rewrites the file from an empty document when it cannot be read, discarding
+#: every other project's record", and that was true: every `SyncConfig` setter was a
+#: whole-file read-modify-write over `_load()`, which answers `{}` for an unreadable
+#: file. Seven of the eight destroyed a bystander project's grant, and the same
+#: destruction was reachable from a plain *read* via `consent._reconcile_index`.
+#:
+#: A write over an unreadable config is now refused
+#: (`sync.config.ConfigNotReadableError`), so the records survive. Leaving the old
+#: sentence standing would have been the same defect this section exists to remove, one
+#: turn later: advice that was true when written and is false when read.
+#: ``tests/cli/commands/test_sync_doctor_consent_health_3030.py`` pins both halves.
+_CONSENT_FAULT_NOT_ABSENCE = (
+    "This is NOT a missing consent record. Recording consent again will not clear it: "
+    "a write over a config that cannot be read is refused, so your other projects' "
+    "records are safe, but nothing is delivered until the file itself is repaired."
+)
+
+#: Why one broken file denies more than its own project, and why that is nonetheless
+#: a self-inflicted local fault rather than a sibling checkout's doing. Both halves
+#: are owed: the first alone would let an operator conclude an unrelated project broke
+#: their machine, and the second alone would understate what is currently denied.
+_CONSENT_FAULT_REACH = (
+    "A read fault cannot be attributed to a project — an unreadable file does not "
+    "disclose which project it declares — so while it stands it denies for every "
+    "project resolved through this checkout, not only this one. Its reach is narrower "
+    "than that sounds: every production caller offers exactly one checkout root, the "
+    "current directory's, so the broken file is this checkout's own and no sibling "
+    "checkout can have caused it."
+)
+
+
+def _render_consent_fault(
+    console_out: Any,
+    issues: list[str],
+    *,
+    scope: str,
+    fault: Any,
+    consequence: str,
+) -> None:
+    """Render one fault as an action, a consequence and its own detail.
+
+    The ``issues`` entry and the printed block are built from the same three strings,
+    so doctor's summary and this section cannot say different things about one fault.
+    """
+    kind = str(getattr(fault, "kind", "") or "unknown")
+    status, action, remedy = _CONSENT_FAULT_ACTIONS.get(kind, _CONSENT_FAULT_UNKNOWN_ACTION)
+    detail = str(getattr(fault, "detail", "") or "no detail recorded")
+
+    console_out.print(f"  {scope}  [red]{status}[/red] ({kind})")
+    console_out.print(f"    [bold red]{action}[/bold red] — {remedy}")
+    console_out.print(f"    [dim]{detail}[/dim]")
+    console_out.print(f"    {consequence}")
+    console_out.print(f"    [yellow]{_CONSENT_FAULT_NOT_ABSENCE}[/yellow]")
+    issues.append(f"{scope} ({kind}): {action}. {detail} {consequence} {_CONSENT_FAULT_NOT_ABSENCE}")
+
+
+def _render_consent_readability(console_out: Any, issues: list[str]) -> None:
+    """Say whether the consent records can be read at all (SC-004, FR-020/FR-027).
+
+    Both surfaces, always printed. "Consent is fine", "I could not read it" and "I
+    never looked" must not render identically — that equivalence *is* the incident's
+    false-green, and a section that appears only on failure rebuilds it. The healthy
+    line also states that a missing record is not a fault, so an operator does not
+    set out to repair a file that is simply empty.
+
+    Deliberately reporting only. ``consent_index_health`` is not consulted by
+    ``resolve_project_consent`` (a pre-flight readability check followed by a separate
+    per-project read is two reads that can disagree), and nothing here changes what
+    the drain decides.
+    """
+    console_out.print(f"\n[bold]{_CONSENT_HEALTH_SECTION_TITLE}[/bold]")
+
+    from specify_cli.core.paths import locate_project_root
+
+    try:
+        from specify_cli.sync.consent import consent_index_health
+
+        health = consent_index_health()
+    except Exception as exc:  # noqa: BLE001 — a section that vanishes is the defect
+        console_out.print(
+            f"  [yellow]![/yellow] the machine-global consent index could not be "
+            f"inspected: {exc}"
+        )
+        issues.append(
+            f"Whether the machine-global consent index is readable could not be "
+            f"determined: {exc}. Until it is, treat every consent state reported above "
+            "as unproven."
+        )
+    else:
+        if health.fault is None:
+            console_out.print("  machine-global consent index  [green]readable[/green]")
+        else:
+            _render_consent_fault(
+                console_out,
+                issues,
+                scope="machine-global consent index",
+                fault=health.fault,
+                consequence=(
+                    "Every project on this machine resolves as UNDETERMINED while this "
+                    "stands, so nothing is delivered."
+                ),
+            )
+
+    try:
+        from specify_cli.sync.consent import project_local_consent_fault
+
+        repo_root = locate_project_root(Path.cwd())
+        local_fault = None if repo_root is None else project_local_consent_fault(repo_root)
+    except Exception as exc:  # noqa: BLE001 — reported, never silently skipped
+        console_out.print(
+            f"  [yellow]![/yellow] this checkout's project config could not be "
+            f"inspected: {exc}"
+        )
+        issues.append(
+            f"Whether this checkout's own consent record is readable could not be "
+            f"determined: {exc}."
+        )
+    else:
+        if repo_root is None:
+            console_out.print(
+                "  this checkout  [dim]not inspected — no Spec Kitty checkout resolved "
+                "from the current directory[/dim]"
+            )
+        elif local_fault is None:
+            console_out.print("  this checkout  [green]readable[/green]")
+        else:
+            _render_consent_fault(
+                console_out,
+                issues,
+                scope="this checkout's project config",
+                fault=local_fault,
+                consequence=_CONSENT_FAULT_REACH,
+            )
+
+    console_out.print(
+        "  [dim]A missing record is not a fault: it means no consent was recorded, "
+        "which denies.[/dim]"
+    )
+
+
+def _print_identity_backfill_result(result: IdentityBackfillResult | None) -> None:
+    """Report what convergence recovered into the identity columns (#3030 H4).
+
+    Printed unconditionally, including the zero case, because "nothing needed
+    recovering" and "the backfill did not run" must not look alike — that
+    equivalence is what let the backfill sit unwired with every test green.
+    """
+    if result is None:
+        console.print(
+            "[yellow]![/yellow] The journal identity backfill could not run, so "
+            "rows with no stored identity remain unselectable. Re-run "
+            "`spec-kitty sync migrate`; if it persists, `spec-kitty sync doctor` "
+            "reports how many rows are affected."
+        )
+        return
+    console.print(
+        f"Journal identity: recovered {result.updated}  "
+        f"[dim]unresolvable {result.unresolved}[/dim]"
+    )
+    if result.unresolved:
+        # Not an error, and deliberately not phrased as one: these rows are
+        # fail-closed by design (FR-011). What matters is that they are visible.
+        console.print(
+            f"  [dim]{result.unresolved} row(s) carry no resolvable project "
+            "identity in their stored payload; they stay unselectable rather than "
+            "being assigned one.[/dim]"
+        )
+
+
+def _run_consent_index_backfill() -> None:
+    """Map path-keyed consent records onto the uuid index (#3030 H4, T016).
+
+    Opt-in via ``sync migrate --backfill-consent-index``, and gated for a specific
+    reason rather than caution: the uuid index is consulted at level 2, ABOVE the
+    repo default at level 3, so moving a path record into it can change a project's
+    effective answer — a project currently denied by a repo default becomes granted.
+    A migration that silently flipped delivery on is precisely the invisible consent
+    change this mission exists to eliminate, so the operator asks for it and every
+    change is named.
+
+    Also the only surface on which WP07's ``unresolved``-consent rows are reachable:
+    the result object carries the entries whose checkout no longer resolves to a
+    uuid, which is US2 scenario 3's "consented but unresolvable" population.
+    """
+    from specify_cli.sync.consent import backfill_uuid_consent_index
+
+    console.print()
+    console.print("[bold]Consent index backfill[/bold]")
+    try:
+        result = backfill_uuid_consent_index()
+    except Exception as exc:  # noqa: BLE001 - reported, never fatal to the migration
+        console.print(
+            f"  [yellow]![/yellow] could not be completed: {exc}. Path-keyed "
+            "records remain in place and the drain still cannot see them."
+        )
+        return
+
+    console.print(f"  mapped {result.mapped}  unresolved {result.unresolved}")
+    if result.mapped:
+        console.print(
+            "  [dim]Consent for these projects is now visible to the drain's "
+            "uuid-keyed lookup:[/dim]"
+        )
+        from specify_cli.sync.config import SyncConfig
+
+        for uuid, granted in sorted(SyncConfig().get_all_project_consent().items()):
+            state = "[green]consented[/green]" if granted else "[red]opted out[/red]"
+            console.print(f"    {uuid}  {state}")
+    for entry in result.unresolved_entries:
+        # US2 scenario 3: the decision is retained, but the predicate cannot see
+        # it, so reported state must not imply it is enforced.
+        state = "consented" if entry.enabled else "opted out"
+        console.print(
+            f"  [yellow]unresolved[/yellow] {entry.path} [dim]({state} here, but "
+            "this checkout no longer declares a project uuid, so the drain cannot "
+            "apply it)[/dim]"
+        )
+
+
+def _render_migrated_composition(
+    journal: EventJournal, imported_event_ids: list[str]
+) -> None:
+    """Report the per-project composition of what ``sync migrate`` just MOVED (FR-015).
+
+    `sync migrate` is the command that produced the incident's false-green: it
+    emptied the legacy queue `doctor` reads while pooling every project's payloads
+    into one journal, and it printed only aggregate import/dedupe counts — so the
+    operator was never once told *whose* events had just been lifted into a
+    machine-global store.
+
+    Restricted to the ids this run imported rather than the whole journal: "what I
+    moved" and "what is in here" are different claims, and reporting the latter
+    under the former's heading would overstate the migration. Grouping is the same
+    WP07 report the other two surfaces use (C-003), so the three cannot disagree.
+    """
+    from specify_cli.delivery.status_report import build_per_project_store_report
+
+    console.print()
+    console.print("[bold]Migrated events by project[/bold]")
+    if not imported_event_ids:
+        console.print("  [dim]nothing imported on this run[/dim]")
+        return
+    try:
+        report = build_per_project_store_report(journal, event_ids=imported_event_ids)
+    except Exception as exc:
+        # Named, not swallowed: a migration whose composition cannot be read is a
+        # migration whose confidentiality impact is unknown.
+        console.print(
+            f"  [yellow]![/yellow] imported {len(imported_event_ids)} event(s) but "
+            f"their per-project composition could not be read: {exc}"
+        )
+        return
+    console.print(_per_project_store_table(report))
+    for issue in _per_project_store_issues(report):
+        console.print(f"  [yellow]![/yellow] {issue}")
 
 
 @app.command()
@@ -1449,10 +2191,11 @@ def opt_out(
     _require_daemon_owner_coherence("spec-kitty sync opt-out")
 
     routing = _require_active_checkout()
-    result = disable_checkout_sync(
-        routing.repo_root,
-        remember_repo_default=not checkout_only,
-    )
+    with _reporting_a_refused_config_write("This checkout's opt-out"):
+        result = disable_checkout_sync(
+            routing.repo_root,
+            remember_repo_default=not checkout_only,
+        )
 
     console.print(
         f"[green]✓[/green] Disabled SaaS sync for this checkout "
@@ -1596,10 +2339,11 @@ def opt_in(
     )
 
     routing = _require_active_checkout()
-    refreshed = enable_checkout_sync(
-        routing.repo_root,
-        remember_repo_default=not checkout_only,
-    )
+    with _reporting_a_refused_config_write("This checkout's opt-in"):
+        refreshed = enable_checkout_sync(
+            routing.repo_root,
+            remember_repo_default=not checkout_only,
+        )
 
     # Honest confirmation (#2264): opt-in writes LOCAL routing flags only — no
     # auth, no remote round-trip, no history import. The message must not imply
@@ -2287,7 +3031,8 @@ def sync_server(
         )
         raise typer.Exit(1)
 
-    config.set_server_url(normalized_url)
+    with _reporting_a_refused_config_write("The sync server URL"):
+        config.set_server_url(normalized_url)
     console.print(f"[green]✓[/green] Sync server set to [cyan]{normalized_url}[/cyan]")
     console.print(
         "[dim]If you switched environments, run "
@@ -2425,6 +3170,1358 @@ def archive() -> None:
     _print_retention_result(result)
 
 
+# --------------------------------------------------------------------------- #
+# `sync purge` — the operator's remediation path (#3030 WP08 / T022)            #
+#                                                                              #
+# FR-016 / FR-017 / NFR-006 / C-002. `sync gc` only reclaims payloads already   #
+# delivered to every known target, so it cannot clear the retained rows the     #
+# 2026-07-27 incident left on disk. This command is the only path that can, and #
+# it composes the four stores' purge primitives rather than re-deriving any of   #
+# them: `delivery/retention.py` owns the journal, the delivery ledger and the   #
+# body-upload queue; `sync/local_commit.py` owns the per-checkout               #
+# `pending_local_commits` queue. Selection and deletion stay there (C-003);     #
+# what lives here is the operator surface, the differential, and the honesty    #
+# about scope.                                                                  #
+# --------------------------------------------------------------------------- #
+
+#: Census key for a ``NULL`` project identity. Deliberately distinct from ``""``:
+#: a NULL row and a non-NULL blank row are different populations reachable by
+#: different selectors, and a census that folded them together is exactly what
+#: made an NFR-006 differential vacuous earlier in this mission (a population
+#: counted in no bucket has a differential of zero by construction).
+_PURGE_NULL_KEY = "<null>"
+
+_PURGE_JOURNAL = "event_journal"
+_PURGE_LEDGER = "delivery_ledger"
+_PURGE_BODY = "body_upload_queue"
+_PURGE_FRAMES = "local_commit_frames"
+
+_PURGE_STORE_LABELS = {
+    _PURGE_JOURNAL: "event journal",
+    _PURGE_LEDGER: "delivery ledger",
+    _PURGE_BODY: "body-upload queue",
+    # The scope is part of the name because it is not the same as the other three.
+    _PURGE_FRAMES: "local-commit frames (this checkout only)",
+}
+
+#: Where a checkout keeps its queued ``LocalCommit`` frames. Duplicated from
+#: ``sync/local_commit.py``'s private ``_sync_state_path`` on the same reasoning
+#: ``delivery/retention.py`` records for ``_DELIVERY_SUBDIR``: this module needs the
+#: path to *report* it and to read it independently, and reaching into another
+#: module's private helper is the worse coupling. ``tests/cli/commands/
+#: test_sync_purge_3030.py`` asserts the two agree, so a relocation is a red rather
+#: than a purge report pointed at a file nobody writes.
+_PURGE_SYNC_STATE_RELPATH = Path(".kittify") / "sync-state.json"
+
+#: How `--all` is described, in one place, because the wording is a decision and
+#: not a flourish (operator decision, 2026-07-30). The journal, the ledger and the
+#: body queue are machine-global; ``pending_local_commits`` is per-checkout
+#: ``LOCAL_RUNTIME`` state and there is no registry that could enumerate the other
+#: checkouts' files. A registry was rejected as new state to keep correct, and a
+#: filesystem scan because it can never prove completeness — which would leave the
+#: erasure claim unprovable while sounding total. So the command must not present
+#: `--all` as machine-wide erasure: "erased" that silently means "erased here" is
+#: the same class of defect as a gate reporting success for having done nothing.
+_PURGE_ALL_SCOPE_NOTE = (
+    "Scope of --all: this machine's event journal, delivery ledger and body-upload "
+    "queue, plus the queued local-commit frames of THIS CHECKOUT ONLY ({frames_path}). "
+    "Other checkouts on this machine keep their own queued frames in their own "
+    "sync-state.json; there is no registry of checkouts, so they cannot be listed and "
+    "this run has not touched them. Re-run this command from each checkout you need "
+    "cleared."
+)
+
+#: Printed on every destructive run. The ledger delete commits before the journal
+#: delete and they are not one transaction, so an interruption leaves the ledger
+#: purged with the journal intact — the recoverable direction, from which a re-run
+#: converges. A report that implied atomicity would leave the operator with no
+#: reason to re-run.
+_PURGE_NON_ATOMIC_NOTE = (
+    "The delivery ledger is deleted before the journal and the two are not one "
+    "transaction. If a run is interrupted the ledger delete may have committed with "
+    "the journal untouched; re-run the same command — it converges."
+)
+
+
+@dataclass(frozen=True)
+class _RawCensus:
+    """One store's row counts, grouped by the raw identity value it stores.
+
+    Taken by the CLI itself and **not** through the domain censuses the purge
+    primitives report from (NFR-006). Two properties matter:
+
+    * **Total-preserving by construction.** Every row lands in exactly one bucket
+      and ``NULL`` / ``""`` / ``"   "`` are three distinct buckets, so no population
+      can be missing from both the before and after picture — the shape that let a
+      purge move rows and still report "0% of any other project's" truthfully by its
+      own arithmetic.
+    * **Independent of the purge's own reads.** The differential below is measured
+      from two of these snapshots, so it can disagree with what the primitive claims
+      to have deleted. A check whose operands both come from the thing under test
+      was already rejected on this mission, having produced zero failures over 200
+      randomized cases.
+    """
+
+    total: int = 0
+    by_key: dict[str, int] = field(default_factory=dict)
+    unreadable: bool = False
+
+    def count(self, keys: frozenset[str]) -> int:
+        return sum(self.by_key.get(key, 0) for key in keys)
+
+    @property
+    def unbucketed(self) -> int:
+        """Rows the grouping could not account for. Must be ``0``; reported if not."""
+        return self.total - sum(self.by_key.values())
+
+
+@dataclass
+class _PurgeStoreOutcome:
+    """What one store contributed to the purge, as measured rather than as claimed."""
+
+    store: str
+    location: str
+    in_scope: int = 0
+    removed_observed: int = 0
+    removed_reported: int | None = None
+    others_delta_observed: int = 0
+    total_after: int = 0
+    left_behind: dict[str, int] = field(default_factory=dict)
+    states: dict[str, int] = field(default_factory=dict)
+    never_attempted: int = 0
+    unreadable: bool = False
+    note: str = ""
+
+    def as_dict(self) -> dict[str, Any]:
+        data: dict[str, Any] = {
+            "location": self.location,
+            "in_scope": self.in_scope,
+            "removed_observed": self.removed_observed,
+            "removed_reported": self.removed_reported,
+            "others_delta_observed": self.others_delta_observed,
+            "total_after": self.total_after,
+            "left_behind": dict(self.left_behind),
+            "unreadable": self.unreadable,
+        }
+        if self.store == _PURGE_LEDGER:
+            data["states"] = dict(self.states)
+            data["never_attempted"] = self.never_attempted
+        if self.note:
+            data["note"] = self.note
+        return data
+
+
+def _purge_usage_error(message: str) -> None:
+    """Refuse before opening any store. Exit 2: nothing was read, nothing deleted."""
+    console.print(f"[red]Error:[/red] {message}")
+    raise typer.Exit(2)
+
+
+def _purge_journal_census(journal_path: Path) -> _RawCensus:
+    """Raw ``GROUP BY project_uuid`` over the journal — the CLI's own read.
+
+    Not ``retention._journal_census``: that one composes ``distinct_project_uuids``
+    with the identity projection, which *filters falsy uuids*, so a blank-uuid row
+    reaches it only through a derived remainder. For a differential the CLI needs the
+    stored values verbatim, blank and whitespace included, each as its own bucket.
+    """
+    import sqlite3
+
+    from specify_cli.event_journal.models import COL_PROJECT_UUID, TABLE_NAME
+
+    if not journal_path.exists():
+        return _RawCensus()
+    try:
+        connection: Any = sqlite3.connect(str(journal_path))
+    except sqlite3.Error:
+        return _RawCensus(unreadable=True)
+    try:
+        # Static module-constant identifiers, no interpolated values.
+        total_row = connection.execute(f"SELECT COUNT(*) FROM {TABLE_NAME}").fetchone()  # noqa: S608
+        by_key: dict[str, int] = {}
+        for raw, count in connection.execute(
+            f"SELECT {COL_PROJECT_UUID}, COUNT(*) FROM {TABLE_NAME} GROUP BY {COL_PROJECT_UUID}"  # noqa: S608
+        ):
+            by_key[_PURGE_NULL_KEY if raw is None else str(raw)] = int(count)
+    except sqlite3.Error:
+        return _RawCensus(unreadable=True)
+    finally:
+        connection.close()
+    return _RawCensus(total=int(total_row[0]) if total_row else 0, by_key=by_key)
+
+
+def _purge_journal_ids(journal_path: Path, *, project_uuid: str | None, every_row: bool) -> list[str]:
+    """The journal ids the selector covers, resolved by the CLI's own raw read.
+
+    ``project_uuid=None`` means ``IS NULL`` (FR-011's population). Used only to
+    *measure* the ledger half — the deletion still selects through the primitives.
+    """
+    import sqlite3
+
+    from specify_cli.event_journal.models import COL_EVENT_ID, COL_PROJECT_UUID, TABLE_NAME
+
+    if not journal_path.exists():
+        return []
+    if every_row:
+        sql = f"SELECT {COL_EVENT_ID} FROM {TABLE_NAME}"  # noqa: S608
+        params: tuple[Any, ...] = ()
+    elif project_uuid is None:
+        sql = f"SELECT {COL_EVENT_ID} FROM {TABLE_NAME} WHERE {COL_PROJECT_UUID} IS NULL"  # noqa: S608
+        params = ()
+    else:
+        sql = f"SELECT {COL_EVENT_ID} FROM {TABLE_NAME} WHERE {COL_PROJECT_UUID} = ?"  # noqa: S608
+        params = (project_uuid,)
+    try:
+        connection: Any = sqlite3.connect(str(journal_path))
+    except sqlite3.Error:
+        return []
+    try:
+        return [str(row[0]) for row in connection.execute(sql, params)]
+    except sqlite3.Error:
+        return []
+    finally:
+        connection.close()
+
+
+def _purge_ledger_census(ledger_path: Path, event_ids: list[str]) -> _RawCensus:
+    """``(total rows, rows for the selected ids)`` — the ledger has no project column.
+
+    Bucketed under one synthetic key because "another project's ledger rows" is not
+    directly countable: the ledger is keyed ``(event_id, target_id)``. The change
+    outside the selection is therefore derived as *total change minus selected
+    change*, from the CLI's own counts.
+    """
+    import sqlite3
+
+    from specify_cli.delivery.ledger import LEDGER_TABLE
+    from specify_cli.event_journal.models import COL_EVENT_ID
+
+    if not ledger_path.exists():
+        return _RawCensus()
+    try:
+        connection: Any = sqlite3.connect(str(ledger_path))
+    except sqlite3.Error:
+        return _RawCensus(unreadable=True)
+    try:
+        total_row = connection.execute(f"SELECT COUNT(*) FROM {LEDGER_TABLE}").fetchone()  # noqa: S608
+        selected = 0
+        for event_id in event_ids:
+            row = connection.execute(
+                f"SELECT COUNT(*) FROM {LEDGER_TABLE} WHERE {COL_EVENT_ID} = ?",  # noqa: S608
+                (event_id,),
+            ).fetchone()
+            selected += int(row[0]) if row else 0
+    except sqlite3.Error:
+        return _RawCensus(unreadable=True)
+    finally:
+        connection.close()
+    total = int(total_row[0]) if total_row else 0
+    return _RawCensus(total=total, by_key={_PURGE_LEDGER: selected})
+
+
+def _purge_ledger_ghost_count(journal_path: Path, ledger_path: Path) -> int:
+    """Ledger rows whose ``event_id`` has no journal row at all.
+
+    Unreachable by any targeted selector, because every targeted selection collects
+    its ids *from the journal*. Not a contrived state: ``sync gc`` deletes journal
+    payload rows and preserves ledger history by design (FR-010), so every machine
+    that has run it holds some. The two stores are separate SQLite files, so this is
+    a set difference in Python rather than a join.
+    """
+    import sqlite3
+
+    from specify_cli.delivery.ledger import LEDGER_TABLE
+    from specify_cli.event_journal.models import COL_EVENT_ID
+
+    if not ledger_path.exists():
+        return 0
+    journal_ids = set(_purge_journal_ids(journal_path, project_uuid=None, every_row=True))
+    try:
+        connection: Any = sqlite3.connect(str(ledger_path))
+    except sqlite3.Error:
+        return 0
+    try:
+        return sum(
+            int(count)
+            for event_id, count in connection.execute(
+                f"SELECT {COL_EVENT_ID}, COUNT(*) FROM {LEDGER_TABLE} GROUP BY {COL_EVENT_ID}"  # noqa: S608
+            )
+            if str(event_id) not in journal_ids
+        )
+    except sqlite3.Error:
+        return 0
+    finally:
+        connection.close()
+
+
+def _purge_body_census(queue: Any | None) -> _RawCensus:
+    """``count_by_project`` for the buckets, ``size`` for the total.
+
+    Two different reads on purpose: the total cannot be affected by the attribution
+    the buckets depend on, so a population the grouping fails to return shows up as
+    ``unbucketed`` instead of vanishing from the differential.
+    """
+    if queue is None:
+        return _RawCensus()
+    try:
+        by_key = {str(key): int(value) for key, value in queue.count_by_project().items()}
+        total = int(queue.size())
+    except Exception:  # noqa: BLE001 — an unreadable store is reported, never assumed empty
+        return _RawCensus(unreadable=True)
+    return _RawCensus(total=total, by_key=by_key)
+
+
+def _purge_frames_census(repo_root: Path | None) -> _RawCensus:
+    """Count queued frames by reading ``sync-state.json`` directly.
+
+    Independent of ``census_pending_local_commits`` for a concrete reason, not a
+    theoretical one: ``load_sync_state`` resets a malformed file to an empty state
+    and never raises, so the primitive would report "0 frames" over a file still
+    holding mission slugs — client engagement names. Read here, an unparseable file
+    is a reported fault instead of a silent zero.
+    """
+    import json as _json
+
+    if repo_root is None:
+        return _RawCensus()
+    path = repo_root / _PURGE_SYNC_STATE_RELPATH
+    if not path.exists():
+        return _RawCensus()
+    try:
+        data = _json.loads(path.read_text(encoding="utf-8"))
+        frames = data["pending_local_commits"] if isinstance(data, dict) else None
+        if not isinstance(frames, list):
+            raise ValueError("pending_local_commits is not a list")
+    except Exception as exc:  # noqa: BLE001 — the fault is the finding
+        _LOG.debug("sync-state.json unreadable at %s: %s", path, exc)
+        return _RawCensus(unreadable=True)
+    by_key: dict[str, int] = {}
+    for frame in frames:
+        raw = frame.get("project_uuid") if isinstance(frame, dict) else None
+        key = _PURGE_NULL_KEY if raw is None else str(raw)
+        by_key[key] = by_key.get(key, 0) + 1
+    return _RawCensus(total=len(frames), by_key=by_key)
+
+
+def _purge_unattributable_keys(census: _RawCensus) -> frozenset[str]:
+    """Census keys that name no project: ``NULL``, ``""``, and whitespace-only."""
+    return frozenset(key for key in census.by_key if key == _PURGE_NULL_KEY or not key.strip())
+
+
+def _purge_left_behind(census: _RawCensus) -> dict[str, int]:
+    """The unattributable residue of one store, as two named counts."""
+    null_rows = census.by_key.get(_PURGE_NULL_KEY, 0)
+    blank_rows = sum(count for key, count in census.by_key.items() if key != _PURGE_NULL_KEY and not key.strip())
+    residue: dict[str, int] = {}
+    if null_rows:
+        residue["identity_null"] = null_rows
+    if blank_rows:
+        residue["identity_blank"] = blank_rows
+    return residue
+
+
+def _purge_differential(before: _RawCensus, after: _RawCensus, scope: frozenset[str]) -> tuple[int, int]:
+    """``(rows removed inside scope, absolute change outside it)``, both measured.
+
+    Absolute and over the union of both censuses, so a key that *appeared* counts as
+    a change too: a purge must neither remove nor create another project's rows, and
+    a concurrent writer is exactly as much of a finding as an over-reaching selector.
+    """
+    removed = before.count(scope) - after.count(scope)
+    keys = (set(before.by_key) | set(after.by_key)) - scope
+    others = sum(abs(after.by_key.get(key, 0) - before.by_key.get(key, 0)) for key in keys)
+    return removed, others
+
+
+def _purge_ledger_differential(before: _RawCensus, after: _RawCensus) -> tuple[int, int]:
+    """The ledger's ``(removed, changed outside the selection)``, derived not grouped.
+
+    The ledger is keyed ``(event_id, target_id)`` and carries no project column, so
+    "another project's ledger rows" cannot be grouped for. It *is* exactly derivable:
+    total change minus the change the selection accounts for. Both operands come from
+    the CLI's own two reads, so the answer can disagree with what the purge reported —
+    which is the whole point of measuring it here (NFR-006).
+    """
+    removed = before.by_key.get(_PURGE_LEDGER, 0) - after.by_key.get(_PURGE_LEDGER, 0)
+    return removed, abs((before.total - after.total) - removed)
+
+
+def _purge_stored_spelling_conflicts(selector: str, censuses: list[_RawCensus]) -> list[str]:
+    """Stored keys that mean the same project as *selector* but are spelled differently.
+
+    A real cross-store hazard rather than pedantry: the journal matches a
+    ``project_uuid`` by exact string equality, while the frame purge compares
+    case-insensitively. So an upper-cased or dash-less selector would clear a
+    checkout's frames while leaving every journal row in place, and report "0 journal
+    rows in scope" — indistinguishable from a project that was already clean.
+    """
+    from uuid import UUID
+
+    try:
+        wanted: UUID | None = UUID(selector)
+    except (ValueError, AttributeError, TypeError):
+        wanted = None
+    conflicts: set[str] = set()
+    for census in censuses:
+        for key in census.by_key:
+            if key in (selector, _PURGE_NULL_KEY) or not key.strip():
+                continue
+            same = key.strip().casefold() == selector.strip().casefold()
+            if not same and wanted is not None:
+                try:
+                    same = UUID(key.strip()) == wanted
+                except (ValueError, AttributeError, TypeError):
+                    same = False
+            if same:
+                conflicts.add(key)
+    return sorted(conflicts)
+
+
+def _purge_resolve_project(value: str, journal_path: Path, repo_root: Path | None) -> tuple[str, str | None]:
+    """Resolve ``--project`` (a uuid *or* either recorded name) to ``(uuid, matched)``.
+
+    A uuid is taken verbatim, including one no store holds: an operator must be able
+    to purge a project whose rows survive only in the body queue. A name is resolved
+    against the journal's own identity projection plus the invoking checkout's
+    declared identity, and an unknown or ambiguous name is **refused** rather than
+    run — "0 rows removed" is indistinguishable from "wrong selector", and this
+    command's report is the only record left after a purge.
+
+    **Both name columns are selectors, and that is the whole point (#3030 WP07).**
+    This resolver used to key on ``project_slug`` alone while
+    ``_project_store_label`` and ``_per_project_store_issues`` lead their label with
+    ``repo_slug`` — so ``sync doctor`` printed
+
+        ``2 project(s) ... have not consented ...: acme/app, beta/svc.``
+        ``... `spec-kitty sync purge --project <slug>` removes them.``
+
+    and the very next command refused the names it had just recommended:
+    ``No project matches slug "acme/app"``. The operator running the incident's own
+    remediation was handed a name the tool would not accept, which is exactly the
+    hand-written-SQLite detour SC-004 exists to remove. Rather than stop printing the
+    name an operator recognises, the resolver now accepts every name the report can
+    print, so the whole label chain ``repo_slug -> project_slug -> project_uuid`` is
+    copy-pasteable into the command the report recommends.
+
+    Collisions are the cost, and they are already paid: two projects can share a repo
+    slug, and a repo slug can even collide with another project's project slug. Both
+    land in the same ``name -> {uuid}`` map, so both take the existing ambiguity
+    refusal below — a purge must not span two projects, and refusing is the only safe
+    answer to a selector that means two things.
+    """
+    from uuid import UUID
+
+    raw = str(value or "").strip()
+    if not raw:
+        _purge_usage_error("--project needs a project uuid or name; a blank selector matches nothing.")
+    try:
+        UUID(raw)
+    except (ValueError, AttributeError, TypeError):
+        pass
+    else:
+        return raw, None
+
+    candidates: dict[str, set[str]] = {}
+
+    def _offer(name: str | None, uuid: str | None) -> None:
+        """Record *name* as a selector for *uuid*, if both were recorded.
+
+        The uuid guard is deliberately plain truthiness and NOT ``.strip()`` —
+        matching what this function did before repo slugs were added. Whether a
+        whitespace-only ``project_uuid`` is identity-less is a live question being
+        settled in ``delivery/status_report.py``; tightening it here as a side
+        effect of a naming change would decide it by accident, in the wrong module.
+        The name guard does strip, because a whitespace-only name would otherwise
+        key the map on ``""`` and answer for every unnamed row.
+        """
+        if name and name.strip() and uuid:
+            candidates.setdefault(name.strip().casefold(), set()).add(str(uuid))
+
+    if journal_path.exists():
+        from specify_cli.event_journal.journal import EventJournal
+
+        for row in EventJournal(journal_path).read_identity_projection_for_report():
+            _offer(row.repo_slug, row.project_uuid)
+            _offer(row.project_slug, row.project_uuid)
+    if repo_root is not None:
+        from specify_cli.identity.project import load_identity
+
+        identity = load_identity(repo_root / ".kittify" / "config.yaml")
+        _offer(identity.repo_slug, identity.project_uuid)
+        _offer(identity.project_slug, identity.project_uuid)
+
+    matches = sorted(candidates.get(raw.casefold(), set()))
+    if not matches:
+        known = ", ".join(sorted(candidates)) or "none recorded"
+        _purge_usage_error(
+            f'No project matches "{raw}". Names this machine has a record of '
+            f"(repo slugs and project slugs alike): {known}. Pass the project uuid "
+            "to purge a project whose rows carry no name."
+        )
+    if len(matches) > 1:
+        _purge_usage_error(
+            f'"{raw}" maps to {len(matches)} project uuids ({", ".join(matches)}); pass the uuid you mean — a purge must not span two projects.'
+        )
+    return matches[0], raw
+
+
+def _purge_open_body_queue(queue_path: Path) -> Any | None:
+    """The real body queue, only when its DB already exists.
+
+    Constructing it creates the file and the schema, and a purge that *materialised*
+    a store in order to report zero rows in it would be reporting on its own side
+    effect.
+    """
+    if not queue_path.exists():
+        return None
+    try:
+        from specify_cli.sync.body_queue import OfflineBodyUploadQueue
+
+        return OfflineBodyUploadQueue(db_path=queue_path)
+    except Exception as exc:  # noqa: BLE001 — reported as unreadable, never as empty
+        _LOG.debug("body-upload queue unavailable for purge: %s", exc)
+        return None
+
+
+def _purge_validate_invocation(
+    *,
+    project: str | None,
+    identity_less: bool,
+    all_events: bool,
+    apply: bool,
+    dry_run: bool,
+    confirm: str,
+    report: Path | None,
+) -> None:
+    """Refuse a malformed or unauthorised invocation before any store is opened."""
+    from specify_cli.delivery.retention import PURGE_ALL_CONFIRMATION
+
+    if report is not None:
+        # Checked before anything is deleted, not at write time. The ledger rows this
+        # command removes are the only durable record of what happened to those
+        # events, so discovering an unwritable report path *after* the delete would
+        # destroy the record and the report of it in one run.
+        try:
+            report.parent.mkdir(parents=True, exist_ok=True)
+            report.touch()
+        except OSError as exc:
+            _purge_usage_error(f"--report path is not writable ({report}): {exc}")
+
+    if apply and dry_run:
+        _purge_usage_error("--apply and --dry-run are mutually exclusive.")
+    selectors = [project is not None, identity_less, all_events]
+    if not any(selectors):
+        _purge_usage_error(
+            "Choose exactly one of --project <slug-or-uuid>, --identity-less or --all."
+        )
+    if sum(1 for chosen in selectors if chosen) > 1:
+        _purge_usage_error("--project, --identity-less and --all are mutually exclusive.")
+
+    # The confirmation phrase gates the destructive `--all` run before anything is
+    # opened. `purge_all_events` enforces the same phrase — that check is the pinned
+    # one and it still runs — but it can only speak for the journal and the ledger,
+    # while the body queue and the frame queue have no gate of their own. One phrase,
+    # one constant, authorising all four stores (C-002, FR-017).
+    if all_events and apply and confirm != PURGE_ALL_CONFIRMATION:
+        console.print(
+            "[red]Refused:[/red] a destructive --all run requires "
+            f'--confirm "{PURGE_ALL_CONFIRMATION}". Nothing was deleted. Run without '
+            "--apply first — its reported counts are exactly what a confirmed run removes."
+        )
+        raise typer.Exit(1)
+
+
+def _purge_journal_selection(
+    journal_path: Path,
+    census: _RawCensus,
+    *,
+    all_events: bool,
+    identity_less: bool,
+    selector_uuid: str,
+) -> tuple[frozenset[str], list[str]]:
+    """``(census keys in scope, journal ids in scope)`` for this selector."""
+    if all_events:
+        return frozenset(census.by_key), _purge_journal_ids(
+            journal_path, project_uuid=None, every_row=True
+        )
+    if identity_less:
+        return frozenset({_PURGE_NULL_KEY}), _purge_journal_ids(
+            journal_path, project_uuid=None, every_row=False
+        )
+    return frozenset({selector_uuid}), _purge_journal_ids(
+        journal_path, project_uuid=selector_uuid, every_row=False
+    )
+
+
+def _purge_ledger_view(census: _RawCensus, *, all_events: bool) -> _RawCensus:
+    """The ledger census as the selector sees it.
+
+    ``--all`` covers the ledger's own rows — including the ghosts whose journal row
+    ``sync gc`` already removed, which no journal-derived id list can name — so the
+    selected count is the whole table.
+    """
+    if not all_events:
+        return census
+    return _RawCensus(
+        total=census.total,
+        by_key={_PURGE_LEDGER: census.total},
+        unreadable=census.unreadable,
+    )
+
+
+def _purge_run_journal_ledger(
+    journal_path: Path,
+    ledger_path: Path,
+    *,
+    all_events: bool,
+    identity_less: bool,
+    selector_uuid: str,
+    dry_run: bool,
+    confirm: str,
+) -> Any | None:
+    """Run the journal+ledger purge primitive for this selector, or ``None``.
+
+    ``None`` when no journal exists: there is nothing to purge, and opening
+    ``EventJournal`` would *create* the store — a purge that materialised a store in
+    order to report zero rows in it would be reporting on its own side effect.
+    """
+    from specify_cli.delivery.ledger import SqliteDeliveryLedger
+    from specify_cli.delivery.retention import (
+        PurgeNotConfirmedError,
+        purge_all_events,
+        purge_identity_less_events,
+        purge_project_events,
+    )
+    from specify_cli.event_journal.journal import EventJournal
+
+    if not journal_path.exists():
+        return None
+    journal = EventJournal(journal_path)
+    ledger = SqliteDeliveryLedger(str(ledger_path) if ledger_path.exists() else ":memory:")
+    try:
+        if all_events:
+            return purge_all_events(
+                journal=journal, ledger=ledger, dry_run=dry_run, confirmation=confirm
+            )
+        if identity_less:
+            return purge_identity_less_events(
+                journal=journal, ledger=ledger, dry_run=dry_run
+            )
+        return purge_project_events(
+            selector_uuid, journal=journal, ledger=ledger, dry_run=dry_run
+        )
+    except PurgeNotConfirmedError as exc:
+        console.print(f"[red]Refused:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    finally:
+        ledger.close()
+
+
+def _purge_frames_scope(
+    census: _RawCensus, frames_result: Any | None, *, all_events: bool, selector_uuid: str
+) -> frozenset[str]:
+    """The frame-census keys this run claims, as the primitive itself scoped them."""
+    if all_events:
+        return frozenset(census.by_key)
+    if frames_result is None:
+        return frozenset()
+    if frames_result.unattributed_in_scope:
+        # This checkout declares the target as its own project, so its unattributable
+        # frames are its own content and are in scope — the pre-fix population the
+        # incident actually produced, which carries no `project_uuid` at all.
+        return frozenset({selector_uuid}) | _purge_unattributable_keys(census)
+    return frozenset({selector_uuid})
+
+
+def _purge_selector_line(
+    *, project: str | None, identity_less: bool, selector_uuid: str, matched_slug: str | None
+) -> str:
+    if project is not None:
+        matched = f' (matched slug "{matched_slug}")' if matched_slug else ""
+        return f"Selector: project [bold]{selector_uuid}[/bold]{matched}"
+    if identity_less:
+        return "Selector: journal rows with no project identity (NULL)"
+    return "Selector: [bold]every event[/bold] in the stores named below"
+
+
+def _purge_run_body_queue(
+    body_queue: Any,
+    census: _RawCensus,
+    *,
+    all_events: bool,
+    selector_uuid: str,
+    dry_run: bool,
+    confirm: str,
+) -> tuple[frozenset[str], int]:
+    """``(census keys in scope, rows the primitive reports removing)`` for this store.
+
+    Two selectors, one per primitive, and the total one is **not** the union of the
+    per-project one. ``remove_project_tasks`` strips its argument and returns 0 for a
+    falsy one, so a row whose ``project_uuid`` is blank or padded is reachable by no
+    project value at all — which is why fanning ``--all`` out over the census keys
+    (what this did before ``purge_all_body_uploads`` existed) could not empty the
+    store and had to report those rows as reachable by nothing.
+
+    The returned count is what the primitive *claims*; the differential the operator
+    is shown is measured separately from this module's own two censuses (NFR-006).
+    """
+    from specify_cli.delivery.retention import (
+        PurgeNotConfirmedError,
+        purge_all_body_uploads,
+        purge_project_body_uploads,
+    )
+
+    if not all_events:
+        result = purge_project_body_uploads(
+            selector_uuid, body_queue=body_queue, dry_run=dry_run
+        )
+        return frozenset({selector_uuid}), result.removed
+
+    try:
+        total = purge_all_body_uploads(
+            body_queue=body_queue, dry_run=dry_run, confirmation=confirm
+        )
+    except PurgeNotConfirmedError as exc:
+        console.print(f"[red]Refused:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    return frozenset(census.by_key), total.removed
+
+
+def _purge_outcomes(
+    *,
+    before: dict[str, _RawCensus],
+    after: dict[str, _RawCensus],
+    scopes: dict[str, frozenset[str]],
+    locations: dict[str, str],
+    reported: dict[str, int | None],
+    result: Any | None,
+    ghosts_before: int,
+    identity_less: bool,
+    in_checkout: bool,
+    frames_census_reported: int,
+) -> dict[str, _PurgeStoreOutcome]:
+    """Assemble the per-store outcome from the two independent censuses.
+
+    ``removed_reported`` is carried alongside ``removed_observed`` rather than instead
+    of it: the report shows what the purge said *and* what the stores show, so a
+    disagreement is visible instead of averaged away.
+    """
+    outcomes: dict[str, _PurgeStoreOutcome] = {}
+    for store in (_PURGE_JOURNAL, _PURGE_LEDGER, _PURGE_BODY, _PURGE_FRAMES):
+        if store == _PURGE_LEDGER:
+            removed, others = _purge_ledger_differential(before[store], after[store])
+        else:
+            removed, others = _purge_differential(before[store], after[store], scopes[store])
+        outcomes[store] = _PurgeStoreOutcome(
+            store=store,
+            location=locations[store],
+            in_scope=before[store].count(scopes[store]),
+            removed_observed=removed,
+            removed_reported=reported[store],
+            others_delta_observed=others,
+            total_after=after[store].total,
+            left_behind=_purge_left_behind(after[store]),
+            unreadable=before[store].unreadable or after[store].unreadable,
+        )
+
+    ledger = outcomes[_PURGE_LEDGER]
+    ledger.left_behind = {"without_journal_row": ghosts_before} if ghosts_before else {}
+    if result is not None:
+        ledger.states = {
+            str(name): int(count) for name, count in result.ledger_status_before.items()
+        }
+        ledger.never_attempted = result.never_attempted
+
+    if identity_less:
+        note = (
+            "not spanned by --identity-less: unattributable rows here cannot be "
+            "attributed to any project, and only --all reaches them"
+        )
+        outcomes[_PURGE_BODY].note = note
+        outcomes[_PURGE_FRAMES].note = note
+    if not in_checkout:
+        outcomes[_PURGE_FRAMES].note = (
+            "no checkout resolved from the current directory, so no local-commit queue "
+            "was inspected — re-run from inside the checkout"
+        )
+    elif before[_PURGE_FRAMES].unreadable:
+        outcomes[_PURGE_FRAMES].note = (
+            f"the purge's own census reads {frames_census_reported} queued frame(s) from "
+            "a file this command could not parse, so that number is not evidence of "
+            "what the file holds — repair or remove the file and re-run"
+        )
+    return outcomes
+
+
+def _purge_not_reached(
+    *,
+    after: dict[str, _RawCensus],
+    journal_scope: frozenset[str],
+    frames_scope: frozenset[str],
+    body_scope: frozenset[str],
+    ghosts_before: int,
+    all_events: bool,
+) -> list[dict[str, Any]]:
+    """Name every population this run leaves behind, with its count and its selector.
+
+    A residue nobody names is the same defect as a report that overstates. All five
+    are real rather than hypothetical: the NULL-identity rows the backfill must not
+    delete (C-002), the non-NULL blank and whitespace-only uuids that are visible in
+    the census and reachable by no targeted selector, the ledger rows whose journal row
+    ``sync gc`` already removed (so every machine that has run it holds some), the
+    body-upload rows no *project* selector reaches, and the pre-fix frames of a
+    checkout that vouches for nothing.
+
+    Every population is filtered against the scope this run actually claimed, so a
+    row the current selector already covers is not also listed as left behind.
+    """
+    rows: list[dict[str, Any]] = []
+
+    def add(
+        population: str, description: str, count: int | None, reachable_by: str, text: str
+    ) -> None:
+        rows.append(
+            {
+                "population": population,
+                "description": description,
+                "count": count,
+                "reachable_by": reachable_by,
+                "reachable_by_text": text,
+            }
+        )
+
+    journal = after[_PURGE_JOURNAL]
+    null_left = journal.by_key.get(_PURGE_NULL_KEY, 0)
+    if null_left and _PURGE_NULL_KEY not in journal_scope:
+        add(
+            "journal_identity_null",
+            "journal rows with a NULL project identity",
+            null_left,
+            "--identity-less",
+            "permanently undeliverable and matchable by no project; run "
+            "`sync purge --identity-less`",
+        )
+    blank_left = sum(
+        count
+        for key, count in journal.by_key.items()
+        if key != _PURGE_NULL_KEY and not key.strip() and key not in journal_scope
+    )
+    if blank_left:
+        add(
+            "journal_identity_blank",
+            "journal rows whose project_uuid is blank or whitespace-only",
+            blank_left,
+            "--all",
+            "visible in the census and selectable by nothing else: a project purge "
+            "blanks a falsy selector and the identity-less selector is NULL-only, so "
+            "only `sync purge --all` reaches them",
+        )
+    if ghosts_before:
+        add(
+            "ledger_without_journal_row",
+            "delivery-ledger rows whose journal row is already gone",
+            ghosts_before,
+            "--all",
+            "every targeted selection collects its ids from the journal, and `sync gc` "
+            "removes journal rows while preserving ledger history by design",
+        )
+    body_blank = sum(
+        count
+        for key, count in after[_PURGE_BODY].by_key.items()
+        if (not key or key != key.strip()) and key not in body_scope
+    )
+    if body_blank:
+        add(
+            "body_uploads_identity_blank",
+            "queued document bodies whose project_uuid is blank or padded",
+            body_blank,
+            "--all",
+            "the queue's per-project removal strips its argument and refuses a falsy "
+            "one, so no --project value reaches these rows; `sync purge --all` clears "
+            "the store outright and is the only selector that does",
+        )
+    frames_unattributed = sum(
+        count
+        for key, count in after[_PURGE_FRAMES].by_key.items()
+        if (key == _PURGE_NULL_KEY or not key.strip()) and key not in frames_scope
+    )
+    if frames_unattributed:
+        add(
+            "local_commit_frames_unattributed",
+            "queued local-commit frames carrying no project_uuid",
+            frames_unattributed,
+            "--all",
+            "this checkout does not declare the purged project as its own, so it "
+            "vouches for nothing; `sync purge --all` run from the owning checkout "
+            "reaches them",
+        )
+    if all_events:
+        add(
+            "local_commit_frames_other_checkouts",
+            "other checkouts' queued local-commit frames",
+            None,
+            "run this command from each checkout",
+            "per-checkout state with no registry to enumerate it — deliberately not "
+            "counted, because a count that cannot be proven complete would be worse "
+            "than none",
+        )
+    return rows
+
+
+def _purge_faults(
+    *,
+    outcomes: dict[str, _PurgeStoreOutcome],
+    before: dict[str, _RawCensus],
+    after: dict[str, _RawCensus],
+    apply: bool,
+    others_total: int,
+    frames_census_reported: int,
+    frames_census_disagrees: bool,
+) -> list[str]:
+    """Everything the measurements say went wrong. Empty means NFR-006 held.
+
+    Each entry is a disagreement between two independently obtained numbers, never a
+    restatement of one of them: the stores' own before/after against what the purge
+    reported, and the purge's census of the frame file against the file itself.
+    """
+    faults: list[str] = []
+    if frames_census_disagrees:
+        faults.append(
+            f"{_PURGE_STORE_LABELS[_PURGE_FRAMES]}: the purge's census reads "
+            f"{frames_census_reported} queued frame(s) where the file holds "
+            f"{before[_PURGE_FRAMES].total} — the purge is not acting on the file's "
+            "actual contents."
+        )
+    if apply:
+        faults.extend(
+            f"{_PURGE_STORE_LABELS[store]}: unreadable, so a destructive run cannot "
+            "claim to have cleared it."
+            for store, outcome in outcomes.items()
+            if outcome.unreadable
+        )
+    if others_total:
+        faults.append(
+            f"{others_total} row(s) outside the selection changed. Either the purge "
+            "over-reached or another writer (a running sync daemon, a concurrent "
+            "capture) touched a store during the run — stop the daemon and re-measure "
+            "before trusting this report."
+        )
+    for store, outcome in outcomes.items():
+        expected = outcome.in_scope if apply else 0
+        if outcome.removed_observed != expected:
+            faults.append(
+                f"{_PURGE_STORE_LABELS[store]}: expected {expected} row(s) to go, "
+                f"measured {outcome.removed_observed}."
+            )
+        # The journal's reported count is not comparable under `--all`: that selection
+        # deliberately includes ledger-only ids that were never journal rows.
+        if (
+            apply
+            and store != _PURGE_JOURNAL
+            and outcome.removed_reported is not None
+            and outcome.removed_reported != outcome.removed_observed
+        ):
+            faults.append(
+                f"{_PURGE_STORE_LABELS[store]}: the purge reported "
+                f"{outcome.removed_reported} removed, the store shows "
+                f"{outcome.removed_observed}."
+            )
+        # The ledger census is deliberately partial — one synthetic bucket for the
+        # selection, because the store has no project column to group by — so its
+        # totality is enforced by `_purge_ledger_differential`'s derivation instead.
+        if store != _PURGE_LEDGER and (before[store].unbucketed or after[store].unbucketed):
+            faults.append(
+                f"{_PURGE_STORE_LABELS[store]}: rows exist that the per-project census "
+                "cannot account for, so this store's differential is not trustworthy."
+            )
+    return faults
+
+
+def _purge_print_verdict(faults: list[str], *, apply: bool, all_events: bool) -> None:
+    """State what the measurements support, and never more than that."""
+    if apply:
+        console.print(f"\n[dim]{_PURGE_NON_ATOMIC_NOTE}[/dim]")
+    if faults:
+        console.print("\n[bold red]NFR-006 not satisfied[/bold red]")
+        for fault in faults:
+            console.print(f"  [red]•[/red] {fault}")
+        return
+    scope_claim = (
+        "nothing outside the scope named above changed"
+        if all_events
+        else "0 rows belonging to any other project changed"
+    )
+    console.print(
+        "\n[green]Differential verified against the stores[/green] (measured by "
+        f"re-reading them, not by summing what the purge reported): {scope_claim}."
+    )
+
+
+def _purge_render(
+    *,
+    selector_line: str,
+    dry_run: bool,
+    outcomes: dict[str, _PurgeStoreOutcome],
+    not_reached: list[dict[str, Any]],
+    scope_note: str | None,
+) -> None:
+    """Print the operator's report: the plan, the residue, and the scope."""
+    header = (
+        "[bold yellow]DRY RUN[/bold yellow] — no rows have been deleted"
+        if dry_run
+        else "[bold red]APPLIED[/bold red] — rows have been deleted"
+    )
+    console.print(f"\n[bold]Purge[/bold] {header}")
+    console.print(selector_line)
+
+    table = Table(show_header=True, header_style="bold cyan", box=None, pad_edge=False)
+    table.add_column("Store")
+    table.add_column("Location", overflow="fold")
+    table.add_column("In scope", justify="right")
+    table.add_column("Removed", justify="right")
+    table.add_column("Store total after", justify="right")
+    for store, outcome in outcomes.items():
+        table.add_row(
+            _PURGE_STORE_LABELS[store],
+            outcome.location,
+            str(outcome.in_scope),
+            str(outcome.removed_observed),
+            str(outcome.total_after),
+        )
+    console.print(table)
+
+    ledger = outcomes[_PURGE_LEDGER]
+    states = "  ".join(f"{name}={count}" for name, count in sorted(ledger.states.items()))
+    console.print(
+        "Delivery state of the events in scope: "
+        f"{states or 'no delivery attempt recorded'}"
+        f"  never-attempted={ledger.never_attempted}"
+    )
+    console.print(
+        "[dim]The ledger rows are deleted, so this breakdown is the only surviving "
+        "record of what happened to those events. Keep it (--report writes it as "
+        "JSON).[/dim]"
+    )
+
+    for outcome in outcomes.values():
+        if outcome.unreadable:
+            console.print(
+                f"[yellow]Warning:[/yellow] the {_PURGE_STORE_LABELS[outcome.store]} store "
+                f"could not be read ({outcome.location}). Its rows are NOT accounted for "
+                "above — treat this purge as incomplete until the store is readable."
+            )
+        if outcome.note:
+            console.print(f"[dim]{_PURGE_STORE_LABELS[outcome.store]}: {outcome.note}[/dim]")
+
+    if all(outcome.in_scope == 0 for outcome in outcomes.values()):
+        # "0 rows removed" and "wrong selector" look identical in a count, and this
+        # report is the operator's only record. Say which one it is.
+        console.print(
+            "[yellow]Nothing matched this selector in any store.[/yellow] If rows were "
+            "expected, check the value: these stores are keyed by project uuid, and "
+            "`spec-kitty sync doctor` lists the projects the journal actually holds."
+        )
+
+    if not_reached:
+        console.print("\n[bold]Not reached by this purge[/bold]")
+        for row in not_reached:
+            count = "unknown" if row["count"] is None else str(row["count"])
+            console.print(f"  • {row['description']}: {count} — {row['reachable_by_text']}")
+
+    if scope_note:
+        console.print(f"\n[bold yellow]{scope_note}[/bold yellow]")
+
+
+@app.command()
+def purge(
+    project: str = typer.Option(
+        None,
+        "--project",
+        help=(
+            "Purge one project's rows, by project uuid, project slug or repo slug "
+            "— any name `sync doctor` / `sync status` prints for the project. "
+            "Dry-run unless --apply is given."
+        ),
+    ),
+    identity_less: bool = typer.Option(
+        False,
+        "--identity-less",
+        help=(
+            "Purge journal/ledger rows whose project identity is NULL — permanently "
+            "undeliverable rows that no project selector can match."
+        ),
+    ),
+    all_events: bool = typer.Option(
+        False,
+        "--all",
+        help=(
+            "Purge every row of this machine's journal, delivery ledger and "
+            "body-upload queue, plus THIS checkout's queued local-commit frames. "
+            "Requires --confirm with the confirmation phrase."
+        ),
+    ),
+    apply: bool = typer.Option(
+        False, "--apply", help="Actually delete. Without it this command only reports."
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Report only, deleting nothing (this is the default)."
+    ),
+    confirm: str = typer.Option(
+        "",
+        "--confirm",
+        help=(
+            "Confirmation phrase authorising a destructive --all run. Run without it "
+            "once; the refusal names the exact phrase and deletes nothing."
+        ),
+    ),
+    report: Path = typer.Option(
+        None,
+        "--report",
+        help=(
+            "Write the purge report as JSON. Worth doing: the ledger rows this purge "
+            "deletes are the only durable record of what happened to those events."
+        ),
+    ),
+) -> None:
+    """Remove a project's retained event data from every store that holds it (FR-016/FR-017).
+
+    **Dry-run by default.** Reports per-store, per-delivery-state counts and changes
+    nothing; what it predicts is exactly what ``--apply`` then deletes. Deletion is
+    only ever the operator's explicit act (C-002) — nothing here runs unattended.
+
+    Four stores hold a project's data and all four are covered: the event journal,
+    the delivery ledger (removed, not retained — an orphan ledger row can quote the
+    project it belonged to), the body-upload queue (verbatim ``spec.md`` /
+    ``plan.md`` text, not envelopes), and this checkout's queued local-commit frames
+    (whose ``changed_files`` are mission slugs).
+
+    Every count in the differential is measured by re-reading the stores rather than
+    by adding up what the purge reports deleting, and the report names the
+    populations a targeted purge cannot reach instead of quietly leaving them out.
+
+    ``--all`` is per-checkout for the local-commit frames and the report says so:
+    the other three stores are machine-global, but there is no registry of checkouts,
+    so another checkout's queued frames are neither listed nor touched.
+
+    Examples:
+        spec-kitty sync purge --project acme-migration
+        spec-kitty sync purge --project acme-migration --apply --report purge.json
+        spec-kitty sync purge --all
+        spec-kitty sync purge --all --apply --confirm "purge all events"
+    """
+    import json as _json
+
+    from specify_cli.core.paths import locate_project_root
+    from specify_cli.delivery.retention import (
+        ProjectPurgeResult,
+        resolve_live_store_paths,
+    )
+    from specify_cli.sync.local_commit import (
+        census_pending_local_commits,
+        purge_all_pending_local_commits,
+        purge_pending_local_commits,
+    )
+    from specify_cli.sync.queue import default_queue_db_path
+
+    _purge_validate_invocation(
+        project=project,
+        identity_less=identity_less,
+        all_events=all_events,
+        apply=apply,
+        dry_run=dry_run,
+        confirm=confirm,
+        report=report,
+    )
+
+    journal_path, ledger_path = resolve_live_store_paths()
+    queue_path = default_queue_db_path()
+    repo_root = locate_project_root(Path.cwd())
+    frames_location = str(repo_root / _PURGE_SYNC_STATE_RELPATH) if repo_root is not None else "no Spec Kitty checkout resolved from the current directory"
+
+    body_queue = _purge_open_body_queue(queue_path)
+    before = {
+        _PURGE_JOURNAL: _purge_journal_census(journal_path),
+        _PURGE_BODY: _purge_body_census(body_queue),
+        _PURGE_FRAMES: _purge_frames_census(repo_root),
+    }
+    # What the purge's own census sees, taken at the same instant as the CLI's raw
+    # read of the same file so the two are comparable. Not decoration:
+    # ``load_sync_state`` resets a malformed file to empty and never raises, so a
+    # disagreement means the purge is about to act on a picture the file does not
+    # support — the case where it reports "0 frames" over a file full of mission
+    # slugs, i.e. client engagement names.
+    frames_census_reported = sum(census_pending_local_commits(repo_root).values()) if repo_root is not None else 0
+    frames_census_disagrees = repo_root is not None and not before[_PURGE_FRAMES].unreadable and frames_census_reported != before[_PURGE_FRAMES].total
+
+    selector_uuid = ""
+    matched_slug: str | None = None
+    if project is not None:
+        selector_uuid, matched_slug = _purge_resolve_project(project, journal_path, repo_root)
+        conflicts = _purge_stored_spelling_conflicts(selector_uuid, [before[_PURGE_JOURNAL], before[_PURGE_BODY], before[_PURGE_FRAMES]])
+        if conflicts:
+            _purge_usage_error(
+                f'"{selector_uuid}" is not how these stores spell that project. They hold '
+                f"{', '.join(repr(key) for key in conflicts)}. Re-run with the stored "
+                "spelling: the journal matches a uuid exactly while the frame queue "
+                "compares case-insensitively, so a mixed selector would clear one store "
+                "and silently miss the other."
+            )
+
+    # ---- selection scopes, expressed as census keys ------------------------ #
+    journal_scope, journal_ids = _purge_journal_selection(
+        journal_path,
+        before[_PURGE_JOURNAL],
+        all_events=all_events,
+        identity_less=identity_less,
+        selector_uuid=selector_uuid,
+    )
+    before[_PURGE_LEDGER] = _purge_ledger_view(
+        _purge_ledger_census(ledger_path, journal_ids), all_events=all_events
+    )
+    ledger_scope = frozenset({_PURGE_LEDGER})
+    ghosts_before = 0 if all_events else _purge_ledger_ghost_count(journal_path, ledger_path)
+
+    # ---- run the primitives ----------------------------------------------- #
+    result: ProjectPurgeResult | None = _purge_run_journal_ledger(
+        journal_path,
+        ledger_path,
+        all_events=all_events,
+        identity_less=identity_less,
+        selector_uuid=selector_uuid,
+        dry_run=not apply,
+        confirm=confirm,
+    )
+
+    body_removed_reported = 0
+    body_scope: frozenset[str] = frozenset()
+    if body_queue is not None and not identity_less:
+        body_scope, body_removed_reported = _purge_run_body_queue(
+            body_queue,
+            before[_PURGE_BODY],
+            all_events=all_events,
+            selector_uuid=selector_uuid,
+            dry_run=not apply,
+            confirm=confirm,
+        )
+
+    frames_result = None
+    if repo_root is not None and not identity_less:
+        if all_events:
+            frames_result = purge_all_pending_local_commits(repo_root, dry_run=not apply)
+        else:
+            frames_result = purge_pending_local_commits(repo_root, selector_uuid, dry_run=not apply)
+    frames_scope = _purge_frames_scope(
+        before[_PURGE_FRAMES],
+        frames_result,
+        all_events=all_events,
+        selector_uuid=selector_uuid,
+    )
+
+    # ---- measure again, independently ------------------------------------- #
+    after = {
+        _PURGE_JOURNAL: _purge_journal_census(journal_path),
+        _PURGE_LEDGER: _purge_ledger_view(
+            _purge_ledger_census(ledger_path, journal_ids), all_events=all_events
+        ),
+        _PURGE_BODY: _purge_body_census(body_queue),
+        _PURGE_FRAMES: _purge_frames_census(repo_root),
+    }
+
+    scopes = {
+        _PURGE_JOURNAL: journal_scope,
+        _PURGE_LEDGER: ledger_scope,
+        _PURGE_BODY: body_scope,
+        _PURGE_FRAMES: frames_scope,
+    }
+    locations = {
+        _PURGE_JOURNAL: str(journal_path),
+        _PURGE_LEDGER: str(ledger_path),
+        _PURGE_BODY: str(queue_path),
+        _PURGE_FRAMES: frames_location,
+    }
+    reported = {
+        _PURGE_JOURNAL: None if result is None else result.purged_count,
+        _PURGE_LEDGER: None if result is None else result.ledger_rows_removed,
+        _PURGE_BODY: body_removed_reported,
+        _PURGE_FRAMES: None if frames_result is None else frames_result.removed,
+    }
+
+    outcomes = _purge_outcomes(
+        before=before,
+        after=after,
+        scopes=scopes,
+        locations=locations,
+        reported=reported,
+        result=result,
+        ghosts_before=ghosts_before,
+        identity_less=identity_less,
+        in_checkout=repo_root is not None,
+        frames_census_reported=frames_census_reported,
+    )
+
+    not_reached = _purge_not_reached(
+        after=after,
+        journal_scope=journal_scope,
+        frames_scope=frames_scope,
+        body_scope=body_scope,
+        ghosts_before=ghosts_before,
+        all_events=all_events,
+    )
+
+    scope_note = _PURGE_ALL_SCOPE_NOTE.format(frames_path=frames_location) if all_events else None
+    selector_line = _purge_selector_line(
+        project=project,
+        identity_less=identity_less,
+        selector_uuid=selector_uuid,
+        matched_slug=matched_slug,
+    )
+
+    _purge_render(
+        selector_line=selector_line,
+        dry_run=not apply,
+        outcomes=outcomes,
+        not_reached=not_reached,
+        scope_note=scope_note,
+    )
+
+    # ---- the verdict, from the measurements ------------------------------- #
+    others_total = sum(outcome.others_delta_observed for outcome in outcomes.values())
+    faults = _purge_faults(
+        outcomes=outcomes,
+        before=before,
+        after=after,
+        apply=apply,
+        others_total=others_total,
+        frames_census_reported=frames_census_reported,
+        frames_census_disagrees=frames_census_disagrees,
+    )
+
+    _purge_print_verdict(faults, apply=apply, all_events=all_events)
+
+    if report is not None:
+        payload = {
+            "generated_at": now_utc_iso(),
+            "selector": {
+                "kind": "project" if project is not None else ("identity-less" if identity_less else "all"),
+                "project_uuid": selector_uuid or None,
+                "matched_slug": matched_slug,
+            },
+            "dry_run": not apply,
+            "applied": bool(apply),
+            "stores": {store: outcome.as_dict() for store, outcome in outcomes.items()},
+            "others_delta_total": others_total,
+            "nfr_006_satisfied": not faults,
+            "faults": faults,
+            "not_reached": not_reached,
+            "scope_note": scope_note,
+        }
+        report.write_text(_json.dumps(payload, indent=2), encoding="utf-8")
+        console.print(f"[cyan]Purge report written to {report}[/cyan]")
+
+    if faults:
+        raise typer.Exit(1)
+
+
 @app.command()
 def migrate(
     no_cleanup: bool = typer.Option(
@@ -2446,6 +4543,16 @@ def migrate(
             "Explicit operator recovery; never overwrites the journal."
         ),
     ),
+    backfill_consent_index: bool = typer.Option(
+        False,
+        "--backfill-consent-index",
+        help=(
+            "Also map path-keyed consent records onto the uuid-keyed index the "
+            "drain reads. WRITES machine-global consent records, and the uuid "
+            "index outranks a repo default — so this can change a project's "
+            "effective answer. Opt-in for that reason; every change is listed."
+        ),
+    ),
 ) -> None:
     """Migrate legacy hash-scoped queue DBs into the append-only event journal.
 
@@ -2465,6 +4572,20 @@ def migrate(
     the audit quarantine and the source row removed, so the boundary can
     converge. The journal is never overwritten. Exits non-zero when unresolved
     conflicts still block cleanup (SC-011).
+
+    Convergence also projects each row's stored identity into the journal's
+    ``project_uuid``/``project_slug``/``repo_slug`` columns (#3030 H4). A row with a
+    NULL ``project_uuid`` is permanently unselectable, so before this ran every
+    pre-mission row — including the operator's own consenting project's history —
+    was undeliverable forever. Identity is only recovered from the row's own stored
+    envelope, never invented, so a row that carries none stays NULL and stays
+    unselectable.
+
+    ``--backfill-consent-index`` additionally maps path-keyed consent records onto
+    the uuid index. That one is opt-in because it writes machine-global consent
+    state and the uuid index outranks a repo default, so it can flip a project from
+    denied to delivering; every mapped project and every unresolvable record is
+    listed.
 
     Examples:
         spec-kitty sync migrate
@@ -2497,11 +4618,20 @@ def migrate(
             resolve_conflicts=(resolve_conflicts == "keep-journal"),
             cleanup=not no_cleanup,
         )
+        # FR-015: captured inside the try so the journal handle and the imported-id
+        # list are taken from the same runtime that performed the migration, then
+        # rendered below as a breakdown of the aggregate counts.
+        moved_event_ids = converge.migration.imported_event_ids
+        moved_journal = runtime.journal
     finally:
         with contextlib.suppress(Exception):
             audit.close()
         runtime.close()
     _print_migration_result(converge.migration)
+    _print_identity_backfill_result(converge.identity_backfill)
+    if backfill_consent_index:
+        _run_consent_index_backfill()
+    _render_migrated_composition(moved_journal, moved_event_ids)
     if converge.resolution is not None:
         _print_resolution_result(converge.resolution)
     if converge.cleanup is not None:
@@ -3170,6 +5300,18 @@ def status(  # noqa: C901
         console.print("[green]Queue empty -- all events synced.[/green]")
         console.print()
 
+    # --- Per-project journal composition (#3030 T021 / FR-015, SC-004) -----
+    # Placed immediately after the queue-health block for the same reason as in
+    # `doctor`: "Queue empty -- all events synced" is read off the legacy
+    # `OfflineQueue`, which `sync migrate` empties. Left alone it is the sentence
+    # that made the 2026-07-27 incident invisible for weeks. `status` has no
+    # global issues list, so the warnings are printed inline here.
+    journal_issues: list[str] = []
+    _render_per_project_store(console, journal_issues)
+    for issue in journal_issues:
+        console.print(f"  [yellow]![/yellow] {issue}")
+    console.print()
+
     # --- Identity Boundary section (WP03 / FR-008) -------------------------
     # The boundary view answers: "who do I think I am, who does the recorded
     # daemon think it is, and what state is sitting in the legacy/scoped
@@ -3781,6 +5923,21 @@ def doctor() -> None:  # noqa: C901
             )
 
     console.print(table)
+    console.print()
+
+    # --- 3c. Per-project journal composition (#3030 T021 / FR-015, SC-004) ---
+    # Deliberately rendered right below the queue-health rows it contradicts.
+    # "Queue size 0" above comes from `OfflineQueue().get_queue_stats()`, which
+    # `sync migrate` empties; this section reads the journal those events actually
+    # live in. Throughout the 2026-07-27 incident the block above said healthy
+    # while 9,133 journal events — 1,322 from projects that never opted in — sat
+    # on disk, and the contamination was only found by hand-querying SQLite.
+    _render_per_project_store(console, issues)
+    # --- 3d. Can those consent states be trusted at all? (#3030 FR-020, SC-004) ---
+    # Directly below the table whose "Consent" column it qualifies. Every state in
+    # that column comes from a read that can fault, and a fault reads as ABSENCE
+    # unless something says otherwise — which is the whole of FR-020.
+    _render_consent_readability(console, issues)
     console.print()
 
     if singleton_report is not None and singleton_report.orphan_count > 0:

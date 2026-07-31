@@ -61,7 +61,13 @@ from .clock import LamportClock
 from .config import SyncConfig
 from .feature_flags import is_saas_sync_enabled
 from .queue import OfflineQueue
-from .routing import is_sync_enabled_for_checkout
+
+# ``routing.is_sync_enabled_for_checkout`` is deliberately NOT imported here any more
+# (#3030 M1-1). It answers for ``Path.cwd()``, and every consent question this module
+# asks is now keyed on the *event's own* ``project_uuid`` through ``sync/consent.py``.
+# Re-adding it would reintroduce the cwd-vs-identity substitution in a module whose
+# emitter is a long-lived singleton under ``SyncRuntime``. Tests that steered the old
+# seam were patching a name production no longer consults.
 
 logger = logging.getLogger(__name__)
 
@@ -1862,8 +1868,9 @@ class EventEmitter:
     # Drain blocked reason taxonomy — see issue #1072.
     #
     # ``None``            event is ready to drain to SaaS.
-    # ``"sync_disabled"`` SaaS sync is opted out for this checkout
-    #                     (feature flag off or local override).
+    # ``"sync_disabled"`` SaaS sync is off machine-wide, or **this event's own
+    #                     project** has not consented to hosted sync (#3030 M1-1;
+    #                     it used to mean "the checkout cwd happens to be in").
     # ``"no_auth"``       no authenticated session; drain cannot ship.
     # ``"no_team"``       authenticated but the strict Private Teamspace
     #                     resolver returned None (ingress safety).
@@ -1877,17 +1884,44 @@ class EventEmitter:
     # None.
     DRAIN_BLOCKED_REASONS = frozenset({"sync_disabled", "no_auth", "no_team"})
 
-    def _classify_drain_blocked_reason(self, team_slug: str | None) -> str | None:
+    def _classify_drain_blocked_reason(
+        self, team_slug: str | None, *, project_uuid: str | None = None
+    ) -> str | None:
         """Return a drain-blocked reason for the current emission context.
 
         Order matters: the most coarse-grained gate (sync feature flag)
         wins so operators see "the checkout is opted out" rather than a
         downstream symptom like "no_team".
+
+        **M1's recorded exclusion for this method was wrong and is withdrawn
+        (#3030 M1-1).** It claimed this field is the legacy offline queue's advisory
+        diagnostic and that "nothing reads this value to decide whether anything
+        ships", so a cwd-derived ``is_sync_enabled_for_checkout()`` read was harmless
+        here. :meth:`_route_event` reads exactly this value to decide whether to
+        publish the envelope over the WebSocket — a live egress path, injected with a
+        connected client by ``SyncRuntime``. The premise was false and the field was
+        load-bearing.
+
+        So consent is resolved from *project_uuid* — the event's own identity, the
+        value the row is stamped with — via :meth:`_project_consents_to_capture`, the
+        same single resolver the capture gate, the drain, the body upload and the
+        LocalCommit flush use (C-003: no second copy of the precedence chain).
+
+        Two things this fixes beyond the leak. The cwd read denied in the *other*
+        direction too: with no readable checkout for the project — the daemon's usual
+        case — ``resolve_checkout_sync_routing`` returns ``None`` and every event of
+        every project was stamped ``sync_disabled``, so the WebSocket publish was dead
+        for consenting projects as well. And ``sync status``'s per-reason counts now
+        describe the project that was actually asked about.
+
+        :meth:`_route_event` re-checks consent independently before publishing rather
+        than trusting this field. That is deliberate: a *diagnostic* must not be the
+        only thing standing between a non-consenting project and the network.
         """
         try:
             if not is_saas_sync_enabled():
                 return "sync_disabled"
-            if not is_sync_enabled_for_checkout():
+            if not self._project_consents_to_capture(project_uuid):
                 return "sync_disabled"
         except Exception:
             # Routing config errors should not destroy event durability;
@@ -1906,21 +1940,105 @@ class EventEmitter:
 
         return None
 
-    def _capture_gate_state(self, team_slug: str | None) -> CaptureGateState:
+    @staticmethod
+    def _offered_consent_roots() -> list[Path]:
+        """The checkout available to offer ``sync/consent.py`` for its level-1 read.
+
+        Offering the working directory here is **narrowing-only**, not the cwd
+        shortcut this method exists to remove: ``consent._project_local_votes``
+        ignores any root whose ``.kittify/config.yaml`` declares a *different*
+        ``project_uuid``, so a root can only ever answer for its own project. When
+        the emitter is standing in project B and the event belongs to A, B's file is
+        discarded and the chain falls through to the uuid-keyed index — which is the
+        correct answer for A.
+
+        Without offering it, the project-local level would be unreachable on every
+        real capture and a committed, reviewable in-repo refusal would silently not
+        be honoured (the same gap ``delivery/selection.py`` documents for the drain).
+        """
+        try:
+            from specify_cli.core.paths import locate_project_root
+
+            root = locate_project_root(Path.cwd().resolve())
+        except Exception:  # noqa: BLE001 - an unreadable cwd is absence, not a decision
+            return []
+        return [root] if root is not None else []
+
+    def _project_consents_to_capture(self, project_uuid: str | None) -> bool:
+        """Does the project *this event belongs to* consent to hosted sync? (#3030 M1)
+
+        Resolved from the event's own ``project_uuid`` down ``sync/consent.py``'s one
+        chain — the same resolver the drain, the body upload and the LocalCommit
+        flush use (C-003: no second copy of the precedence chain).
+
+        Despite the ``_capture`` in the name it is the module's **one** consent
+        predicate, with three consumers: the capture gate (M1),
+        :meth:`_classify_drain_blocked_reason`, and the WebSocket publish decision in
+        :meth:`_route_event` (M1-1). The question is identical in all three — "may
+        this project's data leave the machine?" — and answering it in one place is
+        what stops the reported state and the enforced state from drifting apart.
+
+        This replaces ``is_sync_enabled_for_checkout()`` called with no argument, i.e.
+        against ``Path.cwd()``. That read answered for whichever project the process
+        happened to be standing in while the row was stamped with the identity from
+        ``_get_identity()``, which caches for the emitter's lifetime. The two agree in
+        a short-lived CLI process and diverge under the long-lived ``SyncRuntime``
+        singleton the moment anything calls ``os.chdir`` — the cwd-vs-identity defect
+        T025 names for body uploads and T027 for local-commit frames.
+
+        The leaking direction was already closed downstream (the drain keys on the
+        stored uuid, so a row stamped A cannot ship on B's grant); what this fixes is
+        **silent capture loss** — a consenting project's event dropped because cwd
+        refused, or stamped ``saas_disabled`` from cwd's answer, which
+        ``delivery/selection.py`` treats as terminal and therefore permanently
+        unselectable.
+
+        An unresolvable uuid is denied, never waved through: NFR-001's second half is
+        that an event whose project cannot be identified can never be shown to belong
+        to a consenting one. Fails **closed** on error, departing from this module's
+        habit of swallowing and continuing — here that instinct would convert an
+        unanswerable consent question into a stored payload (FR-003's rule).
+        """
+        if not project_uuid:
+            return False
+        try:
+            from .consent import consented_project_uuids
+
+            return bool(
+                consented_project_uuids(
+                    [project_uuid], checkout_roots=self._offered_consent_roots()
+                )
+            )
+        except Exception as exc:  # noqa: BLE001 - inability to determine is not consent
+            logger.debug(
+                "Could not resolve hosted-sync consent for project %s; refusing capture: %s",
+                project_uuid,
+                exc,
+            )
+            return False
+
+    def _capture_gate_state(
+        self, team_slug: str | None, *, project_uuid: str | None = None
+    ) -> CaptureGateState:
         """Snapshot the drain gates for the journal's blocked-reason audit (T017).
 
-        Defensive: any gate-read failure is treated as "blocked" so capture
-        still records a durable, audit-tagged row — it never raises and never
-        drops the fact (contract §2 bullet 3).
+        ``checkout_enabled`` is resolved from *project_uuid* — the event's own
+        identity, the value the row is stamped with — and not from the working
+        directory (#3030 M1); see :meth:`_project_consents_to_capture`. It keeps the
+        name ``checkout_enabled`` because that is the ``CaptureGateState`` field
+        ``classify_drain_blocked_reason`` reads, but the question it now answers is
+        "does *this event's project* consent?".
+
+        Defensive on the machine-global gates: a read failure there is treated as
+        "blocked" so capture still records a durable, audit-tagged row and never
+        raises (contract §2 bullet 3). Per-project consent is the one gate that fails
+        closed to *no row at all*, because that is the confidentiality boundary.
         """
         try:
             saas_enabled = is_saas_sync_enabled()
         except Exception:
             saas_enabled = False
-        try:
-            checkout_enabled = is_sync_enabled_for_checkout()
-        except Exception:
-            checkout_enabled = False
+        checkout_enabled = self._project_consents_to_capture(project_uuid)
         try:
             authenticated = self._is_authenticated()
         except Exception:
@@ -1955,8 +2073,46 @@ class EventEmitter:
         ``aggregate_id``, ``payload``, ``timestamp``, ``node_id``,
         ``lamport_clock``, ``schema_version``) survives the capture→drain path.
         The ``event_id``/``event_type`` journal columns still index the envelope.
+
+        **Consent gates the write itself (#3030 T006, NFR-005 as amended
+        2026-07-29).** Capture-first durability applies only to *consenting*
+        projects. A project whose checkout has not consented never reaches the
+        journal at all — previously its event was written and merely stamped
+        with a ``drain_blocked_reason``, which left every unrelated local
+        project's payloads pooled in one machine-global store. This is a
+        deliberate reversal of the unconditional-write invariant that
+        ``event_journal/journal.py`` documents, not an oversight.
+
+        The refusal lives here, at the caller, on purpose: it is the only
+        production entry point for a capture, and gating inside
+        ``capture_teamspace_bound`` via its unused ``skip_journal`` parameter
+        would leave every real capture unconditional while looking fixed.
         """
+        from .project_identity import (
+            resolve_event_project_slug,
+            resolve_event_project_uuid,
+        )
+
         try:
+            # Resolved through T011's single chain so the stored column, the gate that
+            # authorizes the write, and the backfill can never disagree (NFR-001).
+            # This must precede the gate: the gate's consent question is *about* this
+            # uuid (#3030 M1). It used to be resolved afterwards, which is how the
+            # gate came to answer for the working directory instead.
+            project_uuid = resolve_event_project_uuid(event)
+            gate = self._capture_gate_state(team_slug, project_uuid=project_uuid)
+            if not gate.checkout_enabled:
+                # Refuse the write, loudly enough to be diagnosable but without
+                # failing emission — the local command still succeeds, exactly
+                # as it does when a delivery gate blocks.
+                logger.debug(
+                    "Journal capture refused for event %s (%s): project %s has not "
+                    "consented to sync (#3030 NFR-005)",
+                    event_id,
+                    event_type,
+                    project_uuid or "<unidentified>",
+                )
+                return
             payload_bytes = json.dumps(event, sort_keys=True, default=str).encode("utf-8")
             capture_teamspace_bound(
                 journal=get_journal(team_slug=team_slug),
@@ -1964,7 +2120,10 @@ class EventEmitter:
                 event_type=event_type,
                 payload=payload_bytes,
                 occurred_at=occurred_at,
-                gate=self._capture_gate_state(team_slug),
+                gate=gate,
+                project_uuid=project_uuid,
+                project_slug=resolve_event_project_slug(event),
+                repo_slug=event.get("repo_slug"),
             )
         except Exception as exc:
             _console.print(f"[yellow]Warning: event journal capture failed: {exc}[/yellow]")
@@ -2013,8 +2172,13 @@ class EventEmitter:
             team_slug = self._get_team_slug() if is_saas_sync_enabled() else None
             git_meta = self._get_git_metadata()
 
-            # Classify the drain blocker (None means ready to ship).
-            drain_blocked_reason = self._classify_drain_blocked_reason(team_slug)
+            # Classify the drain blocker (None means ready to ship). Keyed on the
+            # identity this event is about to be stamped with, not on cwd (#3030
+            # M1-1) — ``_route_event`` turns a ``None`` here into a WebSocket publish.
+            drain_blocked_reason = self._classify_drain_blocked_reason(
+                team_slug,
+                project_uuid=str(identity.project_uuid) if identity.project_uuid else None,
+            )
 
             event_id = _generate_ulid()
 
@@ -2051,9 +2215,18 @@ class EventEmitter:
             # Capture-first (FR-017, contract §2; SC-009): durably record the
             # Teamspace-bound fact in the producer-scoped event journal BEFORE
             # any delivery gate (validation, contract gate, project routing,
-            # WebSocket, drain) can decide whether to ship it. The journal write
-            # is unconditional; the gates only set the recorded
-            # drain_blocked_reason, never whether the durable write happens.
+            # WebSocket, drain) can decide whether to ship it.
+            #
+            # Capture-first is scoped to CONSENTING projects only (#3030 T006,
+            # NFR-005 as amended 2026-07-29). The write is therefore NOT
+            # unconditional: `_capture_to_journal` refuses it outright when the
+            # capture gate's `checkout_enabled` is False, because writing a
+            # non-consenting project's payload and merely stamping it with a
+            # `drain_blocked_reason` is what pooled every unrelated local
+            # project's data in one machine-global store. Every *other* gate
+            # still only sets the recorded `drain_blocked_reason` and never
+            # whether the durable write happens — consent is the single
+            # exception, and it is checked at the callee.
             self._capture_to_journal(
                 event_id=event_id,
                 event_type=event_type,
@@ -2081,6 +2254,10 @@ class EventEmitter:
             # Check project_uuid: if missing, queue only (no WebSocket send)
             if not event.get("project_uuid"):
                 _console.print("[yellow]Warning: Event missing project_uuid; queued locally only[/yellow]")
+                # Local-only, and never published: an event whose project cannot be
+                # identified can never be shown to belong to a consenting one
+                # (NFR-001). The write itself is deliberately not consent-gated — see
+                # the recorded judgement above ``_route_event``.
                 self.queue.queue_event(event)
                 return event
 
@@ -2227,6 +2404,42 @@ class EventEmitter:
 
         return True
 
+    # Recorded judgement — the legacy offline queue's unconditional write (#3030 M1-1
+    # secondary finding). ``self.queue.queue_event(event)`` below, and the missing-uuid
+    # branch in ``_emit``, run for every emitted event including one whose project has
+    # not consented, writing the full wire envelope — ``project_slug`` (a client
+    # engagement name) and the payload — into the machine-global
+    # ``~/.spec-kitty/queue.db`` shared by every local project.
+    #
+    # DECISION: not gated. Three reasons, in order of weight.
+    #
+    # 1. It is not egress. The store has no sender left. WP02 removed the
+    #    queue-backed drain (FR-012); ``sync/batch.py``'s senders have no live caller,
+    #    and that absence is itself pinned by
+    #    ``tests/sync/test_no_queue_drain_constructed_3030.py``. The two remaining
+    #    readers are read-only — ``sync diagnose`` validates rows locally, and
+    #    ``background._unauthenticated_sync_result`` classifies them. Verified by
+    #    grepping every ``drain_queue`` / ``process_batch_results`` call site, not
+    #    assumed: assuming "nothing reads this" is the exact mistake M1-1 corrected.
+    # 2. Gating it would be data loss, not confidentiality. This queue is the
+    #    documented unconditional local outbox (issue #1072) — appended before any
+    #    auth / sync / team / network gate can drop the event, so a later opt-in can
+    #    replay it. Refusing the write would turn "this project has not opted in to
+    #    *hosted* sync" into "this project's local event history is discarded". FR-002
+    #    governs what leaves the machine; nothing in this mission asks for local
+    #    history to be destroyed, and C-002 already forbids the migration from
+    #    deleting rows for the same reason. The retention half is pinned explicitly in
+    #    ``tests/sync/test_ws_publish_consent_3030.py`` so the decision cannot be
+    #    reversed by accident in either direction.
+    # 3. The residual exposure is real and already has an owner. Confidential text
+    #    pooled at rest in a machine-global store is what C-006 records as this
+    #    mission's remaining open *collection* surface, whose recorded remedy is an
+    #    explicit operator purge — FR-016 / WP08, for which
+    #    ``OfflineQueue.remove_project_events`` already exists.
+    #
+    # WHAT WOULD FLIP IT: if a queue-backed sender is ever restored, this write
+    # becomes egress and must be gated on consent *first*. That is a precondition on
+    # restoring the drain, not a follow-up ticket.
     def _route_event(self, event: dict[str, Any]) -> bool:
         """Route event to WebSocket or offline queue.
 
@@ -2234,13 +2447,24 @@ class EventEmitter:
         (issue #1072). WebSocket publish is opportunistic and only
         attempted when the event is drain-eligible:
 
+        - **the event's own project consents to hosted sync** (#3030 M1-1), AND
         - ``drain_blocked_reason`` is None (ready to ship), AND
         - WebSocket client is connected, AND
         - session is authenticated.
 
+        The consent condition is checked here, from ``event["project_uuid"]``, and
+        **not** inherited from ``drain_blocked_reason``. This method is the egress
+        point, so it owns its own refusal: M1-1 was precisely the failure of resting a
+        confidentiality boundary on a field documented as a diagnostic, and the
+        rejected rationale for leaving that field cwd-derived was "nothing reads it to
+        decide whether anything ships" — this line is the reader. Keeping both means a
+        future change to the diagnostic's meaning cannot silently re-open the network.
+
         Returns True if event was sent/queued successfully.
         """
         try:
+            # Unconditional local durability, deliberately (issue #1072) and
+            # deliberately not consent-gated — see the recorded judgement above.
             queued = self.queue.queue_event(event)
 
             # Drain-blocked events stay in the durable outbox; the drain
@@ -2248,6 +2472,18 @@ class EventEmitter:
             # publish here preserves ingress safety (no_team events are
             # never shipped opportunistically over WebSocket).
             if event.get("drain_blocked_reason") is not None:
+                return queued
+
+            # The event's own project must consent before anything leaves the
+            # process. Resolved from the envelope's ``project_uuid``, never from cwd:
+            # under ``SyncRuntime`` the emitter is long-lived, ``_get_identity``
+            # caches, and an agent session that ``cd``s into a consenting sibling
+            # checkout would otherwise authorize this project's publish.
+            if not self._project_consents_to_capture(event.get("project_uuid")):
+                logger.debug(
+                    "WebSocket publish withheld: project %s has not consented to hosted sync",
+                    event.get("project_uuid") or "<unidentified>",
+                )
                 return queued
 
             # Check if authenticated (via TokenManager)

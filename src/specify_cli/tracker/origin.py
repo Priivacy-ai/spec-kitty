@@ -161,8 +161,8 @@ def search_origin_candidates(
     if provider not in _ORIGIN_PROVIDERS:
         raise OriginBindingError(f"Only Jira and Linear providers support origin binding. Current provider: {provider}")
 
-    # 3. Call SaaS
-    actual_client = client or SaaSTrackerClient()
+    # 3. Call SaaS — gated on the consent of the project being searched (FR-029).
+    actual_client = client or SaaSTrackerClient(project_root=repo_root)
     try:
         response = actual_client.search_issues(
             provider,
@@ -258,7 +258,11 @@ def bind_mission_origin(
     # 2. Resolve routing + local resource context from tracker config
     #    Walk up from feature_dir to find .kittify/config.yaml
     repo_root = _resolve_repo_root(feature_dir)
-    actual_client = client or SaaSTrackerClient()
+    # #3030 FR-029: the client is told which project owns this mission, resolved
+    # from the mission's own ``feature_dir`` — never from the process's cwd. This
+    # is the non-interactive reach (mission creation → consume_pending_origin →
+    # here), so nothing downstream would have prompted an operator to notice.
+    actual_client = client or SaaSTrackerClient(project_root=repo_root)
     tracker_config = _resolve_tracker_config_for_origin(
         repo_root=repo_root,
         provider=provider,

@@ -32,7 +32,11 @@ from charter.context import build_charter_context
 from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git import safe_commit
-from specify_cli.invocation.errors import InvalidModeForEvidenceError, InvocationError
+from specify_cli.invocation.errors import (
+    InvalidModeForEvidenceError,
+    InvocationError,
+    UndeterminedModeForEvidenceError,
+)
 from specify_cli.invocation.modes import ModeOfWork
 from specify_cli.invocation.propagator import InvocationSaaSPropagator
 from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent, promote_to_evidence
@@ -108,13 +112,69 @@ class ActionRouterPlugin(Protocol):
     # No methods in v1. Fill in WP02's ActionRouterPlugin slot here.
 
 
+@dataclasses.dataclass(frozen=True)
+class _UndeterminedMode:
+    """A recorded ``mode_of_work`` that maps to no :class:`ModeOfWork`.
+
+    The third state, and the whole point of this type: a started record can
+    declare **no** mode (a pre-v2 record — the field did not exist yet) or a
+    mode nobody can read (a hand-edited or corrupted ``kitty-ops`` line). Those
+    are different facts and collapsing them into one ``None`` made the second
+    inherit the first's permissive default (#3030). ``raw`` carries the value
+    verbatim so the refusal can name what it could not read.
+    """
+
+    raw: object
+
+
+def classify_mode_of_work(raw: object) -> ModeOfWork | None | _UndeterminedMode:
+    """Classify a recorded ``mode_of_work`` into absent / known / undetermined.
+
+    - ``None`` → **absent**. Pre-v2 records legitimately carry no
+      ``mode_of_work``; its documented legacy default is ``task_execution``
+      (see the WP05 migration ``m_3_3_0_op_record_schema_v2``, which backfills
+      exactly that, and ``propagator._projection_rule_for``). Absence must keep
+      meaning absence — refusing on it would strand every legacy Op.
+    - a :class:`ModeOfWork` value → that mode.
+    - anything else → :class:`_UndeterminedMode`. Note the empty string is
+      absence (a field written blank), while ``0`` / ``False`` / a list / an
+      object are malformation: the old ``if not raw`` test read all of them as
+      absence, which is how a JSON ``false`` bought a legacy default.
+    """
+    if raw is None or (isinstance(raw, str) and raw == ""):
+        return None
+    if isinstance(raw, ModeOfWork):
+        return raw
+    if not isinstance(raw, str):
+        return _UndeterminedMode(raw)
+    try:
+        return ModeOfWork(raw)
+    except ValueError:
+        return _UndeterminedMode(raw)
+
+
+def mode_permits_evidence(mode: ModeOfWork | None | _UndeterminedMode) -> bool:
+    """Whether *mode* may carry a Tier 2 evidence artifact (FR-009).
+
+    The single classification both the advertised close contract and the
+    enforced gate read, so the two cannot drift into offering a flag the
+    executor then refuses.
+    """
+    if isinstance(mode, _UndeterminedMode):
+        return False  # undetermined is not permission
+    if mode is None:
+        return True  # absent → documented legacy default (task_execution)
+    return mode not in (ModeOfWork.ADVISORY, ModeOfWork.QUERY)
+
+
 def build_close_contract(invocation_id: str, mode_of_work: str | None = None) -> dict[str, object]:
     """Machine-readable close contract for an open Op (contracts/cli-do-output.md).
 
     Emitted in every invocation JSON payload so orchestrators know exactly how
     to close the Op with the real outcome.  ``evidence_flag`` is omitted for
             non-evidence-eligible modes because ``profile-invocation complete`` refuses
-    ``--evidence`` there (InvalidModeForEvidenceError, FR-009).
+    ``--evidence`` there (InvalidModeForEvidenceError, FR-009) — including when
+    the recorded mode cannot be read at all, which the gate now refuses too.
     """
     contract: dict[str, object] = {
         "command": (f"spec-kitty profile-invocation complete --invocation-id {invocation_id} --outcome <done|failed|abandoned>"),
@@ -123,7 +183,7 @@ def build_close_contract(invocation_id: str, mode_of_work: str | None = None) ->
         "artifact_flag": "--artifact",
         "commit_flag": "--commit",
     }
-    if mode_of_work in (ModeOfWork.ADVISORY.value, ModeOfWork.QUERY.value):
+    if not mode_permits_evidence(classify_mode_of_work(mode_of_work)):
         del contract["evidence_flag"]
     return contract
 
@@ -372,15 +432,23 @@ class ProfileInvocationExecutor:
         Raises ``InvocationError`` if invocation_id is not found.
         Raises ``InvocationWriteError`` on filesystem failure.
         Raises ``InvalidModeForEvidenceError`` if evidence_ref is supplied on an
-            non-evidence-eligible invocation (FR-009). This is a pre-write check —
-            no JSONL lines are written if this error is raised.
+            non-evidence-eligible invocation (FR-009), or its
+            ``UndeterminedModeForEvidenceError`` subclass when the record's
+            ``mode_of_work`` cannot be read at all (#3030). This is a pre-write
+            check — no JSONL lines are written if this error is raised.
         """
         # Step 1: Read started event for mode enforcement (FR-009).
         started_mode = self._read_started_mode(invocation_id)
 
         # Step 2: Enforce mode gate on evidence promotion BEFORE any write.
-        if evidence_ref is not None and started_mode in {ModeOfWork.ADVISORY, ModeOfWork.QUERY}:
-            raise InvalidModeForEvidenceError(invocation_id, started_mode)
+        # Scoped to the promotion: an Op whose mode cannot be read must still be
+        # closable, or an unreadable field would strand the record forever.
+        if evidence_ref is not None and not mode_permits_evidence(started_mode):
+            if isinstance(started_mode, _UndeterminedMode):
+                raise UndeterminedModeForEvidenceError(invocation_id, started_mode.raw)
+            # mode_permits_evidence() only rejects ADVISORY / QUERY here; absence
+            # (None) is permissive, so started_mode is a ModeOfWork by exhaustion.
+            raise InvalidModeForEvidenceError(invocation_id, ModeOfWork(started_mode))
 
         # Step 3: Append completed event (existing behaviour).
         completed = OpCompletedEvent(
@@ -463,21 +531,22 @@ class ProfileInvocationExecutor:
             return
         self._writer.append_correlation_link(invocation_id, sha=commit_sha)
 
-    def _read_started_mode(self, invocation_id: str) -> ModeOfWork | None:
-        """Read mode_of_work from the started event. Returns None for pre-mission records
-        or when the stored value is not a recognised ModeOfWork (malformed trail)."""
+    def _read_started_mode(self, invocation_id: str) -> ModeOfWork | None | _UndeterminedMode:
+        """Read ``mode_of_work`` from the started event, keeping three states apart.
+
+        ``None`` means the record carries no mode (a pre-mission record) and
+        keeps its documented legacy default; :class:`_UndeterminedMode` means
+        the record declares something no reader can map to a ``ModeOfWork``.
+        The two used to collapse into one ``None`` that skipped FR-009
+        enforcement entirely, so a single mangled string bought evidence
+        promotion on an advisory or query Op (#3030).
+        """
         path = self._writer.invocation_path(invocation_id)
         if not path.exists():
             raise InvocationError(f"Invocation record not found: {invocation_id}")
         first_line = path.read_text(encoding="utf-8").splitlines()[0]
         first = _json_mod.loads(first_line)
-        raw = first.get("mode_of_work")
-        if not raw:
-            return None
-        try:
-            return ModeOfWork(raw)
-        except ValueError:
-            return None  # unknown/invalid mode_of_work → treat as legacy, skip enforcement
+        return classify_mode_of_work(first.get("mode_of_work"))
 
     def _read_started_event(self, invocation_id: str) -> dict[str, object]:
         path = self._writer.invocation_path(invocation_id)

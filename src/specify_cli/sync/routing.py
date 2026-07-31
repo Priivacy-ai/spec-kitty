@@ -2,16 +2,24 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
 from specify_cli.core.paths import locate_project_root
 
 from .body_queue import OfflineBodyUploadQueue
-from .config import SyncConfig
+from .config import ConfigReadFault, SyncConfig
+from .consent import (
+    project_local_consent_fault,
+    read_project_local_consent,
+    set_project_consent,
+)
 from .git_metadata import GitMetadataResolver
 from specify_cli.identity.project import ProjectIdentity, load_identity, resolve_identity
 from .queue import OfflineQueue
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -26,6 +34,14 @@ class CheckoutSyncRouting:
     local_sync_enabled: bool | None
     repo_default_sync_enabled: bool | None
     effective_sync_enabled: bool
+    #: Why the project-local ``.kittify/config.yaml`` could not be understood, when it
+    #: exists but is unreadable, unparseable, or (#3030 FR-027) records a *field* value
+    #: that cannot be used — an unusable ``sync.enabled`` or an unusable
+    #: ``project.uuid``. ``None`` for the ordinary cases — a readable file, or no file
+    #: at all. Present so a denial on this ground is distinguishable from the far more
+    #: common "no record" denial: an operator told only "sync is disabled" goes looking
+    #: for a missing opt-in instead of the broken file that actually caused it.
+    project_local_fault: ConfigReadFault | None = None
 
 
 @dataclass(frozen=True)
@@ -51,6 +67,10 @@ def resolve_checkout_sync_routing(start: Path | None = None) -> CheckoutSyncRout
     if repo_root is None:
         return None
 
+    unreadable = _routing_for_unreadable_project_config(repo_root)
+    if unreadable is not None:
+        return unreadable
+
     identity = resolve_identity(repo_root)
     return _build_checkout_sync_routing(repo_root, identity)
 
@@ -61,8 +81,84 @@ def resolve_checkout_sync_routing_readonly(start: Path | None = None) -> Checkou
     if repo_root is None:
         return None
 
+    unreadable = _routing_for_unreadable_project_config(repo_root)
+    if unreadable is not None:
+        return unreadable
+
     identity = load_identity(repo_root / ".kittify" / "config.yaml")
     return _build_checkout_sync_routing(repo_root, identity)
+
+
+def _routing_for_unreadable_project_config(
+    repo_root: Path,
+) -> CheckoutSyncRouting | None:
+    """Deny, without reading identity, when the project's own config is unreadable.
+
+    ``None`` when there is no fault — the ordinary path, including the very common
+    "no project config at all", which is absence and must keep falling through to the
+    machine-level records (denying on absence would deny every delivery on the
+    machine; ``ConfigReadFault`` draws that line, and this function inherits it).
+
+    **The leak this closes (#3030 FR-022).** ``read_project_local_consent`` returns
+    ``None`` for an unreadable or unparseable file exactly as it does for an absent
+    one, and the chain below then falls through to ``local_sync_enabled`` — a
+    *checkout-level grant*. So a committed ``sync.enabled: false`` that a later edit
+    turned into a YAML syntax error was silently replaced by whatever the machine
+    happened to hold. Measured before this fix, with a checkout grant present:
+    ``chmod 000`` and unparseable YAML both resolved to **enabled**. FR-013's
+    refusal-outranks-grant rule, voidable by a syntax error — and the record that
+    wins is the one that survives a clone or a rename, so what stands in for the
+    refusal is precisely a *stale grant*.
+
+    ``consent.py`` split :func:`~specify_cli.sync.consent.project_local_consent_fault`
+    out for this wiring rather than change ``read_project_local_consent``'s shape
+    under its callers; this is that function's first production consumer.
+
+    Deliberately placed **before** the identity read, not merely before the consent
+    fall-through. A list-shaped ``config.yaml`` makes ``load_identity`` raise
+    ``AttributeError: 'CommentedSeq' object has no attribute 'get'``
+    (``identity/project.py:322``), so a policy read that is supposed to answer a
+    boolean crashed the caller instead. Answering "deny" from here means an
+    unreadable project file cannot take out any command that consults the gate.
+    (The ``load_identity`` fault itself is still latent for its other callers and is
+    reported separately — it is not this module's to fix.)
+
+    **#3030 FR-027 widened what this fence catches, with no change here.** It consumes
+    ``project_local_consent_fault`` rather than re-deciding readability, so extending
+    that one notion from the *file* to a *field* — an unusable ``sync.enabled``, an
+    unusable ``project.uuid`` — reached this path for free. That is the whole point of
+    the C-003 shape: the two field-level leaks it now closes are
+    ``sync.enabled: no`` overridden by a checkout-level grant (nineteen such shapes,
+    all measured granting), and FR-024's residual, where a corrupt ``project.uuid``
+    resolved to ``effective_sync_enabled=True`` with ``project_uuid=None`` — events
+    captured with no identity at all, which is the population FR-011/FR-017 then have
+    to clean up. Had this function re-implemented its own readability test, FR-027
+    would have had to be fixed twice.
+    """
+    fault = project_local_consent_fault(repo_root)
+    if fault is None:
+        return None
+
+    logger.warning(
+        "Denying hosted sync for %s: its project config could not be read (%s). %s",
+        repo_root,
+        fault.kind,
+        fault.detail,
+    )
+    return CheckoutSyncRouting(
+        repo_root=repo_root,
+        project_uuid=None,
+        project_slug=None,
+        build_id=None,
+        repo_slug=None,
+        # Reported truthfully so the operator can see the grant that was NOT
+        # honoured; the repo default is left unread because no value it could take
+        # can change a fail-closed answer.
+        local_sync_enabled=read_local_sync_enabled(repo_root),
+        repo_default_sync_enabled=None,
+        effective_sync_enabled=False,
+        project_local_fault=fault,
+    )
 
 
 def _build_checkout_sync_routing(repo_root: Path, identity: ProjectIdentity) -> CheckoutSyncRouting:
@@ -79,12 +175,47 @@ def _build_checkout_sync_routing(repo_root: Path, identity: ProjectIdentity) -> 
         else None
     )
 
-    if local_sync_enabled is not None:
+    # Level 1 of the consent chain (``sync/consent.py``): the project's OWN
+    # ``.kittify/config.yaml`` ``sync.enabled`` key. Consulted first because it is the
+    # most specific and the only reviewable input — it lives in the repo it governs
+    # and shows up in a diff, where every record below it is machine-global state
+    # invisible to the project.
+    #
+    # This read is why the acceptance pins in
+    # ``tests/sync/test_sync_consent_default_deny.py`` mean anything. Until it landed,
+    # nothing in the tree read that key: the pins wrote ``sync.enabled`` and passed
+    # purely on the default-deny fall-through below, so flipping the fixture to an
+    # explicit ``sync.enabled: true`` grant left them green — they were not testing
+    # refusal-beats-grant at all.
+    project_local_sync_enabled = read_project_local_consent(repo_root)
+
+    if project_local_sync_enabled is not None:
+        effective_sync_enabled = project_local_sync_enabled
+    elif local_sync_enabled is not None:
         effective_sync_enabled = local_sync_enabled
     elif repo_default_sync_enabled is not None:
         effective_sync_enabled = repo_default_sync_enabled
     else:
-        effective_sync_enabled = True
+        # FR-002 (spec-kitty#3030, absorbing #3031): absence of a consent record
+        # is NOT consent — for capture *or* delivery.
+        #
+        # This fall-through used to yield ``True``, which is how the 2026-07-27
+        # breach happened: five client projects had never been opted in, so
+        # neither a checkout override nor a repo default existed, and every one
+        # resolved to "sync enabled". Inverting only the ``routing is None``
+        # branch of ``is_sync_enabled_for_checkout`` does not close it — those
+        # projects resolve fine, they simply have no record.
+        #
+        # Pinned red on main by
+        # ``tests/sync/test_sync_consent_default_deny.py::
+        # test_unconfigured_checkout_does_not_consent_to_sync``.
+        #
+        # Deny here also gates the emit-time path (``sync/emitter.py:1890,1921``)
+        # and the body-upload path (``sync/body_upload.py:150``). That is now
+        # intended: NFR-005 was amended so capture-first durability applies only
+        # to *consenting* projects — a non-consenting project's events must never
+        # reach the journal (#3031 Defect 3).
+        effective_sync_enabled = False
 
     return CheckoutSyncRouting(
         repo_root=repo_root,
@@ -113,7 +244,11 @@ def is_sync_enabled_for_checkout(start: Path | None = None) -> bool:
     """
     routing = resolve_checkout_sync_routing_readonly(start=start)
     if routing is None:
-        return True
+        # FR-003 (spec-kitty#3030): fail CLOSED. This returned ``True``, so any
+        # invocation where the checkout could not be resolved was treated as
+        # consent. For a gate standing in front of a confidentiality boundary
+        # the default is inverted: inability to determine consent is not consent.
+        return False
     return routing.effective_sync_enabled
 
 
@@ -127,6 +262,22 @@ def write_local_sync_enabled(repo_root: Path, enabled: bool) -> None:
     SyncConfig().set_checkout_sync_enabled(repo_root, enabled)
 
 
+class ConsentIdentityUnresolvedError(RuntimeError):
+    """No ``project_uuid`` resolved while recording consent (#3030 T016).
+
+    Raised instead of writing a path-keyed record with no uuid counterpart. Under
+    FR-002 an absent uuid record denies, so a half-written grant would silently
+    never deliver.
+    """
+
+    def __init__(self, repo_root: Path) -> None:
+        super().__init__(
+            f"Cannot record hosted-sync consent for {repo_root}: no project_uuid "
+            "resolved. Run `spec-kitty init` in this checkout so it has a project "
+            "identity, then retry."
+        )
+
+
 def enable_checkout_sync(
     repo_root: Path,
     *,
@@ -137,9 +288,19 @@ def enable_checkout_sync(
     if routing is None:
         raise ValueError("Could not resolve the active checkout.")
 
+    # #3030 T016: fail loudly rather than half-succeed. Under FR-002 absence of a
+    # uuid-keyed record denies, so writing only the path-keyed record here would
+    # leave the index empty and silently never deliver the project the operator
+    # just explicitly opted in — the exact failure the inversion was supposed to
+    # avoid. resolve_checkout_sync_routing already mints identity, so a missing
+    # uuid at this point is a real fault, not a state to paper over.
+    if not routing.project_uuid:
+        raise ConsentIdentityUnresolvedError(repo_root)
+
     write_local_sync_enabled(repo_root, True)
     if remember_repo_default and routing.repo_slug:
         SyncConfig().set_repository_sync_enabled(routing.repo_slug, True)
+    set_project_consent(str(routing.project_uuid), True)
     refreshed = resolve_checkout_sync_routing(repo_root)
     assert refreshed is not None
     return refreshed
@@ -150,7 +311,16 @@ def disable_checkout_sync(
     *,
     remember_repo_default: bool = True,
 ) -> SyncOptOutResult:
-    """Disable SaaS sync for this checkout and purge its pending uploads."""
+    """Disable SaaS sync for this checkout and purge its pending uploads.
+
+    "Pending uploads" spans two live stores: the event journal's rows for this
+    project that have not been delivered anywhere, and the project's queued document
+    bodies. Already-delivered journal rows are **kept** — see the C-004 note in the
+    body — and removing everything is the operator's explicit ``sync purge``
+    (FR-016), which is dry-run by default.
+    """
+    from specify_cli.delivery.retention import purge_project_events_from_live_stores
+
     routing = resolve_checkout_sync_routing(repo_root)
     if routing is None:
         raise ValueError("Could not resolve the active checkout.")
@@ -159,13 +329,36 @@ def disable_checkout_sync(
     if remember_repo_default and routing.repo_slug:
         SyncConfig().set_repository_sync_enabled(routing.repo_slug, False)
 
-    queue = OfflineQueue()
-    removed_events = (
-        queue.remove_project_events(routing.project_uuid)
-        if routing.project_uuid
-        else 0
-    )
-    body_queue = OfflineBodyUploadQueue(db_path=queue.db_path)
+    if routing.project_uuid:
+        # #3030 FR-013: record the refusal uuid-keyed as well, so the drain
+        # honours it from any checkout and after this one moves or is deleted.
+        set_project_consent(str(routing.project_uuid), False)
+
+    # C-004 (#3030 WP08): the legacy-queue purge is retired. It targeted the store
+    # WP02 removed the drain from — nothing ships out of it — and full-decoded every
+    # row to find the project. The store that *does* ship is the event journal, which
+    # only gained a ``project_uuid`` column in WP04; that is why C-004 had to wait
+    # for this WP.
+    #
+    # Scope is deliberately "queued" (no terminal-success delivery anywhere), not
+    # everything: C-002 reserves wholesale deletion for the operator's explicit
+    # ``sync purge`` (FR-016/FR-017, dry-run by default), and ``removed_events`` is
+    # printed as "Removed N queued event(s)". Destroying the record of what already
+    # left the machine on a routing toggle would be both a surprise and the loss of
+    # the incident's own evidence.
+    removed_events = 0
+    if routing.project_uuid:
+        purge = purge_project_events_from_live_stores(
+            str(routing.project_uuid), dry_run=False, undelivered_only=True
+        )
+        # ``None`` means there is no journal on disk yet — nothing to purge, and no
+        # store is created just to report zero.
+        removed_events = 0 if purge is None else purge.purged_count
+
+    # Body uploads stay: they are a *separate* store the daemon still drains (WP11
+    # gated it per task, it did not remove it), so this purge is live, not
+    # superseded. Removing this call would reopen the path WP11 just closed.
+    body_queue = OfflineBodyUploadQueue(db_path=OfflineQueue().db_path)
     removed_body_uploads = (
         body_queue.remove_project_tasks(routing.project_uuid)
         if routing.project_uuid

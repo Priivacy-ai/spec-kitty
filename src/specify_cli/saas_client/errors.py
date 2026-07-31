@@ -27,3 +27,27 @@ class SaasAuthError(SaasClientError):
 
 class SaasNotFoundError(SaasClientError):
     """Raised on HTTP 404 (decision or mission not found)."""
+
+
+class SaasConsentError(SaasClientError):
+    """Raised when the project owning the data has not consented to hosted sync.
+
+    #3030 FR-030. Deliberately a :class:`SaasClientError` subclass, because that
+    is the type this package's callers already handle: the widen prereq probe
+    suppresses it (so a non-consenting project simply never sees the ``[w]iden``
+    option, which is the correct outcome), the interview helpers report it as a
+    non-fatal warning, and ``spec-kitty decision widen`` — the one call an
+    operator makes deliberately — surfaces the message and exits non-zero. A new
+    unrelated exception type would instead escape those handlers and turn a
+    confidentiality refusal into a crash in an interview.
+
+    ``status_code`` stays ``None``: nothing was sent, so there is no HTTP status
+    to report, and reporting one would invite the reader to debug the network.
+    """
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(
+            f"Refusing to call Spec Kitty SaaS: {reason}",
+            status_code=None,
+        )
+        self.reason = reason

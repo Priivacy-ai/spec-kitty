@@ -35,6 +35,7 @@ from specify_cli.delivery.receivers import (
     ExternalReceiver,
     OutboundEvent,
 )
+from tests._support.consented_batches import deliverable
 
 from ._poison_batch_poster import _AllOrNothingBatchPoster
 
@@ -110,7 +111,7 @@ def test_straddling_create_receipts_before_its_status() -> None:
     poster = _AllOrNothingBatchPoster(
         invalid_event_ids=[_CULPRIT], batch_error=_BATCH_ERROR
     )
-    results = {r.event_id: r for r in _receiver(poster).deliver(_straddle_batch())}
+    results = {r.event_id: r for r in _receiver(poster).deliver(deliverable(_straddle_batch()))}
 
     # Every innocent delivered; only the culprit rejected.
     assert results[_CULPRIT].outcome is DeliveryOutcome.REJECTED
@@ -163,7 +164,7 @@ def test_drain_leaves_exactly_the_culprit_and_re_drain_does_not_re_poison() -> N
     external = _receiver(poster)
     ledger = SqliteDeliveryLedger()
 
-    _record_all(ledger, external.deliver(backlog))
+    _record_all(ledger, external.deliver(deliverable(backlog)))
 
     # FR-004: residual == just the culprit (innocents are terminal-success, excluded).
     residual = set(ledger.select_undelivered(target_id=_TARGET_ID, event_universe=universe))
@@ -171,7 +172,7 @@ def test_drain_leaves_exactly_the_culprit_and_re_drain_does_not_re_poison() -> N
 
     # Re-drain only the residual; innocents must NOT be re-selected (no re-poison).
     redrain = [e for e in backlog if e.event_id in residual]
-    _record_all(ledger, external.deliver(redrain))
+    _record_all(ledger, external.deliver(deliverable(redrain)))
     still = set(ledger.select_undelivered(target_id=_TARGET_ID, event_universe=universe))
     assert still == {_DRAIN_CULPRIT}
 
@@ -212,7 +213,7 @@ def test_all_invalid_batch_is_bounded_and_every_event_isolated() -> None:
     poster = _AllOrNothingBatchPoster(
         invalid_event_ids=[e.event_id for e in events], batch_error=_BATCH_ERROR
     )
-    results = _receiver(poster).deliver(events)
+    results = _receiver(poster).deliver(deliverable(events))
 
     assert all(r.outcome is DeliveryOutcome.REJECTED for r in results)
     n = len(events)
@@ -236,8 +237,8 @@ def test_reposting_an_already_accepted_event_returns_duplicate() -> None:
     )
     external = _receiver(poster)
 
-    external.deliver(backlog)  # first pass: innocents accepted
-    repost = list(external.deliver([_create(_INN_1, wp="WP-1")]))
+    external.deliver(deliverable(backlog))  # first pass: innocents accepted
+    repost = list(external.deliver(deliverable([_create(_INN_1, wp="WP-1")])))
 
     assert repost[0].outcome is DeliveryOutcome.DUPLICATE
 
@@ -279,7 +280,7 @@ def test_same_wp_poison_pair_terminates_and_preserves_create_before_status() -> 
     poster = _AllOrNothingBatchPoster(
         invalid_event_ids=[_PAIR_CULPRIT], batch_error=_BATCH_ERROR
     )
-    results = {r.event_id: r for r in _receiver(poster).deliver(_same_wp_poison_pair())}
+    results = {r.event_id: r for r in _receiver(poster).deliver(deliverable(_same_wp_poison_pair()))}
 
     # Termination (reaching here means no RecursionError) + isolation.
     assert results[_PAIR_CULPRIT].outcome is DeliveryOutcome.REJECTED
@@ -335,7 +336,7 @@ def test_adjacent_same_wp_pair_funnel_terminates_and_isolates_culprit() -> None:
     poster = _AllOrNothingBatchPoster(
         invalid_event_ids=[_SIX_CULPRIT], batch_error=_BATCH_ERROR
     )
-    results = {r.event_id: r for r in _receiver(poster).deliver(_adjacent_degenerate_backlog())}
+    results = {r.event_id: r for r in _receiver(poster).deliver(deliverable(_adjacent_degenerate_backlog()))}
 
     assert results[_SIX_CULPRIT].outcome is DeliveryOutcome.REJECTED
     assert {_SIX_CULPRIT} in poster.singleton_posts()
@@ -352,7 +353,7 @@ def test_transport_failure_is_not_bisected() -> None:
         raise requests.ConnectionError("connection reset")
 
     external = ExternalReceiver(endpoint_url=_ENDPOINT, poster=_boom)
-    results = list(external.deliver(_drain_backlog()))
+    results = list(external.deliver(deliverable(_drain_backlog())))
 
     assert [r.outcome for r in results] == [DeliveryOutcome.TRANSIENT] * len(results)
     assert all(r.http_status is None for r in results)

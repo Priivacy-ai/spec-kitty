@@ -7,7 +7,7 @@ Verifies:
 4. NFR-007 / SC-008: propagation-errors.jsonl stays empty under sync-disabled.
 
 Updated for Leak #3 fix (WP01 integration-boundary mission): propagator now
-routes through ``resolve_sync_routing`` from the invocation adapter seam rather
+routes through ``resolve_egress_consent`` from the invocation adapter seam rather
 than importing ``resolve_checkout_sync_routing`` directly from the sync package.
 The resolver now returns ``bool | None`` (True=enabled, False=disabled, None=
 unregistered/safe-degrade); tests patch the seam directly.
@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from specify_cli.invocation.adapters import EgressConsent
 from specify_cli.invocation.propagator import PROPAGATION_ERRORS_PATH, _propagate_one
 from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent
 
@@ -91,8 +92,8 @@ def test_sync_disabled_never_calls_send(tmp_path: Path, mode: str, event_name: s
         record = _make_completed_record(mode)
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_sync_routing",
-        return_value=False,  # sync explicitly disabled
+        "specify_cli.invocation.propagator.resolve_egress_consent",
+        return_value=EgressConsent.DENIED,  # the project has not consented
     ):
         with patch(
             "specify_cli.invocation.propagator._get_saas_client",
@@ -112,8 +113,8 @@ def test_task_execution_started_includes_request_text(tmp_path: Path) -> None:
     mock_client = _make_mock_client()
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_sync_routing",
-        return_value=True,  # sync explicitly enabled
+        "specify_cli.invocation.propagator.resolve_egress_consent",
+        return_value=EgressConsent.GRANTED,  # the project consents
     ):
         with patch(
             "specify_cli.invocation.propagator._get_saas_client",
@@ -135,8 +136,8 @@ def test_advisory_started_omits_request_text(tmp_path: Path) -> None:
     mock_client = _make_mock_client()
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_sync_routing",
-        return_value=True,  # sync explicitly enabled
+        "specify_cli.invocation.propagator.resolve_egress_consent",
+        return_value=EgressConsent.GRANTED,  # the project consents
     ):
         with patch(
             "specify_cli.invocation.propagator._get_saas_client",
@@ -158,8 +159,8 @@ def test_query_started_does_not_project(tmp_path: Path) -> None:
     mock_client = _make_mock_client()
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_sync_routing",
-        return_value=True,  # sync explicitly enabled
+        "specify_cli.invocation.propagator.resolve_egress_consent",
+        return_value=EgressConsent.GRANTED,  # the project consents
     ):
         with patch(
             "specify_cli.invocation.propagator._get_saas_client",
@@ -176,8 +177,8 @@ def test_task_execution_completed_includes_evidence_ref(tmp_path: Path) -> None:
     mock_client = _make_mock_client()
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_sync_routing",
-        return_value=True,  # sync explicitly enabled
+        "specify_cli.invocation.propagator.resolve_egress_consent",
+        return_value=EgressConsent.GRANTED,  # the project consents
     ):
         with patch(
             "specify_cli.invocation.propagator._get_saas_client",
@@ -203,8 +204,8 @@ def test_completed_event_resolves_policy_without_mode(tmp_path: Path) -> None:
     mock_client = _make_mock_client()
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_sync_routing",
-        return_value=True,  # sync explicitly enabled
+        "specify_cli.invocation.propagator.resolve_egress_consent",
+        return_value=EgressConsent.GRANTED,  # the project consents
     ):
         with patch(
             "specify_cli.invocation.propagator._get_saas_client",
@@ -224,8 +225,8 @@ def test_mission_step_started_includes_request_text(tmp_path: Path) -> None:
     mock_client = _make_mock_client()
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_sync_routing",
-        return_value=True,  # sync explicitly enabled
+        "specify_cli.invocation.propagator.resolve_egress_consent",
+        return_value=EgressConsent.GRANTED,  # the project consents
     ):
         with patch(
             "specify_cli.invocation.propagator._get_saas_client",
@@ -245,8 +246,8 @@ def test_null_mode_projects_like_task_execution(tmp_path: Path) -> None:
     mock_client_null = _make_mock_client()
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_sync_routing",
-        return_value=True,  # sync explicitly enabled
+        "specify_cli.invocation.propagator.resolve_egress_consent",
+        return_value=EgressConsent.GRANTED,  # the project consents
     ):
         with patch(
             "specify_cli.invocation.propagator._get_saas_client",
@@ -276,8 +277,8 @@ def test_no_propagation_errors_under_sync_disabled(tmp_path: Path, mode: str) ->
     completed = _make_completed_record(mode)
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_sync_routing",
-        return_value=False,  # sync explicitly disabled
+        "specify_cli.invocation.propagator.resolve_egress_consent",
+        return_value=EgressConsent.DENIED,  # the project has not consented
     ):
         # _get_saas_client must never be called; but even if it were, no errors should result.
         with patch(
@@ -293,3 +294,86 @@ def test_no_propagation_errors_under_sync_disabled(tmp_path: Path, mode: str) ->
             f"Expected empty propagation-errors.jsonl under sync-disabled, "
             f"but got: {content!r}"
         )
+
+
+# ---------------------------------------------------------------------------
+# #3030 FR-025 census — an unclassifiable record has no policy row, so it is
+# not projected. Both coercions used to resolve "unintelligible" to the most
+# permissive rule in the table (project=True, include_request_text=True).
+# ---------------------------------------------------------------------------
+
+
+def test_unrecognised_event_kind_is_not_projected(tmp_path: Path) -> None:
+    """An ``event`` value with no policy row is dropped, not projected as STARTED.
+
+    Built with ``model_construct`` because the models validate ``event`` against a
+    Literal today — the point is what happens the day a schema change adds a kind
+    before the policy table learns about it, which is precisely when the old
+    fallback (``EventKind.STARTED`` → the permissive default rule) would have
+    shipped a body nobody classified.
+    """
+    record = OpStartedEvent.model_construct(
+        event="resumed",  # type: ignore[arg-type]
+        invocation_id="01KPQRX2EVGMRVB4Q1JQBAZJV3",
+        profile_id="implementer-fixture",
+        action="implement",
+        request_text="the request text",
+        governance_context_hash="abc123",
+        governance_context_available=True,
+        actor="claude",
+        started_at="2026-04-23T00:00:00+00:00",
+        mode_of_work="task_execution",
+    )
+    client = _make_mock_client()
+
+    with (
+        patch(
+            "specify_cli.invocation.propagator.resolve_egress_consent",
+            return_value=EgressConsent.GRANTED,
+        ),
+        patch(
+            "specify_cli.invocation.propagator._get_saas_client",
+            return_value=client,
+        ),
+    ):
+        _propagate_one(record, tmp_path)
+
+    assert client._captured == [], f"LEAK: {client._captured}"
+
+
+def test_unrecognised_mode_of_work_is_not_projected(tmp_path: Path) -> None:
+    """A ``mode_of_work`` the policy table does not know refuses, body included.
+
+    Distinct from a mode that is ABSENT (every completed event, and every pre-v2
+    record), which keeps its documented task_execution default — pinned by
+    ``test_completed_event_resolves_policy_without_mode`` and
+    ``test_null_mode_projects_like_task_execution``. Collapsing the two is the
+    defect; the fix must not close absence along with malformation.
+    """
+    record = OpStartedEvent.model_construct(
+        event="started",
+        invocation_id="01KPQRX2EVGMRVB4Q1JQBAZJV3",
+        profile_id="implementer-fixture",
+        action="implement",
+        request_text="the request text",
+        governance_context_hash="abc123",
+        governance_context_available=True,
+        actor="claude",
+        started_at="2026-04-23T00:00:00+00:00",
+        mode_of_work="TASK-EXECUTION",  # type: ignore[arg-type]
+    )
+    client = _make_mock_client()
+
+    with (
+        patch(
+            "specify_cli.invocation.propagator.resolve_egress_consent",
+            return_value=EgressConsent.GRANTED,
+        ),
+        patch(
+            "specify_cli.invocation.propagator._get_saas_client",
+            return_value=client,
+        ),
+    ):
+        _propagate_one(record, tmp_path)
+
+    assert client._captured == [], f"LEAK: {client._captured}"

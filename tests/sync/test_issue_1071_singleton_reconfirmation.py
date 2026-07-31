@@ -248,17 +248,21 @@ class TestIssue1071SameHomeSingletonLeak:
             f"singleton process (pid={proc_singleton.pid}) exited after reap"
         )
 
-        # Exactly one daemon-port is listening in our allocated range.
-        listening_ports = [
-            p
-            for p in range(_PORT_START, _PORT_END)
-            if _port_listening(p, timeout_s=0.1)
-        ]
-        assert len(listening_ports) == 1, (
-            f"expected exactly 1 listening port, got {len(listening_ports)}: {listening_ports}"
-        )
-        assert listening_ports[0] == port_singleton, (
-            f"surviving port {listening_ports[0]} is not the singleton port {port_singleton}"
+        # Of the three ports THIS test allocated, exactly the singleton survives.
+        #
+        # Scoped to our own ports on purpose. This previously swept the whole
+        # hardcoded band range(_PORT_START, _PORT_END) while its comment claimed
+        # "our allocated range", so any unrelated listener in 9401-9425 — a real
+        # local daemon, or a daemon leaked by an earlier test run — made the
+        # count exceed 1 and reddened a test whose subject had behaved correctly.
+        # Every reap assertion above passed in that state; only this sweep failed.
+        # The reaper's contract is about the daemons it can see, so asserting over
+        # ports we did not allocate tested the host, not the reaper.
+        our_ports = (port_singleton, port_stale_a, port_stale_b)
+        listening_ports = [p for p in our_ports if _port_listening(p, timeout_s=0.1)]
+        assert listening_ports == [port_singleton], (
+            f"expected only the singleton port {port_singleton} to survive among "
+            f"{our_ports}, got {listening_ports}"
         )
 
     def test_same_home_three_version_matrix_all_stale_reaped(

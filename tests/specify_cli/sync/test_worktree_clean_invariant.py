@@ -463,26 +463,27 @@ def _drive_daemon_tick(_repo_root: Path, _config_path: Path) -> None:
 
     Driven via the underlying per-tick callable rather than starting a real daemon
     thread / binding a port (RISK mitigation: daemon ticks are timer-driven and
-    need a real server otherwise). The token fetch + batch sync are stubbed so the
-    tick exercises the identity-resolving emit/runtime seam (WP02) with zero
-    network. This is the variant that runs serially (-n0).
+    need a real server otherwise). The token fetch is stubbed so the tick exercises
+    the identity-resolving emit/runtime seam (WP02) with zero network. A
+    ``batch_sync`` stub used to silence the queue-backed event drain too, but that
+    drain is gone (#3030 FR-012 / WP02). The surviving body-upload drain is now the
+    tick's only egress, and it is inert here because a bare service leaves
+    ``_body_queue`` unwired — asserted below so a future default cannot turn this
+    driver into a live network call. This is the variant that runs serially (-n0).
     """
     from specify_cli.sync.background import BackgroundSyncService
-    from specify_cli.sync.batch import BatchSyncResult
     from specify_cli.sync.config import SyncConfig
     from specify_cli.sync.queue import OfflineQueue
 
     reset_emitter()
     service = BackgroundSyncService(queue=OfflineQueue(), config=SyncConfig())
-    with (
-        patch(
-            "specify_cli.sync.background._fetch_access_token_sync",
-            return_value="stub-token",
-        ),
-        patch(
-            "specify_cli.sync.background.batch_sync",
-            return_value=BatchSyncResult(),
-        ),
+    assert service._body_queue is None, (
+        "this driver is network-free only while the body-upload drain is unwired; "
+        "a wired _body_queue would make the tick POST artifact bodies for real"
+    )
+    with patch(
+        "specify_cli.sync.background._fetch_access_token_sync",
+        return_value="stub-token",
     ):
         # ``_perform_sync`` is the single-batch per-tick body the daemon timer
         # invokes (``_on_timer`` → ``_perform_sync`` → ``_sync_once``); calling it

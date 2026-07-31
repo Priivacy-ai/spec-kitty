@@ -11,9 +11,44 @@ import pytest
 from rich.console import Console
 
 from specify_cli.cli.commands.sync import format_queue_health
+from specify_cli.sync.config import ConfigRead
 from specify_cli.sync.queue import DEFAULT_MAX_QUEUE_SIZE, QueueStats
 
 pytestmark = pytest.mark.fast
+
+
+@pytest.fixture(autouse=True)
+def _isolated_runtime_root(tmp_path, monkeypatch):
+    """Keep these tests off the developer's / runner's real spec-kitty state.
+
+    Every other input to ``doctor`` in this file is mocked, but #3030 T021 added a
+    per-project journal section that opens the event journal for the CURRENT
+    producer scope. Without this fixture, ``test_doctor_healthy``'s verdict depends
+    on what happens to be in the journal of the machine running the suite. An
+    isolated home makes that journal genuinely absent, which the section reports as
+    such without raising an issue.
+
+    Precisely which contents would redden it is narrower than it looks, and the
+    first version of this docstring got it wrong: it is NOT "non-consented events".
+    ``@patch("specify_cli.sync.config.SyncConfig")`` reaches the lazy import inside
+    ``consent.py``'s resolver, so every project resolves to a truthy ``MagicMock``
+    and reads as consented. Only unresolved-identity rows, or a report that fails to
+    reconcile, can redden this test. The fixture is still load-bearing — it is what
+    keeps that from depending on the host.
+
+    Not a mirror of a production fail-open: ``get_repository_sync_enabled`` guards
+    with ``isinstance(enabled, bool)``, so only a mocked ``SyncConfig`` behaves this
+    way.
+    """
+    home = tmp_path / "spec-kitty-home"
+    home.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+    monkeypatch.setenv("HOME", str(tmp_path / "user-home"))
+    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+    from specify_cli.event_journal.journal import reset_journal_cache
+
+    reset_journal_cache()
 
 
 def _make_fake_session(
@@ -124,6 +159,11 @@ class TestDoctorCommand:
         mock_config.resolve_runtime_target.return_value.resolved_server_url = (
             "https://test.example.com"
         )
+        # #3030 FR-020: doctor now asks whether the consent index is READABLE, via
+        # `SyncConfig().read()`. A bare MagicMock answers that with a truthy `.fault`
+        # -- i.e. "unreadable" -- so the healthy answer has to be stated here, or the
+        # command reports a consent fault this test's own stub invented.
+        mock_config.read.return_value = ConfigRead(data={}, fault=None)
         mock_config_cls.return_value = mock_config
 
         now = datetime.now(UTC)
@@ -205,6 +245,11 @@ class TestDoctorCommand:
         mock_config.resolve_runtime_target.return_value.resolved_server_url = (
             "https://test.example.com"
         )
+        # #3030 FR-020: doctor now asks whether the consent index is READABLE, via
+        # `SyncConfig().read()`. A bare MagicMock answers that with a truthy `.fault`
+        # -- i.e. "unreadable" -- so the healthy answer has to be stated here, or the
+        # command reports a consent fault this test's own stub invented.
+        mock_config.read.return_value = ConfigRead(data={}, fault=None)
         mock_config_cls.return_value = mock_config
 
         past = datetime(2020, 1, 1, tzinfo=UTC)

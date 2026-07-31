@@ -412,11 +412,11 @@ def test_emitter_emit_queues_event_when_no_private_team_no_remote_ingress(
         "specify_cli.auth.get_token_manager",
         lambda: token_manager_with_shared_only_session,
     )
-    # Force the sync gate open so _emit reaches the team_slug step.
-    monkeypatch.setattr(
-        "specify_cli.sync.emitter.is_sync_enabled_for_checkout",
-        lambda: True,
-    )
+    # The sync gate is held open for this package by
+    # ``tests/sync/conftest.py::_consented_checkout_by_default`` so _emit reaches the
+    # team_slug step. The explicit ``is_sync_enabled_for_checkout`` override that used
+    # to sit here was removed with #3030 M1-1: the emitter no longer imports that
+    # cwd-derived name, so patching it steered nothing.
 
     queue = OfflineQueue(db_path=tmp_path / "queue.db")
     clock = LamportClock(value=0, node_id="test", _storage_path=tmp_path / "c.json")

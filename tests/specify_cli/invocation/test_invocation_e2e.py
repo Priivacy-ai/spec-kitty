@@ -32,6 +32,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from specify_cli.invocation.adapters import EgressConsent
 from specify_cli.invocation.errors import InvalidModeForEvidenceError
 from specify_cli.invocation.executor import ProfileInvocationExecutor
 from specify_cli.invocation.modes import ModeOfWork
@@ -216,8 +217,8 @@ def test_invocations_list_reads_local_only(tmp_path: Path) -> None:
     jsonl.write_text(json.dumps(started_record) + "\n", encoding="utf-8")
 
     # _iter_records reads local JSONL with no SaaS access
-    # Patch resolve_sync_routing (seam) to ensure no SaaS lookup is attempted
-    with patch("specify_cli.invocation.propagator.resolve_sync_routing") as mock_routing:
+    # Patch resolve_egress_consent (seam) to ensure no SaaS lookup is attempted
+    with patch("specify_cli.invocation.propagator.resolve_egress_consent") as mock_routing:
         records = list(_iter_records(events_dir, profile_filter=None, limit=100, repo_root=project))
         # SaaS routing is NOT called by the read path — assert it was never invoked
         mock_routing.assert_not_called()
@@ -247,8 +248,8 @@ def test_sync_disabled_no_saas_events(tmp_path: Path) -> None:
 
     with (
         patch(
-            "specify_cli.invocation.propagator.resolve_sync_routing",
-            return_value=False,  # sync explicitly disabled
+            "specify_cli.invocation.propagator.resolve_egress_consent",
+            return_value=EgressConsent.DENIED,  # the project has not consented
         ),
         patch(
             "specify_cli.invocation.propagator._get_saas_client",
@@ -815,8 +816,8 @@ def test_sync_disabled_no_propagation_errors(tmp_path: Path) -> None:
 
     with (
         patch(
-            "specify_cli.invocation.propagator.resolve_sync_routing",
-            return_value=False,  # sync explicitly disabled
+            "specify_cli.invocation.propagator.resolve_egress_consent",
+            return_value=EgressConsent.DENIED,  # the project has not consented
         ),
         patch("specify_cli.invocation.propagator._get_saas_client") as mock_client,
     ):

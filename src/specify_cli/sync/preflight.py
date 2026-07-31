@@ -44,11 +44,11 @@ from rich.table import Table
 
 from specify_cli.sync.owner import (
     DaemonOwnerRecord,
+    UnreadableOwnerRecord,
     _canonical_executable_path,
+    classify_owner_record,
     is_orphan,
     list_orphan_records,
-    owner_record_path,
-    read_owner_record,
 )
 
 
@@ -141,6 +141,15 @@ _AUTH_LOGIN_REMEDY: str = (
     "identity is available."
 )
 
+# #3030: the daemon owner record exists but cannot be read, so the foreground
+# cannot tell which daemon (if any) holds the queue lease. Restarting rewrites
+# the record from the daemon's own identity, which is the one action that
+# resolves the unknown rather than assuming it away.
+_UNREADABLE_OWNER_REMEDY: str = (
+    "Run `spec-kitty doctor restart-daemon` to rewrite the unreadable daemon "
+    "owner record, then verify with `spec-kitty sync status --check`."
+)
+
 ALL_REMEDIATION_TEXTS: tuple[str, ...] = (
     _RESTART_DAEMON_REMEDY,
     _SERVER_URL_REMEDY,
@@ -148,6 +157,7 @@ ALL_REMEDIATION_TEXTS: tuple[str, ...] = (
     _ORPHAN_REMEDY,
     _SYNC_MIGRATE_REMEDY,
     _AUTH_LOGIN_REMEDY,
+    _UNREADABLE_OWNER_REMEDY,
 )
 
 _REMEDIATION_HINTS: dict[MismatchField, str] = {
@@ -202,6 +212,10 @@ class PreflightResult:
     legacy_body_upload_rows: int = 0
     auth_present: bool = False
     auth_required: bool = True
+    # #3030: ``owner.json`` is on disk and could not be read. Not a mismatch
+    # (there is no daemon value to disagree with) and not an orphan (we cannot
+    # even name the PID) — its own named failure.
+    unreadable_owner_record: UnreadableOwnerRecord | None = None
     # Defensive: keep an internal field reserved for future expansion without
     # breaking the frozen-dataclass equality contract.
     _reserved: tuple[()] = field(default=(), repr=False, compare=False)
@@ -235,6 +249,11 @@ class PreflightResult:
             f"in scope."
         )
 
+        if self.unreadable_owner_record is not None:
+            console.print(
+                f"Daemon owner record: {self.unreadable_owner_record.describe()}"
+            )
+
         if self.mismatches:
             console.print(_build_mismatch_table(self.mismatches))
 
@@ -263,6 +282,7 @@ class PreflightResult:
             legacy_rows=k_legacy,
             auth_required=self.auth_required,
             auth_present=self.auth_present,
+            unreadable_owner=self.unreadable_owner_record is not None,
         )
         if remediation_lines:
             console.print("Remediation:")
@@ -298,6 +318,17 @@ class PreflightResult:
             "legacy_rows_for_scope": self.legacy_rows_for_scope,
             "auth_present": self.auth_present,
             "auth_required": self.auth_required,
+            # Never carries the record's bytes — ``owner.json`` holds the
+            # daemon's bearer token (see ``owner.UnreadableOwnerRecord``).
+            "unreadable_owner_record": (
+                None
+                if self.unreadable_owner_record is None
+                else {
+                    "path": str(self.unreadable_owner_record.path),
+                    "reason": self.unreadable_owner_record.reason,
+                    "detail": self.unreadable_owner_record.detail,
+                }
+            ),
         }
 
 
@@ -335,9 +366,12 @@ def _build_remediation_lines(
     legacy_rows: int,
     auth_required: bool,
     auth_present: bool,
+    unreadable_owner: bool = False,
 ) -> list[str]:
     """Return the compressed remediation bullets for a preflight failure."""
     remediation_lines: list[str] = []
+    if unreadable_owner:
+        remediation_lines.append(f"  • {_UNREADABLE_OWNER_REMEDY}")
     mismatch_fields = {m.field for m in mismatches}
     restart_class: tuple[MismatchField, ...] = (
         "daemon_package_version",
@@ -737,14 +771,18 @@ class BoundaryFailureSet:
     - ``foreground``: the :class:`ForegroundIdentity` used to build the
       comparison.
     - ``daemon_record``: the on-disk daemon owner record, or ``None`` when
-      no record is present.
+      no record is present **or** the record could not be read (in the
+      latter case ``unreadable_owner_record`` carries the fault).
+    - ``unreadable_owner_record``: set when ``owner.json`` is on disk and
+      cannot be parsed. Distinct from ``daemon_record is None`` (#3030).
     - ``mismatches``: canonical-field disagreements between foreground
       and daemon (empty when no daemon record or daemon is orphaned).
     - ``orphan_records``: orphan owner records currently on disk.
     - ``legacy_event_rows`` / ``legacy_body_upload_rows``: subtotals
       reported by :func:`detect_legacy_rows_for_scope`.
 
-    The set is *ok* (boundary coherent) iff all three lists are empty.
+    The set is *ok* (boundary coherent) iff all three lists are empty and the
+    owner record was readable.
     """
 
     foreground: ForegroundIdentity
@@ -753,6 +791,7 @@ class BoundaryFailureSet:
     orphan_records: tuple[DaemonOwnerRecord, ...] = ()
     legacy_event_rows: int = 0
     legacy_body_upload_rows: int = 0
+    unreadable_owner_record: UnreadableOwnerRecord | None = None
 
     @property
     def legacy_rows_for_scope(self) -> int:
@@ -764,11 +803,21 @@ class BoundaryFailureSet:
             not self.mismatches
             and not self.orphan_records
             and self.legacy_rows_for_scope == 0
+            # #3030 / FR-003: a record we cannot read is not a record that
+            # says "no daemon owns sync". Inability to determine ownership is
+            # never permission to proceed.
+            and self.unreadable_owner_record is None
         )
 
     @property
-    def daemon_status(self) -> Literal["present", "absent", "orphan"]:
-        """Render the daemon owner record's lifecycle state."""
+    def daemon_status(self) -> Literal["present", "absent", "orphan", "unreadable"]:
+        """Render the daemon owner record's lifecycle state.
+
+        ``"unreadable"`` is checked first: a corrupt record used to render as
+        ``"absent"``, which told the operator the opposite of what was known.
+        """
+        if self.unreadable_owner_record is not None:
+            return "unreadable"
         if self.daemon_record is None:
             return "absent"
         if is_orphan(self.daemon_record):
@@ -798,9 +847,22 @@ def build_boundary_failure_set(
     else:
         fg = foreground
 
-    # 1. Owner record lookup.
+    # 1. Owner record lookup — three states, not two (#3030 / FR-003).
+    #    This site used to read ``read_owner_record() if …exists() else None``,
+    #    which had the information to tell "no record" from "unreadable record"
+    #    and discarded it: a corrupt ``owner.json`` became ``daemon_status ==
+    #    "absent"``, produced no mismatch and no orphan row, and left ``ok``
+    #    True while a live daemon could hold the port under another auth scope.
+    #    The distinction now lives in ``owner.classify_owner_record`` — only the
+    #    reader knows *why* the parse failed, and reading once removes the
+    #    stat-then-read race this line carried. The *decision* stays here,
+    #    because refusing is a property of this gate, not of the reader.
+    owner_state = classify_owner_record()
     record: DaemonOwnerRecord | None = (
-        read_owner_record() if owner_record_path().exists() else None
+        owner_state if isinstance(owner_state, DaemonOwnerRecord) else None
+    )
+    unreadable_owner_record: UnreadableOwnerRecord | None = (
+        owner_state if isinstance(owner_state, UnreadableOwnerRecord) else None
     )
 
     # 2. Mismatches: only when a record exists AND the daemon process is
@@ -823,6 +885,7 @@ def build_boundary_failure_set(
         orphan_records=orphan_records,
         legacy_event_rows=legacy_event_rows,
         legacy_body_upload_rows=legacy_body_upload_rows,
+        unreadable_owner_record=unreadable_owner_record,
     )
 
 
@@ -848,6 +911,7 @@ def run_preflight(
             no mismatches
             and no orphan_records
             and legacy_rows_for_scope == 0
+            and unreadable_owner_record is None
             and (auth_present or not auth_required)
         )
 
@@ -873,4 +937,5 @@ def run_preflight(
         legacy_body_upload_rows=failure_set.legacy_body_upload_rows,
         auth_present=auth_present,
         auth_required=require_auth,
+        unreadable_owner_record=failure_set.unreadable_owner_record,
     )

@@ -112,6 +112,46 @@ def _patch_saas_token_bridges(monkeypatch, request):
     # constructing clients the way they used to.
     real_init = _saas_mod.SaaSTrackerClient.__init__
 
+    #: A checkout that has genuinely opted in, minted lazily and reused for the
+    #: whole test (#3030 FR-029).
+    #:
+    #: ``SaaSTrackerClient`` now refuses every request unless it has been told
+    #: which project owns the data, and that project consents. The suites in this
+    #: directory test auth, retry, routing and payload shape — not consent — so
+    #: they are given a project that has recorded a decision, and the **real**
+    #: consent chain runs and grants. Deliberately NOT done by stubbing
+    #: ``project_egress_refusal`` to a no-op: a gate switched off in every legacy
+    #: file is indistinguishable from a gate that does not work, and this mission
+    #: has already found a pin that passed with its invariant stripped entirely.
+    #: The refusing behaviour is owned by
+    #: ``test_saas_client_consent_gate_3030.py``, which passes ``project_root``
+    #: explicitly and is therefore unaffected by the injection below.
+    consenting_root: dict[str, Any] = {}
+
+    def _consenting_project_root():
+        if "path" not in consenting_root:
+            tmp_path = request.getfixturevalue("tmp_path")
+            root = tmp_path / "legacy-tracker-consenting-checkout"
+            (root / ".kittify").mkdir(parents=True, exist_ok=True)
+            (root / ".kittify" / "config.yaml").write_text(
+                "\n".join(
+                    [
+                        "project:",
+                        "  uuid: 6f1c2f2e-59a1-4a1f-9a2e-0f1c2f2e59a1",
+                        "  slug: legacy-tracker-suite",
+                        "  node_id: node00000001",
+                        "  repo_slug: spec-kitty-tests/legacy-tracker-suite",
+                        "  build_id: 6f1c2f2e-59a1-4a1f-9a2e-0f1c2f2e59a1",
+                        "sync:",
+                        "  enabled: true",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            consenting_root["path"] = root
+        return consenting_root["path"]
+
     def _compat_init(
         self,
         sync_config=None,
@@ -120,6 +160,11 @@ def _patch_saas_token_bridges(monkeypatch, request):
         timeout: float = 30.0,
         **kwargs: Any,
     ) -> None:
+        # Injected only when the caller omitted the kwarg entirely, so a test
+        # that passes ``project_root=None`` on purpose still gets an
+        # unattributed — and therefore refusing — client.
+        if "project_root" not in kwargs:
+            kwargs["project_root"] = _consenting_project_root()
         real_init(self, sync_config=sync_config, timeout=timeout, **kwargs)
         # Legacy tests inspect ``client._credential_store``; preserve that.
         self._credential_store = credential_store if credential_store is not None else fake_store

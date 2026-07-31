@@ -42,7 +42,7 @@ from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field as dataclass_field
 from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import psutil
 
@@ -233,7 +233,9 @@ def _record_from_mapping(data: dict[str, Any]) -> DaemonOwnerRecord:
     """Construct a :class:`DaemonOwnerRecord` from a parsed JSON mapping.
 
     Raises ``KeyError`` / ``TypeError`` / ``ValueError`` on missing or
-    malformed fields; callers treat any such failure as "no recorded owner".
+    malformed fields. :func:`classify_owner_record` converts any such failure
+    into an :class:`UnreadableOwnerRecord` — a record we cannot read is NOT
+    the same fact as no record at all (#3030).
     """
     return DaemonOwnerRecord(
         pid=int(data["pid"]),
@@ -252,29 +254,118 @@ def _record_from_mapping(data: dict[str, Any]) -> DaemonOwnerRecord:
     )
 
 
-def read_owner_record() -> DaemonOwnerRecord | None:
-    """Read the canonical owner record, returning ``None`` if absent or invalid.
+OwnerRecordFault = Literal[
+    "unreadable_file",
+    "invalid_json",
+    "not_an_object",
+    "invalid_fields",
+]
 
-    The function is deliberately permissive about *missing* records (the
-    daemon may simply not be running) but strict about *malformed* ones:
-    a JSON parse error or a missing field also yields ``None`` so that
-    upstream callers treat the daemon as "no recorded owner" and trigger
-    the standard reconciliation path instead of crashing.
+
+@dataclass(frozen=True)
+class UnreadableOwnerRecord:
+    """``owner.json`` is present but cannot be read as a record.
+
+    The third state, and the whole point of this type: the host can have **no**
+    owner record (no daemon has ever registered — a normal, permissive state)
+    or a record nobody can read (a truncated write, a hand-edit, ``EACCES``).
+    Those are different facts, and collapsing them into one ``None`` made the
+    second inherit the first's permissive meaning: a corrupt record read as
+    "no daemon owns sync", the preflight emitted no failure, and every sync
+    mutating command proceeded while a live daemon could hold the port under a
+    different auth scope (#3030, FR-003).
+
+    ``reason`` and ``detail`` carry *why* the record could not be read so the
+    refusal can name it. ``detail`` is the reader's diagnosis — an exception
+    message — deliberately **not** the file's bytes: unlike the analogous
+    ``invocation._UndeterminedMode(raw)``, this payload holds the daemon's
+    control-plane bearer token, and this module's redaction rule (see
+    :func:`redact_token`) applies to every surface that renders it.
+    """
+
+    path: Path
+    reason: OwnerRecordFault
+    detail: str
+
+    def describe(self) -> str:
+        """One-line operator-facing summary, safe to print (no record bytes)."""
+        return f"{self.path} is unreadable ({self.reason}): {self.detail}"
+
+
+# Bound on ``detail`` so a pathological exception message cannot blow the
+# preflight's NFR-004 25-line output budget.
+_MAX_FAULT_DETAIL_CHARS = 160
+
+
+def _fault(path: Path, reason: OwnerRecordFault, exc: BaseException) -> UnreadableOwnerRecord:
+    """Build an :class:`UnreadableOwnerRecord` from the failure that produced it."""
+    detail = f"{type(exc).__name__}: {exc}"
+    if len(detail) > _MAX_FAULT_DETAIL_CHARS:
+        detail = detail[: _MAX_FAULT_DETAIL_CHARS - 1] + "…"
+    return UnreadableOwnerRecord(path=path, reason=reason, detail=detail)
+
+
+def classify_owner_record() -> DaemonOwnerRecord | None | UnreadableOwnerRecord:
+    """Classify the on-disk owner record into absent / readable / unreadable.
+
+    - ``None`` → **absent**. No ``owner.json`` exists, so no daemon has ever
+      registered on this host. That is a normal state — the first
+      ``spec-kitty sync`` on a fresh machine — and it stays permissive.
+      Which side absence belongs on is decided by the data, not by symmetry
+      with the malformed case.
+    - a :class:`DaemonOwnerRecord` → the record, read and validated.
+    - an :class:`UnreadableOwnerRecord` → the file is there and we could not
+      read it. Callers making a *permission* decision MUST refuse on this.
+
+    The record is read exactly once, with no preceding ``exists()`` probe: a
+    daemon that shuts down mid-read raises ``FileNotFoundError``, which means
+    absence, while every other ``OSError`` (``EACCES``, ``EISDIR``, a decode
+    failure) means we were denied the answer. That also removes the
+    stat-then-read race the previous caller carried.
     """
     path = owner_record_path()
-    if not path.exists():
-        return None
     try:
         raw = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as exc:
+        # ValueError covers UnicodeDecodeError — bytes that are not text.
+        return _fault(path, "unreadable_file", exc)
+
+    try:
         data = json.loads(raw)
-    except (OSError, json.JSONDecodeError):
-        return None
+    except json.JSONDecodeError as exc:
+        return _fault(path, "invalid_json", exc)
+
     if not isinstance(data, dict):
-        return None
+        return UnreadableOwnerRecord(
+            path=path,
+            reason="not_an_object",
+            detail=f"expected a JSON object, found {type(data).__name__}",
+        )
+
     try:
         return _record_from_mapping(data)
-    except (KeyError, TypeError, ValueError):
-        return None
+    except (KeyError, TypeError, ValueError) as exc:
+        return _fault(path, "invalid_fields", exc)
+
+
+def read_owner_record() -> DaemonOwnerRecord | None:
+    """Return the owner record, or ``None`` when there is no usable one.
+
+    This is the **lossy** convenience over :func:`classify_owner_record` for
+    the callers that only need "a usable record or nothing": the mismatch
+    renderers, the pid/port-guarded shutdown hook, orphan listing. It
+    deliberately collapses *absent* and *unreadable* onto one ``None``.
+
+    Do NOT make a permission decision on that ``None`` — "I could not read the
+    record" is not "there is no daemon" (#3030, FR-003). Gates call
+    :func:`classify_owner_record` and refuse on
+    :class:`UnreadableOwnerRecord`; :func:`~specify_cli.sync.preflight.build_boundary_failure_set`
+    is the worked example.
+    """
+    outcome = classify_owner_record()
+    return outcome if isinstance(outcome, DaemonOwnerRecord) else None
 
 
 def remove_owner_record() -> bool:
@@ -449,30 +540,21 @@ def mismatched_fields(
     return out
 
 
-def check_daemon_owner_match() -> tuple[bool, list[str]]:
-    """Canonical pre-action coherence check.
-
-    Returns ``(True, [])`` when either:
-
-    * no daemon owner record exists (no daemon to disagree with), or
-    * the daemon record matches the foreground on every D-3 field.
-
-    Returns ``(False, mismatched)`` when a record exists *and* one or more
-    D-3 fields differ. Callers (sync mutating commands) should refuse to
-    act in the second case and surface the mismatched field list as a
-    remediation hint.
-
-    This function is the single canonical entry point referenced by
-    FR-007. Any new "before I touch sync state, am I talking to the
-    right daemon?" check should call this rather than re-implementing
-    the comparison.
-    """
-    record = read_owner_record()
-    if record is None:
-        return True, []
-    fg = compute_foreground_identity()
-    diff = mismatched_fields(record, fg)
-    return (not diff), diff
+# ``check_daemon_owner_match()`` lived here until #3030. It answered the
+# question "am I talking to the right daemon?" and its docstring advertised
+# itself as the canonical entry point for FR-007 — while returning ``(True, [])``
+# on an owner record it could not read, the same fail-open this module's
+# ``classify_owner_record`` now closes. It had zero ``src/`` callers: the
+# per-action gate moved to ``preflight.run_preflight`` in WP03/T011 of
+# ``mvp-cli-sync-boundary-completion-01KRX11M``, and it was demoted out of
+# ``__all__`` as dead in ``harden-dead-symbol-gate-01KW0RJR``. Fixing it would
+# have left the ownership decision implemented twice on two chains — the
+# divergence this mission keeps finding — so it is deleted instead.
+#
+# The canonical "am I talking to the right daemon?" check is
+# :func:`specify_cli.sync.preflight.build_boundary_failure_set` (and
+# :func:`~specify_cli.sync.preflight.run_preflight`, which every sync mutating
+# command already calls). New callers go there; do not reintroduce a second one.
 
 
 # ---------------------------------------------------------------------------
@@ -979,11 +1061,13 @@ __all__ = [
     # MISMATCH_FIELDS: demoted — intra-module constant; no cross-module src/
     # from-import callers (WP01 harden-dead-symbol-gate-01KW0RJR).
     # ReapResult: demoted — no cross-module src/ from-import callers (WP01).
+    "UnreadableOwnerRecord",
     "build_record_for_current_process",
     # canonical_executable_scope: demoted — no cross-module src/ from-import
     # callers (WP01 harden-dead-symbol-gate-01KW0RJR).
-    # check_daemon_owner_match: demoted — no cross-module src/ callers;
-    # only exercised by tests (WP01 harden-dead-symbol-gate-01KW0RJR).
+    # check_daemon_owner_match: DELETED in #3030 (was demoted here by WP01
+    # harden-dead-symbol-gate-01KW0RJR) — see the note above ``is_orphan``.
+    "classify_owner_record",
     "compute_foreground_identity",
     "is_orphan",
     "list_orphan_records",
