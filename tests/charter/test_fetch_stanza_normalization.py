@@ -20,6 +20,8 @@ This test is RED before T002's normalization lands in
 
 from __future__ import annotations
 
+import pytest
+
 from charter.context_renderers.fetch_stanza import (
     DEFAULT_WHEN_CLAUSE,
     fetch_stanza_lines,
@@ -27,13 +29,20 @@ from charter.context_renderers.fetch_stanza import (
 from charter.progressive_disclosure import STATED_DEFAULT_WHEN
 from tests.specify_cli.next.test_wp_prompt_governance_contract import _WHEN_DOING_RE
 
+pytestmark = [pytest.mark.fast, pytest.mark.unit]
+
 _SELECTOR = "directive:DIRECTIVE_030"
 
 
 def _when_line(clause: str) -> str:
     """Render the two-line stanza for *clause* and return its second line."""
     lines = fetch_stanza_lines(_SELECTOR, clause)
-    assert len(lines) == 2, f"fetch_stanza_lines must always return exactly 2 lines, got {lines!r}"
+    # fetch_stanza_lines' return shape IS a fixed 2-line stanza (selector line +
+    # When-clause line); there is no named-item collection here for a
+    # set/frozenset equality to express more strongly than the count.
+    assert len(lines) == 2, (  # golden-count: cardinality-is-contract
+        f"fetch_stanza_lines must always return exactly 2 lines, got {lines!r}"
+    )
     return lines[1]
 
 

@@ -40,7 +40,13 @@ from charter.context_renderers import (
 )
 from charter.schemas import DoctrineSelectionConfig
 
-pytestmark = [pytest.mark.fast]
+#: One test in this module (``test_seam_module_imports_standalone_without_
+#: charter_context``) spawns a subprocess to verify standalone importability,
+#: which disqualifies the whole file from the `fast` lane's no-subprocess
+#: contract (docs/context/testing-taxonomy.md -> 'Fast'). The module is
+#: otherwise a "focused unit tests" suite per the module docstring, so
+#: `unit` is the correct category marker.
+pytestmark = [pytest.mark.unit]
 
 
 # ---------------------------------------------------------------------------

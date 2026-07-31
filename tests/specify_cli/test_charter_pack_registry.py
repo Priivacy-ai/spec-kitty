@@ -70,7 +70,6 @@ def test_per_kind_activation_keys_is_unchanged_eight_key_set() -> None:
         "activated_agent_profiles",
         "activated_mission_step_contracts",
     }
-    assert len(PER_KIND_ACTIVATION_KEYS) == 8
 
 
 def test_activation_keys_still_includes_mission_type_and_kinds() -> None:

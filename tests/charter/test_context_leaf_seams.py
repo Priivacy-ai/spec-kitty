@@ -272,7 +272,7 @@ class TestExtractPolicySummary:
 
     def test_fallback_caps_at_eight_items(self) -> None:
         content = "\n".join(f"- item {i}" for i in range(12))
-        assert len(_extract_policy_summary(content)) == 8
+        assert _extract_policy_summary(content) == [f"item {i}" for i in range(8)]
 
 
 class TestFindSectionStart:
