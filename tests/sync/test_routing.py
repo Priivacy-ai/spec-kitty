@@ -9,10 +9,12 @@ from uuid import uuid4
 
 import pytest
 
+from specify_cli.identity.project import ProjectIdentity
 from specify_cli.sync.body_queue import OfflineBodyUploadQueue
 from specify_cli.sync.namespace import NamespaceRef
 from specify_cli.sync.queue import OfflineQueue
 from specify_cli.sync.routing import (
+    _build_checkout_sync_routing,
     disable_checkout_sync,
     is_sync_enabled_for_checkout,
     read_local_sync_enabled,
@@ -649,3 +651,33 @@ def test_a_healthy_config_with_no_consent_key_still_honours_the_checkout_grant(
     )
 
     assert is_sync_enabled_for_checkout(repo_root) is True
+
+
+# --- #3112: the fail-closed invariant is local to _build_checkout_sync_routing --
+
+
+def test_build_checkout_sync_routing_denies_directly_on_a_faulted_project_local_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The invariant must not depend on the caller running the fence first.
+
+    Every production caller (``resolve_checkout_sync_routing`` and its read-only
+    twin) already runs ``_routing_for_unreadable_project_config`` before reaching
+    ``_build_checkout_sync_routing``, so the fence-based tests above cannot observe
+    what happens when a caller skips it. Calling ``_build_checkout_sync_routing``
+    directly — as a future caller might — is the only way to prove the fail-closed
+    answer does not depend on that ordering convention (#3112).
+    """
+    repo_root = _make_checkout_with_grant(tmp_path, monkeypatch, case="direct-call-fault")
+    path = _write_project_config(repo_root, _VALID_REFUSAL)
+    path.chmod(0o000)
+    try:
+        routing = _build_checkout_sync_routing(repo_root, ProjectIdentity())
+    finally:
+        path.chmod(0o644)
+
+    assert routing.effective_sync_enabled is False, (
+        "an unreadable project-local consent file must fail closed even when "
+        "_build_checkout_sync_routing is called directly, skipping the fence"
+    )
+    assert routing.project_local_fault is not None
