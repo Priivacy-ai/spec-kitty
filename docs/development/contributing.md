@@ -2,7 +2,7 @@
 title: Contributing to Spec Kitty
 description: The full contributor guide for Spec Kitty — developer setup, running tests, submitting pull requests, AI-assistance disclosure, and the release process.
 doc_status: active
-updated: '2026-07-05'
+updated: '2026-07-31'
 type: how-to
 related:
 - docs/guides/index.md
@@ -387,7 +387,9 @@ Here are a few things you can do that will increase the likelihood of your pull 
 - Write tests for new functionality.
 - Update documentation (`README.md`, `spec-driven.md`) if your changes affect user-facing features.
 - Keep your change as focused as possible. If there are multiple changes you would like to make that are not dependent upon each other, consider submitting them as separate pull requests.
-- Write a [good commit message](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html).
+- Write a [good commit message](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html), and keep your history clean but not over-squashed: compress your own bookkeeping commits (fixups, "wip", formatting-only) into the related work, but keep genuinely separate logical/code changes as separate commits — each commit should be one coherent, reviewable change.
+- Write a PR body that leads with **impact** — what changes for a user or operator, in plain language, before any architecture or test-strategy detail. See [Review gates: PR body style](review-gates.md#pr-body-style-consumer-focused-bluf).
+- If your change is user-facing, add a consumer-focused entry to `docs/changelog/CHANGELOG.md` under `[Unreleased]` — impact-first, one line a user understands, not an internal-mechanism summary. See [Review gates: Changelog update and style](review-gates.md#changelog-update-and-style).
 - Test your changes with the Spec-Driven Development workflow to ensure compatibility.
 - Don't request review while your PR title is prefixed `WIP` / `[WIP]` -- a non-draft WIP-titled PR fails the `quality-gate` by design. Drop the prefix or keep the PR in draft. See [Review Gates](review-gates.md#pr-draft-and-wip-title-conventions).
 

@@ -2,7 +2,7 @@
 title: 'Landing Contributor PRs: The Maintainer Runbook'
 description: 'The maintainer workflow for landing contributor PRs: claim, worktree isolation, rebase, red classification, folds, red-first verification, push discipline, and hand-off.'
 doc_status: active
-updated: '2026-07-17'
+updated: '2026-07-31'
 type: how-to
 related:
 - docs/guides/index.md
@@ -142,7 +142,11 @@ behind the fourth bin.
 Folds are maintainer commits pushed directly to the contributor branch. This
 relies on `maintainerCanModify`, which is true by default on PRs from forks.
 
-- Keep each fold small and single-purpose.
+- **One commit per fold.** Each landing-pass remediation is its own
+  single-purpose commit — never bundle two unrelated fixes into one commit,
+  and never split one logical fix across several. This is a hard rule, not a
+  preference: a mixed-purpose fold commit is what makes a later `git revert`
+  or bisect ambiguous.
 - Label the commit subject `landing fold: ...`.
 - Explain every fold in the remediation summary comment ([step 10](#10-post-the-remediation-summary)).
 
@@ -153,6 +157,24 @@ migrations, doc/contract artifact sync, and — by default — fixes for
 The one red you do **not** fold to green is a `regression`-marked red-first
 test: it is a deliberate open-P0 signal and stays red until its own product
 fix lands (ADR 2026-07-17-1).
+
+### Clean history: compress bookkeeping, keep code separate
+
+Recent practice over-corrected on this point: several contributor PRs were
+landed **fully squashed**, erasing the reviewable seam between distinct code
+changes. That is not the target. When landing a contributor PR:
+
+- **Compress bookkeeping/admin commits** — planning notes, fixups, "wip",
+  formatting-only, mission-scaffolding, revert-of-own-typo — into the related
+  work commit they belong to.
+- **Keep genuinely separate code/feature work as separate, reviewable
+  commits.** If the contributor made two distinct logical changes, land two
+  commits, not one.
+- The goal is a readable history where each commit is one coherent change —
+  neither a single opaque squash nor 200 noise commits.
+
+This governs the *contributor's* commits. Landing folds (above) are always
+their own single-purpose `landing fold: ...` commits regardless.
 
 ## 6. Red-first verification for bugfix PRs
 
@@ -189,6 +211,12 @@ What the maintainer reads the diff for, beyond the checks:
   exception types their callees raise, not a guessed superset.
 - **Terminology canon** — on any prose or doctrine touch, run the guard
   locally: `PWHEADLESS=1 uv run pytest tests/architectural/test_no_legacy_terminology.py -q`.
+- **PR body style** — does the PR body lead with impact (what changes for a
+  user or operator), before architecture or test-strategy detail? See
+  [Review gates: PR body style](review-gates.md#pr-body-style-consumer-focused-bluf).
+- **Changelog update** — does a user-facing change carry a consumer-focused
+  entry in `docs/changelog/CHANGELOG.md`? See
+  [Review gates: Changelog update and style](review-gates.md#changelog-update-and-style).
 
 ## 8. Adversarial squad for architectural or API-surface PRs
 
@@ -200,6 +228,20 @@ read-only access to the landing worktree.
 - Fold their MAJOR findings ([step 5](#5-folds-remediation-commits-on-the-contributor-branch)).
 - File their MINORs and NOTEs as **one** follow-up issue, parented under the
   relevant functional epic.
+
+### Delegate remediation to subagents
+
+When a landing pass needs remediation beyond a one-line fold, delegate the
+implementation to a profile-loaded subagent rather than hand-authoring it
+inline — load the agent profile through the charter
+(`spec-kitty charter context --action implement --include agent-profile:<id>`,
+or `spec-kitty agent profile show <id>`), and apply model discipline:
+implementation work routes to `sonnet`, review work routes to `opus`. The
+maintainer's job is to classify each red ([step 4](#4-classify-every-red-check))
+and adjudicate the result, not to write every fold by hand. This complements
+the adversarial squad above — the squad finds and classifies, subagents
+implement the fold, the maintainer adjudicates and lands it as one commit
+([step 5](#5-folds-remediation-commits-on-the-contributor-branch)).
 
 ## 9. Push discipline
 
