@@ -7520,7 +7520,7 @@ pages:
   - path: "docs/migrations/relocate-builtin-doctrine-packs.md"
     title: "Migration: Relocate Built-In Doctrine to packs/built-in"
     divio_type: "none"
-    abstract: "Migration for the built-in doctrine relocation (mission relocate-builtin-doctrine-packs-01KYT87F): built-in doctrine content moved out of src/doctrine into a top-level packs/built-in/ pack root, resolved through a shared pack-root seam."
+    abstract: "Migration for the built-in doctrine relocation: content moved from src/doctrine into a top-level packs/built-in/ pack root, resolved through a shared pack-root seam."
     anchors:
     - {slug: "what-changed", text: "What changed", level: 2}
     - {slug: "the-new-resolution-seam", text: "The new resolution seam", level: 3}

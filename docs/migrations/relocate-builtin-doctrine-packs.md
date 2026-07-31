@@ -1,6 +1,6 @@
 ---
 title: 'Migration: Relocate Built-In Doctrine to packs/built-in'
-description: 'Migration for the built-in doctrine relocation (mission relocate-builtin-doctrine-packs-01KYT87F): built-in doctrine content moved out of src/doctrine into a top-level packs/built-in/ pack root, resolved through a shared pack-root seam.'
+description: 'Migration for the built-in doctrine relocation: content moved from src/doctrine into a top-level packs/built-in/ pack root, resolved through a shared pack-root seam.'
 doc_status: active
 updated: '2026-07-30'
 ---
