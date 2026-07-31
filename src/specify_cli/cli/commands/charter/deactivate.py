@@ -24,6 +24,7 @@ safe cascade engine on the removal side:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 import typer
 from specify_cli.cli.console import console
@@ -64,11 +65,17 @@ def _source_urn(
     except MissionTypeNotAnArtifactKind:
         return None
     try:
-        return resolve_artifact_urn(
-            kind_enum,
-            artifact_id,
-            doctrine_root=resolve_doctrine_root(),
-            layer_roots=layer_roots,
+        # `charter.*` is checked with follow_imports = "skip" (pyproject.toml),
+        # so mypy sees this call as returning Any even though
+        # resolve_artifact_urn is declared -> str in its own source.
+        return cast(
+            str,
+            resolve_artifact_urn(
+                kind_enum,
+                artifact_id,
+                doctrine_root=resolve_doctrine_root(),
+                layer_roots=layer_roots,
+            ),
         )
     except UnknownArtifactIdError:
         return None
