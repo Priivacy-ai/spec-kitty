@@ -60,7 +60,7 @@ def _write_kittify_config_with_pack(repo_root: Path, pack_path: Path) -> None:
 
 def _resolve_built_in_directive_id(repo_root: Path) -> str:
     """Pick a known shipped directive id so we can collide against it."""
-    built_in_dir = repo_root / "src" / "doctrine" / "directives" / "built-in"
+    built_in_dir = repo_root / "packs" / "built-in" / "directives"
     for path in sorted(built_in_dir.glob("*.directive.yaml")):
         text = path.read_text(encoding="utf-8")
         for line in text.splitlines():

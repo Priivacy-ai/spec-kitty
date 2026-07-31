@@ -30,7 +30,10 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 runner = CliRunner()
 
-DOCTRINE_ROOT = Path(__file__).resolve().parents[4] / "src" / "doctrine"
+# The sharded ``*.graph.yaml`` DRG fragments relocated from ``src/doctrine`` to
+# the top-level ``packs/built-in`` pack root (mission relocate-builtin-doctrine-packs);
+# regenerate-graph resolves and rewrites them there.
+DOCTRINE_ROOT = Path(__file__).resolve().parents[4] / "packs" / "built-in"
 
 
 def _graph_files(doctrine_dir: Path) -> list[Path]:
@@ -147,7 +150,7 @@ def test_regenerate_twice_is_byte_identical(
     """Write-mode regeneration is deterministic across two runs."""
     # Assemble a working-tree-shaped doctrine root the resolver will discover.
     fake_repo = tmp_path / "repo"
-    fake_doctrine = fake_repo / "src" / "doctrine"
+    fake_doctrine = fake_repo / "packs" / "built-in"
     fake_doctrine.parent.mkdir(parents=True)
     shutil.copytree(DOCTRINE_ROOT, fake_doctrine)
     monkeypatch.chdir(fake_repo)
@@ -171,7 +174,7 @@ def test_check_detects_stale_graph(
 ) -> None:
     """A corrupted committed graph is reported stale with exit code 1."""
     fake_repo = tmp_path / "repo"
-    fake_doctrine = fake_repo / "src" / "doctrine"
+    fake_doctrine = fake_repo / "packs" / "built-in"
     fake_doctrine.parent.mkdir(parents=True)
     shutil.copytree(DOCTRINE_ROOT, fake_doctrine)
     monkeypatch.chdir(fake_repo)

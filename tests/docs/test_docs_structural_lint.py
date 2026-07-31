@@ -64,7 +64,7 @@ _LINT_ASSET_PATH = _resolve_lint_asset_path()
 #: hard-codes this path — it is supplied explicitly (``--styleguide`` /
 #: ``SPEC_KITTY_STYLEGUIDE``), which is what makes it consumable elsewhere.
 STYLEGUIDE_PATH = (
-    _REPO_ROOT / "src/doctrine/styleguides/built-in/common-docs.styleguide.yaml"
+    _REPO_ROOT / "packs/built-in/styleguides/common-docs.styleguide.yaml"
 )
 
 
