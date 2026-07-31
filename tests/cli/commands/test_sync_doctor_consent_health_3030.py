@@ -33,6 +33,7 @@ that hole, and a later relocation would orphan the helper with the suite still g
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -53,8 +54,22 @@ _WIDE_TERMINAL = "220"
 
 
 @pytest.fixture(autouse=True)
-def checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """An isolated home plus an isolated checkout, with doctor kept off the network."""
+def checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
+    """An isolated home plus an isolated checkout, with doctor kept off the network.
+
+    Also resets the process-wide ``TokenManager`` singleton (#3030 landing-pass
+    hardening): ``sync.status``/``sync.doctor`` unconditionally call
+    ``get_token_manager()``, which lazily caches its instance for the lifetime of
+    the worker process. In a ``--dist loadfile`` run that worker executes many
+    other CLI test files first, so a sibling test that authenticates a fake
+    session (or otherwise mutates the singleton) would otherwise leak into this
+    file's producer-scope resolution. Reset in BOTH setup and teardown so this
+    file starts clean and never poisons whichever file the worker runs next —
+    mirroring the existing ``reset_journal_cache()`` isolation below.
+    """
+    from specify_cli.auth.manager import reset_token_manager
+
+    reset_token_manager()
     home = tmp_path / "home"
     home.mkdir(parents=True, exist_ok=True)
     repo = tmp_path / "checkout"
@@ -81,7 +96,10 @@ def checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     from specify_cli.event_journal.journal import reset_journal_cache
 
     reset_journal_cache()
-    return repo
+    try:
+        yield repo
+    finally:
+        reset_token_manager()
 
 
 def _flat(output: str) -> str:
