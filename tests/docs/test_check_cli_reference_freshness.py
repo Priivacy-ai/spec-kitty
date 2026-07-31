@@ -621,14 +621,13 @@ class TestCli:
 def test_real_typer_app_visible_count_within_tolerance() -> None:
     """The walker against the live ``specify_cli.app`` should match audit.
 
-    Baseline re-pinned 2026-07-31 at 263 visible (was 236 from the 2026-07-04
-    re-pin; the surface grew through legitimate additions across several
-    already-landed missions -- doctrine asset commands, issue-matrix migrate,
-    sync import-history, cutover-guard/doctor cutover, the agent
-    issue-verdict/acceptance-verdict/mission-repair/tracer-append surface, and
-    ``sync purge`` (#3030) -- then ``charter pack list``/``path``/``apply``
-    (#3064) crossed the stale band. Tolerance: ±10% on the visible count
-    (236..289) to allow natural growth.
+    Baseline re-pinned 2026-07-31 at 247 visible, measured directly against the
+    live app after landing ``sync purge`` (#3030, already on main) and
+    ``charter pack list``/``path``/``apply`` (#3064, this PR). The prior
+    same-PR re-pins (236 / 262 / 263) were authored before this branch was
+    rebased onto the current main, so their counts were estimates against a
+    moving surface; 247 is the observed value on the rebased tip. Tolerance:
+    ±10% on the visible count (222..272) to allow natural growth.
     """
     os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "1"
     os.environ["SPEC_KITTY_NO_UPGRADE_CHECK"] = "1"
@@ -650,9 +649,9 @@ def test_real_typer_app_visible_count_within_tolerance() -> None:
     entries = walk(app)
     visible = [e for e in entries if not e.hidden]
     deprecated = [e for e in entries if e.deprecated]
-    assert 236 <= len(visible) <= 289, (
+    assert 222 <= len(visible) <= 272, (
         f"visible count {len(visible)} is outside the ±10% tolerance band "
-        "around the 2026-07-31 audit baseline of 263 (#3030 sync purge + "
-        "#3064 charter pack)"
+        "around the 2026-07-31 audit baseline of 247 (measured on the rebased "
+        "tip: #3030 sync purge + #3064 charter pack)"
     )
     assert len(deprecated) >= 1
