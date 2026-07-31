@@ -626,6 +626,13 @@ def test_real_typer_app_visible_count_within_tolerance() -> None:
     post-audit additions and ``orchestrator-api resolve-workspace`` (#2337)
     crossed the stale band). Tolerance: ±10% on the visible count (212..259)
     to allow natural growth.
+
+    Re-pinned 2026-07-31: ceiling bumped 259 -> 260. The new ``sync purge``
+    command (#3030) took the live count to 260, one past the 2026-07-04
+    ceiling. The band stays anchored to the 236 baseline rather than being
+    recomputed to a full ±10% of the new count — widened only by the one
+    slot this command needed, per the re-pin-in-the-same-PR pattern in
+    docs/development/pr-landing.md.
     """
     os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "1"
     os.environ["SPEC_KITTY_NO_UPGRADE_CHECK"] = "1"
@@ -647,8 +654,9 @@ def test_real_typer_app_visible_count_within_tolerance() -> None:
     entries = walk(app)
     visible = [e for e in entries if not e.hidden]
     deprecated = [e for e in entries if e.deprecated]
-    assert 212 <= len(visible) <= 259, (
-        f"visible count {len(visible)} is outside the ±10% tolerance band "
-        "around the 2026-07-04 audit baseline of 236"
+    assert 212 <= len(visible) <= 260, (
+        f"visible count {len(visible)} is outside the tolerance band "
+        "around the 2026-07-04 audit baseline of 236 (ceiling bumped to 260 "
+        "on 2026-07-31 for the new sync purge command, #3030)"
     )
     assert len(deprecated) >= 1
