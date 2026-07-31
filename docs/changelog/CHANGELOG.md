@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-07-29'
+updated: '2026-07-31'
 ---
 # Changelog
 
@@ -280,6 +280,18 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **Fixed: `sync` could deliver one project's events to another project's
+  workspace, including projects that never opted in (#3030).** A machine
+  keeps one shared local event journal across every Spec Kitty checkout on
+  it. Sync's consent check only asked "is sync enabled for *this* checkout?"
+  — once yes, it delivered the *entire* journal, so a single opted-in
+  project could ship another, unrelated project's events and metadata to the
+  hosted server. Every path that reads from the journal for delivery is now
+  gated per-project, consent is checked before events leave the machine
+  rather than only at the checkout level, and an unresolvable consent check
+  now fails closed (refuses to send) instead of failing open. If you use
+  hosted sync for more than one local project, only the project(s) you
+  explicitly opted in now have their data sent.
 - **DRG document-writer blind spot closed (mission `doctrine-delivery-activation`;
   `#3075`, `#2977`).** All three `DRGGraph` document-emit sites
   (`rewrite_opposed_by`, `charter.synthesizer.project_drg`, and the
