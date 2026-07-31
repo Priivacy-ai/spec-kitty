@@ -540,8 +540,12 @@ _Mission lifecycle commands for AI agents_
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ record-analysis      Persist `/spec-kitty.analyze` output as                 │
 │                      `analysis-report.md`.                                   │
-│ acceptance-verdict   Record one acceptance-criterion verdict, routed through │
-│                      the WP03 write seam.                                    │
+│ acceptance-verdict   Record an acceptance-criterion verdict, or              │
+│                      register/execute a negative                             │
+│                      invariant (FR-007/FR-008) — exactly one of              │
+│                      ``--criterion``/                                        │
+│                      ``--negative-invariant``, both routed through the WP03  │
+│                      write seam.                                             │
 │ branch-context       Return deterministic branch contract for planning-stage │
 │                      prompts.                                                │
 │ create               Create new mission directory structure in the project   │
@@ -601,21 +605,59 @@ _Mission lifecycle commands for AI agents_
 ```
  Usage: spec-kitty agent mission acceptance-verdict [OPTIONS]
 
- Record one acceptance-criterion verdict, routed through the WP03 write seam.
+ Record an acceptance-criterion verdict, or register/execute a negative
+ invariant (FR-007/FR-008) — exactly one of ``--criterion``/
+ ``--negative-invariant``, both routed through the WP03 write seam.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                      TEXT  Mission slug, mid8, or mission_id    │
-│                                         [required]                           │
-│ *  --criterion                    TEXT  Acceptance criterion id (e.g.        │
-│                                         FR-001)                              │
-│                                         [required]                           │
-│ *  --result                       TEXT  pass | fail | pending [required]     │
-│    --verification-method          TEXT  How this was verified (updates       │
-│                                         proof_type)                          │
-│    --actor                        TEXT  Actor recording this verdict         │
-│    --evidence                     TEXT  Evidence reference (URL/path/etc.)   │
-│    --json                               Output JSON format                   │
-│    --help                 -h            Show this message and exit.          │
+│ *  --mission                                   TEXT  Mission slug, mid8, or  │
+│                                                      mission_id              │
+│                                                      [required]              │
+│    --criterion                                 TEXT  Acceptance criterion id │
+│                                                      (e.g. FR-001); mutually │
+│                                                      exclusive with          │
+│                                                      --negative-invariant    │
+│    --result                                    TEXT  pass | fail | pending   │
+│                                                      (required with          │
+│                                                      --criterion)            │
+│    --verification-method                       TEXT  Criterion mode: how     │
+│                                                      this was verified       │
+│                                                      (updates proof_type).   │
+│                                                      Negative-invariant      │
+│                                                      mode: grep_absence |    │
+│                                                      route_check |           │
+│                                                      custom_command          │
+│                                                      (required with          │
+│                                                      --negative-invariant).  │
+│    --actor                                     TEXT  Actor recording this    │
+│                                                      verdict                 │
+│    --evidence                                  TEXT  Evidence reference      │
+│                                                      (URL/path/etc.)         │
+│    --negative-invariant                        TEXT  Negative invariant id   │
+│                                                      to register/execute     │
+│                                                      (FR-007/FR-008);        │
+│                                                      mutually exclusive with │
+│                                                      --criterion             │
+│    --description                               TEXT  Negative invariant      │
+│                                                      description (required   │
+│                                                      with                    │
+│                                                      --negative-invariant)   │
+│    --verification-command                      TEXT  grep pattern or command │
+│                                                      verifying the           │
+│                                                      invariant's absence     │
+│    --scope                                     TEXT  Whitespace-separated    │
+│                                                      repo-relative search    │
+│                                                      root(s); grep_absence   │
+│                                                      only                    │
+│    --execute                   --no-execute          Run the invariant's     │
+│                                                      verification            │
+│                                                      immediately after       │
+│                                                      registering (FR-008;    │
+│                                                      default: on)            │
+│                                                      [default: execute]      │
+│    --json                                            Output JSON format      │
+│    --help                  -h                        Show this message and   │
+│                                                      exit.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

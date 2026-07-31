@@ -2813,12 +2813,12 @@ pages:
     - {slug: "spec-kitty-doctor-topology", text: "spec-kitty doctor topology", level: 2}
     - {slug: "spec-kitty-doctor-workspaces", text: "spec-kitty doctor workspaces", level: 2}
     - {slug: "spec-kitty-doctrine", text: "spec-kitty doctrine", level: 2}
-    - {slug: "spec-kitty-doctrine-fetch", text: "spec-kitty doctrine fetch", level: 2}
-    - {slug: "spec-kitty-doctrine-mission-type", text: "spec-kitty doctrine mission-type", level: 2}
-    - {slug: "spec-kitty-doctrine-mission-type-list", text: "spec-kitty doctrine mission-type list", level: 2}
     - {slug: "spec-kitty-doctrine-asset", text: "spec-kitty doctrine asset", level: 2}
     - {slug: "spec-kitty-doctrine-asset-list", text: "spec-kitty doctrine asset list", level: 2}
     - {slug: "spec-kitty-doctrine-asset-path", text: "spec-kitty doctrine asset path", level: 2}
+    - {slug: "spec-kitty-doctrine-fetch", text: "spec-kitty doctrine fetch", level: 2}
+    - {slug: "spec-kitty-doctrine-mission-type", text: "spec-kitty doctrine mission-type", level: 2}
+    - {slug: "spec-kitty-doctrine-mission-type-list", text: "spec-kitty doctrine mission-type list", level: 2}
     - {slug: "spec-kitty-doctrine-new", text: "spec-kitty doctrine new", level: 2}
     - {slug: "spec-kitty-doctrine-org", text: "spec-kitty doctrine org", level: 2}
     - {slug: "spec-kitty-doctrine-org-init", text: "spec-kitty doctrine org init", level: 2}
@@ -2922,6 +2922,7 @@ pages:
     - {slug: "spec-kitty-sync-now", text: "spec-kitty sync now", level: 2}
     - {slug: "spec-kitty-sync-opt-in", text: "spec-kitty sync opt-in", level: 2}
     - {slug: "spec-kitty-sync-opt-out", text: "spec-kitty sync opt-out", level: 2}
+    - {slug: "spec-kitty-sync-purge", text: "spec-kitty sync purge", level: 2}
     - {slug: "spec-kitty-sync-routes", text: "spec-kitty sync routes", level: 2}
     - {slug: "spec-kitty-sync-server", text: "spec-kitty sync server", level: 2}
     - {slug: "spec-kitty-sync-share", text: "spec-kitty sync share", level: 2}

@@ -378,6 +378,15 @@ _Charter bundle validation commands._
 │                                               project-local charter, while   │
 │                                               `org_charter` describes        │
 │                                               imported org packs.            │
+│ --include-all                                 Escape hatch: materialise the  │
+│                                               entire reachable closure       │
+│                                               inline in the structured       │
+│                                               (--json) payload instead of    │
+│                                               the default progressive        │
+│                                               disclosure (requires eager,    │
+│                                               suggests linked). Output is a  │
+│                                               superset of the progressive    │
+│                                               render for the same grain.     │
 │ --help          -h                            Show this message and exit.    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -1573,7 +1582,60 @@ _Manage org-layer doctrine packs_
 │ org               Manage org-layer doctrine pack authoring (init, validate). │
 │ mission-type      Mission type commands.                                     │
 │ asset             Resolve shipped and overlay doctrine assets (no install —  │
-│                   C-002).                                                     │
+│                   C-002).                                                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine asset
+
+_Resolve shipped and overlay doctrine assets (no install — C-002)._
+
+```
+ Usage: spec-kitty doctrine asset [OPTIONS] COMMAND [ARGS]...
+
+ Resolve shipped and overlay doctrine assets (no install — C-002).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ list  List all resolvable doctrine assets and their source tiers.            │
+│ path  Resolve an asset identifier to a filesystem path (fail-closed on       │
+│       miss).                                                                 │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine asset list
+
+```
+ Usage: spec-kitty doctrine asset list [OPTIONS]
+
+ List all resolvable doctrine assets and their source tiers.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit machine-readable JSON instead of rich text.           │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctrine asset path
+
+```
+ Usage: spec-kitty doctrine asset path [OPTIONS] ASSET_ID
+
+ Resolve an asset identifier to a filesystem path (fail-closed on miss).
+
+ Exits ``0`` and prints the path on success. An unknown id or a containment
+ refusal exits non-zero with the offending id named (A-7 / NFR-006).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    asset_id      TEXT  Identifier of the asset to resolve (see `doctrine   │
+│                          asset list`).                                       │
+│                          [required]                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit machine-readable JSON instead of rich text.           │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1631,59 +1693,6 @@ _Mission type commands._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## spec-kitty doctrine asset
-
-_Resolve shipped and overlay doctrine assets (no install — C-002)._
-
-```
- Usage: spec-kitty doctrine asset [OPTIONS] COMMAND [ARGS]...
-
- Resolve shipped and overlay doctrine assets (no install — C-002).
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ list  List all resolvable doctrine assets and their source tiers.            │
-│ path  Resolve an asset identifier to a filesystem path (fail-closed on       │
-│       miss).                                                                 │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine asset list
-
-```
- Usage: spec-kitty doctrine asset list [OPTIONS]
-
- List all resolvable doctrine assets and their source tiers.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Emit machine-readable JSON instead of rich text.           │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine asset path
-
-```
- Usage: spec-kitty doctrine asset path [OPTIONS] ASSET_ID
-
- Resolve an asset identifier to a filesystem path (fail-closed on miss).
-
- Exits 0 and prints the path on success. An unknown id or a containment
- refusal exits non-zero with the offending id named (A-7 / NFR-006).
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    asset_id      ASSET_ID  Identifier of the asset to resolve (see         │
-│                              `doctrine asset list`).                         │
-│                              [required]                                      │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Emit machine-readable JSON instead of rich text.           │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
 ## spec-kitty doctrine new
 
 ```
@@ -1697,8 +1706,9 @@ _Resolve shipped and overlay doctrine assets (no install — C-002)._
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    kind             TEXT  Artifact kind (singular): one of agent_profile,  │
-│                             directive, mission_step_contract, paradigm,      │
-│                             procedure, styleguide, tactic, toolguide.        │
+│                             asset, directive, mission_step_contract,         │
+│                             paradigm, procedure, styleguide, tactic,         │
+│                             toolguide.                                       │
 │                             [required]                                       │
 │ *    artifact_id      ID    Artifact identifier (kebab-case for most kinds;  │
 │                             SCREAMING_SNAKE for directives).                 │
@@ -4121,6 +4131,8 @@ _Synchronization commands_
 │ gc              Purge event payloads delivered to all known targets          │
 │                 (explicit, destructive).                                     │
 │ archive         Archive retained event payloads (explicit, non-destructive). │
+│ purge           Remove a project's retained event data from every store that │
+│                 holds it (FR-016/FR-017).                                    │
 │ migrate         Migrate legacy hash-scoped queue DBs into the append-only    │
 │                 event journal.                                               │
 │ mode            Show or set the event-sync retention x delivery mode.        │
@@ -4273,26 +4285,54 @@ _Synchronization commands_
  converge. The journal is never overwritten. Exits non-zero when unresolved
  conflicts still block cleanup (SC-011).
 
+ Convergence also projects each row's stored identity into the journal's
+ ``project_uuid``/``project_slug``/``repo_slug`` columns (#3030 H4). A row with
+ a
+ NULL ``project_uuid`` is permanently unselectable, so before this ran every
+ pre-mission row — including the operator's own consenting project's history —
+ was undeliverable forever. Identity is only recovered from the row's own
+ stored
+ envelope, never invented, so a row that carries none stays NULL and stays
+ unselectable.
+
+ ``--backfill-consent-index`` additionally maps path-keyed consent records onto
+ the uuid index. That one is opt-in because it writes machine-global consent
+ state and the uuid index outranks a repo default, so it can flip a project
+ from
+ denied to delivering; every mapped project and every unresolvable record is
+ listed.
+
  Examples:
      spec-kitty sync migrate
      spec-kitty sync migrate --no-cleanup
      spec-kitty sync migrate --resolve-conflicts keep-journal
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --no-cleanup                       Import into the journal but do NOT delete │
-│                                    the migrated rows from the source queues. │
-│                                    Use to inspect the migration before the   │
-│                                    legacy-row boundary is converged; re-run  │
-│                                    `sync migrate` (without the flag) to      │
-│                                    clean up.                                 │
-│ --resolve-conflicts          TEXT  Resolve divergent-duplicate conflicts so  │
-│                                    the boundary can converge. Only           │
-│                                    `keep-journal` is supported: the journal  │
-│                                    payload is canonical, so each conflicting │
-│                                    source row is archived (quarantined) then │
-│                                    removed. Explicit operator recovery;      │
-│                                    never overwrites the journal.             │
-│ --help               -h            Show this message and exit.               │
+│ --no-cleanup                            Import into the journal but do NOT   │
+│                                         delete the migrated rows from the    │
+│                                         source queues. Use to inspect the    │
+│                                         migration before the legacy-row      │
+│                                         boundary is converged; re-run `sync  │
+│                                         migrate` (without the flag) to clean │
+│                                         up.                                  │
+│ --resolve-conflicts               TEXT  Resolve divergent-duplicate          │
+│                                         conflicts so the boundary can        │
+│                                         converge. Only `keep-journal` is     │
+│                                         supported: the journal payload is    │
+│                                         canonical, so each conflicting       │
+│                                         source row is archived (quarantined) │
+│                                         then removed. Explicit operator      │
+│                                         recovery; never overwrites the       │
+│                                         journal.                             │
+│ --backfill-consent-index                Also map path-keyed consent records  │
+│                                         onto the uuid-keyed index the drain  │
+│                                         reads. WRITES machine-global consent │
+│                                         records, and the uuid index outranks │
+│                                         a repo default — so this can change  │
+│                                         a project's effective answer. Opt-in │
+│                                         for that reason; every change is     │
+│                                         listed.                              │
+│ --help                    -h            Show this message and exit.          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4380,6 +4420,72 @@ _Synchronization commands_
 │ --yes                            Skip the confirmation prompt when used with │
 │                                  --delete-private-data.                      │
 │ --help                 -h        Show this message and exit.                 │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty sync purge
+
+```
+ Usage: spec-kitty sync purge [OPTIONS]
+
+ Remove a project's retained event data from every store that holds it
+ (FR-016/FR-017).
+
+ **Dry-run by default.** Reports per-store, per-delivery-state counts and
+ changes
+ nothing; what it predicts is exactly what ``--apply`` then deletes. Deletion
+ is
+ only ever the operator's explicit act (C-002) — nothing here runs unattended.
+
+ Four stores hold a project's data and all four are covered: the event journal,
+ the delivery ledger (removed, not retained — an orphan ledger row can quote
+ the
+ project it belonged to), the body-upload queue (verbatim ``spec.md`` /
+ ``plan.md`` text, not envelopes), and this checkout's queued local-commit
+ frames
+ (whose ``changed_files`` are mission slugs).
+
+ Every count in the differential is measured by re-reading the stores rather
+ than
+ by adding up what the purge reports deleting, and the report names the
+ populations a targeted purge cannot reach instead of quietly leaving them out.
+
+ ``--all`` is per-checkout for the local-commit frames and the report says so:
+ the other three stores are machine-global, but there is no registry of
+ checkouts,
+ so another checkout's queued frames are neither listed nor touched.
+
+ Examples:
+     spec-kitty sync purge --project acme-migration
+     spec-kitty sync purge --project acme-migration --apply --report purge.json
+     spec-kitty sync purge --all
+     spec-kitty sync purge --all --apply --confirm "purge all events"
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --project                TEXT  Purge one project's rows, by project uuid,    │
+│                                project slug or repo slug — any name `sync    │
+│                                doctor` / `sync status` prints for the        │
+│                                project. Dry-run unless --apply is given.     │
+│ --identity-less                Purge journal/ledger rows whose project       │
+│                                identity is NULL — permanently undeliverable  │
+│                                rows that no project selector can match.      │
+│ --all                          Purge every row of this machine's journal,    │
+│                                delivery ledger and body-upload queue, plus   │
+│                                THIS checkout's queued local-commit frames.   │
+│                                Requires --confirm with the confirmation      │
+│                                phrase.                                       │
+│ --apply                        Actually delete. Without it this command only │
+│                                reports.                                      │
+│ --dry-run                      Report only, deleting nothing (this is the    │
+│                                default).                                     │
+│ --confirm                TEXT  Confirmation phrase authorising a destructive │
+│                                --all run. Run without it once; the refusal   │
+│                                names the exact phrase and deletes nothing.   │
+│ --report                 PATH  Write the purge report as JSON. Worth doing:  │
+│                                the ledger rows this purge deletes are the    │
+│                                only durable record of what happened to those │
+│                                events.                                       │
+│ --help           -h            Show this message and exit.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
