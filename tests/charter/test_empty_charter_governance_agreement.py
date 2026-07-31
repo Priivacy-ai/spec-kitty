@@ -116,9 +116,16 @@ def test_empty_charter_dispatch_governance_block_has_no_directive_leak(
 def test_empty_charter_dispatch_reproduces_full_catalog_leak_when_unadjusted(
     tmp_path: Path,
 ) -> None:
-    """Pin the exact size of the pre-fix leak so a future regression that
-    silently re-widens the merge (e.g. reverting T013) is caught even if the
-    catalog membership test above degrades to a vacuous pass.
+    """Prove the bounded suppression has something to suppress.
+
+    With the suppression DISABLED (``suppress_project_resolver=False``), the
+    same wholly-empty-charter dispatch DOES leak the full built-in
+    catalog-fallback directive canon into the compact governance block. Pinning
+    that pre-fix leak shape here is what stops the "no leak" assertion in
+    :func:`test_empty_charter_dispatch_governance_block_has_no_directive_leak`
+    from degrading to a *vacuous* pass in lockstep -- if the render ever stopped
+    emitting directive ids at all, that test would go green for the wrong
+    reason while this negative-shape guard reds.
 
     This is a *negative-shape* guard, not a literal re-pin of directive IDs:
     it only asserts "far larger than the one profile-cited id", which is
@@ -129,13 +136,20 @@ def test_empty_charter_dispatch_reproduces_full_catalog_leak_when_unadjusted(
     decision = resolve_generic_fallback(tmp_path, "please help me tidy this up")
     assert decision is not None
 
-    result = build_charter_context(
+    # UNADJUSTED: bypass the bounded suppression to reproduce the raw leak the
+    # dispatch seam (T013) exists to close. `executor.py` always passes the
+    # `empty_charter_fallback` boolean here; feeding False is the counterfactual.
+    leaked = build_charter_context(
         tmp_path,
         profile=decision.profile_id,
         action=decision.action,
         mark_loaded=False,
-        suppress_project_resolver=decision is not None,
+        suppress_project_resolver=False,
     )
 
-    directive_lines = _directive_id_lines(result.text)
-    assert len(directive_lines) <= len(_GENERIC_AGENT_OWN_DIRECTIVES)
+    directive_lines = _directive_id_lines(leaked.text)
+    assert len(directive_lines) > len(_GENERIC_AGENT_OWN_DIRECTIVES), (
+        "expected the UNADJUSTED empty-charter dispatch to leak the full "
+        "built-in catalog-fallback directive canon (the leak T013 suppresses); "
+        f"got only {len(directive_lines)} ids: {directive_lines}"
+    )
