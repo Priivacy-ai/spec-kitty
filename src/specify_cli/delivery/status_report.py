@@ -627,8 +627,21 @@ class ProjectStoreRow:
 
     @property
     def is_unresolved_identity(self) -> bool:
-        """Rows the predicate can never select (FR-011)."""
-        return self.project_uuid is None
+        """Rows the predicate can never select (FR-011).
+
+        Falsy, not ``is None``, so a ``project_uuid`` of ``''`` answers ``True``
+        here. That is the same vocabulary the modules that decide selectability
+        already use: ``read_identity_projection`` drops falsy uuids from its ``IN``
+        list, ``selection.unselectable_identity_count`` counts them via ``not
+        row.project_uuid``, and ``retention._journal_census`` files them under
+        ``IDENTITY_LESS_KEY``. Keying on ``is None`` made this the one dissenting
+        module and let one row carry two diagnoses.
+
+        A whitespace-only uuid is deliberately **not** unresolved: the projection
+        returns it, so it is selectable. See the grouping in
+        :func:`build_per_project_store_report` for the measurement behind the line.
+        """
+        return not self.project_uuid
 
 
 @dataclass(frozen=True)
@@ -777,9 +790,41 @@ def build_per_project_store_report(
         wanted = frozenset(event_ids)
         rows = [row for row in rows if row.event_id in wanted]
 
+    # **Decision recorded 2026-07-31: a PYTHON-FALSY ``project_uuid`` is
+    # identity-less; a whitespace-only one is not.** The line is drawn where the
+    # store draws it, measured rather than reasoned:
+    #
+    # * ``''`` — ``read_identity_projection`` drops it from the ``IN`` list
+    #   (``[uuid for uuid in project_uuids if uuid]``), so no drain can ever select
+    #   it; ``unselectable_identity_count`` (the counter this report returns, below)
+    #   counts it via ``not row.project_uuid``; and ``retention._journal_census``
+    #   files it under ``IDENTITY_LESS_KEY``. Identity-less in three modules.
+    # * ``'   '`` — the projection *does* return it and ``_journal_census`` keys it
+    #   as its own project. It is selectable, so calling it identity-less here would
+    #   be a fourth opinion, and would put the bucket (3) back at odds with the
+    #   counter (2) — the same double-count in mirror image.
+    #
+    # Grouping on the raw value made a ``''`` row a NAMED project while the counter
+    # ALSO counted it as unresolved — one row, two diagnoses, which
+    # ``named_non_consenting_rows`` exists to forbid. The named half was the harmful
+    # one: it entered the list whose remedy is ``sync purge --project <slug>``, and
+    # ``purge_project_events`` blanks a falsy selector to "select nothing" while
+    # ``iter_rows_missing_identity`` matches ``IS NULL`` only — so the operator was
+    # sent to a command that provably cannot touch that row.
+    #
+    # Latent from production writes (``sync/project_identity._normalize`` yields
+    # ``None`` for a blank on both the capture and the backfill path), so this is
+    # fixed as an agreement between modules rather than as a live leak: ``retention``
+    # and ``test_purge_all_events_3030`` already treat the population as real enough
+    # to special-case, and one mission must not hold two definitions of it.
+    #
+    # ``'   '`` remains reported as a named project that no purge selector can reach
+    # (``retention.purge_all_events`` documents it as population 2). That is a single
+    # diagnosis, which is all this grouping owes it; making it *removable* is a
+    # retention concern, not a reporting one.
     grouped: dict[str | None, list[Any]] = {}
     for row in rows:
-        grouped.setdefault(row.project_uuid, []).append(row)
+        grouped.setdefault(row.project_uuid or None, []).append(row)
 
     report_rows: list[ProjectStoreRow] = []
     for project_uuid, group in grouped.items():
@@ -796,7 +841,7 @@ def build_per_project_store_report(
             level = "unresolved_identity"
             reason = (
                 "no stored project identity; unselectable while the column is "
-                "NULL, and counted here rather than dropped (FR-011)"
+                "NULL or blank, and counted here rather than dropped (FR-011)"
             )
         else:
             # Safe for a resolved project: every row in this group shares one
@@ -833,7 +878,7 @@ def build_per_project_store_report(
     # unresolved-identity bucket last so it never hides at the top.
     report_rows.sort(
         key=lambda r: (
-            r.project_uuid is None,
+            r.is_unresolved_identity,
             not r.consent_granted,
             -r.event_count,
             r.project_uuid or "",

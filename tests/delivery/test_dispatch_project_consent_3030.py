@@ -45,8 +45,11 @@ Both emitters share ONE fully open capture gate, so both journal rows carry
 ``drain_blocked_reason=None`` and consent is the only signal that can separate
 their outcomes. That is asserted before the drain runs. Corrected 2026-07-30:
 the non-consenting row used to be left machine-gate-blocked, which stamped it
-``sync_disabled`` — a *terminal* reason ``selection.py`` excludes on its own — so
+``saas_disabled`` — a *terminal* reason ``selection.py`` excludes on its own — so
 this pin passed with the consent clause deleted from ``selectable_event_ids``.
+(Named ``sync_disabled`` here until 2026-07-31; no such reason exists.
+``classify_drain_blocked_reason`` returns ``DRAIN_BLOCKED_SAAS_DISABLED`` for a
+closed ``saas_enabled`` OR ``checkout_enabled`` — ``journal.py:576``.)
 
 Distinct from, and orthogonal to, the sibling
 ``tests/delivery/test_dispatch_honours_drain_blocked_3031.py`` (#3031 Defect
@@ -61,12 +64,12 @@ satisfiable (an earlier revision pinned both against fixtures that stamped
 BOTH events with the same ``drain_blocked_reason=saas_disabled``, which made
 this file's "must ship" demand and the sibling's "any such row must never
 ship" demand directly contradictory — no implementation could satisfy both),
-the consenting checkout's capture gate is forced open below so its journal
-row is genuinely unblocked (``drain_blocked_reason=None``); only the residual
-row carries ``saas_disabled``. The two files now key on different,
-non-overlapping columns: 3031 on ``Event.drain_blocked_reason`` values it
-constructs directly; this file on the ABSENCE of a ``repo_slug``-keyed consent
-record for a project whose row is on disk regardless.
+BOTH capture gates here are forced open, so BOTH journal rows are genuinely
+unblocked (``drain_blocked_reason=None``) and neither is a row the sibling's
+rule has anything to say about. The two files key on different, non-overlapping
+things: 3031 on ``Event.drain_blocked_reason`` values it constructs directly;
+this file on the ABSENCE of a ``project_uuid``-keyed consent record for a
+project whose row is on disk and drain-open regardless.
 
 That separation had a cost this file used to pay wrongly, and the fix is why both
 gates are now identical. ``saas_disabled`` is the SOLE member of
@@ -77,6 +80,16 @@ consent predicate stripped out entirely. Two independent investigations reached 
 same conclusion and it was fixed the same way: make the rows indistinguishable on
 every machine signal, so consent is the only thing left that can separate their
 outcomes.
+
+Two sentences of the orthogonality paragraph above — the one contrasting this file
+with the 3031 sibling — were corrected on 2026-07-31, having survived four reviews
+by being plausible. It claimed "only the residual row carries
+``saas_disabled``" — no row carries it; both are ``None``, which is the entire
+mechanism, and the very next paragraph said so. And it claimed this file keys on a
+``repo_slug``-keyed consent record, contradicting this docstring's own paragraph on
+how consent is recorded: the grant is written by
+``set_project_consent(project_uuid, True)``, and a repo-slug-keyed one is precisely
+what FR-019 forbids.
 """
 from __future__ import annotations
 
@@ -208,7 +221,7 @@ def _open_capture_gate(_team_slug: str | None, **_kwargs: object) -> CaptureGate
     returning ``saas_enabled=False``, on the reasoning that giving the two rows
     *different* ``drain_blocked_reason`` values kept them "distinguishable". It did
     the opposite: ``classify_drain_blocked_reason`` stamped that row
-    ``sync_disabled``, which ``delivery/selection.py`` classifies **terminal**, so
+    ``saas_disabled``, which ``delivery/selection.py`` classifies **terminal**, so
     the row was excluded by the drain-blocked clause and the consent clause never had
     to fire. Mutation testing confirmed this pin still passed with consent stripped
     out of ``selectable_event_ids`` entirely. Identical gates are what make consent
@@ -240,12 +253,19 @@ def test_consenting_project_leaks_sibling_project_event_through_shared_journal(
     the sibling owns machine-readiness exclusion, this file owns consent
     exclusion — rather than needing the rows classified differently to coexist.
 
-    Which is precisely why a third row is needed to pin CONSENT. An earlier
-    revision of this docstring claimed the two rows established that "consent — not
-    drain_blocked_reason — is the only thing distinguishing the two events", and
-    that was false: the assertions below establish that they differ on exactly that
-    field, and ``saas_disabled`` is on its own a terminal exclusion under T003. The
-    open never-opted-in row added below carries the consent claim instead.
+    Consent is pinned by the two rows being IDENTICAL, not by a third row. Both are
+    drain-open (``drain_blocked_reason is None``, asserted below before the drain
+    runs), both were captured through the same fully open gate, and they differ in
+    exactly one respect: one project's ``project_uuid`` has a consent record and the
+    other's has none. So nothing except consent can produce different outcomes for
+    them, and any implementation that ships the second one has ignored consent.
+
+    Corrected 2026-07-31. This paragraph used to say "a third row is needed to pin
+    CONSENT ... the assertions below establish that they differ on exactly that
+    field [``drain_blocked_reason``]". Both halves are stale: the assertions below
+    establish that both rows are ``None`` on that field, and the third row was
+    deliberately removed once identical gates made it unnecessary. The property it
+    carried is preserved and proven — do not re-add it.
 
     Originally red because the dispatcher shipped BOTH events: the journal has no
     project scoping (only ``user_id``/``team_slug``), and the drain never decoded
@@ -257,9 +277,11 @@ def test_consenting_project_leaks_sibling_project_event_through_shared_journal(
 
     Still falsifiable today, which is the point of keeping it, and falsifiable by
     the regression that matters: reverting the consent predicate while leaving
-    T003's drain-blocked filter intact ships the open never-opted-in row and reds
-    this test. Replacing ``selectable_event_ids`` with the wholly unfiltered
-    universe reds it too, on the residual row as well.
+    T003's drain-blocked filter intact ships the never-opted-in row and reds this
+    test. Replacing ``selectable_event_ids`` with the wholly unfiltered universe
+    reds it too, on that same row — it is the only non-consenting row there is.
+    Verified by mutation (``mutA2_no_consent_current``), which reds this pin on the
+    leak assertion below rather than on a ``TypeError``.
     """
     from specify_cli.sync import emitter as emitter_mod
 
@@ -316,10 +338,15 @@ def test_consenting_project_leaks_sibling_project_event_through_shared_journal(
 
     journal = get_journal(team_slug=None)
 
-    # A THIRD row, and it is what makes this file a consent pin at all. The residual
     # The shared-journal premise, asserted explicitly before the drain runs: both
     # events sit in the SAME journal file (team_slug=None, since
     # is_saas_sync_enabled() is stubbed False for this process).
+    #
+    # TWO rows, and two is the whole population. An earlier revision added a third,
+    # separately-seeded row to carry the consent claim; making both gates identical
+    # (below) carried it better, so the third row was removed and this comment's
+    # opening sentence — "A THIRD row, and it is what makes this file a consent pin
+    # at all" — was left spliced onto this one, directly above a count of 2.
     assert journal.count() == 2, (
         "every project's event must sit in the same producer-scoped journal "
         "for this test to exercise the real cross-project leak"

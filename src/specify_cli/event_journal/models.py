@@ -175,7 +175,39 @@ def select_identity_projection_sql(project_count: int) -> str:
     predicate in Python afterwards, which left ``CREATE_PROJECT_INDEX_SQL`` created
     and referenced by no query at all. NFR-003's stated mechanism is "indexed column
     lookup only", and an ``IN`` predicate on the index's leading column is the only
-    thing that delivers it — so there is no way to ask this module for a scan.
+    thing that delivers it.
+
+    **What that buys, stated exactly.** This statement cannot be *parameterised* into
+    a scan: there is no argument to ``project_count`` that widens it, and the two
+    reads are separate predicates that share only ``_IDENTITY_PROJECTION_COLUMNS``
+    (deliberately, and pinned by
+    ``test_both_identity_projections_expose_the_project_slug``), so editing one
+    filter cannot silently change the other. A caller that wants every row has to
+    *name* ``SELECT_IDENTITY_PROJECTION_ALL_SQL`` or
+    ``EventJournal.read_identity_projection_for_report``, which is a visible choice
+    in a review diff rather than an argument change.
+
+    **What it does NOT buy — retracted 2026-07-31.** This docstring used to end "so
+    there is no way to ask this module for a scan". That was true when the capability
+    had been removed; it is false now.
+    ``EventJournal.read_identity_projection_for_report`` is a public, no-argument
+    method, so the unfiltered pre-H5 drain read is one substituted call inside
+    ``delivery/`` — a reviewer wrote it in a single line. The erosion is observable
+    rather than hypothetical: that method is documented "operator REPORTING only
+    (#3030 T021)", and WP08 added a second consumer the SAME DAY —
+    ``cli/commands/sync.py::_purge_resolve_project`` (``0ded9e79a3``, six hours after
+    ``82db736899``), a selector resolver rather than a report. The convention held
+    for exactly one work package.
+
+    So NFR-003's *cost* property still rests on structure here, but keeping the
+    report reader out of a delivery path is **convention, not structure**. The
+    structural fence that now carries NFR-001 is
+    :class:`~specify_cli.delivery.consent_gate.ConsentedBatch`: a receiver's
+    ``deliver`` takes one, it is unforgeable outside ``consented_batch()``, and that
+    factory refuses any event it cannot attribute to a granted project. A drain that
+    scanned every row would still be unable to hand an unconsented one to a receiver.
+    Re-imposing the capability removal would be a design change, not a docstring fix,
+    and is not attempted here.
 
     ``project_count`` must be >= 1. Zero consented projects is not an empty filter
     (which SQL would read as "every project"); it means there is nothing to select,

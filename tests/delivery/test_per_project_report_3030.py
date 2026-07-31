@@ -491,6 +491,91 @@ def test_the_unresolved_bucket_names_every_candidate_repo_with_its_count(
     assert by_label["acme/app"].oldest_created_at == "2026-07-01T00:00:00+00:00"
 
 
+def test_an_empty_project_uuid_is_identity_less_and_counted_exactly_once(
+    tmp_path: Path,
+) -> None:
+    """An ``''`` ``project_uuid`` is one population and must get ONE diagnosis.
+
+    Red before the fix, on the assertion that matters: the grouping keyed on
+    ``project_uuid is None`` while ``unresolved_identity_count`` keys on ``not
+    row.project_uuid`` (WP06's ``unselectable_identity_count``), so an ``''`` row
+    became a NAMED project *and* was counted in the unresolved total — measured
+    ``unresolved_identity_count == 2`` against a bucket holding 1. That is exactly
+    what ``named_non_consenting_rows``' own docstring forbids: "no row is reported
+    twice under two diagnoses".
+
+    The named half was the harmful one. ``purge_project_events`` strips a falsy
+    selector to "select nothing" and ``iter_rows_missing_identity`` matches
+    ``IS NULL`` only, so the row was listed among the projects whose remedy is
+    ``sync purge --project`` while no purge and no backfill can reach it.
+
+    **Whitespace-only is deliberately a different answer**, and it is asserted here
+    rather than left implied, because "falsy" and "blank" look interchangeable and
+    are not. ``read_identity_projection`` returns a ``'   '`` row and
+    ``retention._journal_census`` keys it as its own project — it is selectable — so
+    folding it into the bucket would make this module the fourth opinion and put the
+    bucket back at odds with the counter, the same double-count mirrored.
+
+    Latent from production writes today (``sync/project_identity._normalize`` yields
+    ``None`` for a blank on both the capture and the backfill path), which is why
+    this seeds the store directly — the same way ``test_purge_all_events_3030``
+    seeds the population it special-cases. The general rule pinned is NFR-006's:
+    every population is counted exactly once, somewhere. A row counted nowhere makes
+    a differential zero by construction; a row counted twice makes a total
+    unfalsifiable.
+    """
+    journal = EventJournal(tmp_path / "blank-uuid.db")
+    journal.append(_event("evt-null", None, "2026-05-01T00:00:00+00:00"))
+    journal.append(
+        _event(
+            "evt-empty",
+            "",
+            "2026-05-01T00:00:01+00:00",
+            project_slug="org-empty",
+            repo_slug="org/empty",
+        )
+    )
+    journal.append(
+        _event(
+            "evt-space",
+            "   ",
+            "2026-05-01T00:00:02+00:00",
+            project_slug="org-space",
+            repo_slug="org/space",
+        )
+    )
+
+    result = build_per_project_store_report(journal)
+
+    assert [row.project_uuid for row in result.named_non_consenting_rows] == ["   "], (
+        "the '' row must leave this list — `purge_project_events` blanks a falsy "
+        "selector, so naming it here sends the operator to a command that cannot "
+        "touch it. The '   ' row stays: the projection can select it"
+    )
+
+    assert [row.project_uuid for row in result.rows] == ["   ", None], (
+        "'' is not a project of its own — it must group into the identity-less "
+        "bucket, leaving only the selectable '   ' row named"
+    )
+
+    (bucket,) = [row for row in result.rows if row.is_unresolved_identity]
+    assert bucket.event_count == 2, "the NULL row and the '' row, together"
+    assert result.unresolved_identity_count == bucket.event_count, (
+        "counted exactly once: the unresolved total and the bucket it describes "
+        "must be the same population, or some row carries two diagnoses"
+    )
+
+    # No row may be in both diagnoses at once — the general form of the defect.
+    named = {row.project_uuid for row in result.named_non_consenting_rows}
+    assert all(row.project_uuid not in named for row in result.rows if row.is_unresolved_identity)
+    assert result.reconciles is True, "and every seeded row is still accounted for"
+
+    # The '' row's name is not lost by the reclassification — it surfaces as a
+    # candidate, which is where a name may be reported WITHOUT claiming a consent
+    # decision for it.
+    assert {c.repo_slug for c in bucket.unresolved_candidates} == {None, "org/empty"}
+
+
 def test_a_resolved_project_carries_no_unresolved_candidates(tmp_path: Path) -> None:
     """The field is meaningful only for the bucket; a named project has one identity."""
     journal = _seeded_journal(tmp_path)
