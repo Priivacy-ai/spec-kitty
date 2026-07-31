@@ -5824,9 +5824,11 @@ pages:
     - {slug: "3-rebase-onto-current-upstream-main-first", text: "3. Rebase onto current upstream/main first", level: 2}
     - {slug: "4-classify-every-red-check", text: "4. Classify every red check", level: 2}
     - {slug: "5-folds-remediation-commits-on-the-contributor-branch", text: "5. Folds: remediation commits on the contributor branch", level: 2}
+    - {slug: "clean-history-compress-bookkeeping-keep-code-separate", text: "Clean history: compress bookkeeping, keep code separate", level: 3}
     - {slug: "6-red-first-verification-for-bugfix-prs", text: "6. Red-first verification for bugfix PRs", level: 2}
     - {slug: "7-review-focus-areas-beyond-ci", text: "7. Review focus areas beyond CI", level: 2}
     - {slug: "8-adversarial-squad-for-architectural-or-api-surface-prs", text: "8. Adversarial squad for architectural or API-surface PRs", level: 2}
+    - {slug: "delegate-remediation-to-subagents", text: "Delegate remediation to subagents", level: 3}
     - {slug: "9-push-discipline", text: "9. Push discipline", level: 2}
     - {slug: "10-post-the-remediation-summary", text: "10. Post the remediation summary", level: 2}
     - {slug: "11-hand-off-the-operator-merges", text: "11. Hand-off — the operator merges", level: 2}
@@ -5898,6 +5900,8 @@ pages:
     - {slug: "running-the-ci-residual-selection-locally", text: "Running the CI residual selection locally", level: 2}
     - {slug: "pre-review-regression-gate-move-task-to-for-review", text: "Pre-review regression gate (`move-task --to for_review`)", level: 2}
     - {slug: "pr-draft-and-wip-title-conventions", text: "PR draft and WIP-title conventions", level: 2}
+    - {slug: "pr-body-style-consumer-focused-bluf", text: "PR body style: consumer-focused BLUF", level: 2}
+    - {slug: "changelog-update-and-style", text: "Changelog update and style", level: 2}
     - {slug: "shippable-doctrine-built-in-doctrine-must-work-in-a-consumer-repo", text: "Shippable doctrine: built-in doctrine must work in a consumer repo", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/run-mutation-tests.md"
