@@ -28,7 +28,7 @@ related:
 # Agent Profiles
 
 This page catalogs the 18 built-in agent profiles shipped in
-`src/doctrine/agent_profiles/built-in/`. A profile governs identity, routing,
+`packs/built-in/agent_profiles/`. A profile governs identity, routing,
 and boundaries for a work package: the runtime assigns profiles to work
 packages automatically, and you can also load one on demand for an
 interactive session with the [`ad-hoc-profile-load`

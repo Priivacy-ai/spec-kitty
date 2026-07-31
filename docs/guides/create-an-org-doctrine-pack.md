@@ -118,7 +118,7 @@ unhealthy by `spec-kitty doctor doctrine --json` (look for `skipped_profiles`).
 Note in particular that the identifier key is `profile-id` (not `id`), that
 `roles` is a list (not a singular `role`), and that most keys are hyphenated.
 Copy the field names from a built-in profile under
-`src/doctrine/agent_profiles/built-in/` if you are unsure.
+`packs/built-in/agent_profiles/` if you are unsure.
 
 ### Namespace your IDs
 

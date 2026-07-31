@@ -7517,6 +7517,20 @@ pages:
     - {slug: "suppressing-the-warning-during-cutover", text: "Suppressing the Warning During Cutover", level: 2}
     - {slug: "removal-criteria", text: "Removal Criteria", level: 2}
     - {slug: "references", text: "References", level: 2}
+  - path: "docs/migrations/relocate-builtin-doctrine-packs.md"
+    title: "Migration: Relocate Built-In Doctrine to packs/built-in"
+    divio_type: "none"
+    abstract: "Migration for the built-in doctrine relocation (mission relocate-builtin-doctrine-packs-01KYT87F): built-in doctrine content moved out of src/doctrine into a top-level packs/built-in/ pack root, resolved through a shared pack-root seam."
+    anchors:
+    - {slug: "what-changed", text: "What changed", level: 2}
+    - {slug: "the-new-resolution-seam", text: "The new resolution seam", level: 3}
+    - {slug: "no-runtime-shim", text: "No runtime shim", level: 3}
+    - {slug: "packaging", text: "Packaging", level: 3}
+    - {slug: "action-required", text: "Action required", level: 2}
+    - {slug: "rollback", text: "Rollback", level: 2}
+    - {slug: "follow-ons", text: "Follow-ons", level: 2}
+    - {slug: "notes", text: "Notes", level: 2}
+    - {slug: "why-this-happened", text: "Why this happened", level: 2}
   - path: "docs/migrations/retrospective-events-upstream.md"
     title: "Cutover Runbook: Retrospective Events — Local to Upstream"
     divio_type: "none"
