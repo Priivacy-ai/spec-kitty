@@ -229,8 +229,11 @@ def select_identity_projection_sql(project_count: int) -> str:
 # Reporting-only counterpart of the filtered read above, and deliberately a separate
 # statement rather than a "no filter" mode of it (#3030 T021 / FR-015 / SC-004).
 #
-# `select_identity_projection_sql` makes its project filter mandatory so the DRAIN
-# cannot ask for a scan — that is NFR-003's mechanism and must stay unreachable. The
+# `select_identity_projection_sql` makes its project filter mandatory, and that filter
+# cannot be widened by any argument — NFR-003's mechanism. It is no longer *unreachable*
+# though: `SELECT_IDENTITY_PROJECTION_ALL_SQL` and `read_identity_projection_for_report`
+# name the unfiltered read explicitly, so reaching it is a visible diff rather than an
+# impossibility. Convention, guarded in `tests/architectural/`, not structure. The
 # operator report has the opposite requirement and cannot be served by that statement
 # at any parameterisation: it must name the projects that are NOT known to be
 # consented (so the uuid set cannot be supplied up front), and it must surface rows

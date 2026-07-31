@@ -354,9 +354,19 @@ class EventJournal:
         """EVERY row's identity, unfiltered — operator REPORTING only (#3030 T021).
 
         Deliberately a separate method from :meth:`read_identity_projection`, whose
-        ``project_uuids`` filter is mandatory precisely so the drain cannot ask this
-        module for a scan. That invariant is NFR-003's mechanism and this method does
-        not weaken it: the drain has no reason to call this and must not.
+        ``project_uuids`` filter is mandatory. That filter still cannot be
+        *parameterised* into a scan — no argument widens it — and the two statements
+        share only their column list, so editing one predicate cannot silently change
+        the other.
+
+        What this method does weaken is the **capability removal**. Before it existed,
+        an unfiltered read was unwritable; now it is one substituted call. Keeping it
+        out of the drain is therefore **convention, not structure** — the convention
+        held six hours in practice (a second, non-reporting consumer landed the same
+        day), which is why `tests/architectural/` carries a guard on this symbol.
+        NFR-001's structural fence is `ConsentedBatch`: a receiver cannot be handed
+        events without a resolved consent answer, so even a scanning drain cannot
+        deliver an unconsented row.
 
         FR-015/SC-004 asks a question the filtered read cannot answer at any
         parameterisation — "whose data is in this store?". The projects to name are the

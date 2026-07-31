@@ -47,9 +47,13 @@ their outcomes. That is asserted before the drain runs. Corrected 2026-07-30:
 the non-consenting row used to be left machine-gate-blocked, which stamped it
 ``saas_disabled`` — a *terminal* reason ``selection.py`` excludes on its own — so
 this pin passed with the consent clause deleted from ``selectable_event_ids``.
-(Named ``sync_disabled`` here until 2026-07-31; no such reason exists.
+(Named ``sync_disabled`` here until 2026-07-31. That name is real but belongs to a
+*different* vocabulary: it is a live member of ``EventEmitter.DRAIN_BLOCKED_REASONS``
+(``sync/emitter.py:1885``) and never stamps a journal row. The journal's own
+vocabulary is ``event_journal/models.py:323-341``, and
 ``classify_drain_blocked_reason`` returns ``DRAIN_BLOCKED_SAAS_DISABLED`` for a
-closed ``saas_enabled`` OR ``checkout_enabled`` — ``journal.py:576``.)
+closed ``saas_enabled`` OR ``checkout_enabled`` — ``journal.py:576``. Two
+vocabularies for one concept is what produced the original error.)
 
 Distinct from, and orthogonal to, the sibling
 ``tests/delivery/test_dispatch_honours_drain_blocked_3031.py`` (#3031 Defect
@@ -360,9 +364,14 @@ def test_consenting_project_leaks_sibling_project_event_through_shared_journal(
     # row to carry a NON-null drain_blocked_reason, while claiming in its own message
     # that "consent — not drain_blocked_reason — is the only thing distinguishing the
     # two events". Those two statements contradict each other, and the code was the
-    # one telling the truth: the reason it stamped was ``sync_disabled``, which
-    # ``delivery/selection.py`` treats as **terminal**, so the row was excluded
-    # without consent being consulted at all. Mutation testing confirmed this pin
+    # one telling the truth: the reason it stamped was ``saas_disabled``, the SOLE
+    # member of ``selection.TERMINAL_DRAIN_BLOCKED_REASONS`` (``selection.py:56-58``),
+    # so the row was excluded without consent being consulted at all. (This sentence
+    # said ``sync_disabled`` until 2026-07-31 — a third occurrence missed when the
+    # other two were corrected. It matters: a reader who checks finds ``sync_disabled``
+    # is not terminal, may conclude this whole explanation is wrong, and the natural
+    # repair is to reintroduce differing gates — the exact arrangement this file was
+    # rebuilt to escape.) Mutation testing confirmed this pin
     # passed with the consent clause deleted from ``selectable_event_ids``. A shared
     # drain_blocked_reason of None is what makes the claim true rather than merely
     # asserted.

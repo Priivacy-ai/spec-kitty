@@ -159,10 +159,11 @@
       "last_transition_at": "2026-07-31T01:19:30.865274+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "T020,T021 done; 2916 passed/0 failed incl tests/cli"
+        "T020,T021 done; 2916 passed/0 failed incl tests/cli",
+        "APPROVE cycle 5. All five cycle-4 findings closed by independent measurement: status pin kills the frame-dispatched mutant (4 suppressed binds, 4 reds, 12 doctor green); label-to-selector composition verified across 7 collision shapes with no shape resolving to a wrong project; invariant retraction accurate; ''-uuid counted exactly once; flagship pin still reds on the leak assertion under a consent-strip mutant. Four prose residuals recorded as must-fix-on-touch."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "reviewer",
+      "role": "implementer",
       "shell_pid": 195305,
       "shell_pid_created_at": "1785370891.81",
       "subtasks": {
