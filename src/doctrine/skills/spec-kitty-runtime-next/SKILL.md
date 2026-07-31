@@ -231,7 +231,7 @@ profile.specialization.avoidance_boundary  # What you must NOT do
 profile.collaboration.handoff_to           # Roles to defer to when out of scope
 
 # Load only the directives this profile references
-service = DoctrineService(shipped_root, project_root)
+service = DoctrineService(built_in_root=None, project_root=project_root)
 for ref in profile.directive_references:
     directive = service.directives.get(f"DIRECTIVE_{ref.code}")
 ```
@@ -273,7 +273,7 @@ rather than re-loading the full context:
 ```python
 from doctrine.service import DoctrineService
 
-service = DoctrineService(shipped_root, project_root)
+service = DoctrineService(built_in_root=None, project_root=project_root)
 
 # Pull a specific tactic when it becomes relevant
 tactic = service.tactics.get("tdd-red-green-refactor")

@@ -113,12 +113,12 @@ The current synthesis scope is: `directive`, `tactic`, `styleguide`.
 Read shipped examples to understand the expected YAML shape.
 There is no `doctrine list` or `doctrine show` CLI command — use the programmatic
 `DoctrineService` API (documented in the *Programmatic Doctrine Access* section below)
-or read the YAML files directly from `src/doctrine/<kind>/built-in/` (artifacts live at
+or read the YAML files directly from `packs/built-in/<kind>/` (artifacts live at
 `<type>/<pack>/[<category>/]<name>` — ADR 2026-07-26-2):
 
 ```python
 from doctrine.service import DoctrineService
-service = DoctrineService(shipped_root, project_root)
+service = DoctrineService(built_in_root=None, project_root=project_root)
 
 # Read a directive
 directive = service.directives.get("<a-directive-id>")
@@ -355,7 +355,7 @@ directive = service.directives.get("DIRECTIVE_034")
 # directive.title → "Test-First Development"
 # directive.severity → "warn"
 # directive.applies_to → ["implement", "review"]
-# All directives: service.directives.list_all() or read src/doctrine/directives/built-in/
+# All directives: service.directives.list_all() or read packs/built-in/directives/
 ```
 
 **Tactics** — Reusable implementation approaches that describe *how* to do
@@ -449,13 +449,13 @@ There is no `doctrine list` or `doctrine show` CLI command. Use the programmatic
 
 ```python
 from doctrine.service import DoctrineService
-service = DoctrineService(shipped_root, project_root)
+service = DoctrineService(built_in_root=None, project_root=project_root)
 
 # List or inspect artifacts by kind
 directive = service.directives.get("DIRECTIVE_034")
 tactic = service.tactics.get("tdd-red-green-refactor")
 paradigm = service.paradigms.get("<paradigm-id>")
-# Shipped artifacts: src/doctrine/<kind>/built-in/
+# Shipped artifacts: packs/built-in/<kind>/
 # Project-local overrides: .kittify/<kind>/
 ```
 
@@ -474,7 +474,7 @@ To list agent profiles:
 spec-kitty agent profile list
 ```
 
-Shipped artifacts live in `src/doctrine/<kind>/built-in/`. Project-local
+Shipped artifacts live in `packs/built-in/<kind>/`. Project-local
 overrides live in `.kittify/<kind>/`. Two-source loading merges both,
 with project artifacts taking precedence on field-level merge.
 
@@ -659,7 +659,7 @@ doctrine artifacts. It lazily instantiates repositories on first access.
 ```python
 from doctrine.service import DoctrineService
 
-service = DoctrineService(shipped_root, project_root)
+service = DoctrineService(built_in_root=None, project_root=project_root)
 ```
 
 ### Available Repositories
