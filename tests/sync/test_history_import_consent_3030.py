@@ -134,6 +134,7 @@ def _envelopes(project_uuid: str, count: int = 3) -> list[dict[str, Any]]:
     (one of the three identity sites) plus the mission slug in the payload.
     """
     return [
+        # canonical-event-exempt(exception-flow): mirrors synthesize._envelope's legacy import-stream shape; no Payload model exists
         {
             "event_id": f"01JQIMPORT{index:012d}",
             "event_type": "WPStatusChanged",

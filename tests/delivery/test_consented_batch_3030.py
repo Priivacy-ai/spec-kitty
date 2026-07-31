@@ -42,6 +42,7 @@ _ENGAGEMENT = "acme-holdings-carve-out"
 
 
 def _event(event_id: str, project_uuid: str | None = _PROJECT_A) -> OutboundEvent:
+    # canonical-event-exempt(exception-flow): legacy WPStatusChanged has no Payload model; OutboundEvent.payload is a raw Mapping
     payload: dict[str, object] = {
         "event_id": event_id,
         "event_type": "WPStatusChanged",

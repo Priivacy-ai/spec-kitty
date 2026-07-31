@@ -82,6 +82,7 @@ def _checkout(tmp_path: Path, name: str, *, uuid: str, consents: bool | None) ->
 
 def _envelope(event_id: str, project_uuid: str | None) -> dict[str, Any]:
     """A wire envelope shaped like the one ``EventEmitter._emit`` assembles."""
+    # canonical-event-exempt(exception-flow): mirrors EventEmitter._emit's legacy wire dict; no Payload model for this shape
     return {
         "event_id": event_id,
         "event_type": "WPStatusChanged",

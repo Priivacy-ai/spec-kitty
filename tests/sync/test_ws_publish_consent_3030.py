@@ -361,6 +361,7 @@ def test_a_consent_read_failure_refuses_the_publish(
 
 
 def _envelope(project_uuid: str | None, *, blocked: str | None = None) -> dict[str, Any]:
+    # canonical-event-exempt(exception-flow): legacy WPStatusChanged wire shape (no correlation_id); drives the ws-publish routing seam
     return {
         "event_id": "01JTESTTESTTESTTESTTESTTEST",
         "event_type": "WPStatusChanged",

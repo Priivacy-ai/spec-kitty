@@ -96,6 +96,7 @@ def _checkout(tmp_path: Path, name: str, *, uuid: str, consents: bool | None) ->
 
 def _envelope(project_uuid: str | None, *, slug: str, mission: str) -> dict[str, Any]:
     """A ``MissionCreated`` wire envelope — the shape the reported fan-out relays."""
+    # canonical-event-exempt(exception-flow): reproduces the 2026-07-27 incident's legacy fan-out wire shape (no correlation_id)
     event: dict[str, Any] = {
         "event_id": "01JTESTTESTTESTTESTTESTTES" + (project_uuid or "x")[0],
         "event_type": "MissionCreated",
