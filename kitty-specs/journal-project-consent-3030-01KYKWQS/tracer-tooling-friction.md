@@ -683,3 +683,46 @@ tracer already recommends replacing the filename-token guard with a marker-based
 anyone does that, these three red — and *the natural remedy is to restore `_auto_start_enabled`'s
 default-allow*, undoing T028. A latent instruction to reverse a fix, armed by a hygiene improvement
 the same document recommends.
+
+## A count assertion passes when the wrong project's data ships — measured
+
+Resolving the golden-count ratchet produced the cleanest demonstration of this mission's bug class,
+and it was measured both ways rather than argued.
+
+A mutant made `_build_request_body` overwrite `project_uuid` with **project B's** uuid — i.e. the
+incident, in miniature. The pre-conversion test **passed**: the count, the URL, the body bytes and
+the queue depth were all unchanged. Only the converted assertion
+(`egress.project_uuids == [UUID_A]`) reds.
+
+That is precisely why the gate exists: *the right number of the wrong things.* A drain that ships
+one event belonging to the wrong project satisfies `assert len(sent) == 1` perfectly.
+
+Nine sites were judged, not eight. The failure text said eight because a tenth, **pre-existing**
+site had been removed by an unrelated commit, netting the arithmetic to eight — the implementer
+judged all nine rather than stopping when the tally went green. Seven converted, two annotated
+(propagator positive controls, where one Op must yield exactly one envelope and the envelope
+carries no project identity a consent bug could get wrong), **none re-frozen**.
+
+It also verified its own scanner reproduced the gate's counts **exactly** (24/2/273/52) by
+importing the gate's own `scan_repo`/`convert_counts_by_dir`/`ratchet_violations` before changing
+anything — the "control your diagnostic" rule, applied to a tool whose disagreement with the gate
+would have silently changed the wrong sites.
+
+## Pre-existing: adapter-registration pollutes across test files, and a random-order run will hit it
+
+Running `tests/specify_cli/invocation/test_propagator_consent_gate_3030.py` **before**
+`tests/specify_cli/saas_client/test_client_consent_gate_3030.py` in one process fails
+`test_consenting_project_transmits_the_engagement_name_in_the_url` with *"no hosted-sync consent
+resolver is registered"*. The propagator's `wiring` fixture calls `reset_adapters()` in teardown
+and leaves the process with **no resolver**. Each file passes alone (17 and 8).
+
+Confirmed pre-existing by stashing — it reproduces without any of the golden-count edits.
+
+**Worth acting on before CI:** this mission's sweeps all ran with `-p no:randomly`, which is why
+none hit it. A random-order run — which CI may do — will. The failure text names a *missing
+resolver*, so on a consent mission it would read as a gate defect rather than as fixture teardown
+order, which is the expensive kind of misattribution.
+
+Also noted: a full `tests/architectural` run died with `INTERNALERROR … FileNotFoundError` on a
+scratch file another agent created and deleted mid-scan. That is a collection-time internal error,
+not a test failure, and is easy to misread as one.
