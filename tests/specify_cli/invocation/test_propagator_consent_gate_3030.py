@@ -168,7 +168,12 @@ def test_consenting_project_propagates_the_envelope(
 
     _propagate_one(_started_record(), root)
 
-    assert len(wiring.sent) == 1, (
+    # Cardinality is the contract, not a stand-in for one: one Op must yield exactly
+    # one envelope. The refusal cases in this file assert ``sent == []``; this is
+    # their counterpart, and it is also the only thing that would catch a
+    # double-send. *Which* envelope left is pinned on the two lines below, so there
+    # is no content this count is standing in for.
+    assert len(wiring.sent) == 1, (  # golden-count: cardinality-is-contract
         "POSITIVE CONTROL BROKEN: a consenting project transmitted nothing, so "
         "every refusal case in this file is unfalsifiable"
     )
@@ -195,7 +200,10 @@ def test_machine_index_grant_propagates_the_envelope(
 
     _propagate_one(_started_record(), root)
 
-    assert len(wiring.sent) == 1, (
+    # Same cardinality contract as the control above — one Op, one envelope, and a
+    # duplicate send is a real failure this line is the only one that would see.
+    # The envelope's content is pinned immediately below it.
+    assert len(wiring.sent) == 1, (  # golden-count: cardinality-is-contract
         "a project whose UUID is recorded as consenting must be deliverable; "
         "the gate is answering a checkout question instead of a project one"
     )

@@ -239,7 +239,12 @@ def test_body_for_a_consenting_project_still_drains(
 
     service.drain_body_uploads_only()
 
-    assert len(egress.posts) == 1
+    # Whose body drained, not how many did. The sibling test below proves a drain
+    # can hold two projects' bodies at once, so "one POST went out" is satisfied
+    # just as well by A's body being withheld and some other project's shipped —
+    # the exact confusion this gate exists to prevent. Assert the identity on the
+    # wire, matching this file's refusal assertions.
+    assert egress.project_uuids == [UUID_A]
     assert egress.posts[0]["url"].endswith("/api/dossier/push-content/")
     assert egress.bodies == [CONFIDENTIAL_BODY]
     assert service._body_queue.size() == 0

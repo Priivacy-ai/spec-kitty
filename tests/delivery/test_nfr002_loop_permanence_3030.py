@@ -189,10 +189,15 @@ def test_an_empty_selection_ends_the_pass_after_one_dispatch(
 
     summary = sync_module._run_dispatch_batches(runtime, ingress, target)
 
-    assert len(counted_dispatch) == 1, (
-        "an empty selection must end the pass immediately: the loop looked again "
-        f"({len(counted_dispatch)} dispatch calls) over a store whose answer cannot "
-        "change, which is a spin, not progress"
+    # The fixture records the ``limit`` of every dispatch call, so assert the calls
+    # themselves rather than how many there were: one look, and it looked through
+    # the FULL window. A single call at a shrunk limit is the same count and a
+    # different claim — the pass would have concluded "nothing deliverable" from a
+    # partial window, and NFR-002's permanence rests on that conclusion being final.
+    assert counted_dispatch == [sync_module._EVENT_SYNC_DISPATCH_BATCH_LIMIT], (
+        "an empty selection must end the pass immediately, after exactly one "
+        f"full-window look: dispatch was called with limits {counted_dispatch!r} "
+        "over a store whose answer cannot change"
     )
     assert summary.selected == 0
     assert summary.delivered == 0

@@ -1043,10 +1043,20 @@ class TestGuardBites:
         assert "seam required:" in text
 
     def test_worklist_schema_check_rejects_an_unclearable_entry(self) -> None:
-        """An entry with no requirement or no seam is an exemption, not a work-list."""
+        """An entry with no requirement or no seam is an exemption, not a work-list.
+
+        Named, not counted. ``bad`` is defective in all three ways at once, so a
+        count of three passes just as happily when one check fires three times and
+        the other two are dead — which is how a schema guard quietly stops guarding
+        two of the three ways an entry becomes unclearable.
+        """
         bad = UngatedPath(inventory_id="E-x", requirement="soon", seam_required="  ", note="")
         problems = _worklist_schema_violations({"specify_cli/widen/exfil.py": bad})
-        assert len(problems) == 3, problems
+        assert problems == [
+            "specify_cli/widen/exfil.py: requirement 'soon' does not name an FR — nobody can tell when it clears",
+            "specify_cli/widen/exfil.py: names no seam it has to call, so nobody can clear it",
+            "specify_cli/widen/exfil.py: carries no description of the path",
+        ]
         assert _worklist_schema_violations({}) == []
 
     def test_non_sink_code_is_not_flagged(self, tmp_path: Path) -> None:

@@ -236,7 +236,14 @@ def test_consenting_project_still_transmits_the_engagement_name(
 
     bind_call(SaaSTrackerClient(project_root=isolated_machine))
 
-    assert len(sink) == 1, f"consenting project must transmit; recorded {sink!r}"
+    # Which request, not how many. ``bind_mission_origin`` is the authoritative
+    # POST; a build in which it degenerates to a lookup and never writes still
+    # records exactly one request, and ``transmitted_text`` still finds the
+    # engagement name — in the lookup's URL. The count cannot tell those apart,
+    # so the control would go on certifying a transport that binds nothing.
+    assert [record["method"] for record in sink] == ["POST"], (
+        f"consenting project must transmit the authoritative bind POST; recorded {sink!r}"
+    )
     assert MISSION_SLUG in transmitted_text(sink), (
         "the control must actually carry the engagement name, or the absence "
         "assertions in this file prove nothing"
@@ -579,7 +586,14 @@ def test_mission_creation_bind_transmits_for_a_consenting_project(
     )
 
     assert (attempted, succeeded, error_msg) == (True, True, None)
-    assert len(sink) == 1
+    # Same reason as the control above, and it bites harder here: this path reports
+    # its own success through ``succeeded``, so a chain that resolves a lookup and
+    # never reaches the bind POST reports ``True`` with one request recorded and the
+    # slug in that request's URL. Naming the method is what separates "the bind
+    # happened" from "something happened".
+    assert [record["method"] for record in sink] == ["POST"], (
+        f"the non-interactive path must reach the bind POST; recorded {sink!r}"
+    )
     assert MISSION_SLUG in transmitted_text(sink), (
         "the control must carry the engagement name for the refusal test below "
         "to mean anything"

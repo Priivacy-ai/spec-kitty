@@ -601,5 +601,9 @@ def test_no_candidate_ever_spans_two_distinct_recorded_names(tmp_path: Path) -> 
     assert next(c for c in candidates if c.repo_slug == "acme/app").event_count == 2
     # Every row accounted for, and exactly one genuinely-nameless candidate.
     assert sum(c.event_count for c in candidates) == bucket.event_count == 6
+    # ``not c.repo_slug`` admits "" as readily as None, so name the nameless
+    # candidate instead of counting it: a report that emitted empty strings for an
+    # unidentifiable row would keep this list at length one while quietly inventing
+    # a project whose name is the empty string.
     nameless = [c for c in candidates if not c.repo_slug and not c.project_slug]
-    assert len(nameless) == 1 and nameless[0].event_count == 1
+    assert [(c.repo_slug, c.project_slug, c.event_count) for c in nameless] == [(None, None, 1)]

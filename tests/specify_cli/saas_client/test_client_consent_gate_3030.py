@@ -173,13 +173,17 @@ def test_consenting_project_transmits_the_engagement_name_in_the_url(
 
     make_client(sink, isolated_machine).get_audience_default(MISSION_SLUG)
 
-    assert len(sink) == 1, f"a consenting project must transmit; recorded {sink!r}"
+    # Method and body together, not a count: the leak's shape is "the engagement
+    # name rides in the URL of a GET", and a single request is consistent with the
+    # opposite shape too. One POST carrying the slug in a JSON body is the same
+    # count, and it would make the URL-searching refusal assertions below blind to
+    # the very egress they are supposed to catch.
+    assert [(r["method"], r["json"]) for r in sink] == [("GET", None)], (
+        f"a consenting project must transmit exactly one GET with no body; recorded {sink!r}"
+    )
     assert MISSION_SLUG in sink[0]["url"], (
         "the control must carry the engagement name in the URL path, or the "
         "absence assertions in this file prove nothing"
-    )
-    assert sink[0]["json"] is None, (
-        "and it must NOT be in the body — a body-shaped gate would close nothing here"
     )
 
 
