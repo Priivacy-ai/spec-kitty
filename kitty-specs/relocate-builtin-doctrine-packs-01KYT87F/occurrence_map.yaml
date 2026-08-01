@@ -1,0 +1,90 @@
+# Content inventory / occurrence map (FR-002) — post-plan-squad revision
+# MOVE = content relocates to packs/built-in/ (FLATTENED: <kind>/built-in/ -> packs/built-in/<kind>/)
+#        and its reader repoints via resolve_pack_root(). STAY = remains under src/doctrine/.
+# Only DATA moves — no import-graph .py (C-001). Layout DECISION: flatten + repoint the graph
+# regeneration surface (extractor + _doctrine_root) so regenerate-graph still works post-move.
+mission: relocate-builtin-doctrine-packs-01KYT87F
+phase: 1
+baseline: { graph_nodes: 324, graph_edges: 892, builtin_profiles: 18, graph_fragments: 14, glossary_terms: 108 }
+
+# --- 8 standard bulk-edit categories ---
+
+filesystem_paths:
+  - path: src/doctrine/<kind>/built-in/       # 9 kinds: agent_profiles, directives, procedures,
+    action: MOVE (flatten)                     #   tactics, paradigms, styleguides, toolguides,
+    to: packs/built-in/<kind>/                 #   assets, glossary_packs
+    note: >
+      Inner built-in/ level is DROPPED. Only the built-in/ SUBDIR moves; sibling repository.py stays.
+      Two .py ASSET PAYLOADS live inside moving trees and MOVE as data (not import code, hyphen blocks import):
+      assets/built-in/docs_structural_lint.py, toolguides/built-in/system_tools/__init__.py — whitelist so a
+      "no .py in move-set" guard does not false-positive; note their wheel shipping-status change (NFR-002).
+  - path: src/doctrine/*.graph.yaml            # 14 DRG fragments (authoritative glob, not hand-count)
+    action: MOVE
+    to: packs/built-in/
+  - path: src/doctrine/missions/
+    action: STAY (DEFER to Phase 1b)
+    reason: >
+      Post-plan squad UNANIMOUS defer. Readers span 4 layers incl. kernel/paths.py:111 (files("doctrine")/"missions")
+      — routing a KERNEL reader through the doctrine-layer resolve_pack_root is a C-004 upward-import violation;
+      pushing the resolver into kernel is the C-002 kernel extraction we defer. Plus __file__-relative readers
+      (mission_step_repository.py:219, charter/mission_type_profile_repository.py:66) invisible to a files()/string
+      sweep, and live upgrade migrations. Graph identity is SAFE either way (mission nodes are authored in the
+      fragments, not scanned from missions/). Follow-on: Phase 1b (first task = cross-layer missions-reader inventory).
+  - path: src/doctrine/schemas/
+    action: STAY
+    reason: C-003 — files("doctrine.schemas") via KERNEL layer; not tiered; moving breaks all validation.
+  - path: src/doctrine/{skills,model_task_routing,templates}/
+    action: STAY
+    reason: Deployment/infra/contract-pinned, not DRG-tiered (verified — DRG loader references none). Their tiered face (e.g. tactics/built-in/model-task-routing.tactic.yaml) moves with its kind.
+  - path: src/doctrine/{drg,shared,import_candidates,spdd_reasons,workflows}/
+    action: STAY
+    reason: Python code / non-tiered.
+
+import_paths:  # package-relative importlib.resources anchors → repoint via resolver
+  - anchor: files("doctrine.<kind>")   # 9 per-kind content anchors
+    action: REPOINT → resolve_pack_root("built-in")/<kind>
+    note: Drop the now-dead hasattr(joinpath)/Path(str(...)) Traversable guard — resolver returns a real Path.
+  - anchor: files("doctrine")  (16 sites)
+    action: PER-SITE — built_in_graph_source() REPOINTS; schemas/templates/missions sites STAY. IC-01 classifies each.
+  - anchor: files("doctrine.schemas") / files("doctrine.missions.*")
+    action: KEEP (schemas C-003; missions deferred).
+
+code_symbols:
+  - symbol: built_in_graph_source()  (src/doctrine/drg/loader.py:115)
+    action: REPOINT → resolve_pack_root("built-in"); make FAIL-CLOSED (PackRootNotFound), drop the silent __file__ fallback.
+  - symbol: _default_built_in_dir() / built_in_dir default  (×9 repositories)
+    action: REPOINT → resolve_pack_root("built-in")/<kind>
+  - symbol: resolve_pack_root(tier)  (NEW, src/doctrine/pack_paths.py)
+    action: ADD — .resolve() before walk-up; fail-closed.
+  - symbol: _doctrine_root()  (specify_cli/cli/commands/doctrine.py) + extractor.py _PATH_KIND_PATTERNS (lines 60-107) + walks (:477)
+    action: REPOINT (daphne blocker) — detection + write-target + regex patterns to the flattened packs/built-in/<kind>/ home, so `spec-kitty doctrine regenerate-graph` still works.
+  - symbol: charter/catalog.py _scan() / load_doctrine_catalog() (line ~276, reads resolve_doctrine_root()/<kind>/built-in for 7 kinds, 30+ callers)
+    action: REPOINT (pedro post-tasks BLOCKER — owned by WP04) → resolve_pack_root("built-in")/<kind>. A SECOND reader independent of the repositories/loader; uses the files("doctrine") root so no per-kind-anchor guard catches it. WP07 T022 adds a catalog-non-empty assertion.
+
+serialized_keys:
+  - key: root pyproject.toml [tool.hatch.build.targets.wheel]
+    action: ADD force-include = { "packs" = "packs" }. Do NOT delete the existing artifacts wildcards (schemas/templates/etc STAY under src/doctrine; the moved files simply stop matching once physically gone — no dual-home).
+  - key: root pyproject.toml [tool.hatch.build.targets.sdist].include
+    action: ADD "packs/**" (currently "src/**/*" excludes top-level packs/).
+
+cli_commands: [none]
+
+user_facing_strings:
+  - literal: "src/doctrine/agent_profiles/built-in"  (specify_cli/.../tasks_status_cmd.py:708,813)
+    action: REPOINT via resolve_pack_root; MODULE-LEVEL import (not function-local — #2986 shrink-only ratchet).
+  - literal: specify_cli/migration/rewrite_opposed_by.py:192, core/upgrade_probe.py:8  (".../directives/built-in/")
+    action: REVIEW in IC-01 — live path (repoint) vs docstring (leave).
+
+tests_fixtures:  # ALL of these break on the move — enumerated (FR-010)
+  - tests/doctrine/drg/test_builtin_graph_seam.py            # asserts built_in_graph_source().name=="doctrine"
+  - tests/doctrine/test_wheel_packaging.py                    # hardcodes doctrine/<kind>/built-in paths + legacy-absent → FLATTENED packs/built-in/<kind>/ + invert
+  - tests/architectural/test_no_dead_doctrine_paths.py        # _SRC_ROOT=src only; pins exact doctrine-daphne.agent.yaml (interacts #3036 — note, don't fix)
+  - tests/doctrine/drg/test_graph_sharding_equality.py, test_sharding_silent_degrade.py
+  - tests/doctrine/drg/migration/test_extractor.py, test_extractor_projection.py, test_path_ref_resolver.py  # regen-parity — prove the extractor repoint is required
+  - NEW: test_pack_relocation_identity.py (full-projection golden), test_pack_root_resolver.py (two-layout + symlink matrix), overlay behavioral test
+
+logs_telemetry: [none]
+
+dropped_from_scope:
+  - "#1624 _tag_source typing (was IC-08/FR-013): ALREADY CLOSED upstream (fixed by tooling-stability-guard-coherence-01KTRC04); merge.py:387 + models.py already typed. Drop the fold; flag CLAUDE.md's stale Deferred Items list in the PR."
+  - "missions/ tree: deferred to Phase 1b (see filesystem_paths)."

@@ -1,0 +1,19 @@
+{
+  "wp_id": "WP08",
+  "captured_at": "2026-07-31T18:35:19Z",
+  "base_branch": "feat/relocate-builtin-doctrine-packs",
+  "base_commit": "75b0832ab60f8f8f7b5928a27e88b895c76f11d2",
+  "test_runner": "pytest",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "<gate-coverage-junit>",
+      "error": "no JUnit XML artifact produced by the scoped run",
+      "file": "unknown"
+    }
+  ],
+  "source_identity": "GateCoverageScopeSource/junit_xml"
+}

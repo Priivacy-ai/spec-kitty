@@ -1,0 +1,101 @@
+{
+  "event_count": 62,
+  "last_event_id": "01KYWYV9RA39D80KH97X3EJKMQ",
+  "materialized_at": "2026-07-31T20:46:27.594255+00:00",
+  "mission_number": "",
+  "mission_slug": "doctrine-built-in-seam-consolidation-01KYW3TX",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 8,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude-sonnet",
+      "force_count": 6,
+      "lane": "done",
+      "last_event_id": "01KYWYV4D8ZGSK1YR74RCWD4NN",
+      "last_transition_at": "2026-07-31T20:46:22.120541+00:00",
+      "shell_pid": 3817477,
+      "shell_pid_created_at": "1785519412.09"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude-sonnet",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KYWYV61ACB15WJQW93YR1RAE",
+      "last_transition_at": "2026-07-31T20:46:23.786961+00:00",
+      "shell_pid": 3832525,
+      "shell_pid_created_at": "1785520599.5"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude-sonnet",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KYWYV6RTX86YDZ0Y2APSRC1F",
+      "last_transition_at": "2026-07-31T20:46:24.538089+00:00",
+      "shell_pid": 3840877,
+      "shell_pid_created_at": "1785521030.33"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude-sonnet",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KYWYV89JVFAA22Q87RXM2S69",
+      "last_transition_at": "2026-07-31T20:46:26.098714+00:00",
+      "shell_pid": 3933840,
+      "shell_pid_created_at": "1785523430.35"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude-sonnet",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KYWYV7HB35D4JEQ6PNHPNHG8",
+      "last_transition_at": "2026-07-31T20:46:25.323362+00:00",
+      "shell_pid": 3842946,
+      "shell_pid_created_at": "1785521052.66"
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude-sonnet",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KYWYV9RA39D80KH97X3EJKMQ",
+      "last_transition_at": "2026-07-31T20:46:27.594255+00:00",
+      "shell_pid": 3993668,
+      "shell_pid_created_at": "1785527718.55"
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude-sonnet",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KYWYV918M60XM3SGVJ1D06W5",
+      "last_transition_at": "2026-07-31T20:46:26.856576+00:00",
+      "shell_pid": 3969266,
+      "shell_pid_created_at": "1785525942.11"
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "claude-sonnet",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KYWYV5A4EPAM0KNBC7ZRWEE8",
+      "last_transition_at": "2026-07-31T20:46:23.044179+00:00",
+      "shell_pid": 3905508,
+      "shell_pid_created_at": "1785522605.97"
+    }
+  }
+}
