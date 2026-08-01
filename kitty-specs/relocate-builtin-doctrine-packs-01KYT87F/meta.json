@@ -1,0 +1,18 @@
+{
+  "baseline_merge_commit": "edbfa15983e603aadd09f87aea3b52e75705bc36",
+  "coordination_branch": "kitty/mission-relocate-builtin-doctrine-packs-01KYT87F",
+  "created_at": "2026-07-30T19:32:40.254060+00:00",
+  "flattened": false,
+  "friendly_name": "Relocate Built-In Doctrine to packs/built-in",
+  "mission_id": "01KYT87F5XWGATBZ36CWT73Q7V",
+  "mission_number": 187,
+  "mission_slug": "relocate-builtin-doctrine-packs-01KYT87F",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Today the shipped built-in doctrine content (agent profiles, directives, procedures, tactics, paradigms, styleguides, toolguides, assets, glossary packs, the DRG graph fragments, schemas, and mission templates) lives inside src/doctrine and is loaded by a different code path than the org and project packs it later composes with. This mission relocates that content to a top-level packs/built-in directory and routes it through the same pack-loading path org and project packs already use, making built-in the uniform base tier of the built-in -> org -> project mechanism. It improves pack authoring and overlay consistency and draws the consumer seam for the open-core delivery window, without extracting the doctrine code itself.",
+  "purpose_tldr": "Move built-in doctrine artefacts out of src/doctrine into packs/built-in and load them through the same pack path org and project packs use, so all three tiers are uniform.",
+  "slug": "relocate-builtin-doctrine-packs-01KYT87F",
+  "status_phase": "1",
+  "target_branch": "feat/relocate-builtin-doctrine-packs",
+  "topology": "coord"
+}

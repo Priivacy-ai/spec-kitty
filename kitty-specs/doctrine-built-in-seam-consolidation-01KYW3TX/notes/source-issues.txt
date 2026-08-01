@@ -1,0 +1,134 @@
+#3119 — Consolidate built-in location onto the resolve_pack_root seam (retire DoctrineService._built_in_dir old-nested branch)
+labels: ['doctrine']
+Landing-pass adversarial-squad follow-up from PR #3117 (relocate built-in doctrine to `packs/built-in`, closes #3090). These are MINOR/NOTE seam-consolidation findings, out of scope for #3117's content relocation but tracked here so the "single fail-closed `resolve_pack_root` seam" claim becomes literally true across all callers.
+
+## Problem
+
+The relocation landed the content and a `resolve_pack_root("built-in")` seam, but several call sites still bypass it, reimplement it, or carry pre-move nested-shape assumptions. The load-bearing one does not fail closed.
+
+## Findings
+
+### MAJOR (paula-patterns) — `_built_in_dir` bypasses the seam and fails OPEN
+- `src/doctrine/service.py:38-41`: `_built_in_dir` returns `built_in_root / artifact / "built-in"` — the pre-move NESTED shape — bypassing `resolve_pack_root` entirely. Safe today ONLY because every production caller passes `built_in_root=Non
+
+================================================================================
+
+#3120 — Sweep stale src/doctrine/<kind>/built-in provenance paths inside relocated doctrine YAMLs + add content-manifest hashes
+labels: ['doctrine']
+Landing-pass adversarial-squad follow-up from PR #3117 (relocate built-in doctrine to `packs/built-in`, closes #3090). Two low-severity data-hygiene / defense-in-depth items, out of scope for the relocation itself (nothing is red — these are descriptive metadata and a path-set-only parity gate).
+
+## Problem
+
+### Stale provenance paths inside relocated YAMLs
+The relocated artefact YAMLs under `packs/built-in/**` still carry pre-move `src/doctrine/<kind>/built-in/...` path strings in descriptive provenance fields (`related:`, `source_files:`, inline notes). Dozens of occurrences across e.g. `packs/built-in/styleguides/*.yaml`, `packs/built-in/procedures/*.yaml`. No gate validates these (they are descriptive metadata, so nothing is red), but they are now inaccurate.
+- Suggested fix: sweep the stale strings to `packs/built-in/<kind>/`.
+
+### Content-manifest has no content hashes (curator-car
+
+================================================================================
+
+#3118 — Deduplicate charter-config I/O in is_charter_empty (empty-charter dispatch hot path)
+labels: ['doctrine', 'tech-debt']
+## Problem
+
+`is_charter_empty` (`src/specify_cli/invocation/empty_charter.py:48`) reads and parses the charter config **twice** on every auto-route dispatch:
+
+- line 56: `charter_activated_urns(repo_root)` — internally calls `_load_config` + `_load_charter_activation_source`.
+- line 58: `PackContext.from_config(repo_root)` — independently calls `_load_config` + `_load_charter_activation_source` again.
+
+Correctness is fine (the two reads are pure and consistent), but this is **redundant config I/O + YAML parse on the dispatch hot path** — every no-hint `spec-kitty dispatch` in an unconfigured repo pays for two full charter-config loads where one would do.
+
+## Evidence
+
+- `src/specify_cli/invocation/empty_charter.py:48-67` — `is_charter_empty` body; the two independent config reads at lines 56 and 58.
+- Both `charter_activated_urns` and `PackContext.from_config` bottom out in `_load_config
+
+================================================================================
+
+#3116 — Retire the context.py FR-009 re-export shim (re-point test imports to leaf modules)
+labels: ['tech-debt']
+## Problem
+
+PR #3099's context.py de-god (#2532) intentionally kept a ~60-symbol **private re-export block** at the top of `src/charter/context.py` (lines ~25-146, a run of `from <sibling> import _x as _x`) so that ~62 pre-existing test import sites (`from charter.context import _x`) keep resolving after the leaf clusters moved to sibling modules.
+
+The block is explicitly labelled an orchestration shim (`# ⚠️ ORCHESTRATION SHIM (#2532 de-godding complete — do NOT add new responsibilities here)`, `src/charter/context.py:2`) and is guarded, but **there is no ticket to migrate those test imports to their leaf homes and delete the block**. A transitional re-export with no removal ticket becomes permanent drift — the exact god-module smell #2532 set out to remove, re-introduced one indirection layer up.
+
+## Evidence
+
+- `src/charter/context.py:2-6` — the shim banner.
+- `src/charter/context.py:
+
+================================================================================
+
+#3106 — tech-debt: unify charter activation-key vocabulary onto YAML_KEY_MAP (4-site drift: pack_manager / charter_pack_registry / charter_yaml_io / migrations)
+labels: ['doctrine', 'priority:P2', 'tech-debt']
+## Why
+
+The charter activation-key vocabulary — which `config.yaml` root key
+(`activated_<plural>`) corresponds to which charter kind — is restated by
+hand across independent sites instead of being consumed from one authority,
+and the copies have already drifted:
+
+- `charter.pack_manager.YAML_KEY_MAP` — the derived authority, built from
+  `doctrine.artifact_kinds.CHARTER_KIND_TOKENS`. Lists **9** per-kind
+  `activated_*` keys, including `activated_glossary_packs`.
+- `specify_cli.charter_pack_registry.PER_KIND_ACTIVATION_KEYS` — derives
+  from `YAML_KEY_MAP` but explicitly filters out `activated_glossary_packs`
+  (and `mission_type_activations`) via a hand-maintained
+  `_NON_PACK_ACTIVATION_KEYS` exclusion set, landing on **8** keys.
+- `charter.charter_yaml_io._ACTIVATION_KEYS` — a separately hand-written
+  tuple that special-cases `activated_glossary_packs` with its own inline
+  comment 
+
+================================================================================
+
+#3105 — charter pack apply's config.yaml activations don't reach charter context/status without a compile step
+labels: ['enhancement', 'doctrine', 'priority:P2', 'usability']
+## Why
+
+`spec-kitty charter pack apply <name>` writes pack activations into
+`.kittify/config.yaml`, and `spec-kitty charter list` confirms the pack is
+active there. But the governance surfaces an operator would check next don't
+agree with that:
+
+- `spec-kitty charter context --action implement` (and other actions) returns
+  `active directives: []` — as if nothing were activated.
+- `spec-kitty charter status` reports "Charter not found — run charter
+  interview" — as if no charter existed at all, despite a populated
+  `config.yaml` baseline.
+
+So there is an unmentioned, undocumented gap between "activations written to
+`config.yaml`" and "governance actually delivered to a running action or
+reported by status". Nothing in the `pack apply` output, `charter list`
+output, or these two commands' own messaging says a further step (compile /
+interview) is required to bridge it.
+
+## For whom
+
+Any
+
+================================================================================
+
+#3104 — charter pack apply's recommended empty-charter remedy defeats the generic-agent dispatch fallback (ROUTER_NO_MATCH)
+labels: ['enhancement', 'doctrine', 'priority:P1', 'usability']
+## Why
+
+`spec-kitty dispatch` on a project with an empty/unmatched charter falls back to
+a warned **generic-agent** default rather than hard-failing (WP02 of the
+empty-charter follow-up, tracked in #3064). That fallback exists precisely so
+an unconfigured project still gets a usable dispatch instead of a router
+error.
+
+The `spec-kitty charter pack list/path/apply` CLI now ships a natural next
+step for that same unconfigured-project user: `spec-kitty charter pack apply
+minimal` to "get started" with a curated baseline. Applying it is the
+documented, discoverable remedy for exactly the empty-charter state the
+generic-agent fallback is protecting.
+
+But once the pack is applied, the charter is no longer empty — so the
+generic-agent safety net (which keys off "no charter configured") stops
+firing. The **same unmatched dispatch request** that previously degraded
+gracefully to a generic agent n
+
+================================================================================
+
