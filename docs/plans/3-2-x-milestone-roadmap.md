@@ -65,6 +65,54 @@ The corrections, in brief — full PO-facing detail in the
 *The dependency-spine section below is retained as the historical 2026-07-04 encoding;
 read it through the corrections above.*
 
+## Addendum 2026-08-01 — write-path topology scoping gap (design-spike #3129)
+
+*A maintainer observation ("the read vs write paths topology issues keep rearing their heads, and
+we're chopping them off as they spawn") prompted an investigation by LynnColeArt, filed as
+[#3129](https://github.com/Priivacy-ai/spec-kitty/issues/3129). A dialectic squad (architecture,
+governance, skeptic, advocate lenses + synthesis) independently corroborated or disproved the
+claim before any tracker action was taken; findings below.*
+
+1. **The technical diagnosis is corroborated.** Lane worktrees, the coordination worktree, and the
+   primary checkout share one git object store and one ref namespace (confirmed against
+   `docs/architecture/git-worktrees.md`); no code path today compares the invoking checkout against
+   a mission's declared workspace before allowing a write. G2's committed scope this cycle
+   (`#1878` — placement-routing + commit/protected-branch durability) **presupposes a write already
+   originates inside a valid mission workspace**; it decides which partition the write lands on, not
+   whether the invoking checkout belongs to the mission at all. That precondition gap is exactly what
+   the 2026-07-31 `spec-kitty-saas` incident exposed (a compacted Codex agent resumed in the wrong
+   checkout and wrote artifacts into it, undetected, next to a second agent's uncommitted edits) —
+   G2 as scoped would not have caught it.
+2. **The proposed remedy scale is not corroborated to the same degree.** The cheap, additive fix —
+   [#3128](https://github.com/Priivacy-ai/spec-kitty/issues/3128), a fail-closed comparison of the
+   invoking checkout against already-computed mission/lane metadata — would independently have
+   caught the actual incident with no topology change, and its own author (Lynn) ranks it "the cheap
+   first mitigation regardless" of any later ThickTicket/SugarFang shadow-workspace decision. The
+   full shadow-workspace redesign remains an open, ungated design-spike, not a demonstrated
+   necessity for 3.2.x.
+3. **A batch reparent into a new P0 "Topology / Isolation breaches" epic was considered and
+   rejected as the wrong process move.** 11 of the 14 issues #3129 names already have working
+   functional-epic homes (`#2624`, `#2160`, `#1619`, `#1795`, `#2017`) — reparenting them would
+   discard organizing work already done, against this repo's own narrow-consolidation precedent
+   (`#2392`: fold a shared-mechanism bug cluster into one seam, but do not over-broaden past a
+   confirmed mechanism). `#1878` — the closest existing umbrella — carries an on-record maintainer
+   non-goal: *"No topology redesign — the coordination-branch/worktree topology stays as-is."* And
+   Lynn's own issue states *"Not urgent relative to MVP,"* which directly contradicts a P0
+   (release-blocker) label under this repo's own priority definitions
+   ([`HOW_TO_MAINTAIN.md`](../../HOW_TO_MAINTAIN.md)).
+4. **Process learning for future cross-cutting findings of this shape:** a design-spike naming N
+   related bugs as "one shared root" is diagnostic evidence, not by itself license to reparent an
+   existing, working epic-triage structure. Default to reference/cross-link plus targeted placement
+   of only the currently-unparented members, and treat scope/priority escalation (especially
+   anything that reverses an on-record non-goal) as an operator call — not something a planning
+   pass resolves unilaterally.
+5. **Recommended concrete action (pending operator confirmation, not yet applied):** fold `#3128`
+   into `#1878`/G2's active scope now as a minimal precondition fix; park the 4 currently-unparented
+   issues (`#3124`, `#3049`, `#3128`, `#3129` itself) under the existing `#1878` umbrella with an
+   explicit flag on the non-goal tension, rather than minting a new epic; keep `#3129`'s
+   shadow-workspace proposal gated — escalate only if the same undetected-out-of-context-write
+   shape keeps recurring after `#3128` and the `#1878` strangler land.
+
 ## The dependency spine
 
 The epic graph is now encoded **natively in the tracker** as blocked-by edges (2026-07-04):

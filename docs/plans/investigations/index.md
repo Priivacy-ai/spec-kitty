@@ -2,7 +2,7 @@
 title: Investigations
 description: Scope and compatibility investigations — issue analyses, schema-generation research, and mission review reports.
 doc_status: draft
-updated: '2026-07-05'
+updated: '2026-08-01'
 related:
 - docs/plans/index.md
 ---
@@ -12,6 +12,9 @@ Standalone investigation and scope-assessment artifacts: issue analyses,
 compatibility matrices, model-first schema research, and mission review
 reports.
 
+- [Write-path topology: ambient-location root cause and remediation options](write-path-topology-root-cause.md) —
+  dialectic-squad-corroborated root cause for the #3129 defect class (14 issues); scoped
+  remediation options for a future mission; rejects the batch-reparent/new-P0-epic action.
 - [Mission-type step-model unification](mission-type-step-model-unification.md) — retire
   "template" as a mission-type discriminator; make recursive steps the building block.
   Grounded by a design + code + adversarial squad; formalized in ADR `2026-07-16-2`.
