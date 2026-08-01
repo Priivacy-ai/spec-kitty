@@ -1,0 +1,337 @@
+{
+  "event_count": 78,
+  "last_event_id": "01KYYPJ2VVJBJ7QJMCSNTAR7Y0",
+  "materialized_at": "2026-08-01T13:00:05.883820+00:00",
+  "mission_number": "",
+  "mission_slug": "verification-trust-3115-01KYVYWM",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 13,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KYWCAD97WDJX4Z8ANN42FHTB",
+      "last_transition_at": "2026-07-31T15:22:39.783081+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 192528,
+      "shell_pid_created_at": "1785508722.0",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KYWTN7GXNG5G5J2F4ANFAQF6",
+      "last_transition_at": "2026-07-31T19:33:14.397213+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Serial transition, no other lane dispatched. Window 2026-07-31T19:01:29Z to 2026-07-31T19:01:29Z UTC. Merge-base 0. Measured on .venv/bin/python (pytest 9.0.3). Red-before/green-after on WP01's committed reproducer: 1f3p->4p (collected 4), 1f11p->12p (collected 12). Pinned 240x50 on the two singletons only; three deliberately-sized specials proven untouched; two function-constructed consoles named as a stated gap. Implementer self-caught an inert mutant (None from a firstresult hook reads as unhandled) and fixed it with a sentinel.",
+        "Approved round 1 (c107f4e928). Red-before/green-after via WP01's reproducer; red produced by the mutant not a stash. Reviewer proved the mutant non-inert by rebuilding the pre-fix shape (result=None) and reproducing the false green. Blast radius widened to 3536 tests seam-on and seam-off: no outcome moved. 1 MEDIUM carried, NOT a WP02 defect: the three exempted specials carry _height=None so they render at (80,25) on the failing path; 5 tests still red there. WP03's guard MUST compare effective size.width, not declared _width."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 808608,
+      "shell_pid_created_at": "1785522645.1",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    },
+    "WP03": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KYX6XMXS7AWNWY38PMG0BFKX",
+      "last_transition_at": "2026-07-31T23:07:33.177857+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Serial transition. Window 2026-07-31T22:23:29Z to 2026-07-31T22:23:29Z UTC. Merge-base 0. Guard reads instance.size (computed), never ._width. KEY DESIGN FINDING: a bare width>=36 check can never legitimately red because rich's is_dumb_terminal floor is hard-coded (80,25) and 80>36 - so the guard renders a fold-shaped table at each console's effective size and checks uuid contiguity, with non-vacuity proven (bites at 80, clears at 240). Positive control asserts both named singletons by object identity. Red-first via WP02's mutant, suppression split 3. Orphan ratchet 31 passed, NO baseline widened. NFR-006 stated as an estimate, not a measured before/after.",
+        "Approved round 2 (aab63e4501). Guard reads effective instance.size; a bare width>=36 check proven vacuous (rich's dumb floor is 80 > 36). Renders a fold-shaped table and asserts uuid contiguity; threshold swept - bites <88, clears >=88. Positive control by object identity on both named singletons. Red-first via WP02's mutant, suppression 3. R2: report now emitted via warnings.warn after terminalreporter.write_line was MEASURED to also fail under -n auto (xdist workers have no terminal; only structured reports cross IPC) - grep count 0 -> 7 under CI's own flags. interleaved.strip() added after a whitespace-only capture was shown to pass all four assertions. Exemption narrowed to snapshot-minus-specials. Orphan ratchet not re-run in R2 (no test names/counts/paths/markers changed) - stated plainly. NFR-006 recorded as satisfied-by-argument."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 1266596,
+      "shell_pid_created_at": "1785533739.57",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    },
+    "WP04": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KYX0J3V641AXRGH9DSCCSD1K",
+      "last_transition_at": "2026-07-31T21:16:23.782685+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Serial transition. Window 2026-07-31T20:40:55Z to 2026-07-31T20:40:55Z UTC; concurrent lane-k (WP12) ran pytest but WP04 started NO pytest session by design. Merge-base 0. 138 modules scanned, 22 entries. Docs rulers verified: check_docs_freshness exit=0 findings=0, 686 rows. REVIEW POINT: dependence buckets reported as depends=1 / does-not-depend=21 / undetermined=0 with zero dynamic measurement - FR-006's vocabulary is measured-yes/measured-no/unmeasured.",
+        "Approved round 2 (975a410e15). 22->53 entries. All 3 HIGH + 4 MEDIUM discharged by re-derivation; exclusion split reconciles exactly (296 bindings); docs artefacts byte-identical to fresh regeneration. Dependence methodology repaired: import-graph rule retired for a read-set/write-set trace, validated against the reset_adapters control. Reviewer withdrew its own proposed argument as weaker. 1 MEDIUM carried to WP05/WP06."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 1016968,
+      "shell_pid_created_at": "1785529450.97",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
+    },
+    "WP05": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KYXGWGVSC13B312A26B98ZTC",
+      "last_transition_at": "2026-08-01T02:01:42.009561+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Serial transition. Window 2026-08-01T01:17:24Z to 2026-08-01T01:17:24Z UTC. Merge-base 0. Guard is a pytest_runtest_teardown hookwrapper pair, NOT an autouse fixture - the fixture form produced 145 false positives because pytest tears a no-dependency autouse fixture down before monkeypatch's restore. Red-first is SYNTHETIC (no real inventoried leak found among the 4 likeliest thread candidates); limitation recorded verbatim. Control case clean and probe validated in both directions. OPERATOR DECISION REQUIRED: the guard surfaces ~11 real previously-invisible leaks, 11 of 13 reproducing serially - merging as-is turns ~11 currently-green fast-tests-sync tests red, and fixing them is outside every WP's ownership. NFR-006 measured 5.06%, marginally over threshold, single measurement.",
+        "Approved round 2 (217b34afcb). Guard is a hookwrapper pair, not an autouse fixture (fixture form gave 145 false positives; pytest tears no-dependency autouse fixtures down before monkeypatch restore). Reviewer verified the 11 leaks with an INDEPENDENT census, guard neutralised and mutation bound: same 11 nodes/symbols/threads, each thread STILL-ALIVE-after-1.0s; with the guard inert all 12 pass. Filed as issue #3130. NFR-006's 5.06% does NOT survive measurement - micro-benchmark gives 70.1us/snapshot x2 x2122 = 0.30s = ~0.4%, below the noise floor (identical runs differed 0.79s); no implementation change warranted. R2 fixed: the xdist 'inspected 0' caveat now prints; T017 evidence retracted and re-recorded citing the reviewer's fuller reproduction; the restores-to-the-same-wrong-value blind spot named. OPERATOR DECISION OPEN: merging reds ~11 green fast-tests-sync tests by design. Third option surfaced by the reviewer: pin the 11 as xfail(strict=True) per C-011 - pins the defect rather than hiding it, keeps CI green."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 1606902,
+      "shell_pid_created_at": "1785543112.79",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
+    },
+    "WP06": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KYYA1CF8YCZ0N51999XB8G89",
+      "last_transition_at": "2026-08-01T09:21:15.752906+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Serial transition. Window 2026-08-01T02:42:43Z to 2026-08-01T02:42:43Z UTC. Merge-base 0. FLOOR = F-b (could not reproduce) across 11 selections with collected counts, incl. CI-replica at -n auto and -n 4. MECHANISM PROVEN by direct attribution: injecting a live un-joined daemon-shape thread gives 'Called 400 times' - the reported failure's exact shape - with per-thread split {MainThread:1, probe:399}. Natural CI trigger NOT found; honest negative result, left to WP14. CORRECTION to the brief: daemon.py's three sites are SINGLE-SHOT sleeps, not loops (shutdown_server 0.01s once, bootstrap 1.0s once, _shutdown_off_thread never sleeps, :1382 runs in the calling thread) - none can singly explain 173x. Kept distinct from #3130's spec-kitty-sync-async-loop leak, which runs an asyncio loop not time.sleep.",
+        "Approved round 3 (512e240d80). FR-005 closes as a LEGITIMATE NEGATIVE. Arc: r1's negative rested on a search that never read the primary artefact; r2's on a grep whose scope structurally excluded the answer; r3's on a validated instrument that saw a leak when present (sync/batch.py:674 via background.py's final-sync thread, #3130 leaks 1-2, stack-named) and saw none on either FR-005 victim. PRODUCER NAMED: subprocess.Popen._wait's POSIX busy-wait, delay=min(delay*2, remaining, .05), base 0.0005 - one loop that saturates, not two producers; the 0.05 is its cap. restart.py:147 and daemon.py:1382 FALSIFIED. NEW ROT MODE INSTANCE: psutil.Process.wait is invisible to @patch(time.sleep) because psutil._psposix.wait_pid_posix binds _sleep=time.sleep as a function default at import time; the pidfd branch has no sleep at all, so the exclusion is environment-independent. CLOSURE: the recorder is side_effect on the same mock whose call_count raises, so the instrument's blind spots are a subset of the failure's; the one exception (side_effect reassignment) measured at 0 sites. VICTIMS CORRECTED: the real ones are test_exponential_backoff_intervals and test_429_retries_then_raises, NOT test_429_respects_retry_after which the issue named."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 1714070,
+      "shell_pid_created_at": "1785549710.78",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
+    },
+    "WP07": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KYXAK6WBMYAE2J0WEGPZMV6C",
+      "last_transition_at": "2026-08-01T00:11:45.419970+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Serial transition. Window 2026-07-31T23:43:10Z to 2026-07-31T23:43:10Z UTC. Merge-base 0. Verdict NOT LOAD-BEARING with non-zero suppression at all 5 sites (8/24/18/50/30). Deletion clause found UNSATISFIABLE: WP04's inventory is scoped to tests/sync and states tests/cli out of scope, so 'nothing reads the singleton on that path' cannot be established - all 5 kept, docstrings corrected to defence-in-depth. REVIEW POINT: implementer notes WP02's seam is unconditional and already in this lane's base, so TERM=dumb FORCE_COLOR=1 may no longer discriminate - cases (a) and (b) may have collapsed into the same environment, making 'unchanged in both' trivially true.",
+        "Approved round 2 (326677e6e6). Verdict NOT LOAD-BEARING, established on a discriminating arm: reviewer found cases (a)/(b) collapsed (both rendered 240x50 under WP02's unconditional seam), then ran seam-off + reset-neutralised together to restore the real (80,25) - same test reds with byte-identical assertion text either way. Suppression non-zero at all 5 sites (8/24/18/50/30), each exactly 2x collected. Deletion clause found UNSATISFIABLE: WP04's inventory disclaims tests/cli, so FR-009's conjunct cannot be established - all 5 kept, docstrings corrected. R2 fixed 3 docstring MEDIUMs: overclaimed two directions, wrong width attribution (240 seam vs the files' own 220), and a deleted threat model that left an absence claim unexplained. Verdict now scoped to measured compositions. Expected no_coverage gate line is NOT evidence; manual evidence stands in."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 1531736,
+      "shell_pid_created_at": "1785539275.42",
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done"
+      }
+    },
+    "WP09": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KYWFG841VRBTPDRYQ2JH1GWP",
+      "last_transition_at": "2026-07-31T16:18:16.833431+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Serial transition, no other lane dispatched. Measurement window 2026-07-31T15:49:41Z to 2026-07-31T15:49:41Z UTC; lane-a (WP01) already approved and idle. Merge-base to mission branch was 0, no merge taken. All measurements PYTHONPATH-pinned to the worktree src.",
+        "Approved round 2. R1 MEDIUM (unconditional misattribution) and LOW (helper breadth) both closed. Reviewer disproved the implementer's stated discriminator (effective_sync_enabled was a fixture artefact, not the predicate) then verified the claim independently by forging the matching-field case. Pre-review gate printed 'no new failures' in 7s for a file that takes 51s to collect -- treated as NO MEASUREMENT; reviewer's independent runs are the only regression evidence. 3 LOW/NOTE residuals carried."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 298849,
+      "shell_pid_created_at": "1785511980.31",
+      "subtasks": {
+        "T027": "done",
+        "T028": "done"
+      }
+    },
+    "WP10": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KYWJ76A6VFK0E49ETTT9EMKA",
+      "last_transition_at": "2026-07-31T17:05:45.798529+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Serial transition, no other lane dispatched; lane-a and lane-h approved and idle. Window 2026-07-31T16:41:28Z to 2026-07-31T16:41:28Z UTC. Merge-base to mission branch 0, no merge taken. FR-015 matcher DECLINED on measured non-zero FPs (5 reproduced byte-for-byte) - that is the FR's own acceptance, not a failure. NOTE: pre-review gate output is not evidence on this mission; reviewer measurements stand in.",
+        "Approved round 1. FR-015 matcher DECLINED on measured non-zero FPs - the FR's own acceptance. Reviewer re-derived every figure independently and confirmed all 5 FP sites are DI lookups through same-named Callable-typed params, not transports. Proved strict=True load-bearing by two-arm probe (exit 1 with, exit 0 green without). Closed the 211/13 discrepancy: 211 pairs with 116 files; the 13 was transcribed from the callee-agnostic precedent at spec.md:563. 3 LOW + 2 NOTE residuals carried."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 469683,
+      "shell_pid_created_at": "1785514719.87",
+      "subtasks": {
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done"
+      }
+    },
+    "WP11": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KYWQ2K4AXG2376ZN9KV231Q1",
+      "last_transition_at": "2026-07-31T18:30:37.962695+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Serial transition, no other lane dispatched. Window 2026-07-31T17:50:29Z to 2026-07-31T17:50:29Z UTC. Merge-base 0, no merge. Measured on .venv/bin/python (pytest 9.0.3, timeout-2.4.0 present) - the interpreter is load-bearing for FR-018. Red-first under a non-terminating hook-level mutant names the count (26) and is not Failed: Timeout; mutant per-site split 50, not inert. NOTE: .gitignore:162 'mutants/' collides with scripts/mutants/ - file required git add -f.",
+        "Approved round 2 (commit ee98806965). Acceptance chain: hook-level mutant, non-zero per-site split, loud on zero via TWO independent limbs (exit status survives -p no:terminalreporter), defeats both halves of the break condition, 8,813,833 non-terminating iterations uncapped reding as Failed: Timeout, and the cap converts that to AssertionError naming 26 on an interpreter where Failed: Timeout demonstrably CAN fire and did not. Measured on .venv/bin/python (timeout-2.4.0 registered). All r1 MEDIUMs+LOWs closed. Open, not WP11's: .gitignore:162 unanchored mutants/ - filed as #3125, and WP12 must git add -f plus evidence a git ls-files line."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 656342,
+      "shell_pid_created_at": "1785519115.09",
+      "subtasks": {
+        "T033": "done",
+        "T034": "done",
+        "T035": "done"
+      }
+    },
+    "WP12": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KYX23ASZHMYS0K5SNEHHRA79",
+      "last_transition_at": "2026-07-31T21:43:16.543231+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Serial transition. Window 2026-07-31T20:57:29Z to 2026-07-31T20:57:29Z UTC. Merge-base 0. Measured on .venv/bin/python, timeout-2.4.0 in every header. Derivation (a) REJECTED on measurement (only 14 of ~55 invocations carry --durations; 11 of 17 target jobs have none) -> chose (b), job-scoped in ci-quality.yml; pytest.ini UNCHANGED. Value 180s signal, derived from CI cov-ON max unmarked 40.71s x4 = 162.84s floor. Red-first is the hang itself: no flag -> exit 137, EMPTY output, no summary. Green-after: named 'Failed: Timeout (>3.0s)' with summary line. NOTE: fast-tests-status is skipped via needs.fast-tests-sync.result gate, not a path filter.",
+        "Approved round 2 (efe2e01ee9). Derivation (a) rejected on measurement; (b) job-scoped to 17 command lines, pytest.ini byte-identical to base. Value 240s signal, full-protocol scope retained deliberately over --timeout-func-only so hangs in autouse fixture setup stay visible. Reviewer verified the timer armed via pytest's own header (timeout 240.0s / signal / func_only False) and measured max full-protocol item 29.90s = 8.03x headroom; it also retracted the practical force of its own finding (outlier setup/teardown measured 0.00, so 180 would have been safe - a bookkeeping defect, not a value defect). No job sets timeout-minutes, so no runner-level kill can pre-empt the bound. OPEN, carried to PR: FR-017's regression clause needs the first post-merge CI run; fast-tests-status (issue #3127) will be absent from that enumeration unless fast-tests-sync goes green."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 996662,
+      "shell_pid_created_at": "1785528802.7",
+      "subtasks": {
+        "T036": "done",
+        "T037": "done",
+        "T038": "done",
+        "T039": "done"
+      }
+    },
+    "WP13": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "MOES-Media",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KYYPJ2VVJBJ7QJMCSNTAR7Y0",
+      "last_transition_at": "2026-08-01T13:00:05.883820+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Unblocking: all declared dependencies (WP03, WP05, WP07, WP12) are approved. WP13 was parked in 'blocked' while they were outstanding; blocked->in_progress is the legal edge. Carries a correction: WP13's enumerated node-id list came from #3115's issue body, which names a test that has never failed - see notes/sleep-count-attribution.md.",
+        "Serial transition. Window 2026-08-01T12:01:21Z UTC. First proof was VACUOUS (measured lane-l, which contains none of the mission's fixes) - found and disclosed by WP13 itself in a SUPERSEDED section. Re-measured on integration probe eef820144f built from all 12 lane tips, integration verified BEFORE measuring (guard x8, seam x4, 5 mutants, width-guard file present). Sync 8 workers [2124], 3 identical runs: 2112 passed, 12 skipped, 12 errors - all tagged [FR-007 leak guard], matched 11/11 against #3130 plus 1 of its 2 loadfile-only extras. CLI 8 workers [2917]: 1 failed, 2916 passed. All 13 node-ids PASSED every run. Attribution: guard 12, #3115 0, pre-existing 1. Reviewer verified every figure against git objects and raw run files, and confirmed feat/ still greps 0 for guard and seam.",
+        "Round 3 APPROVE (review-cycle-2.md): both HIGHs discharged -- vacuous-PASS guard now fails 0/17 exit 1, four evidence extractors folded into exit status. Round 4 closed 1 MEDIUM + 3 LOWs."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 111162,
+      "shell_pid_created_at": "1785577434.89",
+      "subtasks": {
+        "T040": "done",
+        "T041": "done",
+        "T042": "done",
+        "T043": "done"
+      }
+    },
+    "WP14": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KYYB7ZW6HDJPM13V0RVDASV1",
+      "last_transition_at": "2026-08-01T09:42:20.806502+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Serial transition. Window 2026-08-01T09:31:50Z UTC. OUTCOME B (deferred-with-followup), successor issue #3136. NO COMMIT MADE - correct for outcome B; the owned file is deliberately untouched. Outcome A needs a both-directions reproduction showing the count moving, unavailable without a local repro (WP06 recorded F-b across 11 selections). #3115's evidence_ref carries 'Follow-up: #3136'.",
+        "Approved round 1. Outcome B forced: FR-010(a) is CONJUNCTIVE - FR-005 permits attribution by 'a specific other mechanism' so the named Popen._wait producer clears the ATTRIBUTION half; (a) fails on its REPRODUCTION conjunct since WP06 recorded F-b. Closed enumeration => (b). Zero diff verified mechanically; a manufactured change would have been the defect. #3136 checked line-by-line against all 11 claimed inheritances. Blocking exit clause not violated. LOWs carried: floor count corrected 11->10; FR-010's hours/mechanisms budget owed in the PR body; #3136 cites the WP04 inventory not yet on the mission branch; WP06's '400 calls' probe to be carried to #3136 with why it is NOT a both-directions reproduction."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 83980,
+      "shell_pid_created_at": "1785576131.52",
+      "subtasks": {
+        "T044": "done",
+        "T045": "done"
+      }
+    }
+  }
+}

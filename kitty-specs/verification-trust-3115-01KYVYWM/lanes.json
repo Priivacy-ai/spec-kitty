@@ -1,0 +1,259 @@
+{
+  "version": 1,
+  "mission_slug": "verification-trust-3115-01KYVYWM",
+  "mission_id": "01KYVYWMEMY8HB2PW08C34VKWQ",
+  "mission_branch": "kitty/mission-verification-trust-3115-01KYVYWM",
+  "target_branch": "feat/verification-trust-3115",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/development/testing-parallel.md",
+        "scripts/repro_3115_render_width.sh"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "tests/sync/test_sync_consent_default_deny.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP10"
+      ],
+      "write_scope": [
+        "tests/architectural/_baselines.yaml",
+        "tests/architectural/test_egress_consent_boundary.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-j",
+      "wp_ids": [
+        "WP11"
+      ],
+      "write_scope": [
+        "scripts/mutants/nonterminating_dispatch_3115.py",
+        "tests/delivery/test_dispatch_window_consent_3030.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "scripts/mutants/disable_render_seam_3115.py",
+        "tests/conftest.py"
+      ],
+      "predicted_surfaces": [
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/development/3-2-docs-retrieval-index.yaml",
+        "docs/development/3-2-page-inventory.yaml",
+        "docs/development/process-global-inventory-3115.md",
+        "docs/development/toc.yml"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-k",
+      "wp_ids": [
+        "WP12"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-quality.yml",
+        "pytest.ini",
+        "scripts/mutants/hang_a_fast_test_3115.py"
+      ],
+      "predicted_surfaces": [
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-j"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/_arch_shard_map.py",
+        "tests/architectural/test_cli_console_render_width.py",
+        "tests/cli/commands/fixtures/render_width_3115/**",
+        "tests/cli/commands/test_render_fold_not_repairable_3115.py"
+      ],
+      "predicted_surfaces": [
+        "app-shell",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "tests/sync/conftest.py",
+        "tests/sync/test_leak_guard_probe_3115.py"
+      ],
+      "predicted_surfaces": [
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06",
+        "WP14"
+      ],
+      "write_scope": [
+        "scripts/mutants/attribute_sleep_count_3115.py",
+        "tests/sync/tracker/test_saas_client.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "scripts/mutants/neutralise_reset_token_manager_3115.py",
+        "tests/cli/commands/test_sync_doctor_consent_health_3030.py",
+        "tests/cli/commands/test_sync_doctor_per_project_3030.py",
+        "tests/cli/commands/test_sync_migrate_backfills_h4.py",
+        "tests/cli/commands/test_sync_purge_3030.py",
+        "tests/cli/commands/test_sync_status_per_project_3030.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-l",
+      "wp_ids": [
+        "WP13"
+      ],
+      "write_scope": [
+        "scripts/verify_shard_3115.sh"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-e",
+        "lane-g",
+        "lane-k"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-07-31T14:18:43.526096+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "e48340ba04e198db16861e6fdcf52e2f53bf83d3",
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP14",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/sync/tracker/test_saas_client.py' vs 'tests/sync/tracker/test_saas_client.py'; WP14 depends on WP06"
+      }
+    ],
+    "total_merges": 1,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 1
+    }
+  }
+}

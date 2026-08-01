@@ -1,0 +1,19 @@
+{
+  "wp_id": "WP11",
+  "captured_at": "2026-07-31T17:37:02Z",
+  "base_branch": "feat/verification-trust-3115",
+  "base_commit": "a4ca248a2ee294a10923dd3483347e9c54d26685",
+  "test_runner": "pytest",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "<gate-coverage-junit>",
+      "error": "no JUnit XML artifact produced by the scoped run",
+      "file": "unknown"
+    }
+  ],
+  "source_identity": "GateCoverageScopeSource/junit_xml"
+}
