@@ -31,7 +31,6 @@ from specify_cli.cli.commands.charter import charter_app
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-BUILT_IN_DOCTRINE_ROOT = REPO_ROOT / "src" / "doctrine"
 ANSWERS_PATH = REPO_ROOT / ".kittify" / "charter" / "interview" / "answers.yaml"
 
 runner = CliRunner()
@@ -81,7 +80,7 @@ def project_root(tmp_path: Path) -> Path:
 
 def _compiled_reference_ids(project_root: Path) -> set[str]:
     pack_context = PackContext.from_config(project_root)
-    doctrine_service = DoctrineService(built_in_root=BUILT_IN_DOCTRINE_ROOT)
+    doctrine_service = DoctrineService()
     compiled = compile_charter(
         mission="software-dev",
         interview=default_interview(mission="software-dev"),
@@ -162,7 +161,7 @@ class TestDeactivateDropsNoAnswersEdit:
         # for a `test_no_new_charter_reference_danglers`-style guard to trip
         # on for THIS artefact).
         pack_context = PackContext.from_config(project_root)
-        doctrine_service = DoctrineService(built_in_root=BUILT_IN_DOCTRINE_ROOT)
+        doctrine_service = DoctrineService()
         compiled = compile_charter(
             mission="software-dev",
             interview=default_interview(mission="software-dev"),
@@ -201,7 +200,7 @@ class TestSpddActivationDoesNotFlip:
         # deactivation regression on this project's own charter.
         assert "DIRECTIVE_038" in interview.selected_directives
 
-        doctrine_service = DoctrineService(built_in_root=BUILT_IN_DOCTRINE_ROOT)
+        doctrine_service = DoctrineService()
         pack_context = PackContext.from_config(REPO_ROOT)
         compiled = compile_charter(
             mission=interview.mission,

@@ -5,7 +5,7 @@ Defines the Directive Pydantic model with all governance fields including
 optional enrichment fields and typed cross-artifact references.
 
 Cross-artifact relationships (directive → tactic, directive → paradigm, etc.)
-are expressed **exclusively** via edges in ``src/doctrine/*.graph.yaml`` as of
+are expressed **exclusively** via edges in ``packs/built-in/*.graph.yaml`` as of
 Phase 1 excision (see mission
 ``excise-doctrine-curation-and-inline-references-01KP54J6`` WP02). The legacy
 inline ``tactic_refs`` / ``applies_to`` fields have been removed from this
@@ -42,7 +42,7 @@ class Directive(BaseModel):
 
     Directives define WHAT must be done (or avoided) with an enforcement
     level. Relationships to the tactics that describe HOW live in
-    ``src/doctrine/*.graph.yaml`` as typed edges; they are no longer embedded
+    ``packs/built-in/*.graph.yaml`` as typed edges; they are no longer embedded
     as inline ``tactic_refs`` on this model.
     """
 

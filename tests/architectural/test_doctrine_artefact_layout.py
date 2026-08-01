@@ -40,6 +40,12 @@ pytestmark = [pytest.mark.architectural, pytest.mark.fast]
 
 _DOCTRINE_ROOT = Path(__file__).resolve().parents[2] / "src" / "doctrine"
 
+#: Post-relocation home of the shipped built-in doctrine packs (mission
+#: relocate-builtin-doctrine-packs). The seven layered artifact kinds moved from
+#: ``src/doctrine/<plural>/built-in`` to the flattened ``packs/built-in/<plural>``
+#: tree; the per-kind coverage floor scans this root rather than ``src/doctrine``.
+_PACKS_BUILT_IN_ROOT = Path(__file__).resolve().parents[2] / "packs" / "built-in"
+
 #: The pack (provenance layer) directory name. ``built-in`` is the *only* legal spelling for
 #: shipped artefacts -- ``shipped/`` appeared in several READMEs and cross-links but has never
 #: existed on disk (ADR 2026-07-26-2 corrects those).
@@ -146,8 +152,14 @@ class TestShippedTreeIsCompliant:
         A single total floor is met by ``TACTIC`` alone (122 files), so it would stay green
         if ``ASSET``'s glob broke and zero assets were scanned — and ``ASSET`` is the kind
         whose misplacement in #2918 motivated this gate. Assert per-kind instead.
+
+        Post-relocation (mission relocate-builtin-doctrine-packs) the shipped built-in
+        artefacts live under ``packs/built-in/<plural>/`` rather than
+        ``src/doctrine/<plural>/built-in/``, so the coverage floor scans
+        :data:`_PACKS_BUILT_IN_ROOT`. The intent is unchanged: every governed kind must
+        still resolve at least one shipped file.
         """
-        scanned = Counter(kind for kind, _ in _iter_artefact_files(_DOCTRINE_ROOT))
+        scanned = Counter(kind for kind, _ in _iter_artefact_files(_PACKS_BUILT_IN_ROOT))
         missing = [kind.value for kind in _FILE_BACKED_KINDS if scanned[kind] == 0]
         assert not missing, f"gate scanned zero files for: {missing}"
 
@@ -325,6 +337,10 @@ class TestPromotedPowershellToolguideIsReachable:
         toolguide = ToolguideRepository().get("powershell-syntax")
         assert toolguide is not None
         guide_path = Path(toolguide.guide_path)
-        assert guide_path.parts[:4] == ("src", "doctrine", "toolguides", _PACK_DIR)
+        # Post-relocation (mission relocate-builtin-doctrine-packs): the shipped
+        # markdown moved from ``src/doctrine/toolguides/built-in`` to the
+        # flattened ``packs/built-in/toolguides`` tree. guide_path must point at
+        # the file's real home.
+        assert guide_path.parts[:3] == ("packs", _PACK_DIR, "toolguides")
         repo_root = _DOCTRINE_ROOT.parents[1]
         assert (repo_root / guide_path).is_file(), f"{guide_path} does not exist on disk"

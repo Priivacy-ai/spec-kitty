@@ -63,10 +63,12 @@ from doctrine.drg.models import NodeKind
 if TYPE_CHECKING:
     from doctrine.agent_profiles import AgentProfile
 
+# ``_render_profile_directives`` / ``_render_profile_tactics`` de-exported after
+# the context.py re-export shim retirement (doctrine-built-in-seam-consolidation
+# WP06): no external ``src/`` importer remains. Both stay module-internal,
+# called by ``_render_profile_sections`` below.
 __all__ = [
-    "_render_profile_directives",
     "_render_profile_sections",
-    "_render_profile_tactics",
 ]
 
 

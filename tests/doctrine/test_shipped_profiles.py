@@ -17,16 +17,23 @@ from ruamel.yaml import YAML
 from doctrine.agent_profiles.profile import AgentProfile, Role
 from doctrine.agent_profiles.repository import AgentProfileRepository
 from doctrine.agent_profiles.validation import validate_agent_profile_yaml
+from doctrine.pack_paths import resolve_pack_root
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
-BUILT_IN_DIR = Path(__file__).parent.parent.parent / "src" / "doctrine" / "agent_profiles" / "built-in"
-REPO_ROOT = BUILT_IN_DIR.parent.parent.parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
+# Post-relocation the shipped built-in profiles live at
+# ``packs/built-in/agent_profiles/`` (the per-kind ``built-in/`` subdir was
+# flattened out). Resolve through the canonical pack-root seam rather than a
+# ``src/doctrine`` literal, which is now emptied of built-in content.
+BUILT_IN_DIR = resolve_pack_root("built-in") / "agent_profiles"
 MISSION_RUNTIME_DIRS = (
     REPO_ROOT / "src" / "doctrine" / "missions",
     REPO_ROOT / ".kittify" / "overrides" / "missions",
 )
-AGENT_PROFILES_README = BUILT_IN_DIR.parent / "README.md"
+# The Python-package README (``src/doctrine/agent_profiles/README.md``) was NOT
+# relocated; the built-in-pack README moved to the flattened pack dir.
+AGENT_PROFILES_README = REPO_ROOT / "src" / "doctrine" / "agent_profiles" / "README.md"
 BUILT_IN_README = BUILT_IN_DIR / "README.md"
 
 EXPECTED_PROFILE_IDS = {

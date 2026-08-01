@@ -60,7 +60,7 @@ expanding the role.
 
 Only a read-only harness that cannot invoke the CLI may inspect the shipped
 built-in file at
-`src/doctrine/agent_profiles/built-in/<profile-id>.agent.yaml`.
+`packs/built-in/agent_profiles/<profile-id>.agent.yaml`.
 This is knowingly degraded, read-only fallback behavior. It can diverge from
 the resolved profile because organization/project overlays,
 `specializes_from` lineage, and `enhances`/`overrides` semantics are not

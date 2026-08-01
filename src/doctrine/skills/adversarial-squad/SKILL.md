@@ -15,7 +15,7 @@ description: >-
 # Adversarial Squad Deployment (harness)
 
 The operational **HOW**. The doctrinal **WHEN/WHY** is the procedure
-`adversarial-squad-deployment` (`src/doctrine/procedures/built-in/adversarial-squad-deployment.procedure.yaml`),
+`adversarial-squad-deployment` (`packs/built-in/procedures/adversarial-squad-deployment.procedure.yaml`),
 which sits under the `brownfield-onboarding` paradigm. This skill changes **no** mission
 type or guard; it is a technique the orchestrator opts into.
 
@@ -52,7 +52,7 @@ Do NOT use it as a rubber stamp, and do NOT wire it as a mandatory gate.
    initialization, boundaries, directives, and tactics, then state which you applied."*
    Loading the profile — not naming a persona — is the point. Only a read-only harness
    that cannot invoke the CLI may read
-   `src/doctrine/agent_profiles/built-in/<id>.agent.yaml`; that degraded fallback can
+   `packs/built-in/agent_profiles/<id>.agent.yaml`; that degraded fallback can
    diverge because overlays, `specializes_from` lineage, and `enhances`/`overrides`
    semantics are not applied. Keep delegates read-only unless the task is an isolated
    implementation in its own worktree.

@@ -51,7 +51,7 @@ agent_profile, mission_step_contract**.
 > sidecar `*.asset.yaml` manifest describing a blob — an image, font, template fixture, or
 > a shipped script — that is resolved to a path, never parsed or schema-validated). It ships
 > **one** built-in artifact today: `common-docs-structural-lint`, the structural docs lint
-> (`src/doctrine/assets/built-in/docs_structural_lint.py`, declared by
+> (`packs/built-in/assets/docs_structural_lint.py`, declared by
 > `docs_structural_lint.py.asset.yaml`). Resolve it — from any installation, no charter step
 > required — with `spec-kitty doctrine asset path common-docs-structural-lint` (or list every
 > resolvable asset and its source tier with `spec-kitty doctrine asset list`). Both are worth
@@ -114,11 +114,11 @@ Directives encode required or advisory expectations and can reference lower-leve
 execution. Directives are the "must/should" layer of doctrine — the rule, not the recipe for
 following it.
 
-**Location.** `src/doctrine/directives/built-in/*.directive.yaml` (project overlay:
+**Location.** `packs/built-in/directives/*.directive.yaml` (project overlay:
 `.kittify/doctrine/directive/`).
 
 **Example.** `DIRECTIVE_001` — "Architectural Integrity Standard"
-(`src/doctrine/directives/built-in/001-architectural-integrity-standard.directive.yaml`).
+(`packs/built-in/directives/001-architectural-integrity-standard.directive.yaml`).
 Its `intent` requires that "system designs must maintain clear separation of concerns and
 well-defined component boundaries," and its `procedures`/`integrity_rules`/`validation_criteria`
 fields spell out how a reviewer checks compliance — without prescribing exactly how to
@@ -130,11 +130,11 @@ decompose any given system (that's a tactic's job).
 Tactics are operational and agent-consumable, and can be selected by directives and mission
 context. Where a directive says "you must," a tactic says "here is how, step by step."
 
-**Location.** `src/doctrine/tactics/built-in/**/*.tactic.yaml` (project overlay:
+**Location.** `packs/built-in/tactics/**/*.tactic.yaml` (project overlay:
 `.kittify/doctrine/tactic/`).
 
 **Example.** `problem-decomposition`
-(`src/doctrine/tactics/built-in/architecture/problem-decomposition.tactic.yaml`). Its `steps`
+(`packs/built-in/tactics/architecture/problem-decomposition.tactic.yaml`). Its `steps`
 walk an agent through stating a problem in one sentence, enumerating contributing factors,
 clustering them into independent sub-problems, and validating completeness — a concrete,
 followable procedure for a specific recurring situation (breaking down an ambiguous problem
@@ -146,11 +146,11 @@ before committing to a solution).
 example coding, documentation, or testing style) that apply across missions and templates.
 Styleguides are about *how things should look and read*, not about a specific procedure.
 
-**Location.** `src/doctrine/styleguides/built-in/*.styleguide.yaml` (project overlay:
+**Location.** `packs/built-in/styleguides/*.styleguide.yaml` (project overlay:
 `.kittify/doctrine/styleguide/`).
 
 **Example.** `plain-language`
-(`src/doctrine/styleguides/built-in/plain-language.styleguide.yaml`). Its `principles` govern
+(`packs/built-in/styleguides/plain-language.styleguide.yaml`). Its `principles` govern
 this very kind of page: write for the named audience, prefer the short common word, one idea per
 sentence, active voice, define a term once and reuse it, show rather than only tell. This page
 was written under that styleguide.
@@ -162,11 +162,11 @@ constraints (for example a particular diagramming tool's conventions) used by ag
 contributors during execution. Toolguides are scoped to one external tool, not to a general
 technique.
 
-**Location.** `src/doctrine/toolguides/built-in/*.toolguide.yaml`, each pointing at a
+**Location.** `packs/built-in/toolguides/*.toolguide.yaml`, each pointing at a
 companion `guide_path` (project overlay: `.kittify/doctrine/toolguides/`).
 
 **Example.** `mermaid-diagramming`
-(`src/doctrine/toolguides/built-in/mermaid-diagramming.toolguide.yaml`), which points at
+(`packs/built-in/toolguides/mermaid-diagramming.toolguide.yaml`), which points at
 `MERMAID_DIAGRAMMING.md` for syntax patterns, theming, and rendering conventions when a mission
 needs a diagram-as-code artifact.
 
@@ -176,11 +176,11 @@ needs a diagram-as-code artifact.
 influence the selection and interpretation of directives and tactics but are not executable step
 recipes themselves — they are the lens, not the checklist.
 
-**Location.** `src/doctrine/paradigms/built-in/*.paradigm.yaml` (project overlay:
+**Location.** `packs/built-in/paradigms/*.paradigm.yaml` (project overlay:
 `.kittify/doctrine/paradigms/`).
 
 **Example.** `domain-driven-design`
-(`src/doctrine/paradigms/built-in/domain-driven-design.paradigm.yaml`). Its `summary` frames
+(`packs/built-in/paradigms/domain-driven-design.paradigm.yaml`). Its `summary` frames
 software design around a deep model of the business domain (Bounded Contexts, Ubiquitous
 Language, Aggregates); its `directive_refs` link it to `DIRECTIVE_001`, `DIRECTIVE_031`, and
 `DIRECTIVE_032`, and it authors `rejects` DRG edges naming the anti-patterns it warns against
@@ -196,11 +196,11 @@ conditions — unlike tactics (small composable techniques), procedures orchestr
 flows that can be paused, resumed, and validated. They are not tracked missions and not runtime
 sessions.
 
-**Location.** `src/doctrine/procedures/built-in/*.procedure.yaml` (project overlay:
+**Location.** `packs/built-in/procedures/*.procedure.yaml` (project overlay:
 `.kittify/doctrine/procedure/`).
 
 **Example.** `adversarial-squad-deployment`
-(`src/doctrine/procedures/built-in/adversarial-squad-deployment.procedure.yaml`). Its
+(`packs/built-in/procedures/adversarial-squad-deployment.procedure.yaml`). Its
 `entry_condition` is "a work product has reached a review point-cut... and an independent
 multi-lens assessment would reduce the risk of a costly miss"; its `steps` cover choosing the
 point-cut, selecting complementary profiles, running the delegates in parallel, and
@@ -214,11 +214,11 @@ custom-agent/subagent projection. An agent profile is *who* is doing the work an
 allowed to operate* — roles, capabilities, directive references, and collaboration rules — not a
 technique or a rule in isolation.
 
-**Location.** `src/doctrine/agent_profiles/built-in/*.agent.yaml` (project overlay:
+**Location.** `packs/built-in/agent_profiles/*.agent.yaml` (project overlay:
 `.kittify/doctrine/agent_profiles/`; key field is `profile-id`, not `id`).
 
 **Example.** `doctrine-daphne`
-(`src/doctrine/agent_profiles/built-in/doctrine-daphne.agent.yaml`) — the profile this very page
+(`packs/built-in/agent_profiles/doctrine-daphne.agent.yaml`) — the profile this very page
 was authored under. Its `roles` are `curator` and `onboarding-guide`; its `capabilities` include
 `artifact-kind-classification` and `pack-artifact-authoring`; its `context-sources` pull in the
 paradigm/directive/tactic/procedure/styleguide layers plus specific directives (`003`, `018`,

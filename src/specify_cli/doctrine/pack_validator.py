@@ -78,7 +78,9 @@ __all__ = [
 # mission_step_contracts, mission_types — FR-028, FR-032).
 # ---------------------------------------------------------------------------
 
+from doctrine.artifact_kinds import ArtifactKind
 from doctrine.drg.org_pack_loader import augmentation_plural_kinds
+from doctrine.pack_paths import BuiltInContentDirNotAvailable, PackRootNotFound, built_in_dir
 
 _AUGMENTATION_PLURAL_KINDS: frozenset[str] = augmentation_plural_kinds()
 FragmentIntent = dict[str, dict[str, tuple[dict[str, str], Path]]]
@@ -778,24 +780,24 @@ def _load_built_in_ids_per_kind() -> dict[str, set[str]]:
     intent-aware pass to a no-op for that kind.
     """
     ids_per_kind: dict[str, set[str]] = {}
-    try:
-        from charter.catalog import resolve_doctrine_root
-    except ModuleNotFoundError:  # pragma: no cover - doctrine always present
-        return ids_per_kind
-
-    try:
-        built_in_root = resolve_doctrine_root()
-    except (RuntimeError, OSError):  # pragma: no cover - defensive
-        return ids_per_kind
-
+    # Built-in content flattened to packs/built-in/<kind>/ (relocation mission);
+    # resolve via the shared built_in_dir(kind) seam rather than a locally
+    # bound "built-in" root joined per-plural (the variable-indirected drift
+    # class this seam exists to close).
     registry = _artifact_schema_registry()
     parser = _yaml_parser()
     for plural, (glob, _schema) in registry.items():
-        built_in_dir = built_in_root / plural / "built-in"
-        if not built_in_dir.is_dir():
+        try:
+            kind_dir = built_in_dir(ArtifactKind.from_plural(plural))
+        except (
+            PackRootNotFound,  # pragma: no cover - defensive; packs always present
+            BuiltInContentDirNotAvailable,  # carve-out kind (e.g. mission_step_contracts)
+        ):
+            continue
+        if not kind_dir.is_dir():
             continue
         collected: set[str] = set()
-        for built_in_file in built_in_dir.rglob(glob):
+        for built_in_file in kind_dir.rglob(glob):
             try:
                 data = parser.load(built_in_file)
             except (YAMLError, OSError):

@@ -10,6 +10,8 @@ from pathlib import Path
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from doctrine.artifact_kinds import ArtifactKind
+from doctrine.pack_paths import built_in_dir
 from doctrine.shared.scoping import applies_to_languages_match, normalize_languages
 from kernel.paths import get_package_asset_root as _get_package_asset_root
 
@@ -55,22 +57,32 @@ def load_doctrine_catalog(
 ) -> DoctrineCatalog:
     """Load doctrine catalogs from package assets with development fallbacks.
 
-    By default, only canonised ``built-in/`` artifacts participate in the catalog.
-    Callers may opt into ``_proposed/`` artifacts explicitly to support curation
-    flows that need visibility into pre-canonisation content.
+    Only canonised ``packs/built-in/<kind>/`` artifacts participate in the
+    catalog. ``include_proposed`` is accepted for call-site compatibility but
+    has no effect: no shipped built-in content dir carries a nested
+    ``_proposed/`` subdirectory to opt into post-relocation (mission
+    doctrine-built-in-seam-consolidation-01KYW3TX, WP02).
 
     ``DoctrineCatalog.domains_present`` records which artifact domains have a
-    ``built-in/`` directory on disk.  The resolver uses this to distinguish between
-    "domain not deployed in this install" (safe to skip validation) and "domain
-    present but built-in set is empty" (every selection is invalid).
+    ``packs/built-in/<kind>/`` directory on disk.  The resolver uses this to
+    distinguish between "domain not deployed in this install" (safe to skip
+    validation) and "domain present but built-in set is empty" (every
+    selection is invalid).
     """
     doctrine_root = resolve_doctrine_root()
+    # Built-in artifact content was flattened out of ``src/doctrine/<kind>/built-in``
+    # into ``packs/built-in/<kind>`` (relocation mission); resolve it through the
+    # shared ``built_in_dir`` seam per-kind (mission
+    # doctrine-built-in-seam-consolidation-01KYW3TX, WP02) rather than a local
+    # variable joined by hand. ``doctrine_root`` is still used for template sets,
+    # which remain under ``src/doctrine``. Fail-closed: a missing pack root raises
+    # rather than silently yielding empty catalogs (the BLOCKER guard).
     normalized_languages = None if active_languages is None else normalize_languages(active_languages)
 
     domains_present: set[str] = set()
 
     paradigms, paradigms_present = _load_yaml_id_catalog_with_presence(
-        doctrine_root / "paradigms",
+        built_in_dir(ArtifactKind.PARADIGM),
         "**/*.paradigm.yaml",
         include_proposed=include_proposed,
         active_languages=normalized_languages,
@@ -79,7 +91,7 @@ def load_doctrine_catalog(
         domains_present.add("paradigms")
 
     directives, directives_present = _load_yaml_id_catalog_with_presence(
-        doctrine_root / "directives",
+        built_in_dir(ArtifactKind.DIRECTIVE),
         "**/*.directive.yaml",
         include_proposed=include_proposed,
         active_languages=normalized_languages,
@@ -92,7 +104,7 @@ def load_doctrine_catalog(
         domains_present.add("template_sets")
 
     tactics, tactics_present = _load_yaml_id_catalog_with_presence(
-        doctrine_root / "tactics",
+        built_in_dir(ArtifactKind.TACTIC),
         "**/*.tactic.yaml",
         include_proposed=include_proposed,
         active_languages=normalized_languages,
@@ -101,7 +113,7 @@ def load_doctrine_catalog(
         domains_present.add("tactics")
 
     styleguides, styleguides_present = _load_yaml_id_catalog_with_presence(
-        doctrine_root / "styleguides",
+        built_in_dir(ArtifactKind.STYLEGUIDE),
         "**/*.styleguide.yaml",
         include_proposed=include_proposed,
         active_languages=normalized_languages,
@@ -110,7 +122,7 @@ def load_doctrine_catalog(
         domains_present.add("styleguides")
 
     toolguides, toolguides_present = _load_yaml_id_catalog_with_presence(
-        doctrine_root / "toolguides",
+        built_in_dir(ArtifactKind.TOOLGUIDE),
         "**/*.toolguide.yaml",
         include_proposed=include_proposed,
         active_languages=normalized_languages,
@@ -119,7 +131,7 @@ def load_doctrine_catalog(
         domains_present.add("toolguides")
 
     procedures, procedures_present = _load_yaml_id_catalog_with_presence(
-        doctrine_root / "procedures",
+        built_in_dir(ArtifactKind.PROCEDURE),
         "**/*.procedure.yaml",
         include_proposed=include_proposed,
         active_languages=normalized_languages,
@@ -128,7 +140,7 @@ def load_doctrine_catalog(
         domains_present.add("procedures")
 
     profiles, profiles_present = _load_yaml_id_catalog_with_presence(
-        doctrine_root / "agent_profiles",
+        built_in_dir(ArtifactKind.AGENT_PROFILE),
         "**/*.agent.yaml",
         id_field="profile-id",
         include_proposed=include_proposed,
@@ -199,8 +211,8 @@ def _load_yaml_id_catalog(
         pattern: Glob pattern (supports ``**`` for recursive search).
         id_field: YAML key containing the artifact ID. Defaults to ``"id"``.
                   Use ``"profile-id"`` for agent profile files.
-        include_proposed: Whether `_proposed/` artifacts should be included in
-                  addition to `built-in/` artifacts. Defaults to built-in-only.
+        include_proposed: accepted for call-site compatibility; has no effect
+                  post-relocation (see :func:`_resolve_scan_roots`).
     """
     ids, _ = _load_yaml_id_catalog_with_presence(
         directory,
@@ -244,7 +256,7 @@ def _collect_ids_from_roots(
     """Collect artifact IDs from one or more scan roots.
 
     Args:
-        scan_roots: Directories to scan (built-in/ and/or _proposed/).
+        scan_roots: Directories to scan (each already a flat content dir).
         pattern: Glob pattern for artifact files (supports ``**``).
         id_field: YAML key containing the artifact ID.
 
@@ -264,24 +276,25 @@ def _collect_ids_from_roots(
 def _resolve_scan_roots(
     directory: Path,
     *,
-    include_proposed: bool,
+    _include_proposed: bool,
 ) -> tuple[list[Path], bool]:
-    """Determine which subdirectories to scan and whether the domain is present.
+    """Return the scan root for *directory* (always the flat content dir itself).
+
+    Built-in artifact content is flat directly under ``packs/built-in/<kind>/``
+    (the WP01 ``built_in_dir`` authority); the pre-relocation nested
+    ``built-in/``/``_proposed/`` subdirectory dual-read fallback for the
+    emptied ``src/doctrine/<kind>/`` pre-move shape was removed in mission
+    doctrine-built-in-seam-consolidation-01KYW3TX (WP02) -- exactly one
+    location contract (the authority) remains. ``_include_proposed`` is
+    accepted for call-site compatibility but has no effect: no shipped
+    ``packs/built-in/<kind>/`` tree carries a nested ``_proposed/``
+    subdirectory to opt into.
 
     Returns:
-        Tuple of (scan_roots, present).  ``present`` is ``True`` whenever the
-        built-in/ or _proposed/ subdirectory exists, or the directory itself is
-        a valid flat layout.
+        Tuple of (scan_roots, present); ``present`` is always ``True`` -- the
+        caller (:func:`_load_yaml_id_catalog_with_presence`) already guards on
+        ``directory.is_dir()`` before calling this helper.
     """
-    built_in_dir = directory / "built-in"
-    proposed_dir = directory / "_proposed"
-    if built_in_dir.is_dir() or proposed_dir.is_dir():
-        scan_roots = [built_in_dir] if built_in_dir.is_dir() else []
-        if include_proposed and proposed_dir.is_dir():
-            scan_roots.append(proposed_dir)
-        return scan_roots, True
-
-    # Preserve generic helper behavior for tests or flat directories.
     return [directory], True
 
 
@@ -297,7 +310,7 @@ def _load_yaml_id_catalog_with_presence(
 
     Returns:
         Tuple of (ids, present) where ``present`` is ``True`` when the artifact
-        directory exists and has a recognisable ``built-in/`` or flat layout.
+        directory exists (a flat ``packs/built-in/<kind>/`` content dir).
         A ``True`` ``present`` value with an empty id set means the built-in
         catalog is explicitly empty — every selection against this domain is
         invalid.  A ``False`` ``present`` value means the domain is not
@@ -308,13 +321,13 @@ def _load_yaml_id_catalog_with_presence(
         pattern: Glob pattern (supports ``**`` for recursive search).
         id_field: YAML key containing the artifact ID. Defaults to ``"id"``.
                   Use ``"profile-id"`` for agent profile files.
-        include_proposed: Whether `_proposed/` artifacts should be included in
-                  addition to ``built-in/`` artifacts. Defaults to built-in-only.
+        include_proposed: accepted for call-site compatibility; has no effect
+                  post-relocation (see :func:`_resolve_scan_roots`).
     """
     if not directory.is_dir():
         return set(), False
 
-    scan_roots, present = _resolve_scan_roots(directory, include_proposed=include_proposed)
+    scan_roots, present = _resolve_scan_roots(directory, _include_proposed=include_proposed)
     ids = _collect_ids_from_roots(
         scan_roots,
         pattern,

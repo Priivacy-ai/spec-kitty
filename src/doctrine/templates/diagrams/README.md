@@ -85,8 +85,8 @@ needing the stickies/causal DSL. See
 
 For full tool usage guidance, see:
 
-- [PlantUML Diagramming Toolguide](../../toolguides/built-in/PLANTUML_DIAGRAMMING.md)
-- [Mermaid Diagramming Toolguide](../../toolguides/built-in/MERMAID_DIAGRAMMING.md)
+- [PlantUML Diagramming Toolguide](../../../../packs/built-in/toolguides/PLANTUML_DIAGRAMMING.md)
+- [Mermaid Diagramming Toolguide](../../../../packs/built-in/toolguides/MERMAID_DIAGRAMMING.md)
 
 ## Notes
 

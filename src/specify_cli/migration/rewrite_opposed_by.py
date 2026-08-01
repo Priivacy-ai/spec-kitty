@@ -74,7 +74,7 @@ layer formats it) and reuses the core DRG models from
 edges/nodes are written into per-kind ``<kind>.graph.yaml`` fragment files
 at the pack root (``directive.graph.yaml`` / ``tactic.graph.yaml`` /
 ``paradigm.graph.yaml``), mirroring both WP02's authoring surface (the
-built-in doctrine tree's own ``src/doctrine/<kind>.graph.yaml`` fragments)
+built-in doctrine tree's own ``packs/built-in/<kind>.graph.yaml`` fragments)
 and this repo's existing convention that an edge is filed under the graph
 fragment matching its (possibly canonicalized) ``source`` URN's kind -- e.g.
 ``paradigm.graph.yaml`` already carries ``paradigm -> directive`` ``requires``

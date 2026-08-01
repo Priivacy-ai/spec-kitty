@@ -13,7 +13,7 @@ from pathlib import Path
 # via ``DoctrineService(project_root=...)``. The candidate-list resolver in
 # ``src/charter/_doctrine_paths.py::resolve_project_root`` treats project-root
 # discovery as **directory-presence only** — an empty ``.kittify/doctrine/`` is
-# a valid candidate, and the built-in layer (``src/doctrine/``) supplies content
+# a valid candidate, and the built-in layer (``packs/built-in/``) supplies content
 # until the project layer is populated. The minimal artifact set
 # ``charter synthesize`` must produce on a fresh project to unblock the runtime
 # is therefore:
@@ -38,8 +38,8 @@ synthesize` running against a **fresh project** (no LLM-authored YAML under
 `.kittify/charter/generated/`). It exists so `DoctrineService` discovers a
 project layer and the runtime can advance; it is intentionally empty.
 
-The runtime falls back to the in-package built-in doctrine
-(`src/doctrine/`) for all artifact lookups until the LLM harness writes
+The runtime falls back to the packaged built-in doctrine
+(`packs/built-in/`) for all artifact lookups until the LLM harness writes
 project-local artifacts under `.kittify/charter/generated/` and you re-run
 `spec-kitty charter synthesize`.
 

@@ -28,34 +28,19 @@ from charter.action_doctrine_bundle import (
     _resolve_action_bundle as _resolve_action_bundle,
 )
 from charter.bundle import CHARTER_MD
-from charter.charter_md_parsing import (
-    _extract_policy_summary as _extract_policy_summary,
-    _find_section_start as _find_section_start,
-)
+from charter.charter_md_parsing import _extract_policy_summary as _extract_policy_summary
 from charter.context_json import (
     _EMPTY_ORG_CHARTER as _EMPTY_ORG_CHARTER,
     _bundle_root_for_json as _bundle_root_for_json,
-    _load_project_directives as _load_project_directives,
     _project_charter_json_block as _project_charter_json_block,
     _project_directive_entries as _project_directive_entries,
-    _relative_json_path as _relative_json_path,
 )
 from charter.context_renderers import render_critical_section_include
-from charter.context_renderers.activation_block import (
-    _render_activation_block as _render_activation_block,
-)
 from charter.context_renderers.artifact_bodies import (
-    _format_full_artifact_payload_body as _format_full_artifact_payload_body,
-    _format_inline_directive_body as _format_inline_directive_body,
-    _format_profile_directive_code as _format_profile_directive_code,
     _jsonable_artifact_value as _jsonable_artifact_value,
 )
 from charter.context_renderers.bootstrap_text import (
     _render_bootstrap_text as _render_bootstrap_text,
-)
-from charter.context_renderers.catalog_diagnosis import (
-    _available_catalog_ids as _available_catalog_ids,
-    _diagnose_catalog_miss as _diagnose_catalog_miss,
 )
 from charter.context_renderers.compact_governance import (
     _compact_section_block as _compact_section_block,
@@ -63,43 +48,15 @@ from charter.context_renderers.compact_governance import (
     _render_compact_governance,
 )
 from charter.context_renderers.delivery_table import (
-    _ACTION_BUNDLE_DELIVERY_BY_KIND as _ACTION_BUNDLE_DELIVERY_BY_KIND,
     _Gate as _Gate,
-    _KindDelivery as _KindDelivery,
     _classify_artifact_urns as _classify_artifact_urns,
-    _kind_delivery as _kind_delivery,
     action_bundle_bucket as action_bundle_bucket,
     action_bundle_gate as action_bundle_gate,
 )
 from charter.context_renderers.profile_sections import (
-    _PROFILE_DIRECTIVES_HEADER_TPL as _PROFILE_DIRECTIVES_HEADER_TPL,
-    _PROFILE_TACTICS_HEADER_TPL as _PROFILE_TACTICS_HEADER_TPL,
-    _render_profile_directives as _render_profile_directives,
     _render_profile_sections as _render_profile_sections,
-    _render_profile_tactics as _render_profile_tactics,
 )
-from charter.context_renderers.reference_pointers import (
-    _REFERENCE_POINTER_FLOOR as _REFERENCE_POINTER_FLOOR,
-    _REFERENCE_POINTER_LIMIT as _REFERENCE_POINTER_LIMIT,
-    _load_references,
-)
-from charter.context_renderers.selection_block import (
-    _SELECTED_AGENT_PROFILES_HEADER as _SELECTED_AGENT_PROFILES_HEADER,
-    _SELECTED_MISSION_STEP_CONTRACTS_HEADER as _SELECTED_MISSION_STEP_CONTRACTS_HEADER,
-    _SELECTED_PROCEDURES_HEADER as _SELECTED_PROCEDURES_HEADER,
-    _SELECTED_STYLEGUIDES_HEADER as _SELECTED_STYLEGUIDES_HEADER,
-    _SELECTED_TOOLGUIDES_HEADER as _SELECTED_TOOLGUIDES_HEADER,
-    _build_action_org_source_map as _build_action_org_source_map,
-    _collect_org_source_map as _collect_org_source_map,
-    _extend_named_artifact_lines as _extend_named_artifact_lines,
-    _provenance_suffix as _provenance_suffix,
-    _render_selected_agent_profiles as _render_selected_agent_profiles,
-    _render_selected_mission_step_contracts as _render_selected_mission_step_contracts,
-    _render_selected_procedures as _render_selected_procedures,
-    _render_selected_styleguides as _render_selected_styleguides,
-    _render_selected_toolguides as _render_selected_toolguides,
-    _render_selection_block as _render_selection_block,
-)
+from charter.context_renderers.reference_pointers import _load_references
 from charter.context_renderers.template_include import (
     _render_directive_include,
     _render_doctrine_artifact_include,
@@ -107,19 +64,11 @@ from charter.context_renderers.template_include import (
     _render_tactic_include,
     _render_template_include,
 )
-from charter.context_renderers.token_budget import (
-    _PROFILE_INLINE_BODY_LIMIT_CHARS as _PROFILE_INLINE_BODY_LIMIT_CHARS,
-    _budget_estimate as _budget_estimate,
-    _enforce_token_budget as _enforce_token_budget,
-)
 from charter.context_state import (
     KITTIFY_DIRNAME as KITTIFY_DIRNAME,
     _MIN_EFFECTIVE_DEPTH as _MIN_EFFECTIVE_DEPTH,
-    _ContextStateBundle as _ContextStateBundle,
-    _load_state as _load_state,
     _mark_action_loaded as _mark_action_loaded,
     _prepare_context_state as _prepare_context_state,
-    _write_state as _write_state,
 )
 from charter.doctrine_service_builder import (
     _build_activation_aware_doctrine_service as _build_activation_aware_doctrine_service,
@@ -129,7 +78,6 @@ from charter import progressive_disclosure as _pd
 from charter.governance_references import collect_governance_reference_status
 from charter.language_scope import infer_repo_languages as infer_repo_languages
 from charter.org_pack_discovery import (
-    _enumerate_org_pack_paths as _enumerate_org_pack_paths,
     _iter_org_charter_docs as _iter_org_charter_docs,
     _load_doctrine_selection as _load_doctrine_selection,
     _missing_pack_diagnostic as _missing_pack_diagnostic,
@@ -141,7 +89,6 @@ from charter.profile_resolution import (
     _default_agent_profile_repository as _default_agent_profile_repository,
     _existing_org_roots as _existing_org_roots,
     _load_agent_profile as _load_agent_profile,
-    _reset_agent_profile_cache as _reset_agent_profile_cache,
 )
 
 __all__ = [

@@ -20,20 +20,26 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 _DOCTRINE_ROOT = DOCTRINE_SOURCE_ROOT
 
-PROFILES_DIR = _DOCTRINE_ROOT / "agent_profiles" / "built-in"
+# Built-in doctrine pack content relocated out of ``src/doctrine/<kind>/built-in``
+# into the flattened top-level ``packs/built-in/<kind>`` pack root (mission
+# ``relocate-builtin-doctrine-packs-01KYT87F``). Schemas and templates stay under
+# ``src/doctrine/``.
+_PACKS_BUILT_IN = REPO_ROOT / "packs" / "built-in"
+
+PROFILES_DIR = _PACKS_BUILT_IN / "agent_profiles"
 DIRECTIVE_SCHEMA = _DOCTRINE_ROOT / "schemas" / "directive.schema.yaml"
 
-# Scan both shipped and _proposed for each artifact type
-_DIRECTIVES_DIRS = [_DOCTRINE_ROOT / "directives" / d for d in ("built-in", "_proposed")]
-_TACTICS_DIRS = [_DOCTRINE_ROOT / "tactics" / d for d in ("built-in", "_proposed")]
-_PARADIGMS_DIRS = [_DOCTRINE_ROOT / "paradigms" / d for d in ("built-in", "_proposed")]
-_STYLEGUIDES_DIRS = [_DOCTRINE_ROOT / "styleguides" / d for d in ("built-in", "_proposed")]
-_TOOLGUIDES_DIRS = [_DOCTRINE_ROOT / "toolguides" / d for d in ("built-in", "_proposed")]
-_PROCEDURES_DIRS = [_DOCTRINE_ROOT / "procedures" / d for d in ("built-in", "_proposed")]
+# Pack content is flattened -- one directory per kind, no ``built-in``/``_proposed`` split.
+_DIRECTIVES_DIRS = [_PACKS_BUILT_IN / "directives"]
+_TACTICS_DIRS = [_PACKS_BUILT_IN / "tactics"]
+_PARADIGMS_DIRS = [_PACKS_BUILT_IN / "paradigms"]
+_STYLEGUIDES_DIRS = [_PACKS_BUILT_IN / "styleguides"]
+_TOOLGUIDES_DIRS = [_PACKS_BUILT_IN / "toolguides"]
+_PROCEDURES_DIRS = [_PACKS_BUILT_IN / "procedures"]
 _TEMPLATES_DIR = _DOCTRINE_ROOT / "templates"
-_SHIPPED_DIRECTIVES_DIR = _DOCTRINE_ROOT / "directives" / "built-in"
-_BUILT_IN_TACTICS_DIR = _DOCTRINE_ROOT / "tactics" / "built-in"
-_SHIPPED_PARADIGMS_DIR = _DOCTRINE_ROOT / "paradigms" / "built-in"
+_SHIPPED_DIRECTIVES_DIR = _PACKS_BUILT_IN / "directives"
+_BUILT_IN_TACTICS_DIR = _PACKS_BUILT_IN / "tactics"
+_SHIPPED_PARADIGMS_DIR = _PACKS_BUILT_IN / "paradigms"
 
 
 def _multi_glob(dirs: list[Path], pattern: str) -> list[Path]:
@@ -129,7 +135,7 @@ def test_no_directive_carries_inline_tactic_refs() -> None:
     """Post-WP02: shipped directives must not carry inline ``tactic_refs``.
 
     Cross-artifact relationships (directive → tactic) live exclusively as
-    edges in ``src/doctrine/directive.graph.yaml`` after Phase 1 excision (edges
+    edges in ``packs/built-in/directive.graph.yaml`` after Phase 1 excision (edges
     shard by source kind). This test
     guards against regressions that reintroduce inline references.
     """
@@ -144,7 +150,7 @@ def test_no_directive_carries_inline_tactic_refs() -> None:
 
     assert not offenders, (
         "Inline `tactic_refs` reintroduced on shipped directives — all "
-        "cross-artifact relationships must live in src/doctrine/directive.graph.yaml "
+        "cross-artifact relationships must live in packs/built-in/directive.graph.yaml "
         "(see WP02 of excise-doctrine-curation-and-inline-references-01KP54J6):\n"
         + "\n".join(offenders)
     )

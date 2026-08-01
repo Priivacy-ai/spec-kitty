@@ -62,6 +62,35 @@ _PLURALS: dict[str, str] = {
     "anti_pattern": "anti_patterns",
 }
 
+#: Single source of truth for "does this kind ship a `packs/built-in/<plural>/`
+#: content directory". Backs :attr:`ArtifactKind.has_built_in_content_dir`
+#: (mission ``doctrine-built-in-seam-consolidation-01KYW3TX``, WP01). Exactly
+#: 9 kinds are ``True`` -- ``agent_profile``, ``asset``, ``directive``,
+#: ``glossary_pack``, ``paradigm``, ``procedure``, ``styleguide``, ``tactic``,
+#: ``toolguide``. The 3-kind carve-out (``mission_step_contract``, ``template``,
+#: ``anti_pattern``) is ``False``: these are package-resource/graph-only kinds
+#: with no shipped content directory (see mission #3091 for the step-contract/
+#: template relocation). Do NOT reuse :data:`_NON_AUGMENTATION_ELIGIBLE_KINDS`
+#: for this purpose -- it is a *different* exclusion set (it carries ``asset``,
+#: which HAS a content dir, and omits ``mission_step_contract``, which does
+#: NOT). ``doctrine.pack_paths.built_in_dir`` derives its refusal-complement
+#: from this attribute; it must never hand-list the complement itself
+#: (FR-005 / NFR-005).
+_HAS_BUILT_IN_CONTENT_DIR: dict[str, bool] = {
+    "directive": True,
+    "tactic": True,
+    "styleguide": True,
+    "toolguide": True,
+    "paradigm": True,
+    "procedure": True,
+    "agent_profile": True,
+    "mission_step_contract": False,
+    "template": False,
+    "asset": True,
+    "glossary_pack": True,
+    "anti_pattern": False,
+}
+
 _PATTERNS: dict[str, str] = {
     "directive": "*.directive.yaml",
     "tactic": "*.tactic.yaml",
@@ -121,6 +150,20 @@ class ArtifactKind(StrEnum):
         Returns an empty string for ``TEMPLATE`` (no dedicated extension).
         """
         return _PATTERNS[self.value]
+
+    @property
+    def has_built_in_content_dir(self) -> bool:
+        """Whether this kind ships a ``packs/built-in/<plural>/`` content dir.
+
+        ``True`` for exactly the 9 shipped content-dir kinds; ``False`` for the
+        derived 3-kind carve-out (``MISSION_STEP_CONTRACT``, ``TEMPLATE``,
+        ``ANTI_PATTERN``), which are package-resource/graph-only kinds (see
+        mission #3091 for the step-contract/template relocation). This is the
+        single source of truth :func:`doctrine.pack_paths.built_in_dir` reads
+        to compute its refusal-complement -- never hand-list the complement
+        elsewhere.
+        """
+        return _HAS_BUILT_IN_CONTENT_DIR[self.value]
 
     @property
     def operator_token(self) -> str:

@@ -42,7 +42,8 @@ from unittest.mock import patch
 import pytest
 from ruamel.yaml import YAML
 
-from charter.context import CharterContextResult, _reset_agent_profile_cache, build_charter_context
+from charter.context import CharterContextResult, build_charter_context
+from charter.profile_resolution import _reset_agent_profile_cache
 from doctrine.drg.models import DRGGraph
 
 pytestmark = pytest.mark.fast

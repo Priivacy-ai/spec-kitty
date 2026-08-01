@@ -139,18 +139,19 @@ class TestDoctrineServiceGlossaryPacksAccessor:
     """
 
     def test_service_loads_glossary_pack_from_built_in_default_dir(
-        self, tmp_path: Path, sample_pack_data: dict
+        self, tmp_path: Path, sample_pack_data: dict, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        built_in_root = tmp_path / "shipped-root"
-        pack_dir = built_in_root / "glossary_packs" / "built-in"
+        packs_root = tmp_path / "packs"
+        pack_dir = packs_root / "built-in" / "glossary_packs"
         pack_dir.mkdir(parents=True)
+        monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(packs_root))
 
         yaml = YAML()
         yaml.default_flow_style = False
         with (pack_dir / "spec-kitty-core.glossary-pack.yaml").open("w") as f:
             yaml.dump(sample_pack_data, f)
 
-        service = DoctrineService(built_in_root=built_in_root)
+        service = DoctrineService()
         repo = service.glossary_packs
 
         assert isinstance(repo, GlossaryPackRepository)
@@ -158,8 +159,14 @@ class TestDoctrineServiceGlossaryPacksAccessor:
         assert pack is not None
         assert len(pack.terms) == 2  # golden-count: cardinality-is-contract
 
-    def test_service_caches_glossary_packs_repository(self, tmp_path: Path) -> None:
-        service = DoctrineService(built_in_root=tmp_path / "shipped-root")
+    def test_service_caches_glossary_packs_repository(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        packs_root = tmp_path / "packs"
+        (packs_root / "built-in").mkdir(parents=True)
+        monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(packs_root))
+
+        service = DoctrineService()
         assert "glossary_packs" not in service._cache
 
         first = service.glossary_packs

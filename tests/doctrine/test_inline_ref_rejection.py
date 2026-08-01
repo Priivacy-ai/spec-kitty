@@ -8,12 +8,15 @@ The migration hint emitted by :class:`InlineReferenceRejectedError` must
 match the schema's regex pattern::
 
     ^Remove .+ from YAML; add edge \\{source: .+, target: .+, relation: requires\\}
-     to src/doctrine/<kind>.graph.yaml$
+     to packs/built-in/<kind>.graph.yaml$
 
 The trailing path is the per-kind DRG fragment for the *source* artifact's
 kind -- the file the operator actually has to open. Naming the pre-#2680
 monolith sent them to a path that is not on disk (mission
-``doctrine-silence-guards-01KYFV7Q`` WP07, FR-008).
+``doctrine-silence-guards-01KYFV7Q`` WP07, FR-008); mission
+``relocate-builtin-doctrine-packs-01KYT87F`` then moved the shipped fragments
+from ``src/doctrine/`` to ``packs/built-in/``, so the followable path is now
+under the pack root.
 
 The hint uses the actual ``DRGEdge`` schema (``source``/``target``/``relation``)
 and the ``requires`` relation -- the ``Relation`` enum does not contain
@@ -48,7 +51,7 @@ pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 HINT_PATTERN = re.compile(
     r"^Remove .+ from YAML; add edge "
     r"\{source: .+, target: .+, relation: requires\} "
-    r"to src/doctrine/[a-z_]+\.graph\.yaml$"
+    r"to packs/built-in/[a-z_]+\.graph\.yaml$"
 )
 
 #: Registry of (reject_fn, artifact_kind, sample_data_factory) entries for each

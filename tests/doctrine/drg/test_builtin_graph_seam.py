@@ -28,7 +28,9 @@ def test_source_points_at_doctrine_root_directory() -> None:
     source = built_in_graph_source()
 
     assert source.is_dir()
-    assert source.name == "doctrine"
+    # Relocated built-in pack root (mission relocate-builtin-doctrine-packs-01KYT87F):
+    # the seam now yields the ``packs/built-in/`` pack directory, not ``src/doctrine``.
+    assert source.name == "built-in"
     # Post-flip sharded layout (WP05): the monolith is retired; the built-in DRG
     # ships as per-kind ``*.graph.yaml`` fragments the seam merges on load.
     assert not (source / "graph.yaml").exists()

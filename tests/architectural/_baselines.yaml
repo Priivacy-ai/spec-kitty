@@ -315,14 +315,21 @@ test_no_dead_symbols:
 # WP05 cleared its 8 (the FR-028 enhances/overrides excision, 59 -> 51); mission
 # foundational-values-creed-band-01KYFV8N still owns 26 (import_candidates'
 # first producer). Expect this to fall further, not rise.
+# 51 -> 48 (PR #3134 fixup): occurrence-map.schema.yaml's `from`/`moves`/`to`
+# rows were deleted from the baseline. `_inert_slots.py` now excludes that
+# whole schema from the slot walk (`_NON_DOCTRINE_SCHEMAS`) -- occurrence maps
+# are per-mission kitty-specs/ planning artifacts, structurally outside the
+# src-only producer scope, so no property of that schema (including PR #3134's
+# new `structural_targets`) can ever be assessed here. All three deleted rows
+# were `unassigned`, so that count drops 23 -> 20 too.
 test_no_inert_schema_slots:
-  baseline_entries: 51
+  baseline_entries: 48
   # The shrink-only cap on `unassigned` owners. `unassigned` is the one owner the
   # anti-weasel test can never fire for, so this is the gate's only escape hatch;
   # registering it here subjects widening it to the same `# justification:` policy
   # as any other ratchet, instead of leaving it a bare module constant a future PR
   # raises in one line.
-  unassigned_entries: 23
+  unassigned_entries: 20
   # The shrink-only cap on slots suppressed by a CODE producer alone. A single
   # dead line anywhere under src/doctrine (`x = None`, a dict key, a kwarg —
   # three shapes work) used to silence a new inert-slot finding with no baseline
@@ -331,7 +338,12 @@ test_no_inert_schema_slots:
   # instead. Measured: 14 of the 15 are false suppressions (name collisions and
   # reader-not-producer sites) — the lint erred permissively. At 14/14 a new
   # suppression can only enter as a genuine producer, argued in the diff.
-  masking_suppressions: 14
+  # 14 -> 13 (PR #3134 fixup): the `field_path` / occurrence-map.schema.yaml
+  # masking row was retired along with the whole schema exclusion (see
+  # `test_no_inert_schema_slots` note above and `_NON_DOCTRINE_SCHEMAS` in
+  # `_inert_slots.py`) — that slot is no longer scanned at all, so it can no
+  # longer be code-only-suppressed either.
+  masking_suppressions: 13
 
 # tests/architectural/test_reference_enum_ratchet.py
 # The four `<kind>_reference.type` enums in src/doctrine/schemas/. `_BASELINE`

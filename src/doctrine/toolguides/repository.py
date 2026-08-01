@@ -6,9 +6,10 @@ import re
 from pathlib import Path
 from typing import Any
 
-from importlib.resources import files
 from ruamel.yaml import YAML
 
+from doctrine.artifact_kinds import ArtifactKind
+from doctrine.pack_paths import built_in_dir
 from doctrine.base import BaseDoctrineRepository
 from .models import Toolguide
 from .validation import reject_toolguide_inline_refs
@@ -34,13 +35,8 @@ class ToolguideRepository(BaseDoctrineRepository[Toolguide]):
 
     @staticmethod
     def _default_built_in_dir() -> Path:
-        try:
-            resource = files("doctrine.toolguides")
-            if hasattr(resource, "joinpath"):
-                return Path(str(resource.joinpath("built-in")))
-            return Path(str(resource)) / "built-in"
-        except (ModuleNotFoundError, TypeError):
-            return Path(__file__).parent / "built-in"
+        """Return the shipped built-in toolguides directory (``packs/built-in/toolguides/``)."""
+        return built_in_dir(ArtifactKind.TOOLGUIDE)
 
     @property
     def _schema(self) -> type[Toolguide]:

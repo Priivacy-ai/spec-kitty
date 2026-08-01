@@ -72,17 +72,21 @@ def test_resolve_governance_reads_charter_selections_first(
     when explicitly declared and all values exist in the shipped catalog."""
     # Build a minimal doctrine root so shipped paradigm validation passes.
     doctrine_root = tmp_path / "doctrine_root"
-    (doctrine_root / "paradigms" / "built-in").mkdir(parents=True)
-    (doctrine_root / "paradigms" / "built-in" / "test-first.paradigm.yaml").write_text(
+    (doctrine_root / "paradigms").mkdir(parents=True)
+    (doctrine_root / "paradigms" / "test-first.paradigm.yaml").write_text(
         "id: test-first\n"
     )
-    (doctrine_root / "directives" / "built-in").mkdir(parents=True)
-    (doctrine_root / "agent_profiles" / "built-in").mkdir(parents=True)
+    (doctrine_root / "directives").mkdir(parents=True)
+    (doctrine_root / "agent_profiles").mkdir(parents=True)
     (doctrine_root / "missions" / "software-dev").mkdir(parents=True)
     (doctrine_root / "missions" / "software-dev" / "mission.yaml").write_text(
         "name: software-dev\n"
     )
     monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
+    # Built-in pack content resolves per-kind via ``built_in_dir`` post-relocation
+    # (mission doctrine-built-in-seam-consolidation-01KYW3TX, WP02); point it at
+    # the synthetic root's flat per-kind directories too.
+    monkeypatch.setattr(catalog_module, "built_in_dir", lambda kind: doctrine_root / kind.plural)
 
     repo_root = tmp_path / "repo"
     _write_charter_files(
@@ -497,11 +501,15 @@ def test_paradigm_failure_skipped_when_shipped_dir_absent(tmp_path: Path, monkey
     """When the paradigms shipped directory does not exist, validation is skipped gracefully."""
     doctrine_root = tmp_path / "doctrine_root"
     # Do NOT create paradigms directory at all
-    (doctrine_root / "directives" / "built-in").mkdir(parents=True)
-    (doctrine_root / "agent_profiles" / "built-in").mkdir(parents=True)
+    (doctrine_root / "directives").mkdir(parents=True)
+    (doctrine_root / "agent_profiles").mkdir(parents=True)
     (doctrine_root / "missions" / "software-dev").mkdir(parents=True)
     (doctrine_root / "missions" / "software-dev" / "mission.yaml").write_text("name: software-dev\n")
     monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
+    # Built-in pack content resolves per-kind via ``built_in_dir`` post-relocation
+    # (mission doctrine-built-in-seam-consolidation-01KYW3TX, WP02); the synthetic
+    # root has no paradigms dir, so validation must skip gracefully.
+    monkeypatch.setattr(catalog_module, "built_in_dir", lambda kind: doctrine_root / kind.plural)
 
     repo_root = tmp_path / "repo"
     _write_charter_files(

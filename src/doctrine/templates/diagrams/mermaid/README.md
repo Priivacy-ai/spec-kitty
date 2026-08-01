@@ -40,4 +40,4 @@ Mermaid syntax.
 2. All example templates use `{{placeholder}}` double-brace convention for
    fill-in values.
 3. For full Mermaid usage guidance, see the
-   [Mermaid Diagramming Toolguide](../../../toolguides/built-in/MERMAID_DIAGRAMMING.md).
+   [Mermaid Diagramming Toolguide](../../../../../packs/built-in/toolguides/MERMAID_DIAGRAMMING.md).

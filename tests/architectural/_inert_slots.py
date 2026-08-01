@@ -74,6 +74,8 @@ ALLOWLIST: frozenset[str] = frozenset()
 
 _SRC = "src"
 _DOCTRINE = "doctrine"
+_PACKS = "packs"
+_BUILT_IN = "built-in"
 _SCHEMAS = "schemas"
 _SCHEMA_GLOB = "*.schema.yaml"
 _MODELS_FILENAME = "models.py"
@@ -81,6 +83,25 @@ _PROPERTIES_KEY = "properties"
 _ARTEFACT_SUFFIXES = frozenset({".yaml", ".yml", ".json"})
 _PYDANTIC_BASE = "BaseModel"
 _PYDANTIC_CONFIG_FIELD = "model_config"
+
+#: Schemas this module structurally cannot assess, so their slots are never
+#: harvested at all. ``occurrence-map.schema.yaml`` describes
+#: ``occurrence_map.yaml`` — a per-MISSION planning artifact authored under
+#: ``kitty-specs/<mission>/`` (see ``specify_cli.bulk_edit.occurrence_map``).
+#: That directory is outside the src-only producer scope this checker walks
+#: (``_producer_roots``: ``src/doctrine/`` and ``packs/built-in/``), and it
+#: always will be — occurrence maps are not shipped doctrine artefacts, they
+#: are mission-scoped classification documents. No schema property here can
+#: ever be seen as "populated": the checker is not looking in the one place
+#: a producer could exist. That is a scope mismatch in the checker, not a
+#: property of the schema, so the fix is this exclusion rather than a
+#: baseline row — the baseline's own header reserves rows for genuine debt
+#: with a structural fix; a false positive from checker scope is
+#: ``fix-the-lint-definition``, and this constant IS that fix. (Adjudicated
+#: for the schema's `from`/`moves`/`to` properties in
+#: ``doctrine-silence-guards-01KYFV7Q``; ``structural_targets`` — added by a
+#: later PR — is the same class of false positive, not a new kind of debt.)
+_NON_DOCTRINE_SCHEMAS = frozenset({"occurrence-map.schema.yaml"})
 
 
 def _load_keys_verbatim(text: str) -> list[object]:
@@ -126,6 +147,8 @@ def _iter_schema_slot_names(node: object) -> Iterator[str]:
 def _schema_slots(root: Path) -> Iterator[InertSlot]:
     schemas = root / _SRC / _DOCTRINE / _SCHEMAS
     for path in sorted(schemas.glob(_SCHEMA_GLOB)):
+        if path.name in _NON_DOCTRINE_SCHEMAS:
+            continue
         for document in _load_keys_verbatim(path.read_text(encoding="utf-8")):
             for name in _iter_schema_slot_names(document):
                 yield InertSlot(name=name, declared_at=path.relative_to(root))
@@ -176,6 +199,29 @@ def _model_slots(root: Path) -> Iterator[InertSlot]:
 # ----------------------------------------------------------------------- producers
 
 
+def _producer_roots(root: Path) -> list[Path]:
+    """Directories that make up the doctrine tree for producer harvesting.
+
+    Two roots, both the doctrine layer proper. Mission
+    ``relocate-builtin-doctrine-packs-01KYT87F`` relocated the shipped built-in
+    *artefacts* (and the ``docs_structural_lint.py`` code producer) out of
+    ``src/doctrine/<kind>/built-in/`` into a flattened ``packs/built-in/<kind>/``;
+    the ``schemas/``, ``models.py``, ``templates/`` and the remaining ``.py`` code
+    stayed under ``src/doctrine/``. Producers therefore live in *both* trees now, so
+    both are walked.
+
+    This is emphatically **not** the whole-``src`` widening the docstring warns
+    against. That hole (bare-name collisions from unrelated CLI code masking a
+    doctrine slot — it defeated the ``aliases``/``overrides`` guards) came from
+    harvesting all of ``src/``. ``packs/built-in`` is where the doctrine artefacts
+    now physically live; scanning it restores the *same* producer set the move
+    displaced, no more. The slot walks are deliberately left pointed at
+    ``src/doctrine/`` alone — schemas and models did not move.
+    """
+    candidates = (root / _SRC / _DOCTRINE, root / _PACKS / _BUILT_IN)
+    return [base for base in candidates if base.is_dir()]
+
+
 def _iter_mapping_keys(node: object) -> Iterator[str]:
     if isinstance(node, dict):
         for key, value in node.items():
@@ -189,19 +235,21 @@ def _iter_mapping_keys(node: object) -> Iterator[str]:
 def _artefact_producers(root: Path) -> set[str]:
     """Keys carried by shipped doctrine artefacts — the dominant producer form here.
 
-    Excludes ``src/doctrine/schemas/``: the generated schemas are what is being
-    checked, and admitting them makes every schema property self-producing.
+    Walks both doctrine roots (see :func:`_producer_roots`) — the artefacts now live
+    under ``packs/built-in/`` after the relocation, while a few still-authored trees
+    (missions, templates, workflows, the routing catalog) remain under
+    ``src/doctrine/``. Excludes ``src/doctrine/schemas/``: the generated schemas are
+    what is being checked, and admitting them makes every schema property
+    self-producing.
     """
-    doctrine = root / _SRC / _DOCTRINE
-    schemas = doctrine / _SCHEMAS
+    schemas = root / _SRC / _DOCTRINE / _SCHEMAS
     produced: set[str] = set()
-    if not doctrine.is_dir():
-        return produced
-    for path in sorted(doctrine.rglob("*")):
-        if path.suffix not in _ARTEFACT_SUFFIXES or schemas in path.parents:
-            continue
-        for document in _load_keys_verbatim(path.read_text(encoding="utf-8")):
-            produced.update(_iter_mapping_keys(document))
+    for base in _producer_roots(root):
+        for path in sorted(base.rglob("*")):
+            if path.suffix not in _ARTEFACT_SUFFIXES or schemas in path.parents:
+                continue
+            for document in _load_keys_verbatim(path.read_text(encoding="utf-8")):
+                produced.update(_iter_mapping_keys(document))
     return produced
 
 
@@ -269,14 +317,18 @@ def _code_producers(root: Path) -> set[str]:
     ``aliases`` and ``overrides`` — i.e. it defeated SC-001's ``aliases`` guard
     outright and hid half of the FR-028 ``enhances``/``overrides`` pair. Widening
     this back is not a refactor; it is a hole.
+
+    Both doctrine roots are walked (see :func:`_producer_roots`): the
+    ``docs_structural_lint.py`` code producer relocated to ``packs/built-in/assets/``,
+    while the rest of the doctrine ``.py`` code stayed under ``src/doctrine/``.
+    ``packs/built-in`` is the doctrine layer's new home, not the whole-``src``
+    widening the paragraph above forbids.
     """
-    doctrine = root / _SRC / _DOCTRINE
     produced: set[str] = set()
-    if not doctrine.is_dir():
-        return produced
-    for path in sorted(doctrine.rglob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        produced.update(_iter_code_producer_names(tree))
+    for base in _producer_roots(root):
+        for path in sorted(base.rglob("*.py")):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            produced.update(_iter_code_producer_names(tree))
     return produced
 
 
@@ -379,11 +431,13 @@ _MISSION_OWNER_PREFIX = "mission:"
 _MISSIONS_DIR = "kitty-specs"
 _EVENT_LOG = "status.events.jsonl"
 
-#: Shrink-only cap on ``unassigned`` entries (23 today). ``unassigned`` is the one
-#: owner the anti-weasel test can never fire for, so an uncapped hatch lets a new
-#: finding satisfy the growth rule without anyone taking responsibility for it.
-#: This number may only ever go DOWN.
-MAX_UNASSIGNED_ENTRIES = 23
+#: Shrink-only cap on ``unassigned`` entries (20 today, down from 23: PR #3134's
+#: `_NON_DOCTRINE_SCHEMAS` fix retired the occurrence-map schema's `from`/
+#: `moves`/`to` baseline rows, all three ``unassigned``). ``unassigned`` is the
+#: one owner the anti-weasel test can never fire for, so an uncapped hatch lets
+#: a new finding satisfy the growth rule without anyone taking responsibility
+#: for it. This number may only ever go DOWN.
+MAX_UNASSIGNED_ENTRIES = 20
 
 #: Concrete floors (charter §5, ``architectural-gate-non-vacuity`` failure mode #1).
 #: Every shipped-tree assertion in this gate is an *absence* assertion — ``new ==
@@ -625,22 +679,21 @@ CODE_ONLY_VERDICTS = frozenset(
 
 _GENUINE_PRODUCER = "genuine-producer"
 
-#: Shrink-only cap on rows that mask a real finding — 14 of the 15 today. This is
-#: what gives the record teeth rather than merely making the route visible: with the
-#: cap at its current population, a NEW code-only suppression can only be admitted as
-#: ``genuine-producer`` — a positive claim, in a diff, next to the code being
-#: claimed, re-derived from the AST by :func:`code_producer_writes`. Raising it is
-#: the one move that would re-open the hole, and it may only ever go DOWN.
+#: Shrink-only cap on rows that mask a real finding — 13 of the 14 today (down from
+#: 14 of 15: PR #3134's ``_NON_DOCTRINE_SCHEMAS`` fix retired the occurrence-map
+#: schema's ``field_path`` masking row along with the whole schema — see
+#: ``_NON_DOCTRINE_SCHEMAS`` above and ``code_only_suppressions`` in the baseline
+#: file). This is what gives the record teeth rather than merely making the route
+#: visible: with the cap at its current population, a NEW code-only suppression can
+#: only be admitted as ``genuine-producer`` — a positive claim, in a diff, next to
+#: the code being claimed, re-derived from the AST by :func:`code_producer_writes`.
+#: Raising it is the one move that would re-open the hole, and it may only ever go
+#: DOWN.
 #:
-#: NOT YET REGISTERED with the charter ratchet, and it should be — every other cap
-#: here is (``test_the_unassigned_cap_is_registered_with_the_charter_ratchet``). The
-#: follow-up is two lines: ``masking_suppressions: 14`` under
-#: ``test_no_inert_schema_slots`` in ``_baselines.yaml``, plus the matching row in
-#: ``test_ratchet_baselines.py``'s explicit ``single_baselines`` list. Both files were
-#: under concurrent edit when this landed, so the change was flagged rather than
-#: dropped into someone else's diff. Until it happens this number is pinned only by
-#: ``test_the_masking_verdicts_are_capped_and_shrink_only``.
-MAX_MASKING_SUPPRESSIONS = 14
+#: Registered with the charter ratchet: ``masking_suppressions`` under
+#: ``test_no_inert_schema_slots`` in ``_baselines.yaml``, checked by
+#: ``test_the_masking_cap_is_registered_with_the_charter_ratchet``.
+MAX_MASKING_SUPPRESSIONS = 13
 
 _CODE_ONLY_KEY = "code_only_suppressions"
 

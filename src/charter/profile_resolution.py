@@ -36,6 +36,13 @@ from pathlib import Path
 
 from doctrine.agent_profiles import AgentProfile, AgentProfileRepository
 
+# ``_reset_agent_profile_cache`` is intentionally *not* exported: after the
+# context.py re-export shim retirement (doctrine-built-in-seam-consolidation WP06)
+# its only ``src/`` importer (the shim) was removed — the remaining callers are
+# tests (which import it by name) — so keeping it in ``__all__`` would trip the
+# symbol-level dead-code gate. It stays a module-level name
+# (``profile_resolution._reset_agent_profile_cache``); re-export it once a real
+# ``src/`` consumer imports it.
 __all__ = [
     "_ACTIVATION_AWARE_PROFILE_MAPS",
     "_activation_aware_profile_map",
@@ -43,7 +50,6 @@ __all__ = [
     "_existing_org_roots",
     "_load_agent_profile",
     "_normalize_directive_id",
-    "_reset_agent_profile_cache",
 ]
 
 

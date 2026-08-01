@@ -3872,6 +3872,38 @@ jobs:
           print('OK: spec-kitty next returned a structured JSON payload')
           "
 
+      - name: Assert doctor doctrine reports no degraded dimension (NFR-002)
+        # CI-facing half of NFR-002 for mission
+        # relocate-builtin-doctrine-packs-01KYT87F (WP05). Runs against the
+        # wheel-only doctrine surface (no repo src/ on the venv path) from the
+        # fixture project created by the previous step.
+        #
+        # We assert the SPECIFIC health dimensions — no skipped/invalid
+        # profiles, no org-DRG errors, no skipped glossary-pack files — rather
+        # than the soft top-level `healthy` flag, which can be false for
+        # unrelated reasons (e.g. profile *discovery* is repointed in a later
+        # WP) while every dimension this WP owns is intact. `doctor doctrine`
+        # exits non-zero on a soft-unhealthy report, so capture stdout (still
+        # valid JSON) and gate on the fields, never on the exit code.
+        run: |
+          cd /tmp/fixture
+          /tmp/clean-venv/bin/spec-kitty doctor doctrine --json > /tmp/doctor.json || true
+          /tmp/clean-venv/bin/python -c "
+          import json, pathlib
+          data = json.loads(pathlib.Path('/tmp/doctor.json').read_text())
+          ph = data['profile_health']
+          # No skipped/invalid built-in profiles.
+          skipped = [p for pk in ph['packs'] for p in pk['invalid_profiles']]
+          assert skipped == [], f'skipped/invalid profiles: {skipped}'
+          # No org-DRG errors (both surfaces that carry the list).
+          assert data['org_drg']['errors'] == [], data['org_drg']['errors']
+          assert ph['org_drg']['errors'] == [], ph['org_drg']['errors']
+          # No skipped glossary-pack files.
+          invalid_packs = ph['glossary_packs']['invalid_packs']
+          assert invalid_packs == [], f'skipped glossary packs: {invalid_packs}'
+          print('OK: doctor doctrine reports no skipped profiles, no org_drg errors, no skipped glossary packs')
+          "
+
       - name: NFR-003 latency regression gate
         # Compares the median wall-clock of `spec-kitty next` across 5 runs
         # against the pinned pre-cutover baseline in

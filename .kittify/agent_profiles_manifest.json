@@ -8,7 +8,7 @@
       "projection_version": 1,
       "source_hash": "b72c3652d738616f1abe683c415542a2a813b95787fe4f610885d7237b706f02",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/architect-alphonso.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/architect-alphonso.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -19,7 +19,7 @@
       "projection_version": 1,
       "source_hash": "cc6b08c3391abe890ff2dc35b4d7faa3e6cb6566cacedfab2eb570fa9248cb0a",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/curator-carla.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/curator-carla.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -30,7 +30,7 @@
       "projection_version": 1,
       "source_hash": "2aa4396ee2d102e49d4a0f076ed7d1a7a8e3d2da8c9d1dc6cc32843db780e7ac",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/debugger-debbie.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/debugger-debbie.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -41,7 +41,7 @@
       "projection_version": 1,
       "source_hash": "1428bfeabd57c8cd636d72d587b11799b84a0f4d325aea24880f6d8e4083f6c7",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/designer-dagmar.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/designer-dagmar.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -52,7 +52,7 @@
       "projection_version": 1,
       "source_hash": "e020d03f500b0501eb754fd66069ec76a49bc4324bf5c0c337ca261775ad7b36",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/doctrine-daphne.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/doctrine-daphne.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -63,7 +63,7 @@
       "projection_version": 1,
       "source_hash": "34ac5858ed5ec97689ccc122141cbd5012a17d9bec689c5b1da6d7b6446306e7",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/frontend-freddy.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/frontend-freddy.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -74,7 +74,7 @@
       "projection_version": 1,
       "source_hash": "0e01f1d14aa139e2611966b14d8087d0bb87cbcd1cdc969287e453e2c871a449",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/generic-agent.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/generic-agent.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -85,7 +85,7 @@
       "projection_version": 1,
       "source_hash": "5878a5a84f9f306a91d0895498984fb3523f1f12ba05cf7bb57576093f5722e5",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/implementer-ivan.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/implementer-ivan.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -96,7 +96,7 @@
       "projection_version": 1,
       "source_hash": "eb2f00630f317db097e62665d7204e876a5cf6a5481cf35f762501e866066937",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/java-jenny.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/java-jenny.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -107,7 +107,7 @@
       "projection_version": 1,
       "source_hash": "f34314aa278528c127e19a44ec49daae17850366cf2e980d62bf751088e7ea4b",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/node-norris.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/node-norris.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -118,7 +118,7 @@
       "projection_version": 1,
       "source_hash": "9e9a7e204fe7f3c66a120e2c36d9e9cf519e489f88982cce1c65114fde527899",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/paula-patterns.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/paula-patterns.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -129,7 +129,7 @@
       "projection_version": 1,
       "source_hash": "a75a69594825554fc286c1c7a6d7a70707ba6a0724686cf6f3546a33b92a4a87",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/planner-priti.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/planner-priti.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -140,7 +140,7 @@
       "projection_version": 1,
       "source_hash": "41eb7c5fdfa1831426b6c511049b20f1bc504a36407e7ab308eb2e7f4b479e1e",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/python-pedro.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/python-pedro.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -151,7 +151,7 @@
       "projection_version": 1,
       "source_hash": "495904c9937c2977f2696a6c0e5ce38903a6b3eb85600953882c81caaea7d098",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/randy-reducer.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/randy-reducer.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -162,7 +162,7 @@
       "projection_version": 1,
       "source_hash": "35db0efc2dcf050a4fe337f474998150c4ab47dc2a28b8a1e4cbaab6c64cff5d",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/researcher-robbie.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/researcher-robbie.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -173,7 +173,7 @@
       "projection_version": 1,
       "source_hash": "de4e2d2c641e773180e84ea3bc60beb937e66aadcef6012db392289a088275c4",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/retrospective-facilitator.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/retrospective-facilitator.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -184,7 +184,7 @@
       "projection_version": 1,
       "source_hash": "60a0e3ffda3219a3bb253ba5205dade96da4151c9e6b81edcbb9dc57708e0081",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/reviewer-renata.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/reviewer-renata.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -195,7 +195,7 @@
       "projection_version": 1,
       "source_hash": "b72c3652d738616f1abe683c415542a2a813b95787fe4f610885d7237b706f02",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/architect-alphonso.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/architect-alphonso.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -206,7 +206,7 @@
       "projection_version": 1,
       "source_hash": "cc6b08c3391abe890ff2dc35b4d7faa3e6cb6566cacedfab2eb570fa9248cb0a",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/curator-carla.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/curator-carla.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -217,7 +217,7 @@
       "projection_version": 1,
       "source_hash": "2aa4396ee2d102e49d4a0f076ed7d1a7a8e3d2da8c9d1dc6cc32843db780e7ac",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/debugger-debbie.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/debugger-debbie.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -228,7 +228,7 @@
       "projection_version": 1,
       "source_hash": "1428bfeabd57c8cd636d72d587b11799b84a0f4d325aea24880f6d8e4083f6c7",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/designer-dagmar.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/designer-dagmar.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -239,7 +239,7 @@
       "projection_version": 1,
       "source_hash": "e020d03f500b0501eb754fd66069ec76a49bc4324bf5c0c337ca261775ad7b36",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/doctrine-daphne.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/doctrine-daphne.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -250,7 +250,7 @@
       "projection_version": 1,
       "source_hash": "34ac5858ed5ec97689ccc122141cbd5012a17d9bec689c5b1da6d7b6446306e7",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/frontend-freddy.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/frontend-freddy.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -261,7 +261,7 @@
       "projection_version": 1,
       "source_hash": "0e01f1d14aa139e2611966b14d8087d0bb87cbcd1cdc969287e453e2c871a449",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/generic-agent.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/generic-agent.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -272,7 +272,7 @@
       "projection_version": 1,
       "source_hash": "5878a5a84f9f306a91d0895498984fb3523f1f12ba05cf7bb57576093f5722e5",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/implementer-ivan.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/implementer-ivan.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -283,7 +283,7 @@
       "projection_version": 1,
       "source_hash": "eb2f00630f317db097e62665d7204e876a5cf6a5481cf35f762501e866066937",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/java-jenny.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/java-jenny.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -294,7 +294,7 @@
       "projection_version": 1,
       "source_hash": "f34314aa278528c127e19a44ec49daae17850366cf2e980d62bf751088e7ea4b",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/node-norris.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/node-norris.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -305,7 +305,7 @@
       "projection_version": 1,
       "source_hash": "9e9a7e204fe7f3c66a120e2c36d9e9cf519e489f88982cce1c65114fde527899",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/paula-patterns.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/paula-patterns.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -316,7 +316,7 @@
       "projection_version": 1,
       "source_hash": "a75a69594825554fc286c1c7a6d7a70707ba6a0724686cf6f3546a33b92a4a87",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/planner-priti.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/planner-priti.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -327,7 +327,7 @@
       "projection_version": 1,
       "source_hash": "41eb7c5fdfa1831426b6c511049b20f1bc504a36407e7ab308eb2e7f4b479e1e",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/python-pedro.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/python-pedro.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -338,7 +338,7 @@
       "projection_version": 1,
       "source_hash": "495904c9937c2977f2696a6c0e5ce38903a6b3eb85600953882c81caaea7d098",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/randy-reducer.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/randy-reducer.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -349,7 +349,7 @@
       "projection_version": 1,
       "source_hash": "35db0efc2dcf050a4fe337f474998150c4ab47dc2a28b8a1e4cbaab6c64cff5d",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/researcher-robbie.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/researcher-robbie.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -360,7 +360,7 @@
       "projection_version": 1,
       "source_hash": "de4e2d2c641e773180e84ea3bc60beb937e66aadcef6012db392289a088275c4",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/retrospective-facilitator.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/retrospective-facilitator.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -371,7 +371,7 @@
       "projection_version": 1,
       "source_hash": "60a0e3ffda3219a3bb253ba5205dade96da4151c9e6b81edcbb9dc57708e0081",
       "source_layer": "builtin",
-      "source_path": "src/doctrine/agent_profiles/built-in/reviewer-renata.agent.yaml",
+      "source_path": "packs/built-in/agent_profiles/reviewer-renata.agent.yaml",
       "tool_key": "codex"
     }
   ],

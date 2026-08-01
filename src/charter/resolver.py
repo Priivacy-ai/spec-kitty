@@ -184,7 +184,7 @@ def _validate_paradigm_selection(
                 "Charter selected unavailable paradigm(s): " + ", ".join(missing),
                 "Available built-in paradigms: "
                 + (", ".join(sorted(doctrine_catalog.paradigms)) or "(none)"),
-                "Update charter selected_paradigms to values present in doctrine/paradigms/built-in/.",
+                "Update charter selected_paradigms to values present in packs/built-in/paradigms/.",
             ]
         )
 
@@ -247,7 +247,7 @@ def _resolve_directives_selection(
             raise GovernanceResolutionError(
                 [
                     "Charter selected unavailable directive(s): " + ", ".join(missing),
-                    "Declare these IDs in directives.yaml or add them to doctrine/directives/built-in/.",
+                    "Declare these IDs in directives.yaml or add them to packs/built-in/directives/.",
                 ]
             )
         return list(doctrine.selected_directives), "charter"

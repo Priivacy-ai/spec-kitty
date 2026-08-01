@@ -1,7 +1,7 @@
 """Paradigm domain model.
 
 Cross-artifact relationships (paradigm → tactic, paradigm → directive) live in
-``src/doctrine/*.graph.yaml`` as of Phase 1 excision (mission
+``packs/built-in/*.graph.yaml`` as of Phase 1 excision (mission
 ``excise-doctrine-curation-and-inline-references-01KP54J6`` WP02). Inline
 ``tactic_refs`` / ``paradigm_refs`` fields have been removed from this model.
 """
@@ -20,7 +20,7 @@ def _reject_retired_relationship_fields(kind: str, data: Any) -> Any:
 
     The ``enhances``/``overrides`` fields were retired in the FR-028 hard
     cutover. Relationships are now authored exclusively as DRG fragment edges
-    merged into ``src/doctrine/*.graph.yaml``, never as inline artifact fields.
+    merged into ``packs/built-in/*.graph.yaml``, never as inline artifact fields.
     """
     if not isinstance(data, dict):
         return data
@@ -32,7 +32,7 @@ def _reject_retired_relationship_fields(kind: str, data: Any) -> Any:
             f"accepted (FR-028 hard cutover). Author the relationship as a DRG "
             f"edge (e.g. {{source: <kind>:<id>, target: <kind>:<id>, "
             f"relation: enhances|overrides}}) in the fragment for the source "
-            f"kind, src/doctrine/{kind}.graph.yaml — not as an inline "
+            f"kind, packs/built-in/{kind}.graph.yaml — not as an inline "
             f"artifact field."
         )
     return data

@@ -32,22 +32,24 @@ import pytest
 
 import charter.context as context_module
 from charter.context import (
-    _PROFILE_INLINE_BODY_LIMIT_CHARS,
+    _default_agent_profile_repository,
+    _jsonable_artifact_value,
+    _load_agent_profile,
+    _render_doctrine_artifact_include,
+)
+from charter.context_renderers.artifact_bodies import (
+    _format_full_artifact_payload_body,
+    _format_inline_directive_body,
+    _format_profile_directive_code,
+)
+from charter.context_renderers.selection_block import (
     _SELECTED_AGENT_PROFILES_HEADER,
     _SELECTED_MISSION_STEP_CONTRACTS_HEADER,
     _SELECTED_PROCEDURES_HEADER,
     _SELECTED_STYLEGUIDES_HEADER,
     _SELECTED_TOOLGUIDES_HEADER,
     _collect_org_source_map,
-    _default_agent_profile_repository,
-    _format_full_artifact_payload_body,
-    _format_inline_directive_body,
-    _format_profile_directive_code,
-    _jsonable_artifact_value,
-    _load_agent_profile,
     _provenance_suffix,
-    _reset_agent_profile_cache,
-    _render_doctrine_artifact_include,
     _render_selected_agent_profiles,
     _render_selected_mission_step_contracts,
     _render_selected_procedures,
@@ -55,6 +57,8 @@ from charter.context import (
     _render_selected_toolguides,
     _render_selection_block,
 )
+from charter.context_renderers.token_budget import _PROFILE_INLINE_BODY_LIMIT_CHARS
+from charter.profile_resolution import _reset_agent_profile_cache
 from charter.schemas import DoctrineSelectionConfig
 
 

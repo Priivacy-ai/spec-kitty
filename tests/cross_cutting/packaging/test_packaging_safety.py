@@ -71,6 +71,10 @@ def test_wheel_contains_only_known_packages(build_artifacts: dict[str, Path]) ->
         "glossary/",
         "mission_runtime/",
         "runtime/",
+        # Built-in doctrine data relocated to a top-level packs/built-in pack root,
+        # force-included in the wheel as a site-packages sibling of ``doctrine``
+        # (mission relocate-builtin-doctrine-packs).
+        "packs/",
     )
 
     with zipfile.ZipFile(wheel_path) as zf:

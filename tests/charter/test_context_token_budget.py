@@ -196,7 +196,7 @@ class TestWarningLine:
         assert joined.rstrip().endswith(warning_line(len(notes), budget))
 
     def test_production_context_budget_counts_warning_line(self) -> None:
-        from charter.context import _enforce_token_budget
+        from charter.context_renderers.token_budget import _enforce_token_budget
 
         section_block = "S" * 1_000
         profile_block = "P" * 400

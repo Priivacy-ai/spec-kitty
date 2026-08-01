@@ -12,10 +12,9 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 BUILT_IN_DIR = (
     Path(__file__).parent.parent.parent.parent
-    / "src"
-    / "doctrine"
-    / "agent_profiles"
+    / "packs"
     / "built-in"
+    / "agent_profiles"
 )
 
 

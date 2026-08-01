@@ -16,14 +16,13 @@ from charter.context import (
     _ActionDoctrineBundle,
     _build_doctrine_service,
     _bundle_root_for_json,
-    _load_project_directives,
     _project_charter_json_block,
     _project_directive_entries,
-    _relative_json_path,
     _render_bootstrap_text,
     build_charter_context,
     build_charter_context_json,
 )
+from charter.context_json import _load_project_directives, _relative_json_path
 
 pytestmark = pytest.mark.fast
 
@@ -1008,7 +1007,9 @@ def test_build_doctrine_service_prefers_repo_src_overlay(
     calls: dict[str, object] = {}
 
     class StubDoctrineService:
-        def __init__(self, *, built_in_root: Path, project_root: Path | None, active_languages: list[str]) -> None:
+        def __init__(
+            self, *, built_in_root: Path | None = None, project_root: Path | None, active_languages: list[str]
+        ) -> None:
             calls["built_in_root"] = built_in_root
             calls["project_root"] = project_root
             calls["active_languages"] = active_languages
@@ -1025,8 +1026,16 @@ def test_build_doctrine_service_prefers_repo_src_overlay(
     service = _build_doctrine_service(tmp_path)
 
     assert isinstance(service, StubDoctrineService)
+    # Relocation (WP02, mission doctrine-built-in-seam-consolidation-01KYW3TX):
+    # _build_doctrine_service no longer passes a built_in_root kwarg at all --
+    # each repository self-resolves the flattened built-in tier via
+    # built_in_dir(kind) (packs/built-in/<kind>). Pointing at
+    # resolve_doctrine_root() post-relocation would yield the emptied
+    # src/doctrine/<kind>/built-in and silently load nothing. The stub's
+    # built_in_root default (None) surfaces the same recorded value as before
+    # the kwarg was dropped. The project-root overlay wiring is unchanged.
     assert calls == {
-        "built_in_root": built_in_root,
+        "built_in_root": None,
         "project_root": project_root,
         "active_languages": ["python", "typescript"],
     }
@@ -1051,7 +1060,9 @@ def test_build_doctrine_service_uses_compiled_charter_languages_end_to_end(
     calls: dict[str, object] = {}
 
     class StubDoctrineService:
-        def __init__(self, *, built_in_root: Path, project_root: Path | None, active_languages: list[str]) -> None:
+        def __init__(
+            self, *, built_in_root: Path | None = None, project_root: Path | None, active_languages: list[str]
+        ) -> None:
             calls["active_languages"] = active_languages
 
     built_in_root = tmp_path / "shipped-doctrine"

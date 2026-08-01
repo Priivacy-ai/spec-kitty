@@ -26,7 +26,7 @@ Files use the pattern `kebab-id.tactic.yaml` (e.g., `zombies-tdd.tactic.yaml`).
 Tactics are referenced by directives and procedures via typed edges in
 the per-kind DRG fragments (relation `requires`). An edge lives in the
 fragment for its *source* kind, so those edges are in
-`src/doctrine/directive.graph.yaml` and `src/doctrine/procedure.graph.yaml`.
+`packs/built-in/directive.graph.yaml` and `packs/built-in/procedure.graph.yaml`.
 Inline `tactic_refs` fields
 were removed in Phase 1 excision (mission
 `excise-doctrine-curation-and-inline-references-01KP54J6` WP02); the graph is

@@ -10,9 +10,12 @@ never reference this prose-parsing surface).
 
 from __future__ import annotations
 
+# ``_find_section_start`` de-exported after the context.py re-export shim
+# retirement (doctrine-built-in-seam-consolidation WP06): it has no external
+# ``src/`` importer left. It stays a module-internal helper used by
+# ``_extract_policy_summary`` above.
 __all__ = [
     "_extract_policy_summary",
-    "_find_section_start",
 ]
 
 

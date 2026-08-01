@@ -98,10 +98,14 @@ from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
-_SRC_DOCTRINE = Path(__file__).resolve().parents[3] / "src" / "doctrine"
+# Relocated built-in pack root (mission relocate-builtin-doctrine-packs-01KYT87F):
+# the shipped ``*.graph.yaml`` fragments and the built-in agent profiles now live
+# under the flattened ``packs/built-in/`` tree (the inner ``built-in`` segment is
+# dropped — profiles are at ``packs/built-in/agent_profiles/``).
+_BUILT_IN_PACK = Path(__file__).resolve().parents[3] / "packs" / "built-in"
 
 #: Floors for the shipped-tree scans below. Every assertion that walks the tree
-#: is satisfied by an empty walk, so relocating ``src/doctrine`` or renaming the
+#: is satisfied by an empty walk, so relocating ``packs/built-in`` or renaming the
 #: fragment/profile conventions would leave those tests green while covering
 #: nothing. Counts as measured on this branch: 14 fragments, 18 profiles.
 _MINIMUM_SHIPPED_FRAGMENTS = 14
@@ -223,7 +227,7 @@ def test_the_documented_scalar_role_migration_path_still_works() -> None:
 
 def test_every_shipped_drg_fragment_still_loads_under_the_strict_models() -> None:
     """``extra="forbid"`` is only correct if nothing shipped relies on the silence."""
-    fragments = sorted(_SRC_DOCTRINE.glob("*.graph.yaml"))
+    fragments = sorted(_BUILT_IN_PACK.glob("*.graph.yaml"))
     assert len(fragments) >= _MINIMUM_SHIPPED_FRAGMENTS, (
         f"expected at least {_MINIMUM_SHIPPED_FRAGMENTS} shipped graph fragments; "
         f"found {len(fragments)} -- this assertion passes vacuously on an empty walk"
@@ -240,7 +244,7 @@ def test_every_shipped_drg_fragment_still_loads_under_the_strict_models() -> Non
 
 def test_every_shipped_agent_profile_still_loads_under_the_strict_model() -> None:
     """Same check for the 18 built-in profiles."""
-    profiles = sorted((_SRC_DOCTRINE / "agent_profiles" / "built-in").glob("*.agent.yaml"))
+    profiles = sorted((_BUILT_IN_PACK / "agent_profiles").glob("*.agent.yaml"))
     assert len(profiles) >= _MINIMUM_SHIPPED_PROFILES, (
         f"expected at least {_MINIMUM_SHIPPED_PROFILES} built-in profiles; "
         f"found {len(profiles)} -- this assertion passes vacuously on an empty walk"
@@ -469,7 +473,7 @@ def test_the_field_derived_writers_reproduce_the_shipped_graph_exactly() -> None
     agreement. This is the graph-neutrality claim as an executable assertion
     rather than a sentence in the PR body.
     """
-    fragments = sorted(_SRC_DOCTRINE.glob("*.graph.yaml"))
+    fragments = sorted(_BUILT_IN_PACK.glob("*.graph.yaml"))
     assert len(fragments) >= _MINIMUM_SHIPPED_FRAGMENTS
 
     yaml_safe = YAML(typ="safe")
@@ -651,8 +655,8 @@ def test_the_retired_relationship_error_does_not_point_at_a_dead_path() -> None:
     against the message text, so the assertion tracks the layout instead of the
     wording.
     """
-    assert not (_SRC_DOCTRINE / "graph.yaml").exists()
-    assert sorted(_SRC_DOCTRINE.glob("*.graph.yaml"))
+    assert not (_BUILT_IN_PACK / "graph.yaml").exists()
+    assert sorted(_BUILT_IN_PACK.glob("*.graph.yaml"))
 
     with pytest.raises(ValidationError) as excinfo:
         AgentProfile.model_validate({**_VALID_PROFILE, "specializes-from": "other"})

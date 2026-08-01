@@ -47,9 +47,11 @@ from ruamel.yaml.error import YAMLError
 
 from charter.bundle import CHARTER_YAML
 
+# ``_REFERENCE_POINTER_FLOOR`` / ``_REFERENCE_POINTER_LIMIT`` de-exported after
+# the context.py re-export shim retirement (doctrine-built-in-seam-consolidation
+# WP06): no external ``src/`` importer remains. Both stay module-internal
+# constants used below.
 __all__ = [
-    "_REFERENCE_POINTER_FLOOR",
-    "_REFERENCE_POINTER_LIMIT",
     "_load_references",
     "_select_reference_pointers",
 ]

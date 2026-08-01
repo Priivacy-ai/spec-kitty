@@ -20,16 +20,13 @@ These tests pin the render boundary:
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
-from importlib.resources import files
 
-from charter.context import _render_profile_sections
 from charter.context_renderers.profile_sections import (
     _PROFILE_PROCEDURES_HEADER_TPL,
     _PROFILE_STYLEGUIDES_HEADER_TPL,
     _PROFILE_TOOLGUIDES_HEADER_TPL,
+    _render_profile_sections,
 )
 from doctrine.agent_profiles import AgentProfile, AgentProfileRepository
 from doctrine.service import DoctrineService
@@ -38,8 +35,8 @@ pytestmark = pytest.mark.fast
 
 
 def _real_service() -> DoctrineService:
-    """A DoctrineService over the shipped built-in doctrine tree."""
-    return DoctrineService(built_in_root=Path(str(files("doctrine"))))
+    """A DoctrineService over the shipped built-in doctrine tree (self-resolving)."""
+    return DoctrineService()
 
 
 def test_exemplar_procedure_reaches_agent_under_daphne() -> None:

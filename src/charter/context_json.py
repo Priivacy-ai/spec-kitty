@@ -36,13 +36,15 @@ from charter.bundle import CHARTER_MD
 from charter.context_state import KITTIFY_DIRNAME
 from charter.schemas import DirectivesConfig
 
+# ``_load_project_directives`` / ``_relative_json_path`` de-exported after the
+# context.py re-export shim retirement (doctrine-built-in-seam-consolidation
+# WP06): no external ``src/`` importer remains. Both stay module-internal
+# helpers used by the functions below.
 __all__ = [
     "_EMPTY_ORG_CHARTER",
     "_bundle_root_for_json",
-    "_load_project_directives",
     "_project_charter_json_block",
     "_project_directive_entries",
-    "_relative_json_path",
 ]
 
 

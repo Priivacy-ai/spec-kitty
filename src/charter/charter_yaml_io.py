@@ -16,6 +16,7 @@ Layer rule: this module MUST NOT import ``specify_cli`` (C-002 / INV-7).
 """
 from __future__ import annotations
 
+import functools
 from pathlib import Path
 from typing import Any
 
@@ -31,30 +32,54 @@ __all__ = [
 ]
 
 
-#: The activation section is a LOGICAL grouping: on disk these ten keys are
-#: flat root keys (paula BLOCKER-1 — matches ``packs/default.yaml:5-38``),
-#: not nested under an ``activation:`` mapping. The helper's "activation"
-#: section name refers to this set collectively.
-_ACTIVATION_KEYS: tuple[str, ...] = (
-    "activated_kinds",
-    "mission_type_activations",
-    "activated_directives",
-    "activated_tactics",
-    "activated_styleguides",
-    "activated_toolguides",
-    "activated_paradigms",
-    "activated_procedures",
-    "activated_agent_profiles",
-    "activated_mission_step_contracts",
-    # glossary-pack-doctrine-kind mission WP04: the eleventh flat
-    # ``activated_*`` root key. ``charter.pack_manager.YAML_KEY_MAP`` derives
-    # "glossary-pack" -> "activated_glossary_packs" automatically from
-    # ``CHARTER_KIND_TOKENS`` (WP01), so ``merge_defaults``/``commit_plan``
-    # attempt to write this key the moment a project's activation source is
-    # ``charter.yaml`` -- omitting it here raises "Unknown activation key(s)"
-    # (see test_activation_engine_charter_yaml.py).
-    "activated_glossary_packs",
-)
+#: The activation section is a LOGICAL grouping: on disk these flat keys are
+#: root keys (paula BLOCKER-1 — matches ``packs/default.yaml:5-38``), not
+#: nested under an ``activation:`` mapping. The helper's "activation" section
+#: name refers to this set collectively.
+#:
+#: The vocabulary itself (WP05 / FR-010 / C4.1) is DERIVED from the single
+#: authority :data:`charter.pack_manager.ACTIVATION_YAML_KEYS` via
+#: :func:`_activation_keys` rather than hand-restated here -- a hand-written
+#: literal previously drifted from the finalize migration's own copy (missing
+#: ``activated_glossary_packs``, FR-010/SC-005). ``_ACTIVATION_KEYS`` stays
+#: importable as a module attribute (``from charter.charter_yaml_io import
+#: _ACTIVATION_KEYS``) via the module ``__getattr__`` below, for callers/tests
+#: that still spell it as a plain name.
+
+
+@functools.lru_cache(maxsize=1)
+def _activation_keys() -> tuple[str, ...]:
+    """Return the flat activation-key vocabulary, derived from the authority.
+
+    Lazy, function-scoped import of :data:`charter.pack_manager.
+    ACTIVATION_YAML_KEYS` -- NOT a module-level import, because
+    ``charter.pack_manager`` imports :func:`load_charter_yaml` /
+    :func:`update_charter_yaml_section` FROM this module at ITS OWN top
+    level; a module-level back-import here would be a circular import
+    (``charter.pack_manager`` <-> ``charter.charter_yaml_io``). Deferring to
+    call time breaks the cycle: by the time this function actually runs
+    (inside :func:`update_charter_yaml_section`, well after both modules have
+    finished their own top-level execution), the import is a cheap
+    ``sys.modules`` lookup regardless of which module was entered first.
+    """
+    from charter.pack_manager import ACTIVATION_YAML_KEYS  # noqa: PLC0415 -- avoids import cycle (WP05)
+
+    return ACTIVATION_YAML_KEYS
+
+
+def __getattr__(name: str) -> object:
+    """PEP 562 lazy module attribute: resolve ``_ACTIVATION_KEYS`` on access.
+
+    Mirrors the codebase's established lazy-module-attribute idiom (e.g.
+    ``specify_cli.sync.__getattr__``) so ``from charter.charter_yaml_io
+    import _ACTIVATION_KEYS`` and ``charter_yaml_io._ACTIVATION_KEYS`` both
+    keep working for existing callers/tests without a module-level import
+    that would reintroduce the cycle :func:`_activation_keys` avoids.
+    """
+    if name == "_ACTIVATION_KEYS":
+        return _activation_keys()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 #: Sections whose owned content is a single top-level scalar/mapping key —
 #: mutating one of these REPLACES that key's entire value.
@@ -152,7 +177,7 @@ def update_charter_yaml_section(
         raise UnknownCharterYamlSectionError(section)
 
     if section == "activation":
-        unknown_keys = sorted(set(values) - set(_ACTIVATION_KEYS))
+        unknown_keys = sorted(set(values) - set(_activation_keys()))
         if unknown_keys:
             raise ValueError(f"Unknown activation key(s): {unknown_keys}")
 

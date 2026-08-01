@@ -33,12 +33,22 @@ def _write_yaml(path: Path, data: dict[object, object]) -> None:
         yaml.dump(data, handle)
 
 
-def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_path: Path) -> None:
+def test_profile_aware_charter_compilation_resolves_transitive_references(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # ``built_in_root`` still simulates the doctrine root ``resolve_doctrine_root``
+    # is patched to return below (missions/ and the synthetic graph.yaml -- both
+    # unrelated to the WP04 DoctrineService seam). The directive/tactic/
+    # styleguide/agent_profile content DoctrineService itself resolves lives in
+    # a SEPARATE flat ``packs/built-in/<kind>/`` tree, injected via
+    # SPEC_KITTY_PACKS_ROOT (the removed built_in_root= param's replacement).
     built_in_root = tmp_path / "doctrine"
+    packs_root = tmp_path / "packs"
+    monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(packs_root))
     output_dir = tmp_path / "repo" / ".kittify" / "charter"
 
     _write_yaml(
-        built_in_root / "directives" / "built-in" / "001-review.directive.yaml",
+        packs_root / "built-in" / "directives" / "001-review.directive.yaml",
         {
             "schema_version": "1.0",
             "id": "REVIEW_FIRST",
@@ -51,7 +61,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
         },
     )
     _write_yaml(
-        built_in_root / "tactics" / "built-in" / "review-tactic.tactic.yaml",
+        packs_root / "built-in" / "tactics" / "review-tactic.tactic.yaml",
         {
             "schema_version": "1.0",
             "id": "review-tactic",
@@ -75,7 +85,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
         },
     )
     _write_yaml(
-        built_in_root / "styleguides" / "built-in" / "review-style.styleguide.yaml",
+        packs_root / "built-in" / "styleguides" / "review-style.styleguide.yaml",
         {
             "schema_version": "1.0",
             "id": "review-style",
@@ -85,7 +95,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
         },
     )
     _write_yaml(
-        built_in_root / "directives" / "built-in" / "002-interview.directive.yaml",
+        packs_root / "built-in" / "directives" / "002-interview.directive.yaml",
         {
             "schema_version": "1.0",
             "id": "INTERVIEW_ONLY",
@@ -96,7 +106,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
         },
     )
     _write_yaml(
-        built_in_root / "agent_profiles" / "built-in" / "reviewer.agent.yaml",
+        packs_root / "built-in" / "agent_profiles" / "reviewer.agent.yaml",
         {
             "profile-id": "reviewer",
             "name": "Reviewer",
@@ -163,7 +173,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
         },
     )
 
-    doctrine_service = DoctrineService(built_in_root=built_in_root)
+    doctrine_service = DoctrineService()
     doctrine_catalog = DoctrineCatalog(
         paradigms=frozenset(),
         directives=frozenset({"REVIEW_FIRST", "INTERVIEW_ONLY"}),

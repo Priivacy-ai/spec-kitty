@@ -366,15 +366,15 @@ a deviation is explicitly recorded."
 
 ## Related artifacts
 
-All artifacts ship under `src/doctrine/`:
+Data artifacts ship under the built-in pack root `packs/built-in/`; the template fragment and skill stay under `src/doctrine/`:
 
 | Kind | Path |
 |---|---|
-| Paradigm | `src/doctrine/paradigms/built-in/structured-prompt-driven-development.paradigm.yaml` |
-| Tactic — fill | `src/doctrine/tactics/built-in/reasons-canvas-fill.tactic.yaml` |
-| Tactic — review | `src/doctrine/tactics/built-in/reasons-canvas-review.tactic.yaml` |
-| Styleguide | `src/doctrine/styleguides/built-in/reasons-canvas-writing.styleguide.yaml` |
-| Directive | `src/doctrine/directives/built-in/038-structured-prompt-boundary.directive.yaml` |
+| Paradigm | `packs/built-in/paradigms/structured-prompt-driven-development.paradigm.yaml` |
+| Tactic — fill | `packs/built-in/tactics/reasons-canvas-fill.tactic.yaml` |
+| Tactic — review | `packs/built-in/tactics/reasons-canvas-review.tactic.yaml` |
+| Styleguide | `packs/built-in/styleguides/reasons-canvas-writing.styleguide.yaml` |
+| Directive | `packs/built-in/directives/038-structured-prompt-boundary.directive.yaml` |
 | Template fragment | `src/doctrine/templates/fragments/reasons-canvas-template.md` |
 | Skill | `src/doctrine/skills/spec-kitty-spdd-reasons/SKILL.md` |
 

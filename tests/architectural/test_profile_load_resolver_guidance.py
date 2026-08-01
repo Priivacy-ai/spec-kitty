@@ -11,6 +11,13 @@ pytestmark = [pytest.mark.architectural, pytest.mark.fast]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DOCTRINE_ROOT = _REPO_ROOT / "src" / "doctrine"
+# Built-in doctrine pack content (agent profiles, styleguides, procedures, ...)
+# relocated out of ``src/doctrine`` into the flattened ``packs/built-in`` pack
+# root (relocate-builtin-doctrine-packs). Profile-load guidance now lives across
+# both trees, so the real-tree scans below cover the pair to keep the denominator
+# whole rather than lowering the floor.
+_PACKS_BUILT_IN_ROOT = _REPO_ROOT / "packs" / "built-in"
+_SHIPPED_DOCTRINE_ROOTS = (_DOCTRINE_ROOT, _PACKS_BUILT_IN_ROOT)
 # Frozen at the live denominator (shrink-only ratchet, charter standing order 5).
 # A floor materially below the live count lets the scanned surface silently
 # shrink while the guard still reports green. Raise this in lockstep when new
@@ -97,7 +104,9 @@ def _raw_profile_instruction_offenders(root: Path) -> list[Path]:
 
 
 def test_profile_guidance_scan_has_concrete_denominator() -> None:
-    guidance_files = _profile_guidance_files(_DOCTRINE_ROOT)
+    guidance_files = [
+        path for root in _SHIPPED_DOCTRINE_ROOTS for path in _profile_guidance_files(root)
+    ]
 
     assert len(guidance_files) >= _GUIDANCE_FILE_FLOOR, (
         "Profile-load guidance scan fell below its concrete file floor; "
@@ -108,7 +117,11 @@ def test_profile_guidance_scan_has_concrete_denominator() -> None:
 
 
 def test_raw_profile_reads_are_not_primary_guidance() -> None:
-    offenders = _raw_profile_instruction_offenders(_DOCTRINE_ROOT)
+    offenders = [
+        path
+        for root in _SHIPPED_DOCTRINE_ROOTS
+        for path in _raw_profile_instruction_offenders(root)
+    ]
 
     assert not offenders, (
         "Raw .agent.yaml profile reads must not be primary guidance. Use "

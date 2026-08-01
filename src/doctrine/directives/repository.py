@@ -13,9 +13,10 @@ import re
 from pathlib import Path
 from typing import Any
 
-from importlib.resources import files
 from ruamel.yaml import YAML
 
+from doctrine.artifact_kinds import ArtifactKind
+from doctrine.pack_paths import built_in_dir
 from doctrine.base import BaseDoctrineRepository
 from .models import Directive
 from .validation import reject_directive_inline_refs
@@ -40,13 +41,7 @@ class DirectiveRepository(BaseDoctrineRepository[Directive]):
     @staticmethod
     def _default_built_in_dir() -> Path:
         """Get default built-in directives directory from package data."""
-        try:
-            resource = files("doctrine.directives")
-            if hasattr(resource, "joinpath"):
-                return Path(str(resource.joinpath("built-in")))
-            return Path(str(resource)) / "built-in"
-        except (ModuleNotFoundError, TypeError):
-            return Path(__file__).parent / "built-in"
+        return built_in_dir(ArtifactKind.DIRECTIVE)
 
     @property
     def _schema(self) -> type[Directive]:

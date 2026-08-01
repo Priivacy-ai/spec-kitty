@@ -113,7 +113,9 @@ pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 _EXPECTED_NODE_COUNT = 324
 _EXPECTED_EDGE_COUNT = 892
 
-_DOCTRINE_ROOT = pathlib.Path(__file__).resolve().parents[3] / "src" / "doctrine"
+# Relocated built-in pack root (mission relocate-builtin-doctrine-packs-01KYT87F):
+# the shipped DRG fragments the seam merges now live under ``packs/built-in/``.
+_DOCTRINE_ROOT = pathlib.Path(__file__).resolve().parents[3] / "packs" / "built-in"
 
 
 class _FutureNodeKind(StrEnum):

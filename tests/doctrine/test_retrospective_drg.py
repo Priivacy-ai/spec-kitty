@@ -28,7 +28,7 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 # Fixtures
 # ---------------------------------------------------------------------------
 
-BUILT_IN_DIR = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "agent_profiles" / "built-in"
+BUILT_IN_DIR = Path(__file__).resolve().parents[2] / "packs" / "built-in" / "agent_profiles"
 
 # All three built-in missions that own a retrospect action (FR-002)
 _RETROSPECT_ACTION_URNS = [

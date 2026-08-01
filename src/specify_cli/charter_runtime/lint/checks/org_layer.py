@@ -226,12 +226,10 @@ def _build_service_with_org_layer(
     """
     try:
         from charter._doctrine_paths import resolve_project_root
-        from charter.catalog import resolve_doctrine_root
         from doctrine.service import DoctrineService
     except ImportError:
         return None
 
-    doctrine_root = resolve_doctrine_root()
     project_root = resolve_project_root(repo_root)
     org_roots = []
     for p in registry.packs:
@@ -240,8 +238,10 @@ def _build_service_with_org_layer(
             org_roots.append(eff)
     if not org_roots:
         return None
+    # Repositories self-resolve packs/built-in/<kind> via built_in_dir(kind)
+    # (the WP01 seam); resolve_doctrine_root() would point at the emptied
+    # src/doctrine tree, so the built-in root is left unspecified.
     inner = DoctrineService(
-        built_in_root=doctrine_root,
         project_root=project_root,
         org_roots=org_roots,
     )
@@ -265,14 +265,14 @@ def _build_built_in_only_service(
     """
     try:
         from charter._doctrine_paths import resolve_project_root
-        from charter.catalog import resolve_doctrine_root
         from doctrine.service import DoctrineService
     except ImportError:
         return None
 
-    doctrine_root = resolve_doctrine_root()
     project_root = resolve_project_root(repo_root)
-    inner = DoctrineService(built_in_root=doctrine_root, project_root=project_root)
+    # Repositories self-resolve packs/built-in/<kind> via built_in_dir(kind)
+    # (the WP01 seam).
+    inner = DoctrineService(project_root=project_root)
     if pack_context is not None:
         try:
             from charter.resolver import DoctrineService as ActivationDoctrineService  # noqa: PLC0415

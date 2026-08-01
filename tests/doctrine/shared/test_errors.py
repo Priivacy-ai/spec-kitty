@@ -63,7 +63,7 @@ class TestBuildMigrationHint:
             source_kind="tactic",
             source_id="tac-001",
         )
-        assert "src/doctrine/tactic.graph.yaml" in hint
+        assert "packs/built-in/tactic.graph.yaml" in hint
 
     def test_hint_names_a_fragment_that_is_on_disk(self):
         """FR-008: a hint that names a missing file is not followable."""

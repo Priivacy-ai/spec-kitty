@@ -8,10 +8,9 @@ canonical section headers.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
+from doctrine.pack_paths import resolve_pack_root
 from doctrine.service import DoctrineService
 
 from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
@@ -19,12 +18,18 @@ from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
-BUILT_IN_ROOT = DOCTRINE_SOURCE_ROOT
+# Post-relocation the shipped built-in doctrine kinds live flattened under
+# ``packs/built-in/<kind>/`` (the per-kind ``built-in/`` subdir was removed).
+# ``templates/`` was NOT relocated and still lives under ``src/doctrine/``.
+PACKS_BUILT_IN = resolve_pack_root("built-in")
+DOCTRINE_ROOT = DOCTRINE_SOURCE_ROOT
 
 
 @pytest.fixture(scope="module")
 def service() -> DoctrineService:
-    return DoctrineService(built_in_root=BUILT_IN_ROOT)
+    # No explicit built-in root: repositories self-resolve packs/built-in/<kind>
+    # (WP04 seam); src/doctrine is emptied of built-in content post-relocation.
+    return DoctrineService()
 
 
 def test_paradigm_loads_with_required_shape(service: DoctrineService) -> None:
@@ -36,9 +41,8 @@ def test_paradigm_loads_with_required_shape(service: DoctrineService) -> None:
     assert paradigm.summary
 
     shipped_path = (
-        BUILT_IN_ROOT
+        PACKS_BUILT_IN
         / "paradigms"
-        / "built-in"
         / "structured-prompt-driven-development.paradigm.yaml"
     )
     assert shipped_path.is_file(), f"paradigm must live in shipped/: {shipped_path}"
@@ -57,7 +61,7 @@ def test_tactic_loads_with_required_shape(
     for step in tactic.steps:
         assert getattr(step, "title", None), f"every step in {tactic_id} requires a title"
 
-    shipped_path = BUILT_IN_ROOT / "tactics" / "built-in" / f"{tactic_id}.tactic.yaml"
+    shipped_path = PACKS_BUILT_IN / "tactics" / f"{tactic_id}.tactic.yaml"
     assert shipped_path.is_file(), f"tactic must live in shipped/: {shipped_path}"
 
 
@@ -71,9 +75,8 @@ def test_styleguide_loads_with_required_shape(service: DoctrineService) -> None:
     assert styleguide.principles, "styleguide must declare principles"
 
     shipped_path = (
-        BUILT_IN_ROOT
+        PACKS_BUILT_IN
         / "styleguides"
-        / "built-in"
         / "reasons-canvas-writing.styleguide.yaml"
     )
     assert shipped_path.is_file(), f"styleguide must live in shipped/: {shipped_path}"
@@ -98,9 +101,8 @@ def test_directive_038_lenient_adherence_with_four_allowances(
     )
 
     shipped_path = (
-        BUILT_IN_ROOT
+        PACKS_BUILT_IN
         / "directives"
-        / "built-in"
         / "038-structured-prompt-boundary.directive.yaml"
     )
     assert shipped_path.is_file(), f"directive must live in shipped/: {shipped_path}"
@@ -108,7 +110,7 @@ def test_directive_038_lenient_adherence_with_four_allowances(
 
 def test_template_fragment_has_all_seven_canvas_sections() -> None:
     fragment_path = (
-        BUILT_IN_ROOT / "templates" / "fragments" / "reasons-canvas-template.md"
+        DOCTRINE_ROOT / "templates" / "fragments" / "reasons-canvas-template.md"
     )
     assert fragment_path.is_file(), f"template fragment missing at {fragment_path}"
     body = fragment_path.read_text(encoding="utf-8")
