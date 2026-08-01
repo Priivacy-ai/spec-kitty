@@ -15,14 +15,15 @@ from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
 
-from importlib.resources import files
 from pydantic import ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from doctrine.artifact_kinds import ArtifactKind
 from doctrine.drg.loader import DRGLoadError, load_built_in_graph
 from doctrine.drg.models import DRGGraph, NodeKind, Relation
 from doctrine.drg.reachability import agent_profile_seed_urns, profile_channel_reachable
+from doctrine.pack_paths import built_in_dir
 from doctrine.shared.exceptions import InlineReferenceRejectedError
 from doctrine.shared.scoping import applies_to_languages_match, normalize_languages
 
@@ -243,7 +244,7 @@ class AgentProfileRepository:
             active_languages: Language filter; None means no filtering
             drg: Doctrine Relationship Graph used to resolve profile lineage
                 (``specializes_from`` edges). When ``None``, the shipped built-in
-                graph (the ``src/doctrine/*.graph.yaml`` fragments) is loaded.
+                graph (the ``packs/built-in/*.graph.yaml`` fragments) is loaded.
                 Lineage is read
                 exclusively from this graph; the retired ``specializes-from``
                 profile field is no longer consulted (FR-002, C-009).
@@ -262,14 +263,8 @@ class AgentProfileRepository:
 
     @staticmethod
     def _default_built_in_dir() -> Path:
-        """Get default built-in profiles directory from package data."""
-        try:
-            resource = files("doctrine.agent_profiles")
-            if hasattr(resource, "joinpath"):
-                return Path(str(resource.joinpath("built-in")))
-            return Path(str(resource)) / "built-in"
-        except (ModuleNotFoundError, TypeError):
-            return Path(__file__).parent / "built-in"
+        """Return the shipped built-in profiles directory (``packs/built-in/agent_profiles/``)."""
+        return built_in_dir(ArtifactKind.AGENT_PROFILE)
 
     @classmethod
     def _default_drg(cls) -> DRGGraph:

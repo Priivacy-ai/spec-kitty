@@ -17,8 +17,10 @@ from charter._catalog_miss import (
     classify_scope_filtered_miss,
 )
 
+# ``_available_catalog_ids`` de-exported after the context.py re-export shim
+# retirement (doctrine-built-in-seam-consolidation WP06): no external ``src/``
+# importer remains. It stays a module-internal helper used below.
 __all__ = [
-    "_available_catalog_ids",
     "_diagnose_catalog_miss",
 ]
 

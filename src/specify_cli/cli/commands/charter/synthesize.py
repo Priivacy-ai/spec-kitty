@@ -114,7 +114,7 @@ def charter_synthesize(  # noqa: C901
     2. ``.kittify/doctrine/PROVENANCE.md`` — human-readable record of the
        fresh-project seed path, citing #839.
 
-    The runtime falls back to the built-in doctrine (``src/doctrine/``) for
+    The runtime falls back to the built-in doctrine (``packs/built-in/``) for
     all artifact lookups until the harness writes per-target YAML and the
     operator re-runs ``synthesize`` (which then takes the normal adapter
     path). The fresh-project path is **idempotent**: re-running produces

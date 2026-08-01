@@ -30,7 +30,10 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 runner = CliRunner()
 
-DOCTRINE_ROOT = Path(__file__).resolve().parents[4] / "src" / "doctrine"
+# The sharded ``*.graph.yaml`` DRG fragments relocated from ``src/doctrine`` to
+# the top-level ``packs/built-in`` pack root (mission relocate-builtin-doctrine-packs);
+# regenerate-graph resolves and rewrites them there.
+DOCTRINE_ROOT = Path(__file__).resolve().parents[4] / "packs" / "built-in"
 
 
 def _graph_files(doctrine_dir: Path) -> list[Path]:
@@ -145,12 +148,19 @@ def test_regenerate_twice_is_byte_identical(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Write-mode regeneration is deterministic across two runs."""
-    # Assemble a working-tree-shaped doctrine root the resolver will discover.
+    # Assemble a working-tree-shaped doctrine root and point the seam at it via
+    # SPEC_KITTY_PACKS_ROOT (C1.5). Pre-WP03 this test relied on the CWD
+    # ancestor-walk `_doctrine_root()` reimplemented (chdir into `fake_repo`
+    # was enough to redirect discovery); WP03 retired that walk in favour of
+    # `built_in_root()` (the seam), which resolves from the module's own
+    # location and never reads CWD, so redirecting now requires the seam's own
+    # override tier instead of chdir (mission
+    # doctrine-built-in-seam-consolidation-01KYW3TX, NFR-001 delta).
     fake_repo = tmp_path / "repo"
-    fake_doctrine = fake_repo / "src" / "doctrine"
+    fake_doctrine = fake_repo / "packs" / "built-in"
     fake_doctrine.parent.mkdir(parents=True)
     shutil.copytree(DOCTRINE_ROOT, fake_doctrine)
-    monkeypatch.chdir(fake_repo)
+    monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(fake_repo / "packs"))
 
     r1 = runner.invoke(doctrine_app, ["regenerate-graph"])
     assert r1.exit_code == 0, r1.output
@@ -170,11 +180,13 @@ def test_check_detects_stale_graph(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A corrupted committed graph is reported stale with exit code 1."""
+    # See test_regenerate_twice_is_byte_identical: SPEC_KITTY_PACKS_ROOT (C1.5)
+    # replaces the retired CWD ancestor-walk as the discovery override.
     fake_repo = tmp_path / "repo"
-    fake_doctrine = fake_repo / "src" / "doctrine"
+    fake_doctrine = fake_repo / "packs" / "built-in"
     fake_doctrine.parent.mkdir(parents=True)
     shutil.copytree(DOCTRINE_ROOT, fake_doctrine)
-    monkeypatch.chdir(fake_repo)
+    monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(fake_repo / "packs"))
 
     # Corrupt whichever graph source file is on disk (monolith today, a fragment
     # after WP05) so the committed graph drifts from a fresh regeneration.

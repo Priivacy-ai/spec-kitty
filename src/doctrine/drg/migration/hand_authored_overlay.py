@@ -1,5 +1,5 @@
 """Enumerable registry of DRG content hand-authored directly in the shipped
-``src/doctrine/*.graph.yaml`` fragments (mission doctrine-tension-edges-01KY1WPC
+``packs/built-in/*.graph.yaml`` fragments (mission doctrine-tension-edges-01KY1WPC
 WP02) that the extractor cannot derive from built-in artifact frontmatter.
 
 Why this exists
@@ -22,7 +22,7 @@ content:
 1. ``spec-kitty doctrine regenerate-graph`` (:mod:`specify_cli.cli.commands.doctrine`)
    -- both its ``--check`` freshness comparison and its write path must merge
    this overlay in, or running the command for real would overwrite
-   ``src/doctrine/*.graph.yaml`` with a version that has silently dropped
+   ``packs/built-in/*.graph.yaml`` with a version that has silently dropped
    every hand-authored tension/reconciliation/rejection edge and anti-pattern
    node, and ``--check`` alone would report "stale" forever even when nothing
    is actually stale.
@@ -51,7 +51,7 @@ from doctrine.drg.validator import assert_valid
 
 # ---------------------------------------------------------------------------
 # The thirteen anti-pattern/smell nodes authored in
-# src/doctrine/anti_pattern.graph.yaml. None of these are ever an edge *source*
+# packs/built-in/anti_pattern.graph.yaml. None of these are ever an edge *source*
 # (rejects edges terminate at them), so they carry no outgoing edges of their
 # own.
 #
@@ -159,7 +159,7 @@ HAND_AUTHORED_NODES: tuple[DRGNode, ...] = (
 
 # ---------------------------------------------------------------------------
 # The 2 in_tension_with + 3 reconciles_tension + 8 rejects edges authored in
-# src/doctrine/{directive,paradigm}.graph.yaml (WP02 T007/T008/T010/T011),
+# packs/built-in/{directive,paradigm}.graph.yaml (WP02 T007/T008/T010/T011),
 # migrated from the retired contradiction-declaration field (WP03).
 # Reason text copied verbatim from the committed fragments.
 # ---------------------------------------------------------------------------
@@ -640,7 +640,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # #3063 family-B (REFACTORING family), operator interview outcome. The
     # operator has ATTESTED these relationships; the hub is a NEW built-in
     # directive, `directive:DISCIPLINED_REFACTORING` (authored as
-    # src/doctrine/directives/built-in/disciplined-refactoring.directive.yaml).
+    # packs/built-in/directives/disciplined-refactoring.directive.yaml).
     #
     # URN CASING NOTE: the wiring instruction named the hub
     # `directive:disciplined-refactoring` (lower-kebab). A directive node's URN is
@@ -883,7 +883,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # #3063 family-C (ARCHITECTURE-DOCS / DIAGRAMMING family), operator
     # interview outcome. The operator has ATTESTED these relationships; the hub
     # is a NEW built-in directive, `directive:USE_C4_MODEL_TECHNIQUES` (authored
-    # as src/doctrine/directives/built-in/use-c4-model-techniques.directive.yaml).
+    # as packs/built-in/directives/use-c4-model-techniques.directive.yaml).
     #
     # URN CASING NOTE (same rule as family-B's DISCIPLINED_REFACTORING): the
     # wiring named the hub `directive:use-c4-model-techniques` (lower-kebab). A
@@ -2112,7 +2112,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # template` edges that complete the canonical topology the wiring table's
     # Family-C asset assessment records — parallel to the pre-existing
     # `action:documentation/design --instantiates--> template:documentation/
-    # documentation-plan-template.md` edge in src/doctrine/action.graph.yaml.
+    # documentation-plan-template.md` edge in packs/built-in/action.graph.yaml.
     #
     # HOME CHOICE (documented per D13 so a future regeneration does not silently
     # drop these): the precedent documentation-plan-template edge is NOT hand-

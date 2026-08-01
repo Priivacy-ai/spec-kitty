@@ -277,7 +277,7 @@ def test_doctrine_skills_name_the_json_artifact() -> None:
 
 def test_glossary_pack_names_the_json_artifact() -> None:
     glossary_path = (
-        _REPO_ROOT / "src/doctrine/glossary_packs/built-in/spec-kitty-core.glossary-pack.yaml"
+        _REPO_ROOT / "packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml"
     )
     text = glossary_path.read_text(encoding="utf-8")
     assert _ISSUE_MATRIX_JSON_FILENAME in text

@@ -29,10 +29,11 @@ Three traps the base class does not handle for this kind, addressed here:
 
 from __future__ import annotations
 
-from importlib.resources import files
 from pathlib import Path
 
+from doctrine.artifact_kinds import ArtifactKind
 from doctrine.assets.models import AssetManifest
+from doctrine.pack_paths import built_in_dir
 from doctrine.base import BaseDoctrineRepository
 from doctrine.drg.org_pack_config import (
     OrgPackSubdirEscapeError,
@@ -101,13 +102,7 @@ class AssetRepository(BaseDoctrineRepository[AssetManifest]):
     @staticmethod
     def _default_built_in_dir() -> Path:
         """Return the shipped built-in asset directory from package data."""
-        try:
-            resource = files("doctrine.assets")
-            if hasattr(resource, "joinpath"):
-                return Path(str(resource.joinpath("built-in")))
-            return Path(str(resource)) / "built-in"
-        except (ModuleNotFoundError, TypeError):
-            return Path(__file__).parent / "built-in"
+        return built_in_dir(ArtifactKind.ASSET)
 
     @property
     def _schema(self) -> type[AssetManifest]:

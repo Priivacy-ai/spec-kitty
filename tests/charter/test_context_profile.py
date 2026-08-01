@@ -29,14 +29,16 @@ import pytest
 from ruamel.yaml import YAML
 
 from charter.context import (
-    _PROFILE_DIRECTIVES_HEADER_TPL,
-    _PROFILE_TACTICS_HEADER_TPL,
     _load_agent_profile,
-    _render_profile_directives,
-    _render_profile_tactics,
-    _reset_agent_profile_cache,
     build_charter_context,
 )
+from charter.context_renderers.profile_sections import (
+    _PROFILE_DIRECTIVES_HEADER_TPL,
+    _PROFILE_TACTICS_HEADER_TPL,
+    _render_profile_directives,
+    _render_profile_tactics,
+)
+from charter.profile_resolution import _reset_agent_profile_cache
 from doctrine.agent_profiles import (
     AgentProfile,
     AgentProfileRepository,

@@ -704,9 +704,12 @@ def _st_render_human(st: _StatusState, ports: TasksPorts) -> None:
     try:
         from doctrine.agent_profiles.repository import AgentProfileRepository
 
-        profile_repo: AgentProfileRepository | None = AgentProfileRepository(
-            built_in_dir=st.main_repo_root / "src" / "doctrine" / "agent_profiles" / "built-in"
-        )
+        # No ``built_in_dir``: the repository self-resolves the shipped built-in
+        # profiles through its ``_default_built_in_dir`` (the ``packs/built-in/
+        # agent_profiles`` pack root via ``resolve_pack_root``). Constructing the
+        # path here would force a direct ``doctrine`` import into this runtime
+        # module and trip the runtime -> charter -> doctrine boundary ratchet.
+        profile_repo: AgentProfileRepository | None = AgentProfileRepository()
     except Exception:
         profile_repo = None
 
@@ -791,7 +794,7 @@ def _review_stall_threshold_minutes(repo_root: Path) -> int:
 
 def _get_hic_marker(
     agent_profile: object,
-    repo_root: Path,
+    _repo_root: Path,
     *,
     repo: AgentProfileRepository | None = None,
 ) -> str:
@@ -801,6 +804,11 @@ def _get_hic_marker(
     heterogeneous ``dict[str, object]`` status rows; a non-``str`` (or falsy)
     value yields no marker, exactly as the historical ``if not agent_profile``
     guard did for ``None``/empty strings.
+
+    ``_repo_root`` is retained for the stable call-site signature (8 internal
+    callers plus the ``tasks.py`` compat re-export) but is no longer read: the
+    built-in profiles now resolve through :func:`resolve_pack_root` (the shipped
+    ``packs/built-in/agent_profiles`` root), not the consumer checkout.
     """
     if not isinstance(agent_profile, str) or not agent_profile:
         return ""
@@ -810,8 +818,9 @@ def _get_hic_marker(
 
         profile_repo = repo
         if profile_repo is None:
-            built_in_dir = repo_root / "src" / "doctrine" / "agent_profiles" / "built-in"
-            profile_repo = AgentProfileRepository(built_in_dir=built_in_dir)
+            # Self-resolve the shipped built-in profiles (see the sibling call
+            # site): avoids a direct ``doctrine`` import in this runtime module.
+            profile_repo = AgentProfileRepository()
 
         profile = profile_repo.get(agent_profile)
         if profile and profile.sentinel:

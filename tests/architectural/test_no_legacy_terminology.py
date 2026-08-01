@@ -228,7 +228,7 @@ _LANE_CONSOLIDATION_PHRASE_BASELINE: frozenset[str] = frozenset(
         "docs/development/3-2-docs-retrieval-index.yaml",
         "docs/plans/engineering-notes/naming-identity-ssot-strangler/00-OVERVIEW.md",
         "docs/plans/engineering-notes/naming-identity-ssot-strangler/randy-reducer-split-brain-map.md",
-        "src/doctrine/procedures/built-in/mission-wrap-up-sequence.procedure.yaml",
+        "packs/built-in/procedures/mission-wrap-up-sequence.procedure.yaml",
         "src/doctrine/skills/spec-kitty-git-workflow/references/git-operations-matrix.md",
         "src/doctrine/skills/spec-kitty-implement-review/SKILL.md",
         "src/specify_cli/lanes/merge.py",

@@ -167,9 +167,10 @@ def _compiled_reference_id_suffixes() -> set[str]:
     """Return every reference id-suffix the real charter compiler resolves.
 
     Mirrors ``tests/charter/test_model_task_routing_resolves.py``: uses the
-    project's own interview answers and a real :class:`DoctrineService`
-    rooted at ``src/doctrine`` so a resolved suffix is proof the reference
-    is DRG/interview reachable, never merely a string dropped by hand into
+    project's own interview answers and a real, self-resolving
+    :class:`DoctrineService` (built-in content loads from ``packs/built-in/``,
+    post-relocation) so a resolved suffix is proof the reference is
+    DRG/interview reachable, never merely a string dropped by hand into
     ``references.yaml``.
 
     WP03 (IC-01 consequence): the activation source is
@@ -184,7 +185,7 @@ def _compiled_reference_id_suffixes() -> set[str]:
     interview = read_interview_answers(ANSWERS_PATH)
     assert interview is not None, "expected the project's real interview answers to load"
 
-    doctrine_service = DoctrineService(built_in_root=REPO_ROOT / "src" / "doctrine")
+    doctrine_service = DoctrineService()
     pack_context = PackContext.from_config(REPO_ROOT)
     compiled = compile_charter(
         mission=interview.mission,

@@ -420,10 +420,20 @@ class ClaudeBundleProjector:
 
 
 def _built_in_profiles_dir() -> Path:
-    """Return the path to the built-in agent profiles source directory."""
-    import doctrine  # noqa: PLC0415 — deferred to avoid import-time side effects
+    """Return the path to the built-in agent profiles source directory.
 
-    return Path(doctrine.__file__).parent / "agent_profiles" / "built-in"
+    Built-in content was flattened out of ``src/doctrine/agent_profiles/built-in``
+    into the ``packs/built-in/agent_profiles`` pack root (relocation mission);
+    resolve it through the shared :func:`built_in_dir` seam (the single
+    per-kind authority — no inline ``/ "built-in" / <plural>`` join). The
+    import stays function-local (deferred) to keep this runtime module free of
+    a module-level ``doctrine`` import that would trip the runtime -> charter
+    -> doctrine boundary ratchet.
+    """
+    from doctrine.artifact_kinds import ArtifactKind  # noqa: PLC0415 — deferred; see docstring
+    from doctrine.pack_paths import built_in_dir  # noqa: PLC0415 — deferred; see docstring
+
+    return built_in_dir(ArtifactKind.AGENT_PROFILE)
 
 
 def _plugin_relative_path(path: Path, bundle_dir: Path) -> str:

@@ -69,7 +69,7 @@ def _write_project_doctrine_profile(repo_root: Path, profile_id: str = _PROJECT_
     """Write a project-doctrine profile under the charter synthesis path."""
     profiles_dir = repo_root / ".kittify" / "doctrine" / "agent_profiles"
     profiles_dir.mkdir(parents=True, exist_ok=True)
-    source = Path("src/doctrine/agent_profiles/built-in/reviewer-renata.agent.yaml")
+    source = Path("packs/built-in/agent_profiles/reviewer-renata.agent.yaml")
     text = source.read_text(encoding="utf-8")
     text = text.replace("profile-id: reviewer-renata", f"profile-id: {profile_id}")
     text = text.replace("name: Reviewer Renata", "name: Local Lena")
@@ -81,7 +81,7 @@ def _write_org_doctrine_profile(repo_root: Path, profile_id: str = _ORG_ID) -> P
     org_root = repo_root / "org-pack"
     profiles_dir = org_root / "agent_profiles"
     profiles_dir.mkdir(parents=True, exist_ok=True)
-    source = Path("src/doctrine/agent_profiles/built-in/reviewer-renata.agent.yaml")
+    source = Path("packs/built-in/agent_profiles/reviewer-renata.agent.yaml")
     text = source.read_text(encoding="utf-8")
     text = text.replace("profile-id: reviewer-renata", f"profile-id: {profile_id}")
     text = text.replace("name: Reviewer Renata", "name: Org Olivia")

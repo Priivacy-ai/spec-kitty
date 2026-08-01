@@ -21,42 +21,58 @@ def _write_yaml(path: Path, data: dict) -> None:
         yaml.dump(data, handle)
 
 
-def test_service_loads_all_repositories_from_built_in_defaults(tmp_path: Path) -> None:
-    built_in_root = tmp_path / "shipped-root"
+def _packs_root(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    """Point ``SPEC_KITTY_PACKS_ROOT`` at an isolated flat ``<tmp>/packs/built-in/`` tree.
+
+    Replaces the retired ``DoctrineService(built_in_root=...)`` param (C-007):
+    the built-in tier is now injected via the env override instead of a
+    constructor kwarg, and the on-disk layout is FLAT (``packs/built-in/<kind>/``),
+    not the old nested ``<root>/<kind>/built-in/`` shape.
+    """
+    packs_root = tmp_path / "packs"
+    (packs_root / "built-in").mkdir(parents=True)
+    monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(packs_root))
+    return packs_root
+
+
+def test_service_loads_all_repositories_from_built_in_defaults(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    packs_root = _packs_root(monkeypatch, tmp_path)
 
     _write_yaml(
-        built_in_root / "directives" / "built-in" / "001-test.directive.yaml",
+        packs_root / "built-in" / "directives" / "001-test.directive.yaml",
         {"schema_version": "1.0", "id": "DIRECTIVE_001", "title": "Test",
          "intent": "Test intent.", "enforcement": "required"},
     )
     _write_yaml(
-        built_in_root / "tactics" / "built-in" / "test-tactic.tactic.yaml",
+        packs_root / "built-in" / "tactics" / "test-tactic.tactic.yaml",
         {"schema_version": "1.0", "id": "test-tactic", "name": "Test Tactic",
          "steps": [{"title": "Step 1"}]},
     )
     _write_yaml(
-        built_in_root / "styleguides" / "built-in" / "test-style.styleguide.yaml",
+        packs_root / "built-in" / "styleguides" / "test-style.styleguide.yaml",
         {"schema_version": "1.0", "id": "test-style", "title": "Test Style",
          "scope": "code", "principles": ["Be clear"]},
     )
     _write_yaml(
-        built_in_root / "toolguides" / "built-in" / "test-tool.toolguide.yaml",
+        packs_root / "built-in" / "toolguides" / "test-tool.toolguide.yaml",
         {"schema_version": "1.0", "id": "test-tool", "tool": "bash",
          "title": "Test Tool", "guide_path": "src/doctrine/test-tool.md", "summary": "Test."},
     )
     _write_yaml(
-        built_in_root / "paradigms" / "built-in" / "test-paradigm.paradigm.yaml",
+        packs_root / "built-in" / "paradigms" / "test-paradigm.paradigm.yaml",
         {"schema_version": "1.0", "id": "test-paradigm", "name": "Test Paradigm",
          "summary": "Test."},
     )
     _write_yaml(
-        built_in_root / "procedures" / "built-in" / "test-proc.procedure.yaml",
+        packs_root / "built-in" / "procedures" / "test-proc.procedure.yaml",
         {"schema_version": "1.0", "id": "test-proc", "name": "Test Procedure",
          "purpose": "Test.", "entry_condition": "Always.",
          "exit_condition": "Done.", "steps": [{"title": "Step 1"}]},
     )
     _write_yaml(
-        built_in_root / "agent_profiles" / "built-in" / "test.agent.yaml",
+        packs_root / "built-in" / "agent_profiles" / "test.agent.yaml",
         # ``personality-traits`` used to sit here. It is not an AgentProfile
         # field and never was — it loaded and was discarded, which is exactly
         # the silence WP04's ``extra="forbid"`` closes (FR-004).
@@ -71,7 +87,7 @@ def test_service_loads_all_repositories_from_built_in_defaults(tmp_path: Path) -
          }},
     )
 
-    service = DoctrineService(built_in_root=built_in_root)
+    service = DoctrineService()
 
     assert {d.id for d in service.directives.list_all()} == {"DIRECTIVE_001"}
     assert service.tactics.get("test-tactic") is not None
@@ -97,8 +113,10 @@ def test_service_repositories_are_lazily_cached() -> None:
     assert "tactics" in service._cache
 
 
-def test_service_honors_custom_built_in_and_project_roots(tmp_path: Path) -> None:
-    built_in_root = tmp_path / "shipped-root"
+def test_service_honors_custom_built_in_and_project_roots(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    packs_root = _packs_root(monkeypatch, tmp_path)
     project_root = tmp_path / "project-root"
 
     built_in_directive = {
@@ -117,7 +135,7 @@ def test_service_honors_custom_built_in_and_project_roots(tmp_path: Path) -> Non
     }
 
     _write_yaml(
-        built_in_root / "directives" / "built-in" / "001-custom.directive.yaml",
+        packs_root / "built-in" / "directives" / "001-custom.directive.yaml",
         built_in_directive,
     )
     _write_yaml(
@@ -125,14 +143,17 @@ def test_service_honors_custom_built_in_and_project_roots(tmp_path: Path) -> Non
         project_override,
     )
 
-    service = DoctrineService(built_in_root=built_in_root, project_root=project_root)
+    service = DoctrineService(project_root=project_root)
     directive = service.directives.get("DIRECTIVE_CUSTOM")
     assert directive is not None
     assert directive.title == "Overridden Directive"
     assert directive.enforcement.value == "advisory"
 
 
-def test_service_loads_synthesized_project_root_singular_kind_dirs(tmp_path: Path) -> None:
+def test_service_loads_synthesized_project_root_singular_kind_dirs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _packs_root(monkeypatch, tmp_path)
     project_root = tmp_path / ".kittify" / "doctrine"
 
     _write_yaml(
@@ -165,14 +186,17 @@ def test_service_loads_synthesized_project_root_singular_kind_dirs(tmp_path: Pat
         },
     )
 
-    service = DoctrineService(built_in_root=tmp_path / "shipped-root", project_root=project_root)
+    service = DoctrineService(project_root=project_root)
 
     assert service.directives.get("PROJECT_001") is not None
     assert service.tactics.get("project-tactic") is not None
     assert service.styleguides.get("project-style") is not None
 
 
-def test_service_ignores_legacy_plural_dirs_for_synthesized_project_root(tmp_path: Path) -> None:
+def test_service_ignores_legacy_plural_dirs_for_synthesized_project_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _packs_root(monkeypatch, tmp_path)
     project_root = tmp_path / ".kittify" / "doctrine"
 
     _write_yaml(
@@ -205,7 +229,7 @@ def test_service_ignores_legacy_plural_dirs_for_synthesized_project_root(tmp_pat
         },
     )
 
-    service = DoctrineService(built_in_root=tmp_path / "shipped-root", project_root=project_root)
+    service = DoctrineService(project_root=project_root)
 
     assert service.directives.get("PROJECT_LEGACY") is None
     assert service.tactics.get("legacy-tactic") is None
@@ -222,12 +246,12 @@ def test_service_ignores_legacy_plural_dirs_for_synthesized_project_root(tmp_pat
 
 
 def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_match(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    built_in_root = tmp_path / "shipped-root"
+    packs_root = _packs_root(monkeypatch, tmp_path)
 
     _write_yaml(
-        built_in_root / "styleguides" / "built-in" / "python.styleguide.yaml",
+        packs_root / "built-in" / "styleguides" / "python.styleguide.yaml",
         {
             "schema_version": "1.0",
             "id": "python-style",
@@ -238,7 +262,7 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
         },
     )
     _write_yaml(
-        built_in_root / "styleguides" / "built-in" / "generic.styleguide.yaml",
+        packs_root / "built-in" / "styleguides" / "generic.styleguide.yaml",
         {
             "schema_version": "1.0",
             "id": "generic-style",
@@ -248,7 +272,7 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
         },
     )
     _write_yaml(
-        built_in_root / "toolguides" / "built-in" / "python.toolguide.yaml",
+        packs_root / "built-in" / "toolguides" / "python.toolguide.yaml",
         {
             "schema_version": "1.0",
             "id": "python-tool",
@@ -260,7 +284,7 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
         },
     )
     _write_yaml(
-        built_in_root / "toolguides" / "built-in" / "generic.toolguide.yaml",
+        packs_root / "built-in" / "toolguides" / "generic.toolguide.yaml",
         {
             "schema_version": "1.0",
             "id": "generic-tool",
@@ -271,7 +295,7 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
         },
     )
     _write_yaml(
-        built_in_root / "agent_profiles" / "built-in" / "python.agent.yaml",
+        packs_root / "built-in" / "agent_profiles" / "python.agent.yaml",
         {
             "profile-id": "python-pedro",
             "name": "Python Pedro",
@@ -287,7 +311,7 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
         },
     )
     _write_yaml(
-        built_in_root / "agent_profiles" / "built-in" / "generic.agent.yaml",
+        packs_root / "built-in" / "agent_profiles" / "generic.agent.yaml",
         {
             "profile-id": "generic-implementer",
             "name": "Generic Implementer",
@@ -302,7 +326,7 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
         },
     )
 
-    service = DoctrineService(built_in_root=built_in_root, active_languages=["typescript"])
+    service = DoctrineService(active_languages=["typescript"])
 
     assert service.styleguides.get("generic-style") is not None
     assert service.styleguides.get("python-style") is None
@@ -313,12 +337,12 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
 
 
 def test_service_keeps_language_scoped_artifacts_when_active_languages_are_unset(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    built_in_root = tmp_path / "shipped-root"
+    packs_root = _packs_root(monkeypatch, tmp_path)
 
     _write_yaml(
-        built_in_root / "styleguides" / "built-in" / "python.styleguide.yaml",
+        packs_root / "built-in" / "styleguides" / "python.styleguide.yaml",
         {
             "schema_version": "1.0",
             "id": "python-style",
@@ -329,7 +353,7 @@ def test_service_keeps_language_scoped_artifacts_when_active_languages_are_unset
         },
     )
     _write_yaml(
-        built_in_root / "toolguides" / "built-in" / "python.toolguide.yaml",
+        packs_root / "built-in" / "toolguides" / "python.toolguide.yaml",
         {
             "schema_version": "1.0",
             "id": "python-tool",
@@ -341,7 +365,7 @@ def test_service_keeps_language_scoped_artifacts_when_active_languages_are_unset
         },
     )
     _write_yaml(
-        built_in_root / "agent_profiles" / "built-in" / "python.agent.yaml",
+        packs_root / "built-in" / "agent_profiles" / "python.agent.yaml",
         {
             "profile-id": "python-pedro",
             "name": "Python Pedro",
@@ -357,7 +381,7 @@ def test_service_keeps_language_scoped_artifacts_when_active_languages_are_unset
         },
     )
 
-    service = DoctrineService(built_in_root=built_in_root)
+    service = DoctrineService()
 
     assert service.styleguides.get("python-style") is not None
     assert service.toolguides.get("python-tool") is not None

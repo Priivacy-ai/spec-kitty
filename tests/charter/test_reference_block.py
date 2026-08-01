@@ -23,12 +23,12 @@ import pytest
 
 from charter.context import (
     _ActionDoctrineBundle,
-    _REFERENCE_POINTER_FLOOR,
-    _REFERENCE_POINTER_LIMIT,
     _load_references,
     _render_bootstrap_text,
 )
 from charter.context_renderers.reference_pointers import (
+    _REFERENCE_POINTER_FLOOR,
+    _REFERENCE_POINTER_LIMIT,
     _filter_references_for_action,
     _resolve_reference_source,
 )

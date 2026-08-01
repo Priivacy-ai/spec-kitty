@@ -48,7 +48,7 @@ to``) so it always satisfies the prompt-governance contract — see
 
 # ``_WHEN_DOING_RE`` (tests/specify_cli/next/test_wp_prompt_governance_contract.py:221)
 # is a CLOSED 6-verb set: "when you (are about to|need to|encounter|introduce|
-# rename|review)". Authored `when` clauses (src/doctrine/agent_profile.graph.yaml)
+# rename|review)". Authored `when` clauses (packs/built-in/agent_profile.graph.yaml)
 # are frequently gerund phrases ("designing or reviewing ...") or full sentences
 # (STATED_DEFAULT_WHEN) that read as ungrammatical -- or silently break the
 # contract -- once spliced verbatim into "When you <clause>, ...". The helpers

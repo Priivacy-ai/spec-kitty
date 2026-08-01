@@ -22,14 +22,11 @@ reviewer can map test → acceptance at a glance.
 
 from __future__ import annotations
 
-from importlib.resources import files
-from pathlib import Path
-
 import pytest
 
-from charter.context import _render_profile_sections
 from charter.context_renderers.profile_sections import (
     _PROFILE_SUGGESTS_DELIVERED_KINDS,
+    _render_profile_sections,
     render_profile_suggested_doctrine,
 )
 from charter.progressive_disclosure import (
@@ -70,8 +67,14 @@ def graph() -> DRGGraph:
 
 @pytest.fixture(scope="module")
 def service() -> DoctrineService:
-    """A DoctrineService over the shipped built-in doctrine tree."""
-    return DoctrineService(built_in_root=Path(str(files("doctrine"))))
+    """A DoctrineService over the shipped built-in doctrine tree.
+
+    No explicit built-in root: each repository self-resolves the flattened
+    built-in tier via ``resolve_pack_root("built-in")`` (packs/built-in/<kind>).
+    Post-relocation, ``files("doctrine")`` points at the emptied src/doctrine
+    tree and would load nothing.
+    """
+    return DoctrineService()
 
 
 def _kind_filtered(reached: frozenset[str]) -> set[str]:

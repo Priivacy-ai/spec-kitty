@@ -54,6 +54,7 @@ filename encodes the ordering.
 
 from __future__ import annotations
 
+import functools
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -87,22 +88,56 @@ LEGACY_BUNDLE_FILENAMES: tuple[str, ...] = (
 )
 
 #: Flat root activation keys relocated from ``config.yaml`` onto ``charter.yaml``
-#: (paula BLOCKER-1). Mirrors ``charter.charter_yaml_io._ACTIVATION_KEYS`` --
-#: duplicated (not imported) so this migration's registry-discovery import
-#: stays cheap (C-002); the charter-layer import happens lazily, inside the
-#: methods that actually need pydantic validation.
-ACTIVATION_KEYS: tuple[str, ...] = (
-    "activated_kinds",
-    "mission_type_activations",
-    "activated_directives",
-    "activated_tactics",
-    "activated_styleguides",
-    "activated_toolguides",
-    "activated_paradigms",
-    "activated_procedures",
-    "activated_agent_profiles",
-    "activated_mission_step_contracts",
-)
+#: (paula BLOCKER-1). Mirrors ``charter.charter_yaml_io._ACTIVATION_KEYS``.
+#:
+#: WP05 / FR-010 / C4.2: this used to be a hand-written literal tuple
+#: (duplicated, not imported, so this migration's registry-discovery import
+#: stayed cheap -- C-002) that DRIFTED from the real vocabulary: it was
+#: missing ``activated_glossary_packs`` (10 vs 11 keys), so this migration
+#: silently DROPPED an activated glossary pack's activation on migration (a
+#: live data-loss drift, SC-005). It is now DERIVED from the single authority
+#: ``charter.pack_manager.ACTIVATION_YAML_KEYS`` via :func:`_activation_keys`
+#: (module ``__getattr__`` below), so the two vocabularies can never
+#: independently drift again (guarded by
+#: ``tests/charter/test_activation_vocabulary_setequal.py``). The
+#: charter-layer import stays LAZY -- function-scoped inside
+#: :func:`_activation_keys`, invoked only when a caller actually accesses
+#: ``ACTIVATION_KEYS`` (i.e. when this migration's ``detect()``/``apply()``
+#: methods run, not at module-import/registry-discovery time) -- preserving
+#: the same cheap-registry-discovery property the literal used to provide.
+
+
+@functools.lru_cache(maxsize=1)
+def _activation_keys() -> tuple[str, ...]:
+    """Return the flat activation-key vocabulary, derived from the authority.
+
+    Lazy, function-scoped import of ``charter.pack_manager.
+    ACTIVATION_YAML_KEYS`` -- importing anything under the ``charter``
+    package eagerly pulls its pydantic-heavy ``charter/__init__.py`` (the
+    package re-exports its full public surface, including ``charter.schemas``),
+    which would make every ``spec-kitty`` invocation pay that cost merely by
+    discovering this migration module (``auto_discover_migrations`` imports
+    every migration module via ``pkgutil`` at CLI-startup time). Deferring the
+    import to call time means only an actual migration run (or a test that
+    calls this helper) pays it -- registry discovery itself stays cheap.
+    """
+    from charter.pack_manager import ACTIVATION_YAML_KEYS  # noqa: PLC0415 -- lazy charter import (C-002); keeps registry-discovery cheap
+
+    return ACTIVATION_YAML_KEYS
+
+
+def __getattr__(name: str) -> object:
+    """PEP 562 lazy module attribute: resolve ``ACTIVATION_KEYS`` on access.
+
+    Mirrors the codebase's established lazy-module-attribute idiom (e.g.
+    ``specify_cli.sync.__getattr__``) so ``from ...m_unify_charter_activation_finalize
+    import ACTIVATION_KEYS`` and ``module.ACTIVATION_KEYS`` both keep working
+    for existing callers/tests without a module-level import that would
+    reintroduce the heavy-import cost :func:`_activation_keys` avoids.
+    """
+    if name == "ACTIVATION_KEYS":
+        return _activation_keys()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 # ---------------------------------------------------------------------------
@@ -162,7 +197,7 @@ def legacy_bundle_present(project_path: Path) -> bool:
 
 def _config_has_activation(config_data: dict[str, Any]) -> bool:
     """Return True when config.yaml still carries any embedded ``activated_*`` key."""
-    return any(key in config_data for key in ACTIVATION_KEYS)
+    return any(key in config_data for key in _activation_keys())
 
 
 # ---------------------------------------------------------------------------
@@ -228,7 +263,7 @@ def _compose_charter_yaml_document(
     )
     document: dict[str, Any] = charter_yaml.model_dump(mode="json", exclude_none=True)
 
-    for key in ACTIVATION_KEYS:
+    for key in _activation_keys():
         if key in config_data:
             document[key] = config_data[key]
 
@@ -261,7 +296,7 @@ def _relocate_activation_onto_existing_charter_yaml(
     """
     from charter.charter_yaml_io import update_charter_yaml_section  # noqa: PLC0415
 
-    activation = {key: config_data[key] for key in ACTIVATION_KEYS if key in config_data}
+    activation = {key: config_data[key] for key in _activation_keys() if key in config_data}
     if activation:
         update_charter_yaml_section(charter_yaml_path, "activation", activation)
 
@@ -293,10 +328,10 @@ def _rewrite_config(
 
     Comment-preserving ``ruamel.yaml`` round-trip write -- every other
     ``config.yaml`` key (``agents:``, ``org_packs``, tooling) and its
-    comments survive untouched; only the ten activation keys are removed
-    and the single ``charter:`` pointer key is added/refreshed.
+    comments survive untouched; only the activation keys are removed and the
+    single ``charter:`` pointer key is added/refreshed.
     """
-    for key in ACTIVATION_KEYS:
+    for key in _activation_keys():
         config_data.pop(key, None)
     config_data[_CHARTER_POINTER_KEY] = _mint_pointer_value(charter_yaml_path, project_path)
 

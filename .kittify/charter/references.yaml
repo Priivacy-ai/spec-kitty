@@ -18,7 +18,7 @@ references:
     templates, pages) where each level owns its appropriate concern. State ownership,
     reactive stream scope, and centralized store usage are bounded by the same compositional
     levels that govern visual structure.\n"
-  source_path: src/doctrine/paradigms/built-in/atomic-design.paradigm.yaml
+  source_path: packs/built-in/paradigms/atomic-design.paradigm.yaml
   local_path: _LIBRARY/paradigm-atomic-design.md
 - id: PARADIGM:behaviour-driven-development
   kind: paradigm
@@ -37,7 +37,7 @@ references:
     Specification by Example (the broader technique); BDD mandates the collaboration
     process and executable automation as the canonical specification form.\n"
   source_path: 
-    src/doctrine/paradigms/built-in/behaviour-driven-development.paradigm.yaml
+    packs/built-in/paradigms/behaviour-driven-development.paradigm.yaml
   local_path: _LIBRARY/paradigm-behaviour-driven-development.md
 - id: PARADIGM:brownfield-onboarding
   kind: paradigm
@@ -63,7 +63,7 @@ references:
     the line between them by gating structural moves on captured understanding, not
     on courage or on caution alone.\n"
   source_path: 
-    src/doctrine/paradigms/built-in/brownfield-onboarding.paradigm.yaml
+    packs/built-in/paradigms/brownfield-onboarding.paradigm.yaml
   local_path: _LIBRARY/paradigm-brownfield-onboarding.md
 - id: PARADIGM:c4-incremental-detail-modeling
   kind: paradigm
@@ -84,7 +84,7 @@ references:
     and labelled unidirectional relationships. The guiding heuristic: produce only
     the levels that add value and keep each diagram reviewable in under five minutes.\n"
   source_path: 
-    src/doctrine/paradigms/built-in/c4-incremental-detail-modeling.paradigm.yaml
+    packs/built-in/paradigms/c4-incremental-detail-modeling.paradigm.yaml
   local_path: _LIBRARY/paradigm-c4-incremental-detail-modeling.md
 - id: PARADIGM:deep-module-design
   kind: paradigm
@@ -95,7 +95,7 @@ references:
     modes, configuration, and performance expectations. Deep modules improve locality
     because changes, bugs, and knowledge concentrate behind the interface instead
     of spreading across callers and tests.\n"
-  source_path: src/doctrine/paradigms/built-in/deep-module-design.paradigm.yaml
+  source_path: packs/built-in/paradigms/deep-module-design.paradigm.yaml
   local_path: _LIBRARY/paradigm-deep-module-design.md
 - id: PARADIGM:domain-driven-design
   kind: paradigm
@@ -109,7 +109,7 @@ references:
     the domain model as the primary artifact — code is a direct expression of that
     model, not a translation layer above a database schema or UI framework.\n"
   source_path: 
-    src/doctrine/paradigms/built-in/domain-driven-design.paradigm.yaml
+    packs/built-in/paradigms/domain-driven-design.paradigm.yaml
   local_path: _LIBRARY/paradigm-domain-driven-design.md
 - id: PARADIGM:specification-by-example
   kind: paradigm
@@ -120,7 +120,7 @@ references:
     stable examples into executable acceptance tests, and keep narrative specs in
     sync whenever behavior changes.\n"
   source_path: 
-    src/doctrine/paradigms/built-in/specification-by-example.paradigm.yaml
+    packs/built-in/paradigms/specification-by-example.paradigm.yaml
   local_path: _LIBRARY/paradigm-specification-by-example.md
 - id: PARADIGM:structured-prompt-driven-development
   kind: paradigm
@@ -132,7 +132,7 @@ references:
     clarity reduces drift; not appropriate for tiny fixes, throwaway spikes, or purely
     visual exploration where canvas authoring is overhead.\n"
   source_path: 
-    src/doctrine/paradigms/built-in/structured-prompt-driven-development.paradigm.yaml
+    packs/built-in/paradigms/structured-prompt-driven-development.paradigm.yaml
   local_path: _LIBRARY/paradigm-structured-prompt-driven-development.md
 - id: DIRECTIVE:DIRECTIVE_001
   kind: directive

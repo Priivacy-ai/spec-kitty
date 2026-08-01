@@ -148,15 +148,20 @@ def test_rglob_discovers_a_nested_org_pack_manifest(tmp_path: Path) -> None:
 def test_resolves_shipped_builtin_asset_without_doubling() -> None:
     """T022: the shipped built-in asset resolves to the real file, no doubling.
 
-    The manifest ``path`` is ``built-in/docs_structural_lint.py`` and anchors
-    at the parent of ``<pkg>/assets/built-in`` — anchoring at the directory
-    itself would produce ``.../assets/built-in/built-in/...``.
+    Post-relocation the shipped blob lives at ``packs/built-in/assets/`` (the
+    per-kind ``built-in/`` subdir was flattened out). ``built_in_dir`` is now
+    ``packs/built-in/assets`` and the built-in anchor is its parent
+    ``packs/built-in``, so the manifest ``path`` is ``assets/…`` — anchoring at
+    the directory itself would produce ``.../assets/assets/…``. There is no
+    longer a ``built-in/built-in`` doubling surface, and the resolved parent dir
+    is ``assets`` (the pack root's per-kind dir), not ``built-in``.
     """
     repo = AssetRepository()
     resolved = repo.resolve_path(_SHIPPED_ASSET_ID)
     assert resolved.exists()
     assert resolved.name == "docs_structural_lint.py"
-    assert resolved.parent.name == "built-in"
+    assert resolved.parent.name == "assets"
+    assert resolved.parent.parent.name == "built-in"
     assert "built-in/built-in" not in resolved.as_posix()
 
 

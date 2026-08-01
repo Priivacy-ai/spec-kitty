@@ -915,6 +915,25 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 💥 Breaking Changes
 
+- **Built-in doctrine content moved out of `src/doctrine/` into a top-level
+  `packs/built-in/` pack root (mission `relocate-builtin-doctrine-packs`).**
+  The shipped built-in artefact *data* (directives, tactics, procedures,
+  paradigms, styleguides, toolguides, agent profiles, glossary packs, assets,
+  and the per-kind `*.graph.yaml` DRG fragments) no longer lives inside the
+  `doctrine` Python package. The layout is **flattened**: the old
+  `src/doctrine/<kind>/built-in/<file>` home loses its inner `built-in/` segment
+  and becomes `packs/built-in/<kind>/<file>`; the sharded fragments move from
+  `src/doctrine/<kind>.graph.yaml` to `packs/built-in/<kind>.graph.yaml`. All
+  three tiers now resolve the built-in root through a single fail-closed seam,
+  `resolve_pack_root("built-in")` (`src/doctrine/pack_paths.py`); the DRG seam
+  `built_in_graph_source()` yields the `packs/built-in/` directory. Doctrine
+  `.py` code, `schemas/`, `templates/`, `skills/`, and the `missions/` tree do
+  **not** move and remain under `src/doctrine/`. There is **no compatibility
+  shim** — repoint any reference to the new path (drop the inner `built-in/`).
+  The wheel/sdist ship `packs/` as a site-packages sibling of `doctrine`.
+  Follow-ons are tracked: Phase 1b relocates `missions/` (#3091); Phase 2
+  converges the built-in loader/schema onto the org-pack contract. See
+  [docs/migrations/relocate-builtin-doctrine-packs.md](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/migrations/relocate-builtin-doctrine-packs.md).
 - **`primary_feature_dir_for_mission` is removed; importing it now raises
   `ImportError` (#2886, #3014).** It was the last kind-blind wrapper left over
   from before the read-side placement seam (#2922): callers passed it a slug

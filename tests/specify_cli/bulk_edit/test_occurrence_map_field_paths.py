@@ -468,7 +468,7 @@ class TestB2RealExemptionSet:
         # Files (the inexpressibility argument's actual unit — plan.md IC-02 /
         # this WP's context section; SC-011's wording conflates the two).
         assert gov_files == {
-            f"agent_profiles/built-in/{name}.agent.yaml"
+            f"agent_profiles/{name}.agent.yaml"
             for name in (
                 "architect-alphonso",
                 "curator-carla",
@@ -490,7 +490,7 @@ class TestB2RealExemptionSet:
             )
         }, "the GOVERNANCE file set moved — SC-011's 17 files are the built-in agent profiles"
         assert raw_files == {
-            f"styleguides/built-in/{name}.styleguide.yaml"
+            f"styleguides/{name}.styleguide.yaml"
             for name in (
                 "deployable-skill-authoring",
                 "divio-type-discipline",
@@ -508,7 +508,7 @@ class TestB2RealExemptionSet:
         # The overlap is the harder half of the same argument: these five files
         # need per-field disposition, so name them rather than count them.
         assert raw_files & migrate_files == {
-            f"styleguides/built-in/{name}.styleguide.yaml"
+            f"styleguides/{name}.styleguide.yaml"
             for name in (
                 "divio-type-discipline",
                 "plain-language",

@@ -18,14 +18,21 @@ token that is *not* an :class:`ArtifactKind` member (handled explicitly).
 ``YAML_KEY_MAP`` is **derived** from the canonical charter kind universe
 (:data:`doctrine.artifact_kinds.CHARTER_KIND_TOKENS`): every kind maps to
 ``activated_<plural>`` except the ``mission-type`` outlier
-(``mission_type_activations``).
+(``mission_type_activations``). ``ACTIVATION_YAML_KEYS`` extends that with
+the ``activated_kinds`` coarse ledger key -- it is the single authority
+:mod:`charter.charter_yaml_io` and the ``consolidate_charter_bundle_fold``
+upgrade migration derive their own activation-key vocabularies from (WP05 /
+FR-010), so the three copies can never independently drift again.
 
 Layer model (FR-026)
 --------------------
 ``list_available`` scans the *built-in* layer plus any caller-supplied org /
 project doctrine roots, returning artifact IDs taken from each artifact's
 ``id:`` field (not the filename stem). :meth:`list_available_detailed` exposes
-the same scan annotated by source layer for ``charter list --all`` (WP16).
+the same scan annotated by source layer for ``charter list --all`` (WP16). The
+built-in layer's per-kind directory is resolved through
+:func:`doctrine.pack_paths.built_in_dir` (WP01/T020) rather than a locally
+composed ``resolve_pack_root("built-in") / kind.plural`` join.
 
 Org/project roots are passed in **as data** (C-008): ``specify_cli`` resolves
 them and hands them to this module. This module MUST NOT import from
@@ -73,6 +80,7 @@ from charter.activation_engine import (
 )
 from charter.charter_yaml_io import load_charter_yaml, update_charter_yaml_section
 from charter.pack_context import CharterPackConfigError, resolve_charter_yaml_pointer
+from doctrine.pack_paths import built_in_dir
 from doctrine.artifact_kinds import (
     CHARTER_KIND_TOKENS,
     MISSION_TYPE_TOKEN,
@@ -85,6 +93,7 @@ if TYPE_CHECKING:
     from charter.invocation_context import ProjectContext
 
 __all__ = [
+    "ACTIVATION_YAML_KEYS",
     "ActivationResult",
     "AvailableArtifact",
     "CharterPackManager",
@@ -125,6 +134,29 @@ def _yaml_key_for_token(token: str) -> str:
 YAML_KEY_MAP: dict[str, str] = {
     token: _yaml_key_for_token(token) for token in CHARTER_KIND_TOKENS
 }
+
+
+#: Cheap plain-tuple constant (WP05 / FR-010 / C4.1-C4.2): the single
+#: derived authority for the FULL flat activation-key vocabulary that
+#: ``charter.yaml`` (and, pre-migration, ``config.yaml``) carries as
+#: top-level keys. ``"activated_kinds"`` is a coarse "which kinds have been
+#: touched at all" ledger key -- distinct from the per-kind lists in
+#: :data:`YAML_KEY_MAP` and not itself derivable from
+#: :data:`CHARTER_KIND_TOKENS` -- so it is prepended explicitly; every other
+#: entry is exactly :data:`YAML_KEY_MAP`'s values.
+#:
+#: Two independent hand-restated copies of this vocabulary used to drift
+#: from each other and from this authority: ``charter.charter_yaml_io.
+#: _ACTIVATION_KEYS`` and the ``consolidate_charter_bundle_fold`` finalize
+#: migration's ``ACTIVATION_KEYS`` (the latter was missing
+#: ``activated_glossary_packs`` -- a live data-loss drift, FR-010/SC-005).
+#: Both now derive from this constant via a lazy, function-scoped import
+#: (avoiding a circular import back onto this module, and keeping the
+#: migration's registry-discovery import cheap -- see
+#: ``charter_yaml_io._activation_keys`` /
+#: ``m_unify_charter_activation_finalize._activation_keys``). Guarded by
+#: ``tests/charter/test_activation_vocabulary_setequal.py``.
+ACTIVATION_YAML_KEYS: tuple[str, ...] = ("activated_kinds", *YAML_KEY_MAP.values())
 
 
 #: Layer segments scanned for artifact availability (FR-026), in precedence
@@ -649,6 +681,23 @@ class CharterPackManager:
                 candidate = root / "doctrine" / kind_dir
             elif layered and layer == "org" and kind is not None:
                 candidate = _resolve_org_layer_dir(root, kind, base_dir)
+            elif layered and layer == "built-in" and kind is not None:
+                # The built-in layer relocated from ``src/doctrine/<plural>/built-in``
+                # to the flattened ``packs/built-in/<plural>`` tree
+                # (mission relocate-builtin-doctrine-packs). Resolve it through the
+                # canonical per-kind seam (mission
+                # doctrine-built-in-seam-consolidation-01KYW3TX, WP01/T020)
+                # rather than composing the ``resolve_pack_root("built-in") /
+                # kind.plural`` join locally -- this branch only runs when
+                # ``layered`` is ``True`` (see ``_scan_layout_for``), and
+                # ``mission_step_contract`` is the sole charter-activatable
+                # kind (``CHARTER_KIND_TOKENS``) with
+                # ``has_built_in_content_dir is False``; it is also the sole
+                # kind for which ``_scan_layout_for`` returns
+                # ``layered=False``, so the ``layered`` guard above already
+                # excludes it before ``built_in_dir(kind)`` is ever called --
+                # this never raises ``BuiltInContentDirNotAvailable``.
+                candidate = built_in_dir(kind)
             elif layered:
                 candidate = root / base_dir / layer
             elif layer == "built-in":

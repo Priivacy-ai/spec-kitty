@@ -51,11 +51,13 @@ asset_app = typer.Typer(
 def _build_asset_repository() -> AssetRepository:
     """Construct the three-tier asset repository for the current context.
 
-    Built-in assets resolve from packaged data (``built_in_root=None`` lets the
-    repository fall back to ``importlib.resources``), so the command works from
-    a clean installation with no repository present. When invoked inside a
-    project, the project ``.kittify/doctrine`` layer and configured org packs
-    are layered on top (more specific tiers win).
+    Built-in assets self-resolve via the shared ``built_in_dir(kind)`` seam
+    (packaged data — editable checkout, installed wheel, or an
+    ``importlib.resources`` sibling; no built-in-root parameter needed here),
+    so the command works from a clean installation with no repository
+    present. When invoked inside a project, the project ``.kittify/doctrine``
+    layer and configured org packs are layered on top (more specific tiers
+    win).
     """
     from doctrine.service import DoctrineService
     from specify_cli.core.paths import locate_project_root

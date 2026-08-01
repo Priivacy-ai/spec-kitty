@@ -48,12 +48,13 @@ from doctrine.drg.models import NodeKind
 if TYPE_CHECKING:
     from doctrine.drg.models import DRGGraph
 
+# ``_ACTION_BUNDLE_DELIVERY_BY_KIND`` / ``_KindDelivery`` / ``_kind_delivery`` de-exported
+# after the context.py re-export shim retirement (doctrine-built-in-seam-consolidation
+# WP06): no external ``src/`` importer remains. They stay module-internal, used by the
+# functions below.
 __all__ = [
-    "_ACTION_BUNDLE_DELIVERY_BY_KIND",
     "_Gate",
-    "_KindDelivery",
     "_classify_artifact_urns",
-    "_kind_delivery",
     "action_bundle_bucket",
     "action_bundle_gate",
 ]

@@ -41,10 +41,8 @@ from charter._catalog_miss import (
     emit_catalog_miss_warning,
     format_catalog_miss_stanza,
 )
-from charter.context import (
-    _render_profile_directives,
-    _render_selected_styleguides,
-)
+from charter.context_renderers.profile_sections import _render_profile_directives
+from charter.context_renderers.selection_block import _render_selected_styleguides
 from doctrine.agent_profiles import AgentProfile
 from doctrine.styleguides.repository import StyleguideRepository
 

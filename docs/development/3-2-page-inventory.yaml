@@ -2390,6 +2390,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/migrations/relocate-builtin-doctrine-packs.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/migrations/retrospective-events-upstream.md
   tag: current
   divio_type: none

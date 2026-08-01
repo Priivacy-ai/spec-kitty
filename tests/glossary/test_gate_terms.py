@@ -32,7 +32,7 @@ PHANTOM_SENSE = "semantic gate"
 @pytest.fixture
 def glossary_pack_path() -> Path:
     """Locate the glossary pack."""
-    pack_path = Path(__file__).parent.parent.parent / "src/doctrine/glossary_packs/built-in/spec-kitty-core.glossary-pack.yaml"
+    pack_path = Path(__file__).parent.parent.parent / "packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml"
     assert pack_path.exists(), f"Glossary pack not found at {pack_path}"
     return pack_path
 

@@ -50,6 +50,11 @@ from doctrine.artifact_kinds import (
     ArtifactKind,
     MissionTypeNotAnArtifactKind,
 )
+from doctrine.pack_paths import (
+    BuiltInContentDirNotAvailable,
+    PackRootNotFound,
+    built_in_dir,
+)
 
 #: Public re-export of :data:`doctrine.artifact_kinds.PROJECT_KIND_DIRS`.
 #:
@@ -137,18 +142,26 @@ def _config_stem(path: Path) -> str:
 def _scan_roots(
     kind: ArtifactKind,
     *,
-    doctrine_root: Path,
+    _doctrine_root: Path,
     org_roots: list[Path] | None,
     layer_roots: dict[str, Path] | None,
 ) -> list[tuple[Path, bool]]:
     """Return the ``(directory, recursive)`` pairs to scan for *kind*.
 
-    Roots are supplied as data (C-008). ``doctrine_root`` is the resolved
-    doctrine package root. ``org_roots`` preserves the legacy package-shaped
-    root contract where each root contributes ``<root>/<plural>/built-in``.
-    ``layer_roots`` is the modern charter layer map. Org roots contribute
-    ``<root>/doctrine/<plural>/org``. Project roots contribute
-    ``<root>/doctrine/<singular>`` for live ``.kittify/doctrine`` overlays.
+    Roots are supplied as data (C-008). ``_doctrine_root`` is the resolved
+    doctrine package root -- retained in the signature for call-site symmetry
+    with :func:`_iter_artifact_paths` (and its callers' diagnostics) but no
+    longer used as a scan root itself: built-in content was flattened out of
+    ``<doctrine_root>/<kind>/built-in`` into ``packs/built-in/<kind>``
+    (relocation mission doctrine-built-in-seam-consolidation-01KYW3TX, WP02),
+    which resolves via the shared :func:`~doctrine.pack_paths.built_in_dir`
+    seam below instead. ``org_roots`` preserves the legacy package-shaped root
+    contract where each root contributes ``<root>/<plural>/built-in`` --
+    this nested layout is still live for org packs (unaffected by the
+    built-in relocation). ``layer_roots`` is the modern charter layer map.
+    Org roots contribute ``<root>/doctrine/<plural>/org``. Project roots
+    contribute ``<root>/doctrine/<singular>`` for live ``.kittify/doctrine``
+    overlays.
 
     The ``recursive`` flag mirrors :class:`doctrine.base.BaseDoctrineRepository`
     (the live loader backing ``DoctrineService``/DRG resolution), whose
@@ -159,11 +172,14 @@ def _scan_roots(
     non-recursive scan would silently miss — the exact silent-drop failure
     mode C-006 forbids.
     """
-    roots: list[Path] = [doctrine_root]
-    if org_roots:
-        roots.extend(org_roots)
     dirs: list[tuple[Path, bool]] = []
-    for root in roots:
+    try:
+        flattened_built_in = built_in_dir(kind)
+    except (PackRootNotFound, BuiltInContentDirNotAvailable):
+        flattened_built_in = None
+    if flattened_built_in is not None and flattened_built_in.is_dir():
+        dirs.append((flattened_built_in, True))
+    for root in org_roots or []:
         candidate = root / kind.plural / "built-in"
         if candidate.is_dir():
             dirs.append((candidate, True))
@@ -192,7 +208,7 @@ def _iter_artifact_paths(
     paths: list[Path] = []
     for scan_dir, recursive in _scan_roots(
         kind,
-        doctrine_root=doctrine_root,
+        _doctrine_root=doctrine_root,
         org_roots=org_roots,
         layer_roots=layer_roots,
     ):

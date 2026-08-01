@@ -55,7 +55,7 @@ mapping:
 Schemas live under `src/doctrine/schemas/`. If you are working from a project that installed
 `spec-kitty` as a package rather than from this source checkout, the fastest way to see a kind's
 required fields is to copy a real built-in file of that kind and edit it — every built-in
-artifact under `src/doctrine/<kind-plural>/built-in/` is already schema-valid.
+artifact under `packs/built-in/<kind-plural>/` is already schema-valid.
 
 This walkthrough creates a **tactic**, so the target directory is `.kittify/doctrine/tactic/`.
 

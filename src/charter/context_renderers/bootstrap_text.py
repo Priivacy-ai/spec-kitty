@@ -259,10 +259,16 @@ def _render_bootstrap_text(
 
     lines.append("")
     lines.append(REFERENCE_DOCS_HEADER)
-    from charter.catalog import resolve_doctrine_root  # noqa: PLC0415 — lazy, avoids import cycle
+    # The reference-pointer resolver walks ``<root>/<kind>/`` for on-disk doctrine
+    # docs. Mission relocate-builtin-doctrine-packs moved the built-in artefacts out
+    # of ``src/doctrine/<kind>/`` into ``packs/built-in/<kind>/``; ``resolve_doctrine_root()``
+    # still points at the now-emptied ``src/doctrine`` tree (used for templates), so it
+    # resolves nothing and every pointer dies. Resolve the built-in pack root instead,
+    # mirroring how the DoctrineService repositories self-resolve ``packs/built-in/<kind>``.
+    from doctrine.pack_paths import built_in_root  # noqa: PLC0415 — lazy, avoids import cycle
 
     selected_references = _select_reference_pointers(
-        references, action, resolve_doctrine_root()
+        references, action, built_in_root()
     )
     if selected_references:
         for reference, resolved_path in selected_references:

@@ -25,9 +25,9 @@ DENYLIST = (
     r"\brspec\b",
 )
 GENERIC_SURFACES = (
-    Path("src/doctrine/agent_profiles/built-in"),
+    Path("packs/built-in/agent_profiles"),
     Path("src/doctrine/skills"),
-    Path("src/doctrine/tactics/built-in"),
+    Path("packs/built-in/tactics"),
     Path("src/doctrine/templates"),
     Path("src/doctrine/missions/software-dev/templates"),
     Path("src/specify_cli/templates"),

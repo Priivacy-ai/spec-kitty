@@ -20,14 +20,18 @@ from pathlib import Path
 
 from kernel.atomic import atomic_write
 
+# ``_load_state`` / ``_write_state`` / ``_ContextStateBundle`` are intentionally
+# *not* exported: after the context.py re-export shim retirement
+# (doctrine-built-in-seam-consolidation WP06) their only importer (the shim) was
+# removed, so they have no external ``src/`` importer and would trip the
+# symbol-level dead-code gate. They remain live module-internal helpers (used by
+# the state-load/save functions below); re-export them here once a real external
+# consumer imports them.
 __all__ = [
     "KITTIFY_DIRNAME",
-    "_ContextStateBundle",
     "_MIN_EFFECTIVE_DEPTH",
-    "_load_state",
     "_mark_action_loaded",
     "_prepare_context_state",
-    "_write_state",
 ]
 
 

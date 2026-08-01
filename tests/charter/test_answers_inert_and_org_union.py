@@ -44,7 +44,6 @@ from specify_cli.doctrine.org_charter import (
 pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.doctrine]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-BUILT_IN_DOCTRINE_ROOT = REPO_ROOT / "src" / "doctrine"
 DEFAULT_PACK_PATH = REPO_ROOT / "src" / "charter" / "packs" / "default.yaml"
 
 
@@ -138,7 +137,7 @@ def _read_config_yaml(consumer: Path) -> dict:
 
 def _compile(project_root: Path, interview: CharterInterview):
     pack_context = PackContext.from_config(project_root)
-    doctrine_service = DoctrineService(built_in_root=BUILT_IN_DOCTRINE_ROOT)
+    doctrine_service = DoctrineService()
     return compile_charter(
         mission=interview.mission,
         interview=interview,

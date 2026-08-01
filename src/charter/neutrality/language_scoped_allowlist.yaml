@@ -9,22 +9,22 @@
 #   4. Run `pytest tests/charter/test_neutrality_lint.py` to confirm lint passes.
 schema_version: "1"
 paths:
-  - path: "src/doctrine/agent_profiles/built-in/python-pedro.agent.yaml"
+  - path: "packs/built-in/agent_profiles/python-pedro.agent.yaml"
     scope: python
     owner: "charter team"
     reason: "Shipped Python specialist agent profile (python-pedro); pytest/pip references are intentional."
     added_in: "3.2.0"
-  - path: "src/doctrine/styleguides/built-in/python-conventions.styleguide.yaml"
+  - path: "packs/built-in/styleguides/python-conventions.styleguide.yaml"
     scope: python
     owner: "charter team"
     reason: "Canonical Python conventions styleguide; Python vocabulary is the subject."
     added_in: "3.2.0"
-  - path: "src/doctrine/toolguides/built-in/python-review-checks.toolguide.yaml"
+  - path: "packs/built-in/toolguides/python-review-checks.toolguide.yaml"
     scope: python
     owner: "charter team"
     reason: "Python review-check toolguide; tool names (pytest, mypy) are the subject."
     added_in: "3.2.0"
-  - path: "src/doctrine/toolguides/built-in/PYTHON_REVIEW_CHECKS.md"
+  - path: "packs/built-in/toolguides/PYTHON_REVIEW_CHECKS.md"
     scope: python
     owner: "charter team"
     reason: "Human-readable companion to python-review-checks.toolguide.yaml."
@@ -49,57 +49,57 @@ paths:
     owner: "charter team"
     reason: "JavaScript best-practice corpus; Jest/Vitest/TypeScript references are the subject matter."
     added_in: "3.3.0"
-  - path: "src/doctrine/toolguides/built-in/PYTHON_MUTATION_TOOLS.md"
+  - path: "packs/built-in/toolguides/PYTHON_MUTATION_TOOLS.md"
     scope: python
     owner: "charter team"
     reason: "Python mutation-tools toolguide companion; pytest/python -m references are the subject matter."
     added_in: "3.3.0"
-  - path: "src/doctrine/toolguides/built-in/python-mutation-tools.toolguide.yaml"
+  - path: "packs/built-in/toolguides/python-mutation-tools.toolguide.yaml"
     scope: python
     owner: "charter team"
     reason: "Python mutation-tools toolguide; pytest is the subject matter."
     added_in: "3.3.0"
-  - path: "src/doctrine/agent_profiles/built-in/java-jenny.agent.yaml"
+  - path: "packs/built-in/agent_profiles/java-jenny.agent.yaml"
     scope: java
     owner: "charter team"
     reason: "Shipped Java specialist agent profile (java-jenny); JUnit references are intentional."
     added_in: "3.2.4"
-  - path: "src/doctrine/toolguides/built-in/MAVEN_REVIEW_CHECKS.md"
+  - path: "packs/built-in/toolguides/MAVEN_REVIEW_CHECKS.md"
     scope: java
     owner: "charter team"
     reason: "Maven review-checks toolguide companion; Maven/Java tool names are the subject matter."
     added_in: "3.2.4"
-  - path: "src/doctrine/toolguides/built-in/maven-review-checks.toolguide.yaml"
+  - path: "packs/built-in/toolguides/maven-review-checks.toolguide.yaml"
     scope: java
     owner: "charter team"
     reason: "Maven review-checks toolguide; Maven/Java tool names (pytest reference is cross-check example) are the subject matter."
     added_in: "3.2.4"
-  - path: "src/doctrine/tactics/built-in/secure-regex-catastrophic-backtracking.tactic.yaml"
+  - path: "packs/built-in/tactics/secure-regex-catastrophic-backtracking.tactic.yaml"
     scope: python
     owner: "charter team"
     reason: "Secure regex remediation tactic intentionally discusses Python test tooling and timing guards."
     added_in: "3.3.3"
-  - path: "src/doctrine/toolguides/built-in/terminology-guard.toolguide.yaml"
+  - path: "packs/built-in/toolguides/terminology-guard.toolguide.yaml"
     scope: python
     owner: "charter team"
     reason: "Toolguide documenting the pytest-based terminology guard; the pytest invocation IS the subject (mirrors python-review-checks precedent)."
     added_in: "3.2.4"
-  - path: "src/doctrine/toolguides/built-in/TERMINOLOGY_GUARD.md"
+  - path: "packs/built-in/toolguides/TERMINOLOGY_GUARD.md"
     scope: python
     owner: "charter team"
     reason: "Human-readable companion to terminology-guard.toolguide.yaml; same pytest commands are the subject."
     added_in: "3.2.4"
-  - path: "src/doctrine/styleguides/built-in/testing-principles.styleguide.yaml"
+  - path: "packs/built-in/styleguides/testing-principles.styleguide.yaml"
     scope: python
     owner: "charter team"
     reason: "Refactor-stable testing-principles styleguide (CT8/#2310); good/bad examples cite pytest markers, quarantine reasons, and ratchet idioms — Python test vocabulary is the subject."
     added_in: "3.2.4"
-  - path: "src/doctrine/procedures/built-in/post-merge-arch-gate-adjudication.procedure.yaml"
+  - path: "packs/built-in/procedures/post-merge-arch-gate-adjudication.procedure.yaml"
     scope: python
     owner: "charter team"
     reason: "Operator standing-order procedure (doctrine-catfooding #2196); its content is the concrete pytest gate commands to run post-merge — rewording to neutral phrasing would strip the actionable commands the ruling encodes."
     added_in: "3.2.4"
-  - path: "src/doctrine/toolguides/built-in/EFFICIENT_LOCAL_TOOLING.md"
+  - path: "packs/built-in/toolguides/EFFICIENT_LOCAL_TOOLING.md"
     scope: python
     owner: "charter team"
     reason: "General local-tooling toolguide whose '## Python environment isolation (uv)' section intentionally documents the uv/pytest interpreter-isolation gotcha for spec-kitty's own gates (a Python package); the uv-run pytest commands are the subject of that section and rewording them to neutral phrasing would strip the actionable guidance (mirrors the setup-doctor 'Spec Kitty itself is a Python package' precedent)."

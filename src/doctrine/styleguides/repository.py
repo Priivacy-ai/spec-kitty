@@ -13,9 +13,10 @@ import re
 from pathlib import Path
 from typing import Any
 
-from importlib.resources import files
 from ruamel.yaml import YAML
 
+from doctrine.artifact_kinds import ArtifactKind
+from doctrine.pack_paths import built_in_dir
 from doctrine.base import BaseDoctrineRepository
 from .models import Styleguide
 from .validation import reject_styleguide_inline_refs
@@ -42,13 +43,7 @@ class StyleguideRepository(BaseDoctrineRepository[Styleguide]):
     @staticmethod
     def _default_built_in_dir() -> Path:
         """Get default built-in styleguides directory from package data."""
-        try:
-            resource = files("doctrine.styleguides")
-            if hasattr(resource, "joinpath"):
-                return Path(str(resource.joinpath("built-in")))
-            return Path(str(resource)) / "built-in"
-        except (ModuleNotFoundError, TypeError):
-            return Path(__file__).parent / "built-in"
+        return built_in_dir(ArtifactKind.STYLEGUIDE)
 
     @property
     def _schema(self) -> type[Styleguide]:

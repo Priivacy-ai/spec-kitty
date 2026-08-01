@@ -8,7 +8,7 @@ class InlineReferenceRejectedError(ValueError):
     arrays such as ``tactic_refs``, ``paradigm_refs``, or ``applies_to``.
     Post-WP02 of the ``excise-doctrine-curation-and-inline-references-01KP54J6``
     mission (EPIC #461, Phase 1), the only legal reference channel is the
-    DRG edge set in ``src/doctrine/*.graph.yaml``. Per-kind validators reject
+    DRG edge set in ``packs/built-in/*.graph.yaml``. Per-kind validators reject
     any remaining inline reference with this error.
 
     See ``contracts/validator-rejection-error.schema.json`` for the
@@ -23,7 +23,7 @@ class InlineReferenceRejectedError(ValueError):
         migration_hint: Operator-facing text matching the schema pattern
             ``"Remove <field> from YAML; add edge {source: <kind>:<id>,
             target: <target-kind>:<target-id>, relation: requires} to
-            src/doctrine/<kind>.graph.yaml"``. The named file is the DRG
+            packs/built-in/<kind>.graph.yaml"``. The named file is the DRG
             fragment for the source artifact's kind -- edges shard by source
             kind, and #2680 replaced the former single monolith with those
             per-kind fragments. Uses the actual ``DRGEdge`` schema

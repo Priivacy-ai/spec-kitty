@@ -156,7 +156,7 @@ class Directive(BaseModel):
     """A single numbered directive from the charter.
 
     Cross-artifact applicability is now expressed via graph edges in
-    the ``src/doctrine/*.graph.yaml`` fragments rather than an inline
+    the ``packs/built-in/*.graph.yaml`` fragments rather than an inline
     ``applies_to`` field
     (Phase 1 excision — mission
     ``excise-doctrine-curation-and-inline-references-01KP54J6`` WP02).

@@ -64,21 +64,15 @@ if TYPE_CHECKING:
     from charter.repository_protocol import ArtifactRepository
     from charter.schemas import DoctrineSelectionConfig
 
+# The 5 ``_SELECTED_*_HEADER`` constants, ``_collect_org_source_map``,
+# ``_provenance_suffix``, and the 4 ``_render_selected_<kind>`` helpers listed
+# below were de-exported after the context.py re-export shim retirement
+# (doctrine-built-in-seam-consolidation WP06): no external ``src/`` importer
+# remains for them. They stay module-internal, used by the functions in this
+# module.
 __all__ = [
-    "_SELECTED_AGENT_PROFILES_HEADER",
-    "_SELECTED_MISSION_STEP_CONTRACTS_HEADER",
-    "_SELECTED_PROCEDURES_HEADER",
-    "_SELECTED_STYLEGUIDES_HEADER",
-    "_SELECTED_TOOLGUIDES_HEADER",
     "_build_action_org_source_map",
-    "_collect_org_source_map",
     "_extend_named_artifact_lines",
-    "_provenance_suffix",
-    "_render_selected_agent_profiles",
-    "_render_selected_mission_step_contracts",
-    "_render_selected_procedures",
-    "_render_selected_styleguides",
-    "_render_selected_toolguides",
     "_render_selection_block",
 ]
 

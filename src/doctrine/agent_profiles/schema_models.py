@@ -29,7 +29,7 @@ from doctrine.agent_profiles.schema_version import AGENT_PROFILE_SCHEMA_VERSION_
 # uses kebab-case keys, so both the snake_case and kebab-case spellings are
 # rejected. Lineage (``specializes-from``) and augmentation
 # (``enhances``/``overrides``) are authored as DRG fragment edges merged into
-# ``src/doctrine/*.graph.yaml`` — never as inline profile fields.
+# ``packs/built-in/*.graph.yaml`` — never as inline profile fields.
 _RETIRED_PROFILE_RELATIONSHIP_KEYS = (
     "specializes_from",
     "specializes-from",
@@ -51,7 +51,7 @@ def _reject_retired_profile_relationship_fields(data: Any) -> Any:
             f"augmentation as DRG edges "
             f"(e.g. {{source: agent_profile:<id>, target: agent_profile:<id>, "
             f"relation: specializes_from|enhances|overrides}}) in the fragment "
-            f"for the source kind, src/doctrine/agent_profile.graph.yaml — "
+            f"for the source kind, packs/built-in/agent_profile.graph.yaml — "
             f"not as inline profile fields."
         )
     return data

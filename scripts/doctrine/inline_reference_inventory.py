@@ -1,4 +1,4 @@
-"""Enumerate every inline relationship-bearing field under ``src/doctrine/``.
+"""Enumerate every inline relationship-bearing field under ``packs/built-in/``.
 
 Mission ``doctrine-canonical-structure-remediation-01KYEYSD`` (FR-013/FR-015).
 
@@ -45,7 +45,13 @@ from typing import Any
 import yaml
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_DOCTRINE_ROOT = _REPO_ROOT / "src" / "doctrine"
+#: The relationship-bearing built-in artefacts (agent profiles, styleguides,
+#: directives, …) relocated from ``src/doctrine/<kind>/built-in`` to the
+#: top-level ``packs/built-in/<kind>`` pack root (mission
+#: relocate-builtin-doctrine-packs); the inline-reference inventory enumerates
+#: them there. Schemas/templates/missions stay under ``src/doctrine`` and carry
+#: no governance/relationship fields, so they are not scanned.
+_DOCTRINE_ROOT = _REPO_ROOT / "packs" / "built-in"
 
 #: Disposition classes. See the module docstring for why the split is load-bearing.
 MIGRATE = "MIGRATE"
