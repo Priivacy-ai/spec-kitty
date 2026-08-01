@@ -1,0 +1,79 @@
+
+Spec Kitty Sync Status
+
+ Queue        0 event(s)                               
+ SaaS Sync    Disabled (SPEC_KITTY_ENABLE_SAAS_SYNC=1) 
+ Daemon       Stopped                                  
+ Sync Mode    Queue only                               
+ WebSocket    Offline                                  
+ Last Sync    Never                                    
+ Auth         Disabled by feature flag                 
+ Server URL   https://spec-kitty-dev.fly.dev           
+ Config File  /tmp/tmp4fygrnnl/home/config.toml        
+
+Queue empty -- all events synced.
+
+
+Event journal by project
+ Project                      Events  Oldest       Consent                      
+ aaaaaaaa-0000-0000-0000-000       7  30d 21h ago  consented                    
+ 000000001                                                                      
+ bbbbbbbb-0000-0000-0000-000       4  60d 21h ago  denied (absent)              
+ 000000002                                                                      
+ cccccccc-0000-0000-0000-000       2  46d 21h ago  denied (machine_index)       
+ 000000003                                                                      
+ <identity unresolved>             1  91d 21h ago  denied (unresolved_identity) 
+   └ <no name recorded>            1  91d 21h ago  unknown (identity            
+                                                   unresolved)                  
+  ! 1 journal event(s) have no stored project identity, so they cannot be 
+selected for delivery. Run `spec-kitty sync migrate` to recover the identity of 
+any whose stored payload still carries it; whatever remains is retained locally 
+and removable only with `spec-kitty sync purge`. They appear to come from: <no 
+name recorded> (1). Consent for these rows cannot be resolved without a project 
+identity, so this is where they were captured, not what those projects decided.
+  ! 2 project(s) in the journal have not consented to hosted sync: 
+bbbbbbbb-0000-0000-0000-000000000002, cccccccc-0000-0000-0000-000000000003. 
+Their events are retained locally and never delivered; `spec-kitty sync purge 
+--project <slug>` removes them.
+
+Identity Boundary
+Foreground:
+  Package version         3.2.6
+  Executable path         /home/jeroennouws/.local/share/uv/python/cpython-3.11.15-linux-x86_64-gnu/bin/python3.11
+  Source path             /home/jeroennouws/dev/spec-kitty/.worktrees/verification-trust-3115-01KYVYWM-lane-c
+  Server URL              <unset>
+  Team/User               <unset>
+  Queue DB path           /tmp/tmp4fygrnnl/home/queue.db
+Daemon owner record:
+  Status                  absent
+  PID                     <absent>
+  Port                    <absent>
+  Package version         <absent>
+  Executable path         <absent>
+  Source path             <absent>
+  Server URL              <absent>
+  Team/User               <absent>
+  Queue DB path           <absent>
+Active queue:
+  Path                    /tmp/tmp4fygrnnl/home/queue.db
+  Event count             0
+  Body upload cnt         0
+Legacy queue:
+  Path                    /tmp/tmp4fygrnnl/home/queue.db
+  Event count             0
+  Body upload cnt         0
+  Rows in scope           0
+Mismatches              0
+Orphan records          0
+Legacy queue rows       0 event(s), 0 body upload(s)
+Mismatched fields       none
+Orphan daemon records   0
+
+Event Sync
+  Mode                      TEAMSPACE
+  Retained events           14
+  Delivered (cur/prev)      0/0
+  Terminal failures         0
+
+Use 'spec-kitty sync status --check' to test connectivity.
+

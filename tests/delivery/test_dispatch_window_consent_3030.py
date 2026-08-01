@@ -28,6 +28,18 @@ An earlier revision of this WP labelled a report-layer test
 touches ``_EVENT_SYNC_DISPATCH_BATCH_LIMIT``, never enters
 ``_run_dispatch_batches``, stands up no ingress and exercises no 413 halving; it
 is a fine FR-015/#3004 test under its own name.
+
+FR-018 / WP11 (T033): both loop-driving tests below also gain a hard cap on the
+recorded ``dispatch`` call count, via the ``counted_dispatch`` fixture --
+mirroring ``DISPATCH_CALL_CAP = 25`` in
+``tests/delivery/test_nfr002_loop_permanence_3030.py:69``, asserted at
+``:154-157``. **A pin whose failure mode is a hang is not a pin**: measured
+during ``#3030``, a mutant produced 1,603 retried empty selections and the
+suite reported nothing until forced with ``--timeout-method=signal``. The cap
+turns a defect that stops ``_run_dispatch_batches`` from making progress into
+a named red -- on the counter, never on a wall-clock backstop -- and is
+demonstrated red-first under ``scripts/mutants/nonterminating_dispatch_3115.py``
+(a hook-level pytest plugin, not a source edit, per C-003).
 """
 from __future__ import annotations
 
@@ -40,6 +52,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 from specify_cli.cli.commands import sync as sync_module
+from specify_cli.delivery import dispatcher as dispatcher_module
 from specify_cli.delivery.ledger import SqliteDeliveryLedger
 from specify_cli.delivery.receivers import (
     DeliveryOutcome,
@@ -63,6 +76,17 @@ CONSENTED = "aaaaaaaa-0000-0000-0000-00000000000a"
 NEVER_OPTED_IN = "bbbbbbbb-0000-0000-0000-00000000000b"
 
 _HTTP_PAYLOAD_TOO_LARGE = 413
+
+#: FR-018 / T033: a hard cap on the recorded ``dispatch`` call count, mirroring
+#: ``DISPATCH_CALL_CAP`` in ``test_nfr002_loop_permanence_3030.py:69``. A pass
+#: that cannot make progress must stop; the cap turns "the loop spins" into a
+#: clean red naming the count instead of a hang -- a hang is not a measurement,
+#: and a suite that hangs cannot tell you which invariant broke.
+#: Measured headroom: the two tests below make 8 and 2 legitimate calls
+#: respectively (halving/regrowth included), so 25 is ~3.1x the worst-case
+#: legitimate count here -- not itself a bug, and nothing trips if a future
+#: change grows the legitimate batch count somewhat.
+DISPATCH_CALL_CAP = 25
 
 
 class _RecordingIngress:
@@ -154,11 +178,48 @@ def target(tmp_path: Path) -> DeliveryTarget:
     registry.close()
 
 
+@pytest.fixture
+def counted_dispatch(monkeypatch: pytest.MonkeyPatch) -> list[int | None]:
+    """Count the real ``dispatch`` calls one drain pass makes, and cap the loop.
+
+    FR-018 (T033): termination must be asserted by a counter, never a timeout.
+    Mirrors ``test_nfr002_loop_permanence_3030.py``'s ``counted_dispatch``
+    fixture -- "``#3030`` already adopted this shape for exactly this reason,
+    reuse over reinvention." ``_run_dispatch_batches`` imports ``dispatch``
+    inside the function body, so the name resolves against the dispatcher
+    module on every call and patching the attribute here reaches the live
+    loop (it is the only production, ``src/``, name ``dispatch`` is reachable
+    by -- see the per-site note in
+    ``scripts/mutants/nonterminating_dispatch_3115.py``). The wrapper delegates
+    to whatever is currently bound as the real implementation, so this counts
+    the loop's iterations without faking selection.
+    """
+    calls: list[int | None] = []
+    real = dispatcher_module.dispatch
+
+    def counting(**kwargs: Any) -> Any:
+        calls.append(kwargs.get("limit"))
+        if len(calls) > DISPATCH_CALL_CAP:
+            raise AssertionError(
+                f"the drain loop did not stop: dispatch was called "
+                f"{len(calls)} times, more than the {DISPATCH_CALL_CAP}-call "
+                "cap, over a window this test's fixed, finite journal cannot "
+                "legitimately exhaust that many times. FR-018: termination "
+                "must be asserted by a counter, never a timeout -- this red "
+                "names the count and is not `Failed: Timeout`."
+            )
+        return real(**kwargs)
+
+    monkeypatch.setattr(dispatcher_module, "dispatch", counting)
+    return calls
+
+
 def test_no_non_consented_event_ever_enters_the_live_dispatch_window(
     tmp_path: Path,
     ledger: SqliteDeliveryLedger,
     target: DeliveryTarget,
     monkeypatch: pytest.MonkeyPatch,
+    counted_dispatch: list[int | None],
 ) -> None:
     """NFR-007: the window is traversed at full, halved and regrown size, and a
     project that never opted in occupies none of it.
@@ -220,6 +281,7 @@ def test_the_window_is_filled_with_consented_events_not_wasted_on_denied_ones(
     ledger: SqliteDeliveryLedger,
     target: DeliveryTarget,
     monkeypatch: pytest.MonkeyPatch,
+    counted_dispatch: list[int | None],
 ) -> None:
     """NFR-002 starvation, expressed through the window (the other half of NFR-007).
 

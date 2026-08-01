@@ -70,15 +70,49 @@ def checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     ``--apply`` test would then delete the developer's own queued local-commit
     frames — gitignored machine-local state with no way back.
 
-    Also resets the process-wide ``TokenManager`` singleton (#3030 landing-pass
-    hardening): ``sync`` commands unconditionally call ``get_token_manager()``,
-    which lazily caches its instance for the lifetime of the worker process. In a
-    ``--dist loadfile`` run that worker executes many other CLI test files first,
-    so a sibling test that authenticates a fake session (or otherwise mutates the
-    singleton) would otherwise leak into this file's producer-scope resolution.
-    Reset in BOTH setup and teardown so this file starts clean and never poisons
-    whichever file the worker runs next — mirroring the existing
-    ``reset_journal_cache()`` isolation below.
+    Also resets the process-wide ``TokenManager`` singleton, in BOTH setup and
+    teardown: ``sync`` commands unconditionally call ``get_token_manager()``,
+    which lazily caches its instance for the lifetime of the worker process,
+    so under a ``--dist loadfile`` run a sibling CLI test file that
+    authenticates a fake session (or otherwise mutates the singleton) earlier
+    in the same worker would otherwise leak into this file's producer-scope
+    resolution.
+
+    That threat model is **not the #3115 CLI failure** (FR-009, measured
+    2026-08-01). The #3030 landing pass shipped this reset as self-declared
+    unproven hardening (`578a659162` / `4f8e4ca781`): "could not force a live
+    reproduction of the reported empty-journal CI failure locally ... this is
+    defensive hardening of a credible process-global, not a
+    confirmed-necessary fix." WP02's render-surface finding explains the CI
+    failures instead — an 80-column dumb-terminal console folds the project
+    uuid across two table lines (C-012). Measured on the arm that actually
+    discriminates — WP02's ``tests/conftest.py`` seam disabled by a plugin so
+    the failing ``(80, 25)`` surface is genuinely restored, under
+    ``TERM=dumb FORCE_COLOR=1``, on the sibling
+    ``test_sync_status_per_project_3030.py`` (this WP's shared discriminating
+    probe) — the same single test reds with the same assertion text whether
+    the reset is live (``1 failed, 3 passed``) or neutralised at hook level
+    (``scripts/mutants/neutralise_reset_token_manager_3115.py``, suppressed=8,
+    ``1 failed, 3 passed``). This file's own tests were not independently run
+    on that discriminating arm; they were exercised, without changing
+    outcome, when all five ``578a659162`` files ran together under the mutant
+    (``65 passed``, per-site suppressed split 24 / 8 / 18 / 50 [this file] /
+    30) — a composition that covers leakage among these five files but not
+    from an arbitrary sibling CLI file outside them, which no run has placed
+    in the same session. So the verdict is scoped to what was actually
+    measured — the one discriminating file and the five together — not
+    asserted flat for every session composition. Kept anyway: FR-006's
+    inventory speaks only to ``tests/sync/``, not this ``tests/cli/`` path,
+    so it licenses no conclusion about deletion either way. The width in the
+    pinned-width runs above was the WP02 conftest seam's pinned ``240×50``
+    surface (``_plain_cli_console_seam``, autouse and unconditional,
+    overriding via rich's explicit-size early return): this file's own
+    ``COLUMNS=240`` happens to numerically match the seam's pinned width, but
+    the seam's explicit ``console.size`` assignment is what was in effect,
+    not this file's env var — the seam wins even where the two values happen
+    to agree. Reset in both setup and teardown so this file starts clean and
+    never poisons whichever file the worker runs next — mirroring the
+    existing ``reset_journal_cache()`` isolation below.
     """
     from specify_cli.auth.manager import reset_token_manager
 

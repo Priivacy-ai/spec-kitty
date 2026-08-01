@@ -1766,6 +1766,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/development/process-global-inventory-3115.md
+  tag: current
+  divio_type: reference
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/development/quality-and-tech-debt-standing-orders.md
   tag: current
   divio_type: how-to

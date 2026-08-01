@@ -143,8 +143,40 @@ It does **not** see:
    cannot tell you a *second* sink in an already-allowlisted file is ungated —
    the seam annotation is per file, not per call. Adding a sink to a listed file
    is therefore the cheapest way to evade this gate, and only review catches it.
+8. **The all-positional / no-``headers=`` transport call.** ``poster(url, body,
+   hdrs)`` — every argument positional, no ``headers=`` or body keyword present
+   at all — evades both the method-name rules (the callee is a bare ``Name``,
+   not ``.post``/``.patch``/``.request``) and ``_transmits_a_body`` (`:295-306`),
+   which requires ``headers`` **and** a body keyword to be present before it
+   will call a bare-``Name`` callee a sink. `#3113`: the guard's own bite-test
+   (`test_scanner_detects_each_sink_shape`) exercised only the kwargs form of
+   the injected-transport shape, so it would have certified a scanner that was
+   blind to this one — a negative control that only tests the shape you
+   thought of is not a negative control (see ``TestGuardBites`` below for the
+   generalisation this produced). A structural tightening was measured before
+   being ruled out: the callee is a bare ``ast.Name`` whose ``id`` resolves to
+   a parameter of the *enclosing* ``FunctionDef`` — transport injected as a
+   parameter, decidable with no author-chosen word (C-006 forbids any
+   tightening that needs one, including ``_URL_ARG_NAMES``). Measured across
+   the whole of ``src/`` **before** any matcher edit
+   (``TestFR015StructuralTighteningMeasurement`` below is the reproducible,
+   re-runnable form of that measurement), it produces a **non-zero**
+   false-positive count: reproducible false hits include calls to
+   ``resolve_workspace_for_wp``, ``locate_work_package``,
+   ``behind_commits_touch_only_planning_artifacts`` and ``get_wp_lane`` —
+   each a dependency-injected work-package/lane lookup function called through
+   a same-named ``Callable``-typed parameter, not a transport. Per FR-015's
+   acceptance criteria a non-zero count is itself the outcome: **the matcher is
+   left alone.** What catches this shape is review, and the file-keyed
+   allowlist if the sink lands in a file nobody has reasoned about.
+   ``test_scanner_detects_each_sink_shape`` carries both of `#3113`'s
+   positional cases pinned as ``pytest.xfail(..., strict=True)``, naming this
+   limit.
 
-Spec: FR-002, FR-003, FR-019, FR-025-FR-032, C-003.
+Spec: FR-002, FR-003, FR-019, FR-025-FR-032, C-003. `#3113` (FR-013, FR-014,
+FR-015) adds limit 8 above; cross-referenced one-directionally against
+``kitty-specs/journal-project-consent-3030-01KYKWQS/egress-inventory.md``,
+which belongs to a closed mission and is not edited by this change (C-010).
 """
 
 from __future__ import annotations
@@ -862,12 +894,46 @@ class TestAllowlistIntegrity:
         assert not problems, "Work-list entries that cannot be cleared:\n  " + "\n  ".join(problems)
 
 
+class TestCompletenessLimitsDocstring:
+    """Meta-test: FR-013 (`#3113`). The docstring's numbered gap list must stay honest."""
+
+    def test_limit_8_positional_transport_call_is_documented(self) -> None:
+        """A future trim of limit 8 must red here, not go unnoticed.
+
+        Before this change the list ran 1-7 (getattr-by-string; empty callback
+        registries; dynamic import/``exec``; variable-command ``subprocess``;
+        at-rest pooling; bare ``.put(x)``; multi-sink-per-file). `#3113` adds
+        exactly one entry: the all-positional / no-``headers=`` transport call.
+        """
+        doc = __doc__ or ""
+        assert "8. **The all-positional / no-``headers=`` transport call.**" in doc, (
+            "Module docstring's 'Completeness limits' list no longer states limit 8 "
+            "(the all-positional / no-headers= transport call, #3113/FR-013). This "
+            "entry documents a real blind spot in _transmits_a_body: update this "
+            "assertion to match new wording, do not delete it."
+        )
+        assert "resolve_workspace_for_wp" in doc and "get_wp_lane" in doc, (
+            "Limit 8 must keep naming the reproducible FR-015 false-positive "
+            "functions, or the recorded reason the matcher was left alone silently "
+            "disappears from the one place a future reader would look."
+        )
+
+
 class TestGuardBites:
     """Negative controls. A guard never observed to fail is decoration.
 
     Three plugins on this mission rotted into exactly that and reported false
     confidence in both directions, so these controls exercise the real collection
     path and assert the failure text, not just a boolean.
+
+    `#3113`'s generalisation: a negative control that only tests the shape you
+    thought of is not a negative control. ``test_scanner_detects_each_sink_shape``
+    exercised the injected-transport shape only in its kwargs form
+    (``poster(url, data=body, headers=hdrs, ...)``); an all-positional call of
+    the identical shape (``poster(url, body, hdrs)``) evaded both the
+    method-name rule and ``_transmits_a_body`` while the bite-test reported
+    "not blind." Every rule in the sink vocabulary should carry a bite-test
+    case per **shape** it claims to cover, not one per rule.
     """
 
     @pytest.mark.parametrize(
@@ -927,6 +993,49 @@ class TestGuardBites:
                 "def go(self, url, body, hdrs):\n    return self._send(url, json=body, headers=hdrs)\n",
                 SinkKind.TRANSPORT_CALL,
                 id="aliased-transport-method",
+            ),
+            pytest.param(
+                "def go(poster, url, body, hdrs):\n    return poster(url, body, hdrs)\n",
+                SinkKind.TRANSPORT_CALL,
+                id="injected-transport-positional-url-name",
+                marks=pytest.mark.xfail(
+                    reason=(
+                        "#3113 case (A): all-positional injected transport whose first "
+                        "argument name IS in _URL_ARG_NAMES. _transmits_a_body requires "
+                        "headers= AND a body keyword (:295-306), so an all-positional call "
+                        "is invisible regardless of argument names. This is limit 8 in the "
+                        "module docstring's completeness-limits list. FR-015 measured the "
+                        "structural tightening (bare-Name callee resolving to an enclosing "
+                        "FunctionDef parameter) BEFORE any matcher edit and found a "
+                        "non-zero false-positive count over src/ (resolve_workspace_for_wp, "
+                        "locate_work_package, behind_commits_touch_only_planning_artifacts, "
+                        "get_wp_lane), so per FR-015's acceptance criteria the matcher is "
+                        "left alone and this case is pinned red rather than fixed. Red-first "
+                        "quoted: 'AssertionError: scanner went blind to transport-call / "
+                        "assert []'."
+                    ),
+                    strict=True,
+                ),
+            ),
+            pytest.param(
+                "def relay(post, u, payload, meta):\n    return post(u, payload, meta)\n",
+                SinkKind.TRANSPORT_CALL,
+                id="injected-transport-positional-non-url-name",
+                marks=pytest.mark.xfail(
+                    reason=(
+                        "#3113 case (B) -- THE ADOPTION GATE: all-positional injected "
+                        "transport whose argument names (post, u, payload, meta) are "
+                        "OUTSIDE _URL_ARG_NAMES. A matcher that passed (A) above but failed "
+                        "this case would still be blind in exactly the way #3113 is about, "
+                        "because _attr_tail returns node.id verbatim for a bare Name "
+                        "(:266-272) -- (A) alone would certify a blind matcher. Same "
+                        "limit-8 gap as (A); same FR-015 non-adoption decision (non-zero "
+                        "false positives over src/, measured before any matcher edit). "
+                        "Red-first quoted: 'AssertionError: scanner went blind to "
+                        "transport-call / assert []'."
+                    ),
+                    strict=True,
+                ),
             ),
         ],
     )
@@ -1078,3 +1187,157 @@ class TestGuardBites:
             encoding="utf-8",
         )
         assert _find_sinks(module, tmp_path) == []
+
+
+# ---------------------------------------------------------------------------
+# FR-015 (`#3113`): the src/-wide false-positive measurement for the candidate
+# tightening, taken BEFORE any matcher edit (binding order, WP10 T031/T032).
+# ---------------------------------------------------------------------------
+#
+# The candidate predicate: the callee is a bare ``ast.Name`` whose ``id``
+# resolves to a parameter of the *enclosing* ``FunctionDef``/``AsyncFunctionDef``
+# (nearest enclosing only) — transport injected as a parameter, decidable with
+# no author-chosen word. This is deliberately NOT wired into ``_classify`` /
+# ``_find_sinks`` above: ``_classify(node: ast.Call)`` is reached from a flat
+# ``ast.walk(tree)`` at ``_find_sinks`` and carries no enclosing-scope
+# information, so adopting the predicate for real would be a scanner
+# restructure (threading the enclosing function's parameter set through the
+# walk), not a branch edit. That cost is paid only if this measurement returns
+# zero false positives. It does not — see below — so the real matcher (above)
+# is untouched, and this section exists solely to make the false-positive
+# count reproducible rather than a recollection.
+
+
+def _fr015_candidate_param_names(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> frozenset[str]:
+    """Every positional/positional-only/keyword-only parameter name of *fn*.
+
+    ``*args``/``**kwargs`` are deliberately excluded: neither resolves to a
+    single named parameter holding one callable value.
+    """
+    args = fn.args
+    names = {a.arg for a in args.posonlyargs} | {a.arg for a in args.args} | {a.arg for a in args.kwonlyargs}
+    return frozenset(names)
+
+
+def _find_fr015_candidates(path: Path, root: Path) -> list[SinkSite]:
+    """Every call in *path* whose callee is a bare Name resolving to a
+    parameter of its nearest-enclosing function (FR-015's candidate predicate).
+
+    Measurement-only, as above: this walks with enclosing-function parameter
+    tracking that ``_find_sinks`` does not do, specifically so the FR-015
+    false-positive count is measurable without restructuring the real gate.
+    """
+    try:
+        source = path.read_text(encoding="utf-8")
+    except OSError:  # pragma: no cover - defensive
+        return []
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:  # pragma: no cover - a louder problem than this rule
+        return []
+
+    relpath = path.relative_to(root).as_posix()
+    sites: list[SinkSite] = []
+    param_stack: list[frozenset[str]] = []
+
+    class _EnclosingParamVisitor(ast.NodeVisitor):
+        def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+            param_stack.append(_fr015_candidate_param_names(node))
+            self.generic_visit(node)
+            param_stack.pop()
+
+        def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+            param_stack.append(_fr015_candidate_param_names(node))
+            self.generic_visit(node)
+            param_stack.pop()
+
+        def visit_Call(self, node: ast.Call) -> None:
+            if param_stack and isinstance(node.func, ast.Name) and node.func.id in param_stack[-1]:
+                sites.append(SinkSite(relpath=relpath, lineno=node.lineno, kind=SinkKind.TRANSPORT_CALL, snippet=node.func.id))
+            self.generic_visit(node)
+
+    _EnclosingParamVisitor().visit(tree)
+    return sites
+
+
+def _scan_fr015_candidates(root: Path) -> list[SinkSite]:
+    """Every FR-015 candidate site under *root*, excluding ``__pycache__``."""
+    sites: list[SinkSite] = []
+    for path in sorted(root.rglob("*.py")):
+        if "__pycache__" in path.parts:
+            continue
+        sites.extend(_find_fr015_candidates(path, root))
+    return sites
+
+
+class TestFR015StructuralTighteningMeasurement:
+    """`#3113` / FR-015: measured BEFORE any matcher edit, per the WP's binding order.
+
+    Reproducible command::
+
+        PYTHONPATH=<worktree>/src pytest \\
+            tests/architectural/test_egress_consent_boundary.py::TestFR015StructuralTighteningMeasurement -v
+
+    Measured at this commit: 1198 ``.py`` files under ``src/`` scanned; the
+    candidate predicate (see the module-level comment above) finds 203
+    candidate call sites in 112 files. Of those, 195 sites in 106 files are
+    "new offenders" — in a file neither in ``_EGRESS_ALLOWLIST_FILES`` nor
+    ``_KNOWN_UNGATED_FILES`` — and among the new offenders at least 5 are
+    confirmed, reproducible false positives: calls to
+    ``resolve_workspace_for_wp`` (twice, in two different files),
+    ``locate_work_package``, ``behind_commits_touch_only_planning_artifacts``
+    and ``get_wp_lane``, each a dependency-injected work-package/lane lookup
+    function reached through a same-named ``Callable``-typed parameter — not a
+    transport. (This aggregate site/file total differs from an earlier
+    planning-time figure of 211 sites / 13 files; the 5 named false positives
+    reproduce identically under either count, so the FR-015 decision — decline
+    — does not depend on reconciling the totals. See WP10's transition note
+    for the fuller reconciliation.)
+
+    Per FR-015's acceptance criteria a non-zero false-positive count is itself
+    the outcome: **the matcher is left alone.** This test pins that
+    measurement rather than only asserting it once: it fails loudly if the
+    four named false positives stop reproducing (the measurement rotted) or if
+    the false-positive count ever drops to zero (the signal that FR-015's
+    scanner restructure is now funded and this decision should be revisited).
+    """
+
+    #: The four functions FR-015's planning-time measurement named. Each is a
+    #: real function elsewhere in the tree, reached here through a same-named
+    #: ``Callable``-typed parameter (a dependency-injection pattern) — not a
+    #: transport of any kind.
+    _KNOWN_FALSE_POSITIVE_CALLEES: frozenset[str] = frozenset(
+        {
+            "resolve_workspace_for_wp",
+            "locate_work_package",
+            "behind_commits_touch_only_planning_artifacts",
+            "get_wp_lane",
+        }
+    )
+
+    def test_candidate_tightening_yields_nonzero_false_positives_over_src(self) -> None:
+        files_scanned = [p for p in _SRC.rglob("*.py") if "__pycache__" not in p.parts]
+        candidates = _scan_fr015_candidates(_SRC)
+        candidate_files = {c.relpath for c in candidates}
+
+        permitted = _EGRESS_ALLOWLIST_FILES | _KNOWN_UNGATED_FILES
+        new_offenders = [c for c in candidates if c.relpath not in permitted]
+        new_offender_files = {c.relpath for c in new_offenders}
+
+        reproduced = {c.snippet for c in new_offenders if c.snippet in self._KNOWN_FALSE_POSITIVE_CALLEES}
+        assert reproduced == self._KNOWN_FALSE_POSITIVE_CALLEES, (
+            f"Expected all four named FR-015 false positives to reproduce; got {sorted(reproduced)} "
+            f"of {sorted(self._KNOWN_FALSE_POSITIVE_CALLEES)}. Input: {len(files_scanned)} .py files "
+            f"scanned, {len(candidates)} candidate sites in {len(candidate_files)} files, "
+            f"{len(new_offenders)} new-offender sites in {len(new_offender_files)} files. If this set "
+            "has changed, the FR-015 measurement needs re-running before the non-adoption decision "
+            "can be trusted."
+        )
+        assert len(new_offenders) > 0, (
+            f"FR-015 candidate tightening measured 0 new-offender sites over src/ "
+            f"({len(files_scanned)} .py files scanned, {len(candidates)} candidate sites in "
+            f"{len(candidate_files)} files). Per FR-015's acceptance criteria this is the ADOPT "
+            "branch: the scanner restructure (threading enclosing-FunctionDef parameter sets "
+            "through _find_sinks) is now funded, and this module's 'matcher left alone' decision "
+            "(limit 8, TestGuardBites' two xfail cases) is stale — revisit WP10 T031/T032."
+        )

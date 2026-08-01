@@ -1011,6 +1011,7 @@ jobs:
             -v \
             tests/kernel/ \
             -m "fast and not windows_ci" \
+            --timeout=240 --timeout-method=signal \
             --cov=src/kernel \
             --cov-report=term-missing \
             --cov-report=xml:out/reports/coverage/coverage-kernel.xml \
@@ -1076,6 +1077,7 @@ jobs:
             -v \
             tests/doctrine/ \
             -m "fast and not windows_ci" \
+            --timeout=240 --timeout-method=signal \
             -n auto --dist loadfile \
             --durations=50 \
             --cov=doctrine --cov=charter \
@@ -1127,6 +1129,7 @@ jobs:
             --ignore=tests/sync/test_daemon_orphan_classification.py \
             --ignore=tests/sync/test_daemon_cleanup_boundary.py \
             --ignore=tests/sync/test_issue_1071_singleton_reconfirmation.py \
+            --timeout=240 --timeout-method=signal \
             -n auto --dist loadfile \
             --durations=50 \
             --cov=src/specify_cli/sync \
@@ -1196,6 +1199,7 @@ jobs:
       - name: "Run fast tests — merge"
         run: |
           uv run python -m pytest tests/merge/ -m "fast and not windows_ci" -q --tb=short \
+            --timeout=240 --timeout-method=signal \
             --cov=src/specify_cli/merge \
             --cov-report=xml:out/reports/coverage/coverage-fast-merge.xml
       - name: "Upload fast-merge coverage"
@@ -1221,6 +1225,7 @@ jobs:
       - name: "Run fast tests — missions"
         run: |
           uv run python -m pytest tests/missions/ tests/specify_cli/missions/ -m "fast and not windows_ci" -q --tb=short \
+            --timeout=240 --timeout-method=signal \
             --cov=specify_cli.mission \
             --cov=specify_cli.mission_metadata \
             --cov=doctrine.missions \
@@ -1248,6 +1253,7 @@ jobs:
       - name: "Run fast tests — post_merge"
         run: |
           uv run python -m pytest tests/post_merge/ -m "fast and not windows_ci" -q --tb=short \
+            --timeout=240 --timeout-method=signal \
             --cov=src/specify_cli/post_merge \
             --cov-report=xml:out/reports/coverage/coverage-fast-post-merge.xml \
             || test $? -eq 5
@@ -1275,6 +1281,7 @@ jobs:
       - name: "Run fast tests — release"
         run: |
           uv run python -m pytest tests/release/ -m "fast and not windows_ci" -q --tb=short \
+            --timeout=240 --timeout-method=signal \
             --cov=src/specify_cli/release \
             --cov-report=xml:out/reports/coverage/coverage-fast-release.xml \
             || test $? -eq 5
@@ -1330,6 +1337,7 @@ jobs:
             -v \
             tests/status/ tests/specify_cli/status/ \
             -m "fast and not windows_ci and not (git_repo or integration)" \
+            --timeout=240 --timeout-method=signal \
             --cov=src/specify_cli/status \
             --cov-report=term-missing \
             --cov-report=xml:out/reports/coverage/coverage-fast-status.xml \
@@ -1362,6 +1370,7 @@ jobs:
       - name: "Run fast tests — review"
         run: |
           uv run python -m pytest tests/review/ -m "fast and not windows_ci" -q --tb=short \
+            --timeout=240 --timeout-method=signal \
             --cov=src/specify_cli/review \
             --cov-report=xml:out/reports/coverage/coverage-fast-review.xml
       - name: "Upload fast-review coverage"
@@ -1390,6 +1399,7 @@ jobs:
         run: |
           uv run python -m pytest tests/next/ tests/specify_cli/next/ tests/runtime/ \
             -m "fast and not windows_ci" -q --tb=short \
+            --timeout=240 --timeout-method=signal \
             --cov=src/runtime/next \
             --cov-report=xml:out/reports/coverage/coverage-fast-next.xml
       - name: "Upload fast-next coverage"
@@ -1452,6 +1462,7 @@ jobs:
       - name: "Run fast tests — lanes"
         run: |
           uv run python -m pytest tests/lanes/ tests/specify_cli/lanes/ -m "fast and not windows_ci" -q --tb=short \
+            --timeout=240 --timeout-method=signal \
             --cov=src/specify_cli/lanes \
             --cov-report=xml:out/reports/coverage/coverage-fast-lanes.xml
       - name: "Upload fast-lanes coverage"
@@ -1478,6 +1489,7 @@ jobs:
       - name: "Run fast tests — dashboard"
         run: |
           uv run python -m pytest tests/test_dashboard/ -m "fast and not windows_ci" -q --tb=short \
+            --timeout=240 --timeout-method=signal \
             --cov=src/specify_cli/dashboard \
             --cov-report=xml:out/reports/coverage/coverage-fast-dashboard.xml \
             || test $? -eq 5
@@ -1506,6 +1518,7 @@ jobs:
       - name: "Run fast tests — upgrade"
         run: |
           uv run python -m pytest tests/upgrade/ -m "fast and not windows_ci" -q --tb=short \
+            --timeout=240 --timeout-method=signal \
             --cov=src/specify_cli/upgrade \
             --cov-report=xml:out/reports/coverage/coverage-fast-upgrade.xml
       - name: "Upload fast-upgrade coverage"
@@ -1538,6 +1551,7 @@ jobs:
       - name: "Run fast tests — cli"
         run: |
           uv run python -m pytest tests/cli/ tests/specify_cli/cli/ -m "fast and not windows_ci" -q --tb=short \
+            --timeout=240 --timeout-method=signal \
             -n auto --dist loadfile \
             --durations=50 \
             --cov=src/specify_cli/cli \
@@ -1688,6 +1702,7 @@ jobs:
             ${{ matrix.paths }} \
             ${{ matrix.ignore_args }} \
             -m "fast and not windows_ci" -q --tb=short \
+            --timeout=240 --timeout-method=signal \
             -n auto --dist loadfile \
             --durations=50 \
             --cov=specify_cli \
@@ -2132,6 +2147,7 @@ jobs:
             tests/specify_cli/charter_lint \
             tests/specify_cli/charter_preflight \
             -m "fast and not windows_ci" -q --tb=short \
+            --timeout=240 --timeout-method=signal \
             -n auto --dist loadfile \
             --durations=50 \
             --cov=charter \
@@ -2181,6 +2197,7 @@ jobs:
         run: |
           uv run python -m pytest tests/agent \
             -m "fast and not windows_ci" -q --tb=short \
+            --timeout=240 --timeout-method=signal \
             -n auto --dist loadfile \
             --durations=50 \
             --cov=src/specify_cli/agent_utils \
