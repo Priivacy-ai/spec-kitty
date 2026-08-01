@@ -107,7 +107,7 @@ PLACEHOLDER_TERMS: frozenset[str] = frozenset(
 MIN_ADMISSIBLE_CATEGORIES: int = 3
 
 _KNOWN_TOP_LEVEL_KEYS: frozenset[str] = frozenset(
-    {"target", "categories", "exceptions", "moves", "status"}
+    {"target", "categories", "exceptions", "moves", "structural_targets", "status"}
 )
 
 # ---------------------------------------------------------------------------
@@ -165,6 +165,25 @@ class MoveEntry:
 
 
 @dataclass(frozen=True)
+class StructuralTarget:
+    """A single declared structural-edit exemption (bulk-edit review gate).
+
+    Unlike :class:`MoveEntry` (a relocation with distinct ``from``/``to``
+    paths), a structural target names ONE path (file or glob) whose changes
+    in THIS mission are a genuine structural code edit — a new function, a
+    refactor — rather than a bulk find/replace occurrence. Declaring it here
+    is the reviewer-approved, narrow, per-file escape hatch from the
+    ``do_not_change`` path heuristic (see
+    :func:`specify_cli.bulk_edit.diff_check._structural_target_for`); it is
+    deliberately NOT a blanket exemption for a whole category or extension —
+    only paths named here, one at a time, are exempted.
+    """
+
+    path: str
+    reason: str | None = None
+
+
+@dataclass(frozen=True)
 class OccurrenceMap:
     """Parsed representation of an ``occurrence_map.yaml`` file."""
 
@@ -177,6 +196,7 @@ class OccurrenceMap:
     raw: dict[str, Any]
     moves: list[MoveEntry] = field(default_factory=list)
     field_path_exceptions: list[FieldPathException] = field(default_factory=list)
+    structural_targets: list[StructuralTarget] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -206,6 +226,7 @@ def load_occurrence_map(feature_dir: Path) -> OccurrenceMap | None:
     status = data.get("status")
     moves = _parse_moves(data.get("moves"))
     field_path_exceptions = _parse_field_path_exceptions(exceptions)
+    structural_targets = _parse_structural_targets(data.get("structural_targets"))
 
     return OccurrenceMap(
         target_term=target.get("term", ""),
@@ -217,6 +238,7 @@ def load_occurrence_map(feature_dir: Path) -> OccurrenceMap | None:
         raw=data,
         moves=moves,
         field_path_exceptions=field_path_exceptions,
+        structural_targets=structural_targets,
     )
 
 
@@ -285,6 +307,31 @@ def _parse_moves(raw_moves: Any) -> list[MoveEntry]:
     return parsed
 
 
+def _parse_structural_targets(raw_targets: Any) -> list[StructuralTarget]:
+    """Parse the optional ``structural_targets:`` block into entries.
+
+    Tolerant by design, mirroring :func:`_parse_moves`: malformed entries are
+    skipped here and surfaced by :func:`validate_occurrence_map`, which
+    reports human-readable errors. A missing or null block yields an empty
+    list so maps predating this declaration are unaffected (C-OMAP-1
+    precedent).
+    """
+    if not isinstance(raw_targets, list):
+        return []
+
+    parsed: list[StructuralTarget] = []
+    for entry in raw_targets:
+        if not isinstance(entry, dict):
+            continue
+        path_raw = entry.get("path")
+        if not isinstance(path_raw, str) or path_raw.strip() == "":
+            continue
+        reason_raw = entry.get("reason")
+        reason = reason_raw if isinstance(reason_raw, str) else None
+        parsed.append(StructuralTarget(path=path_raw, reason=reason))
+    return parsed
+
+
 # ---------------------------------------------------------------------------
 # Structural validation
 # ---------------------------------------------------------------------------
@@ -308,6 +355,7 @@ def validate_occurrence_map(omap: OccurrenceMap) -> ValidationResult:
     errors.extend(_validate_categories(omap.raw.get("categories", _MISSING)))
     errors.extend(_validate_exceptions(omap.raw.get("exceptions")))
     errors.extend(_validate_moves(omap.raw.get("moves")))
+    errors.extend(_validate_structural_targets(omap.raw.get("structural_targets")))
 
     for key in omap.raw:
         if key not in _KNOWN_TOP_LEVEL_KEYS:
@@ -459,6 +507,126 @@ def _validate_move_entry(index: int, entry: Any) -> list[str]:
         errors.append(f"{label} missing required 'to' key")
     elif not isinstance(destination, str) or destination.strip() == "":
         errors.append(f"{label}.to must be a non-empty string")
+
+    return errors
+
+
+def _validate_structural_targets(raw: Any) -> list[str]:
+    """Validate the optional ``structural_targets`` section.
+
+    A missing or ``None`` block produces no errors — maps predating this
+    declaration are unaffected (C-OMAP-1 precedent).
+    """
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        return ["'structural_targets' must be a list when present"]
+
+    errors: list[str] = []
+    for index, entry in enumerate(raw):
+        errors.extend(_validate_structural_target_entry(index, entry))
+    return errors
+
+
+# A structural target must never degrade into a blanket exemption. These two
+# tokens, as the WHOLE (stripped) path string, are unbounded — they name no
+# file at all, only "everything".
+_UNBOUNDED_GLOB_TOKENS: frozenset[str] = frozenset({"*", "**"})
+
+
+def _basename_extension_is_fixed(basename: str) -> bool:
+    """Return ``True`` when *basename* ends in a concrete, non-wildcard extension.
+
+    ``basename`` is the final ``/``-separated path segment. A fixed extension
+    is the load-bearing narrowness signal: it is what turns ``src/foo/*.py``
+    or ``**/bar_*.py`` into an "extension-bounded glob" rather than an
+    unconstrained sweep — the NAME part may carry a wildcard, but the
+    EXTENSION must not (``file.*`` is rejected: the extension itself is
+    wildcarded, so nothing about it constrains the match).
+    """
+    if basename in _UNBOUNDED_GLOB_TOKENS:
+        return False
+    dot_index = basename.rfind(".")
+    if dot_index <= 0:
+        return False
+    extension = basename[dot_index + 1 :]
+    return extension != "" and "*" not in extension and "?" not in extension
+
+
+def _is_narrow_structural_path(path: str) -> bool:
+    """Return ``True`` when *path* is narrow enough for a ``structural_targets``
+    entry: a concrete file (with an extension) or an extension-bounded glob
+    whose DIRECTORY portion carries no ``**`` recursion.
+
+    This is the load-bearing narrowness invariant. A first cut checked only
+    the basename's extension, which a second-opinion squad (architect-alphonso
+    + reviewer-renata) proved live-exploitable: :func:`_path_matches` in
+    ``diff_check.py`` resolves ``**`` via recursive glob, so
+    ``path: "src/**/*.py"`` passed the basename-only check (basename ``*.py``
+    has a fixed extension) while matching EVERY ``.py`` file under ``src/`` —
+    a blanket "ignore all src/*.py" reopening the exact defect class
+    (Directive 043) the review gate exists to close. ``**`` anywhere in the
+    path — not just the basename — is now rejected. Rejected here,
+    structurally, before such an entry can ever reach
+    :func:`specify_cli.bulk_edit.diff_check._structural_target_for` (which
+    also re-checks this predicate directly, so a broad entry that reaches the
+    map by any OTHER route — e.g. hand-edited after finalize — still cannot
+    grant an exemption at review time):
+
+    * a bare directory / directory-prefix (``"src"``, ``"src/specify_cli"``,
+      or any path with a trailing ``/``) — no filename component at all;
+    * unbounded directory recursion — ``**`` anywhere in the path
+      (``"**"``, ``"**/*"``, ``"**/bar_*.py"``, ``"src/**/*.py"``,
+      ``"src/**"``) — even when the basename itself names a fixed extension,
+      ``**`` still matches an unbounded number of directories;
+    * an unbounded glob with no extension constraint at all (``"*"``).
+
+    Accepted: a concrete file path (``"src/foo/bar.py"``) or an
+    extension-bounded glob confined to a SINGLE directory level
+    (``"src/foo/*.py"``) — the last path segment must name a fixed
+    extension, the filename part may still carry a (non-recursive) wildcard,
+    but no path segment may be ``**``.
+    """
+    normalized = path.strip()
+    if not normalized or normalized.endswith("/"):
+        return False
+    posix = Path(normalized).as_posix()
+    if posix in _UNBOUNDED_GLOB_TOKENS:
+        return False
+    if "**" in posix:
+        return False
+    basename = posix.rsplit("/", 1)[-1]
+    return _basename_extension_is_fixed(basename)
+
+
+def _validate_structural_target_entry(index: int, entry: Any) -> list[str]:
+    """Validate a single ``structural_targets[]`` entry; return human-readable errors."""
+    label = f"structural_targets[{index}]"
+    if not isinstance(entry, dict):
+        return [f"{label} must be a mapping with 'path' and 'reason'"]
+
+    errors: list[str] = []
+    path = entry.get("path")
+    if path is None:
+        errors.append(f"{label} missing required 'path' key")
+    elif not isinstance(path, str) or path.strip() == "":
+        errors.append(f"{label}.path must be a non-empty string")
+    elif not _is_narrow_structural_path(path):
+        errors.append(
+            f"{label}.path {path!r} is too broad for a structural-target "
+            "exemption: it must be a concrete file path with an extension "
+            "(e.g. 'src/foo/bar.py') or an extension-bounded glob (e.g. "
+            "'src/foo/*.py', '**/bar_*.py'). Bare directories, "
+            "directory-prefixes, and unbounded globs ('*', '**', '**/*') "
+            "are rejected — a structural-target exemption must name specific "
+            "file(s), never a whole directory tree."
+        )
+
+    reason = entry.get("reason")
+    if reason is None:
+        errors.append(f"{label} missing required 'reason' key")
+    elif not isinstance(reason, str) or reason.strip() == "":
+        errors.append(f"{label}.reason must be a non-empty string")
 
     return errors
 

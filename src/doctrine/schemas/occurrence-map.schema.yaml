@@ -116,6 +116,35 @@ definitions:
         minLength: 1
       reason:
         type: string
+  structural_target_entry:
+    type: object
+    additionalProperties: false
+    required:
+    - path
+    - reason
+    properties:
+      path:
+        description: >-
+          A concrete file path (with an extension, e.g. "src/foo/bar.py") or
+          an extension-bounded glob (e.g. "src/foo/*.py", "**/bar_*.py")
+          naming ONE structural-edit exemption. Bare directories,
+          directory-prefixes, and unbounded globs ("*", "**", "**/*") are
+          rejected by the runtime validator
+          (`specify_cli.bulk_edit.occurrence_map._is_narrow_structural_path`)
+          — this is the load-bearing narrowness invariant that keeps the
+          exemption from degrading into a blanket "ignore all src/*.py".
+        type: string
+        minLength: 1
+      reason:
+        description: >-
+          Required, non-empty justification for why this specific file's
+          change in THIS mission is a genuine structural code edit (new
+          function, refactor) rather than a bulk find/replace occurrence.
+          Surfaced verbatim in the review-time gate output as a per-file
+          warning whenever the exemption fires, so the bypass is never
+          silent.
+        type: string
+        minLength: 1
 properties:
   target:
     type: object
@@ -155,6 +184,21 @@ properties:
     - 'null'
     items:
       $ref: '#/definitions/move_entry'
+  structural_targets:
+    description: >-
+      Optional per-file structural-edit exemption block. Each entry names ONE
+      path (file or glob) whose changes in THIS mission are a genuine
+      structural code edit (new function, refactor) rather than a bulk
+      find/replace occurrence, exempting it from the `do_not_change` path
+      heuristic. Deliberately narrow — one path/glob at a time, never a
+      blanket exemption for a whole category or extension. Omitting this
+      block leaves maps predating this declaration unchanged (C-OMAP-1
+      backward compatibility).
+    type:
+    - array
+    - 'null'
+    items:
+      $ref: '#/definitions/structural_target_entry'
   status:
     type:
     - object
