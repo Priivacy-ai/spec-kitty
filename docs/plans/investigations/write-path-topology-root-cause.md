@@ -1,6 +1,6 @@
 ---
 title: 'Write-path topology: ambient-location root cause and remediation options'
-description: 'Root-cause analysis for the write-target-derived-from-ambient-location defect class named in #3129 (14 issues), corroborated by an independent dialectic squad, with a scoped remediation seed for a future mission.'
+description: 'Root-cause analysis of the ambient-location write-target defect class (#3129, 14 issues), squad-corroborated, with a scoped remediation seed for a future mission.'
 doc_status: draft
 updated: '2026-08-01'
 related:

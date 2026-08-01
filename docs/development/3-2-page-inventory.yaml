@@ -3656,6 +3656,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/investigations/write-path-topology-root-cause.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/loop-friction-fastfollow-spec.md
   tag: current
   divio_type: none
