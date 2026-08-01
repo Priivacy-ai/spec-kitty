@@ -7916,6 +7916,7 @@ pages:
     anchors:
     - {slug: "intent-of-3-2-x", text: "Intent of 3.2.x", level: 2}
     - {slug: "addendum-2026-07-30-verified-status-re-read-spine-re-anchoring", text: "Addendum 2026-07-30 — verified status re-read + spine re-anchoring", level: 2}
+    - {slug: "addendum-2026-08-01-write-path-topology-scoping-gap-design-spike-3129", text: "Addendum 2026-08-01 — write-path topology scoping gap (design-spike #3129)", level: 2}
     - {slug: "the-dependency-spine", text: "The dependency spine", level: 2}
     - {slug: "the-g1-doctrine-charter-arc-off-spine", text: "The G1 doctrine & charter arc (off-spine)", level: 2}
     - {slug: "doctrine-canonical-structure-remediation-programme-2026-07-26", text: "Doctrine canonical-structure remediation programme (2026-07-26)", level: 2}
@@ -10837,6 +10838,24 @@ pages:
     - {slug: "c6-migration-contract-ac-6-made-honest", text: "C6 — Migration contract (AC-6 made honest)", level: 2}
     - {slug: "c7-sequencing-correction", text: "C7 — Sequencing correction", level: 2}
     - {slug: "c8-the-five-decisions-the-adr-must-pin", text: "C8 — The five decisions the ADR must pin", level: 2}
+  - path: "docs/plans/investigations/write-path-topology-root-cause.md"
+    title: "Write-path topology: ambient-location root cause and remediation options"
+    divio_type: "none"
+    abstract: "Root-cause analysis of the ambient-location write-target defect class (#3129, 14 issues), squad-corroborated, with a scoped remediation seed for a future mission."
+    anchors:
+    - {slug: "0-the-one-paragraph-answer", text: "0. The one-paragraph answer", level: 2}
+    - {slug: "1-the-defect-class", text: "1. The defect class", level: 2}
+    - {slug: "2-the-missing-seam", text: "2. The missing seam", level: 2}
+    - {slug: "3-the-four-lenses", text: "3. The four lenses", level: 2}
+    - {slug: "architecture-verifier-corroborated-high-confidence", text: "Architecture-verifier — CORROBORATED (high confidence)", level: 3}
+    - {slug: "governance-verifier-disproven-on-the-requested-tracker-action-not-the-technical-claim-high-confidence", text: "Governance-verifier — DISPROVEN *(on the requested tracker action, not the technical claim)*, high confidence", level: 3}
+    - {slug: "skeptic-partially-corroborated-medium-confidence", text: "Skeptic — PARTIALLY_CORROBORATED (medium confidence)", level: 3}
+    - {slug: "advocate-corroborated-high-confidence", text: "Advocate — CORROBORATED (high confidence)", level: 3}
+    - {slug: "synthesis-partially-corroborated-overall-high-confidence", text: "Synthesis — PARTIALLY_CORROBORATED overall, high confidence", level: 3}
+    - {slug: "4-remediation-options-for-a-future-mission-to-select-from", text: "4. Remediation options (for a future mission to select from)", level: 2}
+    - {slug: "5-open-questions-for-the-operator", text: "5. Open questions for the operator", level: 2}
+    - {slug: "6-tracker-actions-already-taken", text: "6. Tracker actions already taken", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/plans/loop-friction-fastfollow-spec.md"
     title: "Fast-Follow Spec: Implement-Loop Friction Quick-Wins"
     divio_type: "none"
