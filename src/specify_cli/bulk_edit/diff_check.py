@@ -28,7 +28,7 @@ from dataclasses import dataclass, field, replace
 from fnmatch import fnmatch
 from pathlib import Path
 
-from specify_cli.bulk_edit.occurrence_map import OccurrenceMap
+from specify_cli.bulk_edit.occurrence_map import OccurrenceMap, _is_narrow_structural_path
 from specify_cli.coordination.coherence import is_toolchain_generated_churn
 
 # ---------------------------------------------------------------------------
@@ -167,6 +167,41 @@ def _move_for(path: str, omap: OccurrenceMap) -> tuple[str, str] | None:
                 return ("move-source", move.reason or "declared move source")
         if _path_matches(posix, move.destination):
             return ("move-destination", move.reason or "declared move destination")
+    return None
+
+
+def _structural_target_for(path: str, omap: OccurrenceMap) -> str | None:
+    """Return the declared reason when *path* matches a structural target.
+
+    A structural target (``structural_targets:`` in ``occurrence_map.yaml``)
+    is an explicit, reviewer-declared exemption naming ONE file or glob whose
+    changes in THIS mission are a genuine structural code edit (new
+    function, refactor) rather than a bulk find/replace occurrence. It is
+    matched the same way as a declared move — :func:`_path_matches`
+    (glob/directory-prefix) — so ``path: src/foo/*.py`` covers every ``.py``
+    file directly under ``src/foo/``. Deliberately narrow: only paths named
+    here, one at a time, are exempted — never a blanket "ignore all
+    src/*.py". Returns ``None`` when no target matches, meaning the ordinary
+    classifier (and its ``do_not_change`` enforcement) still applies.
+
+    Defense-in-depth (MINOR, second-opinion squad): narrowness is normally
+    enforced at finalize-time by
+    :func:`specify_cli.bulk_edit.occurrence_map.validate_occurrence_map`, but
+    THIS function is the actual consumption point that grants the exemption
+    at review time — and it must not trust that every ``omap`` it is handed
+    was validated by the current code (a map finalized by a pre-hardening
+    version, or hand-edited after finalize, could still carry a broad entry
+    such as ``path: "src/**/*.py"``). Every candidate is re-checked against
+    :func:`_is_narrow_structural_path` here, INDEPENDENTLY of validation, so
+    a non-narrow entry can never grant an exemption regardless of how it
+    entered the map.
+    """
+    posix = Path(path).as_posix()
+    for target in omap.structural_targets:
+        if not _is_narrow_structural_path(target.path):
+            continue
+        if _path_matches(posix, target.path):
+            return target.reason or "declared structural target"
     return None
 
 
@@ -351,7 +386,7 @@ class FileAssessment:
 
     path: str
     category: str | None           # None => unclassified
-    source: str                    # "path-heuristic" | "exception" | "move" | "runtime-state"
+    source: str                    # "path-heuristic" | "exception" | "move" | "structural-target" | "runtime-state"
     action: str | None             # None => no action defined in map
     violation: bool                # True when this file blocks approval
     reason: str                    # Human-readable rationale
@@ -436,14 +471,31 @@ def _classify_file(
             reason=f"Declared structural {role}: {move_reason}",
         )
 
-    # 3) Runtime-state gate exemption (FR-007, C-004). Fires BEFORE the
-    #    path-heuristic classifier, mirroring the move/exception exemptions
-    #    above — but only for the RUNNING mission's own bookkeeping files.
+    # 3) Declared structural target. A reviewer-declared, per-file exemption
+    #    (``structural_targets:``) naming a file whose changes in THIS
+    #    mission are a genuine structural code edit rather than a bulk
+    #    find/replace occurrence — narrow by construction (one path/glob at
+    #    a time), never a blanket "ignore all src/*.py".
+    structural_reason = _structural_target_for(path, omap)
+    if structural_reason is not None:
+        return FileAssessment(
+            path=path,
+            category=None,
+            source="structural-target",
+            action="structural_edit",
+            violation=False,
+            reason=f"Declared structural target: {structural_reason}",
+        )
+
+    # 4) Runtime-state gate exemption (FR-007, C-004). Fires BEFORE the
+    #    path-heuristic classifier, mirroring the move/exception/structural
+    #    exemptions above — but only for the RUNNING mission's own
+    #    bookkeeping files.
     runtime_state = _own_bookkeeping_exemption(path, feature_dir_rel)
     if runtime_state is not None:
         return runtime_state
 
-    # 4) Path heuristic classification.
+    # 5) Path heuristic classification.
     category = classify_path(path)
     if category is None:
         return FileAssessment(
@@ -459,7 +511,7 @@ def _classify_file(
             ),
         )
 
-    # 5) The classified category must appear in the map.
+    # 6) The classified category must appear in the map.
     category_entry = omap.categories.get(category)
     if category_entry is None:
         return FileAssessment(
@@ -526,6 +578,7 @@ def check_diff_compliance(
         for a in manual_review_files
     ]
     warnings.extend(_field_path_pin_warnings(assessments))
+    warnings.extend(_structural_target_warnings(assessments))
 
     return DiffCheckResult(
         passed=len(violations) == 0,
@@ -550,4 +603,23 @@ def _field_path_pin_warnings(assessments: list[FileAssessment]) -> list[str]:
         "as do_not_change — verify only those fields were left untouched"
         for a in assessments
         if a.field_path_pins
+    ]
+
+
+def _structural_target_warnings(assessments: list[FileAssessment]) -> list[str]:
+    """Per-file visibility warnings for every structural-target exemption.
+
+    A MAJOR review finding: without this, a ``structural_targets`` exemption
+    is invisible in gate output — a WP passes review with no trace that a
+    ``do_not_change`` category was bypassed for a specific file. Mirrors
+    :func:`_field_path_pin_warnings`'s per-file visibility idiom so every
+    exemption that fires is named, with its reviewer-declared reason, in the
+    same warnings list a human actually reads.
+    """
+    return [
+        f"{a.path}: structural-target exemption applied ({a.reason}) — "
+        "do_not_change bypass; verify this is a genuine structural edit, "
+        "not a bulk-occurrence change"
+        for a in assessments
+        if a.source == "structural-target"
     ]
