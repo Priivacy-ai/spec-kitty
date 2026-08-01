@@ -12,6 +12,8 @@
   href: testing-flakiness.md
 - name: Running the Test Suite in Parallel
   href: testing-parallel.md
+- name: 'tests/sync/ Process-Global and Thread-Seam Inventory (#3115)'
+  href: process-global-inventory-3115.md
 - name: Run Mutation Tests Locally
   href: run-mutation-tests.md
 - name: Write Time-Dependent Tests

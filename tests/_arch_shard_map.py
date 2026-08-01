@@ -85,6 +85,13 @@ _ARCH_SHARD_3_DIRS: tuple[str, ...] = ("tests/architecture",)
 # Individual `tests/architectural/*.py` file assignments — copied verbatim from
 # data-model.md's committed 216 / 215 / 215 split.
 _ARCH_SHARD_1_FILES: tuple[str, ...] = (
+    # Added post-data-model.md (new file, mission
+    # verification-trust-3115-01KYVYWM WP03, FR-003/#3115 — the CLI console
+    # render-width guard). shard_1 and shard_2 were tied lightest by file
+    # count (36 vs 36/39) when this file landed; shard_1 is the convention's
+    # default first pick on a tie (see the neighboring picks below for the
+    # same rule applied repeatedly).
+    "tests/architectural/test_cli_console_render_width.py",
     # Added post-data-model.md (new file at implementation time, mission
     # ci-test-topology-performance-01KXBJRT WP01, FR-002 — the ``next`` group's
     # completeness guard, sibling to test_arch_shard_marker_completeness.py).

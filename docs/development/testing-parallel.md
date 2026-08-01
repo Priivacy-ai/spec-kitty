@@ -2,7 +2,7 @@
 title: Running the test suite in parallel
 description: 'How to run the Spec Kitty test suite in parallel locally and in CI: the one correct command, why it is shaped that way, and reproducing the coverage-neutrality gates.'
 doc_status: active
-updated: '2026-07-12'
+updated: '2026-07-31'
 type: how-to
 related:
 - docs/development/testing-flakiness.md
@@ -158,3 +158,99 @@ per-job PENDING wall-clock records for the `ci-test-topology-performance-01KXBJR
 shard-topology re-flip) have moved to
 [`testing-parallel-ci-topology-status.md`](../plans/engineering-notes/testing-parallel-ci-topology-status.md)
 in engineering notes — this how-to page stays focused on the durable local workflow above.
+
+## Reproducing #3115 (the folded-uuid render-width defect)
+
+`sync status` / `sync doctor` render a `Project` column with `overflow="fold"`
+(`src/specify_cli/cli/commands/sync.py:1440`, deliberate). At an 80-column
+console width a 36-character project uuid folds across two lines and stops
+being a contiguous substring of the captured output, so a plain `uuid in out`
+assertion fails even though the journal is fully populated. The 80-column
+width comes from `rich.console.Console.size`'s `if self.is_dumb_terminal:`
+branch, which returns the hardcoded `ConsoleDimensions(80, 25)` **above** the
+`COLUMNS` read — so `COLUMNS`, which the affected tests' isolation fixture
+already sets, is never consulted. `is_terminal` is true whenever `FORCE_COLOR`
+is set to a non-empty value, and `is_dumb_terminal` additionally requires
+`TERM` to be `dumb` or `unknown`.
+
+This is reproduced with two environment variables, one victim file, one
+process — no `pytest-xdist`, because `--dist loadfile`'s worker assignment is
+dynamic and work-stealing, so a reproducer that depends on a particular
+assignment would not be reproducible by construction.
+
+```bash
+TERM=dumb FORCE_COLOR=1 ./scripts/repro_3115_render_width.sh
+```
+
+This runs `tests/cli/commands/test_sync_status_per_project_3030.py` (4
+collected tests) alone, in one process, and reds with:
+
+```
+FAILED tests/cli/commands/test_sync_status_per_project_3030.py::test_status_names_every_project_with_count_age_and_consent
+AssertionError: aaaaaaaa-0000-0000-0000-000000000001 is in the journal but `status` did not name it
+1 failed, 3 passed in ~46-56s
+```
+
+The sibling victim file reproduces the same defect independently:
+
+```bash
+TERM=dumb FORCE_COLOR=1 ./scripts/repro_3115_render_width.sh doctor
+```
+
+`tests/cli/commands/test_sync_doctor_per_project_3030.py` collects **12**
+tests and reds `1 failed, 11 passed`, with assertion text
+`aaaaaaaa-0000-0000-0000-000000000001 is in the journal but doctor did not
+name it` (no backticks around `doctor` — the two victim files' f-strings are
+not identical, so quote each one's text verbatim rather than assuming they
+match).
+
+Only the first of the three seeded projects (`CONSENTED`,
+`aaaaaaaa-0000-0000-0000-000000000001`) demonstrates the defect: the other two
+(`SILENT`, `OPTED_OUT`) pass at width 80 anyway, via an un-tabled warning
+paragraph that reprints their identity outside the folding table.
+`Queue 0 event(s)` / `Queue size 0 / 100,000` appear in the captured output
+regardless of outcome (`OfflineQueue().size()`, `sync.py:5182-5185`) — they
+are **not** a signature of this defect and must not be read as one.
+
+Both counted lines are collected-count-relative: `test_sync_status_per_project_3030.py`
+collects 4 (red is `1 failed, 3 passed`), `test_sync_doctor_per_project_3030.py`
+collects 12 (red is `1 failed, 11 passed`). A count line that does not
+reconcile against its file's own `--collect-only -q` count is not evidence.
+
+**Control** — the same command plus `TTY_COMPATIBLE=0` must PASS. This is what
+distinguishes "the width is the cause" from "this file is just broken":
+
+```bash
+TERM=dumb FORCE_COLOR=1 TTY_COMPATIBLE=0 ./scripts/repro_3115_render_width.sh
+# 4 passed
+TERM=dumb FORCE_COLOR=1 TTY_COMPATIBLE=0 ./scripts/repro_3115_render_width.sh doctor
+# 12 passed
+```
+
+**Determinism** is not established by repetition alone: `pytest-randomly` is
+not installed on this tree, so nothing randomises order and "the same node-id
+comes up red three times in a row" is trivially true regardless of whether the
+red is order-dependent. The clause that can actually fail is running the
+failing case **alone, by node-id**, with no file-siblings collected first:
+
+```bash
+TERM=dumb FORCE_COLOR=1 python3 -m pytest \
+  "tests/cli/commands/test_sync_status_per_project_3030.py::test_status_names_every_project_with_count_age_and_consent"
+# 1 failed, collected count 1, identical assertion text
+```
+
+A red that needs its file-siblings to run first would be order-dependent and
+would not be reproducible by construction (C-004).
+
+`./scripts/repro_3115_render_width.sh` computes its own repo root from its own
+location and sets `PYTHONPATH` to that repo's `src/` before invoking pytest.
+This matters in a `git worktree`: the shared `.venv`'s
+`_editable_impl_spec_kitty_cli.pth` holds the **main checkout's** absolute
+`src` path, so a bare `pytest` run inside a worktree using that `.venv`
+silently imports the main checkout's live tree instead of the worktree's own
+source. The script's `PYTHONPATH` line exists specifically to defeat that.
+
+The whole reproducer (one victim file, one process) completes in well under 2
+minutes (measured around 46-59s per file on this codebase's base commit,
+`bb2020fea9`) — cheap enough that nothing downstream needs to take the defect
+on faith.

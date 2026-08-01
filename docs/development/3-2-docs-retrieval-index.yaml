@@ -5838,6 +5838,27 @@ pages:
     - {slug: "12-follow-up-hygiene", text: "12. Follow-up hygiene", level: 2}
     - {slug: "gotchas", text: "Gotchas", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/development/process-global-inventory-3115.md"
+    title: "tests/sync/ process-global and thread-seam inventory (#3115)"
+    divio_type: "reference"
+    abstract: "FR-006: a narrowed inventory of process-global mutable state and thread-spawning seams in the tests/sync/ cone, with reset-seam and dependence classification."
+    anchors:
+    - {slug: "method", text: "Method", level: 2}
+    - {slug: "input-count", text: "Input count", level: 2}
+    - {slug: "legend-the-four-mandatory-values", text: "Legend — the four mandatory values", level: 2}
+    - {slug: "thread-spawning-seams-test-cone-worker-process-threads", text: "Thread-spawning seams — test cone (worker-process threads)", level: 2}
+    - {slug: "known-src-side-thread-sleep-seams-daemon-py-read-only-cited-not-re-derived", text: "Known src-side thread/sleep seams — `daemon.py` (read-only, cited not re-derived)", level: 2}
+    - {slug: "src-side-thread-timer-seams-background-py-added-this-revision-medium-finding", text: "`src/`-side thread/timer seams — `background.py` (added this revision, Medium finding)", level: 2}
+    - {slug: "saas-client-py-measured-negative", text: "`saas_client.py` — measured negative", level: 2}
+    - {slug: "two-canonical-sync-singletons-added-this-revision-high-finding", text: "Two canonical sync singletons — added this revision (HIGH finding)", level: 2}
+    - {slug: "module-level-clirunner-instances", text: "Module-level `CliRunner()` instances", level: 2}
+    - {slug: "conftest-py-autouse-fixtures-reset-seam-providers-and-two-load-bearing-dependences", text: "`conftest.py` autouse fixtures — reset-seam providers, and two load-bearing dependences", level: 2}
+    - {slug: "mutable-containers-and-import-time-bound-paths-in-test-fixture-data-added-this-revision-high-finding", text: "Mutable containers and import-time-bound paths in test fixture data — added this revision (HIGH finding)", level: 2}
+    - {slug: "os-environ-and-cwd-mutation-sites-added-this-revision-medium-finding", text: "`os.environ` and CWD mutation sites — added this revision (Medium finding)", level: 2}
+    - {slug: "excluded-module-level-constants-re-derived-discriminator", text: "Excluded — module-level constants (re-derived discriminator)", level: 2}
+    - {slug: "cross-cone-reference-not-an-in-scope-entry", text: "Cross-cone reference (not an in-scope entry)", level: 2}
+    - {slug: "per-bucket-counts", text: "Per-bucket counts", level: 2}
+    - {slug: "review-response", text: "Review response", level: 2}
   - path: "docs/development/quality-and-tech-debt-standing-orders.md"
     title: "Quality & Tech-Debt Standing Orders"
     divio_type: "how-to"
@@ -5974,6 +5995,7 @@ pages:
     - {slug: "running-the-stability-ratchet-locally", text: "Running the stability ratchet locally", level: 2}
     - {slug: "validate-the-acceleration-copy-pasteable", text: "Validate the acceleration (copy-pasteable)", level: 2}
     - {slug: "ci-shard-topology-mission-status", text: "CI shard-topology mission status", level: 2}
+    - {slug: "reproducing-3115-the-folded-uuid-render-width-defect", text: "Reproducing #3115 (the folded-uuid render-width defect)", level: 2}
   - path: "docs/development/ui-e2e.md"
     title: "UI End-to-End Tests (Playwright)"
     divio_type: "how-to"

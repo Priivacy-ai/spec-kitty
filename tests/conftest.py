@@ -304,29 +304,110 @@ def _enable_saas_sync_feature_flag(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
 
 
+# ---------------------------------------------------------------------------
+# WP02 — render-surface width pin (FR-002, #3115)
+#
+# ``rich.console.Console.size`` returns ``ConsoleDimensions(80, 25)`` from its
+# ``if self.is_dumb_terminal:`` branch, which sits ABOVE the ``COLUMNS`` read —
+# so on the failing path ``COLUMNS`` is never consulted (C-012). ``is_terminal``
+# is true whenever ``FORCE_COLOR`` is set to any non-empty value (the Claude
+# Code harness exports ``FORCE_COLOR=3``), and the sync ``Project`` column is
+# ``overflow="fold"`` (deliberate — ``src/specify_cli/cli/commands/sync.py:1440``;
+# never remove it, C-009), so an 80-column render folds a 36-character project
+# uuid across two lines and a substring assertion stops seeing it.
+#
+# Measured (rich 15.0.0, ``TERM=dumb FORCE_COLOR=1 COLUMNS=220``):
+#   no explicit size                     -> ConsoleDimensions(80, 25)
+#   Console(width=220) ALONE             -> ConsoleDimensions(80, 25)   <- the trap
+#   Console(width=220, height=50)        -> ConsoleDimensions(220, 50)
+#   TTY_COMPATIBLE=0 (no explicit width) -> ConsoleDimensions(220, 25)
+# ``Console.size``'s explicit-size early return requires BOTH ``self._width``
+# and ``self._height`` to be set — width alone silently falls through to the
+# same ``is_dumb_terminal`` branch that causes the defect, which is why this is
+# the single most likely way a fix ships broken and green. House precedent for
+# pinning both dimensions: ``tests/specify_cli/cli/commands/_help_snapshot.py``
+# (``_HELP_CONSOLE_WIDTH = 10_000`` / ``_HELP_CONSOLE_HEIGHT = 100``), whose
+# module docstring documents the identical trap and whose
+# ``force_wide_help_console`` uses the same ``console.size = (w, h)`` setter
+# this seam uses below.
+#
+# The shipped width is >= 240, not the 220 used above to take the trap
+# measurements: ``tests/specify_cli/cli/commands/charter/test_activation_layout.py:111``
+# passes ``env={"COLUMNS": "240"}`` and is LIVE on the *non-dumb* path — under
+# ``CliRunner`` in the default environment ``is_terminal`` is False, the
+# ``is_dumb_terminal`` early return does not fire, and ``COLUMNS`` IS consulted
+# there. The correct ``COLUMNS`` finding, stated precisely: inert on the
+# failing (dumb-terminal) path, consulted on the passing (non-dumb) one — so
+# the three existing ``monkeypatch.setenv("COLUMNS", ...)`` call sites in the
+# victim files stay exactly as they are; this seam neither removes nor
+# annotates them (C-012). A pin narrower than 240 would shrink that test's
+# render surface below what it already asks for. 240 is also the
+# ``_WIDE_TERMINAL`` value ``tests/cli/commands/test_sync_purge_3030.py``
+# independently converged on.
+_RENDER_WIDTH = 240
+_RENDER_HEIGHT = 50
+# ---------------------------------------------------------------------------
+
+
 @pytest.fixture(autouse=True)
 def _plain_cli_console_seam() -> Iterator[None]:
-    """Force the shared CLI console seam colourless for every test (#2632).
+    """Force the shared CLI console seam colourless AND wide for every test.
 
-    All CLI modules render through the single ``console`` / ``err_console``
-    singletons in :mod:`specify_cli.cli.console` — plus a few deliberately-
-    distinct specials (glossary/list fixed-width consoles, stderr consoles).
-    Determinism is a property of the *object*, not the environment:
+    Colour (#2632): all CLI modules render through the single ``console`` /
+    ``err_console`` singletons in :mod:`specify_cli.cli.console` — plus a few
+    deliberately-distinct specials (glossary/list fixed-width consoles, stderr
+    consoles). Determinism is a property of the *object*, not the environment:
     ``set_all_plain`` toggles EVERY live ``CliConsole`` instance so ``CliRunner``
     substring / ``--json`` assertions are stable under any ``FORCE_COLOR``
-    harness (the Claude Code harness exports ``FORCE_COLOR=3``). We never mutate
-    ``os.environ`` — env writes leak into subprocesses and sibling tests. Reset
-    to styled afterwards so nothing but the test window is affected.
+    harness. We never mutate ``os.environ`` for colour — env writes leak into
+    subprocesses and sibling tests.
+
+    Width/height (FR-002, #3115): pins the render surface structurally so a
+    dumb-terminal / ``FORCE_COLOR`` test environment can no longer fold a
+    36-character project uuid across two table lines and silently break a
+    substring assertion. See the measured trap values and rationale in the
+    module-level comment above ``_RENDER_WIDTH`` / ``_RENDER_HEIGHT``. Covers
+    the ``#3115`` victims ``tests/cli/commands/test_sync_status_per_project_3030.py``
+    and ``tests/cli/commands/test_sync_doctor_per_project_3030.py``.
+
+    **Reach, bounded explicitly** (post-plan squad, F1): ``CliConsole._instances``
+    (``console.py:49``) is a ``WeakSet`` that ALSO holds three deliberately-sized
+    specials this seam must not widen — ``cli/commands/charter/list_cmd.py:26``
+    (``width=200``), ``cli/commands/glossary.py:46`` (``width=120``), and
+    ``cli/commands/docs.py:43`` (``width=120``, stated load-bearing at
+    ``docs.py:40-42``). A blanket walk of ``_instances`` would overwrite all
+    three. This seam therefore pins ONLY the two module-level singletons,
+    ``specify_cli.cli.console.console`` / ``err_console`` (``console.py:126-127``)
+    — colour still reaches every instance via ``set_all_plain``, but the size
+    pin is singleton-only by deliberate choice, exactly like the colour seam
+    already is for the specials it does not size.
+
+    **Stated gap, not an invisible one**: two further ``CliConsole`` instances
+    are constructed INSIDE FUNCTIONS, i.e. *after* this fixture's setup-time
+    walk has already run, so they are never reached by this pin —
+    ``src/specify_cli/cli/helpers.py:234`` (``CliConsole(stderr=True,
+    color_system=_color)``) and ``src/specify_cli/cli/logging_bootstrap.py:92``
+    (``CliConsole(stderr=True, highlight=False)``). FR-003's guard reports this
+    gap by name; it is not something this seam can close from setup time.
+
+    Reset both colour and size afterwards, in ``finally``, so nothing but the
+    test window is affected (C-002).
     """
     # Lazy import keeps conftest's import graph free of the CLI bootstrap until
     # the first test actually runs.
-    from specify_cli.cli.console import CliConsole
+    from specify_cli.cli.console import CliConsole, console, err_console
 
     CliConsole.set_all_plain(True)
+    original_console_size = (console._width, console._height)
+    original_err_console_size = (err_console._width, err_console._height)
+    console.size = (_RENDER_WIDTH, _RENDER_HEIGHT)
+    err_console.size = (_RENDER_WIDTH, _RENDER_HEIGHT)
     try:
         yield
     finally:
         CliConsole.set_all_plain(False)
+        console._width, console._height = original_console_size
+        err_console._width, err_console._height = original_err_console_size
 
 
 def reset_spec_kitty_queue_state() -> None:

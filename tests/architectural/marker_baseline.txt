@@ -102,3 +102,16 @@ tests/docs/test_asset_resolution_wheel.py::test_unknown_asset_id_exits_nonzero_f
 # 324/892 identity after the built-in doctrine relocation — genuinely slow, not
 # a budget-motivated re-mark. Carries [slow, non_sandbox, doctrine].
 tests/doctrine/test_pack_relocation_doctor_gate.py::test_clean_install_resolves_full_built_in_graph
+# Deliberate regen (2026-08-01, verification-trust-3115-01KYVYWM, PR #3144
+# landing pass): tests/sync/test_leak_guard_probe_3115.py was marked `fast`
+# while driving subprocesses, which tripped a DIFFERENT architectural gate --
+# test_pytest_marker_correctness::test_fast_marker_must_not_apply_to_subprocess_users.
+# The re-mark to `slow` was REQUIRED by that gate, not chosen to dodge a budget:
+# the two bite tests genuinely run ~45-55s via subprocess. Two gates in tension;
+# this is the documented resolution. Cost recorded: all three tests, including
+# the sub-second positive control, leave fast-tests-sync (every PR) for the slow
+# job (push/dispatch), so the file keeps running in CI but loses per-PR feedback
+# until a future WP can split the control out of the subprocess-driven cases.
+tests/sync/test_leak_guard_probe_3115.py::test_leak_guard_bites_a_synthetic_leak_on_the_probe_itself
+tests/sync/test_leak_guard_probe_3115.py::test_leak_guard_bites_a_synthetic_leak_via_subprocess
+tests/sync/test_leak_guard_probe_3115.py::test_leak_guard_does_not_flag_a_clean_selection

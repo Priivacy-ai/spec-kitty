@@ -510,6 +510,256 @@ class TestPolling:
         mock_randbelow: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
+        """#3115 (WP06, FR-005, round 2): the real site, on the real evidence.
+
+        Round 1 pinned this attribution to
+        ``TestRetryBehaviors::test_429_respects_retry_after`` on the strength
+        of the issue body's own wording. That test has never been observed
+        red. **This** is one of the two tests CI actually failed on --
+        verified against the live log (`fast-tests-sync`, job `91126025663`,
+        run `30621215287`, base `bb2020fea9`, `-n auto --dist loadfile`,
+        Python 3.12.3, `pytest-xdist==3.8.0`), fetched directly with
+        ``gh api repos/Priivacy-ai/spec-kitty/actions/jobs/91126025663/logs``
+        because the copy a prior review session had wasn't recoverable in this
+        one -- refetching by job id reproduced it line-for-line (the
+        `AssertionError` at the log's line 451 and its short-summary repeat
+        at line 1083 both landed at those exact line numbers again).
+
+        **The real failure text, quoted verbatim** --
+        ``[gw5] linux -- Python 3.12.3 /home/runner/_work/spec-kitty/spec-kitty/.venv/bin/python3``::
+
+            tests/sync/tracker/test_saas_client.py:534: in test_exponential_backoff_intervals
+                assert len(sleep_calls) == 3
+            E   assert 71 == 3
+            E    +  where 71 = len([call(0.9),
+             call(2.0),
+             call(4.4),
+             call(0.001),
+             call(0.002),
+             call(0.004),
+             call(0.008),
+             call(0.016),
+             call(0.032)...),
+             call(0.05), ... (62 total)])
+
+        **The second real victim, outside this WP's write scope** (flagged in
+        the WP06 report, not edited here) --
+        ``tests/sync/tracker/test_saas_client_origin.py:261:
+        TestSearchIssues.test_429_retries_then_raises``, ``[gw2]``::
+
+            mock_sleep.assert_called_once_with(2.0)
+            /usr/lib/python3.12/unittest/mock.py:955: in assert_called_once_with
+                raise AssertionError(msg)
+            E   AssertionError: Expected 'sleep' to be called once. Called 556 times.
+
+        Session tally: ``5 failed, 2103 passed, 11 skipped, 1 warning in
+        98.34s (0:01:38)``.
+
+        **The mechanism (FR-005, established, not re-derived)**:
+        ``@patch("specify_cli.tracker.saas_client.time.sleep")`` patches the
+        **stdlib** ``time`` module's ``sleep`` attribute -- `saas_client.py:19`
+        is a bare ``import time`` -- so the mock's call recorder is
+        process-wide for the patch's lifetime: it counts a ``time.sleep`` call
+        from *any* live thread in the worker **process** (not worker in the
+        xdist sense -- ``gw2``/``gw5`` are separate OS processes and cannot
+        share a mock's state, so the two victims above were independently
+        polluted, each by something alive in *its own* process). Same hazard
+        :func:`_advancing_clock`'s docstring (`:32-50`) documents for
+        ``time.monotonic``. Confirmed reproducible on demand (round 1): a
+        deliberately-injected live thread left running past its own test moves
+        this exact assertion from a clean pass to
+        ``AssertionError: Expected 'sleep' to be called once. Called 400 times.``,
+        399 of 400 calls attributed to the injected thread by name
+        (`scripts/mutants/attribute_sleep_count_3115.py`).
+
+        **Correction (round 2): the magnitude exclusion was unsound.** Round 1
+        reasoned "no single-shot sleep or short loop can explain a 71x/556x
+        tally, so it's excluded." That counts *intended* sleep duration under
+        a live clock -- but the victim's patch makes ``time.sleep`` a **no-op**
+        that returns instantly, so every wall-clock-**bounded** loop
+        (``while time.monotonic() < deadline: ...; time.sleep(x)``) keeps
+        re-checking a deadline that (mostly) isn't advancing and spins through
+        its full iteration budget in the patch window, not over its intended
+        wall-clock span. Measured on the mechanism proof itself: the injected
+        probe intended ``400 * 0.005s = 2.0s`` of sleeping and recorded
+        ``378`` calls inside a **sub-second** window. So *"the loop is too
+        short to explain N calls"* is **not** a valid exclusion for any
+        **iteration-bounded** loop in the sync cone -- only for genuinely
+        single-shot sleeps (`daemon.py:584`, one `time.sleep(0.01)`;
+        `daemon.py:757`, one `time.sleep(_RUNTIME_BACKGROUND_START_DELAY_SECONDS)`).
+
+        **Completed `daemon.py` census (round 2).** Round 1's daemon.py
+        candidate list (threads `:587`, `:767`, `:828`; sleep loops `:584`,
+        `:1382`) missed two **iteration-bounded** loops, both un-excludable by
+        magnitude per the correction above:
+        ``_acquire_daemon_lock`` (`:1077-1090`) -- ``for _ in range(100): ...
+        time.sleep(0.1)``, up to 100 calls; and
+        ``_ensure_sync_daemon_running_locked`` (`:1207-1251`, loop at
+        `:1240-1251`) -- iterates
+        ``[0.1] * 10 + [0.25] * 40 + [0.5] * 20`` (the same shape as
+        `dashboard/lifecycle.py`'s health-poll, "matching dashboard pattern"
+        per its own comment), up to 70 calls. **One contended**
+        ``ensure_sync_daemon_running(REMOTE_REQUIRED)`` **call can therefore
+        cost up to 170 sleep calls**, and under the neutralising patch all 170
+        complete instantly rather than over their intended ~20s.
+
+        **The `0.05` / doubling fingerprint -- corrected (round 3): the
+        producer is named.** Round 2 read the 556-call victim as **two**
+        producers -- a doubling run and a separate flat-`0.05` tail -- and
+        reported the doubling leg as an unattributed negative after a grep
+        scoped to `src/` and `tests/`. **That decomposition was wrong.** A
+        geometric ramp that flattens at a ceiling is **one** loop whose delay
+        saturated, not two loops end-to-end, and the correct search key was
+        never "a doubling backoff" but "a doubling backoff capped at
+        `0.05`" -- which exists in exactly one place in any CPython process:
+        **`subprocess.Popen._wait`** (`Lib/subprocess.py`, POSIX branch),
+        confirmed by reading the installed interpreter's own source
+        (`inspect.getsource`, this venv, Python 3.11.15; the same shape is in
+        3.12's stdlib, CI's interpreter)::
+
+            delay = 0.0005  # 500 us -> initial delay of 1 ms
+            while True:
+                ...
+                delay = min(delay * 2, remaining, .05)
+                time.sleep(delay)
+
+        **Reproduced independently, not copied from the rejection.** A
+        standalone probe with **no repo code** --
+        `subprocess.Popen(["sleep", "30"])`, `.wait(timeout=0.2)` on a
+        background thread, `time.sleep` patched at module scope -- gave
+        `first 10: [0.001, 0.002, 0.004, 0.008, 0.016, 0.032, 0.05, 0.05,
+        0.05, 0.05]` and `30169` total calls in one 0.2s window on this
+        machine (a different run of the same probe recorded `220326`+ at the
+        `0.05` plateau in the coordinator's environment -- the exact count is
+        a function of how fast the busy loop's own bookkeeping runs against
+        real wall-clock time, which is why it varies by machine and is not
+        itself part of the fingerprint). CI's `556` is one such call caught
+        in flight, mid-plateau: `call(2.0)` (the test's own retry-after
+        sleep) + one complete six-term ramp + `549` plateau calls before the
+        patch window closed.
+
+        **Consequence: `restart.py:147` and `daemon.py:1382` are falsified as
+        this fingerprint's producer.** Both emit a *flat* `0.05` with no
+        preceding ramp (`_OWNER_RECORD_POLL_SECONDS` / the health-poll loop
+        each call `time.sleep(0.05)` unconditionally, never
+        `min(delay * 2, ..., .05)`), so neither can generate the observed
+        `0.001→0.032` prefix. They remain real, iteration-bounded,
+        magnitude-uncapped loops for the census purpose two paragraphs above
+        (a leaked thread stuck in either would still read as N extra flat
+        calls) -- they are retired specifically as candidates for *this*
+        compound ramp-then-plateau shape.
+
+        **A second, structural falsification found while chasing this one:**
+        `daemon.py:1000-1032 _kill_and_cleanup`'s `wait_fn(timeout=...)`
+        (reached from `stop_sync_daemon`, `:1385-1389`, and
+        `_ensure_sync_daemon_running_locked`, `:1254-1255`) and
+        `dashboard/lifecycle.py:600`'s `proc.wait(timeout=3.0)`
+        (`_terminate_by_pid`) both call **`psutil.Process.wait`**, not
+        `subprocess.Popen.wait` -- and `psutil.Process.wait` is **structurally
+        invisible to `@patch("time.sleep")`**. Read from the installed
+        `psutil==7.2.2`: `psutil._psposix.wait_pid_posix` declares
+        ``_sleep=time.sleep`` as a **function-default parameter**, bound once
+        to the real `sleep` object when `psutil` is first imported (typically
+        at test-collection time, long before any test's `@patch` runs) --
+        the same value-capture hazard the standing rules document for
+        `from X import f` (rot mode 5), except here it is an unnamed default
+        argument rather than an import statement, so a `grep` for `import
+        time` finds nothing to flag. Confirmed empirically, not just read:
+        `psutil.Process(real_child_pid).wait(timeout=0.2)` under
+        `patch("time.sleep")` recorded **0** calls on the mock, versus
+        `subprocess.Popen.wait(timeout=0.2)` on the same child recording
+        thousands under the identical patch. Both `daemon.py`'s and
+        `dashboard/lifecycle.py`'s daemon-teardown waits are therefore
+        excluded as producers of *any* observed mock inflation, not merely
+        of this one fingerprint.
+
+        **The real, patchable `subprocess.Popen.wait(timeout=...)` sites in
+        this tree** (repo-wide grep, `psutil.*wait(timeout=` extended
+        alongside plain `.wait(timeout=`): none in `src/specify_cli/sync/`
+        or `src/specify_cli/dashboard/` (both route through the
+        psutil-shielded path above); one genuine site in `src/`,
+        `review/pre_review_gate.py:390`, but `tests/sync/` does not reach it
+        (`tests/sync/conftest.py:141`'s
+        `_isolate_pre_review_gate_sync_toggles` only unsets two env vars by
+        name -- it never imports or calls the gate module); and the
+        test-owned `tests/sync/_daemon_harness.py`'s `_terminate_proc`
+        (`:136-149`, real `subprocess.Popen[bytes].wait(timeout=3.0)`,
+        synchronous inside `DaemonHarness.shutdown()`, not threaded), used by
+        `test_daemon_cleanup_boundary.py`, `test_daemon_orphan_classification.py`,
+        `test_issue_1071_singleton_reconfirmation.py`, `test_orphan_sweep.py`,
+        plus direct `proc.wait(timeout=...)` calls in
+        `test_owner_record_unreadable_3030.py:151`,
+        `test_daemon_owner_record.py:478,788`,
+        `test_sync_boundary_preflight.py:153`,
+        `test_daemon_singleton_reaper_consolidation.py:635`, and
+        `test_orphan_sweep.py:94,106,112`.
+
+        **The instrument was proven before it was trusted.** `attribute_sleep_count_3115.py`
+        now captures `traceback.extract_stack()` on the first 5 calls per
+        `(site, thread)` and reports the modal signature (round 3 addition --
+        see its module docstring). Positive control: a standalone
+        `Popen.wait(timeout=0.2)` on a background thread, run through the
+        mutant, was attributed **`subprocess.py:2047 in _wait`** as the modal
+        stack for the polluted thread -- the instrument names a known
+        producer correctly.
+
+        **Two clean serial runs, on the proven instrument.** (1) A targeted
+        291-test selection -- this file, `test_saas_client_origin.py`, and
+        every `tests/sync/` file listed above as a genuine
+        `subprocess.Popen.wait` call site -- ran serially under the mutant:
+        `280 passed, 11 skipped in 80.93s`, `total recorded calls: 12`, all
+        `MainThread`, matching only the tests' own expected sleeps (this
+        test's own 3 among them). (2) The **full** `tests/sync/` cone, serial
+        (no `-n`, the mutant's documented requirement): `2370 passed, 18
+        skipped in 112.30s`. Neither run put any extra call on
+        `specify_cli.tracker.saas_client.time.sleep` (still 12, still all
+        `MainThread`) -- **but** the full-cone run *did* catch, live, two
+        leaked threads (`Thread-69 (_guarded_final_sync)`,
+        `Thread-70 (_guarded_final_sync)`) each calling
+        `sync/batch.py:674 _sleep_before_final_sync_retry` (via
+        `background.py:467 _guarded_final_sync` /
+        `batch.py:648 run_final_sync_with_retries`) and landing 2 calls each
+        on a **different** test's `specify_cli.sync.batch.time.sleep` patch.
+        This is a live, stack-confirmed instance of WP04's inventory E24/E25
+        (`background.py::BackgroundSyncService.stop`'s final-sync thread,
+        `no reset seam`, `sync_thread.join(timeout=...)` then only a
+        diagnostic) and issue #3130's confirmed leaks 1-2 -- proof the
+        instrument catches real leaks in this exact session, on this exact
+        box, when one is present, and that this particular leak class is
+        real and active. It simply did not land on either FR-005 victim's
+        own patch window in either run.
+
+        **The named `adapters.py`/`events.py` lead was checked structurally**
+        (budget; unchanged from round 2). `status/adapters.py:106-112`'s
+        orphaned-worker chain (`events.py:282` → `:307` →
+        `events.py:67`'s `ensure_sync_daemon_running(REMOTE_REQUIRED)`, the
+        170-call surface from the census above) is gated behind
+        `get_token_manager().is_authenticated` at `events.py:58`, and neither
+        this file, `test_saas_client_origin.py`, nor `tracker/conftest.py`
+        import or exercise `specify_cli.status.adapters` or
+        `specify_cli.sync.events` anywhere -- not reachable from these
+        tests' own call graph, and per the coordinator's round-3 direction a
+        CPU-contention reproduction was **not attempted** (it would name
+        *why* a thread outlives its join, not *which* construct is sleeping,
+        and the construct is now named).
+
+        **Verdict**: the producer **construct** is named and independently
+        reproduced -- `subprocess.Popen._wait`'s POSIX busy-wait,
+        `delay = min(delay * 2, remaining, .05)`, base `0.0005`. The two
+        flat-`0.05` sites this WP previously named (`restart.py:147`,
+        `daemon.py:1382`) are retired as candidates for this fingerprint; two
+        further candidates (`daemon.py`'s and `dashboard/lifecycle.py`'s
+        daemon-teardown waits) are excluded **structurally** (psutil shields
+        them from this patch entirely, confirmed empirically). Every
+        genuine `subprocess.Popen.wait` site reachable from `tests/sync/` is
+        enumerated above and was run twice, serially, under an instrument
+        proven correct by positive control (and which caught a different
+        real leak live in the same session) -- and recorded zero pollution
+        on either FR-005 victim. That is the legitimate FR-005 negative: not
+        "no construct could be found" (round 2's error), but "the construct
+        is named, the instrument that could see it is proven, and it still
+        did not see it here." Left open for WP14 on that basis.
+        """
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -654,6 +904,25 @@ class TestRetryBehaviors:
         mock_sleep: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
+        """#3115 (WP06, FR-005) -- corrected pointer (round 2).
+
+        This node was the round-1 attribution site, on the strength of the
+        issue body's own wording. It is **not** one of the tests CI actually
+        failed on: the live CI log (`fast-tests-sync`, job 91126025663, run
+        30621215287, base `bb2020fea9`) shows two different real victims --
+        ``TestPolling.test_exponential_backoff_intervals`` in *this* file
+        (see its docstring below, `:497` class / the test a few lines above
+        this one in file order) and
+        ``TestSearchIssues.test_429_retries_then_raises`` in
+        `tests/sync/tracker/test_saas_client_origin.py:261` (outside this
+        WP's write scope -- flagged in the WP06 report, not edited here).
+        This test has never been observed red, locally or on CI. The
+        stdlib-``time``-module mechanism this docstring used to describe here
+        is still correct and is not re-derived -- see the real victim's
+        docstring for the full attribution, the quoted failure text, and the
+        round-2 corrections (magnitude exclusion, completed `daemon.py`
+        census, the `0.05`/doubling fingerprint measurement).
+        """
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
