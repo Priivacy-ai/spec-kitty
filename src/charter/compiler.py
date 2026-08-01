@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, UTC
+import functools
 from io import StringIO
 import logging
 from pathlib import Path
@@ -34,6 +35,7 @@ from charter.schemas import (
     DirectivesConfig,
     GovernanceConfig,
 )
+from doctrine.pack_paths import built_in_dir
 
 logger = logging.getLogger(__name__)
 
@@ -525,24 +527,22 @@ def _build_metadata_dict() -> dict[str, Any]:
     return dumped
 
 
-#: Flat root activation key names charter.yaml shares with
-#: ``packs/default.yaml`` (paula BLOCKER-1) -- mirrors
-#: ``charter.charter_yaml_io._ACTIVATION_KEYS``. Duplicated here (rather
-#: than imported) because this set is used for a READ off legacy
-#: ``config.yaml`` (pre-WP02 activation home), a different concern than
-#: charter_yaml_io's WRITE-section vocabulary.
-_LEGACY_ACTIVATION_KEYS: tuple[str, ...] = (
-    "activated_kinds",
-    "mission_type_activations",
-    "activated_directives",
-    "activated_tactics",
-    "activated_styleguides",
-    "activated_toolguides",
-    "activated_paradigms",
-    "activated_procedures",
-    "activated_agent_profiles",
-    "activated_mission_step_contracts",
-)
+#: Flat root activation key names read off the legacy ``config.yaml``
+#: (pre-WP02 activation home). DERIVED from the single authority
+#: :data:`charter.pack_manager.ACTIVATION_YAML_KEYS` rather than hand-listed:
+#: a hand-written literal here previously drifted from the authority (missing
+#: ``activated_glossary_packs``), so charter.yaml bootstrap over a pre-WP02
+#: project silently DROPPED glossary-pack activation on the READ -- the exact
+#: FR-010/SC-005 data-loss the WP05 finalize migration and ``charter_yaml_io``
+#: derivation eliminated on the WRITE side. The read/write distinction never
+#: changed which activation keys exist, so both must derive from the same
+#: authority. Lazy import breaks the ``pack_manager`` <-> ``compiler`` cycle
+#: (mirrors :func:`charter.charter_yaml_io._activation_keys`).
+@functools.lru_cache(maxsize=1)
+def _legacy_activation_keys() -> tuple[str, ...]:
+    from charter.pack_manager import ACTIVATION_YAML_KEYS  # noqa: PLC0415 -- avoids import cycle
+
+    return ACTIVATION_YAML_KEYS
 
 
 def _read_legacy_config_activation(repo_root: Path) -> dict[str, list[str]]:
@@ -564,7 +564,7 @@ def _read_legacy_config_activation(repo_root: Path) -> dict[str, list[str]]:
     if not isinstance(data, dict):
         return {}
     result: dict[str, list[str]] = {}
-    for key in _LEGACY_ACTIVATION_KEYS:
+    for key in _legacy_activation_keys():
         value = data.get(key)
         if isinstance(value, list):
             result[key] = [str(item) for item in value]
@@ -625,8 +625,10 @@ def _bootstrap_charter_yaml(
 #: Config.yaml key WP02's activation-relocation reader resolves to find
 #: charter.yaml (``charter: .kittify/charter/charter.yaml``). Duplicated
 #: here (rather than imported) because this module must not depend on
-#: WP02's activation-relocation reader for a one-line constant -- see
-#: ``_LEGACY_ACTIVATION_KEYS`` above for the same duplication rationale.
+#: WP02's activation-relocation reader for a one-line constant. (Unlike the
+#: activation-key vocabulary -- see :func:`_legacy_activation_keys` above,
+#: now derived from the authority -- this is a single opaque literal with no
+#: authoritative source to drift from.)
 _CONFIG_CHARTER_POINTER_KEY = "charter"
 
 
@@ -790,11 +792,14 @@ def _default_doctrine_service(repo_root: Path | None) -> DoctrineService:
     """
     from doctrine.service import DoctrineService
 
-    doctrine_root = resolve_doctrine_root()
     project_root: Path | None = None
     if repo_root is not None:
         project_root = resolve_project_root(repo_root)
-    return DoctrineService(built_in_root=doctrine_root, project_root=project_root)
+    # No built_in_root kwarg: repositories self-resolve packs/built-in/<kind>
+    # via the built_in_dir seam (default None is behaviour-preserving here;
+    # WP04 drops the now-dead param from DoctrineService entirely).
+    # resolve_doctrine_root() post-relocation points at the emptied src/doctrine tree.
+    return DoctrineService(project_root=project_root)
 
 
 def _build_references(
@@ -837,8 +842,8 @@ def _build_references_from_yaml(
     """Load references by scanning YAML files directly (fallback path)."""
     references: list[CharterReference] = []
 
-    paradigm_sources = _index_yaml_assets(doctrine_root / "paradigms", "*.paradigm.yaml")
-    directive_sources = _index_yaml_assets(doctrine_root / "directives", "*.directive.yaml")
+    paradigm_sources = _index_yaml_assets(built_in_dir(ArtifactKind.PARADIGM), "*.paradigm.yaml")
+    directive_sources = _index_yaml_assets(built_in_dir(ArtifactKind.DIRECTIVE), "*.directive.yaml")
 
     for paradigm in paradigms:
         references.append(
@@ -862,7 +867,14 @@ def _build_references_from_yaml(
 
     language_hints = interview.answers.get("languages_frameworks", "").lower()
     if "python" in language_hints:
-        styleguide_path = doctrine_root / "styleguides" / "python-implementation.styleguide.yaml"
+        # Built-in styleguides were flattened out of ``<doctrine_root>/styleguides``
+        # into ``packs/built-in/styleguides`` (relocation mission); resolve through
+        # the shared ``built_in_dir`` seam, matching the paradigm/directive reads
+        # above. ``doctrine_root`` stays for the template reference (templates
+        # remain under ``src/doctrine``). The file is currently absent, but
+        # repointing the root keeps this ``.exists()``-guarded read correct
+        # if/when it ships again.
+        styleguide_path = built_in_dir(ArtifactKind.STYLEGUIDE) / "python-implementation.styleguide.yaml"
         if styleguide_path.exists():
             references.append(
                 _doctrine_yaml_reference(
@@ -923,7 +935,7 @@ def _build_references_from_service(
 
     # Paradigms: still loaded via YAML scanning (no typed paradigm references in graph).
     # Selection-only per the mission decision -- never DRG-reachable.
-    paradigm_sources = _index_yaml_assets(doctrine_root / "paradigms", "*.paradigm.yaml")
+    paradigm_sources = _index_yaml_assets(built_in_dir(ArtifactKind.PARADIGM), "*.paradigm.yaml")
     for paradigm in config_roots.paradigms:
         references.append(
             _doctrine_yaml_reference(
@@ -1145,16 +1157,19 @@ def _build_local_support_references(
 
 
 def _index_yaml_assets(directory: Path, pattern: str) -> dict[str, dict[str, object]]:
+    """Index YAML assets in *directory* by ``id`` (or file stem fallback).
+
+    *directory* is always a flat content dir (the ``built_in_dir(kind)``
+    authority, or a caller-supplied flat directory in tests); the
+    pre-relocation nested ``built-in/`` subdirectory dual-read for the emptied
+    ``src/doctrine/<kind>/`` pre-move shape was removed in mission
+    doctrine-built-in-seam-consolidation-01KYW3TX (WP02).
+    """
     index: dict[str, dict[str, object]] = {}
     if not directory.is_dir():
         return index
 
-    # Doctrine artifacts live in a built-in/ subdirectory; fall back to the
-    # directory itself for tests or custom flat layouts.
-    built_in = directory / "built-in"
-    scan_root = built_in if built_in.is_dir() else directory
-
-    for path in sorted(scan_root.glob(pattern)):
+    for path in sorted(directory.glob(pattern)):
         loaded = _load_yaml_asset(path)
         raw_id = str(loaded.get("id", "")).strip() if isinstance(loaded, dict) else ""
         if not raw_id:

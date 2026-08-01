@@ -108,6 +108,7 @@ genuinely-old project's rc35 seed migrations already converge in one pass).
 
 from __future__ import annotations
 
+import functools
 from pathlib import Path
 from typing import Any
 
@@ -123,32 +124,40 @@ _KITTIFY_DIRNAME = ".kittify"
 _CONFIG_FILENAME = "config.yaml"
 _CHARTER_POINTER_KEY = "charter"
 
-#: The per-artifact activation keys FR-018 normalizes. ``activated_kinds`` and
-#: ``mission_type_activations`` are intentionally EXCLUDED: they are coarser
-#: gates with their own still-valid built-in-default absence semantics.
-#: Duplicated (not imported from ``charter``) so registry discovery stays
-#: import-cheap (C-002).
-_PER_ARTIFACT_ACTIVATION_KEYS: tuple[str, ...] = (
-    "activated_directives",
-    "activated_tactics",
-    "activated_styleguides",
-    "activated_toolguides",
-    "activated_paradigms",
-    "activated_procedures",
-    "activated_agent_profiles",
-    "activated_mission_step_contracts",
-    "activated_glossary_packs",
-)
-
 #: The coarser activation gates (own built-in-default absence semantics,
-#: never normalized by this migration -- see ``_PER_ARTIFACT_ACTIVATION_KEYS``
-#: above) plus the four legacy bundle filenames. Duplicated (not imported)
+#: never normalized by this migration -- see :func:`_per_artifact_activation_keys`
+#: below) plus the four legacy bundle filenames. Duplicated (not imported)
 #: from ``m_unify_charter_activation_finalize`` for the same C-002 reason
 #: that module states for its own ``ACTIVATION_KEYS``/``LEGACY_BUNDLE_FILENAMES``
 #: duplication: importing the sibling migration module at collection time
 #: would pull its (non-lazy) ``charter.*`` imports into registry discovery.
-#: Used only by the bare-config-write defer guard below.
+#: Used only by the bare-config-write defer guard below and to derive
+#: :func:`_per_artifact_activation_keys`.
 _COARSE_ACTIVATION_KEYS: tuple[str, ...] = ("activated_kinds", "mission_type_activations")
+
+
+@functools.lru_cache(maxsize=1)
+def _per_artifact_activation_keys() -> tuple[str, ...]:
+    """Return the per-artifact activation keys FR-018 normalizes, derived from
+    the authority.
+
+    ``activated_kinds`` and ``mission_type_activations`` (:data:`_COARSE_ACTIVATION_KEYS`)
+    are excluded: they are coarser gates with their own still-valid
+    built-in-default absence semantics.
+
+    Lazy, function-scoped import of :data:`charter.pack_manager.ACTIVATION_YAML_KEYS`
+    -- mirrors the established idiom in :func:`charter.charter_yaml_io._activation_keys`
+    and :func:`charter.compiler._legacy_activation_keys` -- so registry discovery
+    stays import-cheap (C-002): a module-level import would pull ``charter.*``
+    machinery into every migration-registry scan. A hand-listed tuple here
+    previously risked the same drift FR-010/SC-005 fixed for the other two
+    copies; deriving it keeps all three in lockstep with the authority.
+    """
+    from charter.pack_manager import (  # noqa: PLC0415 -- avoids import cycle / keeps registry discovery cheap
+        ACTIVATION_YAML_KEYS,
+    )
+
+    return tuple(key for key in ACTIVATION_YAML_KEYS if key not in _COARSE_ACTIVATION_KEYS)
 _LEGACY_BUNDLE_FILENAMES: tuple[str, ...] = (
     "governance.yaml",
     "directives.yaml",
@@ -216,7 +225,7 @@ def _store_activation_mapping(project_path: Path, config_data: dict[str, Any]) -
 
 def _missing_per_artifact_keys(activation: dict[str, Any]) -> list[str]:
     """Per-artifact activation keys absent from *activation* (FR-018 targets)."""
-    return [key for key in _PER_ARTIFACT_ACTIVATION_KEYS if key not in activation]
+    return [key for key in _per_artifact_activation_keys() if key not in activation]
 
 
 # ---------------------------------------------------------------------------
@@ -243,7 +252,8 @@ def _config_carries_any_activation(config_data: dict[str, Any]) -> bool:
     config.yaml would be the sole, premature trigger for a LATER invocation.
     """
     return any(
-        key in config_data for key in (*_COARSE_ACTIVATION_KEYS, *_PER_ARTIFACT_ACTIVATION_KEYS)
+        key in config_data
+        for key in (*_COARSE_ACTIVATION_KEYS, *_per_artifact_activation_keys())
     )
 
 

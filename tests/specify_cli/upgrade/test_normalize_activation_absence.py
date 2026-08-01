@@ -21,9 +21,9 @@ from ruamel.yaml import YAML
 from specify_cli.upgrade.migrations.m_3_2_x_normalize_activation_absence import (
     MIGRATION_ID,
     NormalizeActivationAbsenceMigration,
-    _PER_ARTIFACT_ACTIVATION_KEYS,
     _config_carries_any_activation,
     _legacy_bundle_present,
+    _per_artifact_activation_keys,
     _should_defer_bare_config_write,
     _unify_promotion_pending,
 )
@@ -103,7 +103,7 @@ def test_absent_keys_become_empty_in_charter_yaml(tmp_path: Path) -> None:
     charter = _load(tmp_path / ".kittify" / "charter" / "charter.yaml")
     # The populated key is preserved; every other per-artifact key is explicit [].
     assert charter["activated_directives"] == ["010-specification-fidelity-requirement"]
-    for key in _PER_ARTIFACT_ACTIVATION_KEYS:
+    for key in _per_artifact_activation_keys():
         assert key in charter, key
         if key != "activated_directives":
             assert charter[key] == [], key
@@ -174,7 +174,7 @@ def test_absent_keys_become_empty_in_legacy_config(tmp_path: Path) -> None:
 
     config = _load(tmp_path / ".kittify" / "config.yaml")
     assert config["activated_directives"] == ["010-specification-fidelity-requirement"]
-    for key in _PER_ARTIFACT_ACTIVATION_KEYS:
+    for key in _per_artifact_activation_keys():
         if key != "activated_directives":
             assert config[key] == [], key
 
@@ -273,7 +273,7 @@ def test_bare_config_defers_normalization_when_nothing_arms_the_fold(tmp_path: P
     assert result.changes_made == []
 
     config = _load(tmp_path / ".kittify" / "config.yaml")
-    for key in _PER_ARTIFACT_ACTIVATION_KEYS:
+    for key in _per_artifact_activation_keys():
         assert key not in config, key
 
 
@@ -289,7 +289,7 @@ def test_proceeds_immediately_when_legacy_bundle_present(tmp_path: Path) -> None
     assert result.changes_made != []
 
     config = _load(tmp_path / ".kittify" / "config.yaml")
-    for key in _PER_ARTIFACT_ACTIVATION_KEYS:
+    for key in _per_artifact_activation_keys():
         assert config[key] == [], key
 
 
@@ -306,7 +306,7 @@ def test_proceeds_immediately_when_config_already_carries_coarse_activation(tmp_
 
     config = _load(tmp_path / ".kittify" / "config.yaml")
     assert config["activated_kinds"] == ["directive"]
-    for key in _PER_ARTIFACT_ACTIVATION_KEYS:
+    for key in _per_artifact_activation_keys():
         assert config[key] == [], key
 
 
@@ -323,5 +323,5 @@ def test_proceeds_immediately_when_answers_only_promotion_pending(tmp_path: Path
     migration.apply(tmp_path)
 
     config = _load(tmp_path / ".kittify" / "config.yaml")
-    for key in _PER_ARTIFACT_ACTIVATION_KEYS:
+    for key in _per_artifact_activation_keys():
         assert config[key] == [], key
