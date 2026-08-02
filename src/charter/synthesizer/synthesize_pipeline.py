@@ -59,17 +59,21 @@ __all__ = [
 
 
 def _get_synthesizer_version() -> str:
-    """Return the installed spec-kitty-cli version, falling back to a dev sentinel."""
+    """Return the installed spec-kitty-cli version, falling back to a dev sentinel.
+
+    Resolved through ``importlib.metadata`` only. The former secondary fallback
+    imported ``specify_cli`` for its ``__version__``, which was the single real
+    upward edge out of the charter layer (``kernel <- doctrine <- charter <-
+    specify_cli``) — see FR-008. Distribution metadata is the same source that
+    populates ``specify_cli.__version__`` anyway, so the fallback bought no
+    additional coverage; it only inverted the dependency direction. The gate is
+    ``tests/architectural/test_charter_no_specify_cli_import.py``.
+    """
     try:
         from importlib.metadata import version
         return version("spec-kitty-cli")
     except Exception:  # noqa: BLE001
-        try:
-            import specify_cli
-            v: str = str(specify_cli.__version__)
-            return v
-        except Exception:  # noqa: BLE001
-            return "0.0.0-dev"
+        return "0.0.0-dev"
 
 
 # ---------------------------------------------------------------------------
