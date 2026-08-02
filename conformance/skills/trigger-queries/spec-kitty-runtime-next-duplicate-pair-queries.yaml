@@ -1,0 +1,26 @@
+id: spec-kitty-runtime-next
+source: "docs/rubric/skills-trigger-taxonomy.md"
+threshold: 0.5
+shouldTrigger:
+  # First six verbatim from src/doctrine/skills/spec-kitty-runtime-next/SKILL.md
+  # description Triggers list; two more consistent with the same purpose.
+  - "run the next step"
+  - "what should runtime do next"
+  - "advance the mission"
+  - "what is the next task"
+  - "continue the workflow"
+  - "what step comes next"
+  - "what should I do next in this mission"
+  - "drive the mission forward one step"
+nearMiss:
+  - "Review this work package before merging"
+  - "Check runtime output for the review lane"
+  - "How does spec-kitty use git for worktrees"
+  - "Fix the setup so agent profiles load correctly"
+  - "Explain the DDR-011 profile matching algorithm"
+  - "Orchestrate the implement-review loop for all WPs"
+  - "What does the runtime review workflow require?"
+  # FR-002 twin phrase: byte-identical to a shouldTrigger entry in
+  # spk-run-next-duplicate-pair-queries.yaml. This file is duplicate-pair
+  # only; it must not drift toward run-family phrasing (WP02 territory).
+  - "Query the mission state with spec-kitty next"

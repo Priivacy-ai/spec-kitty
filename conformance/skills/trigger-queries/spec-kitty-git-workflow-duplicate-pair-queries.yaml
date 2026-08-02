@@ -1,0 +1,26 @@
+id: spec-kitty-git-workflow
+source: "docs/rubric/skills-trigger-taxonomy.md"
+threshold: 0.5
+shouldTrigger:
+  # Verbatim from src/doctrine/skills/spec-kitty-git-workflow/SKILL.md
+  # description Triggers list (nine phrases).
+  - "how does spec-kitty use git"
+  - "worktree management"
+  - "auto-commit"
+  - "who commits what"
+  - "git workflow"
+  - "merge workflow"
+  - "rebase WPs"
+  - "worktree cleanup"
+  - "safe commit"
+nearMiss:
+  - "Advance the mission to the next step"
+  - "Review this work package for approval"
+  - "Load the implementer profile for this session"
+  - "What does DDR-011 profile matching do?"
+  - "Update the glossary term definition"
+  - "Orchestrate the implement-review loop for all WPs"
+  - "Explain the charter's governance scope model"
+  # FR-002 twin phrase: byte-identical to a shouldTrigger entry in
+  # spk-admin-git-workflow-duplicate-pair-queries.yaml.
+  - "Inspect the active mission's branch and worktree state"

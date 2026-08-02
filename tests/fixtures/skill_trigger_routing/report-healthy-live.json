@@ -1,0 +1,1681 @@
+{
+  "ok": false,
+  "total": 14,
+  "passed": 5,
+  "failed": 9,
+  "skipped": 0,
+  "results": [
+    {
+      "id": "ad-hoc-profile-load",
+      "type": "behavioral",
+      "passed": true,
+      "skipped": false,
+      "shouldTriggerAxis": {
+        "axis": "should-trigger",
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true,
+        "queryBreakdown": [
+          {
+            "query": "act as the architect",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "load the reviewer profile",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "switch to implementer",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "use the researcher persona",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "start a session as planner",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "adopt the curator role",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "initialize profile",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "assume the designer identity",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "nearMissAxis": {
+        "axis": "near-miss",
+        "triggerRate": 0.25,
+        "threshold": 0.5,
+        "passed": true,
+        "queryBreakdown": [
+          {
+            "query": "Create a new agent profile from scratch",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Edit the existing implementer profile YAML",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "What does spec-kitty next do at this step?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Explain how DDR-011 profile matching works",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Show me the charter interview questions",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "List all available agent profiles",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "What is a profile's initialization declaration?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Load the Spec Kitty agent profile for this interactive session",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "isControl": false
+    },
+    {
+      "id": "spk-doctrine-profile-load",
+      "type": "behavioral",
+      "passed": false,
+      "skipped": false,
+      "shouldTriggerAxis": {
+        "axis": "should-trigger",
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true,
+        "queryBreakdown": [
+          {
+            "query": "Load the Spec Kitty agent profile for this interactive session",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "I need identity, governance scope, and boundaries loaded for this role",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Set up the agent profile initialization for this session",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Bring in the profile's governance scope before I start",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Load my profile identity and boundaries now",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "I want an agent profile applied for this interactive session",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Apply the doctrine profile load for the current role",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Initialize this session with the requested agent profile",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "nearMissAxis": {
+        "axis": "near-miss",
+        "triggerRate": 0.625,
+        "threshold": 0.5,
+        "passed": false,
+        "queryBreakdown": [
+          {
+            "query": "What is the current mission status?",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Advance the mission to the next step",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Show me the doctrine directive catalog",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Explain the charter governance model",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Create a brand-new profile for the tester role",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "List the mission's work packages",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "What does the runtime loop do on blocked?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "act as the architect",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "isControl": false
+    },
+    {
+      "id": "spec-kitty-runtime-next",
+      "type": "behavioral",
+      "passed": false,
+      "skipped": false,
+      "shouldTriggerAxis": {
+        "axis": "should-trigger",
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true,
+        "queryBreakdown": [
+          {
+            "query": "run the next step",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "what should runtime do next",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "advance the mission",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "what is the next task",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "continue the workflow",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "what step comes next",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "what should I do next in this mission",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "drive the mission forward one step",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "nearMissAxis": {
+        "axis": "near-miss",
+        "triggerRate": 0.5833333333333334,
+        "threshold": 0.5,
+        "passed": false,
+        "queryBreakdown": [
+          {
+            "query": "Review this work package before merging",
+            "runsTotal": 3,
+            "runsTriggered": 2,
+            "runsErrored": 0
+          },
+          {
+            "query": "Check runtime output for the review lane",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "How does spec-kitty use git for worktrees",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Fix the setup so agent profiles load correctly",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Explain the DDR-011 profile matching algorithm",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Orchestrate the implement-review loop for all WPs",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "What does the runtime review workflow require?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Query the mission state with spec-kitty next",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "isControl": false
+    },
+    {
+      "id": "spk-run-next",
+      "type": "behavioral",
+      "passed": false,
+      "skipped": false,
+      "shouldTriggerAxis": {
+        "axis": "should-trigger",
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true,
+        "queryBreakdown": [
+          {
+            "query": "Query the mission state with spec-kitty next",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Advance the mission using spec-kitty next --result success",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "What decision is currently pending in this mission?",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Route this blocked result to the right recovery step",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Tell me the next control-loop step for this mission",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Resolve the pending decision_required in this mission",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Drive the mission forward with the next control loop",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "What terminal result did the mission reach?",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "nearMissAxis": {
+        "axis": "near-miss",
+        "triggerRate": 0.625,
+        "threshold": 0.5,
+        "passed": false,
+        "queryBreakdown": [
+          {
+            "query": "Approve or reject this work package",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Coordinate implementers and reviewers across WPs",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "How do I repair a broken spec-kitty install?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "What is the worktree lifecycle for a WP?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Explain the mission's git auto-commit behavior",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Dispatch agents for the remaining work packages",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Review the runtime output before approving",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "run the next step",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "isControl": false
+    },
+    {
+      "id": "spk-run-next-run-family",
+      "type": "behavioral",
+      "passed": true,
+      "skipped": false,
+      "shouldTriggerAxis": {
+        "axis": "should-trigger",
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true,
+        "queryBreakdown": [
+          {
+            "query": "Query the mission state with spec-kitty next",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Advance the mission using spec-kitty next --result success",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "What decision is currently pending in this mission?",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Route this blocked result to the right recovery step",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Tell me the next control-loop step for this mission",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Resolve the pending decision_required in this mission",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Drive the mission forward with the next control loop",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "What terminal result did the mission reach?",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "nearMissAxis": {
+        "axis": "near-miss",
+        "triggerRate": 0.375,
+        "threshold": 0.5,
+        "passed": true,
+        "queryBreakdown": [
+          {
+            "query": "What is the manifest schema version for this project?",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "How do I initialize a new spec-kitty repository?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Explain the difference between a mission and a work package",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "What are DIR-0xx directives and where are they defined?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "How does the worktree lifecycle clean up after a merge?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "What is the acceptance-matrix.json file used for?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Approve this work package now",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Cycle back to implementation after a rejection",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "isControl": false
+    },
+    {
+      "id": "spec-kitty-runtime-review",
+      "type": "behavioral",
+      "passed": false,
+      "skipped": false,
+      "shouldTriggerAxis": {
+        "axis": "should-trigger",
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true,
+        "queryBreakdown": [
+          {
+            "query": "review this work package",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "check runtime output",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "approve this step",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "review WP",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "is this WP ready to approve",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "check this implementation",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "reject this work package with feedback",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "claim this WP for review",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "nearMissAxis": {
+        "axis": "near-miss",
+        "triggerRate": 0.5,
+        "threshold": 0.5,
+        "passed": false,
+        "queryBreakdown": [
+          {
+            "query": "Advance the mission to the next step",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Implement this work package's code changes",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Update the glossary entry for this term",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "How does spec-kitty commit worktree changes?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Orchestrate agent dispatch for all remaining WPs",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "What profile should I load for this session?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Fix the broken CLI installation",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Claim this work package from the runtime review queue",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "isControl": false
+    },
+    {
+      "id": "spk-run-review-wp",
+      "type": "behavioral",
+      "passed": false,
+      "skipped": false,
+      "shouldTriggerAxis": {
+        "axis": "should-trigger",
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true,
+        "queryBreakdown": [
+          {
+            "query": "Claim this work package from the runtime review queue",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Compare this implementation against the WP's acceptance checks",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Approve this work package now",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Reject this work package with structured feedback",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Operate the review workflow surface for this WP",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Let spk-run-implement-review continue after this review",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Review whether this WP satisfies its spec and plan",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Approve or reject work through the runtime review surface",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "nearMissAxis": {
+        "axis": "near-miss",
+        "triggerRate": 0.5,
+        "threshold": 0.5,
+        "passed": false,
+        "queryBreakdown": [
+          {
+            "query": "What is the next runtime step for this mission?",
+            "runsTotal": 3,
+            "runsTriggered": 1,
+            "runsErrored": 0
+          },
+          {
+            "query": "Coordinate the implement and review loop end to end",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Repair a stale spec-kitty setup",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Load the architect profile for this session",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Explain the mission's git merge workflow",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Dispatch implementers for the remaining work packages",
+            "runsTotal": 3,
+            "runsTriggered": 2,
+            "runsErrored": 0
+          },
+          {
+            "query": "What does DDR-011 profile matching do?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "review this work package",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "isControl": false
+    },
+    {
+      "id": "spk-run-review-wp-run-family",
+      "type": "behavioral",
+      "passed": true,
+      "skipped": false,
+      "shouldTriggerAxis": {
+        "axis": "should-trigger",
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true,
+        "queryBreakdown": [
+          {
+            "query": "Claim this work package from the runtime review queue",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Compare this implementation against the WP's acceptance checks",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Approve this work package now",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Reject this work package with structured feedback",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Operate the review workflow surface for this WP",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Let spk-run-implement-review continue after this review",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Review whether this WP satisfies its spec and plan",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Approve or reject work through the runtime review surface",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "nearMissAxis": {
+        "axis": "near-miss",
+        "triggerRate": 0.25,
+        "threshold": 0.5,
+        "passed": true,
+        "queryBreakdown": [
+          {
+            "query": "What is the manifest schema version for this project?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "How do I initialize a new spec-kitty repository?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Explain how git worktrees are created for a lane",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "What are DIR-0xx directives and where are they defined?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "How does the merge preflight validate a target branch?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "What is the acceptance-matrix.json file used for?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Drive the mission forward with the next control loop",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Review each WP independently with spk-run-review-wp",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "isControl": false
+    },
+    {
+      "id": "spec-kitty-implement-review",
+      "type": "behavioral",
+      "passed": true,
+      "skipped": false,
+      "shouldTriggerAxis": {
+        "axis": "should-trigger",
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true,
+        "queryBreakdown": [
+          {
+            "query": "implement and review WPs",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "run the implement-review loop",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "orchestrate WP implementation",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "dispatch agents for WPs",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "coordinate implement and review",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "sprint through WPs",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "handle rejection cycles across WPs",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "escalate to the arbiter for this WP",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "nearMissAxis": {
+        "axis": "near-miss",
+        "triggerRate": 0.25,
+        "threshold": 0.5,
+        "passed": true,
+        "queryBreakdown": [
+          {
+            "query": "Specify the requirements for this new feature",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Plan the work packages for this mission",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Write the tasks.md breakdown for this feature",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Edit the glossary directly for this term",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Approve this single work package review",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "What is the worktree lifecycle for a WP?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Directly edit the code for this work package myself",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Use spk-run-next to identify the active WP and lane",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "isControl": false
+    },
+    {
+      "id": "spk-run-implement-review",
+      "type": "behavioral",
+      "passed": false,
+      "skipped": false,
+      "shouldTriggerAxis": {
+        "axis": "should-trigger",
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true,
+        "queryBreakdown": [
+          {
+            "query": "Use spk-run-next to identify the active WP and lane",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Coordinate implementers and reviewers until the mission is done",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Feed reviewer feedback back into the next implementation attempt",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Continue the implement-review loop until terminal or blocked",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Dispatch implementation only from runtime-provided prompt context",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Review each WP independently with spk-run-review-wp",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Keep looping through implementation and review for all packages",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Cycle back to implementation after a rejection",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "nearMissAxis": {
+        "axis": "near-miss",
+        "triggerRate": 0.6666666666666666,
+        "threshold": 0.5,
+        "passed": false,
+        "queryBreakdown": [
+          {
+            "query": "What is the next runtime step for this mission?",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Review this single work package and approve it",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Repair the spec-kitty setup after an upgrade",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Explain how git worktrees are cleaned up",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Load the reviewer profile for this session",
+            "runsTotal": 3,
+            "runsTriggered": 1,
+            "runsErrored": 0
+          },
+          {
+            "query": "Update the doctrine glossary for this concept",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "What does the merge preflight check for?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "run the implement-review loop",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "isControl": false
+    },
+    {
+      "id": "spk-run-implement-review-run-family",
+      "type": "behavioral",
+      "passed": true,
+      "skipped": false,
+      "shouldTriggerAxis": {
+        "axis": "should-trigger",
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true,
+        "queryBreakdown": [
+          {
+            "query": "Use spk-run-next to identify the active WP and lane",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Coordinate implementers and reviewers until the mission is done",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Feed reviewer feedback back into the next implementation attempt",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Continue the implement-review loop until terminal or blocked",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Dispatch implementation only from runtime-provided prompt context",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Review each WP independently with spk-run-review-wp",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Keep looping through implementation and review for all packages",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Cycle back to implementation after a rejection",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "nearMissAxis": {
+        "axis": "near-miss",
+        "triggerRate": 0.25,
+        "threshold": 0.5,
+        "passed": true,
+        "queryBreakdown": [
+          {
+            "query": "What is the manifest schema version for this project?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "How do I initialize a new spec-kitty repository?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Explain how git worktrees are created for a lane",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "What are DIR-0xx directives and where are they defined?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "How does the merge preflight validate a target branch?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "What is the acceptance-matrix.json file used for?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Resolve the pending decision_required in this mission",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Operate the review workflow surface for this WP",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "isControl": false
+    },
+    {
+      "id": "spec-kitty-git-workflow",
+      "type": "behavioral",
+      "passed": false,
+      "skipped": false,
+      "shouldTriggerAxis": {
+        "axis": "should-trigger",
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true,
+        "queryBreakdown": [
+          {
+            "query": "how does spec-kitty use git",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "worktree management",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "auto-commit",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "who commits what",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "git workflow",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "merge workflow",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "rebase WPs",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "worktree cleanup",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "safe commit",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "nearMissAxis": {
+        "axis": "near-miss",
+        "triggerRate": 0.5833333333333334,
+        "threshold": 0.5,
+        "passed": false,
+        "queryBreakdown": [
+          {
+            "query": "Advance the mission to the next step",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Review this work package for approval",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Load the implementer profile for this session",
+            "runsTotal": 3,
+            "runsTriggered": 2,
+            "runsErrored": 0
+          },
+          {
+            "query": "What does DDR-011 profile matching do?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Update the glossary term definition",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Orchestrate the implement-review loop for all WPs",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Explain the charter's governance scope model",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Inspect the active mission's branch and worktree state",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "isControl": false
+    },
+    {
+      "id": "spk-admin-git-workflow",
+      "type": "behavioral",
+      "passed": false,
+      "skipped": false,
+      "shouldTriggerAxis": {
+        "axis": "should-trigger",
+        "triggerRate": 1,
+        "threshold": 0.5,
+        "passed": true,
+        "queryBreakdown": [
+          {
+            "query": "Inspect the active mission's branch and worktree state",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Let spec-kitty-managed git operations run through the CLI",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Perform a manual git operation this workflow requires",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Preserve my changes during this git repair",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Recover from a stale repository state",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Check for merge blockers before merging this WP",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Operate the git workflow admin surface for this mission",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Return to spk-gate-merge after this repair",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "nearMissAxis": {
+        "axis": "near-miss",
+        "triggerRate": 0.625,
+        "threshold": 0.5,
+        "passed": false,
+        "queryBreakdown": [
+          {
+            "query": "What is the next runtime step for this mission?",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Review and approve this single work package",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Load the researcher profile for this interactive session",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "Coordinate implementers and reviewers across WPs",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Explain the doctrine directive catalog",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Dispatch agents for the remaining work packages",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          },
+          {
+            "query": "What is a profile's initialization declaration?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "git workflow",
+            "runsTotal": 3,
+            "runsTriggered": 3,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "isControl": false
+    },
+    {
+      "id": "rigged-impossible-control",
+      "type": "behavioral",
+      "passed": false,
+      "skipped": false,
+      "shouldTriggerAxis": {
+        "axis": "should-trigger",
+        "triggerRate": 0.08333333333333333,
+        "threshold": 0.5,
+        "passed": false,
+        "queryBreakdown": [
+          {
+            "query": "What's a good icebreaker question for a team meeting?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Convert 5 kilograms to pounds",
+            "runsTotal": 3,
+            "runsTriggered": 2,
+            "runsErrored": 0
+          },
+          {
+            "query": "Give me a two-sentence summary of the water cycle",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "What's a synonym for 'meticulous'?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Write a limerick about a rainy Tuesday",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "What year did the first iPhone launch?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Explain the difference between a stack and a queue",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "What's the chemical symbol for tungsten?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "nearMissAxis": {
+        "axis": "near-miss",
+        "triggerRate": 0,
+        "threshold": 0.5,
+        "passed": true,
+        "queryBreakdown": [
+          {
+            "query": "What's a fun icebreaker for a small team standup?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "How many pounds are in 5 kilograms, roughly?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "What drives the water cycle's evaporation stage?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "What's another word close in meaning to 'meticulous'?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "What makes a limerick's rhyme scheme distinct from a haiku's?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "What else launched the same year as the first iPhone?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "When would you choose a queue over a stack?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          },
+          {
+            "query": "Why is tungsten's chemical symbol 'W' instead of 'T'?",
+            "runsTotal": 3,
+            "runsTriggered": 0,
+            "runsErrored": 0
+          }
+        ]
+      },
+      "isControl": true
+    }
+  ]
+}
