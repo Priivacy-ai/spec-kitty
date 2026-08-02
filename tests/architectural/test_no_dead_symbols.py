@@ -1113,13 +1113,22 @@ _CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
     {
         # charter.pack_context::ActivationReachabilityPartition
         SymbolKey("ActivationReachabilityPartition", "16f04ac28e60241772fae3e88ebe14fa1e4b234c2fc216673cc9d075f285b661"),
-        # charter_activated_urns is REMOVED here (WP06/#2532, T033): WP02
-        # (doctrine-delivery-activation) added a real caller at
-        # src/specify_cli/invocation/empty_charter.py:56, so the grandfathered
-        # entry is now stale -- the shrink-only dead-symbol ratchet allows
-        # removing it. Confirmed not pre-existing at the upstream base (no
-        # caller there); this is this mission's fallout, fixed here per the
-        # WP06 task file's required mission-fallout campsite.
+        # charter_activated_urns: charter.pack_context::charter_activated_urns
+        # -- re-allowlisted (charter-pack-usage-journey-01KYWWTF WP01/T006b,
+        # #3118). It is the documented FR-017 "single activation authority"
+        # and stays public/__all__-exported for the DRG reachability/
+        # extractor test suites that consume it directly. WP01's #3118
+        # hot-path perf fold removed its LAST src/ caller
+        # (src/specify_cli/invocation/empty_charter.py:56 -- the old
+        # composite-predicate call site) as part of collapsing
+        # ``is_charter_empty`` to a single ``PackContext.from_config`` load;
+        # see empty_charter.py's module docstring for the fold rationale.
+        # Precedent: this exact symbol lived in this allowlist before that
+        # caller ever existed (see the prior grandfathered-entry note this
+        # replaces, added when WP02/doctrine-delivery-activation wired the
+        # since-removed caller). Re-allowlisting on caller removal, not
+        # deleting/de-exporting, matches that precedent.
+        SymbolKey("charter_activated_urns", "5003eed5e2d30c222f2108ba89da31d8531cdeb468898d01b3fa96020bd62830"),
         # charter.pack_context::normalize_activation_identifier
         SymbolKey("normalize_activation_identifier", "8deec4a1dd1a1699b821620bfa64a7ae3f3e64798b76156465ff2bef1e395c0c"),
         # charter.pack_context::partition_activated_unreachable
