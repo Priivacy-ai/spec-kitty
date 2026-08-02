@@ -383,6 +383,31 @@ class TestDashboardApiSecurityHardening:
         handler.end_headers = MagicMock()
         handler.wfile = io.BytesIO()
 
+        # FR-003 (#3150): the presence gate (resolve_project_charter_presence)
+        # now runs first in handle_charter; an internal error there must be
+        # hidden the same way as a body-read error.
+        with patch.object(api_module, "resolve_project_charter_presence", side_effect=RuntimeError("secret")):
+            api_module.APIHandler.handle_charter(handler)
+
+        handler.send_response.assert_called_once_with(500)
+        handler.wfile.seek(0)
+        assert handler.wfile.read().decode("utf-8") == "Error loading charter"
+
+    def test_charter_hides_internal_errors_from_body_read(self, tmp_path):
+        """The body-reading path (resolve_project_charter_path) still hides errors too."""
+        from specify_cli.dashboard.handlers import api as api_module
+
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
+
+        handler = MagicMock()
+        handler.project_dir = str(tmp_path)
+        handler.send_response = MagicMock()
+        handler.send_header = MagicMock()
+        handler.end_headers = MagicMock()
+        handler.wfile = io.BytesIO()
+
         with patch.object(api_module, "resolve_project_charter_path", side_effect=RuntimeError("secret")):
             api_module.APIHandler.handle_charter(handler)
 

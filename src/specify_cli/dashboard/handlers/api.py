@@ -9,7 +9,7 @@ import urllib.request
 from pathlib import Path
 
 from ..api_types import HealthResponse
-from ..charter_path import resolve_project_charter_path
+from ..charter_path import resolve_project_charter_path, resolve_project_charter_presence
 from ..diagnostics import run_diagnostics
 from ..templates import get_dashboard_html_bytes
 from .base import DashboardHandler
@@ -172,15 +172,36 @@ class APIHandler(DashboardHandler):
             self._send_json(500, {"error": "diagnostics_failed"})
 
     def handle_charter(self) -> None:
-        """Serve project-level charter from new path with legacy fallback."""
-        try:
-            charter_path = resolve_project_charter_path(Path(self.project_dir))
+        """Serve the project-level charter prose body.
 
-            if not charter_path:
+        FR-003 (#3150), C-001: the "does a charter exist" 404 gate is keyed
+        on ``resolve_project_charter_presence`` (``charter.yaml`` -- the
+        resolving authority) so this endpoint survives ``charter.md``
+        deletion. The prose body itself stays keyed on
+        ``resolve_project_charter_path`` (``charter.md`` -- the readable
+        secondary) -- never retargeted to yaml.
+        """
+        try:
+            project_dir = Path(self.project_dir)
+
+            if resolve_project_charter_presence(project_dir) is None:
                 self.send_response(404)
                 self.send_header("Content-type", "text/plain")
                 self.end_headers()
                 self.wfile.write(b"Charter not found")
+                return
+
+            charter_path = resolve_project_charter_path(project_dir)
+
+            if not charter_path:
+                # A charter exists (charter.yaml present) but there is no
+                # charter.md prose companion to serve -- distinct from "no
+                # charter" (C-001: presence and body are separate signals).
+                self.send_response(200)
+                self.send_header("Content-type", "text/plain; charset=utf-8")
+                self.send_header("Cache-Control", "no-cache")
+                self.end_headers()
+                self.wfile.write(b"")
                 return
 
             content = charter_path.read_text(encoding="utf-8")

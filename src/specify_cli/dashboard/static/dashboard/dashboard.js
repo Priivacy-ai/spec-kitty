@@ -1122,8 +1122,15 @@ function showCharter() {
     fetch('/api/charter')
         .then(response => response.ok ? response.text() : Promise.reject(new Error('Not found')))
         .then(content => {
-            const htmlContent = marked.parse(content);
             const container = document.getElementById('charter-content');
+            if (!content.trim()) {
+                // charter.yaml exists (the presence authority) but no
+                // charter.md prose companion has been authored yet.
+                container.innerHTML =
+                    '<div class="empty-state">A compiled charter.yaml governs this project, but no charter.md prose document has been authored yet. Run /spec-kitty.charter to write one.</div>';
+                return;
+            }
+            const htmlContent = marked.parse(content);
             container.innerHTML = htmlContent;
             // Intercept markdown links to route through dashboard
             interceptMarkdownLinks(container);
