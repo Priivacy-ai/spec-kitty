@@ -1,0 +1,26 @@
+id: spec-kitty-implement-review
+source: "docs/rubric/skills-trigger-taxonomy.md"
+threshold: 0.5
+shouldTrigger:
+  # First six verbatim from src/doctrine/skills/spec-kitty-implement-review/SKILL.md
+  # description Triggers list; two more consistent with the same purpose.
+  - "implement and review WPs"
+  - "run the implement-review loop"
+  - "orchestrate WP implementation"
+  - "dispatch agents for WPs"
+  - "coordinate implement and review"
+  - "sprint through WPs"
+  - "handle rejection cycles across WPs"
+  - "escalate to the arbiter for this WP"
+nearMiss:
+  - "Specify the requirements for this new feature"
+  - "Plan the work packages for this mission"
+  - "Write the tasks.md breakdown for this feature"
+  - "Edit the glossary directly for this term"
+  - "Approve this single work package review"
+  - "What is the worktree lifecycle for a WP?"
+  - "Directly edit the code for this work package myself"
+  # FR-002 twin phrase: byte-identical to a shouldTrigger entry in
+  # spk-run-implement-review-duplicate-pair-queries.yaml. This file is
+  # duplicate-pair only; not the run-family purpose (WP02's territory).
+  - "Use spk-run-next to identify the active WP and lane"

@@ -1,0 +1,24 @@
+id: ad-hoc-profile-load
+source: "docs/rubric/skills-trigger-taxonomy.md"
+threshold: 0.5
+shouldTrigger:
+  # Verbatim from src/doctrine/skills/ad-hoc-profile-load/SKILL.md description Triggers list.
+  - "act as the architect"
+  - "load the reviewer profile"
+  - "switch to implementer"
+  - "use the researcher persona"
+  - "start a session as planner"
+  - "adopt the curator role"
+  - "initialize profile"
+  - "assume the designer identity"
+nearMiss:
+  - "Create a new agent profile from scratch"
+  - "Edit the existing implementer profile YAML"
+  - "What does spec-kitty next do at this step?"
+  - "Explain how DDR-011 profile matching works"
+  - "Show me the charter interview questions"
+  - "List all available agent profiles"
+  - "What is a profile's initialization declaration?"
+  # FR-002 twin phrase: byte-identical to a shouldTrigger entry in
+  # spk-doctrine-profile-load-duplicate-pair-queries.yaml.
+  - "Load the Spec Kitty agent profile for this interactive session"

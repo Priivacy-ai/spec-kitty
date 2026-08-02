@@ -1,0 +1,23 @@
+id: spk-doctrine-profile-load
+source: "docs/rubric/skills-trigger-taxonomy.md"
+threshold: 0.5
+shouldTrigger:
+  - "Load the Spec Kitty agent profile for this interactive session"
+  - "I need identity, governance scope, and boundaries loaded for this role"
+  - "Set up the agent profile initialization for this session"
+  - "Bring in the profile's governance scope before I start"
+  - "Load my profile identity and boundaries now"
+  - "I want an agent profile applied for this interactive session"
+  - "Apply the doctrine profile load for the current role"
+  - "Initialize this session with the requested agent profile"
+nearMiss:
+  - "What is the current mission status?"
+  - "Advance the mission to the next step"
+  - "Show me the doctrine directive catalog"
+  - "Explain the charter governance model"
+  - "Create a brand-new profile for the tester role"
+  - "List the mission's work packages"
+  - "What does the runtime loop do on blocked?"
+  # FR-002 twin phrase: byte-identical to a shouldTrigger entry in
+  # ad-hoc-profile-load-duplicate-pair-queries.yaml.
+  - "act as the architect"
