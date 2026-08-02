@@ -311,6 +311,11 @@ _CATEGORY_2_BUILD_SCHEMA_GENERATORS: frozenset[str] = frozenset(
 _CATEGORY_3_EXTERNAL_CLI_ENTRYPOINTS: frozenset[str] = frozenset(
     {
         "specify_cli.policy.commit_guard_hook",
+        # doctrine.hatch_build: a hatchling custom build-hook module, loaded
+        # by hatchling itself via the `path = "hatch_build.py"` declaration
+        # in src/doctrine/pyproject.toml's [tool.hatch.build.hooks.custom]
+        # table -- never imported from src/ Python code (WP12, D7).
+        "doctrine.hatch_build",
     }
 )
 
