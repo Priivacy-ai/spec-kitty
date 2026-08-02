@@ -99,6 +99,7 @@ boundary rule and layout).
 
 - [Functional Ownership Map](05_ownership_map.md) — which code slices own which functional areas.
 - [Unified Charter Bundle](06_unified_charter_bundle.md) — the single-file authoritative `charter.yaml` model.
+- [Charter Pack Usage Journey](charter-pack-usage-journey.md) — the `apply` → `generate` two-step and the empty-charter dispatch safety net.
 
 ## Templates & reference
 
