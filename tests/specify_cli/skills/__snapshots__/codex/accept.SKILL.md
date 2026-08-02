@@ -70,7 +70,33 @@ You **MUST** consider this user input before proceeding (if not empty).
 
 ## Steps
 
-### 1. Run the Acceptance Gate
+### 1. Record Acceptance Evidence (Zero Hand-Edited JSON)
+
+Before running the gate, record every acceptance-criterion verdict — and
+register/execute any negative invariant — through the deterministic
+`acceptance-verdict` command. **Never hand-edit `acceptance-matrix.json`.**
+
+```bash
+# Record one criterion's verdict:
+spec-kitty agent mission acceptance-verdict --mission <handle> \
+  --criterion <criterion-id> --result pass \
+  --verification-method automated_test --actor <you> --evidence <ref>
+
+# Register AND execute a negative invariant (something that must NOT hold),
+# when the mission's acceptance-matrix.json declares one:
+spec-kitty agent mission acceptance-verdict --mission <handle> \
+  --negative-invariant <invariant-id> \
+  --description "<what must NOT hold>" \
+  --verification-method grep_absence \
+  --verification-command "<pattern that must be absent>"
+```
+
+Repeat the criterion form for every row in `acceptance-matrix.json` until
+each one is `pass` or `fail` (no `pending` rows left unintentionally). Each
+invocation reports the recomputed `overall_verdict` — use it to confirm the
+matrix is converging before moving on.
+
+### 2. Run the Acceptance Gate
 
 Run the acceptance command from the repository root:
 
@@ -79,9 +105,10 @@ spec-kitty accept --mission <handle>
 ```
 
 This validates that all work packages are `approved` or `done`, checks the
-readiness gates, and reports what (if anything) still blocks merge.
+readiness gates (including the acceptance matrix recorded in step 1), and
+reports what (if anything) still blocks merge.
 
-### 2. Inspect Acceptance Diagnostics
+### 3. Inspect Acceptance Diagnostics
 
 Read the command output carefully:
 
@@ -89,18 +116,23 @@ Read the command output carefully:
   prints the merge instructions.
 - If the gate **fails**, the output lists each outstanding category (for
   example: WPs not yet approved, failing checks, or unresolved review
-  feedback). Treat every outstanding item as a blocker.
+  feedback — including any malformed acceptance-matrix entry, named by item
+  and reason). Treat every outstanding item as a blocker. Use
+  `spec-kitty accept --mission <handle> --diagnose` for a read-only diagnostic
+  pass that reports blockers without writing anything.
 
-### 3. Resolve Any Gate Failures
+### 4. Resolve Any Gate Failures
 
 For each blocker reported:
 
 - Route the affected work package back through implement/review as needed.
 - Re-run the relevant tests or checks until they pass.
+- If a criterion or negative invariant still needs recording, go back to
+  step 1 — through `acceptance-verdict`, never by hand-editing the JSON.
 - Re-run `spec-kitty accept --mission <handle>` and confirm the gate is now
   clean. Do **not** force acceptance past an unresolved blocker.
 
-### 4. Proceed to Merge
+### 5. Proceed to Merge
 
 Only after the acceptance gate passes:
 
