@@ -114,15 +114,23 @@ def test_sync_command_success(mock_repo: Path) -> None:
 
 
 def test_sync_command_already_synced(mock_repo: Path) -> None:
+    """#3045: ``mock_repo`` is the charter.md-present / charter.yaml-absent /
+    never-synced state, so under the honest-reporter remedy ``sync`` reports the
+    charter as stale and did NOT sync it — a loud non-zero exit naming the
+    recovery path, not a silent "already in sync". The prior ``exit_code == 0`` /
+    "already in sync" assertions were a stale pin on the exact misleading success
+    this remediation removes; rewritten here (not annotated) alongside
+    ``test_sync_command_success``, per the failing-test remediation framework.
+    Idempotent: a second stale ``sync`` fails the same way."""
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = mock_repo
 
         result1 = runner.invoke(app, ["sync"])
-        assert result1.exit_code == 0
+        assert result1.exit_code == 1
 
         result2 = runner.invoke(app, ["sync"])
-        assert result2.exit_code == 0
-        assert "already in sync" in result2.stdout
+        assert result2.exit_code == 1
+        assert "was not synced" in result2.stdout
 
 
 def test_sync_command_json_output(mock_repo: Path) -> None:
