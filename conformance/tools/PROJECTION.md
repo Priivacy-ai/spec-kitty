@@ -3,7 +3,7 @@
 Mission: `crosslayer-composition-suite-01KYJA33` (M7), WP01, FR-002.
 
 `conformance/tools/profile2soul.py` deterministically projects a spec-kitty
-built-in agent profile (`src/doctrine/agent_profiles/built-in/*.agent.yaml`)
+built-in agent profile (`packs/built-in/agent_profiles/*.agent.yaml`)
 into an RFC-1-conformant `Soul.md` document. This document states exactly
 what the projection carries, what it fabricates, and what it structurally
 cannot carry at all.

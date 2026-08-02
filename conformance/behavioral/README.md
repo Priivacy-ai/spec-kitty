@@ -253,7 +253,7 @@ static, greppable fact rather than something recomputed on demand.
 
 ```bash
 python3 conformance/behavioral/tools/render_profile.py \
-  src/doctrine/agent_profiles/built-in/<id>.agent.yaml \
+  packs/built-in/agent_profiles/<id>.agent.yaml \
   > conformance/behavioral/projected/<id>.md \
   2> conformance/behavioral/projected/<id>.md.sha256
 ```
