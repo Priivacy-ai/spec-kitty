@@ -234,8 +234,43 @@ def _resolve_directives_selection(
     doctrine: DoctrineSelectionConfig,
     directives_cfg: DirectivesConfig,
     doctrine_catalog: DoctrineCatalog,
+    repo_root: Path,
 ) -> tuple[list[str], str]:
-    """Resolve directive list from charter selection, local declarations, or catalog fallback."""
+    """Resolve directive list from charter selection, local declarations, or the
+    config-activated set (FR-007 — the catalog-wide fallback is retired).
+
+    Resolution order, unchanged for the first two branches:
+
+    1. ``doctrine.selected_directives`` (explicit charter selection) → validated
+       against the local + built-in catalog, source ``"charter"``.
+    2. ``directives_cfg.directives`` (local ``directives.yaml`` declarations,
+       used when the charter selection is empty) → source ``"catalog_fallback"``
+       (label preserved; this branch is untouched by FR-007).
+
+    When BOTH are empty (the true "no authored selection at all" case), the
+    directives now come from :attr:`~charter.pack_context.PackContext.
+    activated_directives` — the SAME config-activated set the doctrine layer's
+    ``DoctrineService`` wrapper filters by — instead of the full built-in
+    catalog. This retires ``resolve_project_governance`` as a second,
+    divergent directive authority (FR-007).
+
+    Three-state guard (``pack_context.py:144``), preserved verbatim:
+
+    * ``activated_directives is None`` (key absent from config; e.g. a bare,
+      unconfigured project) → the EXISTING catalog default
+      (``sorted(doctrine_catalog.directives)``), source ``"catalog_fallback"``
+      unchanged. Bare projects must keep seeing the built-in canon.
+    * ``activated_directives == frozenset()`` (explicit opt-out) → ``[]``,
+      source ``"activation"``.
+    * ``activated_directives == {ids}`` → ``sorted(ids)``, source
+      ``"activation"``.
+
+    The ``is not None`` check is deliberate and MUST NOT be collapsed to a
+    truthiness check (``activated_directives or frozenset()`` /
+    ``if activated_directives:``): ``frozenset()`` is falsy, so a truthiness
+    collapse would silently re-route the explicit opt-out case back to the
+    29-directive catalog default it exists to suppress.
+    """
     local_ids = {d.id for d in directives_cfg.directives}
     valid_ids = set(local_ids)
     if doctrine_catalog.directives:
@@ -252,12 +287,15 @@ def _resolve_directives_selection(
             )
         return list(doctrine.selected_directives), "charter"
 
-    fallback = (
-        [d.id for d in directives_cfg.directives]
-        if directives_cfg.directives
-        else sorted(doctrine_catalog.directives)
-    )
-    return fallback, "catalog_fallback"
+    if directives_cfg.directives:
+        return [d.id for d in directives_cfg.directives], "catalog_fallback"
+
+    from charter.pack_context import PackContext  # noqa: PLC0415 — lazy; avoids circular import
+
+    activated_directives = PackContext.from_config(repo_root).activated_directives
+    if activated_directives is None:
+        return sorted(doctrine_catalog.directives), "catalog_fallback"
+    return sorted(activated_directives), "activation"
 
 
 def _resolve_template_set_selection(
@@ -322,7 +360,9 @@ def resolve_project_governance(
 
     available_tools = tool_registry or set(DEFAULT_TOOL_REGISTRY)
     resolved_tools, tools_source = _resolve_tools_selection(doctrine, available_tools, diagnostics)
-    resolved_directives, directives_source = _resolve_directives_selection(doctrine, directives_cfg, doctrine_catalog)
+    resolved_directives, directives_source = _resolve_directives_selection(
+        doctrine, directives_cfg, doctrine_catalog, repo_root
+    )
     template_set, template_set_source = _resolve_template_set_selection(
         doctrine, doctrine_catalog, fallback_template_set, diagnostics
     )
