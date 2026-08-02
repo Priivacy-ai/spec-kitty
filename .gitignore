@@ -159,7 +159,10 @@ doctrine_ref
 mutmut.db
 mutmut-cache/
 .mutmut-cache
-mutants/
+# anchored to repo root: mutmut writes its artifact dir at the root. Unanchored,
+# this swallowed scripts/mutants/ (this repo's tracked mutation-testing plugins)
+# at any depth, silently dropping any new plugin from `git add` (#3125).
+/mutants/
 
 # CI report outputs
 .coverage
