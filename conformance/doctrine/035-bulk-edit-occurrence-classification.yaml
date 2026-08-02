@@ -1,5 +1,5 @@
 version: "1.0.0"
-sopFile: "../../src/doctrine/directives/built-in/035-bulk-edit-occurrence-classification.directive.yaml"
+sopFile: "../../packs/built-in/directives/035-bulk-edit-occurrence-classification.directive.yaml"
 rules:
   - ruleId: "035-r1"
     ruleText: "Every occurrence category in the map must have an explicit action assignment."

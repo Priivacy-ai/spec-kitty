@@ -1,5 +1,5 @@
 version: "1.0.0"
-sopFile: "../../src/doctrine/directives/built-in/045-prs-only-and-read-intent.directive.yaml"
+sopFile: "../../packs/built-in/directives/045-prs-only-and-read-intent.directive.yaml"
 rules:
   - ruleId: "045-r1"
     ruleText: "Agents must not run `git push origin main`, `git push --force`, or `gh pr\n    merge` without explicit operator instruction."

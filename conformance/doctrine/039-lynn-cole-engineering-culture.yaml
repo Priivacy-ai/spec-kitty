@@ -1,5 +1,5 @@
 version: 1.0.0
-sopFile: ../../src/doctrine/directives/built-in/039-lynn-cole-engineering-culture.directive.yaml
+sopFile: ../../packs/built-in/directives/039-lynn-cole-engineering-culture.directive.yaml
 rules:
   - ruleId: 039-r1
     ruleText: Remember the three rules of TDD, and hold them sacred.

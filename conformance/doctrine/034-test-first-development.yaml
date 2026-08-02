@@ -1,5 +1,5 @@
 version: "1.0.0"
-sopFile: "../../src/doctrine/directives/built-in/034-test-first-development.directive.yaml"
+sopFile: "../../packs/built-in/directives/034-test-first-development.directive.yaml"
 rules:
   - ruleId: "034-r1"
     ruleText: "Production code must not be written ahead of a failing test that motivates it."
