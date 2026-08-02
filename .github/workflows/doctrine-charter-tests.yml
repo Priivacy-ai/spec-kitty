@@ -120,6 +120,7 @@ on:
       - "src/doctrine/**"
       - "src/charter/**"
       - "src/specify_cli/invocation/**"
+      - "src/specify_cli/cli/commands/charter/**"
       - ".kittify/doctrine/overlays/**"
       - "tests/doctrine/**"
       - "tests/charter/**"
@@ -127,6 +128,8 @@ on:
       - "tests/specify_cli/charter_freshness/**"
       - "tests/specify_cli/charter_lint/**"
       - "tests/specify_cli/charter_preflight/**"
+      - "tests/specify_cli/cli/commands/charter/**"
+      - "tests/specify_cli/cli/commands/test_analyze_surface_agreement.py"
       - "tests/invocation/**"
       - ".github/workflows/doctrine-charter-tests.yml"
   push:
@@ -138,6 +141,7 @@ on:
       - "src/doctrine/**"
       - "src/charter/**"
       - "src/specify_cli/invocation/**"
+      - "src/specify_cli/cli/commands/charter/**"
       - ".kittify/doctrine/overlays/**"
       - "tests/doctrine/**"
       - "tests/charter/**"
@@ -145,6 +149,8 @@ on:
       - "tests/specify_cli/charter_freshness/**"
       - "tests/specify_cli/charter_lint/**"
       - "tests/specify_cli/charter_preflight/**"
+      - "tests/specify_cli/cli/commands/charter/**"
+      - "tests/specify_cli/cli/commands/test_analyze_surface_agreement.py"
       - "tests/invocation/**"
       - ".github/workflows/doctrine-charter-tests.yml"
 
@@ -182,6 +188,8 @@ jobs:
             tests/specify_cli/charter_lint/ \
             tests/specify_cli/charter_preflight/ \
             tests/specify_cli/invocation/ \
+            tests/specify_cli/cli/commands/charter/ \
+            tests/specify_cli/cli/commands/test_analyze_surface_agreement.py \
             tests/invocation/ \
             -m "fast and not windows_ci" \
             -q --tb=short \
