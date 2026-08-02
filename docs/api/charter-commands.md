@@ -295,6 +295,18 @@ uv run spec-kitty charter context --action implement --json
 uv run spec-kitty charter context --action specify --no-mark-loaded --json
 ```
 
+> **`--json` `project_charter.present` semantics (authority-of-record).**
+> `project_charter.present` / `project_charter.path` key on the **compiled
+> `charter.yaml`** — the authority-of-record — not on the display-only
+> `charter.md`. This is intentional and deliberately **narrower** than "the
+> charter renders": a project that has a `charter.md` but has never compiled
+> reports `present: false` (the `charter_md_present` / `charter_md_path` keys
+> expose the display file separately). The human `charter context` renderer, by
+> contrast, still renders when *either* file exists — so do not "align" the JSON
+> `present` to the renderer's OR-gate; that would re-introduce the `charter.md`
+> read dependency this surface deliberately retired. External `--json` consumers
+> should treat `charter.yaml` as the presence authority.
+
 ---
 
 ## spec-kitty charter bundle validate
