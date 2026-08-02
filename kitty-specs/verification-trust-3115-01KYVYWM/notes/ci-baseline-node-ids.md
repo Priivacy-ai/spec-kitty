@@ -16,6 +16,19 @@ branched from:
 
 **41 distinct failing node-ids in the union. 39 stable** — identical in both runs, same job(s).
 
+### Conceded: this baseline is anchored 6 commits behind the PR's true base
+
+The table is measured at `bb2020fea`, the SHA the mission branched from. The PR's actual
+merge-base is `f9fde44bb` — `bb2020fea..f9fde44bb` is **6 substantive commits touching ~81
+`src/` and ~116 `tests/` files** (including a doctrine-consolidation feature), not a docs-only
+gap. The failing-node-id set *could* legitimately differ between the two SHAs, and no `CI Quality`
+run exists at `f9fde44bb` (it is a landing-fold SHA that never triggered the schedule/push
+workflow). The direction of the drift is **conservative for attribution**: a red introduced by
+those 6 main commits but absent from this `bb2020fea` list would be *over*-attributed to the PR
+(flagged for a human to dismiss), never silently slipped past. It is stated here rather than
+implied, because "a standard whose comparison basis cannot be re-derived is not a standard" is
+this mission's own subject — and re-derivability includes naming the base you could not measure.
+
 ## Tracked by an open issue — expected, not a problem
 
 | # | Node-id | Job(s) | Issue |
@@ -81,9 +94,15 @@ times, not fourteen defects. Stated as an observed pattern; the diff was not tra
 three `arch-adversarial` shards green. This mission adds tests there, so **any red under
 `tests/architectural/` on the PR is the PR's**.
 
-**`tests/sync/` is not clean, but its reds are attributable.** The leak guard tags every error it
-raises with `[FR-007 leak guard]`. A red in that cone **without** the tag is baseline; **with** the
-tag it is the PR's.
+**`tests/sync/` is not clean, but its reds are attributable.** The **primary** rule is strict
+node-id membership: a `tests/sync/` red whose node-id is in the tables above is baseline; one whose
+node-id is *not* is the PR's, full stop. The leak-guard `[FR-007 leak guard]` tag is a **secondary
+convenience**, not the standard — it only distinguishes leak-guard-*emitted* reds, and a `[FR-007
+leak guard]`-tagged red is unambiguously the PR's. But the inverse ("untagged ⇒ baseline") does
+**not** hold: this PR rewrites `tests/sync/conftest.py` (+1157) and adds sync test files
+(`test_saas_client.py`, `test_sync_consent_default_deny.py`), so an *untagged* new red is entirely
+possible and must be judged by node-id membership, not by the absence of the tag. Where the two
+rules disagree, node-id membership wins.
 
 ## The gap this table cannot close
 
