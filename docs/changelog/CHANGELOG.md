@@ -320,14 +320,22 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   context` / `charter status` still reported the charter as "not found" because
   they gated on the display-only `charter.md` that `apply` never writes. Now:
   applying a pack **without** compiling keeps the warned generic-agent net
-  engaged (an unmatched request still falls back, never `ROUTER_NO_MATCH`);
-  `apply --compile` does the apply and compile in one step; after you compile,
-  `charter context` / `charter status` reflect the pack's activated governance
-  and keep working even if `charter.md` is deleted (the read authority is the
-  compiled `charter.yaml`); and the governance resolver reports the *activated*
-  directive set rather than silently falling back to all built-in directives
-  (`#3104`). The documented `spec-kitty analyze` surface and the CLI are now
-  guarded to stay in agreement (`#3096`).
+  engaged (an unmatched request still falls back, never `ROUTER_NO_MATCH`), and
+  checking that adds no extra doctrine-catalog load to the dispatch hot path
+  (`#3118`); `apply --compile` does the apply and compile in one step; after you
+  compile, `charter context` / `charter status` reflect the pack's activated
+  governance and keep working even if `charter.md` is deleted (the read
+  authority is the compiled `charter.yaml`); and the governance resolver reports
+  the *activated* directive set rather than silently falling back to all
+  built-in directives. The documented `spec-kitty analyze` surface and the CLI
+  are now guarded to stay in agreement (`#3096`). **Deliberate behaviour
+  change:** the dispatch net now keys purely on whether a compiled bundle or a
+  routable profile/org pack exists, not on every activated doctrine dimension —
+  so a project that has activated only glossary packs, directives, or other
+  non-routing doctrine (no bundle, no routable profile) now falls back to the
+  generic-agent net too. This narrows the broader composite-dimension check the
+  `#3064` fix introduced above; it is a tested, recorded change, not a silent
+  regression.
 - **Contract note — `charter context --json` (`project_charter.present`).** The
   read authority for the JSON charter-presence surface moved from the
   display-only `charter.md` to the compiled `charter.yaml`: a project that has a
@@ -858,6 +866,15 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ♻️ Changed
 
+- **Internal: doctrine/charter changes now get a dedicated, path-filtered CI
+  workflow (mission `charter-pack-usage-journey`; `#3102`).** A PR that touches
+  only `src/doctrine/**` / `src/charter/**` (or touches neither) now runs the
+  DRG-freshness, charter-context-resolution, and architectural/adversarial
+  checks for that layer in an isolated workflow instead of paying for the full
+  suite — faster, more targeted feedback for doctrine/charter work, no change
+  for unrelated PRs. The `charter pack apply` → `charter generate` two-step and
+  the empty-charter dispatch-safety-net behaviour are also now documented in
+  the charter journey guides (`#3107`).
 - **The `charter/context.py` god-module was decomposed 3243 → 570 lines (mission
   `charter-delivery-finish-context-degod`; `#2532`).** The charter-context
   engine — previously a single 3243-line module — is now a thin orchestration
