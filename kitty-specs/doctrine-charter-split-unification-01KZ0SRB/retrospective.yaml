@@ -1,0 +1,273 @@
+schema_version: 1
+mission_id: 01KZ0SRBTBFDRFM0MVT62AEVB4
+mission_slug: doctrine-charter-split-unification-01KZ0SRB
+mission_number: 188
+friendly_name: 'Doctrine-Charter Split: Single-Path Authority Foundation'
+mission_type: software-dev
+target_branch: feat/doctrine-charter-split-unification
+created_at: '2026-08-02T15:55:16.268567+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-08-02T15:55:16.268567+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped: []
+not_helpful:
+- id: n-001
+  category: process
+  summary: WP01 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-020
+  details: WP WP01 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-002
+  category: process
+  summary: WP02 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-021
+  details: WP WP02 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-003
+  category: process
+  summary: WP03 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-022
+  details: WP WP03 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-004
+  category: process
+  summary: WP04 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-023
+  details: WP WP04 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-005
+  category: process
+  summary: WP05 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-024
+  details: WP WP05 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-006
+  category: process
+  summary: WP06 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-025
+  details: WP WP06 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-007
+  category: process
+  summary: WP07 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-026
+  details: WP WP07 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-008
+  category: process
+  summary: WP08 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-027
+  details: WP WP08 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-009
+  category: process
+  summary: WP09 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-028
+  details: WP WP09 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-010
+  category: process
+  summary: WP10 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-029
+  details: WP WP10 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-011
+  category: process
+  summary: WP11 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-030
+  details: WP WP11 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-012
+  category: process
+  summary: WP12 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-031
+  details: WP WP12 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-013
+  category: process
+  summary: WP13 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-032
+  details: WP WP13 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-014
+  category: process
+  summary: WP14 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-033
+  details: WP WP14 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+gaps:
+- id: g-001
+  category: doc
+  summary: data-model.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md declares domain entities but data-model.md is missing. A data model document clarifies domain entity
+    relationships.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/tasks/WP01-retire-context-or-gate.md
+- id: e-006
+  kind: file
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/tasks/WP02-dashboard-presence-probe-split.md
+- id: e-007
+  kind: file
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/tasks/WP03-analysis-report-hash-yaml.md
+- id: e-008
+  kind: file
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/tasks/WP04-status-collector-legacy-gate-scope.md
+- id: e-009
+  kind: file
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/tasks/WP05-retrospective-governance-schema-emitter.md
+- id: e-010
+  kind: file
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/tasks/WP06-retrospective-yaml-first-resolver.md
+- id: e-011
+  kind: file
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/tasks/WP07-meta-fail-closed-authority-census.md
+- id: e-012
+  kind: file
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/tasks/WP08-meta-fail-closed-route-batch-a.md
+- id: e-013
+  kind: file
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/tasks/WP09-meta-fail-closed-route-batch-b.md
+- id: e-014
+  kind: file
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/tasks/WP10-charter-import-layer-gate.md
+- id: e-015
+  kind: file
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/tasks/WP11-charter-path-literal-authority-gate.md
+- id: e-016
+  kind: file
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/tasks/WP12-wheel-packaging-groundwork.md
+- id: e-017
+  kind: file
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/tasks/WP13-charter-wheel-assessment-adr.md
+- id: e-018
+  kind: file
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/tasks/WP14-ci-hygiene-parity-docs.md
+- id: e-019
+  kind: file
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/status.events.jsonl
+- id: e-020
+  kind: event_range
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/status.events.jsonl
+  range: 01KZ10T1EAC3B28H62F7RRRF9B..01KZ11F0K032RDTT46CTSS88WA
+- id: e-021
+  kind: event_range
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/status.events.jsonl
+  range: 01KZ1DPB4XR965QWVYEKD7BN0K..01KZ1DPEZKFN0PC4P487HA7VSR
+- id: e-022
+  kind: event_range
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/status.events.jsonl
+  range: 01KZ10GX6XDX1BR9RV95YC8M2E..01KZ11F4DT8G30H33XVXSZ157X
+- id: e-023
+  kind: event_range
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/status.events.jsonl
+  range: 01KZ109KK4H7N0CWXJRMFDCCC4..01KZ11F88WZX7P2CTEGSFE2Q86
+- id: e-024
+  kind: event_range
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/status.events.jsonl
+  range: 01KZ11C10AGECGP9B10ESTG72F..01KZ11FC3PYP26CYKFN65AHMPB
+- id: e-025
+  kind: event_range
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/status.events.jsonl
+  range: 01KZ12XFA0WZAAA7JTA20EV95C..01KZ12XK4D9SXCKXBZN6RAPC4T
+- id: e-026
+  kind: event_range
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/status.events.jsonl
+  range: 01KZ1108TQ54XPVP4WJBNDZQJZ..01KZ11FFYNS87W3SVV1BR9WVE2
+- id: e-027
+  kind: event_range
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/status.events.jsonl
+  range: 01KZ14C8NE5GA4VRKM8ARH29DK..01KZ14CCJ58B527P33QZAV1CY0
+- id: e-028
+  kind: event_range
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/status.events.jsonl
+  range: 01KZ182W3QAA2F72YSMGT2S16E..01KZ18300HWT3RMPBC2K42YK94
+- id: e-029
+  kind: event_range
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/status.events.jsonl
+  range: 01KZ10H6BS84AJHC1YSY0JR1VV..01KZ11FKTQSKE7XDE8WHDFZPJH
+- id: e-030
+  kind: event_range
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/status.events.jsonl
+  range: 01KZ1JCZXSGEJTVSP7Y376DE2J..01KZ1JD3NHJP5CXFTWEJPMWEPC
+- id: e-031
+  kind: event_range
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/status.events.jsonl
+  range: 01KZ11B9ZVTVWD9600GJKNCBWC..01KZ11FQQPZWYR4T9TDZNZXC67
+- id: e-032
+  kind: event_range
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/status.events.jsonl
+  range: 01KZ12PBHXVDHAJ8D6HX34TB4C..01KZ12PFDVS9D7H71V5YKQFART
+- id: e-033
+  kind: event_range
+  path: kitty-specs/doctrine-charter-split-unification-01KZ0SRB/status.events.jsonl
+  range: 01KZ10XHJ2ZCRA7H9F5MZTY3F1..01KZ11FVJYS253JAW9K5M5856X
+generator_version: '1.0'
+provenance_history: []
