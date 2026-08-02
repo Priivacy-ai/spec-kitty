@@ -57,14 +57,14 @@ from scripts.docs.check_cli_reference_freshness import (  # noqa: E402
     extract_referenced_paths,
 )
 
-# ``docs_scoped``: reads the ``docs/reference/*.md`` CLI-reference files and
+# ``docs_scoped``: reads the ``docs/api/*.md`` CLI-reference files and
 # shipped skill docs, so a docs-only PR could newly-red it — it MUST run on the
 # arch pole's docs-only trim.
 pytestmark = [pytest.mark.architectural, pytest.mark.docs_scoped]
 
 
-REFERENCE_PATH = _REPO_ROOT / "docs" / "reference" / "cli-commands.md"
-AGENT_REFERENCE_PATH = _REPO_ROOT / "docs" / "reference" / "agent-subcommands.md"
+REFERENCE_PATH = _REPO_ROOT / "docs" / "api" / "cli-commands.md"
+AGENT_REFERENCE_PATH = _REPO_ROOT / "docs" / "api" / "agent-subcommands.md"
 
 
 def _build_live_app() -> typer.Typer:
@@ -116,6 +116,36 @@ def reference_text() -> str:
 @pytest.fixture(scope="module")
 def agent_reference_text() -> str:
     return _read_or_skip(AGENT_REFERENCE_PATH, wp_label="WP07")
+
+
+def test_reference_paths_are_present_and_generated() -> None:
+    """Mechanical not-skipped guard (FR-013 / WP14).
+
+    ``_read_or_skip`` lets ``test_visible_paths_match_reference`` SKIP
+    silently if either reference file is missing or ungenerated — a
+    half-fix (repointing only one of the two fixtures) reintroduces exactly
+    that silent skip. This test fails LOUDLY instead of skipping, so a
+    regression in either path is a red, not a quiet green-via-skip.
+    """
+    missing = [
+        str(path)
+        for path in (REFERENCE_PATH, AGENT_REFERENCE_PATH)
+        if not path.exists()
+    ]
+    assert not missing, (
+        "CLI reference doc(s) missing — the parity gate would silently "
+        f"SKIP instead of running: {missing}"
+    )
+    ungenerated = [
+        str(path)
+        for path in (REFERENCE_PATH, AGENT_REFERENCE_PATH)
+        if _WP07_GENERATOR_MARKER not in path.read_text(encoding="utf-8")
+    ]
+    assert not ungenerated, (
+        "CLI reference doc(s) missing the generator marker "
+        f"({_WP07_GENERATOR_MARKER!r}) — regenerate via "
+        f"scripts/docs/build_cli_reference.py: {ungenerated}"
+    )
 
 
 def test_visible_paths_match_reference(
