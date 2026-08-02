@@ -50,12 +50,27 @@ def _get_mission_id(repo_root: Path, mission_slug: str) -> str | None:
 
     Returns ``None`` if the file is absent or malformed.
     """
-    # load_meta_or_empty (post-#2091 silent contract) absorbs a missing or
-    # malformed meta.json to {}, matching the prior contextlib.suppress absorption.
-    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
-        MissionArtifactKind.PRIMARY_METADATA
-    )
-    data = load_meta_or_empty(feature_dir)
+    # #3140: a malformed meta.json doesn't only trip load_meta_or_empty's own
+    # (silent, non-raising) read below -- placement_seam(...).read_dir(...)
+    # resolves the mission's lifecycle phase along the way
+    # (mission_runtime.lifecycle_phase.resolve_lifecycle_phase ->
+    # _read_baseline_merge_commit), which reads meta.json under the raise-on-
+    # malformed contract (mission_metadata.load_meta's default). That
+    # ValueError previously propagated out of this function, contradicting
+    # its own docstring's "malformed -> None" promise. Absorb it locally
+    # rather than relaxing the shared load_meta contract, which other
+    # callers (e.g. the fail-closed corrupt-meta test) deliberately rely on
+    # raising.
+    try:
+        feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+            MissionArtifactKind.PRIMARY_METADATA
+        )
+        # load_meta_or_empty (post-#2091 silent contract) absorbs a missing or
+        # malformed meta.json to {}, matching the prior contextlib.suppress
+        # absorption.
+        data = load_meta_or_empty(feature_dir)
+    except ValueError:
+        return None
     return data.get("mission_id") or None
 
 
