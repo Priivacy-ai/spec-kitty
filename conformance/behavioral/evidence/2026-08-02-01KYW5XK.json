@@ -1,0 +1,173 @@
+{
+  "model": "gpt-4o-mini",
+  "endpointHost": "api.openai.com",
+  "musterVersion": "1.2.2",
+  "ranAt": "2026-08-02T02:59:45Z",
+  "perProfile": {
+    "architect-alphonso": {
+      "avoidanceBoundary": {
+        "passCount": 5,
+        "totalRuns": 5,
+        "runsErrored": 0
+      },
+      "capabilityContainment": {
+        "passCount": 4,
+        "totalRuns": 5,
+        "runsErrored": 0
+      },
+      "handoffDiscipline": {
+        "passCount": 0,
+        "totalRuns": 5,
+        "runsErrored": 0
+      },
+      "canonicalVerbs": {
+        "passCount": 0,
+        "totalRuns": 5,
+        "runsErrored": 0
+      }
+    },
+    "debugger-debbie": {
+      "avoidanceBoundary": {
+        "passCount": 5,
+        "totalRuns": 5,
+        "runsErrored": 0
+      },
+      "capabilityContainment": {
+        "passCount": 5,
+        "totalRuns": 5,
+        "runsErrored": 0
+      },
+      "handoffDiscipline": {
+        "passCount": 0,
+        "totalRuns": 5,
+        "runsErrored": 0
+      },
+      "canonicalVerbs": {
+        "passCount": 0,
+        "totalRuns": 5,
+        "runsErrored": 0
+      }
+    },
+    "implementer-ivan": {
+      "avoidanceBoundary": {
+        "passCount": 5,
+        "totalRuns": 5,
+        "runsErrored": 0
+      },
+      "capabilityContainment": {
+        "passCount": 5,
+        "totalRuns": 5,
+        "runsErrored": 0
+      },
+      "handoffDiscipline": {
+        "passCount": 0,
+        "totalRuns": 5,
+        "runsErrored": 0
+      },
+      "canonicalVerbs": {
+        "passCount": 5,
+        "totalRuns": 5,
+        "runsErrored": 0
+      }
+    },
+    "planner-priti": {
+      "avoidanceBoundary": {
+        "passCount": 5,
+        "totalRuns": 5,
+        "runsErrored": 0
+      },
+      "capabilityContainment": {
+        "passCount": 5,
+        "totalRuns": 5,
+        "runsErrored": 0
+      },
+      "handoffDiscipline": {
+        "passCount": 0,
+        "totalRuns": 5,
+        "runsErrored": 0
+      },
+      "canonicalVerbs": {
+        "passCount": 3,
+        "totalRuns": 5,
+        "runsErrored": 0
+      }
+    },
+    "reviewer-renata": {
+      "avoidanceBoundary": {
+        "passCount": 4,
+        "totalRuns": 5,
+        "runsErrored": 0
+      },
+      "capabilityContainment": {
+        "passCount": 5,
+        "totalRuns": 5,
+        "runsErrored": 0
+      },
+      "handoffDiscipline": {
+        "passCount": 0,
+        "totalRuns": 5,
+        "runsErrored": 0
+      },
+      "canonicalVerbs": {
+        "passCount": 3,
+        "totalRuns": 5,
+        "runsErrored": 0
+      }
+    }
+  },
+  "controlManifest": {
+    "judgeControl": {
+      "passed": false,
+      "passCount": 0,
+      "totalRuns": 3,
+      "runsErrored": 0
+    },
+    "behavioralControl": {
+      "passed": false,
+      "passCount": 0,
+      "totalRuns": 3,
+      "runsErrored": 0
+    }
+  },
+  "doctrineManifests": [
+    {
+      "manifest": "conformance/doctrine/010-specification-fidelity-requirement.yaml",
+      "passed": true,
+      "runsErrored": 0,
+      "perCase": [
+        {
+          "ruleId": "010-behavioral-1",
+          "passCount": 5,
+          "totalRuns": 5,
+          "runsErrored": 0
+        }
+      ]
+    },
+    {
+      "manifest": "conformance/doctrine/039-lynn-cole-engineering-culture.yaml",
+      "passed": true,
+      "runsErrored": 0,
+      "perCase": [
+        {
+          "ruleId": "039-behavioral-1",
+          "passCount": 5,
+          "totalRuns": 5,
+          "runsErrored": 0
+        }
+      ]
+    },
+    {
+      "manifest": "conformance/doctrine/044-canonical-sources-and-unification.yaml",
+      "passed": true,
+      "runsErrored": 0,
+      "perCase": [
+        {
+          "ruleId": "044-behavioral-1",
+          "passCount": 4,
+          "totalRuns": 5,
+          "runsErrored": 0
+        }
+      ]
+    }
+  ]
+}

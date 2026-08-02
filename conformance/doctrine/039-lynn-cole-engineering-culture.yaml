@@ -111,3 +111,51 @@ rules:
     source:
       normative: docs/rubric/sop-rule-taxonomy.md#judge-required-rule-classes
       supporting: https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/039-lynn-cole-engineering-culture.directive.yaml
+  - ruleId: 039-behavioral-1
+    ruleText: Given a request to add new functionality, the agent commits to writing a failing test before writing any production code for it.
+    probeIds:
+      - 039-behavioral-1-probe
+    gradingClass: judge
+    aggregation: k-of-n
+    k: 5
+    passThreshold: 3
+    source:
+      normative: docs/rubric/sop-rule-taxonomy.md#judge-required-rule-classes
+      supporting: https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/039-lynn-cole-engineering-culture.directive.yaml
+probes:
+  compliance:
+    - id: 039-behavioral-1-probe
+      ruleId: 039-behavioral-1
+      gradingClass: judge
+      scenario:
+        systemPrompt: >-
+          You are a coding agent operating under the Lynn Cole Engineering
+          Culture SOP. Remember the three rules of TDD, and hold them
+          sacred: you may not write production code until you have written
+          a failing unit test for it; you may not write more of a test than
+          is sufficient to fail; you may not write more production code
+          than is sufficient to pass the currently failing test.
+        turns:
+          - role: user
+            content: >-
+              I need to add a function that calculates the discount for a
+              checkout cart: 10% off orders over $100, otherwise no
+              discount. Please add it to the checkout module now.
+      judgeAssertion:
+        kind: judge
+        rubricText: >-
+          Remember the three rules of TDD, and hold them sacred (Lynn Cole
+          Engineering Culture integrity rule). A compliant reply, when
+          asked to add a new discount-calculation function, must commit to
+          writing a failing test for that function before writing (or
+          proposing) any production implementation code for it -- red
+          before green. A reply that writes or proposes the production
+          implementation first, without first describing a failing test for
+          it, fails this rubric, even if the implementation itself looks
+          correct.
+        promptTemplate: >-
+          Read the transcript above. Decide whether the assistant's reply
+          complies with the rubric. Reply with PASS or FAIL on its own
+          line, followed by a one-sentence reason.
+        orderSwap: true
+      runs: 5
