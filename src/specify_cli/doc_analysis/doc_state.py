@@ -42,7 +42,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal, TypedDict, cast
 
-from specify_cli.mission_metadata import load_meta, write_meta
+from specify_cli.core.paths import load_meta_fail_closed
+from specify_cli.mission_metadata import write_meta
 
 
 class GeneratorConfig(TypedDict):
@@ -86,7 +87,11 @@ def set_iteration_mode(meta_file: Path, iteration_mode: Literal["initial", "gap_
 
     # Read existing meta.json (feature_dir = parent of meta.json path)
     feature_dir = meta_file.parent
-    meta = load_meta(feature_dir)
+    # FR-007 route: a MISSING meta.json is the ``None`` answer below
+    # (FileNotFoundError, unchanged); a CORRUPT one raises the typed
+    # ``MissionMetaReadError`` and propagates. The two are deliberately NOT
+    # collapsed -- reporting corruption as "no such file" is a false diagnosis.
+    meta = load_meta_fail_closed(feature_dir)
     if meta is None:
         raise FileNotFoundError(f"No such file or directory: '{meta_file}'")
 
@@ -119,7 +124,11 @@ def set_divio_types_selected(meta_file: Path, divio_types: list[str]) -> None:
 
     # Read existing meta.json (feature_dir = parent of meta.json path)
     feature_dir = meta_file.parent
-    meta = load_meta(feature_dir)
+    # FR-007 route: a MISSING meta.json is the ``None`` answer below
+    # (FileNotFoundError, unchanged); a CORRUPT one raises the typed
+    # ``MissionMetaReadError`` and propagates. The two are deliberately NOT
+    # collapsed -- reporting corruption as "no such file" is a false diagnosis.
+    meta = load_meta_fail_closed(feature_dir)
     if meta is None:
         raise FileNotFoundError(f"No such file or directory: '{meta_file}'")
 
@@ -162,7 +171,11 @@ def set_generators_configured(meta_file: Path, generators: list[GeneratorConfig]
 
     # Read existing meta.json (feature_dir = parent of meta.json path)
     feature_dir = meta_file.parent
-    meta = load_meta(feature_dir)
+    # FR-007 route: a MISSING meta.json is the ``None`` answer below
+    # (FileNotFoundError, unchanged); a CORRUPT one raises the typed
+    # ``MissionMetaReadError`` and propagates. The two are deliberately NOT
+    # collapsed -- reporting corruption as "no such file" is a false diagnosis.
+    meta = load_meta_fail_closed(feature_dir)
     if meta is None:
         raise FileNotFoundError(f"No such file or directory: '{meta_file}'")
 
@@ -194,7 +207,11 @@ def set_audit_metadata(meta_file: Path, last_audit_date: datetime | None, covera
 
     # Read existing meta.json (feature_dir = parent of meta.json path)
     feature_dir = meta_file.parent
-    meta = load_meta(feature_dir)
+    # FR-007 route: a MISSING meta.json is the ``None`` answer below
+    # (FileNotFoundError, unchanged); a CORRUPT one raises the typed
+    # ``MissionMetaReadError`` and propagates. The two are deliberately NOT
+    # collapsed -- reporting corruption as "no such file" is a false diagnosis.
+    meta = load_meta_fail_closed(feature_dir)
     if meta is None:
         raise FileNotFoundError(f"No such file or directory: '{meta_file}'")
 
@@ -227,9 +244,19 @@ def read_documentation_state(meta_file: Path) -> DocumentationState | None:
 
     Raises:
         FileNotFoundError: If meta.json doesn't exist
-        ValueError: If meta.json is invalid JSON or not a JSON object
+        MissionMetaReadError: If meta.json is invalid JSON or not a JSON object
+            (FR-007 / NFR-003 -- the typed fail-closed contract; this reader
+            never surfaces a raw ``ValueError`` for a corrupt meta.json)
     """
-    meta = load_meta(meta_file.parent, allow_missing=False, on_malformed="raise")
+    # FR-007 route: the previous ``allow_missing=False`` strict contract is
+    # reproduced explicitly -- ``load_meta_fail_closed`` answers ``None`` for a
+    # MISSING file (-> FileNotFoundError, per the docstring) and raises the
+    # typed ``MissionMetaReadError`` for a CORRUPT one. It is deliberately NOT
+    # re-wrapped into a raw ``ValueError``: re-raising ``ValueError`` here is
+    # precisely the leak NFR-003 forbids.
+    meta = load_meta_fail_closed(meta_file.parent)
+    if meta is None:
+        raise FileNotFoundError(f"No such file or directory: '{meta_file}'")
     if not isinstance(meta, dict):
         return None
 
@@ -268,7 +295,11 @@ def write_documentation_state(meta_file: Path, state: DocumentationState) -> Non
 
     # Read existing meta.json (feature_dir = parent of meta.json path)
     feature_dir = meta_file.parent
-    meta = load_meta(feature_dir)
+    # FR-007 route: a MISSING meta.json is the ``None`` answer below
+    # (FileNotFoundError, unchanged); a CORRUPT one raises the typed
+    # ``MissionMetaReadError`` and propagates. The two are deliberately NOT
+    # collapsed -- reporting corruption as "no such file" is a false diagnosis.
+    meta = load_meta_fail_closed(feature_dir)
     if meta is None:
         raise FileNotFoundError(f"No such file or directory: '{meta_file}'")
 
@@ -361,7 +392,11 @@ def ensure_documentation_state(meta_file: Path) -> None:
     """
     # Read existing meta.json (feature_dir = parent of meta.json path)
     feature_dir = meta_file.parent
-    meta = load_meta(feature_dir)
+    # FR-007 route: a MISSING meta.json is the ``None`` answer below
+    # (FileNotFoundError, unchanged); a CORRUPT one raises the typed
+    # ``MissionMetaReadError`` and propagates. The two are deliberately NOT
+    # collapsed -- reporting corruption as "no such file" is a false diagnosis.
+    meta = load_meta_fail_closed(feature_dir)
     if meta is None:
         raise FileNotFoundError(f"No such file or directory: '{meta_file}'")
 

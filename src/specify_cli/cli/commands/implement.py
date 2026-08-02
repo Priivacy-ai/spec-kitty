@@ -421,12 +421,13 @@ def _load_primary_anchored_mission_meta(
     if repo_root is None:
         return None
 
-    from specify_cli.mission_metadata import load_meta as _load_meta
+    from specify_cli.core.paths import MissionMetaReadError
+    from specify_cli.core.paths import load_meta_fail_closed as _load_meta
 
     primary_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     try:
         return _load_meta(primary_dir)
-    except Exception:  # noqa: BLE001 — meta missing/corrupt is legacy
+    except MissionMetaReadError:  # corrupt primary meta -> fall through to layer 2
         return None
 
 
@@ -436,11 +437,12 @@ def _load_fallback_mission_meta(feature_dir: Path) -> dict[str, Any] | None:
     Only consulted when :func:`_load_primary_anchored_mission_meta` yields
     ``None`` (no ``repo_root``, or the primary meta is missing/corrupt).
     """
-    from specify_cli.mission_metadata import load_meta as _load_meta
+    from specify_cli.core.paths import MissionMetaReadError
+    from specify_cli.core.paths import load_meta_fail_closed as _load_meta
 
     try:
         return _load_meta(feature_dir)
-    except Exception:  # noqa: BLE001 — meta missing/corrupt is legacy
+    except MissionMetaReadError:  # corrupt meta.json is legacy-tolerated here
         return None
 
 
@@ -983,22 +985,22 @@ def _ensure_vcs_in_meta(feature_dir: Path, _repo_root: Path) -> VCSBackend:
     # raise ``typer.Exit(1)``) -- the post-#2091 contract for a hard-failing
     # site is ``allow_missing=False`` (never ``allow_missing=True``, which
     # would mask the guard by silently returning ``None`` instead of raising).
-    from specify_cli.mission_metadata import load_meta
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 
     try:
-        meta = load_meta(feature_dir, allow_missing=False, on_malformed="raise")
-    except FileNotFoundError:
-        console.print(f"[red]Error:[/red] meta.json not found in {feature_dir}")
-        console.print("Run /spec-kitty.specify first to create feature structure")
-        raise typer.Exit(1) from None
-    except ValueError as exc:
+        meta = load_meta_fail_closed(feature_dir)
+    except MissionMetaReadError as exc:
         console.print(f"[red]Error:[/red] Invalid JSON in meta.json: {exc}")
         raise typer.Exit(1) from exc
-    # ``allow_missing=False`` + ``on_malformed="raise"`` never returns ``None``
-    # (both ``None``-producing branches raise, above) -- ``or {}`` narrows the
-    # ``dict[str, Any] | None`` signature for mypy without an assert
-    # (matching ``load_meta_strict``'s own narrowing idiom).
-    meta = meta or {}
+    # ``load_meta_fail_closed`` carries the ``allow_missing=True`` contract: a
+    # MISSING meta.json is answered with ``None``, NOT an exception. This site
+    # hard-fails on missing, so the guard is spelled explicitly here -- folding
+    # it into ``meta or {}`` would mask it and let the command proceed on an
+    # unspecified mission (the exact masking the comment above warns about).
+    if meta is None:
+        console.print(f"[red]Error:[/red] meta.json not found in {feature_dir}")
+        console.print("Run /spec-kitty.specify first to create feature structure")
+        raise typer.Exit(1)
 
     if "vcs" not in meta:
         now_iso = now_utc_iso()

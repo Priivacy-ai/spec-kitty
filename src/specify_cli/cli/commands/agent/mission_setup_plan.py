@@ -45,7 +45,7 @@ from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.core.constants import MISSION_TYPE_DOCUMENTATION
 from specify_cli.doc_analysis.doc_state import GeneratorConfig
 from specify_cli.mission import _canonical_meta_mission_type, get_mission_type
-from specify_cli.mission_metadata import load_meta
+from specify_cli.core.paths import load_meta_fail_closed
 from specify_cli.runtime.resolver import TemplateConfigurationError
 
 from specify_cli.cli.commands.agent.mission_branch_context import (
@@ -412,7 +412,10 @@ def _resolve_plan_template(repo_root: Path, feature_dir: Path) -> ResolutionResu
     from specify_cli.cli.commands.agent import mission as _mission
 
     meta_path = feature_dir / "meta.json"
-    meta = load_meta(feature_dir, allow_missing=True, on_malformed="raise")
+    # FR-007 route: ``route-unwrapped`` census site -- a corrupt meta.json
+    # surfaces the typed ``MissionMetaReadError`` and PROPAGATES, rather than
+    # being degraded into the "missing meta.json" branch below.
+    meta = load_meta_fail_closed(feature_dir)
     if meta is None:
         # ``Path.exists()`` follows links, so the canonical reader reports None
         # for both a physically absent path and a broken/self-referential link.

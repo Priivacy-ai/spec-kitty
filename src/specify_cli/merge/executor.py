@@ -1337,8 +1337,11 @@ def _phase_cleanup_worktrees_and_branches(run: _MergeRunState) -> None:
     # runs OUTSIDE that swallow.
     if run.remove_worktree:
         from specify_cli.coordination.teardown import teardown_coordination_topology
-        from specify_cli.mission_metadata import load_meta as _load_meta
+        from specify_cli.core.paths import load_meta_fail_closed as _load_meta
 
+        # FR-007 route: ``route-unwrapped`` census site -- a corrupt meta.json
+        # surfaces the typed ``MissionMetaReadError`` (never a raw
+        # ``ValueError``) and PROPAGATES, exactly as the raw read did before.
         _meta_for_teardown = _load_meta(run.feature_dir)
         _mid8_for_teardown = (
             str(_meta_for_teardown.get("mid8", "")).strip()

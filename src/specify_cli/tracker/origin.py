@@ -18,8 +18,8 @@ import re
 from pathlib import Path
 from typing import Any
 
-from specify_cli.core.paths import locate_project_root
-from specify_cli.mission_metadata import load_meta, set_origin_ticket
+from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed, locate_project_root
+from specify_cli.mission_metadata import set_origin_ticket
 from specify_cli.tracker.config import TrackerProjectConfig, load_tracker_config
 from specify_cli.tracker.origin_models import (
     MissionFromTicketResult,
@@ -245,7 +245,10 @@ def bind_mission_origin(
         On SaaS failure, missing metadata, or write failure.
     """
     # 1. Load meta.json to get mission identity (needed for SaaS call)
-    meta = load_meta(feature_dir)
+    try:
+        meta = load_meta_fail_closed(feature_dir)
+    except MissionMetaReadError as exc:
+        raise OriginBindingError(f"Failed to load meta.json from {feature_dir}: {exc}") from exc
     if meta is None:
         raise OriginBindingError(f"No meta.json found in {feature_dir}")
     mission_id = str(meta.get("mission_id") or "").strip()

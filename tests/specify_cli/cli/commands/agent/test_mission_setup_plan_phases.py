@@ -24,7 +24,7 @@ import typer
 from charter.mission_type_profiles import ResolvedMissionType
 from charter.resolution import ResolutionResult, ResolutionTier
 from specify_cli.cli.commands.agent import mission_setup_plan as seam
-from specify_cli.mission_metadata import OnMalformed, load_meta as canonical_load_meta
+from specify_cli.core.paths import load_meta_fail_closed as canonical_load_meta_fail_closed
 from specify_cli.runtime.resolver import TemplateConfigurationError
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -443,21 +443,14 @@ def test_setup_plan_uses_single_loaded_meta_snapshot_when_file_changes_after_rea
     configured_calls: list[str | None] = []
     legacy_calls: list[str] = []
 
-    def _load_then_mutate(
-        feature_dir_arg: Path,
-        *,
-        allow_missing: bool = True,
-        on_malformed: OnMalformed = "raise",
-        encoding: str = "utf-8",
-    ) -> dict[str, Any] | None:
+    def _load_then_mutate(feature_dir_arg: Path) -> dict[str, Any] | None:
+        # FR-007: the seam now reads through ``load_meta_fail_closed`` (one
+        # positional arg), so the stub mirrors THAT signature. The test's
+        # intent is unchanged: count the reads and mutate the file immediately
+        # after, proving the caller uses its single loaded snapshot.
         nonlocal load_calls
         load_calls += 1
-        loaded = canonical_load_meta(
-            feature_dir_arg,
-            allow_missing=allow_missing,
-            on_malformed=on_malformed,
-            encoding=encoding,
-        )
+        loaded = canonical_load_meta_fail_closed(feature_dir_arg)
         if mutation == "unlink":
             meta_path.unlink()
         else:
@@ -476,7 +469,7 @@ def test_setup_plan_uses_single_loaded_meta_snapshot_when_file_changes_after_rea
         legacy_calls.append(name)
         return _resolution(template_src)
 
-    monkeypatch.setattr(seam, "load_meta", _load_then_mutate)
+    monkeypatch.setattr(seam, "load_meta_fail_closed", _load_then_mutate)
     monkeypatch.setattr(seam, "_enforce_saas_sync_auth_refusal", lambda **_k: None)
     monkeypatch.setattr(seam, "_enforce_saas_sync_boundary_preflight", lambda _root: None)
     monkeypatch.setattr(seam, "_resolve_setup_plan_feature_dir", lambda *a, **k: feature_dir)

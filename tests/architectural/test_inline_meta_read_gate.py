@@ -77,7 +77,16 @@ META_PATH_VAR_NAMES: frozenset[str] = frozenset(
 )
 
 # The canonical reader family a routed call site targets.
-ROUTED_CALLEES: frozenset[str] = frozenset({"load_meta", "load_meta_strict", "load_meta_or_empty"})
+#
+# ``load_meta_fail_closed`` joined this family in mission
+# ``doctrine-charter-split-unification`` (FR-007 / #3140): it is the ONE public
+# fail-closed reader, a thin typed-contract wrapper that DELEGATES to the
+# canonical ``load_meta`` parser. Routing a caller onto it is therefore routing
+# THROUGH the canonical authority, not away from it. Omitting it here made this
+# floor read FR-007's routing as a drain (120 -> 103) and fail.
+ROUTED_CALLEES: frozenset[str] = frozenset(
+    {"load_meta", "load_meta_strict", "load_meta_or_empty", "load_meta_fail_closed"}
+)
 
 # --------------------------------------------------------------------------- #
 # Concrete integer floors (NFR-002). Live census measured on this tree via
@@ -118,8 +127,15 @@ FLOOR_MARGIN = 2
 # its intended direction. The companion INLINE_META_READ_FLOOR was deliberately
 # NOT touched: routing ``status.cutover_eligibility`` through ``load_meta``
 # drained the inline census back under its existing ceiling on its own.
+#
+# Raised 120 -> 123 by mission doctrine-charter-split-unification (FR-007 /
+# #3140): ``load_meta_fail_closed`` joined ROUTED_CALLEES (see its comment
+# above) and WP08/WP09 routed the census's unwrapped/divergent readers onto it,
+# so the live count rose 123 -> 126. The ratchet again moved in its intended
+# direction — these sites did not stop routing through the canonical authority,
+# they moved onto its typed fail-closed contract.
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
-ROUTED_LOAD_META_FLOOR = 120
+ROUTED_LOAD_META_FLOOR = 123
 
 
 # --------------------------------------------------------------------------- #
