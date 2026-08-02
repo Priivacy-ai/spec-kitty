@@ -19,6 +19,15 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
 
+- **`spec-kitty charter pack apply --compile` now applies a pack and compiles
+  its bundle in one step (mission `charter-pack-usage-journey`; `#3105`).**
+  Previously `apply` only merged activations into `config.yaml` and left you to
+  discover that a separate `charter generate` was still needed; the default
+  `apply` output now names that exact next command, and `--compile` does both at
+  once (inheriting `generate`'s git-worktree requirement). `charter context
+  --include section:terminology-canon` / `section:code-review-checklist` also no
+  longer dead-end when the section is unauthored — they resolve to an honest
+  placeholder pointing you at the file to edit (`#3095`, `#3094`, `#2552`).
 - **Empty/unconfigured charter now dispatches to a warned generic agent instead
   of silently applying every built-in doctrine artefact (mission
   `charter-delivery-finish-context-degod`; `#3064`).** Previously, running a
@@ -303,6 +312,29 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **Applying a charter pack no longer leaves your project worse off than doing
+  nothing (mission `charter-pack-usage-journey`; `#3104`, `#3105`).** Before
+  this fix, `spec-kitty charter pack apply <pack>` on an unconfigured project
+  disabled the safe generic-agent dispatch fallback — so the next unmatched
+  `spec-kitty dispatch` hard-failed with `ROUTER_NO_MATCH` — and `charter
+  context` / `charter status` still reported the charter as "not found" because
+  they gated on the display-only `charter.md` that `apply` never writes. Now:
+  applying a pack **without** compiling keeps the warned generic-agent net
+  engaged (an unmatched request still falls back, never `ROUTER_NO_MATCH`);
+  `apply --compile` does the apply and compile in one step; after you compile,
+  `charter context` / `charter status` reflect the pack's activated governance
+  and keep working even if `charter.md` is deleted (the read authority is the
+  compiled `charter.yaml`); and the governance resolver reports the *activated*
+  directive set rather than silently falling back to all built-in directives
+  (`#3104`). The documented `spec-kitty analyze` surface and the CLI are now
+  guarded to stay in agreement (`#3096`).
+- **Contract note — `charter context --json` (`project_charter.present`).** The
+  read authority for the JSON charter-presence surface moved from the
+  display-only `charter.md` to the compiled `charter.yaml`: a project that has a
+  `charter.md` but never compiled now reports `project_charter.present: false`
+  (the new `charter_md_present` / `charter_md_path` keys expose the display file
+  separately, so the information is additive, not lost). External `--json`
+  consumers should read `charter.yaml` as the authority-of-record (`#2787`).
 - **A non-terminating test now fails loudly instead of hanging the CI job
   (mission `verification-trust-3115`; `#3115`, `#3113`).** `pytest.ini`
   registered a `timeout` marker but set no timeout, so a test that never
