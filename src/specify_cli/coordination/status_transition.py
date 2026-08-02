@@ -32,7 +32,6 @@ from specify_cli.lanes.branch_naming import (
     resolve_transaction_mid8,
     worktree_dir_name,
 )
-from specify_cli.mission_metadata import load_meta
 from specify_cli.status import emit as _emit
 from specify_cli.status.adapters import fire_dossier_sync
 from specify_cli.status.models import (
@@ -759,10 +758,10 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
     )
     repo_root = request.repo_root or canonical_repo_root
 
-    # FR-006: canonical reader contract (a) — None on missing, ValueError on
-    # malformed (defaults stated explicitly). ``meta_exists`` below keys on the
-    # ``None`` (missing) arm; a malformed meta surfaces the typed corrupt-meta error.
-    meta = load_meta(feature_dir, allow_missing=True, on_malformed="raise")
+    # FR-007: fail-closed reader routing. Malformed meta surfaces typed
+    # MissionMetaReadError instead of raw ValueError.
+    from specify_cli.core.paths import load_meta_fail_closed
+    meta = load_meta_fail_closed(feature_dir)
 
     coord_branch: str | None = None
     mission_id: str | None = None

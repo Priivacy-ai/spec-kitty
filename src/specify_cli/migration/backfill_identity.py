@@ -32,7 +32,7 @@ from typing import Any, Literal
 import ulid as _ulid_mod
 from ruamel.yaml import YAML
 
-from specify_cli.mission_metadata import _coerce_mission_number, load_meta
+from specify_cli.mission_metadata import _coerce_mission_number
 
 logger = logging.getLogger(__name__)
 
@@ -130,9 +130,11 @@ def backfill_mission(feature_dir: Path, *, dry_run: bool = False) -> BackfillRes
         )
 
     # --- read (post-#2091 canonical reader; existence already verified above) --
+    from specify_cli.core.paths import load_meta_fail_closed, MissionMetaReadError
     try:
-        meta: dict[str, Any] = load_meta(feature_dir, allow_missing=False) or {}
-    except (FileNotFoundError, ValueError) as exc:
+        meta_result = load_meta_fail_closed(feature_dir)
+        meta: dict[str, Any] = meta_result or {}
+    except MissionMetaReadError as exc:
         logger.warning("Corrupt meta.json in %s: %s", slug, exc)
         return BackfillResult(
             feature_dir=feature_dir,
@@ -370,7 +372,8 @@ def backfill_mission_ids(repo_root: Path) -> dict[str, str]:
             continue
 
         meta_path = feature_dir / "meta.json"
-        meta = load_meta(feature_dir)
+        from specify_cli.core.paths import load_meta_fail_closed
+        meta = load_meta_fail_closed(feature_dir)
         if meta is None:
             logger.debug("Skipping %s (no meta.json)", feature_dir.name)
             continue

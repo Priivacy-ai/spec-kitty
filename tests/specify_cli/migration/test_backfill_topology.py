@@ -23,6 +23,7 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import MissionTopology
+from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.migration.backfill_topology import (
     backfill_mission_topology,
     backfill_topology_repo,
@@ -121,11 +122,11 @@ def test_read_topology_missing_meta_raises(tmp_path: Path) -> None:
 
 
 def test_read_topology_non_object_meta_raises(tmp_path: Path) -> None:
-    """A non-object ``meta.json`` raises ValueError (malformed signal)."""
+    """A non-object ``meta.json`` raises MissionMetaReadError (fail-closed, FR-007)."""
     feature_dir = tmp_path / "mission-bad"
     feature_dir.mkdir(parents=True)
     (feature_dir / "meta.json").write_text("[]", encoding="utf-8")
-    with pytest.raises(ValueError):
+    with pytest.raises(MissionMetaReadError):
         read_topology(feature_dir)
 
 

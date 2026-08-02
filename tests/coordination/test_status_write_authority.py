@@ -26,6 +26,7 @@ import pytest
 
 from specify_cli.coordination import status_transition as st
 from specify_cli.coordination.workspace import CoordinationWorkspace
+from specify_cli.mission_metadata import load_meta
 from specify_cli.status.models import Lane, TransitionRequest
 from tests.characterization.test_trio_json_envelope import _build_mission_repo
 
@@ -76,7 +77,11 @@ def test_fallback_commits_status_to_coord_worktree(
         materialize_coord=True,
     )
     feature_dir = repo_root / "kitty-specs" / mission_slug
-    coord_branch = st.load_meta(feature_dir)["coordination_branch"]
+    # Reads meta.json directly for test-setup assertions (not exercising
+    # status_transition's internal routing) — use the canonical reader rather
+    # than reaching through the module under test, which no longer imports
+    # load_meta at module scope after FR-007 routing to load_meta_fail_closed.
+    coord_branch = load_meta(feature_dir)["coordination_branch"]
 
     request = _claim_request(feature_dir, repo_root, mission_slug)
     identity = st._identity_for_request(request)

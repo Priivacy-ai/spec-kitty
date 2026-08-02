@@ -48,7 +48,7 @@ from pathlib import Path
 from typing import Literal
 
 from specify_cli.lanes.branch_naming import strip_numeric_prefix
-from specify_cli.mission_metadata import _coerce_mission_number, load_meta
+from specify_cli.mission_metadata import _coerce_mission_number
 
 logger = logging.getLogger(__name__)
 
@@ -131,13 +131,13 @@ def classify_mission(feature_dir: Path) -> IdentityState:
         # Canonical reader (FR-005/WP12): on_malformed="raise" folds the JSON-
         # syntax AND non-dict-shape checks into ONE ValueError (replacing the
         # hand-rolled isinstance guard); allow_missing=True keeps this call
-        # never-crashing (matches the never-raise contract of classify_mission,
-        # which always degrades to an "orphan" IdentityState with an error string).
-        # ``or {}`` narrows the ``dict | None`` return type for the type checker --
-        # value-preserving because the ``exists()`` guard above already ruled out
-        # the missing-file case that would otherwise yield ``None`` here.
-        raw = load_meta(feature_dir, allow_missing=True, on_malformed="raise") or {}
-    except (OSError, ValueError) as exc:
+        # FR-007: fail-closed reader routing. Malformed meta surfaces typed
+        # MissionMetaReadError instead of raw ValueError. Never-crashing (matches
+        # the never-raise contract of classify_mission).
+        # ``or {}`` narrows the ``dict | None`` return type for the type checker.
+        from specify_cli.core.paths import load_meta_fail_closed, MissionMetaReadError
+        raw = load_meta_fail_closed(feature_dir) or {}
+    except (OSError, MissionMetaReadError) as exc:
         return IdentityState(
             path=feature_dir,
             slug=slug,

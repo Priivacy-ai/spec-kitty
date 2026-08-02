@@ -27,10 +27,13 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.core.paths import assert_safe_path_segment
+from specify_cli.core.paths import (
+    MissionMetaReadError,
+    assert_safe_path_segment,
+    load_meta_fail_closed,
+)
 from specify_cli.core.utils import ensure_within_any
 from specify_cli.events import sanitize_event_for_log
-from specify_cli.mission_metadata import load_meta
 
 from .models import EventStream, InnerStateChanged, StatusEvent
 
@@ -240,12 +243,10 @@ class _SlugResolver:
                 return None
             if meta_path.exists():
                 try:
-                    # Canonical reader (FR-005/WP12): on_malformed="raise" folds
-                    # the JSON-syntax AND non-dict-shape checks into ONE
-                    # ValueError, replacing the two hand-rolled except/isinstance
-                    # arms this call site used to carry.
-                    data = load_meta(meta_path.parent, on_malformed="raise")
-                except (json.JSONDecodeError, OSError, ValueError) as exc:
+                    # FR-007: fail-closed reader routing. Malformed meta surfaces
+                    # typed MissionMetaReadError instead of raw ValueError.
+                    data = load_meta_fail_closed(meta_path.parent)
+                except (OSError, MissionMetaReadError) as exc:
                     logger.warning(
                         "Could not read meta.json for slug %r: %s",
                         mission_slug,

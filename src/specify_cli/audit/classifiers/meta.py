@@ -6,7 +6,6 @@ import json
 import re
 from pathlib import Path
 
-from specify_cli.mission_metadata import load_meta
 
 from ..detectors import detect_legacy_keys
 from ..models import MissionFinding, Severity
@@ -37,17 +36,28 @@ def classify_meta_json(mission_dir: Path) -> list[MissionFinding]:
 
     # post-#2091 canonical reader: load_meta's on_malformed="raise" (default)
     # wraps BOTH a JSON decode error and a non-object top level as ValueError,
-    # chaining the original exception via `raise ... from exc` for the decode
-    # case only (see mission_metadata._parse_meta_text) -- so `exc.__cause__`
-    # tells the two failure modes apart without re-parsing, preserving the
-    # distinct CORRUPT_JSON details this classifier has always emitted.
+    # FR-007: fail-closed reader routing. Malformed meta surfaces typed
+    # MissionMetaReadError instead of raw ValueError. Examine cause to distinguish
+    # JSON decode errors from other read failures.
+    #
+    # Exception-chaining shape (core/paths.py load_meta_fail_closed + WP08
+    # review defect #4): MissionMetaReadError.cause is ALWAYS the intermediate
+    # ValueError raised by mission_metadata._parse_meta_text -- never the
+    # underlying OSError/JSONDecodeError directly. _parse_meta_text chains the
+    # original decode/read exception as THAT ValueError's own __cause__ (a
+    # double-hop), so the real OSError/JSONDecodeError lives at
+    # ``exc.cause.__cause__``, not ``exc.cause``. Checking ``isinstance(exc.cause,
+    # OSError)`` was therefore always False -- a dead branch that misreported an
+    # unreadable meta.json as "top-level JSON value must be an object".
+    from specify_cli.core.paths import load_meta_fail_closed, MissionMetaReadError
     try:
-        obj = load_meta(mission_dir)
-    except ValueError as exc:
-        if isinstance(exc.__cause__, json.JSONDecodeError):
-            detail = f"JSON decode error: {exc.__cause__.msg}"
-        elif isinstance(exc.__cause__, OSError):
-            detail = f"cannot read meta.json: {exc.__cause__}"
+        obj = load_meta_fail_closed(mission_dir)
+    except MissionMetaReadError as exc:
+        underlying = exc.cause.__cause__ if isinstance(exc.cause, ValueError) else None
+        if isinstance(underlying, json.JSONDecodeError):
+            detail = f"JSON decode error: {underlying.msg}"
+        elif isinstance(underlying, OSError):
+            detail = f"cannot read meta.json: {underlying}"
         else:
             detail = "top-level JSON value must be an object"
         return [

@@ -28,8 +28,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-from specify_cli.core.paths import assert_safe_path_segment
-from specify_cli.mission_metadata import load_meta
+from specify_cli.core.paths import (
+    MissionMetaReadError,
+    assert_safe_path_segment,
+    load_meta_fail_closed,
+)
 
 if TYPE_CHECKING:
     from specify_cli.coordination.types import CommitReceipt
@@ -407,13 +410,14 @@ class MissionStatus:
         try:
             # Canonical reader (FR-005/WP12): allow_missing=False because the
             # ``exists()`` precondition above already resolved the tolerant-missing
-            # branch -- a FileNotFoundError here means the file vanished in a race
-            # window, which is a genuine failure, not a legacy-tolerant miss.
-            # on_malformed="raise" folds the JSON-syntax AND non-dict-shape checks
-            # into ONE ValueError, replacing the two ad-hoc except/isinstance arms
-            # this call site used to hand-roll.
-            meta = load_meta(primary_dir, allow_missing=False, on_malformed="raise") or {}
-        except (FileNotFoundError, ValueError) as exc:
+            # FR-007: fail-closed reader routing. Malformed meta surfaces typed
+            # MissionMetaReadError instead of raw ValueError. Missing files still
+            # raise FileNotFoundError (required by race-window handling).
+            meta_result = load_meta_fail_closed(primary_dir)
+            if meta_result is None:
+                raise FileNotFoundError(meta_path)
+            meta = meta_result or {}
+        except (FileNotFoundError, MissionMetaReadError) as exc:
             _logger.warning(
                 "_read_meta: failed to read/parse meta.json for mission %r at %s: %s",
                 mission_slug,

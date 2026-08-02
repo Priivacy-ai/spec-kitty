@@ -11,7 +11,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from specify_cli.mission_metadata import load_meta
 from specify_cli.migration.backfill_identity import (
     backfill_mission,
     backfill_wp_ids,
@@ -72,9 +71,10 @@ def _load_meta_for_normalization(
     feature_dir: Path,
     result: NormalizeMissionLifecycleResult,
 ) -> dict[str, Any] | None:
+    from specify_cli.core.paths import load_meta_fail_closed, MissionMetaReadError
     try:
-        meta = load_meta(feature_dir, allow_missing=True, on_malformed="raise")
-    except Exception as exc:  # noqa: BLE001 - keep one broken mission from aborting the run
+        meta = load_meta_fail_closed(feature_dir)
+    except MissionMetaReadError as exc:
         result.status = "error"
         result.error = f"Could not read meta.json: {exc}"
         return None
@@ -115,7 +115,8 @@ def _apply_identity_normalization(
             )
         except Exception as exc:  # noqa: BLE001 - keep normalization best-effort
             result.warnings.append(f"dossier rehash failed: {exc}")
-        meta = load_meta(feature_dir, allow_missing=True, on_malformed="raise") or meta
+        from specify_cli.core.paths import load_meta_fail_closed
+        meta = load_meta_fail_closed(feature_dir) or meta
 
     return meta, refresh_derived
 

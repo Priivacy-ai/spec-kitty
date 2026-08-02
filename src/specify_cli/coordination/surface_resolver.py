@@ -61,7 +61,6 @@ from mission_runtime import (
 )
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.lanes.branch_naming import mid8_from_slug, resolve_mid8
-from specify_cli.mission_metadata import load_meta
 from specify_cli.missions._read_path_resolver import (
     CoordState,
     StatusReadPathNotFound,
@@ -694,10 +693,10 @@ def resolve_status_surface_with_anchor(
     # must never hand back. (For unresolvable handles the candidate's name
     # equals the raw handle, so the not-found behaviour is unchanged.)
     mission_slug = feature_dir.name
-    # FR-006: canonical reader contract (a) — None on missing, ValueError on
-    # malformed (defaults stated explicitly). A malformed worktree meta propagates
-    # the typed corrupt-meta error, exactly as before the canonical conversion.
-    meta = load_meta(feature_dir, allow_missing=True, on_malformed="raise")
+    # FR-007: fail-closed reader routing. Malformed meta surfaces typed
+    # MissionMetaReadError instead of raw ValueError.
+    from specify_cli.core.paths import load_meta_fail_closed
+    meta = load_meta_fail_closed(feature_dir)
 
     # FR-006 (structural #2062 — the surface read-leg close): the husk
     # short-circuit below trusts the worktree's OWN ``meta.json`` (which EVERY real
@@ -766,9 +765,10 @@ def resolve_status_surface_with_anchor(
         _canonicalize_primary_read_handle(repo_root, mission_slug),
     )
     if meta is None:
-        # FR-006: canonical reader contract (a) — None on missing, ValueError on
-        # malformed (defaults stated explicitly).
-        meta = load_meta(primary_dir, allow_missing=True, on_malformed="raise")
+        # FR-007: fail-closed reader routing. Malformed meta surfaces typed
+        # MissionMetaReadError instead of raw ValueError.
+        from specify_cli.core.paths import load_meta_fail_closed
+        meta = load_meta_fail_closed(primary_dir)
     if meta is None:
         if primary_dir.exists():
             return ResolvedStatusSurface(

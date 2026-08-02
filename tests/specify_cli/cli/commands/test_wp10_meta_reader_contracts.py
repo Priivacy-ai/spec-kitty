@@ -178,20 +178,32 @@ class TestContractB_RaiseOnMissingOrMalformed:
         )
         assert read_documentation_state(meta_file) is not None
 
-    def test_malformed_meta_raises_value_error(self, tmp_path: Path) -> None:
-        """Contract B / malformed: invalid JSON → ValueError.
+    def test_malformed_meta_raises_typed_read_error(self, tmp_path: Path) -> None:
+        """Contract B / malformed: invalid JSON → typed ``MissionMetaReadError``.
+
+        FR-007 / NFR-003 (mission ``doctrine-charter-split-unification``):
+        this reader was routed onto the one fail-closed authority, so a corrupt
+        meta.json now surfaces the typed ``MissionMetaReadError`` instead of the
+        raw ``ValueError`` this test previously pinned. The raw-``ValueError``
+        expectation was the pre-routing contract; asserting it again would
+        re-open exactly the leak NFR-003 closes, so the assertion is updated
+        rather than the production behaviour.
 
         Negative control: valid JSON with mission_type=software-dev returns
         None (non-doc mission), confirming the malformed branch is distinct.
         """
+        from specify_cli.core.paths import MissionMetaReadError
         from specify_cli.doc_analysis.doc_state import read_documentation_state
 
         meta_file = tmp_path / "meta.json"
         meta_file.write_text("{ this is not json at all !!! }", encoding="utf-8")
 
-        # Observable contract: malformed → raises ValueError.
-        with pytest.raises(ValueError):
+        # Observable contract: malformed → raises the typed read error.
+        with pytest.raises(MissionMetaReadError) as exc_info:
             read_documentation_state(meta_file)
+
+        # ...and it is NOT a raw ValueError (the NFR-003 invariant).
+        assert not isinstance(exc_info.value, ValueError)
 
         # Negative control: valid JSON, non-doc mission → None (no exception).
         meta_file.write_text(
