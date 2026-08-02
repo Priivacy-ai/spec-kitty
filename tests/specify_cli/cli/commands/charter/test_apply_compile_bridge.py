@@ -37,7 +37,7 @@ from specify_cli.upgrade.migrations.m_unify_charter_activation_finalize import (
     _compose_charter_yaml_document,
 )
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 
