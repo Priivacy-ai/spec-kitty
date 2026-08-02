@@ -12,6 +12,7 @@ related:
 - docs/guides/create-specification.md
 - docs/guides/non-interactive-init.md
 - docs/guides/switch-missions.md
+- docs/architecture/charter-pack-usage-journey.md
 ---
 # How to Set Up Project Governance
 
@@ -26,6 +27,10 @@ action.
 - For the full doctrine-synthesis workflow (partial resynthesis, provenance, recovery from a
   stale bundle) beyond the quick version in Step 4 below, see
   [How to Synthesize and Maintain Doctrine](synthesize-doctrine.md).
+- For the faster, pack-driven alternative to this interview-driven walkthrough — `charter pack
+  apply` plus the required `charter generate` follow-up, and how the dispatch fallback behaves at
+  each step — see
+  [Charter Pack Usage Journey](../architecture/charter-pack-usage-journey.md).
 
 ## Prerequisites
 
@@ -353,6 +358,8 @@ You now have an active, governed charter. From here:
 - [Create a Specification](create-specification.md) — start a mission with governance active
 - [Switch Missions](switch-missions.md) — how missions interact with governance
 - [Non-Interactive Init](non-interactive-init.md) — automated project setup including charter
+- [Charter Pack Usage Journey](../architecture/charter-pack-usage-journey.md) — the pack-apply
+  onboarding alternative and the dispatch safety net
 
 ## Background
 

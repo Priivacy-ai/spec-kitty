@@ -3663,6 +3663,21 @@ pages:
     - {slug: "step-implement", text: "Step: implement", level: 3}
     - {slug: "step-review", text: "Step: review", level: 3}
     - {slug: "step-retrospect", text: "Step: retrospect", level: 3}
+  - path: "docs/architecture/charter-pack-usage-journey.md"
+    title: "Charter Pack Usage Journey: Apply, Generate, and the Dispatch Safety Net"
+    divio_type: "none"
+    abstract: "Why `charter pack apply` alone does not deliver working governance, the required `generate` follow-up, and how the dispatch fallback behaves before and after compilation."
+    anchors:
+    - {slug: "tl-dr", text: "TL;DR", level: 2}
+    - {slug: "three-tiers-not-two", text: "Three tiers, not two", level: 2}
+    - {slug: "step-1-charter-pack-apply", text: "Step 1 — `charter pack apply`", level: 2}
+    - {slug: "step-2-compile-the-bundle", text: "Step 2 — compile the bundle", level: 2}
+    - {slug: "why-apply-does-not-auto-compile-why-apply-does-not-auto-compile", text: "Why `apply` does not auto-compile {#why-apply-does-not-auto-compile}", level: 3}
+    - {slug: "the-dispatch-safety-net", text: "The dispatch safety net", level: 2}
+    - {slug: "what-empty-means", text: "What \"empty\" means", level: 3}
+    - {slug: "the-deliberate-behaviour-change", text: "The deliberate behaviour change", level: 3}
+    - {slug: "quick-reference", text: "Quick reference", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/architecture/charter-synthesis-drg.md"
     title: "Understanding Charter: Synthesis, DRG, and Governed Context"
     divio_type: "none"

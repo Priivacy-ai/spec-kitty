@@ -7,6 +7,7 @@ type: explanation
 related:
 - docs/context/governance-files.md
 - docs/guides/setup-governance.md
+- docs/architecture/charter-pack-usage-journey.md
 ---
 # How Charter Works
 
@@ -165,3 +166,5 @@ See [Governance Files Reference](governance-files.md) for the full table.
 - [How to Set Up Project Governance](../guides/setup-governance.md) — initial setup walkthrough
 - [How to Synthesize and Maintain Doctrine](../guides/synthesize-doctrine.md) — day-to-day synthesis
 - [Understanding Charter: Synthesis, DRG, and Governed Context](../architecture/charter-synthesis-drg.md) — deeper explanation
+- [Charter Pack Usage Journey](../architecture/charter-pack-usage-journey.md) — the pack-driven
+  onboarding path (`charter pack apply` → `charter generate`) and the dispatch safety net

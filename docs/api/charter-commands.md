@@ -6,6 +6,7 @@ updated: '2026-07-20'
 related:
 - docs/context/charter-overview.md
 - docs/context/governance-files.md
+- docs/architecture/charter-pack-usage-journey.md
 ---
 # Charter CLI Reference
 
@@ -320,3 +321,6 @@ uv run spec-kitty charter bundle validate --json
 - [How Charter Works](../context/charter-overview.md)
 - [How to Synthesize and Maintain Doctrine](../guides/synthesize-doctrine.md)
 - [Governance Files Reference](../context/governance-files.md)
+- [Charter Pack Usage Journey](../architecture/charter-pack-usage-journey.md) — the `charter pack
+  apply` → `charter generate` two-step and the dispatch safety net (`charter pack` flags: see the
+  generated [CLI Command Reference](cli-commands.md#spec-kitty-charter-pack))
