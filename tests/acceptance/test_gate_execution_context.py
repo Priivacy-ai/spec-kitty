@@ -26,12 +26,15 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import MissionArtifactKind, TopologySurface
+from specify_cli import acceptance as acceptance_module
+from specify_cli.acceptance import gates_core as gates_core_module
 from specify_cli.acceptance.execution_context import (
     CannotEvaluate,
     CannotEvaluateReason,
     GateExecutionContext,
     GateSurfaceRefMismatch,
     LifecyclePhase,
+    _git_head_of,
     build_gate_execution_context,
     declared_home_surface,
 )
@@ -243,6 +246,17 @@ def test_assert_at_ref_passes_on_agreement() -> None:
     """C5: when the surface is at its ref, the gate proceeds (no raise)."""
     ctx = _plain_context(surface=Path("/p"), surface_kind=TopologySurface.COORD, ref="sha-abc")
     ctx.assert_at_ref(head_of=lambda _s: "sha-abc")  # must not raise
+
+
+def test_git_head_of_detached_checkout_returns_head_sentinel(
+    flat_topology_mission: ctf.FlatTopologyContext,
+) -> None:
+    """C5: a real detached checkout resolves to the no-branch ``HEAD`` sentinel."""
+    ctx = flat_topology_mission
+    ctf._git(ctx.repo, "checkout", "--detach", "HEAD")
+    assert ctf._git(ctx.repo, "branch", "--show-current") == ""
+
+    assert _git_head_of(ctx.repo) == "HEAD"
 
 
 # ===========================================================================
@@ -531,6 +545,57 @@ def test_gec2_primary_ref_agreement_still_judges(
 
     assert not any(c.check == "acceptance_matrix_cannot_evaluate" for c in blocked), blocked
     assert any("verdict is 'fail'" in issue for issue in activity_issues), activity_issues
+
+
+def test_collect_feature_summary_forwards_invocation_branch_to_matrix_context(
+    flat_topology_mission: ctf.FlatTopologyContext,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The full accept-gate call chain preserves the invocation checkout branch.
+
+    The real validation entry point resolves a mission branch that deliberately
+    differs from the target branch (``main``). A terminal-only spy records what
+    reaches the acceptance-matrix context; every intermediate forwarding hop stays
+    production code. Dropping ``branch`` at any hop would record ``None`` and fall
+    back to the distinct target branch, so this assertion cannot false-green.
+    """
+    ctx = flat_topology_mission
+    mission_branch = f"kitty/mission-{ctx.slug}"
+    ctf._git(ctx.repo, "switch", "-c", mission_branch)
+    _seed_matrix(
+        ctx.primary_feature_dir,
+        verdict="fail",
+        marker="INVOCATION-BRANCH-FLOW-THROUGH",
+    )
+
+    received_branches: list[str | None] = []
+    build_context = gates_core_module._acceptance_gate_context
+
+    def _record_matrix_context(
+        repo_root: Path,
+        mission_dir: Path,
+        *,
+        branch: str | None = None,
+    ) -> GateExecutionContext:
+        received_branches.append(branch)
+        return build_context(repo_root, mission_dir, branch=branch)
+
+    monkeypatch.setattr(
+        gates_core_module,
+        "_acceptance_gate_context",
+        _record_matrix_context,
+    )
+
+    summary = acceptance_module.collect_feature_summary(
+        ctx.repo,
+        ctx.slug,
+        strict_metadata=False,
+        mutate_matrix=False,
+    )
+
+    assert summary.branch == mission_branch
+    assert received_branches == [mission_branch]
+    assert any("verdict is 'fail'" in issue for issue in summary.activity_issues)
 
 
 # ===========================================================================
