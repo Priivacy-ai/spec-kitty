@@ -1,8 +1,14 @@
-# The five follow-ups — how they should be sequenced after this mission
+# The follow-ups — how they should be sequenced after this mission
 
-This mission filed five issues. The operator asked whether they can be delivered as one mission. The
-answer, from a dedicated planning pass that measured rather than estimated, is **no — three
-missions**, and the reason is not size.
+> **Count correction (read first).** This section's original planning pass covered the **five**
+> issues filed at the time. Three more were filed at mission close (`#3142`, `#3143`, and one more)
+> — see the **Addendum at mission close** at the foot of this file, which also **supersedes** the
+> "An unfiled regression holds the cascade open" section below. The tracked follow-up set is
+> larger than five; the three-mission sequencing recommendation below still stands.
+
+This section's planning pass covered the five issues filed at the time. The operator asked whether
+they can be delivered as one mission. The answer, from a dedicated planning pass that measured
+rather than estimated, is **no — three missions**, and the reason is not size.
 
 ## The recommendation
 
