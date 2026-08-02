@@ -228,6 +228,13 @@ _ARCH_SHARD_2_FILES: tuple[str, ...] = (
     # tied lightest by file count (35 vs 35/39) when this file landed;
     # shard_2 was picked to keep the split even.
     "tests/architectural/test_cross_grain_builtin_gate.py",
+    # Added post-data-model.md (new file, mission
+    # verification-trust-3115-01KYVYWM landing fold — the WP12 --timeout
+    # gate, closing the #3143 follow-up: nothing asserted the ~17
+    # --timeout=240 flags WP12 added to ci-quality.yml's fast-tier jobs
+    # stayed present). shard_2 was the lightest by file count (36 vs 37/39)
+    # when this file landed, so it lands here.
+    "tests/architectural/test_ci_fast_jobs_have_timeout.py",
 )
 
 _ARCH_SHARD_3_FILES: tuple[str, ...] = (

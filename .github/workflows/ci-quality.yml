@@ -1170,6 +1170,10 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — sync orphan-sweep (serial, real ports)"
         run: |
+          # WP12 --timeout exemption: real-port daemon suite running -n0 (serial,
+          # OS-global port binds 9400-9449, not HOME-isolated). pytest-timeout's
+          # signal method (SIGALRM) is unsafe to raise mid-teardown of a live socket/
+          # daemon process, so no --timeout here.
           uv run python -m pytest tests/sync/test_orphan_sweep.py -q --tb=short \
             -m "not windows_ci" \
             -n0 \
@@ -1744,6 +1748,11 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — docs"
         run: |
+          # WP12 --timeout exemption: this selection runs the whole tests/docs/
+          # directory with no `-m "fast"` filter, so it bundles test_asset_resolution_wheel.py
+          # (pytest.mark.slow/distribution/non_sandbox — builds and installs a real
+          # wheel, documented >30s by design). A blanket --timeout=240 here would risk
+          # falsely redding that legitimate long-runner instead of catching a genuine hang.
           uv run python -m pytest \
             tests/docs \
             tests/architectural/test_no_legacy_terminology.py \
