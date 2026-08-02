@@ -89,6 +89,7 @@ WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
 WORKFLOW_FILES: tuple[str, ...] = (
     "ci-quality.yml",
     "ci-windows.yml",
+    "doctrine-charter-tests.yml",
     "drift-detector.yml",
     "release.yml",
     "ui-e2e.yml",
