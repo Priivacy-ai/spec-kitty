@@ -13,7 +13,7 @@ name: Crosslayer Composition Suite
 #
 # Trigger-path scope (M1 post-spec finding, spec.md Dependencies &
 # Assumptions): the static job's `pull_request` trigger is path-filtered to
-# BOTH `conformance/**` AND `src/doctrine/agent_profiles/built-in/**` -- not
+# BOTH `conformance/**` AND `packs/built-in/agent_profiles/**` -- not
 # just the former. FR-003's persona-drift gate reads the agent-profile
 # source directly, but that directory is owned by other, future PRs
 # outside this mission's write scope -- a profile-only PR must still see
@@ -23,7 +23,7 @@ on:
   pull_request:
     paths:
       - 'conformance/**'
-      - 'src/doctrine/agent_profiles/built-in/**'
+      - 'packs/built-in/agent_profiles/**'
   # FR-005 cadence: scheduled weekly run (Monday 06:00 UTC) plus an
   # on-demand manual trigger. Case CONTENT is authored by WP05/lane-c,
   # blocked on M3 and on this WP + WP02 merging first -- see the inline

@@ -32,7 +32,7 @@ _CONFORMANCE_WORKFLOW_PATH = _REPO_ROOT / ".github" / "workflows" / "conformance
 # diff affects.
 _REQUIRED_PR_PATHS = {
     "conformance/**",
-    "src/doctrine/agent_profiles/built-in/**",
+    "packs/built-in/agent_profiles/**",
 }
 
 

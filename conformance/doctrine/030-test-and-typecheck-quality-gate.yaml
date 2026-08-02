@@ -1,5 +1,5 @@
 version: "1.0.0"
-sopFile: "../../src/doctrine/directives/built-in/030-test-and-typecheck-quality-gate.directive.yaml"
+sopFile: "../../packs/built-in/directives/030-test-and-typecheck-quality-gate.directive.yaml"
 rules:
   - ruleId: "030-r1"
     ruleText: "New behavior is not ready for review while relevant tests or applicable static validation gates are red."
