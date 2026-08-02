@@ -1,0 +1,23 @@
+version: 1.0.0
+sopFile: ../../src/doctrine/directives/built-in/010-specification-fidelity-requirement.directive.yaml
+rules:
+  - ruleId: 010-r1
+    ruleText: Unrecorded scope drift is not permitted.
+    probeIds: []
+    gradingClass: binary
+    aggregation: pass-k
+    k: 3
+    passThreshold: 3
+    source:
+      normative: docs/rubric/sop-rule-taxonomy.md#5-output-format
+      supporting: https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/010-specification-fidelity-requirement.directive.yaml
+  - ruleId: 010-r2
+    ruleText: Requirement-to-implementation traceability must remain inspectable.
+    probeIds: []
+    gradingClass: binary
+    aggregation: pass-k
+    k: 3
+    passThreshold: 3
+    source:
+      normative: docs/rubric/sop-rule-taxonomy.md#5-output-format
+      supporting: https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/010-specification-fidelity-requirement.directive.yaml
