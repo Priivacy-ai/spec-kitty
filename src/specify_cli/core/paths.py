@@ -635,23 +635,38 @@ def assert_worktree_supported(command_name: str, start: Path | None = None) -> N
         )
 
 
-def _load_meta_fail_closed(feature_dir: Path) -> dict[str, Any] | None:
-    """Load meta.json fail-closed on corruption.
+def load_meta_fail_closed(feature_dir: Path) -> dict[str, Any] | None:
+    """Load meta.json fail-closed on corruption -- the ONE public reader (FR-007).
 
     This is the single place that owns the field-absent vs read-failure
-    decision.  Every target-branch reader delegates here.
+    decision.  Every fail-closed ``meta.json`` reader delegates here; there is
+    deliberately **no** second authority (FR-007 / #3140).  The canonical
+    *parser* remains :func:`specify_cli.mission_metadata.load_meta` -- this
+    function adds only the typed fail-closed **contract** on top of it, so a
+    corrupt ``meta.json`` never surfaces a raw :class:`ValueError` to a caller.
+
+    Callers that must stay deliberately silent about corruption (placement
+    probes, best-effort displays) keep using
+    :func:`specify_cli.mission_metadata.load_meta_or_empty` or the canonical
+    reader's ``on_malformed="none"`` arm instead -- they are not routed here.
+
+    Args:
+        feature_dir: Mission directory containing (or expected to contain)
+            ``meta.json``.
 
     Returns:
         ``None`` when meta.json is absent (caller treats as field-absent).
         The parsed mapping when meta.json is present and valid.
 
     Raises:
-        MissionMetaReadError: When meta.json exists but is corrupt or
-            unreadable.  Never raised for a missing file.
+        MissionMetaReadError: When meta.json exists but is corrupt, non-object,
+            or unreadable.  Never raised for a missing file.
     """
-    # Deferred import: core.paths is loaded very early; mission_metadata imports
-    # back from core (e.g. safe_mission_slug), so a module-level import would
-    # create a circular import.
+    # Deferred import (LOAD-BEARING -- do NOT hoist to module level): core.paths
+    # is loaded very early; mission_metadata imports back from core (e.g.
+    # safe_mission_slug), so a module-level import re-forms the
+    # ``core.paths <-> mission_metadata`` circular import.  Publishing this
+    # function (FR-007) does not change that -- the import stays in-function.
     from specify_cli.mission_metadata import load_meta  # noqa: PLC0415
 
     meta_path = feature_dir / "meta.json"
@@ -686,7 +701,7 @@ def read_target_branch_from_meta(feature_dir: Path) -> str | None:
             unreadable.  Callers MUST NOT silently swallow this — the error
             must propagate so corruption is visible (fail-closed doctrine).
     """
-    data = _load_meta_fail_closed(feature_dir)
+    data = load_meta_fail_closed(feature_dir)
     if not data:
         return None
     value = data.get("target_branch")
@@ -756,7 +771,7 @@ def resolve_merge_target_branch(
 ) -> tuple[str, str]:
     """Resolve the branch a mission merges into, with provenance.
 
-    Thin adapter over :func:`_load_meta_fail_closed`.
+    Thin adapter over :func:`load_meta_fail_closed`.
 
     The single source of truth shared by ``spec-kitty merge`` and
     ``orchestrator-api merge-mission`` so the two never disagree.
@@ -811,7 +826,7 @@ def resolve_merge_target_branch(
         main_root,
         _canonicalize_primary_read_handle(main_root, mission_slug),
     )
-    data = _load_meta_fail_closed(feature_dir)
+    data = load_meta_fail_closed(feature_dir)
     if data:
         for key in ("merge_target_branch", "target_branch"):
             value = data.get(key)
@@ -906,6 +921,7 @@ __all__ = [
     "StatusReadUnsupported",
     "assert_worktree_supported",
     "MissionMetaReadError",
+    "load_meta_fail_closed",
     "read_target_branch_from_meta",
     "get_feature_target_branch",
     "resolve_merge_target_branch",

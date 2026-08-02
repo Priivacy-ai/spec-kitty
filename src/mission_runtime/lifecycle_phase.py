@@ -23,6 +23,7 @@ terminology.md`` (Decision 1) for the design record.
 from __future__ import annotations
 
 import enum
+import logging
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -31,6 +32,8 @@ from mission_runtime.mission_resolver_port import MissionResolver
 
 if TYPE_CHECKING:
     pass
+
+_logger = logging.getLogger(__name__)
 
 __all__ = [
     "LifecyclePhase",
@@ -114,10 +117,40 @@ def _primary_feature_dir(
 
 
 def _read_baseline_merge_commit(feature_dir: Path) -> str:
-    """Read the raw ``baseline_merge_commit`` field, ``""`` when absent/blank."""
-    from specify_cli.mission_metadata import load_meta
+    """Read the raw ``baseline_merge_commit`` field, ``""`` when absent/blank.
 
-    meta = load_meta(feature_dir)
+    Routed through the ONE public fail-closed reader
+    (:func:`specify_cli.core.paths.load_meta_fail_closed`, FR-007 / #3140) so a
+    corrupt ``meta.json`` surfaces the typed :class:`MissionMetaReadError`
+    rather than a raw :class:`ValueError`.
+
+    The typed error is then degraded to the absent-baseline answer (``""``).
+    That is deliberate and matches the sibling placement probes in
+    ``mission_runtime.resolution`` (``_declared_mid8``, ``_declared_coordination_branch``,
+    ``_resolve_mission_identity``): this function is a *phase probe* consumed by
+    surface resolution, not the meta-trust authority.  Pre-empting the read with
+    a hard failure here is precisely the #3140 leak -- it fired inside
+    ``resolve_artifact_surface`` and denied
+    ``specify_cli.status.aggregate.MissionStatus._read_meta`` the chance to raise
+    its own typed ``MissionMetadataUnavailable``.  Degrading here keeps the
+    corruption verdict with that fail-closed seam, which reports it with the
+    mission slug and primary candidate attached.
+    """
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
+
+    try:
+        meta = load_meta_fail_closed(feature_dir)
+    except MissionMetaReadError:
+        # Corrupt meta.json: the baseline is unknowable, so report the
+        # absent-baseline answer (PRE_CONSOLIDATION) and let the downstream
+        # fail-closed reader own the typed corruption verdict.
+        _logger.warning(
+            "lifecycle phase probe: unreadable meta.json at %s — treating "
+            "baseline_merge_commit as absent; the meta-trust verdict is owned "
+            "by the mission-status fail-closed reader.",
+            feature_dir / "meta.json",
+        )
+        return ""
     if not meta:
         return ""
     value = meta.get("baseline_merge_commit")
