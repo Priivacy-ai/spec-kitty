@@ -13,7 +13,7 @@ M7 composes a real deployed spec-kitty stack — a projected persona +
 `AGENTS.md` policy extract (SOP) + one skill — and runs
 [`@garrison-hq/muster`](https://github.com/garrison-hq/muster)'s
 `crosslayer` adapter over it: static contradiction/precedence lint on every
-PR that touches `conformance/**` or `src/doctrine/agent_profiles/built-in/**`
+PR that touches `conformance/**` or `packs/built-in/agent_profiles/**`
 (see "CI wiring" below — a PR touching neither path never sees this job),
 behavioral rule-survival on cadence against a live model.
 
@@ -28,7 +28,7 @@ conformance/crosslayer/
 ├── README.md            # this file — WP04 (this WP)
 ├── personas/
 │   ├── architect-alphonso.Soul.md   # committed, WP01 — projected from
-│   │                                # src/doctrine/agent_profiles/built-in/
+│   │                                # packs/built-in/agent_profiles/
 │   │                                # architect-alphonso.agent.yaml
 │   └── reviewer-renata.Soul.md      # committed, WP01
 ├── sop-extract.md        # WP03 — bounded AGENTS.md policy extract (OQ-6)
@@ -90,7 +90,7 @@ by design (never edited by this mission — see spec.md's collision-avoidance
 note above). Two jobs:
 
 - **`static-gate`** — every `pull_request`, path-filtered to both
-  `conformance/**` and `src/doctrine/agent_profiles/built-in/**` (a
+  `conformance/**` and `packs/built-in/agent_profiles/**` (a
   profile-only PR must still see and be able to fix the persona-drift
   check its own diff affects). Runs, in order: checkout, the static
   contradiction lint via `garrison-hq/muster-action` (pinned to the same
