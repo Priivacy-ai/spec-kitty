@@ -312,6 +312,39 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **The dashboard's Charter page no longer misreports a compiled-only project
+  as having no charter (mission `doctrine-charter-split-unification`;
+  `#3150`).** Before this fix, a project with a compiled
+  `.kittify/charter/charter.yaml` but no display-only `charter.md` companion
+  showed "no charter" in the dashboard sidebar and its API — both the artifact
+  scanner and the charter API endpoint still keyed presence on the legacy
+  `charter.md` file. Presence now resolves from `charter.yaml` (the read
+  authority) everywhere; the prose body the Charter page displays still comes
+  from `charter.md` when one exists.
+- **A corrupt or malformed `meta.json` now always fails closed with a clear
+  error, never a raw crash (mission `doctrine-charter-split-unification`;
+  `#3140`).** Previously, dozens of call sites across mission-status,
+  coordination, migration, and CLI commands could leak an unhandled
+  `ValueError` when a mission's `meta.json` was corrupted or shaped
+  unexpectedly, surfacing as an opaque traceback instead of an actionable
+  error. Every one of those readers now routes through a single typed
+  `MissionMetaReadError` (or a documented silent-empty fallback where that was
+  always the contract), so a broken mission's metadata degrades predictably
+  instead of crashing the command you ran.
+- **Retrospective policy set in `charter.yaml` now takes precedence over
+  `charter.md` frontmatter (mission `doctrine-charter-split-unification`).**
+  If both files configure retrospective behaviour and they disagree, the
+  compiled `charter.yaml` value now wins — matching how every other
+  charter-governed decision already resolves. Projects that configure
+  retrospective policy only via `charter.md` frontmatter (no `charter.yaml`
+  retrospective block) are unaffected and keep resolving from the markdown as
+  before.
+- **`doctrine-charter-tests.yml` CI now actually covers the charter CLI
+  command layer, and the CLI-reference parity check runs instead of silently
+  skipping (`#3149`, `#3107`, `#3102`).** A change under
+  `src/specify_cli/cli/commands/charter/**` previously wouldn't trigger the
+  workflow named for it; the docs-parity gate had pointed at a reference file
+  that no longer existed, so it never actually ran.
 - **Applying a charter pack no longer leaves your project worse off than doing
   nothing (mission `charter-pack-usage-journey`; `#3104`, `#3105`).** Before
   this fix, `spec-kitty charter pack apply <pack>` on an unconfigured project
