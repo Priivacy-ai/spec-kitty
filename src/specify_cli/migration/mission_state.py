@@ -29,10 +29,10 @@ from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import (
     WorkspaceRootNotFound,
     assert_safe_path_segment,
+    load_meta_fail_closed,
     resolve_canonical_root,
 )
 from specify_cli.mission_metadata import (
-    load_meta,
     load_meta_or_empty,
     mission_number_from_slug,
     validate_meta,
@@ -1263,7 +1263,7 @@ def _canonicalize_meta(
     *,
     generated_ids: list[str] | None = None,
 ) -> tuple[dict[str, Any], tuple[str, ...]]:
-    loaded = load_meta(mission_dir, allow_missing=True, on_malformed="raise")
+    loaded = load_meta_fail_closed(mission_dir)
     meta = dict(loaded or {})
     actions: list[str] = []
     mission_slug = str(

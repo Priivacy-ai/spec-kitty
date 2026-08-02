@@ -215,7 +215,8 @@ def _flip_phase(feature_dir: Path) -> None:
             f"the placement port resolved its PRIMARY home to {resolved_home}, "
             f"which does not match the write target {target} (fail-closed, FR-001)."
         )
-    meta = load_meta(target, allow_missing=True, on_malformed="raise") or {}
+    from specify_cli.core.paths import load_meta_fail_closed
+    meta = load_meta_fail_closed(target) or {}
     if _is_snapshot_authority(meta):
         return
     meta[_STATUS_PHASE_KEY] = _SNAPSHOT_AUTHORITY_PHASE

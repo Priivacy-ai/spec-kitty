@@ -28,6 +28,7 @@ from specify_cli.coordination.status_service import (
 )
 from specify_cli.coordination.transaction import BookkeepingCommitFailed, BookkeepingWorktreeMissing
 from specify_cli.coordination.workspace import CoordinationWorkspace
+from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.status.models import (
     InnerStateChanged,
     Lane,
@@ -562,7 +563,7 @@ def test_transactional_emit_fails_closed_on_malformed_meta(
         encoding="utf-8",
     )
 
-    with pytest.raises(ValueError, match="Malformed JSON"):
+    with pytest.raises(MissionMetaReadError, match="Malformed JSON"):
         emit_status_transition_transactional(_request(repo), sync_dossier=False)
 
     assert mock_saas_sink.call_count == 0

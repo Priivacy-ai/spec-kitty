@@ -14,7 +14,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from specify_cli.mission_metadata import load_meta, resolve_mission_identity
+from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status.lifecycle_events import (
     FOLLOW_UP_RECORDED,
     LOCAL_ONLY_LIFECYCLE_EVENT_TYPES,
@@ -140,7 +140,8 @@ def _parse_dt(raw: object) -> datetime | None:
 
 
 def _fallback_created_at(feature_dir: Path) -> datetime | None:
-    meta = load_meta(feature_dir, allow_missing=True, on_malformed="raise") or {}
+    from specify_cli.core.paths import load_meta_fail_closed
+    meta = load_meta_fail_closed(feature_dir) or {}
     created_at = _parse_dt(meta.get("created_at"))
     if created_at is not None:
         return created_at
@@ -239,7 +240,8 @@ def _last_merge_marker_at(feature_dir: Path) -> datetime | None:
     typically ``None``. A subsequent re-merge re-stamps ``merged_at``; when that
     postdates the latest re-open the mission is no longer ``reopened``.
     """
-    meta = load_meta(feature_dir, allow_missing=True, on_malformed="raise") or {}
+    from specify_cli.core.paths import load_meta_fail_closed
+    meta = load_meta_fail_closed(feature_dir) or {}
     return _parse_dt(meta.get("merged_at"))
 
 

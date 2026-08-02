@@ -25,6 +25,7 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.status.lifecycle import generate_lifecycle_json
 from specify_cli.status.lifecycle import _fallback_created_at, _last_merge_marker_at
 from specify_cli.status.models import Lane, StatusEvent
@@ -269,12 +270,12 @@ class TestLifecycleMetaLoadContract:
         assert isinstance(result, datetime)
 
     def test_fallback_created_at_malformed_meta_raises(self, tmp_path: Path) -> None:
-        """Malformed meta.json: _fallback_created_at raises ValueError (on_malformed='raise')."""
+        """Malformed meta.json: _fallback_created_at raises MissionMetaReadError (FR-007 fail-closed)."""
         feature_dir = tmp_path / "kitty-specs" / "099-wp09-lifecycle-contract"
         feature_dir.mkdir(parents=True)
         (feature_dir / "meta.json").write_text("{bad json", encoding="utf-8")
 
-        with pytest.raises(ValueError, match="Malformed JSON"):
+        with pytest.raises(MissionMetaReadError, match="Malformed JSON"):
             _fallback_created_at(feature_dir)
 
     def test_last_merge_marker_at_missing_meta_returns_none(
@@ -293,10 +294,10 @@ class TestLifecycleMetaLoadContract:
         assert result is None
 
     def test_last_merge_marker_at_malformed_meta_raises(self, tmp_path: Path) -> None:
-        """Malformed meta.json: _last_merge_marker_at raises ValueError."""
+        """Malformed meta.json: _last_merge_marker_at raises MissionMetaReadError (FR-007 fail-closed)."""
         feature_dir = tmp_path / "kitty-specs" / "099-wp09-lifecycle-contract"
         feature_dir.mkdir(parents=True)
         (feature_dir / "meta.json").write_text("{bad json", encoding="utf-8")
 
-        with pytest.raises(ValueError, match="Malformed JSON"):
+        with pytest.raises(MissionMetaReadError, match="Malformed JSON"):
             _last_merge_marker_at(feature_dir)

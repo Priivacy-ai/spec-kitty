@@ -30,7 +30,6 @@ from typing import Any, Literal
 from mission_runtime import MissionTopology, classify_topology, routes_through_coordination
 
 from specify_cli.lanes import CorruptLanesError, read_lanes_json
-from specify_cli.mission_metadata import load_meta
 
 logger = logging.getLogger(__name__)
 
@@ -89,13 +88,16 @@ def read_topology(feature_dir: Path) -> MissionTopology:
 
     Raises:
         FileNotFoundError: If ``meta.json`` does not exist.
-        ValueError: If ``meta.json`` is not a JSON object.
+        MissionMetaReadError: If ``meta.json`` is not a JSON object or is corrupt.
     """
-    # post-#2091 canonical reader: allow_missing=False raises FileNotFoundError
-    # on a missing meta.json, on_malformed="raise" (default) raises ValueError
-    # on malformed/non-object content -- matching this function's documented
-    # Raises: contract byte-for-byte.
-    meta: dict[str, Any] = load_meta(feature_dir, allow_missing=False) or {}
+    # FR-007: fail-closed reader routing. Malformed meta surfaces typed
+    # MissionMetaReadError instead of raw ValueError. Missing files still raise
+    # FileNotFoundError to preserve documented contract.
+    from specify_cli.core.paths import load_meta_fail_closed
+    meta_result = load_meta_fail_closed(feature_dir)
+    if meta_result is None:
+        raise FileNotFoundError(feature_dir / "meta.json")
+    meta: dict[str, Any] = meta_result or {}
 
     stored = meta.get(_TOPOLOGY_KEY)
     if isinstance(stored, str) and stored in _VALID_TOPOLOGY_VALUES:
@@ -165,9 +167,11 @@ def backfill_mission_topology(
             reason="meta.json not found",
         )
 
+    from specify_cli.core.paths import load_meta_fail_closed, MissionMetaReadError
     try:
-        meta: dict[str, Any] = load_meta(feature_dir, allow_missing=False) or {}
-    except (FileNotFoundError, ValueError) as exc:
+        meta_result = load_meta_fail_closed(feature_dir)
+        meta: dict[str, Any] = meta_result or {}
+    except MissionMetaReadError as exc:
         logger.warning("Corrupt meta.json in %s: %s", slug, exc)
         return TopologyBackfillResult(
             feature_dir=feature_dir,

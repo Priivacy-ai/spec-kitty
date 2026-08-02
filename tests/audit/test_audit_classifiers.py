@@ -204,6 +204,42 @@ def test_meta_classifier_non_object_json_returns_corrupt_json(
     assert findings[0].detail == "top-level JSON value must be an object"
 
 
+def test_meta_classifier_unreadable_file_reports_cannot_read_not_non_object(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unreadable meta.json (OSError) -> the OSError detail arm, not the non-object arm.
+
+    Regression for WP08 review defect #4: MissionMetaReadError.cause is always
+    the intermediate ValueError from ``mission_metadata._parse_meta_text``, never
+    the underlying OSError directly -- the OSError lives one hop further down
+    at ``exc.cause.__cause__``. Checking ``isinstance(exc.cause, OSError)``
+    was always False, so an unreadable file fell through to the "top-level
+    JSON value must be an object" branch instead of reporting the real
+    read failure.
+    """
+    path = tmp_path / "meta.json"
+    path.write_text("{}", encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def raise_for_meta_json(self: Path, *args: object, **kwargs: object) -> str:
+        if self == path:
+            raise PermissionError(13, "Permission denied", str(path))
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", raise_for_meta_json)
+
+    findings = classify_meta_json(tmp_path)
+
+    assert len(findings) == 1
+    assert findings[0].code == "CORRUPT_JSON"
+    assert findings[0].detail != "top-level JSON value must be an object"
+    assert findings[0].detail == (
+        "cannot read meta.json: [Errno 13] Permission denied: "
+        f"'{path}'"
+    )
+
+
 def test_meta_classifier_unknown_key(tmp_path: Path) -> None:
     """meta.json with unrecognised key → UNKNOWN_SHAPE finding (info)."""
     data = {**_MODERN_META, "unrecognised_field_xyz": "value"}
