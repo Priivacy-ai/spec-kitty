@@ -16,8 +16,8 @@ class SyncRuntimeEventEmitter:
     Capture-first (FR-017, contract §2) is inherited, not re-implemented here:
     every ``emit_*`` callback forwards to the canonical
     :class:`~specify_cli.sync.emitter.EventEmitter`, whose ``_emit`` writes the
-    Teamspace-bound fact to the producer-scoped event journal *before* any
-    SaaS/auth/team/Private-Teamspace/network gate is evaluated. These runtime
+    Team Kitty-bound fact to the producer-scoped event journal *before* any
+    SaaS/auth/team/private workspace/network gate is evaluated. These runtime
     mission/phase/decision facts are therefore durably captured even when sync
     is disabled or auth/team are missing (SC-009).
     """
@@ -137,15 +137,15 @@ class SyncRuntimeEventEmitter:
             )
 
     def emit_significance_evaluated(self, payload: Any) -> None:
-        # WP09: significance/timeout signals have no canonical Teamspace-bound
+        # WP09: significance/timeout signals have no canonical Team Kitty-bound
         # emit method yet, so they are intentionally not produced (and thus not
-        # journaled). Classifying which families are Teamspace-bound vs
+        # journaled). Classifying which families are Team Kitty-bound vs
         # local-only/discardable (the full OPT_OUT/TRASH policy) is WP09's
-        # responsibility; this is not a silent drop of a Teamspace-bound fact.
+        # responsibility; this is not a silent drop of a Team Kitty-bound fact.
         del payload
 
     def emit_decision_timeout_expired(self, payload: Any) -> None:
-        # WP09: see emit_significance_evaluated — no Teamspace-bound family is
+        # WP09: see emit_significance_evaluated — no Team Kitty-bound family is
         # produced here; family classification is deferred to WP09.
         del payload
 

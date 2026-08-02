@@ -44,7 +44,7 @@ flowchart LR
     hic["Human In Charge (operator)"]
     agent["Agent Tooling — Claude/Codex/Copilot/etc."]
     orch["External Orchestrator Provider"]
-    saas["Spec Kitty SaaS — hosted sync and dashboard"]
+    saas["Team Kitty — hosted sync and dashboard"]
     tracker["External Tracker Systems"]
     repo["Project Repository Artifacts — kitty-specs, doctrine, glossary, architecture"]
     sk["Spec Kitty 3.x Host (CLI)"]
@@ -65,7 +65,7 @@ flowchart LR
 | Human In Charge | Command invocation and approval checkpoints | Final acceptance authority stays human-owned. |
 | Agent Tooling | Prompt-, skill-, and Op-driven workflow execution | Agents execute within host constraints and the resolved profile's governance scope. |
 | External Orchestrator Provider | Orchestrator API calls | Provider is adapter-only; host remains lifecycle authority. |
-| Spec Kitty SaaS | Browser-mediated OAuth auth + hosted status projection | Auth is browser-OAuth, not password (`2026-04-09-2`); the host remains the canonical state authority. |
+| Team Kitty | Browser-mediated OAuth auth + hosted status projection | Auth is browser-OAuth, not password (`2026-04-09-2`); the host remains the canonical state authority. |
 | External Tracker Systems | Status/event projection | Tracker sync is optional and discovered, not user-supplied (`2026-04-04-1`). |
 | Project Repository Artifacts | Filesystem state read/write | Repository artifacts are canonical persistent state. |
 

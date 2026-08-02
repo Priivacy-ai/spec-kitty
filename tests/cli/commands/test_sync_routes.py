@@ -51,7 +51,7 @@ def _session() -> StoredSession:
         email="robert@example.com",
         name="Robert",
         teams=[
-            Team(id="private-team", name="Robert Private Teamspace", role="owner", is_private_teamspace=True),
+            Team(id="private-team", name="Robert private workspace", role="owner", is_private_teamspace=True),
             Team(id="product-team", name="Product Team", role="member"),
         ],
         default_team_id="private-team",
@@ -104,7 +104,7 @@ def test_routes_command_renders_share_state(monkeypatch: pytest.MonkeyPatch) -> 
     result = runner.invoke(sync_module.app, ["routes"])
 
     assert result.exit_code == 0, result.stdout
-    assert "Spec Kitty Teamspace Routing" in result.stdout
+    assert "Team Kitty Workspace Routing" in result.stdout
     assert "acme/spec-kitty" in result.stdout
     assert "Product Team" in result.stdout
     assert "shared" in result.stdout
@@ -311,7 +311,7 @@ def test_unshare_command_stops_sharing_for_one_team(monkeypatch: pytest.MonkeyPa
 
     assert result.exit_code == 0, result.stdout
     assert "Stopped sharing" in result.stdout
-    assert "Private Teamspace data was kept intact" in result.stdout
+    assert "private workspace data was kept intact" in result.stdout
 
 
 def test_opt_out_command_can_delete_private_remote_data(monkeypatch: pytest.MonkeyPatch) -> None:

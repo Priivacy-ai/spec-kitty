@@ -416,7 +416,7 @@ class TestBuildSession:
         me = _me_response(
             teams=[
                 {"id": "tm_shared", "name": "Shared", "role": "member", "is_private_teamspace": False},
-                {"id": "tm_private", "name": "Private Teamspace", "role": "admin", "is_private_teamspace": True},
+                {"id": "tm_private", "name": "private workspace", "role": "admin", "is_private_teamspace": True},
             ]
         )
 

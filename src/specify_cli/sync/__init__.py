@@ -203,7 +203,7 @@ def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
 
     Constructs the SaaS wire envelope from the local lifecycle event and
     queues it into the offline outbox when sync is enabled and a valid
-    Teamspace scope is available. Strict canonical-payload validation
+    Team Kitty scope is available. Strict canonical-payload validation
     runs here (see ``_validate_lifecycle_payload``) so schema-drift
     becomes an emit-time error, not an RC-canary failure
     (issues Priivacy-ai/spec-kitty#1198 / #1200).

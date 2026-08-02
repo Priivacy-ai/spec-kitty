@@ -34,13 +34,13 @@ _INGRESS_SAAS_BASE_URL = "https://saas.example"
 
 @pytest.fixture(autouse=True)
 def _default_private_team_token_manager(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Default TokenManager fixture exposing a Private Teamspace.
+    """Default TokenManager fixture exposing a private workspace.
 
-    WP04 (private-teamspace-ingress-safeguards) makes Private Teamspace a hard
+    WP04 (private-teamspace-ingress-safeguards) makes private workspace a hard
     precondition for direct ingress. Pre-existing batch tests in this module
     don't bother with TokenManager state — they rely on ``requests.post`` being
     patched. To preserve their semantics without changing each one, install an
-    autouse default that surfaces a Private Teamspace. Individual tests that
+    autouse default that surfaces a private workspace. Individual tests that
     need a different session re-patch ``get_token_manager`` themselves; the
     later monkeypatch wins.
     """
@@ -167,7 +167,7 @@ class TestSaasFeatureFlag:
 
 
 class TestHistoricalMissionStateGuard:
-    """TeamSpace import guard for historical mission-state rows."""
+    """Team Kitty import guard for historical mission-state rows."""
 
     @patch("specify_cli.sync.batch.requests.post")
     def test_batch_sync_rejects_legacy_status_row_before_network(
@@ -783,7 +783,7 @@ class TestBatchSyncSuccess:
 
     @patch("specify_cli.sync.batch.requests.post")
     def test_batch_sync_sends_private_team_slug_header(self, mock_post, populated_queue, monkeypatch):
-        """Batch sync should target Private Teamspace for ingress when available."""
+        """Batch sync should target private workspace for ingress when available."""
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"results": []}
@@ -796,7 +796,7 @@ class TestBatchSyncSuccess:
             email="robert@example.com",
             name="Robert",
             teams=[
-                Team(id="private-team", name="Robert Private Teamspace", role="owner", is_private_teamspace=True),
+                Team(id="private-team", name="Robert private workspace", role="owner", is_private_teamspace=True),
                 Team(id="product-team", name="Product Team", role="member"),
             ],
             default_team_id="private-team",
@@ -826,7 +826,7 @@ class TestBatchSyncSuccess:
 
     @patch("specify_cli.sync.batch.requests.post")
     def test_batch_sync_prefers_private_team_over_shared_default(self, mock_post, populated_queue, monkeypatch):
-        """Ingress must keep routing to Private Teamspace even if session default drifts."""
+        """Ingress must keep routing to private workspace even if session default drifts."""
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"results": []}
@@ -840,7 +840,7 @@ class TestBatchSyncSuccess:
             name="Robert",
             teams=[
                 Team(id="product-team", name="Product Team", role="member"),
-                Team(id="private-team", name="Robert Private Teamspace", role="owner", is_private_teamspace=True),
+                Team(id="private-team", name="Robert private workspace", role="owner", is_private_teamspace=True),
             ],
             default_team_id="product-team",
             access_token="access",
@@ -1249,7 +1249,7 @@ def token_manager_with_shared_only_session() -> TokenManager:
 
 @pytest.fixture
 def token_manager_with_private_session() -> TokenManager:
-    """A ``TokenManager`` whose loaded session already has a Private Teamspace."""
+    """A ``TokenManager`` whose loaded session already has a private workspace."""
     storage = _IngressFakeStorage()
     tm = TokenManager(storage, saas_base_url=_INGRESS_SAAS_BASE_URL)
     tm._session = _build_ingress_session(
@@ -1479,11 +1479,11 @@ def test_sync_all_queued_events_terminates_on_no_private_team(
             )
 
         # Loop terminated — events stayed queued for a future drain after
-        # the SaaS provisions a Private Teamspace.
+        # the SaaS provisions a private workspace.
         assert queue.size() == 5, "events must stay queued (no destructive skip)"
         # The skip path issued no batch POST.
         assert mock_post.call_count == 0
         # The skip-path sentinel surfaces on the result for operator-visible
         # diagnostics (also goes to stderr via the helper's structured
         # logger.warning, but operators reading the result get a hint too).
-        assert any("Private Teamspace" in m for m in result.error_messages), f"expected skip-sentinel in error_messages, got {result.error_messages!r}"
+        assert any("private workspace" in m for m in result.error_messages), f"expected skip-sentinel in error_messages, got {result.error_messages!r}"

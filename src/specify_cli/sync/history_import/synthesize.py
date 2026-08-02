@@ -1,7 +1,7 @@
 """SYNTHESIZE stage for ``sync import-history`` (WP-Y3, #2262).
 
 Turns a :class:`~specify_cli.sync.history_import.scan.MissionScan` into the
-ordered TeamSpace envelope stream
+ordered Team Kitty envelope stream
 
     MissionCreated → WPCreated[] → WPStatusChanged[]
 
@@ -17,7 +17,7 @@ Reuse (spec §3.3 stage 5):
 * ``WPStatusChanged`` envelopes are built by the existing
   :func:`~specify_cli.migration.envelope_seam.status_event_to_teamspace_envelope`
   (via the deliberate ``migration.envelope_seam`` surface), so the lane
-  back-fill and the historical-evidence synthesis (required by the TeamSpace
+  back-fill and the historical-evidence synthesis (required by the Team Kitty
   5.0.0 contract on ``approved``/``done``) are not re-implemented here.
 * ``MissionCreated`` / ``WPCreated`` payloads are built by the canonical
   ``build_mission_created_payload`` and ``WPCreatedPayload`` so the wire shapes
@@ -247,7 +247,7 @@ def _envelope(
     lamport: int,
     identity: _EnvelopeIdentity,
 ) -> dict[str, Any]:
-    """Assemble the creation-prefix TeamSpace envelope via the shared shell.
+    """Assemble the creation-prefix Team Kitty envelope via the shared shell.
 
     The 15-key envelope shell is owned by ``build_teamspace_envelope`` (the same
     owner the migration ``WPStatusChanged`` builder uses, re-exported through

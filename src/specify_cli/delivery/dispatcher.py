@@ -16,7 +16,7 @@ orchestrator (T044, complexity ceiling 15; ruff ``C901`` / Sonar ``S3776``):
    active target (FR-004 / FR-015). No SQL lives here; no ``queue.py`` import.
 2. **Post** (:func:`_post`) — hand the selected events to the active target's
    :class:`~specify_cli.delivery.receivers.DeliveryReceiver` (WP06). One dispatch
-   path drives Teamspace / external / stub equivalently — there is **no** target-type
+   path drives Team Kitty / external / stub equivalently — there is **no** target-type
    conditional in this module (contract §4).
 3. **Record** (:func:`_record`) — map each :class:`DeliveryResult` to a WP05 ledger
    write. ``success``/``duplicate`` -> terminal-success; ``pending``/``rejected``/
@@ -286,7 +286,7 @@ def _post(
     """Deliver *events* through the active *receiver* (one path; contract §4).
 
     An empty selection short-circuits without calling the receiver. The receiver
-    owns the per-event result mapping (Teamspace / external / stub alike) — the
+    owns the per-event result mapping (Team Kitty / external / stub alike) — the
     dispatcher carries no target-type branch.
 
     Attribution is taken from the journal's **stored** ``project_uuid`` column,

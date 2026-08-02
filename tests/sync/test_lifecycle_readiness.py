@@ -1,11 +1,11 @@
-"""Teamspace MVP readiness tests.
+"""Team Kitty MVP readiness tests.
 
 Covers the local-first / eventually-consistent contract from
 ``kitty-specs/teamspace-local-first-outbox/`` (Priivacy-ai/spec-kitty
 issues #1072, #1073, #1074, #1075, #1076):
 
 - Lifecycle events are locally durable regardless of sync feature flag,
-  auth state, Private Teamspace resolution, or git-remote availability.
+  auth state, private workspace resolution, or git-remote availability.
 - ``BuildRegistered`` / ``BuildHeartbeat`` no longer require ``repo_slug``.
 - ``spec-kitty init`` registers a project-init lifecycle event in the
   durable outbox.

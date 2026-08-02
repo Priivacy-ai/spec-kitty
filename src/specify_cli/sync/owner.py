@@ -1032,7 +1032,7 @@ def build_record_for_current_process(
     plus the supplied PID/port/token and the current UTC timestamp.
 
     Daemon startup passes ``allow_network=False`` for the initial owner
-    record so TeamSpace membership rehydrate can never delay the first
+    record so Team Kitty membership rehydrate can never delay the first
     health response.
     """
     identity = compute_foreground_identity(allow_network=allow_network)

@@ -24,7 +24,7 @@ updated: '2026-06-12'
 
 Issue 992 is a holistic queue-drain epic built on a survey of 10 open `bug` issues and 46 closed since 2026-04-21. Its core diagnosis: *"Spec Kitty currently has too many places acting as if they own workflow truth"* — `spec-kitty next`, `agent action implement/review`, `agent tasks move-task`, `agent tasks status`, `review`, `merge --dry-run`, real `merge`, dashboard materializers, SaaS sync, release/mission-review gates. Each is a projection of a few aggregates whose invariants are not centralized, producing the observed "whack-a-mole" pattern.
 
-The epic proposes seven workstreams (W0–W6): TeamSpace canonical-import boundary, `WorkPackageLifecycle` authority, `ReviewCycle` aggregate, `MergeReadiness` parity, `SyncPublication` outcome model, `ReleaseEvidence` + review gates, and input/upgrade/encoding hygiene. Each names North Star invariants and concrete acceptance bullets. Queue-drain order is sequenced into Phase −1 (land 4 in-flight TeamSpace PRs), Phase 0 (cross-surface fixture harness), Phase 1 (active release bleeding: #991, #990, #988, #989, #889, #971), Phase 2 (promote aggregates), Phase 3 (older debt: #644, #662, #391). Definition-of-done requires *cross-boundary regression tests* and *dry-run-equals-real* parity.
+The epic proposes seven workstreams (W0–W6): Team Kitty canonical-import boundary, `WorkPackageLifecycle` authority, `ReviewCycle` aggregate, `MergeReadiness` parity, `SyncPublication` outcome model, `ReleaseEvidence` + review gates, and input/upgrade/encoding hygiene. Each names North Star invariants and concrete acceptance bullets. Queue-drain order is sequenced into Phase −1 (land 4 in-flight Team Kitty PRs), Phase 0 (cross-surface fixture harness), Phase 1 (active release bleeding: #991, #990, #988, #989, #889, #971), Phase 2 (promote aggregates), Phase 3 (older debt: #644, #662, #391). Definition-of-done requires *cross-boundary regression tests* and *dry-run-equals-real* parity.
 
 The single comment, from stijn-dejongh (2026-05-07): the bug queue is accurate, but the work should *"start by reshaping the domain contracts and entry-points, then use the bug queue as a code-level acceptance criterion."* Reshape first, drain as proof.
 
@@ -47,10 +47,10 @@ The single comment, from stijn-dejongh (2026-05-07): the bug queue is accurate, 
 | #952, #735, #746, #745, #744, #936 | closed sync bugs | CLOSED | W4 |
 | #975, #967, #805, #830, #833, #968, #964 | closed release/CI bugs | CLOSED | W5 |
 | #722, #721, #720, #674, #673, #760, #541, #539, #542 | closed input/upgrade bugs | CLOSED | W6 |
-| Priivacy-ai/spec-kitty#980 | CLI TeamSpace mission-state repair | OPEN PR | Phase −1 cutover set |
-| Priivacy-ai/spec-kitty-saas#150 | enforce TeamSpace ingress event contracts | OPEN PR | Phase −1 |
+| Priivacy-ai/spec-kitty#980 | CLI Team Kitty mission-state repair | OPEN PR | Phase −1 cutover set |
+| Priivacy-ai/spec-kitty-saas#150 | enforce Team Kitty ingress event contracts | OPEN PR | Phase −1 |
 | Priivacy-ai/spec-kitty-runtime#19 | runtime side-log classification | OPEN PR | Phase −1 |
-| Priivacy-ai/spec-kitty-tracker#14 | tracker TeamSpace mission payloads | OPEN PR | Phase −1 |
+| Priivacy-ai/spec-kitty-tracker#14 | tracker Team Kitty mission payloads | OPEN PR | Phase −1 |
 | Priivacy-ai/spec-kitty-events#20 | publish events 5.0.0 | OPEN PR | Phase −1 |
 
 ### Code paths the issue names
@@ -239,6 +239,6 @@ Not a blocker for the fix; just noting the surrounding terrain.
 - **No state changes** were made during this read: no comments posted, no labels altered, no issues touched. `gh issue view` calls were read-only.
 - **Function names** cited in #984 (`_ensure_target_branch_checked_out`, `get_main_repo_root`) were not verified against current source. They are plausible based on naming conventions but a fix scoper should grep before committing to them.
 - **Audit-file-vs-issue-file alignment**: the audit measured `src/specify_cli/agent_utils/status.py` at 570 SLOC with an F-53 `_display_status_board`. #984 does not explicitly name this file, only the CLI surface and two helper-function names. The link is inferential — strong, but inferential. The draft comments call this out honestly.
-- **#992's Phase −1 (TeamSpace cutover PR set)** is not addressed by the audit at all; the audit's lens is structural-complexity, not migration-coordination. If a reviewer expects the audit to weigh in on Phase −1, they will be disappointed; that's not a contradiction, it's a scope mismatch.
+- **#992's Phase −1 (Team Kitty cutover PR set)** is not addressed by the audit at all; the audit's lens is structural-complexity, not migration-coordination. If a reviewer expects the audit to weigh in on Phase −1, they will be disappointed; that's not a contradiction, it's a scope mismatch.
 - **No PR-level scan** was performed for in-flight fixes that might already address #984. The body cites no linked PR; the issue is plausibly still unowned.
 - **Audit data is as of 2026-05-09 multi-window expansion**. Any commits to F2-cluster files between then and 2026-05-11 are not reflected in the numbers cited.

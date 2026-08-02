@@ -5,7 +5,7 @@ See data model: kitty-specs/cli-startup-readiness-coordinator-skeleton-01KS7JRV/
 See contracts: kitty-specs/cli-startup-readiness-coordinator-skeleton-01KS7JRV/contracts/readiness-api.md
 
 The coordinator's first gate is ``is_saas_sync_enabled()``. When hosted mode is
-disabled the coordinator returns a no-op result and emits no Teamspace-labeled
+disabled the coordinator returns a no-op result and emits no Team Kitty-labeled
 output. When hosted mode is enabled the coordinator composes (stubbed in this
 mission) feature-gate state, output policy, auth readiness, and upgrade
 readiness into a typed ``ReadinessResult`` cached on ``ctx.obj``.
@@ -48,7 +48,7 @@ class OutputPolicy(StrEnum):
 
 
 class AuthStatus(StrEnum):
-    """Coordinator's record of Teamspace-auth state.
+    """Coordinator's record of Team Kitty-auth state.
 
     Wave 1 (issue #1093) shipped ``NOT_CHECKED`` and ``DISABLED``. WS2
     (issue #1094) extends this enum with the authoritative values produced

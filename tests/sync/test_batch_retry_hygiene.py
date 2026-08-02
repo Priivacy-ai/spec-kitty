@@ -1,8 +1,8 @@
 """Regression tests for Mission 5 / issue Priivacy-ai/spec-kitty#889.
 
 When a batch POST fails at the batch level (HTTP 401, 403, 5xx, transport
-timeout/connection error) or the pre-flight skips because no Private
-Teamspace is available, ``OfflineQueue.process_batch_results`` MUST NOT
+timeout/connection error) or the pre-flight skips because no private
+workspace is available, ``OfflineQueue.process_batch_results`` MUST NOT
 increment ``retry_count`` for the drained queue rows. The server never
 adjudicated those events individually, so a per-event retry attribution is
 wrong and eventually poisons the queue.
@@ -37,7 +37,7 @@ pytestmark = pytest.mark.fast
 
 @pytest.fixture(autouse=True)
 def _default_private_team_token_manager(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Default TokenManager exposing a Private Teamspace.
+    """Default TokenManager exposing a private workspace.
 
     Mirrors the fixture in ``test_batch_sync.py`` so the pre-flight
     ``_current_team_slug`` resolution succeeds for the tests that exercise

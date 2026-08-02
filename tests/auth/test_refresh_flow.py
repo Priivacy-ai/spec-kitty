@@ -570,7 +570,7 @@ def token_manager_with_expired_private_session(
     _isolate_refresh_hook_lock: Path,
     _refresh_hook_saas_url: None,
 ) -> TokenManager:
-    """A ``TokenManager`` with an expired access token whose session already has a Private Teamspace."""
+    """A ``TokenManager`` with an expired access token whose session already has a private workspace."""
     storage = _RefreshHookFakeStorage()
     session = _make_expired_session_with_teams(
         [
@@ -593,7 +593,7 @@ def token_manager_with_expired_private_session(
 async def test_refresh_force_rehydrates_when_adopted_session_lacks_private_team(
     token_manager_with_expired_shared_only_session: TokenManager,
 ) -> None:
-    """A refresh whose adopted session lacks a Private Teamspace must trigger
+    """A refresh whose adopted session lacks a private workspace must trigger
     ``rehydrate_membership_if_needed(force=True)`` and end with a private session."""
     # OAuth refresh response (PublicHttpClient → httpx.AsyncClient)
     respx.post(f"{_REFRESH_HOOK_SAAS_BASE_URL}/oauth/token").mock(
@@ -607,7 +607,7 @@ async def test_refresh_force_rehydrates_when_adopted_session_lacks_private_team(
             },
         )
     )
-    # /api/v1/me — provides the Private Teamspace
+    # /api/v1/me — provides the private workspace
     me_route = respx.get(f"{_REFRESH_HOOK_SAAS_BASE_URL}/api/v1/me").mock(
         return_value=httpx.Response(
             200,

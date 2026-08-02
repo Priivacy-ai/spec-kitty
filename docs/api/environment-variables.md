@@ -157,12 +157,12 @@ spec-kitty auth login
   for the full operator walkthrough of the hidden hosted-readiness
   mode this flag enables today.
 - [Launch-Readiness Behavior (Coming Soon)](../architecture/launch-readiness-future.md)
-  for how this variable's meaning changes at the public Teamspace
+  for how this variable's meaning changes at the public Team Kitty
   launch.
 
 ### SPEC_KITTY_SAAS_URL
 
-Override the Spec Kitty SaaS base URL.
+Override the Team Kitty base URL.
 
 **Scope**: machine-global (see the warning at the top of this section). Combined
 with `SPEC_KITTY_ENABLE_SAAS_SYNC`, exporting this in a shell points every

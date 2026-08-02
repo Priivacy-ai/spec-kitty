@@ -123,7 +123,7 @@ class _RotateOnceFlow:
                 email=session.email,
                 name=session.name,
                 # This suite validates refresh reconciliation, not membership
-                # rehydrate. Return a Private Teamspace so TokenManager's
+                # rehydrate. Return a private workspace so TokenManager's
                 # post-refresh hook remains a no-op.
                 teams=[_private_teamspace()],
                 default_team_id="t-private",

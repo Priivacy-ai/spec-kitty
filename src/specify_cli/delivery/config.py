@@ -14,7 +14,7 @@ delivery NONE) is genuinely distinct from ``OPT_OUT`` (retention OFF × delivery
 NONE).
 
 **Boundary — policy, never target authority (FR-016, C-007, contract §1).**
-``EventSyncConfig`` MUST NOT resolve or store the Teamspace network server URL.
+``EventSyncConfig`` MUST NOT resolve or store the Team Kitty network server URL.
 When the ``TEAMSPACE`` mode needs a URL it reads it from the WP01-resolved target
 passed into :meth:`EventSyncConfig.resolve` (the :class:`ResolvedTarget`), never
 from this config. The config only carries *operator* parameters that are not
@@ -23,10 +23,10 @@ WP06 :class:`~specify_cli.delivery.receivers.ExternalReceiver`.
 
 **Opt-out safety — never silently drop (C-008, contract §2 rule 4).**
 ``OPT_OUT``/``TRASH`` discards a family **only** when a durability classification
-proves it is local-only or explicitly discardable. A Teamspace-bound discard is
+proves it is local-only or explicitly discardable. A Team Kitty-bound discard is
 *refused* (with an audit-visible reason) or *audit-recorded* through a durable
 source — never a silent no-op. An unknown/unclassified family fails **closed**
-(treated as potentially Teamspace-bound).
+(treated as potentially Team Kitty-bound).
 
 Per **C-001** this module imports only the WP06 receivers; it never imports
 ``sync/queue.py`` or :mod:`specify_cli.events`. The WP01 resolved target is
@@ -54,10 +54,10 @@ from specify_cli.delivery.receivers import (
 # -- Audit-visible reason strings (S1192: referenced across helpers/tests) ------
 _REASON_LOCAL_ONLY = "family classified local-only/explicitly-discardable; safe to discard"
 _REASON_REFUSED = (
-    "refusing to discard a Teamspace-bound family without durable audit evidence "
+    "refusing to discard a Team Kitty-bound family without durable audit evidence "
     "(C-008 fail-closed): no silent drop"
 )
-_REASON_AUDITED = "Teamspace-bound discard recorded to a durable audit source: {ref}"
+_REASON_AUDITED = "Team Kitty-bound discard recorded to a durable audit source: {ref}"
 _ERR_NO_ENDPOINT = "EXTERNAL_RECEIVER mode requires an operator endpoint URL"
 _ERR_NO_TARGET = (
     "TEAMSPACE delivery requires a WP01-resolved target; none was supplied "
@@ -237,7 +237,7 @@ class EventSyncConfig:
     """Retention × delivery policy. Constructed from a named mode (FR-006).
 
     Holds the two axes plus the EXTERNAL_RECEIVER operator parameters
-    (``external_endpoint`` / ``external_auth``). It carries **no** Teamspace
+    (``external_endpoint`` / ``external_auth``). It carries **no** Team Kitty
     server URL — that is target authority (WP01), not policy (FR-016/C-007).
     """
 
@@ -326,7 +326,7 @@ class FamilyClassification(StrEnum):
     """How a durability registry classifies an event family for discard safety.
 
     ``UNKNOWN`` is the fail-closed default: an unclassified family is treated as
-    potentially Teamspace-bound and is never silently dropped.
+    potentially Team Kitty-bound and is never silently dropped.
     """
 
     LOCAL_ONLY = "local_only"
@@ -350,7 +350,7 @@ class DiscardDecisionKind(StrEnum):
 
 @dataclass(frozen=True)
 class DiscardAuditRecord:
-    """A durable record of a Teamspace-bound discard, so the fact is never lost."""
+    """A durable record of a Team Kitty-bound discard, so the fact is never lost."""
 
     event_family: str
     classification: FamilyClassification
@@ -389,7 +389,7 @@ class DiscardDecision:
 
 
 class AuditSink(Protocol):
-    """A durable sink for Teamspace-bound discard evidence (SQLite/JSONL/git audit)."""
+    """A durable sink for Team Kitty-bound discard evidence (SQLite/JSONL/git audit)."""
 
     def record(self, record: DiscardAuditRecord) -> str: ...
 
@@ -438,9 +438,9 @@ def discard_decision(
     """Decide whether ``OPT_OUT`` may discard *event_family* (C-008, contract §2 rule 4).
 
     * local-only / explicitly-discardable → ``discard_allowed``.
-    * Teamspace-bound or unknown (fail-closed) with a durable *audit_sink* →
+    * Team Kitty-bound or unknown (fail-closed) with a durable *audit_sink* →
       ``audit_recorded`` (durable evidence written; the fact is not lost).
-    * Teamspace-bound or unknown with no durable sink → ``refused`` with an
+    * Team Kitty-bound or unknown with no durable sink → ``refused`` with an
       audit-visible reason — **never** a silent drop.
     """
     if classification in _DISCARDABLE_CLASSIFICATIONS:
@@ -460,7 +460,7 @@ def discard_decision(
     record = DiscardAuditRecord(
         event_family=event_family,
         classification=classification,
-        reason="Teamspace-bound family discarded under OPT_OUT; preserved durably",
+        reason="Team Kitty-bound family discarded under OPT_OUT; preserved durably",
         at=now_utc_iso(),
     )
     ref = audit_sink.record(record)

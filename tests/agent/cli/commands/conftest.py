@@ -2,7 +2,7 @@
 
 The M7 ``enforce_teamspace_mission_state_ready`` gate audits the local
 project root before any sync/tracker call path runs. In the test
-environment, spec-kitty's own ``.kittify/`` contains TeamSpace blockers
+environment, spec-kitty's own ``.kittify/`` contains Team Kitty blockers
 (FORBIDDEN_KEY) — so the gate raises ``typer.Exit(1)`` before the test's
 intended assertion can run.
 
@@ -17,7 +17,7 @@ Pattern mirrors the per-class fixture introduced for
 directory level here because the tracker test suite is module-level
 (no class scope to attach an autouse fixture to).
 
-Phase 6 (issue #1288) decoupled identity acquisition from TeamSpace
+Phase 6 (issue #1288) decoupled identity acquisition from Team Kitty
 mission-state readiness; the auth-login module no longer imports the
 gate and therefore is not stubbed here.
 """

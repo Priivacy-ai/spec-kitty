@@ -52,7 +52,7 @@ def test_format_queue_health_renders_drain_blocker_table(tmp_path: Path):
     # Remediation hints reference the canonical recovery commands so the
     # operator can act without guessing.
     assert "spec-kitty auth login" in output
-    assert "Private Teamspace" in output
+    assert "private workspace" in output
 
 
 def test_drain_blocked_counts_zero_when_all_ready():

@@ -6,7 +6,7 @@ already scaffolds ``spec.md`` from mission configuration and opens the specify p
 that is the canonical moment to emit ``SpecifyStarted``. Without it, a
 fresh mission's ``status.events.jsonl`` skips straight from
 ``MissionCreated`` to ``SpecifyCompleted`` (emitted at setup-plan time),
-leaving TeamSpace and the local dashboard blind to the in-progress
+leaving Team Kitty and the local dashboard blind to the in-progress
 specify state.
 
 This regression test was missing when #1067 was first closed; the

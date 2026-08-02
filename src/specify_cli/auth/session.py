@@ -58,7 +58,7 @@ class Team:
 def pick_default_team_id(teams: list[Team]) -> str:
     """Return the preferred default team id for new-session UI/login default display.
 
-    Private Teamspace wins when present; otherwise preserves the legacy first-team
+    private workspace wins when present; otherwise preserves the legacy first-team
     fallback. This is *display-only* — it is **not** valid as a fallback for direct
     sync ingress. Direct-ingress code paths must use ``require_private_team_id`` paired
     with ``TokenManager.rehydrate_membership_if_needed()`` instead, which fails closed
@@ -71,7 +71,7 @@ def pick_default_team_id(teams: list[Team]) -> str:
 
 
 def get_private_team_id(teams: list[Team]) -> str | None:
-    """Return the user's Private Teamspace id when one is present."""
+    """Return the user's private workspace id when one is present."""
     for team in teams:
         if bool(getattr(team, "is_private_teamspace", False)):
             return team.id
@@ -79,7 +79,7 @@ def get_private_team_id(teams: list[Team]) -> str | None:
 
 
 def require_private_team_id(session: StoredSession) -> str | None:
-    """Return the Private Teamspace id for direct sync ingress, else None.
+    """Return the private workspace id for direct sync ingress, else None.
 
     Pure function. No I/O. No mutation.
 

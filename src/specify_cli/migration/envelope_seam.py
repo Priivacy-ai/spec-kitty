@@ -1,6 +1,6 @@
 """The deliberate shared surface between migration replay and history import.
 
-``migration.mission_state`` owns the TeamSpace envelope machinery — the
+``migration.mission_state`` owns the Team Kitty envelope machinery — the
 canonical schema version, deterministic id minting, the envelope body
 checksum, the ``WPStatusChanged`` envelope builder, and the mission
 selection / fail-closed audit seams. Its ``__all__`` deliberately demoted

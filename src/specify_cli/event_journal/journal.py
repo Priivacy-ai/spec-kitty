@@ -14,7 +14,7 @@ payload store that does **not** know delivery state (FR-003, C-001):
 * :func:`capture_teamspace_bound` is the capture-first writer the emit layer
   calls: it records the fact (with a classified ``drain_blocked_reason``)
   *before* any delivery gate decides whether delivery may proceed (FR-017,
-  contract §2). It refuses to silently drop a Teamspace-bound family (C-008).
+  contract §2). It refuses to silently drop a Team Kitty-bound family (C-008).
 
 This module imports nothing from ``specify_cli.delivery`` (FR-003, C-001).
 """
@@ -593,16 +593,16 @@ def classify_drain_blocked_reason(gate: CaptureGateState) -> str | None:
 
 
 class TeamspaceBoundDropError(RuntimeError):
-    """Raised when a Teamspace-bound family is asked to skip the journal write.
+    """Raised when a Team Kitty-bound family is asked to skip the journal write.
 
     Enforces C-008: such a fact is never silently dropped. Full OPT_OUT/TRASH
-    classification (local-only vs Teamspace-bound vs discardable) is WP09's
-    responsibility; WP03 only guarantees the Teamspace-bound write happens.
+    classification (local-only vs Team Kitty-bound vs discardable) is WP09's
+    responsibility; WP03 only guarantees the Team Kitty-bound write happens.
     """
 
     def __init__(self, *, event_id: str) -> None:
         super().__init__(
-            f"Refusing to silently drop Teamspace-bound event {event_id!r}: "
+            f"Refusing to silently drop Team Kitty-bound event {event_id!r}: "
             "capture-first requires a durable journal write (C-008)."
         )
         self.event_id = event_id
@@ -624,12 +624,12 @@ def capture_teamspace_bound(
     project_slug: str | None = None,
     repo_slug: str | None = None,
 ) -> Event:
-    """Durably capture a Teamspace-bound fact *before* the delivery gates.
+    """Durably capture a Team Kitty-bound fact *before* the delivery gates.
 
     For every event that reaches this function the write is unconditional:
     ``gate`` decides only the recorded ``drain_blocked_reason`` (delivery
     eligibility), never whether the write happens (FR-017, contract §2). A
-    request to skip the write for a Teamspace-bound family fails loudly
+    request to skip the write for a Team Kitty-bound family fails loudly
     (C-008, T018).
 
     **Amended 2026-07-29 (#3030 NFR-005, operator decision).** "Unconditional"
@@ -640,15 +640,15 @@ def capture_teamspace_bound(
     Capture-first durability therefore applies to consenting projects only.
 
     This deliberately reverses the original contract, which held that a
-    Teamspace-bound fact must survive even when every gate blocks. The reason:
+    Team Kitty-bound fact must survive even when every gate blocks. The reason:
     that invariant made the journal a machine-global pool of every local
     project's payloads, and one consenting checkout shipped the lot (the
     2026-07-27 incident, 1,322 events from 5 never-opted-in projects). The
     invariant is preserved *within* a consenting project and abandoned across
     project boundaries.
 
-    Note the axis: consent, not Teamspace-boundedness. Nothing here decides an
-    event is not Teamspace-bound in order to skip it — ``TeamspaceBoundDropError``
+    Note the axis: consent, not Team Kitty-boundedness. Nothing here decides an
+    event is not Team Kitty-bound in order to skip it — ``TeamspaceBoundDropError``
     still fires for that, and the consent refusal happens before this function
     is ever called.
     """

@@ -81,7 +81,7 @@ class TrackerEgressRefusedError(SaaSTrackerClientError):
 
     def __init__(self, reason: str) -> None:
         super().__init__(
-            f"Refusing to send tracker data to Spec Kitty SaaS: {reason}",
+            f"Refusing to send tracker data to Team Kitty: {reason}",
             error_code="project_consent_denied",
             status_code=None,
             details={"category": "project_consent_denied", "reason": reason},
@@ -362,12 +362,12 @@ class SaaSTrackerClient:
                 )
         except httpx.ConnectError as exc:
             raise SaaSTrackerClientError(
-                f"Cannot connect to Spec Kitty SaaS at {url}. "
+                f"Cannot connect to Team Kitty at {url}. "
                 "Check your network connection."
             ) from exc
         except httpx.TimeoutException as exc:
             raise SaaSTrackerClientError(
-                f"Cannot connect to Spec Kitty SaaS at {url}. "
+                f"Cannot connect to Team Kitty at {url}. "
                 "Check your network connection."
             ) from exc
 

@@ -1,6 +1,6 @@
 ---
 title: Launch-Readiness Behavior (Coming Soon)
-description: "Pre-launch design intent for Teamspace: how hosted-readiness defaults flip from opt-in to on, and the launch-coordinator playbook. None of it is in effect today."
+description: "Pre-launch design intent for Team Kitty: how hosted-readiness defaults flip from opt-in to on, and the launch-coordinator playbook. None of it is in effect today."
 doc_status: active
 updated: '2026-06-03'
 type: explanation
@@ -9,7 +9,7 @@ audience: launch coordinators
 # Launch-Readiness Behavior (Coming Soon)
 
 > **Status: pre-launch.** This page describes the behavior the Spec
-> Kitty CLI will adopt at the public Teamspace launch milestone.
+> Kitty CLI will adopt at the public Team Kitty launch milestone.
 > **None of this is in effect today.** For today's local-first
 > experience, see the [README](https://github.com/Priivacy-ai/spec-kitty/blob/main/README.md). For the internal
 > hosted-readiness preview that lets contributors dogfood the hidden
@@ -20,7 +20,7 @@ audience: launch coordinators
 
 The Spec Kitty CLI today is local-first. Hosted auth, sync, and
 tracker flows are opt-in behind the `SPEC_KITTY_ENABLE_SAAS_SYNC=1`
-environment variable. At the public Teamspace launch, the user-facing
+environment variable. At the public Team Kitty launch, the user-facing
 defaults change. This doc is the reference the launch coordinator
 flips on. Until that flip happens, treat every section below as a
 **design intent**, not a description of current behavior.
@@ -39,10 +39,10 @@ describe behavior that will ship at the launch milestone.**
 |---|---|---|
 | `SPEC_KITTY_ENABLE_SAAS_SYNC` | **Opt-in gate.** Unset / falsy = local-first; truthy = hidden hosted-readiness mode for internal operators. | **Override only.** Hosted readiness is on by default; the variable becomes an internal escape hatch (e.g., `SPEC_KITTY_ENABLE_SAAS_SYNC=0` to force local-only). |
 | Default SaaS URL | Operators must set `SPEC_KITTY_SAAS_URL` explicitly to dial dev / staging. There is no user-facing default. | A user-facing default URL ships baked into the CLI. End users do not set `SPEC_KITTY_SAAS_URL`. |
-| Sync default | Sync commands no-op unless hosted mode is explicitly enabled. | Sync runs by default for Teamspace-connected repos. The same suppression contract still applies (interactive / non-interactive / machine-output). |
-| Tracker discovery | Tracker calls only happen behind the opt-in gate. | Tracker discovery happens by default for Teamspace-connected repos; unreachable-tracker states surface via the readiness coordinator. |
-| `spec-kitty auth login` | Documented as the canonical hosted login flow for internal operators dogfooding the hidden mode. | Documented as the canonical hosted login flow for **all** users joining a Teamspace. |
-| Public docs framing | Local-first. Hosted is "optional / opt-in / later". | Local-first remains the on-ramp; Teamspace becomes "available" — never retroactively backdated as "always was". |
+| Sync default | Sync commands no-op unless hosted mode is explicitly enabled. | Sync runs by default for Team Kitty-connected repos. The same suppression contract still applies (interactive / non-interactive / machine-output). |
+| Tracker discovery | Tracker calls only happen behind the opt-in gate. | Tracker discovery happens by default for Team Kitty-connected repos; unreachable-tracker states surface via the readiness coordinator. |
+| `spec-kitty auth login` | Documented as the canonical hosted login flow for internal operators dogfooding the hidden mode. | Documented as the canonical hosted login flow for **all** users joining a Team Kitty. |
+| Public docs framing | Local-first. Hosted is "optional / opt-in / later". | Local-first remains the on-ramp; Team Kitty becomes "available" — never retroactively backdated as "always was". |
 
 ## Dev / staging overrides still apply after launch
 
@@ -77,7 +77,7 @@ spec-kitty sync doctor
 
 | Scenario at launch | Command users will run |
 |---|---|
-| Logged out on a connected Teamspace | `spec-kitty auth login` |
+| Logged out on a connected Team Kitty workspace | `spec-kitty auth login` |
 | CLI upgrade required for compatibility with the hosted side | `spec-kitty upgrade --cli` |
 | Sync / tracker subsystem unreachable | `spec-kitty sync doctor` |
 
@@ -136,7 +136,7 @@ in the release-cut documentation in `architecture/` and the
 2. Cut a CLI release where the **default** behavior of the rollout
    gate inverts: hosted readiness is on unless explicitly disabled.
 3. Update public docs (README, `docs/index.md`, the relevant
-   tutorials) to introduce Teamspace as **available** — never as
+   tutorials) to introduce Team Kitty as **available** — never as
    "always was". The current pre-launch local-first framing remains
    the on-ramp.
 4. Move this doc from `docs/architecture/` to a launch-day "what's

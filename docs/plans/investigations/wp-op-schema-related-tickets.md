@@ -119,10 +119,10 @@ The whole-file hashing of `wp*.md` lives here, but **no issue isolates the churn
 
 | # | Title (abbrev) | Relationship |
 |---|---|---|
-| 2180 | P0: make Teamspace dossier sync required, replayable, automatic | friction |
+| 2180 | P0: make Team Kitty dossier sync required, replayable, automatic | friction |
 | 1133 | 3.3.0: Include analyze.md in dossier sync and body upload | friction / formalization |
 | 1058 | Legacy cleanup: split dossier queue migration from live emitter APIs | move / friction |
-| 2144 | Guarantee every Teamspace-bound event has SQLite or git durability | friction |
+| 2144 | Guarantee every Team Kitty-bound event has SQLite or git durability | friction |
 
 ## Unticketed gaps
 

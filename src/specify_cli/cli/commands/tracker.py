@@ -1,7 +1,7 @@
 """Tracker commands for provider bindings, mappings, and sync operations.
 
 Dispatches to SaaS-backed providers (linear, jira, github, gitlab) via the
-Spec Kitty SaaS control plane, or to local providers (beads, fp) via
+Team Kitty control plane, or to local providers (beads, fp) via
 direct connectors.  Provider credentials are never accepted for SaaS-backed
 providers -- authentication flows through ``spec-kitty auth login``.
 """
@@ -42,7 +42,7 @@ app = typer.Typer(
     help=(
         "Task tracker integration commands.\n\n"
         "SaaS-backed providers (linear, jira, github, gitlab) route through "
-        "the Spec Kitty SaaS control plane.  Local providers (beads, fp) use "
+        "the Team Kitty control plane.  Local providers (beads, fp) use "
         "direct connectors."
     )
 )
@@ -400,7 +400,7 @@ def providers_command(
     """List supported tracker providers, categorized by backend type.
 
     SaaS-backed providers authenticate through ``spec-kitty auth login`` and
-    route sync operations through the Spec Kitty SaaS control plane.
+    route sync operations through the Team Kitty control plane.
 
     Local providers use direct connectors with locally stored credentials.
 

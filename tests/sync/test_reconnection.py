@@ -314,7 +314,7 @@ class TestClientLifecycle:
 
         # Patch the authenticated-session accessor used by the strict ingress
         # resolver in ``connect()`` so the WS provisioning path does not skip
-        # the ws-token POST. The team must be a Private Teamspace because WP05
+        # the ws-token POST. The team must be a private workspace because WP05
         # forbids posting a shared team id to /api/v1/ws-token.
         class _Team:
             id = "team-42"
@@ -330,7 +330,7 @@ class TestClientLifecycle:
 
             def rehydrate_membership_if_needed(self, *, force: bool = False) -> bool:
                 # Never invoked when the session already exposes a Private
-                # Teamspace, but the resolver protocol requires the method.
+                # Team Kitty, but the resolver protocol requires the method.
                 return True
 
         monkeypatch.setattr("specify_cli.sync.client.get_token_manager", lambda: _TM())

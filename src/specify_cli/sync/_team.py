@@ -26,7 +26,7 @@ def resolve_private_team_id_for_ingress(
     *,
     endpoint: str,
 ) -> str | None:
-    """Return the Private Teamspace id for a direct-ingress request, else None. SYNC.
+    """Return the private workspace id for a direct-ingress request, else None. SYNC.
 
     Performs at most one /api/v1/me rehydrate per CLI process for shared-only sessions
     (single-flight + negative-cache enforced inside TokenManager). On a None return,
@@ -44,7 +44,7 @@ def resolve_private_team_id_for_ingress(
     Returns
     -------
     str | None
-        A Private Teamspace id when one is available, otherwise None.
+        A private workspace id when one is available, otherwise None.
     """
     if not is_saas_sync_enabled():
         return None

@@ -4,7 +4,7 @@ This module is the durable, local-first writer for the canonical event
 stream that records project initialization, mission creation,
 spec/plan/tasks artifact lifecycle, and work-package creation. Lifecycle
 events land on disk synchronously *before* any best-effort SaaS outbox
-fan-out, so local dashboards and TeamSpace import always have a complete
+fan-out, so local dashboards and Team Kitty import always have a complete
 history even when the scoped sync boundary is unavailable.
 
 Two log targets exist:

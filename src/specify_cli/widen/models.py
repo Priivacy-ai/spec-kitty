@@ -45,7 +45,7 @@ class PrereqState:
     """
 
     teamspace_ok: bool
-    """User is a member of at least one Teamspace."""
+    """User is a member of at least one Team Kitty workspace."""
 
     slack_ok: bool
     """Team has Slack integration configured."""

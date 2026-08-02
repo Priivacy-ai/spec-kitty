@@ -56,20 +56,20 @@ outcome. A fix that disables capture wholesale would also fail the
 consenting half of this test.
 
 Doctrinal tension, named rather than resolved here: ``event_journal/journal.py``
-documents the journal write as deliberately unconditional for Teamspace-bound
+documents the journal write as deliberately unconditional for Team Kitty-bound
 families — FR-017 / C-008, enforced by ``TeamspaceBoundDropError`` so a
-Teamspace-bound fact is never silently dropped
+Team Kitty-bound fact is never silently dropped
 (``capture_teamspace_bound``'s docstring: "The journal write is unconditional
-for Teamspace-bound families; ``gate`` only decides the recorded
+for Team Kitty-bound families; ``gate`` only decides the recorded
 ``drain_blocked_reason`` ... never whether the write happens"). #3031 Defect 3
 asks for the opposite outcome for *non-consenting* projects: no write at all.
-Reconciling "unconditional durable write for Teamspace-bound facts" with "a
+Reconciling "unconditional durable write for Team Kitty-bound facts" with "a
 non-consenting project's events must never reach the journal" is an
-architecture question (which axis wins, and whether "Teamspace-bound" and
+architecture question (which axis wins, and whether "Team Kitty-bound" and
 "consenting" turn out to be the same predicate) being filed separately. This
 test pins only what #3031 explicitly asks for; it does not adjudicate the
 tension, and the fix that satisfies it must not do so by quietly deciding
-every event is not Teamspace-bound.
+every event is not Team Kitty-bound.
 """
 from __future__ import annotations
 

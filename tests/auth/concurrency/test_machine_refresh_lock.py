@@ -105,7 +105,7 @@ class _CountingRefreshFlow:
             email=session.email,
             name=session.name,
             # The refresh-lock contract is about single-flight refresh, not
-            # post-refresh membership rehydrate. Return a Private Teamspace so
+            # post-refresh membership rehydrate. Return a private workspace so
             # TokenManager's membership hook is a no-op in this suite.
             teams=[_private_teamspace()],
             default_team_id="t-private",

@@ -99,7 +99,7 @@ MATRIX: list[AuthMatrixRow] = [
         stdout_assert=_empty,
         stderr_assert=_stderr_no_teamspace,
     ),
-    # Scenario 3 — hosted ON, logged-out, connected Teamspace, TTY:
+    # Scenario 3 — hosted ON, logged-out, connected Team Kitty workspace, TTY:
     # interactive multiline panel.
     AuthMatrixRow(
         name="hosted_on_logged_out_tty",
@@ -126,7 +126,7 @@ MATRIX: list[AuthMatrixRow] = [
         stdout_assert=_empty,
         stderr_assert=_stderr_is_canonical_line,
     ),
-    # Scenario 5 — hosted ON, logged-out, no Teamspace markers: silent.
+    # Scenario 5 — hosted ON, logged-out, no Team Kitty markers: silent.
     AuthMatrixRow(
         name="hosted_on_not_in_teamspace_tty",
         argv=[],

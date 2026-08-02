@@ -185,7 +185,7 @@ KNOWN_TOP_LEVEL_KEYS_BY_ARTIFACT: dict[str, frozenset[str]] = {
 # status-transition rows. The audit engine then raised ``FORBIDDEN_KEY``
 # findings against legitimate lifecycle keys (``event_type``,
 # ``aggregate_type``), blocking canary scenarios 1 + 2 with
-# ``TeamSpace migration required. Finding codes: FORBIDDEN_KEY``.
+# ``Team Kitty migration required. Finding codes: FORBIDDEN_KEY``.
 LIFECYCLE_AGGREGATE_TYPES: frozenset[str] = frozenset(
     {"Mission", "Project", "WorkPackage", "MissionDossier"}
 )

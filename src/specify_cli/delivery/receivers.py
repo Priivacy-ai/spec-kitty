@@ -2,7 +2,7 @@
 
 This module is the load-bearing artifact of **FR-014** and the spec's
 **DeliveryReceiver** Key Entity. It defines *one* dispatch contract that every
-delivery-target type implements, plus the three concrete receivers (Teamspace,
+delivery-target type implements, plus the three concrete receivers (Team Kitty,
 external, stub). The WP07 dispatcher consumes **only** this contract — it must
 never branch on target type (``isinstance``), because every §4 aspect is modeled
 here as data the dispatcher reads uniformly.
@@ -10,11 +10,11 @@ here as data the dispatcher reads uniformly.
 Contract §4 interface matrix (the success boundary):
 
 ============  =================================  ====================  ==================
-Aspect        Teamspace                          External              Stub
+Aspect        Team Kitty                          External              Stub
 ============  =================================  ====================  ==================
 Endpoint      ``{server}/api/v1/events/batch/``  operator URL          localhost/in-proc
 Auth          ``Bearer <token>``                 operator-supplied/``{}``  none (``{}``)
-Gates         SaaS + Private-Teamspace + auth    endpoint-configured   none
+Gates         SaaS + private workspace + auth    endpoint-configured   none
 Results       success/duplicate/pending/         same mapping          same mapping
               rejected/terminal-failed/transient
 Retry         ledger attempt state               ledger attempt state  ledger attempt state
@@ -28,7 +28,7 @@ Three binding rules (§4):
 2. The stub is a **real** receiver implementing this same contract — not a test-only
    alternate dispatch path. It maps results through the **same** :func:`map_batch_response`
    helper as the wire receivers, so its ledger state is indistinguishable from a
-   Teamspace delivery for equivalent payloads (SC-005 / SC-007).
+   Team Kitty delivery for equivalent payloads (SC-005 / SC-007).
 3. Batch *wire* semantics stay compatible with ``contracts/batch-api-contract.md``;
    this mission only shifts the *local* event-row behaviour from delete-on-success to
    ledger-on-success (NFR-006, additive).
@@ -569,11 +569,11 @@ def map_batch_response(
     http_status: int,
     body: Mapping[str, Any] | None,
 ) -> list[DeliveryResult]:
-    """The single response→result mapper shared by Teamspace / external / stub.
+    """The single response→result mapper shared by Team Kitty / external / stub.
 
     Maps a batch HTTP response to one :class:`DeliveryResult` per event using the
     contract §4 vocabulary. Having one mapper (not three) is what makes the stub's
-    ledger state identical to Teamspace's for equivalent payloads (SC-007).
+    ledger state identical to Team Kitty's for equivalent payloads (SC-007).
     """
     if http_status == 200:
         return _map_ok_results(batch, body)
@@ -622,11 +622,11 @@ def _wp_id_of(event: OutboundEvent) -> Hashable:
     return event.event_id
 
 
-# -- The HTTP receivers (Teamspace + external share the transport) -------------
+# -- The HTTP receivers (Team Kitty + external share the transport) -------------
 
 
 class _HttpReceiver:
-    """Shared HTTP-batch transport + mapping for the wire receivers (Teamspace/external).
+    """Shared HTTP-batch transport + mapping for the wire receivers (Team Kitty/external).
 
     Subclasses declare :attr:`endpoint_url`, :meth:`auth_headers`, and :meth:`gates`;
     delivery (build → gzip → POST → map) is shared so the result-mapping logic is
@@ -742,7 +742,7 @@ class TeamspaceReceiver(_HttpReceiver):
 
     Endpoint is ``{resolved_server_url}/api/v1/events/batch/`` (the resolved URL comes
     from the WP04 target authority — never re-derived here, contract §1 / FR-016);
-    auth is ``Bearer <token>``; gates are SaaS-enabled + Private-Teamspace + auth.
+    auth is ``Bearer <token>``; gates are SaaS-enabled + private workspace + auth.
     """
 
     def __init__(
@@ -772,8 +772,8 @@ class ExternalReceiver(_HttpReceiver):
 
     Generalizes the target: it speaks the batch contract and reuses the shared
     mapper, so the stub is just a special case. Its only gate is
-    ``endpoint-configured`` — **no** Teamspace gating (no SaaS-enabled, no
-    Private-Teamspace, no Bearer requirement). Auth is operator-supplied or ``{}``.
+    ``endpoint-configured`` — **no** Team Kitty gating (no SaaS-enabled, no
+    private workspace, no Bearer requirement). Auth is operator-supplied or ``{}``.
     """
 
     def __init__(
@@ -805,8 +805,8 @@ class StubReceiver:
     test-only dispatch fork (§4 rule 2). It records received events for assertions
     and maps outcomes through the **same** :func:`map_batch_response` path as the
     wire receivers, so the ledger state it produces is indistinguishable from a
-    Teamspace delivery for equivalent payloads (SC-007). A repeat ``event_id`` maps
-    to ``duplicate``, mirroring Teamspace idempotency (NFR-003). The sink is guarded
+    Team Kitty delivery for equivalent payloads (SC-007). A repeat ``event_id`` maps
+    to ``duplicate``, mirroring Team Kitty idempotency (NFR-003). The sink is guarded
     by a lock so a daemon test exercising it concurrently cannot corrupt it.
     """
 

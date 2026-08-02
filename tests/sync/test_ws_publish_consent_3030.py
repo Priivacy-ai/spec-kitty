@@ -97,7 +97,7 @@ def _usable_event_loop():
 
 @pytest.fixture(autouse=True)
 def _authenticated(monkeypatch: pytest.MonkeyPatch) -> None:
-    """An authenticated session with a resolvable Private Teamspace.
+    """An authenticated session with a resolvable private workspace.
 
     Both are preconditions of the publish branch, not the subject: without them
     ``_route_event`` never reaches the client and every assertion below would pass

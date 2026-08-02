@@ -659,7 +659,7 @@
      "deprecated": false
     },
     "mission-state": {
-     "help": "Audit, repair, or TeamSpace-validate mission-state shapes.",
+     "help": "Audit, repair, or Team Kitty-validate mission-state shapes.",
      "hidden": false,
      "deprecated": false
     },
@@ -913,7 +913,7 @@
      "deprecated": false
     },
     "normalize-lifecycle": {
-     "help": "Normalize legacy ``kitty-specs`` missions for the MVP lifecycle model.\n\nThis command repairs enough historical mission state to make the canonical\nlifecycle model reliable across old repositories. It backfills identity\nwhere needed, rebuilds missing event logs from legacy state, and regenerates\nstatus/progress/lifecycle projections used by the CLI and Teamspace.\n\nExit codes:\n\n- ``0`` — all targeted missions normalized or skipped cleanly\n- ``1`` — one or more missions hit an unrecoverable error",
+     "help": "Normalize legacy ``kitty-specs`` missions for the MVP lifecycle model.\n\nThis command repairs enough historical mission state to make the canonical\nlifecycle model reliable across old repositories. It backfills identity\nwhere needed, rebuilds missing event logs from legacy state, and regenerates\nstatus/progress/lifecycle projections used by the CLI and Team Kitty.\n\nExit codes:\n\n- ``0`` — all targeted missions normalized or skipped cleanly\n- ``1`` — one or more missions hit an unrecoverable error",
      "hidden": false,
      "deprecated": false
     },
@@ -1251,7 +1251,7 @@
      "deprecated": false
     },
     "share": {
-     "help": "Share the current repository from Private Teamspace into a team.",
+     "help": "Share the current repository from private workspace into a team.",
      "hidden": false,
      "deprecated": false
     },
@@ -1343,7 +1343,7 @@
    "deprecated": false,
    "commands": {
     "providers": {
-     "help": "List supported tracker providers, categorized by backend type.\n\nSaaS-backed providers authenticate through ``spec-kitty auth login`` and\nroute sync operations through the Spec Kitty SaaS control plane.\n\nLocal providers use direct connectors with locally stored credentials.\n\nThis command is purely informational and prints the hard-coded provider\ncategories.  It does **not** consult hosted readiness — the rollout gate\nitself is enforced by ``tracker_callback`` (and by the conditional\nregistration in ``cli/commands/__init__.py``), which is all the gating\nthis static output needs.",
+     "help": "List supported tracker providers, categorized by backend type.\n\nSaaS-backed providers authenticate through ``spec-kitty auth login`` and\nroute sync operations through the Team Kitty control plane.\n\nLocal providers use direct connectors with locally stored credentials.\n\nThis command is purely informational and prints the hard-coded provider\ncategories.  It does **not** consult hosted readiness — the rollout gate\nitself is enforced by ``tracker_callback`` (and by the conditional\nregistration in ``cli/commands/__init__.py``), which is all the gating\nthis static output needs.",
      "hidden": false,
      "deprecated": false
     },

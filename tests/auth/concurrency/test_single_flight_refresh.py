@@ -118,7 +118,7 @@ class _FakeRefreshFlow:
             email=session.email,
             name=session.name,
             # This suite validates refresh single-flight behavior, not
-            # membership rehydrate. Return a Private Teamspace so the
+            # membership rehydrate. Return a private workspace so the
             # post-refresh hook remains a no-op and the test stays hermetic.
             teams=[_private_teamspace()],
             default_team_id="t-private",

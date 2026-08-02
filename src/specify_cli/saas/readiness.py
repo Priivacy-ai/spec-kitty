@@ -1,4 +1,4 @@
-"""Hosted-readiness evaluator for the Spec Kitty SaaS sync subsystem.
+"""Hosted-readiness evaluator for the Team Kitty sync subsystem.
 
 Stability contract: ``kitty-specs/082-stealth-gated-saas-sync-hardening/contracts/hosted_readiness.md``
 

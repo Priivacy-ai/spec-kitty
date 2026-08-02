@@ -23,7 +23,7 @@ reachable from `sync now` any more. That message lives in `sync_all_queued_event
 the legacy queue drain FR-012 retired — `sync/__init__.py` deliberately stops
 re-exporting it and `sync now` calls `_run_event_sync_dispatch` instead. And
 `dispatcher._post` already returns early on an empty batch, so no empty POST is
-issued. Measured before writing this file: the no-Private-Teamspace string does not
+issued. Measured before writing this file: the no-private-workspace string does not
 appear in `sync now`'s output, the receiver records zero POSTs, and the exit code is
 already 0. What was genuinely missing is the *cause*, which is what these tests pin.
 """
@@ -225,7 +225,7 @@ def test_sync_now_does_not_claim_a_cause_it_cannot_prove(
     report cannot distinguish "already delivered" from "terminally drain-blocked"
     without ledger state, so the message must state what is known and stop. Naming
     consent here would be the same wrong-and-actionable diagnosis that the
-    no-Private-Teamspace message was.
+    no-private-workspace message was.
     """
     from specify_cli.sync.consent import set_project_consent
 

@@ -64,7 +64,7 @@ From the spec-kitty repo:
 ```bash
 export SPEC_KITTY_ENABLE_SAAS_SYNC=1
 
-# 0. TeamSpace mission-state gate
+# 0. Team Kitty mission-state gate
 spec-kitty doctor mission-state --audit --fail-on teamspace-blocker
 
 # 1. Contract gate
@@ -82,7 +82,7 @@ If all three exit zero AND the issue matrix is fully populated, the
 mission is gate-clean.
 
 For launch-readiness checks that should run in GitHub without a full release
-candidate, use the manual `TeamSpace Mission-State Readiness` workflow. It
+candidate, use the manual `Team Kitty Mission-State Readiness` workflow. It
 executes the mission-state audit with the selected `--fail-on` threshold and
 uploads the JSON report as a workflow artifact.
 

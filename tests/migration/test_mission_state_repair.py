@@ -300,7 +300,7 @@ def test_deterministic_repair_ids_follow_fork_seed_material(tmp_path: Path) -> N
 
 def test_teamspace_dry_run_fails_when_status_rows_still_contain_legacy_keys(tmp_path: Path) -> None:
     if not _has_events_5():
-        pytest.skip("TeamSpace dry-run validation requires spec-kitty-events >= 5.0.0")
+        pytest.skip("Team Kitty dry-run validation requires spec-kitty-events >= 5.0.0")
 
     repo = tmp_path
     mission = repo / "kitty-specs" / "001-needs-repair"
@@ -359,7 +359,7 @@ def test_teamspace_dry_run_fails_when_status_rows_still_contain_legacy_keys(tmp_
 
 def test_teamspace_dry_run_synthesizes_repo_evidence_for_historical_done_rows(tmp_path: Path) -> None:
     if not _has_events_5():
-        pytest.skip("TeamSpace dry-run validation requires spec-kitty-events >= 5.0.0")
+        pytest.skip("Team Kitty dry-run validation requires spec-kitty-events >= 5.0.0")
 
     repo = tmp_path
     mission = repo / "kitty-specs" / "001-historical-done"
@@ -418,7 +418,7 @@ def test_teamspace_dry_run_synthesizes_repo_evidence_for_historical_done_rows(tm
 
 def test_teamspace_dry_run_synthesizes_missing_historical_approval_evidence(tmp_path: Path) -> None:
     if not _has_events_5():
-        pytest.skip("TeamSpace dry-run validation requires spec-kitty-events >= 5.0.0")
+        pytest.skip("Team Kitty dry-run validation requires spec-kitty-events >= 5.0.0")
 
     repo = tmp_path
     mission = repo / "kitty-specs" / "001-historical-approval"

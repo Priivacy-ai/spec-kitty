@@ -405,7 +405,7 @@ class TestSyncNowExitCodes:
         the FR-002 sync-now structural preflight.
 
         Both gates audit the local project root before any sync work. In the
-        spec-kitty checkout the gates surface TeamSpace / daemon-owner
+        spec-kitty checkout the gates surface Team Kitty / daemon-owner
         blockers that raise ``typer.Exit(1)`` or ``typer.Exit(2)`` before the
         sync exit-code semantics under test can be observed. Tests here
         exercise the post-gate contract, so both gates are stubbed at the

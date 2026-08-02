@@ -98,7 +98,7 @@ _GITHUB_DIFF_GITATTRIBUTES_ENTRIES = (
 def _emit_project_init_event(project_path: Path) -> None:
     """Append a project-init lifecycle event to the durable outbox.
 
-    Issue #1073: ``spec-kitty init`` must register a Teamspace-visible
+    Issue #1073: ``spec-kitty init`` must register a Team Kitty-visible
     project through the durable outbox after identity exists, regardless
     of authentication or sync state. We accomplish this by materializing
     the project identity (which mints ``build_id``, ``project_uuid``,
@@ -876,7 +876,7 @@ def init(  # noqa: C901
             # an existing repo leaves the repo untouched.
 
             # Persist a local canonical ProjectInitialized event before any
-            # SaaS fan-out so local dashboards and TeamSpace import always
+            # SaaS fan-out so local dashboards and Team Kitty import always
             # see a complete project history (issue #1067).
             try:
                 from specify_cli.identity.project import ensure_identity

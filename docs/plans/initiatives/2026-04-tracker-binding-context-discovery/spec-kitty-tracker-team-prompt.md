@@ -61,7 +61,7 @@ Relevant current code:
 Non-goals:
 
 1. Do not implement SaaS mapping resolution or CLI UX in this repo.
-2. Do not hard-code Spec Kitty SaaS model assumptions into the tracker library.
+2. Do not hard-code Team Kitty model assumptions into the tracker library.
 3. Do not reduce discovery back to provider-specific ad hoc dicts with no shared
    structure.
 

@@ -179,7 +179,7 @@ def test_scenario_7b_host_unavailable_propagates_without_changing_config(
     mock_client: MagicMock,
 ) -> None:
     mock_client.bind_resolve.side_effect = SaaSTrackerClientError(
-        "Cannot connect to Spec Kitty SaaS at https://saas.example.com.",
+        "Cannot connect to Team Kitty at https://saas.example.com.",
     )
 
     with (

@@ -28,7 +28,7 @@ class WidenResponse(TypedDict):
 
 
 class AudienceMember(TypedDict, total=False):
-    """A Teamspace member returned by the audience-default endpoint."""
+    """A Team Kitty workspace member returned by the audience-default endpoint."""
 
     user_id: int
     display_name: str

@@ -66,7 +66,7 @@ def _make_session(
         user_id="user-1",
         email="a@b.com",
         name="A B",
-        # WP02: include a Private Teamspace so the post-refresh hook in
+        # WP02: include a private workspace so the post-refresh hook in
         # ``refresh_if_needed`` short-circuits (no synthetic /api/v1/me HTTP).
         teams=[Team(id="t1", name="T1", role="owner", is_private_teamspace=True)],
         default_team_id="t1",
@@ -916,7 +916,7 @@ def _make_session_with_teams(teams: list[Team]) -> StoredSession:
 
 @pytest.fixture
 def token_manager_with_private_session() -> TokenManager:
-    """A ``TokenManager`` whose loaded session already has a Private Teamspace."""
+    """A ``TokenManager`` whose loaded session already has a private workspace."""
     storage = FakeStorage()
     tm = TokenManager(storage, saas_base_url=_SAAS_BASE_URL)
     tm._session = _make_session_with_teams(
@@ -957,7 +957,7 @@ def token_manager_with_shared_only_session() -> TokenManager:
 def test_rehydrate_early_returns_when_session_already_has_private(
     token_manager_with_private_session: TokenManager,
 ) -> None:
-    """Branch (a): existing Private Teamspace short-circuits — no HTTP issued."""
+    """Branch (a): existing private workspace short-circuits — no HTTP issued."""
     route = respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(
         return_value=httpx.Response(200, json={})
     )
@@ -1005,7 +1005,7 @@ def test_rehydrate_fetches_persists_and_recomputes_default_team_id(
     updated = tm.get_current_session()
     assert updated is not None
     assert any(t.is_private_teamspace for t in updated.teams)
-    # pick_default_team_id prefers the Private Teamspace.
+    # pick_default_team_id prefers the private workspace.
     assert updated.default_team_id == "t-private"
 
 

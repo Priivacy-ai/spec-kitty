@@ -475,8 +475,8 @@ def read_queue_scope_from_session(*, allow_rehydrate: bool = True) -> str | None
     """Read queue scope from the real encrypted auth session store.
 
     Returns None when the session is missing, unreadable, or incomplete, or
-    when the session lacks a Private Teamspace (FR-002/FR-004 — direct ingress
-    requires a Private Teamspace; the shared helper emits the structured
+    when the session lacks a private workspace (FR-002/FR-004 — direct ingress
+    requires a private workspace; the shared helper emits the structured
     warning and the queue-scope path skips by returning ``None``).
     """
     # FR-002/FR-004/NFR-002 + NFR-001: ingress team-id derivation must go
@@ -511,7 +511,7 @@ def read_queue_scope_from_session(*, allow_rehydrate: bool = True) -> str | None
     else:
         team_id = require_private_team_id(session)
     if team_id is None:
-        # Queue scope cannot be safely derived without a Private Teamspace;
+        # Queue scope cannot be safely derived without a private workspace;
         # leave events in any existing scoped queue and return None so
         # callers fall back to non-ingress paths.
         return None
@@ -1730,7 +1730,7 @@ class OfflineQueue:
           event and refused it.
         * ``failed_transient`` -> **no mutation**. Batch-level failures
           (HTTP 401/403/5xx, transport timeouts, connection errors, or the
-          pre-flight "no Private Teamspace" skip) never reach individual
+          pre-flight "no private workspace" skip) never reach individual
           events on the server, so per-event retry attribution is wrong.
           Leaving these rows untouched lets the daemon retry on its next
           tick without poisoning the retry counter. Issue #889.

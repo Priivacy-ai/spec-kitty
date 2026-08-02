@@ -281,7 +281,7 @@ class DeviceCodeFlow:
                 "User has no team memberships. Contact your administrator."
             )
         # Client-picked default (see C-011): the SaaS does not return
-        # ``default_team_id``; we prefer Private Teamspace when available.
+        # ``default_team_id``; we prefer private workspace when available.
         default_team_id = pick_default_team_id(teams)
 
         now = datetime.now(UTC)

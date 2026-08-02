@@ -284,7 +284,7 @@ def test_require_private_team_id_never_returns_first_team_fallback() -> None:
 
 def test_require_private_team_id_wins_over_drifting_default() -> None:
     """Regression for spec NFR-004: when default_team_id points at a shared team
-    but the team list contains a Private Teamspace, return the private id."""
+    but the team list contains a private workspace, return the private id."""
     session = _make_session_with_teams(
         default_team_id="t-shared-default",
         teams=[

@@ -280,15 +280,15 @@ class TokenManager:
     def rehydrate_membership_if_needed(self, *, force: bool = False) -> bool:
         """Sync one-shot ``/api/v1/me`` rehydrate.
 
-        Returns ``True`` iff the in-memory session ends with a Private
-        Teamspace membership. Returns ``False`` for: no session loaded,
+        Returns ``True`` iff the in-memory session ends with private-workspace
+        membership. Returns ``False`` for: no session loaded,
         negative-cache hit (without ``force=True``), HTTP failure, or a
-        successful fetch that still contained no Private Teamspace.
+        successful fetch that still contained no private workspace.
 
         Contract (see contracts/api.md §3):
 
         - Early-return ``True`` when the current session already exposes a
-          Private Teamspace.
+          private workspace.
         - Honor the process-scoped negative cache as a fast path; ``force=True``
           bypasses it (refresh hook + explicit caller-driven retries).
         - Single-flight via ``threading.Lock``: concurrent threads that race
@@ -330,7 +330,7 @@ class TokenManager:
             raw_teams = payload.get("teams", [])
             teams = [Team.from_dict(t) for t in raw_teams]
             if get_private_team_id(teams) is None:
-                # Authoritative: SaaS confirmed no Private Teamspace exists for
+                # Authoritative: SaaS confirmed no private workspace exists for
                 # this user. Set the process-scoped negative cache so direct
                 # ingress paths fail fast without re-issuing the GET.
                 self._membership_negative_cache = True

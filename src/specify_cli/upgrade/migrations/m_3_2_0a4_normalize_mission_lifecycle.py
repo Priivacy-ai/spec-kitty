@@ -3,7 +3,7 @@
 This migration repairs historical ``kitty-specs`` missions enough that the
 canonical lifecycle model can classify them consistently. It backfills
 identity, rebuilds missing event logs from legacy state, and regenerates the
-status/progress/lifecycle projections consumed by the CLI and Teamspace.
+status/progress/lifecycle projections consumed by the CLI and Team Kitty.
 """
 
 from __future__ import annotations

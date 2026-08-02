@@ -79,7 +79,7 @@ CATEGORY_ACTIONS: dict[str, str] = {
     "schema_mismatch": "Run `spec-kitty sync diagnose` to inspect invalid events",
     "auth_expired": "Run `spec-kitty auth login` to refresh credentials",
     "unauthenticated": "Run `spec-kitty auth login` to authenticate",
-    CATEGORY_MISSING_PRIVATE_TEAM: ("Private Teamspace access is required for direct ingress"),
+    CATEGORY_MISSING_PRIVATE_TEAM: ("private workspace access is required for direct ingress"),
     "retryable_transport": "Retry later or check network connectivity",
     "server_error": "Retry later or check server status",
     "unknown": "Inspect the failure report for details: --report <file.json>",
@@ -116,8 +116,8 @@ HISTORICAL_MISSION_STATE_FORBIDDEN_KEYS = frozenset(
 def _current_team_slug() -> str | None:
     """Resolve the ingress team slug via the strict shared helper. SYNC.
 
-    Returns the user's Private Teamspace id, or ``None`` when no Private
-    Teamspace is available (in which case the helper has already emitted
+    Returns the user's private workspace id, or ``None`` when no private
+    workspace is available (in which case the helper has already emitted
     a structured warning and callers MUST NOT send the ingress request).
     """
     try:
@@ -269,7 +269,7 @@ def _historical_mission_state_rejection(events: list[dict]) -> BatchSyncResult |
     result.error_count = len(by_event)
     result.failed_ids = sorted(by_event)
     message = (
-        "Historical mission-state rows cannot be sent directly to TeamSpace. "
+        "Historical mission-state rows cannot be sent directly to Team Kitty. "
         "Run `spec-kitty doctor mission-state --audit --fail-on teamspace-blocker`, "
         "then `--fix`, then `--teamspace-dry-run` before sync/import."
     )
@@ -546,8 +546,8 @@ class BatchEventResult:
               **incremented**.
             * ``failed_transient`` -- batch-level failure where the server
               never evaluated individual events: HTTP 401/403/5xx, transport
-              timeouts/connection errors, or the pre-flight "no Private
-              Teamspace" skip. The queue row is **left untouched** (no DELETE,
+              timeouts/connection errors, or the pre-flight "no private
+              workspace" skip. The queue row is **left untouched** (no DELETE,
               no ``retry_count`` bump) so transient outages cannot poison the
               retry counter. See issue Priivacy-ai/spec-kitty#889.
 
@@ -1034,7 +1034,7 @@ def batch_sync(  # noqa: C901
         # structured ``logger.warning`` (with category, rehydrate_attempted,
         # ingress_sent, endpoint), which is the sole skip diagnostic. Skip the
         # ingress POST entirely and leave events in the durable queue for a
-        # future drain after the SaaS provisions a Private Teamspace for this
+        # future drain after the SaaS provisions a private workspace for this
         # user. FR-009 prohibits adding a stdout ``print`` here.
         #
         # Append a sentinel error message so ``sync_all_queued_events`` can
@@ -1050,7 +1050,7 @@ def batch_sync(  # noqa: C901
         _record_all_events_failed(
             result,
             events,
-            error="skipped: no Private Teamspace available for direct ingress",
+            error="skipped: no private workspace available for direct ingress",
             category=CATEGORY_MISSING_PRIVATE_TEAM,
             transient=True,
         )
@@ -1436,7 +1436,7 @@ def sync_all_queued_events(
         # Stop if no progress made. This covers two cases:
         #   1. All events in the batch failed (error_count > 0).
         #   2. The batch was skipped entirely because the strict private-team
-        #      resolver returned None (FR-002/FR-004 — no Private Teamspace
+        #      resolver returned None (FR-002/FR-004 — no private workspace
         #      means no direct ingress; the helper's structured warning is the
         #      sole stderr diagnostic). Without this, sync_all_queued_events
         #      would spin forever on a shared-only session because the queue
@@ -1485,5 +1485,5 @@ def _should_stop_sync_loop(result: BatchSyncResult, show_progress: bool) -> bool
         if result.error_count > 0:
             print("Stopping: No events successfully synced in this batch")
         else:
-            print("Stopping: Batch skipped (no Private Teamspace; see structured stderr diagnostic)")
+            print("Stopping: Batch skipped (no private workspace; see structured stderr diagnostic)")
     return True

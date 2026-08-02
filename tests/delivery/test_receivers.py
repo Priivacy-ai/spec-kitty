@@ -6,13 +6,13 @@ order. They lock the contract §4 behaviours:
 * one :class:`DeliveryReceiver` protocol covers all five §4 aspects and every
   concrete receiver implements it (**FR-014**, §4 rule 1);
 * :class:`StubReceiver` is a *real* receiver in the production module that records
-  events with **no Teamspace credentials present** (**SC-005**, §4 required test 1);
-* the Teamspace and stub receivers produce the **same** per-event outcome sequence
+  events with **no Team Kitty credentials present** (**SC-005**, §4 required test 1);
+* the Team Kitty and stub receivers produce the **same** per-event outcome sequence
   for equivalent payloads (**SC-007**, §4 required test 2);
 * the full §4 result vocabulary is exercised (success / duplicate / pending /
   rejected / transient / terminal-failed) — NFR-002 — and a batch-level transient
   failure never poisons per-event retry state;
-* :class:`ExternalReceiver` applies **no** Teamspace gating (**FR-007**);
+* :class:`ExternalReceiver` applies **no** Team Kitty gating (**FR-007**);
 * gate evaluation is per-receiver data driven by a shared helper — no target-type
   ``if`` (FR-014).
 """
@@ -130,7 +130,7 @@ def test_all_three_receivers_implement_the_one_protocol() -> None:
         assert isinstance(receiver.gates(), tuple)
 
 
-# -- SC-005: stub with NO Teamspace credentials --------------------------------
+# -- SC-005: stub with NO Team Kitty credentials --------------------------------
 
 
 def test_stub_records_events_with_no_teamspace_credentials(
@@ -157,12 +157,12 @@ def test_stub_records_events_with_no_teamspace_credentials(
     )
 
 
-# -- SC-007: stub and Teamspace produce the SAME ledger state ------------------
+# -- SC-007: stub and Team Kitty produce the SAME ledger state ------------------
 
 
 def test_stub_and_teamspace_produce_identical_outcomes_for_equivalent_payloads() -> None:
     batch = [_event("01JMBY0000000000000000000A"), _event("01JMBY0000000000000000000B")]
-    # Teamspace faked transport reports success for both events.
+    # Team Kitty faked transport reports success for both events.
     poster = _FakePoster(
         _FakeResponse(
             200,
@@ -229,7 +229,7 @@ def test_teamspace_posts_to_resolved_endpoint_with_bearer_header() -> None:
     assert call["headers"]["Content-Encoding"] == "gzip"
 
 
-# -- ExternalReceiver: FR-007, no Teamspace gating -----------------------------
+# -- ExternalReceiver: FR-007, no Team Kitty gating -----------------------------
 
 
 def test_external_applies_only_endpoint_configured_gate() -> None:
@@ -242,7 +242,7 @@ def test_external_applies_only_endpoint_configured_gate() -> None:
 
 def test_external_delivers_with_no_credentials_when_endpoint_configured() -> None:
     external = ExternalReceiver(endpoint_url="https://ops.example/ingest/")
-    # No Teamspace creds anywhere; only an endpoint-configured context is needed.
+    # No Team Kitty creds anywhere; only an endpoint-configured context is needed.
     decision = evaluate_gates(external, GateContext(endpoint_configured=True))
     assert decision.satisfied is True
     assert external.auth_headers() == {}

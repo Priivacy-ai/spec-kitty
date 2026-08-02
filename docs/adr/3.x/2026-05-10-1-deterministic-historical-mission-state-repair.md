@@ -6,7 +6,7 @@ date: '2026-05-10'
 
 ## Context
 
-Historical `kitty-specs/` directories may predate `mission_id`. TeamSpace import
+Historical `kitty-specs/` directories may predate `mission_id`. Team Kitty import
 requires stable mission identity, but public migration must be safe in
 distributed Git: two clones of the same historical repository must produce the
 same repaired artifacts without consulting a server, a clock, or randomness.
@@ -48,10 +48,10 @@ repository-local mission material:
 ## Consequences
 
 - Repair is reproducible across clones and CI runners.
-- Repair does not need hosted TeamSpace, tracker, auth, or sync configuration.
+- Repair does not need hosted Team Kitty, tracker, auth, or sync configuration.
 - Sparse historical missions remain repairable, but the manifest and audit
   output show what was defaulted.
-- Operators must coordinate the repair commit before TeamSpace import so forked
+- Operators must coordinate the repair commit before Team Kitty import so forked
   branches inherit the same persisted `mission_id`.
 
 ## Confirmation
@@ -62,4 +62,4 @@ This ADR is implemented when tests prove:
 - running repair twice yields no second diff;
 - existing valid IDs are preserved;
 - divergent pre-repair seed material produces different deterministic IDs;
-- TeamSpace dry-run refuses audit-blocking historical shapes before import.
+- Team Kitty dry-run refuses audit-blocking historical shapes before import.

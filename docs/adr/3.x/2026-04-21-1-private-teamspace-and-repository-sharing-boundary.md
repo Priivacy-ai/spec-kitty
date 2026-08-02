@@ -1,5 +1,5 @@
 ---
-title: Private Teamspace and Repository Sharing Boundary
+title: private workspace and Repository Sharing Boundary
 status: Accepted
 date: '2026-04-21'
 ---
@@ -13,7 +13,7 @@ The product requirement is not merely better filtering. The system must answer t
 1. what repository/build activity belongs to a user privately?
 2. what repository activity has been intentionally shared into a team?
 
-The existing product direction around Teamspace and the observed dashboard behavior show a domain mismatch:
+The existing product direction around Team Kitty and the observed dashboard behavior show a domain mismatch:
 
 1. teams can see too many historical projects/builds by default
 2. users who belong to multiple teams do not have a strong enough routing boundary
@@ -25,27 +25,27 @@ The existing product direction around Teamspace and the observed dashboard behav
 * **User-owned first** — data should belong to a user before it becomes team-visible.
 * **Local-first execution** — build execution and mission progress remain local-first and repository-native.
 * **Clear vocabulary** — `repository`, `project`, and `build` must describe distinct domain objects.
-* **Active-work emphasis** — default Teamspace must answer "what is happening now?" rather than act as a historical registry.
+* **Active-work emphasis** — default Team Kitty must answer "what is happening now?" rather than act as a historical registry.
 
 ## Considered Options
 
-* **Option 1:** Keep team-owned ingress and improve Teamspace filtering only.
+* **Option 1:** Keep team-owned ingress and improve Team Kitty filtering only.
 * **Option 2:** Make repositories opt-in to SaaS globally from the CLI with no user-owned private surface.
-* **Option 3 (chosen):** User-owned first, `Private Teamspace` by default, explicit repository sharing into teams, and activity-ranked Teamspace surfaces.
+* **Option 3 (chosen):** User-owned first, `private workspace` by default, explicit repository sharing into teams, and activity-ranked Team Kitty surfaces.
 
 ## Decision Outcome
 
-**Chosen option: Option 3**, because it establishes the missing trust boundary while preserving local-first behavior and giving Teamspace a product shape that matches how teams actually work.
+**Chosen option: Option 3**, because it establishes the missing trust boundary while preserving local-first behavior and giving Team Kitty a product shape that matches how teams actually work.
 
 ### Core Decisions
 
-**Decision 1 — New checkouts/builds default to `Private Teamspace`.**
+**Decision 1 — New checkouts/builds default to `private workspace`.**
 
 Every newly observed repository/build belongs to its owning user first. No team sees it until the user explicitly shares the repository into that team.
 
 **Decision 2 — `Repository` is the share/admission unit.**
 
-The first team admission decision is made for `repository + destination team`. Sharing is explicit and non-destructive: the repository remains visible in `Private Teamspace` after sharing.
+The first team admission decision is made for `repository + destination team`. Sharing is explicit and non-destructive: the repository remains visible in `private workspace` after sharing.
 
 **Decision 3 — `Project` is the team-facing collaboration surface.**
 
@@ -53,7 +53,7 @@ A `Project` is created or reused when a repository is shared to a team. It is no
 
 **Decision 4 — `Build` remains the checkout/worktree identity.**
 
-A `Build` is one checkout/worktree on one machine at one local path. `build_id` remains the canonical build key. Machine and absolute local path are required provenance for Teamspace presentation.
+A `Build` is one checkout/worktree on one machine at one local path. `build_id` remains the canonical build key. Machine and absolute local path are required provenance for Team Kitty presentation.
 
 **Decision 5 — Team approval is one-time per `repository + team`.**
 
@@ -63,13 +63,13 @@ The first share to a team requires approval unless that team has an explicit aut
 
 Admin disconnect removes the repository/project from one team's visibility, search, and discoverable history within that team. It does not delete user-owned data and does not affect other teams.
 
-**Decision 7 — Default Teamspace is activity-ranked, not history-ranked.**
+**Decision 7 — Default Team Kitty is activity-ranked, not history-ranked.**
 
-The default Teamspace project card shows only the 1-3 most relevant `active now` or `recently completed` mission/build items. Historical missions/builds remain discoverable via drilldown/history rather than the landing page.
+The default Team Kitty project card shows only the 1-3 most relevant `active now` or `recently completed` mission/build items. Historical missions/builds remain discoverable via drilldown/history rather than the landing page.
 
 **Decision 8 — GitHub canonicalization ages work off the default surface.**
 
-`merged_local_only` may remain discoverable briefly, but once the work is canonicalized on GitHub it leaves the default Teamspace surface and GitHub becomes the canonical inspection point.
+`merged_local_only` may remain discoverable briefly, but once the work is canonicalized on GitHub it leaves the default Team Kitty surface and GitHub becomes the canonical inspection point.
 
 **Decision 9 — Forks are separate repositories by default.**
 
@@ -80,7 +80,7 @@ Forks may expose a visible relationship to upstream, but they do not collapse au
 ### Positive
 
 * Users get a clear safety boundary between private work and team-visible work.
-* Teamspace can become a live operational board rather than a project graveyard.
+* Team Kitty can become a live operational board rather than a project graveyard.
 * Vocabulary aligns cleanly: repository for sharing, project for team collaboration, build for checkout.
 * The same repository can appear in multiple teams without blurring ownership or disconnect semantics.
 
@@ -99,13 +99,13 @@ Forks may expose a visible relationship to upstream, but they do not collapse au
 
 This decision is validated when all of the following are true:
 
-1. a brand-new checkout/build appears only in the user's `Private Teamspace` until explicit share
+1. a brand-new checkout/build appears only in the user's `private workspace` until explicit share
 2. no team sees repository/build data without explicit share plus approval, unless that team chose auto-approval
 3. once a repository is approved for a team, later teammates sharing the same repository join automatically
-4. default Teamspace project cards show only 1-3 relevant active/recent mission/build items
+4. default Team Kitty project cards show only 1-3 relevant active/recent mission/build items
 5. each surfaced card includes mission progress plus build provenance including machine and local path
 6. admin disconnect removes visibility from one team only without deleting user-owned data
-7. canonicalized GitHub work leaves the default Teamspace surface and remains discoverable through history/drilldown
+7. canonicalized GitHub work leaves the default Team Kitty surface and remains discoverable through history/drilldown
 
 ## Pros and Cons of the Options
 
@@ -119,7 +119,7 @@ This decision is validated when all of the following are true:
 **Cons:**
 
 * Does not create a real trust boundary.
-* Keeps Teamspace conceptually backwards.
+* Keeps Team Kitty conceptually backwards.
 * Leaves multi-team routing safety weak.
 
 ### Option 2: Global CLI opt-in without a private surface
@@ -140,7 +140,7 @@ This decision is validated when all of the following are true:
 **Pros:**
 
 * Matches the trust and routing requirements.
-* Gives Teamspace the right default behavior.
+* Gives Team Kitty the right default behavior.
 * Supports multi-team participation without collapsing boundaries.
 
 **Cons:**
@@ -163,7 +163,7 @@ deployed `spec-kitty-dev` SaaS environment.
 
 The current monorepo implementation now reflects this ADR in the CLI layer:
 
-1. checkout routing resolves to `Private Teamspace` by default
+1. checkout routing resolves to `private workspace` by default
 2. repository sharing is explicit through CLI sync commands
 3. per-checkout opt-in and opt-out persist locally without git-tracked side effects
 4. future new checkouts can inherit a remembered repository-level sync preference
@@ -204,5 +204,5 @@ stale/abandoned mission lane required for the MVP:
    encrypted auth session, and permanent upload failures persist structured
    diagnostics instead of collapsing to `bad_request: unknown`
 
-With this slice validated, the active MVP lane moves back to SaaS Teamspace
+With this slice validated, the active MVP lane moves back to Team Kitty
 projection/backfill completion under `Priivacy-ai/spec-kitty-saas#101`.

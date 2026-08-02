@@ -1,4 +1,4 @@
-"""TeamSpace mission-state migration prompt and connection gate helpers."""
+"""Team Kitty mission-state migration prompt and connection gate helpers."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from rich.panel import Panel
 
 @dataclass(frozen=True)
 class TeamspaceMissionStateReadiness:
-    """Readiness summary for TeamSpace historical mission-state import."""
+    """Readiness summary for Team Kitty historical mission-state import."""
 
     repo_root: Path
     total_missions: int = 0
@@ -32,7 +32,7 @@ class TeamspaceMissionStateReadiness:
 
 
 def check_teamspace_mission_state_readiness(repo_root: Path) -> TeamspaceMissionStateReadiness:
-    """Return mission-state readiness for TeamSpace connect/import paths."""
+    """Return mission-state readiness for Team Kitty connect/import paths."""
     repo_root = repo_root.resolve()
     if not (repo_root / KITTY_SPECS_DIR).is_dir():
         return TeamspaceMissionStateReadiness(repo_root=repo_root)
@@ -77,15 +77,15 @@ def _guidance_lines(readiness: TeamspaceMissionStateReadiness) -> list[str]:
             "Spec Kitty could not verify local mission-state readiness.",
             f"Audit error: {readiness.audit_error}",
             "",
-            "Run the audit before connecting to TeamSpace:",
+            "Run the audit before connecting to Team Kitty:",
             "  spec-kitty doctor mission-state --audit --fail-on teamspace-blocker",
         ]
 
     codes = ", ".join(readiness.blocker_codes) if readiness.blocker_codes else "unknown"
     return [
-        "TeamSpace mission-state migration is required before connecting.",
+        "Team Kitty mission-state migration is required before connecting.",
         (
-            f"Found {readiness.blocker_count} TeamSpace blocker(s) "
+            f"Found {readiness.blocker_count} Team Kitty blocker(s) "
             f"across {readiness.missions_with_blockers} mission(s)."
         ),
         f"Finding codes: {codes}",
@@ -115,7 +115,7 @@ def _print_notice(
 
 
 def enforce_teamspace_mission_state_ready(*, console: Console, command_name: str) -> None:
-    """Block TeamSpace connect/sync commands until local mission-state is ready."""
+    """Block Team Kitty connect/sync commands until local mission-state is ready."""
     try:
         from specify_cli.core.paths import locate_project_root
 
@@ -133,7 +133,7 @@ def enforce_teamspace_mission_state_ready(*, console: Console, command_name: str
     _print_notice(
         readiness,
         console=console,
-        title="TeamSpace Migration Required",
+        title="Team Kitty Migration Required",
         border_style="red",
     )
     console.print(f"[red]Blocked:[/red] `{command_name}` will not connect until this migration is complete.")
@@ -147,7 +147,7 @@ def offer_teamspace_mission_state_migration(
     dry_run: bool,
     assume_yes: bool,
 ) -> tuple[bool, bool]:
-    """Surface and optionally run the TeamSpace mission-state migration.
+    """Surface and optionally run the Team Kitty mission-state migration.
 
     Returns ``(migration_was_pending, repair_ran)``.
     """
@@ -158,7 +158,7 @@ def offer_teamspace_mission_state_migration(
     _print_notice(
         readiness,
         console=console,
-        title="TeamSpace Mission-State Migration",
+        title="Team Kitty Mission-State Migration",
         border_style="yellow",
     )
 
@@ -174,7 +174,7 @@ def offer_teamspace_mission_state_migration(
         default=True,
     )
     if not should_run:
-        console.print("[yellow]Skipped TeamSpace mission-state repair.[/yellow]")
+        console.print("[yellow]Skipped Team Kitty mission-state repair.[/yellow]")
         return True, False
 
     from specify_cli.migration.mission_state import MissionStateRepairError, repair_repo
@@ -204,10 +204,10 @@ def offer_teamspace_mission_state_migration(
         _print_notice(
             post_repair,
             console=console,
-            title="TeamSpace Migration Still Blocked",
+            title="Team Kitty Migration Still Blocked",
             border_style="red",
         )
         raise typer.Exit(1)
 
-    console.print("[green]TeamSpace mission-state blockers cleared.[/green]")
+    console.print("[green]Team Kitty mission-state blockers cleared.[/green]")
     return True, True

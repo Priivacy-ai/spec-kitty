@@ -123,7 +123,7 @@ class TestEventEnvelope:
     def test_team_slug_unresolvable_queues_event_locally(
         self, temp_queue, temp_clock, mock_config, monkeypatch
     ):
-        """Emitter queues events durably even when no Private Teamspace exists.
+        """Emitter queues events durably even when no private workspace exists.
 
         FR-1 / issue #1072 of the teamspace-local-first-outbox mission: local
         durability is unconditional. When the strict ingress resolver returns
@@ -325,7 +325,7 @@ class TestWPStatusChanged:
         assert "mission_id" not in event["payload"]
 
     def test_transition_metadata_passes_through(self, emitter: EventEmitter, temp_queue):
-        """WPStatusChanged carries the canonical status event metadata TeamSpace projects."""
+        """WPStatusChanged carries the canonical status event metadata Team Kitty projects."""
         evidence = {"review": {"reviewer": "alice", "verdict": "approved", "reference": "PR#1"}}
         event = emitter.emit_wp_status_changed(
             "WP01",

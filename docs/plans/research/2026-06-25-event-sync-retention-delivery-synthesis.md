@@ -25,10 +25,10 @@ sits in the SaaS sync durability cluster:
   auth/readiness, WebSocket, tracker, status, and network calls cannot diverge.
 - **#2124 — retained event journal + per-target ledger**: this note's primary
   design spike.
-- **#2144 — Teamspace durability registry + git/SaaS replay**: sibling/follow-on,
+- **#2144 — Team Kitty durability registry + git/SaaS replay**: sibling/follow-on,
   but its capture-before-drain invariant applies here: feature flags, auth/team
   gaps, and network gates must block drain eligibility only, not silently drop
-  Teamspace-bound facts.
+  Team Kitty-bound facts.
 - **#1800 / #1666 / #1619**: parent sync/event-envelope hardening and execution
   context/domain-boundary architecture.
 - **#2165**: docs-layout reorganization context only. This mission keeps its
@@ -47,7 +47,7 @@ target. It is wrong for transient SaaS test environments (Upsun PR envs), where
 the operator wants to drain the same local events to env A, destroy it, and
 drain the same events again to env B.
 
-Robert opened #2124 to fix this at the CLI level before Teamspace is exposed to
+Robert opened #2124 to fix this at the CLI level before Team Kitty is exposed to
 users. Stijn added the operator-config framing and a hard requirement on module
 boundaries. This note folds both into one design.
 
@@ -76,13 +76,13 @@ for exactly the retention-vs-delivery separation above. Under the hood it resolv
 to **two orthogonal axes**:
 
 - **Retention** (the journal): on = keep payloads locally · off = discard
-- **Delivery** (the target + ledger): none · Teamspace · external-receiver
+- **Delivery** (the target + ledger): none · Team Kitty · external-receiver
 
 The four named modes are the useful presets over those axes:
 
 | Mode | Retention | Delivery |
 |---|---|---|
-| `TEAMSPACE` | journal on | → SaaS Teamspace target (default for connected users) |
+| `TEAMSPACE` | journal on | → Team Kitty target (default for connected users) |
 | `EXTERNAL_RECEIVER` | journal on | → operator-configured endpoint (just another target type) |
 | `LOCAL_RETENTION` | journal on | none — retain now, choose a target and drain later (the replay case) |
 | `OPT_OUT` / `TRASH` | off | none |
@@ -101,7 +101,7 @@ settle this matrix:
 | `EventSyncConfig` | Selects retention/delivery policy only; does not independently choose a network target. |
 | `SyncConfig.server_url` / `config.toml` | Canonical runtime target unless an explicit whole-process override is active. |
 | `SPEC_KITTY_SAAS_URL` | Either setup/dev-only, or a deliberate override that affects auth, sync, tracker, queue scope, WebSocket, readiness, and diagnostics consistently. |
-| `SPEC_KITTY_ENABLE_SAAS_SYNC` | Affects drain eligibility only; Teamspace-bound capture still lands in SQLite or git. |
+| `SPEC_KITTY_ENABLE_SAAS_SYNC` | Affects drain eligibility only; Team Kitty-bound capture still lands in SQLite or git. |
 | Auth session + team scope | Supplies identity for delivery target and ledger rows when known; not required for initial local capture. |
 | Queue scope | Derived isolation key, not an independent target selector. |
 | Network calls | Must use the same resolved target as queue scope and status diagnostics. |
@@ -112,11 +112,11 @@ scope for one target while network calls go to another, and stale
 
 ### The testing stub falls out for free
 
-Stijn wants a stub receiver so fork CI stops depending on a real Teamspace and
+Stijn wants a stub receiver so fork CI stops depending on a real Team Kitty and
 the `teamspace_key` in core that keeps breaking his runs. A stub is just an
 `EXTERNAL_RECEIVER` pointed at a localhost sink that accepts and records events
 for assertions. It is a configuration of the design, not a special case — and it
-gets CI off the Teamspace dependency.
+gets CI off the Team Kitty dependency.
 
 ## Module boundary (Stijn's hard requirement)
 
@@ -187,8 +187,8 @@ lifting is the journal/ledger split + the migration, not the dispatch logic.
 2. **Target reset under stable URL**: advisory follow-on. URL+scope identity is
    enough for the immediate transient-env replay use case; consuming SaaS
    `/api/v1/sync/health/` deployment metadata waits for the SaaS-side change.
-3. **Teamspace durability**: #2144 full registry/replay is follow-on, but
-   #2131 must not introduce any silent discard of Teamspace-bound facts. Capture
+3. **Team Kitty durability**: #2144 full registry/replay is follow-on, but
+   #2131 must not introduce any silent discard of Team Kitty-bound facts. Capture
    comes before drain gates.
 4. **Docs structure**: #2165 is not folded into this mission. No docs-root move
    or frontmatter normalization is part of #2131.

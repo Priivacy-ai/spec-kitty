@@ -324,7 +324,7 @@ def _enforce_canonical_status_history(
     nothing but forced ``planned -> planned`` entries emitted by
     ``finalize-tasks``. When the mission carries work packages that
     must have advanced past planned for merge to make sense, the log
-    is an unreliable source of truth and downstream replay (TeamSpace
+    is an unreliable source of truth and downstream replay (Team Kitty
     rebuild, dashboard refresh) will reset every WP to planned. We
     fail loudly with a remediation hint rather than ship in that
     state. See https://github.com/Priivacy-ai/spec-kitty/issues/1069.

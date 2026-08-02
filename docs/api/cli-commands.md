@@ -1138,7 +1138,7 @@ _Project health diagnostics_
 │                     hints.                                                   │
 │ restart-daemon      Stop the registered sync daemon and respawn it at the    │
 │                     foreground.                                              │
-│ mission-state       Audit, repair, or TeamSpace-validate mission-state       │
+│ mission-state       Audit, repair, or Team Kitty-validate mission-state       │
 │                     shapes.                                                  │
 │ doctrine            Check org doctrine snapshot status and list installed    │
 │                     pack artifacts.                                          │
@@ -1369,14 +1369,14 @@ _Project health diagnostics_
 ```
  Usage: spec-kitty doctor mission-state [OPTIONS]
 
- Audit, repair, or TeamSpace-validate mission-state shapes.
+ Audit, repair, or Team Kitty-validate mission-state shapes.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --audit                            Run mission-state audit (required to      │
 │                                    proceed)                                  │
 │ --fix                              Repair mission-state artifacts in place   │
 │                                    and write a migration manifest            │
-│ --teamspace-dry-run                Synthesize canonical TeamSpace envelopes  │
+│ --teamspace-dry-run                Synthesize canonical Team Kitty envelopes  │
 │                                    from local state and validate them        │
 │ --json                             Emit JSON report to stdout                │
 │ --mission                    TEXT  Scope to a single mission handle          │
@@ -2750,7 +2750,7 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
  This command repairs enough historical mission state to make the canonical
  lifecycle model reliable across old repositories. It backfills identity
  where needed, rebuilds missing event logs from legacy state, and regenerates
- status/progress/lifecycle projections used by the CLI and Teamspace.
+ status/progress/lifecycle projections used by the CLI and Team Kitty.
 
  Exit codes:
 
@@ -4181,7 +4181,7 @@ _Synchronization commands_
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ routes          Show where the current checkout sends data and which teams   │
 │                 it is shared with.                                           │
-│ share           Share the current repository from Private Teamspace into a   │
+│ share           Share the current repository from private workspace into a   │
 │                 team.                                                        │
 │ unshare         Stop sharing the current repository from this developer to   │
 │                 one team.                                                    │
@@ -4592,7 +4592,7 @@ _Synchronization commands_
 ```
  Usage: spec-kitty sync share [OPTIONS] TEAM_SLUG
 
- Share the current repository from Private Teamspace into a team.
+ Share the current repository from private workspace into a team.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    team_slug      TEXT  Team slug to share this repository into.           │
@@ -4869,7 +4869,7 @@ _Work-package mapping commands_
  List supported tracker providers, categorized by backend type.
 
  SaaS-backed providers authenticate through ``spec-kitty auth login`` and
- route sync operations through the Spec Kitty SaaS control plane.
+ route sync operations through the Team Kitty control plane.
 
  Local providers use direct connectors with locally stored credentials.
 

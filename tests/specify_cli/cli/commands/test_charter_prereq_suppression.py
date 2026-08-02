@@ -122,7 +122,7 @@ class TestPrereqSuppression:
         assert "[w]iden" not in result.output
 
     def test_no_widen_when_no_teamspace(self, tmp_path: Path) -> None:
-        """User not in any Teamspace → [w]iden suppressed (FR-003)."""
+        """User not in any Team Kitty → [w]iden suppressed (FR-003)."""
         _setup_repo(tmp_path)
         prereq = PrereqState(teamspace_ok=False, slack_ok=False, saas_reachable=True)
         result = _invoke_with_prereqs(tmp_path, prereq, self._default_inputs())

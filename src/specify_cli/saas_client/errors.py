@@ -47,7 +47,7 @@ class SaasConsentError(SaasClientError):
 
     def __init__(self, reason: str) -> None:
         super().__init__(
-            f"Refusing to call Spec Kitty SaaS: {reason}",
+            f"Refusing to call Team Kitty: {reason}",
             status_code=None,
         )
         self.reason = reason

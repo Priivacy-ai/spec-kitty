@@ -560,7 +560,7 @@ class TestNoDuplicateEmissions:
 
 
 class TestPolicyMetadataPassthrough:
-    """Verify policy_metadata is kept out of the canonical TeamSpace payload."""
+    """Verify policy_metadata is kept out of the canonical Team Kitty payload."""
 
     def test_policy_metadata_included_in_payload(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """policy_metadata is accepted for compatibility but not emitted."""

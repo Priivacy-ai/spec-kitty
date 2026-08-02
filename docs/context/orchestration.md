@@ -284,7 +284,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x`, `3.x` |
 | **Lifecycle** | In event-backed runtimes, opened by [Decision Input Request](#decision-input-request); closed by [Decision Input Answer](#decision-input-answer). |
-| **SaaS projection** | Materialised as a `DecisionInboxItem` (pending → answered) in the TeamSpace. |
+| **SaaS projection** | Materialised as a `DecisionInboxItem` (pending → answered) in the Team Kitty. |
 | **Not to be confused with** | SaaS `Decision` (an immutable recorded past collaboration choice); SaaS `DecisionPoint` (a first-class team-consultation entity that can be widened, deferred, or resolved independently of the loop). See the SaaS domain glossary at `architecture/domain-glossary.md`. |
 | **Related terms** | [Decision Kind](#decision-kind), [Decision Input Request](#decision-input-request), [Decision Input Answer](#decision-input-answer), [Human-in-Charge (HiC)](./identity.md#human-in-charge-hic) |
 

@@ -267,7 +267,7 @@ def callback(ctx: typer.Context) -> None:
     if ctx.invoked_subcommand is None and "--help" not in sys.argv and "-h" not in sys.argv:
         click.echo(ctx.get_help(), color=ctx.color)
 
-    # Teamspace CLI auth/upgrade readiness coordinator
+    # Team Kitty CLI auth/upgrade readiness coordinator
     # (Priivacy-ai/spec-kitty#1093). First-gated on is_saas_sync_enabled();
     # no-ops when hosted mode is disabled. The coordinator owns the call to
     # _render_nag_if_needed() so downstream missions (WS2 auth, WS3 upgrade

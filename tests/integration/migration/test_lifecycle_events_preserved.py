@@ -299,7 +299,7 @@ def test_annotation_row_is_preserved(tmp_path: Path) -> None:
     falls through ``_rule_reject_non_status_event``'s passthrough, and reaches
     ``_rule_require_to_lane`` — which hard-errors with "missing required to_lane"
     on a row that carries no lane fields by construction. The whole mission
-    repair then aborts, so the TeamSpace gate can never clear.
+    repair then aborts, so the Team Kitty gate can never clear.
 
     Preserve is the only correct disposition: annotations are load-bearing
     (the reducer folds them into runtime slots), so quarantining them would

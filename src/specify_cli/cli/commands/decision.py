@@ -523,7 +523,7 @@ def cmd_verify(
 @decision_app.command("widen", hidden=True)
 def cmd_widen(
     decision_id: str = typer.Argument(..., help="ULID of the DecisionPoint to widen"),
-    invited: str = typer.Option(..., "--invited", help="Comma-separated Teamspace user IDs to invite"),
+    invited: str = typer.Option(..., "--invited", help="Comma-separated Team Kitty member IDs to invite"),
     mission_slug: str | None = typer.Option(None, "--mission-slug", help="Mission slug"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Print what would be called without calling it"),
 ) -> None:
@@ -537,7 +537,7 @@ def cmd_widen(
     try:
         invited_list = [int(value) for value in invited_raw]
     except ValueError:
-        typer.echo("Error: --invited must contain Teamspace user IDs, not display names", err=True)
+        typer.echo("Error: --invited must contain Team Kitty member IDs, not display names", err=True)
         raise typer.Exit(1) from None
 
     if dry_run:

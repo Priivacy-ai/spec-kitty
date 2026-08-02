@@ -266,7 +266,7 @@ class TestOfflineQueueDefaultPath:
             teams=[
                 Team(
                     id=team_id,
-                    name="Private Teamspace",
+                    name="private workspace",
                     role="owner",
                     is_private_teamspace=True,
                 )

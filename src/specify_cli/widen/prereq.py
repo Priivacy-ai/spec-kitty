@@ -3,7 +3,7 @@
 Determines whether the ``[w]iden`` option is shown to the user by checking
 three conditions synchronously:
 
-1. Teamspace membership (token presence check)
+1. Team Kitty membership (token presence check)
 2. Slack integration (``GET /api/v1/teams/{slug}/integrations``)
 3. SaaS reachability (``GET /api/v1/health``)
 
@@ -48,10 +48,10 @@ def check_prereqs(saas_client: SaasClient, team_slug: str) -> PrereqState:
 
 
 def _check_teamspace(client: SaasClient) -> bool:
-    """Teamspace membership derived from token presence.
+    """Team Kitty membership derived from token presence.
 
     If a non-empty token is present and valid, the user is considered a
-    Teamspace member.  Returns ``False`` on ``SaasAuthError`` or any error.
+    Team Kitty member.  Returns ``False`` on ``SaasAuthError`` or any error.
     """
     try:
         # A non-empty token = token-authenticated = teamspace member

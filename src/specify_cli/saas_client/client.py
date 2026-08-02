@@ -202,7 +202,7 @@ class SaasClient:
     def _resolve_team_slug(self, team_slug: str | None = None) -> str:
         slug = (team_slug or self._team_slug or "").strip()
         if not slug:
-            raise SaasAuthError("SaaS team_slug is required for Teamspace-scoped Decision Moment endpoints")
+            raise SaasAuthError("SaaS team_slug is required for Team Kitty-scoped Decision Moment endpoints")
         return slug
 
     def _team_path(self, team_slug: str | None, path: str) -> str:
@@ -217,7 +217,7 @@ class SaasClient:
 
         ``GET /a/{team_slug}/collaboration/missions/{id}/audience-default``
 
-        Returns Teamspace member dicts containing at least ``user_id`` and
+        Returns Team Kitty workspace member dicts containing at least ``user_id`` and
         ``display_name``. Legacy bare-string responses are tolerated for older
         test stubs by returning display-name-only member dicts.
 
@@ -259,7 +259,7 @@ class SaasClient:
 
         Args:
             decision_id: ULID of the decision point to widen.
-            invited: List of Teamspace user IDs to invite.
+            invited: List of Team Kitty member IDs to invite.
 
         Returns:
             :class:`~specify_cli.saas_client.endpoints.WidenResponse` with

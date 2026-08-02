@@ -4,7 +4,7 @@ The charter-lint engine writes a single repo-global report at
 ``<repo_root>/.kittify/lint-report.json`` (see
 ``specify_cli.charter_runtime.lint.findings.DecayReport``). The dossier
 indexer only scans a mission's ``feature_dir``, so the report has to be
-copied in before indexing for the downstream Teamspace SaaS dossier indexer
+copied in before indexing for the downstream Team Kitty SaaS dossier indexer
 to surface it (issue #2481, unblocks saas #392).
 
 Staging is scoped: the report is copied into the mission dossier only when it

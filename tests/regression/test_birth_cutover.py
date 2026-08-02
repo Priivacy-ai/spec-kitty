@@ -251,7 +251,7 @@ def _bootstrap_born_mission(
     # in this bare fixture, so an un-ignored ``git add -A`` would sweep its own
     # files in) and ``.kittify/sync-state.json`` (the offline-queue's local
     # fallback file, touched by every status-emit call in this sandboxed
-    # fixture — no real Teamspace project_uuid is configured) are pure
+    # fixture — no real Team Kitty project_uuid is configured) are pure
     # test-harness churn, orthogonal to the birth-cutover behavior under test;
     # ignore both so neither trips the merge's dirty-tree guard.
     (repo / ".gitignore").write_text(".worktrees/\n.kittify/sync-state.json\n", encoding="utf-8")

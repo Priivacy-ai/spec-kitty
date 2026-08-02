@@ -14,7 +14,7 @@ reason that had nothing to do with them.
 The receiver now **bisects** a whole-batch 400 (split → re-POST both halves →
 recurse to singletons), isolating the culprit and delivering every innocent. This
 module guards that fix through the receiver delivery entry point
-(:meth:`ExternalReceiver.deliver`, the same batch-post path the Teamspace receiver
+(:meth:`ExternalReceiver.deliver`, the same batch-post path the Team Kitty receiver
 uses), with a content-aware fake poster standing in for the all-or-nothing server.
 No network, deterministic.
 """

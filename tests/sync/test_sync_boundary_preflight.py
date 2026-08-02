@@ -715,10 +715,10 @@ def test_run_preflight_never_calls_rehydrate_membership(
     ``specify_cli.sync.queue.read_queue_scope_from_session`` →
     ``resolve_private_team_id_for_ingress`` →
     ``TokenManager.rehydrate_membership_if_needed`` → ``GET /api/v1/me``
-    whenever the current session lacked a Private Teamspace in memory.
+    whenever the current session lacked a private workspace in memory.
     That violates the contract.
 
-    This test installs an in-memory session WITHOUT a Private Teamspace
+    This test installs an in-memory session WITHOUT a private workspace
     (so the legacy code path would have fired the rehydrate), monkeypatches
     ``TokenManager.rehydrate_membership_if_needed`` to raise, and asserts
     that ``run_preflight`` produces a result without invoking it.
@@ -733,7 +733,7 @@ def test_run_preflight_never_calls_rehydrate_membership(
     from specify_cli.auth.token_manager import TokenManager
     from datetime import datetime, UTC
 
-    # Build a session whose teams list has NO Private Teamspace. The legacy
+    # Build a session whose teams list has NO private workspace. The legacy
     # ``read_queue_scope_from_session`` path would call
     # ``resolve_private_team_id_for_ingress`` here, which would then call
     # ``rehydrate_membership_if_needed`` to fetch ``/api/v1/me``.
@@ -748,7 +748,7 @@ def test_run_preflight_never_calls_rehydrate_membership(
         user_id="u-1",
         email="tester@example.com",
         name="Test User",
-        teams=[shared_team],  # no Private Teamspace
+        teams=[shared_team],  # no private workspace
         default_team_id="shared-team",
         access_token="tok-access",
         refresh_token="tok-refresh",

@@ -8,7 +8,7 @@ state — never the internal call order or which domain function fired when.
 The wiring is THIN: every piece of logic lives in a domain module (WP07
 dispatcher, WP09 config, WP11 status-report/retention, WP01 target authority).
 A localhost :class:`StubReceiver` (WP06) stands in for the network so the suite
-needs no Teamspace credentials (SC-005).
+needs no Team Kitty credentials (SC-005).
 """
 
 from __future__ import annotations

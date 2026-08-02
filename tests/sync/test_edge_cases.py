@@ -346,8 +346,8 @@ class TestNonBlockingEmission:
         raises, the strict ingress resolver returns ``None``. The emitter
         must NOT drop the event — instead it queues with ``team_slug =
         None`` and ``drain_blocked_reason in {"no_auth", "no_team"}``. The
-        drain layer re-checks on every tick and only POSTs when a Private
-        Teamspace is resolvable, preserving FR-002/FR-007 of the
+        drain layer re-checks on every tick and only POSTs when a private
+        workspace is resolvable, preserving FR-002/FR-007 of the
         private-teamspace-ingress-safeguards mission.
         """
         queue = OfflineQueue(db_path=tmp_path / "q.db")

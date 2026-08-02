@@ -1,4 +1,4 @@
-"""Deterministic mission-state repair and TeamSpace dry-run helpers.
+"""Deterministic mission-state repair and Team Kitty dry-run helpers.
 
 This module is the mutating counterpart to ``specify_cli.audit``.  The audit
 package remains read-only; this module is only reached from
@@ -279,7 +279,7 @@ class MissionStateRepairError(RuntimeError):
 
 
 class MissionStateDryRunError(RuntimeError):
-    """Raised when TeamSpace dry-run validation cannot proceed."""
+    """Raised when Team Kitty dry-run validation cannot proceed."""
 
 
 @dataclass(frozen=True)
@@ -395,7 +395,7 @@ class RepairReport:
 
 @dataclass(frozen=True)
 class TeamspaceDryRunRowMapping:
-    """Mapping from one local status row to its synthesized TeamSpace event."""
+    """Mapping from one local status row to its synthesized Team Kitty event."""
 
     mission_slug: str
     artifact_path: str
@@ -487,7 +487,7 @@ def deterministic_ulid(seed: bytes | str) -> str:
 
 
 def envelope_sha256(envelope: Mapping[str, Any]) -> str:
-    """Canonical-JSON SHA-256 of a TeamSpace envelope (single recipe owner).
+    """Canonical-JSON SHA-256 of a Team Kitty envelope (single recipe owner).
 
     Both the migration dry-run's ``TeamspaceDryRunRowMapping.envelope_sha256``
     and the import-history provenance manifest (#2262, via
@@ -596,7 +596,7 @@ def teamspace_dry_run(
     scan_root: Path | None = None,
     mission: str | None = None,
 ) -> TeamspaceDryRunReport:
-    """Synthesize TeamSpace envelopes from local status logs and validate them."""
+    """Synthesize Team Kitty envelopes from local status logs and validate them."""
     event_cls, validate_event, package_version = _load_events_contract()
     mission_dirs = _select_mission_dirs(repo_root.resolve(), scan_root=scan_root, mission=mission)
     audit_errors = _teamspace_audit_blockers(repo_root.resolve(), scan_root=scan_root, mission_dirs=mission_dirs)
@@ -722,7 +722,7 @@ def _teamspace_audit_blockers(
     scan_root: Path | None,
     mission_dirs: Sequence[Path],
 ) -> list[dict[str, object]]:
-    """Return audit findings that must block TeamSpace historical import."""
+    """Return audit findings that must block Team Kitty historical import."""
     from specify_cli.audit import AuditOptions, run_audit
     from specify_cli.audit.models import is_teamspace_blocker
 
@@ -748,7 +748,7 @@ def _teamspace_audit_blockers(
                     "remediation": (
                         "Run `spec-kitty doctor mission-state --audit --fail-on "
                         "teamspace-blocker`, then `--fix`, then "
-                        "`--teamspace-dry-run` before TeamSpace import/sync."
+                        "`--teamspace-dry-run` before Team Kitty import/sync."
                     ),
                 }
             )
@@ -803,7 +803,7 @@ def _teamspace_context_warnings(repo_root: Path, project_uuid: uuid.UUID) -> lis
     warnings.append(
         {
             "code": "TEAMSPACE_TEAM_CONTEXT_NOT_VALIDATED",
-            "message": "Team/private TeamSpace membership is not checked by offline dry-run.",
+            "message": "Team/private workspace membership is not checked by offline dry-run.",
         }
     )
     return warnings
@@ -834,14 +834,14 @@ def _load_events_contract() -> tuple[type[Any], Any, str]:
     package_version = Version(spec_kitty_events.__version__)
     if package_version < REQUIRED_EVENTS_PACKAGE:
         raise MissionStateDryRunError(
-            "TeamSpace dry-run requires spec-kitty-events >= "
+            "Team Kitty dry-run requires spec-kitty-events >= "
             f"{REQUIRED_EVENTS_PACKAGE}; installed {package_version}."
         )
     return Event, validate_event, str(package_version)
 
 
 class _TeamspaceEnvelope(BaseModel):
-    """The SINGLE TeamSpace replay-envelope shape (#2891, CP001/CP002 #2884).
+    """The SINGLE Team Kitty replay-envelope shape (#2891, CP001/CP002 #2884).
 
     The migration ``WPStatusChanged`` builder and the history-import
     creation-prefix builder (``sync.history_import.synthesize._envelope``, via
@@ -901,7 +901,7 @@ def _build_teamspace_envelope(
     correlation_id: str,
     causation_id: str | None = None,
 ) -> _TeamspaceEnvelope:
-    """Construct the SINGLE TeamSpace replay-envelope shell (#2891).
+    """Construct the SINGLE Team Kitty replay-envelope shell (#2891).
 
     Callers that need the wire-format dict (JSONL rows, hashing, upload
     payloads) call ``.model_dump()`` at their own serialization boundary --
@@ -992,7 +992,7 @@ def _historical_teamspace_evidence(
     """Return deterministic evidence for historical approval/done rows.
 
     Older local status rows may have no evidence at all, or may have review
-    evidence without repo evidence. The TeamSpace 5.0.0 event contract requires
+    evidence without repo evidence. The Team Kitty 5.0.0 event contract requires
     evidence for both approved and done transitions, including at least one repo
     entry, so dry-run/import synthesis fills only the missing historical facts.
     """
@@ -1481,7 +1481,7 @@ def _rule_reject_non_status_event(
       emptied healthy mission logs.
     - Any other ``event_type`` / ``event_name`` row is QUARANTINED (its canonical
       state, if any, lives elsewhere). ``_scan_raw_status_rows`` flags the same
-      class before a TeamSpace dry-run.
+      class before a Team Kitty dry-run.
     """
     if _is_preserved_non_lane_row(row):
         return CanonicalStepResult(

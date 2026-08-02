@@ -186,7 +186,7 @@ def test_normalize_ws_url_rejects_insecure_remote_plaintext():
 #
 #   - shared-only session that rehydrates to a private team via /api/v1/me
 #   - shared-only session whose rehydrate still surfaces no private team
-#   - healthy session that already carries a Private Teamspace and skips /me
+#   - healthy session that already carries a private workspace and skips /me
 #
 # We patch ``websockets.connect`` so the WS upgrade never opens a real socket;
 # the assertions are about the HTTP traffic ``provision_ws_token`` produces

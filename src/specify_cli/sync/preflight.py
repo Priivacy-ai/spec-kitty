@@ -423,14 +423,14 @@ def _read_queue_scope_local_only() -> str | None:
     ``resolve_private_team_id_for_ingress`` which can transitively invoke
     ``TokenManager.rehydrate_membership_if_needed()`` — and that issues a
     ``GET /api/v1/me`` HTTP request when the in-memory session lacks a
-    Private Teamspace. That violates the preflight contract
+    private workspace. That violates the preflight contract
     (``contracts/sync-boundary-preflight.md``: "The helper does not mutate
     state and does not call SaaS endpoints").
 
     This helper replicates the on-disk-only portion of that logic:
 
     1. Inspect the in-memory ``TokenManager`` session (no rehydrate). If
-       the session already exposes a Private Teamspace, derive the scope
+       the session already exposes a private workspace, derive the scope
        from it via the pure helper :func:`require_private_team_id`.
     2. Otherwise, fall back to reading credentials directly from disk via
        :func:`read_queue_scope_from_credentials`, which is a pure TOML
@@ -490,7 +490,7 @@ def _read_scope_identity_local_only() -> tuple[str, str] | None:
         # ``require_private_team_id`` is a pure function (no I/O, no
         # mutation) — see specify_cli.auth.session. It returns ``None``
         # without attempting any rehydrate when the in-memory session
-        # has no Private Teamspace, which is exactly the read-only
+        # has no private workspace, which is exactly the read-only
         # behaviour the preflight contract requires.
         team_id = require_private_team_id(session)
         if team_id is not None:
@@ -518,7 +518,7 @@ def _resolve_queue_db_path_readonly() -> Path:
     Additionally, ``read_queue_scope_from_session`` (which the prior
     cycle-2 fix used) can transitively reach
     ``TokenManager.rehydrate_membership_if_needed()`` → ``GET /api/v1/me``
-    when the in-memory session lacks a Private Teamspace, which would be a
+    when the in-memory session lacks a private workspace, which would be a
     SaaS round-trip from inside the preflight. Cycle-3 routes through
     :func:`_read_queue_scope_local_only` instead — strictly on-disk /
     in-memory reads, no SaaS.
@@ -568,7 +568,7 @@ def collect_foreground_identity(repo_root: Path) -> ForegroundIdentity:
     # through ``resolve_private_team_id_for_ingress`` →
     # ``TokenManager.rehydrate_membership_if_needed`` which can issue a
     # ``GET /api/v1/me`` HTTP request when the in-memory session lacks a
-    # Private Teamspace. The preflight contract forbids any SaaS
+    # private workspace. The preflight contract forbids any SaaS
     # round-trip. We use :func:`_read_queue_scope_local_only` instead —
     # strictly on-disk + pure-function reads.
     from specify_cli.sync.daemon import _get_package_version

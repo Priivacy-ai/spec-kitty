@@ -54,7 +54,7 @@ def _make_corrupt_mission(parent: Path, slug: str = "corrupt-mission") -> Path:
 
 
 def _make_legacy_mission(parent: Path, slug: str = "legacy-mission") -> Path:
-    """Create a mission directory with a TeamSpace-blocking legacy warning."""
+    """Create a mission directory with a Team Kitty-blocking legacy warning."""
     mission_dir = parent / slug
     mission_dir.mkdir(parents=True, exist_ok=True)
     (mission_dir / "meta.json").write_text(

@@ -521,7 +521,7 @@ into the Migration group; that is deferred.)
 ```yaml
 - name: Migrating from 2.x / Early 3.x
   href: from-charter-2x.md
-- name: TeamSpace Mission-State Repair
+- name: Team Kitty Mission-State Repair
   href: teamspace-mission-state-repair.md
 - name: Migrating Shared Doctrine to the Org Layer
   href: doctrine-local-overlay-to-org-layer.md
@@ -548,9 +548,9 @@ into the Migration group; that is deferred.)
   href: retrospective-events-upstream.md
 - name: Shared-Package Boundary Cutover
   href: shared-package-boundary-cutover.md
-- name: TeamSpace Mission-State 920 Closeout
+- name: Team Kitty Mission-State 920 Closeout
   href: teamspace-mission-state-920-closeout.md
-- name: TeamSpace Mission-State Repair
+- name: Team Kitty Mission-State Repair
   href: teamspace-mission-state-repair.md
 ```
 
@@ -559,7 +559,7 @@ into the Migration group; that is deferred.)
 ```diff
  - name: Migrating from 2.x / Early 3.x
    href: from-charter-2x.md
--- name: TeamSpace Mission-State Repair
+-- name: Team Kitty Mission-State Repair
 -  href: teamspace-mission-state-repair.md
 +- name: Charter Ownership Consolidation
 +  href: charter-ownership-consolidation.md
@@ -577,9 +577,9 @@ into the Migration group; that is deferred.)
 +  href: retrospective-events-upstream.md
 +- name: Shared-Package Boundary Cutover
 +  href: shared-package-boundary-cutover.md
-+- name: TeamSpace Mission-State 920 Closeout
++- name: Team Kitty Mission-State 920 Closeout
 +  href: teamspace-mission-state-920-closeout.md
-+- name: TeamSpace Mission-State Repair
++- name: Team Kitty Mission-State Repair
 +  href: teamspace-mission-state-repair.md
 ```
 

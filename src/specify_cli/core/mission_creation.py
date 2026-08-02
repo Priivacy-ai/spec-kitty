@@ -510,7 +510,7 @@ def create_mission_core(
     # 8. Event emission
     #
     # Local canonical persistence MUST happen before any SaaS fan-out so
-    # downstream dashboards and TeamSpace can replay a mission's full
+    # downstream dashboards and Team Kitty can replay a mission's full
     # history even when SaaS sync is offline (issue #1067).
     # ------------------------------------------------------------------
     try:
@@ -542,12 +542,12 @@ def create_mission_core(
 
     # Mission creation immediately scaffolds ``spec.md`` and opens
     # the specify phase. Record ``SpecifyStarted`` against the canonical
-    # local log so that TeamSpace replay can show "currently specifying"
+    # local log so that Team Kitty replay can show "currently specifying"
     # before the agent commits substantive spec content (which is where
     # ``setup-plan`` later emits ``SpecifyCompleted``). Without this event
     # the canonical lifecycle stream skips straight from ``MissionCreated``
     # to ``SpecifyCompleted``, leaving the specify-phase entry point
-    # invisible to dashboards and TeamSpace — see issue #1067.
+    # invisible to dashboards and Team Kitty — see issue #1067.
     try:
         from specify_cli.status import (
             SPECIFY_STARTED,

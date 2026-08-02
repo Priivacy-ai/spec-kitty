@@ -70,7 +70,7 @@ def probe_auth_status(
         if authenticated:
             return (AuthStatus.AUTHENTICATED, None)
 
-        # Step 2: logged-out — does the repo show a connected Teamspace?
+        # Step 2: logged-out — does the repo show a connected Team Kitty workspace?
         from specify_cli.cli.commands._auth_recovery import (  # noqa: PLC0415 — lazy
             detect_logged_out_with_connected_teamspace,
         )

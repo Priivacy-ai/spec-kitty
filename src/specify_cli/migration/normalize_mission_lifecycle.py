@@ -2,7 +2,7 @@
 
 The goal is not to rewrite historical repositories into a perfect new layout.
 It is to make old missions coherent enough that lifecycle derivation and
-Teamspace-facing projections can reason about them consistently.
+Team Kitty-facing projections can reason about them consistently.
 """
 
 from __future__ import annotations

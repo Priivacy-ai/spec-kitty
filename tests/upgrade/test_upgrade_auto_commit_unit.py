@@ -882,7 +882,7 @@ def test_upgrade_no_migrations_surfaces_teamspace_mission_state_prompt(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    """A normal upgrade run checks TeamSpace mission-state readiness even when up to date."""
+    """A normal upgrade run checks Team Kitty mission-state readiness even when up to date."""
     project_path = _setup_upgrade_project(tmp_path)
     monkeypatch.setattr(Path, "cwd", lambda: project_path)
     monkeypatch.setattr(autocommit, "git_status_paths", lambda _rp: set())

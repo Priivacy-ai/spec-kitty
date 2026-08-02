@@ -97,7 +97,7 @@ class MissionFinding:
 
 
 def is_teamspace_blocker(finding: MissionFinding) -> bool:
-    """Return True when a finding should block TeamSpace import/sync readiness."""
+    """Return True when a finding should block Team Kitty import/sync readiness."""
     return finding.severity == Severity.ERROR or finding.code in TEAMSPACE_BLOCKER_CODES
 
 
@@ -125,7 +125,7 @@ class MissionAuditResult:
 
     @property
     def has_teamspace_blockers(self) -> bool:
-        """True if any finding blocks TeamSpace import/sync readiness."""
+        """True if any finding blocks Team Kitty import/sync readiness."""
         return any(is_teamspace_blocker(f) for f in self.findings)
 
     @property

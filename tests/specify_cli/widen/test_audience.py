@@ -209,7 +209,7 @@ class TestRunAudienceReview:
         assert result is None
         assert "Note:" in output
         assert "Eve Newcomer" in output
-        assert "missing Teamspace user IDs" in output
+        assert "missing Team Kitty member IDs" in output
 
     def test_cancel_keyword_returns_none(self) -> None:
         result, _ = self._run("cancel")

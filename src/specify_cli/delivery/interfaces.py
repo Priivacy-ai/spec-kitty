@@ -156,7 +156,7 @@ class DeliveryReceiver(Protocol):
     """One dispatch contract per delivery-target type (**WP06**, contract §4).
 
     Mirrors the contract §4 column semantics (endpoint, auth, gates, per-event
-    result mapping, retry). Teamspace, external-receiver, and stub all implement
+    result mapping, retry). Team Kitty, external-receiver, and stub all implement
     this single contract so the dispatcher carries no target-specific branches.
     """
 

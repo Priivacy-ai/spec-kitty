@@ -1,4 +1,4 @@
-"""Canonical mission lifecycle derivation for local and Teamspace-facing surfaces.
+"""Canonical mission lifecycle derivation for local and Team Kitty-facing surfaces.
 
 This module intentionally sits above the WP lane model.  It translates
 authoritative mission status snapshots into a small set of product-facing

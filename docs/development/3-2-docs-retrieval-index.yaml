@@ -1439,7 +1439,7 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "related", text: "Related", level: 2}
   - path: "docs/adr/3.x/2026-04-21-1-private-teamspace-and-repository-sharing-boundary.md"
-    title: "Private Teamspace and Repository Sharing Boundary"
+    title: "private workspace and Repository Sharing Boundary"
     divio_type: "none"
     abstract: "Spec Kitty's collaboration model needs a stronger trust boundary than the current \"team sees whatever has synced\" behavior."
     anchors:
@@ -1560,7 +1560,7 @@ pages:
   - path: "docs/adr/3.x/2026-05-10-1-deterministic-historical-mission-state-repair.md"
     title: "ADR 1 (2026-05-10): Deterministic Historical Mission-State Repair Identity"
     divio_type: "none"
-    abstract: "Historical `kitty-specs/` directories may predate `mission_id`. TeamSpace import requires stable mission identity, but public migration must be safe in distributed Git: two clones of the same historical repository must produce the same repaired artifacts without consulting a server, a clock, or randomness."
+    abstract: "Historical `kitty-specs/` directories may predate `mission_id`. Team Kitty import requires stable mission identity, but public migration must be safe in distributed Git: two clones of the same historical repository must produce the same repaired artifacts without consulting a server, a clock, or randomness."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -4107,7 +4107,7 @@ pages:
   - path: "docs/architecture/launch-readiness-future.md"
     title: "Launch-Readiness Behavior (Coming Soon)"
     divio_type: "explanation"
-    abstract: "Pre-launch design intent for Teamspace: how hosted-readiness defaults flip from opt-in to on, and the launch-coordinator playbook. None of it is in effect today."
+    abstract: "Pre-launch design intent for Team Kitty: how hosted-readiness defaults flip from opt-in to on, and the launch-coordinator playbook. None of it is in effect today."
     anchors:
     - {slug: "why-this-doc-exists", text: "Why this doc exists", level: 2}
     - {slug: "what-changes-at-launch", text: "What changes at launch", level: 2}
@@ -7597,17 +7597,17 @@ pages:
     - {slug: "why-this-happened", text: "Why this happened", level: 2}
     - {slug: "supersedes", text: "Supersedes", level: 2}
   - path: "docs/migrations/teamspace-mission-state-920-closeout.md"
-    title: "TeamSpace Mission-State 920 Closeout Evidence"
+    title: "Team Kitty Mission-State 920 Closeout Evidence"
     divio_type: "none"
-    abstract: "Closeout evidence for TeamSpace mission-state issue #920, generated from a clean workspace: the artifacts proving the mission-state repair landed correctly."
+    abstract: "Closeout evidence for Team Kitty mission-state issue #920, generated from a clean workspace: the artifacts proving the mission-state repair landed correctly."
     anchors:
     - {slug: "current-conclusion", text: "Current conclusion", level: 2}
     - {slug: "evidence-by-issue", text: "Evidence by issue", level: 2}
     - {slug: "verification-run", text: "Verification run", level: 2}
   - path: "docs/migrations/teamspace-mission-state-repair.md"
-    title: "TeamSpace Mission-State Repair"
+    title: "Team Kitty Mission-State Repair"
     divio_type: "none"
-    abstract: "How Spec Kitty deterministically repairs historical kitty-specs/ mission state before a repository connects to TeamSpace, starting with the audit-first run."
+    abstract: "How Spec Kitty deterministically repairs historical kitty-specs/ mission state before a repository connects to Team Kitty, starting with the audit-first run."
     anchors:
     - {slug: "distributed-git-safety", text: "Distributed Git Safety", level: 2}
     - {slug: "what-the-repair-canonicalizes", text: "What The Repair Canonicalizes", level: 2}

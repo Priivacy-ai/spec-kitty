@@ -870,8 +870,8 @@ class EventEmitter:
     def _current_team_slug() -> str | None:
         """Resolve the ingress team slug via the strict shared helper. SYNC.
 
-        Returns the user's Private Teamspace id, or ``None`` when no Private
-        Teamspace is available. On ``None`` the shared helper has already
+        Returns the user's private workspace id, or ``None`` when no private
+        workspace is available. On ``None`` the shared helper has already
         emitted the structured warning and emission of any event that
         requires an ingress team-id MUST be skipped.
         """
@@ -1300,7 +1300,7 @@ class EventEmitter:
 
         The payload follows spec-kitty-events ``MissionClosedPayload`` exactly.
         Historical close details such as ``total_wps`` and close timestamps are
-        intentionally not emitted in the TeamSpace payload.
+        intentionally not emitted in the Team Kitty payload.
         """
         from spec_kitty_events.lifecycle import MissionClosedPayload
 
@@ -1872,7 +1872,7 @@ class EventEmitter:
     #                     project** has not consented to hosted sync (#3030 M1-1;
     #                     it used to mean "the checkout cwd happens to be in").
     # ``"no_auth"``       no authenticated session; drain cannot ship.
-    # ``"no_team"``       authenticated but the strict Private Teamspace
+    # ``"no_team"``       authenticated but the strict private workspace
     #                     resolver returned None (ingress safety).
     #
     # The flag is captured at emit time as a diagnostic. The drain loop
@@ -2061,7 +2061,7 @@ class EventEmitter:
     ) -> None:
         """Capture-first durable write to the producer-scoped event journal.
 
-        Runs before every delivery gate so a Teamspace-bound fact survives even
+        Runs before every delivery gate so a Team Kitty-bound fact survives even
         when all gates block (FR-017, contract §2; SC-009). Producer-scoped,
         never server-scoped (FR-003). A journal I/O error is warned but never
         propagated — capture-first must not make emission fail.
@@ -2166,7 +2166,7 @@ class EventEmitter:
 
             # Resolve identity, team_slug (may be None), and git metadata.
             # When the global SaaS feature flag is disabled, avoid even
-            # touching the direct-ingress Teamspace resolver; feature-disabled
+            # touching the direct-ingress Team Kitty resolver; feature-disabled
             # runs should not emit feature-specific warnings.
             identity = self._get_identity()
             team_slug = self._get_team_slug() if is_saas_sync_enabled() else None
@@ -2213,7 +2213,7 @@ class EventEmitter:
                 event.update(envelope_fields)
 
             # Capture-first (FR-017, contract §2; SC-009): durably record the
-            # Teamspace-bound fact in the producer-scoped event journal BEFORE
+            # Team Kitty-bound fact in the producer-scoped event journal BEFORE
             # any delivery gate (validation, contract gate, project routing,
             # WebSocket, drain) can decide whether to ship it.
             #
@@ -2271,8 +2271,8 @@ class EventEmitter:
     def _get_team_slug(self) -> str | None:
         """Get team_slug from the active TokenManager session.
 
-        Returns the user's Private Teamspace id, or ``None`` when no Private
-        Teamspace is available for direct ingress (FR-002/FR-007 of the
+        Returns the user's private workspace id, or ``None`` when no private
+        workspace is available for direct ingress (FR-002/FR-007 of the
         private-teamspace-ingress-safeguards mission). On ``None`` the
         caller MUST skip event emission rather than fall back to a shared
         or ``"local"`` team value.
@@ -2287,7 +2287,7 @@ class EventEmitter:
 
     @staticmethod
     def _get_cached_private_team_slug() -> str | None:
-        """Read Private Teamspace id from cached auth session without ingress I/O."""
+        """Read private workspace id from cached auth session without ingress I/O."""
         try:
             from specify_cli.auth import get_token_manager
             from specify_cli.auth.session import require_private_team_id

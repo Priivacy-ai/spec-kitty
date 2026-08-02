@@ -273,7 +273,7 @@ class TestInstallSharedRootAgent:
         upsun_body = (
             "---\n"
             f"name: {RETIRED_UPSUN_SKILL}\n"
-            "description: Point a local Spec Kitty CLI at Spec Kitty SaaS on Upsun.\n"
+            "description: Point a local Spec Kitty CLI at Team Kitty on Upsun.\n"
             "---\n"
             "# Upsun CLI sync\n\nInternal kittyfooding helper.\n"
         )

@@ -9,9 +9,9 @@ never by call order:
   *journals* rows on disk but *never posts*; the retained events become drainable
   once a delivery mode is selected later (US2 acceptance scenario 2).
 * ``EXTERNAL_RECEIVER``  — same resolution branch as the localhost stub; a delivery
-  records ledger state with **no** Teamspace credentials present (SC-005, US3).
+  records ledger state with **no** Team Kitty credentials present (SC-005, US3).
 * ``OPT_OUT``/``TRASH``  — local-only families neither journal nor post; a
-  Teamspace-bound discard is **refused or audit-recorded** through a durable
+  Team Kitty-bound discard is **refused or audit-recorded** through a durable
   source, never silently dropped (C-008); unknown families fail closed.
 """
 from __future__ import annotations
@@ -159,7 +159,7 @@ def test_axes_are_independent_local_retention_vs_opt_out() -> None:
 
 def test_config_carries_no_teamspace_target_url() -> None:
     # The config models policy, not target authority (FR-016/C-007): it has no
-    # Teamspace server-URL field at all.
+    # Team Kitty server-URL field at all.
     field_names = set(EventSyncConfig.__dataclass_fields__)
     assert "resolved_server_url" not in field_names
     assert "server_url" not in field_names
@@ -267,7 +267,7 @@ def test_external_receiver_records_ledger_without_teamspace_credentials() -> Non
 
     assert policy.retain is True
     assert policy.receiver is stub
-    # No Teamspace credentials leak into the external/stub path (SC-005 hygiene).
+    # No Team Kitty credentials leak into the external/stub path (SC-005 hygiene).
     assert policy.receiver.auth_headers() == {}
 
     ledger = _make_ledger()
@@ -340,7 +340,7 @@ def test_opt_out_explicitly_discardable_family_is_allowed() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# US2 acceptance scenario 5 — Teamspace-bound discard is never silent (C-008)
+# US2 acceptance scenario 5 — Team Kitty-bound discard is never silent (C-008)
 # --------------------------------------------------------------------------- #
 
 
@@ -351,7 +351,7 @@ def test_teamspace_bound_discard_is_refused_without_durable_sink() -> None:
     assert decision.kind is DiscardDecisionKind.REFUSED
     assert decision.refused is True
     assert decision.dropped is False  # NOT silently dropped
-    assert "teamspace" in decision.reason.lower()
+    assert "team kitty" in decision.reason.lower()
     assert decision.reason.strip()  # human-readable, audit-visible reason
 
 
@@ -374,7 +374,7 @@ def test_teamspace_bound_discard_is_audit_recorded_to_durable_source(tmp_path: P
 
 
 def test_unknown_family_fails_closed_non_discardable() -> None:
-    # Fail-closed: an unclassified family is treated as potentially Teamspace-bound.
+    # Fail-closed: an unclassified family is treated as potentially Team Kitty-bound.
     decision = discard_decision("mystery", classification=FamilyClassification.UNKNOWN)
     assert decision.kind is DiscardDecisionKind.REFUSED
     assert decision.dropped is False

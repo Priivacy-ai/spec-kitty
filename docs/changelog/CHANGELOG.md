@@ -1473,7 +1473,7 @@ speed up how fast we catch one.
   (the runtime-hygiene migrations previously only knew a hardcoded subset of
   entries). The six meaningful accept checks still gate.
 - **Mission-state repair no longer empties `status.events.jsonl` of a healthy
-  mission (#2376).** The repair (run by `spec-kitty upgrade` via the TeamSpace
+  mission (#2376).** The repair (run by `spec-kitty upgrade` via the Team Kitty
   mission-state gate, and by `doctor mission-state --fix`) quarantined _every_
   `event_type` row except retrospective ones — including the canonical lifecycle
   events (`MissionCreated`, `SpecifyStarted`, `WPCreated`, …) that
@@ -2925,7 +2925,7 @@ Ships the Phase 4 canary unblock work landed via PR `#1180`:
   `src/specify_cli/audit/shape_registry.py` to accept all four canonical
   aggregate types (`Project`, `Mission`, `WorkPackage`, `MissionDossier`)
   rather than `Mission` alone. Fresh missions no longer trip the
-  `FORBIDDEN_KEY` TeamSpace gate when `sync now` runs.
+  `FORBIDDEN_KEY` Team Kitty gate when `sync now` runs.
 - Closes `#1141`: adds a diagnostic breadcrumb at `fire_saas_fanout` entry in
   `src/specify_cli/status/adapters.py` plus regression coverage that the
   backward `in_review → planned` rollback reaches fanout with the expected
@@ -2979,7 +2979,7 @@ Ships a focused sync-boundary hotfix for pipx-style CLI installs:
 
 ## [3.2.0rc12] - 2026-05-18
 
-Ships the MVP CLI sync-boundary preflight surface required by the Teamspace
+Ships the MVP CLI sync-boundary preflight surface required by the Team Kitty
 auth-boundary hardening launch gate:
 
 - Includes `#1115`: `specify_cli.sync.owner` daemon owner record with
@@ -3009,7 +3009,7 @@ surface:
 
 ## [3.2.0rc10] - 2026-05-17
 
-Rolls forward `3.2.0rc9` (never tagged) and adds the Teamspace MVP
+Rolls forward `3.2.0rc9` (never tagged) and adds the Team Kitty MVP
 canonical-lifecycle / sync-daemon launch-gate followups:
 
 - **#1067 follow-up.** `core/mission_creation.py:create_mission_core`
@@ -3018,7 +3018,7 @@ canonical-lifecycle / sync-daemon launch-gate followups:
   artifact path. Previously the constant was defined but never emitted,
   so the canonical lifecycle stream skipped straight from
   `MissionCreated` to `SpecifyCompleted` at setup-plan time — leaving
-  TeamSpace replay and the local dashboard blind to in-progress
+  Team Kitty replay and the local dashboard blind to in-progress
   specifying. Regression coverage in
   `tests/specify_cli/core/test_mission_creation_specify_started.py`.
 - **#1071 follow-up.** `sync status --check` and `sync doctor` now
@@ -3179,7 +3179,7 @@ Sonar restoration (#825) is the only remaining operator-action gate.
 
 ## [3.2.0rc8] - 2026-05-14
 
-3.2.0rc8 rolls up the post-rc7 TeamSpace launch fixes and compatibility
+3.2.0rc8 rolls up the post-rc7 Team Kitty launch fixes and compatibility
 cleanup needed before the final 3.2.0 cut. It includes defensive sync batching
 for real edge-proxy limits, the Mission Dossier event-envelope migration for
 `spec-kitty-events>=5.0.0`, and the small compatibility/quality fixes that
@@ -3189,7 +3189,7 @@ landed after rc7.
 
 - Reduced the CLI's default sync batch decompressed byte budget to 256 KiB and
   added a 512 KiB hard ceiling for over-generous server-advertised limits, so
-  large TeamSpace queue drains split into safe requests instead of relying on
+  large Team Kitty queue drains split into safe requests instead of relying on
   HTTP 413 retry shrinkage.
 - Migrated all four Mission Dossier event emitters to the namespaced envelope
   required by `spec-kitty-events>=5.0.0`, including `namespace`,
@@ -3204,7 +3204,7 @@ landed after rc7.
 - Restored agent profile list compatibility after the rc7 candidate.
 - Reduced SonarCloud noise in path helper and charter synthesizer code without
   changing runtime behavior.
-- Fixed the deployed-dev TeamSpace sync canary failure where a 1200-event
+- Fixed the deployed-dev Team Kitty sync canary failure where a 1200-event
   backlog could cascade into 1000 HTTP 413 failures.
 - Fixed SaaS ingestion rejection of CLI-emitted Mission Dossier artifact events
   caused by the old flat payload shape being rejected with
@@ -3262,31 +3262,31 @@ new-code gate cleanup, and CI portability fixes folded in.
 
 ## [3.2.0rc6] - 2026-05-11
 
-3.2.0rc6 includes the post-rc5 TeamSpace migration enforcement and dry-run
-compatibility fixes needed before publishing the next TeamSpace-ready CLI
+3.2.0rc6 includes the post-rc5 Team Kitty migration enforcement and dry-run
+compatibility fixes needed before publishing the next Team Kitty-ready CLI
 candidate.
 
 ### Changed
 
-- Surface pending TeamSpace mission-state migration during `spec-kitty upgrade`
-  and require a clean migration before hosted TeamSpace connection flows.
+- Surface pending Team Kitty mission-state migration during `spec-kitty upgrade`
+  and require a clean migration before hosted Team Kitty connection flows.
 - Allow the release compatibility gate to prove SaaS-supported dependency
   versions when the candidate CLI declares a compatible range instead of an
   exact pin.
 
 ### Fixed
 
-- Render user-friendly TeamSpace migration gate failures when mission-state
+- Render user-friendly Team Kitty migration gate failures when mission-state
   repair raises unexpected payload or filesystem errors.
 - Preserve SaaS-disabled sync opt-in behavior while still enforcing
   mission-state readiness for hosted sync paths.
-- Synthesize historical approval evidence during TeamSpace dry-run conversion
+- Synthesize historical approval evidence during Team Kitty dry-run conversion
   so approved/done mission-state rows can validate against the canonical event
   contract.
 
 ## [3.2.0rc5] - 2026-05-11
 
-3.2.0rc5 closes the remaining CLI-side TeamSpace migration readiness gaps found
+3.2.0rc5 closes the remaining CLI-side Team Kitty migration readiness gaps found
 while rechecking the historical mission-state migration parent issue.
 
 ### Changed
@@ -3296,30 +3296,30 @@ while rechecking the historical mission-state migration parent issue.
 
 ### Fixed
 
-- Block TeamSpace dry-run/import envelope synthesis when audit findings still
-  contain TeamSpace blockers, so legacy mission-state rows cannot bypass the
+- Block Team Kitty dry-run/import envelope synthesis when audit findings still
+  contain Team Kitty blockers, so legacy mission-state rows cannot bypass the
   readiness audit.
 - Reject historical mission-state sync batches with legacy status fields before
   network submission, preserving the local queue and returning remediation.
 
 ## [3.2.0rc4] - 2026-05-11
 
-3.2.0rc4 tightens the TeamSpace release candidate against the published
+3.2.0rc4 tightens the Team Kitty release candidate against the published
 `spec-kitty-events` 5.0.0 contract and includes the latest migration rehearsal
 diagnostics.
 
 ### Changed
 
 - Tightened the CLI `spec-kitty-events` dependency to `>=5.0.0,<6.0.0` now
-  that the 5.0.0 TeamSpace canonical event contract is published to PyPI
+  that the 5.0.0 Team Kitty canonical event contract is published to PyPI
   (#978).
-- Included the TeamSpace dry-run row mapping diagnostics merged after rc3 so
-  migration rehearsals can trace source rows to synthesized TeamSpace envelopes
+- Included the Team Kitty dry-run row mapping diagnostics merged after rc3 so
+  migration rehearsals can trace source rows to synthesized Team Kitty envelopes
   (#1014).
 
 ## [3.2.0rc3] - 2026-05-06
 
-3.2.0rc3 fixes a TeamSpace dry-run compatibility gap found during the
+3.2.0rc3 fixes a Team Kitty dry-run compatibility gap found during the
 historical mission-state migration rehearsal.
 
 ### Fixed
@@ -3331,9 +3331,9 @@ historical mission-state migration rehearsal.
 
 ## [3.2.0rc2] - 2026-05-05
 
-3.2.0rc2 adds the TeamSpace mission-state repair and validation surface needed
-before public TeamSpace import. The repair command is available now; the
-TeamSpace dry-run path requires `spec-kitty-events>=5.0.0` once that contract
+3.2.0rc2 adds the Team Kitty mission-state repair and validation surface needed
+before public Team Kitty import. The repair command is available now; the
+Team Kitty dry-run path requires `spec-kitty-events>=5.0.0` once that contract
 package is published.
 
 ### Added
@@ -3343,23 +3343,23 @@ package is published.
   key cleanup, typed-row quarantine, lane normalization, and production
   `status.json` rematerialization (#980).
 - Added `doctor mission-state --teamspace-dry-run` to synthesize canonical
-  TeamSpace envelopes in memory and validate them with the 5.0.0 event contract
+  Team Kitty envelopes in memory and validate them with the 5.0.0 event contract
   when available (#980).
 - Documented the distributed Git repair workflow for coordinated repository
-  migration before TeamSpace launch (#980).
+  migration before Team Kitty launch (#980).
 - Added `doctor mission-state --include-fixtures` and the packaged
-  mission-state survey fixture pack used by the TeamSpace readiness audit
+  mission-state survey fixture pack used by the Team Kitty readiness audit
   contract (#920, #922, #929).
-- Added an opt-in `TeamSpace Mission-State Readiness` GitHub Actions workflow
+- Added an opt-in `Team Kitty Mission-State Readiness` GitHub Actions workflow
   that runs `doctor mission-state --audit --fail-on teamspace-blocker` and
   uploads the JSON audit artifact (#920, #934).
 
 ### Changed
 
 - Aligned CLI sync emission for `WPStatusChanged` and `MissionClosed` with the
-  canonical TeamSpace event payload shape while keeping launch dry-run gated on
+  canonical Team Kitty event payload shape while keeping launch dry-run gated on
   the published events contract (#980).
-- `doctor mission-state --audit` JSON reports now expose TeamSpace blocker
+- `doctor mission-state --audit` JSON reports now expose Team Kitty blocker
   counts, and `--fail-on teamspace-blocker` gates import/sync readiness
   without requiring network access (#920, #934).
 
@@ -3472,26 +3472,26 @@ release-blocker triage.
 ## [3.2.0a8] - 2026-05-01
 
 3.2.0a8 is a prerelease that hardens direct SaaS sync ingress around the
-Private Teamspace boundary. CLI sync side effects now resolve a canonical
-Private Teamspace target, rehydrate session membership once when needed, and
+private workspace boundary. CLI sync side effects now resolve a canonical
+private workspace target, rehydrate session membership once when needed, and
 skip direct ingress with a diagnostic instead of falling back to a shared team.
 
 ### Fixed
 
 - Direct sync ingress for `/api/v1/events/batch/` and `/api/v1/ws-token` now
-  uses a strict Private Teamspace resolver and refuses shared-team fallbacks
+  uses a strict private workspace resolver and refuses shared-team fallbacks
   from stale `default_team_id`, `teams[0]`, or websocket state (#943).
 - Auth refresh and session rehydration now update team membership from
   `/api/v1/me`, recomputing `default_team_id` from the refreshed private team
   list instead of preserving stale shared defaults (#943).
 - `--json` command stdout remains parseable when SaaS sync cannot connect or
-  cannot resolve a Private Teamspace; sync diagnostics route to stderr or
+  cannot resolve a private workspace; sync diagnostics route to stderr or
   structured logs rather than contaminating stdout (#943).
 
 ### Internal
 
 - Added strict resolver, sync call-site, websocket, offline queue, and
-  strict-JSON regression coverage for the Private Teamspace ingress boundary.
+  strict-JSON regression coverage for the private workspace ingress boundary.
 - Added mission review evidence for
   `private-teamspace-ingress-safeguards-01KQH03Y`.
 

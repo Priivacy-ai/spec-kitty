@@ -261,7 +261,7 @@ class TestDetectForbiddenKeysRowFamily:
         This is the regression-guard half of the contract: malformed
         pre-migration rows that carry ``event_type`` without the lifecycle
         aggregate marker must still surface as ``FORBIDDEN_KEY`` findings,
-        otherwise the TeamSpace blocker rule loses its teeth.
+        otherwise the Team Kitty blocker rule loses its teeth.
         """
         row: dict[str, object] = {"event_type": "Foo"}
         findings = detect_forbidden_keys(row, "status.events.jsonl")
@@ -335,7 +335,7 @@ class TestDetectForbiddenKeysRowFamily:
         """Issue #1142: ``WorkPackage`` lifecycle rows skip the FORBIDDEN_KEYS rule.
 
         Pre-fix the audit raised ``FORBIDDEN_KEY`` against this legitimate row
-        shape, blocking the canary's scenarios 1 + 2 with a TeamSpace gate.
+        shape, blocking the canary's scenarios 1 + 2 with a Team Kitty gate.
         """
         row: dict[str, object] = {
             "aggregate_type": "WorkPackage",

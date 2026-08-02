@@ -32,7 +32,7 @@ from specify_cli.sync.history_import.upload import (
 
 
 class ImportAuditBlocked(RuntimeError):
-    """Raised when the fail-closed TeamSpace audit finds blocking findings.
+    """Raised when the fail-closed Team Kitty audit finds blocking findings.
 
     Carries the blocker records (each a dict with at least ``mission_slug`` and
     ``message``) so the caller can name them without re-running the audit.

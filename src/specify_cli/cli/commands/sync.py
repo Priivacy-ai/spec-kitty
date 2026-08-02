@@ -167,7 +167,7 @@ _DRAIN_BLOCKED_HELP = {
     "ready": "Ready to drain.",
     "sync_disabled": "SaaS sync disabled for this checkout — run `spec-kitty sync opt-in`.",
     "no_auth": "Not authenticated — run `spec-kitty auth login`.",
-    "no_team": "No Private Teamspace available — refresh membership in dashboard.",
+    "no_team": "No private workspace available — refresh membership in dashboard.",
 }
 
 
@@ -267,7 +267,7 @@ def _render_top_event_types(stats: QueueStats, target_console: Console) -> None:
 def _handle_sync_now_unauthenticated(strict: bool) -> None:
     """Route the unauthenticated/blocked ``sync now`` case through recovery.
 
-    Teamspace-aware recovery: TTY operators get an interactive prompt, CI gets a
+    Team Kitty-aware recovery: TTY operators get an interactive prompt, CI gets a
     structured stderr line + exit code 4. When no teamspace is detected
     (NO_TEAMSPACE / SKIPPED / QUIT) the behaviour is byte-identical to the legacy
     path — the operator message naming ``spec-kitty auth login`` is printed and
@@ -635,7 +635,7 @@ def _write_event_sync_config(mode: Mode, external_endpoint: str | None) -> None:
 
 
 def _event_sync_access_token() -> str:
-    """Best-effort Bearer token for the Teamspace receiver (empty when absent).
+    """Best-effort Bearer token for the Team Kitty receiver (empty when absent).
 
     The dispatcher never POSTs an empty selection, so an absent token degrades
     safely to no delivery rather than an error.
@@ -668,7 +668,7 @@ def _resolve_active_receiver(
     """Resolve the WP06 receiver for the active mode via WP09 (or ``None``).
 
     Mode→receiver resolution is owned by ``EventSyncConfig.resolve``; the CLI
-    only supplies the Teamspace Bearer token to the default factory.
+    only supplies the Team Kitty Bearer token to the default factory.
     """
     from specify_cli.delivery.config import DefaultReceiverFactory
 
@@ -947,7 +947,7 @@ def _empty_selection_cause(report: PerProjectStoreReport) -> str:
     That last branch is deliberately the weakest claim. Distinguishing "already
     delivered" from "terminally drain-blocked" needs ledger state the report does not
     carry, so it names both possibilities instead of asserting one. Guessing here
-    would recreate exactly the wrong-and-actionable diagnosis the no-Private-Teamspace
+    would recreate exactly the wrong-and-actionable diagnosis the no-private-workspace
     message was: an operator told the wrong cause acts on the wrong thing.
 
     Sourced entirely from :func:`build_per_project_store_report` — the same grouping
@@ -1949,7 +1949,7 @@ def routes() -> None:
         raise typer.Exit(1)
 
     console.print()
-    console.print("[cyan]Spec Kitty Teamspace Routing[/cyan]")
+    console.print("[cyan]Team Kitty Workspace Routing[/cyan]")
     console.print()
 
     table = Table(show_header=False, box=None)
@@ -1989,7 +1989,7 @@ def routes() -> None:
 
     private_team_name = _private_team_name(session)
     if private_team_name:
-        table.add_row("Private Teamspace", private_team_name)
+        table.add_row("private workspace", private_team_name)
 
     console.print(table)
     console.print()
@@ -2044,7 +2044,7 @@ def routes() -> None:
 def share(
     team_slug: str = typer.Argument(..., help="Team slug to share this repository into."),
 ) -> None:
-    """Share the current repository from Private Teamspace into a team."""
+    """Share the current repository from private workspace into a team."""
     from specify_cli.sync.sharing_client import (
         RepositorySharingClientError,
         request_repository_share_sync,
@@ -2088,7 +2088,7 @@ def share(
                 _materialize_private_source_project()
             except Exception as materialize_error:
                 console.print(
-                    "[red]Error:[/red] Could not materialize this checkout in Private Teamspace: "
+                    "[red]Error:[/red] Could not materialize this checkout in private workspace: "
                     f"{materialize_error}"
                 )
                 raise typer.Exit(1) from materialize_error
@@ -2159,7 +2159,7 @@ def unshare(
         f"[green]✓[/green] Stopped sharing [cyan]{routing.repo_slug or routing.project_slug or routing.project_uuid}[/cyan] "
         f"to [cyan]{team_slug}[/cyan] from this developer."
     )
-    console.print("[dim]Private Teamspace data was kept intact.[/dim]")
+    console.print("[dim]private workspace data was kept intact.[/dim]")
 
 
 @app.command(name="opt-out")
@@ -2231,11 +2231,11 @@ def opt_out(
         return
 
     confirmed = yes or typer.confirm(
-        "Delete already-synced private Teamspace data for this checkout from SaaS?",
+        "Delete already-synced private workspace data for this checkout from SaaS?",
         default=False,
     )
     if not confirmed:
-        console.print("[dim]Kept private Teamspace data on SaaS.[/dim]")
+        console.print("[dim]Kept private workspace data on SaaS.[/dim]")
         return
 
     try:
@@ -2588,7 +2588,7 @@ def import_history(
 def _resolve_history_import_receiver(
     runtime: _EventSyncRuntime, *, token: str
 ) -> tuple[DeliveryReceiver, str]:
-    """Resolve one gated Teamspace authority for preflight and delivery.
+    """Resolve one gated Team Kitty authority for preflight and delivery.
 
     Fails closed on the operator's *persisted* event-sync mode (#2884 P1):
     import-history uploads a mission's full history, so it must honor
@@ -2661,7 +2661,7 @@ def _render_upload_report(report: UploadReport) -> bool:
 def _run_import_apply(mission: str | None) -> None:
     """The ``import-history --apply`` path: preflight + upload under the real UUID.
 
-    Resolves the authed Teamspace receiver (fail-closed when unauthenticated /
+    Resolves the authed Team Kitty receiver (fail-closed when unauthenticated /
     unconfigured), then delegates to ``apply_import`` which builds the plan with
     the real persisted project UUID, server-preflights the whole stream, and
     uploads it. The server dedups on ``event_id`` so a re-run is idempotent.
@@ -4683,7 +4683,7 @@ def mode(
     )
     if config.mode is Mode.OPT_OUT:
         console.print(
-            "[yellow]Note:[/yellow] OPT_OUT never silently drops Teamspace-bound "
+            "[yellow]Note:[/yellow] OPT_OUT never silently drops Team Kitty-bound "
             "events (C-008 fail-closed); such families are refused or audited at "
             "capture time."
         )
@@ -6049,7 +6049,7 @@ def doctor() -> None:  # noqa: C901
         console.print("[bold green]No issues detected. Sync is healthy.[/bold green]")
         console.print()
 
-    # --- 6. Teamspace-aware recovery (issue #829, Mission 7) ---
+    # --- 6. Team Kitty-aware recovery (issue #829, Mission 7) ---
     # If we surfaced an auth-missing or token-expired issue AND the repo was
     # previously connected to a teamspace, offer interactive recovery (TTY) or
     # emit a structured stderr line + exit 4 (CI). When no teamspace is

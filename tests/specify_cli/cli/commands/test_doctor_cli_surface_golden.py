@@ -337,11 +337,11 @@ EXPECTED_HELP: dict[str, list[str]] = {
     ],
     'mission-state': [
         'Usage: doctor mission-state [OPTIONS]',
-        'Audit, repair, or TeamSpace-validate mission-state shapes.',
+        'Audit, repair, or Team Kitty-validate mission-state shapes.',
         'Options',
         '--audit Run mission-state audit (required to proceed)',
         '--fix Repair mission-state artifacts in place and write a migration manifest',
-        '--teamspace-dry-run Synthesize canonical TeamSpace envelopes from local state and validate them',
+        '--teamspace-dry-run Synthesize canonical Team Kitty envelopes from local state and validate them',
         '--json Emit JSON report to stdout',
         '--mission TEXT Scope to a single mission handle',
         '--fail-on TEXT Exit 1 if findings meet a gate (error|warning|info|teamspace-blocker)',

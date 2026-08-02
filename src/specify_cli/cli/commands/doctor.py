@@ -1001,7 +1001,7 @@ def mission_state(
         bool,
         typer.Option(
             "--teamspace-dry-run",
-            help="Synthesize canonical TeamSpace envelopes from local state and validate them",
+            help="Synthesize canonical Team Kitty envelopes from local state and validate them",
         ),
     ] = False,
     json_output: Annotated[
@@ -1042,7 +1042,7 @@ def mission_state(
         typer.Option("--allow-dirty", help="Allow --fix when relevant git paths are already dirty"),
     ] = False,
 ) -> None:
-    """Audit, repair, or TeamSpace-validate mission-state shapes."""
+    """Audit, repair, or Team Kitty-validate mission-state shapes."""
     # Resolve the project root HERE, through the shim's ``locate_project_root``
     # binding — the patchable seam (#2059, mirrors the ``workspaces`` shell). A
     # ``None`` root is valid for a fixtures-only run, so it is forwarded as-is;

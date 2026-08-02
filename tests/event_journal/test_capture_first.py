@@ -1,7 +1,7 @@
 """Capture-first durability tests (WP03 / T016-T019, contract §2 + SC-009).
 
 Observable acceptance (NFR-001): with sync disabled or missing auth/team, a
-Teamspace-bound fact is durably journaled with a ``drain_blocked_reason`` and
+Team Kitty-bound fact is durably journaled with a ``drain_blocked_reason`` and
 no delivery is attempted. We assert the *result* (a row exists even though the
 gate blocked), never the internal call order.
 """

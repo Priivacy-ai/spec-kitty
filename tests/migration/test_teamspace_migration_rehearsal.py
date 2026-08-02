@@ -1,4 +1,4 @@
-"""Cross-repo TeamSpace mission-state migration rehearsal."""
+"""Cross-repo Team Kitty mission-state migration rehearsal."""
 
 from __future__ import annotations
 
@@ -160,7 +160,7 @@ def _find_forbidden_keys(value: Any) -> list[str]:
     return findings
 
 
-@pytest.mark.skipif(not _has_events_5(), reason="TeamSpace rehearsal requires spec-kitty-events >= 5.0.0")
+@pytest.mark.skipif(not _has_events_5(), reason="Team Kitty rehearsal requires spec-kitty-events >= 5.0.0")
 def test_teamspace_mission_state_rehearsal_is_deterministic_across_clones(tmp_path: Path) -> None:
     """Exercise the #932 launch rehearsal path on two cloned historical repos."""
     from spec_kitty_events import Event

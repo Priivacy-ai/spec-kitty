@@ -45,7 +45,7 @@ The cycle-2 fix in this file:
   team into an isolated ``HOME`` via the production
   ``FileFallbackStorage``. The sync layer then sees an authenticated
   session, calls ``resolve_private_team_id_for_ingress``, finds no
-  Private Teamspace, attempts a rehydrate against an unreachable SaaS
+  private workspace, attempts a rehydrate against an unreachable SaaS
   URL (``http://localhost:1``), fails, and emits ``direct ingress
   skipped`` to stderr via the module logger -- the exact path AC-006
   guards against leaking onto stdout.
@@ -255,7 +255,7 @@ def _seed_shared_only_session(auth_dir: pathlib.Path) -> None:
     The session deliberately has only a non-Private team so the
     ingress-resolver path inside the CLI:
 
-      1. finds no Private Teamspace via ``require_private_team_id``;
+      1. finds no private workspace via ``require_private_team_id``;
       2. attempts a rehydrate via
          ``TokenManager.rehydrate_membership_if_needed``;
       3. fails because ``SPEC_KITTY_SAAS_URL`` points at an unreachable

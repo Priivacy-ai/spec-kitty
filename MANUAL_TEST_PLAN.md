@@ -2,7 +2,7 @@
 
 **Date**: 2026-03-01
 **Scope**: Full ecosystem verification across all repositories
-**Goal**: Validate Beta/GA readiness for the Spec Kitty SaaS platform
+**Goal**: Validate Beta/GA readiness for the Team Kitty platform
 
 ---
 
@@ -10,7 +10,7 @@
 
 ### Accounts Required
 
-- [ ] Spec Kitty SaaS staging account (https://spec-kitty-dev.fly.dev)
+- [ ] Team Kitty staging account (https://spec-kitty-dev.fly.dev)
 - [ ] Jira Cloud test project with API token
 - [ ] Linear test workspace with API key
 - [ ] GitHub test repository with configured webhook

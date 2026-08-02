@@ -3,7 +3,7 @@
 Regression coverage for issue #1069: a mission whose
 ``status.events.jsonl`` contains nothing but forced ``planned -> planned``
 events cannot be merged, even when WP frontmatter or the dashboard
-looks done, because TeamSpace replay would silently collapse every WP
+looks done, because Team Kitty replay would silently collapse every WP
 back to planned.
 """
 

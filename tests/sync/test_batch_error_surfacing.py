@@ -791,12 +791,12 @@ class TestBatchSyncEventResults:
     def test_http_403_missing_private_team_preserves_direct_ingress_category(
         self, mock_post, small_queue
     ):
-        """Issue #889: direct-ingress missing Private Teamspace is not server_error."""
+        """Issue #889: direct-ingress missing private workspace is not server_error."""
         mock_response = Mock()
         mock_response.status_code = 403
         mock_response.json.return_value = {
             "category": CATEGORY_MISSING_PRIVATE_TEAM,
-            "message": "Private Teamspace is required for direct ingress.",
+            "message": "private workspace is required for direct ingress.",
         }
         mock_post.return_value = mock_response
 

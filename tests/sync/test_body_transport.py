@@ -147,7 +147,7 @@ class TestClassifyResponse:
             403,
             {
                 "category": "direct_ingress_missing_private_team",
-                "message": "Private Teamspace is required.",
+                "message": "private workspace is required.",
             },
         )
         outcome = _classify_response(task, resp)

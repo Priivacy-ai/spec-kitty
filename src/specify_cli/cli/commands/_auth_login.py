@@ -49,11 +49,11 @@ async def login_impl(*, headless: bool, force: bool) -> None:
             present. Defaults to False.
 
     Note:
-        Identity acquisition is intentionally decoupled from TeamSpace
-        mission-state readiness (DDD: Identity & Access vs TeamSpace
+        Identity acquisition is intentionally decoupled from Team Kitty
+        mission-state readiness (DDD: Identity & Access vs Team Kitty
         contexts). Sync / tracker / connect commands continue to call
         ``enforce_teamspace_mission_state_ready`` themselves — those are
-        the commands that actually depend on TeamSpace state.
+        the commands that actually depend on Team Kitty state.
     """
     try:
         saas_url = get_saas_base_url()
@@ -167,7 +167,7 @@ def _print_success(session: StoredSession) -> None:
             None,
         )
         if default_team:
-            suffix = " [Private Teamspace]" if default_team.is_private_teamspace else ""
+            suffix = " [private workspace]" if default_team.is_private_teamspace else ""
             console.print(f"  Default team: {default_team.name}{suffix}")
 
 

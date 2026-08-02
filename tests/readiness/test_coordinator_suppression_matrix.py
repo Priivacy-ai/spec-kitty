@@ -1,6 +1,6 @@
 """Suppression matrix tests for the readiness coordinator.
 
-Asserts FR-011 (no Teamspace leakage when hosted mode is disabled, across the
+Asserts FR-011 (no Team Kitty leakage when hosted mode is disabled, across the
 full suppression matrix) and FR-004 (output policy derivation).
 
 Mission: cli-startup-readiness-coordinator-skeleton-01KS7JRV
@@ -102,7 +102,7 @@ MATRIX_ROWS: list[MatrixRow] = [
         expected_policy=OutputPolicy.NON_INTERACTIVE,
         expected_enabled=False,
     ),
-    # Hosted-mode-enabled row: still no Teamspace leakage because the auth probe
+    # Hosted-mode-enabled row: still no Team Kitty leakage because the auth probe
     # is not exercised in this mission.
     MatrixRow(
         name="hosted_enabled_interactive",
@@ -152,7 +152,7 @@ def test_suppression_matrix_no_teamspace_leakage(
     monkeypatch.setattr(coord_module, "_invoke_nag", lambda ctx: None)
 
     # WS2 (issue #1094): the readiness auth probe now runs on the
-    # hosted-enabled path. Stub it to a Teamspace-free verdict so this
+    # hosted-enabled path. Stub it to a Team Kitty-free verdict so this
     # Wave 1 suppression matrix continues to assert the "no leakage"
     # invariant deterministically — independent of any local repo state.
     from specify_cli.readiness import auth as auth_module
@@ -197,11 +197,11 @@ def test_suppression_matrix_no_teamspace_leakage(
         ), f"row={row.name}: disabled rows expect DISABLED"
         assert result.ran is False
 
-    # Assert: no Teamspace leakage
+    # Assert: no Team Kitty leakage
     captured = capsys.readouterr()
     assert "teamspace" not in captured.out.lower(), (
-        f"row={row.name}: Teamspace leaked to stdout: {captured.out!r}"
+        f"row={row.name}: Team Kitty leaked to stdout: {captured.out!r}"
     )
     assert "teamspace" not in captured.err.lower(), (
-        f"row={row.name}: Teamspace leaked to stderr: {captured.err!r}"
+        f"row={row.name}: Team Kitty leaked to stderr: {captured.err!r}"
     )

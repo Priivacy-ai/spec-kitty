@@ -102,7 +102,7 @@ populated; `plans/investigations/`, `plans/doctrine/`, `plans/refactor/`, `plans
 
 | File | Current | Bucket | Proposed target | Rationale |
 |---|---|---|---|---|
-| `teamspace-mission-state-920-closeout.md` | `migrations/` | (c) | **`plans/engineering-notes/`** | "Closeout evidence for TeamSpace mission-state issue #920, generated from clean workspace `spec-kitty-20260510-…`." A dated mission closeout record, not a reusable migration runbook. **MISFILED (borderline** — carries a migration-note banner; verify it is not the sole runbook for that path before moving). |
+| `teamspace-mission-state-920-closeout.md` | `migrations/` | (c) | **`plans/engineering-notes/`** | "Closeout evidence for Team Kitty mission-state issue #920, generated from clean workspace `spec-kitty-20260510-…`." A dated mission closeout record, not a reusable migration runbook. **MISFILED (borderline** — carries a migration-note banner; verify it is not the sole runbook for that path before moving). |
 | `teamspace-mission-state-repair.md`, `2-1-main-cutover-checklist.md`, `06_migration_and_shim_rules.md` | `migrations/` | (a)/(b) | stays | Durable repair runbook / checklist / rules. `06_`-numbered file is an odd naming residue — normalize name, keep in place. **STAYS.** |
 
 **Verdict:** clean bar one closeout relocation.

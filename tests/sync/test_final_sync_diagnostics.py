@@ -144,7 +144,7 @@ def test_classify_server_auth_failure() -> None:
 
 
 def test_classify_direct_ingress_missing_private_team() -> None:
-    """A benign 'no Private Teamspace' ingress skip is NOT a server auth failure.
+    """A benign 'no private workspace' ingress skip is NOT a server auth failure.
 
     Regression for #2254: the catch-all previously misclassified this skip as
     ``sync.server_auth_failure``, which wrongly tells the operator to re-auth.
@@ -152,7 +152,7 @@ def test_classify_direct_ingress_missing_private_team() -> None:
     category, and must be classified before the auth/catch-all branches.
     """
     assert (
-        classify_sync_error("skipped: no Private Teamspace available for direct ingress")
+        classify_sync_error("skipped: no private workspace available for direct ingress")
         == SyncDiagnosticCode.DIRECT_INGRESS_MISSING_PRIVATE_TEAM
     )
     # Matches on the canonical signals regardless of surrounding prose.

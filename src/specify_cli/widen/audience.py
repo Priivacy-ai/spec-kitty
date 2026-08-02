@@ -115,7 +115,7 @@ def run_audience_review(
         console: Rich Console for rendering output and prompting.
 
     Returns:
-        Confirmed display names and Teamspace user IDs to pass to SaaS, or
+        Confirmed display names and Team Kitty member IDs to pass to SaaS, or
         ``None`` if the user canceled or a SaaS error occurred.
     """
     # --- T020: Fetch audience from SaaS with typed error handling ---
@@ -182,7 +182,7 @@ def run_audience_review(
 
     if missing_ids:
         console.print(
-            "[red]Widen failed:[/red] SaaS audience entries are missing Teamspace user IDs for "
+            "[red]Widen failed:[/red] SaaS audience entries are missing Team Kitty member IDs for "
             f"{', '.join(missing_ids)}."
         )
         console.print("Returning to interview prompt.")

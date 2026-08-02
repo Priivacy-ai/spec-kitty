@@ -88,7 +88,7 @@ def _print_rich_audit_report(report: object) -> None:
         f"Total missions: {summary['total_missions']} | "
         f"With errors: {summary['missions_with_errors']} | "
         f"With warnings: {summary['missions_with_warnings']} | "
-        f"TeamSpace blockers: {summary['teamspace_blockers']}"
+        f"Team Kitty blockers: {summary['teamspace_blockers']}"
     )
 
 
@@ -287,13 +287,13 @@ def _run_teamspace_dry_run_mode(
         report = cast(TeamspaceDryRunReport, r)
         if report.valid:
             console.print(
-                "[green]TeamSpace dry-run valid[/green] "
+                "[green]Team Kitty dry-run valid[/green] "
                 f"({report.envelope_count} envelopes, "
                 f"spec-kitty-events {report.events_package_version})."
             )
         else:
             console.print(
-                "[red]TeamSpace dry-run failed[/red] "
+                "[red]Team Kitty dry-run failed[/red] "
                 f"({len(report.errors)} validation errors)."
             )
 

@@ -73,7 +73,7 @@ def classify_sync_error(error_text: str) -> SyncDiagnosticCode:
     Fallback to SERVER_AUTH_FAILURE for unrecognized signals.
     """
     lower = error_text.lower()
-    # A shared-only session that reaches ingress with no Private Teamspace is a
+    # A shared-only session that reaches ingress with no private workspace is a
     # benign skip (events stay durable and retry), NOT an auth failure. Classify
     # it before the auth/catch-all so the canonical
     # ``direct_ingress_missing_private_team`` category surfaces on the diagnostic

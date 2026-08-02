@@ -174,7 +174,7 @@ def test_queue_scope_local_only_skips_rehydrate(
     token_manager_with_shared_only_session: TokenManager,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Local-only scope reads must not call TeamSpace membership rehydrate."""
+    """Local-only scope reads must not call Team Kitty membership rehydrate."""
     me_route = respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(
         return_value=httpx.Response(
             200,
@@ -205,7 +205,7 @@ def test_default_queue_db_path_local_only_skips_rehydrate(
     token_manager_with_shared_only_session: TokenManager,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Local-only queue path resolution must not call TeamSpace membership rehydrate."""
+    """Local-only queue path resolution must not call Team Kitty membership rehydrate."""
     me_route = respx.get(f"{_SAAS_BASE_URL}/api/v1/me").mock(
         return_value=httpx.Response(
             200,

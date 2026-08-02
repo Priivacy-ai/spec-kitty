@@ -1,6 +1,6 @@
 """Tests for ``spec-kitty sync import-history`` — WP-Y1 (#2262).
 
-WP-Y1 is the command surface + mission selection + the fail-closed TeamSpace
+WP-Y1 is the command surface + mission selection + the fail-closed Team Kitty
 audit gate. It reuses ``migration.mission_state`` helpers rather than
 re-deriving them; envelope synthesis and the §3.6b pre-sync log re-drain land
 in later slices, so ``--apply`` is an honest non-zero stub here (it must never
@@ -8,7 +8,7 @@ claim a materialize it cannot perform).
 
 These tests drive the CLI wrapper only. The selection/audit authority stays in
 ``migration.mission_state`` and is monkeypatched at its seams, so the suite
-needs no on-disk repo, no dossier, and no TeamSpace credentials.
+needs no on-disk repo, no dossier, and no Team Kitty credentials.
 """
 
 from __future__ import annotations
@@ -313,7 +313,7 @@ def test_apply_proceeds_when_persisted_mode_is_teamspace(tmp_path, monkeypatch):
 def _wire_apply_seams_real_gates(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, saas_enabled: bool, team_slug: str
 ) -> None:
-    """Like ``_wire_apply_seams`` but the receiver declares the real Teamspace
+    """Like ``_wire_apply_seams`` but the receiver declares the real Team Kitty
     gate tuple, so ``evaluate_gates`` genuinely evaluates saas/private/auth."""
     monkeypatch.setattr(sync_command, "_event_sync_access_token", lambda: "tok")
     target = SimpleNamespace(resolved_server_url="http://x", team_slug=team_slug)
@@ -340,7 +340,7 @@ def _wire_apply_seams_real_gates(
 
 def test_apply_fails_closed_when_real_gates_are_unsatisfied(tmp_path, monkeypatch):
     """A GateContext short on saas_enabled and private_teamspace genuinely blocks
-    through the real Teamspace gate tuple, naming both unsatisfied gates."""
+    through the real Team Kitty gate tuple, naming both unsatisfied gates."""
     _wire_apply_seams_real_gates(monkeypatch, tmp_path, saas_enabled=False, team_slug="")
     result = runner.invoke(app, ["import-history", "--apply"])
     assert result.exit_code == 1

@@ -1,12 +1,12 @@
 ---
-title: TeamSpace Mission-State 920 Closeout Evidence
-description: 'Closeout evidence for TeamSpace mission-state issue #920, generated from a clean workspace: the artifacts proving the mission-state repair landed correctly.'
+title: Team Kitty Mission-State 920 Closeout Evidence
+description: 'Closeout evidence for Team Kitty mission-state issue #920, generated from a clean workspace: the artifacts proving the mission-state repair landed correctly.'
 doc_status: active
 updated: '2026-07-04'
 ---
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 
-# TeamSpace Mission-State #920 Closeout Evidence
+# Team Kitty Mission-State #920 Closeout Evidence
 
 Generated from clean workspace
 `spec-kitty-20260510-191702-gGiW54`.
@@ -22,12 +22,12 @@ operational and cross-repo work outside this branch:
 
 - `Priivacy-ai/spec-kitty#979` is open: the actual coordinated repair commits
   have not been run across active repositories.
-- Active repository audits still report TeamSpace blockers:
-  - `spec-kitty`: 140 missions, 86 missions with TeamSpace blockers, 2455
+- Active repository audits still report Team Kitty blockers:
+  - `spec-kitty`: 140 missions, 86 missions with Team Kitty blockers, 2455
     total blockers.
-  - `spec-kitty-saas`: 48 missions, 33 missions with TeamSpace blockers, 1773
+  - `spec-kitty-saas`: 48 missions, 33 missions with Team Kitty blockers, 1773
     total blockers.
-  - `spec-kitty-events`: 18 missions, 15 missions with TeamSpace blockers, 499
+  - `spec-kitty-events`: 18 missions, 15 missions with Team Kitty blockers, 499
     total blockers.
 - `Priivacy-ai/spec-kitty-runtime#17` is still open.
 - `Priivacy-ai/spec-kitty-saas#143`, `#144`, `#145`, and `#146` are still open.
@@ -42,7 +42,7 @@ operational and cross-repo work outside this branch:
 | spec-kitty `#924` local canonicalizer | implemented | `tests/migration/test_mission_state_repair.py` covers canonicalization, idempotency, deterministic IDs, event preservation, quarantine, and manifest evidence. |
 | spec-kitty `#925` distributed Git safety | implemented on this branch | Added tests for held common-dir lock and dirty relevant paths in a linked worktree. No commit mode exists, so path-whitelisted staging is not applicable. |
 | spec-kitty `#926` deterministic public migration | implemented | Two-clone rehearsal verifies byte-identical diffs and deterministic dry-run output. |
-| spec-kitty `#927` TeamSpace dry-run | closed | Dry-run validates against `spec-kitty-events` 5.0.0 and reports row mappings/side logs. |
+| spec-kitty `#927` Team Kitty dry-run | closed | Dry-run validates against `spec-kitty-events` 5.0.0 and reports row mappings/side logs. |
 | spec-kitty `#928` side logs | implemented | Dry-run reports decision/runtime/mission side logs with skipped disposition; audit/dry-run prevent them being reduced as status transitions. |
 | spec-kitty `#929` fixture pack | implemented | Packaged and test fixtures are exercised by `tests/audit`. |
 | spec-kitty `#930` manifest | implemented | `RepairReport` records schema version, run id, repo head, targets, file checksums, row transformations, quarantine counts, and validation results. |
@@ -54,7 +54,7 @@ operational and cross-repo work outside this branch:
 | spec-kitty `#978` events dependency | implemented on this branch | `pyproject.toml` now requires `spec-kitty-events>=5.0.0,<6.0.0`; `uv.lock` resolves 5.0.0 from PyPI; release metadata advanced to `3.2.0rc5`. |
 | spec-kitty `#979` actual repair commit | open | Not done. Audits above prove the active repositories still need coordinated repair commits. |
 | spec-kitty-events `#18`, `#19`, `#20` | closed | GitHub state is closed; local dependency now resolves `spec-kitty-events` 5.0.0. |
-| spec-kitty-tracker `#13` | closed | Existing issue comments record focused tracker verification: canonical TeamSpace/no-rollout tests passed. |
+| spec-kitty-tracker `#13` | closed | Existing issue comments record focused tracker verification: canonical Team Kitty/no-rollout tests passed. |
 | spec-kitty-saas `#149` | closed | GitHub state is closed. |
 | spec-kitty-saas `#143`-`#146` | open | Still open in GitHub and listed by the parent epic. |
 | spec-kitty-runtime `#17` | open | Still open in GitHub and listed by the parent epic. |

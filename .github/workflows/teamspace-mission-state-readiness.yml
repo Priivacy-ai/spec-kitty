@@ -1,4 +1,4 @@
-name: TeamSpace Mission-State Readiness
+name: Team Kitty Mission-State Readiness
 
 on:
   workflow_dispatch:

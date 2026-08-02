@@ -107,7 +107,7 @@ class TestAuthLoginHelp:
 class TestAuthLoginDispatch:
     def test_login_no_longer_calls_teamspace_mission_state_gate(self):
         """Phase 6 (issue #1288): identity acquisition is decoupled from
-        TeamSpace mission-state readiness. The gate symbol must not be
+        Team Kitty mission-state readiness. The gate symbol must not be
         imported into the auth-login module and the command must not
         consult it. Sync / tracker / connect commands continue to gate
         themselves — that's their job, not auth's."""
@@ -128,7 +128,7 @@ class TestAuthLoginDispatch:
 
         with patch(
             "specify_cli.cli.commands._teamspace_mission_state_gate.enforce_teamspace_mission_state_ready",
-            side_effect=AssertionError("auth login must not invoke the TeamSpace gate"),
+            side_effect=AssertionError("auth login must not invoke the Team Kitty gate"),
         ), patch(
             "specify_cli.cli.commands._auth_login._run_browser_flow",
             new=AsyncMock(side_effect=_noop_browser_flow),

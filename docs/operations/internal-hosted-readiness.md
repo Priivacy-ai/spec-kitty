@@ -21,7 +21,7 @@ Read on if all of the following hold:
 
 - You are running a build of `spec-kitty-cli` that includes the SaaS
   rollout gate (`src/specify_cli/saas/rollout.py`).
-- You want the CLI to surface Teamspace-aware readiness output —
+- You want the CLI to surface Team Kitty-aware readiness output —
   hosted auth status, sync compatibility, tracker reachability — from
   any `spec-kitty` command.
 - You accept that everything below is **pre-launch** and may change
@@ -34,7 +34,7 @@ page.
 
 A single environment variable, `SPEC_KITTY_ENABLE_SAAS_SYNC`, gates every
 hosted code path. With the variable unset (or any non-truthy value), the
-central CLI startup readiness coordinator is a no-op: no Teamspace-labeled
+central CLI startup readiness coordinator is a no-op: no Team Kitty-labeled
 output, no hosted auth probe, no tracker calls. With the variable set
 to a truthy value (`1`, `true`, `yes`, `on`, case-insensitive), the
 coordinator wakes up and the hosted readiness states become observable.
@@ -93,9 +93,9 @@ operator-visible behavior, not the enum literal.
 
 | Session state | What the operator sees | Remediation |
 |---|---|---|
-| Hosted mode disabled (variable unset / falsy) | No Teamspace-labeled output. Coordinator is a no-op. The stable disabled-message string is emitted only by commands that explicitly ask for it (e.g., `spec-kitty sync now` without opt-in). | None — this is the local-first default. |
+| Hosted mode disabled (variable unset / falsy) | No Team Kitty-labeled output. Coordinator is a no-op. The stable disabled-message string is emitted only by commands that explicitly ask for it (e.g., `spec-kitty sync now` without opt-in). | None — this is the local-first default. |
 | Hosted mode enabled, authenticated | Hosted output flows normally. | None. |
-| Hosted mode enabled, logged out on a connected Teamspace | Interactive: a Rich panel offers `[L]ogin / [S]kip / [Q]uit`. Non-interactive: a stable stderr line plus exit code `4`. See [Recovery: Logged out on a connected teamspace](../operations/logged-out-teamspace.md). | `spec-kitty auth login` |
+| Hosted mode enabled, logged out on a connected Team Kitty workspace | Interactive: a Rich panel offers `[L]ogin / [S]kip / [Q]uit`. Non-interactive: a stable stderr line plus exit code `4`. See [Recovery: Logged out on a connected teamspace](../operations/logged-out-teamspace.md). | `spec-kitty auth login` |
 | Hosted mode enabled, tracker unreachable | The relevant sync / tracker command surfaces the failure with a doctor pointer. | `spec-kitty sync doctor` |
 | Hosted mode enabled, CLI upgrade required | The startup-readiness path nag-renders the upgrade guidance (already gated by the Wave 1 suppression contract). | `spec-kitty upgrade --cli` |
 
@@ -109,7 +109,7 @@ spec-kitty sync doctor
 hosted-mode-enabled path. It prints which sub-systems are reachable,
 what credentials are available, and which command would resolve each
 broken state. When the readiness coordinator fires the
-"logged out on a connected Teamspace" path, `sync doctor` will also
+"logged out on a connected Team Kitty workspace" path, `sync doctor` will also
 offer the interactive recovery prompt.
 
 ## Suppression contract

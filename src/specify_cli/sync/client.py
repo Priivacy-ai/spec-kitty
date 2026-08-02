@@ -124,7 +124,7 @@ class WebSocketClient:
             self.status = ConnectionStatus.OFFLINE
             raise AuthenticationError(saas_sync_disabled_message())
 
-        # Resolve the Private Teamspace id via the strict shared helper.
+        # Resolve the private workspace id via the strict shared helper.
         # On None the helper has already emitted a structured warning, and the
         # local command MUST still succeed (FR-010), so we silently go OFFLINE
         # rather than raise.

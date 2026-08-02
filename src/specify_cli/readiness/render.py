@@ -44,7 +44,7 @@ def _render_interactive_panel(teamspace: str, command_name: str) -> None:
     fails to import or render.
     """
     body = (
-        f"This repo is connected to Teamspace [cyan]{teamspace}[/cyan], "
+        f"This repo is connected to Team Kitty [cyan]{teamspace}[/cyan], "
         f"but you are not logged in.\n"
         f"Command: [dim]spec-kitty {command_name}[/dim]\n\n"
         f"Run: [bold]{_AUTH_LOGIN_REMEDIATION}[/bold] to re-authenticate."
@@ -57,7 +57,7 @@ def _render_interactive_panel(teamspace: str, command_name: str) -> None:
         console = Console(file=sys.stderr, force_terminal=False, highlight=False)
         panel = Panel(
             body,
-            title="Logged out on a connected Teamspace",
+            title="Logged out on a connected Team Kitty workspace",
             border_style="yellow",
             expand=False,
         )
@@ -71,8 +71,8 @@ def _render_interactive_panel(teamspace: str, command_name: str) -> None:
     # interactive test assertions hold.
     try:
         sys.stderr.write(
-            "Logged out on a connected Teamspace\n"
-            f"  Teamspace: {teamspace}\n"
+            "Logged out on a connected Team Kitty workspace\n"
+            f"  Team Kitty: {teamspace}\n"
             f"  Command:   spec-kitty {command_name}\n"
             f"  Run: {_AUTH_LOGIN_REMEDIATION} to re-authenticate.\n"
         )

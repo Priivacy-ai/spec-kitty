@@ -655,7 +655,7 @@ def normalize_lifecycle(
     This command repairs enough historical mission state to make the canonical
     lifecycle model reliable across old repositories. It backfills identity
     where needed, rebuilds missing event logs from legacy state, and regenerates
-    status/progress/lifecycle projections used by the CLI and Teamspace.
+    status/progress/lifecycle projections used by the CLI and Team Kitty.
 
     Exit codes:
 

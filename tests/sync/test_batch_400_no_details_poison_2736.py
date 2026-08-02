@@ -39,7 +39,7 @@ pytestmark = pytest.mark.fast
 
 @pytest.fixture(autouse=True)
 def _default_private_team_token_manager(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Default TokenManager exposing a Private Teamspace for the pre-flight."""
+    """Default TokenManager exposing a private workspace for the pre-flight."""
     now = datetime.now(UTC)
     fake_session = StoredSession(
         user_id="user-default",
