@@ -1,0 +1,69 @@
+{
+  "mission_slug": "skill-trigger-routing-suite-01KYVRB9",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Duplicate-pair and run-family query sets exist under conformance/skills/trigger-queries/, one YAML file per skill under test (id/source/threshold/shouldTrigger[]/nearMiss[]), each axis with >= 8 entries, covering at minimum the ten duplicate-pair skills plus the three run-family skills.",
+      "proof_type": "automated_test",
+      "evidence": "conformance/scripts/check-trigger-queryset-shape.mjs (commit 9c6980327). GREEN: node conformance/scripts/check-trigger-queryset-shape.mjs conformance/skills/trigger-queries/*.yaml exits 0 on all 14 real files (10 WP01 duplicate-pair + 3 WP02 run-family + 1 WP02 control), naming 'trigger-queryset-shape: OK (14 file(s) checked)'. RED (falsification condition per spec.md): 7-entry shouldTrigger axis constructed via yaml.safe_dump mutation of spk-run-next-duplicate-pair-queries.yaml exits 1, naming the exact file and 'shouldTrigger has 7 entries, need >= 8'; file restored, git diff --exit-code confirms no residue. Additional falsification: zero-argument invocation and empty-glob passthrough both exit 1 (not a vacuous pass on empty input, WP01-review F1 fix). This reproduces WP01/WP02's own inline shape-check results exactly against the same real files. Both the content (WP01/WP02) and the canonical verification script (WP03) now exist; FR-001 is fully discharged.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-01T23:54:10.546566+00:00",
+      "notes": "Normative source: kitty-specs/skill-trigger-routing-suite-01KYVRB9/spec.md:153 (FR-001 requirement text) and the requirements table at spec.md:146."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "For each of the five duplicate pairs and each ordered pair within the run-family cluster, skill A's near-miss set contains at least one phrase drawn verbatim from skill B's should-trigger set (and vice versa) -- the twin-phrasing convention.",
+      "proof_type": "automated_test",
+      "evidence": "conformance/scripts/check-twin-phrasing.mjs (commit 0706a2eed). GREEN: node conformance/scripts/check-twin-phrasing.mjs conformance/skills/trigger-queries/ exits 0, 'twin-phrasing: OK (6 cluster(s), 16 ordered direction(s) checked)' -- all 5 duplicate pairs (10 directions) + the run-family triple (6 directions). RED (falsification condition): spk-run-next-run-family-queries.yaml's nearMiss stripped to unrelated filler (yaml.safe_dump mutation) exits 1, naming both now-unsatisfied run-family directions by id; file restored, git diff --exit-code confirms no residue. This script loads clusters by filename convention (never by walking behavioral-manifest.yaml's case list) and reproduces WP01's 10-direction and WP02's 6-direction inline self-check results exactly against the same real files. Both content (WP01/WP02) and the canonical verification script (WP03) now exist; FR-002 is fully discharged.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-01T22:48:44.447641+00:00",
+      "notes": "Normative source: kitty-specs/skill-trigger-routing-suite-01KYVRB9/spec.md:176 (FR-002 requirement text, citing issue #25 section 2)."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "One conformance/skills/behavioral-manifest.yaml exists, pinning model, runsPerQuery (3), and threshold (0.5) for every case; a run with no MUSTER_ENDPOINT/MUSTER_API_KEY configured must degrade every case to skipped:true rather than being mistaken for evidence.",
+      "proof_type": "automated_test",
+      "evidence": "conformance/skills/behavioral-manifest.yaml (commit a5115ff72, WP03) pinned model:gpt-4o-mini/runsPerQuery:3/threshold:0.5; skip-guard one-liner corrected r.cases->r.results (commit e6cadee5c, WP04 Job 1) and proven against a real run: unset-endpoint report has every behavioral case skipped:true (exit 1 via corrected form), synthetic no-skip variant exits 0. Live configured-endpoint proof: T022's real gpt-4o-mini run (commit dd853b5cc) shows 0 skipped cases out of 14. Credentials via MUSTER_API_KEY env var only, never committed (NFR-002 grep clean).",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-01T23:26:02.770836+00:00",
+      "notes": "Normative source: kitty-specs/skill-trigger-routing-suite-01KYVRB9/spec.md:194 (FR-003 requirement text, citing issue #25 section 5)."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Exactly one isControl:true rigged-impossible case exists per manifest and is observed, against a live reachable endpoint, with passed:false and runsErrored:0 (real discrimination) -- and, against an unreachable endpoint, passed:false with runsErrored>0 (dead-endpoint), distinguishable from the healthy case.",
+      "proof_type": "automated_test",
+      "evidence": "Live both-condition sequence run for real (T022, commit dd853b5cc): gpt-4o-mini via https://api.openai.com/v1 (healthy) and http://127.0.0.1:9 (dead-endpoint). All 5 check-control-discrimination.mjs assertions match the contract exactly: --mode healthy vs healthy=exit 0 (passed:false,runsErrored:0); --mode healthy vs dead=exit 1 (cross-wire rejection, runsErrored:48); --mode dead-endpoint vs dead=exit 0 (passed:false,runsErrored:48); --mode dead-endpoint vs healthy=exit 1 (cross-wire rejection, runsErrored:0); omitted --mode=exit 2 (never silently defaults). runsErrored:48 on the dead run = runsPerQuery(3)*16 queries, matching data-model.md's fully-unreachable-endpoint derivation exactly. WP03 previously proved only the script's logic against synthetic fixtures; this is the live proof against a real MUSTER_ENDPOINT the criterion actually requires.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-01T23:26:04.587299+00:00",
+      "notes": "Normative source: kitty-specs/skill-trigger-routing-suite-01KYVRB9/spec.md:238 (FR-004 requirement text, citing issue #25 section 8, garrison-hq/muster#73, garrison-hq/muster#76)."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "A workflow_dispatch-triggered GitHub Actions workflow runs skills run against the pinned manifest and commits a per-run evidence artifact (not left only in workflow logs or PR prose) to conformance/skills/trigger-evidence/<run-timestamp>.json, containing per-axis trigger rates per case and runsErrored per case; never runs on pull_request.",
+      "proof_type": "automated_test",
+      "evidence": "Cadence workflow .github/workflows/skill-trigger-routing.yml (commit 38ceca693, fixed 666978a40) is workflow_dispatch-only, invokes check-trigger-queryset-shape.mjs -> check-twin-phrasing.mjs -> skills run -> FR-003 skip-guard -> check-control-discrimination.mjs --mode healthy -> build-evidence-artifact.mjs -> check-evidence-artifact-shape.mjs -> git commit, per the verification-scripts-cli-contract's CI wiring. First real committed evidence artifact conformance/skills/trigger-evidence/2026-08-01T23-16-10.435Z.json (commit dd853b5cc): built by build-evidence-artifact.mjs from the real T022 healthy report, validated GREEN by check-evidence-artifact-shape.mjs (14 cases, schema-valid, runsErrored present on every case including 0), NFR-002-grep clean. Never on pull_request (C-002, verified by real YAML parse + scratch-copy rejection). POST-REVIEW FIX (this pass, commits d3d71b9cb/1db820696/016f3a601): the workflow as originally committed could not actually execute this sequence -- (1) the bare `npx ... skills run ...` step had no exit-code handling, and a healthy run's legitimate exit 1 (muster#77, the control fails by design) aborted the job under Actions' default `bash -e {0}` before any assertion after it ran, confirmed with a job-runner harness stubbing npx (unpatched: job aborts after step 4, no later step runs; patched: job reaches the commit step; a genuine non-0/1 exit code still aborts as intended); (2) `npx --offline` had no npm-cache warm-up and failed ENOTCACHED on a verified-empty cache, fixed by adding `npm install --no-save @garrison-hq/muster@1.2.1` before the offline invocation (reproduced the failure and the fix against a genuinely empty ~/.npm cache); (3) `permissions: contents: read` could never let the final step's `git push` succeed (403), upgraded to `contents: write`, checked against protect-main.yml's own commit-came-from-PR gate (it allowlists a github-actions[bot] committer; reproduced that exact condition in a scratch harness -- ALLOWED). These three fixes are local/harness-proven, not yet exercised by an actual GitHub Actions execution of workflow_dispatch (this pass's constraints excluded pushing/opening a PR); a maintainer dispatching the workflow for real is the remaining end-to-end confirmation, but the workflow can now reach every one of its own steps, which it previously could not.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-01T23:26:24.565496+00:00",
+      "notes": "Normative source: kitty-specs/skill-trigger-routing-suite-01KYVRB9/spec.md:265 (FR-005 requirement text). Held at pending for the review round that found the workflow could not reach its own assertions; restored to pass in this same pass once the three blocking defects (exit-code handling, offline-cache warm-up, push permissions) were fixed and harness-proven -- see evidence field for what remains a residual manual/live-run confirmation rather than a fixed defect."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Any duplicate-pair or run-family case whose near-miss axis trigger rate exceeds its threshold is filed as a spec-kitty GitHub issue against MOES-Media/spec-kitty, with the failing query-set file attached or linked, and indexed by full URL in this suite's README; no SKILL.md is edited to remediate.",
+      "proof_type": "manual_review",
+      "evidence": "T022's live run surfaced a genuine finding: 8 of 13 duplicate-pair/run-family cases (spk-doctrine-profile-load, spec-kitty-runtime-next, spk-run-next, spec-kitty-runtime-review, spk-run-review-wp, spk-run-implement-review, spec-kitty-git-workflow, spk-admin-git-workflow) at/above the 0.5 near-miss threshold. Filed as https://github.com/MOES-Media/spec-kitty/issues/43 with the failing query-set files listed and the evidence artifact linked. Indexed in conformance/skills/README.md's Findings section by full URL (commit 70805c732); findings-index grep count 2 (nonzero). No SKILL.md edited to remediate (scope guard honored). POST-REVIEW CORRECTION (this pass): the 8-of-13 finding itself stands, but its published causal attribution to legacy-vs-spk-* naming overstated what the single-tool-bias-limited data can show (two confounds: at least 12/24 of spk-run-next's near-miss rate is attributable to unrelated filler queries under the single-tool bias, max 3/24 to the borrowed twin phrase; and spk-run-next's duplicate-pair vs. run-family near-miss rates split by query genre, not pair membership) and one fixture (spk-admin-git-workflow-duplicate-pair-queries.yaml:23, 'git workflow') is a verbatim substring of that skill's own tool description and cannot discriminate anything (finding survives its removal: 12/21 = 0.571, still over threshold). conformance/skills/README.md and https://github.com/MOES-Media/spec-kitty/issues/43 (comment) were both corrected to state the narrower, falsifiable claim the data does support instead (verbose-with-Does-NOT-handle-clause passes, terse-without-one fails, in both one-sided pairs observed).",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-01T23:26:26.592177+00:00",
+      "notes": "Normative source: kitty-specs/skill-trigger-routing-suite-01KYVRB9/spec.md:288 (FR-006 requirement text, citing issue #25 section 4)."
+    }
+  ],
+  "negative_invariants": []
+}

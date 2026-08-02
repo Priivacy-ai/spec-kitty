@@ -1,0 +1,107 @@
+{
+  "event_count": 24,
+  "last_event_id": "01KYZXSBEWYWSEQ27D37KPEY2G",
+  "materialized_at": "2026-08-02T00:25:38.524979+00:00",
+  "mission_number": "",
+  "mission_slug": "skill-trigger-routing-suite-01KYVRB9",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 4,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KYZXRFWATZEY0HMZD10E697G",
+      "last_transition_at": "2026-08-02T00:25:10.282708+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T001-T008 complete: 10 duplicate-pair query-set files authored under conformance/skills/trigger-queries/, each >=8/axis, FR-002 twin-phrasing verified both directions for all 5 pairs. ATDD RED (961245751943722b92fe1d9192fe7723d155f5b1) -> GREEN (748e088503a7b9f92ff56ce421c845eccabc753d) proven inline; canonical WP03 scripts pending per task-file note."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KYZXS3A2CBB10KD9YP56XCGH",
+      "last_transition_at": "2026-08-02T00:25:30.178897+00:00",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
+    },
+    "WP03": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "claude",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KYZXS76JYEVVASG0Q5FKK7B4",
+      "last_transition_at": "2026-08-02T00:25:34.162695+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T015-T020 complete: behavioral-manifest.yaml (14 cases, 1 control) + all 4 canonical verification scripts authored, each proven RED/GREEN against real WP01/WP02 files and against constructed rejection cases; check-control-discrimination.mjs's 5-proof mode sequence proven against synthetic fixtures (0,0,1,1,2), live-endpoint re-proof still owed to WP04. FR-001/FR-002 acceptance recorded pass; FR-004 kept pending naming the live-proof remainder. Found and flagged for WP04: spec.md/quickstart.md/this task file's own FR-003 one-liner reads r.cases but muster's real --json shape is r.results."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "subtasks": {
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
+    },
+    "WP04": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KYZXSBEWYWSEQ27D37KPEY2G",
+      "last_transition_at": "2026-08-02T00:25:38.524979+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "subtasks": {
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      }
+    }
+  }
+}
