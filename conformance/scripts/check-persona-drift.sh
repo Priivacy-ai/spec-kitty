@@ -30,7 +30,7 @@ personas=(
 
 status=0
 for persona in "${personas[@]}"; do
-  source_profile="src/doctrine/agent_profiles/built-in/${persona}.agent.yaml"
+  source_profile="packs/built-in/agent_profiles/${persona}.agent.yaml"
   committed="conformance/crosslayer/personas/${persona}.Soul.md"
   regenerated="${tmp_dir}/${persona}.Soul.md"
 

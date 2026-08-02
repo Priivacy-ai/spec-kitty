@@ -1,5 +1,5 @@
 version: "1.0.0"
-sopFile: "../../src/doctrine/directives/built-in/029-agent-commit-signing-policy.directive.yaml"
+sopFile: "../../packs/built-in/directives/029-agent-commit-signing-policy.directive.yaml"
 rules:
   - ruleId: "029-r1"
     ruleText: "Automated commit flows must not depend on interactive key configuration."

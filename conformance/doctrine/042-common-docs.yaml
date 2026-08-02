@@ -1,5 +1,5 @@
 version: "1.0.0"
-sopFile: "../../src/doctrine/directives/built-in/042-common-docs.directive.yaml"
+sopFile: "../../packs/built-in/directives/042-common-docs.directive.yaml"
 rules:
   - ruleId: "042-r1"
     ruleText: "There is exactly one documentation root; a second root or a per-version\n    shadow tree is a red-line violation."

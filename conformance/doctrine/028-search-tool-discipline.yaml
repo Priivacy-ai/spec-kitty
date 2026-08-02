@@ -1,5 +1,5 @@
 version: "1.0.0"
-sopFile: "../../src/doctrine/directives/built-in/028-search-tool-discipline.directive.yaml"
+sopFile: "../../packs/built-in/directives/028-search-tool-discipline.directive.yaml"
 rules:
   - ruleId: "028-r1"
     ruleText: "Local guidance should bias toward faster, lower-noise tooling that keeps repository operations inspectable and proportional."

@@ -1,5 +1,5 @@
 version: "1.0.0"
-sopFile: "../../src/doctrine/directives/built-in/033-targeted-staging-policy.directive.yaml"
+sopFile: "../../packs/built-in/directives/033-targeted-staging-policy.directive.yaml"
 rules:
   - ruleId: "033-r1"
     ruleText: "Blanket staging commands (`git add -A`, `git add .`, `git add --all`) are prohibited in agent-authored workflows."

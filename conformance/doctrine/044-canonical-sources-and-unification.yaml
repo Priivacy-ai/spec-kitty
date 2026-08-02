@@ -1,5 +1,5 @@
 version: 1.0.0
-sopFile: ../../src/doctrine/directives/built-in/044-canonical-sources-and-unification.directive.yaml
+sopFile: ../../packs/built-in/directives/044-canonical-sources-and-unification.directive.yaml
 rules:
   - ruleId: 044-r1
     ruleText: "No agent may copy a spec, plan, or tasks artifact from kitty-specs/ and use it as a\n    template for a new mission; the canonical templates are the only valid starting points."

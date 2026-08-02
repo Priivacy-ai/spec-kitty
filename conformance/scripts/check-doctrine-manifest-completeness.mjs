@@ -111,7 +111,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
 const REPO_ROOT = process.cwd();
-const DIRECTIVE_DIR = join(REPO_ROOT, "src/doctrine/directives/built-in");
+const DIRECTIVE_DIR = join(REPO_ROOT, "packs/built-in/directives");
 const MANIFEST_DIR = join(REPO_ROOT, "conformance/doctrine");
 const CONTROL_MANIFEST = join(MANIFEST_DIR, "control/045-drifted.yaml");
 
