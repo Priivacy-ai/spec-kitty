@@ -117,12 +117,19 @@ class TestJourney5StatusBundleAuthority:
         before = _collect_charter_sync_status(tmp_path)
         assert before["available"] is True
         assert before["status"] == "synced"
+        assert before["charter_path"] == ".kittify/charter/charter.md"
 
         (charter_dir / "charter.md").unlink()
 
         after = _collect_charter_sync_status(tmp_path)
         assert after["available"] is True
         assert after["status"] == "synced"
+        # Header-authority regression pin (squad fold A): once charter.md is
+        # gone, the header must name the file that actually exists
+        # (charter.yaml, the authoritative bundle) -- not a stale reference
+        # to a charter.md that no longer exists on disk.
+        assert after["charter_path"] == ".kittify/charter/charter.yaml"
+        assert not (charter_dir / "charter.md").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -216,3 +223,103 @@ class TestFR006JsonPresentSignalFlip:
         payload = json.loads(result.stdout)
         assert payload["success"] is True
         assert payload["project_charter"]["present"] is True
+
+
+# ---------------------------------------------------------------------------
+# Squad fold C (landing PR #3146) -- pin the intentional present-flip
+# consumer-cell divergence.
+#
+# The ``--json`` ``project_charter.present`` signal keys SOLELY on
+# ``charter.yaml`` (FR-006 above); the text renderer's ``mode`` gate
+# (``build_charter_context`` in ``charter/context.py``) is deliberately an
+# OR over BOTH files -- ``mode`` is only ``"missing"`` when NEITHER file
+# exists (see that function's own "FR-005" comment block). This divergence
+# is intentional: charter.yaml is the governance-read authority for the
+# machine JSON signal, while a legacy project's curated charter.md alone is
+# still enough to render bootstrap text for a human. The risky, previously
+# UNTESTED cell is the legacy layout the OR-gate exists to keep serving:
+# charter.md present, charter.yaml ABSENT. No product code changes here --
+# this is a regression pin on already-shipped, deliberate behaviour, not a
+# fix.
+# ---------------------------------------------------------------------------
+
+
+class TestFoldCLegacyCharterMdOnlyPresentFlipCell:
+    def test_charter_md_present_yaml_absent_json_present_is_false(
+        self, tmp_path: Path
+    ) -> None:
+        """Direct producer-level pin: charter.md present, charter.yaml
+        ABSENT ⇒ ``project_charter.present`` is ``False``. A pre-FR-006
+        (or a future "aligned to the text renderer") producer that ORs in
+        ``charter.md`` presence would report ``True`` here instead -- that
+        is the exact assertion this test exists to catch.
+        """
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        (charter_dir / "charter.md").write_text(
+            "# Legacy Curated Charter\n", encoding="utf-8"
+        )
+        assert not (charter_dir / "charter.yaml").exists()
+
+        from charter.sync import SyncResult
+
+        # ``build_charter_context_json`` -> ``_project_charter_json_block``
+        # resolves its bundle root via ``ensure_charter_bundle_fresh``,
+        # which -- because ``charter.md`` exists here -- would otherwise
+        # auto-sync and WRITE ``charter.yaml`` as a side effect, silently
+        # flipping the very fixture precondition ("charter.yaml absent")
+        # this test depends on. Stubbed to a no-op ``SyncResult`` exactly
+        # like the FR-006 producer test above, for the same reason.
+        sync_result = SyncResult(
+            synced=False,
+            stale_before=False,
+            files_written=[],
+            extraction_mode="",
+            canonical_root=tmp_path,
+        )
+        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result):
+            payload = build_charter_context_json(tmp_path, action="plan", depth=1)
+
+        # Sanity: the stub must not have let anything else mutate the
+        # fixture out from under the assertion below.
+        assert not (charter_dir / "charter.yaml").exists()
+
+        project_charter = payload["project_charter"]
+        assert project_charter["present"] is False
+        assert project_charter["charter_md_present"] is True
+
+    def test_text_renderer_still_renders_for_the_same_charter_md_only_project(
+        self, tmp_path: Path
+    ) -> None:
+        """Documents the intended divergence for the SAME legacy layout: the
+        text renderer's ``mode`` never regresses to ``"missing"`` for a
+        charter.md-only project, even though the JSON producer above
+        reports ``present: False`` for it. If a future change makes the two
+        surfaces agree by also gating the TEXT renderer on ``charter.yaml``
+        alone, this is the test that should catch it.
+        """
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        (charter_dir / "charter.md").write_text(
+            "# Legacy Curated Charter\n", encoding="utf-8"
+        )
+        assert not (charter_dir / "charter.yaml").exists()
+
+        from doctrine.drg.models import DRGGraph
+        from ruamel.yaml import YAML
+
+        yaml = YAML(typ="safe")
+        graph_data = yaml.load(StringIO(_MINIMAL_GRAPH_YAML))
+        mock_graph = DRGGraph.model_validate(graph_data)
+
+        with (
+            patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
+            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("doctrine.drg.validator.assert_valid"),
+        ):
+            result = build_charter_context(
+                tmp_path, action="implement", depth=2, mission_type="software-dev"
+            )
+
+        assert result.mode != "missing"
+        assert "Charter file not found" not in result.text
