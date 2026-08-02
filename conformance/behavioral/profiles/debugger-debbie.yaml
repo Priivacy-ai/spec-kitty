@@ -3,7 +3,7 @@
 # Grades debugger-debbie's deployed Claude Code system prompt (the projected
 # body committed at conformance/behavioral/projected/debugger-debbie.md,
 # produced verbatim by conformance/behavioral/tools/render_profile.py from
-# src/doctrine/agent_profiles/built-in/debugger-debbie.agent.yaml) against
+# packs/built-in/agent_profiles/debugger-debbie.agent.yaml) against
 # muster's spec-kitty-profile behavioral-axes rubric
 # (docs/rubric/spec-kitty-behavioral-axes.md, muster checkout) §1-§4.
 #

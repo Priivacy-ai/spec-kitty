@@ -3,7 +3,7 @@
 # Grades architect-alphonso's deployed Claude Code system prompt (the projected
 # body committed at conformance/behavioral/projected/architect-alphonso.md,
 # produced verbatim by conformance/behavioral/tools/render_profile.py from
-# src/doctrine/agent_profiles/built-in/architect-alphonso.agent.yaml) against
+# packs/built-in/agent_profiles/architect-alphonso.agent.yaml) against
 # muster's spec-kitty-profile behavioral-axes rubric
 # (docs/rubric/spec-kitty-behavioral-axes.md, muster checkout) §1-§4.
 #
