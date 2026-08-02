@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "mission_slug": "doctrine-rule-manifests-01KYH7AM",
+  "mission_id": "01KYH7AMK2S2CQY18GE77CJEYS",
+  "mission_branch": "kitty/mission-doctrine-rule-manifests-01KYH7AM",
+  "target_branch": "kitty/mission-doctrine-rule-manifests",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "conformance/doctrine/018-doctrine-versioning-requirement.yaml",
+        "conformance/doctrine/028-search-tool-discipline.yaml",
+        "conformance/doctrine/029-agent-commit-signing-policy.yaml",
+        "conformance/doctrine/030-test-and-typecheck-quality-gate.yaml",
+        "conformance/doctrine/033-targeted-staging-policy.yaml",
+        "conformance/doctrine/034-test-first-development.yaml",
+        "conformance/doctrine/035-bulk-edit-occurrence-classification.yaml",
+        "conformance/doctrine/042-common-docs.yaml",
+        "conformance/doctrine/045-prs-only-and-read-intent.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "conformance/doctrine/001-architectural-integrity-standard.yaml",
+        "conformance/doctrine/010-specification-fidelity-requirement.yaml",
+        "conformance/doctrine/039-lynn-cole-engineering-culture.yaml",
+        "conformance/doctrine/044-canonical-sources-and-unification.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        ".github/workflows/conformance.yml",
+        "conformance/doctrine/README.md",
+        "conformance/doctrine/control/045-drifted.yaml",
+        "conformance/scripts/check-doctrine-drift-gate.sh",
+        "conformance/scripts/check-doctrine-manifest-completeness.mjs",
+        "kitty-specs/doctrine-rule-manifests-01KYH7AM/issue-matrix.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-07-27T09:56:31.101103+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

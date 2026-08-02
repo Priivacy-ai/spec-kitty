@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "mission_slug": "doctrine-behavioral-suite-01KYW5XK",
+  "mission_id": "01KYW5XKXEZ97MZAD6WWMHZC5H",
+  "mission_branch": "kitty/mission-doctrine-behavioral-suite-01KYW5XK",
+  "target_branch": "kitty/mission-doctrine-behavioral-suite",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "conformance/behavioral/README.md",
+        "conformance/behavioral/profiles/**",
+        "conformance/behavioral/projected/**",
+        "conformance/behavioral/tools/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/workflows/behavioral.yml",
+        "conformance/behavioral/control-manifest.yaml",
+        "conformance/behavioral/evidence/**",
+        "conformance/behavioral/scripts/**",
+        "conformance/doctrine/010-specification-fidelity-requirement.yaml",
+        "conformance/doctrine/039-lynn-cole-engineering-culture.yaml",
+        "conformance/doctrine/044-canonical-sources-and-unification.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-08-01T23:53:40.395143+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "9674f0c1bcc93204b80de281251fd29658f5b947"
+}

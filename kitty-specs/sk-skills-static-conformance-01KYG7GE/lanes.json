@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "mission_slug": "sk-skills-static-conformance-01KYG7GE",
+  "mission_id": "01KYG7GEG5F8HDJRGHGVFAX85B",
+  "mission_branch": "kitty/mission-sk-skills-static-conformance-01KYG7GE",
+  "target_branch": "kitty/mission-sk-skills-static-conformance",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "conformance/scripts/check-manifest-completeness.mjs",
+        "conformance/skills/control/name-mismatch/SKILL.md",
+        "conformance/skills/manifest.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        ".github/workflows/conformance.yml"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "conformance/DECISIONS.md",
+        "conformance/README.md"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-07-26T23:30:59.764755+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

@@ -1,0 +1,79 @@
+work_packages:
+  - id: WP01
+    title: "Skills manifest, discrimination control, and completeness script"
+    dependencies: []
+    owned_files:
+      - "conformance/skills/manifest.yaml"
+      - "conformance/skills/control/name-mismatch/SKILL.md"
+      - "conformance/scripts/check-manifest-completeness.mjs"
+    create_intent:
+      - "conformance/skills/manifest.yaml"
+      - "conformance/skills/control/name-mismatch/SKILL.md"
+      - "conformance/scripts/check-manifest-completeness.mjs"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-005
+      - FR-007
+      - C-001
+      - NFR-002
+    plan_concern_refs:
+      - IC-01
+      - IC-02
+      - IC-03
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+      - T006
+    prompt_file: "tasks/WP01-skills-manifest-and-completeness-script.md"
+
+  - id: WP02
+    title: "Decision record and README"
+    dependencies:
+      - WP01
+    owned_files:
+      - "conformance/DECISIONS.md"
+      - "conformance/README.md"
+    create_intent:
+      - "conformance/DECISIONS.md"
+      - "conformance/README.md"
+    requirement_refs:
+      - FR-004
+      - FR-006
+      - NFR-001
+      - C-001
+    plan_concern_refs:
+      - IC-04
+      - IC-05
+    subtasks:
+      - T007
+      - T008
+      - T009
+      - T010
+    prompt_file: "tasks/WP02-decisions-and-readme.md"
+
+  - id: WP03
+    title: "CI conformance workflow"
+    dependencies: []
+    owned_files:
+      - ".github/workflows/conformance.yml"
+    create_intent:
+      - ".github/workflows/conformance.yml"
+    requirement_refs:
+      - FR-003
+      - FR-007
+      - C-001
+      - C-002
+      - C-003
+      - NFR-002
+    plan_concern_refs:
+      - IC-06
+    subtasks:
+      - T011
+      - T012
+      - T013
+      - T014
+    prompt_file: "tasks/WP03-ci-conformance-workflow.md"

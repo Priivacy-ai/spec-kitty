@@ -1,0 +1,51 @@
+{
+  "event_count": 19,
+  "last_event_id": "01KYGFQQS5D0CKE8MAQF4NSHCE",
+  "materialized_at": "2026-07-27T00:31:29.061895+00:00",
+  "mission_number": "",
+  "mission_slug": "sk-skills-static-conformance-01KYG7GE",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KYGFQJ5BXM8T0WXX20D6N3KM",
+      "last_transition_at": "2026-07-27T00:31:23.307768+00:00",
+      "shell_pid": 364250,
+      "shell_pid_created_at": "1785109538.12"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KYGFQQS5D0CKE8MAQF4NSHCE",
+      "last_transition_at": "2026-07-27T00:31:29.061895+00:00",
+      "shell_pid": 522519,
+      "shell_pid_created_at": "1785110531.56"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KYGFQN0M6751RJDCZJH0E4FD",
+      "last_transition_at": "2026-07-27T00:31:26.229068+00:00",
+      "shell_pid": 501192,
+      "shell_pid_created_at": "1785110381.44"
+    }
+  }
+}
