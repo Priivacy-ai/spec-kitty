@@ -36,14 +36,35 @@ def _sync_json_payload(result: SyncResult) -> dict[str, object]:
 def _emit_sync_human_result(result: SyncResult) -> None:
     """Render the non-JSON ``charter sync`` result.
 
+    #3045: this used to unconditionally print "Charter already in sync"
+    whenever ``result.error`` was falsy, contradicting the JSON surface
+    (``_sync_json_payload``) which reports ``success: False`` /
+    ``stale_before: True`` for the exact same ``SyncResult`` — a silent
+    "everything is fine" when nothing was actually synced. The human
+    surface now agrees with the JSON surface's ``success`` field
+    (``result.synced``): a charter that was stale and did NOT get synced by
+    this call fails loudly here too, naming the recovery path, instead of
+    exiting 0.
+
     Since the IC-04 triad retirement, ``charter.sync.sync()`` is a pure
     staleness reporter — ``synced`` is always ``False`` and ``files_written``
-    always empty — so the only outcomes are an error or the already-in-sync
-    notice. The former ``synced=True`` success branch was dead under this call
-    path and has been removed.
+    always empty — so ``result.synced`` being ``True`` here would only occur
+    under a future repair-mode remedy for #3045.
     """
     if result.error:
         console.print(f"[red]Error:[/red] {result.error}")
+        raise typer.Exit(code=1)
+
+    if result.synced:
+        console.print("[green]Charter synced[/green]")
+        return
+
+    if result.stale_before:
+        console.print(
+            "[red]Charter was not synced[/red] — charter.md is stale and this "
+            "command did not repair it. Run 'spec-kitty charter generate' or "
+            "'spec-kitty charter synthesize' to repair it."
+        )
         raise typer.Exit(code=1)
 
     console.print("[blue]Charter already in sync[/blue] (use --force to re-extract)")
