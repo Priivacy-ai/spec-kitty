@@ -1,0 +1,20 @@
+{
+  "baseline_merge_commit": "f75312e857ec4e0fcd10a21828d34e05b00b4a2d",
+  "coordination_branch": "kitty/mission-doctrine-charter-split-unification-01KZ0SRB",
+  "created_at": "2026-08-02T08:34:26.253790+00:00",
+  "flattened": false,
+  "friendly_name": "Doctrine-Charter Split: Single-Path Authority Foundation",
+  "mission_id": "01KZ0SRBTBFDRFM0MVT62AEVB4",
+  "mission_number": 188,
+  "mission_slug": "doctrine-charter-split-unification-01KZ0SRB",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Follow-up to #3146. The compiled charter.yaml is the deterministic, schema-guarded resolution authority and takes precedence; charter.md is demoted to a secondary rationale/prose read point. This mission retires the residual charter.md presence/config readers that survived #3146 (dashboard #3150, analysis_report, the charter/context OR-gate, and the retrospective-policy frontmatter resolver), unifies the meta.json fail-closed authority (#3140), deletes the one real upward layer edge, folds cheap surface-cleaners (#3149 CI path filter, #3107 inert parity gate, #3102 closeout), and lays the wheel packaging-closure groundwork (mint spec-kitty-kernel pyproject, fix the doctrine pyproject + closure test, charter-wheel assessment/ADR). The #3101 kernel->doctrine->charter wheel cutover is a deferred, explicit follow-on.",
+  "purpose_tldr": "Make the doctrine-pack & charter split usable by resting it on ONE charter read/path authority (charter.yaml) with correct kernel<-doctrine<-charter<-glossary/runtime<-specify_cli wiring; the wheel cutover is a sequenced follow-on.",
+  "slug": "doctrine-charter-split-unification-01KZ0SRB",
+  "status_phase": "1",
+  "target_branch": "feat/doctrine-charter-split-unification",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-02T10:07:39.365281+00:00"
+}

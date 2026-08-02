@@ -1,0 +1,169 @@
+{
+  "mission_slug": "doctrine-charter-split-unification-01KZ0SRB",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "charter/bundle.py CHARTER_YAML already exported (confirmed WP01); single charter path/read door in place.",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-08-02T15:47:29.414230+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 approved: context.py:249 C-003 prose-presence gate scoped+pinned (4-cell characterization, precedence assertion), gate boolean unchanged.",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-08-02T15:47:32.847494+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved (after rework): resolve_project_charter_presence() wired into dashboard/scanner.py + dashboard/handlers/api.py; #3150 fixed, empirically verified yaml-only project reports present.",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-08-02T15:47:36.206327+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved: analysis_report.py hashes charter.yaml via bundle.CHARTER_YAML; both charter.md hash entries (canonical+legacy) removed.",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-08-02T15:47:39.602510+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05+WP06 approved: RetrospectiveGovernance schema+emitter (byte-stable via pruner fix) + yaml-first resolver with partial-override precedence merge; C-003 backward-compat verified; single shared _CHARTER_REL.",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-08-02T15:47:43.011353+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 approved: _status_collectors.py legacy charter.md gate scoped+documented+pinned; unsupported-shape decision correctly left open for HiC, not unilaterally resolved.",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-08-02T15:47:46.447395+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP07+WP08+WP09 approved: one public load_meta_fail_closed authority (core/paths.py), grep-count-reconciled caller census (192 rows, later corrected for an aliased-import gap found by WP09), batches A+B routed, non-vacuous NFR-003 full-census contract test (AST-based independent discovery).",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-08-02T15:47:49.987645+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP10 approved: synthesize_pipeline.py:68 import specify_cli edge deleted, non-vacuous AST-walk charter-import gate (self-mutation proof reproduced by 2 independent reviewers).",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-08-02T15:47:53.378088+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP12 approved: src/kernel/pyproject.toml minted (spec-kitty-kernel, zero first-party deps).",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-08-02T15:47:56.786069+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP12 approved: src/doctrine/pyproject.toml kernel dep + hatchling build-hook for packs/; REAL hatch build executed and independently reproduced by reviewer (packs/built-in confirmed as doctrine sibling via unzip + install+import closure test).",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-08-02T15:48:00.187251+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP13 approved (after 2 rounds of ADR wording fixes): charter-wheel assessment ADR, extractability claim precisely scoped to WP10's AST gate, extends 2026-04-25-1 pattern, deferred issue set enumerated, C-002 stated.",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-08-02T15:48:03.599885+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP14 approved: doctrine-charter-tests.yml path-filter + pytest selection extended to cli/commands/charter/**, verified triggering (65 tests collected, all pass).",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-08-02T15:48:07.027536+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP14 approved: both REFERENCE_PATH and AGENT_REFERENCE_PATH repointed to docs/api/, test_docs_cli_reference_parity proven to RUN GREEN (not skip) via -rs reproduction, mutation-tested not-skipped guard.",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-08-02T15:48:10.420762+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP14 approved: #3102 closeout confirmed, will be recorded as closing keyword in draft PR body.",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-08-02T15:48:13.841801+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP14 approved: #2831/#2992 timeboxed investigation, both correctly deferred-with-followup per DIR-013 (no proven shared root cause justifying scope expansion).",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-08-02T15:48:17.274213+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Verify FR-016 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP11 approved: 38-entry frozen shrink-only allowlist keyed on (file,qualname,token,literal,clause), self-mutation proof against real production module, swap-vulnerability fix independently reproduced by reviewer against a real production site.",
+      "pass_fail": "pass",
+      "verified_by": "orchestrator",
+      "verified_at": "2026-08-02T15:48:20.669912+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
