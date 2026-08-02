@@ -99,6 +99,133 @@ def list_cmd(
     )
 
 
+def _resolve_pack_path_or_exit(name: str, *, json_output: bool) -> Path:
+    """Resolve a built-in pack name or exit(1) with a consistent error report.
+
+    Shared by ``path_cmd`` and ``apply_cmd`` (T012 campsite) — both used to
+    carry an IDENTICAL ``try: resolve_builtin_pack_path(name) except
+    (UnknownPackError, FileNotFoundError)`` block. ``list_cmd`` is
+    deliberately NOT routed through this helper: it resolves EVERY built-in
+    pack in a list comprehension and only ever sees ``FileNotFoundError``
+    (there is no single ``name`` argument for ``UnknownPackError`` to be
+    raised about there) — forcing it through a helper shaped for a
+    single-name lookup would make it catch an exception class it can never
+    hit.
+    """
+    try:
+        # `specify_cli.*` imports are `follow_imports = "skip"` under mypy
+        # (pyproject.toml [[tool.mypy.overrides]]), which erases
+        # `resolve_builtin_pack_path`'s own `-> Path` annotation to `Any`
+        # when this file is checked in isolation. Wrapping in `Path(...)`
+        # re-asserts the (already-true-at-runtime) type explicitly rather
+        # than suppressing the check.
+        return Path(resolve_builtin_pack_path(name))
+    except (UnknownPackError, FileNotFoundError) as exc:
+        if json_output:
+            typer.echo(json.dumps({"error": str(exc)}))
+        else:
+            console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+
+
+class _ApplyCompileGitWorktreeError(RuntimeError):
+    """``apply --compile`` was requested outside a git working tree.
+
+    Mirrors the requirement ``charter generate`` itself fails fast on
+    (T030/#841) — ``--compile`` chains that same seam, so it inherits the
+    same precondition.
+    """
+
+
+def _compile_bundle_after_merge(repo_root: Path) -> list[str]:
+    """Chain the EXISTING compile seam after an ``apply`` merge (T011/FR-003).
+
+    Reuses ``charter generate``'s own building blocks — ``compile_charter``/
+    ``write_compiled_charter`` (the same seam ``generate --no-from-interview``
+    calls), its doctrine-service + pack-context wiring
+    (``_build_doctrine_service_with_org_layer`` / ``PackContext.from_config``),
+    its ``--no-from-interview`` interview resolution
+    (``_load_interview_for_generate``), and its git-worktree gate
+    (``_is_inside_git_worktree``) — rather than invoking the ``generate``
+    typer command directly. ``generate`` always resolves its own repo root
+    from the CLI process's cwd (it has no ``--repo-root`` override), which
+    would silently diverge from the *repo_root* this command just merged
+    the pack into for any caller passing a non-default one (this command's
+    own hidden ``--repo-root``, or a test harness). Calling the seam
+    functions directly with an explicit *repo_root* keeps both paths
+    pointed at the same project and introduces ZERO new compiler code.
+
+    All imports below are function-local: this mirrors ``generate.py``'s own
+    lazy-import discipline for the pydantic-heavy ``charter.*`` package, and
+    avoids a module-load-time circular import — ``pack.py`` is imported by
+    ``_app.py`` before ``charter_app`` exists there, and ``generate.py``
+    imports ``charter_app``/``console`` from ``_app.py`` at module scope, so
+    a module-level import of ``generate.py`` here would fail during package
+    initialization.
+
+    Raises :class:`_ApplyCompileGitWorktreeError` when *repo_root* is not
+    inside a git working tree.
+    """
+    from charter.compiler import compile_charter, write_compiled_charter  # noqa: PLC0415
+    from charter.pack_context import PackContext  # noqa: PLC0415
+
+    from specify_cli.cli.commands.charter._common import _interview_path  # noqa: PLC0415
+    from specify_cli.cli.commands.charter.generate import (  # noqa: PLC0415
+        _build_doctrine_service_with_org_layer,
+        _is_inside_git_worktree,
+        _load_interview_for_generate,
+    )
+
+    if not _is_inside_git_worktree(repo_root):
+        raise _ApplyCompileGitWorktreeError(
+            "charter pack apply --compile requires a git repository -- it "
+            "inherits `charter generate`'s git-worktree requirement (the "
+            "produced charter.yaml must be trackable). Initialize one with "
+            "`git init`, then re-run with --compile, or finish governance "
+            "later with `spec-kitty charter generate` once inside a git "
+            "working tree."
+        )
+
+    interview_data, _source, resolved_mission = _load_interview_for_generate(
+        repo_root=repo_root,
+        answers_path=_interview_path(repo_root),
+        from_interview=False,
+        resolved_mission_type=None,
+        profile="minimal",
+    )
+    compiled = compile_charter(
+        mission=resolved_mission,
+        interview=interview_data,
+        repo_root=repo_root,
+        doctrine_service=_build_doctrine_service_with_org_layer(repo_root),
+        pack_context=PackContext.from_config(repo_root),
+    )
+    charter_dir = repo_root / ".kittify" / "charter"
+    bundle_result = write_compiled_charter(charter_dir, compiled, repo_root=repo_root)
+    return list(bundle_result.files_written)
+
+
+def _apply_compile_bridge(
+    repo_root: Path, compile_bundle: bool, *, json_output: bool
+) -> list[str]:
+    """Run the ``--compile`` bridge when requested, else return no files.
+
+    Isolates the ``--compile`` branch (including its git-worktree error
+    reporting) out of ``apply_cmd`` so adding the flag does not grow that
+    command's own cyclomatic complexity (campsite, T011).
+    """
+    if not compile_bundle:
+        return []
+    try:
+        return _compile_bundle_after_merge(repo_root)
+    except _ApplyCompileGitWorktreeError as exc:
+        if json_output:
+            typer.echo(json.dumps({"error": str(exc)}))
+        else:
+            console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+
+
 @charter_pack_app.command("path")
 def path_cmd(
     name: str = typer.Argument(..., help="Built-in pack name (e.g. 'default', 'minimal')."),
@@ -108,14 +235,7 @@ def path_cmd(
 
     Fails closed (exit 1) on an unknown pack name, naming it and the valid set.
     """
-    try:
-        resolved = resolve_builtin_pack_path(name)
-    except (UnknownPackError, FileNotFoundError) as exc:
-        if json_output:
-            typer.echo(json.dumps({"error": str(exc)}))
-        else:
-            console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from exc
+    resolved = _resolve_pack_path_or_exit(name, json_output=json_output)
 
     if json_output:
         typer.echo(json.dumps({"name": name, "path": str(resolved)}))
@@ -131,6 +251,18 @@ def apply_cmd(
         "--force",
         help="Overwrite activation keys already present in config.yaml (default: leave them untouched).",
     ),
+    compile_bundle: bool = typer.Option(
+        False,
+        "--compile",
+        help=(
+            "Also compile the merged activation into "
+            ".kittify/charter/charter.yaml by chaining the existing "
+            "`spec-kitty charter generate --no-from-interview` seam (no new "
+            "compiler is introduced). Requires a git repository -- inherits "
+            "`charter generate`'s git-worktree requirement. The default "
+            "merge (without this flag) stays git-agnostic."
+        ),
+    ),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON."),
     repo_root: Path = typer.Option(Path("."), hidden=True),
 ) -> None:
@@ -141,15 +273,15 @@ def apply_cmd(
     currently absent. An already-present key (even an empty list a user
     explicitly authored) is left untouched unless ``--force`` is passed, in
     which case every key the pack declares is overwritten.
+
+    Pass ``--compile`` to also chain the existing compile seam
+    (``spec-kitty charter generate --no-from-interview``) so
+    ``.kittify/charter/charter.yaml`` is produced in the same step. That
+    flag requires a git repository (inherited from ``generate``); the
+    default merge (no ``--compile``) stays a pure, git-agnostic additive
+    merge (C-004).
     """
-    try:
-        pack_path = resolve_builtin_pack_path(name)
-    except (UnknownPackError, FileNotFoundError) as exc:
-        if json_output:
-            typer.echo(json.dumps({"error": str(exc)}))
-        else:
-            console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from exc
+    pack_path = _resolve_pack_path_or_exit(name, json_output=json_output)
 
     config_path = repo_root / ".kittify" / "config.yaml"
     yaml = YAML()
@@ -171,6 +303,8 @@ def apply_cmd(
         with config_path.open("w", encoding="utf-8") as fh:
             yaml.dump(data, fh)
 
+    compiled_files = _apply_compile_bridge(repo_root, compile_bundle, json_output=json_output)
+
     result = {
         "pack": name,
         "path": str(pack_path),
@@ -178,6 +312,8 @@ def apply_cmd(
         "keys_written": keys_written,
         "keys_skipped": keys_skipped,
         "force": force,
+        "compiled": compile_bundle,
+        "compiled_files": compiled_files,
     }
     if json_output:
         typer.echo(json.dumps(result, indent=2))
@@ -197,9 +333,19 @@ def apply_cmd(
             f"[dim]Skipped (already present; use --force to overwrite):[/dim] "
             f"{', '.join(keys_skipped)}"
         )
-    console.print(
-        "[dim]Next:[/dim] review activations with `spec-kitty charter list`. "
-        "The baseline is now recorded in config.yaml -- agent-profile "
-        "activation and a charter compile may still be needed for full "
-        "governance."
-    )
+
+    if compile_bundle:
+        written = ", ".join(compiled_files) if compiled_files else ".kittify/charter/charter.yaml"
+        console.print(f"[green]Compiled charter bundle:[/green] wrote {written}")
+    else:
+        # T010: name the exact next command instead of a vague "may still be
+        # needed" -- config.yaml alone is not read by `charter context` /
+        # `charter status`; only the compiled `charter.yaml` is.
+        console.print(
+            "[dim]Next:[/dim] review activations with `spec-kitty charter list`, "
+            "then run `spec-kitty charter generate` to compile this into "
+            ".kittify/charter/charter.yaml -- that step (not this merge) is "
+            "what delivers working governance to `charter context` / "
+            "`charter status`. (Or re-run this command with --compile to do "
+            "both in one step.)"
+        )
