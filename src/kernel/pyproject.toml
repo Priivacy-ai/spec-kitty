@@ -1,0 +1,35 @@
+[project]
+name = "spec-kitty-kernel"
+version = "1.0.0"
+description = "Zero-dependency shared primitives for Spec Kitty (kernel <- doctrine <- charter <- specify_cli)"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Spec Kitty Contributors" }]
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+# This pyproject.toml's project root IS src/kernel/ itself (no nested
+# src/kernel/kernel/ subdirectory below it) -- unlike the repository-root
+# pyproject.toml, where `packages = ["src/kernel", ...]` is resolved
+# relative to the repo root and correctly names the top-level "kernel"
+# package. `sources` renames every file under this root to live under a
+# "kernel/" prefix in the wheel; `include` selects the whole tree. See
+# src/doctrine/pyproject.toml and src/doctrine/hatch_build.py for the
+# fuller writeup of this same root-relative-packages pitfall (WP12).
+sources = { "" = "kernel" }
+include = ["**/*"]
+exclude = [
+  "pyproject.toml",
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "**/*",
+]
+exclude = [
+  "dist/**",
+]
