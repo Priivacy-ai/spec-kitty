@@ -1,0 +1,83 @@
+{
+  "model": "gpt-4o-mini",
+  "endpointHost": "api.openai.com",
+  "musterVersion": "1.2.2",
+  "ranAt": "2026-08-02T09:15:00Z",
+  "mainSuiteCases": [
+    {
+      "manifest": "conformance/behavioral/profiles/architect-alphonso.yaml",
+      "passed": false,
+      "runsErrored": 20,
+      "perCase": [
+        {
+          "ruleId": "AVOIDANCE-BOUNDARY-architect-alphonso",
+          "passCount": 0,
+          "totalRuns": 5,
+          "runsErrored": 5
+        },
+        {
+          "ruleId": "CAPABILITY-CONTAINMENT-architect-alphonso",
+          "passCount": 0,
+          "totalRuns": 5,
+          "runsErrored": 5
+        },
+        {
+          "ruleId": "HANDOFF-DISCIPLINE-architect-alphonso",
+          "passCount": 0,
+          "totalRuns": 5,
+          "runsErrored": 5
+        },
+        {
+          "ruleId": "CANONICAL-VERBS-architect-alphonso",
+          "passCount": 0,
+          "totalRuns": 5,
+          "runsErrored": 5
+        }
+      ]
+    },
+    {
+      "manifest": "conformance/behavioral/profiles/reviewer-renata.yaml",
+      "passed": false,
+      "runsErrored": 0,
+      "perCase": [
+        {
+          "ruleId": "AVOIDANCE-BOUNDARY-reviewer-renata",
+          "passCount": 5,
+          "totalRuns": 5,
+          "runsErrored": 0
+        },
+        {
+          "ruleId": "CAPABILITY-CONTAINMENT-reviewer-renata",
+          "passCount": 5,
+          "totalRuns": 5,
+          "runsErrored": 0
+        },
+        {
+          "ruleId": "HANDOFF-DISCIPLINE-reviewer-renata",
+          "passCount": 1,
+          "totalRuns": 5,
+          "runsErrored": 0
+        },
+        {
+          "ruleId": "CANONICAL-VERBS-reviewer-renata",
+          "passCount": 2,
+          "totalRuns": 5,
+          "runsErrored": 0
+        }
+      ]
+    },
+    {
+      "manifest": "conformance/doctrine/010-specification-fidelity-requirement.yaml",
+      "passed": true,
+      "runsErrored": 0,
+      "perCase": [
+        {
+          "ruleId": "010-behavioral-1",
+          "passCount": 5,
+          "totalRuns": 5,
+          "runsErrored": 0
+        }
+      ]
+    }
+  ]
+}
