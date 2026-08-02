@@ -113,6 +113,38 @@ claim before any tracker action was taken; findings below.*
    shadow-workspace proposal gated — escalate only if the same undetected-out-of-context-write
    shape keeps recurring after `#3128` and the `#1878` strangler land.
 
+## Addendum 2026-08-02 — charter-as-sole-door boundary/usage pair landed (Mission 1 + Mission 2)
+
+*The two-mission sequence scoped to close out the [open-core delivery plan](3-2-x-open-core-delivery-plan.md)
+§3 item 1 (boundary extraction) and make progress on item 2 (charter-as-sole-door) has landed on main.*
+
+1. **Mission 1 — `doctrine-built-in-seam-consolidation` — landed.** Consolidated built-in doctrine
+   onto one fail-closed location seam and completed the `packs/built-in` relocation (the G1 arc's
+   keystone `#2467` split, see below), and derived the activation-key vocabularies from a single
+   authority (restoring `activated_glossary_packs`).
+2. **Mission 2 — `charter-pack-usage-journey` — landed.** Makes `spec-kitty charter pack apply`
+   actually deliver usable governance instead of a dead end: applying a pack (without compiling) no
+   longer disables the safe generic-agent dispatch fallback (`#3104` — the P1 regression where the
+   documented "get started" remedy broke the thing it was meant to help), keeps that dispatch-net
+   check single-load on the hot path (`#3118`), and an opt-in `--compile` chains the existing
+   compile seam so `charter context`/`charter status` read the compiled `charter.yaml` as the
+   governance authority and survive `charter.md` deletion (`#3105`) — with `resolve_project_governance`
+   now reporting the *activated* directive set rather than a catalog-fallback of all built-ins.
+   Folded in per operator direction: the advertised `charter context --include section:…` selectors
+   no longer dead-end (`#3095`/`#3094`/`#2552`), the documented `spec-kitty analyze` surface now
+   agrees with the CLI (`#3096`), and a path-filtered CI workflow gives `src/doctrine/**` /
+   `src/charter/**` changes isolated, fast feedback (`#3102`) — plus the journey-doc fold-in
+   (`#3107`). Closes `#3104`, `#3105`, `#3118`, `#3095`, `#3094`, `#2552`, `#3096`, `#3102`, `#3107`.
+   One deliberate, recorded behaviour change (NFR-004): "empty" for the dispatch net now means the
+   compiled bundle is **absent**, which narrows and reverses the `#3064` glossary-dimension case of
+   the wider composite-activation check that mission introduced — a benign, tested contraction, not
+   a silent regression.
+3. **Relation to the delivery plan's remaining-work sequence:** Mission 1 completes item 1
+   (boundary extraction / built-in → packs). Mission 2 hardens the *existing* charter door
+   (dispatch-net safety, `charter.yaml` as the sole read authority, one directive authority) but
+   does **not** close the ~22 bypass-door list item 2 names — that count is unaffected and remains
+   open work.
+
 ## The dependency spine
 
 The epic graph is now encoded **natively in the tracker** as blocked-by edges (2026-07-04):
@@ -153,7 +185,7 @@ The dependency spine above is the **G2/G3** program — strangling the core doma
 **The arc has four roots and one internal keystone:**
 
 ```
-#2466 pack ecosystem (P1) ──[keystone #2467: split built-in → packs]──┐
+#2466 pack ecosystem (P1) ──[keystone #2467: split built-in → packs ✅ LANDED]──┐
    ├─ #2468 mission-types + step-contracts as doctrine kinds           │ #2467 blocks:
    ├─ #2469 loose-contract ASSET kind ✅ · #2495 templates as DRG ✅    │  #2468 #2470 #2471 #2216
    ├─ #2470 shortcodes-as-doctrine · #2471 pack-validator CI · #2472 procedure-kind fate
@@ -180,7 +212,7 @@ Glossary-as-doctrine: #1629 + #1418 (P1, now 3.2.x) — first-order glossary art
 
 **Reading order within the arc:**
 
-1. **#2467 is the keystone.** Splitting built-in doctrine into packs (built-in → org → project, `depends_on` DAG) is the substrate everything downstream builds against; it already blocks #2468/#2470/#2471/#2216.
+1. **#2467 is the keystone — LANDED (see [Addendum 2026-08-02](#addendum-2026-08-02-charter-as-sole-door-boundary-usage-pair-landed-mission-1-mission-2)).** Splitting built-in doctrine into packs (built-in → org → project, `depends_on` DAG) is the substrate everything downstream builds against; it already blocks #2468/#2470/#2471/#2216. Delivered by mission `doctrine-built-in-seam-consolidation` (Mission 1 of the boundary/usage pair); the follow-on `charter-pack-usage-journey` (Mission 2) then made the resulting pack-apply path actually deliver working governance — it does not itself close #2468/#2470/#2471/#2216, which stay open.
 2. **Extensibility kinds next.** #2468 (mission-types + step-contracts as doctrine kinds) and the closed #2469 (ASSET kind) are the prerequisites the **gates** sub-epic #2535 makes executable at a transition boundary.
 3. **Governance semantics.** #2216 (component-type immutability + AUTHORITATIVE charters) rides on the pack tiers from #2467 — the edge exists at keystone-child granularity (#2216 blocked_by #2467), not a coarse parent edge.
 4. **Authoring robustness.** #2519 runs its own #2526→#2522→#2521→#2520 sequence (foundation shipped); it is a sibling root, not gated by #2466.

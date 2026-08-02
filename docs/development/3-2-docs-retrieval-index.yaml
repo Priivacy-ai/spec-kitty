@@ -7954,6 +7954,7 @@ pages:
     - {slug: "intent-of-3-2-x", text: "Intent of 3.2.x", level: 2}
     - {slug: "addendum-2026-07-30-verified-status-re-read-spine-re-anchoring", text: "Addendum 2026-07-30 — verified status re-read + spine re-anchoring", level: 2}
     - {slug: "addendum-2026-08-01-write-path-topology-scoping-gap-design-spike-3129", text: "Addendum 2026-08-01 — write-path topology scoping gap (design-spike #3129)", level: 2}
+    - {slug: "addendum-2026-08-02-charter-as-sole-door-boundary-usage-pair-landed-mission-1-mission-2", text: "Addendum 2026-08-02 — charter-as-sole-door boundary/usage pair landed (Mission 1 + Mission 2)", level: 2}
     - {slug: "the-dependency-spine", text: "The dependency spine", level: 2}
     - {slug: "the-g1-doctrine-charter-arc-off-spine", text: "The G1 doctrine & charter arc (off-spine)", level: 2}
     - {slug: "doctrine-canonical-structure-remediation-programme-2026-07-26", text: "Doctrine canonical-structure remediation programme (2026-07-26)", level: 2}
