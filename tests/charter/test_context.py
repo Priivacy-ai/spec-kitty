@@ -499,8 +499,21 @@ class TestBuildContextV2:
         assert "Toolguides:" in result.text
 
     def test_missing_charter_file(self, tmp_path: Path) -> None:
-        """When charter.md is missing, returns mode='missing'."""
+        """When NEITHER charter.yaml nor charter.md exists, returns mode='missing'.
+
+        FR-005 (charter-pack-usage-journey WP03): the presence gate is now an
+        OR across the authoritative ``charter.yaml`` and the legacy
+        ``charter.md`` -- "missing" only when the charter is truly absent on
+        both surfaces. A strict charter.yaml-only gate was tried first and
+        regressed a wide swath of the existing suite whose fixtures seed only
+        ``charter.md`` (verified via a full ``-k charter`` sweep, 26
+        failures); the OR form still satisfies SC-002 (survives ``charter.md``
+        deletion, see ``test_charter_md_deletion_survives_with_charter_yaml_present``)
+        without breaking those charter.md-only fixtures (see
+        ``test_charter_yaml_absence_does_not_regress_charter_md_only_bootstrap``).
+        """
         _setup_fixture_repo(tmp_path)
+        (tmp_path / ".kittify" / "charter" / "charter.yaml").unlink()
         (tmp_path / ".kittify" / "charter" / "charter.md").unlink()
 
         from io import StringIO
@@ -524,6 +537,73 @@ class TestBuildContextV2:
 
         assert result.mode == "missing"
         assert "Charter file not found" in result.text
+
+    def test_charter_yaml_absence_does_not_regress_charter_md_only_bootstrap(
+        self, tmp_path: Path
+    ) -> None:
+        """Backward-compat pin: charter.md present, charter.yaml absent still renders.
+
+        This is the shape a large swath of the pre-existing suite seeds
+        (charter.md-only fixtures that predate charter.yaml). The OR presence
+        gate must not regress this to mode='missing'.
+        """
+        _setup_fixture_repo(tmp_path)
+        (tmp_path / ".kittify" / "charter" / "charter.yaml").unlink()
+
+        from io import StringIO
+
+        from doctrine.drg.models import DRGGraph
+        from ruamel.yaml import YAML
+
+        yaml = YAML(typ="safe")
+        graph_data = yaml.load(StringIO(_MINIMAL_GRAPH_YAML))
+        mock_graph = DRGGraph.model_validate(graph_data)
+
+        def patched_load_graph(path: Path) -> DRGGraph:
+            return mock_graph
+
+        with (
+            patch("doctrine.drg.loader.load_graph", side_effect=patched_load_graph),
+            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("doctrine.drg.validator.assert_valid"),
+        ):
+            result = build_charter_context(tmp_path, action="implement", depth=2)
+
+        assert result.mode == "bootstrap"
+        assert "Charter file not found" not in result.text
+
+    def test_charter_md_deletion_survives_with_charter_yaml_present(self, tmp_path: Path) -> None:
+        """FR-005/SC-002: deleting charter.md alone must not flip mode='missing'.
+
+        charter.yaml is the authority; charter.md is a display-only prose
+        companion. With charter.yaml still present, the bootstrap render must
+        gracefully degrade (no policy summary) rather than dead-ending.
+        """
+        _setup_fixture_repo(tmp_path)
+        (tmp_path / ".kittify" / "charter" / "charter.md").unlink()
+
+        from io import StringIO
+
+        from doctrine.drg.models import DRGGraph
+        from ruamel.yaml import YAML
+
+        yaml = YAML(typ="safe")
+        graph_data = yaml.load(StringIO(_MINIMAL_GRAPH_YAML))
+        mock_graph = DRGGraph.model_validate(graph_data)
+
+        def patched_load_graph(path: Path) -> DRGGraph:
+            return mock_graph
+
+        with (
+            patch("doctrine.drg.loader.load_graph", side_effect=patched_load_graph),
+            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("doctrine.drg.validator.assert_valid"),
+        ):
+            result = build_charter_context(tmp_path, action="implement", depth=2)
+
+        assert result.mode == "bootstrap"
+        assert "Charter file not found" not in result.text
+        assert "No explicit policy summary section found in charter.md." in result.text
 
     def test_references_count(self, tmp_path: Path) -> None:
         """references_count reflects filtered references."""
@@ -601,10 +681,15 @@ class TestBuildContextV2:
 
         assert payload["directives"] == []
         assert [entry["id"] for entry in payload["all_directives"]] == ["DIR-001", "DIR-002"]
+        # FR-006 (charter-pack-usage-journey WP03): present/path/bytes key on
+        # the authoritative charter.yaml; charter.md's own presence/path are
+        # the secondary display fields.
         assert payload["project_charter"] == {
             "present": True,
-            "path": ".kittify/charter/charter.md",
-            "bytes": (charter_dir / "charter.md").stat().st_size,
+            "path": ".kittify/charter/charter.yaml",
+            "bytes": (charter_dir / "charter.yaml").stat().st_size,
+            "charter_md_present": True,
+            "charter_md_path": ".kittify/charter/charter.md",
             "hash": "sha256:testhash",
             "source_path": ".kittify/charter/charter.md",
             "bundle_schema_version": 2,
@@ -612,7 +697,13 @@ class TestBuildContextV2:
         }
 
     def test_json_project_charter_metadata_fallbacks(self, tmp_path: Path) -> None:
-        """Project-charter JSON metadata degrades to explicit presence facts."""
+        """Project-charter JSON metadata degrades to explicit presence facts.
+
+        FR-006: the producer keys ``present``/``path``/``bytes`` on the
+        authoritative ``charter.yaml`` (SC-002 -- survives ``charter.md``
+        deletion); ``charter.md`` itself is reported via the secondary
+        ``charter_md_present``/``charter_md_path`` fields.
+        """
         assert _relative_json_path(Path("/outside/charter.md"), tmp_path) == "/outside/charter.md"
 
         with patch("charter.sync.ensure_charter_bundle_fresh", side_effect=RuntimeError("boom")):
@@ -624,12 +715,16 @@ class TestBuildContextV2:
         missing = _project_charter_json_block(tmp_path)
         assert missing == {
             "present": False,
-            "path": ".kittify/charter/charter.md",
+            "path": ".kittify/charter/charter.yaml",
+            "charter_md_present": False,
+            "charter_md_path": ".kittify/charter/charter.md",
         }
 
         charter_dir = tmp_path / ".kittify" / "charter"
         charter_dir.mkdir(parents=True)
-        (charter_dir / "charter.md").write_text("# Charter\n", encoding="utf-8")
+        # charter.yaml present, charter.md absent -- the FR-006 flip: present
+        # is already True here, before charter.md ever exists.
+        (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
         from charter.sync import SyncResult
 
         sync_result = SyncResult(
@@ -643,8 +738,17 @@ class TestBuildContextV2:
         with patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result):
             no_metadata = _project_charter_json_block(tmp_path)
         assert no_metadata["present"] is True
-        assert no_metadata["bytes"] == 10
+        assert no_metadata["charter_md_present"] is False
+        assert no_metadata["bytes"] == (charter_dir / "charter.yaml").stat().st_size
         assert "hash" not in no_metadata
+
+        # charter.md reappearing only moves the secondary display fields.
+        (charter_dir / "charter.md").write_text("# Charter\n", encoding="utf-8")
+        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result):
+            with_md = _project_charter_json_block(tmp_path)
+        assert with_md["present"] is True
+        assert with_md["charter_md_present"] is True
+        assert with_md["charter_md_path"] == ".kittify/charter/charter.md"
 
         metadata = charter_dir / "metadata.yaml"
         metadata.write_text("[not-a-mapping]\n", encoding="utf-8")

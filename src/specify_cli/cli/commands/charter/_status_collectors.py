@@ -18,6 +18,7 @@ from specify_cli.cli.commands.charter._app import (
 )
 from specify_cli.cli.commands.charter._common import (
     _display_path,
+    _resolve_charter_bundle_path,
     _resolve_charter_path,
 )
 from specify_cli.cli.commands.charter._synthesis import _collect_evidence_result
@@ -59,8 +60,21 @@ def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
         # The write commands (charter sync / charter generate) legitimately call
         # ensure_charter_bundle_fresh; the status READ path does not.
         canonical_root = repo_root
-        charter_path = _resolve_charter_path(canonical_root)
-        output_dir = charter_path.parent
+        # FR-005: presence keys primarily on charter.yaml (the authoritative
+        # bundle) via the CLI sibling resolver, so status survives
+        # charter.md deletion (SC-002) -- the old ``_resolve_charter_path``
+        # call here used to raise before the charter.yaml-aware staleness
+        # logic below ever ran. Fall back to the legacy charter.md gate for
+        # a pre-consolidation bundle (no charter.yaml written yet) so this
+        # collector keeps reporting available for that shape too; only when
+        # NEITHER file exists does the TaskCliError propagate to the
+        # outer handler below.
+        try:
+            output_dir = _resolve_charter_bundle_path(canonical_root).parent
+            charter_path = output_dir / "charter.md"
+        except TaskCliError:
+            charter_path = _resolve_charter_path(canonical_root)
+            output_dir = charter_path.parent
         metadata_path = output_dir / METADATA_FILENAME
         charter_yaml_path = output_dir / CHARTER_YAML_FILENAME
 

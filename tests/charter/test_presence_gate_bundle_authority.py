@@ -1,0 +1,218 @@
+"""FR-005/FR-006 read-surface presence-gate retarget: charter.yaml authority.
+
+WP03 (charter-pack-usage-journey-01KYWWTF): the presence gates on
+``charter context`` / ``charter status`` retargeted from the display-only
+``charter.md`` onto the authoritative ``charter.yaml`` (FR-005), and the
+``charter context --json`` ``project_charter.present`` signal flipped to key
+on ``charter.yaml`` as the primary source of truth (FR-006). This module pins
+the two remaining journeys from ``notes/research-synthesis.md``
+("Journey acceptance tests" #4/#5) plus a dedicated FR-006 JSON contract-flip
+test (SC-002: presence must survive ``charter.md`` deletion).
+
+C-003 guard: these tests exercise the *presence* gate only. They never assert
+that the ``charter.md`` prose/section readers (``context.py``'s bootstrap
+"Source:" line, ``_extract_policy_summary``, the ``--include section:<id>``
+selector) were retargeted -- those legitimately stay on ``charter.md`` and
+are covered by ``tests/charter/test_context.py``.
+"""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import textwrap
+from io import StringIO
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+from typer.testing import CliRunner
+
+from charter.context import build_charter_context, build_charter_context_json
+from specify_cli.cli.commands.charter import app
+from specify_cli.cli.commands.charter._status_collectors import (
+    _collect_charter_sync_status,
+)
+from tests.charter.test_context import _MINIMAL_GRAPH_YAML, _setup_fixture_repo
+
+pytestmark = pytest.mark.fast
+
+runner = CliRunner()
+
+
+# ---------------------------------------------------------------------------
+# Journey 4 (#3105): context -- bundle authority. Renders the activated
+# doctrine bundle; deleting charter.md must not stop it rendering.
+# ---------------------------------------------------------------------------
+
+
+class TestJourney4ContextBundleAuthority:
+    def test_context_renders_activated_bundle_and_survives_charter_md_deletion(
+        self, tmp_path: Path
+    ) -> None:
+        _setup_fixture_repo(tmp_path)
+
+        from doctrine.drg.models import DRGGraph
+        from ruamel.yaml import YAML
+
+        yaml = YAML(typ="safe")
+        graph_data = yaml.load(StringIO(_MINIMAL_GRAPH_YAML))
+        mock_graph = DRGGraph.model_validate(graph_data)
+
+        with (
+            patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
+            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("doctrine.drg.validator.assert_valid"),
+        ):
+            before = build_charter_context(
+                tmp_path, action="implement", depth=2, mission_type="software-dev"
+            )
+
+        assert before.mode == "bootstrap"
+        assert "Charter file not found" not in before.text
+        assert "DIRECTIVE_001" in before.text
+
+        (tmp_path / ".kittify" / "charter" / "charter.md").unlink()
+
+        with (
+            patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
+            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("doctrine.drg.validator.assert_valid"),
+        ):
+            after = build_charter_context(
+                tmp_path, action="implement", depth=2, mission_type="software-dev"
+            )
+
+        # Bundle authority proven: the same activated directive still
+        # renders -- this is NOT the "not found" dead-end the mission
+        # closes (#3105), and mode never regresses to "missing".
+        assert after.mode == "bootstrap"
+        assert after.mode != "missing"
+        assert "Charter file not found" not in after.text
+        assert "DIRECTIVE_001" in after.text
+
+
+# ---------------------------------------------------------------------------
+# Journey 5 (#3105): status -- SYNCED on charter.yaml authority, survives
+# charter.md deletion.
+# ---------------------------------------------------------------------------
+
+
+class TestJourney5StatusBundleAuthority:
+    def test_status_reports_synced_on_charter_yaml_and_survives_charter_md_deletion(
+        self, tmp_path: Path
+    ) -> None:
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        (charter_dir / "charter.yaml").write_text(
+            textwrap.dedent("""\
+                schema_version: "2.0.0"
+                metadata:
+                  bundle_schema_version: 2
+            """),
+            encoding="utf-8",
+        )
+        (charter_dir / "charter.md").write_text("# Curated Charter\n", encoding="utf-8")
+
+        before = _collect_charter_sync_status(tmp_path)
+        assert before["available"] is True
+        assert before["status"] == "synced"
+
+        (charter_dir / "charter.md").unlink()
+
+        after = _collect_charter_sync_status(tmp_path)
+        assert after["available"] is True
+        assert after["status"] == "synced"
+
+
+# ---------------------------------------------------------------------------
+# FR-006 -- dedicated JSON present-signal contract-flip test. NOT covered by
+# the human-facing journeys 4/5 above: this pins the machine ``--json``
+# surface specifically, the assertion that would fail against the pre-flip
+# producer (which keyed ``present`` on charter.md).
+# ---------------------------------------------------------------------------
+
+
+def _git_init(repo_root: Path) -> None:
+    subprocess.run(["git", "init", "--quiet", str(repo_root)], check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo_root, check=True)
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo_root, check=True)
+
+
+class TestFR006JsonPresentSignalFlip:
+    def test_build_charter_context_json_present_keys_on_charter_yaml(
+        self, tmp_path: Path
+    ) -> None:
+        """Direct producer-level pin: charter.yaml present, charter.md absent."""
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
+
+        from charter.sync import SyncResult
+
+        sync_result = SyncResult(
+            synced=False,
+            stale_before=False,
+            files_written=[],
+            extraction_mode="",
+            canonical_root=tmp_path,
+        )
+        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result):
+            payload = build_charter_context_json(tmp_path, action="plan", depth=1)
+
+        # The FR-006 flip: charter.md was NEVER written in this fixture. A
+        # pre-flip producer (keyed on charter.md) would report False here --
+        # this is the assertion that proves the authority moved.
+        assert payload["project_charter"]["present"] is True
+        assert payload["project_charter"]["charter_md_present"] is False
+
+        # Survives charter.md deletion when it later appears then disappears
+        # again (SC-002), not just "never existed".
+        (charter_dir / "charter.md").write_text("# Charter\n", encoding="utf-8")
+        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result):
+            with_md = build_charter_context_json(tmp_path, action="plan", depth=1)
+        assert with_md["project_charter"]["present"] is True
+        assert with_md["project_charter"]["charter_md_present"] is True
+
+        (charter_dir / "charter.md").unlink()
+        with patch("charter.sync.ensure_charter_bundle_fresh", return_value=sync_result):
+            after_delete = build_charter_context_json(tmp_path, action="plan", depth=1)
+        assert after_delete["project_charter"]["present"] is True
+        assert after_delete["project_charter"]["charter_md_present"] is False
+
+    @pytest.mark.integration
+    @pytest.mark.git_repo
+    def test_cli_context_json_present_survives_charter_md_deletion(
+        self, tmp_path: Path
+    ) -> None:
+        """End-to-end pin through the real ``charter context --json`` CLI surface.
+
+        Exercises both FR-006 sites at once: the producer
+        (``context_json._project_charter_json_block``) and the CLI fallback
+        default (``cli/commands/charter/context.py:158``) that must stay
+        consistent with it.
+        """
+        repo_root = tmp_path / "repo"
+        repo_root.mkdir()
+        _git_init(repo_root)
+        charter_dir = repo_root / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        # ``generate --no-from-interview`` extracts from a seeded charter.md
+        # to produce charter.yaml (the sync pipeline reads charter.md as its
+        # source); once charter.yaml exists we delete charter.md to prove
+        # the read surface no longer depends on it (SC-002).
+        (charter_dir / "charter.md").write_text("# Curated Charter\n", encoding="utf-8")
+
+        with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=repo_root):
+            generate_result = runner.invoke(app, ["generate", "--json", "--no-from-interview"])
+            assert generate_result.exit_code == 0, generate_result.output
+            assert (charter_dir / "charter.yaml").exists()
+
+            (charter_dir / "charter.md").unlink()
+
+            result = runner.invoke(app, ["context", "--action", "specify", "--json"])
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.stdout)
+        assert payload["success"] is True
+        assert payload["project_charter"]["present"] is True

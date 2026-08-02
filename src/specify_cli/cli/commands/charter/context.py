@@ -153,9 +153,16 @@ def context(
                         ),
                         "project_charter": structured.get(
                             "project_charter",
+                            # FR-006: kept consistent with the producer
+                            # (``charter.context_json._project_charter_json_block``) --
+                            # ``present``/``path`` key on the authoritative
+                            # ``charter.yaml`` bundle, not the display-only
+                            # ``charter.md``.
                             {
                                 "present": False,
-                                "path": ".kittify/charter/charter.md",
+                                "path": ".kittify/charter/charter.yaml",
+                                "charter_md_present": False,
+                                "charter_md_path": ".kittify/charter/charter.md",
                             },
                         ),
                         "org_charter": structured.get(

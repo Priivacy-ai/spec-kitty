@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 from ruamel.yaml.error import YAMLError
 
 from charter import progressive_disclosure as _pd
-from charter.bundle import CHARTER_MD
+from charter.bundle import CHARTER_MD, CHARTER_YAML
 from charter.context_state import KITTIFY_DIRNAME
 from charter.schemas import DirectivesConfig
 
@@ -81,20 +81,34 @@ def _relative_json_path(path: Path, root: Path) -> str:
 
 
 def _project_charter_json_block(repo_root: Path) -> dict[str, object]:
-    """Describe the project-local charter loaded by the context renderer."""
+    """Describe the project-local charter loaded by the context renderer.
+
+    FR-006 (charter-pack-usage-journey WP03): ``present``/``path`` key on the
+    **authoritative** ``charter.yaml`` bundle (the primary signal, surviving
+    ``charter.md`` deletion -- SC-002). ``charter.md``'s own presence/path
+    become the secondary display fields ``charter_md_present`` /
+    ``charter_md_path`` -- it is a display companion, not the governance
+    authority. This is a deliberate ``charter context --json``
+    ``project_charter.present`` contract flip; see the second present-signal
+    site kept consistent with this producer at
+    ``specify_cli/cli/commands/charter/context.py:158`` (cross-ref #2787).
+    """
     bundle_root = _bundle_root_for_json(repo_root)
     charter_dir = bundle_root / KITTIFY_DIRNAME / "charter"
-    charter_path = bundle_root / CHARTER_MD
+    charter_yaml_path = bundle_root / CHARTER_YAML
+    charter_md_path = bundle_root / CHARTER_MD
     metadata_path = charter_dir / "metadata.yaml"
 
     block: dict[str, object] = {
-        "present": charter_path.exists(),
-        "path": _relative_json_path(charter_path, bundle_root),
+        "present": charter_yaml_path.exists(),
+        "path": _relative_json_path(charter_yaml_path, bundle_root),
+        "charter_md_present": charter_md_path.exists(),
+        "charter_md_path": _relative_json_path(charter_md_path, bundle_root),
     }
-    if not charter_path.exists():
+    if not charter_yaml_path.exists():
         return block
 
-    block["bytes"] = charter_path.stat().st_size
+    block["bytes"] = charter_yaml_path.stat().st_size
     if not metadata_path.exists():
         return block
 

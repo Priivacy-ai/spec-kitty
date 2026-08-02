@@ -27,7 +27,7 @@ from charter.action_doctrine_bundle import (
     _load_action_doctrine_bundle as _load_action_doctrine_bundle,
     _resolve_action_bundle as _resolve_action_bundle,
 )
-from charter.bundle import CHARTER_MD
+from charter.bundle import CHARTER_MD, CHARTER_YAML
 from charter.charter_md_parsing import _extract_policy_summary as _extract_policy_summary
 from charter.context_json import (
     _EMPTY_ORG_CHARTER as _EMPTY_ORG_CHARTER,
@@ -203,7 +203,22 @@ def build_charter_context(
     canonical_root = sync_result.canonical_root if sync_result and sync_result.canonical_root else repo_root
 
     normalized = action.strip().lower()
+    # FR-005 (charter-pack-usage-journey WP03): the presence gate below is
+    # authoritative on ``charter.yaml`` (``bundle.CHARTER_YAML``) -- a
+    # charter.yaml-only project (charter.md deleted, SC-002) must still
+    # render. It is deliberately an OR with the legacy ``charter.md`` check
+    # (mode is "missing" only when BOTH are absent), not a hard swap: a wide
+    # swath of the existing suite seeds only ``charter.md`` (pre-charter.yaml
+    # fixtures that predate this mission), and a strict charter.yaml-only
+    # gate regresses every one of them to "missing" -- verified via a full
+    # ``-k charter`` sweep (26 failures) before landing on this OR form.
+    # ``charter_path`` stays a ``CHARTER_MD`` reference because the
+    # prose/section readers further down (the bootstrap "Source:" line,
+    # ``_extract_policy_summary``, the ``--include section:<id>`` selector)
+    # legitimately need ``charter.md`` — collapsing the two onto one path
+    # constant is the C-003 regression this WP guards against.
     charter_path = canonical_root / CHARTER_MD
+    charter_yaml_path = canonical_root / CHARTER_YAML
 
     def _augment(text: str) -> str:
         if missing_pack_diagnostic:
@@ -230,10 +245,10 @@ def build_charter_context(
 
     state_bundle = _prepare_context_state(repo_root, normalized, depth)
 
-    if not charter_path.exists():
+    if not charter_yaml_path.exists() and not charter_path.exists():
         text = (
             "Charter Context:\n"
-            "  - Charter file not found at `.kittify/charter/charter.md`.\n"
+            "  - Charter file not found at `.kittify/charter/charter.yaml`.\n"
             "  - Run `spec-kitty charter interview` then `spec-kitty charter generate`."
         )
         return CharterContextResult(
@@ -277,8 +292,16 @@ def build_charter_context(
             depth=state_bundle.effective_depth,
         )
 
-    charter_content = charter_path.read_text(encoding="utf-8")
-    summary = _extract_policy_summary(charter_content)
+    # FR-005 graceful-degrade: charter.md prose is optional now that presence
+    # is authoritative via charter.yaml (SC-002 -- rendering must survive a
+    # deleted charter.md), mirroring the existing compact-section handling of
+    # an absent heading rather than crashing on a missing prose file.
+    if charter_path.exists():
+        charter_content = charter_path.read_text(encoding="utf-8")
+        summary = _extract_policy_summary(charter_content)
+    else:
+        charter_content = ""
+        summary = []
     references = _load_references(canonical_root)
     doctrine_selection = _load_doctrine_selection(repo_root)
     text = _render_bootstrap_text(
@@ -431,7 +454,10 @@ def build_charter_context_json(
       governance resolver, including directives extracted from the
       project-local charter even when the action-scoped ``directives`` array
       is empty.
-    * ``project_charter`` — the loaded project-local charter, when present.
+    * ``project_charter`` — the loaded project-local charter. FR-006:
+      ``present``/``path`` key on the authoritative ``charter.yaml`` bundle
+      (survives ``charter.md`` deletion); ``charter.md``'s own presence/path
+      are the secondary ``charter_md_present``/``charter_md_path`` fields.
     * ``org_charter`` — additive block describing org-layer governance
       policies (empty when no org pack ships an ``org-charter.yaml``).
 
