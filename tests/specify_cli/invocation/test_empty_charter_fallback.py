@@ -3,7 +3,7 @@
 NOTE (WP01/#3104, #3064 reversal): the composite predicate this module's
 truth table originally pinned (ALL of directives/tactics/toolguides/
 procedures/paradigms/styleguides/glossary-packs/mission-step-contracts/
-agent-profiles/org-roots empty) has been REPLACED by the bundle-presence +
+agent_profiles/org_roots empty) has been REPLACED by the bundle-presence +
 org-pack-safe predicate in ``specify_cli.invocation.empty_charter``. That
 predicate treats "empty" as "no compiled charter bundle
 (``.kittify/charter/charter.yaml``) AND no org pack AND no explicit
