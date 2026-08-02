@@ -1,0 +1,41 @@
+{
+  "accept_commit": "74a12bf30fdaa4f32ca3e5c3e5fa2cdc4e6c0b92",
+  "acceptance_history": [
+    {
+      "accept_commit": "33fd3c79514da9c407c2fe7a495f6fa5fa64beaf",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-08-02T01:58:43.844985+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "1e8d08cb17cee8d26612241ddbd236d23b37b8c4"
+    },
+    {
+      "accept_commit": "74a12bf30fdaa4f32ca3e5c3e5fa2cdc4e6c0b92",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-08-02T01:58:56.627099+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "188d3488169162720af9a536f62824224a554acb"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-08-02T01:58:56.627099+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "188d3488169162720af9a536f62824224a554acb",
+  "baseline_merge_commit": "e4ff3f0536a65675cfa493a3e3adefdc9a9c495e",
+  "coordination_branch": "kitty/mission-charter-pack-usage-journey-01KYWWTF",
+  "created_at": "2026-07-31T20:11:04.026065+00:00",
+  "flattened": false,
+  "friendly_name": "Charter Pack Usage Journey",
+  "mission_id": "01KYWWTFYSB4YYWYP5N6HSPX6H",
+  "mission_number": null,
+  "mission_slug": "charter-pack-usage-journey-01KYWWTF",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Applying a charter pack writes activations into config.yaml, but nothing compiles them into the bundle the governance surfaces read. Today that means applying a pack disables the safe generic-agent dispatch fallback (unmatched requests hard-error) and leaves charter context and charter status reporting the charter as not found. This mission bridges the two stores so applying a pack delivers working governance, keeps dispatch safe, retires a divergent second directive authority, and tells the operator the truth about what step remains.",
+  "purpose_tldr": "Make 'charter pack apply' actually deliver usable governance, so applying a pack no longer silently breaks dispatch or leaves context and status reporting the charter as missing.",
+  "slug": "charter-pack-usage-journey-01KYWWTF",
+  "status_phase": "1",
+  "target_branch": "feat/charter-pack-usage-journey",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-01T23:23:08.933313+00:00"
+}

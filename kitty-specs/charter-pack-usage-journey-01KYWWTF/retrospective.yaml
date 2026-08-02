@@ -1,0 +1,239 @@
+schema_version: 1
+mission_id: 01KYWWTFYSB4YYWYP5N6HSPX6H
+mission_slug: charter-pack-usage-journey-01KYWWTF
+mission_number:
+friendly_name: Charter Pack Usage Journey
+mission_type: software-dev
+target_branch: feat/charter-pack-usage-journey
+created_at: '2026-08-02T02:01:39.441250+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-08-02T02:01:39.441250+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-005
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-006
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-007
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-008
+  category: implementation
+  summary: WP08 completed without rejection cycles
+  evidence_refs:
+  - e-013
+not_helpful:
+- id: n-009
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-022
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented
+    issues and decisions.
+- id: n-001
+  category: process
+  summary: WP01 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-014
+  details: WP WP01 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-002
+  category: process
+  summary: WP02 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-015
+  details: WP WP02 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-003
+  category: process
+  summary: WP03 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-016
+  details: WP WP03 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-004
+  category: process
+  summary: WP04 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-017
+  details: WP WP04 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-005
+  category: process
+  summary: WP05 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-018
+  details: WP WP05 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-006
+  category: process
+  summary: WP06 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-019
+  details: WP WP06 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-007
+  category: process
+  summary: WP07 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-020
+  details: WP WP07 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-008
+  category: process
+  summary: WP08 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-021
+  details: WP WP08 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+gaps:
+- id: g-001
+  category: doc
+  summary: data-model.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md declares domain entities but data-model.md is missing. A data model document clarifies domain entity
+    relationships.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/charter-pack-usage-journey-01KYWWTF/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/charter-pack-usage-journey-01KYWWTF/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/charter-pack-usage-journey-01KYWWTF/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/charter-pack-usage-journey-01KYWWTF/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/charter-pack-usage-journey-01KYWWTF/tasks/WP01-dispatch-net-predicate.md
+- id: e-006
+  kind: file
+  path: kitty-specs/charter-pack-usage-journey-01KYWWTF/tasks/WP02-apply-compile-bridge.md
+- id: e-007
+  kind: file
+  path: kitty-specs/charter-pack-usage-journey-01KYWWTF/tasks/WP03-read-surface-retarget.md
+- id: e-008
+  kind: file
+  path: kitty-specs/charter-pack-usage-journey-01KYWWTF/tasks/WP04-single-directive-authority.md
+- id: e-009
+  kind: file
+  path: kitty-specs/charter-pack-usage-journey-01KYWWTF/tasks/WP05-section-selectors-resolve.md
+- id: e-010
+  kind: file
+  path: kitty-specs/charter-pack-usage-journey-01KYWWTF/tasks/WP06-analyze-surface-reconcile.md
+- id: e-011
+  kind: file
+  path: kitty-specs/charter-pack-usage-journey-01KYWWTF/tasks/WP07-path-filtered-ci.md
+- id: e-012
+  kind: file
+  path: kitty-specs/charter-pack-usage-journey-01KYWWTF/tasks/WP08-journey-docs.md
+- id: e-013
+  kind: file
+  path: kitty-specs/charter-pack-usage-journey-01KYWWTF/status.events.jsonl
+- id: e-014
+  kind: event_range
+  path: kitty-specs/charter-pack-usage-journey-01KYWWTF/status.events.jsonl
+  range: 01KYZY1V32F3JHQ5DNYPK9Z0HY
+- id: e-015
+  kind: event_range
+  path: kitty-specs/charter-pack-usage-journey-01KYWWTF/status.events.jsonl
+  range: 01KYZZFNTC6TEGY7M1DCSTKM6B
+- id: e-016
+  kind: event_range
+  path: kitty-specs/charter-pack-usage-journey-01KYWWTF/status.events.jsonl
+  range: 01KZ01Z8N4B5ST3DBA80CZ5MJA
+- id: e-017
+  kind: event_range
+  path: kitty-specs/charter-pack-usage-journey-01KYWWTF/status.events.jsonl
+  range: 01KYZZFSQXHTTB606XPGCTSY25
+- id: e-018
+  kind: event_range
+  path: kitty-specs/charter-pack-usage-journey-01KYWWTF/status.events.jsonl
+  range: 01KZ003TZTBAN70XQPATVT7NF0
+- id: e-019
+  kind: event_range
+  path: kitty-specs/charter-pack-usage-journey-01KYWWTF/status.events.jsonl
+  range: 01KYZZSF3NRJ74HPHK5BVKV29E
+- id: e-020
+  kind: event_range
+  path: kitty-specs/charter-pack-usage-journey-01KYWWTF/status.events.jsonl
+  range: 01KYZZRKDK4BK2KAFMJB73K9PB
+- id: e-021
+  kind: event_range
+  path: kitty-specs/charter-pack-usage-journey-01KYWWTF/status.events.jsonl
+  range: 01KZ02WKV1GH1XKYAHW7SGXBYZ
+- id: e-022
+  kind: file
+  path: kitty-specs/charter-pack-usage-journey-01KYWWTF/analysis-report.md
+generator_version: '1.0'
+provenance_history: []
