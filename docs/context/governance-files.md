@@ -5,6 +5,7 @@ doc_status: active
 updated: '2026-07-18'
 related:
 - docs/context/charter-overview.md
+- docs/architecture/charter-pack-usage-journey.md
 ---
 # Governance Files Reference
 
@@ -233,3 +234,5 @@ Edit `charter.yaml`'s `governance`/`directives` sections directly for policy cha
 
 - [How Charter Works](charter-overview.md) — mental model and synthesis flow
 - [How to Synthesize and Maintain Doctrine](../guides/synthesize-doctrine.md) — day-to-day synthesis workflow
+- [Charter Pack Usage Journey](../architecture/charter-pack-usage-journey.md) — why `charter pack
+  apply` alone leaves the compiled bundle absent, and the `generate` follow-up that produces it

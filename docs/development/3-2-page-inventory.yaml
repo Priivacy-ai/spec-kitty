@@ -1172,6 +1172,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/architecture/charter-pack-usage-journey.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/architecture/charter-synthesis-drg.md
   tag: current
   divio_type: none
