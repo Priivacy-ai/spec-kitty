@@ -520,12 +520,43 @@ def test_resolve_active_feature_requires_explicit_selection(tmp_path):
     )
 
 
+def test_get_feature_artifacts_charter_present_when_only_yaml_exists(tmp_path):
+    """#3150 regression: charter.yaml-only project reports the charter present.
+
+    This is the reviewer's empirical repro for the WP02 rejection: prior to
+    this fix, ``get_feature_artifacts`` drove the "charter" artifact's
+    presence signal off ``resolve_project_charter_path`` (md-keyed), so a
+    project with a compiled ``charter.yaml`` and no ``charter.md`` falsely
+    reported ``exists: False``. FR-003/C-001 requires the presence probe to
+    key on ``charter.yaml`` (the resolving authority) and survive
+    ``charter.md`` deletion/absence.
+    """
+    feature_dir = _create_feature(tmp_path)
+    charter_dir = tmp_path / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True)
+    (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
+    charter_md = charter_dir / "charter.md"
+    assert not charter_md.exists(), "fixture must not seed charter.md (NFR-001)"
+
+    result = scanner.get_feature_artifacts(feature_dir, project_dir=tmp_path)
+
+    assert result["charter"]["exists"] is True
+
+
 def test_project_charter_propagates_to_all_features(tmp_path):
+    """Project-level charter presence propagates to every feature's artifacts.
+
+    FR-003 (#3150): the "charter" artifact's exists/mtime/size signal keys
+    on charter.yaml (the C-001 resolving authority), so this fixture seeds
+    both files -- charter.yaml drives presence; charter.md stays the
+    readable secondary prose companion served elsewhere.
+    """
     _create_feature(tmp_path, "001-demo-feature")
     _create_feature(tmp_path, "002-another-feature")
-    charter = tmp_path / ".kittify" / "charter" / "charter.md"
-    charter.parent.mkdir(parents=True)
-    charter.write_text("# Project Charter\n", encoding="utf-8")
+    charter_dir = tmp_path / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True)
+    (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
+    (charter_dir / "charter.md").write_text("# Project Charter\n", encoding="utf-8")
 
     features = scanner.scan_all_features(tmp_path)
     assert len(features) == 2

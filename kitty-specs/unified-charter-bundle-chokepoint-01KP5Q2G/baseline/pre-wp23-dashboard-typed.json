@@ -4,7 +4,7 @@
     "charter": {
       "exists": true,
       "mtime": "<ts>",
-      "size": 58
+      "size": 24
     },
     "checklists": {
       "exists": false,
@@ -58,7 +58,7 @@
         "charter": {
           "exists": true,
           "mtime": "<ts>",
-          "size": 58
+          "size": 24
         },
         "checklists": {
           "exists": false,
