@@ -35,7 +35,7 @@ from specify_cli.cli.commands.charter._status_collectors import (
 )
 from tests.charter.test_context import _MINIMAL_GRAPH_YAML, _setup_fixture_repo
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 

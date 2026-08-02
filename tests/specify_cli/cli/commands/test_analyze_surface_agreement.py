@@ -32,7 +32,7 @@ from typer.testing import CliRunner
 
 from specify_cli import app
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 # Canonical, currently-instructive surfaces that must never advertise a bare
 # ``spec-kitty analyze`` CLI invocation. Historical/planning prose is
