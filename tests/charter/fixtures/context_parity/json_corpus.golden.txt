@@ -176,6 +176,7 @@
       "title": "Use Mutation Testing to Validate Test Quality"
     }
   ],
+  "context_schema_version": "1.0.0",
   "directives": [],
   "governance_references": [],
   "mode": "bootstrap",

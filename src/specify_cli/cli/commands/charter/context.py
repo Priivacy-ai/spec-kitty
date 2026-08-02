@@ -46,9 +46,11 @@ def context(
         False,
         "--json",
         help=(
-            "Output JSON. `directives` is action-scoped; `all_directives` and "
-            "`project_charter` describe the project-local charter, while "
-            "`org_charter` describes imported org packs."
+            "Output JSON. `context_schema_version` stamps the top-level payload "
+            "shape (#2787, tracking contract -- not yet frozen). `directives` is "
+            "action-scoped; `all_directives` and `project_charter` describe the "
+            "project-local charter, while `org_charter` describes imported org "
+            "packs."
         ),
     ),
     include_all: bool = typer.Option(
@@ -69,6 +71,7 @@ def context(
         build_charter_context_include,
         build_charter_context_json,
     )
+    from charter.context_contract import CONTEXT_SCHEMA_VERSION
 
     from specify_cli.doctrine.config import resolve_org_roots
     from specify_cli.doctrine.org_charter_loader import load_org_charter_json_block
@@ -136,6 +139,9 @@ def context(
                     {
                         "result": "success",
                         "success": True,
+                        "context_schema_version": structured.get(
+                            "context_schema_version", CONTEXT_SCHEMA_VERSION
+                        ),
                         "action": result.action,
                         "mode": result.mode,
                         "first_load": result.first_load,

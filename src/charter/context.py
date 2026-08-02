@@ -29,6 +29,7 @@ from charter.action_doctrine_bundle import (
 )
 from charter.bundle import CHARTER_MD, CHARTER_YAML
 from charter.charter_md_parsing import _extract_policy_summary as _extract_policy_summary
+from charter.context_contract import CONTEXT_SCHEMA_VERSION as CONTEXT_SCHEMA_VERSION
 from charter.context_json import (
     _EMPTY_ORG_CHARTER as _EMPTY_ORG_CHARTER,
     _bundle_root_for_json as _bundle_root_for_json,
@@ -446,6 +447,13 @@ def build_charter_context_json(
 
     The payload contains:
 
+    * ``context_schema_version`` — the top-level contract version stamp
+      (:data:`~charter.context_contract.CONTEXT_SCHEMA_VERSION`, #2787).
+      Distinct from the nested ``org_charter.schema_version`` field, which
+      versions one imported org policy document rather than this envelope.
+      See ``charter.context_contract`` for the versioned key ledger this
+      payload is expected to satisfy (a *tracking* contract for now — not
+      yet frozen; see that module's docstring).
     * ``action`` / ``mode`` — same surface as :class:`CharterContextResult`.
     * ``directives`` / ``tactics`` / ``styleguides`` / ``toolguides`` —
       action-scoped typed artifact arrays, each entry carrying a ``"source"``
@@ -473,6 +481,7 @@ def build_charter_context_json(
     """
     normalized = action.strip().lower()
     payload: dict[str, object] = {
+        "context_schema_version": CONTEXT_SCHEMA_VERSION,
         "action": normalized,
         "directives": [],
         "tactics": [],

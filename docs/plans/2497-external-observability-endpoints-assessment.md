@@ -46,6 +46,14 @@ Two rankings — separate near-term leverage-to-cost from ultimate value, becaus
 - **All three lenses agree:** nothing to build; this is a discoverability + contract-stability gap.
 - **The real gap (doctrine lens):** the top-level payload carries **no `schema_version`**. An external attestor pinning to this shape breaks silently on any doctrine-layer reshape.
 - **Recommendation:** small hardening issue — stamp the payload with a top-level `context_schema_version` (named distinctly from the **existing nested** `org_charter.schema_version` at `doctrine/org_charter.py`), document it as a stable external contract with a deprecation policy, and emit resolved artifact ids + provenance (never raw pack internals). Route the reader through the **doctrine/charter activation seam**, not the mission read-model. Two caveats the refined layering adds (ADR 2026-07-15-1 + #2526 making `config.activated_*` the single activation authority): (a) the payload is **activation-scoped** — a restrictive org/project charter legitimately *shrinks* the active set, so an external attestor pins to an *activation contract*, not a static doctrine dump; (b) that activation surface is **itself still stabilizing** (the S0–S4 DRG-node reshape and the #2519 freshness work are in-flight), so version the contract and mark it as *tracking* that stabilization rather than freezing today's shape. **Not a new endpoint.**
+- **Delivered (stamp half, `#3146` / `#2787`):** `build_charter_context_json` now stamps a
+  top-level `context_schema_version` (single-authority constant in
+  `src/charter/context_contract.py`), carried consistently by both `--json` producers and
+  guarded by `tests/charter/test_context_schema_version_ledger.py` (a superset guard: any
+  undeclared top-level key reds the gate). This is the **tracking** contract the
+  recommendation calls for — the **freeze half** (a hard shape freeze + key
+  removal/rename deprecation policy) remains deliberately deferred to the `#2519`
+  activation-surface stabilization, per the sequencing above.
 
 ### E2 — `lanes write-scope --wp <id> --json` → **ADOPT (highest-leverage new work)**
 
