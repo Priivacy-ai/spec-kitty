@@ -1,4 +1,4 @@
-"""Empty-charter generic-agent routing fallback (WP02, #3064).
+"""Empty-charter generic-agent routing fallback (WP02, #3064; WP01, #3104).
 
 Seam: called ONLY from the executor's auto-route branch
 (``ProfileInvocationExecutor.invoke`` -- the ``elif self._router is not None:``
@@ -8,63 +8,80 @@ it does NOT touch the shared activation gate (``charter/resolver.py``) or
 ``ProfileRegistry``, so explicit ``--profile <specialist>`` dispatch under an
 empty charter still resolves normally (research.md Decision 2).
 
-Composite predicate (research.md Decision 3): "empty charter" means ALL
-charter-activatable dimensions are unconfigured --
+Bundle-presence + org-pack-safe predicate (research.md "The dispatch predicate
+(#3104) -- corrected, org-pack-safe", #3104 fix): "empty charter" means the
+*compiled* charter bundle is ABSENT **and** nothing else makes the project
+router-routable --
 
-- ``charter_activated_urns(repo_root) == set()`` (the 6 URN kinds: directives,
-  tactics, toolguides, procedures, paradigms, styleguides)
-- ``PackContext.activated_agent_profiles is None``
-- ``PackContext.activated_mission_step_contracts is None``
-- ``PackContext.activated_glossary_packs is None``
-- ``PackContext.org_roots == ()`` (no org/project packs)
+- ``.kittify/charter/charter.yaml`` (the compiled bundle) does not exist.
+  Presence-only: bundle *contents* are never inspected here (a bootstrapped-
+  empty bundle still counts as "configured" -- re-importing the #3064
+  exhaustiveness trap of inspecting activations inside an existing bundle is
+  exactly what this predicate must not do).
+- ``PackContext.org_roots == ()`` (no org/project packs registered -- an org
+  pack makes the router reach org-provided profiles even without a bundle).
+- ``PackContext.activated_agent_profiles is None`` (no explicit agent-profile
+  activation -- an explicit `frozenset()` opt-out is still "configured" per
+  the three-state semantics ``PackContext`` already carries).
 
-``anti_pattern`` is not charter-activatable (excluded alongside ``template``/
-``asset``) and is intentionally not part of this predicate.
+This intentionally drops the non-routing dimensions (directives, tactics,
+toolguides, procedures, paradigms, styleguides, mission-step-contracts,
+glossary-packs) that the pre-#3104 composite predicate weighed -- none of
+them make ``ActionRouter.route()`` able to resolve a profile it otherwise
+couldn't, so keeping them in the predicate only produced the #3104 defect
+(``charter pack apply`` writes activation keys with no bundle and no profile
+activation, which used to flip the net off and hand back a bare
+``ROUTER_NO_MATCH`` -- worse than the fully empty case it was supposed to
+guard). Folds #3118 (previously two config loads: ``charter_activated_urns``
+plus ``PackContext.from_config``) into at most one ``PackContext.from_config``
+call, only reached when the bundle-presence check already returned False.
 
-Pure of side effects beyond the config reads ``PackContext.from_config`` and
-``charter_activated_urns`` already perform -- no writes, no logging, no I/O
-beyond reading ``.kittify/config.yaml``.
+Pure of side effects beyond the reads ``Path.exists`` and
+``PackContext.from_config`` already perform -- no writes, no logging, no I/O
+beyond a `stat()` on the bundle path and (when absent) reading
+``.kittify/config.yaml``.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from charter.pack_context import PackContext, charter_activated_urns
+from charter.pack_context import PackContext
 from charter.profiles import DEFAULT_ROLE_CAPABILITIES, Role
 from specify_cli.invocation.router import CANONICAL_VERB_MAP, RouterDecision, _normalize_tokens
 
 #: Built-in profile pinned when the charter is wholly empty (Decision 2/3).
 GENERIC_AGENT_ID = "generic-agent"
 
+#: Repo-relative path to the compiled charter bundle (the read authority --
+#: see ``charter.bundle.CHARTER_YAML``, not imported directly here to avoid
+#: pulling in that module's pydantic-backed manifest machinery for a single
+#: path literal this module only ever calls ``.exists()`` on).
+_CHARTER_BUNDLE_PATH = Path(".kittify/charter/charter.yaml")
+
 #: Human-readable reason recorded on the resulting ``RouterDecision`` --
 #: surfaced by ``dispatch.py``'s warning panel and useful for audit trails.
 _MATCH_REASON = (
-    "empty charter: no directive/tactic/toolguide/procedure/paradigm/styleguide/"
-    "agent-profile/mission-step-contract/glossary-pack/org-pack activations found"
+    "empty charter: no compiled charter bundle (.kittify/charter/charter.yaml), "
+    "no org/project pack, and no explicit agent-profile activation found"
 )
 
 
 def is_charter_empty(repo_root: Path) -> bool:
-    """Return ``True`` iff no charter-activatable dimension is configured.
+    """Return ``True`` iff the project is wholly un-routable (#3104 fix).
 
-    See module docstring for the composite predicate (research.md Decision 3).
-    A narrower check (e.g. URN kinds only) would false-fallback on a repo that
-    activated only a glossary pack, a mission-step-contract, or an org pack --
-    the exact defect the post-plan adversarial squad caught.
+    See module docstring for the bundle-presence + org-pack-safe predicate.
+    A compiled bundle answers "configured" on its own (presence only -- never
+    inspect its contents); absent that, an org pack or an explicit
+    agent-profile activation still makes the router routable, so the net must
+    stay disengaged for those too (the org-pack-safety regression guard).
     """
-    if charter_activated_urns(repo_root):
+    if (repo_root / _CHARTER_BUNDLE_PATH).exists():
         return False
     pack_context = PackContext.from_config(repo_root)
-    if pack_context.activated_agent_profiles is not None:
+    if pack_context.org_roots != ():
         return False
-    if pack_context.activated_mission_step_contracts is not None:
-        return False
-    if pack_context.activated_glossary_packs is not None:
-        return False
-    # bool(...) narrows mypy's Any (charter.* is a follow_imports=skip module)
-    # back to the declared bool return type.
-    return bool(pack_context.org_roots == ())
+    return pack_context.activated_agent_profiles is None
 
 
 def _derive_fallback_action(request_text: str) -> str:

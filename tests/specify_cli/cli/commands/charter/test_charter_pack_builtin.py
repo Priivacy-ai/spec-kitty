@@ -163,17 +163,38 @@ def test_apply_unknown_pack_fails_closed(tmp_path: Path) -> None:
     assert result.exit_code == 1
 
 
-def test_applied_minimal_produces_a_non_empty_activatable_charter(tmp_path: Path) -> None:
-    """Real done-line: applying the pack yields a non-wholly-empty, activatable charter."""
+def test_applied_minimal_activates_urns_but_stays_empty_for_dispatch_until_compiled(
+    tmp_path: Path,
+) -> None:
+    """Real done-line: applying the pack activates URNs (config-level effect),
+    but does NOT compile a bundle — so ``is_charter_empty`` correctly still
+    reports "empty" (no ``.kittify/charter/charter.yaml``) until
+    ``charter generate`` runs.
+
+    NOTE (NFR-004/#3104): pre-fix, this test asserted
+    ``is_charter_empty(tmp_path) is False`` right after ``apply`` with no
+    compile — that encoded the #3104 defect (``charter pack apply`` writing
+    activation keys with no bundle and no profile activation used to flip the
+    dispatch net off, producing a bare ``ROUTER_NO_MATCH`` for an unmatched
+    request instead of the safe generic-agent fallback). The bundle-presence +
+    org-pack-safe predicate in ``specify_cli.invocation.empty_charter``
+    decouples "activatable" (config carries activation keys — still true and
+    asserted below) from "empty-for-dispatch" (compiled bundle absent — now
+    correctly ``True`` here).
+    """
     result = _apply(tmp_path, "minimal")
     assert result.exit_code == 0, result.output
 
-    assert is_charter_empty(tmp_path) is False
-
+    # Applying activates URNs at the config level -- unchanged.
     urns = charter_activated_urns(tmp_path)
     assert urns, "applying minimal must activate at least one URN"
     assert "directive:DIRECTIVE_001" in urns
     assert "tactic:acceptance-test-first" in urns
+
+    # ...but no compiled bundle exists yet, so dispatch correctly still
+    # treats the project as empty (NFR-004 bundle-presence predicate).
+    assert not (tmp_path / ".kittify" / "charter" / "charter.yaml").exists()
+    assert is_charter_empty(tmp_path) is True
 
 
 def test_applied_minimal_directive_and_tactic_ids_resolve_in_the_built_in_catalog(

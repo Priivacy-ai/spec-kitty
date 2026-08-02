@@ -60,20 +60,34 @@ def _setup_project(tmp_path: Path) -> Path:
 
 
 def _write_configured_charter(project: Path) -> None:
-    """Write a ``.kittify/config.yaml`` that activates one directive.
+    """Write a project charter that is genuinely routable (not empty-for-dispatch).
 
-    WP02/#3064: ``resolve_generic_fallback`` reads the REAL project charter on
-    disk (not any mocked ``ProfileRegistry``). A project fixture with no
-    ``config.yaml`` at all is genuinely "empty charter" under the new
-    composite predicate and would now auto-route to ``generic-agent`` --
-    tests exercising the pre-WP02 mocked-router auto-route path need an
-    explicit non-empty charter so they keep proving router behaviour, not the
-    empty-charter fallback (which has its own dedicated tests below).
+    WP02/#3064, updated for NFR-004/#3104: ``resolve_generic_fallback`` reads
+    the REAL project charter on disk (not any mocked ``ProfileRegistry``). A
+    project fixture with no charter configured at all is genuinely
+    "empty charter" and would now auto-route to ``generic-agent`` -- tests
+    exercising the mocked-router auto-route path need a charter the NEW
+    bundle-presence + org-pack-safe predicate (``specify_cli.invocation.
+    empty_charter.is_charter_empty``) treats as routable, so they keep
+    proving router behaviour, not the empty-charter fallback (which has its
+    own dedicated tests below).
+
+    The predicate drops non-routing dimensions (``activated_directives``
+    included) -- a directive-only config.yaml no longer suffices. This writes
+    both an ``activated_directives`` key (kept for fixture-history parity;
+    exercises no bearing on the predicate) AND a compiled-bundle presence
+    stub at ``.kittify/charter/charter.yaml`` (presence-only per the
+    predicate contract -- content is a near-empty placeholder, never
+    inspected), which is what actually makes ``is_charter_empty`` return
+    ``False`` here.
     """
     kittify = project / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
     with (kittify / "config.yaml").open("w", encoding="utf-8") as fh:
         YAML().dump({"activated_directives": ["028-efficient-local-tooling"]}, fh)
+    charter_dir = kittify / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    (charter_dir / "charter.yaml").write_text("{}\n", encoding="utf-8")
 
 
 def _make_mock_registry(profile_specs: list[dict[str, object]]) -> MagicMock:

@@ -1,19 +1,23 @@
 """Tests for ``resolve_generic_fallback`` — the WP02/#3064 empty-charter routing seam.
 
-The composite predicate (Decision 3, research.md) requires ALL charter-activatable
-dimensions to be empty before the executor pins ``generic-agent``:
+NOTE (WP01/#3104, #3064 reversal): the composite predicate this module's
+truth table originally pinned (ALL of directives/tactics/toolguides/
+procedures/paradigms/styleguides/glossary-packs/mission-step-contracts/
+agent-profiles/org-roots empty) has been REPLACED by the bundle-presence +
+org-pack-safe predicate in ``specify_cli.invocation.empty_charter``. That
+predicate treats "empty" as "no compiled charter bundle
+(``.kittify/charter/charter.yaml``) AND no org pack AND no explicit
+agent-profile activation" — it deliberately drops the non-routing dimensions
+(directives, tactics, glossary-packs, mission-step-contracts, toolguides,
+procedures, paradigms, styleguides) because none of them make
+``ActionRouter.route()`` able to resolve a profile it otherwise couldn't;
+keeping them produced the #3104 defect (``charter pack apply`` activating a
+URN with no bundle and no profile used to flip the net off and hand back a
+bare ``ROUTER_NO_MATCH``). See ``src/specify_cli/invocation/empty_charter.py``
+module docstring for the full rationale.
 
-- ``charter_activated_urns(repo_root) == set()`` (the 6 URN kinds: directives,
-  tactics, toolguides, procedures, paradigms, styleguides)
-- ``PackContext.activated_agent_profiles is None``
-- ``PackContext.activated_mission_step_contracts is None``
-- ``PackContext.activated_glossary_packs is None``
-- ``PackContext.org_roots == ()``
-
-A narrower predicate would false-fallback on a repo that activated only a
-glossary pack, a step contract, or an org pack — exactly the defect the
-post-plan squad caught (research.md Decision 3). Every row of the truth table
-below MUST be covered.
+The routing dimensions (``activated_agent_profiles`` and org packs) are
+unchanged and remain covered below.
 """
 
 from __future__ import annotations
@@ -74,15 +78,23 @@ def test_action_falls_back_to_implementer_default_when_no_verb_matches(tmp_path:
 
 
 # ---------------------------------------------------------------------------
-# Truth table — fallback does NOT fire (composite predicate dimensions)
+# Truth table — fallback does NOT fire (bundle-presence + org-pack-safe predicate)
 # ---------------------------------------------------------------------------
 
 
-def test_urn_kind_activated_returns_none(tmp_path: Path) -> None:
-    """A single activated directive (one of the 6 URN kinds) is a configured repo."""
+def test_directive_only_no_bundle_fires_net(tmp_path: Path) -> None:
+    """NFR-004/#3104: a lone activated directive, with no compiled bundle and no
+    profile/org activation, is a NON-routing dimension under the new predicate —
+    the net now FIRES (returns generic-agent) instead of deferring to the router.
+    """
     _write_config(tmp_path, {"activated_directives": ["028-efficient-local-tooling"]})
 
-    assert resolve_generic_fallback(tmp_path, "implement the feature") is None
+    decision = resolve_generic_fallback(tmp_path, "implement the feature")
+
+    assert decision is not None
+    assert decision.profile_id == GENERIC_AGENT_ID == "generic-agent"
+    assert decision.confidence == "generic_fallback"
+    assert decision.action == "implement"
 
 
 def test_agent_profiles_activated_with_entries_returns_none(tmp_path: Path) -> None:
@@ -98,28 +110,60 @@ def test_agent_profiles_activated_with_empty_list_returns_none(tmp_path: Path) -
     assert resolve_generic_fallback(tmp_path, "implement the feature") is None
 
 
-def test_glossary_packs_activated_returns_none(tmp_path: Path) -> None:
+def test_glossary_packs_only_no_bundle_fires_net(tmp_path: Path) -> None:
+    """NFR-004/#3064 reversal: a glossary-pack activation, with no compiled
+    bundle and no profile/org activation, is a NON-routing dimension — the net
+    now FIRES.
+    """
     _write_config(tmp_path, {"activated_glossary_packs": ["core-glossary"]})
 
-    assert resolve_generic_fallback(tmp_path, "implement the feature") is None
+    decision = resolve_generic_fallback(tmp_path, "implement the feature")
+
+    assert decision is not None
+    assert decision.profile_id == GENERIC_AGENT_ID == "generic-agent"
+    assert decision.confidence == "generic_fallback"
+    assert decision.action == "implement"
 
 
-def test_glossary_packs_activated_with_empty_list_returns_none(tmp_path: Path) -> None:
+def test_glossary_packs_activated_with_empty_list_fires_net(tmp_path: Path) -> None:
+    """An explicit empty glossary-pack list is likewise a non-routing dimension —
+    the net still FIRES (glossary packs never gate the router)."""
     _write_config(tmp_path, {"activated_glossary_packs": []})
 
-    assert resolve_generic_fallback(tmp_path, "implement the feature") is None
+    decision = resolve_generic_fallback(tmp_path, "implement the feature")
+
+    assert decision is not None
+    assert decision.profile_id == GENERIC_AGENT_ID == "generic-agent"
+    assert decision.confidence == "generic_fallback"
+    assert decision.action == "implement"
 
 
-def test_mission_step_contracts_activated_returns_none(tmp_path: Path) -> None:
+def test_mission_step_contracts_only_no_bundle_fires_net(tmp_path: Path) -> None:
+    """NFR-004/#3104: a mission-step-contract activation, with no compiled
+    bundle and no profile/org activation, is a NON-routing dimension — the net
+    now FIRES.
+    """
     _write_config(tmp_path, {"activated_mission_step_contracts": ["software-dev-implement"]})
 
-    assert resolve_generic_fallback(tmp_path, "implement the feature") is None
+    decision = resolve_generic_fallback(tmp_path, "implement the feature")
+
+    assert decision is not None
+    assert decision.profile_id == GENERIC_AGENT_ID == "generic-agent"
+    assert decision.confidence == "generic_fallback"
+    assert decision.action == "implement"
 
 
-def test_mission_step_contracts_activated_with_empty_list_returns_none(tmp_path: Path) -> None:
+def test_mission_step_contracts_activated_with_empty_list_fires_net(tmp_path: Path) -> None:
+    """An explicit empty mission-step-contract list is likewise a non-routing
+    dimension — the net still FIRES."""
     _write_config(tmp_path, {"activated_mission_step_contracts": []})
 
-    assert resolve_generic_fallback(tmp_path, "implement the feature") is None
+    decision = resolve_generic_fallback(tmp_path, "implement the feature")
+
+    assert decision is not None
+    assert decision.profile_id == GENERIC_AGENT_ID == "generic-agent"
+    assert decision.confidence == "generic_fallback"
+    assert decision.action == "implement"
 
 
 def test_org_pack_present_returns_none(tmp_path: Path) -> None:
