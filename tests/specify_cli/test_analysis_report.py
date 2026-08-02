@@ -207,14 +207,15 @@ def test_analysis_report_stales_on_pipe_table_description_change(tmp_path):
 def test_charter_hash_resolves_canonical_root_from_worktree(tmp_path):
     """#1823: analysis reports read from a linked worktree must hash the
     canonical (main checkout) charter, not the worktree-local copy."""
+    from charter.bundle import CHARTER_YAML
     from charter.resolution import resolve_canonical_repo_root
 
     from specify_cli.analysis_report import _sha256_file, collect_input_artifact_hashes
 
     main = tmp_path / "main"
-    charter_file = main / ".kittify" / "charter" / "charter.md"
+    charter_file = main / CHARTER_YAML
     charter_file.parent.mkdir(parents=True)
-    charter_file.write_text("# Canonical charter\n", encoding="utf-8")
+    charter_file.write_text("charter_version: 1\n", encoding="utf-8")
     _init_committed_git_project(main)
 
     worktree = tmp_path / "wt"
@@ -224,8 +225,9 @@ def test_charter_hash_resolves_canonical_root_from_worktree(tmp_path):
     )
     # Diverge the worktree-local copy: hashing it instead of the canonical
     # charter is exactly the #1823 bug.
-    worktree_charter = worktree / ".kittify" / "charter" / "charter.md"
-    worktree_charter.write_text("# Worktree-local drift\n", encoding="utf-8")
+    worktree_charter = worktree / CHARTER_YAML
+    worktree_charter.parent.mkdir(parents=True, exist_ok=True)
+    worktree_charter.write_text("charter_version: 2\nmodified: true\n", encoding="utf-8")
 
     feature_dir = worktree / "kitty-specs" / "sample-01KS"
     _write_required_artifacts(feature_dir)
@@ -241,13 +243,14 @@ def test_charter_hash_resolves_canonical_root_from_worktree(tmp_path):
 def test_charter_hash_falls_back_to_repo_root_outside_git(tmp_path):
     """Outside any git repo the resolver cannot run; the charter probe must
     degrade to the passed repo_root instead of raising."""
+    from charter.bundle import CHARTER_YAML
     from charter.resolution import resolve_canonical_repo_root
 
     from specify_cli.analysis_report import collect_input_artifact_hashes
 
-    charter_file = tmp_path / ".kittify" / "charter" / "charter.md"
+    charter_file = tmp_path / CHARTER_YAML
     charter_file.parent.mkdir(parents=True)
-    charter_file.write_text("# Local charter\n", encoding="utf-8")
+    charter_file.write_text("charter_version: 1\n", encoding="utf-8")
     feature_dir = tmp_path / "kitty-specs" / "sample-01KS"
     _write_required_artifacts(feature_dir)
 
@@ -261,13 +264,14 @@ def test_charter_hash_falls_back_to_repo_root_outside_git(tmp_path):
 def test_charter_hash_propagates_git_common_dir_unavailable(tmp_path):
     """If git/common-dir resolution is unavailable, do not synthesize a local
     charter hash that pretends canonical evidence was available."""
+    from charter.bundle import CHARTER_YAML
     from charter.resolution import GitCommonDirUnavailableError, resolve_canonical_repo_root
 
     from specify_cli.analysis_report import collect_input_artifact_hashes
 
-    charter_file = tmp_path / ".kittify" / "charter" / "charter.md"
+    charter_file = tmp_path / CHARTER_YAML
     charter_file.parent.mkdir(parents=True)
-    charter_file.write_text("# Local charter\n", encoding="utf-8")
+    charter_file.write_text("charter_version: 1\n", encoding="utf-8")
     feature_dir = tmp_path / "kitty-specs" / "sample-01KS"
     _write_required_artifacts(feature_dir)
 

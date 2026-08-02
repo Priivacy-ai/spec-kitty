@@ -11,6 +11,7 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
+from charter.bundle import CHARTER_YAML
 from charter.resolution import (
     NotInsideRepositoryError,
     resolve_canonical_repo_root,
@@ -182,17 +183,16 @@ def _charter_path(repo_root: Path) -> Path | None:
     # degrade to the passed root. Resolver infrastructure failures still
     # propagate; otherwise we would synthesize a local charter hash when the
     # canonical root is unknowable.
+    # FR-004: Key staleness input on charter.yaml (the canonical resolving authority),
+    # not charter.md (which is legacy and not universally present).
     canonical_root: Path
     try:
         canonical_root = resolve_canonical_repo_root(repo_root)
     except NotInsideRepositoryError:
         canonical_root = repo_root
-    for candidate in (
-        canonical_root / ".kittify" / "charter" / "charter.md",
-        canonical_root / "charter" / "charter.md",
-    ):
-        if candidate.exists():
-            return candidate
+    charter_yaml: Path = canonical_root / CHARTER_YAML
+    if charter_yaml.exists():
+        return charter_yaml
     return None
 
 
