@@ -231,7 +231,16 @@ class TestCharterStatus:
 
         assert status_result.exit_code == 0, status_result.output
         data = json.loads(status_result.output)
-        assert data["charter_sync"]["available"] is False
+        # FR-005 (charter-pack-usage-journey WP03): ``_collect_charter_sync_status``
+        # now keys presence on the authoritative ``charter.yaml`` (seeded by
+        # ``_seed_complete_bundle`` above) via the CLI sibling resolver, not the
+        # display-only ``charter.md`` this fixture never writes -- so this
+        # collector correctly reports ``available: True`` here. It never calls
+        # ``ensure_charter_bundle_fresh`` (read-only per its own docstring /
+        # FR-010), so the patched ``side_effect`` above does not affect this
+        # field; it existed to isolate `status` from that write path, not to
+        # force an "unavailable" charter_sync result.
+        assert data["charter_sync"]["available"] is True
         assert data["synthesis"]["generation_state"] == "promoted"
         assert data["synthesis"]["manifest"]["state"] == "valid"
         assert data["synthesis"]["generated_inputs"]["counts"]["directive"] == 1

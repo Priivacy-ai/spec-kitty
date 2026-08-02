@@ -12,6 +12,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from charter.bundle import CHARTER_YAML
 from charter.versioning import check_bundle_compatibility, get_bundle_schema_version
 
 from specify_cli.task_utils import TaskCliError
@@ -36,6 +37,36 @@ def _resolve_charter_path(repo_root: Path) -> Path:
 
     raise TaskCliError(
         f"Charter not found at {charter_path}\n"
+        "  Run 'spec-kitty charter interview' to create one,\n"
+        "  or 'spec-kitty upgrade' if migrating from an older version."
+    )
+
+
+def _resolve_charter_bundle_path(repo_root: Path) -> Path:
+    """Find charter.yaml -- the authoritative bundle -- in canonical location only.
+
+    FR-005 sibling of :func:`_resolve_charter_path`: that function resolves
+    the display-only ``charter.md`` and is consumed by prose-rendering
+    commands (``status``/``resynthesize``) -- it is NOT retargeted in place.
+    This sibling resolves the authoritative ``charter.yaml`` bundle for
+    CLI-layer *presence* / "governance exists" gates, so those gates survive
+    ``charter.md`` deletion (SC-002). Reuses the shared
+    ``charter.bundle.CHARTER_YAML`` constant rather than a fresh literal
+    (Sonar S1192).  Does not fall back to legacy locations.
+    """
+    # Explicit annotation: the ``charter.*`` mypy override (pyproject.toml
+    # [[tool.mypy.overrides]]) sets follow_imports="skip" for intra-package
+    # imports crossing into ``charter.bundle`` from this CLI-layer module,
+    # which erases ``CHARTER_YAML``'s declared ``Path`` type to ``Any`` at
+    # this call site. Annotating recovers the real type without a
+    # suppression comment (mirrors ``charter/bundle.py``'s
+    # ``compute_bundle_content_hash`` precedent for the identical pattern).
+    charter_yaml_path: Path = repo_root / CHARTER_YAML
+    if charter_yaml_path.exists():
+        return charter_yaml_path
+
+    raise TaskCliError(
+        f"Charter bundle not found at {charter_yaml_path}\n"
         "  Run 'spec-kitty charter interview' to create one,\n"
         "  or 'spec-kitty upgrade' if migrating from an older version."
     )

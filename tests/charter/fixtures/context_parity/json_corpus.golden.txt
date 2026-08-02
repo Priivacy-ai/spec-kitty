@@ -184,9 +184,10 @@
     "present": false
   },
   "project_charter": {
-    "bytes": 384,
-    "path": ".kittify/charter/charter.md",
-    "present": true
+    "charter_md_path": ".kittify/charter/charter.md",
+    "charter_md_present": true,
+    "path": ".kittify/charter/charter.yaml",
+    "present": false
   },
   "references": [],
   "styleguides": [],
