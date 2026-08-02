@@ -279,13 +279,40 @@ def render_critical_section_bodies(
     return "\n".join(blocks)
 
 
+def _honest_placeholder(heading: str) -> str:
+    """Return the graceful-degrade placeholder for a missing *heading*.
+
+    #2808-safe: this never fabricates governance content. It only points
+    the operator at the real authoring surface (``.kittify/charter/
+    charter.md``) so the advertised ``section:<slug>`` selector always
+    resolves to *something usable* (FR-010 / SC-007) instead of dead-ending
+    with "No charter section found for selector".
+    """
+
+    return (
+        f"_This charter has not yet authored a **{heading}** section. "
+        f"Add one to `.kittify/charter/charter.md`._"
+    )
+
+
 def render_critical_section_include(
     charter_content: str,
     selector_id: str,
     *,
     action: str | None = None,
 ) -> str | None:
-    """Render the body addressed by a ``section:<selector_id>`` fetch selector."""
+    """Render the body addressed by a ``section:<selector_id>`` fetch selector.
+
+    For a *recognized* critical-section slug (one of the headings
+    registered in :data:`ACTION_CRITICAL_SECTIONS`) this never returns
+    ``None``: when ``charter.md`` does not carry that heading at all, an
+    honest placeholder is returned instead of dead-ending the advertised
+    selector (FR-010, #3095/#3094/#2552). ``None`` is reserved for
+    selectors that do not address a known critical-section slug in the
+    first place (empty selector, action-mismatched ``critical-*``
+    selector, or an unrecognized slug) — those are a different failure
+    mode (unknown selector) than "advertised selector, absent content".
+    """
 
     cleaned = selector_id.strip()
     if not cleaned:
@@ -307,7 +334,7 @@ def render_critical_section_include(
             continue
         body = _extract_section_body(charter_content, heading)
         if body is None:
-            return None
+            return _honest_placeholder(heading)
         return f"### {heading}\n{body}" if body else f"### {heading}"
 
     return None

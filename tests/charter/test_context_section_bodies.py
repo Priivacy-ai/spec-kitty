@@ -268,13 +268,34 @@ class TestVerbatimBodies:
         assert "Reviewers MUST grep the diff" in result
         assert "Not part of the critical section." not in result
 
-    def test_section_include_fail_closed_on_unbalanced_fence(self) -> None:
+    def test_section_include_gracefully_degrades_on_unbalanced_fence(self) -> None:
+        """A heading MASKED by a malformed fence still resolves (FR-010).
+
+        ``Code Review Checklist`` is present in the fixture, but the
+        unbalanced ``` ```bash ``` fence above it swallows the rest of the
+        document, so the heading scanner never sees it as a section
+        boundary — the selector's target is masked, not absent. WP05
+        removes the "never return None" dead-end for recognized critical
+        slugs, so this now resolves to a non-``None`` string instead of
+        signalling failure.
+
+        Only non-``None``/``str`` is asserted here — NOT the exact
+        placeholder wording. The "has not yet authored" copy is honest for
+        a genuinely *absent* heading but is imprecise for this *masked*
+        case (the section exists, it just isn't parseable past the
+        unbalanced fence); asserting that exact text would be brittle and
+        slightly misleading. Flag for reviewer: whether a masked heading
+        deserves a distinct message from an absent one is an open
+        follow-up question — no fence-reparse logic is added here
+        (out of scope for this subtask).
+        """
         result = render_critical_section_include(
             _CHARTER_WITH_UNBALANCED_FENCE,
             "code-review-checklist",
         )
 
-        assert result is None
+        assert result is not None
+        assert isinstance(result, str)
 
 
 class TestMissingSectionFetchStanza:
