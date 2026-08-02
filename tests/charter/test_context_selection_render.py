@@ -376,10 +376,19 @@ class TestFetchSelectorRecovery:
                 "section:regression-vigilance",
             )
 
-    def test_section_selector_fails_closed_on_missing_heading(
+    def test_section_selector_resolves_to_honest_placeholder_on_missing_heading(
         self,
         tmp_path: Path,
     ) -> None:
+        """A recognized critical slug never dead-ends (FR-010/#3095/#3094/#2552).
+
+        The old contract raised ``ValueError("No charter section found")``
+        when a *recognized* critical-section slug (``regression-vigilance``)
+        was advertised but the charter did not carry that heading. WP05
+        removed that dead-end: the advertised selector now always resolves
+        to a usable, non-empty string — an honest placeholder pointing at
+        the real authoring surface — instead of raising.
+        """
         charter_dir = tmp_path / ".kittify" / "charter"
         charter_dir.mkdir(parents=True)
         (charter_dir / "charter.md").write_text(
@@ -387,11 +396,15 @@ class TestFetchSelectorRecovery:
             encoding="utf-8",
         )
 
-        with pytest.raises(ValueError, match="No charter section found"):
-            context_module.build_charter_context_include(
-                tmp_path,
-                "section:regression-vigilance",
-            )
+        text = context_module.build_charter_context_include(
+            tmp_path,
+            "section:regression-vigilance",
+        )
+
+        assert isinstance(text, str)
+        assert text.strip()
+        assert "Regression Vigilance" in text
+        assert ".kittify/charter/charter.md" in text
 
     def test_selected_styleguide_include_recovers_body(self) -> None:
         sg = _DummyStyleguide(title="Caveman", principles=["Prefer concrete names."])
