@@ -137,7 +137,7 @@ class _ApplyCompileGitWorktreeError(RuntimeError):
     """
 
 
-def _compile_bundle_after_merge(repo_root: Path) -> list[str]:
+def _compile_bundle_after_merge(repo_root: Path, *, pack_name: str) -> list[str]:
     """Chain the EXISTING compile seam after an ``apply`` merge (T011/FR-003).
 
     Reuses ``charter generate``'s own building blocks — ``compile_charter``/
@@ -162,6 +162,25 @@ def _compile_bundle_after_merge(repo_root: Path) -> list[str]:
     imports ``charter_app``/``console`` from ``_app.py`` at module scope, so
     a module-level import of ``generate.py`` here would fail during package
     initialization.
+
+    *pack_name* is threaded straight into
+    ``_load_interview_for_generate(..., profile=pack_name)`` instead of a
+    hardcoded ``"minimal"``: :func:`charter.interview.default_interview`'s
+    ``profile`` argument has exactly one live branch --
+    ``if profile == "minimal": answers = {filtered 7-question subset}``,
+    else the full ``QUESTION_ORDER`` (11 questions) is used -- and today's
+    two built-in packs (:data:`~specify_cli.charter_pack_registry.BUILTIN_PACKS`)
+    are named exactly ``"minimal"`` and ``"default"``, so passing the applied
+    pack's own name resolves to the SAME binary split the interview already
+    implements: ``apply minimal`` keeps the filtered defaults, ``apply
+    default`` now gets the full interview instead of silently reusing
+    minimal's. Any future third pack name falls into the "not minimal"
+    branch -- i.e. the full interview -- which is the same safe default
+    ``default`` gets today, not a new failure mode. The derived value ends
+    up in the compiled ``charter.yaml`` catalog's ``USER:PROJECT_PROFILE``
+    reference content (``_user_profile_reference`` in
+    :mod:`charter.compiler`), which is exactly where this bug was
+    observable and where the regression test below asserts it.
 
     Raises :class:`_ApplyCompileGitWorktreeError` when *repo_root* is not
     inside a git working tree.
@@ -191,7 +210,7 @@ def _compile_bundle_after_merge(repo_root: Path) -> list[str]:
         answers_path=_interview_path(repo_root),
         from_interview=False,
         resolved_mission_type=None,
-        profile="minimal",
+        profile=pack_name,
     )
     compiled = compile_charter(
         mission=resolved_mission,
@@ -206,7 +225,7 @@ def _compile_bundle_after_merge(repo_root: Path) -> list[str]:
 
 
 def _apply_compile_bridge(
-    repo_root: Path, compile_bundle: bool, *, json_output: bool
+    repo_root: Path, compile_bundle: bool, *, json_output: bool, pack_name: str
 ) -> list[str]:
     """Run the ``--compile`` bridge when requested, else return no files.
 
@@ -217,7 +236,7 @@ def _apply_compile_bridge(
     if not compile_bundle:
         return []
     try:
-        return _compile_bundle_after_merge(repo_root)
+        return _compile_bundle_after_merge(repo_root, pack_name=pack_name)
     except _ApplyCompileGitWorktreeError as exc:
         if json_output:
             typer.echo(json.dumps({"error": str(exc)}))
@@ -303,7 +322,9 @@ def apply_cmd(
         with config_path.open("w", encoding="utf-8") as fh:
             yaml.dump(data, fh)
 
-    compiled_files = _apply_compile_bridge(repo_root, compile_bundle, json_output=json_output)
+    compiled_files = _apply_compile_bridge(
+        repo_root, compile_bundle, json_output=json_output, pack_name=name
+    )
 
     result = {
         "pack": name,

@@ -18,6 +18,19 @@ Covers mission `charter-pack-usage-journey-01KYWWTF` FR-003/FR-004/FR-008:
   activation subset copied verbatim -- without being byte-identical
   (see the module docstring on `test_apply_compile_converges_with_...`
   below for why byte-identity is the wrong bar).
+- Squad fold B (landing PR #3146): `_compile_bundle_after_merge` used to
+  hardcode `profile="minimal"` when resolving the interview it feeds
+  `compile_charter`, regardless of which pack `apply` was given. The
+  `minimal.yaml` pack's own docstring says it exists so a project can get a
+  "sane governance baseline WITHOUT running the full charter interview" --
+  i.e. the pack name <-> interview-profile pairing is a deliberate design
+  correspondence, not a coincidence -- so `apply default --compile` silently
+  reusing minimal's filtered interview was a real bug. The fix threads the
+  applied pack `name` straight into `profile=`;
+  `charter.interview.default_interview`'s only live branch is `"minimal"`
+  vs "everything else", so today's two built-in packs (`default`/`minimal`)
+  map onto it exactly. See `test_apply_compile_derives_interview_profile_*`
+  below for the regression pin.
 """
 
 from __future__ import annotations
@@ -25,12 +38,15 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from typing import Any
+from unittest.mock import patch
 
 import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
 from charter.charter_yaml_io import load_charter_yaml
+from charter.interview import MINIMAL_QUESTION_ORDER, QUESTION_ORDER, CharterInterview
 from specify_cli.cli.commands.charter import charter_app
 from specify_cli.upgrade.migrations.m_unify_charter_activation_finalize import (
     ACTIVATION_KEYS,
@@ -231,3 +247,68 @@ def test_apply_compile_converges_with_finalize_migration_producer(
             "for the SAME config-activation input -- the config->bundle "
             "transform is no longer one authority (FR-008)"
         )
+
+
+# ---------------------------------------------------------------------------
+# Squad fold B -- interview profile derives from the applied pack name
+# (regression pin for the `profile="minimal"` hardcode)
+# ---------------------------------------------------------------------------
+#
+# `write_compiled_charter` only refreshes `charter.yaml`'s DERIVED `catalog`/
+# `metadata` sections (see its own docstring); the `CharterInterview` fed
+# into `compile_charter` never lands verbatim in the written bundle (its
+# `USER:PROJECT_PROFILE` reference `content` -- where `interview.profile`
+# and the per-profile answer set actually appear -- is stripped down to
+# static id/kind/title/summary/path fields by `_build_catalog_dict`). So the
+# faithful regression pin is at the `compile_charter` call boundary itself:
+# assert the `CharterInterview` `_compile_bundle_after_merge` builds and
+# passes in actually carries the applied pack's own name as its `profile`,
+# not a hardcoded `"minimal"`.
+
+
+def _capture_compiled_interview(project_root: Path, name: str) -> tuple[object, CharterInterview]:
+    """Run `apply <name> --compile` and capture the interview passed to
+    `compile_charter` (the real function still runs; the wrapper only spies)."""
+    from charter.compiler import compile_charter as _real_compile_charter
+
+    captured: dict[str, CharterInterview] = {}
+
+    def _spy(*, interview: CharterInterview, **kwargs: Any) -> Any:
+        captured["interview"] = interview
+        return _real_compile_charter(interview=interview, **kwargs)
+
+    with patch("charter.compiler.compile_charter", side_effect=_spy):
+        result = _apply(project_root, name, "--compile")
+
+    assert result.exit_code == 0, result.output  # type: ignore[attr-defined]
+    assert "interview" in captured, "compile_charter was never invoked"
+    return result, captured["interview"]
+
+
+def test_apply_default_compile_derives_interview_profile_from_pack_name(
+    tmp_path: Path,
+) -> None:
+    """`apply default --compile` must build the interview with
+    `profile="default"` (full 11-question set) -- NOT a hardcoded
+    `"minimal"` (the pre-fix behavior, which silently reused minimal's
+    filtered 7-question defaults for every pack)."""
+    _git_init(tmp_path)
+
+    _result, interview = _capture_compiled_interview(tmp_path, "default")
+
+    assert interview.profile == "default"
+    assert set(interview.answers) == set(QUESTION_ORDER)
+    assert set(interview.answers) != set(MINIMAL_QUESTION_ORDER)
+
+
+def test_apply_minimal_compile_still_uses_the_filtered_interview(
+    tmp_path: Path,
+) -> None:
+    """Sibling pin: `apply minimal --compile` keeps its pre-fix behavior --
+    only `default` (and any other non-`"minimal"` pack) was wrong."""
+    _git_init(tmp_path)
+
+    _result, interview = _capture_compiled_interview(tmp_path, "minimal")
+
+    assert interview.profile == "minimal"
+    assert set(interview.answers) == set(MINIMAL_QUESTION_ORDER)
