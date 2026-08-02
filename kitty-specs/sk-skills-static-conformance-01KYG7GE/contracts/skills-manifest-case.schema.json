@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MOES-Media/spec-kitty/conformance/skills/manifest-case.schema.json",
+  "title": "Skills conformance manifest — case shape (descriptive, not enforced)",
+  "description": "Documents the exact shape muster@1.1.0's SkillsManifestStaticCase / SkillsManifestBehavioralCase union expects (src/cli/index.ts at git tag v1.1.0, commit 6bdb070). This schema is NOT consumed by muster itself — muster parses conformance/skills/manifest.yaml with a bare TypeScript cast and no runtime schema validation (FR-006's first documented latent gap; see research.md #3 and #6). It exists so (a) manifest authors in this mission have a single normative reference for the shape they must produce by hand, and (b) conformance/scripts/check-manifest-completeness.mjs's line-based parsing has a written contract to stay honest against, rather than an implicit convention nobody wrote down. A schema-validation step is explicitly out of scope for this mission (deferred per the spec's scope guard, which forbids fixing muster's own latent gaps) and would need to be added muster-side, not here.",
+  "$comment": "Raw-text authoring convention (not enforced by this schema): each case MUST be block-style YAML, one key per line, with `id:` immediately preceding `skillDir:` inside the same list item, at a fixed 4-space indent — `check-manifest-completeness.mjs`'s line-based parser depends on this literal layout and does not use a YAML parser.",
+  "type": "object",
+  "required": ["cases"],
+  "additionalProperties": false,
+  "properties": {
+    "cases": {
+      "type": "array",
+      "minItems": 54,
+      "maxItems": 54,
+      "description": "Exactly 54 for this mission: one StaticCase per built-in skill (53, FR-001) plus one ControlCase (1, FR-005). The count invariant is re-verified at CI time by FR-007's completeness check against the actual src/doctrine/skills/* tree, not by this schema.",
+      "items": { "$ref": "#/$defs/staticCase" }
+    }
+  },
+  "$defs": {
+    "staticCase": {
+      "type": "object",
+      "required": ["id", "type", "skillDir", "profile", "expectations"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "description": "Unique across the manifest (muster does not enforce uniqueness — authoring discipline only). For StaticCase entries, mirrors the skill directory basename under src/doctrine/skills/. For the one ControlCase, 'control-name-mismatch'."
+        },
+        "type": {
+          "const": "static",
+          "description": "This mission emits only 'static' cases. The 'behavioral' variant (querySetPath, runsPerQuery, threshold, isControl) exists in muster@1.1.0's type union but is out of scope here — doSkillsRun unconditionally skips type:behavioral cases without constructing a model client (src/cli/index.ts:1010 at v1.1.0)."
+        },
+        "skillDir": {
+          "type": "string",
+          "description": "Resolved via Node's path.resolve(dirname(manifestPath), skillDir) — i.e. relative to conformance/skills/ (this manifest file's own directory), per src/cli/index.ts:948,993 at v1.1.0. path.resolve performs no traversal guard; the '../..'-free constraint (spec Acceptance Scenario 1) is an authoring discipline this mission holds itself to, not a runtime-enforced boundary. StaticCase entries resolve to '../../src/doctrine/skills/<name>'; the one ControlCase resolves to 'control/<name>'.",
+          "examples": [
+            "../../src/doctrine/skills/ad-hoc-profile-load",
+            "control/name-mismatch"
+          ]
+        },
+        "profile": {
+          "const": "base",
+          "description": "Every case in this mission uses the 'base' agentskills.io profile. The 'anthropic' profile variant exists in muster but is not exercised here (out of scope)."
+        },
+        "expectations": {
+          "type": "object",
+          "required": ["ok"],
+          "additionalProperties": false,
+          "properties": {
+            "ok": {
+              "type": "boolean",
+              "description": "The only field muster actually compares: passed = (actual ok) === expectations.ok, per src/cli/index.ts:956 at v1.1.0. true for all 53 StaticCase entries; false for the one ControlCase."
+            },
+            "violations": {
+              "type": "array",
+              "default": [],
+              "description": "Documentation only. muster NEVER compares this field at runtime (FR-006's second documented latent gap) — it is written for human readers of the manifest, not evaluated by the CLI. Always [] in this mission; a populated list here carries no enforcement weight and must not be read as an assertion."
+            }
+          }
+        }
+      }
+    }
+  }
+}

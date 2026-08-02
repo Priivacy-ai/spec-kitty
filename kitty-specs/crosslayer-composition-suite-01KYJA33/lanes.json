@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "mission_slug": "crosslayer-composition-suite-01KYJA33",
+  "mission_id": "01KYJA33KB7PQMMT7Y1A4MNTCS",
+  "mission_branch": "kitty/mission-crosslayer-composition-suite-01KYJA33",
+  "target_branch": "kitty/mission-crosslayer-composition-suite",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "conformance/crosslayer/personas/architect-alphonso.Soul.md",
+        "conformance/crosslayer/personas/reviewer-renata.Soul.md",
+        "conformance/scripts/check-persona-drift.sh",
+        "conformance/tools/PROJECTION.md",
+        "conformance/tools/profile2soul.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "conformance/crosslayer/cases/architect-run-skill.yaml",
+        "conformance/crosslayer/cases/reviewer-run-skill.yaml",
+        "conformance/crosslayer/control.yaml",
+        "conformance/crosslayer/fixtures/invalid-persona-missing-key.Soul.md",
+        "conformance/crosslayer/manifest.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "conformance/crosslayer/sop-extract.md",
+        "conformance/scripts/check-sop-extract-drift.sh"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        ".github/workflows/crosslayer.yml",
+        "conformance/crosslayer/README.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "conformance/crosslayer/cases/erosion-control-045.yaml",
+        "conformance/crosslayer/cases/rule-survival-045.yaml",
+        "conformance/crosslayer/evidence/sc003-erosion-control-045.json",
+        "conformance/crosslayer/fixtures/erosion-persona-045-neutral.Soul.md",
+        "conformance/crosslayer/fixtures/erosion-persona-045.Soul.md",
+        "conformance/scripts/sc003-erosion-control-045-neutralize-direction-driver.mjs",
+        "tests/cross_cutting/test_crosslayer_wp05_rule_survival_cases.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-07-30T23:40:59.940648+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": null
+}
