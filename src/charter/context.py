@@ -218,6 +218,27 @@ def build_charter_context(
     # ``_extract_policy_summary``, the ``--include section:<id>`` selector)
     # legitimately need ``charter.md`` — collapsing the two onto one path
     # constant is the C-003 regression this WP guards against.
+    #
+    # FR-002 (doctrine-charter-split-unification WP01) — CLASSIFICATION, so a
+    # later reader does not "tidy" this into something it was never meant to be:
+    #
+    #   * This is the **C-003 prose-presence gate**: it answers "is there any
+    #     charter surface to render for a human?" — present when EITHER the
+    #     ``charter.yaml`` authority OR the ``charter.md`` readable secondary
+    #     exists. ``charter.yaml`` takes **precedence** for governance (the
+    #     compiled bundle and ``_load_references``' ``catalog.references``
+    #     projection are read from it, never parsed out of ``charter.md``);
+    #     ``charter.md`` contributes prose only.
+    #   * It is deliberately **NOT an authority-presence gate**. Those are
+    #     FR-003/004/006 (dashboard / analysis / the ``--json``
+    #     ``project_charter.present`` signal), which key SOLELY on
+    #     ``charter.yaml``. The divergence between this OR-gate and that
+    #     yaml-only signal is intentional, not drift.
+    #   * Therefore: do **NOT** tidy this into a strict ``charter.yaml``-only
+    #     gate. Doing so demotes every ``charter.md``-only project to "missing"
+    #     (26 fixtures, above) and contradicts the charter.md-as-secondary
+    #     model. The four presence cells and the yaml-precedence differential
+    #     are pinned in ``tests/charter/test_context_prose_presence_pin.py``.
     charter_path = canonical_root / CHARTER_MD
     charter_yaml_path = canonical_root / CHARTER_YAML
 
