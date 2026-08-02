@@ -1,4 +1,4 @@
-name: Skills Static Conformance
+name: Static Conformance
 
 # FR-003: gate every PR and every push to main on the muster skills static
 # conformance suite. No-secrets by construction (C-002): a
@@ -86,3 +86,28 @@ jobs:
       - name: Verify manifest completeness (FR-007)
         if: always()
         run: node conformance/scripts/check-manifest-completeness.mjs
+
+  sop-doctrine-conformance:
+    name: SOP doctrine conformance (muster)
+    runs-on: ubuntu-latest
+    steps:
+      # Pinned to the same resolved commit SHA as the skills-conformance
+      # job's Checkout step above (house convention: consistency with what
+      # the file already does, not a fresh independent pin).
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Run doctrine rule-manifest drift gate (FR-004/FR-005)
+        run: bash conformance/scripts/check-doctrine-drift-gate.sh
+
+      # F-4 (independent verification, round 2): same defect, same fix, as
+      # the skills-conformance job's "Verify manifest completeness (FR-007)"
+      # step above -- placement after the drift gate does not by itself make
+      # both a drift failure and a completeness failure visible in this
+      # job's log; without `if: always()`, a failing drift gate (exit != 0)
+      # short-circuits the job and this step is SKIPPED. Do not strip this
+      # off in a future "cleanup" -- see the sibling job's comment for the
+      # full rationale.
+      - name: Verify doctrine manifest rule-count completeness (absence guard)
+        if: always()
+        run: node conformance/scripts/check-doctrine-manifest-completeness.mjs
