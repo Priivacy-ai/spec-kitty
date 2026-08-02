@@ -756,8 +756,15 @@ def _check_kitty_specs_contamination(
     # precedence exactly as before.
     _planning_branch: str | None = None
     try:
+        # FR-007 route: this site was INVISIBLE to the WP07 census, whose raw
+        # ``grep "load_meta("`` cannot see an aliased import. Routed onto the
+        # one fail-closed reader like every other divergent wrapper. The broad
+        # catch below is retained deliberately: it guards the two imports and
+        # BOTH readers, not just this one call (pre-existing best-effort
+        # contract -- the lane guard must still report contamination when the
+        # optional planning-branch metadata is unavailable).
+        from specify_cli.core.paths import load_meta_fail_closed as _load_meta_lggrd
         from specify_cli.core.paths import read_target_branch_from_meta as _read_target_branch_lggrd
-        from specify_cli.mission_metadata import load_meta as _load_meta_lggrd
 
         _meta = _load_meta_lggrd(feature_dir)
         if _meta:

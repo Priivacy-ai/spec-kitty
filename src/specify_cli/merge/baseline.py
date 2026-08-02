@@ -17,7 +17,8 @@ import logging
 from pathlib import Path
 
 from specify_cli.core.git_ops import run_command
-from specify_cli.mission_metadata import load_meta, write_meta
+from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
+from specify_cli.mission_metadata import write_meta
 
 logger = logging.getLogger(__name__)
 
@@ -84,8 +85,8 @@ def record_baseline_merge_commit(
         return None
 
     try:
-        meta = load_meta(feature_dir)
-    except ValueError as exc:
+        meta = load_meta_fail_closed(feature_dir)
+    except MissionMetaReadError as exc:
         if is_modern:
             raise BaselineMergeCommitError(
                 f"Cannot record baseline_merge_commit for modern mission "
@@ -119,8 +120,8 @@ def _recorded_baseline_from_working_meta(feature_dir: Path | None) -> str:
     if feature_dir is None:
         return ""
     try:
-        working_meta = load_meta(feature_dir)
-    except ValueError:
+        working_meta = load_meta_fail_closed(feature_dir)
+    except MissionMetaReadError:
         return ""
     if not isinstance(working_meta, dict):
         return ""

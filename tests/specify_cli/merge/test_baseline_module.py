@@ -135,8 +135,9 @@ def test_record_then_assert_roundtrip(tmp_path: Path) -> None:
 # that moved verbatim from ``cli/commands/merge.py`` and were never directly
 # covered. Fixtures are topology-true (real on-disk meta.json, real git repos
 # for the git-show path); the two genuinely-defensive ``meta is None`` /
-# non-dict branches are driven via a narrow ``load_meta`` patch and called out
-# explicitly below.
+# non-dict branches are driven via a narrow ``load_meta_fail_closed`` patch
+# (FR-007: the reader this module actually calls) and called out explicitly
+# below.
 # ---------------------------------------------------------------------------
 
 
@@ -229,12 +230,16 @@ def test_record_legacy_corrupt_meta_warns_and_returns_none(tmp_path: Path) -> No
 def test_record_modern_meta_loads_none_raises(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Modern mission + ``load_meta`` returning ``None`` -> hard failure (102-103).
+    """Modern mission + reader returning ``None`` -> hard failure (102-103).
 
     DEFENSIVE branch: with the real on-disk contract, an *existing* meta.json
-    makes ``load_meta`` return a dict or raise ``ValueError`` — it never returns
-    ``None``. We drive it via a narrow ``load_meta`` patch to lock the guard
-    that protects against that contract changing.
+    makes the reader return a dict or raise ``MissionMetaReadError`` — it never
+    returns ``None``. We drive it via a narrow patch to lock the guard that
+    protects against that contract changing.
+
+    FR-007: the patched name is ``load_meta_fail_closed`` because that is the
+    reader ``record_baseline_merge_commit`` now calls. Patching the retired
+    ``load_meta`` name would be a no-op that silently exercises nothing.
     """
     from specify_cli.merge import baseline as baseline_mod
     from specify_cli.merge.baseline import (
@@ -244,7 +249,7 @@ def test_record_modern_meta_loads_none_raises(
 
     feature_dir = tmp_path / "kitty-specs" / _MISSION_SLUG
     _write_meta(feature_dir, {"mission_id": _MISSION_ID})
-    monkeypatch.setattr(baseline_mod, "load_meta", lambda _fd: None)
+    monkeypatch.setattr(baseline_mod, "load_meta_fail_closed", lambda _fd: None)
 
     with pytest.raises(BaselineMergeCommitError, match="could not be loaded"):
         record_baseline_merge_commit(
@@ -264,7 +269,7 @@ def test_record_legacy_meta_loads_none_returns_none(
 
     feature_dir = tmp_path / "kitty-specs" / _MISSION_SLUG
     _write_meta(feature_dir, {"mission_id": _MISSION_ID})
-    monkeypatch.setattr(baseline_mod, "load_meta", lambda _fd: None)
+    monkeypatch.setattr(baseline_mod, "load_meta_fail_closed", lambda _fd: None)
 
     assert record_baseline_merge_commit(feature_dir, "deadbeef") is None
 
@@ -320,7 +325,7 @@ def test_recorded_baseline_non_dict_meta_returns_empty(
 
     feature_dir = tmp_path / "kitty-specs" / _MISSION_SLUG
     _write_meta(feature_dir, {"mission_id": _MISSION_ID})
-    monkeypatch.setattr(baseline_mod, "load_meta", lambda _fd: ["not", "a", "dict"])
+    monkeypatch.setattr(baseline_mod, "load_meta_fail_closed", lambda _fd: ["not", "a", "dict"])
 
     assert _recorded_baseline_from_working_meta(feature_dir) == ""
 

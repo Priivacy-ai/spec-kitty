@@ -136,7 +136,7 @@ def _safe_load_meta(repo_root: Path, mission_slug: str) -> dict[str, object] | N
     branch.
     """
     from mission_runtime import placement_seam
-    from specify_cli.mission_metadata import load_meta
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 
     # read-side-seam-primary-primitive-closure-01KYKMMT WP06 (T029): routed off
     # the retiring ``primary_feature_dir_for_mission`` wrapper onto the seam
@@ -147,8 +147,8 @@ def _safe_load_meta(repo_root: Path, mission_slug: str) -> dict[str, object] | N
         MissionArtifactKind.PRIMARY_METADATA
     )
     try:
-        meta = load_meta(feature_dir)
-    except ValueError:
+        meta = load_meta_fail_closed(feature_dir)
+    except MissionMetaReadError:
         return None
     return meta or None
 

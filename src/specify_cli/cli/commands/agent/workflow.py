@@ -311,11 +311,11 @@ def _load_coord_branch_meta(feature_dir: Path) -> tuple[str | None, str | None, 
     is missing / unreadable. Never raises.
     """
     from specify_cli.lanes.branch_naming import resolve_mid8
-    from specify_cli.mission_metadata import load_meta
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 
     try:
-        meta = load_meta(feature_dir)
-    except Exception:  # noqa: BLE001 — meta missing/corrupt is legacy
+        meta = load_meta_fail_closed(feature_dir)
+    except MissionMetaReadError:  # corrupt meta.json is legacy-tolerated here
         return (None, None, None)
     if not isinstance(meta, dict):
         return (None, None, None)

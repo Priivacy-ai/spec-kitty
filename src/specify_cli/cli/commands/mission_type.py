@@ -18,7 +18,7 @@ import contextlib
 import json
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.core.paths import get_main_repo_root
+from specify_cli.core.paths import MissionMetaReadError, get_main_repo_root, load_meta_fail_closed
 from specify_cli.lanes.branch_naming import resolve_mid8
 from specify_cli.mission_metadata import load_meta
 from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
@@ -1093,9 +1093,9 @@ def _resolve_mission_handle(repo_root: Path, handle: str) -> _ResolvedMissionHan
 def _safe_load_meta(feature_dir: Path) -> dict[str, Any] | None:
     """Load ``meta.json`` tolerating absence/corruption (returns ``None``)."""
     try:
-        result: dict[str, Any] | None = load_meta(feature_dir)
+        result: dict[str, Any] | None = load_meta_fail_closed(feature_dir)
         return result
-    except (ValueError, OSError):
+    except MissionMetaReadError:
         return None
 
 

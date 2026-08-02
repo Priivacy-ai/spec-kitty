@@ -23,6 +23,7 @@ from specify_cli.core.dependency_graph import (
     detect_cycles,
     topological_sort,
 )
+from specify_cli.core.paths import load_meta_fail_closed
 from specify_cli.coordination.coherence import is_toolchain_generated_churn
 from specify_cli.git.ref_advance import advance_branch_ref
 from specify_cli.merge._constants import logger as _merge_logger
@@ -601,7 +602,11 @@ def _assign_planning_only_mission_number_if_needed(
         main_repo,
         main_repo / KITTY_SPECS_DIR,
     )
-    meta = load_meta(feature_dir) or {}
+    # FR-007 route: a corrupt meta.json surfaces the typed
+    # ``MissionMetaReadError`` (never a raw ``ValueError``) and PROPAGATES --
+    # this is a ``route-unwrapped`` census site, so swallowing corruption here
+    # would silently overwrite an unreadable meta.json with a one-key dict.
+    meta = load_meta_fail_closed(feature_dir) or {}
     meta["mission_number"] = next_number
     write_meta(feature_dir, meta, validate=False)
     console.print(

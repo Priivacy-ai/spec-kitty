@@ -262,7 +262,7 @@ def _teardown_coordination_for_abort(
     persist-before-destroy leg (FR-005) is not masked as "best-effort cleanup".
     """
     from specify_cli.coordination.teardown import teardown_coordination_topology
-    from specify_cli.mission_metadata import load_meta as _load_meta
+    from specify_cli.core.paths import load_meta_fail_closed as _load_meta
 
     abort_teardown_args: tuple[Path, str, str] | None = None
     try:

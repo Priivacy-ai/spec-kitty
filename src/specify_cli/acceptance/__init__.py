@@ -13,11 +13,11 @@ from typing import Any
 
 from kernel.paths import to_posix
 from specify_cli.core.agent_config import get_auto_commit_default
-from specify_cli.core.paths import read_target_branch_from_meta
+from specify_cli.core.paths import load_meta_fail_closed, read_target_branch_from_meta
 from specify_cli.decisions.models import DecisionStatus
 from specify_cli.decisions.store import load_index
 from specify_cli.mission import MissionError, get_mission_for_feature
-from specify_cli.mission_metadata import load_meta, record_acceptance, resolve_mission_identity, write_meta
+from specify_cli.mission_metadata import record_acceptance, resolve_mission_identity, write_meta
 from specify_cli.status import CanonicalStatusNotFoundError
 from specify_cli.status import Lane
 from specify_cli.status import EVENTS_FILENAME, SNAPSHOT_FILENAME, StoreError
@@ -1176,7 +1176,10 @@ def _commit_acceptance_meta(
         accept_commit = None
 
     if accept_commit:
-        _meta = load_meta(summary.feature_dir)
+        # FR-007 route: ``route-unwrapped`` census site -- corruption surfaces
+        # as the typed ``MissionMetaReadError`` and PROPAGATES (swallowing it
+        # would silently skip stamping ``accept_commit`` into meta.json).
+        _meta = load_meta_fail_closed(summary.feature_dir)
         if _meta is not None:
             _meta["accept_commit"] = accept_commit
             _history = _meta.get("acceptance_history", [])
@@ -1238,7 +1241,9 @@ def _commit_acceptance_meta_via_router(
     accept_commit: str | None = router_result.commit_hash
 
     if accept_commit:
-        _meta = load_meta(meta_path.parent)
+        # FR-007 route: ``route-unwrapped`` census site -- see the sibling
+        # ``_commit_acceptance_meta``; the typed error PROPAGATES.
+        _meta = load_meta_fail_closed(meta_path.parent)
         if _meta is not None:
             _meta["accept_commit"] = accept_commit
             _history = _meta.get("acceptance_history", [])

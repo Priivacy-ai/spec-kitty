@@ -19,19 +19,21 @@ def _ensure_specify_cli_on_path() -> None:
 
 def _resolve_mission_from_feature(feature_dir: Path) -> str | None:
     """Resolve mission key from a feature's meta.json."""
-    try:
-        from specify_cli.mission_metadata import load_meta
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 
-        meta = load_meta(feature_dir)
-        if meta:
-            mission_type = str(meta.get("mission_type", "")).strip()
-            if mission_type:
-                return mission_type
-            legacy_mission = str(meta.get("mission", "")).strip()
-            if legacy_mission:
-                return legacy_mission
-    except Exception:
-        pass
+    try:
+        meta = load_meta_fail_closed(feature_dir)
+    except MissionMetaReadError:
+        # Best-effort diagnostics probe: a corrupt meta.json degrades to
+        # "mission unknown" rather than breaking the diagnostics report.
+        return None
+    if meta:
+        mission_type = str(meta.get("mission_type", "")).strip()
+        if mission_type:
+            return mission_type
+        legacy_mission = str(meta.get("mission", "")).strip()
+        if legacy_mission:
+            return legacy_mission
     return None
 
 
