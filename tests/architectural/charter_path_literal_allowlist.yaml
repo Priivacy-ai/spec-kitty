@@ -1,0 +1,293 @@
+# Charter path-literal allow-list — WP11 / FR-016
+# (mission doctrine-charter-split-unification-01KZ0SRB).
+#
+# Governed by tests/architectural/test_charter_path_literal_authority.py, whose
+# module docstring records the src/doctrine/** scope decision and the five
+# non-vacuity mechanics. READ IT BEFORE EDITING THIS FILE.
+#
+# Each entry's authoritative comparand is the composite key
+# (file, qualname, token, literal, clause). ``token`` is a FROZEN tool-derived
+# ``code_tokens_by_line`` string — never typed by hand. ``line`` is a
+# NON-AUTHORITATIVE locator (jump-to / diagnostics only). ``literal`` pins
+# charter.yaml-vs-charter.md so an allowlisted yaml site cannot be silently
+# swapped to md (C-001). ``clause`` is FR-016 (a) path literal or (b) charter.md
+# presence gate.
+#
+# THIS LIST IS SHRINK-ONLY. ``charter_path_literal_baseline`` is frozen; adding
+# an entry to green a new violation FAILS test_allowlist_shrink_only. No blanket
+# directory globs — glob-shaped ``file`` values are refused at load time, so
+# ``upgrade/migrations/**`` is enumerated site by site.
+#
+# DRAIN PROCEDURE (routing a site onto charter.bundle.CHARTER_YAML/CHARTER_MD):
+# delete the entry AND lower CHARTER_PATH_LITERAL_FLOOR + this baseline to the
+# new honest census. FRESHEN PROCEDURE (a legitimate edit moved the token):
+# re-run the gate; the stale entry is reported with its live token — copy it in.
+charter_path_literal_baseline: 38
+
+charter_path_literals:
+- file: src/charter/compiler.py
+  qualname: write_compiled_charter
+  line: 476
+  literal: "charter.yaml"
+  clause: "a"
+  token: "charter_yaml_path = output_dir /"
+  rationale: "Bundle WRITER: materializes charter.yaml into a CALLER-SUPPLIED output_dir; charter.bundle.CHARTER_YAML is a repo-root-relative Path and cannot express 'this filename inside an arbitrary output_dir'."
+- file: src/charter/compiler.py
+  qualname: write_compiled_charter
+  line: 488
+  literal: "charter.yaml"
+  clause: "a"
+  token: "return WriteBundleResult ( files_written = [ ] )"
+  rationale: "Report value, not a path: the WriteBundleResult.files_written manifest names the file just written; it is serialized output, never joined onto a directory."
+- file: src/charter/compiler.py
+  qualname: _mint_config_charter_pointer
+  line: 670
+  literal: ".kittify/charter/charter.yaml"
+  clause: "a"
+  token: "pointer ="
+  rationale: "Serialized config-pointer FALLBACK string persisted into config.yaml when the bundle resolves outside repo_root; the on-disk config format must stay a stable literal string, not a Path constant."
+- file: src/charter/pack_manager.py
+  qualname: <module>
+  line: 168
+  literal: "charter.md"
+  clause: "a"
+  token: "_CHARTER_FILENAME ="
+  rationale: "Pack-layer segment-name constant: pack_manager composes layer directories from its own segment names and by C-008 knows only segment names, not the repo-root bundle path that CHARTER_YAML/CHARTER_MD encode."
+- file: src/charter/schemas.py
+  qualname: ExtractionMetadata
+  line: 272
+  literal: ".kittify/charter/charter.md"
+  clause: "a"
+  token: "source_path : str ="
+  rationale: "Pydantic default for the SERIALIZED ExtractionMetadata.source_path provenance field; the persisted value is a str by schema contract, so importing a Path constant would change the on-disk shape."
+- file: src/charter/sync.py
+  qualname: <module>
+  line: 48
+  literal: "charter.md"
+  clause: "a"
+  token: "_CHARTER_FILENAME ="
+  rationale: "Sync composes the bundle directory from its own _KITTIFY_DIRNAME/_CHARTER_DIRNAME segments to materialize the C-003 prose file; the filename constant is one segment of that composition, not a whole-path duplicate."
+- file: src/doctrine/spdd_reasons/activation.py
+  qualname: <module>
+  line: 49
+  literal: "charter.yaml"
+  clause: "a"
+  token: "_CHARTER_YAML ="
+  rationale: "PERMANENT (layering): src/doctrine/ must not import charter.* under the enforced runtime->charter->doctrine boundary; importing CHARTER_YAML would invert the dependency and break the Shared Package Boundary ADR."
+- file: src/doctrine/versioning.py
+  qualname: get_bundle_schema_version
+  line: 190
+  literal: "charter.yaml"
+  clause: "a"
+  token: "charter_yaml_path = charter_dir /"
+  rationale: "PERMANENT (layering): versioning.py's own module docstring states 'This module must NOT import from charter.*'; the doctrine wheel cannot depend on charter.bundle."
+- file: src/doctrine/versioning.py
+  qualname: migrate_v1_to_v2
+  line: 451
+  literal: "charter.yaml"
+  clause: "a"
+  token: "charter_yaml_path = bundle_root /"
+  rationale: "PERMANENT (layering): same doctrine->charter import prohibition as :190; migrate_v1_to_v2 resolves charter.yaml inside a caller-supplied bundle_root."
+- file: src/specify_cli/charter_runtime/freshness/computer.py
+  qualname: <module>
+  line: 179
+  literal: "charter.yaml"
+  clause: "a"
+  token: "_CHARTER_YAML_FILENAME ="
+  rationale: "Deliberate non-import documented in place: importing charter.bundle.BUNDLE_CONTENT_HASH_FILES here would invert the charter->specify_cli dependency direction; test_bundle_file_lists_stay_in_sync pins the two tuples equal instead."
+- file: src/specify_cli/cli/commands/_doctrine_collect.py
+  qualname: _read_project_selections
+  line: 746
+  literal: "charter.yaml"
+  clause: "a"
+  token: "charter_yaml = repo_root / / /"
+  rationale: "C-001-COMPLIANT authority gate (keys on charter.yaml, IC-04/WP04) that still builds the path inline; repointable onto charter.bundle.CHARTER_YAML in a follow-on, but not an FR-016 authority violation."
+- file: src/specify_cli/cli/commands/charter/_app.py
+  qualname: <module>
+  line: 39
+  literal: "charter.yaml"
+  clause: "a"
+  token: "CHARTER_YAML_FILENAME ="
+  rationale: "CLI-surface filename constant that gates the bundle-compatibility check on charter.yaml (C-001-correct authority); shared across charter subcommands as one declaration rather than scattered literals."
+- file: src/specify_cli/cli/commands/charter/_common.py
+  qualname: _resolve_charter_path
+  line: 34
+  literal: "charter.md"
+  clause: "a"
+  token: "charter_path = repo_root / / /"
+  rationale: "FR-005 SANCTIONED PROSE RESOLVER: _resolve_charter_path resolves the display-only charter.md for prose-rendering commands and is explicitly NOT retargeted; its sibling _resolve_charter_bundle_path owns the authority gate via charter.bundle.CHARTER_YAML."
+- file: src/specify_cli/cli/commands/charter/_common.py
+  qualname: _resolve_charter_path
+  line: 35
+  literal: "charter.md"
+  clause: "b"
+  token: "if charter_path . exists ( ) :"
+  rationale: "C-003 prose-presence check paired with :34 — establishes readability of the secondary prose file for display commands, never a governance/authority presence decision (that is _resolve_charter_bundle_path's charter.yaml gate)."
+- file: src/specify_cli/cli/commands/charter/_status_collectors.py
+  qualname: _collect_charter_sync_status
+  line: 74
+  literal: "charter.md"
+  clause: "a"
+  token: "charter_md_path = output_dir /"
+  rationale: "Characterization-pinned md-only status shape (research.md D10 / WP04): the collector reports whether the prose file was materialized; it is a sync-status readout, not an authority gate."
+- file: src/specify_cli/cli/commands/charter/_status_collectors.py
+  qualname: _collect_charter_sync_status
+  line: 82
+  literal: "charter.md"
+  clause: "b"
+  token: "if charter_md_path . exists ( )"
+  rationale: "Paired with :74 — reports charter.md materialization in the sync-status readout; C-001 authority for the same collector is carried by CHARTER_YAML_FILENAME, pinned as a characterization test by WP04."
+- file: src/specify_cli/cli/commands/charter/_status_collectors.py
+  qualname: _collect_charter_sync_status
+  line: 103
+  literal: "charter.md"
+  clause: "a"
+  token: "for filename in [ CHARTER_YAML_FILENAME , ] :"
+  rationale: "Bundle-file enumeration listing both bundle members for per-file status reporting; charter.md appears as a REPORTED member alongside CHARTER_YAML_FILENAME, not as a resolution authority."
+- file: src/specify_cli/cli/commands/charter/generate.py
+  qualname: generate
+  line: 325
+  literal: "charter.md"
+  clause: "a"
+  token: "charter_path = charter_dir /"
+  rationale: "Prose WRITER: generate materializes the C-003 charter.md rationale document into a resolved charter_dir; writing the prose file is the sanctioned secondary-source path, not a presence/config decision."
+- file: src/specify_cli/cli/commands/charter/generate.py
+  qualname: generate
+  line: 389
+  literal: "charter.md"
+  clause: "a"
+  token: "charter_path = charter_dir /"
+  rationale: "Second prose-write path in the same command (regeneration branch); same C-003 writer rationale as :325."
+- file: src/specify_cli/cli/commands/charter/synthesize.py
+  qualname: charter_synthesize
+  line: 173
+  literal: "charter.yaml"
+  clause: "a"
+  token: "charter_yaml = repo_root / / /"
+  rationale: "C-001-COMPLIANT fresh-project signal keyed on charter.yaml (the canonical signal after generate stopped emitting charter.md); repointable onto CHARTER_YAML in a follow-on, not an authority violation."
+- file: src/specify_cli/cli/commands/charter_bundle.py
+  qualname: validate
+  line: 363
+  literal: "charter.yaml"
+  clause: "a"
+  token: "if ( charter_dir / ) . exists ( ) :"
+  rationale: "C-001-COMPLIANT compatibility gate keyed on charter.yaml (consolidate-charter-bundle WP07) against a canonical_root-relative charter_dir the caller supplies; repointable, not an authority violation."
+- file: src/specify_cli/invocation/empty_charter.py
+  qualname: <module>
+  line: 60
+  literal: ".kittify/charter/charter.yaml"
+  clause: "a"
+  token: "_CHARTER_BUNDLE_PATH = Path ( )"
+  rationale: "Deliberate non-import documented in place: this module only ever calls .exists() on the bundle path, so it avoids importing charter.bundle and pulling that module's pydantic-backed manifest machinery in for a single literal."
+- file: src/specify_cli/upgrade/migrations/m_0_10_8_fix_memory_structure.py
+  qualname: FixMemoryStructureMigration.apply
+  line: 142
+  literal: "charter.md"
+  clause: "a"
+  token: "template_path = missions_dir / /"
+  rationale: "HISTORICAL DETERMINISM: locates the legacy command-template charter.md during the 0.10.8 memory-structure fix; migration path behaviour is frozen and must never change to match what old projects actually had on disk."
+- file: src/specify_cli/upgrade/migrations/m_0_10_8_fix_memory_structure.py
+  qualname: FixMemoryStructureMigration.apply
+  line: 143
+  literal: "charter.md"
+  clause: "b"
+  token: "if not template_path . exists ( ) :"
+  rationale: "HISTORICAL DETERMINISM: template-absence branch paired with :142; the 0.10.8 migration's on-disk probing sequence is frozen."
+- file: src/specify_cli/upgrade/migrations/m_0_10_8_fix_memory_structure.py
+  qualname: FixMemoryStructureMigration.apply
+  line: 144
+  literal: "charter.md"
+  clause: "a"
+  token: "template_path = kittify_dir / / /"
+  rationale: "HISTORICAL DETERMINISM: legacy fallback template location probed when :142 misses; frozen 0.10.8 migration path."
+- file: src/specify_cli/upgrade/migrations/m_0_10_8_fix_memory_structure.py
+  qualname: FixMemoryStructureMigration.apply
+  line: 145
+  literal: "charter.md"
+  clause: "b"
+  token: "if template_path . exists ( ) :"
+  rationale: "HISTORICAL DETERMINISM: presence branch for the :144 fallback template; frozen 0.10.8 migration path."
+- file: src/specify_cli/upgrade/migrations/m_0_10_8_fix_memory_structure.py
+  qualname: FixMemoryStructureMigration.apply
+  line: 153
+  literal: "charter.md"
+  clause: "a"
+  token: "charter_dest = kittify_memory /"
+  rationale: "HISTORICAL DETERMINISM: destination for the migrated charter.md under the legacy .kittify/memory layout; frozen 0.10.8 migration path."
+- file: src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py
+  qualname: CharterRenameMigration._normalize_layouts
+  line: 153
+  literal: "charter.md"
+  clause: "a"
+  token: "if charter_dir . exists ( ) and ( charter_dir / ) . exists ( ) :"
+  rationale: "HISTORICAL DETERMINISM: detects an already-normalized charter.md during the 3.1.1 constitution->charter rename; frozen migration path."
+- file: src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py
+  qualname: CharterRenameMigration._normalize_layouts
+  line: 153
+  literal: "charter.md"
+  clause: "b"
+  token: "if charter_dir . exists ( ) and ( charter_dir / ) . exists ( ) :"
+  rationale: "HISTORICAL DETERMINISM: the presence half of the same :153 already-normalized check in the 3.1.1 rename; frozen migration path."
+- file: src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py
+  qualname: CharterRenameMigration._normalize_layouts
+  line: 170
+  literal: "charter.md"
+  clause: "a"
+  token: "shutil . move ( str ( memory_constitution ) , str ( charter_dir / ) )"
+  rationale: "HISTORICAL DETERMINISM: move destination renaming legacy memory/constitution.md to charter.md; frozen 3.1.1 migration path."
+- file: src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py
+  qualname: CharterRenameMigration._normalize_layouts
+  line: 211
+  literal: "charter.md"
+  clause: "a"
+  token: "new_md = charter_dir /"
+  rationale: "HISTORICAL DETERMINISM: new-location charter.md target in the 3.1.1 layout normalization; frozen migration path."
+- file: src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py
+  qualname: CharterRenameMigration._normalize_layouts
+  line: 212
+  literal: "charter.md"
+  clause: "b"
+  token: "if old_md . exists ( ) and not new_md . exists ( ) :"
+  rationale: "HISTORICAL DETERMINISM: old/new presence comparison guarding the :211 rename so it never clobbers; frozen 3.1.1 migration path."
+- file: src/specify_cli/upgrade/migrations/m_3_2_0rc35_default_charter_pack.py
+  qualname: DefaultCharterPackMigration.apply
+  line: 161
+  literal: "charter.md"
+  clause: "a"
+  token: "charter_md_path = project_path / / /"
+  rationale: "HISTORICAL DETERMINISM: probes the pre-existing charter.md when seeding the default charter pack in 3.2.0rc35; frozen migration path."
+- file: src/specify_cli/upgrade/migrations/m_3_2_0rc35_default_charter_pack.py
+  qualname: DefaultCharterPackMigration.apply
+  line: 162
+  literal: "charter.md"
+  clause: "b"
+  token: "if charter_md_path . exists ( ) and not dry_run :"
+  rationale: "HISTORICAL DETERMINISM: presence+dry-run branch paired with :161; frozen 3.2.0rc35 migration path."
+- file: src/specify_cli/upgrade/migrations/m_3_2_0rc35_unified_bundle.py
+  qualname: UnifiedBundleMigration.apply
+  line: 159
+  literal: "charter.md"
+  clause: "a"
+  token: "charter_md = charter_dir /"
+  rationale: "HISTORICAL DETERMINISM: resolves charter.md while migrating projects onto the unified bundle layout; frozen 3.2.0rc35 migration path."
+- file: src/specify_cli/upgrade/migrations/m_3_2_0rc35_unified_bundle.py
+  qualname: UnifiedBundleMigration.apply
+  line: 160
+  literal: "charter.md"
+  clause: "b"
+  token: "charter_present = charter_md . exists ( )"
+  rationale: "HISTORICAL DETERMINISM: records pre-migration charter.md presence to decide bundle seeding; frozen 3.2.0rc35 migration path."
+- file: src/specify_cli/upgrade/migrations/m_3_2_6_retire_rtk_search_tooling.py
+  qualname: <module>
+  line: 68
+  literal: "charter.yaml"
+  clause: "a"
+  token: "_CHARTER_RELATIVE_PATH = Path ( ) / /"
+  rationale: "HISTORICAL DETERMINISM: module-level charter.yaml relative path used by the 3.2.6 RTK-retirement migration; frozen migration path."
+- file: src/specify_cli/upgrade/migrations/m_unify_charter_activation_finalize.py
+  qualname: <module>
+  line: 79
+  literal: "charter.yaml"
+  clause: "a"
+  token: "_CHARTER_YAML ="
+  rationale: "HISTORICAL DETERMINISM: charter.yaml filename constant for the activation-finalize migration; frozen migration path."
