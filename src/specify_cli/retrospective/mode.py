@@ -33,6 +33,7 @@ from typing import Literal, cast
 from ruamel.yaml import YAML as _YAML
 from ruamel.yaml.error import YAMLError as _YAMLError
 
+from specify_cli.retrospective.policy import _CHARTER_REL
 from specify_cli.retrospective.schema import Mode, ModeSourceSignal
 
 # ---------------------------------------------------------------------------
@@ -62,9 +63,6 @@ NON_INTERACTIVE_PARENTS: frozenset[str] = frozenset(
         "agent-harness",
     }
 )
-
-#: Charter file path relative to repo root.
-_CHARTER_REL = Path(".kittify") / "charter" / "charter.md"
 
 #: Allowed values for the SPEC_KITTY_MODE environment variable.
 _ALLOWED_ENV_VALUES: frozenset[str] = frozenset({"autonomous", "human_in_command"})
@@ -112,6 +110,17 @@ def _read_charter_mode(repo_root: Path) -> str | None:
     surface, not a structured data reader.  We therefore implement a minimal
     frontmatter parser here, consistent with the approach described in the
     WP04 spec (T017).
+
+    FR-005c note (``doctrine-charter-split-unification``): the retrospective
+    **policy** now resolves yaml-first from ``charter.yaml``
+    ``governance.retrospective`` (see :func:`~specify_cli.retrospective.policy.
+    resolve_policy`).  ``mode:`` is deliberately NOT part of that flip: it is a
+    top-level frontmatter key with no counterpart in
+    :class:`~charter.schemas.RetrospectiveGovernance`, whose keys mirror
+    ``policy._KNOWN_KEYS`` exactly.  Minting a ``governance`` home for ``mode:``
+    is a schema change (FR-005a scope), not a resolver change, so this reader
+    stays frontmatter-only until that block exists.  The charter path constant
+    is nevertheless the single shared ``policy._CHARTER_REL`` (WP06 T003).
 
     Returns:
         ``"autonomous"`` or ``"human_in_command"`` if the charter declares a

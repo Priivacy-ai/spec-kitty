@@ -20,6 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from specify_cli.retrospective.events import RETROSPECTIVE_EVENT_NAMES
 from specify_cli.retrospective.mode import detect as _detect_mode
+from specify_cli.retrospective.policy import _CHARTER_REL
 from specify_cli.retrospective.schema import EventId, MissionId, Mode
 
 logger = logging.getLogger(__name__)
@@ -113,7 +114,15 @@ class GateDecision(BaseModel):
 #   Without this key, any ``retrospective.skipped`` event in autonomous mode
 #   is treated as a silent skip and blocks completion (``silent_skip_attempted``).
 
-_CHARTER_REL = Path(".kittify") / "charter" / "charter.md"
+# FR-005c note (``doctrine-charter-split-unification``): retrospective *policy*
+# resolution flipped yaml-first (``charter.yaml`` ``governance.retrospective``,
+# see ``policy.resolve_policy``).  ``autonomous_allow_skip`` is deliberately NOT
+# part of that flip — like ``mode:`` it is a top-level frontmatter key with no
+# counterpart in ``charter.schemas.RetrospectiveGovernance`` (whose keys mirror
+# ``policy._KNOWN_KEYS`` exactly), so giving it a ``governance`` home is a schema
+# change (FR-005a scope), not a resolver change.  What WP06 T003 does collapse is
+# the path constant: this module now consumes the single shared
+# ``policy._CHARTER_REL`` instead of redeclaring the literal.
 _AUTONOMOUS_ALLOW_SKIP_KEY = "autonomous_allow_skip"
 
 
