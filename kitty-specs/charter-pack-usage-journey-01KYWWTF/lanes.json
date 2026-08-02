@@ -1,0 +1,166 @@
+{
+  "version": 1,
+  "mission_slug": "charter-pack-usage-journey-01KYWWTF",
+  "mission_id": "01KYWWTFYSB4YYWYP5N6HSPX6H",
+  "mission_branch": "kitty/mission-charter-pack-usage-journey-01KYWWTF",
+  "target_branch": "feat/charter-pack-usage-journey",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/invocation/empty_charter.py",
+        "tests/specify_cli/invocation/test_is_charter_empty_bundle_predicate.py",
+        "tests/specify_cli/invocation/test_empty_charter_fallback.py",
+        "tests/specify_cli/cli/commands/charter/test_charter_pack_builtin.py",
+        "tests/specify_cli/invocation/cli/test_dispatch.py",
+        "tests/architectural/test_no_dead_symbols.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/charter/pack.py",
+        "tests/specify_cli/cli/commands/charter/test_apply_compile_bridge.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/context.py",
+        "src/charter/context_json.py",
+        "src/specify_cli/cli/commands/charter/_common.py",
+        "src/specify_cli/cli/commands/charter/_status_collectors.py",
+        "src/specify_cli/cli/commands/charter/context.py",
+        "tests/agent/cli/commands/test_charter_cli.py",
+        "tests/agent/cli/commands/test_charter_status_cli.py",
+        "tests/charter/test_context.py",
+        "tests/charter/test_presence_gate_bundle_authority.py",
+        "tests/charter/fixtures/context_parity/json_corpus.golden.txt"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/charter/resolver.py",
+        "tests/charter/test_resolve_project_governance_single_authority.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/charter/context_renderers/section_bodies.py",
+        "tests/charter/test_section_selector_graceful_degrade.py",
+        "tests/charter/test_context_section_bodies.py",
+        "tests/charter/test_context_selection_render.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        ".agents/skills/spec-kitty.analyze/SKILL.md",
+        "src/doctrine/missions/mission-steps/software-dev/analyze/prompt.md",
+        "tests/specify_cli/cli/commands/test_analyze_surface_agreement.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        ".github/workflows/doctrine-charter-tests.yml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "docs/architecture/charter-pack-usage-journey.md",
+        "docs/api/charter-commands.md",
+        "docs/context/charter-overview.md",
+        "docs/context/governance-files.md",
+        "docs/guides/setup-governance.md",
+        "docs/development/3-2-page-inventory.yaml",
+        "docs/development/3-2-docs-retrieval-index.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-08-01T23:22:44.670118+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "e47e7462ce2fdf710d6bda897a28ead7f421085b"
+}
