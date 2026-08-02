@@ -7,7 +7,7 @@ Defines the output schema for:
 """
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 from ruamel.yaml import YAML
@@ -29,9 +29,19 @@ __all__ = [
     "GovernanceConfig",
     "PerformanceConfig",
     "QualityConfig",
+    "RetrospectiveGovernance",
     "SectionsParsed",
     "emit_yaml",
 ]
+# NOTE (WP06 of doctrine-charter-split-unification, closing the WP05 note):
+# ``RetrospectiveGovernance`` is now public — FR-005c's resolver
+# (``specify_cli.retrospective.policy._load_charter_yaml_retrospective_block``)
+# imports it directly to validate the authored ``governance.retrospective``
+# block, so it has a real src/ caller and no longer trips the symbol-level
+# dead-code gate (``tests/architectural/test_no_dead_symbols.py``).
+# ``RetrospectiveGovernancePermissions`` stays OUT: it is still reached only
+# through ``RetrospectiveGovernance.permissions`` (composition, same module)
+# and has zero direct importers.
 
 
 # Header comment for all emitted YAML files
@@ -132,6 +142,62 @@ class DoctrineSelectionConfig(BaseModel):
     ``.kittify/charter/charter.md`` remains the runtime governance center."""
 
 
+class RetrospectiveGovernancePermissions(BaseModel):
+    """Granular retrospective capability flags, as authored in ``charter.yaml``.
+
+    PURE DATA (mission ``doctrine-charter-split-unification`` FR-005a,
+    research.md D3): the runtime counterpart
+    ``specify_cli.retrospective.policy.RetrospectivePermissions`` is deliberately
+    NOT imported here — the charter layer must not depend upward on
+    ``specify_cli`` (policed by the FR-008 architectural gate). The two shapes
+    are kept key-for-key aligned instead, and the resolver reads this block as a
+    plain dict.
+
+    Every flag is three-state ``bool | None``: ``None`` == "the charter does not
+    claim this key", which is what keeps ``charter.md`` frontmatter a
+    *contributing* secondary source (C-003) rather than being wholesale
+    overridden by invented defaults. The runtime defaults live in
+    ``retrospective.policy.default_policy`` and are applied there, never here.
+    """
+
+    write_record: bool | None = None
+    inspect_mission_artifacts: bool | None = None
+    propose_glossary_changes: bool | None = None
+    propose_drg_changes: bool | None = None
+    propose_doctrine_changes: bool | None = None
+    apply_low_risk_changes: bool | None = None
+    apply_structural_changes: bool | None = None
+
+
+class RetrospectiveGovernance(BaseModel):
+    """The authored ``governance.retrospective:`` block of ``charter.yaml``.
+
+    FR-005a of mission ``doctrine-charter-split-unification``. Before this
+    model existed, ``GovernanceConfig`` had no ``retrospective`` field, so an
+    operator-authored block was silently DROPPED on
+    ``GovernanceConfig.model_validate`` and the retrospective policy could only
+    resolve from ``charter.md`` YAML frontmatter — a *resolving* read of the
+    display-only companion, the invariant violation FR-005 closes.
+
+    Keys mirror ``retrospective.policy._KNOWN_KEYS`` exactly so the block can be
+    handed to ``_apply_block_to_policy`` verbatim. As with
+    :class:`RetrospectiveGovernancePermissions`, every field is optional and
+    defaults to ``None`` (== unclaimed), so a partial charter block overrides
+    only the keys it actually authors.
+    """
+
+    enabled: bool | None = None
+    timing: Literal["post_completion", "before_completion"] | None = None
+    failure_policy: Literal["warn", "block"] | None = None
+    write_record: bool | None = None
+    generate_proposals: bool | None = None
+    apply_proposals: Literal["require_human", "low_risk_auto"] | None = None
+    permissions: RetrospectiveGovernancePermissions | None = None
+    precedence: Literal["charter", "config"] | None = None
+    generator: Literal["python"] | None = None
+    strict_keys: bool | None = None
+
+
 class GovernanceConfig(BaseModel):
     """Top-level governance configuration."""
 
@@ -149,6 +215,14 @@ class GovernanceConfig(BaseModel):
     Default empty preserves backwards compatibility (NFR-005): existing
     ``governance.yaml`` files without this key parse unchanged, and the
     emitter omits the block via :data:`_OPTIONAL_EMPTY_OMIT_KEYS`."""
+    retrospective: RetrospectiveGovernance | None = None
+    """The authored retrospective policy block (FR-005a of mission
+    ``doctrine-charter-split-unification``). ``None`` — NOT a
+    ``default_factory`` — is load-bearing: an unset charter must carry no
+    ``retrospective`` block at all, both so ``charter.md`` frontmatter keeps
+    resolving for legacy projects (C-003) and so emitted YAML stays
+    byte-identical (NFR-005). ``None``/``{}`` is dropped on the way out by
+    :data:`_OPTIONAL_EMPTY_OMIT_KEYS`."""
     enforcement: dict[str, str] = Field(default_factory=dict)
 
 
@@ -340,22 +414,58 @@ _OPTIONAL_EMPTY_OMIT_KEYS: frozenset[str] = frozenset({
     # block on GovernanceConfig — empty list ⇒ omit from emitted YAML so
     # the default-config fixture remains byte-stable (NFR-005).
     "activations",
+    # WP05 (doctrine-charter-split-unification, FR-005a): the authored
+    # retrospective policy block on GovernanceConfig. This entry is the one
+    # that forced the allow-list to widen past "empty list" — the field is
+    # `RetrospectiveGovernance | None`, so an unset charter serializes it as
+    # `None` (and an explicitly empty block as an all-unclaimed mapping),
+    # neither of which the pre-WP05 list-only rule could drop. Without it a
+    # bare `retrospective:` key leaks into every emitted governance document
+    # (NFR-005).
+    "retrospective",
 })
 
 
+def _is_omittable_empty(value: Any) -> bool:
+    """Return ``True`` when an allow-listed key's value carries no information.
+
+    Three empty shapes qualify, matching the three ways an additive optional
+    field can serialize:
+
+    * ``None`` — an unset ``X | None`` field (e.g. ``GovernanceConfig.
+      retrospective``).
+    * an empty list — the original (and still the most common) case.
+    * a mapping whose values are *all* themselves omittable — an authored-but-
+      empty block such as ``retrospective: {}``, which pydantic materializes as
+      a model with every field ``None`` (and a nested all-``None`` sub-model),
+      not as a literal empty dict.
+
+    Everything else is information: ``0``, ``False`` and ``''`` are values the
+    operator may legitimately have authored and are never pruned.
+    """
+    if value is None:
+        return True
+    if isinstance(value, list):
+        return not value
+    if isinstance(value, dict):
+        return all(_is_omittable_empty(item) for item in value.values())
+    return False
+
+
 def _prune_optional_empties(node: Any) -> Any:
-    """Recursively drop optional list fields whose value is empty.
+    """Recursively drop optional additive fields whose value is empty.
 
     Walks dicts/lists and removes entries whose key is in
-    :data:`_OPTIONAL_EMPTY_OMIT_KEYS` AND whose value is an empty list.
-    Leaves all other keys untouched so existing required defaults (e.g.
-    empty strings, zero ints) remain serialized for downstream consumers
-    that rely on them.
+    :data:`_OPTIONAL_EMPTY_OMIT_KEYS` AND whose value is empty per
+    :func:`_is_omittable_empty`. Leaves all other keys untouched so existing
+    required defaults (e.g. empty strings, zero ints, the non-allow-listed
+    ``enforcement: {}``) remain serialized for downstream consumers that rely
+    on them.
     """
     if isinstance(node, dict):
         pruned: dict[str, Any] = {}
         for key, value in node.items():
-            if key in _OPTIONAL_EMPTY_OMIT_KEYS and isinstance(value, list) and not value:
+            if key in _OPTIONAL_EMPTY_OMIT_KEYS and _is_omittable_empty(value):
                 continue
             pruned[key] = _prune_optional_empties(value)
         return pruned
