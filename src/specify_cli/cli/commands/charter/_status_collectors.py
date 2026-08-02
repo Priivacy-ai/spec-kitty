@@ -71,7 +71,17 @@ def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
         # outer handler below.
         try:
             output_dir = _resolve_charter_bundle_path(canonical_root).parent
-            charter_path = output_dir / "charter.md"
+            charter_md_path = output_dir / "charter.md"
+            # Header authority: name whichever file is actually present.
+            # charter.md is display-only and may be legitimately absent
+            # post-consolidation (SC-002); reporting a nonexistent
+            # "Charter: .../charter.md" header while charter.yaml (the
+            # authoritative bundle) sits right next to it is misleading.
+            charter_path = (
+                charter_md_path
+                if charter_md_path.exists()
+                else output_dir / CHARTER_YAML_FILENAME
+            )
         except TaskCliError:
             charter_path = _resolve_charter_path(canonical_root)
             output_dir = charter_path.parent
