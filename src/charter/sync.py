@@ -239,6 +239,17 @@ def load_governance_config(repo_root: Path) -> GovernanceConfig:
     Falls back to an empty ``GovernanceConfig`` when ``charter.yaml`` is
     absent, or present without a ``governance`` section.
 
+    FR-005b (mission ``doctrine-charter-split-unification``): this is also the
+    emitter seam for the authored ``governance.retrospective`` block. The
+    block round-trips through
+    :class:`~charter.schemas.RetrospectiveGovernance` here and is re-emitted by
+    ``compiler.write_compiled_charter``'s bootstrap path; before that model
+    existed pydantic dropped the key silently, so a charter could not carry a
+    retrospective policy at all. The block is PARTIAL by design — only the keys
+    the operator actually authored are populated — because ``charter.yaml``
+    takes precedence over ``charter.md`` frontmatter (SC-002) while frontmatter
+    stays a contributing secondary for unclaimed keys (C-003).
+
     Args:
         repo_root: Repository root directory (may be a worktree path).
 
