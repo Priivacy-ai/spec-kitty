@@ -341,8 +341,13 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   display-only `charter.md` to the compiled `charter.yaml`: a project that has a
   `charter.md` but never compiled now reports `project_charter.present: false`
   (the new `charter_md_present` / `charter_md_path` keys expose the display file
-  separately, so the information is additive, not lost). External `--json`
-  consumers should read `charter.yaml` as the authority-of-record (`#2787`).
+  separately, so the information is additive, not lost). The payload also now
+  carries a top-level **`context_schema_version`** stamp (a versioned *tracking*
+  contract; a full shape freeze + deprecation policy stays deferred to the
+  `#2519` activation-surface work) so an external consumer can detect a shape
+  change instead of breaking silently. External `--json` consumers should read
+  `charter.yaml` as the authority-of-record and pin `context_schema_version`
+  (`#2787`).
 - **A non-terminating test now fails loudly instead of hanging the CI job
   (mission `verification-trust-3115`; `#3115`, `#3113`).** `pytest.ini`
   registered a `timeout` marker but set no timeout, so a test that never
