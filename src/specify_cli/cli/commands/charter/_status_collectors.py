@@ -83,6 +83,22 @@ def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
                 else output_dir / CHARTER_YAML_FILENAME
             )
         except TaskCliError:
+            # FR-006 pre-consolidation migration-compat branch (spec Edge
+            # Cases + C-001): ``_resolve_charter_bundle_path`` raised because
+            # ``charter.yaml`` (the authoritative bundle) does not exist --
+            # this is the *only* condition that reaches this branch. Fall
+            # back to the legacy ``charter.md``-only resolver so projects
+            # created before the ``charter.yaml`` bundle existed keep
+            # reporting ``available: True`` instead of erroring out.
+            #
+            # This shape is explicitly SUPPORTED today and pinned by
+            # ``tests/specify_cli/cli/commands/charter/
+            # test_status_collectors_legacy_md_shape.py`` (FR-006). Declaring
+            # it unsupported (and flipping this branch to a deterministic
+            # error path) is a support-scope product decision that MUST be
+            # routed through the human-in-charge + issue-matrix (DIR-012 /
+            # C-005) -- it is not an implementer-unilateral call. Do not
+            # remove or narrow this branch without that recorded decision.
             charter_path = _resolve_charter_path(canonical_root)
             output_dir = charter_path.parent
         metadata_path = output_dir / METADATA_FILENAME
