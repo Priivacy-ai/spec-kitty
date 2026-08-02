@@ -204,7 +204,10 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey("GateDecision", "e771518baeeaa1f5ff82b36c70e2f06dea0792f9d43cd16a4361f72a3aaf5899"),
         SymbolKey("GateOutcome", "a5a38bc5a569b83b9d227c1bd2c9000aa8c1a9d6b139032c562f7da23faeb563"),  # specify_cli.cli.commands._branch_strategy_gate::GateOutcome
         # specify_cli.cli.commands.implement::_ensure_vcs_in_meta
-        SymbolKey("_ensure_vcs_in_meta", "7de334239ff2b3665e555c98740eb29e5b69449795940475b748f6de3c070c80"),
+        # (hash refreshed: doctrine-charter-split-unification-01KZ0SRB/WP08
+        # rewrote the guard body from `meta or {}` to an explicit
+        # `if meta is None` check to avoid masking a missing-meta failure)
+        SymbolKey("_ensure_vcs_in_meta", "4f9c0969a2a5519b1366171eb7ad78b578b40eeae7788578ffc6ca23e645472e"),
         # specify_cli.cli.commands.implement::detect_feature_context
         SymbolKey("detect_feature_context", "03ce3f732e5db8d5a02fbfdcae55ae3acdaf00bdbbd3370b400b37e57fb66b81"),
         SymbolKey("find_wp_file", "d320a28d54f0ac514cfe9f87a85a5aad28916e7ce651934b3336f33ad6dc5283"),  # specify_cli.cli.commands.implement::find_wp_file
