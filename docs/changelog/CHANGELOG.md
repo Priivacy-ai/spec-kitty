@@ -303,6 +303,20 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **A non-terminating test now fails loudly instead of hanging the CI job
+  (mission `verification-trust-3115`; `#3115`, `#3113`).** `pytest.ini`
+  registered a `timeout` marker but set no timeout, so a test that never
+  returned stalled its whole shard rather than failing — a mechanism reporting
+  nothing where it should report a failure. The fast-test CI jobs now carry a
+  default per-test timeout (`--timeout` with the signal method), and a new
+  architectural gate (`test_ci_fast_jobs_have_timeout.py`) keeps the flag from
+  being silently dropped, with two documented exemptions (the real-wheel docs
+  build and the `-n0` real-port orphan-sweep, where a signal mid-teardown is
+  unsafe). Also hardens the terminal-render width fold, the egress-consent
+  boundary, and the `tests/sync` leak-guard so each is provable rather than
+  asserted. **No product code (`src/specify_cli`) changed** — this is a
+  test-trust and CI change; Windows and local runs still get no per-test
+  timeout (tracked by `#3143`). (`#3130`, `#3136` referenced.)
 - **Fixed: `sync` could deliver one project's events to another project's
   workspace, including projects that never opted in (#3030).** A machine
   keeps one shared local event journal across every Spec Kitty checkout on
