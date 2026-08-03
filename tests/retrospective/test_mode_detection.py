@@ -158,6 +158,24 @@ class TestCharterOverride:
         with pytest.raises(ModeResolutionError):
             detect(repo_root=tmp_path, env={}, parent_process_name="bash")
 
+    def test_charter_non_utf8_bytes_raises(self, tmp_path: Path) -> None:
+        """Non-UTF-8 charter.md bytes must surface as ModeResolutionError,
+        not crash (landing-fold follow-up to #3163, second-round adversarial
+        review: fold 214a06de9 fixed the sibling charter.yaml reader in
+        ``retrospective/policy.py`` but missed this frontmatter reader).
+
+        ``_read_charter_mode`` reads ``charter.md`` with
+        ``charter_path.read_text(encoding="utf-8")``. Invalid UTF-8 bytes
+        raise ``UnicodeDecodeError`` -- a ``ValueError`` subclass, NOT an
+        ``OSError`` subclass -- which previously escaped uncaught as a raw
+        crash instead of the contracted ``ModeResolutionError``.
+        """
+        charter_path = tmp_path / _CHARTER_DIR / "charter.md"
+        charter_path.parent.mkdir(parents=True, exist_ok=True)
+        charter_path.write_bytes(b"---\nmode: \xff\xfe autonomous\n---\n")
+        with pytest.raises(ModeResolutionError):
+            detect(repo_root=tmp_path, env={}, parent_process_name="bash")
+
     def test_charter_no_frontmatter_falls_through(self, tmp_path: Path) -> None:
         """Charter with no ``---`` delimiter is treated as no mode declaration."""
         _write_charter(tmp_path, "# Charter\n\nJust prose, no frontmatter.\n")

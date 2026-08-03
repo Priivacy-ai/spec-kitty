@@ -515,6 +515,58 @@ class TestMalformedInput:
             resolve_policy(tmp_path)
         assert exc_info.value.reason == "invalid_yaml"
 
+    # --- Non-UTF-8 bytes (landing-fold follow-up to #3163, second-round
+    # adversarial review: fold 214a06de9 fixed the charter.yaml reader but
+    # missed these two sibling frontmatter readers with the identical defect
+    # shape) ---
+
+    def test_non_utf8_charter_md_raises_policy_resolution_error(
+        self, tmp_path: Path
+    ) -> None:
+        """Non-UTF-8 charter.md bytes must surface as PolicyResolutionError,
+        not crash.
+
+        ``_load_charter_retrospective_block`` reads ``charter.md`` with
+        ``charter_path.read_text(encoding="utf-8")``. Invalid UTF-8 bytes
+        raise ``UnicodeDecodeError`` -- a ``ValueError`` subclass, NOT an
+        ``OSError`` subclass -- which previously escaped uncaught as a raw
+        crash instead of this module's structured ``PolicyResolutionError``.
+        """
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        (charter_dir / "charter.md").write_bytes(
+            b"---\nretrospective:\n  failure_policy: \xff\xfe warn\n---\n# body\n"
+        )
+        with pytest.raises(PolicyResolutionError) as exc_info:
+            resolve_policy(tmp_path)
+        err = exc_info.value
+        assert err.reason == "invalid_yaml"
+        assert ".kittify/charter/charter.md" in err.source
+
+    def test_non_utf8_config_yaml_raises_policy_resolution_error(
+        self, tmp_path: Path
+    ) -> None:
+        """Non-UTF-8 config.yaml bytes must surface as PolicyResolutionError,
+        not crash.
+
+        ``_load_config_retrospective_block`` reads ``.kittify/config.yaml``
+        with ``config_path.read_text(encoding="utf-8")``. Invalid UTF-8
+        bytes raise ``UnicodeDecodeError`` -- a ``ValueError`` subclass, NOT
+        an ``OSError`` subclass -- which previously escaped uncaught as a
+        raw crash instead of this module's structured
+        ``PolicyResolutionError``.
+        """
+        config_dir = tmp_path / ".kittify"
+        config_dir.mkdir(parents=True)
+        (config_dir / "config.yaml").write_bytes(
+            b"retrospective:\n  failure_policy: \xff\xfe warn\n"
+        )
+        with pytest.raises(PolicyResolutionError) as exc_info:
+            resolve_policy(tmp_path)
+        err = exc_info.value
+        assert err.reason == "invalid_yaml"
+        assert ".kittify/config.yaml" in err.source
+
 
 # =============================================================================
 # TestEnvObservation (T005)
