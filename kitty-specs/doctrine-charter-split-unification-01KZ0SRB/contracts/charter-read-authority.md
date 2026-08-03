@@ -17,9 +17,13 @@ There is exactly **one** door for a "does a charter exist / where is it" decisio
 - **`charter.md`** (`.kittify/charter/charter.md`) is a **secondary**,
   readable, free-form prose/rationale companion. It is never a resolving
   override. One legitimate exception class survives by design (C-003): the
-  `charter/context.py:249` gate, which renders prose if *either* file exists
-  (an operator-facing "is there anything to show" gate, not an
-  authority-presence check) — pinned, not retired, by WP01.
+  `charter/context.py` gate at
+  `if not charter_yaml_path.exists() and not charter_path.exists():`
+  (line 270 as of this writing — **non-authoritative**, jump-to only, per this
+  same mission's line-number convention in
+  `tests/architectural/charter_path_literal_allowlist.yaml`), which renders
+  prose if *either* file exists (an operator-facing "is there anything to
+  show" gate, not an authority-presence check) — pinned, not retired, by WP01.
 - One legitimate migration-compat exception (FR-006): `_status_collectors.py`'s
   pre-consolidation `charter.md`-only shape, explicitly scoped and regression-pinned.
 

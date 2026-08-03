@@ -16,8 +16,10 @@ A corrupt or non-dict `meta.json` **always fails closed** — a typed
   function-local to avoid re-forming the `core.paths ↔ mission_metadata`
   import cycle.
 - Two distinct `load_meta` signatures exist in the tree
-  (`mission_metadata.py:275` feature_dir vs `task_utils/support.py:599`
-  meta_path) — every routed call site is disambiguated against the correct one.
+  (`specify_cli/mission_metadata.py:275` feature_dir — note: NOT under
+  `core/`, despite sitting next to the `specify_cli.core.paths` reference
+  above — vs `specify_cli/task_utils/support.py:599` meta_path) — every
+  routed call site is disambiguated against the correct one.
 - Deliberately-silent callers (`load_meta_or_empty`, `on_malformed="none"`)
   are preserved untouched; only raise-default/unwrapped and divergent-wrapper
   callers route through the authority.
