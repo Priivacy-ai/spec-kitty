@@ -45,14 +45,12 @@ _log = logging.getLogger(__name__)
 # Charter path constants
 # ---------------------------------------------------------------------------
 #
-# ``_CHARTER_REL`` is THE single shared ``charter.md`` path for the whole
-# retrospective package (FR-005 / WP06 T003): ``mode.py`` and ``gate.py``
-# import this name instead of redeclaring the literal, and its value is
-# sourced from the charter layer's path authority (``charter/bundle.py``,
-# FR-001) rather than rebuilt inline.  Do not reintroduce a second value.
+# ``charter.bundle.CHARTER_MD``/``CHARTER_YAML`` are the single-door path
+# authority (FR-001) for the whole retrospective package (FR-005 / WP06 T003).
+# This module, ``mode.py``, and ``gate.py`` all import them directly from
+# ``charter.bundle`` rather than redeclaring the literal or reaching into a
+# sibling module's private alias (#3163).  Do not reintroduce a second value.
 
-_CHARTER_REL: Path = CHARTER_MD
-_CHARTER_YAML_REL: Path = CHARTER_YAML
 _CONFIG_REL: Path = Path(".kittify") / "config.yaml"
 
 #: Source-attribution prefix suffix for the authority block.
@@ -249,8 +247,8 @@ def _load_charter_retrospective_block(
         - ``charter_path_str`` is the relative path string used as source key.
         - ``error`` is set when the charter is present but malformed.
     """
-    charter_path = repo_root / _CHARTER_REL
-    source_str = str(_CHARTER_REL)
+    charter_path = repo_root / CHARTER_MD
+    source_str = str(CHARTER_MD)
 
     if not charter_path.exists():
         return None, source_str, None
@@ -349,7 +347,7 @@ def _format_validation_error(exc: ValidationError) -> str:
 def _charter_yaml_error(reason: str, detail: str) -> PolicyResolutionError:
     """Build a ``PolicyResolutionError`` attributed to ``charter.yaml``."""
     return PolicyResolutionError(
-        source=str(_CHARTER_YAML_REL), reason=reason, detail=detail
+        source=str(CHARTER_YAML), reason=reason, detail=detail
     )
 
 
@@ -407,7 +405,7 @@ def _load_charter_yaml_retrospective_block(
         actually authored, or ``None`` when charter.yaml is absent / carries no
         ``governance.retrospective`` block.
     """
-    charter_yaml_path = repo_root / _CHARTER_YAML_REL
+    charter_yaml_path = repo_root / CHARTER_YAML
     if not charter_yaml_path.exists():
         return None, None
 
@@ -832,7 +830,7 @@ def resolve_policy(
     yaml_block, yaml_error = _load_charter_yaml_retrospective_block(repo_root)
 
     if yaml_error is not None:
-        _mark_source_map_error(source_map, str(_CHARTER_YAML_REL))
+        _mark_source_map_error(source_map, str(CHARTER_YAML))
         raise yaml_error
 
     # ------------------------------------------------------------------
@@ -843,7 +841,7 @@ def resolve_policy(
     )
 
     if charter_error is not None:
-        _mark_source_map_error(source_map, charter_source_str or str(_CHARTER_REL))
+        _mark_source_map_error(source_map, charter_source_str or str(CHARTER_MD))
         raise charter_error
 
     # ------------------------------------------------------------------
@@ -865,7 +863,7 @@ def resolve_policy(
         charter_layers.append((md_block, f"{charter_source_str}:retrospective"))
     if yaml_block is not None:
         charter_layers.append(
-            (yaml_block, f"{_CHARTER_YAML_REL}:{_YAML_BLOCK_PATH}")
+            (yaml_block, f"{CHARTER_YAML}:{_YAML_BLOCK_PATH}")
         )
 
     precedence = _resolve_precedence(charter_layers)

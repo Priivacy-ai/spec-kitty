@@ -33,7 +33,7 @@ from typing import Literal, cast
 from ruamel.yaml import YAML as _YAML
 from ruamel.yaml.error import YAMLError as _YAMLError
 
-from specify_cli.retrospective.policy import _CHARTER_REL
+from charter.bundle import CHARTER_MD
 from specify_cli.retrospective.schema import Mode, ModeSourceSignal
 
 # ---------------------------------------------------------------------------
@@ -120,7 +120,9 @@ def _read_charter_mode(repo_root: Path) -> str | None:
     ``policy._KNOWN_KEYS`` exactly.  Minting a ``governance`` home for ``mode:``
     is a schema change (FR-005a scope), not a resolver change, so this reader
     stays frontmatter-only until that block exists.  The charter path constant
-    is nevertheless the single shared ``policy._CHARTER_REL`` (WP06 T003).
+    is nevertheless imported directly from ``charter.bundle.CHARTER_MD``
+    (WP06 T003 / #3163), not redeclared or reached through a sibling
+    module's private alias.
 
     Returns:
         ``"autonomous"`` or ``"human_in_command"`` if the charter declares a
@@ -130,7 +132,7 @@ def _read_charter_mode(repo_root: Path) -> str | None:
         ModeResolutionError: if the charter file exists but its frontmatter
             is malformed (YAML parse error or structurally invalid).
     """
-    charter_path = repo_root / _CHARTER_REL
+    charter_path = repo_root / CHARTER_MD
     if not charter_path.exists():
         return None  # No charter — no signal; fall through.
 
