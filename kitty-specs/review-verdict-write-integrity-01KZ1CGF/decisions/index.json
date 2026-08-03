@@ -1,0 +1,76 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-08-02T14:35:22.577336Z",
+      "decision_id": "01KZ1ED8JHG7C0DKBGKZVQMA09",
+      "final_answer": "Generalize create_rejected_review_cycle with a verdict parameter (verdict=\"rejected\" default preserves existing call sites); FR-002's provenance guard protects both verdicts in the same function.",
+      "input_key": "approved_writer_shape",
+      "mission_id": "01KZ1CGFEDX50W53P19EYRCF1E",
+      "mission_slug": "review-verdict-write-integrity-01KZ1CGF",
+      "opened_by": "cli",
+      "options": [
+        "New function create_approved_review_cycle (mirrors the existing rejected-writer, minimal risk to existing callers)",
+        "Generalize create_rejected_review_cycle with a verdict parameter (single code path for both verdicts, shared validation)",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "FR-001 needs a function that persists an approved-verdict review-cycle artifact. Should it be a new function create_approved_review_cycle, or should create_rejected_review_cycle be generalized with a verdict parameter (shared with FR-002's provenance-validation guard)?",
+      "rationale": null,
+      "resolved_at": "2026-08-02T14:47:59.427721Z",
+      "resolved_by": null,
+      "slot_key": "plan.architecture.approved-writer-shape",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-08-02T16:41:16.866258Z",
+      "decision_id": "01KZ1NKST23FTVJEGNZTPHK4QS",
+      "final_answer": "Add the commit step now, via the existing commit_artifact port capability. Closes #2697 as the same gap.",
+      "input_key": "add_commit_step",
+      "mission_id": "01KZ1CGFEDX50W53P19EYRCF1E",
+      "mission_slug": "review-verdict-write-integrity-01KZ1CGF",
+      "opened_by": "cli",
+      "options": [
+        "Add the commit step now",
+        "Accept as known residual risk, track separately"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Post-plan squad found the review-cycle writer never git-commits its output under any topology. Add an explicit commit step (via the existing commit_artifact port capability), or accept as known residual risk tracked separately?",
+      "rationale": null,
+      "resolved_at": "2026-08-02T16:41:19.858603Z",
+      "resolved_by": null,
+      "slot_key": "plan.post-plan-squad.commit-step",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-08-02T16:41:22.859259Z",
+      "decision_id": "01KZ1NKZNB4GVJ6STFXBKBMD2Y",
+      "final_answer": "Drop IC-03's resolve_snapshot_review design. Replace with a verify-first task: confirm #2646 closes via FR-001 alone (zero status.py changes); build a targeted fix only if verification fails.",
+      "input_key": "ic03_fate",
+      "mission_id": "01KZ1CGFEDX50W53P19EYRCF1E",
+      "mission_slug": "review-verdict-write-integrity-01KZ1CGF",
+      "opened_by": "cli",
+      "options": [
+        "Drop IC-03, verify #2646 closes via FR-001 alone",
+        "Keep building a status.py fix regardless"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "IC-03's resolve_snapshot_review design is type-shape broken (ReviewOverride has no verdict field) and live evidence suggests #2646 may already close via FR-001 alone. Drop IC-03 and replace with a verify-first task, or keep building a status.py fix regardless?",
+      "rationale": null,
+      "resolved_at": "2026-08-02T16:41:25.814693Z",
+      "resolved_by": null,
+      "slot_key": "plan.post-plan-squad.ic03-fate",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KZ1CGFEDX50W53P19EYRCF1E",
+  "version": 1
+}
