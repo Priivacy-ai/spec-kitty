@@ -22,7 +22,7 @@
 # delete the entry AND lower CHARTER_PATH_LITERAL_FLOOR + this baseline to the
 # new honest census. FRESHEN PROCEDURE (a legitimate edit moved the token):
 # re-run the gate; the stale entry is reported with its live token — copy it in.
-charter_path_literal_baseline: 47
+charter_path_literal_baseline: 49
 
 charter_path_literals:
 - file: src/charter/compiler.py
@@ -373,3 +373,34 @@ charter_path_literals:
   clause: "b"
   token: "if not charter_path . exists ( ) :"
   rationale: "#3163: now imports charter.bundle.CHARTER_MD directly (previously masked by a second-level private alias, policy._CHARTER_REL). This is the readable-secondary loader in the yaml-first precedence chain (FR-005c); charter.yaml's own loader (_load_charter_yaml_retrospective_block) is the presence/config authority and is checked independently."
+
+# --- 2026-08-03 landing-fold: clause (b) module-local string-alias blind spot closed ---
+# Second-round architectural-adherence review found that _charter_bundle_name_bindings
+# only resolved the `from charter.bundle import CHARTER_MD` Name-form (closed above),
+# not a DIFFERENT Name-form: a module-local string-constant alias declared in the same
+# file (`_CHARTER_FILENAME = "charter.md"` ... `(d / _CHARTER_FILENAME).exists()`). A
+# local alias never touches charter.bundle at all, so the import-based resolution
+# could not see it, yet the presence-gate shape it feeds is identical -- a real
+# regrowth channel, since any new local alias could mask a new charter.md presence
+# gate with zero gate resistance. The gate now also resolves module-level `NAME =
+# "charter.md"|"charter.yaml"` Assign nodes (see _module_level_charter_filename_aliases)
+# and these 2 sites are the real, pre-existing C-001-sanctioned charter.md presence
+# gates it newly and correctly detects -- both already carry allowlisted clause-(a)
+# entries for the constant DECLARATION itself (pack_manager.py:168, sync.py:48); this
+# is the paired presence-gate USE that was invisible until now. Neither is a violation
+# to fix -- charter.md is documented secondary/display prose at each site, with
+# charter.yaml remaining the sole governance authority.
+- file: src/charter/sync.py
+  qualname: ensure_charter_bundle_fresh
+  line: 99
+  literal: "charter.md"
+  clause: "b"
+  token: "if not charter_path . exists ( ) :"
+  rationale: "Paired with the :48 _CHARTER_FILENAME constant declaration -- ensure_charter_bundle_fresh reads charter.md's presence to decide whether to auto-refresh extracted artifacts; charter.yaml remains the C-001 presence/config authority elsewhere in this module (_load_charter_yaml_section)."
+- file: src/charter/pack_manager.py
+  qualname: CharterPackManager.merge_defaults
+  line: 849
+  literal: "charter.md"
+  clause: "b"
+  token: "if charter_md_path . exists ( ) :"
+  rationale: "Paired with the :168 _CHARTER_FILENAME constant declaration -- merge_defaults probes charter.md only to decide whether to back it up before writing activation defaults; the write target itself is resolved via resolve_activation_write_target against charter.yaml/config.yaml, never charter.md."
