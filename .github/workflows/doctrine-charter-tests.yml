@@ -35,8 +35,29 @@
 #                                                          predicate -- the #3104 P1 surface;
 #                                                          NOT covered by any dedicated fast job
 #                                                          elsewhere -- see gap note below)
-#   All three selections run `-m "fast and not windows_ci"` only: this is a
-#   FAST unit-level signal, not the integration tier.
+#   - tests/specify_cli/cli/commands/test_analyze_surface_agreement.py
+#                                                         (locks the doctrine source at
+#                                                          src/doctrine/missions/mission-steps/
+#                                                          software-dev/analyze/prompt.md to the
+#                                                          canonical `agent mission
+#                                                          record-analysis` command -- #3096/FR-011)
+#   The first four selections run `-m "fast and not windows_ci"` only: this is
+#   a FAST unit-level signal, not the integration tier. The
+#   test_analyze_surface_agreement.py file is `integration`/`git_repo`-marked
+#   (it shells out to `git grep` and exercises the real Typer CLI), so it is
+#   run in a SEPARATE step below under `-m "integration and not windows_ci"`.
+#   A prior revision of this file registered it in the fast-only invocation
+#   above and in the `paths:` trigger list without a matching invocation --
+#   the path trigger fired correctly but the pytest `-m "fast"` filter
+#   deselected all 6 of its tests every time, so the registration was
+#   silently inert (found by adversarial review during PR #3155 landing).
+#   This file's own trigger-path registration still matters even though
+#   `tests/specify_cli/cli/**` is separately covered by main CI's
+#   `integration-tests-cli` job: that job only fires on the `cli` dorny
+#   path-filter group, which does NOT include `src/doctrine/**` -- so a
+#   doctrine-prompt-only change (no test-file edit) would otherwise reach NO
+#   integration job at all. Keeping both the `paths:` entry and this
+#   dedicated step closes that gap.
 #
 # Deliberate, precedented overlap (doctrine + charter portion only): the
 # `tests/doctrine/` and `tests/charter/*` selections above ALSO run inside
@@ -189,9 +210,15 @@ jobs:
             tests/specify_cli/charter_preflight/ \
             tests/specify_cli/invocation/ \
             tests/specify_cli/cli/commands/charter/ \
-            tests/specify_cli/cli/commands/test_analyze_surface_agreement.py \
             tests/invocation/ \
             -m "fast and not windows_ci" \
             -q --tb=short \
             -n auto --dist loadfile \
             --durations=50
+
+      - name: Run the analyze-surface-agreement integration signal
+        run: |
+          uv run python -m pytest \
+            tests/specify_cli/cli/commands/test_analyze_surface_agreement.py \
+            -m "integration and not windows_ci" \
+            -q --tb=short
