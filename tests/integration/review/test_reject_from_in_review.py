@@ -45,7 +45,15 @@ def in_review_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Pat
     subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True, capture_output=True)
     subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True, capture_output=True)
     (repo / ".kittify").mkdir()
-    (repo / ".kittify" / "config.yaml").write_text("auto_commit: false\n", encoding="utf-8")
+    # Cycle 2 fix (review-verdict-write-integrity-01KZ1CGF WP01): the
+    # rejection-write path now threads a REAL ``commit_artifact`` call and
+    # raises on a non-"committed" result. ``ProtectionPolicy.resolve`` treats
+    # "main" as protected by default, so this real-git fixture needs the
+    # override to let the review-cycle artifact's commit genuinely succeed --
+    # mirrors ``tests/review/test_cycle.py``'s ``_unprotect_main`` idiom.
+    (repo / ".kittify" / "config.yaml").write_text(
+        "auto_commit: false\nprotection:\n  protected_branches: []\n", encoding="utf-8"
+    )
 
     mission_slug = "001-reject-from-in-review"
     feature_dir = repo / "kitty-specs" / mission_slug

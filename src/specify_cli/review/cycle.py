@@ -9,7 +9,9 @@ ReviewResult derivation.
 from __future__ import annotations
 
 from mission_runtime import MissionArtifactKind, placement_seam
+from specify_cli.agent_tasks_ports import CoordCommitRouter, MissionHandle
 from specify_cli.core.paths import assert_safe_path_segment
+from specify_cli.git.protection_policy import ProtectionPolicy
 import re
 import subprocess
 from dataclasses import dataclass
@@ -17,7 +19,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
-from specify_cli.review.artifacts import AffectedFile, ReviewCycleArtifact
+from specify_cli.review.artifacts import (
+    REVIEW_ARTIFACT_VERDICTS,
+    AffectedFile,
+    ReviewCycleArtifact,
+)
 from specify_cli.status import ReviewResult
 
 UTC_SECOND_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
@@ -181,8 +187,11 @@ def validate_review_artifact(artifact: ReviewCycleArtifact) -> None:
         raise ReviewCycleError("review artifact reviewer_agent is required")
     if not str(artifact.reviewed_at).strip():
         raise ReviewCycleError("review artifact reviewed_at is required")
-    if artifact.verdict != "rejected":
-        raise ReviewCycleError("rejected review cycle artifact must have verdict: rejected")
+    if artifact.verdict not in REVIEW_ARTIFACT_VERDICTS:
+        raise ReviewCycleError(
+            "review cycle artifact verdict must be one of "
+            f"{sorted(REVIEW_ARTIFACT_VERDICTS)}, got {artifact.verdict!r}"
+        )
     if not str(artifact.body).strip():
         raise ReviewCycleError("review artifact body is required")
 
@@ -273,6 +282,128 @@ def resolve_review_cycle_pointer(repo_root: Path, pointer: str) -> ResolvedRevie
     )
 
 
+def _strip_frontmatter(text: str) -> str:
+    """Return *text* with any leading YAML frontmatter block removed.
+
+    Tolerant counterpart to :meth:`ReviewCycleArtifact.from_file`'s stricter
+    parse (which raises on anything that isn't well-formed frontmatter): when
+    *text* does not open with a ``---`` delimited block, it is returned
+    unchanged. Used only for the T003 content-identity comparison below, never
+    for authoritative artifact parsing — reuses the same delimiter-finding
+    algorithm ``ReviewCycleArtifact.from_file`` uses, so both readings of "the
+    body" agree.
+    """
+    if not text.startswith("---"):
+        return text
+    rest = text[3:]
+    if rest.startswith("\n"):
+        rest = rest[1:]
+    closing = rest.find("\n---")
+    if closing == -1:
+        return text
+    body_raw = rest[closing + 4:]
+    return body_raw.lstrip("\n")
+
+
+def _normalize_whitespace(text: str) -> str:
+    """Collapse whitespace runs for the T003 content-identity comparison."""
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _guard_feedback_source_provenance(
+    *, feedback_source: Path, body: str, sub_artifact_dir: Path
+) -> None:
+    """Refuse a *feedback_source* that is itself a prior review-cycle artifact.
+
+    Closes #2996(b) (fabricated duplicate) and #990 (content-wrapping) as the
+    identical mechanism: a ``feedback_source`` that resolves — by path OR by
+    content — to one of this WP's own ``review-cycle-N.md`` files must never
+    be read as "new" reviewer feedback (research.md R2).
+
+    Path-identity and content-identity are checked independently (neither
+    short-circuits the other's necessity): a feedback file living at a
+    ``review-cycle-N.md``-shaped path inside *sub_artifact_dir* is refused
+    even if its content has been hand-edited to no longer match any existing
+    cycle's body — only a genuine path check catches that case.
+    """
+    resolved_feedback = feedback_source.resolve()
+    resolved_dir = sub_artifact_dir.resolve()
+    if (
+        resolved_feedback.parent == resolved_dir
+        and _REVIEW_CYCLE_FILE_RE.fullmatch(resolved_feedback.name) is not None
+    ):
+        raise ReviewCycleError(
+            "feedback_source is this WP's own review-cycle artifact "
+            f"({resolved_feedback.name}); pass the underlying reviewer "
+            "feedback instead of a prior review-cycle artifact."
+        )
+
+    if not resolved_dir.exists():
+        return
+    normalized_feedback_body = _normalize_whitespace(_strip_frontmatter(body))
+    for candidate in sorted(resolved_dir.glob("review-cycle-*.md")):
+        try:
+            candidate_body = ReviewCycleArtifact.from_file(candidate).body
+        except ValueError:
+            candidate_body = _strip_frontmatter(candidate.read_text(encoding="utf-8"))
+        if _normalize_whitespace(candidate_body) == normalized_feedback_body:
+            raise ReviewCycleError(
+                "feedback_source content duplicates a prior review-cycle "
+                f"artifact ({candidate.name}) verbatim; pass distinct "
+                "reviewer feedback instead of reusing a previous cycle's "
+                "content."
+            )
+
+
+def _commit_review_cycle_artifact(
+    commit_router: CoordCommitRouter,
+    *,
+    main_repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    artifact_path: Path,
+    cycle_number: int,
+    verdict: str,
+) -> None:
+    """Commit a written review-cycle artifact via the ``commit_artifact`` port.
+
+    T004/#2697: reuses the SAME ``commit_artifact`` port capability
+    ``tasks_mark_status.py``/``tasks_map_requirements.py`` already call — no
+    new commit/staging mechanism. ``review-cycle-N.md`` is a
+    ``WORK_PACKAGE_TASK`` (PRIMARY-partition) artifact, matching
+    ``_review_cycle_wp_dir``'s own resolution.
+
+    Cycle 2 fix (#2697 durability): unlike the two existing ``commit_artifact``
+    callers (``tasks_mark_status.py``/``tasks_map_requirements.py``), which
+    treat a non-``"committed"`` result as a best-effort warning because the
+    mutation they are committing (subtask status, WP-requirement mapping)
+    already succeeded independently of the commit, this call site has no such
+    fallback: an uncommitted ``review-cycle-N.md`` IS the exact defect this
+    mission exists to close (#2697 — "the writer's output was never
+    git-committed... lands untracked in whatever branch happens to be checked
+    out"). A warn-and-continue here would silently reintroduce that bug with
+    zero signal to the caller, so any non-``"committed"`` status (including
+    ``"unchanged"`` — which should not occur for a freshly written file, but
+    is treated as a failure rather than assumed safe) is raised as a hard
+    ``ReviewCycleError`` carrying the router's diagnostic.
+    """
+    result = commit_router.commit_artifact(
+        MissionHandle(repo_root=main_repo_root, mission_slug=mission_slug),
+        (artifact_path,),
+        f"chore: Record review-cycle-{cycle_number} ({verdict}) for {wp_id} on "
+        f"{mission_slug}",
+        kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+        policy=ProtectionPolicy.resolve(main_repo_root),
+    )
+    if result.status != "committed":
+        raise ReviewCycleError(
+            f"Failed to commit review-cycle-{cycle_number} artifact for "
+            f"{wp_id} on {mission_slug} (status={result.status!r}): "
+            f"{result.diagnostic or 'no diagnostic provided'}. The artifact "
+            f"was written to {artifact_path} but is NOT committed."
+        )
+
+
 def create_rejected_review_cycle(
     *,
     main_repo_root: Path,
@@ -282,8 +413,18 @@ def create_rejected_review_cycle(
     feedback_source: Path,
     reviewer_agent: str = "unknown",
     affected_files: list[dict[str, str]] | None = None,
+    verdict: Literal["approved", "rejected"] = "rejected",
+    commit_router: CoordCommitRouter | None = None,
 ) -> CreatedRejectedReviewCycle:
-    """Create and validate a rejected review-cycle artifact before mutation."""
+    """Create, validate, and (optionally) commit a review-cycle artifact.
+
+    ``verdict`` defaults to ``"rejected"`` so every pre-existing caller keeps
+    behaving unchanged (C-002 / backward compatibility). ``commit_router`` is
+    optional for the same reason: callers that do not thread a commit
+    capability keep today's write-only, uncommitted behavior. The production
+    ``move-task`` call site MUST supply it — T004/#2697 durability is only
+    real when the caller opts in.
+    """
     if not feedback_source.exists():
         raise ReviewCycleError(f"Review feedback file not found: {feedback_source}")
     if not feedback_source.is_file():
@@ -302,6 +443,11 @@ def create_rejected_review_cycle(
     # move-task ``--review-feedback-file`` caller (which passes no pre-resolved
     # dir), from this one edit.
     sub_artifact_dir = _review_cycle_wp_dir(main_repo_root, safe_mission_slug, safe_wp_slug)
+
+    _guard_feedback_source_provenance(
+        feedback_source=feedback_source, body=body, sub_artifact_dir=sub_artifact_dir
+    )
+
     cycle_n = ReviewCycleArtifact.next_cycle_number(sub_artifact_dir)
     filename = _validate_review_cycle_filename(f"review-cycle-{cycle_n}.md")
     pointer = build_review_cycle_pointer(safe_mission_slug, safe_wp_slug, filename)
@@ -320,7 +466,7 @@ def create_rejected_review_cycle(
         wp_id=safe_wp_id,
         mission_slug=safe_mission_slug,
         reviewer_agent=reviewer_agent or "unknown",
-        verdict="rejected",
+        verdict=verdict,
         reviewed_at=datetime.now(UTC).strftime(UTC_SECOND_TIMESTAMP_FORMAT),
         affected_files=parsed_affected,
         body=body,
@@ -331,9 +477,20 @@ def create_rejected_review_cycle(
     artifact.write(artifact_path)
     validate_review_artifact_file(artifact_path)
 
+    if commit_router is not None:
+        _commit_review_cycle_artifact(
+            commit_router,
+            main_repo_root=main_repo_root,
+            mission_slug=safe_mission_slug,
+            wp_id=safe_wp_id,
+            artifact_path=artifact_path,
+            cycle_number=cycle_n,
+            verdict=verdict,
+        )
+
     review_result = ReviewResult(
         reviewer=artifact.reviewer_agent,
-        verdict="changes_requested",
+        verdict="approved" if verdict == "approved" else "changes_requested",
         reference=pointer,
         feedback_path=str(artifact_path),
     )

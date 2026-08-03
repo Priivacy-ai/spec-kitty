@@ -16,6 +16,12 @@ that no decision branch is extracted unguarded (NFR-002).
 FR-004 / NFR-001: the core REPRODUCES the current behaviour verbatim — including
 the skip-vs-refuse divergence that ``#2300`` defers. Nothing here encodes an
 intended behaviour change.
+
+EXCEPTION (review-verdict-write-integrity-01KZ1CGF, FR-001):
+``test_rejected_verdict_without_skip_proceeds`` pins an INTENTIONAL, one-off
+behaviour change to ``_guard_rejected_verdict`` — see that function's and the
+module's docstrings in ``tasks_transition_core.py``. Every other branch here
+still reproduces the pre-mission behaviour verbatim.
 """
 
 from __future__ import annotations
@@ -277,13 +283,27 @@ def test_unparseable_verdict_refuses() -> None:
     assert "no parseable review verdict" in outcome.error
 
 
-def test_rejected_verdict_without_skip_refuses() -> None:
+def test_rejected_verdict_without_skip_proceeds() -> None:
+    """FR-001 (review-verdict-write-integrity-01KZ1CGF): the ordinary approve
+    path — no ``--skip-review-artifact-check`` — no longer dead-ends here.
+
+    This is an INTENTIONAL behaviour change from this pure core's original
+    pure-parity extraction (see the module docstring's EXCEPTION note and
+    ``_guard_rejected_verdict``'s docstring): before the durable writer
+    existed, refusing was the only way to stop a rejected verdict from being
+    silently approved over. Now ``_mt_finalize_plan`` persists a genuine
+    ``verdict: approved`` review-cycle artifact once the transition proceeds
+    (T005's ``_persist_approved_review_cycle``), so this guard's job shrinks
+    to the unparseable-verdict and skip-without-note arms only.
+    """
     outcome = decide_transition(
         _approve_request(review_verdict="rejected", review_artifact_name="review-cycle-1.md")
     )
-    assert isinstance(outcome, RefuseExit1)
-    assert "rejected review artifact" in outcome.error
-    assert "--skip-review-artifact-check" in outcome.error
+    assert isinstance(outcome, Emit)
+    # This is the ordinary (non-override) approve path -- the arbiter-override
+    # persist must NOT fire; the durable artifact is written by
+    # ``_mt_finalize_plan``'s writer instead.
+    assert outcome.authorize_review_override is False
 
 
 def test_rejected_verdict_skip_without_note_refuses() -> None:
