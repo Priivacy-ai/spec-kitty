@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import tempfile
 import traceback
 import warnings
 from collections.abc import Callable, Mapping
@@ -1685,13 +1686,20 @@ def _mt_run_pre_review_gate(st: _MoveTaskState) -> None:
 # --- phase D: finalize emit plan --------------------------------------------
 
 
-def _mt_finalize_plan(st: _MoveTaskState) -> None:
+def _mt_finalize_plan(st: _MoveTaskState, ports: TasksPorts) -> None:
     """Execute the decision's authorised side-effect *inputs* and finalize the plan.
 
     The override/arbiter persists already fired at their OLD guard positions — they
     are NOT repeated here. Only the planned-rollback review cycle (which produces
     the feedback pointer) runs, then the plan is rebuilt when a side-effect produced
     a ``review_ref``.
+
+    T004/T005 (review-verdict-write-integrity-01KZ1CGF): both the rejection
+    write AND the ordinary approval write now route through the generalized,
+    commit-durable ``create_rejected_review_cycle`` — ``ports.coord`` (the
+    ``CoordCommitRouter``) is threaded in as ``commit_router`` so every write
+    this function makes is actually git-committed (closes #2697), not left
+    untracked.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
     assert st.decision is not None
@@ -1701,6 +1709,61 @@ def _mt_finalize_plan(st: _MoveTaskState) -> None:
     st.note_text = decision.note_text
     st.actor = st.agent or "user"
     st.canonical_lane = decision.plan.canonical_lane
+
+    def _persist_approved_review_cycle() -> None:
+        """T005: fire the generalized writer on the ordinary approval path.
+
+        Only when the WP's current highest-numbered review-cycle artifact is
+        ``rejected`` — a first-ever cycle (no prior artifact) or an
+        already-approved latest are both no-ops (FR-001 closes the stale-
+        rejection gap; it does not write a redundant/duplicate approval).
+        """
+        from specify_cli.review.artifacts import latest_review_artifact_verdict
+        from specify_cli.review.cycle import (
+            _review_cycle_wp_dir,
+            create_rejected_review_cycle,
+        )
+
+        wp_slug = _resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id)
+        sub_artifact_dir = _review_cycle_wp_dir(st.main_repo_root, st.mission_slug, wp_slug)
+        latest = latest_review_artifact_verdict(sub_artifact_dir)
+        if latest is None or latest.verdict != "rejected":
+            return
+        # Real reviewer_agent (matches ``_mt_plan_review_result``'s own
+        # fallback chain) — never the literal "unknown" for a genuine
+        # approval.
+        reviewer_agent = (st.reviewer or st.agent or st.actor or "unknown").strip() or "unknown"
+        approval_reference = (
+            st.approval_ref or st.note_text or f"approval:{st.task_id}"
+        ).strip() or f"approval:{st.task_id}"
+        # ``create_rejected_review_cycle`` reads its artifact body from a real
+        # feedback_source file (unchanged contract for both verdicts) — there
+        # is no ``--review-feedback-file`` equivalent for approvals, so a
+        # small throwaway note recording the approval decision is synthesized
+        # here and deleted immediately after the write.
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=".md",
+            prefix="review-cycle-approval-",
+            delete=False,
+            encoding="utf-8",
+        ) as handle:
+            handle.write(f"Approved by {reviewer_agent}: {approval_reference}\n")
+            feedback_source = Path(handle.name)
+        try:
+            create_rejected_review_cycle(
+                main_repo_root=st.main_repo_root,
+                mission_slug=st.mission_slug,
+                wp_id=st.task_id,
+                wp_slug=wp_slug,
+                feedback_source=feedback_source,
+                reviewer_agent=reviewer_agent,
+                verdict="approved",
+                commit_router=ports.coord,
+            )
+        finally:
+            feedback_source.unlink(missing_ok=True)
+
     if decision.planned_rollback and st.resolved_feedback_source is not None:
         from specify_cli.review.cycle import create_rejected_review_cycle
 
@@ -1711,9 +1774,12 @@ def _mt_finalize_plan(st: _MoveTaskState) -> None:
             wp_slug=_resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id),
             feedback_source=st.resolved_feedback_source,
             reviewer_agent=st.agent or "unknown",
+            commit_router=ports.coord,
         )
         st.review_feedback_pointer = review_cycle.pointer
         st.rejected_review_result = review_cycle.review_result
+    if st.target_lane in (Lane.APPROVED, Lane.DONE):
+        _persist_approved_review_cycle()
     if decision.done_override_note and not st.json_output:
         _tasks.console.print(
             "[yellow]⚠️  Proceeding with done override; reason recorded in "
@@ -2308,7 +2374,7 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
         _mt_run_decision(st)
         _mt_run_pre_review_gate(st)
         _mt_complete_deferred_for_review_readiness(st)
-        _mt_finalize_plan(st)
+        _mt_finalize_plan(st, ports)
         _mt_execute(st, ports)
         _mt_output(st)
     except typer.Exit:

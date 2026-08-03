@@ -129,6 +129,22 @@ def for_review_repo(
     )
 
     (repo / ".kittify").mkdir()
+    # Cycle 2 fix (review-verdict-write-integrity-01KZ1CGF WP01): the
+    # approval path now threads a REAL ``commit_artifact`` call through
+    # ``_persist_approved_review_cycle`` and raises on a non-"committed"
+    # result. ``target_branch`` here is "main", which
+    # ``ProtectionPolicy.resolve`` treats as protected by default (no
+    # ``.kittify/config.yaml`` override) -- so without this override, the
+    # approval's commit is correctly refused ("no_op_wrong_surface") and the
+    # fix correctly raises, which would fail
+    # ``test_approving_a_rejected_wp_writes_no_verdict_artifact``'s
+    # well-behaved happy path. Unprotect main so the fixture matches the
+    # real deployment shape (a mission's own feature/target branch, never
+    # actually "main" itself) -- mirrors ``tests/review/test_cycle.py``'s
+    # ``_unprotect_main`` idiom.
+    (repo / ".kittify" / "config.yaml").write_text(
+        "protection:\n  protected_branches: []\n", encoding="utf-8"
+    )
 
     feature_dir = repo / "kitty-specs" / MISSION_SLUG
     tasks_dir = feature_dir / "tasks"
@@ -370,39 +386,58 @@ def test_two_rejections_produce_two_distinct_artifacts(
 def test_approving_a_rejected_wp_writes_no_verdict_artifact(
     for_review_repo: tuple[Path, Path, Path],
 ) -> None:
-    """Pin #2996(a): once a WP has EVER been rejected, no normal
-    ``move-task --to approved`` invocation can ever record an approval
-    verdict artifact -- even after the WP has been fully reworked and
-    resubmitted through claimed -> in_progress -> for_review -> in_review.
+    """FR-001 (review-verdict-write-integrity-01KZ1CGF): closes #2996(a) end
+    to end via the real CLI path -- once a WP has been rejected and then
+    genuinely reworked and resubmitted, an ordinary ``move-task --to
+    approved`` (no ``--skip-review-artifact-check``) now DOES record a fresh
+    ``verdict: approved`` review-cycle artifact.
 
-    Root cause (traced against ``main`` @ upstream/main): the rejected-verdict
-    guard (``_guard_rejected_verdict``,
+    Original root cause this test pinned (traced against ``main`` @
+    upstream/main, before this mission's fix): the rejected-verdict guard
+    (``_guard_rejected_verdict``,
     ``src/specify_cli/cli/commands/agent/tasks_transition_core.py:364-388``)
-    reads the WP's *latest* ``review-cycle-N.md`` verdict regardless of how
-    many times the WP has since re-entered ``for_review``/``in_review`` --
-    there is no notion of "this rejection was already acted upon by a
+    read the WP's *latest* ``review-cycle-N.md`` verdict regardless of how
+    many times the WP had since re-entered ``for_review``/``in_review`` --
+    there was no notion of "this rejection was already acted upon by a
     subsequent resubmission". Every approve attempt after any rejection ever
-    recorded is refused unless the caller passes
+    recorded was refused unless the caller passed
     ``--skip-review-artifact-check --note ...``. The guard's OWN override arm
-    is not the fix either: ``_authorize_review_override`` computes ``True``
-    and is stamped onto ``Emit.authorize_review_override``
-    (``tasks_transition_core.py:173,391-399,664``), but that field is never
+    was not the fix either: ``_authorize_review_override`` computed ``True``
+    and was stamped onto ``Emit.authorize_review_override``
+    (``tasks_transition_core.py:173,391-399,664``), but that field was never
     read anywhere in ``tasks_move_task.py`` -- contrast with sibling ``Emit``
     fields ``planned_rollback``/``arbiter_forward``/``done_override_note``/
     ``skip_primary``, which ARE consumed there. No code path -- override flags
-    or not -- ever writes a new ``review-cycle-N.md`` with ``verdict:
+    or not -- ever wrote a new ``review-cycle-N.md`` with ``verdict:
     approved``. ``ReviewCycleArtifact.write()``
-    (``src/specify_cli/review/artifacts.py:199``) has exactly one caller,
+    (``src/specify_cli/review/artifacts.py:199``) had exactly one caller,
     ``create_rejected_review_cycle`` (``src/specify_cli/review/cycle.py:320``),
-    which hardcodes ``verdict="rejected"``.
+    which hardcoded ``verdict="rejected"``.
+
+    This mission's fix (T001/T005's ``_persist_approved_review_cycle``,
+    ``tasks_move_task.py``) generalized that writer to accept
+    ``verdict="approved"``, and narrowed ``_guard_rejected_verdict`` so a
+    plain rejected-to-approved transition (no override flag) is allowed to
+    reach it -- see both functions' docstrings for the full rationale. This
+    test was rewritten (cycle 1 of this WP's review) from asserting the OLD
+    refusal to asserting the NEW, correct behaviour; it remains this
+    mission's most direct evidence that the fix actually closes the gap at
+    the real CLI boundary, not merely at the unit level
+    (``tests/review/test_cycle.py`` covers the writer function in
+    isolation).
 
     This test drives the full, well-behaved lifecycle a reviewer would
     actually use -- reject once, then rework and resubmit for a SECOND
     genuine review -- and shows that a plain
     ``move-task WP01 --to approved --agent reviewer-renata --note ...
-    --no-auto-commit`` (no ``--skip-review-artifact-check``, no ``--force``)
-    is refused, and no fresh ``review-cycle-N.md`` is ever created to
-    represent the eventual approval.
+    --no-auto-commit`` (no ``--skip-review-artifact-check``) now succeeds and
+    a fresh ``review-cycle-N.md`` with ``verdict: approved`` is created to
+    represent the eventual approval. ``--force`` IS passed on the final
+    invocation, but only to bypass guards unrelated to the fix under test
+    (the subtask-completion and review-currency gates, which need real
+    on-disk worktree/event-sourced state this lightweight fixture does not
+    populate) -- the flag that matters for SC-002,
+    ``--skip-review-artifact-check``, is never passed.
 
     Contract pinned here (per #2996 step 4 -- "a new review-cycle-(N+1).md
     is written with verdict: approved, a real reviewer_agent, and the actual
@@ -499,9 +534,20 @@ def test_approving_a_rejected_wp_writes_no_verdict_artifact(
     )
 
     # The reviewer is now satisfied and approves -- a plain approve, with NO
-    # override flags, and a caller-declared reviewer identity via --agent
-    # (the real option the CLI already exposes -- see
-    # src/specify_cli/cli/commands/agent/tasks.py:610).
+    # ``--skip-review-artifact-check`` override, and a caller-declared
+    # reviewer identity via --agent (the real option the CLI already
+    # exposes -- see src/specify_cli/cli/commands/agent/tasks.py:610).
+    #
+    # ``--force`` is used here to bypass guards that are UNRELATED to the
+    # rejected-verdict guard under test (the subtask-completion gate reads
+    # the event-sourced reduced snapshot, and the review-currency gate
+    # resolves a real lane worktree -- neither of which this lightweight
+    # fixture populates). This mirrors the CLI golden-contract harness's own
+    # isolation pattern for this exact guard
+    # (``tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py``,
+    # the ``rejected_verdict_block``/``rejected_verdict_override`` scenarios,
+    # both driven with ``--force``). Per SC-002, the flag that matters for
+    # this mission -- ``--skip-review-artifact-check`` -- is never passed.
     reviewer_identity = "reviewer-renata"
     runner = CliRunner()
     result = runner.invoke(
@@ -517,6 +563,7 @@ def test_approving_a_rejected_wp_writes_no_verdict_artifact(
             reviewer_identity,
             "--note",
             "Approving after fixes were verified in the resubmitted review cycle.",
+            "--force",
             "--no-auto-commit",
         ],
     )

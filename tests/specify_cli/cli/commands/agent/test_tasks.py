@@ -2,8 +2,12 @@
 
 Covers:
 - T007 / T008: _get_latest_review_cycle_verdict helper and unknown-verdict warning
-- T009: force-approve blocked when verdict: rejected
-- T010: --skip-review-artifact-check bypasses the rejected-verdict guard
+- T009: approve/done after a ``rejected`` verdict now persists a fresh approved
+  artifact instead of blocking (FR-001, review-verdict-write-integrity-01KZ1CGF
+  -- an INTENTIONAL behaviour change; see ``_guard_rejected_verdict``'s
+  docstring). An unparseable verdict still blocks unconditionally.
+- T010: --skip-review-artifact-check still records a durable arbiter override
+  (unchanged mechanism, no longer required for the ordinary path)
 - T011 / T012 / T013: lane guard names the planning branch (or falls back for legacy)
 """
 
@@ -457,7 +461,16 @@ class TestUnknownVerdictWarning:
 
 
 class TestVerdictGuardInMoveTask:
-    """move_task blocks force-approve/force-done when verdict == rejected."""
+    """move_task's rejected-verdict guard (T009/T010).
+
+    FR-001 (review-verdict-write-integrity-01KZ1CGF), INTENTIONAL behaviour
+    change: approve/done no longer fails-closed merely because the latest
+    review artifact is ``rejected`` -- see ``_guard_rejected_verdict``'s
+    docstring (``tasks_transition_core.py``). The durable writer
+    (T001/T005's ``_persist_approved_review_cycle``) now persists a fresh
+    ``verdict: approved`` artifact on that path instead. An unparseable
+    verdict (a broken artifact) still fails closed unconditionally.
+    """
 
     @patch("specify_cli.cli.commands.agent.tasks.commit_for_mission")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
@@ -471,7 +484,7 @@ class TestVerdictGuardInMoveTask:
     @patch("specify_cli.cli.commands.agent.tasks.locate_work_package")
     @patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning")
     @patch("specify_cli.cli.commands.agent.tasks.get_auto_commit_default", return_value=False)
-    def test_approve_blocked_by_rejected_verdict_without_force(
+    def test_approve_after_rejected_verdict_without_force_persists_approval(
         self,
         _mock_auto_commit: MagicMock,
         _mock_sparse: MagicMock,
@@ -487,7 +500,16 @@ class TestVerdictGuardInMoveTask:
         mock_safe_commit: MagicMock,
         tmp_path: Path,
     ) -> None:
-        """Approve exits 1 when latest review artifact has verdict: rejected."""
+        """FR-001: approve succeeds and persists a fresh approved artifact
+        when the latest review artifact has ``verdict: rejected`` -- even
+        with NO ``--force`` and NO ``--skip-review-artifact-check``.
+
+        Renamed + rewritten from
+        ``test_approve_blocked_by_rejected_verdict_without_force`` (cycle 1
+        of this WP's review): this is an INTENTIONAL behaviour change, not a
+        regression -- see ``_guard_rejected_verdict``'s docstring
+        (``tasks_transition_core.py``) for the full rationale.
+        """
         mission_slug = "test-mission-001"
         wp_id = "WP01"
         feature_dir, wp_file = _build_wp_file(tmp_path, mission_slug, wp_id)
@@ -496,6 +518,13 @@ class TestVerdictGuardInMoveTask:
         # Write a review-cycle-1.md with verdict: rejected inside the WP sub-dir
         wp_dir = wp_file.parent / wp_file.stem  # tasks/WP01-test/
         _write_review_cycle(wp_dir, 1, "rejected")
+        # Cycle 2 fix (review-verdict-write-integrity-01KZ1CGF WP01):
+        # ``_commit_review_cycle_artifact`` now inspects the real
+        # ``CommitArtifactResult.status`` and raises on anything but
+        # "committed" -- configure the mocked ``commit_for_mission`` to
+        # report success so this happy-path test reflects a real commit,
+        # not an unconfigured MagicMock status that would (correctly) fail.
+        mock_safe_commit.return_value.status = "committed"
 
         from specify_cli.task_utils import WorkPackage
 
@@ -526,11 +555,24 @@ class TestVerdictGuardInMoveTask:
             ["move-task", wp_id, "--to", "approved", "--mission", mission_slug, "--no-auto-commit"],
         )
 
-        assert result.exit_code == 1, f"Expected exit 1, got {result.exit_code}. Output:\n{result.output}"
-        assert "review-cycle-1.md" in result.output, f"Expected artifact name in output:\n{result.output}"
-        assert "rejected" in result.output, f"Expected 'rejected' in output:\n{result.output}"
-        assert "--skip-review-artifact-check --note <reason>" in result.output
-        assert "arbiter override" in result.output
+        assert result.exit_code == 0, f"Expected exit 0, got {result.exit_code}. Output:\n{result.output}"
+        from specify_cli.review.artifacts import ReviewCycleArtifact
+
+        latest = ReviewCycleArtifact.latest(wp_dir)
+        assert latest is not None, f"expected a fresh approved artifact. Output:\n{result.output}"
+        assert latest.cycle_number == 2, (
+            f"expected the approval at the next sequential cycle number, got "
+            f"{latest.cycle_number}. Output:\n{result.output}"
+        )
+        assert latest.verdict == "approved", (
+            f"expected the fresh artifact's verdict to be 'approved', got "
+            f"{latest.verdict!r}. Output:\n{result.output}"
+        )
+        assert latest.reviewer_agent != "unknown", (
+            f"expected a real reviewer_agent, not 'unknown'. Output:\n{result.output}"
+        )
+        # The stale rejected cycle 1 remains untouched.
+        assert (wp_dir / "review-cycle-1.md").exists()
 
     @patch("specify_cli.cli.commands.agent.tasks.commit_for_mission")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
@@ -614,10 +656,12 @@ class TestVerdictGuardInMoveTask:
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks.locate_work_package")
     @patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning")
+    @patch("specify_cli.cli.commands.agent.tasks.resolve_workspace_for_wp")
     @patch("specify_cli.cli.commands.agent.tasks.get_auto_commit_default", return_value=False)
-    def test_force_done_blocked_by_rejected_verdict(
+    def test_force_done_after_rejected_verdict_persists_approval(
         self,
         _mock_auto_commit: MagicMock,
+        mock_resolve_workspace: MagicMock,
         _mock_sparse: MagicMock,
         mock_locate_wp: MagicMock,
         mock_slug: MagicMock,
@@ -631,7 +675,25 @@ class TestVerdictGuardInMoveTask:
         mock_safe_commit: MagicMock,
         tmp_path: Path,
     ) -> None:
-        """Force-done exits 1 when latest review artifact has verdict: rejected."""
+        """FR-001, Acceptance Scenario 3 (spec.md): a WP approved directly to
+        ``--to done`` (skipping an intermediate ``approved`` lane) from a
+        rejected-latest state gets the SAME approved-artifact persistence --
+        the write is not conditional on which terminal lane is the target.
+
+        Renamed + rewritten from ``test_force_done_blocked_by_rejected_verdict``
+        (cycle 1 of this WP's review): this is an INTENTIONAL behaviour
+        change -- see ``_guard_rejected_verdict``'s docstring
+        (``tasks_transition_core.py``).
+
+        ``resolve_workspace_for_wp`` is mocked to resolve
+        ``execution_mode="planning_artifact"`` so the (unrelated)
+        done-ancestry merge-verification machinery is skipped cleanly (FR-008a)
+        -- this test's focus is the rejected-verdict guard and the writer, not
+        ancestry verification, which has its own dedicated coverage
+        elsewhere.
+        """
+        from specify_cli.workspace.context import ResolvedWorkspace
+
         mission_slug = "test-mission-002"
         wp_id = "WP01"
         feature_dir, wp_file = _build_wp_file(tmp_path, mission_slug, wp_id)
@@ -639,6 +701,13 @@ class TestVerdictGuardInMoveTask:
 
         wp_dir = wp_file.parent / wp_file.stem
         _write_review_cycle(wp_dir, 1, "rejected")
+        # Cycle 2 fix (review-verdict-write-integrity-01KZ1CGF WP01):
+        # ``_commit_review_cycle_artifact`` now inspects the real
+        # ``CommitArtifactResult.status`` and raises on anything but
+        # "committed" -- configure the mocked ``commit_for_mission`` to
+        # report success so this happy-path test reflects a real commit,
+        # not an unconfigured MagicMock status that would (correctly) fail.
+        mock_safe_commit.return_value.status = "committed"
 
         from specify_cli.task_utils import WorkPackage
 
@@ -659,6 +728,18 @@ class TestVerdictGuardInMoveTask:
         mock_lock.return_value.__enter__ = MagicMock(return_value=None)
         mock_lock.return_value.__exit__ = MagicMock(return_value=False)
         mock_locate_wp.return_value = mock_wp
+        mock_resolve_workspace.return_value = ResolvedWorkspace(
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            execution_mode="planning_artifact",
+            mode_source="test",
+            resolution_kind="repo_root",
+            workspace_name="repo_root",
+            worktree_path=tmp_path,
+            branch_name=None,
+            lane_id=None,
+            lane_wp_ids=[],
+        )
 
         from specify_cli.status.store import read_events as _real_re
         mock_read_events.return_value = _real_re(feature_dir)
@@ -669,8 +750,23 @@ class TestVerdictGuardInMoveTask:
             ["move-task", wp_id, "--to", "done", "--force", "--mission", mission_slug, "--no-auto-commit"],
         )
 
-        assert result.exit_code == 1, f"Expected exit 1. Output:\n{result.output}"
-        assert "review-cycle-1.md" in result.output, f"Expected artifact name in output:\n{result.output}"
+        assert result.exit_code == 0, f"Expected exit 0. Output:\n{result.output}"
+        from specify_cli.review.artifacts import ReviewCycleArtifact
+
+        latest = ReviewCycleArtifact.latest(wp_dir)
+        assert latest is not None, f"expected a fresh approved artifact. Output:\n{result.output}"
+        assert latest.cycle_number == 2, (
+            f"expected the approval at the next sequential cycle number, got "
+            f"{latest.cycle_number}. Output:\n{result.output}"
+        )
+        assert latest.verdict == "approved", (
+            f"expected the fresh artifact's verdict to be 'approved', got "
+            f"{latest.verdict!r}. Output:\n{result.output}"
+        )
+        assert latest.reviewer_agent != "unknown", (
+            f"expected a real reviewer_agent, not 'unknown'. Output:\n{result.output}"
+        )
+        assert (wp_dir / "review-cycle-1.md").exists()
 
 
 class TestSkipReviewArtifactCheck:
