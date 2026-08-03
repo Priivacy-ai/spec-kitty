@@ -1084,14 +1084,20 @@ def _resolve_strict_keys(*blocks: dict[str, object] | None) -> bool:
     NOT an OR-across-sources -- an explicit ``strict_keys: false`` in a
     higher-precedence source must suppress a lower-precedence source's
     ``strict_keys: true`` rather than being overridden by it (#3163).
+
+    A source's value only counts as an explicit set when it is actually a
+    ``bool``.  A malformed non-bool value (e.g. ``strict_keys: 'yes'``) is
+    NOT authoritative -- it falls through to the next source in precedence
+    order, so a lower-precedence source's valid boolean is used instead of
+    being silently suppressed by a higher-precedence source's typo.
     Defaults to ``False`` when no source sets the key.
     """
     for block in blocks:
         if block is None:
             continue
         value = block.get("strict_keys")
-        if value is not None:
-            return value is True
+        if isinstance(value, bool):
+            return value
     return False
 
 

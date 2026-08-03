@@ -364,6 +364,43 @@ class TestStrictKeysPrecedence:
 
         assert excinfo.value.reason == "unknown_key"
 
+    def test_higher_precedence_non_bool_falls_through_to_lower_bool(
+        self, tmp_path: Path
+    ) -> None:
+        """A malformed non-bool ``strict_keys`` must not suppress a lower source.
+
+        Regression for the fold-``601696913`` follow-up bug: the ordered-source
+        walk used to treat ANY non-``None`` value as authoritative, so a
+        higher-precedence source's malformed ``strict_keys: 'yes'`` (a string,
+        not a real bool) both (a) never actually enabled strict mode itself
+        and (b) stopped the walk from reaching a lower-precedence source's
+        perfectly valid ``strict_keys: true`` -- silently landing on
+        lenient mode. The value must instead fall through past the
+        malformed entry to the next source in precedence order.
+
+        md (higher precedence than config here, since no charter.yaml is
+        present) sets the malformed string; config (lower precedence) sets a
+        real bool ``true``. The unknown key is planted in config's block so
+        that observing strict enforcement (raise vs. warn) proves which
+        value won.
+        """
+        write_charter_with_retrospective(
+            tmp_path,
+            {"strict_keys": "yes"},
+        )
+        write_config_with_retrospective(
+            tmp_path,
+            {"strict_keys": True, "unknown_field": "surprise"},
+        )
+
+        # Must raise: config's valid strict_keys: true is the winning value
+        # because md's "yes" is not a real bool and falls through, not the
+        # other way around.
+        with pytest.raises(PolicyResolutionError) as excinfo:
+            resolve_policy(tmp_path, env={})
+
+        assert excinfo.value.reason == "unknown_key"
+
 
 # =============================================================================
 # Malformed charter.yaml surfaces the typed resolver error, never pydantic's
