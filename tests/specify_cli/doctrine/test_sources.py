@@ -299,6 +299,7 @@ class _FakeResponse:
         self.headers = headers or {}
         self.url = url
         self.reason = reason
+        self.closed = False
 
     def iter_content(self, chunk_size: int = 65536):
         for i in range(0, len(self._body), chunk_size):
@@ -306,6 +307,9 @@ class _FakeResponse:
 
     def json(self) -> Any:
         return json.loads(self._body.decode("utf-8"))
+
+    def close(self) -> None:
+        self.closed = True
 
 
 def _make_tar_gz_bundle(top_dir: str | None = None) -> bytes:
@@ -355,11 +359,146 @@ class TestHttpsBundleSource:
         ).fetch(target)
 
         assert result.ok is True
-        assert result.pack_version == "abc123"
+        # Non-Artifactory HTTPS: etag is for conditional fetch only; no version.
+        assert result.pack_version is None
+        assert result.etag == "abc123"
         # Top-level dir was flattened away.
         assert (target / "directives" / "sec.directive.yaml").is_file()
         assert (target / "agent_profiles" / "eng.agent.yaml").is_file()
         assert result.artifacts_written == 2
+
+    def test_non_artifactory_does_not_query_version_properties(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        target = tmp_path / "snapshot"
+        bundle = _make_tar_gz_bundle()
+        urls: list[str] = []
+
+        def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
+            urls.append(url)
+            return _FakeResponse(
+                status_code=200,
+                body=bundle,
+                headers={"Content-Type": "application/gzip", "ETag": "abc"},
+                url=url,
+            )
+
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
+        )
+
+        result = HttpsBundleSource(url="https://cdn.example.com/pack.tar.gz").fetch(
+            target
+        )
+
+        assert result.ok is True
+        assert result.pack_version is None
+        assert all("/api/storage/" not in url for url in urls)
+
+    def test_artifactory_version_property_becomes_pack_version(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        target = tmp_path / "snapshot"
+        bundle = _make_tar_gz_bundle()
+        calls: list[tuple[str, dict[str, Any]]] = []
+        artifact_url = (
+            "https://artifactory.example.com/artifactory/raf-generic-local/"
+            "doctrines/doctrine-rnd-latest.tar.gz"
+        )
+
+        def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
+            calls.append((url, kwargs))
+            if "/api/storage/" in url:
+                return _FakeResponse(
+                    status_code=200,
+                    body=json.dumps(
+                        {"properties": {"version": ["3.2.7"]}}
+                    ).encode(),
+                    headers={"Content-Type": "application/json"},
+                    url=url,
+                )
+            return _FakeResponse(
+                status_code=200,
+                body=bundle,
+                headers={"Content-Type": "application/gzip", "ETag": '"etag-7"'},
+                url=url,
+            )
+
+        monkeypatch.delenv("SPEC_KITTY_ORG_AUTH_HEADER", raising=False)
+        monkeypatch.delenv("SPEC_KITTY_ORG_TOKEN", raising=False)
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
+        )
+
+        result = HttpsBundleSource(url=artifact_url).fetch(target)
+
+        assert result.ok is True
+        assert result.pack_version == "3.2.7"
+        assert result.etag == '"etag-7"'
+        assert calls[1][0] == (
+            "https://artifactory.example.com/artifactory/api/storage/"
+            "raf-generic-local/doctrines/doctrine-rnd-latest.tar.gz"
+        )
+        assert calls[1][1]["params"] == {"properties": "version"}
+        assert "Authorization" not in calls[1][1]["headers"]
+
+    def test_artifactory_download_fails_when_version_property_is_missing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        bundle = _make_tar_gz_bundle()
+        artifact_url = (
+            "https://artifactory.example.com/artifactory/raf-generic-local/"
+            "doctrines/doctrine-rnd-latest.tar.gz"
+        )
+
+        def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
+            if "/api/storage/" in url:
+                return _FakeResponse(
+                    status_code=200,
+                    body=json.dumps({"properties": {}}).encode(),
+                    url=url,
+                )
+            return _FakeResponse(
+                status_code=200,
+                body=bundle,
+                headers={"Content-Type": "application/gzip"},
+                url=url,
+            )
+
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
+        )
+
+        result = HttpsBundleSource(url=artifact_url).fetch(tmp_path / "snapshot")
+
+        assert result.ok is False
+        assert any("version property" in error for error in result.errors)
+
+    def test_304_unchanged_skips_download(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        target = tmp_path / "snapshot"
+        captured: dict[str, Any] = {}
+
+        def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
+            captured["headers"] = kwargs.get("headers") or {}
+            return _FakeResponse(status_code=304, body=b"", reason="Not Modified")
+
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
+        )
+
+        result = HttpsBundleSource(
+            url="https://example.com/pack.tar.gz",
+            if_none_match='"abc123"',
+        ).fetch(target)
+
+        assert result.ok is True
+        assert result.unchanged is True
+        assert result.etag == '"abc123"'
+        assert result.artifacts_written == 0
+        assert captured["headers"].get("If-None-Match") == '"abc123"'
+        assert list(target.iterdir()) == []  # nothing extracted
 
     def test_zip_extraction(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
