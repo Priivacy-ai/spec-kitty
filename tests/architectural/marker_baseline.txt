@@ -27,6 +27,13 @@ tests/cross_cutting/packaging/test_packaging_safety.py::test_wheel_contains_no_f
 tests/cross_cutting/packaging/test_packaging_safety.py::test_wheel_contains_no_kittify_paths
 tests/cross_cutting/packaging/test_packaging_safety.py::test_wheel_contains_only_known_packages
 tests/cross_cutting/packaging/test_packaging_safety.py::test_wheel_contains_templates
+# Deliberate regen (2026-08-03, PR #3155 landing pass, fold 1c8ae651d, #3163): the
+# new build-only-files exclusion guard reuses the existing build_artifacts session
+# fixture (a real wheel build) already relied on by its sibling wheel-content tests
+# in this file, so it inherits their @pytest.mark.slow -- genuinely slow, not a
+# budget-motivated re-mark. Caught by a second CI run during landing (this baseline
+# was not updated in the same fold commit).
+tests/cross_cutting/packaging/test_packaging_safety.py::test_wheel_excludes_build_only_files
 tests/cross_cutting/test_mypy_strict_mission_step_contracts.py::test_mission_step_contracts_executor_is_mypy_strict_clean
 tests/doctrine/test_wheel_packaging.py::test_wheel_contains_doctrine_package_data
 tests/doctrine/test_wheel_packaging.py::test_wheel_install_imports_doctrine_and_lists_profiles
