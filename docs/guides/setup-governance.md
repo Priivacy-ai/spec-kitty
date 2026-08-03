@@ -253,7 +253,12 @@ by itself guarantee an unmatched `spec-kitty dispatch` routes to a specialist pr
 still need `--profile <profile-id>` to be explicit — and the activations need a compile step
 (`spec-kitty charter generate --no-from-interview`, or `apply --compile` to chain it
 automatically) before they fully render into `.kittify/charter/charter.yaml` (see issue #3105 in
-the project issue tracker; check that issue for current resolution status).
+the project issue tracker; check that issue for current resolution status). That same compile
+step is also what resolves the "routed to the generic agent" symptom in
+[Troubleshooting Charter Failures](troubleshoot-charter.md#2-missing-doctrine): the generic-agent
+fallback only checks whether the compiled bundle exists, not what it activates, so `apply
+--compile` (not plain `apply`) is required to clear it — `minimal` still activates no
+`agent_profiles`, so `--profile` may still be needed to resolve ambiguity.
 
 ## Step 5: Confirm Governance Is Active
 
