@@ -231,9 +231,18 @@ def build_charter_context(
     #     ``charter.md`` contributes prose only.
     #   * It is deliberately **NOT an authority-presence gate**. Those are
     #     FR-003/004/006 (dashboard / analysis / the ``--json``
-    #     ``project_charter.present`` signal), which key SOLELY on
-    #     ``charter.yaml``. The divergence between this OR-gate and that
-    #     yaml-only signal is intentional, not drift.
+    #     ``project_charter.present`` signal). FR-003
+    #     (``resolve_project_charter_presence``, dashboard) and FR-004
+    #     (``analysis_report._charter_path``) prefer ``charter.yaml`` and fall
+    #     back to ``charter.md`` when ``charter.yaml`` has not been compiled
+    #     yet -- restored md-fallback (landing-fold fix), not a yaml-only
+    #     signal. FR-006 (``_project_charter_json_block``, the ``--json``
+    #     ``project_charter.present`` signal) keys SOLELY on ``charter.yaml``
+    #     by deliberate contract (no md fallback; see the ``#2787`` contract
+    #     note). The divergence between this OR-gate and FR-006's yaml-only
+    #     signal is intentional, not drift; FR-003/004's md-fallback narrows
+    #     that divergence but does not close it (yaml still takes precedence
+    #     when both exist).
     #   * Therefore: do **NOT** tidy this into a strict ``charter.yaml``-only
     #     gate. Doing so demotes every ``charter.md``-only project to "missing"
     #     (26 fixtures, above) and contradicts the charter.md-as-secondary

@@ -318,10 +318,14 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   `.kittify/charter/charter.yaml` but no display-only `charter.md` companion
   showed "no charter" in the dashboard sidebar and its API — both the artifact
   scanner and the charter API endpoint still keyed presence on the legacy
-  `charter.md` file. Presence now resolves from `charter.yaml` (the read
-  authority) across the dashboard, analysis-report, and retrospective-policy
-  surfaces; the prose body the Charter page displays still comes from
-  `charter.md` when one exists. Two exceptions are intentionally pinned, not
+  `charter.md` file. Presence resolution now prefers `charter.yaml` (the read
+  authority) and falls back to `charter.md` when `charter.yaml` has not been
+  compiled yet, across the dashboard, analysis-report, and
+  retrospective-policy surfaces — so a `charter.md`-only project that never
+  ran `charter sync`/compile still reports a charter, and a compiled project
+  still survives `charter.md` deletion; the prose body the Charter page
+  displays still comes from `charter.md` when one exists. Two exceptions are
+  intentionally pinned, not
   residual gaps: `charter context`'s prose-presence gate (documented, C-003)
   and `charter status`'s legacy `charter.md`-only fallback for
   pre-consolidation bundles (`_status_collectors.py`, pinned by
