@@ -253,7 +253,21 @@ def _load_charter_retrospective_block(
     if not charter_path.exists():
         return None, source_str, None
 
-    raw = charter_path.read_text(encoding="utf-8")
+    try:
+        raw = charter_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        # UnicodeDecodeError is a ValueError subclass, NOT an OSError
+        # subclass -- non-UTF-8 bytes previously escaped uncaught here as a
+        # raw crash instead of this module's structured PolicyResolutionError
+        # (landing-fold follow-up to #3163, second-round adversarial
+        # review: fold 214a06de9 fixed the sibling charter.yaml reader but
+        # missed this charter.md reader).
+        err = PolicyResolutionError(
+            source=source_str,
+            reason="invalid_yaml",
+            detail=str(exc),
+        )
+        return None, source_str, err
 
     if not raw.startswith("---"):
         # No frontmatter; not malformed — treat as no retrospective block.
@@ -471,7 +485,21 @@ def _load_config_retrospective_block(
     if not config_path.exists():
         return None, None
 
-    raw = config_path.read_text(encoding="utf-8")
+    try:
+        raw = config_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        # UnicodeDecodeError is a ValueError subclass, NOT an OSError
+        # subclass -- non-UTF-8 bytes previously escaped uncaught here as a
+        # raw crash instead of this module's structured PolicyResolutionError
+        # (landing-fold follow-up to #3163, second-round adversarial
+        # review: fold 214a06de9 fixed the sibling charter.yaml reader but
+        # missed this config.yaml reader).
+        err = PolicyResolutionError(
+            source=source_str,
+            reason="invalid_yaml",
+            detail=str(exc),
+        )
+        return None, err
 
     try:
         yaml = _YAML(typ="safe")

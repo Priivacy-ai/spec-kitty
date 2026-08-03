@@ -136,7 +136,18 @@ def _read_charter_mode(repo_root: Path) -> str | None:
     if not charter_path.exists():
         return None  # No charter — no signal; fall through.
 
-    raw = charter_path.read_text(encoding="utf-8")
+    try:
+        raw = charter_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        # UnicodeDecodeError is a ValueError subclass, NOT an OSError
+        # subclass -- non-UTF-8 bytes previously escaped uncaught here as a
+        # raw crash instead of the contracted ModeResolutionError
+        # (landing-fold follow-up to #3163, second-round adversarial
+        # review: fold 214a06de9 fixed the sibling charter.yaml reader in
+        # retrospective/policy.py but missed this frontmatter reader).
+        raise ModeResolutionError(
+            f"Charter at {charter_path} could not be read as UTF-8: {exc}"
+        ) from exc
 
     # Attempt to extract YAML frontmatter (lines between first two ``---``).
     if not raw.startswith("---"):
