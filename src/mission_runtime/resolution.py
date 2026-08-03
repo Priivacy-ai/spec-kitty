@@ -879,6 +879,7 @@ def _resolve_topology(
     absent/malformed so bootstrap windows still resolve a stable shape.
     """
     from mission_runtime.context import classify_topology
+    from specify_cli.core.paths import MissionMetaReadError
     from specify_cli.migration.backfill_topology import read_topology
     from specify_cli.missions._read_path_resolver import (
         _canonicalize_primary_read_handle,
@@ -901,7 +902,7 @@ def _resolve_topology(
     try:
         stored: MissionTopology = read_topology(primary_dir)
         return stored
-    except (FileNotFoundError, ValueError):
+    except (FileNotFoundError, ValueError, MissionMetaReadError):
         # No persisted meta yet (bootstrap window) or malformed: classify from the
         # coordination-branch value-read with no lanes signal. This is the same
         # degraded-but-stable shape the surface resolver reports for the window.

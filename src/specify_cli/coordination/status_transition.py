@@ -1071,13 +1071,14 @@ def _read_contract_routes_through_coordination(
         classify_topology,
         routes_through_coordination,
     )
+    from specify_cli.core.paths import MissionMetaReadError  # noqa: PLC0415
     from specify_cli.migration.backfill_topology import (  # noqa: PLC0415
         read_topology,
     )
 
     try:
         topology = read_topology(identity.feature_dir)
-    except (FileNotFoundError, ValueError, OSError):
+    except (FileNotFoundError, ValueError, OSError, MissionMetaReadError):
         # Un-backfilled legacy mission / absent / malformed primary meta: derive
         # the shape ONCE from the coordination-branch value-read (the historical
         # two-arg arm). Same single ``classify_topology`` authority, no re-inference.
