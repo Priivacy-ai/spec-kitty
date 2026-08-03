@@ -126,8 +126,8 @@ def _read_baseline_merge_commit(feature_dir: Path) -> str:
 
     The typed error is then degraded to the absent-baseline answer (``""``).
     That is deliberate and matches the sibling placement probes in
-    ``mission_runtime.resolution`` (``_declared_mid8``, ``_declared_coordination_branch``,
-    ``_resolve_mission_identity``): this function is a *phase probe* consumed by
+    ``mission_runtime.resolution`` (``_mid8_from_primary_meta``, ``_resolve_coordination_branch``,
+    ``_resolve_mission_id``): this function is a *phase probe* consumed by
     surface resolution, not the meta-trust authority.  Pre-empting the read with
     a hard failure here is precisely the #3140 leak -- it fired inside
     ``resolve_artifact_surface`` and denied
