@@ -2561,7 +2561,7 @@ pages:
   - path: "docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md"
     title: "ADR: Charter-Wheel Assessment — Extractable in Principle, Cut Over Kernel→Doctrine→Charter as One No-Partial Follow-On"
     divio_type: "none"
-    abstract: "[#3101](https://github.com/Priivacy-ai/spec-kitty/issues/3101) wants `src/doctrine/` — and, assessed here, `src/charter/` — to ship as installable wheels on the documented dependency chain:"
+    abstract: "[#3101](https://github.com/Priivacy-ai/spec-kitty/issues/3101) wants `src/doctrine/` — and, assessed here, `src/charter/` — to ship as installable wheels on the documented dependency chain, shown below, which runs from the dependency-free kernel at the root through doctrine and charter to glossary/runtime and finally `specify_cli`."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
