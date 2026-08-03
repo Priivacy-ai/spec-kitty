@@ -386,6 +386,27 @@ class TestMalformedCharterYaml:
         assert err.reason == "invalid_enum"
         assert "failure_policy" in err.detail
 
+    def test_field_type_error_raises_different_reason_than_enum_error(
+        self, tmp_path: Path
+    ) -> None:
+        """A structural type error (list where a bool is expected) must NOT
+        be reported with the same reason code as a genuine bad-enum-value
+        error (#3163) -- callers/UIs branch on ``reason``.
+        """
+        write_charter_yaml_with_retrospective(
+            tmp_path,
+            "    enabled:\n      - 1\n      - 2\n",
+        )
+
+        with pytest.raises(PolicyResolutionError) as excinfo:
+            resolve_policy(tmp_path, env={})
+
+        err = excinfo.value
+        assert err.source == _CHARTER_YAML_SOURCE
+        assert err.reason == "invalid_type"
+        assert err.reason != "invalid_enum"
+        assert "enabled" in err.detail
+
     def test_non_mapping_retrospective_block_raises_policy_resolution_error(
         self, tmp_path: Path
     ) -> None:
