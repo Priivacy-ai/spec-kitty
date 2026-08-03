@@ -1759,7 +1759,7 @@ def _mt_finalize_plan(st: _MoveTaskState, ports: TasksPorts) -> None:
                 feedback_source=feedback_source,
                 reviewer_agent=reviewer_agent,
                 verdict="approved",
-                commit_router=ports.coord,
+                commit_router=ports.coord if st.resolved_auto_commit else None,
             )
         finally:
             feedback_source.unlink(missing_ok=True)
@@ -1774,7 +1774,7 @@ def _mt_finalize_plan(st: _MoveTaskState, ports: TasksPorts) -> None:
             wp_slug=_resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id),
             feedback_source=st.resolved_feedback_source,
             reviewer_agent=st.agent or "unknown",
-            commit_router=ports.coord,
+            commit_router=ports.coord if st.resolved_auto_commit else None,
         )
         st.review_feedback_pointer = review_cycle.pointer
         st.rejected_review_result = review_cycle.review_result
