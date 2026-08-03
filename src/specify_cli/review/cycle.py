@@ -342,10 +342,19 @@ def _guard_feedback_source_provenance(
         return
     normalized_feedback_body = _normalize_whitespace(_strip_frontmatter(body))
     for candidate in sorted(resolved_dir.glob("review-cycle-*.md")):
+        # M3 (adversarial squad, PR #3156): a prior artifact that cannot be
+        # parsed or read (bad frontmatter, non-UTF-8 bytes, permission
+        # denied, ...) cannot be the duplicate this scan is looking for —
+        # skip it. The previous fallback re-ran the IDENTICAL
+        # ``read_text(encoding="utf-8")`` that ``from_file`` had just failed
+        # on, so a ``UnicodeDecodeError`` (a ``ValueError`` subclass, caught
+        # here) or ``OSError`` (wrapped into ``ValueError`` by ``from_file``)
+        # re-raised a second time, this time uncaught — one unreadable prior
+        # cycle bricked every subsequent write for the WP.
         try:
             candidate_body = ReviewCycleArtifact.from_file(candidate).body
-        except ValueError:
-            candidate_body = _strip_frontmatter(candidate.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            continue
         if _normalize_whitespace(candidate_body) == normalized_feedback_body:
             raise ReviewCycleError(
                 "feedback_source content duplicates a prior review-cycle "
