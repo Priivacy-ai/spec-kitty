@@ -7122,6 +7122,7 @@ pages:
     - {slug: "3b-validate-the-bundle-schema", text: "3b. Validate the bundle schema", level: 3}
     - {slug: "3c-check-status", text: "3c. Check status", level: 3}
     - {slug: "step-4-synthesize-doctrine", text: "Step 4: Synthesize Doctrine", level: 2}
+    - {slug: "quick-baseline-via-a-starter-pack", text: "Quick baseline via a starter pack", level: 3}
     - {slug: "step-5-confirm-governance-is-active", text: "Step 5: Confirm Governance Is Active", level: 2}
     - {slug: "how-context-loading-works", text: "How context loading works", level: 3}
     - {slug: "verify-with-a-real-mission-action", text: "Verify with a real mission action", level: 3}

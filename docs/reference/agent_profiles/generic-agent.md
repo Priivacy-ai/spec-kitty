@@ -27,6 +27,7 @@ Generic Agent is the deliberate catch-all: the baseline identity used when no sp
 - A work package doesn't match any specialist profile's focus (no architecture, review, doctrine, or language-specific work involved) — routing falls through to this baseline.
 - Small, self-contained implementation or documentation fixes where a dedicated persona would be overkill.
 - Early in a mission, before enough context exists to justify claiming a specialist role.
+- An empty or unconfigured charter — `spec-kitty dispatch` on such a project now routes here with a warning rather than hard-failing (see [Troubleshooting Charter Failures](../../guides/troubleshoot-charter.md#2-missing-doctrine)).
 
 ## How to load it from your harness
 
