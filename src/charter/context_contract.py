@@ -78,4 +78,4 @@ CONTEXT_CONTRACT_TOP_LEVEL_KEYS: frozenset[str] = frozenset(
     }
 )
 
-__all__ = ["CONTEXT_SCHEMA_VERSION", "CONTEXT_CONTRACT_TOP_LEVEL_KEYS"]
+__all__ = ["CONTEXT_SCHEMA_VERSION"]
