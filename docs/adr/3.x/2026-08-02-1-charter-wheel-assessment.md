@@ -8,7 +8,8 @@ date: '2026-08-02'
 
 [#3101](https://github.com/Priivacy-ai/spec-kitty/issues/3101) wants `src/doctrine/` — and,
 assessed here, `src/charter/` — to ship as installable wheels on the documented dependency
-chain:
+chain, shown below, which runs from the dependency-free kernel at the root through doctrine
+and charter to glossary/runtime and finally `specify_cli`.
 
 ```
 kernel (root) <- doctrine <- charter <- glossary/runtime <- specify_cli
