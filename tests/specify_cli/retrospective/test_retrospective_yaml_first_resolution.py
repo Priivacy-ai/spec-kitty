@@ -432,6 +432,58 @@ class TestMalformedCharterYaml:
         assert excinfo.value.source == _CHARTER_YAML_SOURCE
         assert excinfo.value.reason == "invalid_yaml"
 
+    def test_unrelated_malformed_yaml_falls_through_to_md_only_config(
+        self, tmp_path: Path
+    ) -> None:
+        """A malformed charter.yaml with NO retrospective content must not
+        block a project that configures retrospective ONLY via charter.md
+        frontmatter (#3163).
+
+        Before the fix, ``resolve_policy`` parsed/validated charter.yaml
+        FIRST and raised before charter.md was ever read -- so a project
+        with a working md-only retrospective config, but an unrelated
+        syntactically-broken charter.yaml sitting around (e.g. a typo in an
+        entirely different section), would hard-fail where pre-#3163 it
+        resolved fine from charter.md alone.
+        """
+        write_charter_yaml(
+            tmp_path,
+            "schema_version: 2.0.0\nsome_other_section:\n  - [unclosed\n",
+        )
+        write_charter_with_retrospective(
+            tmp_path,
+            {"enabled": False, "failure_policy": "block"},
+        )
+
+        policy, source_map = resolve_policy(tmp_path, env={})
+
+        assert policy.enabled is False
+        assert policy.failure_policy == "block"
+        assert source_map["enabled"].startswith(_CHARTER_MD_SOURCE)
+        assert source_map["failure_policy"].startswith(_CHARTER_MD_SOURCE)
+
+    def test_malformed_yaml_mentioning_retrospective_still_raises(
+        self, tmp_path: Path
+    ) -> None:
+        """The fall-through guard must NOT swallow a malformed charter.yaml
+        that actually attempts a retrospective block -- only a charter.yaml
+        that is provably unrelated to retrospective config falls through.
+        """
+        write_charter_yaml(
+            tmp_path,
+            "schema_version: 2.0.0\ngovernance:\n  retrospective:\n   - [unclosed\n",
+        )
+        write_charter_with_retrospective(
+            tmp_path,
+            {"enabled": False, "failure_policy": "block"},
+        )
+
+        with pytest.raises(PolicyResolutionError) as excinfo:
+            resolve_policy(tmp_path, env={})
+
+        assert excinfo.value.source == _CHARTER_YAML_SOURCE
+        assert excinfo.value.reason == "invalid_yaml"
+
     def test_non_utf8_charter_yaml_raises_policy_resolution_error(
         self, tmp_path: Path
     ) -> None:
