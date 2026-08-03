@@ -904,10 +904,24 @@ def _resolve_precedence(charter_layers: Sequence[CharterLayer]) -> str | None:
 
 
 def _resolve_strict_keys(*blocks: dict[str, object] | None) -> bool:
-    """Return True if strict_keys mode is active in any supplied block."""
-    return any(
-        block is not None and block.get("strict_keys") is True for block in blocks
-    )
+    """Return the effective ``strict_keys`` value via ordered-source precedence.
+
+    Mirrors the yaml-first precedence used for every other governed key
+    (FR-005c / SC-002): callers pass ``blocks`` pre-ordered highest-precedence
+    first (``yaml_block, md_block, config_block`` at the call site), and the
+    first block that explicitly sets ``strict_keys`` wins outright.  This is
+    NOT an OR-across-sources -- an explicit ``strict_keys: false`` in a
+    higher-precedence source must suppress a lower-precedence source's
+    ``strict_keys: true`` rather than being overridden by it (#3163).
+    Defaults to ``False`` when no source sets the key.
+    """
+    for block in blocks:
+        if block is None:
+            continue
+        value = block.get("strict_keys")
+        if value is not None:
+            return value is True
+    return False
 
 
 def _top_level_keys_in_block(block: dict[str, object]) -> frozenset[str]:
