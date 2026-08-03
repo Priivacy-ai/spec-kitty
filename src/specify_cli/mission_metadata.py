@@ -331,14 +331,17 @@ def _parse_meta_text(
 ) -> dict[str, Any] | None:
     """Decode and parse an existing ``meta.json`` per *on_malformed*.
 
-    A read/decode error (``OSError``) or a JSON syntax error or a non-object top
-    level is "malformed".  Under ``"raise"`` it surfaces as :class:`ValueError`;
-    under ``"empty"``/``"none"`` it is absorbed to ``{}``/``None``.
+    A read/decode error (``OSError`` or ``UnicodeDecodeError`` -- non-UTF-8
+    bytes in ``meta.json`` raise the latter, which is a :class:`ValueError`
+    subclass, NOT an :class:`OSError` subclass, so it must be listed
+    explicitly (#3163)) or a JSON syntax error or a non-object top level is
+    "malformed".  Under ``"raise"`` it surfaces as :class:`ValueError`; under
+    ``"empty"``/``"none"`` it is absorbed to ``{}``/``None``.
     """
     try:
         text = meta_path.read_text(encoding=encoding)
         data = json.loads(text)
-    except (json.JSONDecodeError, OSError) as exc:
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError) as exc:
         if on_malformed == "raise":
             raise ValueError(f"Malformed JSON in {meta_path}: {exc}") from exc
         return {} if on_malformed == "empty" else None

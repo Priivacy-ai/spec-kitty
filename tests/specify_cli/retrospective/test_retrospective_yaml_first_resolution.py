@@ -431,3 +431,28 @@ class TestMalformedCharterYaml:
 
         assert excinfo.value.source == _CHARTER_YAML_SOURCE
         assert excinfo.value.reason == "invalid_yaml"
+
+    def test_non_utf8_charter_yaml_raises_policy_resolution_error(
+        self, tmp_path: Path
+    ) -> None:
+        """Invalid UTF-8 bytes must surface as PolicyResolutionError, not crash.
+
+        Regression for #3163: ``load_charter_yaml`` opens ``charter.yaml``
+        with ``encoding="utf-8"``, so non-UTF-8 bytes raise
+        ``UnicodeDecodeError`` -- a ``ValueError`` subclass, NOT an
+        ``OSError`` subclass -- which the original
+        ``except (_YAMLError, OSError)`` tuple did not catch, letting it
+        escape as a raw crash instead of this module's structured error.
+        """
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True, exist_ok=True)
+        (charter_dir / "charter.yaml").write_bytes(
+            b"schema_version: 2.0.0\ngovernance:\n  retrospective:\n"
+            b"    failure_policy: \xff\xfe warn\n"
+        )
+
+        with pytest.raises(PolicyResolutionError) as excinfo:
+            resolve_policy(tmp_path, env={})
+
+        assert excinfo.value.source == _CHARTER_YAML_SOURCE
+        assert excinfo.value.reason == "invalid_yaml"
