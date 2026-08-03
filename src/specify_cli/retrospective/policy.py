@@ -818,6 +818,15 @@ def resolve_policy(
             value is still ``(default_policy(), source_map_with_sentinel)``
             for callers that want to continue on the happy path; the caller is
             responsible for catching this and routing per failure policy.
+
+            Exception (#3163): a malformed ``charter.yaml`` whose raw text
+            never mentions ``"retrospective"`` at all is provably unrelated
+            to this policy (see :func:`_charter_yaml_mentions_retrospective`)
+            and does NOT raise here — resolution falls through to
+            ``charter.md`` / config / defaults as if charter.yaml carried no
+            retrospective block. A malformed ``charter.yaml`` that DOES
+            mention "retrospective" still raises, preserving the
+            yaml-wins-on-conflict guarantee.
     """
     effective_env: Mapping[str, str] = env if env is not None else os.environ
 
@@ -830,8 +839,14 @@ def resolve_policy(
     yaml_block, yaml_error = _load_charter_yaml_retrospective_block(repo_root)
 
     if yaml_error is not None:
-        _mark_source_map_error(source_map, str(CHARTER_YAML))
-        raise yaml_error
+        # #3163: a malformed charter.yaml that never even mentions
+        # "retrospective" cannot itself carry a governance.retrospective:
+        # block -- the malformation is provably unrelated, so fall through to
+        # charter.md instead of hard-failing a md-only-configured project.
+        if _charter_yaml_mentions_retrospective(repo_root / CHARTER_YAML):
+            _mark_source_map_error(source_map, str(CHARTER_YAML))
+            raise yaml_error
+        yaml_block, yaml_error = None, None
 
     # ------------------------------------------------------------------
     # Step 2: Load the secondary block (charter.md frontmatter)
@@ -922,6 +937,41 @@ def _mark_source_map_error(source_map: dict[str, str], source: str) -> None:  # 
     for key in source_map:
         if source_map[key] == "<default>":
             source_map[key] = "<resolution_error>"
+
+
+#: Literal substring used by :func:`_charter_yaml_mentions_retrospective` --
+#: kept as a named constant rather than an inline literal in the two spots
+#: that need it (the docstring example and the check itself).
+_RETROSPECTIVE_KEY_BYTES = b"retrospective"
+
+
+def _charter_yaml_mentions_retrospective(charter_yaml_path: Path) -> bool:
+    """Return whether ``charter_yaml_path``'s raw bytes mention "retrospective".
+
+    Used only as a conservative fallback guard when ``charter.yaml`` failed to
+    parse or validate (#3163). Before this guard, ANY malformed
+    ``charter.yaml`` -- even one with no ``governance.retrospective:`` block
+    at all -- raised ``PolicyResolutionError`` before ``charter.md`` was ever
+    consulted, breaking a project that configures retrospective behavior
+    ONLY via ``charter.md`` frontmatter but happens to have an unrelated,
+    merely-malformed ``charter.yaml`` sitting around.
+
+    If the raw text never spells the literal key name ``"retrospective"``
+    anywhere, the file structurally cannot contain a
+    ``governance.retrospective:`` block once parsed -- YAML keys are literal
+    substrings of their source -- so the malformation is provably unrelated
+    and safe to skip in favor of ``charter.md``. A hit is always treated as
+    "still relevant" here even when the match turns out to be incidental
+    (e.g. inside a comment or unrelated string) -- this is a fail-closed
+    heuristic that only ever *widens* which malformed files still raise, it
+    never narrows the existing yaml-wins-on-conflict guarantee for a file
+    that does carry retrospective content.
+    """
+    try:
+        raw = charter_yaml_path.read_bytes()
+    except OSError:
+        return True  # fail closed: can't inspect, assume still relevant
+    return _RETROSPECTIVE_KEY_BYTES in raw.lower()
 
 
 def _resolve_precedence(charter_layers: Sequence[CharterLayer]) -> str | None:
