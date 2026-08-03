@@ -142,6 +142,53 @@ def test_doctrine_pyproject_declares_kernel_dependency() -> None:
     )
 
 
+def test_kernel_version_satisfies_doctrine_declared_specifier() -> None:
+    """FR-010 closure: the kernel's OWN declared version must satisfy the
+    specifier doctrine's pyproject.toml pins for ``spec-kitty-kernel``.
+
+    ``test_doctrine_pyproject_declares_kernel_dependency`` only asserts that
+    the dependency NAME is present -- it never checks whether the two
+    manifests' version numbers are actually compatible. This test makes the
+    two manifests mutually enforcing: a future version bump on either side
+    that breaks compatibility (e.g. kernel cutting a ``2.0.0`` while
+    doctrine's upper bound stays ``<2.0.0``, or doctrine tightening its lower
+    bound past kernel's current version) fails this gate today, instead of
+    only failing silently at the actual future wheel cutover (#3163).
+
+    Self-mutation proof: bumping src/kernel/pyproject.toml's ``version`` to
+    ``"2.0.0"`` (or any version outside the specifier doctrine currently
+    declares) turns this red.
+    """
+    from packaging.requirements import Requirement
+    from packaging.version import Version
+
+    doctrine_data = _load_toml(_DOCTRINE_PYPROJECT)
+    doctrine_deps = doctrine_data.get("project", {}).get("dependencies", [])
+    kernel_dep_specs = [d for d in doctrine_deps if _dep_name(d) == _KERNEL_PACKAGE_NAME]
+    assert kernel_dep_specs, (
+        f"src/doctrine/pyproject.toml does not declare a {_KERNEL_PACKAGE_NAME} "
+        "dependency -- see test_doctrine_pyproject_declares_kernel_dependency."
+    )
+    requirement = Requirement(kernel_dep_specs[0])
+
+    kernel_data = _load_toml(_KERNEL_PYPROJECT)
+    kernel_version_str = kernel_data.get("project", {}).get("version")
+    assert kernel_version_str, (
+        "src/kernel/pyproject.toml has no [project].version to check "
+        "against doctrine's declared specifier."
+    )
+    kernel_version = Version(kernel_version_str)
+
+    assert kernel_version in requirement.specifier, (
+        f"src/kernel/pyproject.toml declares version {kernel_version_str!r}, "
+        f"which does NOT satisfy src/doctrine/pyproject.toml's declared "
+        f"specifier {str(requirement.specifier)!r} for {_KERNEL_PACKAGE_NAME}. "
+        "The two manifests must stay mutually compatible: bumping either "
+        "side without checking the other would silently break the future "
+        "wheel cutover."
+    )
+
+
 # ---------------------------------------------------------------------------
 # FR-010 / D7 -- packs/ out-of-tree mechanism (hatchling custom build hook)
 # ---------------------------------------------------------------------------
