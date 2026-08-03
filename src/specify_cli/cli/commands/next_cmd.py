@@ -114,6 +114,13 @@ def next_step(
     except _MissionNotFoundError as _exc:
         _emit_mission_not_found_error(_exc.handle, json_output)
         raise typer.Exit(1) from _exc
+    except ValueError as _exc:
+        # The traversal guard (``core.paths.assert_safe_path_segment``) rejects
+        # an unsafe slug with a plain ``ValueError``. Every other malformed-input
+        # path already exits cleanly, so this one must too rather than dumping a
+        # Python traceback at the operator.
+        _emit_invalid_mission_error(str(_exc), json_output)
+        raise typer.Exit(1) from _exc
     _validate_result_and_answer(result, answer, json_output)
     answered_id = _maybe_handle_answer(agent, mission_slug, answer, decision_id, repo_root, json_output)
 
@@ -446,6 +453,33 @@ def _emit_mission_not_found_error(
             f"No mission matching '{handle}' exists in this repository.",
             file=sys.stderr,
         )
+        print(f"  Next: {remediation}", file=sys.stderr)
+
+
+def _emit_invalid_mission_error(message: str, json_output: bool) -> None:
+    """Emit a structured INVALID_MISSION error in the appropriate format.
+
+    Mirrors :func:`_emit_mission_not_found_error`: human mode writes to stderr,
+    JSON mode writes an envelope to stdout, and the caller exits non-zero. The
+    distinct code separates "slug is malformed" from "slug is well-formed but
+    unknown", which the traversal guard previously could not express because it
+    escaped as an unhandled traceback.
+    """
+    remediation = "Pass a mission slug without '..', path separators, or a leading '.'."
+    if json_output:
+        from specify_cli import __version__
+
+        payload = {
+            "result": "error",
+            "error_code": "INVALID_MISSION",
+            "next_step": remediation,
+            "remediation": remediation,
+            "message": message,
+            "spec_kitty_version": __version__,
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        print(f"Error: {message}", file=sys.stderr)
         print(f"  Next: {remediation}", file=sys.stderr)
 
 
