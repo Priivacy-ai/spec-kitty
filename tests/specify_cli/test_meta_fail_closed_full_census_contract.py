@@ -485,11 +485,13 @@ def _drive_tracker(feature_dir: Path) -> Any:
 def _drive_acceptance(feature_dir: Path) -> Any:
     """Drive ``acceptance._commit_acceptance_meta`` against a real git repo.
 
-    ``record_acceptance`` is stubbed because it lives in ``mission_metadata``
-    -- an UNROUTED batch-A site owned by WP08's lane -- and would raise its own
-    raw ``ValueError`` before control ever reaches the acceptance-owned routed
-    read. Stubbing it isolates the site actually under test here; it does not
-    weaken the assertion, which still runs against the real product function.
+    ``record_acceptance`` is stubbed because it lives in ``mission_metadata.py``
+    -- the module that defines the DEF A parser itself, classified
+    ``authority`` in the ledger above (routing it onto the wrapper would be
+    circular) -- and would raise its own raw ``ValueError`` before control
+    ever reaches the acceptance-owned routed read. Stubbing it isolates the
+    site actually under test here; it does not weaken the assertion, which
+    still runs against the real product function.
     """
     import specify_cli.acceptance as acc
 
