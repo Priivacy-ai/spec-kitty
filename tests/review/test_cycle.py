@@ -384,6 +384,54 @@ def test_hand_edited_own_path_feedback_source_is_still_rejected(tmp_path: Path) 
     assert not (wp_dir / "review-cycle-2.md").exists()
 
 
+@pytest.mark.regression
+def test_unreadable_prior_cycle_does_not_crash_the_provenance_scan(
+    tmp_path: Path,
+) -> None:
+    """M3 (adversarial squad, PR #3156): a prior ``review-cycle-N.md`` that is
+    not valid UTF-8 must be SKIPPED by the provenance scan, not crash it.
+
+    ``_guard_feedback_source_provenance`` best-effort-falls-back on
+    ``ValueError`` from ``ReviewCycleArtifact.from_file`` by re-reading the
+    same file with the same ``encoding="utf-8"`` -- which raises the
+    IDENTICAL ``UnicodeDecodeError`` (a ``ValueError`` subclass) a second
+    time, this time uncaught. One non-UTF-8 or unreadable prior artifact in a
+    WP dir then bricks EVERY subsequent review-cycle write for that WP. An
+    unparseable/unreadable prior artifact cannot be the duplicate being
+    searched for, so it must simply be skipped.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / MISSION_SLUG / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / f"{WP_SLUG}.md").write_text("# WP03\n", encoding="utf-8")
+    wp_dir = tasks_dir / WP_SLUG
+    wp_dir.mkdir(parents=True)
+
+    # A prior "review-cycle-1.md" that is NOT valid UTF-8 (and thus also not
+    # parseable as frontmatter) -- simulates a corrupted or binary-garbled
+    # prior artifact reaching the provenance scan.
+    (wp_dir / "review-cycle-1.md").write_bytes(b"---\nverdict: rejected\n---\n\n\xff\xfe\x00bad")
+
+    real_feedback = tmp_path / "feedback.md"
+    real_feedback.write_text(
+        "**Issue**: New, unrelated feedback.\n", encoding="utf-8"
+    )
+
+    created = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug=MISSION_SLUG,
+        wp_id=WP_ID,
+        wp_slug=WP_SLUG,
+        feedback_source=real_feedback,
+        reviewer_agent="reviewer-renata",
+    )
+
+    assert created.artifact_path == wp_dir / "review-cycle-2.md"
+    assert created.artifact.verdict == "rejected"
+
+
 def test_create_rejected_review_cycle_with_approved_verdict(tmp_path: Path) -> None:
     """T006 step 3: the generalized writer, called with ``verdict="approved"``
     against a WP whose latest artifact is ``rejected``, writes a new
