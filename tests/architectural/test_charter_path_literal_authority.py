@@ -361,6 +361,7 @@ def _scan_file(path: Path, rel: str) -> list[CharterPathSite]:
         return []
     parents = _parent_map(tree)
     token_map = code_tokens_by_line(source)
+    charter_bundle_names = _charter_bundle_name_bindings(tree)
 
     def _site(node: ast.expr, literal: str, clause: str) -> CharterPathSite:
         key = CharterPathKey(
@@ -377,26 +378,76 @@ def _scan_file(path: Path, rel: str) -> list[CharterPathSite]:
         if isinstance(node, ast.Constant) and is_charter_path_literal(node.value):
             if is_path_construction_context(parents.get(id(node)), node):
                 found.append(_site(node, str(node.value), "a"))
-        elif isinstance(node, ast.Call) and _is_charter_md_presence_gate(node, parents):
+        elif isinstance(node, ast.Call) and _is_charter_md_presence_gate(
+            node, parents, charter_bundle_names
+        ):
             found.append(_site(node, PRESENCE_GATE_FILENAME, "b"))
     return found
+
+
+#: The module every charter-bundle filename constant must be imported from.
+#: A ``Name`` receiver whose binding traces back to an ``ImportFrom`` of this
+#: module is resolved to the literal it stands for — see
+#: :func:`_charter_bundle_name_bindings`.
+CHARTER_BUNDLE_MODULE = "charter.bundle"
+
+#: Imported-constant name -> the path-literal it declares (``charter/bundle.py``
+#: is the single declaration authority for both).
+_CHARTER_BUNDLE_CONSTANT_LITERALS: dict[str, str] = {
+    "CHARTER_MD": "charter.md",
+    "CHARTER_YAML": "charter.yaml",
+}
+
+
+def _charter_bundle_name_bindings(tree: ast.Module) -> dict[str, str]:
+    """Map local names bound to ``charter.bundle.CHARTER_MD``/``CHARTER_YAML`` to their literal.
+
+    Resolves ``from charter.bundle import CHARTER_MD`` (and aliased imports,
+    ``from charter.bundle import CHARTER_MD as _MD``) to the filename literal
+    the constant declares. Without this, a receiver spine that bottoms out on
+    an ``ast.Name`` referencing the imported constant — exactly the idiomatic
+    form this mission's own migration produces (``root / CHARTER_MD``) —
+    resolves to ``None`` and clause (b) goes blind the moment a call site
+    adopts the constant it is supposed to be enforcing.
+    """
+    bindings: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module == CHARTER_BUNDLE_MODULE:
+            for alias in node.names:
+                literal = _CHARTER_BUNDLE_CONSTANT_LITERALS.get(alias.name)
+                if literal is not None:
+                    bindings[alias.asname or alias.name] = literal
+    return bindings
 
 
 # --------------------------------------------------------------------------- #
 # Clause (b) — charter.md-keyed .exists() presence gate (C-001).
 # --------------------------------------------------------------------------- #
-def _path_expr_tail_literal(expr: ast.expr) -> str | None:
+def _path_expr_tail_literal(
+    expr: ast.expr, charter_bundle_names: dict[str, str] | None = None
+) -> str | None:
     """Return the final literal path segment of a path expression, if any.
 
     Walks the right spine of ``/`` joins and unwraps ``Path(...)`` so both
     ``d / "charter.md"`` and ``Path(".kittify/charter/charter.md")`` resolve.
+    *charter_bundle_names*, when given, additionally resolves an ``ast.Name``
+    leaf whose binding is the imported ``charter.bundle.CHARTER_MD`` /
+    ``CHARTER_YAML`` constant (``d / CHARTER_MD``) to the literal it stands
+    for — the constant-import form is not a different case from the literal,
+    it IS the literal, one indirection away.
     """
     if isinstance(expr, ast.Constant) and isinstance(expr.value, str):
         return expr.value.split("/")[-1]
     if isinstance(expr, ast.BinOp) and isinstance(expr.op, ast.Div):
-        return _path_expr_tail_literal(expr.right)
+        return _path_expr_tail_literal(expr.right, charter_bundle_names)
     if isinstance(expr, ast.Call) and _is_path_call(expr) and expr.args:
-        return _path_expr_tail_literal(expr.args[-1])
+        return _path_expr_tail_literal(expr.args[-1], charter_bundle_names)
+    if (
+        isinstance(expr, ast.Name)
+        and charter_bundle_names is not None
+        and expr.id in charter_bundle_names
+    ):
+        return charter_bundle_names[expr.id]
     return None
 
 
@@ -417,11 +468,15 @@ def _assigned_value(fn: ast.FunctionDef | ast.AsyncFunctionDef, name: str) -> as
     return None
 
 
-def _is_charter_md_presence_gate(call: ast.Call, parents: dict[int, ast.AST]) -> bool:
+def _is_charter_md_presence_gate(
+    call: ast.Call, parents: dict[int, ast.AST], charter_bundle_names: dict[str, str]
+) -> bool:
     """True for an ``.exists()`` call whose receiver path ends in ``charter.md``.
 
-    Resolves the direct form ``(d / "charter.md").exists()`` and the one-hop
-    named form ``charter_md_path = d / "charter.md"`` ... ``charter_md_path.exists()``.
+    Resolves the direct form ``(d / "charter.md").exists()``, the one-hop
+    named form ``charter_md_path = d / "charter.md"`` ... ``charter_md_path.exists()``,
+    and the constant-import form ``charter_md_path = d / CHARTER_MD`` ...
+    ``charter_md_path.exists()`` (via *charter_bundle_names*).
     """
     func = call.func
     if not isinstance(func, ast.Attribute) or func.attr != "exists":
@@ -433,7 +488,7 @@ def _is_charter_md_presence_gate(call: ast.Call, parents: dict[int, ast.AST]) ->
         if bound is None:
             return False
         receiver = bound
-    return _path_expr_tail_literal(receiver) == PRESENCE_GATE_FILENAME
+    return _path_expr_tail_literal(receiver, charter_bundle_names) == PRESENCE_GATE_FILENAME
 
 
 # --------------------------------------------------------------------------- #
@@ -496,7 +551,7 @@ def _live_keys() -> set[CharterPathKey]:
 # WP11 AFTER the WP01/WP02/WP03/WP06 repoints landed, so the frozen set is the
 # minimal residual and not a stale pre-drain snapshot.
 # --------------------------------------------------------------------------- #
-CHARTER_PATH_LITERAL_FLOOR = 38
+CHARTER_PATH_LITERAL_FLOOR = 47
 FLOOR_MARGIN = 2
 
 
