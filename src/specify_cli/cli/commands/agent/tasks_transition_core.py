@@ -18,6 +18,16 @@ early signals (:func:`override_persist_signal`, :func:`arbiter_persist_signal`)
 computed from early facts alone. This module does not reconcile or unify
 behaviour.
 
+EXCEPTION (review-verdict-write-integrity-01KZ1CGF, FR-001): :func:`_guard_rejected_verdict`'s
+plain-refuse arm — a latest ``"rejected"`` verdict with no
+``--skip-review-artifact-check`` — is an INTENTIONAL, one-off behaviour change,
+not a pure-parity reproduction. See that function's docstring for the full
+rationale: refusing was the old command's only way to prevent a silent
+approve-over-rejection when nothing could record a genuine approval; now that
+``_mt_finalize_plan`` persists a real approved artifact, the ordinary
+reject-fix-approve path is allowed to proceed instead of dead-ending at the
+mission's one documented escape hatch.
+
 Design (functional core / imperative shell):
 
 * The orchestrator (``move_task``) performs all filesystem / git / clock reads
@@ -364,6 +374,29 @@ def _guard_agent_ownership(req: MoveTaskRequest) -> RefuseExit1 | None:
 def _guard_rejected_verdict(req: MoveTaskRequest) -> RefuseExit1 | None:
     """Refuse arms of the rejected-verdict guard (APPROVAL_LANES only).
 
+    FR-001 (review-verdict-write-integrity-01KZ1CGF): a latest verdict of
+    ``"rejected"`` no longer fails-closed the ORDINARY approve path by itself.
+    Before the durable writer existed (T001/T005's
+    ``_persist_approved_review_cycle``), refusing here was the only way to
+    stop a rejected verdict from being silently approved over — there was
+    nothing that could record a genuine approval artifact, so blocking was
+    the safest failure mode. Now that ``_mt_finalize_plan`` persists a real
+    ``verdict: approved`` review-cycle artifact once the transition proceeds,
+    continuing to refuse would keep the ordinary reject-fix-approve path
+    hitting the "only escape hatch" this mission exists to close (spec.md
+    User Story 1, Acceptance Scenarios 1 & 2 / SC-002 / NFR-002).
+
+    What this guard still refuses:
+
+    * An unparseable verdict (the artifact itself is broken) — unrelated to
+      rejection, always refused.
+    * ``--skip-review-artifact-check`` supplied WITHOUT ``--note`` — the
+      arbiter-override mechanism (:func:`_authorize_review_override`,
+      spec.md Edge Cases) still requires durable justification when a
+      caller explicitly invokes it. The override flag is no longer
+      *required* to approve after a rejection, but if a caller chooses to
+      use it anyway, it must still carry a reason.
+
     The PROCEED-with-override arm is not a refusal — it is signalled by
     :func:`_authorize_review_override`.
     """
@@ -374,17 +407,14 @@ def _guard_rejected_verdict(req: MoveTaskRequest) -> RefuseExit1 | None:
             f"{req.task_id} {req.review_artifact_name} has no parseable review verdict.\n"
             "Repair the review artifact before approving or marking done."
         )
-    if req.review_verdict == "rejected":
-        if not req.skip_review_artifact_check:
-            return RefuseExit1(
-                f"{req.task_id} has a rejected review artifact ({req.review_artifact_name}). "
-                "Re-run with --skip-review-artifact-check --note <reason> "
-                "to record an arbiter override."
-            )
-        if not (req.note.strip() if isinstance(req.note, str) else ""):
-            return RefuseExit1(
-                "--skip-review-artifact-check requires --note so override evidence is durable."
-            )
+    if (
+        req.review_verdict == "rejected"
+        and req.skip_review_artifact_check
+        and not (req.note.strip() if isinstance(req.note, str) else "")
+    ):
+        return RefuseExit1(
+            "--skip-review-artifact-check requires --note so override evidence is durable."
+        )
     return None
 
 

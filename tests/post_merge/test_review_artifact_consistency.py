@@ -229,6 +229,94 @@ def test_later_approved_review_artifact_clears_rejected_conflict(
     assert find_rejected_review_artifact_conflicts(mission.mission_dir) == []
 
 
+def test_shipped_writer_approval_after_rejection_clears_merge_gate(
+    tmp_path: Path,
+) -> None:
+    """WP01 T007: integration test through the REAL shipped writer.
+
+    Reject a WP (cycle 1) then approve it (cycle 2, ``verdict: approved``)
+    using ``create_rejected_review_cycle`` itself — not the ``_write_review_artifact``
+    test helper — then confirm the merge gate reports no conflict for that WP.
+    Closes the loop from writer (WP01) to gate (this WP06 module), per
+    spec.md User Story 1 Acceptance Scenario 2.
+    """
+    from specify_cli.review.cycle import create_rejected_review_cycle
+
+    mission = create_mission_fixture(tmp_path)
+    write_work_package(mission, WorkPackageSpec(lane="done"))
+    append_status_event(
+        mission,
+        from_lane=Lane.APPROVED,
+        to_lane=Lane.DONE,
+        event_id="01KQKV85DONE00000000001",
+    )
+
+    rejection_feedback = tmp_path / "rejection-feedback.md"
+    rejection_feedback.write_text("**Issue**: Missing regression test.\n", encoding="utf-8")
+    rejected = create_rejected_review_cycle(
+        main_repo_root=mission.repo_root,
+        mission_slug=mission.mission_slug,
+        wp_id="WP01",
+        wp_slug="WP01-regression-harness",
+        feedback_source=rejection_feedback,
+        reviewer_agent="reviewer-renata",
+    )
+    assert rejected.artifact.verdict == "rejected"
+
+    approval_feedback = tmp_path / "approval-feedback.md"
+    approval_feedback.write_text(
+        "Approved by reviewer-renata: the missing test was added.\n", encoding="utf-8"
+    )
+    approved = create_rejected_review_cycle(
+        main_repo_root=mission.repo_root,
+        mission_slug=mission.mission_slug,
+        wp_id="WP01",
+        wp_slug="WP01-regression-harness",
+        feedback_source=approval_feedback,
+        reviewer_agent="reviewer-renata",
+        verdict="approved",
+    )
+    assert approved.artifact.verdict == "approved"
+    assert approved.artifact.cycle_number == 2
+
+    assert find_rejected_review_artifact_conflicts(mission.mission_dir) == []
+
+
+def test_shipped_writer_genuine_rejection_still_blocks_merge_gate(
+    tmp_path: Path,
+) -> None:
+    """Negative control for the test above: no regression to the existing,
+    correct blocking behavior when the latest artifact genuinely IS rejected
+    (only one cycle written through the real writer, never approved)."""
+    from specify_cli.review.cycle import create_rejected_review_cycle
+
+    mission = create_mission_fixture(tmp_path)
+    write_work_package(mission, WorkPackageSpec(lane="done"))
+    append_status_event(
+        mission,
+        from_lane=Lane.APPROVED,
+        to_lane=Lane.DONE,
+        event_id="01KQKV85DONE00000000001",
+    )
+
+    rejection_feedback = tmp_path / "rejection-feedback.md"
+    rejection_feedback.write_text("**Issue**: Missing regression test.\n", encoding="utf-8")
+    create_rejected_review_cycle(
+        main_repo_root=mission.repo_root,
+        mission_slug=mission.mission_slug,
+        wp_id="WP01",
+        wp_slug="WP01-regression-harness",
+        feedback_source=rejection_feedback,
+        reviewer_agent="reviewer-renata",
+    )
+
+    findings = find_rejected_review_artifact_conflicts(mission.mission_dir)
+
+    assert len(findings) == 1
+    assert findings[0].wp_id == "WP01"
+    assert findings[0].verdict == "rejected"
+
+
 def test_merge_review_artifact_consistency_gate_blocks_done_signoff(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

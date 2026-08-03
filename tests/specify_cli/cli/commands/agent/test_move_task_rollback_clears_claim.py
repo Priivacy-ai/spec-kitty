@@ -107,7 +107,15 @@ def _build_flag_on_mission(
     _git(repo, "config", "user.name", "WP10 Rollback Claim")
     _git(repo, "config", "commit.gpgsign", "false")
     (repo / ".kittify").mkdir()
-    (repo / ".kittify" / "config.yaml").write_text("auto_commit: false\n", encoding="utf-8")
+    # Cycle 2 fix (review-verdict-write-integrity-01KZ1CGF WP01): the
+    # rejection-write path now threads a REAL ``commit_artifact`` call and
+    # raises on a non-"committed" result. ``ProtectionPolicy.resolve`` treats
+    # "main" as protected by default, so this real-git fixture needs the
+    # override to let the review-cycle artifact's commit genuinely succeed --
+    # mirrors ``tests/review/test_cycle.py``'s ``_unprotect_main`` idiom.
+    (repo / ".kittify" / "config.yaml").write_text(
+        "auto_commit: false\nprotection:\n  protected_branches: []\n", encoding="utf-8"
+    )
 
     feature_dir = repo / "kitty-specs" / _MISSION_SLUG
     tasks_dir = feature_dir / "tasks"

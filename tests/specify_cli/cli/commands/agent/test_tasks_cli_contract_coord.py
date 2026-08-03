@@ -35,6 +35,12 @@ extraction (WP03+) can be proven byte-identical:
 
 NFR-001 (pure parity): this harness encodes NO intended behaviour change. It must
 be green on the current base and pass identically before/after every later WP.
+
+EXCEPTION (review-verdict-write-integrity-01KZ1CGF, FR-001): the
+``rejected_verdict_block`` scenario / ``test_rejected_verdict_blocks_approval``
+pins an INTENTIONAL, one-off behaviour change -- see
+``_guard_rejected_verdict``'s docstring in ``tasks_transition_core.py``. Every
+other scenario here still reproduces the pre-mission behaviour verbatim.
 """
 
 from __future__ import annotations
@@ -47,6 +53,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
@@ -380,19 +387,50 @@ def _run_all_scenarios(mkdir: Any) -> dict[str, Scenario]:
         code, text, evidence={"arbiter_artifacts": [str(p.relative_to(fd)) for p in fd.rglob("arbiter-override-*.json")]}
     )
 
-    # rejected-verdict guard: force-approve blocked by a rejected review artifact.
+    # rejected-verdict guard (FR-001, review-verdict-write-integrity-01KZ1CGF):
+    # the ordinary approve path proceeds even with no override flag, and the
+    # durable writer persists a fresh ``verdict: approved`` artifact.
     fd = _simple_mission(mkdir(), f"rejected-{_MID8}")
     _seed_chain(fd, [("planned", "claimed"), ("claimed", "in_progress"), ("in_progress", "for_review")])
     _write_review_cycle(fd, 1, "rejected")
-    with setup_mocked_env(fd.parent.parent, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS):
+    # Cycle 2 fix (review-verdict-write-integrity-01KZ1CGF WP01):
+    # ``_persist_approved_review_cycle`` now threads a REAL ``commit_artifact``
+    # call and raises on a non-"committed" result. This fixture's root is a
+    # bare ``tmp_path`` (no ``git init`` -- ``_simple_mission`` is deliberately
+    # a lightweight, topology-independent fixture, per this module's own
+    # NFR-001 "pure parity" design), so a genuine commit attempt would fail
+    # for an environmental reason (no git worktree) unrelated to the decision
+    # branch under test here. Stub ``commit_for_mission`` to report success,
+    # mirroring the identical fix in ``tests/specify_cli/cli/commands/agent/
+    # test_tasks.py``'s ``TestVerdictGuardInMoveTask`` tests.
+    with (
+        patch("specify_cli.cli.commands.agent.tasks.commit_for_mission") as mock_commit,
+        setup_mocked_env(fd.parent.parent, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS),
+    ):
+        mock_commit.return_value.status = "committed"
         code, text, _ = _invoke(["move-task", "WP01", "--to", "approved", "--mission", fd.name, "--force", "--no-auto-commit"])
-    out["rejected_verdict_block"] = Scenario(code, text)
+    out["rejected_verdict_block"] = Scenario(
+        code,
+        text,
+        evidence={
+            "cycle_artifacts": sorted(
+                p.name for p in (fd / "tasks" / "WP01-fixture").glob("review-cycle-*.md")
+            ),
+        },
+    )
 
     # rejected-verdict OVERRIDE: --skip-review-artifact-check --note re-opens the path.
     fd = _simple_mission(mkdir(), f"override-{_MID8}")
     _seed_chain(fd, [("planned", "claimed"), ("claimed", "in_progress"), ("in_progress", "for_review")])
     artifact = _write_review_cycle(fd, 1, "rejected")
-    with setup_mocked_env(fd.parent.parent, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS):
+    # Cycle 2 fix (review-verdict-write-integrity-01KZ1CGF WP01): same
+    # ``commit_for_mission`` stub as the ``rejected_verdict_block`` scenario
+    # above -- see that comment for the full rationale.
+    with (
+        patch("specify_cli.cli.commands.agent.tasks.commit_for_mission") as mock_commit,
+        setup_mocked_env(fd.parent.parent, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS),
+    ):
+        mock_commit.return_value.status = "committed"
         code, text, _ = _invoke([
             "move-task", "WP01", "--to", "approved", "--mission", fd.name, "--force",
             "--skip-review-artifact-check", "--note", "arbiter release: rejection superseded",
@@ -533,7 +571,20 @@ def _run_all_scenarios(mkdir: Any) -> dict[str, Scenario]:
         _invoke(["move-task", "WP01", "--to", "planned", "--mission", fd.name, "--review-feedback-file", str(empty_fb), "--no-auto-commit"])
     good_fb = root / "feedback.md"
     good_fb.write_text("**Issue**: needs rework.\n", encoding="utf-8")
-    with setup_mocked_env(root, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS):
+    # Cycle 2 fix (review-verdict-write-integrity-01KZ1CGF WP01): the valid
+    # rollback path ALSO threads a REAL ``commit_artifact`` call (the
+    # ``decision.planned_rollback`` branch in ``tasks_move_task.py`` --
+    # T004/WP01's rejection-write commit step). Same environmental gap as the
+    # ``rejected_verdict_block``/``rejected_verdict_override`` scenarios above
+    # (this fixture root was never ``git init``'d) -- stub ``commit_for_mission``
+    # so the downstream ``_mt_finalize_plan``/``_mt_execute`` branches this
+    # scenario exists to exercise (T007's coverage ratchet) still run to
+    # completion instead of short-circuiting on a raised ``ReviewCycleError``.
+    with (
+        patch("specify_cli.cli.commands.agent.tasks.commit_for_mission") as mock_commit,
+        setup_mocked_env(root, mission_slug=fd.name, extra_patches=_REVIEW_GATE_BYPASS),
+    ):
+        mock_commit.return_value.status = "committed"
         _invoke(["move-task", "WP01", "--to", "planned", "--mission", fd.name, "--review-feedback-file", str(good_fb), "--no-auto-commit"])
     # agent-mismatch warning + invalid lane usage error.
     fd = _simple_mission(mkdir(), f"misc-{_MID8}")
@@ -672,11 +723,22 @@ class TestMoveTaskDecisionBranchesFrozen:
         )
 
     def test_rejected_verdict_blocks_approval(self, scenarios: dict[str, Scenario]) -> None:
-        """A rejected latest review artifact fails-closed on approve (no override flag)."""
+        """FR-001 (review-verdict-write-integrity-01KZ1CGF): a rejected latest
+        review artifact no longer fails-closed the ordinary approve path (no
+        override flag) -- the durable writer records a fresh approved
+        artifact instead.
+
+        INTENTIONAL behaviour change from this harness's original pure-parity
+        pin -- see ``_guard_rejected_verdict``'s docstring
+        (``tasks_transition_core.py``) and the module docstring's EXCEPTION
+        note above.
+        """
         sc = scenarios["rejected_verdict_block"]
-        assert sc.exit_code == 1, sc.output
-        assert "rejected" in sc.output
-        assert "--skip-review-artifact-check" in sc.output
+        assert sc.exit_code == 0, sc.output
+        assert sc.evidence["cycle_artifacts"] == ["review-cycle-1.md", "review-cycle-2.md"], (
+            "expected the ordinary approve to write a fresh review-cycle-2.md "
+            f"artifact alongside the untouched rejected cycle 1; got {sc.evidence}"
+        )
 
     def test_rejected_verdict_override_reopens_path(self, scenarios: dict[str, Scenario]) -> None:
         """--skip-review-artifact-check + --note durably overrides the rejection.

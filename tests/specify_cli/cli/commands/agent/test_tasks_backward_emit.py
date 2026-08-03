@@ -32,6 +32,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
@@ -147,12 +148,29 @@ def _invoke_move(
     mission_slug: str,
     args: list[str],
 ) -> Result:
-    """Run move_task end-to-end with the standard mocked env."""
-    with setup_mocked_env(
-        tmp_path,
-        mission_slug=mission_slug,
-        workspace_resolution=FileNotFoundError,
+    """Run move_task end-to-end with the standard mocked env.
+
+    Cycle 2 fix (review-verdict-write-integrity-01KZ1CGF WP01): a genuine
+    rejection (backward ``-> planned`` with ``--review-feedback-file``) now
+    threads a REAL ``commit_artifact`` call and raises on a non-"committed"
+    result. This fixture's ``tmp_path`` is never ``git init``'d (this whole
+    file is ``pytest.mark.fast`` -- purely in-process, no subprocess/real
+    git), so a genuine commit attempt fails for an environmental reason
+    unrelated to the force-provenance/wire-shape behavior under test here.
+    Stub ``commit_for_mission`` to report success -- mirrors the identical
+    fix in ``tests/specify_cli/cli/commands/agent/test_tasks.py``. Tests that
+    never write a review-cycle artifact (no ``--review-feedback-file``,
+    forward moves) simply never call the stub.
+    """
+    with (
+        patch("specify_cli.cli.commands.agent.tasks.commit_for_mission") as mock_commit,
+        setup_mocked_env(
+            tmp_path,
+            mission_slug=mission_slug,
+            workspace_resolution=FileNotFoundError,
+        ),
     ):
+        mock_commit.return_value.status = "committed"
         return runner.invoke(app, args, catch_exceptions=False)
 
 
