@@ -266,11 +266,15 @@ def get_feature_artifacts(
     to feature_dir.parent.parent for compatibility with older call sites.
 
     FR-003 (#3150): the "charter" artifact's presence/mtime/size signal is
-    keyed on ``resolve_project_charter_presence`` (``charter.yaml`` -- the
-    C-001 resolving authority) so the dashboard's "no charter" UI signal
-    survives ``charter.md`` deletion. This is a presence probe only -- the
-    prose body itself is served elsewhere (``dashboard/handlers/api.py``
-    ``handle_charter``) via the md-keyed ``resolve_project_charter_path``.
+    keyed on ``resolve_project_charter_presence``, which prefers
+    ``charter.yaml`` (the C-001 resolving authority) so the dashboard's "no
+    charter" UI signal survives ``charter.md`` deletion, and falls back to
+    ``charter.md`` when ``charter.yaml`` has not been compiled yet -- so a
+    ``charter.md``-only project that never ran ``charter sync``/compile still
+    reports a charter (landing-fold fix; do not narrow this back to a
+    yaml-only signal). This is a presence probe only -- the prose body itself
+    is served elsewhere (``dashboard/handlers/api.py`` ``handle_charter``) via
+    the md-keyed ``resolve_project_charter_path``.
     """
     project_root = project_dir if project_dir is not None else feature_dir.parent.parent
     charter_path = resolve_project_charter_presence(project_root)

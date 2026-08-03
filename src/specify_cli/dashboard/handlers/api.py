@@ -175,9 +175,11 @@ class APIHandler(DashboardHandler):
         """Serve the project-level charter prose body.
 
         FR-003 (#3150), C-001: the "does a charter exist" 404 gate is keyed
-        on ``resolve_project_charter_presence`` (``charter.yaml`` -- the
-        resolving authority) so this endpoint survives ``charter.md``
-        deletion. The prose body itself stays keyed on
+        on ``resolve_project_charter_presence``, which prefers ``charter.yaml``
+        (the resolving authority) so this endpoint survives ``charter.md``
+        deletion, and falls back to ``charter.md`` when ``charter.yaml`` has
+        not been compiled yet (landing-fold fix; do not narrow this back to a
+        yaml-only signal). The prose body itself stays keyed on
         ``resolve_project_charter_path`` (``charter.md`` -- the readable
         secondary) -- never retargeted to yaml.
         """
