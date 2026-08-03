@@ -247,6 +247,7 @@ def _mission_routes_through_coordination(mission_slug: str, repo_root: Path) -> 
     the historical "no declared coord topology" arm).
     """
     from mission_runtime import MissionArtifactKind, placement_seam
+    from specify_cli.core.paths import MissionMetaReadError
     from specify_cli.migration.backfill_topology import read_topology
 
     # Anchor the stored-topology read on the topology-BLIND primary dir (where
@@ -263,7 +264,7 @@ def _mission_routes_through_coordination(mission_slug: str, repo_root: Path) -> 
     )
     try:
         topology = read_topology(feature_dir)
-    except (FileNotFoundError, ValueError, OSError):
+    except (FileNotFoundError, ValueError, OSError, MissionMetaReadError):
         return False
     return routes_through_coordination(topology)
 

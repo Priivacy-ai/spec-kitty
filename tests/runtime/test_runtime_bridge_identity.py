@@ -10,6 +10,7 @@ Covers T014 (red-first: flat-path persists ULID; empty-mid8 fails closed):
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -17,6 +18,7 @@ import pytest
 
 from runtime.next.runtime_bridge import (
     DecisionGitLogUnavailable,
+    _mission_routes_through_coordination,
     _resolve_mission_ulid,
     _wrap_with_decision_git_log,
 )
@@ -225,3 +227,75 @@ class TestWrapWithDecisionGitLogIdentityContract:
             pytest.raises(DecisionGitLogUnavailable),
         ):
             _wrap_with_decision_git_log(emitter, _SLUG, tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# WP08 (#3155) regression — corrupt meta.json must degrade, not raise
+# ---------------------------------------------------------------------------
+
+
+def _init_repo(repo_root: Path) -> None:
+    subprocess.run(["git", "init", "-q"], cwd=repo_root, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "runtime-bridge@example.test"],
+        cwd=repo_root,
+        check=True,
+    )
+    subprocess.run(["git", "config", "user.name", "Runtime Bridge Test"], cwd=repo_root, check=True)
+
+
+class TestMissionRoutesThroughCoordinationCorruptMeta:
+    """``_mission_routes_through_coordination`` must degrade on corrupt meta.json.
+
+    ``read_topology`` (WP08, #3155) surfaces corrupt/non-object ``meta.json`` as
+    the typed :class:`specify_cli.core.paths.MissionMetaReadError` (a
+    ``RuntimeError`` subclass) rather than a bare ``ValueError``. This call
+    site's except-clause only listed ``(FileNotFoundError, ValueError,
+    OSError)``, so a corrupt meta propagated uncaught here, contradicting the
+    function's own docstring ("Missing/malformed meta degrades to non-coord").
+    """
+
+    _MISSION_ID = "01KVRJ6PQ8ZB2H7M3N4P5R6S7T"
+    _MID8 = _MISSION_ID[:8]
+    _SLUG = f"rb-corrupt-meta-{_MID8}"
+
+    def _seed(self, repo_root: Path) -> Path:
+        _init_repo(repo_root)
+        feature_dir = repo_root / "kitty-specs" / self._SLUG
+        feature_dir.mkdir(parents=True)
+        meta = {
+            "mission_id": self._MISSION_ID,
+            "mid8": self._MID8,
+            "mission_slug": self._SLUG,
+            "coordination_branch": f"kitty/mission-{self._SLUG}",
+        }
+        (feature_dir / "meta.json").write_text(
+            json.dumps(meta, sort_keys=True, indent=2), encoding="utf-8"
+        )
+        subprocess.run(["git", "add", "kitty-specs"], cwd=repo_root, check=True)
+        subprocess.run(
+            ["git", "commit", "-q", "-m", "seed mission"], cwd=repo_root, check=True
+        )
+        subprocess.run(
+            ["git", "branch", f"kitty/mission-{self._SLUG}"], cwd=repo_root, check=True
+        )
+        return feature_dir
+
+    def test_valid_coord_meta_routes_true(self, tmp_path: Path) -> None:
+        """Sanity: a readable coord-declaring meta routes True (the pre-corruption baseline)."""
+        self._seed(tmp_path)
+        assert _mission_routes_through_coordination(self._SLUG, tmp_path) is True
+
+    def test_corrupt_meta_degrades_to_false_not_raise(self, tmp_path: Path) -> None:
+        """RED on pre-fix code: corrupt meta.json raised MissionMetaReadError uncaught.
+
+        Post-fix, the except-clause catches it and returns False (the
+        documented degrade-to-non-coord arm) rather than propagating.
+        """
+        feature_dir = self._seed(tmp_path)
+        (feature_dir / "meta.json").write_text("{ not valid json", encoding="utf-8")
+
+        assert _mission_routes_through_coordination(self._SLUG, tmp_path) is False, (
+            "corrupt meta.json must degrade _mission_routes_through_coordination "
+            "to False, not raise MissionMetaReadError"
+        )

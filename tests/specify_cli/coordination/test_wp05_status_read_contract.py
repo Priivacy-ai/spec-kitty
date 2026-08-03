@@ -151,6 +151,68 @@ def test_read_contract_reads_stored_topology_over_coord_value_relay(
     )
 
 
+def test_corrupt_meta_degrades_shape_helper_instead_of_raising(tmp_path: Path) -> None:
+    """WP08 regression: corrupt ``meta.json`` degrades the SHAPE helper, not raises.
+
+    ``read_topology`` (WP08, #3155) surfaces corrupt/non-object ``meta.json`` as
+    the typed :class:`specify_cli.core.paths.MissionMetaReadError` (a
+    ``RuntimeError`` subclass) instead of a bare ``ValueError``. This helper's
+    except-clause only listed ``(FileNotFoundError, ValueError, OSError)``, so a
+    corrupt meta propagated uncaught here — breaking the function's own
+    docstring contract that "missing/malformed meta degrades to non-coord [sic —
+    degrades to the coordination-branch-derived shape]".
+
+    Identity is constructed from VALID meta carrying a lingering
+    ``coordination_branch`` value BUT a stored ``topology: single_branch`` (the
+    same distinguishing fixture as
+    ``test_read_contract_reads_stored_topology_over_coord_value_relay`` above),
+    so the successful-read shape (False, from the stored topology) and the
+    except-clause's fallback shape (True, derived from the lingering
+    coordination_branch value alone) are provably DIFFERENT. ``meta.json`` is
+    then corrupted in place — isolating the corruption to the helper under
+    test, since identity construction already completed its own separate meta
+    read. Asserting True proves the except-clause's documented fallback
+    formula actually ran (not a raise, and not a coincidental match with the
+    success path).
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "config", "user.email", "t@example.invalid")
+    _git(repo, "config", "user.name", "Test")
+    _git(repo, "config", "commit.gpgsign", "false")
+    feature_dir = repo / "kitty-specs" / _DIRNAME
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_slug": _SLUG,
+                "mission_id": _FULL_ULID,
+                "mid8": _MID8,
+                "coordination_branch": _COORD_BRANCH,  # lingering value …
+                "topology": "single_branch",  # … but stored shape is flattened
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    _git(repo, "add", "kitty-specs")
+    _git(repo, "commit", "-q", "-m", "seed flattened-with-lingering-coord")
+    _git(repo, "branch", _COORD_BRANCH)
+
+    identity = _identity(repo)
+    assert st._read_contract_routes_through_coordination(identity) is False, (
+        "sanity: the stored single_branch topology must dispose False before corruption"
+    )
+
+    (feature_dir / "meta.json").write_text("{ not valid json", encoding="utf-8")
+
+    assert st._read_contract_routes_through_coordination(identity) is True, (
+        "corrupt meta.json must degrade the SHAPE helper via the except-clause's "
+        "coordination-branch fallback (True here), not raise MissionMetaReadError"
+    )
+
+
 def test_shape_helper_does_not_persist_a_topology_backfill(tmp_path: Path) -> None:
     """The SHAPE helper is PURE: it derives the topology via ``classify_topology``
     (no ``ensure_topology`` persist), so calling it never writes ``meta.json``.
