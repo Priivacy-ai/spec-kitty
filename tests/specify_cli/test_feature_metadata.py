@@ -10,12 +10,20 @@ from unittest.mock import patch
 import pytest
 
 from specify_cli.core.atomic import atomic_write
+from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.mission_metadata import (
     HISTORY_CAP,
     REQUIRED_FIELDS,
+    clear_coordination_metadata,
+    clear_merge_metadata,
+    get_change_mode,
     load_meta,
     record_acceptance,
+    resolve_mission_identity,
+    set_change_mode,
     set_documentation_state,
+    set_origin_ticket,
+    set_purpose_summary,
     set_target_branch,
     set_vcs_lock,
     validate_meta,
@@ -770,3 +778,109 @@ class TestCompatibilityWrappers:
 
         canonical_result = load_meta(feature_dir)
         assert canonical_result == meta
+
+
+# ===================================================================
+# FR-007 fail-closed routing for mission_metadata.py's own mutation
+# helpers (landing-fold, PR #3155 second-round accuracy review)
+# ===================================================================
+#
+# These 11 functions live in the SAME module that defines the canonical
+# ``load_meta`` parser, and the NFR-003 ledger in
+# test_meta_fail_closed_full_census_contract.py used to classify all of them
+# ``authority`` -- exempt from routing because "routing onto the wrapper would
+# be circular". That rationale is refuted by `core/paths.py`'s own
+# `load_meta_fail_closed`, which resolves the *exact same* cycle (it calls
+# back into `mission_metadata.load_meta`) via a documented deferred
+# in-function import. These 11 sites are ordinary mutation helpers, not part
+# of the parser itself -- they were simply unrouted, not legitimately exempt.
+# Each of these must now raise the typed ``MissionMetaReadError`` (never a raw
+# ``ValueError``) when meta.json exists but is corrupt.
+
+
+def _write_corrupt_meta(feature_dir: Path) -> None:
+    (feature_dir / "meta.json").write_text("{ not valid json", encoding="utf-8")
+
+
+class TestMutationHelpersFailClosedOnCorruptMeta:
+    """FR-007: corrupt meta.json raises MissionMetaReadError, not ValueError."""
+
+    def test_record_acceptance_raises_typed_error(self, tmp_path: Path) -> None:
+        _write_corrupt_meta(tmp_path)
+        with pytest.raises(MissionMetaReadError):
+            record_acceptance(tmp_path, accepted_by="claude", mode="auto")
+
+    def test_set_vcs_lock_raises_typed_error(self, tmp_path: Path) -> None:
+        _write_corrupt_meta(tmp_path)
+        with pytest.raises(MissionMetaReadError):
+            set_vcs_lock(tmp_path, vcs_type="git")
+
+    def test_set_documentation_state_raises_typed_error(self, tmp_path: Path) -> None:
+        _write_corrupt_meta(tmp_path)
+        with pytest.raises(MissionMetaReadError):
+            set_documentation_state(tmp_path, {"iteration_mode": "initial"})
+
+    def test_set_origin_ticket_raises_typed_error(self, tmp_path: Path) -> None:
+        _write_corrupt_meta(tmp_path)
+        with pytest.raises(MissionMetaReadError):
+            set_origin_ticket(
+                tmp_path,
+                {
+                    "provider": "github",
+                    "resource_type": "issue",
+                    "resource_id": "1",
+                    "external_issue_id": "1",
+                    "external_issue_key": "PROBE-1",
+                    "external_issue_url": "https://example.invalid/1",
+                    "title": "probe",
+                },
+            )
+
+    def test_set_target_branch_raises_typed_error(self, tmp_path: Path) -> None:
+        _write_corrupt_meta(tmp_path)
+        with pytest.raises(MissionMetaReadError):
+            set_target_branch(tmp_path, "main")
+
+    def test_set_purpose_summary_raises_typed_error(self, tmp_path: Path) -> None:
+        _write_corrupt_meta(tmp_path)
+        with pytest.raises(MissionMetaReadError):
+            set_purpose_summary(tmp_path, purpose_tldr="probe", purpose_context="probe context")
+
+    def test_set_change_mode_raises_typed_error(self, tmp_path: Path) -> None:
+        _write_corrupt_meta(tmp_path)
+        with pytest.raises(MissionMetaReadError):
+            set_change_mode(tmp_path, "bulk_edit")
+
+    def test_clear_merge_metadata_raises_typed_error(self, tmp_path: Path) -> None:
+        _write_corrupt_meta(tmp_path)
+        with pytest.raises(MissionMetaReadError):
+            clear_merge_metadata(tmp_path)
+
+    def test_clear_coordination_metadata_raises_typed_error(self, tmp_path: Path) -> None:
+        _write_corrupt_meta(tmp_path)
+        with pytest.raises(MissionMetaReadError):
+            clear_coordination_metadata(tmp_path)
+
+    def test_get_change_mode_raises_typed_error(self, tmp_path: Path) -> None:
+        _write_corrupt_meta(tmp_path)
+        with pytest.raises(MissionMetaReadError):
+            get_change_mode(tmp_path)
+
+    def test_resolve_mission_identity_raises_typed_error(self, tmp_path: Path) -> None:
+        _write_corrupt_meta(tmp_path)
+        with pytest.raises(MissionMetaReadError):
+            resolve_mission_identity(tmp_path)
+
+    def test_record_acceptance_missing_meta_still_raises_filenotfounderror(self, tmp_path: Path) -> None:
+        """Routing must not change the pre-existing missing-file contract."""
+        with pytest.raises(FileNotFoundError):
+            record_acceptance(tmp_path, accepted_by="claude", mode="auto")
+
+    def test_get_change_mode_missing_meta_still_returns_none(self, tmp_path: Path) -> None:
+        """get_change_mode's silent-on-missing contract is unchanged by routing."""
+        assert get_change_mode(tmp_path) is None
+
+    def test_resolve_mission_identity_missing_meta_still_tolerated(self, tmp_path: Path) -> None:
+        """resolve_mission_identity's silent-on-missing contract is unchanged."""
+        identity = resolve_mission_identity(tmp_path)
+        assert identity.mission_slug == tmp_path.name

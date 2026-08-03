@@ -166,10 +166,22 @@ def scan_load_meta_call_sites(src_root: Path) -> Counter[tuple[str, str]]:
 #   ``silent-by-contract`` — opted into the silent arm (``on_malformed="none"``
 #       / ``"empty"`` / ``load_meta_or_empty``). Corruption is INTENTIONALLY
 #       absorbed; the spec's Edge Cases require these stay unrouted.
-#   ``authority``          — the reader modules themselves: the canonical DEF A
-#       parser (``mission_metadata.py``), the one public fail-closed wrapper
-#       (``core/paths.py``), and the DEF B path adapter that delegates to DEF A.
-#       Routing these onto the wrapper would be circular.
+#   ``authority``          — the canonical parser/adapter definitions
+#       themselves: DEF A's ``def load_meta`` (``mission_metadata.py``), the
+#       one public fail-closed wrapper (``core/paths.py``), and the DEF B path
+#       adapter (``task_utils/support.py``) that delegates to DEF A. These are
+#       the reader, not a caller of it -- there is nothing to route.
+#       (Landing-fold correction, PR #3155 second-round accuracy review: this
+#       bucket used to also hold 11 of ``mission_metadata.py``'s own mutation
+#       helpers -- e.g. ``set_vcs_lock``, ``record_acceptance`` -- under the
+#       claim that "routing these onto the wrapper would be circular". That
+#       claim was refuted: ``core/paths.py``'s ``load_meta_fail_closed``
+#       already resolves the identical cycle via a documented deferred
+#       in-function import, so mirroring that pattern inside
+#       ``mission_metadata.py`` is not circular either. All 11 are now routed
+#       through ``load_meta_fail_closed`` and removed from this ledger --
+#       being colocated with the parser was never a real routing obstacle,
+#       just an unrouted site with an overbroad exemption.)
 #   ``pending-batch-a``    — a real routing target that is genuinely UNROUTED.
 #       Verified absent from BOTH ``tasks/WP08-meta-fail-closed-route-batch-a.md``
 #       and ``tasks/WP09-meta-fail-closed-route-batch-b.md``'s ``owned_files``
@@ -216,19 +228,17 @@ _ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/specify_cli/migration/backfill_runtime_state.py", "_mission_id"): (1, "silent-by-contract"),
     ("src/specify_cli/migration/backfill_runtime_state.py", "_synthesize_claim_anchor"): (1, "silent-by-contract"),
     ("src/specify_cli/migration/runtime_state_cutover.py", "stamp_accept_cutover"): (1, "silent-by-contract"),
-    ("src/specify_cli/mission_metadata.py", "clear_coordination_metadata"): (1, "authority"),
-    ("src/specify_cli/mission_metadata.py", "clear_merge_metadata"): (1, "authority"),
-    ("src/specify_cli/mission_metadata.py", "get_change_mode"): (1, "authority"),
-    ("src/specify_cli/mission_metadata.py", "load_meta_or_empty"): (1, "authority"),
-    ("src/specify_cli/mission_metadata.py", "load_meta_strict"): (1, "authority"),
-    ("src/specify_cli/mission_metadata.py", "record_acceptance"): (1, "authority"),
-    ("src/specify_cli/mission_metadata.py", "resolve_mission_identity"): (1, "authority"),
-    ("src/specify_cli/mission_metadata.py", "set_change_mode"): (1, "authority"),
-    ("src/specify_cli/mission_metadata.py", "set_documentation_state"): (1, "authority"),
-    ("src/specify_cli/mission_metadata.py", "set_origin_ticket"): (1, "authority"),
-    ("src/specify_cli/mission_metadata.py", "set_purpose_summary"): (1, "authority"),
-    ("src/specify_cli/mission_metadata.py", "set_target_branch"): (1, "authority"),
-    ("src/specify_cli/mission_metadata.py", "set_vcs_lock"): (1, "authority"),
+    # NOTE (landing-fold, PR #3155): the 11 mutation helpers formerly ledgered
+    # here as "authority" (clear_coordination_metadata, clear_merge_metadata,
+    # get_change_mode, record_acceptance, resolve_mission_identity,
+    # set_change_mode, set_documentation_state, set_origin_ticket,
+    # set_purpose_summary, set_target_branch, set_vcs_lock) are ROUTED now --
+    # they call load_meta_fail_closed via mission_metadata.py's own
+    # _require_meta()/_load_meta_fail_closed() helpers, not load_meta, so the
+    # live scan no longer finds them and their rows are correctly gone rather
+    # than stale.
+    ("src/specify_cli/mission_metadata.py", "load_meta_or_empty"): (1, "silent-by-contract"),
+    ("src/specify_cli/mission_metadata.py", "load_meta_strict"): (1, "silent-by-contract"),
     ("src/specify_cli/missions/_read_path_resolver.py", "_declares_coordination_branch"): (1, "silent-by-contract"),
     ("src/specify_cli/missions/_read_path_resolver.py", "read_primary_meta"): (2, "pending-batch-a"),
     ("src/specify_cli/missions/_resolve_planning_branch.py", "load_mission_target_branch"): (1, "pending-batch-a"),
