@@ -104,6 +104,19 @@ uv run spec-kitty charter synthesize
 uv run spec-kitty charter bundle validate
 ```
 
+**Symptom**: `spec-kitty dispatch` reports the request was "routed to the generic agent" instead
+of a specialist, on a project with no charter configured yet.
+
+**Fix**: apply a starter pack so there is a baseline of activated directives and profiles to
+route against:
+
+```bash
+uv run spec-kitty charter pack apply minimal
+```
+
+See [Quick baseline via a starter pack](setup-governance.md#quick-baseline-via-a-starter-pack) for
+the additive-merge and compile-step caveats.
+
 ---
 
 ## 3. Compact-context limitation

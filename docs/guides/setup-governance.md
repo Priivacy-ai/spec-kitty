@@ -237,6 +237,24 @@ built-in doctrine until a full synthesis run with agent-generated content comple
 resynthesis, provenance inspection, and recovery from a stale bundle, see
 [How to Synthesize and Maintain Doctrine](synthesize-doctrine.md).
 
+### Quick baseline via a starter pack
+
+If you'd rather start from a small curated baseline than write directives from scratch, apply a
+built-in charter pack instead of running the full interview:
+
+```bash
+spec-kitty charter pack apply minimal
+```
+
+`charter pack apply` merges the pack's activation keys into `.kittify/config.yaml`. This is
+additive by default — a key already present (even one you deliberately set empty) is left
+untouched; pass `--force` to overwrite it. Two honest caveats: activating config entries does not
+by itself guarantee an unmatched `spec-kitty dispatch` routes to a specialist profile — you may
+still need `--profile <profile-id>` to be explicit — and the activations need a compile step
+(`spec-kitty charter generate --no-from-interview`, or `apply --compile` to chain it
+automatically) before they fully render into `.kittify/charter/charter.yaml` (see issue #3105 in
+the project issue tracker; check that issue for current resolution status).
+
 ## Step 5: Confirm Governance Is Active
 
 Your charter is active once `spec-kitty charter status` reports no drift after synthesis. From
