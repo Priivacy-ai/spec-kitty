@@ -551,7 +551,7 @@ def _live_keys() -> set[CharterPathKey]:
 # WP11 AFTER the WP01/WP02/WP03/WP06 repoints landed, so the frozen set is the
 # minimal residual and not a stale pre-drain snapshot.
 # --------------------------------------------------------------------------- #
-CHARTER_PATH_LITERAL_FLOOR = 50
+CHARTER_PATH_LITERAL_FLOOR = 47
 FLOOR_MARGIN = 2
 
 

@@ -22,6 +22,8 @@ import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from charter.bundle import CHARTER_YAML
+
 from ._profile_health_render import _SELECTION_KIND_PLURALS
 
 logger = logging.getLogger(__name__)
@@ -743,7 +745,7 @@ def _read_project_selections(repo_root: Path) -> dict[str, list[str]]:
     git-independent. Missing/malformed YAML degrades to empty lists.
     """
     selections: dict[str, list[str]] = {kind: [] for kind in _SELECTION_KIND_PLURALS}
-    charter_yaml = repo_root / ".kittify" / "charter" / "charter.yaml"
+    charter_yaml = repo_root / CHARTER_YAML
     if not charter_yaml.exists():
         return selections
     try:

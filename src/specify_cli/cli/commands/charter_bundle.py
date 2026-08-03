@@ -25,6 +25,7 @@ from specify_cli.cli.console import err_console
 
 from charter.bundle import (
     CANONICAL_MANIFEST,
+    CHARTER_YAML,
     BundleValidationResult,
     CharterBundleManifest,
     validate_synthesis_state,
@@ -360,7 +361,7 @@ def validate(
     # bundle_schema_version``). Gate the compatibility check on ``charter.yaml``
     # so an incompatible bundle is still caught — keying off the now-retired
     # ``metadata.yaml`` would silently skip the check for every v2 bundle.
-    if (charter_dir / "charter.yaml").exists():
+    if (canonical_root / CHARTER_YAML).exists():
         compatibility_error = _bundle_compatibility_error(charter_dir)
 
     manifest = CANONICAL_MANIFEST

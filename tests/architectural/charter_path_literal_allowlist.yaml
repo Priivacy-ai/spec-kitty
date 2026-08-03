@@ -22,7 +22,7 @@
 # delete the entry AND lower CHARTER_PATH_LITERAL_FLOOR + this baseline to the
 # new honest census. FRESHEN PROCEDURE (a legitimate edit moved the token):
 # re-run the gate; the stale entry is reported with its live token — copy it in.
-charter_path_literal_baseline: 50
+charter_path_literal_baseline: 47
 
 charter_path_literals:
 - file: src/charter/compiler.py
@@ -95,13 +95,6 @@ charter_path_literals:
   clause: "a"
   token: "_CHARTER_YAML_FILENAME ="
   rationale: "Deliberate non-import documented in place: importing charter.bundle.BUNDLE_CONTENT_HASH_FILES here would invert the charter->specify_cli dependency direction; test_bundle_file_lists_stay_in_sync pins the two tuples equal instead."
-- file: src/specify_cli/cli/commands/_doctrine_collect.py
-  qualname: _read_project_selections
-  line: 746
-  literal: "charter.yaml"
-  clause: "a"
-  token: "charter_yaml = repo_root / / /"
-  rationale: "C-001-COMPLIANT authority gate (keys on charter.yaml, IC-04/WP04) that still builds the path inline; repointable onto charter.bundle.CHARTER_YAML in a follow-on, but not an FR-016 authority violation."
 - file: src/specify_cli/cli/commands/charter/_app.py
   qualname: <module>
   line: 39
@@ -158,20 +151,6 @@ charter_path_literals:
   clause: "a"
   token: "charter_path = charter_dir /"
   rationale: "Second prose-write path in the same command (regeneration branch); same C-003 writer rationale as :325."
-- file: src/specify_cli/cli/commands/charter/synthesize.py
-  qualname: charter_synthesize
-  line: 173
-  literal: "charter.yaml"
-  clause: "a"
-  token: "charter_yaml = repo_root / / /"
-  rationale: "C-001-COMPLIANT fresh-project signal keyed on charter.yaml (the canonical signal after generate stopped emitting charter.md); repointable onto CHARTER_YAML in a follow-on, not an authority violation."
-- file: src/specify_cli/cli/commands/charter_bundle.py
-  qualname: validate
-  line: 363
-  literal: "charter.yaml"
-  clause: "a"
-  token: "if ( charter_dir / ) . exists ( ) :"
-  rationale: "C-001-COMPLIANT compatibility gate keyed on charter.yaml (consolidate-charter-bundle WP07) against a canonical_root-relative charter_dir the caller supplies; repointable, not an authority violation."
 - file: src/specify_cli/invocation/empty_charter.py
   qualname: <module>
   line: 60

@@ -11,6 +11,7 @@ import json
 from typing import Any
 
 import typer
+from charter.bundle import CHARTER_YAML
 from kernel.errors import KittyInternalConsistencyError
 from rich.console import Console
 from specify_cli.cli.console import err_console
@@ -170,7 +171,7 @@ def charter_synthesize(  # noqa: C901
         # charter.yaml is the canonical fresh-project signal; when it is absent
         # we fall through to the existing pipeline so callers that mock
         # charter.synthesizer.synthesize keep their established behaviour.
-        charter_yaml = repo_root / ".kittify" / "charter" / "charter.yaml"
+        charter_yaml = repo_root / CHARTER_YAML
         is_fresh_project_synthesize = (
             adapter == "generated"
             and not _has_generated_artifacts(repo_root)
