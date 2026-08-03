@@ -22,7 +22,7 @@
 # delete the entry AND lower CHARTER_PATH_LITERAL_FLOOR + this baseline to the
 # new honest census. FRESHEN PROCEDURE (a legitimate edit moved the token):
 # re-run the gate; the stale entry is reported with its live token — copy it in.
-charter_path_literal_baseline: 47
+charter_path_literal_baseline: 50
 
 charter_path_literals:
 - file: src/charter/compiler.py
@@ -373,3 +373,24 @@ charter_path_literals:
   clause: "b"
   token: "if charter_path . exists ( ) :"
   rationale: "Function's own docstring: 'Per C-001, charter.md stays a readable secondary prose source and is never retargeted to charter.yaml' -- callers needing a presence signal instead use resolve_project_charter_presence above."
+- file: src/specify_cli/retrospective/gate.py
+  qualname: _charter_authorizes_autonomous_skip
+  line: 147
+  literal: "charter.md"
+  clause: "b"
+  token: "if not charter_path . exists ( ) :"
+  rationale: "#3163: now imports charter.bundle.CHARTER_MD directly (previously masked by a second-level private alias, policy._CHARTER_REL). Reads the 'autonomous_allow_skip' frontmatter key, which has no counterpart in charter.yaml's RetrospectiveGovernance schema (FR-005a scope), so this existence check gates readability of that key, not project-level charter presence (C-001)."
+- file: src/specify_cli/retrospective/mode.py
+  qualname: _read_charter_mode
+  line: 136
+  literal: "charter.md"
+  clause: "b"
+  token: "if not charter_path . exists ( ) :"
+  rationale: "#3163: now imports charter.bundle.CHARTER_MD directly (previously masked by a second-level private alias, policy._CHARTER_REL). Reads the top-level 'mode:' frontmatter key, which has no counterpart in charter.yaml's RetrospectiveGovernance schema (FR-005a scope), so this existence check gates readability of that key, not project-level charter presence (C-001)."
+- file: src/specify_cli/retrospective/policy.py
+  qualname: _load_charter_retrospective_block
+  line: 253
+  literal: "charter.md"
+  clause: "b"
+  token: "if not charter_path . exists ( ) :"
+  rationale: "#3163: now imports charter.bundle.CHARTER_MD directly (previously masked by a second-level private alias, policy._CHARTER_REL). This is the readable-secondary loader in the yaml-first precedence chain (FR-005c); charter.yaml's own loader (_load_charter_yaml_retrospective_block) is the presence/config authority and is checked independently."
