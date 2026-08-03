@@ -573,3 +573,62 @@ def test_versioning_does_not_import_charter() -> None:
                     assert not alias.name.startswith("charter"), (
                         f"doctrine.versioning imports charter: {alias.name}"
                     )
+
+
+def test_versioning_charter_filename_literals_match_charter_bundle() -> None:
+    """doctrine.versioning's hardcoded "charter.yaml"/"charter.md" filename
+    literals must stay byte-for-byte in sync with charter.bundle's canonical
+    CHARTER_YAML/CHARTER_MD constants.
+
+    doctrine.versioning cannot import charter.bundle directly (PERMANENT
+    layering exception recorded in
+    tests/architectural/charter_path_literal_allowlist.yaml for the
+    get_bundle_schema_version and migrate_v1_to_v2 sites -- see
+    test_versioning_does_not_import_charter above), so its filename literals
+    are a second, independent copy of the same "charter.yaml"/"charter.md"
+    names charter.bundle owns canonically. Nothing kept those two copies
+    equal. This test replicates the same cross-boundary sync pattern already
+    used by test_bundle_file_lists_stay_in_sync
+    (tests/specify_cli/charter_freshness/test_computer.py) for
+    charter_runtime/freshness/computer.py's own doctrine-adjacent literal:
+    only the TEST is allowed to import both sides of the boundary; the
+    product code under test never does.
+
+    Self-mutation proof: renaming charter.bundle.CHARTER_YAML/CHARTER_MD's
+    filename (e.g. "charter.yaml" -> "charter.yml") without updating the
+    matching literal(s) hardcoded in src/doctrine/versioning.py turns this
+    red.
+    """
+    import ast
+    import inspect
+
+    import doctrine.versioning
+    from charter.bundle import CHARTER_MD, CHARTER_YAML
+
+    source = inspect.getsource(doctrine.versioning)
+    tree = ast.parse(source)
+    literals_found = {
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
+        and node.value in {"charter.yaml", "charter.md"}
+    }
+
+    assert literals_found, (
+        "doctrine.versioning no longer contains any 'charter.yaml'/'charter.md' "
+        "string literal. If versioning.py was refactored to remove the "
+        "permanent-layering literal entirely, the two src/doctrine/versioning.py "
+        "entries in tests/architectural/charter_path_literal_allowlist.yaml "
+        "should be drained too."
+    )
+
+    canonical_names = {CHARTER_YAML.name, CHARTER_MD.name}
+    stale = literals_found - canonical_names
+    assert not stale, (
+        f"doctrine.versioning hardcodes filename literal(s) {sorted(stale)} that "
+        f"no longer match charter.bundle's canonical basenames "
+        f"{sorted(canonical_names)}. PERMANENT (layering): doctrine.versioning "
+        "cannot import charter.bundle to fix this automatically -- update the "
+        "hardcoded literal(s) in src/doctrine/versioning.py to match the rename."
+    )
