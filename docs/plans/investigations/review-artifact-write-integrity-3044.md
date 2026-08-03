@@ -1,6 +1,6 @@
 ---
 title: 'Review-artifact integrity (#3044): the topology-seam connection is historical, the open gap is a missing writer'
-description: 'Dialectic-squad-corroborated pre-spec research testing whether #3044''s review-artifact-integrity cluster (#2275, #2996, #990) belongs to the read/write topology-seam defect class; code-verified answer and a scoped remediation seed for a future mission.'
+description: 'Pre-spec research testing whether #3044''s review-artifact-integrity cluster (#2275, #2996, #990) is a topology-seam defect; code-verified answer plus a scoped remediation seed.'
 doc_status: draft
 updated: '2026-08-02'
 related:
