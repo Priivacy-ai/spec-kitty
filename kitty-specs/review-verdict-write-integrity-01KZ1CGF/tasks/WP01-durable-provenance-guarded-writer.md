@@ -10,6 +10,9 @@ requirement_refs:
 planning_base_branch: research/3044-review-artifact-topology-seam
 merge_target_branch: research/3044-review-artifact-topology-seam
 branch_strategy: Planning artifacts for this mission were generated on research/3044-review-artifact-topology-seam. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into research/3044-review-artifact-topology-seam unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-review-verdict-write-integrity-01KZ1CGF
+base_commit: c68831beae22e94ee40aeba894a238be795bb5b0
+created_at: '2026-08-02T19:14:31.824204+00:00'
 subtasks:
 - T001
 - T002
@@ -216,3 +219,4 @@ code action for FR-004 in this WP; do not look for one.
 Use: `spec-kitty agent tasks move-task WP01 --to <lane> --note "message"`
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
+- 2026-08-02T19:52:57Z – claude – shell_pid=1514967 – Integration verification (mandatory step) found a genuine pre-existing gap OUT OF WP01 scope: tasks_transition_core.py's _guard_rejected_verdict still refuses plain 'move-task --to approved' when the latest artifact is rejected, unless --skip-review-artifact-check is passed -- so the CLI's ordinary reject-fix-approve path never reaches this WP's new writer. Confirmed via tests/integration/test_review_cycle_rejection_only.py::test_approving_a_rejected_wp_writes_no_verdict_artifact, which is RED both before and after this WP's changes (same assertion, same failure) -- i.e. pre-existing baseline-red (CLAUDE.md category 1), not a regression introduced here. Root cause is tasks_transition_core.py (not in WP01's owned_files) and an existing pinned regression test (test_rejected_verdict_without_skip_refuses in tests/specify_cli/cli/commands/agent/test_tasks_transition_core.py) asserts the OPPOSITE of what spec.md's Acceptance Scenario 1 / SC-002 require, so resolving this needs an explicit scope/design decision, not a silent guard rewrite by this WP. All of WP01's own T001-T007 deliverables are verified correct via direct-writer tests (mirroring WP02's own T008 guidance to prefer calling create_rejected_review_cycle directly over the CLI path for exactly this reason). Recommend a follow-up WP/mission amendment to reconcile the guard with FR-001's intent before merge is considered fully done end-to-end.

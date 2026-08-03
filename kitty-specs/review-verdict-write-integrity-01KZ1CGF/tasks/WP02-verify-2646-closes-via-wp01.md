@@ -7,6 +7,9 @@ requirement_refs:
 planning_base_branch: research/3044-review-artifact-topology-seam
 merge_target_branch: research/3044-review-artifact-topology-seam
 branch_strategy: Planning artifacts for this mission were generated on research/3044-review-artifact-topology-seam. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into research/3044-review-artifact-topology-seam unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-review-verdict-write-integrity-01KZ1CGF
+base_commit: c68831beae22e94ee40aeba894a238be795bb5b0
+created_at: '2026-08-02T19:25:00.920774+00:00'
 subtasks:
 - T008
 - T009
@@ -176,3 +179,5 @@ Read these in full before starting:
 Use: `spec-kitty agent tasks move-task WP02 --to <lane> --note "message"`
 
 **Valid lanes**: `planned`, `doing`, `for_review`, `done`
+- 2026-08-02T20:49:00Z – claude – shell_pid=1521627 – T009 result: PASS -- zero status.py diff. Coord-topology fixture driven through WP01's real create_rejected_review_cycle writer (reject then approve, both committed via RealCoordCommitRouter); show_kanban_status reports WP01 lane=approved, stale_verdicts=[] with no coord-authority split reached (tasks_dir resolves PRIMARY-only via WORK_PACKAGE_TASK kind for both topologies). Flat-topology neutrality control also PASSED. T010 does NOT activate; src/specify_cli/agent_utils/status.py has zero changes in this WP.
+- 2026-08-02T20:55:17Z – claude – shell_pid=1521627 – T010 closed as a designed no-op: T009's verification PASSED (see antecedent Activity Log entry), so per this WP's own binding constraint T010's trace/fix steps were correctly never performed. src/specify_cli/agent_utils/status.py has zero diff in this WP's commits -- checking T010's box here reflects a completed GATE EVALUATION (T009 passed => T010 out of scope), not completed fix work.
