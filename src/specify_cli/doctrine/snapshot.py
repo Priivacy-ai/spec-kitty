@@ -140,10 +140,14 @@ def write_snapshot(
             errors=[str(exc)],
         )
 
-    if not _has_recognised_artifacts(validate_root):
+    if not _has_recognised_artifacts(validate_root) and not _has_recognised_artifacts(
+        tmp_dir
+    ):
         shutil.rmtree(tmp_dir, ignore_errors=True)
         location = (
-            f" at subdir {subdir!r}" if subdir else " at the snapshot root"
+            f" at subdir {subdir!r} or the snapshot root"
+            if subdir
+            else " at the snapshot root"
         )
         return FetchResult(
             ok=False,
@@ -181,9 +185,12 @@ def write_snapshot(
         if old_dir is not None and old_dir.exists():
             shutil.rmtree(old_dir, ignore_errors=True)
 
-    # Manifest lands at the effective root so ``doctor doctrine`` (which
-    # resolves via ``effective_root``) finds ``pack_version`` / counts.
+    # Manifest prefers the effective root (doctor / FR-007). When subdir is
+    # wrong or empty the effective root has no artifacts — still promote the
+    # clone (SC-003 reports 0) and write the manifest at the clone root.
     manifest_root = _resolve_snapshot_validate_root(local_path, subdir)
+    if not _has_recognised_artifacts(manifest_root):
+        manifest_root = local_path
     write_pack_manifest(
         manifest_root,
         result,

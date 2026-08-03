@@ -255,6 +255,36 @@ class TestWriteSnapshot:
         assert any("No artifact directories" in err for err in result.errors)
         assert not local_path.exists()
 
+    def test_wrong_subdir_promotes_and_reports_via_fetch_pack(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """FR-007 / SC-003: wrong subdir still promotes; count at effective is 0."""
+        from specify_cli.doctrine.config import OrgPackConfig
+
+        pack = OrgPackConfig(
+            name="acme",
+            local_path=tmp_path / "pack-store",
+            source_type="https",
+            url="https://example.com/pack.tar.gz",
+            subdir="nonexistent-subdir",
+        )
+
+        source = _ScriptedSource(
+            layout=_populate_valid_pack,
+            result=FetchResult(ok=True, artifacts_written=2, pack_version=None),
+        )
+        monkeypatch.setattr(
+            "specify_cli.doctrine.snapshot._build_source", lambda _pack: source
+        )
+
+        result = fetch_pack(pack, tmp_path)
+
+        assert result.ok is True
+        assert result.artifacts_written == 0
+        assert (tmp_path / "pack-store" / "directives").is_dir()
+        assert (tmp_path / "pack-store" / "pack-manifest.yaml").is_file()
+        assert not (tmp_path / "pack-store" / "nonexistent-subdir").exists()
+
     def test_fetch_pack_passes_subdir_to_write_snapshot(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
