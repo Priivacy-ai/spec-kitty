@@ -322,16 +322,23 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   every ordinary reject → fix → approve cycle. Separately, the rejection
   writer accepted any file as "feedback" without checking it wasn't itself a
   prior cycle's own review artifact (by path or by a renamed copy), so a
-  mistaken or malicious re-submission could silently duplicate an old review
-  under fresh, fabricated frontmatter. Neither writer ever git-committed its
-  output under any topology, so even a successful write could land untracked.
-  Now: approving a rejected WP through the normal path persists and commits a
-  real `verdict: approved` review-cycle artifact with a genuine reviewer
-  identity; the override flag still works for actual arbiter decisions but is
-  no longer *needed* for an ordinary approval; a rejection's feedback source
-  is refused if it's the same or a duplicate of a prior cycle's own artifact;
-  and every review-cycle write (either verdict) is committed, surfacing a
-  clear error if the commit itself fails rather than silently discarding it.
+  mistaken re-submission (a reviewer accidentally re-pasting the same feedback
+  text) could silently duplicate an old review under fresh, fabricated
+  frontmatter. Neither writer ever git-committed its output under any
+  topology, so even a successful write could land untracked. Now: approving a
+  rejected WP through the normal path persists and commits a real
+  `verdict: approved` review-cycle artifact with a genuine reviewer identity;
+  the override flag still works for actual arbiter decisions but is no longer
+  *needed* for an ordinary approval; a rejection's feedback source is refused
+  if it's the same or a duplicate of a prior cycle's own artifact (a check
+  that a deliberate one-character edit still defeats — it targets accidental
+  duplication, not a determined actor); and both `move-task` write paths now
+  commit their review-cycle artifact when auto-commit is resolved on
+  (`--auto-commit`, or `auto_commit: true`/default in `.kittify/config.yaml`),
+  surfacing a clear error if the commit itself fails rather than silently
+  discarding it. Under `--no-auto-commit`, or with `auto_commit: false`
+  configured, the write still lands but is not committed. A third writer,
+  `_persist_review_feedback`, does not yet thread a commit router at all.
   `agent tasks status`'s stale-verdict display (`#2646`) is confirmed to close
   as a side effect of the durable writer, with no separate code change needed.
 - **Applying a charter pack no longer leaves your project worse off than doing
