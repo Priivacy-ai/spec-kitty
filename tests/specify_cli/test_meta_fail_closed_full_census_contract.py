@@ -170,9 +170,12 @@ def scan_load_meta_call_sites(src_root: Path) -> Counter[tuple[str, str]]:
 #       parser (``mission_metadata.py``), the one public fail-closed wrapper
 #       (``core/paths.py``), and the DEF B path adapter that delegates to DEF A.
 #       Routing these onto the wrapper would be circular.
-#   ``pending-batch-a``    — a real routing target owned by WP08's parallel
-#       lane (research.md D5 splits the census by subsystem). Out of WP09's
-#       scope; enumerated here so it is ACCOUNTED FOR rather than invisible.
+#   ``pending-batch-a``    — a real routing target that is genuinely UNROUTED.
+#       Verified absent from BOTH ``tasks/WP08-meta-fail-closed-route-batch-a.md``
+#       and ``tasks/WP09-meta-fail-closed-route-batch-b.md``'s ``owned_files``
+#       lists — neither WP claimed these files, so #3140's closure does not
+#       cover this bucket. Tracked as follow-up issue #3162, not yet routed.
+#       Enumerated here so it is ACCOUNTED FOR rather than invisible.
 #
 # MAINTENANCE: this ledger is checked for exact equality against the live scan.
 # If you ROUTE a site, DELETE its row. If you ADD a legitimate new reader,
