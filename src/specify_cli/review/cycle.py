@@ -410,7 +410,8 @@ def create_rejected_review_cycle(
     mission_slug: str,
     wp_id: str,
     wp_slug: str,
-    feedback_source: Path,
+    feedback_source: Path | None = None,
+    body: str | None = None,
     reviewer_agent: str = "unknown",
     affected_files: list[dict[str, str]] | None = None,
     verdict: Literal["approved", "rejected"] = "rejected",
@@ -424,15 +425,29 @@ def create_rejected_review_cycle(
     capability keep today's write-only, uncommitted behavior. The production
     ``move-task`` call site MUST supply it — T004/#2697 durability is only
     real when the caller opts in.
-    """
-    if not feedback_source.exists():
-        raise ReviewCycleError(f"Review feedback file not found: {feedback_source}")
-    if not feedback_source.is_file():
-        raise ReviewCycleError(f"Review feedback path is not a file: {feedback_source}")
 
-    body = feedback_source.read_text(encoding="utf-8")
-    if not body.strip():
-        raise ReviewCycleError(f"Review feedback file is empty: {feedback_source}")
+    Exactly one of ``feedback_source`` / ``body`` must be supplied:
+
+    * ``feedback_source`` — a real, caller-supplied reviewer-feedback file.
+      Routes through :func:`_guard_feedback_source_provenance` (path- AND
+      content-identity checks) because this is the shape #990/#2996(b) guard
+      against: a reviewer accidentally or maliciously re-submitting a prior
+      cycle's own artifact as "new" feedback.
+    * ``body`` — a body the CALLER ITSELF generated (e.g. the machine's
+      synthesized ``"Approved by {reviewer}: {reference}"`` approval note).
+      Bypasses the provenance guard entirely: a self-generated body is
+      categorically not the attack the guard exists to refuse, and routing
+      it through the content-identity arm produces a false collision when
+      the same deterministic inputs (reviewer, ``--note``) repeat across
+      cycles (M1 — adversarial squad finding on PR #3156). There is no
+      on-disk file to path-check either, so the path-identity arm is moot
+      for this leg.
+    """
+    if (feedback_source is None) == (body is None):
+        raise ReviewCycleError(
+            "create_rejected_review_cycle requires exactly one of "
+            "feedback_source or body"
+        )
 
     safe_mission_slug = _validate_segment("mission_slug", mission_slug)
     safe_wp_slug = _validate_segment("wp_slug", wp_slug)
@@ -444,9 +459,26 @@ def create_rejected_review_cycle(
     # dir), from this one edit.
     sub_artifact_dir = _review_cycle_wp_dir(main_repo_root, safe_mission_slug, safe_wp_slug)
 
-    _guard_feedback_source_provenance(
-        feedback_source=feedback_source, body=body, sub_artifact_dir=sub_artifact_dir
-    )
+    if feedback_source is not None:
+        if not feedback_source.exists():
+            raise ReviewCycleError(f"Review feedback file not found: {feedback_source}")
+        if not feedback_source.is_file():
+            raise ReviewCycleError(
+                f"Review feedback path is not a file: {feedback_source}"
+            )
+        resolved_body = feedback_source.read_text(encoding="utf-8")
+        if not resolved_body.strip():
+            raise ReviewCycleError(f"Review feedback file is empty: {feedback_source}")
+        _guard_feedback_source_provenance(
+            feedback_source=feedback_source,
+            body=resolved_body,
+            sub_artifact_dir=sub_artifact_dir,
+        )
+    else:
+        assert body is not None
+        if not body.strip():
+            raise ReviewCycleError("Review feedback body is empty")
+        resolved_body = body
 
     cycle_n = ReviewCycleArtifact.next_cycle_number(sub_artifact_dir)
     filename = _validate_review_cycle_filename(f"review-cycle-{cycle_n}.md")
@@ -469,7 +501,7 @@ def create_rejected_review_cycle(
         verdict=verdict,
         reviewed_at=datetime.now(UTC).strftime(UTC_SECOND_TIMESTAMP_FORMAT),
         affected_files=parsed_affected,
-        body=body,
+        body=resolved_body,
     )
     validate_review_artifact(artifact)
 

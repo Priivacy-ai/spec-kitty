@@ -44,7 +44,6 @@ from __future__ import annotations
 
 import contextlib
 import logging
-import tempfile
 import traceback
 import warnings
 from collections.abc import Callable, Mapping
@@ -1737,33 +1736,26 @@ def _mt_finalize_plan(st: _MoveTaskState, ports: TasksPorts) -> None:
         approval_reference = (
             st.approval_ref or st.note_text or f"approval:{st.task_id}"
         ).strip() or f"approval:{st.task_id}"
-        # ``create_rejected_review_cycle`` reads its artifact body from a real
-        # feedback_source file (unchanged contract for both verdicts) — there
-        # is no ``--review-feedback-file`` equivalent for approvals, so a
-        # small throwaway note recording the approval decision is synthesized
-        # here and deleted immediately after the write.
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            suffix=".md",
-            prefix="review-cycle-approval-",
-            delete=False,
-            encoding="utf-8",
-        ) as handle:
-            handle.write(f"Approved by {reviewer_agent}: {approval_reference}\n")
-            feedback_source = Path(handle.name)
-        try:
-            create_rejected_review_cycle(
-                main_repo_root=st.main_repo_root,
-                mission_slug=st.mission_slug,
-                wp_id=st.task_id,
-                wp_slug=wp_slug,
-                feedback_source=feedback_source,
-                reviewer_agent=reviewer_agent,
-                verdict="approved",
-                commit_router=ports.coord if st.resolved_auto_commit else None,
-            )
-        finally:
-            feedback_source.unlink(missing_ok=True)
+        # M1 (adversarial squad, PR #3156): the approval body is synthesized
+        # by THIS caller, not supplied by a reviewer — pass it via ``body=``
+        # rather than a throwaway ``feedback_source`` file. This both drops
+        # the tempfile dance entirely and keeps the write off
+        # ``_guard_feedback_source_provenance``'s content-identity arm, which
+        # exists to police externally-supplied feedback files (#990/#2996(b))
+        # and produces a false collision here: a repeated ``--note "Review
+        # passed"`` approval synthesizes the SAME deterministic body every
+        # time, which used to be indistinguishable from a reviewer replaying
+        # a prior cycle's content.
+        create_rejected_review_cycle(
+            main_repo_root=st.main_repo_root,
+            mission_slug=st.mission_slug,
+            wp_id=st.task_id,
+            wp_slug=wp_slug,
+            body=f"Approved by {reviewer_agent}: {approval_reference}\n",
+            reviewer_agent=reviewer_agent,
+            verdict="approved",
+            commit_router=ports.coord if st.resolved_auto_commit else None,
+        )
 
     if decision.planned_rollback and st.resolved_feedback_source is not None:
         from specify_cli.review.cycle import create_rejected_review_cycle
