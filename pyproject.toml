@@ -141,6 +141,17 @@ allow-direct-references = true
 packages = ["src/kernel", "src/glossary", "src/mission_runtime", "src/runtime", "src/specify_cli", "src/doctrine", "src/charter"]
 exclude = [
     "src/specify_cli/**/tests/**",
+    # Build-tooling debris, not runtime code: src/doctrine/hatch_build.py imports
+    # hatchling (a build-time-only dependency) to power the NESTED
+    # src/doctrine/pyproject.toml's standalone-wheel build hook (see that
+    # file's own [tool.hatch.build.targets.wheel] comment); it has no runtime
+    # caller. The two nested src/*/pyproject.toml manifests describe the
+    # dormant kernel/doctrine wheel groundwork (docs/adr/3.x/2026-08-02-1-
+    # charter-wheel-assessment.md) and are themselves package metadata, never
+    # imported. Shipping either inside the runtime wheel is pure packaging
+    # pollution for every consumer of `spec-kitty-cli` (#3163).
+    "src/doctrine/hatch_build.py",
+    "src/*/pyproject.toml",
 ]
 # Include all non-Python files (templates, configs, etc.)
 # Runtime command templates are package assets under specify_cli/missions;

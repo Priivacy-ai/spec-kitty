@@ -87,6 +87,34 @@ def test_wheel_contains_only_known_packages(build_artifacts: dict[str, Path]) ->
 
 
 @pytest.mark.slow
+def test_wheel_excludes_build_only_files(build_artifacts: dict[str, Path]) -> None:
+    """Build-tooling files must never ship inside the runtime wheel (#3163).
+
+    ``src/doctrine/hatch_build.py`` imports ``hatchling`` -- a build-time-only
+    dependency, not a runtime one -- to power the NESTED
+    ``src/doctrine/pyproject.toml`` standalone-wheel build hook (see
+    tests/architectural/test_doctrine_wheel_closure.py for that dormant,
+    not-yet-built package). The two nested ``src/kernel/pyproject.toml`` and
+    ``src/doctrine/pyproject.toml`` manifests are themselves package metadata
+    for that dormant groundwork, never imported at runtime. Before the root
+    pyproject.toml's wheel ``exclude`` list covered these paths, all three
+    landed in every ``spec-kitty-cli`` consumer's site-packages as pure
+    packaging debris.
+    """
+    wheel_path = build_artifacts["wheel"]
+
+    with zipfile.ZipFile(wheel_path) as zf:
+        all_files = set(zf.namelist())
+
+    offending = sorted(
+        name
+        for name in all_files
+        if name in {"doctrine/hatch_build.py", "doctrine/pyproject.toml", "kernel/pyproject.toml"}
+    )
+    assert not offending, f"Build-only files leaked into the runtime wheel: {offending}"
+
+
+@pytest.mark.slow
 def test_sdist_contains_no_kittify_paths(build_artifacts: dict[str, Path]) -> None:
     """Verify sdist doesn't contain .kittify/ runtime paths."""
     sdist_path = build_artifacts["sdist"]
