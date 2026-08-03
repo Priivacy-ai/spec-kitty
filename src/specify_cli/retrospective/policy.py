@@ -353,6 +353,38 @@ def _charter_yaml_error(reason: str, detail: str) -> PolicyResolutionError:
     )
 
 
+#: pydantic error ``type`` codes that represent a genuine bad-enum-value
+#: error (an operator-authored string that isn't one of the ``Literal``'s
+#: permitted values) -- as opposed to a structural type mismatch (e.g. a list
+#: where a bool was expected).  Kept narrow and explicit rather than a
+#: catch-all so a new pydantic error type defaults to the safer
+#: ``invalid_type`` classification instead of silently being treated as an
+#: enum error.
+_ENUM_VALIDATION_ERROR_TYPES: frozenset[str] = frozenset({"literal_error", "enum"})
+
+
+def _reason_for_validation_error(exc: ValidationError) -> str:
+    """Classify a pydantic ``ValidationError`` into this module's reason vocabulary.
+
+    Every :class:`~charter.schemas.RetrospectiveGovernance` field is a
+    ``Literal`` or ``bool``, so a raw pydantic error type is either
+    ``"literal_error"`` (an operator typo'd the enum value, e.g.
+    ``failure_policy: explode``) or a structural type mismatch such as
+    ``"bool_type"`` (e.g. ``enabled: [1, 2]``).  Previously *every*
+    ``ValidationError`` was mapped to ``reason="invalid_enum"`` regardless of
+    which kind occurred, which gives a caller/UI branching on ``reason`` the
+    same machine-readable code for two unrelated failure classes (#3163).
+
+    Returns ``"invalid_enum"`` only when *every* underlying pydantic error is
+    enum-related; any other error type -- alone or mixed in with enum errors
+    -- yields ``"invalid_type"`` so the more general failure is not masked.
+    """
+    error_types = {error["type"] for error in exc.errors()}
+    if error_types and error_types <= _ENUM_VALIDATION_ERROR_TYPES:
+        return "invalid_enum"
+    return "invalid_type"
+
+
 def _load_charter_yaml_retrospective_block(
     repo_root: Path,
 ) -> tuple[dict[str, object] | None, PolicyResolutionError | None]:
@@ -413,7 +445,8 @@ def _load_charter_yaml_retrospective_block(
     try:
         model = RetrospectiveGovernance.model_validate(raw_block)
     except ValidationError as exc:
-        return None, _charter_yaml_error("invalid_enum", _format_validation_error(exc))
+        reason = _reason_for_validation_error(exc)
+        return None, _charter_yaml_error(reason, _format_validation_error(exc))
 
     return _authored_keys_only(model), None
 
