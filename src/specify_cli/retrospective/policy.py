@@ -846,6 +846,15 @@ def resolve_policy(
         if _charter_yaml_mentions_retrospective(repo_root / CHARTER_YAML):
             _mark_source_map_error(source_map, str(CHARTER_YAML))
             raise yaml_error
+        _log.warning(
+            "Discarding a %s parse error ([%s] %s) because the file does "
+            "not mention a retrospective block; falling through to %s / "
+            "config / defaults instead of raising (#3163).",
+            CHARTER_YAML,
+            yaml_error.reason,
+            yaml_error.detail,
+            CHARTER_MD,
+        )
         yaml_block, yaml_error = None, None
 
     # ------------------------------------------------------------------
@@ -942,7 +951,7 @@ def _mark_source_map_error(source_map: dict[str, str], source: str) -> None:  # 
 #: Literal substring used by :func:`_charter_yaml_mentions_retrospective` --
 #: kept as a named constant rather than an inline literal in the two spots
 #: that need it (the docstring example and the check itself).
-_RETROSPECTIVE_KEY_BYTES = b"retrospective"
+_RETROSPECTIVE_KEY = "retrospective"
 
 
 def _charter_yaml_mentions_retrospective(charter_yaml_path: Path) -> bool:
@@ -966,12 +975,59 @@ def _charter_yaml_mentions_retrospective(charter_yaml_path: Path) -> bool:
     heuristic that only ever *widens* which malformed files still raise, it
     never narrows the existing yaml-wins-on-conflict guarantee for a file
     that does carry retrospective content.
+
+    Non-UTF-8 encodings (landing-fold follow-up to #3163, second-round
+    adversarial review): a ``charter.yaml`` written by, e.g., Windows
+    PowerShell's ``Out-File``/``>`` redirection (which defaults to UTF-16
+    with a byte-order mark) fails outright when decoded as UTF-8 -- the BOM
+    (``\\xff\\xfe`` / ``\\xfe\\xff``) is not a valid UTF-8 start byte. The
+    original implementation searched for the literal ASCII bytes
+    ``b"retrospective"`` directly in the raw bytes, which a UTF-16/UTF-32
+    file NEVER contains even when it carries a real
+    ``governance.retrospective:`` block: every character is interleaved with
+    a NUL byte (``r\\x00e\\x00t\\x00...``), so the contiguous ASCII substring
+    never appears. That silently discarded a charter.yaml parse error for a
+    file that DID carry retrospective config -- directly contradicting this
+    function's "provably unrelated" guarantee. A decode failure is therefore
+    treated as "cannot prove unrelated" and fails closed (returns ``True``,
+    so the caller's yaml error still raises) instead of silently falling
+    through to ``charter.md``.
+
+    A BOM-less UTF-16/UTF-32 encoding is a subtler case: its NUL-interleaved
+    bytes often decode successfully as UTF-8 (NUL and ASCII bytes are both
+    valid single-byte UTF-8 code points), just as a string riddled with NUL
+    characters. Stripping NUL characters from a *successful* UTF-8 decode
+    before the substring search recovers the original ASCII content
+    regardless of interleaving, so the "genuinely absent" check stays
+    reliable without needing to special-case every possible non-UTF-8
+    encoding by name.
     """
     try:
         raw = charter_yaml_path.read_bytes()
     except OSError:
         return True  # fail closed: can't inspect, assume still relevant
-    return _RETROSPECTIVE_KEY_BYTES in raw.lower()
+
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        # Cannot decode at all -> cannot prove the file is unrelated to
+        # retrospective config. Fail closed (see docstring) and log so a
+        # discarded charter.yaml parse error is never silent (#3163
+        # follow-up, second-round adversarial review).
+        _log.warning(
+            "charter.yaml at %s is malformed and could not be decoded as "
+            "UTF-8 while checking whether it mentions a retrospective "
+            "block; failing closed (treating it as still-relevant, so the "
+            "original parse error still raises) instead of silently "
+            "falling through to charter.md.",
+            charter_yaml_path,
+        )
+        return True
+
+    # Strip NUL characters so a BOM-less UTF-16/UTF-32 file that happens to
+    # decode as UTF-8 (NUL-interleaved ASCII) still surfaces its content.
+    cleaned = text.replace("\x00", "")
+    return _RETROSPECTIVE_KEY in cleaned.lower()
 
 
 def _resolve_precedence(charter_layers: Sequence[CharterLayer]) -> str | None:
