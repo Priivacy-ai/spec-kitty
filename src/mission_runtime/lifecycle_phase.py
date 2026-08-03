@@ -114,10 +114,25 @@ def _primary_feature_dir(
 
 
 def _read_baseline_merge_commit(feature_dir: Path) -> str:
-    """Read the raw ``baseline_merge_commit`` field, ``""`` when absent/blank."""
+    """Read the raw ``baseline_merge_commit`` field, ``""`` when absent/blank.
+
+    #3140: this reader sits inside the phase-resolution path
+    (``resolve_lifecycle_phase``) that ``mission_runtime.resolution.
+    resolve_artifact_surface`` calls on every ``placement_seam(...).read_dir``,
+    including well before a caller (e.g.
+    ``specify_cli.status.aggregate.MissionStatus._read_meta``) gets a chance
+    to read ``meta.json`` itself and translate a malformed file into its own
+    typed error. Under ``load_meta``'s default ``on_malformed="raise"``
+    contract a corrupt/non-dict ``meta.json`` would propagate a raw
+    ``ValueError`` out of this path resolver instead of degrading gracefully.
+    ``on_malformed="empty"`` (the same absorption ``load_meta_or_empty`` uses)
+    treats malformed content as "no baseline recorded" here, which is a safe
+    default (falls through to ``LifecyclePhase.PRE_CONSOLIDATION``) and lets
+    the caller's own ``meta.json`` read raise its own well-typed error instead.
+    """
     from specify_cli.mission_metadata import load_meta
 
-    meta = load_meta(feature_dir)
+    meta = load_meta(feature_dir, on_malformed="empty")
     if not meta:
         return ""
     value = meta.get("baseline_merge_commit")
