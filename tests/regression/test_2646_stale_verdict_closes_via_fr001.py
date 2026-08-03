@@ -62,7 +62,7 @@ from tests.integration.coord_topology_fixture import (
 # would shadow the same-named test parameters (ruff F811), the same reason
 # ``tests/acceptance/conftest.py`` exists.
 
-pytestmark = [pytest.mark.regression, pytest.mark.integration]
+pytestmark = [pytest.mark.regression, pytest.mark.integration, pytest.mark.git_repo]
 
 # ``coord_topology_fixture`` writes the WP01 task file as ``tasks/WP01.md``
 # (no per-WP kebab suffix), so its stem -- and therefore the
