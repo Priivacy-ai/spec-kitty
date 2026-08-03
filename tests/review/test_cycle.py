@@ -432,6 +432,63 @@ def test_unreadable_prior_cycle_does_not_crash_the_provenance_scan(
     assert created.artifact.verdict == "rejected"
 
 
+@pytest.mark.regression
+def test_resubmitted_feedback_with_its_own_frontmatter_is_still_rejected(
+    tmp_path: Path,
+) -> None:
+    """M4 (adversarial squad, PR #3156): the content-identity guard must
+    compare BOTH sides through the SAME normalization, or it is void for any
+    feedback file that itself opens with a ``---`` frontmatter-shaped block.
+
+    The writer stores the RAW feedback text (including any frontmatter-like
+    prefix the feedback file itself contained) as the new artifact's body --
+    it is never stripped on write. So a prior cycle's on-disk body, read back
+    via ``ReviewCycleArtifact.from_file(candidate).body``, still carries that
+    embedded block verbatim. The NEW submission's body, by contrast, IS
+    stripped (``_strip_frontmatter``) before comparison. Comparing a
+    stripped left side against an unstripped right side means re-submitting
+    the exact same feedback file verbatim -- the #990/#2996(b) case the
+    guard exists to catch -- is silently accepted as a fresh, distinct cycle.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / MISSION_SLUG / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / f"{WP_SLUG}.md").write_text("# WP03\n", encoding="utf-8")
+    wp_dir = tasks_dir / WP_SLUG
+
+    # Feedback file that itself opens with a frontmatter-shaped block.
+    feedback = tmp_path / "feedback.md"
+    feedback.write_text(
+        "---\nBlocking issues\n---\nFix the null check.\n", encoding="utf-8"
+    )
+
+    created = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug=MISSION_SLUG,
+        wp_id=WP_ID,
+        wp_slug=WP_SLUG,
+        feedback_source=feedback,
+        reviewer_agent="reviewer-renata",
+    )
+    assert created.artifact_path == wp_dir / "review-cycle-1.md"
+
+    # Re-submit the SAME feedback file verbatim -- exactly the #990/#2996(b)
+    # shape the guard exists to refuse.
+    with pytest.raises(ReviewCycleError, match=r"duplicates a prior review-cycle"):
+        create_rejected_review_cycle(
+            main_repo_root=repo,
+            mission_slug=MISSION_SLUG,
+            wp_id=WP_ID,
+            wp_slug=WP_SLUG,
+            feedback_source=feedback,
+            reviewer_agent="reviewer-renata",
+        )
+
+    assert not (wp_dir / "review-cycle-2.md").exists()
+
+
 def test_create_rejected_review_cycle_with_approved_verdict(tmp_path: Path) -> None:
     """T006 step 3: the generalized writer, called with ``verdict="approved"``
     against a WP whose latest artifact is ``rejected``, writes a new
