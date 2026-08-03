@@ -46,7 +46,10 @@ $ grep -rn "load_meta(" --include="*.py" .      # from the repo root of this che
 | **Rows in this census (sections 5 + 6)** | **192** |
 | Undercount | **0 — row-count == occurrence-count** ✅ |
 
-Distinct files touched: **86**. Reconcile at any time with:
+Distinct files touched: **85** (landing-pass correction, PR #3155: `doc_analysis/doc_state.py`
+dropped out of this count — see the doc_state.py note in §5; it never actually belonged, since all
+7 of its sites already called `load_meta_fail_closed(`, not the raw `load_meta(` this census
+enumerates). Reconcile at any time with:
 
 ```
 grep -rn "load_meta(" --include="*.py" . | wc -l     # must equal this census's row count
@@ -112,15 +115,18 @@ its `ValueError` arm to the typed error — **not** passing a `feature_dir` to i
 
 | Classification | product (`src/`) | test (`tests/`) | total |
 |---|---|---|---|
-| `route-unwrapped` | 44 | 57 | **101** |
+| `route-unwrapped` | 37 | 57 | **94** |
 | `divergent-wrapper` | 26 | 0 | **26** |
 | `deliberately-silent` | 31 | 7 | **38** |
 | `authority-internal` | 1 | 0 | **1** |
 | `definition-site` | 2 | 0 | **2** |
 | `non-call-mention` | 5 | 19 | **24** |
-| **TOTAL** | **109** | **83** | **192** |
+| **TOTAL** | **102** | **83** | **185** |
 
-**Routing workload handed to WP08/WP09:** 44 product `route-unwrapped` + 26 product `divergent-wrapper` = **70 product sites to route**, with 31 `deliberately-silent` product sites to leave alone.
+**Routing workload handed to WP08/WP09:** 37 product `route-unwrapped` + 26 product `divergent-wrapper` = **63 product sites to route**, with 31 `deliberately-silent` product sites to leave alone.
+(Landing-pass correction, PR #3155: the doc_state.py note in §5 removes 7 rows that were always
+`route-unwrapped`/product — 44 → 37, 109 → 102, 192 → 185 tree-wide. See §7 for why 185 is *also*
+no longer the live count.)
 
 ### Routed by WP07 (no longer in the grep set)
 
@@ -171,103 +177,97 @@ subsystem as the fixed leak):
 | 12 | `src/specify_cli/coordination/status_transition.py:765` | `_identity_for_request` | `route-unwrapped` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise' |
 | 13 | `src/specify_cli/coordination/surface_resolver.py:700` | `resolve_status_surface_with_anchor` | `route-unwrapped` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise' |
 | 14 | `src/specify_cli/coordination/surface_resolver.py:771` | `resolve_status_surface_with_anchor` | `route-unwrapped` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise' |
-| 15 | `src/specify_cli/doc_analysis/doc_state.py:89` | `set_iteration_mode` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 16 | `src/specify_cli/doc_analysis/doc_state.py:122` | `set_divio_types_selected` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 17 | `src/specify_cli/doc_analysis/doc_state.py:165` | `set_generators_configured` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 18 | `src/specify_cli/doc_analysis/doc_state.py:197` | `set_audit_metadata` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 19 | `src/specify_cli/doc_analysis/doc_state.py:232` | `read_documentation_state` | `route-unwrapped` | DEF A (canonical, feature_dir) | allow_missing=False,on_malformed='raise' |
-| 20 | `src/specify_cli/doc_analysis/doc_state.py:271` | `write_documentation_state` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 21 | `src/specify_cli/doc_analysis/doc_state.py:364` | `ensure_documentation_state` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 22 | `src/specify_cli/merge/executor.py:1342` | `_phase_cleanup_worktrees_and_branches` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 23 | `src/specify_cli/merge/ordering.py:604` | `_assign_planning_only_mission_number_if_needed` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 24 | `src/specify_cli/migration/backfill_identity.py:373` | `backfill_mission_ids` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 25 | `src/specify_cli/migration/backfill_topology.py:98` | `read_topology` | `route-unwrapped` | DEF A (canonical, feature_dir) | allow_missing=False |
-| 26 | `src/specify_cli/migration/mission_state.py:1266` | `_canonicalize_meta` | `route-unwrapped` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise' |
-| 27 | `src/specify_cli/migration/normalize_mission_lifecycle.py:118` | `_apply_identity_normalization` | `route-unwrapped` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise' |
-| 28 | `src/specify_cli/migration/runtime_state_cutover.py:218` | `_flip_phase` | `route-unwrapped` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise' |
-| 29 | `src/specify_cli/mission_metadata.py:234` | `resolve_mission_identity` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 30 | `src/specify_cli/mission_metadata.py:475` | `record_acceptance` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 31 | `src/specify_cli/mission_metadata.py:519` | `set_vcs_lock` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 32 | `src/specify_cli/mission_metadata.py:536` | `set_documentation_state` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 33 | `src/specify_cli/mission_metadata.py:561` | `set_origin_ticket` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 34 | `src/specify_cli/mission_metadata.py:588` | `set_target_branch` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 35 | `src/specify_cli/mission_metadata.py:605` | `set_purpose_summary` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 36 | `src/specify_cli/mission_metadata.py:635` | `set_change_mode` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 37 | `src/specify_cli/mission_metadata.py:672` | `clear_merge_metadata` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 38 | `src/specify_cli/mission_metadata.py:704` | `clear_coordination_metadata` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 39 | `src/specify_cli/mission_metadata.py:722` | `get_change_mode` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 40 | `src/specify_cli/missions/_read_path_resolver.py:846` | `read_primary_meta` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 41 | `src/specify_cli/missions/_read_path_resolver.py:862` | `read_primary_meta` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 42 | `src/specify_cli/status/lifecycle.py:143` | `_fallback_created_at` | `route-unwrapped` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise' |
-| 43 | `src/specify_cli/status/lifecycle.py:242` | `_last_merge_marker_at` | `route-unwrapped` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise' |
-| 44 | `src/specify_cli/tracker/origin.py:248` | `bind_mission_origin` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 45 | `src/mission_runtime/resolution.py:509` | `_mid8_from_primary_meta` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise'; except(ValueError) |
-| 46 | `src/mission_runtime/resolution.py:852` | `_resolve_coordination_branch` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise'; except(ValueError) |
-| 47 | `src/mission_runtime/resolution.py:1106` | `_resolve_mission_id` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise'; except(ValueError) |
-| 48 | `src/specify_cli/audit/classifiers/meta.py:45` | `classify_meta_json` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise); except(ValueError) |
-| 49 | `src/specify_cli/cli/commands/_identity_audit.py:280` | `_read_stored_topology` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise'; except(ValueError) |
-| 50 | `src/specify_cli/cli/commands/agent/mission_feature_resolution.py:122` | `<def>` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 51 | `src/specify_cli/cli/commands/agent/mission_feature_resolution.py:150` | `_safe_load_meta` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise); except(ValueError) |
-| 52 | `src/specify_cli/cli/commands/agent/workflow.py:317` | `_load_coord_branch_meta` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise); except(Exception) |
-| 53 | `src/specify_cli/cli/commands/implement.py:428` | `_load_primary_anchored_mission_meta` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise); except(Exception) |
-| 54 | `src/specify_cli/cli/commands/implement.py:442` | `_load_fallback_mission_meta` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise); except(Exception) |
-| 55 | `src/specify_cli/cli/commands/implement.py:989` | `_ensure_vcs_in_meta` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=False,on_malformed='raise'; except(FileNotFoundError,ValueError) |
-| 56 | `src/specify_cli/cli/commands/merge.py:284` | `_teardown_coordination_for_abort` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise); except(Exception) |
-| 57 | `src/specify_cli/cli/commands/mission_type.py:1093` | `<def>` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise) |
-| 58 | `src/specify_cli/cli/commands/mission_type.py:1096` | `_safe_load_meta` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise); except((ValueError, OSError)) |
-| 59 | `src/specify_cli/dashboard/diagnostics.py:25` | `_resolve_mission_from_feature` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise); except(Exception) |
-| 60 | `src/specify_cli/decisions/service.py:134` | `_resolve_mission_id` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=False,on_malformed='raise'; except(FileNotFoundError,ValueError) |
-| 61 | `src/specify_cli/merge/baseline.py:87` | `record_baseline_merge_commit` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise); except(ValueError) |
-| 62 | `src/specify_cli/merge/baseline.py:122` | `_recorded_baseline_from_working_meta` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise); except(ValueError) |
-| 63 | `src/specify_cli/migration/backfill_identity.py:134` | `backfill_mission` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=False; except((FileNotFoundError, ValueError)) |
-| 64 | `src/specify_cli/migration/backfill_topology.py:169` | `backfill_mission_topology` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=False; except((FileNotFoundError, ValueError)) |
-| 65 | `src/specify_cli/migration/normalize_mission_lifecycle.py:76` | `_load_meta_for_normalization` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise'; except(Exception) |
-| 66 | `src/specify_cli/missions/_resolve_planning_branch.py:116` | `load_mission_target_branch` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=False,on_malformed='raise'; except(FileNotFoundError,ValueError) |
-| 67 | `src/specify_cli/status/aggregate.py:415` | `MissionStatus._read_meta` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=False,on_malformed='raise'; except((FileNotFoundError, ValueError)) |
-| 68 | `src/specify_cli/status/identity_audit.py:139` | `classify_mission` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise'; except((OSError, ValueError)) |
-| 69 | `src/specify_cli/status/store.py:247` | `_SlugResolver.resolve` | `divergent-wrapper` | DEF A (canonical, feature_dir) | on_malformed='raise'; except((json.JSONDecodeError, OSError, ValueError)) |
-| 70 | `src/specify_cli/upgrade/feature_meta.py:42` | `load_feature_meta` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise); except(ValueError) |
-| 71 | `src/specify_cli/cli/commands/_coordination_doctor.py:634` | `check_and_warn_coord_staleness` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
-| 72 | `src/specify_cli/cli/commands/_coordination_doctor.py:779` | `_collect_coordination_findings` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
-| 73 | `src/specify_cli/cli/commands/_coordination_doctor.py:1329` | `_apply_coord_staleness_fixes` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
-| 74 | `src/specify_cli/cli/commands/agent/mission_check_prerequisites.py:74` | `_read_meta_for_emission` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='none' |
-| 75 | `src/specify_cli/cli/commands/agent/mission_repair.py:274` | `run_mission_repair` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
-| 76 | `src/specify_cli/cli/commands/mission_type.py:648` | `_read_mission_mid8` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='none' |
-| 77 | `src/specify_cli/cli/commands/mission_type.py:769` | `_expected_discard_branches` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='none' |
-| 78 | `src/specify_cli/cli/commands/mission_type.py:896` | `_delete_legacy_coordination_branch` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='none' |
-| 79 | `src/specify_cli/cli/commands/tracker.py:101` | `_resolve_active_feature_slug` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
-| 80 | `src/specify_cli/context/mission_resolver.py:176` | `_build_index` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
-| 81 | `src/specify_cli/coordination/commit_router.py:657` | `_resolve_mid8` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='none' |
-| 82 | `src/specify_cli/coordination/legacy_resolution.py:83` | `_load_mission_meta` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
-| 83 | `src/specify_cli/core/vcs/detection.py:132` | `_get_locked_vcs_from_feature` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
-| 84 | `src/specify_cli/core/vcs/detection.py:183` | `_get_locked_vcs_from_feature` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
-| 85 | `src/specify_cli/dashboard/scanner.py:388` | `_read_mission_identity` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none',encoding='utf-8-sig' |
-| 86 | `src/specify_cli/dashboard/scanner.py:653` | `_read_dashboard_feature_meta` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none',encoding='utf-8-sig' |
-| 87 | `src/specify_cli/git/sparse_checkout.py:269` | `_load_managed_lane_policies` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
-| 88 | `src/specify_cli/lanes/recovery.py:245` | `_mission_id_from_meta` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
-| 89 | `src/specify_cli/lanes/worktree_allocator.py:564` | `_read_coordination_branch` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
-| 90 | `src/specify_cli/merge/ordering.py:305` | `_compute_next_mission_number_or_none` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
-| 91 | `src/specify_cli/merge/ordering.py:403` | `_write_mission_number_to_branch` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
-| 92 | `src/specify_cli/migration/backfill_runtime_state.py:293` | `_mission_id` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='none' |
-| 93 | `src/specify_cli/migration/backfill_runtime_state.py:821` | `_synthesize_claim_anchor` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='none' |
-| 94 | `src/specify_cli/migration/runtime_state_cutover.py:359` | `stamp_accept_cutover` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='none' |
-| 95 | `src/specify_cli/mission_metadata.py:365` | `load_meta_strict` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=False,on_malformed='empty',encoding=_UTF8_SIG if bom_tolerant else _UTF8 |
-| 96 | `src/specify_cli/mission_metadata.py:383` | `load_meta_or_empty` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='empty' |
-| 97 | `src/specify_cli/missions/_read_path_resolver.py:115` | `_declares_coordination_branch` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
-| 98 | `src/specify_cli/status/cutover_eligibility.py:85` | `_read_meta` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='empty',encoding='utf-8-sig' |
-| 99 | `src/specify_cli/status/emit.py:115` | `_load_mission_id` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='none' |
-| 100 | `src/specify_cli/status/emit.py:385` | `_read_status_phase` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='none' |
-| 101 | `src/specify_cli/upgrade/migrations/m_zz_runtime_state_backfill.py:152` | `_mission_needs_cutover` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='none' |
-| 102 | `src/specify_cli/core/paths.py:676` | `load_meta_fail_closed` | `authority-internal` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise' |
-| 103 | `src/specify_cli/mission_metadata.py:275` | `<def>` | `definition-site` | DEF A (canonical, feature_dir) | — |
-| 104 | `src/specify_cli/task_utils/support.py:599` | `<def>` | `definition-site` | DEF B (adapter, meta_path) | — |
-| 105 | `src/specify_cli/acceptance/__init__.py:1331` | `<prose/fixture>` | `non-call-mention` | n/a | — |
-| 106 | `src/specify_cli/coordination/legacy_resolution.py:76` | `<prose/fixture>` | `non-call-mention` | n/a | — |
-| 107 | `src/specify_cli/decisions/service.py:142` | `<prose/fixture>` | `non-call-mention` | n/a | — |
-| 108 | `src/specify_cli/lanes/recovery.py:242` | `<prose/fixture>` | `non-call-mention` | n/a | — |
-| 109 | `src/specify_cli/upgrade/feature_meta.py:36` | `<prose/fixture>` | `non-call-mention` | n/a | — |
+> **doc_state.py note (landing-pass review, PR #3155):** a subsequent fold (`190932c2d`) collapsed 7 duplicated fail-closed guard blocks in `doc_analysis/doc_state.py` into a single shared `_require_meta()` helper. Even *before* that consolidation, all 7 sites already called `load_meta_fail_closed(` -- not the raw `load_meta(` this census enumerates -- so this file was never actually a live member of the literal `load_meta(` grep set §0 defines, and contributes zero rows now. The 7 rows WP07 originally enumerated here (reproduced in this commit's history for the curious) are removed rather than collapsed to one, because a single `_require_meta()` call to `load_meta_fail_closed` doesn't match this census's own grep methodology either.
+| 15 | `src/specify_cli/merge/executor.py:1342` | `_phase_cleanup_worktrees_and_branches` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
+| 16 | `src/specify_cli/merge/ordering.py:604` | `_assign_planning_only_mission_number_if_needed` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
+| 17 | `src/specify_cli/migration/backfill_identity.py:373` | `backfill_mission_ids` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
+| 18 | `src/specify_cli/migration/backfill_topology.py:98` | `read_topology` | `route-unwrapped` | DEF A (canonical, feature_dir) | allow_missing=False |
+| 19 | `src/specify_cli/migration/mission_state.py:1266` | `_canonicalize_meta` | `route-unwrapped` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise' |
+| 20 | `src/specify_cli/migration/normalize_mission_lifecycle.py:118` | `_apply_identity_normalization` | `route-unwrapped` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise' |
+| 21 | `src/specify_cli/migration/runtime_state_cutover.py:218` | `_flip_phase` | `route-unwrapped` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise' |
+| 22 | `src/specify_cli/mission_metadata.py:234` | `resolve_mission_identity` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
+| 23 | `src/specify_cli/mission_metadata.py:475` | `record_acceptance` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
+| 24 | `src/specify_cli/mission_metadata.py:519` | `set_vcs_lock` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
+| 25 | `src/specify_cli/mission_metadata.py:536` | `set_documentation_state` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
+| 26 | `src/specify_cli/mission_metadata.py:561` | `set_origin_ticket` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
+| 27 | `src/specify_cli/mission_metadata.py:588` | `set_target_branch` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
+| 28 | `src/specify_cli/mission_metadata.py:605` | `set_purpose_summary` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
+| 29 | `src/specify_cli/mission_metadata.py:635` | `set_change_mode` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
+| 30 | `src/specify_cli/mission_metadata.py:672` | `clear_merge_metadata` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
+| 31 | `src/specify_cli/mission_metadata.py:704` | `clear_coordination_metadata` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
+| 32 | `src/specify_cli/mission_metadata.py:722` | `get_change_mode` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
+| 33 | `src/specify_cli/missions/_read_path_resolver.py:846` | `read_primary_meta` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
+| 34 | `src/specify_cli/missions/_read_path_resolver.py:862` | `read_primary_meta` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
+| 35 | `src/specify_cli/status/lifecycle.py:143` | `_fallback_created_at` | `route-unwrapped` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise' |
+| 36 | `src/specify_cli/status/lifecycle.py:242` | `_last_merge_marker_at` | `route-unwrapped` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise' |
+| 37 | `src/specify_cli/tracker/origin.py:248` | `bind_mission_origin` | `route-unwrapped` | DEF A (canonical, feature_dir) | defaults (raise) |
+| 38 | `src/mission_runtime/resolution.py:509` | `_mid8_from_primary_meta` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise'; except(ValueError) |
+| 39 | `src/mission_runtime/resolution.py:852` | `_resolve_coordination_branch` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise'; except(ValueError) |
+| 40 | `src/mission_runtime/resolution.py:1106` | `_resolve_mission_id` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise'; except(ValueError) |
+| 41 | `src/specify_cli/audit/classifiers/meta.py:45` | `classify_meta_json` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise); except(ValueError) |
+| 42 | `src/specify_cli/cli/commands/_identity_audit.py:280` | `_read_stored_topology` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise'; except(ValueError) |
+| 43 | `src/specify_cli/cli/commands/agent/mission_feature_resolution.py:122` | `<def>` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise) |
+| 44 | `src/specify_cli/cli/commands/agent/mission_feature_resolution.py:150` | `_safe_load_meta` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise); except(ValueError) |
+| 45 | `src/specify_cli/cli/commands/agent/workflow.py:317` | `_load_coord_branch_meta` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise); except(Exception) |
+| 46 | `src/specify_cli/cli/commands/implement.py:428` | `_load_primary_anchored_mission_meta` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise); except(Exception) |
+| 47 | `src/specify_cli/cli/commands/implement.py:442` | `_load_fallback_mission_meta` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise); except(Exception) |
+| 48 | `src/specify_cli/cli/commands/implement.py:989` | `_ensure_vcs_in_meta` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=False,on_malformed='raise'; except(FileNotFoundError,ValueError) |
+| 49 | `src/specify_cli/cli/commands/merge.py:284` | `_teardown_coordination_for_abort` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise); except(Exception) |
+| 50 | `src/specify_cli/cli/commands/mission_type.py:1093` | `<def>` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise) |
+| 51 | `src/specify_cli/cli/commands/mission_type.py:1096` | `_safe_load_meta` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise); except((ValueError, OSError)) |
+| 52 | `src/specify_cli/dashboard/diagnostics.py:25` | `_resolve_mission_from_feature` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise); except(Exception) |
+| 53 | `src/specify_cli/decisions/service.py:134` | `_resolve_mission_id` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=False,on_malformed='raise'; except(FileNotFoundError,ValueError) |
+| 54 | `src/specify_cli/merge/baseline.py:87` | `record_baseline_merge_commit` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise); except(ValueError) |
+| 55 | `src/specify_cli/merge/baseline.py:122` | `_recorded_baseline_from_working_meta` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise); except(ValueError) |
+| 56 | `src/specify_cli/migration/backfill_identity.py:134` | `backfill_mission` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=False; except((FileNotFoundError, ValueError)) |
+| 57 | `src/specify_cli/migration/backfill_topology.py:169` | `backfill_mission_topology` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=False; except((FileNotFoundError, ValueError)) |
+| 58 | `src/specify_cli/migration/normalize_mission_lifecycle.py:76` | `_load_meta_for_normalization` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise'; except(Exception) |
+| 59 | `src/specify_cli/missions/_resolve_planning_branch.py:116` | `load_mission_target_branch` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=False,on_malformed='raise'; except(FileNotFoundError,ValueError) |
+| 60 | `src/specify_cli/status/aggregate.py:415` | `MissionStatus._read_meta` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=False,on_malformed='raise'; except((FileNotFoundError, ValueError)) |
+| 61 | `src/specify_cli/status/identity_audit.py:139` | `classify_mission` | `divergent-wrapper` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise'; except((OSError, ValueError)) |
+| 62 | `src/specify_cli/status/store.py:247` | `_SlugResolver.resolve` | `divergent-wrapper` | DEF A (canonical, feature_dir) | on_malformed='raise'; except((json.JSONDecodeError, OSError, ValueError)) |
+| 63 | `src/specify_cli/upgrade/feature_meta.py:42` | `load_feature_meta` | `divergent-wrapper` | DEF A (canonical, feature_dir) | defaults (raise); except(ValueError) |
+| 64 | `src/specify_cli/cli/commands/_coordination_doctor.py:634` | `check_and_warn_coord_staleness` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
+| 65 | `src/specify_cli/cli/commands/_coordination_doctor.py:779` | `_collect_coordination_findings` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
+| 66 | `src/specify_cli/cli/commands/_coordination_doctor.py:1329` | `_apply_coord_staleness_fixes` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
+| 67 | `src/specify_cli/cli/commands/agent/mission_check_prerequisites.py:74` | `_read_meta_for_emission` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='none' |
+| 68 | `src/specify_cli/cli/commands/agent/mission_repair.py:274` | `run_mission_repair` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
+| 69 | `src/specify_cli/cli/commands/mission_type.py:648` | `_read_mission_mid8` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='none' |
+| 70 | `src/specify_cli/cli/commands/mission_type.py:769` | `_expected_discard_branches` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='none' |
+| 71 | `src/specify_cli/cli/commands/mission_type.py:896` | `_delete_legacy_coordination_branch` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='none' |
+| 72 | `src/specify_cli/cli/commands/tracker.py:101` | `_resolve_active_feature_slug` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
+| 73 | `src/specify_cli/context/mission_resolver.py:176` | `_build_index` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
+| 74 | `src/specify_cli/coordination/commit_router.py:657` | `_resolve_mid8` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='none' |
+| 75 | `src/specify_cli/coordination/legacy_resolution.py:83` | `_load_mission_meta` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
+| 76 | `src/specify_cli/core/vcs/detection.py:132` | `_get_locked_vcs_from_feature` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
+| 77 | `src/specify_cli/core/vcs/detection.py:183` | `_get_locked_vcs_from_feature` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
+| 78 | `src/specify_cli/dashboard/scanner.py:388` | `_read_mission_identity` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none',encoding='utf-8-sig' |
+| 79 | `src/specify_cli/dashboard/scanner.py:653` | `_read_dashboard_feature_meta` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none',encoding='utf-8-sig' |
+| 80 | `src/specify_cli/git/sparse_checkout.py:269` | `_load_managed_lane_policies` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
+| 81 | `src/specify_cli/lanes/recovery.py:245` | `_mission_id_from_meta` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
+| 82 | `src/specify_cli/lanes/worktree_allocator.py:564` | `_read_coordination_branch` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
+| 83 | `src/specify_cli/merge/ordering.py:305` | `_compute_next_mission_number_or_none` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
+| 84 | `src/specify_cli/merge/ordering.py:403` | `_write_mission_number_to_branch` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
+| 85 | `src/specify_cli/migration/backfill_runtime_state.py:293` | `_mission_id` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='none' |
+| 86 | `src/specify_cli/migration/backfill_runtime_state.py:821` | `_synthesize_claim_anchor` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='none' |
+| 87 | `src/specify_cli/migration/runtime_state_cutover.py:359` | `stamp_accept_cutover` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='none' |
+| 88 | `src/specify_cli/mission_metadata.py:365` | `load_meta_strict` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=False,on_malformed='empty',encoding=_UTF8_SIG if bom_tolerant else _UTF8 |
+| 89 | `src/specify_cli/mission_metadata.py:383` | `load_meta_or_empty` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='empty' |
+| 90 | `src/specify_cli/missions/_read_path_resolver.py:115` | `_declares_coordination_branch` | `deliberately-silent` | DEF A (canonical, feature_dir) | on_malformed='none' |
+| 91 | `src/specify_cli/status/cutover_eligibility.py:85` | `_read_meta` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='empty',encoding='utf-8-sig' |
+| 92 | `src/specify_cli/status/emit.py:115` | `_load_mission_id` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='none' |
+| 93 | `src/specify_cli/status/emit.py:385` | `_read_status_phase` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='none' |
+| 94 | `src/specify_cli/upgrade/migrations/m_zz_runtime_state_backfill.py:152` | `_mission_needs_cutover` | `deliberately-silent` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='none' |
+| 95 | `src/specify_cli/core/paths.py:676` | `load_meta_fail_closed` | `authority-internal` | DEF A (canonical, feature_dir) | allow_missing=True,on_malformed='raise' |
+| 96 | `src/specify_cli/mission_metadata.py:275` | `<def>` | `definition-site` | DEF A (canonical, feature_dir) | — |
+| 97 | `src/specify_cli/task_utils/support.py:599` | `<def>` | `definition-site` | DEF B (adapter, meta_path) | — |
+| 98 | `src/specify_cli/acceptance/__init__.py:1331` | `<prose/fixture>` | `non-call-mention` | n/a | — |
+| 99 | `src/specify_cli/coordination/legacy_resolution.py:76` | `<prose/fixture>` | `non-call-mention` | n/a | — |
+| 100 | `src/specify_cli/decisions/service.py:142` | `<prose/fixture>` | `non-call-mention` | n/a | — |
+| 101 | `src/specify_cli/lanes/recovery.py:242` | `<prose/fixture>` | `non-call-mention` | n/a | — |
+| 102 | `src/specify_cli/upgrade/feature_meta.py:36` | `<prose/fixture>` | `non-call-mention` | n/a | — |
 
-**Subtotal (product): 109 rows.**
+**Subtotal (product): 102 rows.**
 
 ## 6. Test-tree occurrences (`tests/`) — 83 rows
 
@@ -361,9 +361,44 @@ subsystem as the fixed leak):
 
 ## 7. Reconciliation footer
 
-- Section 5 rows: **109**
+- Section 5 rows: **102**
 - Section 6 rows: **83**
-- **Total census rows: 192** == **raw grep occurrences: 192** ✅
+- **Total census rows (post doc_state.py correction): 185**
 
-A new `load_meta(` site added anywhere in the tree breaks this equality — which is exactly the
-signal the WP09 contract test consumes (D10: it must fail on a new *unclassified* site).
+> **Landing-pass correction (PR #3155, second-round accuracy review).** The line above is **not**
+> `185 == raw grep occurrences` — as of this fold, `grep -rn "load_meta(" --include="*.py" . | wc -l`
+> from the repo root returns **168**, not 185. Do not "fix" this by pinning 185 as a new frozen
+> constant either; verify live with the same command §1 prescribes.
+>
+> The gap is real and explained, not an error in this arithmetic: this census is **WP07's
+> historical snapshot** (its role is stated explicitly in
+> `tests/specify_cli/test_meta_fail_closed_full_census_contract.py`'s module docstring — the live
+> NFR-003 gate deliberately does **not** source its site list from this file, precisely so a site
+> added or routed after WP07 wrote it isn't silently invisible). Since WP07 authored it:
+> - WP08 (`7cd14d35e`, landed as part of this mission, well before the PR #3155 landing-fold
+>   sequence) routed the batch-A `coordination`/`migration`/`audit`/`status` subsystem sites this
+>   census enumerates through `load_meta_fail_closed` — removing roughly two dozen product rows
+>   from the live grep set without a census update.
+> - This landing-fold's own commits removed 7 more (the doc_state.py consolidation, §5 note above)
+>   and a further handful of individual sites in `acceptance/__init__.py`, `implement.py`,
+>   `mission_type.py`'s `_safe_load_meta`, `mission_feature_resolution.py`'s `_safe_load_meta`,
+>   `merge/ordering.py`, and `migration/runtime_state_cutover.py` (each already delegates to
+>   `load_meta_fail_closed`, some only still grep-matching because of a `_load_meta`-style import
+>   alias).
+> - New test files added since WP07's authorship (`test_meta_fail_closed_full_census_contract.py`,
+>   `test_meta_fail_closed_batch_a.py`, `test_meta_read_permission_denied_regression.py`, plus a new
+>   regression test in `test_mission_metadata.py`) contribute mentions/call sites this snapshot never
+>   saw.
+>
+> A full row-by-row re-numbering of sections 5–6 against the current 168-occurrence grep set was
+> assessed and **not** attempted in this fold — it is materially bigger surgery than a landing-pass
+> doc fix (every one of ~90 affected rows needs its own source-level re-classification, which is real
+> risk of introducing a *new* silent inaccuracy into the one document whose entire purpose is
+> precision). If per-row accuracy against the live tree is needed, treat this file as reference
+> history only and consult the AST-based `_ACCOUNTED_SITES` ledger in
+> `tests/specify_cli/test_meta_fail_closed_full_census_contract.py` instead — that ledger, not this
+> markdown snapshot, is the live, continuously-enforced source of truth (D10).
+
+A new `load_meta(` site added anywhere in the tree is caught by that AST-based contract test, not by
+this markdown file — this file no longer self-enforces via a literal row-count equality (see the
+correction above).
