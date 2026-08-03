@@ -15,6 +15,10 @@ reports.
 - [Write-path topology: ambient-location root cause and remediation options](write-path-topology-root-cause.md) —
   dialectic-squad-corroborated root cause for the #3129 defect class (14 issues); scoped
   remediation options for a future mission; rejects the batch-reparent/new-P0-epic action.
+- [Review-artifact integrity (#3044): the topology-seam connection is historical, the open gap is a missing writer](review-artifact-write-integrity-3044.md) —
+  dialectic-squad-corroborated finding that #2275's lane/coord read-side split is already fixed in
+  code; the live gap in #3044's cluster is a missing approved-verdict writer plus a content-provenance
+  validation gap, not a topology-seam extension.
 - [Mission-type step-model unification](mission-type-step-model-unification.md) — retire
   "template" as a mission-type discriminator; make recursive steps the building block.
   Grounded by a design + code + adversarial squad; formalized in ADR `2026-07-16-2`.
