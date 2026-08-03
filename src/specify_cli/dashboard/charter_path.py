@@ -30,6 +30,25 @@ from charter.bundle import CHARTER_MD, CHARTER_YAML
 logger = logging.getLogger(__name__)
 
 
+def _log_resolver_unavailable(context: str, project_dir: Path, exc: Exception) -> None:
+    """Log a resolver-failure warning shared by both charter-path resolvers.
+
+    Both :func:`_resolve_canonical_root_loud` and
+    :func:`resolve_project_charter_path` hit the same
+    ``(NotInsideRepositoryError, GitCommonDirUnavailableError)`` failure
+    shape from two different underlying resolvers and must stay loud per
+    C-001 while still surfacing ``None`` (never re-raising -- re-raising
+    would crash the scanner). ``context`` names which resolver failed so the
+    two call sites keep their distinct, debuggable log messages.
+    """
+    logger.warning(
+        "Dashboard charter probe: %s unavailable for %s: %s",
+        context,
+        project_dir,
+        exc,
+    )
+
+
 def _resolve_canonical_root_loud(project_dir: Path) -> Path | None:
     """Resolve the canonical (main-checkout) project root, degrading to ``None``.
 
@@ -58,11 +77,7 @@ def _resolve_canonical_root_loud(project_dir: Path) -> Path | None:
         # Any at the call site without this local pin (NFR-002).
         canonical_root: Path = resolve_canonical_repo_root(Path(project_dir))
     except (NotInsideRepositoryError, GitCommonDirUnavailableError) as exc:
-        logger.warning(
-            "Dashboard charter probe: canonical-root resolver unavailable for %s: %s",
-            project_dir,
-            exc,
-        )
+        _log_resolver_unavailable("canonical-root resolver", project_dir, exc)
         return None
     return canonical_root
 
@@ -136,11 +151,7 @@ def resolve_project_charter_path(project_dir: Path) -> Path | None:
     try:
         sync_result = ensure_charter_bundle_fresh(project_dir)
     except (NotInsideRepositoryError, GitCommonDirUnavailableError) as exc:
-        logger.warning(
-            "Dashboard charter probe: chokepoint resolver unavailable for %s: %s",
-            project_dir,
-            exc,
-        )
+        _log_resolver_unavailable("chokepoint resolver", project_dir, exc)
         return None
 
     if sync_result is None or sync_result.canonical_root is None:
