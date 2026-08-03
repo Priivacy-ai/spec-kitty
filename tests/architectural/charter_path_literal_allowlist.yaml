@@ -22,7 +22,7 @@
 # delete the entry AND lower CHARTER_PATH_LITERAL_FLOOR + this baseline to the
 # new honest census. FRESHEN PROCEDURE (a legitimate edit moved the token):
 # re-run the gate; the stale entry is reported with its live token — copy it in.
-charter_path_literal_baseline: 38
+charter_path_literal_baseline: 47
 
 charter_path_literals:
 - file: src/charter/compiler.py
@@ -291,3 +291,85 @@ charter_path_literals:
   clause: "a"
   token: "_CHARTER_YAML ="
   rationale: "HISTORICAL DETERMINISM: charter.yaml filename constant for the activation-finalize migration; frozen migration path."
+
+# --- 2026-08-03 landing-fold: clause (b) Name-form blind spot closed ---------
+# Two independent adversarial review lenses (architectural + implementation-
+# quality) found that _path_expr_tail_literal / _is_charter_md_presence_gate
+# only resolved the receiver spine through STRING-LITERAL forms (Constant,
+# Path(...) arg, `/` BinOp with a literal RHS) and returned None the moment the
+# tail bottomed out on an `ast.Name` bound to the imported
+# charter.bundle.CHARTER_MD/CHARTER_YAML constant -- exactly the idiomatic form
+# this mission's own WP01/WP02/WP03/WP06 migration produces
+# (`p = root / CHARTER_MD; p.exists()`). The more the tree adopts the
+# recommended constant, the LESS clause (b) could ever fire; the flagship
+# C-003 gate below (context.py:270/321) was itself invisible to its own gate.
+# The gate now resolves that one-hop constant-import binding (see
+# _charter_bundle_name_bindings), and these 9 sites are the real, pre-existing
+# C-001-sanctioned charter.md presence/prose gates it newly and correctly
+# detects. None of these are violations to fix -- charter.md is documented
+# secondary/display prose at each site, with charter.yaml remaining the sole
+# governance authority; they are allowlisted with the same rationale shape as
+# the clause-(b) entries already carried above.
+- file: src/charter/compact.py
+  qualname: render_compact_view
+  line: 175
+  literal: "charter.md"
+  clause: "b"
+  token: "if charter_path . exists ( ) :"
+  rationale: "C-003 DISPLAY-only companion (IC-05): charter.md anchor extraction degrades to an empty anchor set when absent; governance authority stays on charter.yaml, this is a read-availability probe, not a config gate."
+- file: src/charter/context.py
+  qualname: build_charter_context
+  line: 270
+  literal: "charter.md"
+  clause: "b"
+  token: "if not charter_yaml_path . exists ( ) and not charter_path . exists ( ) :"
+  rationale: "The flagship C-003 prose-presence OR-gate this mission's own FR-002 classification comment (context.py:203-233) documents at length: 'missing' only when BOTH charter.yaml and charter.md are absent; charter.yaml alone remains the authority for FR-003/004/006. Pinned by tests/charter/test_context_prose_presence_pin.py."
+- file: src/charter/context.py
+  qualname: build_charter_context
+  line: 321
+  literal: "charter.md"
+  clause: "b"
+  token: "if charter_path . exists ( ) :"
+  rationale: "FR-005 graceful-degrade companion to :270 -- reads the optional charter.md prose summary when present, else renders with an empty summary; charter.yaml presence already gated the branch above."
+- file: src/charter/context.py
+  qualname: build_charter_context_include
+  line: 390
+  literal: "charter.md"
+  clause: "b"
+  token: "if not charter_path . exists ( ) :"
+  rationale: "`--include section:<id>` selector reads prose sections that only exist in charter.md; this is a readability check for the secondary prose source, not a governance-authority decision."
+- file: src/charter/context_json.py
+  qualname: _project_charter_json_block
+  line: 105
+  literal: "charter.md"
+  clause: "b"
+  token: ": charter_md_path . exists ( ) ,"
+  rationale: "FR-006 explicitly demotes this to the `charter_md_present` DISPLAY companion field (see the docstring above it); `present`/`path` on charter_yaml_path remain the sole authority signal per the documented contract flip."
+- file: src/charter/context_renderers/compact_governance.py
+  qualname: _compact_section_block
+  line: 59
+  literal: "charter.md"
+  clause: "b"
+  token: "if not charter_path . exists ( ) :"
+  rationale: "NFR-005 DISPLAY-only degrade: the compact-mode action-critical section block reads the optional charter.md companion and returns the empty string when absent, per its own docstring."
+- file: src/specify_cli/analysis_report.py
+  qualname: _charter_path
+  line: 203
+  literal: "charter.md"
+  clause: "b"
+  token: "if charter_md . exists ( ) :"
+  rationale: "Staleness-input fallback documented in the comment directly above (FR-004): keys on charter.yaml first, falls back to charter.md only when charter.yaml has not yet been compiled, mirroring the yaml-or-md presence gate in dashboard/charter_path.py and charter.context (C-003)."
+- file: src/specify_cli/dashboard/charter_path.py
+  qualname: resolve_project_charter_presence
+  line: 102
+  literal: "charter.md"
+  clause: "b"
+  token: "if charter_md_path . exists ( ) :"
+  rationale: "FR-003 (#3150) documented yaml-preferred, md-fallback presence probe: charter.yaml is checked first and returned when present; this branch only covers the pre-compile case so 'no charter' does not falsely fire for authored-but-uncompiled projects."
+- file: src/specify_cli/dashboard/charter_path.py
+  qualname: resolve_project_charter_path
+  line: 154
+  literal: "charter.md"
+  clause: "b"
+  token: "if charter_path . exists ( ) :"
+  rationale: "Function's own docstring: 'Per C-001, charter.md stays a readable secondary prose source and is never retargeted to charter.yaml' -- callers needing a presence signal instead use resolve_project_charter_presence above."
