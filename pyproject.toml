@@ -109,6 +109,7 @@ test = [
     "diff-cover>=10.0.0",  # Enforce changed-line coverage in CI
     "chardet>=3.0.4,<6",  # Pin chardet below 6.x to avoid requests compatibility warning
     "build>=1.0.0",  # Required for distribution tests (wheel building)
+    "hatchling>=1.27.0",  # BuildHookInterface import for tests/doctrine/test_hatch_build.py (in-process coverage of the doctrine wheel's custom build hook; already a [build-system] requirement, pinned here so it's importable outside build isolation)
     "mutmut>=3.5.0",  # Mutation testing
     "pytestarch>=4.0.0",  # Architectural dependency testing (ADR 2026-03-27-1)
 ]
