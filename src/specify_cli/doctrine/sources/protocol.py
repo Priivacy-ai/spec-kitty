@@ -42,12 +42,22 @@ class FetchResult:
             ``/version`` endpoint response).  ``None`` when no version is
             available.
         errors: List of human-readable error messages.  Empty when ``ok``.
+        unchanged: True when a conditional fetch (e.g. HTTP 304) confirmed the
+            existing snapshot is current.  Callers MUST NOT treat
+            ``target_dir`` as freshly populated in that case — the previous
+            on-disk snapshot remains authoritative.
+        etag: Opaque HTTP ``ETag`` from the response when available.  Persisted
+            into ``pack-manifest.yaml`` so the next fetch can send
+            ``If-None-Match``.  Distinct from ``pack_version`` when an operator
+            ``ref`` pin is used as the version label.
     """
 
     ok: bool
     artifacts_written: int
     pack_version: str | None
     errors: list[str] = field(default_factory=list)
+    unchanged: bool = False
+    etag: str | None = None
 
 
 @runtime_checkable
