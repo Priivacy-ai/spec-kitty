@@ -400,15 +400,28 @@ _CHARTER_BUNDLE_CONSTANT_LITERALS: dict[str, str] = {
 
 
 def _charter_bundle_name_bindings(tree: ast.Module) -> dict[str, str]:
-    """Map local names bound to ``charter.bundle.CHARTER_MD``/``CHARTER_YAML`` to their literal.
+    """Map local names bound to a charter filename to their literal.
 
-    Resolves ``from charter.bundle import CHARTER_MD`` (and aliased imports,
-    ``from charter.bundle import CHARTER_MD as _MD``) to the filename literal
-    the constant declares. Without this, a receiver spine that bottoms out on
-    an ``ast.Name`` referencing the imported constant — exactly the idiomatic
-    form this mission's own migration produces (``root / CHARTER_MD``) —
-    resolves to ``None`` and clause (b) goes blind the moment a call site
-    adopts the constant it is supposed to be enforcing.
+    Two independent Name-forms feed the same downstream
+    :func:`_path_expr_tail_literal` resolution:
+
+    1. ``from charter.bundle import CHARTER_MD`` (and aliased imports,
+       ``from charter.bundle import CHARTER_MD as _MD``) — resolved to the
+       filename literal the constant declares. Without this, a receiver spine
+       that bottoms out on an ``ast.Name`` referencing the imported constant —
+       exactly the idiomatic form this mission's own migration produces
+       (``root / CHARTER_MD``) — resolves to ``None`` and clause (b) goes
+       blind the moment a call site adopts the constant it is supposed to be
+       enforcing.
+    2. A MODULE-LOCAL string-constant alias declared in the same file rather
+       than imported from ``charter.bundle`` (``_CHARTER_FILENAME =
+       "charter.md"`` ... ``d / _CHARTER_FILENAME``) — resolved by
+       :func:`_module_level_charter_filename_aliases`. This is a distinct
+       blind spot from (1): a local alias never touches ``charter.bundle`` at
+       all, so the import-based resolution above cannot see it, yet the
+       presence-gate shape it feeds is identical. Two real, live sites
+       (``src/charter/sync.py`` / ``src/charter/pack_manager.py``) use exactly
+       this form.
     """
     bindings: dict[str, str] = {}
     for node in ast.walk(tree):
@@ -417,7 +430,30 @@ def _charter_bundle_name_bindings(tree: ast.Module) -> dict[str, str]:
                 literal = _CHARTER_BUNDLE_CONSTANT_LITERALS.get(alias.name)
                 if literal is not None:
                     bindings[alias.asname or alias.name] = literal
+    bindings.update(_module_level_charter_filename_aliases(tree))
     return bindings
+
+
+def _module_level_charter_filename_aliases(tree: ast.Module) -> dict[str, str]:
+    """Map module-level ``NAME = "charter.md"`` / ``"charter.yaml"`` constants to their literal.
+
+    Only top-level (module-scope) ``Assign`` nodes qualify — a function-local
+    reassignment of the same name is a different binding and is already
+    resolved separately by :func:`_assigned_value`'s intra-function hop.
+    """
+    aliases: dict[str, str] = {}
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        if not (isinstance(node.value, ast.Constant) and isinstance(node.value.value, str)):
+            continue
+        literal = node.value.value
+        if literal not in CHARTER_FILENAMES:
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                aliases[target.id] = literal
+    return aliases
 
 
 # --------------------------------------------------------------------------- #
@@ -551,7 +587,7 @@ def _live_keys() -> set[CharterPathKey]:
 # WP11 AFTER the WP01/WP02/WP03/WP06 repoints landed, so the frozen set is the
 # minimal residual and not a stale pre-drain snapshot.
 # --------------------------------------------------------------------------- #
-CHARTER_PATH_LITERAL_FLOOR = 47
+CHARTER_PATH_LITERAL_FLOOR = 49
 FLOOR_MARGIN = 2
 
 
