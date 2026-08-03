@@ -107,15 +107,34 @@ uv run spec-kitty charter bundle validate
 **Symptom**: `spec-kitty dispatch` reports the request was "routed to the generic agent" instead
 of a specialist, on a project with no charter configured yet.
 
-**Fix**: apply a starter pack so there is a baseline of activated directives and profiles to
-route against:
+**What is happening**: the generic-agent fallback (`is_charter_empty`) fires whenever
+`.kittify/charter/charter.yaml` is absent, no org/project pack is registered, and no
+`agent_profiles` activation is present. Plain `charter pack apply minimal` only writes activation
+keys into `.kittify/config.yaml` — it does not compile `charter.yaml`, so the bundle stays absent
+and the fallback still fires. Applying `minimal` alone does **not** resolve this symptom.
+
+**Fix**: apply a starter pack and compile it into the bundle in the same step, so
+`.kittify/charter/charter.yaml` actually exists:
 
 ```bash
-uv run spec-kitty charter pack apply minimal
+uv run spec-kitty charter pack apply minimal --compile
 ```
 
+`--compile` chains `spec-kitty charter generate --no-from-interview`, producing
+`.kittify/charter/charter.yaml`. The fallback check only tests the bundle's *presence*, not its
+contents, so once the file exists `spec-kitty dispatch` moves off the generic-agent short-circuit
+and back to normal profile routing (verified directly: `empty_charter_fallback` flips from `true`
+to `false`, and an unambiguous request routes to a real specialist profile).
+
+Note: `minimal` activates a curated set of directives and tactics only — it declares no
+`agent_profiles` key (see `src/charter/packs/minimal.yaml`'s own header), so this fix does not by
+itself narrow which specialist gets picked. With no explicit `agent_profiles` activation, the
+router still considers every built-in profile (three-state "admit all" semantics) and may report
+`ROUTER_AMBIGUOUS` for underspecified requests — pass `--profile <profile-id>` to disambiguate
+when that happens.
+
 See [Quick baseline via a starter pack](setup-governance.md#quick-baseline-via-a-starter-pack) for
-the additive-merge and compile-step caveats.
+the additive-merge caveat.
 
 ---
 
