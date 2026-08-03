@@ -110,14 +110,14 @@ FLOOR_MARGIN = 2
 
 # WP16 SC-004-equivalent anti-mass-allow-list guard: the number of call sites
 # routed through load_meta/load_meta_strict/load_meta_or_empty has its own
-# floor and can only rise. Live routed census on this tree is 123 (includes
+# floor and can only rise. Live routed census on this tree is 120 (includes
 # mission_metadata.py's own internal call sites — e.g. load_meta_strict/
 # load_meta_or_empty delegating to load_meta, and the module's many other
 # public helpers reading meta.json through the one canonical primitive; those
 # ARE genuine routed-usage evidence, not the read implementation itself, which
 # is why mission_metadata.py is excluded from the INLINE scan but NOT from this
 # routed-usage census — plus the import-history SCAN's own load_meta_or_empty
-# call, #2262). Floor (120) sits 3 below the live count (within MARGIN(4)) and
+# call, #2262). Floor (117) sits 3 below the live count (within MARGIN(4)) and
 # strictly below it, so the anti-vacuity check proves the census is not merely
 # equal to a hand-entered value.
 #
@@ -134,8 +134,23 @@ FLOOR_MARGIN = 2
 # so the live count rose 123 -> 126. The ratchet again moved in its intended
 # direction — these sites did not stop routing through the canonical authority,
 # they moved onto its typed fail-closed contract.
+#
+# Lowered 123 -> 117 by "landing fold: collapse 7 duplicated meta-guard blocks
+# in doc_state.py into one helper" (commit 190932c2d, PR #3155 landing pass):
+# that fold legitimately consolidated 7 duplicated inline
+# ``load_meta_fail_closed(...)`` call sites in doc_state.py into ONE shared
+# ``_require_meta()`` helper that itself calls ``load_meta_fail_closed`` once.
+# Routing COVERAGE is unchanged — all 7 original call sites still ultimately
+# route through the canonical reader, just via one shared helper instead of 7
+# duplicated inline calls — but this test counts literal source-text
+# occurrences of routed calls, so deduplication mechanically dropped the live
+# count 123 -> 120. This is the CEILING-ratchet's inverse case (cf.
+# INLINE_META_READ_FLOOR above): a legitimate drop from good deduplication,
+# not a coverage regression. The floor is set to 117 (not 120) to preserve the
+# established 3-below-live gap (mechanic 2) and keep the anti-vacuity check
+# (``len(routed) > ROUTED_LOAD_META_FLOOR``) strictly satisfied.
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
-ROUTED_LOAD_META_FLOOR = 123
+ROUTED_LOAD_META_FLOOR = 117
 
 
 # --------------------------------------------------------------------------- #
