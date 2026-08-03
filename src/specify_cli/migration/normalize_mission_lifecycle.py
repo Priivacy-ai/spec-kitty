@@ -74,7 +74,7 @@ def _load_meta_for_normalization(
     from specify_cli.core.paths import load_meta_fail_closed, MissionMetaReadError
     try:
         meta = load_meta_fail_closed(feature_dir)
-    except MissionMetaReadError as exc:
+    except (OSError, MissionMetaReadError) as exc:
         result.status = "error"
         result.error = f"Could not read meta.json: {exc}"
         return None

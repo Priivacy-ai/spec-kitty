@@ -427,7 +427,7 @@ def _load_primary_anchored_mission_meta(
     primary_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     try:
         return _load_meta(primary_dir)
-    except MissionMetaReadError:  # corrupt primary meta -> fall through to layer 2
+    except (OSError, MissionMetaReadError):  # corrupt/unreadable primary meta -> fall through to layer 2
         return None
 
 
@@ -442,7 +442,7 @@ def _load_fallback_mission_meta(feature_dir: Path) -> dict[str, Any] | None:
 
     try:
         return _load_meta(feature_dir)
-    except MissionMetaReadError:  # corrupt meta.json is legacy-tolerated here
+    except (OSError, MissionMetaReadError):  # corrupt/unreadable meta.json is legacy-tolerated here
         return None
 
 

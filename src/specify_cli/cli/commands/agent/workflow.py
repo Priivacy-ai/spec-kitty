@@ -315,7 +315,7 @@ def _load_coord_branch_meta(feature_dir: Path) -> tuple[str | None, str | None, 
 
     try:
         meta = load_meta_fail_closed(feature_dir)
-    except MissionMetaReadError:  # corrupt meta.json is legacy-tolerated here
+    except (OSError, MissionMetaReadError):  # corrupt/unreadable meta.json is legacy-tolerated here
         return (None, None, None)
     if not isinstance(meta, dict):
         return (None, None, None)

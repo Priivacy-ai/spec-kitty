@@ -1095,7 +1095,7 @@ def _safe_load_meta(feature_dir: Path) -> dict[str, Any] | None:
     try:
         result: dict[str, Any] | None = load_meta_fail_closed(feature_dir)
         return result
-    except MissionMetaReadError:
+    except (OSError, MissionMetaReadError):
         return None
 
 
