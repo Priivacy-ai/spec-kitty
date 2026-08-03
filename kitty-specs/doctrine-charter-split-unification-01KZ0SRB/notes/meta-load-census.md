@@ -104,10 +104,22 @@ its `ValueError` arm to the typed error — **not** passing a `feature_dir` to i
 |---|---|---|
 | `src/mission_runtime/lifecycle_phase.py` `_read_baseline_merge_commit` | `route-unwrapped`, `DEF A` — the raw `ValueError` leaked out of `resolve_artifact_surface`; **this was the #3140 red** | Routed through `core.paths.load_meta_fail_closed`. The typed `MissionMetaReadError` is degraded to the absent-baseline answer (`""`) so the corruption verdict stays with `status.aggregate.MissionStatus._read_meta`, which raises `MissionMetadataUnavailable` with the slug + primary candidate attached. |
 
-> WP07 deliberately routed **only** this site (its `owned_files`). The remaining product rows are
-> WP08/WP09's, by design (D5 — parallel routing lanes keep the diff reviewable).
+> WP07 deliberately routed **only** this site (its `owned_files`). The remaining product rows were
+> intended for WP08/WP09's parallel routing lanes (D5), but the table below was never actually
+> claimed by either WP's `owned_files` — see the correction note that follows it.
 
-**Highest-priority remainder for WP08/WP09** (same `mission_runtime`/`runtime` subsystem as the fixed leak):
+**Highest-priority remainder — NOT actually routed by WP08 or WP09** (same `mission_runtime`/`runtime`
+subsystem as the fixed leak):
+
+> **Correction (landing-pass review, PR #3155):** despite the heading above, none of the five sites in
+> this table appear in `tasks/WP08-meta-fail-closed-route-batch-a.md`'s or
+> `tasks/WP09-meta-fail-closed-route-batch-b.md`'s `owned_files` lists. Both WPs shipped and closed
+> #3140 without ever touching these files — they remain genuinely unrouted (raw `ValueError` still
+> escapes on a corrupt `meta.json`). This is now tracked as follow-up issue
+> [#3162](https://github.com/Priivacy-ai/spec-kitty/issues/3162), which also covers the rest of this
+> mission's `pending-batch-a` bucket (see the NFR-003 ledger in
+> `tests/specify_cli/test_meta_fail_closed_full_census_contract.py`). #3140's closure does not cover
+> this table.
 
 | Site | Class | Target |
 |---|---|---|
