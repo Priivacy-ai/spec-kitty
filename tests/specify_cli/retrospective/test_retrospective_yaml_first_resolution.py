@@ -287,6 +287,85 @@ class TestYamlVsConfigPrecedence:
 
 
 # =============================================================================
+# strict_keys follows yaml > md > config precedence, not an OR (#3163)
+# =============================================================================
+
+
+class TestStrictKeysPrecedence:
+    """``strict_keys`` resolves as a precedence chain, never an OR-across-sources.
+
+    Regression for #3163: the resolver used to compute
+    ``any(block.get("strict_keys") is True for block in blocks)`` across
+    charter.yaml / charter.md / config -- an OR that let a lower-precedence
+    source's ``strict_keys: true`` win even when the authority explicitly set
+    ``strict_keys: false``.  Effective ``strict_keys`` is observed indirectly
+    here via an unknown key: strict mode turns an unknown key into a raised
+    ``PolicyResolutionError``; lenient mode only warns.
+    """
+
+    def test_yaml_explicit_false_wins_over_md_true(self, tmp_path: Path) -> None:
+        """yaml's explicit ``strict_keys: false`` suppresses md's ``true`` (#3163).
+
+        The unknown key is planted in the **md** block deliberately: an
+        unknown key authored in the yaml block would be silently dropped by
+        ``RetrospectiveGovernance.model_validate`` (extra fields are ignored)
+        before it ever reaches ``_apply_block_to_policy``, which would make
+        this case vacuous for exercising strict-mode enforcement.
+        """
+        write_charter_with_retrospective(
+            tmp_path,
+            {
+                "strict_keys": True,
+                "unknown_field": "surprise",
+                "failure_policy": "warn",
+            },
+        )
+        write_charter_yaml_with_retrospective(
+            tmp_path,
+            "    strict_keys: false\n",
+        )
+
+        # Must NOT raise: yaml's explicit strict_keys: false is the winning
+        # source, so md's unknown_field is only a warning, not a raise.
+        policy, source_map = resolve_policy(tmp_path, env={})
+
+        assert policy.failure_policy == "warn"
+        assert source_map["failure_policy"].startswith(_CHARTER_MD_SOURCE)
+
+    def test_both_sources_agree_strict_true_raises_on_unknown_key(
+        self, tmp_path: Path
+    ) -> None:
+        """Both yaml and md set ``strict_keys: true`` -> unknown key still raises."""
+        write_charter_with_retrospective(
+            tmp_path,
+            {"strict_keys": True, "unknown_field": "surprise"},
+        )
+        write_charter_yaml_with_retrospective(
+            tmp_path,
+            "    strict_keys: true\n",
+        )
+
+        with pytest.raises(PolicyResolutionError) as excinfo:
+            resolve_policy(tmp_path, env={})
+
+        assert excinfo.value.reason == "unknown_key"
+
+    def test_only_md_sets_strict_keys_true_raises_on_unknown_key(
+        self, tmp_path: Path
+    ) -> None:
+        """No yaml block at all -- md's ``strict_keys: true`` is the sole source."""
+        write_charter_with_retrospective(
+            tmp_path,
+            {"strict_keys": True, "unknown_field": "surprise"},
+        )
+
+        with pytest.raises(PolicyResolutionError) as excinfo:
+            resolve_policy(tmp_path, env={})
+
+        assert excinfo.value.reason == "unknown_key"
+
+
+# =============================================================================
 # Malformed charter.yaml surfaces the typed resolver error, never pydantic's
 # =============================================================================
 
