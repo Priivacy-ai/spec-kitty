@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-07-31'
+updated: '2026-08-02'
 ---
 # Changelog
 
@@ -383,6 +383,28 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   `src/specify_cli/cli/commands/charter/**` previously wouldn't trigger the
   workflow named for it; the docs-parity gate had pointed at a reference file
   that no longer existed, so it never actually ran.
+- **Approving a work package after a rejection now actually sticks — no
+  override flag required (mission `review-verdict-write-integrity`; `#3044`,
+  `#2275`, `#2996`, `#990`, `#2697`, `#2646`).** Before this fix,
+  `move-task --to approved` on a previously-rejected WP advanced the lane but
+  wrote no record of the approval — the stale `rejected` verdict stayed
+  authoritative, so `move-task --to done` and `spec-kitty merge` kept blocking
+  on it, forcing `--skip-review-artifact-check` (an arbiter-override flag) on
+  every ordinary reject → fix → approve cycle. Separately, the rejection
+  writer accepted any file as "feedback" without checking it wasn't itself a
+  prior cycle's own review artifact (by path or by a renamed copy), so a
+  mistaken or malicious re-submission could silently duplicate an old review
+  under fresh, fabricated frontmatter. Neither writer ever git-committed its
+  output under any topology, so even a successful write could land untracked.
+  Now: approving a rejected WP through the normal path persists and commits a
+  real `verdict: approved` review-cycle artifact with a genuine reviewer
+  identity; the override flag still works for actual arbiter decisions but is
+  no longer *needed* for an ordinary approval; a rejection's feedback source
+  is refused if it's the same or a duplicate of a prior cycle's own artifact;
+  and every review-cycle write (either verdict) is committed, surfacing a
+  clear error if the commit itself fails rather than silently discarding it.
+  `agent tasks status`'s stale-verdict display (`#2646`) is confirmed to close
+  as a side effect of the durable writer, with no separate code change needed.
 - **Applying a charter pack no longer leaves your project worse off than doing
   nothing (mission `charter-pack-usage-journey`; `#3104`, `#3105`).** Before
   this fix, `spec-kitty charter pack apply <pack>` on an unconfigured project
