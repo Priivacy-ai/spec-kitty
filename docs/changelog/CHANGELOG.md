@@ -336,17 +336,9 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   `MissionMetaReadError` (or a documented silent-empty fallback where that was
   always the contract), so a broken mission's metadata degrades predictably
   instead of crashing the command you ran.
-- **Retrospective policy set in `charter.yaml` now takes precedence over
-  `charter.md` frontmatter (mission `doctrine-charter-split-unification`).**
-  If both files configure retrospective behaviour and they disagree, the
-  compiled `charter.yaml` value now wins — matching how every other
-  charter-governed decision already resolves. Projects that configure
-  retrospective policy only via `charter.md` frontmatter (no `charter.yaml`
-  retrospective block) are unaffected and keep resolving from the markdown as
-  before.
-- **`doctrine-charter-tests.yml` CI now actually covers the charter CLI
-  command layer, and the CLI-reference parity check runs instead of silently
-  skipping (`#3149`, `#3107`, `#3102`).** A change under
+- **Internal: `doctrine-charter-tests.yml` CI now actually covers the charter
+  CLI command layer, and the CLI-reference parity check runs instead of
+  silently skipping (`#3149`, `#3107`, `#3102`).** A change under
   `src/specify_cli/cli/commands/charter/**` previously wouldn't trigger the
   workflow named for it; the docs-parity gate had pointed at a reference file
   that no longer existed, so it never actually ran.
@@ -909,6 +901,14 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ♻️ Changed
 
+- **Retrospective policy set in `charter.yaml` now takes precedence over
+  `charter.md` frontmatter (mission `doctrine-charter-split-unification`).**
+  If both files configure retrospective behaviour and they disagree, the
+  compiled `charter.yaml` value now wins — matching how every other
+  charter-governed decision already resolves. Projects that configure
+  retrospective policy only via `charter.md` frontmatter (no `charter.yaml`
+  retrospective block) are unaffected and keep resolving from the markdown as
+  before.
 - **Internal: doctrine/charter changes now get a dedicated, path-filtered CI
   workflow (mission `charter-pack-usage-journey`; `#3102`).** A PR that touches
   only `src/doctrine/**` / `src/charter/**` (or touches neither) now runs the
