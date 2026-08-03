@@ -310,6 +310,24 @@ def _normalize_whitespace(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def _content_identity(text: str) -> str:
+    """Canonical form used on BOTH sides of the content-identity comparison.
+
+    M4 (adversarial squad, PR #3156): the writer stores the RAW feedback
+    text as the new artifact's body (frontmatter delimiters and all, if the
+    feedback file itself opened with a ``---`` block) — it is never stripped
+    on write. Reading a prior cycle's on-disk body back via
+    ``ReviewCycleArtifact.from_file(candidate).body`` therefore still
+    carries that embedded block verbatim. Running ONLY the new submission's
+    body through :func:`_strip_frontmatter` (and not the prior cycle's
+    stored body) compared a stripped left side against an unstripped right
+    side, so re-submitting the exact same feedback file verbatim — the
+    #990/#2996(b) case this guard exists to catch — silently passed as
+    "not a duplicate". Both sides must run through the identical function.
+    """
+    return _normalize_whitespace(_strip_frontmatter(text))
+
+
 def _guard_feedback_source_provenance(
     *, feedback_source: Path, body: str, sub_artifact_dir: Path
 ) -> None:
@@ -340,7 +358,7 @@ def _guard_feedback_source_provenance(
 
     if not resolved_dir.exists():
         return
-    normalized_feedback_body = _normalize_whitespace(_strip_frontmatter(body))
+    normalized_feedback_body = _content_identity(body)
     for candidate in sorted(resolved_dir.glob("review-cycle-*.md")):
         # M3 (adversarial squad, PR #3156): a prior artifact that cannot be
         # parsed or read (bad frontmatter, non-UTF-8 bytes, permission
@@ -355,7 +373,7 @@ def _guard_feedback_source_provenance(
             candidate_body = ReviewCycleArtifact.from_file(candidate).body
         except (ValueError, OSError):
             continue
-        if _normalize_whitespace(candidate_body) == normalized_feedback_body:
+        if _content_identity(candidate_body) == normalized_feedback_body:
             raise ReviewCycleError(
                 "feedback_source content duplicates a prior review-cycle "
                 f"artifact ({candidate.name}) verbatim; pass distinct "
