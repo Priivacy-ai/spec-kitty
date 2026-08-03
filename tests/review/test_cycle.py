@@ -557,13 +557,18 @@ class _FailingCommitRouter:
 
 
 def test_create_rejected_review_cycle_raises_when_commit_fails(tmp_path: Path) -> None:
-    """Cycle 2 fix (#2697): a non-``"committed"`` ``CommitArtifactResult`` must
-    surface as a hard failure, not a silently-successful, uncommitted write.
+    """Cycle 2 fix (#2697) + M2 (adversarial squad, PR #3156): a non-
+    ``"committed"`` ``CommitArtifactResult`` must surface as a hard failure
+    AND roll back the orphaned write -- not merely surface the failure while
+    stranding an uncommitted artifact on disk.
 
-    Before this fix, ``_commit_review_cycle_artifact`` discarded the
-    ``CommitArtifactResult`` entirely, so ``create_rejected_review_cycle``
-    would return success even though the artifact was never committed --
-    exactly the pre-mission bug (#2697) this WP exists to close.
+    Before the M2 rollback fix, the write and the commit were not atomic: a
+    failed commit left ``review-cycle-1.md`` on disk with no rollback. A
+    rejection retry would then hit the content-identity guard against its
+    own orphan ("duplicates a prior review-cycle artifact") and be refused
+    forever, permanently bricking the WP. Rolling back on failure means the
+    failure state is "no artifact" -- not "uncommitted artifact" -- so an
+    immediate retry with the SAME feedback succeeds cleanly.
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -571,6 +576,11 @@ def test_create_rejected_review_cycle_raises_when_commit_fails(tmp_path: Path) -
     tasks_dir = repo / "kitty-specs" / "001-mission" / "tasks"
     tasks_dir.mkdir(parents=True)
     (tasks_dir / "WP01-core.md").write_text("# WP01\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "seed"], cwd=repo, check=True, capture_output=True
+    )
+    _unprotect_main(repo)
     feedback = tmp_path / "feedback.md"
     feedback.write_text("**Issue**: Needs another pass.\n", encoding="utf-8")
 
@@ -587,23 +597,35 @@ def test_create_rejected_review_cycle_raises_when_commit_fails(tmp_path: Path) -
             commit_router=router,
         )
 
-    # The write happened (the artifact IS on disk) but the failure must be
-    # surfaced rather than swallowed -- the router was actually invoked once,
-    # with the written artifact path.
+    # The router WAS invoked once, with the written artifact path -- the
+    # failure is real, not swallowed.
     artifact_path = tasks_dir / "WP01-core" / "review-cycle-1.md"
-    assert artifact_path.exists()
     assert router.calls == [artifact_path]
-    status = subprocess.run(
-        ["git", "status", "--porcelain"],
-        cwd=repo,
-        check=True,
-        capture_output=True,
-        text=True,
+    # M2: the failed write is rolled back -- no orphaned artifact survives.
+    assert not artifact_path.exists(), (
+        "a failed commit must roll back its write -- an orphaned, "
+        "uncommitted artifact would permanently brick a retry"
     )
-    assert "kitty-specs" in status.stdout, (
-        "the artifact must remain untracked in git -- this regression test "
-        "exists to prove a commit failure is NOT silently treated as success"
+    assert not list((tasks_dir / "WP01-core").glob("review-cycle-*.md")), (
+        "no review-cycle-*.md should survive a rolled-back commit failure"
     )
+
+    # An immediate retry with the SAME feedback, now with a working commit
+    # router, must succeed and land as cycle 1 again -- proving the orphan's
+    # phantom count did not inflate ``next_cycle_number``.
+    from specify_cli.agent_tasks_ports import RealCoordCommitRouter
+
+    retried = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        feedback_source=feedback,
+        reviewer_agent="reviewer-renata",
+        commit_router=RealCoordCommitRouter(),
+    )
+    assert retried.artifact_path == artifact_path
+    assert retried.artifact.cycle_number == 1
 
 
 def test_create_rejected_review_cycle_without_commit_router_is_unchanged(
