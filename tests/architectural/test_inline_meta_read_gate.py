@@ -284,21 +284,90 @@ def _module_is_json(expr: ast.expr) -> bool:
     return isinstance(expr, ast.Name) and expr.id in ("json", "_json")
 
 
-def _is_json_loads_call(call: ast.Call) -> bool:
-    func = call.func
-    return isinstance(func, ast.Attribute) and func.attr == "loads" and _module_is_json(func.value)
+@dataclass(frozen=True)
+class _JsonImportBindings:
+    """This file's own local name bindings for the ``json`` module and its
+    ``loads``/``load`` callables, resolved from its real ``import``/``from ... import``
+    statements (module- or function-scoped, with optional ``as`` aliases).
+
+    Closes evasion vector 2: a hardcoded ``json``/``_json`` attribute-access match
+    (:func:`_module_is_json`) never sees ``from json import loads`` (a bare ``loads(...)``
+    call) or an arbitrarily-aliased module import (``import json as j``). Resolving
+    through the file's actual bindings instead of a literal string match catches both.
+    """
+
+    module_names: frozenset[str]
+    loads_names: frozenset[str]
+    load_names: frozenset[str]
 
 
-def _is_json_load_call(call: ast.Call) -> bool:
+def _collect_json_import_bindings(tree: ast.Module) -> _JsonImportBindings:
+    """Scan *tree* for ``json`` imports and return their local name bindings.
+
+    Covers ``import json`` / ``import json as X`` (recorded in ``module_names``) and
+    ``from json import loads [as Y]`` / ``from json import load [as Z]`` (recorded in
+    ``loads_names`` / ``load_names``). Walks the whole tree (not just module level) so
+    a function-local ``import json as _json`` (a real pattern already in this codebase)
+    is resolved too.
+    """
+    module_names: set[str] = set()
+    loads_names: set[str] = set()
+    load_names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name == "json":
+                    module_names.add(alias.asname or alias.name)
+        elif isinstance(node, ast.ImportFrom) and node.module == "json":
+            for alias in node.names:
+                if alias.name == "loads":
+                    loads_names.add(alias.asname or alias.name)
+                elif alias.name == "load":
+                    load_names.add(alias.asname or alias.name)
+    return _JsonImportBindings(
+        module_names=frozenset(module_names),
+        loads_names=frozenset(loads_names),
+        load_names=frozenset(load_names),
+    )
+
+
+def _is_json_loads_call(call: ast.Call, bindings: _JsonImportBindings | None = None) -> bool:
+    """True for ``json.loads(...)`` (hardcoded ``json``/``_json`` fallback, or any real
+    import binding in *bindings*) or a bare ``loads(...)`` bound via
+    ``from json import loads``.
+    """
     func = call.func
-    return isinstance(func, ast.Attribute) and func.attr == "load" and _module_is_json(func.value)
+    if isinstance(func, ast.Attribute) and func.attr == "loads":
+        if _module_is_json(func.value):
+            return True
+        if bindings is not None and isinstance(func.value, ast.Name):
+            return func.value.id in bindings.module_names
+    if bindings is not None and isinstance(func, ast.Name):
+        return func.id in bindings.loads_names
+    return False
+
+
+def _is_json_load_call(call: ast.Call, bindings: _JsonImportBindings | None = None) -> bool:
+    """True for ``json.load(...)`` (hardcoded fallback or a real import binding) or a
+    bare ``load(...)`` bound via ``from json import load``.
+    """
+    func = call.func
+    if isinstance(func, ast.Attribute) and func.attr == "load":
+        if _module_is_json(func.value):
+            return True
+        if bindings is not None and isinstance(func.value, ast.Name):
+            return func.value.id in bindings.module_names
+    if bindings is not None and isinstance(func, ast.Name):
+        return func.id in bindings.load_names
+    return False
 
 
 def _assigned_value(fn: ast.FunctionDef | ast.AsyncFunctionDef, name: str) -> ast.expr | None:
     """Return the RHS (or ``with ... as name:`` context expr) of *name*'s binding in *fn*.
 
-    Single intra-function hop (contract: def-use tracing is local, not a full
-    interprocedural data-flow analysis).
+    One binding lookup (intra-function; not a full interprocedural data-flow
+    analysis). Chaining multiple lookups to follow a ``Name = Name`` reassignment
+    chain is :func:`_follow_assignment_chain`'s job, not this function's.
     """
     for node in ast.walk(fn):
         value, targets = _binding_candidate(node)
@@ -306,6 +375,37 @@ def _assigned_value(fn: ast.FunctionDef | ast.AsyncFunctionDef, name: str) -> as
             if isinstance(tgt, ast.Name) and tgt.id == name:
                 return value
     return None
+
+
+# Cap on same-function ``Name = Name`` reassignment-chain hops
+# (:func:`_follow_assignment_chain`) followed to reach a binding's ultimate source
+# expression. Closes evasion vector 3 (``y = x`` indirection was previously
+# unresolved past one hop) while staying intra-function/finite: this is def-use
+# tracing local to one function, not a full interprocedural data-flow analysis, so
+# a bound of 5 is a defense against pathological/circular chains rather than a
+# claim of completeness -- a legitimate chain longer than 5 hops stays unresolved,
+# same class of limitation the pre-existing one-hop resolution already carried.
+_MAX_ASSIGNMENT_HOPS = 5
+
+
+def _follow_assignment_chain(
+    fn: ast.FunctionDef | ast.AsyncFunctionDef, name: str, hops_remaining: int
+) -> ast.expr | None:
+    """Follow *name*'s most recent same-scope binding through further bare ``Name``
+    bindings (``y = x``) up to *hops_remaining* hops.
+
+    Returns the first non-``Name`` RHS expression reached, or ``None`` when *name*
+    is unbound in *fn* or the hop budget is exhausted first -- a pathologically
+    long or circular chain is treated as unresolved, never followed indefinitely.
+    """
+    if hops_remaining <= 0:
+        return None
+    bound = _assigned_value(fn, name)
+    if bound is None:
+        return None
+    if isinstance(bound, ast.Name):
+        return _follow_assignment_chain(fn, bound.id, hops_remaining - 1)
+    return bound
 
 
 def _binding_candidate(node: ast.AST) -> tuple[ast.expr | None, list[ast.expr]]:
@@ -339,14 +439,15 @@ def _read_source_base(
     """Resolve *arg* (the sole positional arg to ``json.loads``/``json.load``) to its path base.
 
     Handles the inline forms (``X.read_text(...)``, ``open(X, ...)``, ``X.open(...)``)
-    directly, and a bare ``Name`` resolved one intra-function hop through an
-    assignment or a ``with ... as name:`` binding (e.g. ``meta_text =
-    meta_path.read_text(...)`` then ``json.loads(meta_text)``, or ``with
-    meta_json.open() as f: json.load(f)``).
+    directly, and a bare ``Name`` resolved through up to :data:`_MAX_ASSIGNMENT_HOPS`
+    intra-function reassignment hops (assignment, ``with ... as name:`` binding, or a
+    ``Name = Name`` chain) to that form (e.g. ``meta_text = meta_path.read_text(...)``
+    then ``json.loads(meta_text)``; ``with meta_json.open() as f: json.load(f)``; or the
+    vector-3 two-hop shape ``y = x`` then ``json.loads(y.read_text())``).
     """
     resolved = arg
     if isinstance(resolved, ast.Name) and fn is not None:
-        bound = _assigned_value(fn, resolved.id)
+        bound = _follow_assignment_chain(fn, resolved.id, _MAX_ASSIGNMENT_HOPS)
         if bound is not None:
             resolved = bound
     return _extract_read_base(resolved)
@@ -362,14 +463,31 @@ def _is_meta_json_join(expr: ast.expr) -> bool:
     )
 
 
-def is_meta_path_expr(expr: ast.expr) -> bool:
-    """True when *expr* is a meta.json path by the contract's two-clause test.
+def is_meta_path_expr(
+    expr: ast.expr,
+    fn: ast.FunctionDef | ast.AsyncFunctionDef | None = None,
+    hops: int = _MAX_ASSIGNMENT_HOPS,
+) -> bool:
+    """True when *expr* is a meta.json path.
 
     Either a canonical variable name (``meta_path``/``meta_file``/``meta_json``/
-    ``target_meta_path``), or a direct ``<dir> / "meta.json"`` join.
+    ``target_meta_path`` -- kept as a direct match for parameters and other names
+    with no in-scope binding to resolve), a direct ``<dir> / "meta.json"`` join, or
+    -- when *fn* is supplied -- a bare, arbitrarily-named ``Name`` resolved
+    structurally through up to *hops* same-function reassignment hops
+    (:func:`_follow_assignment_chain`) to a join expression (evasion-vector-1 fix:
+    the assignment-hop no longer requires the variable to be spelled one of the
+    four canonical names). *fn* is optional and omitted by the unit tests that
+    exercise the two-clause test in isolation; the real scanner always supplies it.
     """
-    if isinstance(expr, ast.Name) and expr.id in META_PATH_VAR_NAMES:
-        return True
+    if isinstance(expr, ast.Name):
+        if expr.id in META_PATH_VAR_NAMES:
+            return True
+        if fn is not None and hops > 0:
+            bound = _follow_assignment_chain(fn, expr.id, hops)
+            if bound is not None:
+                return _is_meta_json_join(bound)
+        return False
     return _is_meta_json_join(expr)
 
 
@@ -407,16 +525,17 @@ def _scan_file_for_inline_meta_reads(path: Path, rel: str) -> list[InlineMetaRea
     except SyntaxError:
         return []
     parents = _parent_map(tree)
+    bindings = _collect_json_import_bindings(tree)
     token_map = code_tokens_by_line(source)
     found: list[InlineMetaReadSite] = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call) or not node.args:
             continue
-        if not (_is_json_loads_call(node) or _is_json_load_call(node)):
+        if not (_is_json_loads_call(node, bindings) or _is_json_load_call(node, bindings)):
             continue
         fn = _enclosing_function(parents, node)
         base = _read_source_base(node.args[0], fn)
-        if base is None or not is_meta_path_expr(base):
+        if base is None or not is_meta_path_expr(base, fn):
             continue
         qualname = _qualname_from_parents(parents, node)
         found.append(
@@ -644,6 +763,188 @@ def test_module_is_json_accepts_aliased_import() -> None:
         "def f(meta_path):\n    return _json.loads(meta_path.read_text())\n"
     )
     assert _is_json_loads_call(call) is True
+
+
+# --- unit: evasion-vector fixes (#3163) --------------------------------------
+def test_is_meta_path_expr_resolves_arbitrary_name_via_assignment() -> None:
+    """Vector-1 fix: the assignment-hop is structural, not gated on the fixed
+    variable-name vocabulary -- an arbitrarily-named local (``mpath``, not one of
+    the four canonical names) still resolves to its join expression."""
+    call, fn = _fn_with_call(
+        "def f(feature_dir):\n"
+        "    mpath = feature_dir / 'meta.json'\n"
+        "    return json.loads(mpath.read_text(encoding='utf-8'))\n"
+    )
+    base = _read_source_base(call.args[0], fn)
+    assert base is not None
+    assert is_meta_path_expr(base, fn) is True
+
+
+def test_is_meta_path_expr_without_fn_context_rejects_arbitrary_name() -> None:
+    """Without a supplied *fn*, an arbitrarily-named variable cannot be resolved --
+    the two-clause standalone test used directly by the unit tests above is
+    unchanged; *fn* is what enables the vector-1 structural resolution."""
+    expr = ast.parse("mpath", mode="eval").body
+    assert is_meta_path_expr(expr) is False
+
+
+def test_is_meta_path_expr_resolves_two_hop_reassignment_chain() -> None:
+    """Vector-3 fix: ``y = x`` reassignment indirection (a second hop past the
+    pre-existing one-hop resolution) still resolves to the join expression."""
+    call, fn = _fn_with_call(
+        "def f(feature_dir):\n"
+        "    x = feature_dir / 'meta.json'\n"
+        "    y = x\n"
+        "    return json.loads(y.read_text(encoding='utf-8'))\n"
+    )
+    base = _read_source_base(call.args[0], fn)
+    assert base is not None
+    assert is_meta_path_expr(base, fn) is True
+
+
+def test_follow_assignment_chain_resolves_at_the_hop_limit() -> None:
+    """A reassignment chain that costs exactly :data:`_MAX_ASSIGNMENT_HOPS` lookups
+    to unwind (one more than the chain's own rename count -- the final lookup
+    reads the base variable's own join expression) still resolves."""
+    depth = _MAX_ASSIGNMENT_HOPS - 1
+    src_lines = ["def f(feature_dir):", "    v0 = feature_dir / 'meta.json'"]
+    for i in range(1, depth + 1):
+        src_lines.append(f"    v{i} = v{i - 1}")
+    src_lines.append(f"    return v{depth}")
+    tree = ast.parse("\n".join(src_lines) + "\n")
+    fn = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef))
+    resolved = _follow_assignment_chain(fn, f"v{depth}", _MAX_ASSIGNMENT_HOPS)
+    assert resolved is not None
+    assert _is_meta_json_join(resolved) is True
+
+
+def test_follow_assignment_chain_respects_hop_limit() -> None:
+    """A reassignment chain one hop past :data:`_MAX_ASSIGNMENT_HOPS` is honestly
+    unresolved (``None``), not silently followed forever -- documents the bound
+    named in the fix rather than asserting completeness."""
+    src_lines = ["def f(feature_dir):", "    v0 = feature_dir / 'meta.json'"]
+    for i in range(1, _MAX_ASSIGNMENT_HOPS + 2):
+        src_lines.append(f"    v{i} = v{i - 1}")
+    src_lines.append(f"    return v{_MAX_ASSIGNMENT_HOPS + 1}")
+    tree = ast.parse("\n".join(src_lines) + "\n")
+    fn = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef))
+    resolved = _follow_assignment_chain(
+        fn, f"v{_MAX_ASSIGNMENT_HOPS + 1}", _MAX_ASSIGNMENT_HOPS
+    )
+    assert resolved is None
+
+
+def test_collect_json_import_bindings_resolves_all_forms() -> None:
+    """Vector-2 fix: ``import json``/``import json as X``/``from json import
+    loads``/``from json import load as Y`` all resolve to their real local
+    binding names -- not a hardcoded ``json``/``_json`` literal match."""
+    tree = ast.parse(
+        "import json\n"
+        "import json as _json\n"
+        "from json import loads\n"
+        "from json import load as _load\n"
+    )
+    bindings = _collect_json_import_bindings(tree)
+    assert bindings.module_names == {"json", "_json"}
+    assert bindings.loads_names == {"loads"}
+    assert bindings.load_names == {"_load"}
+
+
+def test_is_json_loads_call_resolves_from_import_binding() -> None:
+    """A bare ``loads(...)`` call resolves as ``json.loads`` when *bindings*
+    records ``from json import loads``."""
+    tree = ast.parse("from json import loads\ndef f(x):\n    return loads(x)\n")
+    bindings = _collect_json_import_bindings(tree)
+    call = next(n for n in ast.walk(tree) if isinstance(n, ast.Call))
+    assert _is_json_loads_call(call, bindings) is True
+    assert _is_json_loads_call(call) is False  # no bindings supplied -> unresolved
+
+
+def test_is_json_loads_call_resolves_arbitrary_module_alias() -> None:
+    """``import json as <anything>`` (not just ``json``/``_json``) resolves via
+    *bindings*, closing the hardcoded-alias gap."""
+    tree = ast.parse(
+        "import json as totally_arbitrary_alias\n"
+        "def f(x):\n    return totally_arbitrary_alias.loads(x)\n"
+    )
+    bindings = _collect_json_import_bindings(tree)
+    call = next(n for n in ast.walk(tree) if isinstance(n, ast.Call))
+    assert _is_json_loads_call(call, bindings) is True
+    assert _is_json_loads_call(call) is False  # unresolved without bindings
+
+
+# --- scanner-level: the same three vectors, exercised end-to-end ------------
+def _write_scratch_reader(tmp_path: Path, pkg_name: str, source: str) -> Path:
+    pkg = tmp_path / "src" / pkg_name
+    pkg.mkdir(parents=True)
+    (tmp_path / "src" / "__init__.py").write_text("", encoding="utf-8")
+    (pkg / "__init__.py").write_text("", encoding="utf-8")
+    (pkg / "reader.py").write_text(source, encoding="utf-8")
+    return tmp_path / "src"
+
+
+def test_scan_detects_arbitrary_variable_name(tmp_path: Path) -> None:
+    """Vector-1 fix, end-to-end: a meta.json path stored under an arbitrarily
+    named variable is flagged by the real scanner, not just the helper units."""
+    scratch_src = _write_scratch_reader(
+        tmp_path,
+        "vector1_pkg",
+        "class ArbitraryNameReader:\n"
+        "    def load(self, feature_dir):\n"
+        "        mpath = feature_dir / 'meta.json'\n"
+        "        return json.loads(mpath.read_text(encoding='utf-8'))\n",
+    )
+    sites = scan_inline_meta_reads(scratch_src)
+    assert any(s.key.enclosing_qualname == "ArbitraryNameReader.load" for s in sites)
+
+
+def test_scan_detects_from_json_import_loads(tmp_path: Path) -> None:
+    """Vector-2 fix, end-to-end: ``from json import loads`` (a bare ``loads(...)``
+    call) is flagged by the real scanner."""
+    scratch_src = _write_scratch_reader(
+        tmp_path,
+        "vector2_pkg",
+        "from json import loads\n"
+        "class FromImportReader:\n"
+        "    def load(self, feature_dir):\n"
+        "        meta_path = feature_dir / 'meta.json'\n"
+        "        return loads(meta_path.read_text(encoding='utf-8'))\n",
+    )
+    sites = scan_inline_meta_reads(scratch_src)
+    assert any(s.key.enclosing_qualname == "FromImportReader.load" for s in sites)
+
+
+def test_scan_detects_aliased_json_module_import(tmp_path: Path) -> None:
+    """Vector-2 fix, end-to-end: an arbitrarily-aliased ``import json as X`` (not
+    just the hardcoded ``json``/``_json`` fallback) is flagged by the real
+    scanner."""
+    scratch_src = _write_scratch_reader(
+        tmp_path,
+        "vector2b_pkg",
+        "import json as totally_arbitrary_alias\n"
+        "class AliasedImportReader:\n"
+        "    def load(self, feature_dir):\n"
+        "        meta_path = feature_dir / 'meta.json'\n"
+        "        return totally_arbitrary_alias.loads(meta_path.read_text(encoding='utf-8'))\n",
+    )
+    sites = scan_inline_meta_reads(scratch_src)
+    assert any(s.key.enclosing_qualname == "AliasedImportReader.load" for s in sites)
+
+
+def test_scan_detects_two_hop_reassignment(tmp_path: Path) -> None:
+    """Vector-3 fix, end-to-end: a two-hop ``y = x`` reassignment chain is flagged
+    by the real scanner."""
+    scratch_src = _write_scratch_reader(
+        tmp_path,
+        "vector3_pkg",
+        "class TwoHopReader:\n"
+        "    def load(self, feature_dir):\n"
+        "        x = feature_dir / 'meta.json'\n"
+        "        y = x\n"
+        "        return json.loads(y.read_text(encoding='utf-8'))\n",
+    )
+    sites = scan_inline_meta_reads(scratch_src)
+    assert any(s.key.enclosing_qualname == "TwoHopReader.load" for s in sites)
 
 
 # --- T045: scanner integration on the real tree -----------------------------
