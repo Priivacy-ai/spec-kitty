@@ -1,7 +1,7 @@
 {
-  "event_count": 2,
-  "last_event_id": "01KZ1NZAPF4F2THVC4R1QFDY2E",
-  "materialized_at": "2026-08-02T16:47:34.607887+00:00",
+  "event_count": 23,
+  "last_event_id": "01KZ2873QDF6ETAW6SQ90HWCYM",
+  "materialized_at": "2026-08-02T22:06:23.981718+00:00",
   "mission_number": "",
   "mission_slug": "review-verdict-write-integrity-01KZ1CGF",
   "mission_type": "software-dev",
@@ -10,26 +10,66 @@
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 2,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 2
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
-      "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01KZ1NZ9YJD54PX6R9ZR58QWKW",
-      "last_transition_at": "2026-08-02T16:47:33.842311+00:00"
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KZ2872JKMC3R6935BS108DPK",
+      "last_transition_at": "2026-08-02T22:06:22.803727+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: T001-T007 done. verdict-aware writer + provenance guard + commit step + approval wiring implemented and tested. KNOWN GAP flagged in Activity Log: tasks_transition_core.py's rejected-verdict guard still blocks the ordinary CLI approve path (pre-existing baseline-red, not a regression) -- see history entry for details.",
+        "Cycle 1 fix: guard relaxed, pinned tests rewritten",
+        "Cycle 2 fix: commit-status check added",
+        "Cycle 3 review: cycle 2's discarded-CommitArtifactResult gap is genuinely fixed. _commit_review_cycle_artifact now captures commit_router.commit_artifact()'s result and raises ReviewCycleError (with the router's diagnostic) on any non-'committed' status; rationale for raise-not-warn (vs the two best-effort callers in tasks_mark_status.py/tasks_map_requirements.py, whose own mutation already succeeded independently of the commit) is sound and documented inline. New test test_create_rejected_review_cycle_raises_when_commit_fails genuinely exercises the failure path via a stub router returning status='error', asserting both the raise and that the artifact remains untracked in git. Spot-checked all 8 collateral fixture fixes -- all legitimate, same idiom, no scope creep. Prior cycles' fixes (guard relaxation, provenance guard) remain intact. Required test list: 128 passed. mypy --strict: 1 pre-existing no-any-return at tasks_move_task.py:1933, confirmed present on mission base branch, unrelated. ruff clean on diff-scoped files. Broad scoped regression: 4267 passed, 11 failed, all attributed to pre-existing baseline-red/CI-env/test-order issues confirmed via base-branch reruns, none are regressions. Approving."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 1811984,
+      "shell_pid_created_at": "1785707138.61",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01KZ1NZAPF4F2THVC4R1QFDY2E",
-      "last_transition_at": "2026-08-02T16:47:34.607887+00:00"
+      "lane": "done",
+      "last_event_id": "01KZ2873QDF6ETAW6SQ90HWCYM",
+      "last_transition_at": "2026-08-02T22:06:23.981718+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Verify-first gate satisfied: T009 PASSED (coord + flat topology, real WP01 writer, no mocks), status.py zero diff confirmed via git diff --stat, antecedent Activity Log PASS entry (20:49:00Z) predates subtask done-marks (20:54:40Z), T010 correctly closed as designed no-op. 2/2 targeted tests + full scoped regression (1570 passed, 3 pre-existing unrelated failures) pass. Lint clean, conftest.py is a minimal fixture re-export that doesn't touch shared coord_topology_fixture.py."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 1669985,
+      "shell_pid_created_at": "1785704205.88",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
     }
   }
 }
