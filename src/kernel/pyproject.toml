@@ -1,3 +1,9 @@
+# DORMANT PACKAGING GROUNDWORK: this manifest is not yet built, published, or
+# consumed by CI or by any runtime import path -- it exists ahead of the
+# planned kernel -> doctrine -> charter wheel cutover (#3101). See
+# docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md for the full
+# rationale, risk assessment, and closure test.
+
 [project]
 name = "spec-kitty-kernel"
 version = "1.0.0"
