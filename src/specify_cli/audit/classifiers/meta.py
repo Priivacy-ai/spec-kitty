@@ -43,12 +43,19 @@ def classify_meta_json(mission_dir: Path) -> list[MissionFinding]:
     # Exception-chaining shape (core/paths.py load_meta_fail_closed + WP08
     # review defect #4): MissionMetaReadError.cause is ALWAYS the intermediate
     # ValueError raised by mission_metadata._parse_meta_text -- never the
-    # underlying OSError/JSONDecodeError directly. _parse_meta_text chains the
-    # original decode/read exception as THAT ValueError's own __cause__ (a
-    # double-hop), so the real OSError/JSONDecodeError lives at
+    # underlying OSError/JSONDecodeError/UnicodeDecodeError directly.
+    # _parse_meta_text chains the original decode/read exception as THAT
+    # ValueError's own __cause__ (a double-hop), so the real
+    # OSError/JSONDecodeError/UnicodeDecodeError lives at
     # ``exc.cause.__cause__``, not ``exc.cause``. Checking ``isinstance(exc.cause,
     # OSError)`` was therefore always False -- a dead branch that misreported an
     # unreadable meta.json as "top-level JSON value must be an object".
+    #
+    # UnicodeDecodeError (#3163): non-UTF-8 bytes in meta.json raise
+    # UnicodeDecodeError, a ValueError subclass but NOT an OSError subclass --
+    # it must be checked alongside OSError below, or it falls into the
+    # non-object-JSON branch and reports the wrong diagnosis (a decode
+    # failure is not "top-level JSON value must be an object").
     from specify_cli.core.paths import load_meta_fail_closed, MissionMetaReadError
     try:
         obj = load_meta_fail_closed(mission_dir)
@@ -56,7 +63,7 @@ def classify_meta_json(mission_dir: Path) -> list[MissionFinding]:
         underlying = exc.cause.__cause__ if isinstance(exc.cause, ValueError) else None
         if isinstance(underlying, json.JSONDecodeError):
             detail = f"JSON decode error: {underlying.msg}"
-        elif isinstance(underlying, OSError):
+        elif isinstance(underlying, (OSError, UnicodeDecodeError)):
             detail = f"cannot read meta.json: {underlying}"
         else:
             detail = "top-level JSON value must be an object"

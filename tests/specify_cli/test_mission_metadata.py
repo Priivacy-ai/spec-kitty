@@ -102,6 +102,23 @@ def test_contract_a_non_object_top_level_raises(tmp_path: Path) -> None:
         load_meta(tmp_path)
 
 
+def test_contract_a_non_utf8_bytes_raise_malformed_value_error(tmp_path: Path) -> None:
+    """Non-UTF-8 bytes must raise the wrapped ``Malformed JSON`` ValueError.
+
+    Regression for #3163: ``meta_path.read_text(encoding="utf-8")`` raises
+    ``UnicodeDecodeError`` on invalid UTF-8 bytes -- a ``ValueError``
+    subclass, NOT an ``OSError`` subclass -- which the original
+    ``except (json.JSONDecodeError, OSError)`` tuple in ``_parse_meta_text``
+    did not catch, letting it escape as a raw, unwrapped
+    ``UnicodeDecodeError`` instead of this reader's contracted
+    ``ValueError("Malformed JSON in ...")``.
+    """
+    (tmp_path / META_FILENAME).write_bytes(b"\xff\xfe\x00\x01garbage")
+    with pytest.raises(ValueError, match="Malformed JSON") as excinfo:
+        load_meta(tmp_path)
+    assert not isinstance(excinfo.value, UnicodeDecodeError)
+
+
 # ===================================================================
 # Contract (b): strict -- raise-on-missing + utf-8-sig BOM tolerance
 # ===================================================================

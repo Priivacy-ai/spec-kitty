@@ -413,7 +413,13 @@ def _load_charter_yaml_retrospective_block(
 
     try:
         document = load_charter_yaml(charter_yaml_path)
-    except (_YAMLError, OSError) as exc:
+    except (_YAMLError, OSError, UnicodeDecodeError) as exc:
+        # UnicodeDecodeError is a ValueError subclass, NOT an OSError subclass
+        # -- ``load_charter_yaml`` opens the file with ``encoding="utf-8"``,
+        # so invalid UTF-8 bytes raise UnicodeDecodeError during the read,
+        # which the original ``(_YAMLError, OSError)`` tuple did not catch
+        # (#3163). Caught explicitly here so it surfaces as this module's
+        # structured PolicyResolutionError instead of a raw crash.
         return None, _charter_yaml_error("invalid_yaml", str(exc))
 
     if not isinstance(document, dict):

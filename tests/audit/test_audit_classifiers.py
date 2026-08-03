@@ -240,6 +240,31 @@ def test_meta_classifier_unreadable_file_reports_cannot_read_not_non_object(
     )
 
 
+def test_meta_classifier_non_utf8_reports_cannot_read_not_non_object(
+    tmp_path: Path,
+) -> None:
+    """Non-UTF-8 meta.json bytes -> the "cannot read" arm, not a crash or
+    the non-object misdiagnosis (#3163).
+
+    Regression: ``UnicodeDecodeError`` is a ``ValueError`` subclass, NOT an
+    ``OSError`` subclass, so before this fix it (a) escaped
+    ``_parse_meta_text``'s ``except (json.JSONDecodeError, OSError)`` tuple
+    unwrapped, and (b) even once wrapped, ``classify_meta_json``'s
+    ``isinstance(underlying, OSError)`` check did not recognise it, so it
+    fell through to the wrong diagnosis: "top-level JSON value must be an
+    object" -- a decode failure is not a non-object-JSON case.
+    """
+    path = tmp_path / "meta.json"
+    path.write_bytes(b"\xff\xfe\x00\x01garbage")
+
+    findings = classify_meta_json(tmp_path)
+
+    assert len(findings) == 1
+    assert findings[0].code == "CORRUPT_JSON"
+    assert findings[0].detail != "top-level JSON value must be an object"
+    assert findings[0].detail.startswith("cannot read meta.json:")
+
+
 def test_meta_classifier_unknown_key(tmp_path: Path) -> None:
     """meta.json with unrecognised key → UNKNOWN_SHAPE finding (info)."""
     data = {**_MODERN_META, "unrecognised_field_xyz": "value"}
