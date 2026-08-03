@@ -4,6 +4,30 @@
 **Gates:** WP08 and WP09 (they route the sites this file enumerates; the NFR-003 full-census
 contract test is driven from this row set).
 
+## 0. Scope (read before treating this as a full inventory of `meta.json` reads)
+
+**This census enumerates calls to the canonical parser (`load_meta(`-style call
+sites), not every place `meta.json` is read.** The row set is reconciled against
+`grep -rn "load_meta(" --include="*.py" .` (§1), so a raw `meta.json` read that
+bypasses `load_meta`/`load_meta_fail_closed` entirely — e.g. its own
+`Path.read_text()` + `json.loads()`, or `git show HEAD:<path>` piped through a
+private JSON parse — produces no `load_meta(` token and therefore never
+appears as a row here, and is not covered by the NFR-003 full-census contract
+this file backs.
+
+A known example: `src/specify_cli/git/ref_advance.py`'s
+`_committed_meta_object` (~line 192) and `_meta_change_is_vcs_lock_only`
+(~line 242) both read a mission's `meta.json` directly — via `git show
+HEAD:<path>` and `Path.read_text()` respectively, each parsed by the module's
+own `_parse_meta_object` helper — without ever calling `load_meta` or
+`load_meta_fail_closed`. Neither site appears in this census, nor in
+`tests/architectural/test_inline_meta_read_gate.py`'s allowlist
+(`inline_meta_read_allowlist.yaml`), which gates a *different* class of inline
+reads. These two sites are tracked as a known raw-read gap in follow-up issue
+[#3162](https://github.com/Priivacy-ai/spec-kitty/issues/3162) rather than
+routed here — routing them through `load_meta_fail_closed` is out of this
+mission's scope (same carve-out as #3162's other `pending-batch-a` sites).
+
 ## 1. Anti-omission reconciliation (research.md D10 — BINDING)
 
 The NFR-003 full-census contract is **self-referential**: a silently omitted call site would leak
