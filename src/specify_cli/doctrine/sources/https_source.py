@@ -15,6 +15,7 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 import requests
 
@@ -23,6 +24,7 @@ from .protocol import FetchResult
 MAX_ARCHIVE_BYTES = 100 * 1024 * 1024
 MAX_EXTRACTED_BYTES = 512 * 1024 * 1024
 MAX_ARCHIVE_MEMBERS = 10_000
+_ARTIFACTORY_PATH_MARKER = "/artifactory/"
 
 
 class ArchiveSizeLimitError(Exception):
@@ -37,10 +39,14 @@ class HttpsBundleSource:
         url: Direct download URL for the archive.
         ref: Optional version pin used to populate ``pack_version`` when the
             server does not return an ``ETag`` header.
+        if_none_match: Optional ETag from a previous fetch.  Sent as
+            ``If-None-Match`` so an unchanged remote returns HTTP 304 and
+            skips the download body.
     """
 
     url: str
     ref: str | None = None
+    if_none_match: str | None = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -57,6 +63,17 @@ class HttpsBundleSource:
                 artifacts_written=0,
                 pack_version=None,
                 errors=[f"Network error fetching {self.url}: {exc}"],
+            )
+
+        if response.status_code == 304:
+            # Conditional request: body is empty; keep the existing snapshot.
+            response.close()
+            return FetchResult(
+                ok=True,
+                artifacts_written=0,
+                pack_version=self.ref or self.if_none_match,
+                unchanged=True,
+                etag=self.if_none_match,
             )
 
         if response.status_code in (401, 403):
@@ -136,25 +153,80 @@ class HttpsBundleSource:
         finally:
             tmp_path.unlink(missing_ok=True)
 
-        pack_version = self.ref or response.headers.get("ETag")
+        etag = response.headers.get("ETag")
+        jfrog_version, version_error = self._fetch_artifactory_version()
+        if version_error is not None:
+            return FetchResult(
+                ok=False,
+                artifacts_written=extracted,
+                pack_version=None,
+                etag=etag,
+                errors=[version_error],
+            )
+        # Non-Artifactory HTTPS: leave pack_version unset (or honour an
+        # operator ``ref`` pin). Only JFrog ``version`` properties become a
+        # persisted doctrine version; ETag is stored separately for caching.
+        pack_version = jfrog_version or self.ref
         return FetchResult(
             ok=True,
             artifacts_written=extracted,
             pack_version=pack_version,
-            errors=[],
+            etag=etag,
         )
 
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
     def _headers(self) -> dict[str, str]:
+        headers: dict[str, str] = {}
         custom_header = os.environ.get("SPEC_KITTY_ORG_AUTH_HEADER")
         if custom_header:
-            return {"Authorization": custom_header}
-        token = os.environ.get("SPEC_KITTY_ORG_TOKEN")
-        if token:
-            return {"Authorization": f"Bearer {token}"}
-        return {}
+            headers["Authorization"] = custom_header
+        else:
+            token = os.environ.get("SPEC_KITTY_ORG_TOKEN")
+            if token:
+                headers["Authorization"] = f"Bearer {token}"
+        if self.if_none_match:
+            headers["If-None-Match"] = self.if_none_match
+        return headers
+
+    def _fetch_artifactory_version(self) -> tuple[str | None, str | None]:
+        """Read the artifact's standard JFrog ``version`` property.
+
+        Returns ``(None, None)`` for non-Artifactory URLs so ordinary HTTPS
+        bundles continue without a version property lookup or a saved
+        doctrine version. For detected Artifactory URLs the property is
+        required: a missing/unreadable value fails the fetch so an
+        unversioned JFrog snapshot is never promoted.
+        """
+        storage_url = _artifactory_storage_url(self.url)
+        if storage_url is None:
+            return None, None
+        try:
+            response = requests.get(  # noqa: S113 - timeout supplied below
+                storage_url,
+                headers=_without_conditional_header(self._headers()),
+                params={"properties": "version"},
+                timeout=30,
+            )
+        except requests.RequestException as exc:
+            return None, f"Failed to read JFrog version property: {exc}"
+        if response.status_code >= 400:
+            return None, (
+                "Failed to read JFrog version property: "
+                f"HTTP {response.status_code} {response.reason}"
+            )
+        try:
+            payload = response.json()
+        except (ValueError, TypeError):
+            return None, "Failed to read JFrog version property: invalid JSON response"
+        version = _extract_jfrog_version(payload)
+        if version is None:
+            return None, (
+                "JFrog artifact has no non-empty version property: "
+                f"{self.url}"
+            )
+        return version, None
 
     def _get_with_retry(self) -> requests.Response:
         response = requests.get(  # noqa: S113 - timeout supplied below
@@ -207,6 +279,45 @@ class HttpsBundleSource:
 
         _flatten_single_top_dir(target_dir)
         return sum(1 for _ in target_dir.rglob("*.yaml"))
+
+
+def _artifactory_storage_url(artifact_url: str) -> str | None:
+    """Translate an Artifactory download URL to its Storage API item URL."""
+    parsed = urlsplit(artifact_url)
+    if _ARTIFACTORY_PATH_MARKER not in parsed.path:
+        return None
+    prefix, item_path = parsed.path.split(_ARTIFACTORY_PATH_MARKER, maxsplit=1)
+    if "/" not in item_path:
+        return None
+    storage_path = (
+        f"{prefix}{_ARTIFACTORY_PATH_MARKER}api/storage/{item_path}"
+    )
+    return urlunsplit((parsed.scheme, parsed.netloc, storage_path, "", ""))
+
+
+def _without_conditional_header(headers: dict[str, str]) -> dict[str, str]:
+    """Return request headers without an artifact-body conditional."""
+    return {
+        name: value
+        for name, value in headers.items()
+        if name.lower() != "if-none-match"
+    }
+
+
+def _extract_jfrog_version(payload: object) -> str | None:
+    """Return the first non-empty value from ``properties.version``."""
+    if not isinstance(payload, dict):
+        return None
+    properties = payload.get("properties")
+    if not isinstance(properties, dict):
+        return None
+    versions = properties.get("version")
+    if not isinstance(versions, list):
+        return None
+    for value in versions:
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
 
 
 def _parse_retry_after(value: Any) -> float:

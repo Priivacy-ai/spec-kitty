@@ -209,6 +209,200 @@ class TestWriteSnapshot:
         # local_path was never populated.
         assert not local_path.exists()
 
+    def test_subdir_validates_effective_root(self, tmp_path: Path) -> None:
+        """HTTPS/API archives may nest the pack under ``pack/`` (FR-007).
+
+        After a single top-dir flatten the snapshot root is ``pack/…`` with
+        artifact dirs only inside that subdir. Validation and the manifest
+        must target the effective root, not the clone/snapshot root.
+        """
+        local_path = tmp_path / "doctrine-rnd"
+
+        def _nested_pack_layout(target_dir: Path) -> None:
+            _populate_valid_pack(target_dir / "pack")
+
+        source = _ScriptedSource(
+            layout=_nested_pack_layout,
+            result=FetchResult(ok=True, artifacts_written=2, pack_version="v9"),
+        )
+
+        result = write_snapshot(source, local_path, subdir="pack", source_type="https")
+
+        assert result.ok is True
+        assert (local_path / "pack" / "directives" / "sec-001.directive.yaml").is_file()
+        # Manifest at effective root so doctor doctrine finds it.
+        manifest_path = local_path / "pack" / "pack-manifest.yaml"
+        assert manifest_path.is_file()
+        manifest = yaml.safe_load(manifest_path.read_text())
+        assert manifest["artifact_counts"]["directives"] == 1
+        assert not (local_path / "pack-manifest.yaml").exists()
+
+    def test_subdir_rejects_when_only_wrapper_present(self, tmp_path: Path) -> None:
+        """Without ``subdir``, a nested ``pack/`` tree is rejected (legacy)."""
+        local_path = tmp_path / "doctrine-rnd"
+
+        def _nested_pack_layout(target_dir: Path) -> None:
+            _populate_valid_pack(target_dir / "pack")
+
+        source = _ScriptedSource(
+            layout=_nested_pack_layout,
+            result=FetchResult(ok=True, artifacts_written=2, pack_version="v9"),
+        )
+
+        result = write_snapshot(source, local_path)
+
+        assert result.ok is False
+        assert any("No artifact directories" in err for err in result.errors)
+        assert not local_path.exists()
+
+    def test_fetch_pack_passes_subdir_to_write_snapshot(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from specify_cli.doctrine.config import OrgPackConfig
+
+        pack = OrgPackConfig(
+            name="doctrine-rnd",
+            local_path=tmp_path / "doctrine-rnd",
+            source_type="https",
+            url="https://example.com/doctrine-rnd.tar.gz",
+            subdir="pack",
+        )
+
+        def _nested_pack_layout(target_dir: Path) -> None:
+            _populate_valid_pack(target_dir / "pack")
+
+        source = _ScriptedSource(
+            layout=_nested_pack_layout,
+            result=FetchResult(ok=True, artifacts_written=2, pack_version="v9"),
+        )
+        monkeypatch.setattr(
+            "specify_cli.doctrine.snapshot._build_source", lambda _pack: source
+        )
+
+        result = fetch_pack(pack, tmp_path)
+
+        assert result.ok is True
+        assert result.artifacts_written == 2
+        assert (
+            tmp_path / "doctrine-rnd" / "pack" / "directives" / "sec-001.directive.yaml"
+        ).is_file()
+
+
+class TestEtagConditionalFetch:
+    def test_legacy_artifactory_manifest_forces_one_versioned_download(
+        self, tmp_path: Path
+    ) -> None:
+        from specify_cli.doctrine.snapshot import _with_stored_etag
+        from specify_cli.doctrine.sources.https_source import HttpsBundleSource
+
+        local_path = tmp_path / "doctrine"
+        _populate_valid_pack(local_path)
+        write_pack_manifest(
+            local_path,
+            FetchResult(
+                ok=True,
+                artifacts_written=2,
+                pack_version="legacy-etag-without-dedicated-field",
+                etag="legacy-etag-without-dedicated-field",
+            ),
+            source_url=(
+                "https://artifactory.example.com/artifactory/repo/"
+                "doctrine-rnd-latest.tar.gz"
+            ),
+            source_type="https",
+        )
+        source = HttpsBundleSource(
+            url=(
+                "https://artifactory.example.com/artifactory/repo/"
+                "doctrine-rnd-latest.tar.gz"
+            )
+        )
+
+        prepared = _with_stored_etag(source, local_path, None)
+
+        assert isinstance(prepared, HttpsBundleSource)
+        assert prepared.if_none_match is None
+
+    def test_write_snapshot_skips_replace_on_304(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from specify_cli.doctrine.sources.https_source import HttpsBundleSource
+
+        local_path = tmp_path / "doctrine"
+        _populate_valid_pack(local_path)
+        write_pack_manifest(
+            local_path,
+            FetchResult(
+                ok=True,
+                artifacts_written=2,
+                pack_version="v1",
+                etag='"etag-1"',
+            ),
+            source_url="https://example.com/pack.tar.gz",
+            source_type="https",
+        )
+        marker = local_path / "directives" / "sec-001.directive.yaml"
+        original = marker.read_text()
+        manifest_path = local_path / "pack-manifest.yaml"
+        manifest = yaml.safe_load(manifest_path.read_text())
+        manifest["fetched_at"] = "original-fetch-time"
+        manifest_path.write_text(yaml.safe_dump(manifest, sort_keys=True))
+        original_manifest = manifest_path.read_bytes()
+
+        def _fake_get(url: str, **kwargs: object) -> object:
+            headers = kwargs.get("headers") or {}
+            assert isinstance(headers, dict)
+            assert headers.get("If-None-Match") == '"etag-1"'
+
+            class _Resp:
+                status_code = 304
+                headers: dict[str, str] = {}
+                reason = "Not Modified"
+                url = "https://example.com/pack.tar.gz"
+
+                def close(self) -> None:
+                    return None
+
+                def iter_content(self, chunk_size: int = 65536):  # noqa: ARG002
+                    yield from ()
+
+            return _Resp()
+
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
+        )
+
+        result = write_snapshot(
+            HttpsBundleSource(url="https://example.com/pack.tar.gz"),
+            local_path,
+            source_type="https",
+        )
+
+        assert result.ok is True
+        assert result.unchanged is True
+        assert result.artifacts_written == 2
+        assert result.pack_version == "v1"
+        assert marker.read_text() == original
+        assert manifest_path.read_bytes() == original_manifest
+
+    def test_manifest_persists_etag(self, tmp_path: Path) -> None:
+        local_path = tmp_path / "doctrine"
+        _populate_valid_pack(local_path)
+        write_pack_manifest(
+            local_path,
+            FetchResult(
+                ok=True,
+                artifacts_written=2,
+                pack_version="v1",
+                etag='"abc"',
+            ),
+            source_url="https://example.com/pack.tar.gz",
+            source_type="https",
+        )
+        manifest = yaml.safe_load((local_path / "pack-manifest.yaml").read_text())
+        assert manifest["etag"] == '"abc"'
+        assert manifest["pack_version"] == "v1"
+
 
 class TestPackManifest:
     def test_manifest_contains_required_fields(self, tmp_path: Path) -> None:
