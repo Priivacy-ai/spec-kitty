@@ -319,8 +319,13 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   showed "no charter" in the dashboard sidebar and its API — both the artifact
   scanner and the charter API endpoint still keyed presence on the legacy
   `charter.md` file. Presence now resolves from `charter.yaml` (the read
-  authority) everywhere; the prose body the Charter page displays still comes
-  from `charter.md` when one exists.
+  authority) across the dashboard, analysis-report, and retrospective-policy
+  surfaces; the prose body the Charter page displays still comes from
+  `charter.md` when one exists. Two exceptions are intentionally pinned, not
+  residual gaps: `charter context`'s prose-presence gate (documented, C-003)
+  and `charter status`'s legacy `charter.md`-only fallback for
+  pre-consolidation bundles (`_status_collectors.py`, pinned by
+  `test_status_collectors_legacy_md_shape.py`, FR-006).
 - **A corrupt or malformed `meta.json` now always fails closed with a clear
   error, never a raw crash (mission `doctrine-charter-split-unification`;
   `#3140`).** Previously, dozens of call sites across mission-status,
