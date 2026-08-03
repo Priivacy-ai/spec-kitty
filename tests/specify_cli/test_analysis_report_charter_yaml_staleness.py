@@ -107,3 +107,43 @@ def test_analysis_report_staleness_no_regression_both_files_present(tmp_path):
     # Staleness check must still pass (behavior unchanged)
     freshness = check_analysis_report_current(feature_dir, repo_root)
     assert freshness.ok is True
+
+
+def test_analysis_report_staleness_hashes_charter_md_when_yaml_absent(tmp_path):
+    """Landing-fold regression: charter.md-only (pre-compile) projects still
+
+    get a staleness input hashed from their actual charter content. WP03
+    (b4a518844) repointed ``_charter_path`` to charter.yaml only and dropped
+    both charter.md candidates, on the premise that charter.md is "legacy
+    and not universally present" -- but a project that authored charter.md
+    and has not yet run ``charter sync``/compile is the common pre-compile
+    shape, not a legacy one. This must key on the canonical
+    ``.kittify/charter/charter.md`` (not the fully-legacy, already-refused
+    ``<root>/charter/charter.md``).
+    """
+    from specify_cli.analysis_report import check_analysis_report_current, collect_input_artifact_hashes, write_analysis_report
+
+    repo_root = tmp_path
+    feature_dir = repo_root / "kitty-specs" / "test-charter-md-only-01KS"
+    _write_required_artifacts(feature_dir)
+
+    # Seed ONLY charter.md (no charter.yaml compiled yet).
+    charter_md_path = repo_root / ".kittify" / "charter" / "charter.md"
+    charter_md_path.parent.mkdir(parents=True, exist_ok=True)
+    charter_md_path.write_text("# Authored Charter\n\nNo yaml compiled yet.\n", encoding="utf-8")
+
+    hashes = collect_input_artifact_hashes(feature_dir, repo_root)
+    assert "charter" in hashes
+    assert hashes["charter"]["path"] == str(charter_md_path.resolve())
+    assert hashes["charter"]["sha256"] is not None, "charter.md must be hashed when charter.yaml is absent"
+
+    result = write_analysis_report(
+        feature_dir=feature_dir,
+        repo_root=repo_root,
+        body="# Analysis Report\n\nNo issues.\n",
+    )
+    assert result.path.exists()
+    assert result.input_artifacts["charter"]["sha256"] is not None
+
+    freshness = check_analysis_report_current(feature_dir, repo_root)
+    assert freshness.ok is True, "Staleness check must succeed with only charter.md present"

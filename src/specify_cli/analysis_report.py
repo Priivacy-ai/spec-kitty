@@ -11,7 +11,7 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
-from charter.bundle import CHARTER_YAML
+from charter.bundle import CHARTER_MD, CHARTER_YAML
 from charter.resolution import (
     NotInsideRepositoryError,
     resolve_canonical_repo_root,
@@ -183,8 +183,14 @@ def _charter_path(repo_root: Path) -> Path | None:
     # degrade to the passed root. Resolver infrastructure failures still
     # propagate; otherwise we would synthesize a local charter hash when the
     # canonical root is unknowable.
-    # FR-004: Key staleness input on charter.yaml (the canonical resolving authority),
-    # not charter.md (which is legacy and not universally present).
+    # FR-004: Key staleness input on charter.yaml (the canonical resolving
+    # authority) when it exists. Landing-fold fix: fall back to charter.md
+    # when charter.yaml has not been compiled yet -- a project that authored
+    # a charter but has not run `charter sync`/compile must still get a
+    # staleness input keyed on its actual charter content, matching the
+    # yaml-or-md presence gate in dashboard/charter_path.py and
+    # charter.context (C-003). Only when NEITHER file exists is staleness
+    # input absent.
     canonical_root: Path
     try:
         canonical_root = resolve_canonical_repo_root(repo_root)
@@ -193,6 +199,9 @@ def _charter_path(repo_root: Path) -> Path | None:
     charter_yaml: Path = canonical_root / CHARTER_YAML
     if charter_yaml.exists():
         return charter_yaml
+    charter_md: Path = canonical_root / CHARTER_MD
+    if charter_md.exists():
+        return charter_md
     return None
 
 

@@ -2,11 +2,17 @@
 
 FR-003 (#3150): this module exposes two distinct readers over the same
 canonical charter directory, per C-001 (``charter.yaml`` is the resolving
-presence authority; ``charter.md`` stays a readable secondary, never an
-override):
+presence authority when both files exist; ``charter.md`` stays a readable
+secondary, never an override):
 
-* :func:`resolve_project_charter_presence` -- the presence probe. Keys on
-  ``charter.yaml`` and survives ``charter.md`` deletion.
+* :func:`resolve_project_charter_presence` -- the presence probe. Reports
+  present when EITHER ``charter.yaml`` OR ``charter.md`` exists (preferring
+  ``charter.yaml`` when both are present), so it survives ``charter.md``
+  deletion (#3150) *and* does not regress projects that have authored a
+  ``charter.md`` but have not yet compiled ``charter.yaml`` (landing-fold
+  fix, matching the yaml-or-md prose-presence gate in
+  ``charter.context`` and the md-only fallback in
+  ``cli/commands/charter/_status_collectors.py``).
 * :func:`resolve_project_charter_path` -- the prose body reader. Keys on
   ``charter.md`` (unchanged from pre-#3150 behaviour) for callers that
   serve/read the charter's prose content.
@@ -64,15 +70,21 @@ def _resolve_canonical_root_loud(project_dir: Path) -> Path | None:
 def resolve_project_charter_presence(project_dir: Path) -> Path | None:
     """Resolve the project-level charter *presence* probe path (FR-003, #3150).
 
-    Keys on ``charter.yaml`` -- the deterministic, schema-guarded governance
+    Prefers ``charter.yaml`` -- the deterministic, schema-guarded governance
     authority (C-001) -- so the dashboard's "no charter" signal survives
-    ``charter.md`` deletion. Returns the absolute path to
-    ``<canonical_root>/.kittify/charter/charter.yaml`` when present,
-    ``None`` otherwise. Does not fall back to legacy locations -- those must
-    be migrated via ``spec-kitty upgrade``.
+    ``charter.md`` deletion. Falls back to ``charter.md`` when
+    ``charter.yaml`` has not been compiled yet (a project that authored a
+    charter but has not run ``charter sync``/compile), so presence does not
+    regress that far more common case: this mirrors the yaml-or-md
+    prose-presence gate in ``charter.context`` (C-003) and the md-only
+    fallback added to ``cli/commands/charter/_status_collectors.py`` in the
+    same PR. Returns the absolute path to whichever file is present
+    (``charter.yaml`` when both exist), ``None`` when neither exists. Does
+    not fall back to legacy locations -- those must be migrated via
+    ``spec-kitty upgrade``.
 
-    This is a presence check only (file exists); it does not inspect
-    ``charter.yaml``'s contents.
+    This is a presence check only (file exists); it does not inspect the
+    resolved file's contents.
     """
     canonical_root = _resolve_canonical_root_loud(Path(project_dir))
     if canonical_root is None:
@@ -80,11 +92,16 @@ def resolve_project_charter_presence(project_dir: Path) -> Path | None:
 
     # Explicit annotation: charter.bundle is under a follow_imports = "skip"
     # mypy override (pre-existing project-wide setting for charter.*), so
-    # CHARTER_YAML resolves to Any at the call site without this local pin
-    # (NFR-002).
+    # CHARTER_YAML/CHARTER_MD resolve to Any at the call site without this
+    # local pin (NFR-002).
     charter_yaml_path: Path = canonical_root / CHARTER_YAML
     if charter_yaml_path.exists():
         return charter_yaml_path
+
+    charter_md_path: Path = canonical_root / CHARTER_MD
+    if charter_md_path.exists():
+        return charter_md_path
+
     return None
 
 

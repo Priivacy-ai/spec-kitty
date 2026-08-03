@@ -87,3 +87,26 @@ def test_handle_charter_returns_404_when_missing(tmp_path: Path) -> None:
 
     assert handler.status_code == 404
     assert handler.wfile.getvalue() == b"Charter not found"
+
+
+def test_handle_charter_serves_content_when_only_md_present(tmp_path: Path) -> None:
+    """Landing-fold regression: an authored charter.md with no compiled
+
+    charter.yaml yet (project has not run ``charter sync``/compile) must
+    still report present and serve its prose -- not 404. This is the
+    regression #3150's yaml-only presence fix silently introduced: the
+    presence probe keyed solely on charter.yaml, so a project with only
+    charter.md authored (the far more common pre-compile shape) started
+    404-ing on this endpoint.
+    """
+    md_path = tmp_path / ".kittify" / "charter" / "charter.md"
+    md_path.parent.mkdir(parents=True)
+    md_path.write_text("# Authored Charter\n\nNo yaml compiled yet.\n", encoding="utf-8")
+    yaml_path = tmp_path / ".kittify" / "charter" / "charter.yaml"
+    assert not yaml_path.exists(), "fixture must not seed charter.yaml"
+
+    handler = _DummyAPIHandler(tmp_path)
+    APIHandler.handle_charter(handler)  # type: ignore[arg-type]
+
+    assert handler.status_code == 200
+    assert handler.wfile.getvalue().decode("utf-8") == "# Authored Charter\n\nNo yaml compiled yet.\n"

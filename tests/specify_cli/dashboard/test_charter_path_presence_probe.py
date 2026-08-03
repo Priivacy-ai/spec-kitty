@@ -73,6 +73,27 @@ def test_presence_probe_survives_charter_md_deletion(tmp_path: Path) -> None:
     assert presence == charter_yaml
 
 
+def test_presence_probe_reports_present_when_only_charter_md_exists(tmp_path: Path) -> None:
+    """Landing-fold regression: charter.md-only (pre-compile) projects still
+
+    report present. The #3150 fix made presence key solely on charter.yaml
+    to survive charter.md deletion, but that silently regressed the far
+    more common opposite case -- a project that has authored charter.md and
+    has not yet run ``charter sync``/compile to produce charter.yaml. This
+    mirrors the yaml-or-md presence gate in ``charter.context`` (C-003) and
+    the md-only fallback added to ``_status_collectors.py`` in the same PR.
+    """
+    _init_git_repo(tmp_path)
+    charter_md = _seed_charter_md(tmp_path, body="# Authored Charter\n")
+    charter_yaml = tmp_path / ".kittify" / "charter" / "charter.yaml"
+    assert not charter_yaml.exists(), "fixture must not seed charter.yaml"
+
+    presence = resolve_project_charter_presence(tmp_path)
+
+    assert presence is not None, "presence probe must report present when only charter.md exists"
+    assert presence == charter_md
+
+
 def test_presence_probe_absent_when_neither_file_exists(tmp_path: Path) -> None:
     """Sanity companion: genuinely no charter -> presence probe reports absent."""
     _init_git_repo(tmp_path)
