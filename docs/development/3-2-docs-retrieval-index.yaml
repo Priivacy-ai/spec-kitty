@@ -2558,6 +2558,27 @@ pages:
     - {slug: "neutral", text: "Neutral", level: 3}
     - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md"
+    title: "ADR: Charter-Wheel Assessment — Extractable in Principle, Cut Over Kernel→Doctrine→Charter as One No-Partial Follow-On"
+    divio_type: "none"
+    abstract: "[#3101](https://github.com/Priivacy-ai/spec-kitty/issues/3101) wants `src/doctrine/` — and, assessed here, `src/charter/` — to ship as installable wheels on the documented dependency chain:"
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "a-the-extractability-claim-scoped-to-its-proof", text: "(a) The extractability claim, scoped to its proof", level: 3}
+    - {slug: "b-the-cutover-is-sequenced-kernel-doctrine-charter-and-is-no-partial", text: "(b) The cutover is sequenced kernel→doctrine→charter, and is NO-PARTIAL", level: 3}
+    - {slug: "c-this-adr-extends-2026-04-25-1-it-does-not-introduce-a-new-pattern", text: "(c) This ADR extends `2026-04-25-1`; it does not introduce a new pattern", level: 3}
+    - {slug: "d-deferred-follow-on-issue-set", text: "(d) Deferred follow-on issue set", level: 3}
+    - {slug: "e-c-002-this-mission-performed-no-wheel-cutover", text: "(e) C-002 — this Mission performed NO wheel cutover", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "option-a-extract-the-charter-wheel-now", text: "Option A — Extract the charter wheel now", level: 3}
+    - {slug: "option-b-assess-and-sequence-one-atomic-cutover-chosen", text: "Option B — Assess and sequence one atomic cutover (chosen)", level: 3}
+    - {slug: "option-c-abandon-the-split", text: "Option C — Abandon the split", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"

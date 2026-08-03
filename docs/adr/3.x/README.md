@@ -123,3 +123,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-07-26 | [a signed `impacts` edge subsumes `in_tension_with` — one relation, sign carries the direction of effect](2026-07-26-3-impacts-edge-subsumes-in-tension-with.md) |
 | 2026-07-28 | [doctrine context is delivered as navigable links, not inlined bodies — `when`/`reason` carry the fetch guidance](2026-07-28-1-progressive-disclosure-of-doctrine-context.md) |
 | 2026-07-30 | [CONSOLIDATED Write-Surface Wiring and `consolidate` as Canonical Lane-Consolidation Terminology](2026-07-30-1-consolidated-write-surface-and-consolidate-terminology.md) |
+| 2026-08-02 | [Charter-Wheel Assessment — Extractable in Principle, Cut Over Kernel→Doctrine→Charter as One No-Partial Follow-On](2026-08-02-1-charter-wheel-assessment.md) |
