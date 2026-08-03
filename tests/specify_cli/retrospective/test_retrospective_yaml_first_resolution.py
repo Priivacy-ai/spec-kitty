@@ -508,3 +508,44 @@ class TestMalformedCharterYaml:
 
         assert excinfo.value.source == _CHARTER_YAML_SOURCE
         assert excinfo.value.reason == "invalid_yaml"
+
+    def test_utf16_charter_yaml_with_retrospective_block_still_raises(
+        self, tmp_path: Path
+    ) -> None:
+        """A UTF-16-encoded charter.yaml carrying a real retrospective block
+        must still raise -- never be silently discarded as "provably
+        unrelated" (landing-fold regression on top of #3163, found by
+        second-round adversarial review).
+
+        Before this fix, ``_charter_yaml_mentions_retrospective`` searched
+        for the literal ASCII bytes ``b"retrospective"`` directly in the raw
+        file bytes. A UTF-16-encoded file (e.g. written by Windows
+        PowerShell's ``Out-File``/``>`` redirection, which defaults to
+        UTF-16 with a byte-order mark) NEVER contains that contiguous ASCII
+        substring even when it carries a real ``governance.retrospective:``
+        block, because every character is interleaved with a NUL byte
+        (``r\x00e\x00t\x00...``). The malformed charter.yaml was therefore
+        misclassified "provably unrelated" and silently discarded --
+        directly contradicting the function's own docstring guarantee. A
+        resolvable ``charter.md`` secondary is present so a silent fall-
+        through (the bug) would return a policy instead of raising.
+        """
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True, exist_ok=True)
+        yaml_body = (
+            "schema_version: 2.0.0\n"
+            "governance:\n"
+            "  retrospective:\n"
+            "    failure_policy: block\n"
+        )
+        (charter_dir / "charter.yaml").write_bytes(yaml_body.encode("utf-16"))
+        write_charter_with_retrospective(
+            tmp_path,
+            {"enabled": False, "failure_policy": "warn"},
+        )
+
+        with pytest.raises(PolicyResolutionError) as excinfo:
+            resolve_policy(tmp_path, env={})
+
+        assert excinfo.value.source == _CHARTER_YAML_SOURCE
+        assert excinfo.value.reason == "invalid_yaml"
