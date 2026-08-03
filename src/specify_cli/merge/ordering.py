@@ -23,7 +23,7 @@ from specify_cli.core.dependency_graph import (
     detect_cycles,
     topological_sort,
 )
-from specify_cli.core.paths import load_meta_fail_closed
+from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 from specify_cli.coordination.coherence import is_toolchain_generated_churn
 from specify_cli.git.ref_advance import advance_branch_ref
 from specify_cli.merge._constants import logger as _merge_logger
@@ -190,8 +190,11 @@ def assign_next_mission_number(target_branch_path: Path, mission_specs_dir: Path
             continue
         try:
             identity = resolve_mission_identity(child)
-        except (ValueError, TypeError):
-            # Malformed mission_number — skip rather than crash the merge.
+        except (ValueError, TypeError, MissionMetaReadError):
+            # Malformed mission_number, or (landing-fold, PR #3155:
+            # resolve_mission_identity now routes through
+            # load_meta_fail_closed) a corrupt meta.json -- skip rather than
+            # crash the merge either way.
             logger.warning(
                 "Skipping mission %s during number assignment scan: malformed mission_number",
                 child.name,

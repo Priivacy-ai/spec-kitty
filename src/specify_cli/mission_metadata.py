@@ -230,8 +230,13 @@ def resolve_mission_identity(feature_dir: Path) -> MissionIdentity:
     - Stored as JSON int    → ``int``
     - Stored as string "042" → ``42`` (leading zeros stripped)
     - Stored as "pending" / sentinel → raises ``ValueError``
+
+    A missing meta.json degrades to an empty identity (legacy-tolerant,
+    unchanged). A CORRUPT meta.json raises the typed ``MissionMetaReadError``
+    (FR-007 route) instead of the raw ``ValueError`` that used to leak from
+    this module's own ``load_meta`` call.
     """
-    meta = load_meta(feature_dir) or {}
+    meta = _load_meta_fail_closed(feature_dir) or {}
     raw_number = meta.get("mission_number")
     mission_number: int | None = _coerce_mission_number(raw_number)
 
@@ -466,6 +471,49 @@ def write_meta(
 # ---------------------------------------------------------------------------
 
 
+def _load_meta_fail_closed(feature_dir: Path) -> dict[str, Any] | None:
+    """Read meta.json via the one public fail-closed reader (FR-007).
+
+    Deferred import (LOAD-BEARING -- do NOT hoist to module level): this
+    module defines the canonical parser (:func:`load_meta`) that
+    ``core.paths.load_meta_fail_closed`` itself calls back into via its OWN
+    deferred import (see that function's docstring in ``core/paths.py``).
+    This module already imports from ``core.paths`` at module level
+    (``safe_mission_slug`` above), so a module-level import here would
+    re-form the exact same ``core.paths <-> mission_metadata`` circular
+    import that function documents and avoids. Keeping this import
+    in-function mirrors that established, working pattern (the "authority"
+    classification these mutation helpers used to carry in the NFR-003
+    ledger claimed routing them was circular for this reason -- it is not,
+    once the import is deferred the same way).
+
+    Returns ``None`` when meta.json is absent; never raised for a missing
+    file. Raises :class:`~specify_cli.core.paths.MissionMetaReadError` when
+    meta.json exists but is corrupt, non-object, or unreadable.
+    """
+    from specify_cli.core.paths import load_meta_fail_closed  # noqa: PLC0415
+
+    result: dict[str, Any] | None = load_meta_fail_closed(feature_dir)
+    return result
+
+
+def _require_meta(feature_dir: Path) -> dict[str, Any]:
+    """Read meta.json fail-closed, or raise if missing (FR-007 route).
+
+    Shared guard for the mutation helpers below: a MISSING meta.json is the
+    ``None`` answer from :func:`_load_meta_fail_closed` (raised here as
+    ``FileNotFoundError``, matching every one of these callers' historical
+    contract unchanged); a CORRUPT one raises the typed
+    ``MissionMetaReadError`` and propagates undisturbed -- previously a raw
+    ``ValueError`` leaked out of this module's own ``load_meta(feature_dir)``
+    call instead.
+    """
+    meta = _load_meta_fail_closed(feature_dir)
+    if meta is None:
+        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+    return meta
+
+
 def record_acceptance(
     feature_dir: Path,
     *,
@@ -475,9 +523,7 @@ def record_acceptance(
     accept_commit: str | None = None,
 ) -> dict[str, Any]:
     """Record acceptance metadata.  Appends to bounded history."""
-    meta = load_meta(feature_dir)
-    if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+    meta = _require_meta(feature_dir)
 
     now = _now_iso()
     entry: dict[str, Any] = {
@@ -519,9 +565,7 @@ def set_vcs_lock(
     locked_at: str | None = None,
 ) -> dict[str, Any]:
     """Set VCS type and lock timestamp."""
-    meta = load_meta(feature_dir)
-    if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+    meta = _require_meta(feature_dir)
 
     meta["vcs"] = vcs_type
     if locked_at is not None:
@@ -536,9 +580,7 @@ def set_documentation_state(
     state: dict[str, Any],
 ) -> dict[str, Any]:
     """Set or replace ``documentation_state`` subtree."""
-    meta = load_meta(feature_dir)
-    if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+    meta = _require_meta(feature_dir)
 
     meta["documentation_state"] = state
 
@@ -561,9 +603,7 @@ def set_origin_ticket(
         FileNotFoundError: If meta.json does not exist in *feature_dir*.
         ValueError: If any required key is missing from *origin_ticket*.
     """
-    meta = load_meta(feature_dir)
-    if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+    meta = _require_meta(feature_dir)
 
     required_keys = {
         "provider",
@@ -588,9 +628,7 @@ def set_target_branch(
     branch: str,
 ) -> dict[str, Any]:
     """Set ``target_branch`` field."""
-    meta = load_meta(feature_dir)
-    if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+    meta = _require_meta(feature_dir)
 
     meta["target_branch"] = branch
 
@@ -605,9 +643,7 @@ def set_purpose_summary(
     purpose_context: str,
 ) -> dict[str, Any]:
     """Set mission-purpose summary fields in ``meta.json``."""
-    meta = load_meta(feature_dir)
-    if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+    meta = _require_meta(feature_dir)
 
     errors = validate_purpose_summary(purpose_tldr, purpose_context)
     if errors:
@@ -635,9 +671,7 @@ def set_change_mode(
         raise ValueError(
             f"Invalid change_mode {mode!r}; valid values: {sorted(VALID_CHANGE_MODES)}"
         )
-    meta = load_meta(feature_dir)
-    if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+    meta = _require_meta(feature_dir)
 
     meta["change_mode"] = mode
     write_meta(feature_dir, meta)
@@ -672,9 +706,7 @@ def clear_merge_metadata(feature_dir: Path) -> dict[str, Any]:
     Raises:
         FileNotFoundError: If ``meta.json`` does not exist in *feature_dir*.
     """
-    meta = load_meta(feature_dir)
-    if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+    meta = _require_meta(feature_dir)
 
     cleared: dict[str, Any] = {}
     for field in _MERGE_FIELDS:
@@ -704,9 +736,7 @@ def clear_coordination_metadata(feature_dir: Path) -> dict[str, Any]:
     Raises:
         FileNotFoundError: If ``meta.json`` does not exist in *feature_dir*.
     """
-    meta = load_meta(feature_dir)
-    if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+    meta = _require_meta(feature_dir)
 
     cleared: dict[str, Any] = {}
     if "coordination_branch" in meta:
@@ -720,9 +750,12 @@ def clear_coordination_metadata(feature_dir: Path) -> dict[str, Any]:
 def get_change_mode(feature_dir: Path) -> str | None:
     """Read ``change_mode`` from meta.json.
 
-    Returns ``None`` if meta.json is missing or the field is absent.
+    Returns ``None`` if meta.json is missing or the field is absent. A
+    CORRUPT meta.json raises the typed ``MissionMetaReadError`` (FR-007
+    route) rather than absorbing it -- corruption is a read failure, not a
+    field-absent case, so it must not be reported the same way.
     """
-    meta = load_meta(feature_dir)
+    meta = _load_meta_fail_closed(feature_dir)
     if meta is None:
         return None
     return meta.get("change_mode")

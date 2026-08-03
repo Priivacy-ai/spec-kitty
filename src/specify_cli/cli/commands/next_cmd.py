@@ -32,7 +32,11 @@ from mission_runtime import MissionArtifactKind, placement_seam
 from typing import Annotated
 
 from specify_cli.core.context_validation import require_main_repo
-from specify_cli.core.paths import get_main_repo_root, locate_project_root
+from specify_cli.core.paths import (
+    MissionMetaReadError,
+    get_main_repo_root,
+    locate_project_root,
+)
 from runtime.next._runtime_pkg_notice import maybe_emit_runtime_pkg_notice
 
 
@@ -196,7 +200,11 @@ def _pair_previous_lifecycle_record(
 
     try:
         identity = resolve_mission_identity(feature_dir)
-    except (FileNotFoundError, ValueError, TypeError):
+    except (FileNotFoundError, ValueError, TypeError, MissionMetaReadError):
+        # MissionMetaReadError (landing-fold, PR #3155): resolve_mission_identity
+        # now routes through load_meta_fail_closed, so a corrupt meta.json
+        # raises the typed error here instead of a raw ValueError -- this
+        # observability-only lookup must degrade the same way either case.
         return
     # #2278: the lifecycle pairing key is a ``mission_id`` field — it MUST be a
     # canonical ULID, never a slug (same fail-closed contract as #2138/FR-004).
@@ -279,7 +287,11 @@ def _write_issuance_lifecycle_record(
 
     try:
         identity = resolve_mission_identity(feature_dir)
-    except (FileNotFoundError, ValueError, TypeError):
+    except (FileNotFoundError, ValueError, TypeError, MissionMetaReadError):
+        # MissionMetaReadError (landing-fold, PR #3155): resolve_mission_identity
+        # now routes through load_meta_fail_closed, so a corrupt meta.json
+        # raises the typed error here instead of a raw ValueError -- this
+        # observability-only lookup must degrade the same way either case.
         return
     # #2278: symmetric with the completion-pairing site above — the ``started``
     # record's ``mission_id`` field MUST be a canonical ULID, never a slug
