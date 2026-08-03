@@ -1,7 +1,7 @@
 {
   "rows": {
     "#1817": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "spec.md Assumptions: verified against main, confirmed stale duplicate of #1924, closed on tracker (comment+close) before this mission's planning began",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,11 +9,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "verified-already-fixed",
       "wp": null
     },
     "#1924": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "spec.md Edge Cases: override mechanism (--skip-review-artifact-check) already fixed per #1924, confirmed live in code; unchanged by this mission (WP01's guard fix preserves it verbatim)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,11 +21,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "verified-already-fixed",
       "wp": null
     },
     "#2275": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP01 approved: residual write-side gap closed by the generalized, provenance-guarded, commit-durable writer (FR-001)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,11 +33,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "fixed",
+      "wp": "WP01"
     },
     "#2646": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP02 T009: coord + flat topology regression (tests/regression/test_2646_stale_verdict_closes_via_fr001.py) confirms no stale-verdict warning via WP01's real writer, zero changes to agent_utils/status.py",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,11 +45,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "fixed",
+      "wp": "WP02"
     },
     "#2697": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP01 approved: commit step (T004) + cycle-2 fix (raises on non-committed status) closes 'no single canonical committed record' gap; verified via git-fixture regression tests",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -57,11 +57,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "fixed",
+      "wp": "WP01"
     },
     "#2996": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP01 approved: FR-001 (approved-verdict writer) + FR-002 (provenance guard) both shipped and independently reviewed across 3 cycles",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -69,11 +69,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "fixed",
+      "wp": "WP01"
     },
     "#3044": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Parent epic: all native children (#2275, #2996, #990) closed via approved WP01; #2646/#2697 (bundled, non-epic) also closed via approved WP01/WP02",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,11 +81,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "fixed",
       "wp": null
     },
     "#990": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP01 approved: provenance guard (path + content identity) closes the identical mechanism shared with #2996(b)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -93,8 +93,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "fixed",
+      "wp": "WP01"
     }
   },
   "schema_version": 1
