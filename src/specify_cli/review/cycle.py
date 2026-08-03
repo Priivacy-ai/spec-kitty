@@ -510,15 +510,29 @@ def create_rejected_review_cycle(
     validate_review_artifact_file(artifact_path)
 
     if commit_router is not None:
-        _commit_review_cycle_artifact(
-            commit_router,
-            main_repo_root=main_repo_root,
-            mission_slug=safe_mission_slug,
-            wp_id=safe_wp_id,
-            artifact_path=artifact_path,
-            cycle_number=cycle_n,
-            verdict=verdict,
-        )
+        try:
+            _commit_review_cycle_artifact(
+                commit_router,
+                main_repo_root=main_repo_root,
+                mission_slug=safe_mission_slug,
+                wp_id=safe_wp_id,
+                artifact_path=artifact_path,
+                cycle_number=cycle_n,
+                verdict=verdict,
+            )
+        except ReviewCycleError:
+            # M2 (adversarial squad, PR #3156): a failed commit must not
+            # leave an orphaned, uncommitted artifact on disk. Without this
+            # rollback, a rejection retry hits the content-identity guard
+            # against its own orphan ("duplicates a prior review-cycle
+            # artifact") and is refused forever, while an approval retry
+            # short-circuits at the "latest.verdict != rejected" no-op check
+            # (the orphan's verdict is already "approved") and silently
+            # reports success despite the write never being committed. The
+            # failure state must be "no artifact", not "uncommitted
+            # artifact", so a caller can simply retry the same operation.
+            artifact_path.unlink(missing_ok=True)
+            raise
 
     review_result = ReviewResult(
         reviewer=artifact.reviewer_agent,
