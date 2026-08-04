@@ -872,6 +872,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/README.md
   tag: current
   divio_type: none
@@ -2789,6 +2795,12 @@
 - path: docs/plans/engineering-notes/01KSMG8Y-closeout/retro.md
   tag: current
   divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/01KYW895-verification-evidence.md
+  tag: current
+  divio_type: explanation
   owning_workstream: none
   current_target: true
   notes: null

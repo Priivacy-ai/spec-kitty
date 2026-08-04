@@ -124,3 +124,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-07-28 | [doctrine context is delivered as navigable links, not inlined bodies — `when`/`reason` carry the fetch guidance](2026-07-28-1-progressive-disclosure-of-doctrine-context.md) |
 | 2026-07-30 | [CONSOLIDATED Write-Surface Wiring and `consolidate` as Canonical Lane-Consolidation Terminology](2026-07-30-1-consolidated-write-surface-and-consolidate-terminology.md) |
 | 2026-08-02 | [Charter-Wheel Assessment — Extractable in Principle, Cut Over Kernel→Doctrine→Charter as One No-Partial Follow-On](2026-08-02-1-charter-wheel-assessment.md) |
+| 2026-08-04 | [The Egress-Consent Boundary — Consent Is Keyed on the Record Being Sent, Never on Ambient Context](2026-08-04-1-egress-consent-boundary.md) |

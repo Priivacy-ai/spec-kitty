@@ -2579,6 +2579,28 @@ pages:
     - {slug: "option-b-assess-and-sequence-one-atomic-cutover-chosen", text: "Option B — Assess and sequence one atomic cutover (chosen)", level: 3}
     - {slug: "option-c-abandon-the-split", text: "Option C — Abandon the split", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md"
+    title: "ADR: The Egress-Consent Boundary — Consent Is Keyed on the Record Being Sent, Never on Ambient Context"
+    divio_type: "none"
+    abstract: "Two SaaS transports put project-identifying text on the wire: the tracker transport (`specify_cli/tracker/saas_client.py`) and the widen-mode SaaS client (`specify_cli/saas_client/client.py`). A mission slug is a [client engagement name](../../context/identity.md#engagement), so *which project consented* is a confidentiality question, not a convenience one."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "the-instance-that-forced-it-3111-is-consent-laundering", text: "The instance that forced it: #3111 is consent *laundering*", level: 3}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "1-the-boundary-is-one-presentation-src-specify-cli-egress-py", text: "1. The boundary is one presentation: `src/specify_cli/egress.py`", level: 3}
+    - {slug: "2-the-provenance-invariant-and-it-supersedes-the-framing-this-mission-started-with", text: "2. The provenance invariant — and it **supersedes** the framing this mission started with", level: 3}
+    - {slug: "3-the-attribution-guard-is-syntactic-it-is-not-an-ownership-proof", text: "3. The attribution guard is **SYNTACTIC** — it is not an ownership proof", level: 3}
+    - {slug: "ownership-is-positional-which-is-why-the-check-is-a-within-checkout-search", text: "Ownership is **positional**, which is why the check is a within-checkout search", level: 2}
+    - {slug: "path-exists-is-eacces-divergent-and-this-mission-removed-it-three-times", text: "`Path.exists()` is EACCES-divergent, and this mission removed it three times", level: 2}
+    - {slug: "identity-is-a-detector-never-an-actuator", text: "Identity is a **detector**, never an **actuator**", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "positive", text: "Positive", level: 3}
+    - {slug: "negative-accepted-trade-offs", text: "Negative / accepted trade-offs", level: 3}
+    - {slug: "neutral", text: "Neutral", level: 3}
+    - {slug: "confirmation-and-what-this-adr-does-not-prove", text: "Confirmation — and what this ADR does **not** prove", level: 3}
+    - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
@@ -5512,6 +5534,7 @@ pages:
     - {slug: "mission-participant", text: "Mission Participant", level: 3}
     - {slug: "mission-owner", text: "Mission Owner", level: 3}
     - {slug: "human-in-charge-hic", text: "Human-in-Charge (HiC)", level: 3}
+    - {slug: "engagement", text: "engagement", level: 3}
   - path: "docs/context/index.md"
     title: "Context"
     divio_type: "none"
@@ -8656,6 +8679,51 @@ pages:
     - {slug: "owned-files-enforcement-needs-tooling-support", text: "Owned-files enforcement needs tooling support", level: 3}
     - {slug: "action-items", text: "Action Items", level: 2}
     - {slug: "files-owned-by-this-mission", text: "Files Owned by This Mission", level: 2}
+  - path: "docs/plans/engineering-notes/01KYW895-verification-evidence.md"
+    title: "Verification evidence — egress-refusal-consolidation-3110-01KYW895"
+    divio_type: "explanation"
+    abstract: "Closeout evidence for mission 01KYW895: the 3.11 portability run, isolated single-file runs, per-clause criterion reporting, and the conditionality ledger."
+    anchors:
+    - {slug: "verification-evidence-egress-refusal-consolidation-3110-01kyw895", text: "Verification evidence — `egress-refusal-consolidation-3110-01KYW895`", level: 2}
+    - {slug: "how-to-read-it", text: "How to read it", level: 3}
+    - {slug: "the-tree-everything-was-measured-on", text: "The tree everything was measured on", level: 2}
+    - {slug: "t037-nfr-006-sc-014-one-off-the-python-3-11-run", text: "T037 — NFR-006 / SC-014 `[one-off]`: the Python 3.11 run", level: 2}
+    - {slug: "t030-s-test-is-named-because-a-green-run-over-files-that-never-touch-the-branch-is-a-true-statement-about-nothing", text: "T030's test is named, because a green run over files that never touch the branch is a true statement about nothing", level: 3}
+    - {slug: "the-divergence-the-3-11-run-actually-found-and-it-points-the-other-way", text: "The divergence the 3.11 run actually found — and it points the other way", level: 2}
+    - {slug: "mechanism-probed-directly-with-a-control-before-anything-was-attributed", text: "Mechanism, probed directly with a control before anything was attributed", level: 3}
+    - {slug: "the-operator-visible-consequence-measured-on-both-interpreters", text: "The operator-visible consequence, measured on both interpreters", level: 3}
+    - {slug: "severity-scope-and-disposition", text: "Severity, scope, and disposition", level: 3}
+    - {slug: "t038-nfr-005-sc-009-isolated-single-file-runs", text: "T038 — NFR-005 / SC-009: isolated single-file runs", level: 2}
+    - {slug: "per-clause-criterion-reporting-nfr-004-r13", text: "Per-clause criterion reporting (NFR-004 / R13)", level: 2}
+    - {slug: "sc-004-three-clauses-one-of-which-discriminates", text: "SC-004 — three clauses, one of which discriminates", level: 3}
+    - {slug: "sc-005-3030-the-guards-are-non-vacuous-and-this-is-wp01-s-measurement-not-mine", text: "SC-005 / #3030 — the guards are non-vacuous, and this is WP01's measurement, not mine", level: 3}
+    - {slug: "sc-010-the-four-could-not-be-determined-assertions", text: "SC-010 — the four `could not be determined` assertions", level: 3}
+    - {slug: "sc-021-the-two-tracker-behavioural-tests", text: "SC-021 — the two tracker behavioural tests", level: 3}
+    - {slug: "nfr-004-five-per-branch-pins-and-all-five-already-hold-at-bb2020fea", text: "NFR-004 — five per-branch pins, and all five already hold at `bb2020fea`", level: 3}
+    - {slug: "sc-019-sc-020-grep-gates-presence-measured-content-read-separately", text: "SC-019 / SC-020 — grep gates: presence measured, content read separately", level: 3}
+    - {slug: "sc-006-and-fr-017-ci-routing-is-a-parser-reading-not-an-observed-run", text: "SC-006 and FR-017 — CI routing is a parser reading, not an observed run", level: 3}
+    - {slug: "docs-lockfile-reconciliation", text: "Docs lockfile reconciliation", level: 2}
+    - {slug: "baseline-re-measured-rather-than-transcribed", text: "Baseline, re-measured rather than transcribed", level: 3}
+    - {slug: "before", text: "Before", level: 3}
+    - {slug: "the-two-commands", text: "The two commands", level: 3}
+    - {slug: "after-drift-false-is-the-evidence-with-its-counts", text: "After — `drift=False` is the evidence, with its counts", level: 3}
+    - {slug: "one-pre-existing-gap-left-alone-on-purpose", text: "One pre-existing gap, left alone on purpose", level: 3}
+    - {slug: "measurements-that-were-wrong-and-were-re-taken", text: "Measurements that were wrong, and were re-taken", level: 2}
+    - {slug: "taken-during-this-work-package-and-mine", text: "Taken during this work package, and mine", level: 3}
+    - {slug: "corrections-to-the-wp-prompt-s-own-stated-numbers-and-paths-re-measured-here", text: "Corrections to the WP prompt's own stated numbers and paths, re-measured here", level: 3}
+    - {slug: "taken-earlier-in-the-mission-attributed-not-mine", text: "Taken earlier in the mission — attributed, not mine", level: 3}
+    - {slug: "conditionality-ledger-what-a-successor-must-re-take", text: "Conditionality ledger — what a successor must re-take", level: 2}
+    - {slug: "what-this-mission-did-not-prove", text: "What this mission did not prove", level: 2}
+    - {slug: "post-merge-carriers", text: "Post-merge carriers", level: 2}
+    - {slug: "0-tracer-tooling-friction-md-no-home-yet", text: "0. `tracer-tooling-friction.md` — NO HOME YET", level: 3}
+    - {slug: "1-sc-006-s-one-off-half-folded-into-the-repo", text: "1. SC-006's `[one-off]` half — folded into the repo", level: 3}
+    - {slug: "2-observing-the-specify-cli-rest-shard-actually-execute-fu-i", text: "2. Observing the `specify-cli-rest` shard actually execute (FU-I)", level: 3}
+    - {slug: "friction-tracer", text: "Friction tracer", level: 2}
+    - {slug: "filed-upstream-not-this-mission-s-code", text: "Filed upstream — not this mission's code", level: 3}
+    - {slug: "carried-residuals-recorded-not-fixed", text: "Carried residuals — recorded, not fixed", level: 3}
+    - {slug: "residual-remediation-frozen-under-an-explicit-operator-decision", text: "Residual remediation, frozen under an explicit operator decision", level: 3}
+    - {slug: "found-by-this-work-package-open-and-escalated-rather-than-absorbed", text: "Found by this work package — open, and escalated rather than absorbed", level: 3}
+    - {slug: "tooling-friction-met-while-producing-this-page", text: "Tooling friction met while producing this page", level: 3}
   - path: "docs/plans/engineering-notes/2026-07-18-doctrine-driven-p0-remediation-field-report.md"
     title: "Field report: a doctrine-driven P0 remediation, end to end"
     divio_type: "none"
