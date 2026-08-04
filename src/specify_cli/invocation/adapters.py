@@ -132,8 +132,26 @@ def register_saas_client_factory(
 ) -> None:
     """Register the SaaS-client factory (idempotent by qualified name).
 
-    Called once at sync package startup.  Re-registration replaces the
-    existing factory when the qualified name matches.
+    Nothing registers a factory today (#3030 FR-032) — the seam exists but
+    is never called in production. See :func:`propagator._get_saas_client`
+    for the canonical record of why this stays empty and the ``request_text``
+    hazard a future registration would open. (No line range: the symbol is the
+    durable anchor. An earlier draft cited ``propagator.py:70-83``, but the
+    function begins at ``:58`` and nothing pins those numbers.)
+    **Re-registration replaces the existing factory unconditionally.** Not "when
+    the qualified name matches" — that was this docstring's last remaining false
+    sentence, and FR-018 is precisely about not leaving one here. Both arms of the
+    ``existing_key == new_key`` branch below assign ``fn``, so the comparison
+    changes nothing but the control flow taken to reach the same assignment; a
+    callable with a *different* ``__qualname__`` replaces the entry just as
+    completely. The invariant that does hold is the one that matters: at most one
+    factory is ever registered, so reloading ``specify_cli.sync`` cannot stack
+    several.
+
+    The dead comparison itself is left in place: it is pre-existing, identical in
+    the sibling registrar above, and removing it from both is a behaviour-preserving
+    simplification outside this mission's scope. Filed rather than folded — see the
+    mission's follow-up record.
     """
     global _saas_client_factory  # noqa: PLW0603
     new_key = _callable_key(fn)

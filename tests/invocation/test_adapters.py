@@ -238,6 +238,44 @@ def test_get_saas_client_returns_none_on_factory_exception() -> None:
 
 
 # ---------------------------------------------------------------------------
+# register_saas_client_factory — export pin (SC-008, #3109 seam, Decision D-1)
+# ---------------------------------------------------------------------------
+
+
+def test_register_saas_client_factory_is_exported_from_invocation_package() -> None:
+    """Pins the *export* half of the `#3109` seam (SC-008).
+
+    D-1 keeps ``register_saas_client_factory`` rather than deleting it: the
+    read side (``get_saas_client``) has a live production consumer inside the
+    propagator's consent gate, so the write side stays too, to keep the empty
+    seam legible as a decision rather than an oversight. A decision to keep
+    something is not self-enforcing — nothing else in the diff would notice if
+    the re-export quietly disappeared, so the keep half needs its own pin.
+
+    This is the *export* half specifically, not the definition: deleting the
+    ``def`` in ``adapters.py`` is already a collection-time ``ImportError`` in
+    two other test modules (pinned by a node-id baseline), so it is not a
+    discriminating before-state. What is genuinely unpinned today is
+    ``invocation/__init__.py``'s re-export (``:21``) and its ``__all__`` entry
+    (``:111``) — ``adapters.py`` itself declares no ``__all__``, nothing in
+    ``src/`` imports the symbol via the package (``from specify_cli.invocation
+    import ...``), and ``test_all_declarations_required.py`` gates only
+    ``src/charter/`` and ``src/kernel/``, not this package.
+
+    Verified red (in a throwaway worktree, never in this lane) by removing
+    only ``__init__.py:21`` and ``:111`` — never by deleting the ``def``.
+    """
+    import specify_cli.invocation as invocation_pkg
+
+    assert "register_saas_client_factory" in invocation_pkg.__all__
+    # Identity, not just presence: the re-exported name must be the *same*
+    # callable as the one this module already imports directly from
+    # ``adapters`` — proof the package re-export is wired, not shadowed by an
+    # unrelated same-named object.
+    assert invocation_pkg.register_saas_client_factory is register_saas_client_factory
+
+
+# ---------------------------------------------------------------------------
 # Propagator safe-degrade via the seam (integration-style unit test)
 # ---------------------------------------------------------------------------
 
