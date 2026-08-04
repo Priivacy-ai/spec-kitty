@@ -1160,6 +1160,74 @@ def test_ownership_module_has_no_unguarded_eacces_divergent_stat_call() -> None:
     )
 
 
+def test_dangling_mission_symlink_is_absent_not_unreadable(tmp_path: Path) -> None:
+    """The PAIRED HALF of the #3177 fix — LOW-8's conflation must not run BACKWARDS.
+
+    Replacing ``resolved.is_dir()`` with ``S_ISDIR(resolved.stat().st_mode)`` is what
+    makes ``EACCES`` observable. But it also makes the *absence-like* failures RAISE
+    where the predicate merely returned ``False`` — and a **dangling** mission symlink
+    raises ``ENOENT``. Routed to the same handler, it would be recorded in
+    ``unreadable_ledgers`` and the operator would get a *"could not read it"* refusal
+    naming something that simply is not there.
+
+    That is exactly LOW-8's missing-vs-unreadable conflation, inverted: the first
+    version of the #3177 fix in this branch had it, and it was caught by re-reading
+    the hunk rather than by any test — which is why this one exists.
+
+    The discrimination is on errno (``_ABSENT_ERRNOS``), reproducing the set
+    ``pathlib._ignore_error`` used through 3.13. Both halves are asserted here, since
+    half a discrimination proves nothing — this module's own repeated lesson.
+    """
+    root = tmp_path / "checkout"
+    (root / "kitty-specs").mkdir(parents=True)
+    # Target never existed -> stat raises ENOENT through the link.
+    (root / "kitty-specs" / "m-dangling").symlink_to(
+        tmp_path / "never-existed", target_is_directory=True
+    )
+
+    outcome = resolve_decision_ownership(root, DECISION_OWNED)
+    refusal = ownership_refusal(outcome)
+
+    # HALF 1 — ABSENT: dropped, and NOT recorded.
+    assert outcome.owned is False, "a dangling candidate must never confer ownership"
+    assert outcome.unreadable_ledgers == (), (
+        "a dangling symlink is ABSENT, not unreadable. Recording it here produces a "
+        f"'could not read it' refusal for something that is not there: {outcome!r}"
+    )
+    assert outcome.specs_root_fault is None, (
+        f"the specs root listed fine; only a candidate under it was dangling: {outcome!r}"
+    )
+    assert refusal is not None
+    assert "m-dangling" not in refusal, (
+        f"the refusal must not name a candidate that was merely absent: {refusal}"
+    )
+
+    # HALF 2 — the CONTROL that stops this test being satisfiable by simply never
+    # recording anything. The same shape with EACCES instead of ENOENT MUST record.
+    vault = tmp_path / "vault"
+    (vault / "m-target").mkdir(parents=True)
+    canary = vault / "canary"
+    canary.write_text("{}", encoding="utf-8")
+    (root / "kitty-specs" / "m-locked").symlink_to(
+        vault / "m-target", target_is_directory=True
+    )
+    os.chmod(vault, 0o000)
+    try:
+        if not mode_bits_enforced(canary):
+            pytest.skip(
+                "SKIPPED HONESTLY, not passed: this process can stat through a 0o000 "
+                "directory, so the EACCES half of the discrimination cannot be built."
+            )
+        locked = resolve_decision_ownership(root, DECISION_OWNED)
+    finally:
+        os.chmod(vault, 0o700)
+
+    assert locked.unreadable_ledgers == ("m-locked",), (
+        "EACCES must still be RECORDED — otherwise this test would pass just as well "
+        f"against code that records nothing at all, and #3177 would be back: {locked!r}"
+    )
+
+
 def test_eacces_guard_rule_catches_the_shape_that_shipped_the_defect() -> None:
     """FU-S — the PAIRED CONTROL the guard above shipped without, and #3177 is the cost.
 

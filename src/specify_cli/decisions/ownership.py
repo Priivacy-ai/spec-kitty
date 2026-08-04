@@ -125,6 +125,7 @@ extra stat.
 
 from __future__ import annotations
 
+import errno
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -191,6 +192,22 @@ SpecsRootFault = Literal["unlistable", "not-a-directory", "outside-acting-root"]
 #: make the mission vanish from the search silently instead of raising the
 #: ``OSError`` that FR-002's unreadable branch is built on.
 MISSION_DIR_GLOB = "*"
+
+#: Errnos that mean **absent**, not **unreadable** — so a candidate failing this way
+#: is skipped in silence rather than recorded, because recording it would be LOW-8's
+#: missing-vs-unreadable conflation running BACKWARDS: a "could not read it" refusal
+#: naming something that simply is not there.
+#:
+#: This is deliberately the exact set ``pathlib._ignore_error`` used through 3.13,
+#: reproduced here rather than imported, because that helper is private and 3.13 moved
+#: it out of the top-level namespace. Replacing ``is_dir()`` with ``stat()`` is what
+#: makes ``EACCES`` observable (see the call site's four-interpreter table); it must not
+#: also change how the *absence-like* failures are classified, and ``stat`` raises for
+#: all of them where the predicate returned ``False``.
+#:
+#: Concretely: a **dangling** mission symlink raises ``ENOENT`` and a non-directory
+#: raises ``ENOTDIR``. Both were silent skips before and stay silent skips.
+_ABSENT_ERRNOS = frozenset({errno.ENOENT, errno.ENOTDIR, errno.EBADF, errno.ELOOP})
 
 #: Canonical, not a new private spelling — see LOW-3 in review.
 _SPECS_DIRNAME = KITTY_SPECS_DIR
@@ -432,7 +449,16 @@ def _mission_dirs(repo_root: Path, mission_slug: str | None) -> _MissionScan:
                 specs_root
             ):
                 continue
-        except OSError:
+        except OSError as exc:
+            # ABSENT beats UNREADABLE, and the split is on errno — see
+            # `_ABSENT_ERRNOS`. Replacing `is_dir()` with `stat()` made EACCES
+            # observable, which is the fix; it also made the absence-like failures
+            # raise where the predicate merely returned `False`, and those must NOT
+            # become "could not read it". A dangling mission symlink is not an
+            # unreadable ledger, and reporting one as unreadable is this module's
+            # own conflation running backwards.
+            if exc.errno in _ABSENT_ERRNOS:
+                continue
             # LOW-8 — SKIP, BUT NOT IN SILENCE.
             #
             # Fail-closed was never the gap; the gap was that the operator was
