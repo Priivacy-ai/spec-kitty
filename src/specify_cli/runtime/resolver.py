@@ -17,9 +17,7 @@ from __future__ import annotations
 import logging
 import sys
 import warnings
-from functools import lru_cache
 from pathlib import Path
-from typing import Protocol, cast
 
 # Single source of truth for the resolution enum / result dataclass.
 # Re-exported via the charter.resolution facade (which itself re-exports
@@ -101,17 +99,6 @@ class TemplateURNError(ValueError):
     def __init__(self, *, urn: str, reason: str) -> None:
         self.urn = urn
         super().__init__(f"Template URN {urn!r} {reason}.")
-
-
-class _CharterTemplateResolver(Protocol):
-    def resolve_command_template_path(self, mission: str, command: str) -> Path | None:
-        ...
-
-    def resolve_content_template_path(self, mission: str, name: str) -> Path | None:
-        ...
-
-    def resolve_mission_config_path(self, mission: str) -> Path | None:
-        ...
 
 
 # ---------------------------------------------------------------------------
@@ -215,21 +202,6 @@ def _reset_migrate_nudge() -> None:
     _migrate_nudge_shown = False
 
 
-@lru_cache(maxsize=8)
-def _charter_template_resolver_for(missions_root: str) -> _CharterTemplateResolver:
-    """Return a charter template resolver for ``missions_root``.
-
-    Kept at the Tier-5 boundary so package-default filesystem access remains
-    routed through charter and repeated lookups reuse the same repository.
-    """
-    from charter.template_resolver import CharterTemplateResolver  # noqa: PLC0415
-
-    return cast(
-        _CharterTemplateResolver,
-        CharterTemplateResolver.from_missions_root(Path(missions_root)),
-    )
-
-
 def _package_default_path(
     *,
     pkg_missions: Path,
@@ -237,17 +209,52 @@ def _package_default_path(
     subdir: str,
     name: str,
 ) -> Path | None:
-    """Resolve package defaults through charter's doctrine facade."""
-    charter_resolver = _charter_template_resolver_for(str(pkg_missions))
-    if subdir == "command-templates":
-        resolved = charter_resolver.resolve_command_template_path(mission, Path(name).stem)
-        return resolved if isinstance(resolved, Path) else None
-    if subdir == "templates":
-        resolved = charter_resolver.resolve_content_template_path(mission, name)
-        return resolved if isinstance(resolved, Path) else None
+    """Resolve package defaults (tier 5) through charter's sole doctrine door.
 
-    pkg_path = pkg_missions / mission / subdir / name
-    return pkg_path if pkg_path.is_file() else None
+    FR-003 / T019 — **construction-contract mapping, recorded here as the
+    call site the WP asked to document.**
+
+    Before this change this helper went through
+    ``charter.template_resolver.CharterTemplateResolver``, obtained from an
+    ``lru_cache``d ``_charter_template_resolver_for(missions_root)`` factory
+    keyed on a ``missions_root`` *string*, while the canonical charter factory
+    (``charter.resolver.DoctrineService``) is built from a ``repo_root`` by the
+    unified builder. Those two construction contracts do not compose, and the
+    mapping is resolved as follows:
+
+    **There is no missions_root → repo_root mapping, by design.** The factory's
+    tier-axis methods are ``@staticmethod``s that take ``missions_root`` (and,
+    for the full chain, ``project_dir``) as arguments, because the 5-tier axis
+    is ungated by design and reads no instance state — so no instance, and
+    therefore no ``repo_root``, is needed here at all.
+
+    The rejected alternative was T019 option (a): resolve ``repo_root`` from
+    the ``project_dir`` already threaded through :func:`_resolve_asset` and
+    build the activation-aware factory with it. It is available — but it would
+    couple this pure-filesystem tier-5 lookup to charter governance-config
+    loading (``PackContext.from_config`` + ``resolve_org_roots`` +
+    ``infer_repo_languages``) whose result the called methods provably never
+    read, and would newly make template resolution fail-closed on a malformed
+    ``.kittify/config.yaml`` — a project could then no longer resolve the
+    templates its repair commands need. The ``lru_cache`` that used to live
+    here has moved into ``charter.resolver._mission_template_repository``,
+    alongside the resolution entry point, so repeated tier-5 lookups still
+    reuse one repository.
+
+    Note this module keeps its own tiers 1-4 (a second, parallel filesystem
+    implementation with known semantic drift from ``doctrine/resolver.py``);
+    that is named, pre-existing deferred debt and explicitly out of FR-003's
+    scope. Only the tier-5 hop is charter-mediated, which is why the factory
+    exposes a tier-5-only entry point at all.
+    """
+    from charter.resolver import DoctrineService  # noqa: PLC0415 — lazy: keeps the charter import off module load
+
+    return DoctrineService.resolve_package_default_asset_path(
+        missions_root=pkg_missions,
+        mission=mission,
+        subdir=subdir,
+        name=name,
+    )
 
 
 def _resolve_asset(
@@ -615,11 +622,16 @@ def resolve_mission(
     except RuntimeError:
         pass
 
-    # Tier 4 -- package default via charter.
+    # Tier 4 -- package default via charter. FR-003: routed through the
+    # canonical charter factory; see _package_default_path's docstring for the
+    # construction-contract mapping this call site shares.
     try:
+        from charter.resolver import DoctrineService  # noqa: PLC0415 — lazy, mirrors _package_default_path
+
         pkg_missions = get_package_asset_root()
-        pkg_path = _charter_template_resolver_for(str(pkg_missions)).resolve_mission_config_path(
-            name
+        pkg_path = DoctrineService.resolve_package_default_mission_config_path(
+            missions_root=pkg_missions,
+            mission=name,
         )
         if pkg_path is not None and pkg_path.is_file():
             return ResolutionResult(path=pkg_path, tier=ResolutionTier.PACKAGE_DEFAULT, mission=name)

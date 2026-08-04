@@ -1,8 +1,42 @@
 """Project-aware template resolution through the 5-tier override chain.
 
 Composes MissionTemplateRepository (doctrine-level, tier 5) with the
-specify_cli runtime resolver (tiers 1-4). Charter is the
+charter factory's tier chain (tiers 1-4). Charter is the
 concretization of doctrine into local context-aware legislation.
+
+FR-003 (charter-sole-door-bypass-closure-01KZ3WAA WP05) — **this module is
+now a thin delegate.** :class:`CharterTemplateResolver` used to import
+``doctrine.resolver``'s tier functions itself, making it a *second*
+charter-layer door onto that chain alongside
+:class:`charter.resolver.DoctrineService` (the factory) — the C-001
+"two doors within charter" seam FR-003 closes. Every tier-chain call now
+routes through the factory's ``resolve_command_asset`` /
+``resolve_content_asset`` methods, and this module no longer imports
+``doctrine.resolver`` at all (only the ``ResolutionTier`` *type*, via the
+sanctioned ``charter.resolution`` facade, which is a pure re-export
+preserving object identity).
+
+The class is retained rather than retired because it is part of the public
+``charter`` package surface (``charter/__init__.py`` exports it), and this
+mission's own precedent for the identical situation is delegation, not
+deletion: WP01 turned
+``specify_cli.doctrine_service_factory.build_activation_aware_doctrine_service``
+into a thin re-export of the unified charter builder instead of removing it.
+Its one production caller (``specify_cli/runtime/resolver.py``) no longer
+uses this class at all — it calls the factory directly — so the production
+path has exactly one door.
+
+Scope note: the ``resolve_*_path`` methods below are **not** part of the
+FR-003 seam and are intentionally left reaching
+:class:`MissionTemplateRepository` directly. They are tier-5 package-default
+repository lookups, not ``doctrine.resolver`` tier-chain calls — the same
+doctrine surface ``doctrine/resolver.py``'s own tier 5 consumes. There is
+therefore no second *authority* to consolidate: both these methods and the
+factory's ``resolve_package_default_*`` methods delegate to that one
+repository. Routing them through the factory as well would need
+``missions_root`` plumbing this class does not carry (its ``__init__``
+accepts an arbitrary repository object), growing the diff without removing
+an authority.
 """
 
 from __future__ import annotations
@@ -10,23 +44,22 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from charter.resolution import ResolutionTier
+from charter.resolver import DoctrineService
 from doctrine.missions.repository import MissionTemplateRepository, TemplateResult
-from doctrine.resolver import (
-    ResolutionTier,
-    resolve_command,
-    resolve_template,
-)
 
 __all__ = [
     "CharterTemplateResolver",
 ]
 
 
-
 class CharterTemplateResolver:
     """5-tier project-aware template resolution.
 
     Resolution order: OVERRIDE > LEGACY > GLOBAL_MISSION > GLOBAL > PACKAGE_DEFAULT.
+
+    A thin delegate onto :class:`charter.resolver.DoctrineService` for the
+    tier chain (FR-003) — see the module docstring.
     """
 
     def __init__(self, repo: MissionTemplateRepository | None = None) -> None:
@@ -70,7 +103,9 @@ class CharterTemplateResolver:
             FileNotFoundError: If template not found at any tier.
         """
         if project_dir is not None:
-            result = resolve_command(f"{name}.md", project_dir, mission=mission)
+            # FR-003: tier chain reached through the factory, never through a
+            # direct ``doctrine.resolver`` import of our own.
+            result = DoctrineService.resolve_command_asset(f"{name}.md", project_dir, mission=mission)
             content = result.path.read_text(encoding="utf-8")
             origin = self._tier_to_origin(result.tier, mission, "command-templates", f"{name}.md")
             return TemplateResult(content=content, origin=origin, tier=result.tier)
@@ -108,7 +143,9 @@ class CharterTemplateResolver:
             FileNotFoundError: If template not found at any tier.
         """
         if project_dir is not None:
-            result = resolve_template(name, project_dir, mission=mission)
+            # FR-003: tier chain reached through the factory, never through a
+            # direct ``doctrine.resolver`` import of our own.
+            result = DoctrineService.resolve_content_asset(name, project_dir, mission=mission)
             content = result.path.read_text(encoding="utf-8")
             origin = self._tier_to_origin(result.tier, mission, "templates", name)
             return TemplateResult(content=content, origin=origin, tier=result.tier)
