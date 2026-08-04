@@ -38,9 +38,34 @@ class ProfileRegistry:
     routing catalog exactly as it is from the governance context. The legacy
     ``.kittify/profiles`` invocation project layer is OUTSIDE the doctrine
     activation model: it is overlaid ungated and always wins on id collision
-    (C-002/FR-007). With no ``activated_agent_profiles`` key the gate admits
-    every doctrine layer, so the catalog is byte-identical to the pre-mission
-    output (NFR-001). The raw ``org_dirs`` are never spliced here (C-008).
+    (C-002/FR-007). The raw ``org_dirs`` are never spliced here (C-008).
+
+    Two independent gates apply to the doctrine layers, and both must be
+    inert for the catalog to be byte-identical to the pre-mission output
+    (NFR-001):
+
+    * **Activation gate** — the three-state ``activated_agent_profiles``
+      contract. With no ``activated_agent_profiles`` key the gate admits
+      every doctrine layer (inert).
+    * **Language-scope filter** — ``build_activation_aware_doctrine_service``
+      always computes ``active_languages=infer_repo_languages(repo_root)``
+      (FR-008 unification, charter-sole-door-bypass-closure-01KZ3WAA WP01)
+      and every language-scoped profile (e.g. ``frontend-freddy``) is
+      dropped unless it overlaps that set. This filter is inert only when
+      every scoped profile's language is present in ``active_languages``
+      — in particular it is **not** inert for a project with no compiled
+      charter and no interview answers, since ``infer_repo_languages``
+      then returns an *explicitly empty* list (not ``None``), which drops
+      every language-scoped profile rather than admitting all of them.
+
+    So byte-identity with the pre-mission catalog holds only when both gates
+    are simultaneously inert (nothing de-activated, and either every
+    supported language is active or no profile is language-scoped) — not
+    unconditionally. Callers that need the full, unfiltered catalog (e.g. the
+    ``profiles list`` CLI display surface) intentionally read an ungated,
+    unfiltered repository directly instead of this class — see the "Display
+    surface" note above ``_profile_catalog`` in
+    ``specify_cli/cli/commands/profiles_cmd.py``.
     """
 
     def __init__(self, repo_root: Path) -> None:
@@ -61,7 +86,7 @@ class ProfileRegistry:
         """
         service = build_activation_aware_doctrine_service(repo_root)
         gated = service.agent_profiles
-        inner_repo = service._inner.agent_profiles
+        inner_repo = service.agent_profile_repository
         merged: dict[str, AgentProfile] = {
             profile_id: profile
             for profile_id, profile in gated.items()
