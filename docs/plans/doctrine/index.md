@@ -32,6 +32,7 @@ related mission scope notes.
 - [Runtime → Charter → Doctrine — boundary audit and recommendations](runtime-charter-doctrine-boundary.md)
 - [WP-Prompt Governance Contract — ATDD Findings](wp-prompt-governance-atdd-findings.md)
 - [Test Quality — test slicing & mocking-boundary discipline](test_quality/index.md)
+- [Next doctrine slice (preliminary research) — wheel cutover, mission-type relocation, public API surface](next-slice-wheel-mission-types-public-api-research.md) — RECORD; pre-spec research, gap-flags a missing tracker issue for the public-API thread
 
 ## Programme realization (2026-07-26 operator ruling)
 
