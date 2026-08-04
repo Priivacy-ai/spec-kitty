@@ -31,12 +31,24 @@ from specify_cli.auth.errors import (
 )
 from specify_cli.sync.config import SyncConfig
 from specify_cli.core.contract_gate import validate_outbound_payload
-from specify_cli.tracker.egress_consent import project_egress_refusal
+from specify_cli.egress import project_egress_refusal
 
 _SESSION_EXPIRED_MESSAGE = (
     "Session expired. Run `spec-kitty auth login` to re-authenticate."
 )
 _UNAUTHENTICATED_CATEGORY = "unauthenticated"
+
+#: This transport's own identifier-set fragment, rendered into the shared refusal
+#: template in ``specify_cli/egress.py``. It is an **argument**, not a second
+#: presentation of the policy (FR-008/SC-015) — each transport passes its own
+#: because the two sets are asymmetric: this client carries ``mission_slug`` and
+#: verbatim issue titles (both engagement names) and **no** ``decision_id``, so
+#: naming a decision id here would tell an operator that something was at stake
+#: which this transport cannot transmit (US2-AS2).
+#:
+#: Scope (ruling PB-3): the identifiers **of the project whose consent was
+#: refused** — not the destination team, and not recipient ids.
+TRACKER_EGRESS_IDENTIFIER_KINDS = "mission and engagement identifiers"
 
 
 class SaaSTrackerClientError(RuntimeError):
@@ -326,7 +338,7 @@ class SaaSTrackerClient:
         target for the next migration wave (sync, websocket, and
         widen-mode SaaS).
         """
-        refusal = project_egress_refusal(self._project_root)
+        refusal = project_egress_refusal(self._project_root, TRACKER_EGRESS_IDENTIFIER_KINDS)
         if refusal is not None:
             raise TrackerEgressRefusedError(refusal)
 
