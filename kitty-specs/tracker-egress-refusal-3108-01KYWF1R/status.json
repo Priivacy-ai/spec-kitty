@@ -1,0 +1,220 @@
+{
+  "event_count": 48,
+  "last_event_id": "01KZ5F3KGJ88KN1XCWTFJW1P23",
+  "materialized_at": "2026-08-04T04:04:32.402847+00:00",
+  "mission_number": "",
+  "mission_slug": "tracker-egress-refusal-3108-01KYWF1R",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 8,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KZ43GWW6XQZ01W3BH0X7BTJ4",
+      "last_transition_at": "2026-08-03T15:22:50.630953+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Round 2 ACCEPT-WITH-FINDINGS; both HIGH closed and verified by reviewer's own mutations (F1 drain-consent mutant fires, F2 replay EQUAL:True). Round 3 closed F11/F12/F13/F15. Failing set byte-identical by name across all rounds: 21 reds, 19 greens. 487+51=538."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KZ42TMQ7VH2MXF41566BBD9B",
+      "last_transition_at": "2026-08-03T15:10:41.383212+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Round 1 ACCEPT-WITH-FINDINGS (nothing above MEDIUM); F1-F5,F7,F10 remediated; delta re-review ACCEPT with no new findings. Each new assertion mutation-proven to discriminate. 582 = 519 base + 63."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
+    },
+    "WP03": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KZ4M51JNA5RF72R697FQHG94",
+      "last_transition_at": "2026-08-03T20:13:28.021353+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Round 1 REJECT (2 HIGH); round 2 ACCEPT-WITH-FINDINGS, both HIGH closed and verified not relocated (mutant N3 kept the fix's mechanism but broke its outcome — killed by 4 tests). Round 3 closed LOW-2/3/6; the one surviving mutant (N8 constant collapse) now killed by 3 tests. 113 passed, 100% cover, 714=601+113."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "subtasks": {
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
+    },
+    "WP04": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KZ4VC3M5BMQF1SSZJYCNFCW9",
+      "last_transition_at": "2026-08-03T22:19:39.525146+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Gap B closed. 17/21 WP01 reds green; 5 mutants killed incl. 3 per-entry-point; A1 erasure re-measured closed at 2 levels; T024-before-T026 proven by mutation. REJECT round 1 was HIGH-1 (forward CHANGELOG link reds 2 docs gates) — recorded as a named both-ends window closing at WP08.",
+        "Gap B closed. 17/21 WP01 reds green; 5 mutants killed incl. 3 per-entry-point; A1 erasure re-measured closed at 2 levels; T024-before-T026 proven by mutation. REJECT round 1 was HIGH-1 (forward CHANGELOG link reds 2 docs gates) — recorded as a named both-ends window closing at WP08.",
+        "Gap B closed. 17/21 WP01 reds green; 5 mutants killed incl. 3 per-entry-point; A1 erasure re-measured closed at 2 levels; T024-before-T026 proven by mutation. REJECT round 1 was HIGH-1 (forward CHANGELOG link reds 2 docs gates) — recorded as a named both-ends window closing at WP08."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "subtasks": {
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      }
+    },
+    "WP05": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KZ52ANGHRZT20ZBKBZ9S0TDR",
+      "last_transition_at": "2026-08-04T00:21:12.337213+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Hosted gate on both channels. All 21 WP01 reds green (40 passed). Polarity verified by exhaustion: 16 egress values x 3 Channel-1 states + 8 hostile FS states, no combination grants at HOSTED. FR-016 byte-identity restored per operator decision; E2 seam allowlist re-pointed.",
+        "Hosted gate on both channels. All 21 WP01 reds green (40 passed). Polarity verified by exhaustion: 16 egress values x 3 Channel-1 states + 8 hostile FS states, no combination grants at HOSTED. FR-016 byte-identity restored per operator decision; E2 seam allowlist re-pointed.",
+        "Hosted gate on both channels. All 21 WP01 reds green (40 passed). Polarity verified by exhaustion: 16 egress values x 3 Channel-1 states + 8 hostile FS states, no combination grants at HOSTED. FR-016 byte-identity restored per operator decision; E2 seam allowlist re-pointed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "subtasks": {
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T031": "done"
+      }
+    },
+    "WP06": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KZ5BJ6GBY5T3JFFB2RHMJ39D",
+      "last_transition_at": "2026-08-04T03:02:36.299757+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "REJECT round 1 on HIGH-1 (markup injection: doctor rendered '' for [refused], exit 1 on [/bold]). Fixed at both render sites; all 3 vectors verified exit 0 + verbatim. MEDIUM-1 wording table literally pinned + distinct.",
+        "REJECT round 1 on HIGH-1 (markup injection: doctor rendered '' for [refused], exit 1 on [/bold]). Fixed at both render sites; all 3 vectors verified exit 0 + verbatim. MEDIUM-1 wording table literally pinned + distinct.",
+        "REJECT round 1 on HIGH-1 (markup injection: doctor rendered '' for [refused], exit 1 on [/bold]). Fixed at both render sites; all 3 vectors verified exit 0 + verbatim. MEDIUM-1 wording table literally pinned + distinct."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "subtasks": {
+        "T032": "done",
+        "T033": "done",
+        "T034": "done",
+        "T035": "done",
+        "T036": "done"
+      }
+    },
+    "WP07": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KZ5F3KGJ88KN1XCWTFJW1P23",
+      "last_transition_at": "2026-08-04T04:04:32.402847+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "ACCEPT-WITH-FINDINGS, nothing above MEDIUM. Attributability verified 2 ways (17 control substitutions, all red). MEDIUM-1 RSS 1205972->96056 kB; MEDIUM-2 G3 now reds argument-nested and conditional-wrapped gates. G1 3/3 G2 2/2 G3 5/5 G4 3/3 G5 3/3 G6 2/2 G7 1/1 G8 2/2.",
+        "ACCEPT-WITH-FINDINGS, nothing above MEDIUM. Attributability verified 2 ways (17 control substitutions, all red). MEDIUM-1 RSS 1205972->96056 kB; MEDIUM-2 G3 now reds argument-nested and conditional-wrapped gates. G1 3/3 G2 2/2 G3 5/5 G4 3/3 G5 3/3 G6 2/2 G7 1/1 G8 2/2."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "subtasks": {
+        "T037": "done",
+        "T038": "done",
+        "T039": "done",
+        "T040": "done",
+        "T041": "done",
+        "T042": "done"
+      }
+    },
+    "WP08": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KZ5A0YAT9ZJ9V7GV7W0W727M",
+      "last_transition_at": "2026-08-04T02:35:42.298416+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "ACCEPT-WITH-FINDINGS, all LOW, remediated. Docs gate closed: 2 failed -> 44 passed, verified non-vacuous at HEAD. All 7 documented remedies have executed-remedy tests.",
+        "ACCEPT-WITH-FINDINGS, all LOW, remediated. Docs gate 2 failed -> 44 passed, non-vacuous at HEAD. All 7 documented remedies have executed-remedy tests.",
+        "ACCEPT-WITH-FINDINGS, all LOW, remediated. Docs gate 2 failed -> 44 passed, non-vacuous at HEAD. All 7 documented remedies have executed-remedy tests."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "subtasks": {
+        "T043": "done",
+        "T044": "done",
+        "T045": "done",
+        "T046": "done"
+      }
+    }
+  }
+}
