@@ -2456,6 +2456,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/migrations/tracker-egress-refusal.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/migrations/upgrade-to-0-12-0.md
   tag: current
   divio_type: none
