@@ -8011,9 +8011,9 @@ pages:
   - path: "docs/plans/charter-sole-door-deferred-issues.md"
     title: "Charter as Sole Door: Deferred Issues Record"
     divio_type: "none"
-    abstract: "Citable record of the five GitHub issues confirmed adjacent-but-separate from the charter-sole-door-bypass-closure mission, deferred as their own follow-ons."
+    abstract: "Citable record of the six GitHub issues confirmed adjacent-but-separate from the charter-sole-door-bypass-closure mission, deferred as their own follow-ons."
     anchors:
-    - {slug: "the-five-deferred-issues", text: "The five deferred issues", level: 2}
+    - {slug: "the-six-deferred-issues", text: "The six deferred issues", level: 2}
     - {slug: "verification", text: "Verification", level: 2}
   - path: "docs/plans/doctrine/391-doctrine-usage-test.md"
     title: "#391 Doctrine Usage Test (WP11 dogfood)"
