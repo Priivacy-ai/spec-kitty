@@ -5,13 +5,18 @@ This is a **mechanical extraction** from the original ``TrackerService`` in
 the facade layer (WP05) can dispatch to either the local service or the
 SaaS service transparently.
 
-No SaaS imports live here — only local connector infrastructure.
+No SaaS imports live here — only local connector infrastructure. This module
+does consult the tracker-egress verdict (#3108, ``tracker/egress_verdict.py``)
+as the first executable statement of ``sync_pull``/``sync_push``/``sync_run``,
+which in turn reaches the hosted-sync consent chain (Channel 1) as part of its
+two-channel join -- but that consultation is a call into ``egress_verdict.py``,
+never a module-level import of SaaS infrastructure here.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from specify_cli.tracker.config import (
     TrackerProjectConfig,
@@ -20,12 +25,59 @@ from specify_cli.tracker.config import (
     save_tracker_config,
 )
 from specify_cli.tracker.credentials import TrackerCredentialStore
+from specify_cli.tracker.egress_verdict import EgressDestination, tracker_egress_verdict
 from specify_cli.tracker.factory import build_connector, normalize_provider
 from specify_cli.tracker.store import TrackerSqliteStore, default_tracker_db_path
+
+if TYPE_CHECKING:
+    # Review round 1, LOW-1: the contract in T022 specifies the two-name import
+    # (``EgressDestination``, ``tracker_egress_verdict``) verbatim; ``TrackerEgressVerdict`` is
+    # used only as an annotation below, and ``from __future__ import annotations`` (top of this
+    # file) means annotations are never evaluated at runtime -- so this name needs no runtime
+    # import. Restoring the contracted import line exactly and moving the annotation-only name
+    # behind ``TYPE_CHECKING`` keeps both true at once, rather than trading one off against the
+    # other.
+    from specify_cli.tracker.egress_verdict import TrackerEgressVerdict
 
 
 class LocalTrackerServiceError(RuntimeError):
     """Raised when a local tracker operation fails."""
+
+
+def _render_refusal(verdict: TrackerEgressVerdict) -> str:
+    """Render :attr:`TrackerEgressVerdict.message` and :attr:`TrackerEgressVerdict.remedies`
+    together, never ``message`` alone (review round 1, MEDIUM-3, ``egress_verdict.py``
+    ``tracker_egress_verdict`` docstring, ``:623-631``). At ``LOCAL_SUBPROCESS`` the
+    Channel-2 grant remedy lives only in ``remedies`` -- never folded into ``message`` --
+    so rendering ``message`` alone would silently drop it from what an operator sees. This
+    composes no new wording of its own beyond the two fields and the list markup joining
+    them; it is not a path-local message string (FR-012).
+    """
+    if not verdict.remedies:
+        return verdict.message
+    remedy_lines = "\n".join(f"  - {remedy}" for remedy in verdict.remedies)
+    return f"{verdict.message}\nRemedies:\n{remedy_lines}"
+
+
+class LocalTrackerEgressRefusedError(LocalTrackerServiceError):
+    """Raised when the tracker-egress verdict (#3108) refuses a local sync entry point.
+
+    :attr:`message` is :attr:`~specify_cli.tracker.egress_verdict.TrackerEgressVerdict.message`
+    verbatim -- never a path-local, re-composed string (FR-012); this is the identity pin a
+    later edit that re-composes text at the raise site would red. The exception's rendered
+    text (what ``_run_or_exit`` prints) additionally carries :attr:`remedies` via
+    :func:`_render_refusal`, because a raise site must render both fields together, never
+    ``message`` alone. ``LocalTrackerServiceError`` is already a ``RuntimeError`` subclass, so
+    ``_run_or_exit`` (``cli/commands/tracker.py``) prints this in red and exits 1 with no
+    change to that helper. The two refusal hierarchies (local and hosted, WP05) are
+    deliberately not unified -- the verdict is.
+    """
+
+    def __init__(self, verdict: TrackerEgressVerdict) -> None:
+        self.verdict = verdict
+        self.message = verdict.message
+        self.remedies = verdict.remedies
+        super().__init__(_render_refusal(verdict))
 
 
 class LocalTrackerService:
@@ -53,12 +105,24 @@ class LocalTrackerService:
         doctrine_field_owners: dict[str, str],
         credentials: dict[str, str],
     ) -> TrackerProjectConfig:
+        # FR-011 site A1: load the committed config first and carry its `egress` (and
+        # `_extra`) forward, rather than building a fresh `TrackerProjectConfig` from only
+        # this call's own keyword arguments. Building fresh here discarded a recorded
+        # tracker-egress decision on every bind -- erasing a `refused` is a silent
+        # fail-open, and erasing a `permitted` silently withdraws a working local binding
+        # (#3108). This is the one call to `load_tracker_config` this method makes; `self._config`
+        # (the constructor argument) is never read here, because the config on disk may have
+        # changed since this service was constructed and `bind` is specifically the operation
+        # that must reconcile against what is on disk right now, not against a snapshot.
+        committed = load_tracker_config(self._repo_root)
         normalized_provider = normalize_provider(provider)
         config = TrackerProjectConfig(
             provider=normalized_provider,
             workspace=workspace,
             doctrine_mode=doctrine_mode,
             doctrine_field_owners=dict(doctrine_field_owners),
+            egress=committed.egress,
+            _extra=dict(committed._extra),
         )
         save_tracker_config(self._repo_root, config)
 
@@ -113,6 +177,13 @@ class LocalTrackerService:
     # ------------------------------------------------------------------
 
     def sync_pull(self, *, limit: int = 100) -> dict[str, Any]:
+        verdict = tracker_egress_verdict(
+            self._repo_root,
+            destination=EgressDestination.LOCAL_SUBPROCESS,
+        )
+        if verdict.refused:
+            raise LocalTrackerEgressRefusedError(verdict)
+
         config, credentials, store = self._load_runtime()
 
         async def _run() -> dict[str, Any]:
@@ -128,6 +199,13 @@ class LocalTrackerService:
         return cast(dict[str, Any], self._run_async(_run()))
 
     def sync_push(self, *, limit: int = 100) -> dict[str, Any]:
+        verdict = tracker_egress_verdict(
+            self._repo_root,
+            destination=EgressDestination.LOCAL_SUBPROCESS,
+        )
+        if verdict.refused:
+            raise LocalTrackerEgressRefusedError(verdict)
+
         config, credentials, store = self._load_runtime()
 
         async def _run() -> dict[str, Any]:
@@ -138,6 +216,13 @@ class LocalTrackerService:
         return cast(dict[str, Any], self._run_async(_run()))
 
     def sync_run(self, *, limit: int = 100) -> dict[str, Any]:
+        verdict = tracker_egress_verdict(
+            self._repo_root,
+            destination=EgressDestination.LOCAL_SUBPROCESS,
+        )
+        if verdict.refused:
+            raise LocalTrackerEgressRefusedError(verdict)
+
         config, credentials, store = self._load_runtime()
 
         async def _run() -> dict[str, Any]:
