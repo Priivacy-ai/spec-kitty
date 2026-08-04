@@ -121,42 +121,35 @@ class TestListActivationFilter:
     ) -> None:
         """NFR-001: default JSON for an unconfigured project == unfiltered baseline.
 
-        Baseline: descriptors built directly from a fresh, unfiltered/ungated
-        ``AgentProfileRepository`` (no ``active_languages``, no project/org
-        dirs) — the same shape ``profiles list``'s ``_profile_catalog()``
-        produces for an unconfigured project (built-ins only; there is no
-        ``.kittify/profiles`` and no doctrine project/org overlay here).
+        Baseline: descriptors built directly from the registry (the pre-WP04
+        data source and schema).
 
-        Prior to charter-sole-door-bypass-closure-01KZ3WAA WP01 this baseline
-        was built via ``ProfileRegistry(tmp_path).list_all()``, which at the
-        time never computed ``active_languages`` and so happened to be
-        byte-identical to a bare repository for an unconfigured project. WP01
-        unified ``ProfileRegistry``'s builder to always compute
-        ``active_languages=infer_repo_languages(repo_root)`` (the fuller,
-        intentional behaviour — now also the real behaviour for dispatch
-        routing). For an unconfigured ``tmp_path`` (no ``charter.yaml``, no
-        interview answers) that resolves to an *explicitly empty* language
-        set, which narrows ``ProfileRegistry``'s catalog down to
-        language-agnostic profiles only (e.g. ``frontend-freddy`` drops out).
-        That narrowing is real and correct for ``ProfileRegistry`` (used for
-        dispatch routing), but ``profiles list``'s ``_profile_catalog()``
-        never routes through ``ProfileRegistry`` by design — see the
-        "Display surface" comment above ``_profile_catalog`` in
-        ``profiles_cmd.py``, which reads the catalog UNGATED specifically so
-        de-activated/non-language-matching rows never vanish from this
-        operator-facing view. So the CLI's own output is unaffected by WP01;
-        only this test's ``ProfileRegistry``-based baseline stand-in drifted.
-        The fix is to stop using ``ProfileRegistry`` as the stand-in and
-        build the baseline independently from the same unfiltered/ungated
-        primitive ``_profile_catalog()`` itself uses.
+        Restored (landing-fold regression fix, charter-sole-door-bypass-
+        closure-01KZ3WAA): WP01 unified ``ProfileRegistry``'s builder to
+        always compute ``active_languages=infer_repo_languages(repo_root)``.
+        A prior revision of that unification made ``infer_repo_languages``
+        return an *explicitly empty* list for an unconfigured project (no
+        ``charter.yaml``, no interview answers), which narrowed
+        ``ProfileRegistry``'s catalog down to language-agnostic profiles only
+        (e.g. ``frontend-freddy`` dropped out) — breaking byte-identity with
+        the unfiltered baseline and forcing this test to stop using
+        ``ProfileRegistry`` as the stand-in. ``infer_repo_languages`` now
+        resolves that "truly nothing configured yet" case to ``None``
+        ("unknown" — admits every scoped profile) instead, so
+        ``ProfileRegistry(tmp_path).list_all()`` is byte-identical to a bare
+        ``AgentProfileRepository().list_all()`` again for an unconfigured
+        project, and the original, stricter, non-fakeable baseline (built
+        from the real data source the CLI itself composes from) is restored.
         """
         (tmp_path / ".kittify").mkdir(parents=True)
 
-        from charter.profiles import AgentProfileRepository
+        # Baseline: descriptors built directly from the registry (the pre-WP04
+        # data source and schema).
         from specify_cli.cli.commands.profiles_cmd import _build_descriptor
+        from specify_cli.invocation.registry import ProfileRegistry
 
-        baseline_repo = AgentProfileRepository()
-        expected = [_build_descriptor(p) for p in baseline_repo.list_all()]
+        registry = ProfileRegistry(tmp_path)
+        expected = [_build_descriptor(p) for p in registry.list_all()]
 
         result = _invoke(tmp_path, ["profiles", "list", "--json"])
         assert result.exit_code == 0, result.output
