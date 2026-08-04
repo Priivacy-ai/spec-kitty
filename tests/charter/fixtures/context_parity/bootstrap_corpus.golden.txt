@@ -6,6 +6,7 @@ Policy Summary:
   - Intent: deterministic parity fixture
   - Testing: pytest golden comparison
 
+Action-Critical Charter Sections (implement):
   Run: spec-kitty charter context --include section:critical-implement
   When you need to consult the action-critical charter sections, run this command and apply the returned rule.
 
