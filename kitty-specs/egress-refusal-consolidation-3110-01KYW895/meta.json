@@ -9,6 +9,7 @@
   "purpose_context": "This mission advances egress refusal consolidation 3110 on pr/egress-refusal-consolidation-3110 so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "egress refusal consolidation 3110",
   "slug": "egress-refusal-consolidation-3110-01KYW895",
+  "status_phase": "1",
   "target_branch": "pr/egress-refusal-consolidation-3110",
   "topology": "lanes",
   "vcs": "git",
