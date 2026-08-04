@@ -401,13 +401,32 @@ def existing_mission_types(repo_root: Path) -> list[str]:
 
     Only types that are explicitly activated in the project charter are returned.
     Non-activated types are excluded regardless of their presence in the doctrine
-    layer.
+    layer.  Conversely, a project MAY activate a custom (non-built-in) mission
+    type id — e.g. one backed entirely by a project-level doctrine override —
+    and that id is returned as-is; this function does not intersect against the
+    built-in catalog, since doing so would silently drop legitimately-activated
+    custom types (locked in by
+    ``tests/charter/test_action_sequence_dispatch.py::TestExistingMissionTypes::test_returns_custom_type_when_activated``).
 
     Reads ``.kittify/config.yaml`` via :class:`~charter.pack_context.PackContext`
     to obtain the activation set.  When the config file is absent or the
     ``mission_type_activations`` key is missing, all four built-in types are
     returned (new-project / pre-migration fallback handled by
     :meth:`~charter.pack_context.PackContext.from_config`).
+
+    FR-006 activation gate
+    -----------------------
+    ``PackContext.activated_mission_types`` is not three-state like the other
+    activation fields (:class:`~charter.pack_context.PackContext` docstring) —
+    it is always a concrete ``frozenset[str]``, already collapsed to
+    :func:`~doctrine.missions.mission_type_repository.builtin_mission_type_id_set`
+    at construction time when nothing was authored.  This function is the
+    FR-006 gate: :func:`resolve_mission_type_context` intersects a single
+    candidate ``mission_type`` against this function's return value (its
+    ``is_registered`` check) rather than resolving any type unconditionally —
+    the binary (filtered / not) contract FR-006 requires, without forcing the
+    three-state ``None``/``frozenset()``/``{ids}`` branching the other 9 kinds
+    use (that branching does not apply here: this field is never ``None``).
 
     FR-018: This function is the **single source of truth** for
     "what mission types are activated".  Do not duplicate this logic elsewhere.
@@ -475,8 +494,17 @@ def resolve_mission_type_context(
     if type_key is None:
         return _neutral_context()
 
+    # FR-006 activation gate: the candidate type is checked against the
+    # project's activated-mission-type set — the intersection of {type_key}
+    # with PackContext.activated_mission_types (surfaced here through
+    # existing_mission_types(), FR-006/FR-018's single source of truth).
+    # Binary (filtered vs. not); no three-state branching applies (see
+    # existing_mission_types()'s docstring — activated_mission_types is never
+    # None). `registered` stays an ordered list (not just the frozenset) so
+    # UnknownMissionTypeError.registered_ids keeps its documented list shape.
     registered = existing_mission_types(repo_root)
-    is_registered = type_key in registered
+    activated_ids = frozenset(registered)
+    is_registered = type_key in activated_ids
     has_override = _project_has_doctrine_overrides(repo_root)
 
     governance_provenance, governance_text, governance_thunk = _resolve_governance_slot(
