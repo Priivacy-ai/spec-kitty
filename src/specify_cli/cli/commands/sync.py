@@ -1848,8 +1848,28 @@ _CHANNEL1_STATE_WORDING: Final[dict[str, str]] = {
 }
 
 
-def _render_tracker_egress_row(console_out: Any, issues: list[str], verdict: TrackerEgressVerdict) -> None:
+def _render_tracker_egress_row(
+    console_out: Any,
+    issues: list[str],
+    verdict: TrackerEgressVerdict,
+    *,
+    binding_present: bool,
+) -> None:
     """Render one :class:`EgressDestination` row from an already-computed *verdict*.
+
+    ``binding_present`` gates the ``issues`` append **only** -- never what is printed.
+    Both rows always render, including their REFUSED verb, because "tracker egress is
+    fine" and "I never looked" must stay distinguishable. But ``issues`` drives
+    ``doctor``'s problem summary, and a checkout with **no tracker bound at all** has
+    no tracker-egress problem to remediate: absence of both channels refuses a
+    transmission nothing is attempting. Reporting it as an issue told every unbound
+    project that something was wrong with it, and made this renderer's contribution
+    depend on ambient state -- which is how it broke ``test_doctor_healthy``, a
+    heavily-mocked unit test that nonetheless resolves the real checkout.
+
+    This reads whether *any* provider is bound, never *which* one, so it does not
+    reintroduce the provider-conditional reporting the enclosing renderer's docstring
+    forbids: neither destination row is suppressed or altered by it.
 
     Takes no ``root`` and calls neither :func:`tracker_egress_verdict` nor
     ``load_tracker_config`` -- the two literal verdict calls live in
@@ -1884,7 +1904,7 @@ def _render_tracker_egress_row(console_out: Any, issues: list[str], verdict: Tra
     console_out.print(f"    {safe_message}")
     for remedy in verdict.remedies:
         console_out.print(f"    remedy: {remedy}")
-    if verdict.refused:
+    if verdict.refused and binding_present:
         issues.append(
             f"tracker egress to {verdict.destination.value} is refused "
             f"(Channel 1: {state_wording}): {safe_message}"
@@ -1926,13 +1946,17 @@ def _render_tracker_egress(console_out: Any, issues: list[str]) -> None:
     rendered as if its tracker egress were fine.
     """
     from specify_cli.core.paths import locate_project_root
+    from specify_cli.tracker.config import load_tracker_config
 
     console_out.print(f"\n[bold]{_TRACKER_EGRESS_SECTION_TITLE}[/bold]")
     root = locate_project_root(Path.cwd())  # may be None; that is a rendered case
     local = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS)
     hosted = tracker_egress_verdict(root, destination=EgressDestination.HOSTED_SERVICE)
-    _render_tracker_egress_row(console_out, issues, local)
-    _render_tracker_egress_row(console_out, issues, hosted)
+    # Whether *any* provider is bound -- never which one. Gates the `issues` append
+    # only; both rows render regardless. See `_render_tracker_egress_row`.
+    binding_present = bool(load_tracker_config(root).provider) if root is not None else False
+    _render_tracker_egress_row(console_out, issues, local, binding_present=binding_present)
+    _render_tracker_egress_row(console_out, issues, hosted, binding_present=binding_present)
 
 
 def _print_identity_backfill_result(result: IdentityBackfillResult | None) -> None:
