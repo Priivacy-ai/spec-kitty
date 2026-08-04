@@ -14,7 +14,13 @@ from specify_cli.tracker.config import (
     save_tracker_config,
 )
 from specify_cli.tracker.credentials import TrackerCredentialStore
-from specify_cli.tracker.local_service import LocalTrackerService, LocalTrackerServiceError
+from specify_cli.tracker.egress_verdict import EgressDestination, tracker_egress_verdict
+from specify_cli.tracker.local_service import (
+    LocalTrackerEgressRefusedError,
+    LocalTrackerService,
+    LocalTrackerServiceError,
+)
+from specify_cli.tracker.service import TrackerService
 
 
 # ---------------------------------------------------------------------------
@@ -47,6 +53,35 @@ def _make_service(
     if cred_path is not None:
         svc.credential_store = TrackerCredentialStore(path=cred_path)
     return svc
+
+
+def _read_config_payload(repo_root: Path) -> dict[str, Any]:
+    """Read `.kittify/config.yaml` as a raw mapping -- used to assert a sibling top-level
+    block (e.g. `sync:`) survived a `bind`, independently of `TrackerProjectConfig`'s own
+    parsing of the `tracker:` sub-block (FR-011 A1's control)."""
+    from ruamel.yaml import YAML
+
+    yaml = YAML()
+    config_path = repo_root / ".kittify" / "config.yaml"
+    with config_path.open("r", encoding="utf-8") as handle:
+        payload = yaml.load(handle) or {}
+    return dict(payload) if isinstance(payload, dict) else {}
+
+
+def _seed_committed_tracker_config(repo_root: Path, *, egress: str) -> None:
+    """Commit a `tracker.egress` decision plus a sibling `sync:` block directly, bypassing
+    `LocalTrackerService.bind` entirely -- this is the pre-bind, on-disk state FR-011 site A1
+    must not erase."""
+    config_path = repo_root / ".kittify" / "config.yaml"
+    config_path.write_text(
+        "tracker:\n"
+        "  provider: beads\n"
+        "  workspace: old-ws\n"
+        f"  egress: {egress}\n"
+        "sync:\n"
+        "  enabled: true\n",
+        encoding="utf-8",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -112,6 +147,185 @@ class TestBind:
         )
         assert config.doctrine_mode == "split"
         assert config.doctrine_field_owners == owners
+
+
+# ---------------------------------------------------------------------------
+# FR-011 site A1: bind must carry a committed egress decision forward
+# (T024). Pinned in both directions, with the sibling `sync:` block asserted
+# present as the control -- proves the file was written and the rest
+# survived, so a missing `egress` key is erasure, not a write failure.
+# ---------------------------------------------------------------------------
+
+
+class TestBindPreservesEgress:
+    """`LocalTrackerService.bind` (`local_service.py:57`) built a **fresh**
+    `TrackerProjectConfig` from only its own keyword arguments and saved that -- discarding a
+    committed `tracker.egress` decision on every bind. Erasing a `refused` is a silent
+    fail-open; erasing a `permitted` silently withdraws a working local binding (#3108)."""
+
+    def test_bind_preserves_committed_refused_egress(self, repo: Path, cred_path: Path) -> None:
+        _seed_committed_tracker_config(repo, egress="refused")
+        svc = _make_service(repo, cred_path=cred_path)
+
+        svc.bind(
+            provider="beads",
+            workspace="new-ws",
+            doctrine_mode="external_authoritative",
+            doctrine_field_owners={},
+            credentials={},
+        )
+
+        loaded = load_tracker_config(repo)
+        assert loaded.egress == "refused", "a committed refusal must outlive a bind (FR-011 A1)"
+        payload = _read_config_payload(repo)
+        assert payload.get("sync", {}).get("enabled") is True, "sibling sync: block control"
+
+    def test_bind_preserves_committed_permitted_egress(self, repo: Path, cred_path: Path) -> None:
+        _seed_committed_tracker_config(repo, egress="permitted")
+        svc = _make_service(repo, cred_path=cred_path)
+
+        svc.bind(
+            provider="beads",
+            workspace="new-ws",
+            doctrine_mode="external_authoritative",
+            doctrine_field_owners={},
+            credentials={},
+        )
+
+        loaded = load_tracker_config(repo)
+        assert loaded.egress == "permitted", "a committed grant must outlive a bind (FR-011 A1)"
+        payload = _read_config_payload(repo)
+        assert payload.get("sync", {}).get("enabled") is True, "sibling sync: block control"
+
+
+class TestTrackerServiceBindPreservesEgressEndToEnd:
+    """The end-to-end `TrackerService.bind` preservation pin (T024 step 2) -- this pin is
+    WP04's, not WP02's. WP02 fixed `service.py:163` to hand `LocalTrackerService` the loaded
+    config, but that fix is inert on disk until `LocalTrackerService.bind` itself stops
+    discarding it (`TestBindPreservesEgress` above). WP02 could not have earned this pin: it
+    is forbidden `local_service.py`, and a pin it could write would have been red before its
+    own fix and red after -- only the fix in *this* file makes it green."""
+
+    def test_trackerservice_bind_preserves_committed_refused_egress(self, repo: Path) -> None:
+        _seed_committed_tracker_config(repo, egress="refused")
+
+        service = TrackerService(repo)
+        service.bind(
+            provider="beads",
+            workspace="new-ws",
+            doctrine_mode="external_authoritative",
+            doctrine_field_owners={},
+            credentials={},
+        )
+
+        loaded = load_tracker_config(repo)
+        assert loaded.egress == "refused", "TrackerService.bind must preserve a committed refusal on disk"
+        payload = _read_config_payload(repo)
+        assert payload.get("sync", {}).get("enabled") is True, "sibling sync: block control"
+
+    def test_trackerservice_bind_preserves_committed_permitted_egress(self, repo: Path) -> None:
+        _seed_committed_tracker_config(repo, egress="permitted")
+
+        service = TrackerService(repo)
+        service.bind(
+            provider="beads",
+            workspace="new-ws",
+            doctrine_mode="external_authoritative",
+            doctrine_field_owners={},
+            credentials={},
+        )
+
+        loaded = load_tracker_config(repo)
+        assert loaded.egress == "permitted", "TrackerService.bind must preserve a committed grant on disk"
+        payload = _read_config_payload(repo)
+        assert payload.get("sync", {}).get("enabled") is True, "sibling sync: block control"
+
+
+# ---------------------------------------------------------------------------
+# FR-001: the tracker-egress verdict gates sync_pull/sync_push/sync_run as
+# the first executable statement, ahead of _load_runtime (T022).
+# ---------------------------------------------------------------------------
+
+
+class TestEgressGate:
+    """A refusing project must be told it refused, before anything is read or created on its
+    behalf -- never a silent no-op, never `_load_runtime`'s own errors standing in for the
+    refusal (T022's edge case: the verdict outranks configuration completeness)."""
+
+    def test_sync_pull_refuses_when_neither_channel_permits(self, repo: Path, cred_path: Path) -> None:
+        svc = _make_service(repo, cred_path=cred_path)
+        with pytest.raises(LocalTrackerEgressRefusedError):
+            svc.sync_pull()
+
+    def test_sync_push_refuses_when_neither_channel_permits(self, repo: Path, cred_path: Path) -> None:
+        svc = _make_service(repo, cred_path=cred_path)
+        with pytest.raises(LocalTrackerEgressRefusedError):
+            svc.sync_push()
+
+    def test_sync_run_refuses_when_neither_channel_permits(self, repo: Path, cred_path: Path) -> None:
+        svc = _make_service(repo, cred_path=cred_path)
+        with pytest.raises(LocalTrackerEgressRefusedError):
+            svc.sync_run()
+
+    def test_gate_outranks_incomplete_binding_error(self, repo: Path, cred_path: Path) -> None:
+        """An incomplete binding (provider set, workspace missing) in a refusing project must
+        surface the egress refusal, not `_load_runtime`'s 'incomplete' error -- telling an
+        operator to finish a binding they are not permitted to use is worse advice than
+        telling them why they are refused."""
+        broken_config = TrackerProjectConfig(provider="beads", workspace=None)
+        save_tracker_config(repo, broken_config)
+        svc = _make_service(repo, cred_path=cred_path)
+
+        with pytest.raises(LocalTrackerEgressRefusedError):
+            svc.sync_push()
+
+    def test_permitted_egress_reaches_past_the_gate(self, repo: Path, cred_path: Path) -> None:
+        """Positive control: a Channel-2 grant reaches past the gate -- the next failure
+        (unconfigured tracker, from `_load_runtime`) proves the gate did not swallow this
+        call silently."""
+        config_path = repo / ".kittify" / "config.yaml"
+        config_path.write_text("tracker:\n  egress: permitted\n", encoding="utf-8")
+        svc = _make_service(repo, cred_path=cred_path)
+
+        with pytest.raises(LocalTrackerServiceError, match="not configured") as exc_info:
+            svc.sync_push()
+        assert not isinstance(exc_info.value, LocalTrackerEgressRefusedError)
+
+
+class TestRefusalMessageIdentity:
+    """FR-012 / T023 step 3: the raised message equals `verdict.message` for the same
+    verdict, so a later edit that re-composes text at the raise site reds. The exception also
+    carries `verdict.remedies` unchanged, because a raise site must render both fields
+    together, never `message` alone (review round 1, MEDIUM-3)."""
+
+    def test_sync_push_raises_with_verdict_message_and_remedies_verbatim(
+        self, repo: Path, cred_path: Path
+    ) -> None:
+        svc = _make_service(repo, cred_path=cred_path)
+        expected = tracker_egress_verdict(repo, destination=EgressDestination.LOCAL_SUBPROCESS)
+        assert expected.refused, "precondition: nothing consents at either channel"
+
+        with pytest.raises(LocalTrackerEgressRefusedError) as exc_info:
+            svc.sync_push()
+
+        assert exc_info.value.message == expected.message
+        assert exc_info.value.remedies == expected.remedies
+
+    def test_rendered_text_carries_both_message_and_remedies(self, repo: Path, cred_path: Path) -> None:
+        """The highest false-red risk this WP carries: at LOCAL_SUBPROCESS the Channel-2 grant
+        remedy lives only in `remedies`, never folded into `message`. Rendering `message`
+        alone would silently drop it from what `_run_or_exit` prints."""
+        svc = _make_service(repo, cred_path=cred_path)
+        expected = tracker_egress_verdict(repo, destination=EgressDestination.LOCAL_SUBPROCESS)
+        assert expected.remedies, "precondition: this verdict has at least one remedy to drop"
+
+        with pytest.raises(LocalTrackerEgressRefusedError) as exc_info:
+            svc.sync_push()
+
+        rendered = str(exc_info.value)
+        assert expected.message in rendered
+        for remedy in expected.remedies:
+            assert remedy in rendered
 
 
 # ---------------------------------------------------------------------------
@@ -196,6 +410,12 @@ class TestSyncOperations:
     """
 
     def _setup_bound_service(self, repo: Path, cred_path: Path) -> LocalTrackerService:
+        # T026 (C-012(1)): one committed config line -- `tracker.egress: permitted` -- so
+        # FR-001's gate (T022) does not refuse this class's own delegation-assertion fixture,
+        # which records no consent at either channel. This is possible only because T024
+        # already landed: before it, `bind` below would have discarded this decision by
+        # building a fresh `TrackerProjectConfig` from only its keyword arguments.
+        save_tracker_config(repo, TrackerProjectConfig(egress="permitted"))
         svc = _make_service(repo, cred_path=cred_path)
         svc.bind(
             provider="beads",
@@ -428,3 +648,47 @@ class TestNoSaaSImports:
         # CredentialStore from sync/auth should not appear
         assert "sync.auth" not in source
         assert "from specify_cli.sync" not in source
+
+
+# ---------------------------------------------------------------------------
+# FR-017 / SC-019 / T025 step 4: the five docstrings this Mission falsifies
+# or adds, pinned by one test so a later revert of any one of them reds.
+# ---------------------------------------------------------------------------
+
+
+def test_fr017_five_docstrings_are_not_falsified() -> None:
+    """Pins all five FR-017 deliverables: the three docstrings this WP amends
+    (`local_service.py`'s module docstring, `_check_sync_readiness`, `_check_binding_readiness`)
+    and WP03's two authored ones (`egress_verdict.py`'s module docstring and
+    `_classify_channel1`'s docstring). A later revert of *any* one of these five reds this
+    single test -- verified by temporarily mutating each in a scratch copy, never a source
+    edit during a verification run.
+    """
+    import specify_cli.tracker.egress_verdict as egress_verdict_mod
+    import specify_cli.tracker.local_service as local_service_mod
+    from specify_cli.cli.commands.tracker import _check_binding_readiness, _check_sync_readiness
+    from specify_cli.tracker.egress_verdict import _classify_channel1
+
+    # 1. local_service.py's module docstring no longer claims zero consultation of any
+    # consent/verdict machinery -- it records that this module consults the tracker-egress
+    # verdict, which in turn reaches the hosted-sync consent chain.
+    local_doc = local_service_mod.__doc__ or ""
+    assert "egress" in local_doc.lower() and "verdict" in local_doc.lower(), local_doc
+
+    # 2. _check_sync_readiness: "without going through the SaaS surface at all" is false the
+    # moment the local sync entry points consult the hosted-sync consent chain via Channel 1.
+    sync_doc = _check_sync_readiness.__doc__ or ""
+    assert "tracker_egress_verdict" in sync_doc, sync_doc
+    assert "Channel 1" in sync_doc, sync_doc
+
+    # 3. _check_binding_readiness mirrors the former and must not silently inherit a claim
+    # that is no longer true for the sync entry points -- it names the distinction instead.
+    binding_doc = _check_binding_readiness.__doc__ or ""
+    assert "tracker_egress_verdict" in binding_doc, binding_doc
+    assert "does not" in binding_doc.lower(), binding_doc
+
+    # 4/5. WP03's two authored docstrings -- SC-019's literal strings, so the retirement
+    # condition (Bundle B's Q3) cannot be softened into a "consider revisiting".
+    for doc in (egress_verdict_mod.__doc__ or "", _classify_channel1.__doc__ or ""):
+        for literal in ("invocation/adapters.py:81", "Q3", "delete", "not migrate"):
+            assert literal in doc, (literal, doc)
