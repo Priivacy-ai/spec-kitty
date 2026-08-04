@@ -57,9 +57,24 @@ from specify_cli.cli.commands.agent.tasks_status_view import (
 from specify_cli.lanes.persistence import MissingLanesError
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from doctrine.agent_profiles.profile import AgentProfile
     from doctrine.agent_profiles.repository import AgentProfileRepository
 
     from specify_cli.core.stale_detection import StaleCheckResult
+
+    # WP02 (charter-sole-door-bypass-closure-01KZ3WAA, FR-001): the dashboard
+    # icon-rendering call sites (``_st_render_human``/``_get_hic_marker``)
+    # only ever call ``.get(profile_id)`` on this value (never
+    # ``list_all()``/``resolve_profile()``/``register_overlay()``), so a
+    # gated ``dict`` from ``charter.resolver.DoctrineService.agent_profiles``
+    # and a raw ``AgentProfileRepository`` (still accepted for the external,
+    # already-frozen ``repo=`` test seam in
+    # ``tests/doctrine/test_human_in_charge_profile.py``) are interchangeable
+    # here. This alias documents that both shapes are intentional, not a
+    # typing gap.
+    ProfileLookup = Mapping[str, AgentProfile] | AgentProfileRepository
 from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
 )
@@ -409,7 +424,7 @@ def _st_emit_json(st: _StatusState, ports: TasksPorts) -> None:
 
 
 def _st_board_cell(
-    wp: Any, lane: Lane, main_repo_root: Path, profile_repo: AgentProfileRepository | None
+    wp: Any, lane: Lane, main_repo_root: Path, profile_repo: ProfileLookup | None
 ) -> str:
     """Build one kanban cell string (marker + stale/claimed/review decoration)."""
     from specify_cli.cli.commands.agent import tasks as _tasks
@@ -458,7 +473,7 @@ def _st_render_overview(ports: TasksPorts, st: _StatusState, view: StatusView) -
 
 
 def _st_render_board(
-    ports: TasksPorts, st: _StatusState, view: StatusView, profile_repo: AgentProfileRepository | None
+    ports: TasksPorts, st: _StatusState, view: StatusView, profile_repo: ProfileLookup | None
 ) -> None:
     """Render the kanban board table via the Render port.
 
@@ -543,7 +558,7 @@ def _st_render_arbiter(ports: TasksPorts, st: _StatusState) -> None:
 
 
 def _st_render_review_queues(
-    ports: TasksPorts, st: _StatusState, view: StatusView, profile_repo: AgentProfileRepository | None
+    ports: TasksPorts, st: _StatusState, view: StatusView, profile_repo: ProfileLookup | None
 ) -> None:
     """Render the for_review / approved / done-with-stale-verdict sections."""
     from specify_cli.cli.commands.agent import tasks as _tasks
@@ -583,7 +598,7 @@ def _st_render_active(
     st: _StatusState,
     view: StatusView,
     stale_results: Any,
-    profile_repo: AgentProfileRepository | None,
+    profile_repo: ProfileLookup | None,
 ) -> None:
     """Render the claimed / in_progress / in_review sections via the Render port."""
     from specify_cli.cli.commands.agent import tasks as _tasks
@@ -629,7 +644,7 @@ def _st_render_active(
 
 
 def _st_render_planned(
-    ports: TasksPorts, st: _StatusState, view: StatusView, profile_repo: AgentProfileRepository | None
+    ports: TasksPorts, st: _StatusState, view: StatusView, profile_repo: ProfileLookup | None
 ) -> None:
     """Render the "Next Up (Planned)" section via the Render port."""
     from specify_cli.cli.commands.agent import tasks as _tasks
@@ -701,17 +716,41 @@ def _st_render_human(st: _StatusState, ports: TasksPorts) -> None:
     except MissingLanesError as exc:
         stale_results = build_stale_fallback_results(by_lane[Lane.IN_PROGRESS], exc)
 
-    try:
-        from doctrine.agent_profiles.repository import AgentProfileRepository
+    profile_repo: ProfileLookup | None = None
+    # Lazy construction (NFR-005): skip the factory build entirely when no
+    # rendered WP carries an ``agent_profile`` -- e.g. a freshly-tasked
+    # mission where nothing has been claimed yet. This does not change the
+    # populated-board cost (measured in
+    # kitty-specs/charter-sole-door-bypass-closure-01KZ3WAA/traces/
+    # tooling-friction.md), but it is a genuine, free win for the empty/
+    # not-yet-started case that the removed bare ``AgentProfileRepository()``
+    # construction paid unconditionally.
+    _needs_profile_lookup = any(
+        row.get("agent_profile") for rows in by_lane.values() for row in rows
+    )
+    if _needs_profile_lookup:
+        try:
+            # WP02 (charter-sole-door-bypass-closure-01KZ3WAA, FR-001): routed
+            # through ``charter.resolver.DoctrineService`` instead of
+            # constructing ``AgentProfileRepository`` directly. The comment
+            # this replaces named a "runtime -> charter -> doctrine boundary
+            # ratchet" concern; R3 (research.md) confirms that ratchet only
+            # scans MODULE-LEVEL ``from doctrine.*`` imports, and both the old
+            # direct-construction import and this factory import are
+            # function-local, so the gate does not trip either way -- the
+            # concern does not reappear. This site only ever reads
+            # (``.get(profile_id)`` inside ``_get_hic_marker``), so the gated
+            # ``agent_profiles`` property is sufficient; no lineage/mutation
+            # accessor is needed here.
+            from charter.doctrine_service_builder import (  # noqa: PLC0415
+                build_activation_aware_doctrine_service,
+            )
 
-        # No ``built_in_dir``: the repository self-resolves the shipped built-in
-        # profiles through its ``_default_built_in_dir`` (the ``packs/built-in/
-        # agent_profiles`` pack root via ``resolve_pack_root``). Constructing the
-        # path here would force a direct ``doctrine`` import into this runtime
-        # module and trip the runtime -> charter -> doctrine boundary ratchet.
-        profile_repo: AgentProfileRepository | None = AgentProfileRepository()
-    except Exception:
-        profile_repo = None
+            profile_repo = build_activation_aware_doctrine_service(
+                st.main_repo_root
+            ).agent_profiles
+        except Exception:
+            profile_repo = None
 
     for wp in by_lane[Lane.IN_PROGRESS]:
         wp_id = wp["id"]
@@ -794,9 +833,9 @@ def _review_stall_threshold_minutes(repo_root: Path) -> int:
 
 def _get_hic_marker(
     agent_profile: object,
-    _repo_root: Path,
+    repo_root: Path,
     *,
-    repo: AgentProfileRepository | None = None,
+    repo: ProfileLookup | None = None,
 ) -> str:
     """Return a marker when the work package profile is a human-run sentinel.
 
@@ -805,22 +844,35 @@ def _get_hic_marker(
     value yields no marker, exactly as the historical ``if not agent_profile``
     guard did for ``None``/empty strings.
 
-    ``_repo_root`` is retained for the stable call-site signature (8 internal
-    callers plus the ``tasks.py`` compat re-export) but is no longer read: the
-    built-in profiles now resolve through :func:`resolve_pack_root` (the shipped
-    ``packs/built-in/agent_profiles`` root), not the consumer checkout.
+    ``repo_root`` is read again as of WP02 (charter-sole-door-bypass-closure-
+    01KZ3WAA): the self-resolving fallback (``repo=None``) now builds the
+    charter-mediated, activation-aware profile map for this repo root rather
+    than a bare built-in-only ``AgentProfileRepository()`` (FR-001). All 8
+    production call sites always pass ``repo=`` explicitly, so this fallback
+    only matters for direct/external callers.
     """
     if not isinstance(agent_profile, str) or not agent_profile:
         return ""
 
     try:
-        from doctrine.agent_profiles.repository import AgentProfileRepository
-
         profile_repo = repo
         if profile_repo is None:
-            # Self-resolve the shipped built-in profiles (see the sibling call
-            # site): avoids a direct ``doctrine`` import in this runtime module.
-            profile_repo = AgentProfileRepository()
+            # WP02 (charter-sole-door-bypass-closure-01KZ3WAA, FR-001): routed
+            # through ``charter.resolver.DoctrineService`` rather than
+            # constructing ``AgentProfileRepository`` directly. As with the
+            # sibling call site (``_st_render_human``), the removed comment's
+            # "boundary ratchet" concern is confirmed a red herring (R3,
+            # research.md): the existing gate only scans module-level
+            # ``from doctrine.*`` imports, and this import is function-local,
+            # same as the construction it replaces. All 8 production callers
+            # in this module always pass ``repo=`` explicitly (built once per
+            # render in ``_st_render_human``), so this self-resolving fallback
+            # only fires for direct/external callers (e.g. unit tests).
+            from charter.doctrine_service_builder import (  # noqa: PLC0415
+                build_activation_aware_doctrine_service,
+            )
+
+            profile_repo = build_activation_aware_doctrine_service(repo_root).agent_profiles
 
         profile = profile_repo.get(agent_profile)
         if profile and profile.sentinel:

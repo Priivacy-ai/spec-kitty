@@ -57,6 +57,11 @@ tests/integration/test_quickstart_end_to_end.py::TestStep5_NoShippedLayerLabel::
 tests/integration/test_quickstart_end_to_end.py::TestStep5_NoShippedLayerLabel::test_step5_preflight_json_has_no_shipped_layer_label
 tests/perf/test_loader_perf.py::test_erp_load_under_2s
 tests/perf/test_loader_perf.py::test_load_p95_under_250ms
+# Regenerated to add tests/perf/test_tasks_status_baseline.py's 2 new @slow
+# tests (WP02, mission charter-sole-door-bypass-closure-01KZ3WAA, NFR-005
+# performance baseline) -- no test was re-marked to dodge a CI budget.
+tests/perf/test_tasks_status_baseline.py::test_capture_raw_timing_series
+tests/perf/test_tasks_status_baseline.py::test_tasks_status_p95_within_nfr005_budget
 tests/retrospective/test_summary_tolerance.py::test_200_missions_under_5s
 tests/specify_cli/cli/commands/test_test_env_check.py::test_assert_pytest_available_raises_when_pytest_missing
 tests/specify_cli/dossier/test_integration.py::TestLargeArtifactHandling::test_large_artifact_indexing_no_memory_leak

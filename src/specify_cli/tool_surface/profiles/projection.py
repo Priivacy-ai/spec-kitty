@@ -79,6 +79,37 @@ def default_profile_repository(project_root: Path) -> AgentProfileRepository:
     gate, so a *de-activated* org profile never reaches the host surface. A raw
     ``org_dirs=`` splice is intentionally NOT used here: it would bypass the gate
     and surface declared-but-de-activated profiles (C-008).
+
+    **NOT migrated onto ``charter.resolver.DoctrineService.agent_profile_repository``
+    (charter-sole-door-bypass-closure-01KZ3WAA WP02/T008 -- confirmed blocker,
+    surfaced per C-002 rather than silently worked around or silently left
+    as-is).** FR-001 named this site as an in-scope migration target, but the
+    factory's ``agent_profile_repository`` accessor is built from a
+    ``doctrine.service.DoctrineService`` whose own project-overlay directory is
+    derived exclusively from ``charter._doctrine_paths.resolve_project_root``'s
+    three fixed candidates (``.kittify/doctrine``, ``src/doctrine``,
+    ``doctrine``) -- none of which is ``.kittify/agent_profiles``
+    (``_PROJECT_PROFILE_SUBDIR`` above). There is no parameter on the factory's
+    one sanctioned builder (``charter.doctrine_service_builder.
+    build_activation_aware_doctrine_service``) to point its inner project
+    directory at an arbitrary caller-chosen path. Empirically confirmed: a
+    literal migration (constructing the base repository via the factory
+    instead of ``AgentProfileRepository(project_dir=project_dir)`` above) makes
+    ``build_activation_aware_doctrine_service(tmp_path).agent_profile_repository``
+    silently drop every ``.kittify/agent_profiles/*.agent.yaml`` project
+    profile -- breaking the project-overlay assertions in
+    ``tests/specify_cli/tool_surface/profiles/test_projection.py``,
+    ``test_projection_collision_precedence.py``, and
+    ``test_projection_org_visibility.py`` (all three seed
+    ``.kittify/agent_profiles`` and assert the seeded profile is visible
+    through this exact function). Closing this gap correctly requires either
+    (a) a builder-level change letting a caller override the project-overlay
+    directory (out of WP02's owned files -- that surface belongs to WP01's
+    already-approved ``charter.doctrine_service_builder``/``charter.resolver``),
+    or (b) an explicit, reasoned exclusion of this site from FR-001's count,
+    mirroring the existing C-006 ``.kittify/profiles`` carve-out. Left
+    unmigrated pending that operator/architect decision; do not attempt a
+    speculative fix here without one.
     """
     project_dir = project_root / _PROJECT_PROFILE_SUBDIR
     repo = AgentProfileRepository(project_dir=project_dir)
