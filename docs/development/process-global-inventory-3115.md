@@ -138,7 +138,8 @@ CWD.
    - `client._request_with_retry("GET", ...)` → `self._request(...)`
      (`:294-373`) → **the one real, unmocked chokepoint on this test's
      path**: `project_egress_refusal(self._project_root)`
-     (`src/specify_cli/tracker/egress_consent.py:147-190`) → (permits) →
+     (`src/specify_cli/egress.py`, formerly `src/specify_cli/tracker/egress_consent.py:147-190`
+     — relocated by #3110) → (permits) →
      `resolve_egress_consent(Path(project_root))`
      (`src/specify_cli/invocation/adapters.py:148-185`) → the registered
      module-global `_egress_consent_resolver(path)` (`adapters.py:81`,
@@ -161,7 +162,7 @@ CWD.
    writes under `tmp_path` (`tracker/conftest.py:131-153`), and (b) the
    registered `_egress_consent_resolver` singleton. Neither is `os.environ`,
    a lock, a port, or the CWD (`project_egress_refusal`'s own docstring,
-   `egress_consent.py:158-159`, states the checkout is resolved from an
+   `egress_consent.py:158-159`, now `specify_cli/egress.py` per #3110, states the checkout is resolved from an
    explicit `project_root`, "never the process's current working
    directory"). **An entry is `does not depend` only when it is proven not
    to touch (a) or (b), or any lock/port/env-var this path reads — not
@@ -330,7 +331,7 @@ to everything under `tracker/`.
 
 | # | Module : symbol | Reset seam | Caller | Dependence |
 |---|---|---|---|---|
-| E20 | `tests/sync/conftest.py::_isolate_pre_review_gate_sync_toggles` (autouse, `:140-169`) — unsets `SYNC_DISABLE_ENV_VARS` from `os.environ` before every test | `reset seam: _isolate_pre_review_gate_sync_toggles` (`monkeypatch.delenv`, auto-restored per test) | pytest itself (`autouse=True`, applies to every test under `tests/sync/`, `tracker/` included) | does not depend — traced directly against `_request_with_retry`'s and `_request`'s bodies (Method §4): neither reads `SYNC_DISABLE_ENV_VARS`, `is_sync_enabled_for_checkout`, or any `os.environ` key; the one real chokepoint on the path is `project_egress_refusal`/`_egress_consent_resolver`, which also reads no env var (`egress_consent.py:147-190` has zero `os.environ`/`getenv` references) |
+| E20 | `tests/sync/conftest.py::_isolate_pre_review_gate_sync_toggles` (autouse, `:140-169`) — unsets `SYNC_DISABLE_ENV_VARS` from `os.environ` before every test | `reset seam: _isolate_pre_review_gate_sync_toggles` (`monkeypatch.delenv`, auto-restored per test) | pytest itself (`autouse=True`, applies to every test under `tests/sync/`, `tracker/` included) | does not depend — traced directly against `_request_with_retry`'s and `_request`'s bodies (Method §4): neither reads `SYNC_DISABLE_ENV_VARS`, `is_sync_enabled_for_checkout`, or any `os.environ` key; the one real chokepoint on the path is `project_egress_refusal`/`_egress_consent_resolver`, which also reads no env var (`egress_consent.py:147-190`, now `specify_cli/egress.py` per #3110, has zero `os.environ`/`getenv` references) |
 | E21 | `tests/sync/conftest.py::_consented_checkout_by_default` (autouse, `:194-259`) — `monkeypatch.setattr`s `is_sync_enabled_for_checkout` (batch/runtime) and `EventEmitter._project_consents_to_capture` | `reset seam: _consented_checkout_by_default` (`monkeypatch.setattr`, auto-restored) | pytest itself (`autouse=True`) | does not depend — the patched symbols are never invoked in `_request_with_retry`'s call graph; `SaaSTrackerClient` does not import `EventEmitter` or the batch/runtime consent predicates |
 | E22 | `tests/sync/tracker/conftest.py::_patch_saas_token_bridges` (autouse, `:55-174`) — `monkeypatch.setattr`s `saas_client._fetch_access_token_sync`, `_current_team_slug_sync`, `_force_refresh_sync`, `AuthClient` (added `raising=False`), and `SaaSTrackerClient.__init__` itself (`_compat_init`) | `reset seam: _patch_saas_token_bridges` (`monkeypatch.setattr` × 5, auto-restored per test; function-scoped) | pytest itself (`autouse=True`, applies to every test under `tests/sync/tracker/`) | **depends — two independent limbs (expanded this revision, was understated)**. **Limb 1**: `SaaSTrackerClient.__init__` in production no longer accepts a `credential_store=` kwarg (per this fixture's own module docstring, `tests/sync/tracker/conftest.py:1-25`); the `client` fixture constructs `SaaSTrackerClient(credential_store=..., sync_config=..., timeout=5.0)` (`test_saas_client.py:109-115`). Without `_compat_init` (`:155-172`), that construction raises `TypeError` before the test body runs. **Limb 2**: `_compat_init` also injects `project_root=_consenting_project_root()` (`:163-167`) whenever the caller omits it, and `_consenting_project_root()` writes a real `.kittify/config.yaml` with `sync: enabled: true` (`:129-153`). Per the fixture's own docstring, `SaaSTrackerClient` now "refuses every request unless it has been told which project owns the data, and that project consents" — this is the `project_egress_refusal` chokepoint traced in Method §4. Without this second limb the `client` fixture would construct an unattributed, refusing client, and `_request_with_retry` would raise `TrackerEgressRefusedError` before reaching the mocked `httpx.Client`/`time.sleep` at all. **WP06 inherits only limb 1 if this row is read carelessly; both limbs are load-bearing.** |
 

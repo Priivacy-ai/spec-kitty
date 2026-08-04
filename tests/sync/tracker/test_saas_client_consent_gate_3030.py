@@ -27,6 +27,7 @@ Two properties every refusal test relies on and one of them states outright:
 
 from __future__ import annotations
 
+import ast
 import json
 from pathlib import Path
 from typing import Any
@@ -37,6 +38,35 @@ import pytest
 from specify_cli.tracker.saas_client import SaaSTrackerClient, SaaSTrackerClientError
 
 pytestmark = pytest.mark.fast
+
+#: The `src/` tree, as a LITERAL. The corpus-scan constant inside the guard is
+#: editable and is what a re-narrowing touches; this is not, which is what makes
+#: the reach assertion able to fail. Do not fold the two together.
+_SRC_TREE = Path(__file__).resolve().parents[3] / "src"
+
+
+def _repo_relative(path: Path) -> str:
+    """The ONE place the failure message's repo-relative path is computed.
+
+    F1b was graded a blocker because the previous pin recomputed ``src.parent``
+    inside the assertion, so it pinned a *copy* of the arithmetic and reverting the
+    reporting line left it green — two objects with the same source text, which
+    this module's own predicate docstring names as the state that goes green while
+    the guard goes blind.
+
+    A stronger assertion is not the answer: **no runtime assertion can observe
+    which expression another line uses.** So the arithmetic now exists exactly
+    once, which makes divergence unrepresentable rather than merely detected.
+
+    Anchored on ``_SRC_TREE``, not on the guard's editable scan constant, so
+    narrowing the scan root cannot silently change the reported prefix.
+
+    Residual limit, stated rather than implied: a future edit that *bypasses* this
+    helper and inlines its own arithmetic is a different failure, and nothing here
+    catches it. That is the same "one object, two callers" bound the predicates
+    carry.
+    """
+    return path.relative_to(_SRC_TREE.parent).as_posix()
 
 
 # ---------------------------------------------------------------------------
@@ -352,13 +382,59 @@ def test_undetermined_project_denies(
     assert "could not be determined" in str(refusal)
 
 
+#: Non-vacuity floor for the tracker attribution scan, as a **named integer**
+#: (SC-005 ``[standing]``). Re-measured over **1197** files under ``src/``
+#: — and identical under the old ``src/specify_cli`` root (936 files), which
+#: is why widening the scan moved no count.
+#:
+#: The bare ``assert scanned`` this replaces reds only when *every* site of the
+#: class disappears. The named integer is what makes losing **one** site red.
+TRACKER_CONSTRUCTION_SITE_FLOOR = 3
+
+#: What this guard does **not** see (R5 — the floor is not coverage). The bound
+#: is the **literal class-name match** on ``SaaSTrackerClient`` below: an aliased
+#: import, a factory, or an injected transport is invisible to it.
+#:
+#: It is **not** ``#3113``, which is a property of ``_transmits_a_body`` in the
+#: *boundary* guard. This predicate counts every match regardless of call form —
+#: it accepts an attribute receiver as well as a bare name — and so has no
+#: positional blind spot.
+TRACKER_PREDICATE_BOUND = (
+    "literal class-name match on `SaaSTrackerClient`; aliases, factories and "
+    "injected transports are out of scope"
+)
+
+
+def _tracker_site_attribution(node: ast.Call) -> tuple[bool, bool]:
+    """Classify one call node as ``(matched, attributed)`` for the tracker client.
+
+    **One object, two callers** — the live corpus scan below and the synthetic
+    witness assertions both call *this* function, for the reason spelled out in
+    the SaaS guard's counterpart.
+
+    Strictness is preserved exactly as it was inline, and it is deliberately
+    **looser on the receiver** than the SaaS predicate:
+
+    * ``matched`` — ``func.id`` for a bare ``ast.Name``, else ``func.attr``, so
+      an **attribute-receiver** call (``mod.SaaSTrackerClient(...)``) still
+      matches. All three live sites are bare names, so nothing in the corpus
+      exercises that branch — which is exactly why SC-013 asserts it.
+    * ``attributed`` — ``project_root=`` **only**. Not ``repo_root=``.
+    """
+    func = node.func
+    name = func.id if isinstance(func, ast.Name) else getattr(func, "attr", None)
+    if name != "SaaSTrackerClient":
+        return False, False
+    return True, any(kw.arg == "project_root" for kw in node.keywords)
+
+
 def test_every_production_construction_site_attributes_its_project() -> None:
     """The attribution precondition, made executable.
 
     The gate resolves consent from the checkout root it is handed, so it is only
     sound while **every** construction site passes the root of the project that
     owns the record the request will carry. That condition is stated in
-    ``tracker/egress_consent.py``; a prose statement alone is how this class
+    ``specify_cli/egress.py``; a prose statement alone is how this class
     regenerates, because it reads as obviously fine until someone adds the caller
     that breaks it and nothing tells them they broke it.
 
@@ -368,29 +444,91 @@ def test_every_production_construction_site_attributes_its_project() -> None:
     but it does make the omission a red build rather than a silent refusing
     client, and it forces a new caller to think about whose data it is sending.
     """
-    import ast
-
-    src = Path(__file__).resolve().parents[3] / "src" / "specify_cli"
+    # **US3 (``../../kitty-specs/…/spec.md:213-217``)** is the source of the scope,
+    # quoted: *"Each package carries its own AST guard that scans ``src/``, reds,
+    # and names the file and line. That protection must survive this mission at
+    # full strength for both packages."*
+    #
+    # An earlier version of this comment cited SC-007/FR-014 as saying it. NEITHER
+    # DOES — SC-007 is a per-class *count* criterion ("counts are at least the
+    # bb2020fea baseline") and FR-014 is "per-class non-vacuity floor". Presenting
+    # them as the source was a claim nobody had followed back to its text, which is
+    # this mission's own recurring failure. SC-007/FR-014 belong where they are
+    # cited below: as the reason the FLOORS are named per-class integers.
+    #
+    # This scanned ``src/specify_cli`` while its docstring and failure message said
+    # ``src/`` — the divergence recorded as WP03 R-1, one module over.
+    #
+    # Widening is free HERE and that was measured, not assumed: both class
+    # counts are identical under either root (SaasClient 4, SaaSTrackerClient
+    # 3), so **neither floor moves**. What it buys is reach — a construction
+    # site landing in a sibling package under ``src/`` was previously invisible
+    # to a guard whose message claimed to cover it.
+    src = Path(__file__).resolve().parents[3] / "src"
     assert src.is_dir(), f"source tree not found at {src} — path regression?"
 
     unattributed: list[str] = []
     scanned = 0
-    for path in sorted(src.rglob("*.py")):
+    files = sorted(src.rglob("*.py"))
+
+    # EXECUTABLE PIN FOR THE SCOPE ABOVE — F1.
+    #
+    # Without this, reverting the widening is SILENTLY GREEN: the reviewer built
+    # that counterfactual and both guards still reported their exact HEAD tallies.
+    # Nothing observed the scope, which made the "fix" strictly weaker than the
+    # pre-fix SC-015 state — that at least had a file-count floor. A scope claim
+    # with no assertion behind it is the shape this whole mission keeps finding.
+    #
+    # Anchored on `_SRC_TREE`, a module-level literal that a narrowing of the scan
+    # constant CANNOT move. The previous form derived `src_packages` from `src`
+    # itself — the scan constant — so both sides moved together and the pin was
+    # vacuous against the exact edit it was added to catch. Measured: under a
+    # narrowed `src/specify_cli`, `src.iterdir()` enumerates that package's **67**
+    # subpackages, `rglob` reaches all of them, `unreached` is `[]` by
+    # construction, and `len(...) > 1` passes at 67 — two nested controls both
+    # green under the regression.
+    src_packages = [d for d in sorted(_SRC_TREE.iterdir()) if (d / "__init__.py").is_file()]
+    assert len(src_packages) > 1, (
+        f"anti-vacuity: {_SRC_TREE} holds {len(src_packages)} package(s). This "
+        "control exists so 'the scan spans every package' cannot be satisfied by a "
+        "tree with one package in it."
+    )
+    unreached = [d.name for d in src_packages if not any(f.is_relative_to(d) for f in files)]
+    assert not unreached, (
+        f"the scan reached {len(files)} files but none in {unreached} — package(s) "
+        f"that exist under {_SRC_TREE}. US3 mandates a guard that scans `src/`, the "
+        "whole tree; narrowing the scan root is what reds this."
+    )
+    # The report path's arithmetic lives in `_repo_relative` and nowhere else, so
+    # this exercises the SAME code the failure message uses rather than a copy of
+    # it. A wrong base otherwise manifests only INSIDE a red, where no green can
+    # catch it.
+    assert _repo_relative(_SRC_TREE / "specify_cli" / "egress.py") == (
+        "src/specify_cli/egress.py"
+    ), (
+        "_repo_relative no longer yields repo-relative paths, so every path this "
+        "guard names in a failure would be wrong — and only on a red."
+    )
+
+    for path in files:
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call):
                 continue
-            func = node.func
-            name = func.id if isinstance(func, ast.Name) else getattr(func, "attr", None)
-            if name != "SaaSTrackerClient":
+            matched, attributed = _tracker_site_attribution(node)
+            if not matched:
                 continue
             scanned += 1
-            if not any(kw.arg == "project_root" for kw in node.keywords):
-                unattributed.append(f"{path.relative_to(src.parent.parent)}:{node.lineno}")
+            if not attributed:
+                unattributed.append(f"{_repo_relative(path)}:{node.lineno}")
 
-    assert scanned, (
-        "no SaaSTrackerClient construction found in src/ — the scan is vacuous, "
-        "which would make this guard decoration"
+    assert scanned >= TRACKER_CONSTRUCTION_SITE_FLOOR, (
+        f"expected at least {TRACKER_CONSTRUCTION_SITE_FLOOR} SaaSTrackerClient "
+        f"construction sites in src/, found {scanned}. A bare `assert scanned` reds "
+        "only when every site of the class disappears; this named floor is what "
+        "makes losing ONE site red. If a site was deliberately removed, lower the "
+        "floor in the same commit and say why — do not delete the assertion.\n\n"
+        f"What this floor does NOT prove: {TRACKER_PREDICATE_BOUND}."
     )
     assert not unattributed, (
         "SaaSTrackerClient constructed without project_root at:\n  "
@@ -399,7 +537,107 @@ def test_every_production_construction_site_attributes_its_project() -> None:
         "the data the request carries (#3030 FR-029) — never the process cwd, and "
         "never another project's root. Without it the client refuses every request; "
         "with the wrong one it asks the wrong project. See "
-        "tracker/egress_consent.py for the precondition and what falsifies it."
+        "specify_cli/egress.py for the precondition and what falsifies it."
+    )
+
+
+def _call(expr: str) -> ast.Call:
+    """Parse a single call expression into the node the predicate consumes."""
+    # `body[0]` is typed `ast.stmt`, which has no `.value`; it is an `ast.Expr`
+    # here because every caller passes a bare expression. The isinstance check
+    # below is what actually enforces that, so the narrowing is verified rather
+    # than assumed.
+    node = ast.parse(expr).body[0].value  # type: ignore[attr-defined]
+    assert isinstance(node, ast.Call), f"{expr!r} is not a call expression"
+    return node
+
+
+def test_tracker_predicate_flags_a_form_it_matches_but_does_not_accept() -> None:
+    """SC-012 — asserted on a synthetic sample, through the extracted predicate.
+
+    ``SaaSTrackerClient(repo_root=…)`` is **matched and flagged unattributed**:
+    this guard accepts ``project_root=`` and nothing else. ``repo_root=`` is the
+    SaaS client's ``from_env`` spelling, and admitting it here is exactly the
+    vocabulary widening MUT-4 performs — a widening **no count can see**, because
+    ``scanned`` increments before the attribution test.
+    """
+    matched, attributed = _tracker_site_attribution(_call("SaaSTrackerClient(repo_root=r)"))
+
+    assert matched, "SaaSTrackerClient(...) must be matched regardless of its kwargs"
+    assert not attributed, (
+        "SaaSTrackerClient(repo_root=r) must be flagged unattributed: this guard "
+        "accepts project_root= only. If this now reads as attributed, the tracker "
+        "vocabulary was widened to admit the SaaS client's spelling — which leaves "
+        "both scanned counts exactly unchanged, so no count would catch it."
+    )
+
+
+def test_tracker_predicate_matches_a_shape_no_src_site_uses() -> None:
+    """SC-013 — a **match** on a shape the live corpus never exercises.
+
+    All three live tracker sites are bare ``ast.Name`` callees, so nothing in the
+    corpus exercises the attribute-receiver branch. Narrowing this predicate to a
+    literal ``Name`` receiver — MUT-5 — would blind the guard to
+    ``mod.SaaSTrackerClient(...)`` **while leaving ``scanned`` at exactly its
+    floor of 3**, which is why the floor alone cannot detect it.
+
+    No non-match is asserted here; see the SaaS counterpart for why.
+    """
+    matched, attributed = _tracker_site_attribution(_call("mod.SaaSTrackerClient(project_root=r)"))
+
+    assert matched, (
+        "mod.SaaSTrackerClient(project_root=...) must be matched — the predicate "
+        "reads func.attr for an attribute receiver. If this stops matching, the "
+        "predicate was narrowed to a literal Name receiver and scanned stays at "
+        "exactly 3, so the floor would not catch it."
+    )
+    assert attributed, "project_root= is the attributed spelling for this class"
+
+
+def test_tracker_predicate_rejects_a_bare_positional_root() -> None:
+    """WP01 F2 — the widening shape that the two witnesses above cannot see.
+
+    ``SaaSTrackerClient(r)`` is **matched and flagged unattributed**. The tracker
+    constructor is ``(sync_config=None, *, project_root=None, timeout=30.0)`` —
+    ``project_root`` is **keyword-only**, and the sole positional slot is
+    ``sync_config``. A bare positional therefore does not merely spell the root
+    differently: it binds a *different parameter* and leaves ``_project_root``
+    ``None``, producing a client that refuses every request. Reading it as
+    attributed would bless a call the class cannot honour.
+
+    **Why it needs its own witness.** All three live sites pass
+    ``project_root=``, so nothing in the corpus is a bare positional, and neither
+    witness above reds if ``bool(node.args)`` is added to the attribution test:
+
+    * SC-012 pins ``SaaSTrackerClient(repo_root=r)`` — no positional args, so it
+      stays unattributed and stays green.
+    * SC-013 pins ``mod.SaaSTrackerClient(project_root=r)`` — already attributed.
+    * The corpus scan cannot move: ``scanned`` stays at 3 and ``unattributed``
+      stays empty, because no live site is positional.
+
+    ``bool(node.args)`` is not a hypothetical edit: it is *correct* in the SaaS
+    predicate, where ``from_env`` really does thread the root positionally. Copying
+    that clause across while "harmonising" the two predicates is the selective
+    widening this pins — the naive unification is already caught by SC-012.
+
+    **No non-match is asserted here**, for the reason given in the SaaS
+    counterpart (T006): a must-not-match pin would red on a coverage improvement.
+    """
+    matched, attributed = _tracker_site_attribution(_call("SaaSTrackerClient(r)"))
+
+    assert matched, (
+        "SaaSTrackerClient(...) must be matched regardless of its call form — a "
+        "construction the predicate stops seeing is one it cannot hold to the "
+        "attribution precondition at all"
+    )
+    assert not attributed, (
+        "SaaSTrackerClient(r) must be flagged unattributed: project_root is "
+        "keyword-only on this constructor and the positional slot is sync_config, "
+        "so a bare positional binds a different parameter and leaves the client "
+        "with no project. If this now reads as attributed, a `bool(node.args)` clause "
+        "was carried over from the SaaS predicate — where it is correct, because "
+        "from_env does thread the root positionally. That widening leaves scanned "
+        "at exactly 3 and reds neither SC-012 nor SC-013 above."
     )
 
 
@@ -410,12 +648,74 @@ def test_no_attribution_is_a_refusal_at_the_gate_itself() -> None:
     inject a project. This one calls the gate function directly, so "no project
     attribution refuses" is pinned by something no fixture can arrange.
     """
-    from specify_cli.tracker.egress_consent import project_egress_refusal
+    from specify_cli.egress import project_egress_refusal
+    from specify_cli.tracker.saas_client import TRACKER_EGRESS_IDENTIFIER_KINDS
 
-    refusal = project_egress_refusal(None)
+    refusal = project_egress_refusal(None, TRACKER_EGRESS_IDENTIFIER_KINDS)
 
     assert refusal is not None, "an unattributed send must never be permitted"
     assert "could not be determined" in refusal
+
+
+def test_sc016_denied_wording_is_pinned_for_this_transport(
+    isolated_machine: Path, sink: list[dict[str, Any]]
+) -> None:
+    """SC-016 / FR-024: the ``DENIED`` branch's merged wording, pinned here.
+
+    **Added alongside the four pre-existing ``could not be determined``
+    assertions, never replacing them.** Those target ``UNDETERMINED`` — a
+    *different* branch — and would stay green if the ``DENIED`` branch were
+    deleted outright, which is precisely the state this test exists to red on
+    (demonstrated by MUT-1 in the mission evidence).
+
+    Driven end-to-end through the real refusal path: a committed
+    ``sync.enabled: false`` under this checkout, through the call at
+    ``tracker/saas_client.py::_request``, to the operator-visible string.
+    """
+    from specify_cli.egress import _DENIED_TEMPLATE
+    from specify_cli.tracker.saas_client import TRACKER_EGRESS_IDENTIFIER_KINDS
+
+    write_project_config(isolated_machine, sync_enabled=False)
+
+    refusal = refusal_of(bind_call, SaaSTrackerClient(project_root=isolated_machine))
+
+    assert sink == [], f"a refused project reached the transport: {sink!r}"
+    assert refusal is not None, "the DENIED path did not refuse"
+    text = str(refusal)
+
+    # SC-016 — the merged wording itself. Hard-coded on purpose: under the
+    # operator's Q2 decision this text is FIXED by the spec, not chosen by the
+    # implementer.
+    assert "has not consented to hosted sync" in text, text
+    assert "must not be transmitted" in text, text
+
+    # NFR-004 — the branch is operator-actionable.
+    assert "sync opt-in" in text, f"the DENIED branch names no next action: {text!r}"
+    assert ".kittify/config.yaml" in text, text
+
+    # SC-004 clause 2 — this transport's OWN identifier set, and no foreign kind.
+    assert TRACKER_EGRESS_IDENTIFIER_KINDS in text, text
+    assert TRACKER_EGRESS_IDENTIFIER_KINDS == "mission and engagement identifiers", (
+        "the tracker fragment changed; both DENIED strings survive Q2 verbatim"
+    )
+    assert "decision identifiers" not in text, (
+        "this transport carries no decision_id, so naming one overstates the "
+        f"exposure to an operator (US2-AS2): {text!r}"
+    )
+
+    # SC-004 clause 1 — the non-fragment portion came from the ONE shared
+    # template.
+    # ``endswith`` rather than ``==`` so a transport that prefixes its own
+    # context onto the refusal (as the SaaS client's error type does) still
+    # pins the whole rendered string.
+    rendered = _DENIED_TEMPLATE.format(
+        project_root=isolated_machine, identifiers=TRACKER_EGRESS_IDENTIFIER_KINDS
+    )
+    assert text.endswith(rendered), (
+        "the rendered refusal is not this transport's fragment in the shared "
+        f"template — a second presentation of the policy exists:\n"
+        f"  observed: {text!r}\n  expected tail: {rendered!r}"
+    )
 
 
 def test_a_directory_that_is_not_a_project_denies(

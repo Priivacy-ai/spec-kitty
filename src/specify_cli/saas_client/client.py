@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any, cast
 import httpx
 
 from specify_cli.saas_client.auth import AuthContext, load_auth_context
-from specify_cli.saas_client.egress_consent import project_egress_refusal
+from specify_cli.egress import project_egress_refusal
 from specify_cli.saas_client.endpoints import AudienceMember, DiscussionData, DiscussionMessage, WidenResponse
 from specify_cli.saas_client.errors import (
     SaasAuthError,
@@ -34,6 +34,20 @@ if TYPE_CHECKING:
     pass
 
 logger = logging.getLogger(__name__)
+
+#: This transport's own identifier-set fragment, rendered into the shared refusal
+#: template in ``specify_cli/egress.py``. It is an **argument**, not a second
+#: presentation of the policy (FR-008/SC-015) — each transport passes its own
+#: because the two sets are asymmetric: this client carries ``decision_id`` and
+#: no ``project_slug`` or issue titles, and naming a kind it cannot transmit
+#: would overstate the exposure to an operator (US2-AS2).
+#:
+#: Scope (ruling PB-3): the identifiers **of the project whose consent was
+#: refused**. ``team_slug`` is the *destination* and ``invited_user_ids`` are
+#: recipient ids; neither belongs here, and appending the destination team's name
+#: to make the message "more complete" would add an identifier to an
+#: operator-facing message rather than remove one.
+SAAS_EGRESS_IDENTIFIER_KINDS = "mission and decision identifiers"
 
 # Timeout constants (seconds)
 _TIMEOUT_DEFAULT = 5.0
@@ -154,7 +168,7 @@ class SaasClient:
         is a client engagement name) in the *request path*. A gate that inspected
         only the JSON body would miss every one of them.
         """
-        refusal = project_egress_refusal(self._project_root)
+        refusal = project_egress_refusal(self._project_root, SAAS_EGRESS_IDENTIFIER_KINDS)
         if refusal is not None:
             raise SaasConsentError(refusal)
 

@@ -75,6 +75,16 @@ CORE_PACKAGES = [
 INTEGRATION_PREFIXES = [
     "specify_cli.orchestrator_api",
     "specify_cli.sync",
+    # C-005 (#3110): the consolidated project-egress refusal module. It is a
+    # plain module rather than a package, which the matcher below handles on its
+    # `mod == prefix` arm. Classifying it is not optional and nothing else
+    # notices if this line goes: `_gate_coverage._src_dir_of_glob` returns None
+    # for any `src/specify_cli/<file>.py` glob and the unclaimed-src-dir worklist
+    # iterates directories, so a module is structurally outside that detector at
+    # any size. Removing this line makes the gate PERMISSIVE, not red — which is
+    # why SC-025 asserts the line's presence from outside this file
+    # (tests/specify_cli/test_egress_consolidation_3110.py).
+    "specify_cli.egress",
     "specify_cli.tracker",
     "specify_cli.saas",
     "specify_cli.saas_client",
