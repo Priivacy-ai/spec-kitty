@@ -2,8 +2,12 @@
 ``doctrine.service.DoctrineService`` construction outside the charter sole door.
 
 Mission ``charter-sole-door-bypass-closure-01KZ3WAA``, WP09 / T038. Sibling of
-Gate 1 (``test_charter_sole_door_agent_profile_repository.py``), whose
-qualname-resolution machinery this module imports rather than forking.
+Gate 1 (``test_charter_sole_door_agent_profile_repository.py``); both import
+the shared qualname-resolution machinery from
+:mod:`tests.architectural._sole_door_scan` rather than forking it (landing-fold
+gate hardening — previously Gate 2 imported these primitives from Gate 1's
+``test_`` module directly; see that shared module's docstring for why library
+code cannot live inside a ``test_`` module).
 
 Why this gate cannot be a text match
 -------------------------------------
@@ -124,7 +128,7 @@ from pathlib import Path
 import pytest
 
 from tests.architectural._ratchet_keys import CompositeKey, ContentDescriptor
-from tests.architectural.test_charter_sole_door_agent_profile_repository import (
+from tests.architectural._sole_door_scan import (
     REPO_ROOT,
     SRC_ROOT,
     ConstructionSite,

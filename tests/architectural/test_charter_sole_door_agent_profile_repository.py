@@ -32,6 +32,17 @@ from via ``__module__``/``__qualname__``. A rename, a new facade re-export or an
 alias therefore cannot slip past it, and a same-named unrelated class cannot
 false-positive into it.
 
+Shared scan machinery
+----------------------
+The qualname-resolution primitives (``scan_file_constructions``,
+``scan_constructions``, ``structurally_exempt``, ``resolve_exclusion_keys``,
+``assert_rationales_are_substantive``, ``scratch_scan``, and their supporting
+AST helpers) now live in :mod:`tests.architectural._sole_door_scan` — a
+non-test library module, not a fourth gate. Gates 1, 2, and 3 all import from
+it directly; see that module's docstring for why library code cannot live
+inside a ``test_`` module (pytest collects it, and ``src/`` cannot import
+``tests/``).
+
 Structural exemptions (directory/file keyed, never line keyed)
 ---------------------------------------------------------------
 * ``src/doctrine/`` — the doctrine layer *owns* this class and the raw
@@ -103,26 +114,30 @@ justification (C-002: no shrink-only escape hatch, zero exceptions).
 
 from __future__ import annotations
 
-import ast
 import functools
-import importlib
 import time
-from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
 
-from tests.architectural._ratchet_keys import (
-    CompositeKey,
-    ContentDescriptor,
-    composite_key,
-    resolve_descriptor,
+from tests.architectural._ratchet_keys import ContentDescriptor
+from tests.architectural._sole_door_scan import (
+    REPO_ROOT,
+    SRC_ROOT,
+    ConstructionSite,
+    ScanResult,
+    assert_rationales_are_substantive,
+    iter_source_files,
+    rel_to_repo,
+    resolve_canonical,
+    resolve_exclusion_keys,
+    scan_constructions,
+    scan_file_constructions,
+    scratch_scan,
+    structurally_exempt,
 )
 
 pytestmark = pytest.mark.architectural
-
-REPO_ROOT = Path(__file__).resolve().parents[2]
-SRC_ROOT = REPO_ROOT / "src"
 
 #: The originating qualname every sanctioned and unsanctioned spelling of the
 #: agent-profile repository collapses to. Named verbatim by spec.md NFR-001.
@@ -137,475 +152,6 @@ AGENT_PROFILE_TARGETS = frozenset({AGENT_PROFILE_REPOSITORY_QUALNAME})
 #: callee resolves to one of these *original* names (pre-``as``-alias) get a
 #: canonical lookup, keeping the scan's dynamic-import surface tiny.
 AGENT_PROFILE_CANDIDATE_NAMES = frozenset({"AgentProfileRepository"})
-
-#: The sole door (NFR-001).
-SOLE_DOOR_REL_PATH = "src/charter/resolver.py"
-#: The ONE unified builder (FR-008).
-UNIFIED_BUILDER_REL_PATH = "src/charter/doctrine_service_builder.py"
-#: The doctrine layer owns the wrapped subject; see module docstring.
-DOCTRINE_LAYER_PREFIX = "src/doctrine/"
-
-#: Files entitled to construct a watched doctrine class natively. Shared with
-#: Gate 2, which polices the sibling ``doctrine.service.DoctrineService`` class
-#: against the same two authorities.
-SOLE_DOOR_EXEMPT_FILES = frozenset({SOLE_DOOR_REL_PATH, UNIFIED_BUILDER_REL_PATH})
-SOLE_DOOR_EXEMPT_PREFIXES = (DOCTRINE_LAYER_PREFIX,)
-
-_MIN_RATIONALE_CHARS = 80
-
-
-# =========================================================================== #
-# Reusable qualname-resolution machinery.
-#
-# Gate 2 (``test_charter_sole_door_doctrine_service.py``) imports these
-# primitives instead of forking a second copy. They live in this module because
-# WP09's ``owned_files`` are exactly the three gate files — a shared
-# ``_charter_sole_door_qualnames.py`` helper would be a fourth file outside this
-# work package's declared write scope. Sibling gate modules importing each
-# other's primitives is established practice here (see
-# ``test_coord_read_residuals_closeout.py`` importing from
-# ``test_gate_read_literal_ban.py``).
-# =========================================================================== #
-
-
-@dataclass(frozen=True)
-class ConstructionSite:
-    """One resolved construction call of a watched class.
-
-    ``rel_path``/``qualname``/``token`` form the authoritative composite key.
-    ``lineno`` is a **non-authoritative** locator carried for jump-to
-    diagnostics only — nothing in this module or Gate 2 compares, counts, or
-    keys on it.
-    """
-
-    rel_path: str
-    qualname: str
-    token: str
-    lineno: int
-    canonical: str
-
-    @property
-    def key(self) -> CompositeKey:
-        """The authoritative ``(rel_path, qualname, token)`` composite key."""
-        return (self.rel_path, self.qualname, self.token)
-
-    def describe(self) -> str:
-        return f"{self.rel_path}:{self.lineno} ({self.qualname}) -> {self.canonical}"
-
-
-@dataclass(frozen=True)
-class ScanResult:
-    """Resolved construction sites plus the sites resolution could not decide."""
-
-    sites: list[ConstructionSite]
-    unresolved: list[ConstructionSite]
-
-
-@dataclass
-class _Bindings:
-    """Names bound in one lexical scope to an importable ``(module, name)``."""
-
-    #: local name -> (module, original_name)
-    from_imports: dict[str, tuple[str, str]] = field(default_factory=dict)
-    #: local alias -> real dotted module path
-    module_aliases: dict[str, str] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class _Origin:
-    """Where a callee name came from.
-
-    ``local`` marks a class defined in the scanned file itself, whose canonical
-    qualname is derived statically (``<module_of_file>.<name>``) rather than by
-    import — so the scanner works on scratch modules that are not importable.
-    """
-
-    module: str
-    name: str
-    local: bool
-
-
-def iter_source_files(src_root: Path) -> list[Path]:
-    """Every ``*.py`` under *src_root*, ``__pycache__`` excluded.
-
-    Derived wholesale from ``rglob`` — no hardcoded package list that a newly
-    added subpackage could silently fall outside of.
-    """
-    return [p for p in sorted(src_root.rglob("*.py")) if "__pycache__" not in p.parts]
-
-
-def rel_to_repo(path: Path) -> str:
-    try:
-        return path.relative_to(REPO_ROOT).as_posix()
-    except ValueError:
-        return path.as_posix()
-
-
-def module_name_for(rel_path: str) -> str:
-    """Dotted module name for a repo-relative ``src/`` path."""
-    stem = rel_path.removeprefix("src/").removesuffix(".py").removesuffix("/__init__")
-    return stem.replace("/", ".")
-
-
-@functools.cache
-def resolve_canonical(module: str, name: str) -> str | None:
-    """Return ``"<obj.__module__>.<obj.__qualname__>"`` for ``module.name``.
-
-    This is the qualname resolution NFR-001 demands: it asks the interpreter
-    where the object actually came from, so any depth of facade re-export
-    (``charter.profiles`` -> ``doctrine.agent_profiles`` ->
-    ``doctrine.agent_profiles.repository``) collapses to one canonical answer.
-
-    Returns ``None`` when the module or attribute does not exist. Callers must
-    treat ``None`` as an unresolved blind spot, never as "clean" — see
-    :func:`test_no_unresolved_agent_profile_candidates`.
-    """
-    try:
-        mod = importlib.import_module(module)
-    except Exception:  # noqa: BLE001 - any import failure means "unresolved"
-        return None
-    obj = getattr(mod, name, None)
-    obj_module = getattr(obj, "__module__", None)
-    obj_qualname = getattr(obj, "__qualname__", None)
-    if not isinstance(obj_module, str) or not isinstance(obj_qualname, str):
-        return None
-    return f"{obj_module}.{obj_qualname}"
-
-
-def _scope_nodes(tree: ast.Module) -> list[ast.AST]:
-    scopes: list[ast.AST] = [tree]
-    scopes.extend(
-        node
-        for node in ast.walk(tree)
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
-    )
-    return scopes
-
-
-def _own_scope_statements(scope: ast.AST) -> list[ast.AST]:
-    """Nodes lexically inside *scope*, not descending into nested scopes.
-
-    A ``try:``/``if:``/``with:`` block inside a function still belongs to that
-    function's scope — exactly the shape the real violations use (``org_layer.py``
-    imports the wrapper inside a ``try``/``except ImportError``). Only a nested
-    ``def``/``class`` starts a new scope.
-    """
-    out: list[ast.AST] = []
-    stack: list[ast.AST] = list(ast.iter_child_nodes(scope))
-    while stack:
-        node = stack.pop()
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            continue
-        out.append(node)
-        stack.extend(ast.iter_child_nodes(node))
-    return out
-
-
-def _bindings_for_scope(scope: ast.AST) -> _Bindings:
-    bindings = _Bindings()
-    for node in _own_scope_statements(scope):
-        if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
-            for alias in node.names:
-                bindings.from_imports[alias.asname or alias.name] = (
-                    node.module,
-                    alias.name,
-                )
-        elif isinstance(node, ast.Import):
-            for alias in node.names:
-                bindings.module_aliases[alias.asname or alias.name] = alias.name
-    return bindings
-
-
-def parent_map(tree: ast.Module) -> dict[int, ast.AST]:
-    parents: dict[int, ast.AST] = {}
-    for node in ast.walk(tree):
-        for child in ast.iter_child_nodes(node):
-            parents[id(child)] = node
-    return parents
-
-
-def enclosing_scope(
-    parents: dict[int, ast.AST], node: ast.AST, tree: ast.Module
-) -> ast.AST:
-    """The innermost ``def``/``class`` containing *node*, else the module."""
-    cur: ast.AST | None = node
-    while cur is not None:
-        cur = parents.get(id(cur))
-        if isinstance(cur, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            return cur
-    return tree
-
-
-def _scope_chain(
-    parents: dict[int, ast.AST], node: ast.AST, tree: ast.Module
-) -> list[ast.AST]:
-    """Scopes containing *node*, innermost first, module scope last."""
-    chain: list[ast.AST] = []
-    cur: ast.AST | None = node
-    while cur is not None:
-        cur = parents.get(id(cur))
-        if isinstance(cur, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            chain.append(cur)
-    chain.append(tree)
-    return chain
-
-
-def _dotted_name(node: ast.expr) -> str | None:
-    if isinstance(node, ast.Name):
-        return node.id
-    if isinstance(node, ast.Attribute):
-        base = _dotted_name(node.value)
-        return None if base is None else f"{base}.{node.attr}"
-    return None
-
-
-def _lookup_module(dotted: str, chain: list[_Bindings]) -> str:
-    """Resolve an attribute-chain base to a real dotted module path."""
-    for bindings in chain:
-        alias = bindings.module_aliases.get(dotted)
-        if alias is not None:
-            return alias
-        # ``from pkg import sub`` then ``sub.Cls(...)``
-        from_hit = bindings.from_imports.get(dotted)
-        if from_hit is not None:
-            return f"{from_hit[0]}.{from_hit[1]}"
-    head, _, tail = dotted.partition(".")
-    if tail:
-        for bindings in chain:
-            alias = bindings.module_aliases.get(head)
-            if alias is not None:
-                return f"{alias}.{tail}"
-    return dotted
-
-
-def _module_level_rebinds(
-    tree: ast.Module, candidate_names: frozenset[str]
-) -> dict[str, tuple[str, str]]:
-    """``Alias = AgentProfileRepository`` style module-level re-bindings.
-
-    Closes the "rename it into a module constant, then call the constant"
-    evasion vector — exercised by
-    :func:`test_detector_follows_module_level_rebinding`.
-    """
-    module_bindings = _bindings_for_scope(tree)
-    rebinds: dict[str, tuple[str, str]] = {}
-    for node in ast.iter_child_nodes(tree):
-        if not isinstance(node, ast.Assign) or len(node.targets) != 1:
-            continue
-        target = node.targets[0]
-        if not isinstance(target, ast.Name):
-            continue
-        origin = module_bindings.from_imports.get(_dotted_name(node.value) or "")
-        if origin is not None and origin[1] in candidate_names:
-            rebinds[target.id] = origin
-    return rebinds
-
-
-def _locally_defined_names(tree: ast.Module) -> frozenset[str]:
-    return frozenset(
-        node.name
-        for node in ast.iter_child_nodes(tree)
-        if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
-    )
-
-
-def callee_simple_name(call: ast.Call) -> str | None:
-    """The trailing identifier of ``call``'s callee, ignoring any dotted base."""
-    if isinstance(call.func, ast.Attribute):
-        return call.func.attr
-    if isinstance(call.func, ast.Name):
-        return call.func.id
-    return None
-
-
-def _resolve_callee(
-    call: ast.Call,
-    chain: list[_Bindings],
-    rebinds: dict[str, tuple[str, str]],
-    self_module: str,
-    locally_defined: frozenset[str],
-) -> _Origin | None:
-    """Resolve ``call``'s callee to an importable or file-local origin."""
-    func = call.func
-    if isinstance(func, ast.Name):
-        for bindings in chain:
-            hit = bindings.from_imports.get(func.id)
-            if hit is not None:
-                return _Origin(hit[0], hit[1], local=False)
-        rebound = rebinds.get(func.id)
-        if rebound is not None:
-            return _Origin(rebound[0], rebound[1], local=False)
-        if func.id in locally_defined:
-            return _Origin(self_module, func.id, local=True)
-        return None
-    if isinstance(func, ast.Attribute):
-        base = _dotted_name(func.value)
-        if base is None:
-            return None
-        return _Origin(_lookup_module(base, chain), func.attr, local=False)
-    return None
-
-
-def _canonical_for(origin: _Origin) -> str | None:
-    """Canonical qualname for *origin* — statically for file-local classes."""
-    if origin.local:
-        return f"{origin.module}.{origin.name}"
-    return resolve_canonical(origin.module, origin.name)
-
-
-@dataclass(frozen=True)
-class FileScan:
-    """A parsed file plus everything needed to resolve calls inside it.
-
-    ``matches`` pairs each flagged :class:`ast.Call` node with its resolved
-    site. Consumers that need to reason about a call's *surroundings* (Gate 2's
-    wrap-flow analysis) must key off these node objects — never off
-    ``(lineno, qualname)``, which is ambiguous when two watched constructions
-    share a line (``Wrapper(Raw(...))`` in ``charter/compiler.py``).
-    """
-
-    rel_path: str
-    source: str
-    tree: ast.Module
-    parents: dict[int, ast.AST]
-    matches: tuple[tuple[ast.Call, ConstructionSite], ...]
-    result: ScanResult
-
-
-def scan_file_constructions(
-    path: Path,
-    rel_path: str,
-    *,
-    candidate_names: frozenset[str],
-    target_qualnames: frozenset[str],
-) -> FileScan | None:
-    """Resolve every construction call of any *target_qualnames* in one file.
-
-    Passing more than one target lets a caller classify sibling classes that
-    share a source spelling in a **single parse**, so the resulting node
-    identities are comparable (Gate 2 needs exactly that for
-    ``doctrine.service.DoctrineService`` vs ``charter.resolver.DoctrineService``).
-
-    Returns ``None`` only when the file cannot be parsed at all.
-    """
-    source = path.read_text(encoding="utf-8")
-    try:
-        tree = ast.parse(source, filename=str(path))
-    except SyntaxError:
-        return None
-
-    parents = parent_map(tree)
-    bindings_by_scope = {
-        id(scope): _bindings_for_scope(scope) for scope in _scope_nodes(tree)
-    }
-    rebinds = _module_level_rebinds(tree, candidate_names)
-    self_module = module_name_for(rel_path)
-    locally_defined = _locally_defined_names(tree)
-
-    matches: list[tuple[ast.Call, ConstructionSite]] = []
-    unresolved: list[ConstructionSite] = []
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call):
-            continue
-        simple_name = callee_simple_name(node)
-        if simple_name is None:
-            continue
-        chain = [
-            bindings_by_scope[id(scope)]
-            for scope in _scope_chain(parents, node, tree)
-            if id(scope) in bindings_by_scope
-        ]
-        origin = _resolve_callee(node, chain, rebinds, self_module, locally_defined)
-        # Only names that could possibly be a watched class are worth a
-        # canonical lookup. The check is on the *original* imported name so an
-        # ``as``-alias cannot dodge it (every live site aliases the import).
-        if (origin.name if origin else simple_name) not in candidate_names:
-            continue
-        qualname, token = composite_key(source, node.lineno)
-        if origin is None:
-            unresolved.append(
-                ConstructionSite(rel_path, qualname, token, node.lineno, "<unbound>")
-            )
-            continue
-        canonical = _canonical_for(origin)
-        if canonical is None:
-            unresolved.append(
-                ConstructionSite(
-                    rel_path,
-                    qualname,
-                    token,
-                    node.lineno,
-                    f"<unimportable {origin.module}.{origin.name}>",
-                )
-            )
-            continue
-        if canonical in target_qualnames:
-            matches.append(
-                (node, ConstructionSite(rel_path, qualname, token, node.lineno, canonical))
-            )
-    return FileScan(
-        rel_path,
-        source,
-        tree,
-        parents,
-        tuple(matches),
-        ScanResult([site for _, site in matches], unresolved),
-    )
-
-
-def scan_constructions(
-    src_root: Path, *, candidate_names: frozenset[str], target_qualnames: frozenset[str]
-) -> ScanResult:
-    """Whole-tree census of *target_qualnames* constructions under *src_root*.
-
-    Returns **every** site, exemptions included, so a caller can first prove the
-    scanner really sees the sanctioned ones (anti-vacuity) and only then filter.
-    """
-    sites: list[ConstructionSite] = []
-    unresolved: list[ConstructionSite] = []
-    for path in iter_source_files(src_root):
-        scan = scan_file_constructions(
-            path,
-            rel_to_repo(path),
-            candidate_names=candidate_names,
-            target_qualnames=target_qualnames,
-        )
-        if scan is None:
-            continue
-        sites.extend(scan.result.sites)
-        unresolved.extend(scan.result.unresolved)
-    return ScanResult(sites, unresolved)
-
-
-def structurally_exempt(rel_path: str) -> bool:
-    """True for the sole door, the unified builder, and the doctrine layer."""
-    return rel_path in SOLE_DOOR_EXEMPT_FILES or rel_path.startswith(
-        SOLE_DOOR_EXEMPT_PREFIXES
-    )
-
-
-def resolve_exclusion_keys(
-    descriptors: tuple[ContentDescriptor, ...],
-) -> dict[CompositeKey, ContentDescriptor]:
-    """Resolve each descriptor against the live tree to its composite key.
-
-    :func:`resolve_descriptor` RAISES unless a descriptor matches **exactly
-    one** live site, so a stale entry (site closed, moved, or edited) fails
-    loudly instead of silently widening the exclusion set. That is the staleness
-    half of the twin-guard.
-    """
-    return {
-        resolve_descriptor(
-            (REPO_ROOT / descriptor.rel_path).read_text(encoding="utf-8"), descriptor
-        ): descriptor
-        for descriptor in descriptors
-    }
-
-
-def assert_rationales_are_substantive(descriptors: tuple[ContentDescriptor, ...]) -> None:
-    """C-002: an exclusion without a written justification is a silent allowlist."""
-    for descriptor in descriptors:
-        assert len(descriptor.rationale.strip()) > _MIN_RATIONALE_CHARS, descriptor
 
 
 # =========================================================================== #
@@ -802,27 +348,6 @@ def test_no_raw_agent_profile_repository_construction_outside_the_sole_door() ->
 # NFR-003 self-mutation proofs — function-local and nested scope, never
 # module-level-only (the WP10 lesson from doctrine-charter-split-unification).
 # =========================================================================== #
-
-
-def scratch_scan(
-    tmp_path: Path,
-    rel_name: str,
-    source: str,
-    *,
-    candidate_names: frozenset[str],
-    target_qualnames: frozenset[str],
-) -> FileScan:
-    """Write *source* to a scratch module and scan it. Never touches ``src/``."""
-    module = tmp_path / Path(rel_name).name
-    module.write_text(source, encoding="utf-8")
-    scan = scan_file_constructions(
-        module,
-        rel_name,
-        candidate_names=candidate_names,
-        target_qualnames=target_qualnames,
-    )
-    assert scan is not None, f"scratch module {rel_name} failed to parse"
-    return scan
 
 
 def _agent_profile_scratch(tmp_path: Path, rel_name: str, source: str) -> ScanResult:
