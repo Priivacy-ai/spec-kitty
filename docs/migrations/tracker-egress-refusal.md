@@ -1,6 +1,6 @@
 ---
 title: 'Migration: Tracker Egress Refusal'
-description: 'Migration for the tracker egress consent gate shipped with mission tracker-egress-refusal-3108: why every existing beads/fp binding needs a recorded decision, the two consent channels, and every remediation path.'
+description: 'Why every existing beads/fp tracker binding now needs a recorded consent decision, what the two channels are, and how to remediate each refusing state.'
 doc_status: active
 updated: '2026-08-04'
 related:
