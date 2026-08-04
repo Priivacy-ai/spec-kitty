@@ -21,6 +21,7 @@ unit-level mirror of the must-not-veto half, not a substitute for it.
 
 from __future__ import annotations
 
+import ast
 import json
 import os
 from datetime import UTC, datetime
@@ -1012,6 +1013,47 @@ def test_unstattable_mission_candidate_does_not_veto_a_hit_elsewhere(
     assert ownership_refusal(outcome) is None, "and a hit must still PERMIT"
 
 
+def _attr_calls(node_tree: ast.AST, names: set[str]) -> list[tuple[int, str]]:
+    """Every ``x.<name>()`` call in *node_tree* whose attribute is in *names*."""
+    return [
+        (n.lineno, n.func.attr)
+        for n in ast.walk(node_tree)
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Attribute)
+        and n.func.attr in names
+    ]
+
+
+def _eacces_offenders(
+    tree: ast.AST, banned_anywhere: set[str], banned_unguarded: set[str]
+) -> list[tuple[int, str]]:
+    """Banned EACCES-divergent probe calls in *tree*, as ``(lineno, attr)``.
+
+    Extracted to module level so the standing guard below and its **paired
+    known-bad control** run the identical rule. FU-S is why: the guard's previous
+    form was never exercised against the shape it was written to catch, so it could
+    pass on the defect while reading as though it covered the family. A rule with no
+    control is an assertion about itself.
+    """
+    guarded = {
+        id(n)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Try)
+        for stmt in node.body
+        for n in ast.walk(stmt)
+    }
+    by_site = {
+        (n.lineno, n.func.attr): n
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+    }
+    return [
+        (lineno, attr)
+        for lineno, attr in _attr_calls(tree, banned_anywhere | banned_unguarded)
+        if attr in banned_anywhere or id(by_site[(lineno, attr)]) not in guarded
+    ]
+
+
 def test_ownership_module_has_no_unguarded_eacces_divergent_stat_call() -> None:
     """STANDING GUARD against the trap this module fell into three times.
 
@@ -1070,8 +1112,6 @@ def test_ownership_module_has_no_unguarded_eacces_divergent_stat_call() -> None:
     for ``getattr`` to stat a path — but the limit belongs in writing, not in a
     reader's assumption.
     """
-    import ast as _ast
-
     #: Split on RAISE BEHAVIOUR, measured — not on which spelling bit us. Every
     #: predicate swallows EACCES on 3.14 and so cannot express "could not look"
     #: under any amount of `try`; `stat`/`lstat` raise everywhere, so a guarded
@@ -1081,7 +1121,7 @@ def test_ownership_module_has_no_unguarded_eacces_divergent_stat_call() -> None:
     banned_unguarded = {"stat", "lstat"}
 
     source = Path(ownership_module.__file__).read_text(encoding="utf-8")
-    tree = _ast.parse(source)
+    tree = ast.parse(source)
 
     # ANTI-VACUITY, ANCHORED ON THE SCANNED TREE ITSELF.
     #
@@ -1093,15 +1133,6 @@ def test_ownership_module_has_no_unguarded_eacces_divergent_stat_call() -> None:
     # `iterdir` is the call this module's docstring makes load-bearing, so it is a
     # content anchor rather than a line number: if it is absent, the wrong file was
     # read (or read empty) and every emptiness result below means nothing.
-    def _attr_calls(node_tree: _ast.AST, names: set[str]) -> list[tuple[int, str]]:
-        return [
-            (n.lineno, n.func.attr)
-            for n in _ast.walk(node_tree)
-            if isinstance(n, _ast.Call)
-            and isinstance(n.func, _ast.Attribute)
-            and n.func.attr in names
-        ]
-
     iterdir_sites = _attr_calls(tree, {"iterdir"})
     assert iterdir_sites, (
         f"the scanned source ({ownership_module.__file__}) contains no iterdir() "
@@ -1110,27 +1141,7 @@ def test_ownership_module_has_no_unguarded_eacces_divergent_stat_call() -> None:
         "below would be vacuous rather than clean."
     )
 
-    # Everything lexically inside a `try` body is guarded.
-    guarded = {
-        id(n)
-        for node in _ast.walk(tree)
-        if isinstance(node, _ast.Try)
-        for stmt in node.body
-        for n in _ast.walk(stmt)
-    }
-
-    offenders = [
-        (lineno, attr)
-        for lineno, attr in _attr_calls(tree, banned_anywhere | banned_unguarded)
-        if attr in banned_anywhere
-        or id(next(
-            n for n in _ast.walk(tree)
-            if isinstance(n, _ast.Call)
-            and isinstance(n.func, _ast.Attribute)
-            and n.func.attr == attr
-            and n.lineno == lineno
-        )) not in guarded
-    ]
+    offenders = _eacces_offenders(tree, banned_anywhere, banned_unguarded)
 
     assert offenders == [], (
         f"{ownership_module.__file__} makes {len(offenders)} EACCES-divergent "
@@ -1147,6 +1158,67 @@ def test_ownership_module_has_no_unguarded_eacces_divergent_stat_call() -> None:
         "previous form permitted `is_dir` in a `try` and stayed GREEN while that "
         "exact call shipped the defect."
     )
+
+
+def test_eacces_guard_rule_catches_the_shape_that_shipped_the_defect() -> None:
+    """FU-S — the PAIRED CONTROL the guard above shipped without, and #3177 is the cost.
+
+    The guard was GREEN while ``ownership.py`` carried ``resolved.is_dir()`` inside a
+    ``try``, because its rule permitted the whole family in a ``try`` and a ``try``
+    around a call that does not raise handles nothing. A rule that is only ever run
+    against source it passes on is an assertion about itself: nothing distinguishes
+    "the module is clean" from "the rule cannot see this".
+
+    So the rule is exercised here against four synthetic sources whose verdicts are
+    known independently of it — the known-bad cases FIRST, because a control that only
+    demonstrates the clean case proves the walk runs and not that it discriminates.
+
+    The interpreter table lives at the ``stat()`` call site in ``ownership.py``. The
+    only fact this control needs from it: predicates return ``False`` on EACCES on
+    3.14, ``stat``/``lstat`` raise on every interpreter.
+    """
+    banned_anywhere = {"exists", "is_dir", "is_file", "is_symlink"}
+    banned_unguarded = {"stat", "lstat"}
+
+    def offenders(src: str) -> list[str]:
+        return [attr for _, attr in _eacces_offenders(ast.parse(src), banned_anywhere, banned_unguarded)]
+
+    # KNOWN-BAD 1 — the exact shape that shipped: a predicate inside a `try`, whose
+    # False branch drops silently and never reaches the handler below it.
+    assert offenders(
+        "try:\n"
+        "    if not resolved.is_dir():\n"
+        "        pass\n"
+        "except OSError:\n"
+        "    record()\n"
+    ) == ["is_dir"], (
+        "the try-wrapped predicate is the FU-Q/#3177 shape and MUST be flagged; if it "
+        "is not, this guard has regressed to the form that passed on the live defect"
+    )
+
+    # KNOWN-BAD 2 — the rest of the predicate family, same reasoning, also in a `try`.
+    for attr in ("exists", "is_file", "is_symlink"):
+        assert offenders(f"try:\n    p.{attr}()\nexcept OSError:\n    pass\n") == [attr], (
+            f"`{attr}` returns False on EACCES on 3.14 exactly as `is_dir` does, so a "
+            "`try` cannot redeem it either"
+        )
+
+    # KNOWN-BAD 3 — an UNGUARDED stat. It raises on every interpreter, which is why it
+    # is permitted in a `try`; outside one it escapes as a traceback.
+    assert offenders("p.stat()\n") == ["stat"], (
+        "an unguarded stat must still be flagged — the try-context rule is what makes "
+        "the permission conditional, and dropping it would permit a bare stat anywhere"
+    )
+
+    # KNOWN-GOOD — the module's own idiom: a guarded stat, which is how it legitimately
+    # probes. This case is last on purpose; on its own it would prove nothing.
+    assert offenders(
+        "try:\n"
+        "    if not S_ISDIR(resolved.stat().st_mode):\n"
+        "        pass\n"
+        "except OSError:\n"
+        "    record()\n"
+    ) == [], "the guarded stat is the prescribed remedy and must not be flagged"
 
 
 def test_kitty_specs_resolving_out_of_the_root_is_containment_not_permission(

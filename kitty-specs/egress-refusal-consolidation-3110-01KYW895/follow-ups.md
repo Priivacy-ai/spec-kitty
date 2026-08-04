@@ -406,6 +406,40 @@ the same recording path. Add a controlled known-bad source — a try-wrapped `is
 whose `False` branch drops silently — and confirm the guard reds on it. Related to
 FU-K, which is the same guard's handler-type blind spot.
 
+### RESOLVED at landing, with FU-Q/#3177 — both halves, since either alone is half a fix
+
+Both prescriptions above are applied, because the defect and the guard that could not
+see it are one item: fixing the call without fixing the rule leaves the next instance
+unguarded, and fixing the rule without a control leaves the rule unproven.
+
+**The rule.** The family is banned outright — `exists`, `is_dir`, `is_file`,
+`is_symlink` — in a `try` or not. The split is now on **measured raise behaviour**
+rather than on spelling, which is the misjudgement this entry names: all four return
+`False` on EACCES on 3.14, so none of them can express *could not look* under any
+amount of `try`. `stat`/`lstat` stay permitted inside a `try`, because they raise on
+every interpreter, which is what makes a guarded probe with them meaningful.
+
+**The control** — `test_eacces_guard_rule_catches_the_shape_that_shipped_the_defect`.
+The offender rule is extracted to a module-level `_eacces_offenders` so the guard and
+the control run the *identical* rule rather than two copies that can drift. Four
+synthetic sources, known-bad first (a control that only shows the clean case proves
+the walk runs, not that it discriminates):
+
+1. a try-wrapped `is_dir()` whose `False` branch drops silently — **the exact shape
+   that shipped**, asserted flagged;
+2. `exists`/`is_file`/`is_symlink` in a `try`, each asserted flagged;
+3. an *unguarded* `stat()`, asserted flagged — this pins that dropping the
+   try-context rule would wrongly permit a bare stat anywhere;
+4. a guarded `S_ISDIR(p.stat().st_mode)`, asserted clean — the prescribed remedy.
+
+Verified `34 passed` (33 + the control). Falsifiable in the direction that matters:
+planting `resolved.is_dir()` back inside the `try` in `ownership.py` reds the standing
+guard, naming line 431 — which is the assertion this entry says was missing.
+
+**FU-K is NOT closed by this.** It is the same guard's handler-type blind spot (an
+`except` that catches the wrong class), a different axis from the raise/non-raise one
+fixed here. It stays open and unnumbered in this record.
+
 **FU-T (LOW) — `ownership.py` republishes another module's private `_ULID_RE` as a
 public `__all__` name**, creating a second public identity for an intentionally
 private symbol. *Fix:* rename it to a public `ULID_RE` at
