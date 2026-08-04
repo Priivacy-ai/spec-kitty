@@ -10,6 +10,7 @@ invariant: the ``merge.path_is_under_worktrees`` import is function-local and no
 from __future__ import annotations
 
 import json as _json
+import os
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,7 @@ import typer
 from specify_cli.cli.commands import _coordination_doctor as cd
 from specify_cli.coordination.coherence import coord_incoherent_done_wps
 from specify_cli.merge.state import MergeState, load_state, save_state
+from tests._support.eacces import mode_bits_enforced
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -369,6 +371,71 @@ def test_collect_findings_iterates_missions(
     monkeypatch.setattr(cd, "_check_lane_sparse_checkout_drift", lambda _r, _m: [])
     out = cd._collect_coordination_findings(tmp_path)
     assert any(f.message == "coord" for f in out)
+
+
+def test_collect_findings_unstattable_mission_candidate_is_not_silently_skipped(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`#3194`: the `mission_dir.is_dir()` filter must not use the EACCES-divergent
+    predicate.
+
+    `Path.is_dir()` returns `False` for an unreadable candidate on Python 3.14
+    only (RAISES on 3.11-3.13) — so on 3.14 an unstattable mission candidate
+    would be silently treated as "not a directory" and dropped from the scan
+    with no signal at all, the same silent-misclassification shape `#3177`
+    fixed in `specify_cli.decisions.ownership`. `safe_is_dir` makes the
+    behaviour the SAME on every interpreter: it raises, which is what this
+    module already did (uncaught) on 3.11-3.13 before this fix — so this pins
+    parity across interpreters rather than a new graceful-degradation contract.
+    """
+    monkeypatch.setattr(cd, "_check_git_version", lambda: [])
+    monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
+    vault = tmp_path / "vault"
+    (vault / "m-target").mkdir(parents=True)
+    specs = tmp_path / "kitty-specs"
+    specs.mkdir()
+    (specs / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
+
+    canary = vault / "canary"
+    canary.write_text("{}", encoding="utf-8")
+    os.chmod(vault, 0o000)
+    try:
+        if not mode_bits_enforced(canary):
+            pytest.skip(
+                "SKIPPED HONESTLY, not passed: this process can stat through a "
+                "0o000 directory (running as root, or a filesystem that ignores "
+                "mode bits), so the branch cannot be constructed here."
+            )
+        with pytest.raises(OSError):
+            cd._collect_coordination_findings(tmp_path)
+    finally:
+        os.chmod(vault, 0o700)
+
+
+def test_apply_coord_staleness_fixes_unstattable_mission_candidate_is_not_silently_skipped(
+    tmp_path: Path,
+) -> None:
+    """The `_apply_coord_staleness_fixes` twin of the test above (same `#3194` shape)."""
+    vault = tmp_path / "vault"
+    (vault / "m-target").mkdir(parents=True)
+    specs = tmp_path / "kitty-specs"
+    specs.mkdir()
+    (specs / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
+
+    canary = vault / "canary"
+    canary.write_text("{}", encoding="utf-8")
+    os.chmod(vault, 0o000)
+    try:
+        if not mode_bits_enforced(canary):
+            pytest.skip(
+                "SKIPPED HONESTLY, not passed: this process can stat through a "
+                "0o000 directory (running as root, or a filesystem that ignores "
+                "mode bits), so the branch cannot be constructed here."
+            )
+        with pytest.raises(OSError):
+            cd._apply_coord_staleness_fixes(tmp_path)
+    finally:
+        os.chmod(vault, 0o700)
 
 
 # --- H2 / cycle invariants ---------------------------------------------------

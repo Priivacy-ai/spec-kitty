@@ -13,6 +13,7 @@ All filesystem I/O is in tmp_path fixtures. No network calls.
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 from unittest.mock import patch
@@ -20,6 +21,7 @@ from unittest.mock import patch
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.migrate_cmd import app as migrate_app
+from tests._support.eacces import mode_bits_enforced
 
 
 # ---------------------------------------------------------------------------
@@ -140,6 +142,42 @@ def test_corpus_scan_empty_project_returns_zero(tmp_path: Path) -> None:
     payload = _extract_json(result.output)
     assert payload["files_inspected"] == 0
     assert payload["result"] == "success"
+
+
+def test_collect_charter_files_unstattable_mission_candidate_is_not_silently_skipped(
+    tmp_path: Path,
+) -> None:
+    """`#3194`: the `mission_dir.is_dir()` filter in `_collect_charter_files` must
+    not use the EACCES-divergent predicate.
+
+    `Path.is_dir()` answers `False` for an unreadable candidate on Python 3.14
+    only (RAISES on 3.11-3.13) — silently dropping the candidate (and any
+    charter files under it) from the corpus scan with no signal, the same shape
+    `#3177` fixed in `specify_cli.decisions.ownership`. `safe_is_dir` makes this
+    raise on every interpreter instead.
+    """
+    from specify_cli.cli.commands.migrate.charter_encoding import _collect_charter_files
+
+    vault = tmp_path / "vault"
+    (vault / "m-target").mkdir(parents=True)
+    specs = tmp_path / "kitty-specs"
+    specs.mkdir()
+    (specs / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
+
+    canary = vault / "canary"
+    canary.write_text("{}", encoding="utf-8")
+    os.chmod(vault, 0o000)
+    try:
+        if not mode_bits_enforced(canary):
+            pytest.skip(
+                "SKIPPED HONESTLY, not passed: this process can stat through a "
+                "0o000 directory (running as root, or a filesystem that ignores "
+                "mode bits), so the branch cannot be constructed here."
+            )
+        with pytest.raises(OSError):
+            _collect_charter_files(tmp_path)
+    finally:
+        os.chmod(vault, 0o700)
 
 
 # ---------------------------------------------------------------------------

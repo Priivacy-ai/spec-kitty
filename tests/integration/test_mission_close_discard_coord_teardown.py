@@ -24,6 +24,7 @@ on the current code (the bug); the fix flips it green.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -32,6 +33,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands import mission_type
 from specify_cli.coordination import CoordinationWorkspace
+from tests._support.eacces import mode_bits_enforced
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -322,6 +324,45 @@ def test_remove_lane_worktrees_does_not_delete_sibling_mission(tmp_path: Path) -
     assert not (repo / ".worktrees" / "alpha-lane-a").exists(), "target worktree must be removed"
     assert sibling_wt.exists(), "SIBLING worktree must be preserved (no prefix over-match)"
     assert (sibling_wt / "uncommitted.txt").read_text(encoding="utf-8") == "precious sibling work\n"
+
+
+def test_remove_lane_worktrees_unstattable_entry_is_not_silently_skipped(
+    tmp_path: Path,
+) -> None:
+    """`#3194`: the `entry.is_dir()` filter must not use the EACCES-divergent
+    predicate.
+
+    `Path.is_dir()` answers `False` for an unreadable candidate on Python 3.14
+    only (RAISES on 3.11-3.13). Before this fix, an unstattable lane worktree
+    entry would be silently treated as "not present" on 3.14 and `git worktree
+    remove` would never be invoked on it — a stale/leaked worktree that discard
+    reports as cleaned up with no signal at all, the same shape `#3177` fixed in
+    `specify_cli.decisions.ownership`. `safe_is_dir` makes this raise on every
+    interpreter instead of only on 3.11-3.13.
+    """
+    from specify_cli.cli.commands.mission_type import _remove_lane_worktrees
+
+    repo = _init_repo(tmp_path)
+    vault = tmp_path / "vault"
+    (vault / "m-target").mkdir(parents=True)
+    worktrees_root = repo / ".worktrees"
+    worktrees_root.mkdir(parents=True, exist_ok=True)
+    (worktrees_root / "alpha-lane-a").symlink_to(vault / "m-target", target_is_directory=True)
+
+    canary = vault / "canary"
+    canary.write_text("{}", encoding="utf-8")
+    os.chmod(vault, 0o000)
+    try:
+        if not mode_bits_enforced(canary):
+            pytest.skip(
+                "SKIPPED HONESTLY, not passed: this process can stat through a "
+                "0o000 directory (running as root, or a filesystem that ignores "
+                "mode bits), so the branch cannot be constructed here."
+            )
+        with pytest.raises(OSError):
+            _remove_lane_worktrees(repo, "alpha", _single_lane_manifest("alpha"))
+    finally:
+        os.chmod(vault, 0o700)
 
 
 def test_verify_flags_stale_coordination_worktree_registration(tmp_path: Path) -> None:

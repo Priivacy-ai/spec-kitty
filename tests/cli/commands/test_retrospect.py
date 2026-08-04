@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -28,6 +29,7 @@ from specify_cli.cli.commands.retrospect import app as retrospect_app
 from specify_cli.cli.commands.agent_retrospect import app as agent_retrospect_app
 
 from tests._support.ansi import strip_ansi
+from tests._support.eacces import mode_bits_enforced
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -1410,6 +1412,44 @@ class TestBackfillDiscovery:
         # Should not crash; file is silently skipped
         assert isinstance(result, list)
 
+    def test_discover_missions_unstattable_entry_is_not_silently_skipped(
+        self, tmp_path: Path
+    ) -> None:
+        """`#3194`: an unstattable mission entry must not be silently dropped.
+
+        Companion to ``test_discover_missions_skips_non_dirs`` above, which pins
+        the genuinely-absent-shaped case ("a regular file is not a directory").
+        This pins the DIFFERENT case: a candidate that could not be *stat'ed at
+        all* (EACCES via a symlink into an unreadable directory). ``Path.is_dir()``
+        answers ``False`` for that on Python 3.14 only (RAISES on 3.11-3.13),
+        which would silently conflate "unreadable" with "not a directory" and
+        drop the entry with no signal — the exact `#3177` shape, generalized.
+        ``safe_is_dir`` makes this raise on every interpreter instead.
+        """
+        from specify_cli.cli.commands.retrospect import _discover_missions_for_backfill
+
+        missions_root = tmp_path / ".kittify" / "missions"
+        missions_root.mkdir(parents=True)
+        vault = tmp_path / "vault"
+        (vault / "m-target").mkdir(parents=True)
+        (missions_root / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
+
+        canary = vault / "canary"
+        canary.write_text("{}", encoding="utf-8")
+        os.chmod(vault, 0o000)
+        try:
+            if not mode_bits_enforced(canary):
+                pytest.skip(
+                    "SKIPPED HONESTLY, not passed: this process can stat through "
+                    "a 0o000 directory (running as root, or a filesystem that "
+                    "ignores mode bits), so the branch cannot be constructed here."
+                )
+            now = datetime.now(UTC)
+            with pytest.raises(OSError):
+                _discover_missions_for_backfill(tmp_path, now - timedelta(days=30), now, None)
+        finally:
+            os.chmod(vault, 0o700)
+
     def test_discover_missions_skips_missing_meta(self, tmp_path: Path) -> None:
         """Skips directories without meta.json."""
         from specify_cli.cli.commands.retrospect import _discover_missions_for_backfill
@@ -1757,6 +1797,55 @@ class TestSummaryCmdExtended:
         assert "aggregate" in data
         # Should have at least 2 missions
         assert len(data["missions"]) >= 2
+
+    def test_summary_unstattable_mission_candidate_is_not_silently_skipped(
+        self, tmp_path: Path
+    ) -> None:
+        """`#3194`: ``summary``'s mission enumeration must not use the
+        EACCES-divergent ``Path.is_dir()`` predicate anywhere in its path.
+
+        ``build_summary()`` (``specify_cli.retrospective.summary._iter_mission_dirs``)
+        walks the SAME ``.kittify/missions/`` directory before ``summary_cmd``'s own
+        ``missions_with_state`` loop ever runs, so an unstattable candidate is
+        actually caught there first — a second instance of the identical pattern
+        found while writing this test, fixed alongside the 8 originally flagged
+        call sites. ``Path.is_dir()`` answers ``False`` for an unreadable candidate
+        on Python 3.14 only (RAISES on 3.11-3.13); routed through ``safe_is_dir``
+        the raised ``OSError`` is now the SAME on every interpreter, and
+        ``summary_cmd``'s own pre-existing ``except OSError: raise typer.Exit(2)``
+        around ``build_summary()`` turns it into a clean, actionable CLI error —
+        exactly the "surfaced as unreadable" outcome the fix is for, rather than a
+        silently-empty, misleadingly-successful summary.
+        """
+        repo_root, missions_dir, _ = _setup_project(tmp_path)
+        vault = tmp_path / "vault"
+        (vault / "m-target").mkdir(parents=True)
+        (missions_dir / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
+
+        canary = vault / "canary"
+        canary.write_text("{}", encoding="utf-8")
+        os.chmod(vault, 0o000)
+        try:
+            if not mode_bits_enforced(canary):
+                pytest.skip(
+                    "SKIPPED HONESTLY, not passed: this process can stat through "
+                    "a 0o000 directory (running as root, or a filesystem that "
+                    "ignores mode bits), so the branch cannot be constructed here."
+                )
+            result = RUNNER.invoke(
+                retrospect_app,
+                ["summary", "--project", str(tmp_path), "--json"],
+            )
+        finally:
+            os.chmod(vault, 0o700)
+
+        assert result.exit_code == 2, (
+            "an unstattable mission candidate must not silently produce a "
+            f"successful, misleadingly-complete summary: {result.output!r}"
+        )
+        assert "I/O error reading corpus" in strip_ansi(result.output), (
+            f"expected the actionable I/O-error message, got: {result.output!r}"
+        )
 
     def test_summary_rich_rendering_no_json(self, tmp_path: Path) -> None:
         """Non-JSON summary produces Rich output including state table."""
