@@ -139,9 +139,13 @@ from specify_cli.tracker.config import (
 )
 
 # This module holds the Mission's only module-level import of ``project_egress_refusal``
-# (#3108 handoff §4.2). If Bundle B has already moved it into ``specify_cli.egress``, update
-# this one line and nothing else in this module needs to change.
-from specify_cli.tracker.egress_consent import (
+# (#3108 handoff §4.2). Bundle B HAS landed: the function moved to ``specify_cli.egress`` and
+# ``specify_cli/tracker/egress_consent.py`` no longer exists. The handoff predicted this import
+# would be the only line needing a change; that was almost right. Bundle B also made
+# ``identifiers`` a REQUIRED second parameter -- deliberately not defaulted, so a transport that
+# did not declare what it can put on the wire cannot render a refusal naming nothing -- so
+# :func:`tracker_egress_verdict` now threads it through to Channel 1 as well.
+from specify_cli.egress import (
     UNDETERMINED_PROJECT_REFUSAL,
     project_egress_refusal,
 )
@@ -368,13 +372,13 @@ def _resolve_channel2(root: Path) -> tuple[str, object]:
     return CHANNEL2_FAULT, raw
 
 
-def _resolve_channel1(root: Path) -> tuple[bool, str | None]:
+def _resolve_channel1(root: Path, identifiers: str) -> tuple[bool, str | None]:
     """The one true Channel-1 derivation (C-004): ``None`` -- and only ``None`` -- permits.
 
     Delegates entirely to :func:`~specify_cli.tracker.egress_consent.project_egress_refusal`,
     which itself performs the guarded ``specify_cli.sync`` import and never raises.
     """
-    refusal = project_egress_refusal(root)
+    refusal = project_egress_refusal(root, identifiers)
     return refusal is None, refusal
 
 
@@ -633,7 +637,9 @@ def _refusing_channels(
     return frozenset(channels)
 
 
-def tracker_egress_verdict(root: Path | None, *, destination: EgressDestination) -> TrackerEgressVerdict:
+def tracker_egress_verdict(
+    root: Path | None, *, destination: EgressDestination, identifiers: str
+) -> TrackerEgressVerdict:
     """The one function both the enforcing gates and ``sync doctor`` call (FR-003). Never raises.
 
     ``destination`` is required and keyword-only -- there is no default, so no call site can
@@ -692,7 +698,7 @@ def tracker_egress_verdict(root: Path | None, *, destination: EgressDestination)
         )
 
     channel2_state, channel2_raw = _resolve_channel2(root)
-    channel1_permits, channel1_refusal_text = _resolve_channel1(root)
+    channel1_permits, channel1_refusal_text = _resolve_channel1(root, identifiers)
     channel1_label, channel1_generic = _channel1_report(root, channel1_permits=channel1_permits)
     outcome = _JOIN[(channel2_state, destination)]
 
