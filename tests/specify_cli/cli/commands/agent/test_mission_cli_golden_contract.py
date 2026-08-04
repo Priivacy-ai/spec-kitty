@@ -142,6 +142,17 @@ _EXPECTED_FLAGS: dict[str, frozenset[str]] = {
         {"--mission", "--json", "--validate-only", "--target-branch"}
     ),
     "repair": frozenset({"--mission"}),
+    # 2026-08-04 landing fold (PR #3175, fold-golden-flag-surface): re-pinned
+    # to add the six negative-invariant-mode flags (--negative-invariant,
+    # --description, --verification-command, --scope, --execute/--no-execute)
+    # introduced by commit e5612270693b129f81368d89debd8abcd689736e ("feat:
+    # post-consolidation write surface + deterministic authoring finish",
+    # closing #2318/#1738). That commit is already an ancestor of merge-base
+    # abca7ec96 — the flags are pre-existing, shipped, documented (see
+    # docs/api/agent-subcommands.md) product surface; the frozen contract
+    # simply never joined them. `missing: []` on the prior pin proved nothing
+    # was removed, only added — this re-pin closes that gap per DIRECTIVE_044
+    # (contract amended in place, not treated as append-only drift).
     "acceptance-verdict": frozenset(
         {
             "--mission",
@@ -151,6 +162,12 @@ _EXPECTED_FLAGS: dict[str, frozenset[str]] = {
             "--actor",
             "--evidence",
             "--json",
+            "--negative-invariant",
+            "--description",
+            "--verification-command",
+            "--scope",
+            "--execute",
+            "--no-execute",
         }
     ),
 }
