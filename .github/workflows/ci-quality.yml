@@ -4257,7 +4257,7 @@ jobs:
               "fast-tests-dashboard": ["dashboard", "status"],
               "fast-tests-upgrade": ["upgrade", "status"],
               "fast-tests-cli": ["cli"],
-              "fast-tests-core-misc": ["core_misc", "execution_context", "glossary", "acceptance", "auth_audit_git", "lifecycle", "agent_surface", "closeout", "governance", "platform"],
+              "fast-tests-core-misc": ["core_misc", "cli", "execution_context", "glossary", "acceptance", "auth_audit_git", "lifecycle", "agent_surface", "closeout", "governance", "platform"],
               "fast-tests-docs": ["docs"],
               "fast-tests-charter": ["charter"],
               "fast-tests-agent": ["agent"],
