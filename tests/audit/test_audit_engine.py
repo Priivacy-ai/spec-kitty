@@ -16,6 +16,7 @@ Fixture layout (for tests that need identity functions to work):
 from __future__ import annotations
 
 import json
+import os
 import time
 from pathlib import Path
 
@@ -23,6 +24,7 @@ import pytest
 
 from specify_cli.audit import AuditOptions, RepoAuditReport, run_audit
 from specify_cli.audit.serializer import build_report_json
+from tests._support.eacces import mode_bits_enforced
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -347,3 +349,53 @@ def test_empty_scan_root(tmp_path: Path) -> None:
     assert report.missions == []
     assert report.repo_summary["total_missions"] == 0
     assert report.repo_summary["total_findings"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Test 9: `#3194` — an unstattable mission candidate must not crash the audit
+# ---------------------------------------------------------------------------
+
+
+def test_unstattable_mission_candidate_does_not_crash_the_audit(tmp_path: Path) -> None:
+    """`#3194`: `_scan_missions`'s `candidate.is_dir()` filter must not use the
+    EACCES-divergent predicate — and here specifically must not let a bare
+    predicate-turned-raise crash this read-only, best-effort audit engine either.
+
+    Before this fix, on Python 3.11-3.13 `Path.is_dir()` on an unstattable
+    candidate RAISES uncaught (no per-candidate `try`/`except` existed in
+    `_scan_missions`'s loop), crashing the whole audit for every mission because
+    of ONE unreadable directory; on 3.14 it silently returns `False` (masking
+    the EACCES as "not a directory"). `safe_is_dir`, wrapped in the local
+    `try/except OSError: continue` this fix adds, makes the answer the SAME on
+    every interpreter — skip that one candidate — matching the fail-soft
+    posture `_scan_missions` already had for `scan_root` enumeration failures,
+    while still auditing every OTHER mission in the corpus.
+    """
+    specs_dir = tmp_path / "kitty-specs"
+    specs_dir.mkdir(parents=True)
+    _make_mission(specs_dir, "mission-readable", _ULID_A)
+
+    vault = tmp_path / "vault"
+    (vault / "m-target").mkdir(parents=True)
+    (specs_dir / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
+
+    canary = vault / "canary"
+    canary.write_text("{}", encoding="utf-8")
+    os.chmod(vault, 0o000)
+    try:
+        if not mode_bits_enforced(canary):
+            pytest.skip(
+                "SKIPPED HONESTLY, not passed: this process can stat through a "
+                "0o000 directory (running as root, or a filesystem that ignores "
+                "mode bits), so the branch cannot be constructed here."
+            )
+        report = run_audit(_options(tmp_path))
+    finally:
+        os.chmod(vault, 0o700)
+
+    slugs = {m.mission_slug for m in report.missions}
+    assert "mission-readable" in slugs, (
+        "the unstattable candidate must not have aborted the scan of the rest "
+        f"of the corpus: {slugs!r}"
+    )
+    assert "m-link" not in slugs, "the unstattable candidate itself cannot be audited"

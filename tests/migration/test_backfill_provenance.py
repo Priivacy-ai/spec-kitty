@@ -33,6 +33,7 @@ All filesystem I/O is under ``tmp_path``. No network calls, no git shell-out
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -49,9 +50,11 @@ from specify_cli.acceptance.matrix import (
 )
 from specify_cli.cli.commands.migrate.backfill_provenance import (
     _CorpusWriteTransaction,
+    _collect_matrix_paths,
     run_backfill_provenance_migration,
 )
 from specify_cli.cli.commands.migrate_cmd import app as migrate_app
+from tests._support.eacces import mode_bits_enforced
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -288,6 +291,40 @@ def test_dry_run_reports_but_writes_nothing(tmp_path: Path) -> None:
     assert summary.migrated[0].invariants_stamped == 1
     # Nothing written to disk.
     assert path.read_text(encoding="utf-8") == before
+
+
+def test_collect_matrix_paths_unstattable_mission_candidate_is_not_silently_skipped(
+    tmp_path: Path,
+) -> None:
+    """`#3194`: the `p.is_dir()` filter in `_collect_matrix_paths` must not use
+    the EACCES-divergent predicate.
+
+    `Path.is_dir()` answers `False` for an unreadable candidate on Python 3.14
+    only (RAISES on 3.11-3.13) — silently dropping the candidate (and any
+    acceptance-matrix.json under it) from corpus discovery with no signal, the
+    same shape `#3177` fixed in `specify_cli.decisions.ownership`. `safe_is_dir`
+    makes this raise on every interpreter instead.
+    """
+    specs_root = tmp_path / "kitty-specs"
+    specs_root.mkdir()
+    vault = tmp_path / "vault"
+    (vault / "m-target").mkdir(parents=True)
+    (specs_root / "m-link").symlink_to(vault / "m-target", target_is_directory=True)
+
+    canary = vault / "canary"
+    canary.write_text("{}", encoding="utf-8")
+    os.chmod(vault, 0o000)
+    try:
+        if not mode_bits_enforced(canary):
+            pytest.skip(
+                "SKIPPED HONESTLY, not passed: this process can stat through a "
+                "0o000 directory (running as root, or a filesystem that ignores "
+                "mode bits), so the branch cannot be constructed here."
+            )
+        with pytest.raises(OSError):
+            _collect_matrix_paths(tmp_path)
+    finally:
+        os.chmod(vault, 0o700)
 
 
 # ---------------------------------------------------------------------------

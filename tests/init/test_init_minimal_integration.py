@@ -112,6 +112,48 @@ class TestInitCreatesMinimalProject:
 
         assert _has_global_runtime() is False
 
+    def test_has_global_runtime_false_for_unstattable_entry(self, tmp_path, monkeypatch):
+        """`#3194`: an unstattable ``missions/`` entry must not crash, and must not
+        be silently misreported as "a populated global runtime" — it survives an
+        EACCES directory the same way on every interpreter.
+
+        ``Path.is_dir()`` answers ``False`` for an unreadable candidate on Python
+        3.14 only (RAISES on 3.11-3.13); `_has_global_runtime`'s own enclosing
+        ``except (RuntimeError, OSError): return False`` already caught that raise
+        even before this fix, so the *external* answer was already ``False`` on
+        every interpreter here — but only by accident of that broad catch. This
+        pins the behaviour explicitly against a real EACCES directory (not just a
+        coincidence of unrelated exception handling), via `safe_is_dir`.
+        """
+        import os
+
+        from tests._support.eacces import mode_bits_enforced
+
+        global_home = tmp_path / "global"
+        vault = tmp_path / "vault"
+        (vault / "m-target").mkdir(parents=True)
+        (global_home / "missions").mkdir(parents=True)
+        (global_home / "missions" / "m-link").symlink_to(
+            vault / "m-target", target_is_directory=True
+        )
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
+
+        canary = vault / "canary"
+        canary.write_text("{}", encoding="utf-8")
+        os.chmod(vault, 0o000)
+        try:
+            if not mode_bits_enforced(canary):
+                pytest.skip(
+                    "SKIPPED HONESTLY, not passed: this process can stat through "
+                    "a 0o000 directory (running as root, or a filesystem that "
+                    "ignores mode bits), so the branch cannot be constructed here."
+                )
+            from specify_cli.cli.commands.init import _has_global_runtime
+
+            assert _has_global_runtime() is False
+        finally:
+            os.chmod(vault, 0o700)
+
     def test_prepare_project_minimal(self, tmp_path):
         """_prepare_project_minimal creates only .kittify/ and .kittify/memory/."""
         from specify_cli.cli.commands.init import _prepare_project_minimal
