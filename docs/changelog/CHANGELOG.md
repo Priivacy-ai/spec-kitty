@@ -360,7 +360,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   compile, `charter context` / `charter status` reflect the pack's activated
   governance and keep working even if `charter.md` is deleted (the read
   authority is the compiled `charter.yaml`); and the governance resolver reports
-  the *activated* directive set rather than silently falling back to all
+  the _activated_ directive set rather than silently falling back to all
   built-in directives. The documented `spec-kitty analyze` surface and the CLI
   are now guarded to stay in agreement (`#3096`). **Deliberate behaviour
   change:** the dispatch net now keys purely on whether a compiled bundle or a
@@ -376,7 +376,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   `charter.md` but never compiled now reports `project_charter.present: false`
   (the new `charter_md_present` / `charter_md_path` keys expose the display file
   separately, so the information is additive, not lost). The payload also now
-  carries a top-level **`context_schema_version`** stamp (a versioned *tracking*
+  carries a top-level **`context_schema_version`** stamp (a versioned _tracking_
   contract; a full shape freeze + deprecation policy stays deferred to the
   `#2519` activation-surface work) so an external consumer can detect a shape
   change instead of breaking silently. External `--json` consumers should read
@@ -399,8 +399,8 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 - **Fixed: `sync` could deliver one project's events to another project's
   workspace, including projects that never opted in (#3030).** A machine
   keeps one shared local event journal across every Spec Kitty checkout on
-  it. Sync's consent check only asked "is sync enabled for *this* checkout?"
-  — once yes, it delivered the *entire* journal, so a single opted-in
+  it. Sync's consent check only asked "is sync enabled for _this_ checkout?"
+  — once yes, it delivered the _entire_ journal, so a single opted-in
   project could ship another, unrelated project's events and metadata to the
   hosted server. Every path that reads from the journal for delivery is now
   gated per-project, consent is checked before events leave the machine
@@ -470,7 +470,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
     anchored on the main repo, so this is observationally a no-op for them.
   - **`spec-kitty accept` no longer rewinds finished work packages to
     `claimed` (#3013, #2985).** The birth-cutover seed anchored its
-    `planned → claimed` carrier on a work package's *earliest* transition,
+    `planned → claimed` carrier on a work package's _earliest_ transition,
     which for a force-jumped or pruned WP is its **terminal** one. The seed
     then collided on timestamp, and because the reducer sorts by
     `(at, event_id)` the hash-derived seed id outranked the real ULID — folding
@@ -483,7 +483,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   - **`doctor mission-state --fix` no longer destroys `review_result`, log
     order, or dropped duplicates (#3003).** `_build_canonical_row` is a closed
     allowlist that omitted `review_result` — a first-class `StatusEvent` field
-    *and* a hard FSM guard, since every transition out of `in_review` is
+    _and_ a hard FSM guard, since every transition out of `in_review` is
     rejected without it. Repairing a corpus therefore converted valid history
     into events the reducer could no longer validate: 268 transitions across 44
     missions, with none failing beforehand. The loss was worst-shaped, because
@@ -495,7 +495,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
     with the latter, so 839 of them were collapsing to `""` and being hoisted to
     the head of an append-only log), and a dropped duplicate `event_id` row is
     quarantined rather than only hashed.
-  - The classification ledger is now the *mechanical* authority for the
+  - The classification ledger is now the _mechanical_ authority for the
     stay-lenient allow-list — the gate parses it, so the doc and the gate cannot
     drift apart silently. The gate additionally resolves import aliases, and its
     coverage bounds (including the unpoliced `primary_feature_dir_for_mission`)
@@ -572,7 +572,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   resolved a subtask id by matching a row shape in `tasks.md` — a checkbox, a
   pipe-table row, or an inline `Subtasks: T001, T002` list. The shipped
   `software-dev` template instructs authors that subtask rows are reference
-  rows and explicitly *not* checkboxes, so a `tasks.md` that follows the
+  rows and explicitly _not_ checkboxes, so a `tasks.md` that follows the
   template matched none of those shapes and every id came back `NOT_FOUND`.
   That blocked the review workflow on every work package of every mission using
   that template. The command now falls back to the authored `subtasks:` roster
@@ -1099,7 +1099,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 - **Built-in doctrine content moved out of `src/doctrine/` into a top-level
   `packs/built-in/` pack root (mission `relocate-builtin-doctrine-packs`).**
-  The shipped built-in artefact *data* (directives, tactics, procedures,
+  The shipped built-in artefact _data_ (directives, tactics, procedures,
   paradigms, styleguides, toolguides, agent profiles, glossary packs, assets,
   and the per-kind `*.graph.yaml` DRG fragments) no longer lives inside the
   `doctrine` Python package. The layout is **flattened**: the old
@@ -1144,7 +1144,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 - **Cross-pack references in an org pack must now be written in full.** An edge
   endpoint in a pack's `drg/` fragment is either `<kind>:<id>` — for example
   `styleguide:acme-sty-001` — or a bare id declared in that same fragment's own
-  `nodes:` block. A bare id no longer resolves against a *different* pack in the
+  `nodes:` block. A bare id no longer resolves against a _different_ pack in the
   same merge. That old behaviour made the resulting graph depend on the order
   packs happen to be listed in `organisation_packs:`: the same two packs in two
   orders produced two different graphs, and nothing was reported either way. An
@@ -1176,7 +1176,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   there. The 3.2.0rc35 default-pack migration copied the pack's
   `activated_toolguides` list verbatim into each project's
   `.kittify/config.yaml`, and by design only ever writes keys that are
-  *absent* — so no later upgrade would have taken a retired member back out.
+  _absent_ — so no later upgrade would have taken a retired member back out.
   Charter compilation is deliberately fail-closed and refuses to quietly skip a
   reference it cannot resolve, so a project left holding the stale entry would
   hard-fail on the next compile with `UnknownArtifactIdError: No toolguide
