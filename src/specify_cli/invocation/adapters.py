@@ -110,10 +110,21 @@ def register_egress_consent_resolver(
     hold, and answering it is how one project's Ops travelled under another
     project's configuration (#3030 FR-025).
 
-    Called once at sync package startup.  Re-registration of a callable
-    with the same ``__qualname__`` replaces the existing entry, so that
-    re-importing or reloading ``specify_cli.sync`` (e.g. in test
-    processes) is safe and does not stack multiple resolvers.
+    Called once at sync package startup. **Re-registration replaces the
+    existing resolver unconditionally.** Not "when the qualified name
+    matches" — both arms of the ``existing_key == new_key`` branch below
+    assign ``fn``, so the comparison changes nothing but the control flow
+    taken to reach the same assignment; a callable with a *different*
+    ``__qualname__`` replaces the entry just as completely. The invariant
+    that does hold is the one that matters: at most one resolver is ever
+    registered, so re-importing or reloading ``specify_cli.sync`` (e.g. in
+    test processes) is safe and does not stack multiple resolvers.
+
+    The dead comparison itself is left in place: it is pre-existing,
+    identical in the sibling registrar below (:func:`register_saas_client_factory`),
+    and removing it from both is a behaviour-preserving simplification
+    outside this mission's scope.
+
     Not thread-safe by design (registration runs before concurrent
     access begins).
     """
