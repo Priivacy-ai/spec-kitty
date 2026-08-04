@@ -1,0 +1,34 @@
+{
+  "accept_commit": "4a584a078b60be4c96fcc08a5f8a28d223dad909",
+  "acceptance_history": [
+    {
+      "accept_commit": "4a584a078b60be4c96fcc08a5f8a28d223dad909",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-08-03T22:07:43.551756+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "ec7d45f83dc25c6ecc9fcfa3e8c81dea6dfe8113"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-08-03T22:07:43.551756+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "ec7d45f83dc25c6ecc9fcfa3e8c81dea6dfe8113",
+  "baseline_merge_commit": "7209ee871eef7def3bbcd6b48c3a619dd48441ec",
+  "coordination_branch": "kitty/mission-charter-sole-door-bypass-closure-01KZ3WAA",
+  "created_at": "2026-08-03T13:16:55.159151+00:00",
+  "flattened": false,
+  "friendly_name": "Charter as Sole Door: Close Bypass Access Paths",
+  "mission_id": "01KZ3WAAFPWQAG3R21P1RY0M6R",
+  "mission_number": 189,
+  "mission_slug": "charter-sole-door-bypass-closure-01KZ3WAA",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The charter's canonical factory (charter.resolver.DoctrineService) currently activation-gates only 3 of 10 doctrine-artifact kinds (paradigm, procedure, agent_profile) and forwards the other 7 unfiltered; meanwhile roughly 20 call sites across the 5-tier template/command resolver axis, direct repository construction (7 sites), two hardcoded source-tree paths, and unwrapped raw DoctrineService builds (6 sites) reach doctrine assets without going through the factory at all. This mission closes both gaps per operator decision: extend activation gating to all 10 kinds, and eliminate every identified bypass with no allowlist exceptions (including sites whose code comments cite avoiding a runtime-to-charter-to-doctrine boundary ratchet, which must be re-litigated rather than grandfathered) -- making the charter the sole, enforced access path to provisioned doctrine assets for the runtime. This is the G1 done-bar named in the 3.2.x open-core delivery plan. A pre-spec research squad confirmed five adjacent GitHub issues (#2986, #3036, #3039, #3091, #3022) are NOT domain-matched to this mission and must stay deferred as separate follow-ons: the runtime-to-doctrine import ratchet's own function-local-import blind spot, two doctrine-content-shippability gate issues, doctrine-tree relocation, and built-in-pack extraction.",
+  "purpose_tldr": "Make charter.yaml/the charter factory the only access path to provisioned doctrine assets: extend activation gating to all 10 doctrine-artifact kinds and eliminate every identified bypass call-site, no exceptions.",
+  "slug": "charter-sole-door-bypass-closure-01KZ3WAA",
+  "status_phase": "1",
+  "target_branch": "feat/charter-sole-door-bypass-closure",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-03T15:43:21.488709+00:00"
+}
