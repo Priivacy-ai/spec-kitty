@@ -487,10 +487,20 @@ def _strip_markup(text: str) -> str:
     return _RICH_MARKUP_RE.sub("", text)
 
 
-def _render_row(verdict: TrackerEgressVerdict) -> tuple[str, list[str]]:
+def _render_row(
+    verdict: TrackerEgressVerdict, *, binding_present: bool = True
+) -> tuple[str, list[str]]:
+    """Render one row directly.
+
+    ``binding_present`` defaults to ``True`` -- these cells are about the row's own
+    content and its issue-append, so they assume a bound tracker. The unbound case
+    (rows still render, no issue raised) is pinned separately below.
+    """
     console_out = _CapturingConsole()
     issues: list[str] = []
-    sync_module._render_tracker_egress_row(console_out, issues, verdict)
+    sync_module._render_tracker_egress_row(
+        console_out, issues, verdict, binding_present=binding_present
+    )
     return _flat(_strip_markup(console_out.text)), issues
 
 
@@ -640,13 +650,60 @@ def _render_fault_row_through_a_real_console(offending: object) -> tuple[str, st
     row_buf = io.StringIO()
     console_out = Console(file=row_buf, force_terminal=False, no_color=True, width=300)
     issues: list[str] = []
-    sync_module._render_tracker_egress_row(console_out, issues, verdict)  # must not raise
+    sync_module._render_tracker_egress_row(
+        console_out, issues, verdict, binding_present=True
+    )  # must not raise
     assert len(issues) == 1, f"expected exactly one issues entry, got {issues!r}"  # golden-count: cardinality-is-contract
 
     summary_buf = io.StringIO()
     summary_console = Console(file=summary_buf, force_terminal=False, no_color=True, width=300)
     summary_console.print(f"  ! {issues[0]}")  # doctor()'s own summary-loop render, reproduced
     return row_buf.getvalue(), summary_buf.getvalue()
+
+
+class TestUnboundCheckoutRaisesNoIssue:
+    """A checkout with no tracker bound renders both rows but reports no *issue*.
+
+    Regression pin (CI, fast-tests-sync): `issues` drives `doctor`'s problem summary,
+    and appending unconditionally told every unbound project something was wrong with
+    it -- absence of both channels refuses a transmission nothing is attempting. It
+    broke `tests/sync/test_sync_doctor.py::TestDoctorCommand::test_doctor_healthy`,
+    which mocks doctor's dependencies heavily but still resolves the real checkout, so
+    this renderer's contribution depended on ambient state.
+
+    The rows must still say REFUSED: suppressing them would rebuild the false green
+    where "tracker egress is fine" and "I never looked" render identically.
+    """
+
+    def test_unbound_renders_the_refusal_but_appends_no_issue(self) -> None:
+        verdict = TrackerEgressVerdict(
+            refused=True,
+            refusing_channels=frozenset({CHANNEL_1, CHANNEL_2}),
+            destination=EgressDestination.LOCAL_SUBPROCESS,
+            channel1_state=CHANNEL1_RECORDED_REFUSAL,
+            channel2_state="refused",
+            channel2_raw="refused",
+            message="synthetic refusal message",
+            remedies=("do X",),
+        )
+        flat, issues = _render_row(verdict, binding_present=False)
+        assert "REFUSED" in flat, "the row must still report the refusal"
+        assert issues == [], "an unbound checkout has no tracker-egress problem to remediate"
+
+    def test_bound_still_appends_the_issue(self) -> None:
+        """Positive control: without it the assertion above passes if issues never fill."""
+        verdict = TrackerEgressVerdict(
+            refused=True,
+            refusing_channels=frozenset({CHANNEL_1, CHANNEL_2}),
+            destination=EgressDestination.LOCAL_SUBPROCESS,
+            channel1_state=CHANNEL1_RECORDED_REFUSAL,
+            channel2_state="refused",
+            channel2_raw="refused",
+            message="synthetic refusal message",
+            remedies=("do X",),
+        )
+        _flat_text, issues = _render_row(verdict, binding_present=True)
+        assert len(issues) == 1, issues  # golden-count: cardinality-is-contract
 
 
 class TestFaultRowMarkupSafety:
