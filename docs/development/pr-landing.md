@@ -172,8 +172,8 @@ longer. Two carve-outs override that default:
   Since the 2026-08-04 pass, these tests live in `tests/regression/` and are
   excluded from every other suite's selection — so **a red outside
   `tests/regression/` is a real signal**, and the classification above only
-  has to be applied to reds inside it. Entry and exit rules are documented in
-  `tests/regression/README.md`.
+  has to be applied to reds inside it. Entry and exit rules:
+  [`tests/regression/README.md`](../../tests/regression/README.md).
 - **A fix that is mission scope and cannot reasonably be folded.** If the real
   fix belongs to a distinct mission — wide blast radius, its own spec/design, an
   in-flight mission's own reconciliation — do not cram it into the contributor
