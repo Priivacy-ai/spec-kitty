@@ -254,6 +254,52 @@ def _budget_estimate(lines: list[str]) -> int:
     return sum(len(line) + 1 for line in lines)
 
 
+def _split_leading_header(text: str) -> tuple[str, str]:
+    """Split *text* into its leading anchor-header line and the remainder.
+
+    ``section_block`` / each per-kind chunk of ``profile_block`` (see
+    :func:`_split_profile_blocks`) are pre-rendered strings whose own first
+    line is the anchor header (e.g. ``Action-Critical Charter Sections
+    (implement):`` or ``Profile-Cited Tactics (reviewer-renata):``). Per the
+    :class:`RenderedSection` contract, the header must never be swapped away
+    with the body — so it is split off here rather than embedded in the
+    substitutable ``body``.
+
+    A text with no embedded newline has no separate header line by design
+    (e.g. a bare fixture body in a unit test): it is returned unchanged as
+    the body with an empty header, so a substitution still replaces the
+    whole thing verbatim (existing behaviour for header-less bodies is
+    preserved byte-for-byte).
+    """
+    if "\n" not in text:
+        return "", text
+    header, _, remainder = text.partition("\n")
+    return header, remainder
+
+
+def _split_profile_blocks(text: str) -> list[tuple[str, str]]:
+    """Split the joined profile-cited block into per-kind ``(header, body)`` parts.
+
+    ``_render_profile_sections`` renders up to six kind-blocks (directives,
+    tactics, styleguides, toolguides, procedures, suggested-doctrine) and
+    joins them with a blank line (``"\\n\\n".join(blocks)``); each block's own
+    first line is its anchor header. None of the per-kind renderers ever
+    emit an internal blank line (entries are single lines or fixed-shape
+    inline bodies), so splitting on the blank-line separator recovers
+    exactly the top-level kind boundaries without disturbing any kind's
+    content — this is what lets every populated kind's header (not just the
+    first) survive a substitution below.
+
+    A ``profile_block`` with no blank-line-separated structure (e.g. a bare
+    single-line unit-test fixture) degrades to a single ``(header, body)``
+    pair via :func:`_split_leading_header`, matching prior single-candidate
+    behaviour exactly.
+    """
+    if not text:
+        return []
+    return [_split_leading_header(chunk) for chunk in text.split("\n\n") if chunk]
+
+
 def _enforce_token_budget(
     text: str,
     *,
@@ -289,33 +335,49 @@ def _enforce_token_budget(
     # Doctrine, References) stays byte-identical.
     candidates: list[RenderedSection] = []
     if section_block:
-        candidates.append(
-            RenderedSection(
-                section_id="action-critical-sections",
-                header="",
-                body=section_block,
-                selector=f"section:critical-{action}",
-                when_doing_clause=(
-                    "need to consult the action-critical charter sections"
-                ),
-                substitutable=True,
-                indent="  ",
+        # The header (e.g. "Action-Critical Charter Sections (implement):")
+        # is split off so a substitution below never removes it — see
+        # _split_leading_header. A body-less section_block (no content past
+        # its own header) has nothing left worth swapping, so it is left
+        # inline rather than added as a candidate.
+        header, body = _split_leading_header(section_block)
+        if body:
+            candidates.append(
+                RenderedSection(
+                    section_id="action-critical-sections",
+                    header=header,
+                    body=body,
+                    selector=f"section:critical-{action}",
+                    when_doing_clause=(
+                        "need to consult the action-critical charter sections"
+                    ),
+                    substitutable=True,
+                    indent="  ",
+                )
             )
-        )
     if profile_block:
-        candidates.append(
-            RenderedSection(
-                section_id="profile-cited-sections",
-                header="",
-                body=profile_block,
-                selector="section:profile-citations",
-                when_doing_clause=(
-                    "need to consult the profile-cited directives and tactics"
-                ),
-                substitutable=True,
-                indent="  ",
+        # profile_block joins up to six kind-blocks (directives, tactics,
+        # styleguides, toolguides, procedures, suggested-doctrine), each with
+        # its own anchor header. Splitting it into one RenderedSection per
+        # kind (rather than one opaque candidate for the whole block) means
+        # EVERY populated kind's header survives a swap, not just the first
+        # — see _split_profile_blocks.
+        for index, (header, body) in enumerate(_split_profile_blocks(profile_block)):
+            if not body:
+                continue
+            candidates.append(
+                RenderedSection(
+                    section_id=f"profile-cited-sections-{index}",
+                    header=header,
+                    body=body,
+                    selector="section:profile-citations",
+                    when_doing_clause=(
+                        "need to consult the profile-cited directives and tactics"
+                    ),
+                    substitutable=True,
+                    indent="  ",
+                )
             )
-        )
 
     if not candidates:
         # Nothing safe to substitute — return the original text so we
