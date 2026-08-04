@@ -39,6 +39,7 @@ from pathlib import Path
 
 from charter.mission_type_profiles import MissionTypeProfile
 from doctrine.base import BaseDoctrineRepository
+from doctrine.missions.repository import MissionTemplateRepository
 
 __all__ = ["MissionTypeProfileRepository", "builtin_missions_root"]
 
@@ -54,16 +55,23 @@ _PROJECT_OVERRIDE_PARTS: tuple[str, ...] = (".kittify", "doctrine", "mission_typ
 def builtin_missions_root() -> Path:
     """Shipped profiles root: ``src/doctrine/missions``.
 
-    ``src/charter/mission_type_profile_repository.py`` sits two directories
-    deep inside ``src/``; ``parents[1]`` is the ``src/`` root, keeping the
-    resolution layer-rule-clean (charter → doctrine, no ``specify_cli``).
+    Thin delegate (FR-004) onto the ONE promoted missions-root authority,
+    :meth:`~doctrine.missions.repository.MissionTemplateRepository.default_missions_root`
+    — this accessor is not a second, co-equal path-hardcode. The delegation
+    is layer-rule-clean (charter → doctrine, no ``specify_cli``) and
+    byte-identical in the return value: :meth:`default_missions_root` is
+    itself ``importlib.resources``-based (wheel-safe), which the previous
+    ``Path(__file__)``-relative literal here was not. Full convergence onto
+    ``doctrine.pack_paths.built_in_dir`` remains deferred to #3091 —
+    ``pack_paths`` has no ``missions/`` content directory today — and is
+    explicitly NOT claimed by this delegation.
 
     Public module-level accessor (#2668) so cross-module consumers (e.g.
     ``charter.action_grain``, ``charter.mission_type_profiles``) no longer
     need to reach into :class:`MissionTypeProfileRepository`'s private
     ``_default_built_in_dir`` classmethod.
     """
-    return Path(__file__).resolve().parents[1] / "doctrine" / "missions"
+    return MissionTemplateRepository.default_missions_root()
 
 
 class MissionTypeProfileRepository(BaseDoctrineRepository[MissionTypeProfile]):

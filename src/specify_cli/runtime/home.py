@@ -103,8 +103,17 @@ def get_package_asset_root() -> Path:
         except (TypeError, ModuleNotFoundError):
             pass
 
+    # Function-local import of a doctrine-layer class (matches the existing
+    # pattern at :func:`_looks_like_missions_root` above) — FR-004 retargets
+    # this fallback entry onto the ONE promoted missions-root authority
+    # instead of duplicating its own Path(__file__)-relative literal. This
+    # shares the module docstring's #2986 blind spot: a function-local import
+    # is invisible to import-time static analysis that only checks module
+    # headers. Named here, not hidden.
+    from doctrine.missions.repository import MissionTemplateRepository  # noqa: PLC0415
+
     dev_roots = (
-        Path(__file__).parents[2] / "doctrine" / "missions",
+        MissionTemplateRepository.default_missions_root(),
         Path(__file__).parent.parent / "missions",
     )
     for dev_root in dev_roots:
