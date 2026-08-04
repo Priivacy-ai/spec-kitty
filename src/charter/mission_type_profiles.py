@@ -402,11 +402,18 @@ def existing_mission_types(repo_root: Path) -> list[str]:
     Only types that are explicitly activated in the project charter are returned.
     Non-activated types are excluded regardless of their presence in the doctrine
     layer.  Conversely, a project MAY activate a custom (non-built-in) mission
-    type id — e.g. one backed entirely by a project-level doctrine override —
-    and that id is returned as-is; this function does not intersect against the
-    built-in catalog, since doing so would silently drop legitimately-activated
-    custom types (locked in by
+    type id, and that id is returned as-is; this function does not intersect
+    against the built-in catalog, since doing so would silently drop
+    legitimately-activated custom types (locked in by
     ``tests/charter/test_action_sequence_dispatch.py::TestExistingMissionTypes::test_returns_custom_type_when_activated``).
+    Being returned here means only that the id is *activated* — it does not by
+    itself mean the type will resolve end to end. A custom id still needs a
+    ``MissionTypeProfile`` that :func:`resolve_mission_type_context` can
+    actually load (governance slot) and/or a doctrine-layer action-sequence
+    definition (action slot); lacking either, resolution still hard-fails with
+    :class:`UnknownMissionTypeError` even though the id appears in this
+    function's return value (see :func:`resolve_mission_type_context`'s
+    "Known message caveat" note for the exact, reproduced contradiction).
 
     Reads ``.kittify/config.yaml`` via :class:`~charter.pack_context.PackContext`
     to obtain the activation set.  When the config file is absent or the
@@ -495,6 +502,16 @@ def resolve_mission_type_context(
     it pre-existed this mission and lives in
     :func:`existing_mission_types` — see that function's docstring for the
     full account of what this mission verified versus added.
+
+    Known message caveat (pre-existing, out of scope for this mission): an
+    activated custom type id that has no resolvable ``MissionTypeProfile`` on
+    disk still hard-fails via :class:`UnknownMissionTypeError` from the
+    governance or action slot, and that error's message lists the very id it
+    calls unknown among its own ``registered_ids`` — e.g. activating only
+    ``my-custom`` and resolving it raises "Unknown mission type 'my-custom'.
+    Registered types: my-custom." "Registered" there means "activated", not
+    "has a loadable profile"; fixing that contradiction needs its own mission
+    and is not attempted here.
 
     Parameters
     ----------
