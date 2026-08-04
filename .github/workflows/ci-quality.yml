@@ -1700,12 +1700,22 @@ jobs:
       # diff-coverage critical-path gate saw them as 0% collected rather than
       # exercised. Mirrors the sibling jobs' instrumentation instead of
       # widening this file's own markers away from their correct fast tier.
+      #
+      # `and not regression` (landing fold: make ``@pytest.mark.regression``
+      # mean exactly one thing): the ``core-misc`` shard's ``paths: ''``
+      # selection defaults to the whole ``tests/`` tree (pytest.ini
+      # ``testpaths``) minus its own ignore list, which does not ignore
+      # ``tests/regression`` -- and a regression-marked test that also
+      # happened to carry ``fast`` (the historical shape this fold removes;
+      # see e.g. the former ``tests/regression/test_2684_force_provenance.py``)
+      # would otherwise be silently double-selected here, outside the ONE
+      # routed regression CI home (`-m regression`).
       - name: "Run fast tests — core misc"
         run: |
           uv run python -m pytest \
             ${{ matrix.paths }} \
             ${{ matrix.ignore_args }} \
-            -m "fast and not windows_ci" -q --tb=short \
+            -m "fast and not windows_ci and not regression" -q --tb=short \
             --timeout=240 --timeout-method=signal \
             -n auto --dist loadfile \
             --durations=50 \
@@ -1900,12 +1910,23 @@ jobs:
       # the architectural shard: that parity gate now runs unconditionally in
       # the always-on ``arch-adversarial`` job, so an execution-context change
       # is covered there (mission ci-topology-shrink FR-005/FR-013).
+      #
+      # `and not regression` (landing fold: make ``@pytest.mark.regression``
+      # mean exactly one thing): the ``misc`` shard's own path list below
+      # includes ``tests/regression`` + ``tests/regressions`` (its sole
+      # owner), and this job's marker already selects ``git_repo or
+      # integration or architectural`` with no regression exclusion — so
+      # every issue-pinned, intentionally-red P0 reproduction living there
+      # would be collected here too, silently doubling as a "blocking"
+      # signal in a job this repo does not treat as release-gating the way
+      # ``regression tests (blocking)`` is. The dedicated regression job
+      # (`-m regression`) is this marker's ONE routed CI home.
       - name: "Run integration tests — core misc"
         run: |
           uv run python -m pytest \
             ${{ matrix.paths }} \
             ${{ matrix.ignore_args }} \
-            -m 'not windows_ci and (git_repo or integration or architectural) and not timing${{ matrix.marker_extra }}' \
+            -m 'not windows_ci and (git_repo or integration or architectural) and not timing and not regression${{ matrix.marker_extra }}' \
             -q --tb=short \
             -n auto --dist loadfile \
             --durations=50 \
