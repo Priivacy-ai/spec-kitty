@@ -21,6 +21,7 @@ Interactive mode (default):   prompt before each non-UTF-8 file.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.utils import safe_is_dir
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -107,17 +108,17 @@ def _collect_charter_files(project_root: Path) -> list[Path]:
     files: list[Path] = []
 
     mission_specs = project_root / KITTY_SPECS_DIR
-    if mission_specs.is_dir():
+    if safe_is_dir(mission_specs):
         for mission_dir in sorted(mission_specs.iterdir()):
-            if not mission_dir.is_dir():
+            if not safe_is_dir(mission_dir):
                 continue
             charter_dir = mission_dir / "charter"
-            if charter_dir.is_dir():
+            if safe_is_dir(charter_dir):
                 for ext in _CHARTER_EXTENSIONS:
                     files.extend(sorted(charter_dir.glob(f"*{ext}")))
 
     global_charter = project_root / ".kittify" / "charter"
-    if global_charter.is_dir():
+    if safe_is_dir(global_charter):
         for ext in _CHARTER_EXTENSIONS:
             files.extend(sorted(global_charter.glob(f"*{ext}")))
 

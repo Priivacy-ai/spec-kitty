@@ -41,6 +41,7 @@ All I/O is synchronous file reads; no subprocesses are spawned.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.utils import safe_is_dir
 import logging
 import re
 from dataclasses import dataclass, field
@@ -185,7 +186,13 @@ def audit_repo(repo_root: Path) -> list[IdentityState]:
     """Walk ``kitty-specs/`` and classify every mission directory.
 
     Directories without a ``meta.json`` are classified as ``orphan``.
-    Entries that are not directories (e.g. ``README.md``) are silently skipped.
+    Entries that are not directories (e.g. ``README.md``) are silently skipped —
+    including entries that cannot be examined at all (`#3194`: an unreadable
+    ancestor or an unstattable candidate, most commonly `EACCES` behind a
+    symlink, is folded into the SAME "not a directory" skip rather than raising
+    or silently vanishing depending on interpreter — see `safe_is_dir`'s
+    docstring for why `Path.is_dir()`/`Path.exists()` cannot be used here
+    unguarded).
     An empty or absent ``kitty-specs/`` directory returns an empty list.
 
     Args:
@@ -195,12 +202,24 @@ def audit_repo(repo_root: Path) -> list[IdentityState]:
         Sorted list of :class:`IdentityState` objects, one per mission directory.
     """
     specs_dir = repo_root / KITTY_SPECS_DIR
-    if not specs_dir.exists():
+    states: list[IdentityState] = []
+    try:
+        if not safe_is_dir(specs_dir):
+            return []
+        entries = sorted(specs_dir.iterdir())
+    except OSError:
+        # Same fail-soft posture as `find_duplicate_prefixes` below and as
+        # `specify_cli.audit.engine._scan_missions`: this is a read-only,
+        # best-effort survey, and an unreadable ancestor of `kitty-specs/`
+        # must not crash it any more than an absent one does.
         return []
 
-    states: list[IdentityState] = []
-    for entry in sorted(specs_dir.iterdir()):
-        if not entry.is_dir():
+    for entry in entries:
+        try:
+            is_mission_dir = safe_is_dir(entry)
+        except OSError:
+            continue  # unstattable entry: same skip as "not a directory"
+        if not is_mission_dir:
             continue  # skip README.md, templates, etc.
         states.append(classify_mission(entry))
 
@@ -252,7 +271,9 @@ def find_duplicate_prefixes(repo_root: Path) -> dict[str, list[IdentityState]]:
     Walks ``kitty-specs/`` and groups directories by their leading ``NNN-``
     prefix (regex ``^(\\d{3})-``).  Only groups with size ≥ 2 are returned.
 
-    Directories without a leading numeric prefix are silently skipped.
+    Directories without a leading numeric prefix are silently skipped — as is,
+    per `#3194`, an entry that cannot be examined at all (see the matching note
+    on :func:`audit_repo`).
 
     Args:
         repo_root: Path to the repository root.
@@ -262,12 +283,20 @@ def find_duplicate_prefixes(repo_root: Path) -> dict[str, list[IdentityState]]:
         Empty dict when no duplicates exist.
     """
     specs_dir = repo_root / KITTY_SPECS_DIR
-    if not specs_dir.exists():
+    groups: dict[str, list[IdentityState]] = {}
+    try:
+        if not safe_is_dir(specs_dir):
+            return {}
+        entries = sorted(specs_dir.iterdir())
+    except OSError:
         return {}
 
-    groups: dict[str, list[IdentityState]] = {}
-    for entry in sorted(specs_dir.iterdir()):
-        if not entry.is_dir():
+    for entry in entries:
+        try:
+            is_mission_dir = safe_is_dir(entry)
+        except OSError:
+            continue
+        if not is_mission_dir:
             continue
         m = _PREFIX_RE.match(entry.name)
         if not m:

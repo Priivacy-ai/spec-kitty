@@ -2,12 +2,76 @@
 
 from __future__ import annotations
 
+import errno
 import os
 import tempfile
 import shutil
 import sys
 from collections.abc import Sequence
 from pathlib import Path
+from stat import S_ISDIR, S_ISREG
+
+
+#: Errnos that mean **absent** (or "not the kind of thing that could ever be a
+#: directory/file", e.g. a dangling symlink or a non-directory in the middle of
+#: a path) rather than **unreadable**. Reproduced from ``pathlib._ignore_error``
+#: (private, and 3.13 moved it out of the top-level namespace) rather than
+#: imported, for the same reason ``specify_cli.decisions.ownership`` reproduces
+#: it: replacing ``is_dir()``/``is_file()``/``exists()`` with a guarded
+#: ``stat()`` must not also change how genuinely absent-like failures are
+#: classified — only make ``EACCES`` observable instead of silently swallowed.
+_ABSENT_ERRNOS = frozenset({errno.ENOENT, errno.ENOTDIR, errno.EBADF, errno.ELOOP})
+
+
+def safe_is_dir(path: Path) -> bool:
+    """``Path.is_dir()``, but with ONE behaviour across interpreters, not three.
+
+    ``Path.is_dir()`` (and its siblings ``exists()``, ``is_file()``,
+    ``is_symlink()``) call ``stat()`` and swallow ``OSError`` — but not
+    identically everywhere: through Python 3.13 only the absent-like errnos
+    above were swallowed and ``EACCES`` propagated, while 3.14 rewrote the
+    predicates to swallow every ``OSError`` including ``EACCES``, so an
+    unreadable ancestor silently answers ``False`` ("not a directory") on 3.14
+    where every earlier interpreter raised. Measured (non-root euid, via a
+    symlink into a ``0o000`` directory) in
+    ``specify_cli.decisions.ownership``'s module docstring, which hit this
+    exact divergence three times before the pattern was generalized here.
+
+    This reproduces ``pathlib``'s own PRE-3.14 ``is_dir()`` — ``S_ISDIR(p.stat().st_mode)``
+    under ``except OSError: if not _ignore_error(e): raise`` — so the answer
+    is the same on every interpreter: ``False`` for absent-like failures
+    (``ENOENT``/``ENOTDIR``/``EBADF``/``ELOOP``), and the ``OSError`` (typically
+    ``EACCES``) is left to propagate for everything else, rather than being
+    laundered into a bare ``False`` that a caller cannot tell apart from
+    "not a directory".
+
+    Callers that want to *tolerate* an unreadable candidate (skip it, warn
+    about it, whatever the calling code's existing failure posture is) catch
+    ``OSError`` around the call themselves, exactly as they already had to on
+    3.11-3.13 before this helper existed — this only makes that requirement a
+    property of ``stat()`` itself instead of an accident of interpreter version.
+    """
+    try:
+        return S_ISDIR(path.stat().st_mode)
+    except OSError as exc:
+        if exc.errno in _ABSENT_ERRNOS:
+            return False
+        raise
+
+
+def safe_is_file(path: Path) -> bool:
+    """``Path.is_file()``, with the same one-behaviour-everywhere fix as :func:`safe_is_dir`.
+
+    See :func:`safe_is_dir` for the full rationale; this is its ``S_ISREG``
+    sibling for call sites asking "is this a regular file" rather than "is
+    this a directory".
+    """
+    try:
+        return S_ISREG(path.stat().st_mode)
+    except OSError as exc:
+        if exc.errno in _ABSENT_ERRNOS:
+            return False
+        raise
 
 
 def format_path(path: Path, relative_to: Path | None = None) -> str:
@@ -126,5 +190,7 @@ __all__ = [
     "ensure_within_directory",
     "write_text_within_directory",
     "safe_remove",
+    "safe_is_dir",
+    "safe_is_file",
     "get_platform",
 ]

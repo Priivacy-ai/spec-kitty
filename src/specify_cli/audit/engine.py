@@ -21,6 +21,7 @@ Determinism contract (D4):
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.utils import safe_is_dir
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -86,7 +87,7 @@ def _resolve_mission_filter(
 
     resolved = resolve_mission(handle, repo_root)
     candidate = scan_root / resolved.mission_slug
-    if candidate.is_dir():
+    if safe_is_dir(candidate):
         return frozenset({candidate})
     # Candidate not found under scan_root (fixture-dir mismatch).
     return frozenset()
@@ -117,18 +118,35 @@ def _scan_missions(
         directory, in lexicographic order of directory name.  Each result's
         findings are sorted by ``(artifact_path, code)``.
     """
-    if not scan_root.exists():
-        return []
-
     try:
+        if not safe_is_dir(scan_root):
+            return []
         candidates = sorted(scan_root.iterdir(), key=lambda p: p.name)
     except OSError:
+        # This audit engine is read-only and best-effort: an unreadable
+        # ancestor of `scan_root` (or of `scan_root` itself) must not be
+        # silently reported as "no missions" via the EACCES-divergent
+        # `Path.exists()` (raises on 3.11-3.13, returns False on 3.14 — see
+        # `specify_cli.core.utils.safe_is_dir`), but it also should not crash
+        # the whole audit for a permission hiccup on one repo. Folding the
+        # `safe_is_dir` probe into the same `except OSError` this function
+        # already used for `iterdir()` failures keeps both failure sources on
+        # one fail-soft path instead of adding a second, differently-shaped one.
         return []
 
     results: list[MissionAuditResult] = []
 
     for candidate in candidates:
-        if not candidate.is_dir():
+        try:
+            is_mission_dir = safe_is_dir(candidate)
+        except OSError:
+            # Same fail-soft posture as the `scan_root` probe above: one
+            # unreadable candidate must not abort the audit for every other
+            # mission in the corpus, and must not silently swap "unreadable"
+            # for "not a directory" the way the bare `Path.is_dir()` this
+            # replaces did on 3.14 (see `safe_is_dir`'s docstring).
+            continue
+        if not is_mission_dir:
             continue
 
         if allowed_dirs is not None and candidate not in allowed_dirs:

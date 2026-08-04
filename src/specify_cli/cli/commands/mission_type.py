@@ -19,6 +19,7 @@ import json
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import MissionMetaReadError, get_main_repo_root, load_meta_fail_closed
+from specify_cli.core.utils import safe_is_dir
 from specify_cli.lanes.branch_naming import resolve_mid8
 from specify_cli.mission_metadata import load_meta
 from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
@@ -979,13 +980,13 @@ def _remove_lane_worktrees(
     import subprocess as _subprocess
 
     worktrees_root = repo_root / ".worktrees"
-    if not worktrees_root.exists():
+    if not safe_is_dir(worktrees_root):
         return
 
     removed = 0
     for name in sorted(_expected_lane_worktree_dir_names(mission_slug, lanes_manifest)):
         entry = worktrees_root / name
-        if not entry.is_dir():
+        if not safe_is_dir(entry):
             continue
         _subprocess.run(
             ["git", "-C", str(repo_root), "worktree", "remove", str(entry), "--force"],

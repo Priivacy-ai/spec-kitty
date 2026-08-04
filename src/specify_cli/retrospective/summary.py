@@ -17,6 +17,7 @@ WP03 addition (T017):
 from __future__ import annotations
 
 from specify_cli.core.constants import RETROSPECTIVE_FILENAME
+from specify_cli.core.utils import safe_is_dir
 from specify_cli.mission_metadata import load_meta_or_empty
 from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 import json
@@ -295,10 +296,10 @@ def _top_n_reason_counts(counter: dict[str, int], limit: int) -> list[ReasonCoun
 def _iter_mission_dirs(project_path: Path) -> Generator[Path, None, None]:
     """Yield each mission directory under .kittify/missions/."""
     missions_root = project_path / ".kittify" / "missions"
-    if not missions_root.is_dir():
+    if not safe_is_dir(missions_root):
         return
     for entry in sorted(missions_root.iterdir()):
-        if entry.is_dir():
+        if safe_is_dir(entry):
             yield entry
 
 

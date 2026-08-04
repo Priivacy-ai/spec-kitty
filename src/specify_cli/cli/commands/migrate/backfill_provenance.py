@@ -49,6 +49,7 @@ from specify_cli.acceptance.matrix import (
     PROVENANCE_LEGACY_UNRECORDED,
 )
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.utils import safe_is_dir, safe_is_file
 
 _PENDING_RESULT = "pending"
 _NEGATIVE_INVARIANTS_KEY = "negative_invariants"
@@ -238,14 +239,14 @@ def _collect_matrix_paths(repo_root: Path) -> list[Path]:
     many missions, not one mission's coordination worktree).
     """
     specs_dir = repo_root / KITTY_SPECS_DIR
-    if not specs_dir.is_dir():
+    if not safe_is_dir(specs_dir):
         return []
 
     from mission_runtime import ActionContextError, MissionArtifactKind, placement_seam
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
     paths: list[Path] = []
-    for mission_dir in sorted(p for p in specs_dir.iterdir() if p.is_dir()):
+    for mission_dir in sorted(p for p in specs_dir.iterdir() if safe_is_dir(p)):
         try:
             matrix_dir = placement_seam(repo_root, mission_dir.name).read_dir(
                 MissionArtifactKind.ACCEPTANCE_MATRIX
@@ -258,7 +259,7 @@ def _collect_matrix_paths(repo_root: Path) -> list[Path]:
             # rather than aborting the run for the rest of the corpus.
             matrix_dir = mission_dir
         candidate = matrix_dir / MATRIX_FILENAME
-        if candidate.is_file():
+        if safe_is_file(candidate):
             paths.append(candidate)
     return paths
 

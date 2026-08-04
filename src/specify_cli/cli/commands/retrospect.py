@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from specify_cli.coordination.surface_resolver import resolve_status_surface
 from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR, RETROSPECTIVE_FILENAME
+from specify_cli.core.utils import safe_is_dir
 from specify_cli.mission_metadata import load_meta_or_empty
 from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
@@ -507,11 +508,11 @@ def _discover_missions_for_backfill(
     candidates: list[dict[str, object]] = []
     missions_root = repo_root / KITTIFY_DIR / "missions"
 
-    if not missions_root.is_dir():
+    if not safe_is_dir(missions_root):
         return candidates
 
     for entry in sorted(missions_root.iterdir()):
-        if not entry.is_dir():
+        if not safe_is_dir(entry):
             continue
 
         meta_path = entry / "meta.json"
@@ -991,9 +992,9 @@ def summary_cmd(  # noqa: C901
     }
 
     missions_dir = resolved_project / KITTIFY_DIR / "missions"
-    if missions_dir.is_dir():
+    if safe_is_dir(missions_dir):
         for mission_dir in sorted(missions_dir.iterdir()):
-            if not mission_dir.is_dir():
+            if not safe_is_dir(mission_dir):
                 continue
             meta = load_meta_or_empty(mission_dir)
             mission_id = meta.get("mission_id")
@@ -1003,7 +1004,7 @@ def summary_cmd(  # noqa: C901
             feature_dir_for_classify: Path | None = None
             if mission_slug:
                 kitty_dir = candidate_feature_dir_for_mission(resolved_project, mission_slug)
-                if kitty_dir.is_dir():
+                if safe_is_dir(kitty_dir):
                     feature_dir_for_classify = kitty_dir
             if feature_dir_for_classify is None:
                 feature_dir_for_classify = mission_dir

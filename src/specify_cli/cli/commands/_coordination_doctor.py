@@ -39,6 +39,7 @@ import typer
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import locate_project_root
+from specify_cli.core.utils import safe_is_dir
 from specify_cli.mission_metadata import load_meta
 
 from ._doctor_shared import console
@@ -771,10 +772,10 @@ def _collect_coordination_findings(
     findings.extend(_check_stranded_coord_revert(repo_root))
 
     specs_dir = repo_root / KITTY_SPECS_DIR
-    if not specs_dir.exists():
+    if not safe_is_dir(specs_dir):
         return findings
     for mission_dir in sorted(specs_dir.iterdir()):
-        if not mission_dir.is_dir():
+        if not safe_is_dir(mission_dir):
             continue
         meta = load_meta(mission_dir, on_malformed="none")
         if meta is None:
@@ -1320,11 +1321,11 @@ def _apply_coord_staleness_fixes(repo_root: Path) -> list[DoctorFinding]:
     fixing every OTHER mission in the same run.
     """
     specs_dir = repo_root / KITTY_SPECS_DIR
-    if not specs_dir.exists():
+    if not safe_is_dir(specs_dir):
         return []
     blocked: list[DoctorFinding] = []
     for mission_dir in sorted(specs_dir.iterdir()):
-        if not mission_dir.is_dir():
+        if not safe_is_dir(mission_dir):
             continue
         meta = load_meta(mission_dir, on_malformed="none")
         if meta is None:
