@@ -314,6 +314,27 @@ _ARCH_SHARD_3_FILES: tuple[str, ...] = (
     # appends above.
     "tests/architectural/test_no_production_worktree_guard_bypass.py",
     "tests/architectural/test_cli_console_single_seam.py",
+    # Added post-data-model.md (new files, mission
+    # charter-sole-door-bypass-closure-01KZ3WAA landing-fold gate hardening --
+    # the five sole-door durability gates (agent-profile repository, raw
+    # DoctrineService, doctrine.resolver import ban, missions-root hardcode
+    # ban, ._inner reach-around ban) were never appended to this map when
+    # WP04/WP06/WP09 landed them, leaving them selected by zero arch_shard_N
+    # marker until the default_fallback hash-bucket auto-cover picked them up
+    # (FR-011/#2671) -- registering them explicitly here is the authoritative
+    # balance-control pin the fallback intentionally does not replace. shard_3
+    # was the lightest by def-test_ count (215 vs 274/295) when this fold
+    # landed, so all five land here; the sixth new module this fold ships,
+    # tests/architectural/_sole_door_scan.py, is a non-test helper library
+    # (zero `def test_` functions) and is deliberately NOT registered --
+    # `pytest_collection_modifyitems` only marks collected test items, so an
+    # unregistered helper module with no tests never needs (or gets) a shard
+    # marker.
+    "tests/architectural/test_charter_sole_door_agent_profile_repository.py",
+    "tests/architectural/test_charter_sole_door_doctrine_service.py",
+    "tests/architectural/test_charter_sole_door_resolver_imports.py",
+    "tests/architectural/test_charter_sole_door_hardcoded_paths.py",
+    "tests/architectural/test_charter_sole_door_inner_reacharound.py",
 )
 
 # ``relpath -> shard`` for exact-file (architectural) units.
