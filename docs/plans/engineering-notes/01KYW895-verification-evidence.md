@@ -351,8 +351,8 @@ class reds with `assert 3 >= 4` and `assert 2 >= 3`.
 
 What this buys: the `assert scanned` the floors replace reds only when **every** site of a class
 disappears. A named integer makes losing **one** site red. What it does not buy: coverage. #3030
-itself was closed upstream by the parent mission (`journal-project-consent-3030-01KYKWQS`, PR
-#3098, merged 2026-07-31); the verdict is `verified-already-fixed`, and what this mission
+itself was closed upstream by the parent mission (`journal-project-consent-3030-01KYKWQS`, PR #3098,
+merged 2026-07-31); the verdict is `verified-already-fixed`, and what this mission
 established is that the guard keeping it closed is real rather than decorative.
 
 I re-ran both modules on both interpreters and they are green (see T037 and T038). I did **not**
