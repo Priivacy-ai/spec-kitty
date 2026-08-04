@@ -89,7 +89,7 @@ def _require_meta(meta_file: Path) -> dict[str, Any]:
     meta = load_meta_fail_closed(meta_file.parent)
     if meta is None:
         raise FileNotFoundError(f"No such file or directory: '{meta_file}'")
-    return cast(dict[str, Any], meta)
+    return meta
 
 
 # ============================================================================
