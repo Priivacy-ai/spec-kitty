@@ -1057,6 +1057,23 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   convergence with `doctrine.pack_paths.built_in_dir` — full convergence
   remains `#3091`'s to deliver.
 
+  **One more consumer-visible narrowing, for projects that declare
+  languages.** If your project's compiled `charter.yaml` records a
+  `catalog.languages` answer (i.e. you already went through the charter
+  interview or `charter sync`), language-scoped agent profiles now filter
+  consistently through the factory — previously, one of the two
+  divergent builder paths this mission unifies did not apply that filter
+  at all, so a language-scoped profile could show up even for a language
+  your project doesn't use. Measured on this repository's own root
+  (`catalog.languages: [python]`): the built-in agent-profile catalog
+  narrows from 18 profiles to 15 — `frontend-freddy`, `java-jenny`, and
+  `node-norris` no longer resolve, because they're scoped to languages
+  this project doesn't declare. `python-pedro` still resolves. This is
+  intended, not a regression (FR-008's "fuller behaviour on each axis"):
+  if you relied on an off-language profile resolving anyway, activate it
+  explicitly rather than depending on the prior inconsistency. Projects
+  with no compiled `languages` answer are unaffected — see above.
+
 ### 💥 Breaking Changes
 
 - **Built-in doctrine content moved out of `src/doctrine/` into a top-level
