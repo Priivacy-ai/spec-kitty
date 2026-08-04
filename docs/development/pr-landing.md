@@ -329,6 +329,21 @@ Mechanics that make a parallel pass work, learned on 2026-08-04 (24+ folds,
 - **Agents commit in their own worktree and never push.** The maintainer
   cherry-picks onto the landing branch. Because the worktrees share one object
   store, `git cherry-pick <sha>` works with no remote round-trip.
+- **`cd` into the landing worktree on every cherry-pick, and check the branch
+  before applying.** A shell whose working directory resets between commands
+  lands you in the **primary checkout — which is on `main`** — and a
+  cherry-pick there silently commits landing folds onto local `main`. This
+  happened on the 2026-08-04 pass: three commits went onto `main` before the
+  branch name in git's output gave it away. It is fully recoverable (nothing
+  was pushed; `git reset --hard upstream/main` restored it, and the commits
+  re-applied cleanly to the landing branch from the agent worktree), but only
+  because it was noticed immediately. Make it structural rather than vigilant:
+  ```bash
+  cd <landing-worktree> && test "$(git branch --show-current)" = "<landing-branch>" \
+    && git cherry-pick <sha>...
+  ```
+  Re-check the fold count after each cherry-pick (`git log --oneline <base>..HEAD | wc -l`)
+  — a count that resets to a small number means you are on the wrong branch.
 - **A revert pair cancels out — skip both and prove tree parity.** An agent
   that self-corrects may leave `X` and `Revert "X"` plus a re-landed `X'`.
   Cherry-pick the net set, then prove nothing was lost:
