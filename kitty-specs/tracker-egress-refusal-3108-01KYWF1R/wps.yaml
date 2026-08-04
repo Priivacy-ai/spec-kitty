@@ -1,0 +1,305 @@
+# Measurement base for every line citation, count and quoted `N passed` line in this
+# dossier. Distinct from the planning commit and from any implementation base: the
+# implementation base will be later, and the drift diff is
+#   git diff --stat bb2020fea..<implementation base> -- src/specify_cli/tracker/
+# Recorded here so the diff is derivable rather than transcribed out of prose.
+measurement_base_sha: bb2020fea
+planning_base_branch: bundle-c-tracker-refusal-3108
+
+# Every dependency edge on the board, classified. An edge that is preference must not
+# be read as necessity by a scheduler looking for parallelism, and a transitively
+# redundant edge must not be read as load-bearing by a reader tracing why a WP waits.
+dependency_notes:
+  - edge: WP03 -> WP02
+    kind: necessity
+    why: >-
+      WP03's Channel-2 resolver reads the `egress` field WP02 promotes into
+      `_KNOWN_KEYS`, and the module-local absence sentinel WP02 defines. Without
+      WP02 there is no field to decode.
+  - edge: WP04 -> WP01
+    kind: necessity
+    why: >-
+      WP04's acceptance evidence *is* WP01's refusing pins flipping red to green.
+      Without the harness there is nothing for the gate to be the cause of.
+  - edge: WP04 -> WP02
+    kind: transitively-redundant
+    why: >-
+      Implied by WP04 -> WP03 -> WP02. Kept explicit because WP04's T024 and T026
+      depend on WP02's field shape directly, not only through the verdict function.
+      Not load-bearing for scheduling.
+  - edge: WP04 -> WP03
+    kind: necessity
+    why: The three local gates call `tracker_egress_verdict`, which WP03 defines.
+  - edge: WP05 -> WP04
+    kind: risk-ordering
+    why: >-
+      Preference, not necessity. `plan.md` Sequencing states it: "nothing technical
+      forbids the reverse order"; it is preferred so the verdict function is already
+      exercised end to end by the local path before the shipped #3030 hosted gate is
+      touched. WP05's own prompt (H-A) already separates this from its land-alone
+      necessity; the board must not present the edge unqualified.
+  - edge: WP06 -> WP05
+    kind: risk-ordering
+    why: >-
+      Preference, not necessity. WP06's only technical dependency is the verdict
+      function (IC-04 / WP03) — `plan.md` says so explicitly, and WP06's own prompt
+      repeats it. The edge buys stability of guard G4's membership set when WP07
+      lands, which WP07's own dependencies already guarantee. Costs one
+      critical-path level; kept because the renderer's land-alone detection signal
+      (a count over shared rendered output) is easier to attribute on a quiet tree.
+      A scheduler short of parallelism may drop this edge to WP03.
+  - edge: WP07 -> WP04
+    kind: transitively-redundant
+    why: Implied by WP07 -> WP05 -> WP04. Kept explicit because G3 pins WP04's three sites.
+  - edge: WP07 -> WP05
+    kind: transitively-redundant
+    why: Implied by WP07 -> WP06 -> WP05. Kept explicit because G4/G5 pin WP05's call site.
+  - edge: WP07 -> WP06
+    kind: necessity
+    why: >-
+      G4's exact membership (five enclosing functions, six call expressions) is only
+      satisfiable once the doctor renderer's two call expressions exist.
+  - edge: WP08 -> WP05
+    kind: necessity
+    why: >-
+      IC-09(b): only after the hosted gate lands is the remaining C-016
+      HOSTED_SERVICE-side limitation's exact shape fixed, and the note states it.
+
+work_packages:
+  - id: WP01
+    title: "Acceptance harness proven on the un-gated tree (Stage 1 root)"
+    dependencies: []
+    owned_files:
+      - "tests/sync/tracker/test_tracker_egress_refusal_3108.py"
+    requirement_refs:
+      - FR-004
+      - FR-016
+      - FR-018
+      - NFR-001
+      - NFR-002
+      - NFR-004
+      - C-007
+      - C-011
+      - C-012
+      - C-013
+      - C-014
+      - C-015
+      - C-016
+      - C-019
+    plan_concern_refs:
+      - IC-01
+      - IC-10
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+      - T006
+      - T007
+
+    prompt_file: "tasks/WP01-acceptance-harness.md"
+  - id: WP02
+    title: "Channel-2 key shape and preservation at the erasure sites (Stage 2 root)"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/tracker/config.py"
+      - "src/specify_cli/tracker/service.py"
+      - "src/specify_cli/tracker/saas_service.py"
+      - "tests/sync/tracker/test_tracker_egress_config_3108.py"
+    requirement_refs:
+      - FR-002
+      - FR-006
+      - FR-009
+      - FR-010
+      - FR-011
+      - NFR-005
+      - C-001
+      - C-012
+      - C-019
+      - C-020
+      - C-011
+    plan_concern_refs:
+      - IC-02
+      - IC-03
+      - IC-11
+    subtasks:
+      - T008
+      - T009
+      - T010
+      - T011
+      - T012
+      - T013
+      - T014
+
+    prompt_file: "tasks/WP02-channel2-key-and-preservation.md"
+  - id: WP03
+    title: "tracker_egress_verdict: one function, one message, never raising"
+    dependencies:
+      - WP02
+    owned_files:
+      - "src/specify_cli/tracker/egress_verdict.py"
+      - "tests/sync/tracker/test_tracker_egress_verdict_3108.py"
+    requirement_refs:
+      - FR-003
+      - FR-004
+      - FR-005
+      - FR-006
+      - FR-007
+      - FR-008
+      - FR-012
+      - FR-017
+      - NFR-003
+      - NFR-005
+      - C-002
+      - C-003
+      - C-004
+      - C-005
+      - C-008
+      - C-017
+      - C-011
+    plan_concern_refs:
+      - IC-04
+      - IC-11
+    subtasks:
+      - T015
+      - T016
+      - T017
+      - T018
+      - T019
+      - T020
+
+    prompt_file: "tasks/WP03-tracker-egress-verdict.md"
+  - id: WP04
+    title: "The local gate, its bind preservation, and the CHANGELOG break entry"
+    dependencies:
+      - WP01
+      - WP02
+      - WP03
+    owned_files:
+      - "src/specify_cli/tracker/local_service.py"
+      - "src/specify_cli/cli/commands/tracker.py"
+      - "tests/sync/tracker/test_local_service.py"
+      - "CHANGELOG.md"
+    requirement_refs:
+      - FR-001
+      - FR-011
+      - FR-012
+      - FR-013
+      - FR-017
+      - NFR-001
+      - NFR-002
+      - NFR-004
+      - NFR-005
+      - C-012
+      - C-018
+      - C-021
+      - C-011
+    plan_concern_refs:
+      - IC-03
+      - IC-05
+      - IC-09
+      - IC-11
+    subtasks:
+      - T021
+      - T022
+      - T023
+      - T024
+      - T025
+      - T026
+      - T027
+
+    prompt_file: "tasks/WP04-local-gate.md"
+  - id: WP05
+    title: "The hosted gate: Channel 2 as a narrowing conjunct (lands alone)"
+    dependencies:
+      - WP04
+    owned_files:
+      - "src/specify_cli/tracker/saas_client.py"
+    requirement_refs:
+      - FR-004
+      - FR-016
+      - NFR-005
+      - C-002
+      - C-011
+      - C-016
+    plan_concern_refs:
+      - IC-06
+      - IC-11
+    subtasks:
+      - T028
+      - T029
+      - T030
+      - T031
+
+    prompt_file: "tasks/WP05-hosted-gate.md"
+  - id: WP06
+    title: "sync doctor reports the verdict the gate enforces (lands alone)"
+    dependencies:
+      - WP05
+    owned_files:
+      - "src/specify_cli/cli/commands/sync.py"
+      - "tests/cli/commands/test_sync_doctor_tracker_egress_3108.py"
+    requirement_refs:
+      - FR-014
+      - NFR-005
+      - C-012
+      - C-020
+      - C-011
+    plan_concern_refs:
+      - IC-07
+      - IC-11
+    subtasks:
+      - T032
+      - T033
+      - T034
+      - T035
+      - T036
+
+    prompt_file: "tasks/WP06-sync-doctor-renderer.md"
+  - id: WP07
+    title: "Falsity guards G1-G6, exact and not blind to their own subject"
+    dependencies:
+      - WP04
+      - WP05
+      - WP06
+    owned_files:
+      - "tests/architectural/test_tracker_egress_guards_3108.py"
+    requirement_refs:
+      - FR-015
+      - C-002
+      - C-006
+      - C-009
+      - C-010
+      - C-011
+    plan_concern_refs:
+      - IC-08
+    subtasks:
+      - T037
+      - T038
+      - T039
+      - T040
+      - T041
+      - T042
+
+    prompt_file: "tasks/WP07-falsity-guards.md"
+  - id: WP08
+    title: "The upgrade note, its index link, and the anchor check"
+    dependencies:
+      - WP05
+    owned_files:
+      - "docs/migrations/tracker-egress-*.md"
+      - "docs/migrations/index.md"
+      - "tests/docs/test_tracker_egress_upgrade_note_3108.py"
+    requirement_refs:
+      - FR-013
+      - C-016
+      - C-011
+    plan_concern_refs:
+      - IC-09
+    subtasks:
+      - T043
+      - T044
+      - T045
+      - T046
+    prompt_file: "tasks/WP08-upgrade-note.md"
