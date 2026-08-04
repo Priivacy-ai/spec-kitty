@@ -23,6 +23,7 @@ from specify_cli.core import (
 )
 from specify_cli.core.env import is_interactive
 from specify_cli.core.time_utils import now_utc_iso
+from specify_cli.core.utils import safe_is_dir
 from specify_cli.core.vcs import (
     is_git_available,
     VCSBackend,
@@ -155,10 +156,16 @@ def _has_global_runtime() -> bool:
     try:
         global_home = get_kittify_home()
         missions_dir = global_home / "missions"
-        if not missions_dir.is_dir():
+        if not safe_is_dir(missions_dir):
             return False
-        # Check for at least one mission subdirectory
-        return any(p.is_dir() for p in missions_dir.iterdir())
+        # Check for at least one mission subdirectory. `safe_is_dir` can raise
+        # `OSError` for a genuinely unreadable entry (rather than silently
+        # answering `False` the way `Path.is_dir()` does on 3.14 only — see
+        # its docstring); the enclosing `except (RuntimeError, OSError)` below
+        # already treats that identically to "no global runtime", so this
+        # function's own answer does not change, only the reasoning leading to
+        # it: it is no longer a coincidence of the resolved interpreter.
+        return any(safe_is_dir(p) for p in missions_dir.iterdir())
     except (RuntimeError, OSError):
         return False
 
