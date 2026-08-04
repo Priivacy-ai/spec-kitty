@@ -772,6 +772,34 @@ def test_injected_unwrapped_function_local_raw_service_is_flagged(tmp_path: Path
     assert check_locality_gate(tuple(raw_sites)), "Policy B must bite too"
 
 
+def test_detector_follows_function_local_rebinding(tmp_path: Path) -> None:
+    """A1 widening: a function-local ``Local = RawDoctrineService`` still reds.
+
+    Measured injection-probe miss on Gate 2 (8/9 catch rate): the predecessor
+    ``_module_level_rebinds`` only walked module scope, so a construction
+    reached through a rebind alias assigned *inside* the function body evaded
+    both policies. Injected at function-local scope specifically (NFR-003).
+    """
+    raw_sites, result = _raw_scratch(
+        tmp_path,
+        "regressed_local_rebind.py",
+        "def build(project_root):\n"
+        "    from doctrine.service import DoctrineService as RawDoctrineService\n"
+        "\n"
+        "    Local = RawDoctrineService\n"
+        "    return Local(project_root=project_root)\n",
+    )
+    assert result.unresolved == [], [s.describe() for s in result.unresolved]
+    assert [raw.site.qualname for raw in raw_sites] == ["build"], [
+        raw.site.describe() for raw in raw_sites
+    ]
+    assert not raw_sites[0].verdict.wrapped
+    escapes = check_unwrapped_escape_gate(tuple(raw_sites))
+    assert escapes, "Policy A must bite on a function-local alias rebind"
+    assert "regressed_local_rebind.py" in escapes[0]
+    assert check_locality_gate(tuple(raw_sites)), "Policy B must bite too"
+
+
 def test_injected_aliased_nested_raw_service_is_flagged(tmp_path: Path) -> None:
     """An ``as``-aliased raw import nested in ``try``/``except`` still reds.
 
