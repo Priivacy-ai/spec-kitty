@@ -1,6 +1,6 @@
 ---
 title: 'Charter as Sole Door: Deferred Issues Record'
-description: Citable record of the five GitHub issues a pre-spec research squad confirmed are adjacent-but-separate from the charter-sole-door-bypass-closure mission and must stay deferred as their own follow-ons.
+description: Citable record of the five GitHub issues confirmed adjacent-but-separate from the charter-sole-door-bypass-closure mission, deferred as their own follow-ons.
 doc_status: active
 updated: '2026-08-03'
 related:
