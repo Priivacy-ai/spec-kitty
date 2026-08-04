@@ -201,6 +201,32 @@ jobs:
             sync:
               - 'src/specify_cli/sync/**'
               - 'src/specify_cli/core/loopback_http.py'
+              # CI ROUTING ONLY — not an import-edge claim. specify_cli.egress
+              # is the shared refusal-presentation module owned by neither
+              # transport; it must still import nothing from specify_cli.sync
+              # (mission egress-refusal-consolidation-3110, F2/FR-013). This
+              # entry PAIRS with the core_misc entry below: with core_misc
+              # alone, one group goes true, `unmatched` stays false, the
+              # run_all fallthrough does not fire, and fast-tests-sync (gated
+              # on `sync` alone) does not run — so tests/sync/tracker/ runs
+              # NOWHERE (the core-misc shard carries --ignore=tests/sync).
+              # Do not remove either entry without the other.
+              - 'src/specify_cli/egress.py'
+              # agent_surface also globs src/specify_cli/tracker/** but selects
+              # only fast-tests-core-misc, so a tracker-confined PR ran neither
+              # of SC-021's behavioural ratchets — which live in
+              # tests/sync/tracker/ and are collected by fast-tests-sync alone.
+              # Routed here so the guarantee does not expire the moment
+              # egress.py leaves the diff (FU-1).
+              # COST, named because T013 has no success criterion and this
+              # comment is the only place a future reader learns it: joining
+              # `sync` also fires integration-tests-sync-real-port and the
+              # serial daemon family on every PR touching tracker/**. That is a
+              # whole directory, touched far more often than the single refusal
+              # module above, so the recurring CI-minutes cost is materially
+              # larger here than the one named for egress.py. Accepted: the
+              # alternative is a ratchet that never runs on the file it guards.
+              - 'src/specify_cli/tracker/**'
               - 'tests/sync/**'
             merge:
               - 'src/specify_cli/merge/**'
@@ -268,6 +294,14 @@ jobs:
               - '.github/workflows/release.yml'
               - 'src/kernel/**'
               - 'src/doctrine/**'
+              # PAIRED with the 'src/specify_cli/egress.py' entry in the `sync`
+              # group above — see the rationale there. core_misc WITHOUT sync
+              # is a silent coverage loss, not a cost saving; it is worse than
+              # adding neither. Dual membership has in-repo precedent:
+              # core/loopback_http.py is claimed by `sync` (:203) and by
+              # 'src/specify_cli/core/**' in this group. Nothing enforces
+              # src-glob exclusivity.
+              - 'src/specify_cli/egress.py'
               - 'src/specify_cli/core/**'
               - 'src/specify_cli/coordination/**'
               - 'src/specify_cli/delivery/**'
@@ -1593,9 +1627,20 @@ jobs:
     name: fast-tests-core-misc (${{ matrix.shard }})
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, kernel-tests, fast-tests-doctrine]
+    # `cli` is in this disjunction for a reason that is NOT obvious from the
+    # group's name (mission egress-refusal-consolidation-3110, FR-017):
+    # fast-tests-cli runs ONLY tests/cli/ and tests/specify_cli/cli/, so a PR
+    # confined to src/specify_cli/cli/** used to run neither the SaaS-client
+    # attribution guard (tests/specify_cli/saas_client/, collected by this
+    # job's specify-cli-rest shard) nor anything else outside the cli cone.
+    # This edge changes job SELECTION only, never collection ownership — the
+    # alternative (adding tests/specify_cli/saas_client/ to fast-tests-cli's
+    # positionals) would make that root owned by two same-tier jobs and trip
+    # the never-same-tier-double-run invariant. Asserted by
+    # test_cli_only_pr_selects_the_saas_attribution_guard.
     if: >-
       always()
-      && (needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.execution_context == 'true' || needs.changes.outputs.glossary == 'true' || needs.changes.outputs.acceptance == 'true' || needs.changes.outputs.auth_audit_git == 'true' || needs.changes.outputs.lifecycle == 'true' || needs.changes.outputs.agent_surface == 'true' || needs.changes.outputs.closeout == 'true' || needs.changes.outputs.governance == 'true' || needs.changes.outputs.platform == 'true' || github.event_name == 'push')
+      && (needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.execution_context == 'true' || needs.changes.outputs.glossary == 'true' || needs.changes.outputs.acceptance == 'true' || needs.changes.outputs.auth_audit_git == 'true' || needs.changes.outputs.lifecycle == 'true' || needs.changes.outputs.agent_surface == 'true' || needs.changes.outputs.closeout == 'true' || needs.changes.outputs.governance == 'true' || needs.changes.outputs.platform == 'true' || github.event_name == 'push')
       && needs.kernel-tests.result != 'failure'
       && needs.fast-tests-doctrine.result != 'failure'
     strategy:

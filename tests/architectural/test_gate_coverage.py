@@ -29,6 +29,7 @@ The ratchet recollects the suite in a subprocess (~90s). It is marked
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
 from collections.abc import Callable
@@ -334,6 +335,429 @@ def test_windows_gate_models_windows_ci_marker(gates: list[gc.Gate]) -> None:
             "whole tree; without the windows_ci narrowing the fallback over-claims "
             "coverage."
         )
+
+
+# ---------------------------------------------------------------------------
+# FR-017 / SC-006 [standing] — job SELECTION, not merely group mention
+# (mission egress-refusal-consolidation-3110, WP02).
+#
+# These guards ask a question the rest of this module does not: given a dorny
+# filter state, does the job that *collects* a particular guard actually RUN?
+# They are asserted through the parsed model only — ``load_gates`` for what a
+# job collects, ``aggregate_filter_groups`` for what a path routes to, and
+# ``active_job_keys``/``job_runs_under`` for what then runs. Nothing here
+# restates a glob list or a job's ``if:`` by hand.
+#
+# CARRIED PREMISE, not measured (Decision D-4): this is a reading of the
+# workflow YAML plus the dorny/``needs`` evaluation model. It proves the
+# workflow *says* the right thing. Only a real CI observation proves the
+# runner *does* it, and that observation cannot be taken on the PR carrying
+# this change — see ``test_ci_quality_workflow_file_is_itself_a_core_misc_glob``.
+# ---------------------------------------------------------------------------
+
+# The SaaS-client attribution guard (#3030): the guard covering the
+# construction site this mission edits under ``src/specify_cli/cli/**``.
+_SAAS_ATTRIBUTION_GUARD = "tests/specify_cli/saas_client/test_client_consent_gate_3030.py"
+# The two tracker behavioural ratchets (FR-027/SC-021) that a ``core_misc``-only
+# routing edit would silently strand: the core-misc shard carries
+# ``--ignore=tests/sync``, so nothing else collects them.
+_TRACKER_RATCHETS = "tests/sync/tracker/test_saas_client_consent_gate_3030.py"
+# Both attribution guards are ``pytestmark = pytest.mark.fast``.
+_FAST_MARKERS: frozenset[str] = frozenset({"fast"})
+# A path under tests/ that no file occupies — the negative control that keeps
+# ``_jobs_collecting`` from degenerating into "some whole-tree gate exists".
+_NO_SUCH_TEST_PATH = "tests/__no_such_directory__/test_nothing.py"
+# A src path claimed by no named dorny group — the negative control for
+# ``_groups_claiming``.
+_NO_SUCH_SRC_PATH = "not_a_real_top_level_dir/nothing.py"
+
+_CI_QUALITY = "ci-quality.yml"
+_JOB_CLI: gc.JobKey = (_CI_QUALITY, "fast-tests-cli")
+_JOB_SYNC: gc.JobKey = (_CI_QUALITY, "fast-tests-sync")
+_JOB_CORE_MISC: gc.JobKey = (_CI_QUALITY, "fast-tests-core-misc")
+
+
+#: Positional-path sets that mean "the whole test tree". A gate carrying one of
+#: these selects every ``tests/`` path and so witnesses nothing about a specific
+#: file. ``[]`` is the parse-failure case; ``["tests"]`` / ``["tests/"]`` are the
+#: fallback that failure produces, and are what a bare truthiness check misses.
+_WHOLE_TREE_PATH_SETS: frozenset[tuple[str, ...]] = frozenset({(), ("tests",), ("tests/",)})
+
+
+def _is_whole_tree(paths: list[str] | None) -> bool:
+    """True when *paths* cannot witness that a specific file is collected."""
+    normalised = tuple(p.rstrip("/") for p in (paths or []))
+    return normalised in {tuple(p.rstrip("/") for p in s) for s in _WHOLE_TREE_PATH_SETS}
+
+
+def _jobs_collecting(
+    gates: list[gc.Gate],
+    relpath: str,
+    markers: frozenset[str] = _FAST_MARKERS,
+) -> frozenset[gc.JobKey]:
+    """``(workflow, job)`` whose parsed gate positionally collects ``relpath``.
+
+    A gate that runs the **whole tree** "selects" *any* ``tests/`` path —
+    including one no file occupies — so it cannot witness that a *specific*
+    file is collected. Such gates are excluded.
+
+    **Whole-tree-ness, not emptiness, is the property that matters, and the
+    difference is load-bearing.** An earlier form excluded on ``if gate.paths``
+    alone. That is necessary but not sufficient: a gate whose positionals could
+    not be parsed falls back to ``["tests"]``, which is *truthy*, so it survived
+    the filter. Five real gates in this repo carry exactly that shape —
+    ``timing-nfr-serial``, ``unit-contract-residual`` (twice),
+    ``quarantine-visibility`` and ``regression-tests`` — and each of them
+    selects a nonexistent path.
+
+    They are invisible under the default ``markers`` because their marker
+    expressions exclude ``fast``. But ``markers`` is a parameter: a caller
+    passing ``frozenset({"timing"})`` would be answered by a whole-tree
+    residual, with no control catching it — the same "proof that could not
+    fail" one marker set over. Excluding on whole-tree-ness makes the promise
+    above true rather than true-by-accident.
+
+    Not taken on trust:
+    :func:`test_saas_guard_collection_derivation_is_discriminating` requires the
+    nonexistent-path lookup to come back empty, and it exercises **every marker
+    set this helper is called with**, not just the default.
+    """
+    return frozenset(
+        (gate.workflow, gate.job)
+        for gate in gates
+        if not _is_whole_tree(gate.paths)
+        and gc.CompiledGate(gate).selects(relpath, f"{relpath}::test_x", set(markers))
+    )
+
+
+def _dorny_glob_to_regex(glob: str) -> str:
+    """Translate one dorny/picomatch glob to a regex over repo-relative paths.
+
+    ``**`` crosses directory separators, ``*`` and ``?`` do not. Everything else
+    is literal. Controlled against known answers in
+    :func:`test_group_claim_derivation_is_discriminating` before any conclusion
+    is drawn from it.
+    """
+    out: list[str] = []
+    index = 0
+    while index < len(glob):
+        if glob.startswith("**", index):
+            out.append(".*")
+            index += 2
+            continue
+        char = glob[index]
+        if char == "*":
+            out.append("[^/]*")
+        elif char == "?":
+            out.append("[^/]")
+        else:
+            out.append(re.escape(char))
+        index += 1
+    return f"^{''.join(out)}$"
+
+
+def _groups_claiming(models: dict[str, gc.WorkflowModel], relpath: str) -> frozenset[str]:
+    """Named dorny filter groups whose globs claim ``relpath``.
+
+    This is the dorny outputs a PR whose diff is confined to ``relpath`` would
+    set true — the input to :func:`gc.active_job_keys`.
+    """
+    return frozenset(
+        name
+        for name, globs in gc.aggregate_filter_groups(models).items()
+        if any(re.match(_dorny_glob_to_regex(glob), relpath) for glob in globs)
+    )
+
+
+def _selection_inputs(models: dict[str, gc.WorkflowModel]) -> dict[str, int]:
+    """The input sizes behind every assertion in this section (rule: a gate that
+    ran on zero inputs passes vacuously — report the counts next to the verdict).
+    """
+    return {
+        "workflow_models": len(models),
+        "named_filter_groups": len(gc.aggregate_filter_groups(models)),
+        "jobs": sum(len(model.job_if) for model in models.values()),
+    }
+
+
+def test_saas_guard_collection_derivation_is_discriminating(
+    gates: list[gc.Gate],
+) -> None:
+    """Control the ``_jobs_collecting`` probe against answers already known.
+
+    Run before anything is concluded from it. Without the empty result on the
+    first case, every later "job X collects the guard" would be satisfied by the
+    whole-tree residual shard and could not fail.
+    """
+    # The nonexistent-path control runs under EVERY marker set, not only the
+    # default. Five gates in this repo carry a whole-tree positional
+    # (``paths=["tests/"]``) and are invisible under ``{"fast"}`` purely because
+    # their marker expressions exclude it — so a default-only control would pass
+    # while the helper stayed vacuous for any other marker set a caller passes.
+    for probe_markers in (
+        _FAST_MARKERS,
+        frozenset({"timing"}),
+        frozenset({"unit"}),
+        frozenset({"contract"}),
+        frozenset({"quarantine"}),
+        frozenset({"regression"}),
+    ):
+        assert _jobs_collecting(gates, _NO_SUCH_TEST_PATH, probe_markers) == frozenset(), (
+            f"under markers={sorted(probe_markers)}, a path no file occupies resolves "
+            "to a collecting job — the probe is matching a whole-tree gate and cannot "
+            "witness that any specific file is collected. Exclude on whole-tree-ness, "
+            "not on empty positionals: the parse-failure fallback is ['tests'], which "
+            "is truthy and survives a bare `if gate.paths`."
+        )
+    assert _jobs_collecting(gates, "tests/cli/test_control.py") == frozenset({_JOB_CLI}), (
+        "control failed: tests/cli/ is fast-tests-cli's own positional root."
+    )
+    assert _jobs_collecting(gates, _TRACKER_RATCHETS) == frozenset({_JOB_SYNC}), (
+        "control failed: the tracker ratchets are collected by fast-tests-sync "
+        "ALONE — the core-misc shard carries --ignore=tests/sync. This is the "
+        "fact that makes a core_misc-only routing edit a silent coverage loss."
+    )
+
+    collectors = _jobs_collecting(gates, _SAAS_ATTRIBUTION_GUARD)
+    assert collectors, (
+        f"no CI job collects {_SAAS_ATTRIBUTION_GUARD} at all — the guard is an "
+        "orphan and FR-017's routing question is moot."
+    )
+    assert _JOB_CLI not in collectors, (
+        "fast-tests-cli now collects the SaaS-client attribution guard "
+        f"(collectors={sorted(collectors)}). That is the premise FR-017 exists "
+        "to work around (fast-tests-cli runs only tests/cli/ and "
+        "tests/specify_cli/cli/); if it has changed, the routing fix below is "
+        "no longer the mechanism that makes the guard run on a cli-only diff."
+    )
+
+
+def test_cli_only_pr_selects_the_saas_attribution_guard(
+    gates: list[gc.Gate],
+    record_property: RecordPropertyFn,
+) -> None:
+    """SC-006 [standing] / FR-017: a ``cli``-only diff must RUN the SaaS guard.
+
+    A PR whose diff is confined to ``src/specify_cli/cli/**`` sets exactly the
+    ``cli`` dorny output. ``fast-tests-cli`` runs only ``tests/cli/`` and
+    ``tests/specify_cli/cli/``, so unless some *other* job that collects the
+    attribution guard is also selected, the guard covering this mission's own
+    construction-site edit does not run on this mission's own change shape.
+    """
+    models = gc.load_workflow_models()
+    counts = _selection_inputs(models)
+    record_property("fr017_selection_inputs", counts)
+    assert all(value > 0 for value in counts.values()), (
+        f"vacuous inputs — nothing was parsed: {counts}"
+    )
+
+    cli_only = gc.active_job_keys(
+        models, event_name=gc.PULL_REQUEST_EVENT, active_groups=frozenset({"cli"}),
+    )
+    sync_only = gc.active_job_keys(
+        models, event_name=gc.PULL_REQUEST_EVENT, active_groups=frozenset({"sync"}),
+    )
+    # CONTROL FIRST — three answers known independently of the property below.
+    assert _JOB_CLI in cli_only, f"control failed: cli-only does not select fast-tests-cli ({counts})"
+    assert _JOB_SYNC not in cli_only, f"control failed: cli-only selects fast-tests-sync ({counts})"
+    assert _JOB_SYNC in sync_only, f"control failed: sync-only does not select fast-tests-sync ({counts})"
+
+    collectors = _jobs_collecting(gates, _SAAS_ATTRIBUTION_GUARD)
+    selected_collectors = collectors & cli_only
+    assert selected_collectors, (
+        "SC-006 [standing] FAILS: a pull request confined to src/specify_cli/cli/** "
+        f"selects no job that collects {_SAAS_ATTRIBUTION_GUARD}.\n"
+        f"  jobs that collect the guard : {sorted(collectors)}\n"
+        f"  jobs selected by cli-only   : {sorted(job for wf, job in cli_only if wf == _CI_QUALITY)}\n"
+        f"  selection inputs            : {counts}\n"
+        "Fix: add needs.changes.outputs.cli == 'true' to the disjunction in "
+        "fast-tests-core-misc's job-level if: gate in .github/workflows/ci-quality.yml."
+    )
+
+
+def test_group_claim_derivation_is_discriminating(
+    record_property: RecordPropertyFn,
+) -> None:
+    """Control ``_groups_claiming`` (and its glob translation) on known answers.
+
+    Also pins the SC-006 [one-off] confound as a measured fact rather than
+    prose: ``.github/workflows/ci-quality.yml`` is itself claimed by
+    ``core_misc``, so ANY pull request editing that file selects
+    ``fast-tests-core-misc`` for that reason alone.
+    """
+    models = gc.load_workflow_models()
+    counts = _selection_inputs(models)
+    record_property("fr017_selection_inputs", counts)
+
+    assert _groups_claiming(models, _NO_SUCH_SRC_PATH) == frozenset(), (
+        "a path no group globs resolves to a claiming group — the glob "
+        f"translation over-matches and every claim below would be vacuous ({counts})."
+    )
+    assert "sync" in _groups_claiming(models, "src/specify_cli/sync/router.py"), (
+        f"control failed: src/specify_cli/sync/** is the sync group's own glob ({counts})"
+    )
+    assert "cli" in _groups_claiming(models, "src/specify_cli/cli/commands/decision.py"), (
+        f"control failed: src/specify_cli/cli/** is the cli group's own glob ({counts})"
+    )
+    # Dual membership already has in-repo precedent — nothing enforces
+    # src-glob exclusivity, so the egress pairing below is not novel.
+    loopback_groups = _groups_claiming(models, "src/specify_cli/core/loopback_http.py")
+    assert {"sync", "core_misc"} <= loopback_groups, (
+        "control failed: core/loopback_http.py is the measured dual-membership "
+        f"precedent (listed verbatim in sync, swept by core/** in core_misc), got {sorted(loopback_groups)}"
+    )
+
+
+def test_ci_quality_workflow_file_is_itself_a_core_misc_glob(
+    record_property: RecordPropertyFn,
+) -> None:
+    """SC-006 [one-off] confound, measured — why the mission PR proves nothing.
+
+    ``.github/workflows/ci-quality.yml`` is a member of the ``core_misc`` glob
+    list. Any pull request that edits it therefore sets ``core_misc`` true and
+    selects ``fast-tests-core-misc`` *for that reason*, whatever else the diff
+    contains. "fast-tests-core-misc ran on the mission PR" is a tautology that
+    looks exactly like proof of the routing fix, and it is not proof of it.
+    The [one-off] half is necessarily a post-merge observation.
+
+    ------------------------------------------------------------------
+    THE OUTSTANDING OBLIGATION — carried here deliberately
+    ------------------------------------------------------------------
+
+    **This test is the carrier for SC-006's [one-off] half.** That obligation's
+    evidence is taken *after* the mission's own record closes, so it had no home
+    inside the mission. It is folded in here, next to the assertion that pins the
+    confound, because this is where anyone investigating CI routing arrives.
+
+    **What is owed.** An observation that the FR-017 routing fix actually changes
+    job **selection on the runner** — not a re-reading of this YAML. The static
+    half is discharged by ``test_cli_only_pr_selects_the_saas_attribution_guard``
+    in this module; it proves the workflow *says* the right thing. Only a real run
+    proves the runner *does* it. Reading the workflow again is **not admissible**:
+    Decision D-4's whole premise is that the runner's behaviour has never been
+    watched.
+
+    **Why you cannot take it on a PR that carries the fix.** See the confound
+    above. Verify it yourself rather than trusting these words::
+
+        grep -n "ci-quality.yml" .github/workflows/ci-quality.yml
+
+    **Why the "stacked throwaway PR" substitute does not work here.**
+    ``on.pull_request.branches`` filters on the PR's **base** ref, so a PR based
+    on the mission branch is never selected for a CI Quality run at all — no job
+    runs, nothing to quote. Adding the mission branch to that list would mean
+    editing this workflow again, reinstating the confound.
+
+    **Acceptance condition, checkable by someone who was not here.** On the first
+    pull request that lands after this mission merges whose diff is confined to
+    ``src/specify_cli/cli/**`` — touching **no** workflow file and **no** path in
+    the ``closeout``/``decisions`` groups — quote the **selected job list** and the
+    **run URL**, and confirm the job collecting the SaaS-client attribution guard
+    (``tests/specify_cli/saas_client/test_client_consent_gate_3030.py``) is in it.
+
+    * **Accept** if that job appears in the selected set.
+    * **Reject** if it does not — and note that a divergence from the static
+      assertion above is a real finding **about the parser**, not about the
+      workflow.
+
+    Route the adjudication through
+    ``packs/built-in/procedures/post-merge-arch-gate-adjudication.procedure.yaml``.
+    (The mission plan cited ``src/doctrine/procedures/built-in/…``; that path does
+    not exist — corrected here so the pointer does not dangle.)
+
+    **Until that observation exists, SC-006's [one-off] half is NOT discharged.**
+    Do not let the mission PR's own ``fast-tests-core-misc`` run be offered as it.
+    """
+    models = gc.load_workflow_models()
+    record_property("fr017_selection_inputs", _selection_inputs(models))
+    workflow_relpath = f".github/workflows/{_CI_QUALITY}"
+
+    assert "core_misc" in _groups_claiming(models, workflow_relpath), (
+        f"{workflow_relpath} is no longer claimed by the core_misc group. The "
+        "recorded SC-006 [one-off] confound rests on that membership; if it has "
+        "genuinely gone, the post-merge observation may be re-planned."
+    )
+    self_edit = gc.active_job_keys(
+        models,
+        event_name=gc.PULL_REQUEST_EVENT,
+        active_groups=_groups_claiming(models, workflow_relpath),
+    )
+    assert _JOB_CORE_MISC in self_edit, (
+        "the confound's conclusion no longer follows from its premise: editing "
+        "the workflow file claims core_misc but does not select "
+        "fast-tests-core-misc."
+    )
+
+
+def test_egress_module_diff_selects_both_sync_and_core_misc(
+    record_property: RecordPropertyFn,
+) -> None:
+    """R2b: the two ``src/specify_cli/egress.py`` glob lines are a PAIR.
+
+    ``core_misc`` alone is the dangerous direction, and it is worse than adding
+    neither: one group true means ``unmatched`` is false, so the ``run_all``
+    fallthrough does not fire, ``fast-tests-sync`` (gated on ``sync`` alone) does
+    not run, and ``tests/sync/tracker/`` — which the core-misc shard ignores —
+    runs nowhere. That silently drops FR-027/SC-021's two behavioural ratchets,
+    FR-024/SC-016's tracker-side DENIED pin and the tracker attribution guard,
+    on exactly the diff shape FR-008 is designed to produce.
+
+    Group membership here is CI *routing*. It is not an import-edge claim:
+    ``egress.py`` must still import nothing from ``specify_cli.sync``
+    (F2/FR-013). Do not "tidy" either glob away to restore apparent consistency
+    with that prohibition — they answer different questions.
+    """
+    models = gc.load_workflow_models()
+    counts = _selection_inputs(models)
+    record_property("fr017_selection_inputs", counts)
+
+    claimed = _groups_claiming(models, "src/specify_cli/egress.py")
+    selected = gc.active_job_keys(
+        models, event_name=gc.PULL_REQUEST_EVENT, active_groups=claimed,
+    )
+    assert _JOB_CORE_MISC in selected, (
+        "an egress.py-confined diff does not select fast-tests-core-misc "
+        f"(groups claiming the module: {sorted(claimed)}; inputs: {counts})."
+    )
+    assert _JOB_SYNC in selected, (
+        "an egress.py-confined diff does not select fast-tests-sync — this is "
+        "the SILENT half of R2b, not a cost problem. Groups claiming the "
+        f"module: {sorted(claimed)}. Add 'src/specify_cli/egress.py' to the "
+        "sync filter group in .github/workflows/ci-quality.yml; do not "
+        f"'fix' this by removing the core_misc entry. Inputs: {counts}"
+    )
+
+
+def test_tracker_only_diff_selects_the_job_collecting_its_ratchets(
+    gates: list[gc.Gate],
+    record_property: RecordPropertyFn,
+) -> None:
+    """FU-1: route SC-021's ratchets to the file they protect, not to one diff shape.
+
+    ``agent_surface`` owns ``src/specify_cli/tracker/**`` and selects
+    ``fast-tests-core-misc`` but not ``fast-tests-sync``. A PR confined to
+    ``src/specify_cli/tracker/saas_client.py`` — the file whose call at :329
+    FR-027/SC-021 exists to protect — would therefore run neither ratchet, while
+    C-004's substring gate stays green on the import line alone. This guarantee
+    must not expire the moment ``egress.py`` leaves the diff.
+    """
+    models = gc.load_workflow_models()
+    record_property("fr017_selection_inputs", _selection_inputs(models))
+
+    ratchet_collectors = _jobs_collecting(gates, _TRACKER_RATCHETS)
+    assert ratchet_collectors, f"no job collects {_TRACKER_RATCHETS}"
+
+    claimed = _groups_claiming(models, "src/specify_cli/tracker/saas_client.py")
+    selected = gc.active_job_keys(
+        models, event_name=gc.PULL_REQUEST_EVENT, active_groups=claimed,
+    )
+    assert ratchet_collectors & selected, (
+        "a tracker-confined diff selects no job that collects the tracker "
+        f"ratchets.\n  collected by : {sorted(ratchet_collectors)}\n"
+        f"  groups claimed: {sorted(claimed)}\n"
+        "Fix: add 'src/specify_cli/tracker/**' to the sync filter group in "
+        ".github/workflows/ci-quality.yml."
+    )
 
 
 # ---------------------------------------------------------------------------
