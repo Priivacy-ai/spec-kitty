@@ -396,6 +396,24 @@ def _shift_ordering_timestamp(
     return encoded
 
 
+def _combined_events(
+    transitions: list[StatusEvent],
+    annotations: list[InnerStateChanged],
+) -> tuple[StatusEvent | InnerStateChanged, ...]:
+    """Splice a transitions list and an annotations list into one typed sequence.
+
+    ``(*transitions, *annotations)`` inline at a call site makes mypy infer the
+    *join* of ``StatusEvent`` and ``InnerStateChanged`` for the resulting
+    tuple's element type. The two dataclasses share no base other than
+    ``object``, so the join — and therefore every element mypy sees pulled
+    from that tuple — degrades to ``object``, which then cascades into
+    "object has no attribute ..." errors at every read site downstream. Typing
+    the return here once pins the true ``StatusEvent | InnerStateChanged``
+    union at the single point the two streams are combined.
+    """
+    return (*transitions, *annotations)
+
+
 def _wp_events(
     stream: EventStream,
     wp_id: str,
@@ -421,7 +439,7 @@ def _wp_events(
     """
     events: list[StatusEvent | InnerStateChanged] = [
         event
-        for event in (*stream.transitions, *stream.annotations)
+        for event in _combined_events(stream.transitions, stream.annotations)
         if event.wp_id == wp_id
     ]
     if include_seeds:
@@ -1195,10 +1213,10 @@ def _misaligned_seed_wps(
     """
     expected_by_id: dict[str, StatusEvent | InnerStateChanged] = {
         event.event_id: event
-        for event in (*expected_transitions, *expected_annotations)
+        for event in _combined_events(expected_transitions, expected_annotations)
     }
     misaligned: set[str] = set()
-    for actual in (*stream.transitions, *stream.annotations):
+    for actual in _combined_events(stream.transitions, stream.annotations):
         if actual.actor != BACKFILL_ACTOR:
             continue
         expected = expected_by_id.get(actual.event_id)
@@ -1453,7 +1471,7 @@ def backfill_runtime_state(
     stream = read_event_stream(feature_dir)
     existing_ids = {
         event.event_id
-        for event in (*stream.transitions, *stream.annotations)
+        for event in _combined_events(stream.transitions, stream.annotations)
     }
     new_transitions = [e for e in transitions if e.event_id not in existing_ids]
     new_annotations = [a for a in annotations if a.event_id not in existing_ids]
@@ -1697,12 +1715,12 @@ def _verify_expected_seed_events(
     stream = read_event_stream(feature_dir)
     actual_by_id: dict[str, StatusEvent | InnerStateChanged] = {
         event.event_id: event
-        for event in (*stream.transitions, *stream.annotations)
+        for event in _combined_events(stream.transitions, stream.annotations)
     }
     legacy_carriers = _legacy_contract_carriers(feature_dir, read_dir, legacy, stream)
     mismatches: list[str] = []
 
-    for expected in (*expected_transitions, *expected_annotations):
+    for expected in _combined_events(expected_transitions, expected_annotations):
         mismatch = _seed_row_mismatch(
             expected,
             actual_by_id.get(expected.event_id),
@@ -1738,10 +1756,12 @@ def _verify_compatibility_repairs(
     )
     actual_by_id: dict[str, StatusEvent | InnerStateChanged] = {
         event.event_id: event
-        for event in (*stream.transitions, *stream.annotations)
+        for event in _combined_events(stream.transitions, stream.annotations)
     }
     mismatches: list[str] = []
-    for expected in (*expected_repair_transitions, *expected_repair_annotations):
+    for expected in _combined_events(
+        expected_repair_transitions, expected_repair_annotations
+    ):
         actual = actual_by_id.get(expected.event_id)
         if actual is None:
             mismatches.append(
@@ -1767,9 +1787,9 @@ def _verify_compatibility_repairs(
         )
     ):
         desired = desired_snapshot.work_packages.get(wp_id, {})
-        actual = actual_snapshot.work_packages.get(wp_id, {})
+        actual_state = actual_snapshot.work_packages.get(wp_id, {})
         for slot in ("lane", *_SEED_RUNTIME_SLOTS):
-            if desired.get(slot) != actual.get(slot):
+            if desired.get(slot) != actual_state.get(slot):
                 mismatches.append(
                     f"{wp_id}: compatibility repair did not restore {slot}"
                 )
