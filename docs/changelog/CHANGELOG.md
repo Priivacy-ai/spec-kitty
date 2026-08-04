@@ -1028,23 +1028,29 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   If your `charter.yaml`/pack config selects only some of a pack's
   directives (or tactics, styleguides, toolguides, mission-step contracts,
   glossary packs), the runtime, CLI, and rendered context now consistently
-  show only the selected set for those 6 kinds, and mission-type selection
-  is honoured the same way. Previously this filtering only worked for
-  `paradigm`, `procedure`, and `agent_profile` — the other 6 kinds and the
-  `mission-type` token fell through unfiltered, so a deactivated pack could
-  still show up. **If you haven't configured any activation selection,
-  nothing changes** — a bare/unconfigured project's result set is
-  unaffected. One deliberate exception: `.kittify/profiles` (a
-  local-override directory outside the doctrine activation model) is
-  explicitly still unfiltered by this change — a scope call, not a missed
-  site; that area is slated for separate future rework.
+  show only the selected set for those 6 kinds. Previously this filtering
+  only worked for `paradigm`, `procedure`, and `agent_profile` — the other 6
+  kinds fell through unfiltered, so a deactivated pack could still show up.
+  Mission-type selection was already honoured before this mission; it is
+  now covered by regression tests confirming that. **If you haven't
+  configured any activation selection, nothing changes** — a
+  bare/unconfigured project's result set is unaffected. One deliberate
+  exception: `.kittify/profiles` (a local-override directory outside the
+  doctrine activation model) is explicitly still unfiltered by this
+  change — a scope call, not a missed site; that area is slated for
+  separate future rework.
 
-  Under the hood, this closes every remaining bypass around the charter's
-  `DoctrineService` factory — the two previously-divergent "canonical"
-  construction paths are now one, ~20 call sites that built repositories or
-  services directly (or reached past the factory's wrapper) now route
-  through it, and 5 zero-tolerance architectural tests guard against
-  regressions in each bypass category. This mission also promotes
+  Under the hood, this closes every **enumerated direct-construction and
+  `._inner` bypass** around the charter's `DoctrineService` factory and
+  extends activation gating from 3 kinds to all 9 charter-activatable kinds
+  plus the `mission-type` token. It does **not** close the full ~20-door
+  list: `doctrine.template_catalog.resolve_template_by_id` (5 importers),
+  `specify_cli/runtime/resolver.py`'s tier-1–4 reimplementation,
+  `runtime/home.py`'s `importlib.resources` root lookup, three
+  root-relative missions-root duplicates, and one escalated
+  `AgentProfileRepository` site (`tool_surface/profiles/projection.py`)
+  remain — each named in the mission spec and tracked as its own follow-on
+  (#3176 for the last). This mission also promotes
   `MissionTemplateRepository.default_missions_root()` as the single shared
   missions-root authority and retargets two duplicate hardcoded path
   constructions onto it, but that consolidation does **not** claim
