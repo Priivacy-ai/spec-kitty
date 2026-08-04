@@ -156,14 +156,19 @@ class OrgCharterDeviationChecker:
         except ImportError:
             return []
 
-        _pack_ctx = None
-        try:
-            from charter.invocation_context import ProjectContext  # noqa: PLC0415
+        # Landing-fold regression fix (defect 3): the previous
+        # ``try/except Exception: pass`` silently degraded to an unfiltered
+        # (``pack_context=None``) policy load on ANY failure, not just a
+        # genuinely-absent-module case -- the byte-identical fail-open shape
+        # this same commit removes from ``generate.py``. ``charter`` is
+        # first-party and ships in the same wheel, so there is no legitimate
+        # "not yet available" case to tolerate here; call it directly and let
+        # ``charter.pack_context.CharterPackConfigError`` (raised by
+        # ``PackContext.from_config`` inside ``ProjectContext.from_repo``)
+        # propagate rather than silently falling back to an unfiltered scan.
+        from charter.invocation_context import ProjectContext  # noqa: PLC0415
 
-            _ctx = ProjectContext.from_repo(repo_root)
-            _pack_ctx = _ctx.require_pack_context()
-        except Exception:  # noqa: BLE001 — activation filter is best-effort
-            pass
+        _pack_ctx = ProjectContext.from_repo(repo_root).require_pack_context()
 
         try:
             policies = load_org_charter_policies(repo_root, pack_context=_pack_ctx)
@@ -258,12 +263,22 @@ def _build_scan_service(repo_root: Path, *, org_roots: list[Path] | None = None)
     *wrong* fix had it ever fired. It is removed outright (DIRECTIVE_025 Boy
     Scout Rule) rather than "fixed" into a wrap that provably breaks the
     checker.
+
+    Landing-fold regression fix (defect 3): a SECOND ``except ImportError:
+    return None`` survived here, guarding the imports below. Both callers
+    (:func:`_build_service_with_org_layer` / :func:`_build_built_in_only_service`)
+    treat a ``None`` return as "skip the check" (``OrgOverridesBuiltinChecker.run``'s
+    ``if service is None: return []`` / ``if built_in_only is None: return []``).
+    ``charter.doctrine_service_builder`` and ``charter.resolver`` are
+    first-party modules shipped in the same wheel as this one -- there is no
+    legitimate partial-install scenario in which this import fails -- so the
+    handler could only ever fire on a genuinely broken install, in which case
+    the operator should see an ``ImportError``, not a silently empty
+    org-override report. The import is left function-local (matching this
+    module's lazy-import convention) but is no longer guarded.
     """
-    try:
-        from charter.doctrine_service_builder import _build_doctrine_service
-        from charter.resolver import DoctrineService as ActivationAwareDoctrineService
-    except ImportError:
-        return None
+    from charter.doctrine_service_builder import _build_doctrine_service
+    from charter.resolver import DoctrineService as ActivationAwareDoctrineService
 
     inner = _build_doctrine_service(repo_root, org_roots=org_roots)
     return ActivationAwareDoctrineService(inner, pack_context=None)
