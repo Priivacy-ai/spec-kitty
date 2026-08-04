@@ -2,11 +2,12 @@
 title: 'Context: Identity'
 description: 'Glossary context for identity: who performs work and who owns semantic decisions, defining the agent and related workflow-coordination roles.'
 doc_status: active
-updated: '2026-07-20'
+updated: '2026-08-04'
 related:
 - docs/context/execution.md
 - docs/context/practices-principles.md
 - docs/adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md
+- docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md
 ---
 ## Context: Identity
 
@@ -154,3 +155,18 @@ See the [Agent Profiles reference](../reference/agent_profiles/index.md) for the
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
 | **Related terms** | [Mission Owner](#mission-owner), [Collaboration Mode](./execution.md#collaboration-mode), [HiC cross-reference](./practices-principles.md#human-in-charge-cross-reference) |
+
+---
+
+### engagement
+
+| | |
+|---|---|
+| **Definition** | The client relationship a [Mission](./orchestration.md#mission) is carried out under — the real-world party whose work the Mission delivers. Because Missions are named after the work, **a mission slug is a client engagement name**, and so are the issue titles derived from it. The term therefore names a *third party*, not a unit of work: disclosing a mission identifier discloses who the client is. This is the whole ground of the project-egress consent boundary — only the project that owns a record may consent to that record leaving the machine, and inability to determine which project owns it is never consent. |
+| **Context** | Identity |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Examples** | The operator-facing hosted-sync refusal names the term verbatim: *"the project at `<root>` has not consented to hosted sync, so its **mission and engagement identifiers** must not be transmitted"* (`TRACKER_EGRESS_IDENTIFIER_KINDS`, `specify_cli/tracker/saas_client.py`, rendered through `specify_cli/egress.py`). Four of the five widen-mode SaaS endpoints carry `mission_id` — documented as "ULID **or** slug" — in the *request path*, so an engagement name can reach the wire in a URL as readily as in a body. |
+| **Use when** | Explaining *why* a mission identifier is confidential, or naming the party that a slug, branch name, worktree name or issue title discloses. |
+| **Do NOT use when** | Referring to the unit of work itself — that is a [Mission](./orchestration.md#mission). Or to the SaaS collaboration binding a repository may have — that is [`project_uuid`](./identity-fields.md#project_uuid), a SaaS-assigned identity that names no client. |
+| **Related terms** | [Mission](./orchestration.md#mission), [Mission Owner](#mission-owner), [Mission Participant](#mission-participant), [`project_uuid`](./identity-fields.md#project_uuid), [`repository_label`](./identity-fields.md#repository_label) |
