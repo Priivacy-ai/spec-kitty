@@ -1,27 +1,35 @@
 """WP08 — FR-006 mission-type activation gating regression tests.
 
-Covers the activation gate in ``charter.mission_type_profiles``:
-``resolve_mission_type_context()`` intersects a single candidate
-``mission_type`` against the project's activated-mission-type set (computed by
-``existing_mission_types()``, FR-006/FR-018's single source of truth) via its
-``is_registered`` check — the structurally different, non-mechanical 10th
-doctrine-artifact-kind gate.
+**This suite is a forward-looking regression guard, NOT proof that this
+mission added a new gate.** The activation gate it covers — filtering
+``existing_mission_types()``'s return value (and, downstream, the ``is_registered``
+membership check in ``resolve_mission_type_context()``) to the project's
+activated-mission-type set — already existed, unchanged in substance, before
+this mission touched ``charter.mission_type_profiles``: reverting that module
+to its pre-mission state and re-running this suite still passes (DIRECTIVE_041
+— confirmed: ``7 passed``). There was no missing gate to close, so this module
+must not be read, cited, or summarised as evidence that this mission introduced
+mission-type activation gating. What it does is make the pre-existing gate's
+behaviour *durable*: the moment ``existing_mission_types()`` — the real
+authority, per its own docstring — stops filtering by the activation set, this
+suite reds.
 
 Per ``data-model.md`` D4 / spec.md FR-006, ``PackContext.activated_mission_types``
 is a plain ``frozenset[str]``, never ``None`` — the "no selection authored"
 case is already collapsed to ``builtin_mission_type_id_set()`` at
-``PackContext`` construction time.  The gate this suite proves is therefore
+``PackContext`` construction time.  The gate this suite pins is therefore
 binary (filtered vs. not), not the three-state contract the other 9 kinds
 follow:
 
-* T034 — the gate lives entirely in ``charter.mission_type_profiles``:
-  ``resolve_mission_type_context()``'s ``is_registered`` check is an explicit
-  set intersection of ``{type_key}`` against ``existing_mission_types()``'s
-  return value, rather than an implicit list-membership test. Note this
-  deliberately does **not** intersect against
+* T034 — the gate lives entirely in ``charter.mission_type_profiles``, and its
+  authoritative implementation is ``existing_mission_types()``'s filtering
+  return statement (``sorted(pack_context.activated_mission_types)``), not the
+  membership check in ``resolve_mission_type_context()`` that merely consumes
+  it. Note the gate deliberately does **not** intersect against
   ``builtin_mission_type_id_set()`` — a project may legitimately activate a
   custom (non-built-in) mission type id backed by a project-level doctrine
-  override, and that must keep resolving (locked in by
+  override, and ``existing_mission_types()`` must keep returning it (locked in
+  by
   ``tests/charter/test_action_sequence_dispatch.py::TestExistingMissionTypes::test_returns_custom_type_when_activated``,
   which predates this WP and must not regress).
 * T035 — bare-project regression: set-equality against
