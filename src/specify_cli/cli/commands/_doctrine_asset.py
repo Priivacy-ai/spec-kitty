@@ -21,7 +21,7 @@ The subapp is registered onto the ``doctrine`` group at the WP03 anchor in
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import typer
 from rich.table import Table
@@ -58,12 +58,29 @@ def _build_asset_repository() -> AssetRepository:
     present. When invoked inside a project, the project ``.kittify/doctrine``
     layer and configured org packs are layered on top (more specific tiers
     win).
+
+    WP03 (charter-sole-door-bypass-closure-01KZ3WAA, FR-002/T012): the raw
+    inner service is always routed through the sanctioned
+    ``charter.resolver.DoctrineService`` wrapper (normal, activation-aware
+    construction — a real ``PackContext`` when *repo_root* is available) so
+    no code outside ``charter.resolver``/the unified builder constructs
+    ``doctrine.service.DoctrineService`` directly (NFR-001). ``.assets`` is a
+    non-charter-activatable kind (``ArtifactKind.ASSET`` is excluded via
+    ``_NON_AUGMENTATION_ELIGIBLE_KINDS``), so it has no gated property on the
+    wrapper and falls through ``__getattr__`` to the raw
+    ``AssetRepository`` unfiltered either way -- this migration closes the
+    construction site, it does not add new filtering for assets. The
+    pre-existing ``repo_root is None`` clean-install branch (no project
+    overlay, no org packs) is unchanged.
     """
-    from doctrine.service import DoctrineService
+    from doctrine.service import DoctrineService as RawDoctrineService
+    from charter.resolver import DoctrineService as ActivationAwareDoctrineService
+    from charter.pack_context import PackContext
     from specify_cli.core.paths import locate_project_root
 
     project_root: Path | None = None
     org_roots: list[Path] = []
+    pack_context: PackContext | None = None
     repo_root = locate_project_root()
     if repo_root is not None:
         from charter._doctrine_paths import resolve_project_root
@@ -71,9 +88,16 @@ def _build_asset_repository() -> AssetRepository:
 
         project_root = resolve_project_root(repo_root)
         org_roots = [root for root in resolve_org_roots(repo_root) if root.exists()]
+        pack_context = PackContext.from_config(repo_root)
 
-    service = DoctrineService(project_root=project_root, org_roots=org_roots)
-    return service.assets
+    inner = RawDoctrineService(project_root=project_root, org_roots=org_roots)
+    service = ActivationAwareDoctrineService(inner, pack_context=pack_context)
+    # ``.assets`` delegates through the wrapper's ``__getattr__`` (typed
+    # ``-> Any``, since it forwards arbitrary attribute names), so mypy
+    # cannot infer the concrete return type on its own; the cast documents
+    # what is actually true (``.assets`` is not one of the nine gated
+    # properties, see this function's docstring).
+    return cast("AssetRepository", service.assets)
 
 
 def _resolved_path_str(repo: AssetRepository, asset_id: str) -> str:
