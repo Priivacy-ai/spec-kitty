@@ -57,24 +57,29 @@ from specify_cli.cli.commands.agent.tasks_status_view import (
 from specify_cli.lanes.persistence import MissingLanesError
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
-
-    from doctrine.agent_profiles.profile import AgentProfile
     from doctrine.agent_profiles.repository import AgentProfileRepository
 
     from specify_cli.core.stale_detection import StaleCheckResult
 
-    # WP02 (charter-sole-door-bypass-closure-01KZ3WAA, FR-001): the dashboard
-    # icon-rendering call sites (``_st_render_human``/``_get_hic_marker``)
-    # only ever call ``.get(profile_id)`` on this value (never
-    # ``list_all()``/``resolve_profile()``/``register_overlay()``), so a
-    # gated ``dict`` from ``charter.resolver.DoctrineService.agent_profiles``
-    # and a raw ``AgentProfileRepository`` (still accepted for the external,
-    # already-frozen ``repo=`` test seam in
-    # ``tests/doctrine/test_human_in_charge_profile.py``) are interchangeable
-    # here. This alias documents that both shapes are intentional, not a
-    # typing gap.
-    ProfileLookup = Mapping[str, AgentProfile] | AgentProfileRepository
+    # WP02 (charter-sole-door-bypass-closure-01KZ3WAA, FR-001), narrowed by
+    # the landing-fold regression fix (defect 1): this alias previously
+    # admitted EITHER the activation-*gated* ``dict`` from
+    # ``charter.resolver.DoctrineService.agent_profiles`` OR the raw
+    # ``AgentProfileRepository`` from ``.agent_profile_repository``, on the
+    # theory that both shapes only ever see ``.get(profile_id)`` calls here.
+    # That theory was wrong: ``profile.sentinel`` (read inside
+    # ``_get_hic_marker``) is a *structural* property, not an
+    # activation-gated one -- exactly like ``get_provenance()``, which is why
+    # ``charter.resolver.DoctrineService`` gives callers
+    # ``agent_profile_repository`` / ``raw_repository()`` in the first place.
+    # A project that narrows ``activated_agent_profiles`` to exclude
+    # ``human-in-charge`` silently lost the 👤 marker when a gated dict was
+    # read here (measured: ``gated_dict.get('human-in-charge') -> None``).
+    # Every production call site now builds the lookup via
+    # ``.agent_profile_repository`` (never ``.agent_profiles``), so the type
+    # is narrowed to the single shape that is actually correct -- a reader
+    # can no longer mistake this for "either shape is fine."
+    ProfileLookup = AgentProfileRepository
 from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
 )
@@ -738,17 +743,27 @@ def _st_render_human(st: _StatusState, ports: TasksPorts) -> None:
             # scans MODULE-LEVEL ``from doctrine.*`` imports, and both the old
             # direct-construction import and this factory import are
             # function-local, so the gate does not trip either way -- the
-            # concern does not reappear. This site only ever reads
-            # (``.get(profile_id)`` inside ``_get_hic_marker``), so the gated
-            # ``agent_profiles`` property is sufficient; no lineage/mutation
-            # accessor is needed here.
+            # concern does not reappear.
+            #
+            # Landing-fold regression fix (defect 1): this site reads
+            # ``.agent_profile_repository`` (the raw, unfiltered
+            # ``AgentProfileRepository``), NOT the gated ``.agent_profiles``
+            # dict it used before. ``_get_hic_marker`` only ever calls
+            # ``.get(profile_id)`` here, but that call reads
+            # ``profile.sentinel`` -- a *structural* property, not an
+            # activation-gated one, exactly like ``get_provenance()``
+            # (``charter/resolver.py``'s documented rationale for exposing
+            # this same raw accessor). Reading the gated dict silently lost
+            # the 👤 human-in-charge marker on any project that narrows
+            # ``activated_agent_profiles`` to a set excluding
+            # ``human-in-charge``.
             from charter.doctrine_service_builder import (  # noqa: PLC0415
                 build_activation_aware_doctrine_service,
             )
 
             profile_repo = build_activation_aware_doctrine_service(
                 st.main_repo_root
-            ).agent_profiles
+            ).agent_profile_repository
         except Exception:
             profile_repo = None
 
@@ -850,6 +865,17 @@ def _get_hic_marker(
     than a bare built-in-only ``AgentProfileRepository()`` (FR-001). All 8
     production call sites always pass ``repo=`` explicitly, so this fallback
     only matters for direct/external callers.
+
+    Landing-fold regression fix (defect 1): both this fallback and the
+    ``repo=`` value built by the sibling call site (``_st_render_human``)
+    now read ``.agent_profile_repository`` -- the raw, unfiltered
+    ``AgentProfileRepository`` -- rather than ``.agent_profiles``, the
+    activation-*gated* dict. ``profile.sentinel`` below is a structural
+    property, not an activation-gated one (exactly like
+    ``get_provenance()``, which is why ``charter.resolver.DoctrineService``
+    exposes ``agent_profile_repository`` in the first place); reading the
+    gated dict silently dropped the 👤 marker on any project that narrows
+    ``activated_agent_profiles`` to a set excluding ``human-in-charge``.
     """
     if not isinstance(agent_profile, str) or not agent_profile:
         return ""
@@ -872,7 +898,9 @@ def _get_hic_marker(
                 build_activation_aware_doctrine_service,
             )
 
-            profile_repo = build_activation_aware_doctrine_service(repo_root).agent_profiles
+            profile_repo = build_activation_aware_doctrine_service(
+                repo_root
+            ).agent_profile_repository
 
         profile = profile_repo.get(agent_profile)
         if profile and profile.sentinel:
