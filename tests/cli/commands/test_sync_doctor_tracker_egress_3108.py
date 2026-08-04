@@ -661,6 +661,39 @@ def _render_fault_row_through_a_real_console(offending: object) -> tuple[str, st
     return row_buf.getvalue(), summary_buf.getvalue()
 
 
+class TestUnparseableConfigDoesNotAbortDoctor:
+    """The binding probe must not raise on a broken config -- `doctor` exists for that case.
+
+    Regression pin (CI, fast-tests-cli). `load_tracker_config` RAISES on an unparseable
+    `.kittify/config.yaml`. The unguarded probe added for the unbound-issue gate aborted
+    the whole command mid-render, measured as `test_sync_doctor_consent_health_3030`'s
+    `REPAIR THE FILE'S SYNTAX` count dropping 4 -> 2 because every line after this block
+    stopped printing.
+
+    Same class as WP03 review round 1 HIGH-1: `tracker_egress_verdict` is defended
+    internally (NFR-003), and a *second*, direct config read was not. The pin is here
+    rather than only in the consent-health suite because this block is what breaks it.
+    """
+
+    def test_unparseable_config_still_renders_both_rows(self, tmp_path: Path) -> None:
+        root = tmp_path / "broken"
+        (root / ".kittify").mkdir(parents=True)
+        (root / ".kittify" / "config.yaml").write_text(
+            "project:\n  uuid: [unclosed\n", encoding="utf-8"
+        )
+        console_out = _CapturingConsole()
+        issues: list[str] = []
+        monkey = pytest.MonkeyPatch()
+        try:
+            monkey.chdir(root)
+            sync_module._render_tracker_egress(console_out, issues)
+        finally:
+            monkey.undo()
+        flat = _flat(_strip_markup(console_out.text))
+        assert sync_module._TRACKER_EGRESS_SECTION_TITLE in flat, "the block must render at all"
+        assert flat.count("REFUSED") == 2, flat  # golden-count: cardinality-is-contract
+
+
 class TestUnboundCheckoutRaisesNoIssue:
     """A checkout with no tracker bound renders both rows but reports no *issue*.
 

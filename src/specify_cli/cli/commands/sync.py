@@ -1954,7 +1954,23 @@ def _render_tracker_egress(console_out: Any, issues: list[str]) -> None:
     hosted = tracker_egress_verdict(root, destination=EgressDestination.HOSTED_SERVICE)
     # Whether *any* provider is bound -- never which one. Gates the `issues` append
     # only; both rows render regardless. See `_render_tracker_egress_row`.
-    binding_present = bool(load_tracker_config(root).provider) if root is not None else False
+    #
+    # Guarded, and the guard is load-bearing: `load_tracker_config` RAISES on an
+    # unparseable `.kittify/config.yaml`, and `doctor`'s whole job is to be useful on
+    # exactly that checkout. Unguarded, this read aborted the command mid-render --
+    # measured as the `REPAIR THE FILE'S SYNTAX` count dropping 4 -> 2, because every
+    # line after this block stopped printing. `tracker_egress_verdict` is defended
+    # against this internally (NFR-003, "never raises"); a second, direct config read
+    # is not, and reintroduced the same defect one level up. An unreadable config means
+    # no binding is *knowable*, so no issue is claimed -- the sibling readability
+    # renderer already reports the unparseable file as its own issue, and the two rows
+    # below still print their refusal either way.
+    binding_present = False
+    if root is not None:
+        try:
+            binding_present = bool(load_tracker_config(root).provider)
+        except Exception:  # noqa: BLE001 - doctor must render on a broken config, not abort
+            binding_present = False
     _render_tracker_egress_row(console_out, issues, local, binding_present=binding_present)
     _render_tracker_egress_row(console_out, issues, hosted, binding_present=binding_present)
 
