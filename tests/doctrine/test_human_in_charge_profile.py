@@ -69,3 +69,34 @@ def test_kanban_shows_hic_marker(tmp_path: Path) -> None:
     # Unknown/None profiles should return empty string gracefully
     assert _get_hic_marker(None, tmp_path) == ""
     assert _get_hic_marker("nonexistent-profile", tmp_path) == ""
+
+
+def test_hic_marker_survives_narrowed_activation(tmp_path: Path) -> None:
+    """The 👤 marker must not disappear when the project narrows
+    ``activated_agent_profiles`` to a set that excludes ``human-in-charge``.
+
+    Regression (charter-sole-door-bypass-closure-01KZ3WAA landing-fold
+    defect 1): ``_get_hic_marker``'s self-resolving fallback (``repo=None``)
+    built its profile lookup from ``DoctrineService.agent_profiles`` -- the
+    activation-*gated* dict -- so a project that narrows activation to
+    exclude ``human-in-charge`` (e.g. ``activated_agent_profiles:
+    [architect-alphonso]``) silently loses the sentinel marker even though
+    ``profile.sentinel`` is a structural property, not an activation-gated
+    one (exactly like ``get_provenance()``, which this same mission's
+    ``charter.resolver`` module deliberately keeps ungated via
+    ``agent_profile_repository`` / ``raw_repository()``).
+    """
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    (kittify / "config.yaml").write_text(
+        "activated_agent_profiles:\n  - architect-alphonso\n", encoding="utf-8"
+    )
+
+    from specify_cli.cli.commands.agent.tasks_status_cmd import _get_hic_marker
+
+    marker = _get_hic_marker("human-in-charge", tmp_path)
+
+    assert marker == "👤 ", (
+        f"Expected the human-in-charge marker to survive narrowed activation, "
+        f"got: {marker!r}"
+    )
