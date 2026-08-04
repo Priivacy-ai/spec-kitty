@@ -128,6 +128,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from stat import S_ISDIR
 from typing import Literal
 
 from pydantic import ValidationError
@@ -380,22 +381,56 @@ def _mission_dirs(repo_root: Path, mission_slug: str | None) -> _MissionScan:
         # below scoped to the missions actually in the search.
         if mission_slug is not None and candidate.name != mission_slug:
             continue
-        # HIGH-3 — THE THIRD INSTANCE OF THE SAME EACCES TRAP.
-        #
-        # `Path.is_dir()` calls `stat()`, and on 3.11/3.12 EACCES is NOT in its
-        # ignore set — identical semantics to the `Path.exists()` this module
-        # banned twice already. Reached when a mission directory is a symlink
-        # into a location the process cannot search: measured as an ESCAPING
-        # PermissionError on both CI interpreters and a clean refusal on 3.14.
-        # R3 verbatim — a traceback instead of an operator-actionable refusal,
-        # green locally, broken on CI.
+        # HIGH-3 — THE THIRD INSTANCE OF THE SAME EACCES TRAP, and the FOURTH is
+        # why this reads `S_ISDIR(resolved.stat().st_mode)` and not
+        # `resolved.is_dir()`.
         #
         # An unstattable candidate cannot answer the ownership question, so
         # skipping it is correct and stays fail-closed: it can only ever remove
-        # a mission from the search, never add one.
+        # a mission from the search, never add one. What is NOT correct is
+        # skipping it *silently* — that is LOW-8 below.
+        #
+        # `Path.is_dir()` is EACCES-DIVERGENT, in the direction that makes the
+        # LOW-8 recording below unreachable rather than merely wrong:
+        #
+        #   | call                    | 3.11.15 | 3.12.13 | 3.13.12 | 3.14.4  |
+        #   | ----------------------- | ------- | ------- | ------- | ------- |
+        #   | `Path.stat` / `os.stat` | RAISES  | RAISES  | RAISES  | RAISES  |
+        #   | `Path.is_dir()`         | RAISES  | RAISES  | RAISES  | False   |
+        #
+        # MEASURED on all four, non-root euid, control first, via a symlink into a
+        # 0o000 directory — `stat()` raising errno 13 in the same process that
+        # `is_dir()` answered False.
+        #
+        # **The divergence begins at 3.14, not 3.13.** 3.14 rewrote the predicate
+        # to `if follow_symlinks: return os.path.isdir(self)`, and
+        # `os.path.isdir` swallows every `OSError`. Through 3.13 it was
+        # `S_ISDIR(self.stat().st_mode)` under `except OSError: if not
+        # _ignore_error(e): raise`, and `_ignore_error` covers only
+        # `ENOENT`/`ENOTDIR`/`EBADF`/`ELOOP` — so EACCES propagated. (3.13 does
+        # make `pathlib` a package, which moves `_ignore_error` out of the
+        # top-level namespace. That is a layout change, not a behaviour change:
+        # probing `hasattr(pathlib, "_ignore_error")` reports 3.13 as though it
+        # had changed, and it had not. Measure the call, not the namespace.)
+        #
+        # `stat()` raises on every interpreter; only the predicate changed. So with
+        # `is_dir()` here, an unreadable candidate on 3.14+ takes the silent
+        # `continue` on the line below instead of the `except OSError` that records
+        # it, and the operator is told "no missions were found ... run `git pull`"
+        # for a permission denial — LOW-8's exact defect, with its fix present but
+        # INERT. No CI job runs pytest above 3.12, so CI could not see it. Filed as
+        # #3177 and initially deferred; fixed here instead.
+        #
+        # The evaluation order is load-bearing and unchanged: the stat is
+        # evaluated BEFORE the containment check, so an unreadable candidate is
+        # recorded as unreadable rather than dropped as escaping. A candidate that
+        # stats fine and *then* fails containment is a different verdict, and the
+        # silent skip is right for it — nothing was hidden from us there.
         try:
             resolved = candidate.resolve()
-            if not resolved.is_dir() or not resolved.is_relative_to(specs_root):
+            if not S_ISDIR(resolved.stat().st_mode) or not resolved.is_relative_to(
+                specs_root
+            ):
                 continue
         except OSError:
             # LOW-8 — SKIP, BUT NOT IN SILENCE.

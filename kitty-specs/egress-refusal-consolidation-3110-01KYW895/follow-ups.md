@@ -269,6 +269,70 @@ is the module's own answer to this exact divergence. Add a 3.14 row to the contr
 *Falsifier:* if `is_dir()` raised on 3.13+. It does not; probed with a readable
 control in the same run.
 
+### RESOLVED at landing — the deferral is reversed, #3177 is closed by this PR
+
+Fixed rather than carried, applying the second of the two remedies proposed above
+(*"route the candidate through the same explicit-probe idiom"*):
+`S_ISDIR(resolved.stat().st_mode)` replaces `resolved.is_dir()`. `stat()` raises
+`EACCES` on every interpreter; only the predicate changed.
+
+**And this entry's "3.13+" is wrong — the divergence begins at 3.14.** The
+pre-merge gate caught it and this section had already recorded the correction as
+inherited-from-FU-Q; it is corrected at the source now. Re-measured on four
+interpreters, non-root euid, control first:
+
+```
+                           3.11.15   3.12.13   3.13.12   3.14.4
+Path.stat() / os.stat      RAISES    RAISES    RAISES    RAISES
+Path.is_dir()              RAISES    RAISES    RAISES    False
+```
+
+3.14 rewrote the predicate to `if follow_symlinks: return os.path.isdir(self)`,
+and `os.path.isdir` swallows every `OSError`. Through 3.13 it was
+`S_ISDIR(self.stat().st_mode)` under `except OSError: if not _ignore_error(e):
+raise`, and `_ignore_error` covers only `ENOENT`/`ENOTDIR`/`EBADF`/`ELOOP`, so
+`EACCES` propagated.
+
+The stated *falsifier* above — *"if `is_dir()` raised on 3.13+; it does not,
+probed with a readable control in the same run"* — **fires.** It does raise on
+3.13.12. The probe that produced "3.13+" is the sixth instance of this mission's
+one recurring shape: `hasattr(pathlib, "_ignore_error")` is `False` from 3.13,
+because 3.13 makes `pathlib` a package and moves the helper out of the top-level
+namespace. A layout change that reads exactly like the behaviour change, one minor
+version early. **The tooling did something other than what the measurer believed** —
+again — and the countermeasure is the same: measure the call as called.
+
+The evaluation order is deliberately preserved — the stat is evaluated *before*
+the containment check — so an unreadable candidate is recorded as unreadable
+rather than dropped as escaping the acting root. A candidate that stats fine and
+*then* fails containment keeps its silent skip, which is correct for it: nothing
+was hidden from us there.
+
+**Why the deferral was wrong, on this record's own evidence.** The grading rested
+on fail-closed, which is true and is why this was never a leak. But the same entry
+establishes that `requires-python = ">=3.11"` admits 3.14 and that **no CI job runs
+pytest above 3.12**. Deferring therefore parked a known, measured regression on a
+reachable surface where no gate could ever rediscover it — and it left
+`test_ownership_3111.py` at `2 failed, 31 passed` on 3.14 indefinitely, as the only
+marker. A red test is not an owner.
+
+The counter-argument deserves its due, because the gate made it: 3.14 is admitted
+only by the open upper bound. The trove classifiers stop at 3.13, `.python-version`
+pins 3.11.15, `uv run python` resolves 3.11.15, and the owning shard
+(`fast-tests-core-misc`) pins 3.12 — so 3.14 is untested, unclaimed and unpinned,
+which is the weakest sense of "supported". That is why this was MEDIUM and not
+higher, and it is a fair reason to have deferred. It is not a reason to keep
+deferring, once the fix is three lines and its own acceptance module is red.
+
+**Verified:** `33 passed` on 3.11.15, 3.12.13 **and 3.14.4** — the interpreter that
+was `2 failed, 31 passed`. Full mission set `152 passed` on 3.11. Falsifiable:
+restoring `is_dir()` returns both tests to red on 3.14 and green on 3.11, which is
+the divergence itself under control.
+
+The module docstring's *"a clean refusal on 3.14"* — called out above as the
+sharpest evidence of the defect — is corrected in the same commit, along with the
+ADR's remedy bullet.
+
 ---
 
 ## Addendum to the method note — a fifth instance, and it corrupted a record
