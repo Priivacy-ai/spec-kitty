@@ -58,11 +58,11 @@
       "criterion_id": "FR-006",
       "description": "Add equivalent activation filtering for the mission-type token entirely within charter.mission_type_profiles.resolve_mission_type_context(), proving set-equality against builtin_mission_type_id_set() when nothing is explicitly activated.",
       "proof_type": "automated_test",
-      "evidence": "WP08 (approved): mission-type activation gating implemented entirely within charter.mission_type_profiles.resolve_mission_type_context() (NOT touching MissionTypeProfileRepository's own file, per corrected scope avoiding WP06 ownership overlap). tests/charter/test_mission_type_activation_gating.py (7 tests) proves bare-project set-equality against builtin_mission_type_id_set() and correct subset narrowing; custom (non-built-in) activated types still resolve (gate doesn't overreach).",
+      "evidence": "Mission-type activation gating (the 10th doctrine-artifact-kind gate) is verified, not newly added. `existing_mission_types()` in `src/charter/mission_type_profiles.py` already filtered by the project's activation set before this mission touched the file; landing-fold `dcab4bf34` reverted the module to merge-base `abca7ec96` and re-ran `tests/charter/test_mission_type_activation_gating.py`, yielding `7 passed` (DIRECTIVE_041 proof, recorded in both the function's and the test module's own docstrings). Re-confirmed live in this fold against current HEAD (un-reverted): same suite, `7 passed`. This mission's contribution is regression coverage that pins the pre-existing gate durable, plus corrected docstrings crediting `existing_mission_types()` as the authority.",
       "pass_fail": "pass",
       "verified_by": "claude",
-      "verified_at": "2026-08-03T22:07:25.414673+00:00",
-      "notes": "Implemented without touching MissionTypeProfileRepository's own file, avoiding an ownership overlap with WP06, per the post-tasks squad correction."
+      "verified_at": "2026-08-04T10:15:00.000000+00:00",
+      "notes": "The cosmetic `frozenset()` wrapping originally added to `resolve_mission_type_context()` was reverted (fold `dcab4bf34`) as semantically identical to plain list membership. Implemented without touching `MissionTypeProfileRepository`'s own file, avoiding an ownership overlap with WP06, per the post-tasks squad correction."
     },
     {
       "criterion_id": "FR-007",
@@ -88,11 +88,11 @@
       "criterion_id": "FR-010",
       "description": "Close the ._inner attribute reach-around at invocation/registry.py:64 and invocation/org_profiles.py:117, routing both onto the new agent_profile_repository accessor's get_provenance() method.",
       "proof_type": "automated_test",
-      "evidence": "WP01 (approved, cycle 2) + WP04 (approved): ._inner reach-around closed via 2 mechanisms — WP01 added raw_repository(kind) as the sanctioned accessor for org_layer.py's 2 provenance-scan sites (replacing raw doctrine.service.DoctrineService construction with the wrapped, sanctioned form); WP04 migrated invocation/registry.py:64 and invocation/org_profiles.py:117 off ._inner reach-arounds onto agent_profile_repository. Gate 5 (test_charter_sole_door_inner_reacharound.py, 6 tests, AST-based import-alias resolution) proves zero ._inner access on charter.resolver.DoctrineService outside src/charter/** remains, non-vacuously (revert-and-red reproduced by 2 independent reviewers).",
+      "evidence": "._inner reach-around closed at THREE sites, not two: WP01 + WP04's original two (invocation/registry.py:64, invocation/org_profiles.py:117) via raw_repository(kind)/agent_profile_repository, PLUS a third found by this landing pass's widened Gate 5 -- src/specify_cli/cli/commands/profiles_cmd.py:117 (`_profile_catalog`), spelled `object.__getattribute__(svc, \"_inner\")`, a form the original attribute-access-only AST scan was structurally blind to. Landing-fold `d6fe34d2e` widened Gate 5 to also catch getattr/__dict__/annotated-assign/`object.__getattribute__` reach-around spellings; fold `82e18136e` extended the gate's scanned surface to include `tests/` (previously `src/`-only) and removed the docstring line that advertised the now-closed escape hatch; the widened gate immediately found and reproduced-red the third site, which fold `c284ffe2e` then closed by routing through `svc.agent_profile_repository` (the FR-001-pinned accessor) -- a like-for-like substitution, verified byte-identical `_profile_catalog` output before/after. Gate 5 (test_charter_sole_door_inner_reacharound.py) now has 15 tests (up from 6 at WP04 approval), re-run live in this fold: 15 passed.",
       "pass_fail": "pass",
       "verified_by": "claude",
-      "verified_at": "2026-08-03T22:07:31.033724+00:00",
-      "notes": "Gate 5 re-run live in this fold (part of the 71-test gate batch) -- passed."
+      "verified_at": "2026-08-04T10:15:00.000000+00:00",
+      "notes": "The `.kittify/profiles` C-006 construction in this same file (profiles_cmd.py, lines ~82-85) was deliberately left untouched -- a separate, out-of-scope legacy-invocation-registry site excluded from Gate 1 by composite key, not a residual gap in this closure."
     },
     {
       "criterion_id": "FR-011",
@@ -188,10 +188,10 @@
       "criterion_id": "SC-004",
       "description": "charter.resolver.DoctrineService activation-gates all 9 charter-activatable ArtifactKind members (up from 3), and resolve_mission_type_context() separately gates the mission-type token -- a bare project sees a catalog equal to (not merely non-empty vs) the raw unwrapped inner service's output for every kind, and the mission-type set equals builtin_mission_type_id_set().",
       "proof_type": "automated_test",
-      "evidence": "tests/charter/test_resolver_activation_gating.py and test_mission_type_activation_gating.py both re-run live in this fold (part of the 87-test tests/charter/ batch) -- passed (per FR-005/FR-006's bare-project equality/set-equality evidence).",
+      "evidence": "tests/charter/test_resolver_activation_gating.py and test_mission_type_activation_gating.py both re-run live in this fold -- passed (per FR-005/FR-006's bare-project equality/set-equality evidence). 9 of the 10 doctrine-artifact kinds required a mechanical activation-gate fix; mission-type (the 10th) required none -- its gate pre-existed and only needed verification + regression coverage (fold `dcab4bf34`, DIRECTIVE_041 revert-and-red proof: `7 passed` against merge-base-`abca7ec96`-reverted code). Coverage is 10/10 kinds *verified*, not 10/10 kinds *fixed*; do not read this as 'one more mechanical fix, closing the set.'",
       "pass_fail": "pass",
       "verified_by": "claude",
-      "verified_at": "2026-08-04T05:52:36.681893+00:00",
+      "verified_at": "2026-08-04T10:15:00.000000+00:00",
       "notes": null
     },
     {
