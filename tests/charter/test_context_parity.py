@@ -316,12 +316,22 @@ class TestBootstrapCorpusParity:
         assert "Cause: missing_artifact" in text
 
     def test_token_budget_substitution_marker(self, tmp_path: Path) -> None:
-        """The oversized critical-section body is swapped for a fetch stanza."""
+        """The oversized critical-section body is swapped for a fetch stanza.
+
+        The action-critical-sections block is now split per heading (each
+        heading is its own swap candidate, competing on its own real size —
+        see ``_split_critical_sections`` in ``token_budget.py``), so the
+        swapped-out ``### Terminology Canon`` heading (the one carrying the
+        oversized ``_LONG_BODY``) is replaced by its own heading-specific
+        ``section:terminology-canon`` selector rather than the generic
+        ``section:critical-implement`` bucket selector that covered the
+        whole block before the split.
+        """
         text, _ = self._render(tmp_path)
         assert _LONG_BODY_NEEDLE not in text, (
             "the over-budget verbatim body must be swapped out, not inlined"
         )
-        assert "section:critical-implement" in text
+        assert "section:terminology-canon" in text
         assert "# Governance payload:" in text
 
     def test_golden_byte_parity(self, tmp_path: Path) -> None:

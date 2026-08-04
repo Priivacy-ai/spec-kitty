@@ -36,11 +36,16 @@ got swapped.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 
 from charter.context_renderers.fetch_stanza import (
     DEFAULT_WHEN_CLAUSE,
     fetch_stanza,
     fetch_stanza_lines,
+)
+from charter.context_renderers.section_bodies import (
+    critical_section_selector,
+    critical_section_when_clause,
 )
 
 __all__ = [
@@ -300,6 +305,63 @@ def _split_profile_blocks(text: str) -> list[tuple[str, str]]:
     return [_split_leading_header(chunk) for chunk in text.split("\n\n") if chunk]
 
 
+_HEADING_LINE_RE = re.compile(r"^###\s+(.+?)\s*$")
+
+
+def _split_critical_sections(text: str) -> list[tuple[str, str, str]]:
+    """Split the joined action-critical-sections body into per-heading parts.
+
+    ``render_critical_section_bodies`` renders one ``### <heading>``
+    sub-block per action-critical charter heading (Terminology Canon, Code
+    Review Checklist, Regression Vigilance, ...), each already ending in
+    its own selector-specific fetch stanza. Prior to this split, the WHOLE
+    joined body (every heading concatenated) was handed to
+    ``_enforce_token_budget`` as ONE opaque candidate — so whichever single
+    heading pushed the combined body's length past whatever else was
+    competing for a swap took every OTHER heading down with it. That is
+    what regressed the WP-prompt governance contract (#3175 landing-pass
+    fold): growing the profile-cited payload (language-scope admit-all fix)
+    pushed the combined section body just over budget, and the ENTIRE
+    block — Terminology Canon + Code Review Checklist [glossary/
+    DIRECTIVE_032 anchor] + Regression Vigilance [ADR/glossary-path anchor]
+    — was swapped for one generic stanza in a single shot, even though each
+    heading individually is far smaller than most profile-cited kind-blocks
+    and never needed to compete as a bloc.
+
+    Splitting on the ``### `` sub-heading boundary — rather than on every
+    blank line, as :func:`_split_profile_blocks` does for the profile block
+    — is required here because a heading's verbatim charter.md body may
+    legitimately contain internal blank lines (multi-paragraph prose); a
+    blank-line split would fragment one heading into several bogus
+    candidates. ``### `` boundaries are safe: :mod:`section_bodies` only
+    ever emits that marker to open a new heading block.
+
+    Returns ``(header, body, heading)`` triples in document order, where
+    ``header`` is the literal ``### <heading>`` line (never swapped) and
+    ``heading`` is the bare heading text (``Terminology Canon``) used to
+    derive the heading-specific selector/when-clause on a swap. The block's
+    own outer header line (``Action-Critical Charter Sections (<action>):``)
+    precedes the first heading and carries no ``### `` prefix, so it never
+    matches and is dropped here — the caller re-attaches it separately as
+    the always-inline block header.
+    """
+    if not text:
+        return []
+    result: list[tuple[str, str, str]] = []
+    for chunk in re.split(r"\n\n(?=### )", text):
+        if not chunk:
+            continue
+        first_line, _, remainder = chunk.partition("\n")
+        match = _HEADING_LINE_RE.match(first_line)
+        if match is None:
+            # The block's own outer header (e.g. "Action-Critical Charter
+            # Sections (implement):") precedes the first "### " heading and
+            # carries no such prefix — not a headed sub-block to split.
+            continue
+        result.append((first_line, remainder, match.group(1)))
+    return result
+
+
 def _enforce_token_budget(
     text: str,
     *,
@@ -311,18 +373,31 @@ def _enforce_token_budget(
     """Apply the NFR-001 token budget to *text* (WP05, consolidated WP04 T019).
 
     When ``len(text) <= budget`` the text is returned unchanged.  Over
-    budget, the largest substitutable governance block is swapped for
-    the canonical fetch + when-doing stanza, and the substitution loop
-    iterates over the remaining blocks (longest first) until the budget
-    holds or no swap candidates remain.
+    budget, the longest substitutable candidate is swapped for the
+    canonical fetch + when-doing stanza, and the substitution loop iterates
+    over the remaining candidates (longest first) until the budget holds
+    or no swap candidates remain.
 
-    Substitution preference (in order of preferred swap):
-      1. action-critical section bodies (`section_block`) — largest
-      2. profile-cited directives + tactics (`profile_block`)
+    ``section_block`` (the action-critical charter sections — Terminology
+    Canon, Code Review Checklist, Regression Vigilance) is split into one
+    candidate per heading, exactly as ``profile_block`` is split into one
+    candidate per kind (see :func:`_split_critical_sections` /
+    :func:`_split_profile_blocks`). Prior to that split, the WHOLE joined
+    ``section_block`` competed as a single opaque candidate against
+    individually-split, often much larger profile kind-blocks — so growing
+    the profile payload (e.g. a language-scope fix admitting more
+    profile-cited artifacts) could tip the combined section body just over
+    the length that made it the single longest candidate, taking every
+    heading's anchors (glossary path, ADR path, profile-cited
+    ``DIRECTIVE_NNN`` citations) down in one swap even though each heading
+    individually is far smaller than the profile content that should have
+    been preferred. Splitting both sides the same way lets every candidate
+    compete on its own real size, so the small, curated headings are
+    naturally spared unless they are genuinely the largest thing left.
 
-    Authority paths and core action-doctrine sections stay inline (they
-    are small + critical to the prompt's actionable surface, per
-    WP05 NFR-001 spec).
+    Authority paths stay inline unconditionally (they are never added as
+    a candidate at all — see the caller in ``bootstrap_text.py`` /
+    ``compact_governance.py``).
     """
 
     if len(text) <= budget:
@@ -335,26 +410,46 @@ def _enforce_token_budget(
     # Doctrine, References) stays byte-identical.
     candidates: list[RenderedSection] = []
     if section_block:
-        # The header (e.g. "Action-Critical Charter Sections (implement):")
-        # is split off so a substitution below never removes it — see
-        # _split_leading_header. A body-less section_block (no content past
-        # its own header) has nothing left worth swapping, so it is left
-        # inline rather than added as a candidate.
-        header, body = _split_leading_header(section_block)
-        if body:
-            candidates.append(
-                RenderedSection(
-                    section_id="action-critical-sections",
-                    header=header,
-                    body=body,
-                    selector=f"section:critical-{action}",
-                    when_doing_clause=(
-                        "need to consult the action-critical charter sections"
-                    ),
-                    substitutable=True,
-                    indent="  ",
+        headed = _split_critical_sections(section_block)
+        if headed:
+            for header, body, heading in headed:
+                if not body:
+                    continue
+                candidates.append(
+                    RenderedSection(
+                        section_id=f"action-critical-sections:{heading}",
+                        header=header,
+                        body=body,
+                        selector=critical_section_selector(heading),
+                        when_doing_clause=critical_section_when_clause(heading),
+                        substitutable=True,
+                        indent="  ",
+                    )
                 )
-            )
+        else:
+            # No "### <heading>" sub-structure detected at all (e.g. a bare
+            # single-blob fixture) — fall back to the pre-split, single-
+            # candidate behaviour covering the whole block. The header
+            # (e.g. "Action-Critical Charter Sections (implement):") is
+            # split off so a substitution below never removes it — see
+            # _split_leading_header. A body-less section_block has nothing
+            # left worth swapping, so it is left inline rather than added
+            # as a candidate.
+            header, body = _split_leading_header(section_block)
+            if body:
+                candidates.append(
+                    RenderedSection(
+                        section_id="action-critical-sections",
+                        header=header,
+                        body=body,
+                        selector=f"section:critical-{action}",
+                        when_doing_clause=(
+                            "need to consult the action-critical charter sections"
+                        ),
+                        substitutable=True,
+                        indent="  ",
+                    )
+                )
     if profile_block:
         # profile_block joins up to six kind-blocks (directives, tactics,
         # styleguides, toolguides, procedures, suggested-doctrine), each with
@@ -386,7 +481,10 @@ def _enforce_token_budget(
         # operators will spot the regression via the measurement script.
         return text
 
-    # Sort longest first, ties broken on section_id for determinism.
+    # Sort longest first, ties broken on section_id for determinism. Every
+    # heading/kind is now its own candidate (see _split_critical_sections /
+    # _split_profile_blocks), so this competes on each candidate's real
+    # size rather than on which side of the section/profile divide it fell.
     candidates.sort(key=lambda sec: (-len(sec.body), sec.section_id))
 
     current_text = text

@@ -26,6 +26,8 @@ __all__ = [
     "ACTION_CRITICAL_SECTIONS",
     "CRITICAL_SECTION_WHEN_CLAUSES",
     "critical_section_header",
+    "critical_section_selector",
+    "critical_section_when_clause",
     "render_critical_section_bodies",
     "render_critical_section_include",
 ]
@@ -71,6 +73,29 @@ def critical_section_header(action: str) -> str:
     """Return the section header string for *action* used in the prompt."""
 
     return f"Action-Critical Charter Sections ({action}):"
+
+
+def critical_section_selector(heading: str) -> str:
+    """Return the ``section:<slug>`` fetch selector for *heading*.
+
+    Exposed so :mod:`charter.context_renderers.token_budget` can generate a
+    substitution stanza for a single split-out heading (e.g. ``Terminology
+    Canon``) whose selector matches exactly what :func:`render_critical_
+    section_bodies` already embeds inline — see :func:`_slugify_heading`.
+    """
+
+    return f"section:{_slugify_heading(heading)}"
+
+
+def critical_section_when_clause(heading: str) -> str:
+    """Return the when-doing clause for *heading*, or the module default.
+
+    Mirrors the fallback :func:`_render_fetch_stanza` already applies for
+    *heading*'s inline stanza, so a budget-forced re-swap of a single
+    heading produces byte-identical wording to what was already there.
+    """
+
+    return CRITICAL_SECTION_WHEN_CLAUSES.get(heading, _DEFAULT_WHEN_CLAUSE)
 
 
 def _slugify_heading(heading: str) -> str:

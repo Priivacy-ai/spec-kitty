@@ -7,8 +7,20 @@ Policy Summary:
   - Testing: pytest golden comparison
 
 Action-Critical Charter Sections (implement):
-  Run: spec-kitty charter context --include section:critical-implement
-  When you need to consult the action-critical charter sections, run this command and apply the returned rule.
+
+### Terminology Canon
+  Run: spec-kitty charter context --include section:terminology-canon
+  When you rename or introduce a term in the diff, run this command and apply the returned rule.
+
+### Code Review Checklist
+- Confirm the diff matches the reviewed scope.
+  Run: spec-kitty charter context --include section:code-review-checklist
+  When you prepare a WP for review, run this command and apply the returned rule.
+
+### Regression Vigilance
+- Watch for silently reintroduced legacy terminology.
+  Run: spec-kitty charter context --include section:regression-vigilance
+  When you perform a terminology cutover, run this command and apply the returned rule.
 
 Profile-Cited Directives (parity-fixture-agent):
   - DIRECTIVE_998: Ghost Directive — force a catalog-miss fall-through
