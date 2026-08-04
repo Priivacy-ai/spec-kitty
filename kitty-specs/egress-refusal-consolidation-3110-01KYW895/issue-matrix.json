@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#3030": {
+      "evidence_ref": "Parent mission `journal-project-consent-3030-01KYKWQS`, PR #3098, merged 2026-07-31; issue CLOSED 2026-07-28. WP01 re-verified its attribution guards are non-vacuous per class: floors 4/3, MUT-4/5/6 killed, SC-005 removal reds `assert 3 >= 4` and `assert 2 >= 3`",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "parent invariant",
+      "source_file": null,
+      "title": "P0: sync drain authorizes per-checkout but delivers per-journal",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#3109": {
+      "evidence_ref": "D-1 keep-and-pin: register_saas_client_factory retained, its docstring corrected to state that nothing registers a factory today, and the export pinned by test_register_saas_client_factory_is_exported_from_invocation_package in tests/invocation/test_adapters.py; pin proven falsifiable by removing only the two export lines in a throwaway worktree",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "dead seam residual",
+      "source_file": null,
+      "title": "resolve the phantom `token_manager._ws_client`",
+      "verdict": "fixed",
+      "wp": "WP05"
+    },
+    "#3110": {
+      "evidence_ref": "src/specify_cli/egress.py is the single definition site; both saas_client/egress_consent.py and tracker/egress_consent.py deleted; SC-004 clause-3 identity assertions green in tests/specify_cli/test_egress_consolidation_3110.py; MUT-2 reds only the identity assertion while every string observation stays green",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "wrapper consolidation",
+      "source_file": null,
+      "title": "consolidate duplicated `project_egress_refusal` wrapper across saas_client/tracker",
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#3111": {
+      "evidence_ref": "src/specify_cli/decisions/ownership.py plus the cmd_widen gate in src/specify_cli/cli/commands/decision.py; leak reproduced end to end at bb2020fea asserting bytes (B decision_id in the URL under A team_slug and token) and absent after the fix with the positive control unchanged; three consent-laundering paths closed, each with a paired control",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "consent laundering",
+      "source_file": null,
+      "title": "harden `decision widen` consent to key on the decision's owning project",
+      "verdict": "fixed",
+      "wp": "WP04"
+    },
+    "#3144": {
+      "evidence_ref": "**Bundle A, not this mission's work.** MERGED 2026-08-02 (mission `verification-trust-3115-01KYVYWM`). Referenced only as provenance for WP03 residual R-2: `docs/development/process-global-inventory-3115.md` is its artifact and carries three pointers into the `tracker/egress_consent.py` that WP03 deletes. State measured against GitHub, not read from the dossier",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "Bundle A dependency",
+      "source_file": null,
+      "title": "make the render-width fold, egress boundary and timeout gap provable",
+      "verdict": "verified-already-fixed",
+      "wp": "\u2014"
+    },
+    "#3177": {
+      "evidence_ref": "**Follow-up: #3177** \u2014 filed BY this mission, not fixed in it. The 3.13+ `is_dir()` EACCES divergence at `ownership.py:387`, found by WP07 after WP04 was already approved and merged. Fail-closed (`owned=False`, nothing transmits) and invisible to CI, which runs no test suite on 3.13+. Mechanism, three-interpreter table and falsifier in `follow-ups.md` FU-Q and the WP07 evidence file",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "regression filed by this mission",
+      "source_file": null,
+      "title": "unstattable mission directory loses its diagnosis on Python 3.13+",
+      "verdict": "deferred-with-followup",
+      "wp": "WP04"
+    }
+  },
+  "schema_version": 1
+}

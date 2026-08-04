@@ -1,0 +1,207 @@
+{
+  "event_count": 35,
+  "last_event_id": "01KZ5V31Q8Z47Q5FDEMAQ4RKK3",
+  "materialized_at": "2026-08-04T07:33:57.096642+00:00",
+  "mission_number": "188",
+  "mission_slug": "egress-refusal-consolidation-3110-01KYW895",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 7,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "claude",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KZ3M24Q4QA5ZDFNZJ9QM3B6V",
+      "last_transition_at": "2026-08-03T10:52:38.500791+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Recover from blocked: implement's seed-merge hit a stale planning_commit_sha (pre-squash 1222367), repointed at e5aba4109 in 05f5ac9b0. No implementation work had started.",
+        "T001-T008 complete. Hoist proven behaviour-preserving by control-first measurement over 937 files. Floors named integers 4/3. MUT-4/5/6 each killed exactly one intended test with genuine AssertionErrors. SC-005 removal demo: assert 3>=4 and assert 2>=3, never committed. Isolated runs SaaS 19 passed, tracker 25 passed. ruff clean.",
+        "APPROVE — independent read-only review by reviewer-renata (opus), a different agent than the implementer, per handoff section 12. Force overrides only the agent-ownership check: WP01 is assigned to implementer 'claude' and the approver is by design not that agent. Reviewer independently reproduced every load-bearing claim in isolated worktrees pinned to c7e9b0340: 937 input files, counts 4/3 unchanged across the hoist, all four witness tuples, 19/25 passed, ruff clean on 2 files, both SC-005 reds. Beyond the claimed proof it ran a 54,117-node pre/post differential and a 130-shape synthetic grid (zero divergences, wrong-predicate control first), wrote its own MUT-4/5/6 plus an MUT-0 identity control, and settled the decisive could-this-have-failed question by instrumenting the rebound symbol: 54,117 live-scan calls through the mutated object, proving controls are unchanged because the corpus lacks the mutated shapes, not because the mutant went unreached. 4 findings, all MEDIUM or below. F1 stale WP03 anchors FIXED (9d41fb8e0). F3 evidence durability FIXED (9d41fb8e0). F4 suppression rationale FIXED (0ea6b5fe2). F2 two unpinned widening shapes RECORDED as spec-conformant residual for WP03's PR body. Not proven: every green is a 3.14 green while CI runs 3.11/3.12."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    },
+    "WP02": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KZ3RHDK58D52RJ68RDAS6RNN",
+      "last_transition_at": "2026-08-03T12:10:53.413533+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T009-T015 complete. THREE glob lines as required: egress.py->sync, tracker/**->sync, egress.py->core_misc (the pair, not the core_misc-only trap). T010 shape (i): cli added to fast-tests-core-misc's if-gate; fast-tests-cli's pytest paths untouched. T009 baseline red quoted as a genuine AssertionError and re-taken under the SAME runner that produced the green (3 failed -> restore -> 37 passed). T014 asserts through the parsed model with two derived helpers, each controlled first. Isolated on 3.11.15: 37 / 15 / 5 passed; ruff clean. Implementer caught its own proof-that-cannot-fail: the first collector helper reported a NONEXISTENT path as collected (residual whole-tree shard has no parsed positionals), fixed by excluding path-less gates and making the empty result a required assertion. Two dossier corrections traced rather than worked around: the cited procedure path src/doctrine/procedures/built-in/... does not exist (real: packs/built-in/procedures/...), and the plan's input counts 5/30/57 do not reproduce (measured 6/30/66). Both now fixed in the dossier. T015 issue drafted but NOT filed — operator decision. Not proven: runner behaviour (D-4 premise, static reading only); 3.12.",
+        "APPROVE — independent read-only review by reviewer-renata (opus). Reviewer ran a full 5x5 MUTATION MATRIX with perfect 1:1 kills: each of M1 (drop cli atom), M2 (drop egress.py from sync), M3 (drop egress.py from core_misc), M4 (drop tracker/**), M5 (drop ci-quality.yml from core_misc) killed exactly its own assertion and no other. M2 is the one most likely to survive vacuously — any_src and windows_critical still claim egress.py after it — and it did not. Headline question answered by measurement: TWO egress.py glob lines confirmed; counterfactual core_misc-only shows fast-tests-sync False, so the silent-coverage-loss trap is real and absent. Also censused all 164 repo globs and found ZERO in the classes where the dorny->regex translation would diverge, making it exact over the actual input set, and verified the 'neither => run_all' fail-safe nobody asked about. Cross-interpreter: 37/15/5 passed on both 3.11.15 and 3.12.13. Findings: F1 MEDIUM whole-tree-vs-empty exclusion FIXED (59c19c391, proven non-vacuous by reverting the predicate); F3 LOW tracker/** cost FIXED; F4 LOW commit-message count cosmetic, left; F5 LOW pre-existing active_job_keys pull_request trigger gap, not WP02's. F2 HIGH (SC-006 one-off had no carrier) RESOLVED by operator decision to fold it into the repo: it now lives in the docstring of the live confound assertion rather than a session-scoped draft. Not proven and carried: runner behaviour (D-4 premise) — every conclusion here is a parser reading, which is exactly what SC-006's one-off half exists to close."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 774818,
+      "shell_pid_created_at": "1785755190.91",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
+    },
+    "WP03": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KZ3Y9TG85MNCQ9AT69DNZ4GE",
+      "last_transition_at": "2026-08-03T13:51:35.944098+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T016-T024 complete at af02260ae. Plain module src/specify_cli/egress.py (definition site, no package dir); both */egress_consent.py deleted (PB-5); both rebinds landed; both DENIED fragments verbatim as per-transport constants (Q2). F2 antecedent holds — imports neither transport nor sync at module scope. F3 re-run does not fire (4 importers, zero allowlist). T018 six pointers repointed plus the src-side fifth. T019(b) landed in egress.py, not split to the unwritten ADR, so the both-places obligation could not be half-discharged. MUT-1 per-site split egress=2/saas=14/tracker=21 with controls green; MUT-2 reds ONLY clause 3 while the tracker guard's 26 string observations stay green with a stale binding on the live path — the evidence that text cannot separate a correct consolidation from a stale re-export and identity can. Baseline red was ImportError and is explicitly NOT offered as proof. T021 both halves, control-first, one-off via a new-file probe. 13/20/26/4 passed on 3.11, 3.12 and 3.14 alike; ruff and mypy clean. Not proven: SC-022 is ungated prose (reviewer must read the relocated text); T019(b) asserted by presence not correctness; no full-suite run (#3115).",
+        "APPROVE (round 2) — independent read-only review, reviewer-renata (opus). Round 1 REJECT on BLOCKER-1: tests/specify_cli/test_egress_consolidation_3110.py was selected by ZERO CI gates, so SC-004 clause 3, SC-015's standing mechanism (FR-008's sole mapping), SC-025, the FR-012 prose guard and NFR-004's five pins would all have been inert on the merge target — a proof that could not fail because it never ran. Fixed at 7df192dfb with pytestmark = pytest.mark.fast; the --update-baseline branch refused in writing next to the marker. Round 2 confirmed SELECTION not merely marking, by driving the parsed model over 67 real gates and 35,662 collected items: the module resolves to ci-quality.yml::fast-tests-core-misc (specify-cli-rest), the identical gate AND shard as its sibling guard, and that job fires unconditionally on push plus via core_misc on PRs — exactly where WP02 routes egress.py. Full gate-coverage 1 failed+30 passed -> 31 passed; module 13 passed; MUT-2 re-run identical; marker placed after the three imports so clause 3's three-independent-paths anti-vacuity is untouched. LOW-1 forward-reference fix verified. LOW-2 and LOW-3 agreed as residuals, recorded in the WP. Round-1 substance all independently reproduced including MUT-1's egress-only inertness control (46 passed, both decision points inert) and Q2 byte-identical operator text. Not observed: CI itself."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 776052,
+      "shell_pid_created_at": "1785755215.81",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done"
+      }
+    },
+    "WP04": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KZ4JPDNB6JSK8YVY598DK06T",
+      "last_transition_at": "2026-08-03T19:48:00.299833+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Committed a3831e7a9, indivisible (ownership.py + decision.py + tests in one commit). #3111's leak REPRODUCED END TO END for the first time, asserting bytes: B's decision_id in the URL path addressed to A's team_slug under A's token, from a CONSENTING A, exit 0, 1 request. Two controls in the same harness: non-consenting A also produced zero at bb2020fea (so a count of zero establishes nothing — hence bytes), and A widening its own id produced one. Post-fix: exit 1, zero requests, DID_B absent, positive control unchanged. Neither forbidden repair taken — ULID check still exact Crockford-base32, and permissive-without-kitty-specs pinned against by test_no_kitty_specs_at_all_still_refuses. Baseline 28 passed -> 28 passed. Found a FALSE GREEN in the pre-existing suite: test_live_saas_error_exits_one asserts exit_code==1 and an ownership refusal also exits 1, so only 7 of 8 red; verified in isolation, then arranged so it is green for the right reason. DEVIATION worth review attention: the mandated unreadable-flag assertion is unreachable via load_index (3.14 yields not-established with NO flag), so the module probes readability with an explicit open() first — controlled by stripping the probe, which reds on 3.11 AND 3.14 where the mandated shape reds only on CI. Executed under 3.11 and 3.12, PASSED not SKIPPED. MUT-3 reds with byte-level assertions; controls 2 passed. 8/18/23/28 passed on all three interpreters; ruff clean on 5 files, mypy on 2. Not proven: --mission-slug is a distinct input path but converges on one gate call; the compensating runtime assertion cannot fire today (stated plainly, not overclaimed); no cross-checkout behaviour; no full suite (#3115); leak reproduced with a recording transport, nothing left the machine.",
+        "APPROVE (round 5) — independent read-only review, reviewer-renata (opus), five rounds. FIVE-ROUND HISTORY: R1 REJECT (the must-not-veto test was vacuous — the wrong R12 implementation passed all 8); R2 REJECT (my fix reintroduced the Path.exists() EACCES trap and the branch shipped untested); R3 REJECT with TWO HIGHS in ORIGINAL code, escalated to the operator under section 12, who authorised fixing rather than deferring; R4 APPROVE with MEDIUM-4 escalated on grade, operator chose fix; R5 APPROVE, nothing above MEDIUM, no second escalation. #3111's leak was REPRODUCED END TO END for the first time, asserting bytes. Three consent-laundering paths closed, each with a captured request line before the fix and a paired control: the operator-location defect itself, a symlinked kitty-specs (HIGH-2), and a symlinked mission/decisions or index.json (MEDIUM-4). Three instances of the same EACCES trap removed (exists in load_index, exists guarding the probe, is_dir on candidates); AST-verified zero .exists() call sites remain. Reviewer attacked containment with 2-hop chains, relative '..' links, out-then-back-inside, dangling links, relative and symlinked repo_root — no bypass; within-root layouts still work. Every fix controlled by reverting its own guard, not asserted. MEDIUM-5 (my own do-not-over-fire control was vacuous — another mission answered) fixed at f832baea8 and controlled. Cross-interpreter 27/10/28/23 on 3.11.15 and 3.12.13; 28 baseline holds; ruff clean on 5, mypy clean on 2; scope exactly the five owned_files across all six commits. DECLARED, not fixed: MEDIUM-3 — MUT-3's mandated must-not-veto control now reds BY DESIGN because the anti-vacuity anchor detects the derivation stopping; weakening it would re-vacuate BLOCKER-1's fix. Surviving evidence: SC-002 positive control green under MUT-3 plus the dedicated R12 control. Residuals: LOW-4, LOW-5, LOW-7, LOW-8, and bind mounts as an inherent limit of path-based containment. Not verified: real CI, and root-euid behaviour (mode-bit cases refused as root per the standing rule)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 880429,
+      "shell_pid_created_at": "1785759689.84",
+      "subtasks": {
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done"
+      }
+    },
+    "WP05": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KZ3P9731163BX48WZCZVDVZP",
+      "last_transition_at": "2026-08-03T11:31:27.457382+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T033-T034 complete at 301f00ac2. D-1 honoured: register_saas_client_factory KEPT, docstring corrected (false 'called once at sync package startup' removed), export pinned. __init__.py unmodified — the re-export and __all__ entry already existed and were unpinned, not missing. Pin proven non-vacuous by removing only the two export lines in a throwaway worktree: 1 failed with the __all__ assertion text quoted, 17 passed as positive control including the absence pin. Baseline 18 passed; ruff clean on 3 files. Not proven: 3.14 only (reviewer instructed to run 3.11/3.12).",
+        "APPROVE — independent read-only review by reviewer-renata (opus), a different agent than the implementer. Force overrides only the agent-ownership check. Reviewer reproduced every claim in a pinned throwaway worktree and went beyond the implementer's proof with THREE additional mutations establishing that neither half of the pin is dead weight: remove :21+:111 -> caught by 'in __all__'; remove :21 only -> caught by identity (AttributeError); remove :111 only -> caught by 'in __all__'; same-named decoy def appended -> caught by identity, proving the comparison is genuinely cross-module and not self-comparing. It also controlled its own mutation script against a line-shifted copy, which correctly aborted. Verified the docstring's new claim is TRUE by measurement with a positive control (register_egress_consent_resolver has 2 real call sites; register_saas_client_factory has zero), that adapters.py:113's sibling sentence is byte-identical to bb2020fea and true there, and that __init__.py really did already carry the export at :21/:111 pre-WP05. Cross-interpreter: 18 passed on 3.11.15, 3.12.13 and 3.14.4 alike. Scope clean, 2 owned files. Findings: LOW-1 rotting propagator.py:70-83 citation FIXED (9c38fa982 — function starts at :58; dropped the range for the durable symbol anchor); LOW-2 pre-existing docstring half-truth on re-registration, not attributable and correctly left per DIR-024 locality; LOW-3 informational (decision pin, not behaviour pin, intended tripwire). No CRITICAL/BLOCKER/HIGH/MEDIUM."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 776052,
+      "shell_pid_created_at": "1785755215.81",
+      "subtasks": {
+        "T033": "done",
+        "T034": "done"
+      }
+    },
+    "WP06": {
+      "actor": "curator-carla",
+      "agent": "curator-carla",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KZ4ZVMDB1PMQ3HX138G1CKHK",
+      "last_transition_at": "2026-08-03T23:38:02.539826+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T035-T036 at 3352d8f9f / da2654b0b. ADR docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md, 306 lines, frontmatter title/status/date copied from a 20-file neighbour survey rather than the template — and the template trap was verified in BOTH directions against _read_adr_meta: the ADR parses, the shared template raises FreshenError, and the ADR with date: deleted raises. Glossary 'engagement' in docs/context/identity.md, chosen over planning-and-tracking.md because the term names a PARTY not a unit of work. SC-019 5 hits over 131 files with 3 substantive and independent of the ADR quoting its own gate; SC-020 1 hit over 34 files, was 0. Both diagnostics controlled first (known-present term, then nonsense term). Every ADR decision states its falsifier and the three that have none say so explicitly. Lands deliberately lockfile-dirty by design. FOUND TWO THINGS THE PROMPT DID NOT ENUMERATE: a forbidden 'ceremony' term introduced by lane-c's LOW-4 commit, correctly attributed and now fixed there (guard 10 passed); and docs/development/3-2-docs-retrieval-index.yaml, a SECOND severity=error lockfile in no WP's owned_files that freshen_adr_inventory.py does not reconcile — FU-N, assigned to WP07, without which the mission lands docs-freshness red. Also measured the docs baseline as 689/689, not the prompt's 685/685. Not proven: the ADR's content correctness (SC-019/SC-020 are grep-gates and it says so), body-link anchor targets, rendering.",
+        "APPROVE — independent read-only review (curator-carla, opus). The substantive half was READING the ADR, since SC-019/SC-020 are grep-gates the implementer itself said a three-term file would pass. Reviewer verified every load-bearing point against the mission record rather than the implementer's summary: the provenance invariant in its SUPERSEDING form with the retired type-based framing marked retired and nowhere stated as current; seven substitutes with the two symlink cases marked found-in-review-not-design; the EACCES table byte-identical to ownership.py's docstring; and critically, 'identity is a detector, never an actuator' recorded correctly WITH the explicit sentence forbidding the measured-false 'the patch now reaches both decision points' — that claim is not merely absent, the ADR names and forbids it. Every decision carries a falsifier. Reproduced independently: SC-019 5 hits over 131 files (3 substantive, self-quotes strippable and it still discharges), SC-020 1 over 34, both with controlled diagnostics; all three _read_adr_meta rows including the template raising FreshenError; the adr/** styleguide exclusion; 689-row baseline; tests/docs 627 passed. Two LOW arithmetic errors FIXED at 1c32057b5: the recurrence count said six+two=eight against its own seven-row table (five pre-mission substitutes in the record), and containment was described as two depths when ownership.py has three (:303, :387, :440) — the latter mattered because a reader auditing the module would find an assertion the ADR implied should not exist. FINDING 3 corrects the commit body, not the ADR: two of the three 'limits without falsifiers' do have them, and only bind-mount invisibility genuinely lacks one; the ADR was better than its own commit message. ESCALATION FU-N confirmed and acted on: retrieval-index lockfile added to WP07's owned_files and lane-planning write_scope at b9de2fcc9. CORRECTION TO ME: I told the reviewer the terminology guard passes 10 — true in lane-c, but the fix b1282090b is NOT an ancestor of lane-e HEAD, so the guard reds here and the mission cannot land green until lane-c is re-merged. WP06 is not chargeable for that. Not proven: ADR content correctness beyond the reviewer's read, body-link anchors, rendering, bind-mount claim is reasoned not measured."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 1782799,
+      "shell_pid_created_at": "1785797768.52",
+      "subtasks": {
+        "T035": "done",
+        "T036": "done"
+      }
+    },
+    "WP07": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KZ5V31Q8Z47Q5FDEMAQ4RKK3",
+      "last_transition_at": "2026-08-04T07:33:57.096642+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T037-T039 at b07d7896b. Both lockfiles reconciled 689->691 rows, ADR README 94->95, check_docs_freshness exit=0 findings=0 over 691 rows, docs_structural_lint 691 pages 0 violations, terminology guard 10 passed, ruff clean over 3911 files. Evidence file 797 lines. FU-N confirmed at lockfile level — the retrieval index needed docs_index.py --write, which freshen_adr_inventory.py does not call. FU-O confirmed in BOTH rulers by measurement at the baseline: 689, not 685. Five error rows as predicted, not three. ESCALATED NOT FIXED: test_ownership_3111.py is 33 passed on 3.11 and 2 failed on 3.14 — LOW-8's drop-recording hangs off  under resolved.is_dir(), which raises on 3.11 and returns False on 3.14, so on 3.13+ the drop is unrecorded and the operator gets LOW-8's original 'no missions found / git pull' misdiagnosis. Fail-closed, diagnosis-only, but requires-python >=3.11 and CI runs only 3.11/3.12 so CI cannot see it. Also corrected four claims from my own briefs (docs-freshness is one of three unfiltered workflows and has a pr:skip-ci escape; freshen_adr_inventory --check without --all reports missing_rows=0 over an EMPTY target set, a sixth proof that could not fail, in the tooling; styleguide is under packs/; WP06 changed one docs/context page). Fourth instance of the invalid-measurement shape: nine test_gate_coverage reds were HOME-replacement plus user-site pytest, 37 passed in a venv. Not proven: no CI run observed, no full-suite green (#3115), nothing measured on 3.12, acceptance-matrix.json still a stub.",
+        "APPROVE -- independent read-only review (reviewer-renata, opus). Reviewer re-took all nine isolated runs and every cell matched: 192 items, 192 passed, 0 skipped on 3.11. It proved both lockfile detectors CAN fire by pointing them at the baseline (added=2 removed=0 changed=1) rather than settling for drift=False, so nothing was dropped. It took the measurement WP07 said it had NOT taken: 3.12 does NOT diverge -- 33 passed on 3.11 and 3.12 alike vs 2 failed on 3.14, same pytest in venvs -- so FU-Q's grading is confirmed rather than upset. FU-Q CONFIRMED with its own three-interpreter control, and escalate-not-fix judged correct: fixing from WP07's lane would violate write scope and DIR-024, and the fix changes a published JSON field that already has a documented mixed-kind problem. The reviewer also hit the trap class itself -- inventory_lockfile --check exits rc=2 usage error -- caught only by capturing rc on the following line. FIXED from its findings: MEDIUM-1, a claim I originated, since CI provisions 3.13 in build-wheel and clean-install-verification with neither running pytest, so \"CI runs only 3.11/3.12\" was false AND understated because clean-install-verification imports specify_cli on 3.13; LOW-2, the invalid-measurement count said three, is five, plus a sixth in the tooling, and this page's own event note is a casualty of the fifth; LOW-3, a third surviving obligation (tracer-tooling-friction.md) had no home and could not be created from this WP; LOW-4, the After block now names b07d7896b. FU-Q filed as issue 3177 and anchored in three artifacts. Reviewer states nothing blocks the draft PR. Outstanding for the accept gate and NOT this PR: acceptance-matrix.json is still an all-pending stub and must be rewritten per clause."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 1959875,
+      "shell_pid_created_at": "1785801858.76",
+      "subtasks": {
+        "T037": "done",
+        "T038": "done",
+        "T039": "done"
+      }
+    }
+  }
+}
