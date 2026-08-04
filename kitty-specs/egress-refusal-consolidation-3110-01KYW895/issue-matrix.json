@@ -61,7 +61,7 @@
       "wp": "\u2014"
     },
     "#3177": {
-      "evidence_ref": "**Follow-up: #3177** \u2014 filed BY this mission, not fixed in it. The 3.13+ `is_dir()` EACCES divergence at `ownership.py:387`, found by WP07 after WP04 was already approved and merged. Fail-closed (`owned=False`, nothing transmits) and invisible to CI, which runs no test suite on 3.13+. Mechanism, three-interpreter table and falsifier in `follow-ups.md` FU-Q and the WP07 evidence file",
+      "evidence_ref": "Deferral reversed at landing. S_ISDIR(resolved.stat().st_mode) replaces resolved.is_dir() in _mission_dirs, applying the explicit-probe remedy FU-Q proposed. Divergence corrected to 3.14+ (not 3.13+): re-measured on 3.11.15/3.12.13/3.13.12/3.14.4 -- predicate raises on the first three, returns False on 3.14 only, because 3.14 delegates is_dir to os.path.isdir which swallows every OSError. FU-Q's 3.13+ came from probing hasattr(pathlib, _ignore_error), a namespace-layout change in 3.13, not a behaviour change. Verified 33 passed on 3.11/3.12/3.14 (was 2 failed, 31 passed on 3.14); full mission set 152 passed on 3.11. Standing AST guard tightened: all four predicates now banned outright since a try around a non-raising call is inert, stat/lstat still try-permitted. Both falsifiable.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -69,7 +69,7 @@
       "scope": "regression filed by this mission",
       "source_file": null,
       "title": "unstattable mission directory loses its diagnosis on Python 3.13+",
-      "verdict": "deferred-with-followup",
+      "verdict": "fixed",
       "wp": "WP04"
     }
   },
