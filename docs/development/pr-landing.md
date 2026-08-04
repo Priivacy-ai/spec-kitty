@@ -2,7 +2,7 @@
 title: 'Landing Contributor PRs: The Maintainer Runbook'
 description: 'The maintainer workflow for landing contributor PRs: claim, worktree isolation, rebase, red classification, folds, red-first verification, push discipline, and hand-off.'
 doc_status: active
-updated: '2026-07-31'
+updated: '2026-08-04'
 type: how-to
 related:
 - docs/guides/index.md
@@ -100,7 +100,42 @@ rebased tip and classify it into exactly one of four bins:
 | **Pre-existing main breakage** | The same red reproduces on an unrelated main-based branch | **Fold the fix in by default** ([step 5](#5-folds-remediation-commits-on-the-contributor-branch)) — keep main green even for a red the PR did not cause — *unless* one of the two carve-outs below applies |
 | **Perf-budget flake** | A budget gate trips without a correctness signal | Note it, watch for recurrence, tune the budget at the root if it repeats — never retry-to-green |
 
-The cross-branch reproduction for the third bin is cheap and decisive:
+**Start with main's own CI run at the merge-base — it is cheaper and more
+decisive than any local rerun.** CI already ran the same shards against the
+commit your branch is based on, so the comparison is a fetch, not a test run:
+
+```bash
+unset GITHUB_TOKEN
+gh run list --repo Priivacy-ai/spec-kitty --branch main --limit 5 \
+  --json databaseId,name,conclusion,headSha
+# then, per failing job, pull the logs and diff the failing-test sets:
+gh api --allow-escape-sequences "/repos/Priivacy-ai/spec-kitty/actions/jobs/<job-id>/logs" \
+  | sed 's/\x1b\[[0-9;]*m//g' | grep -E "^FAILED|short test summary| failed,"
+```
+
+Two things make this decisive rather than merely suggestive:
+
+- **Match on test id *and* assertion text**, not just job status. A job can be
+  red on both sides for different reasons.
+- **Compare the pass counts too.** `1 failed, 572 passed` on main against
+  `1 failed, 583 passed` on the PR proves the PR added 11 tests and no
+  failures. That single line refutes "the PR broke something" faster than any
+  argument.
+
+**Decompose composite jobs.** `lint` is not one check — it runs schema
+generation, `ruff`, `mypy`, `commitlint`, `markdownlint`, `pip-audit` and
+`bandit` as separate steps. Never classify `lint` as a unit: extract the
+failing **steps** on both sides and compare those. On the 2026-08-04 pass,
+`pip-audit` and `bandit` were red on main (pre-existing) while `commitlint`
+and `markdownlint` were introduced by the folds — a distinction invisible at
+job level:
+
+```bash
+grep -nE "##\[group\]Run |##\[error\]Process completed" <log> \
+  | awk '/error/{print prev} {prev=$0}'
+```
+
+Then reproduce locally only for the reds you still need to settle:
 
 ```bash
 git worktree add /tmp/repro-main upstream/main
@@ -120,9 +155,25 @@ longer. Two carve-outs override that default:
   is a *deliberate* red-mainline signal for an open P0 bug — **leave it red.**
   Do not fold it to green; the product fix that closes its tracking issue is
   separate, dedicated work, never a landing-pass fold. Greening it here would
-  erase the honest release-blocker signal the ADR exists to preserve. (Tell
-  these apart by the `@pytest.mark.regression` marker and the in-test NOTE
-  naming the tracking issue.)
+  erase the honest release-blocker signal the ADR exists to preserve.
+
+  Tell these apart by the `@pytest.mark.regression` marker and the in-test
+  NOTE naming the tracking issue — but **check for the marker per test, not
+  per file.** It is routinely applied as a decorator on the individual test
+  while the module's `pytestmark` lists only category markers, so a file-level
+  grep reports "unmarked" for a properly-pinned P0 reproduction. This misread
+  happened on the 2026-08-04 pass and nearly produced a needless "add the
+  marker" fold for three tests that already had it:
+
+  ```bash
+  grep -rn "pytest.mark.regression" tests/ | sort   # catches both forms
+  ```
+
+  Since the 2026-08-04 pass, these tests live in `tests/regression/` and are
+  excluded from every other suite's selection — so **a red outside
+  `tests/regression/` is a real signal**, and the classification above only
+  has to be applied to reds inside it. Entry and exit rules are documented in
+  `tests/regression/README.md`.
 - **A fix that is mission scope and cannot reasonably be folded.** If the real
   fix belongs to a distinct mission — wide blast radius, its own spec/design, an
   in-flight mission's own reconciliation — do not cram it into the contributor
@@ -147,7 +198,32 @@ relies on `maintainerCanModify`, which is true by default on PRs from forks.
   and never split one logical fix across several. This is a hard rule, not a
   preference: a mixed-purpose fold commit is what makes a later `git revert`
   or bisect ambiguous.
-- Label the commit subject `landing fold: ...`.
+- **Label the commit subject `<type>(landing): ...`** — a Conventional Commits
+  type, with `landing` as the scope. Pick the type from what the commit
+  actually touches: `fix` (product behaviour), `test` (tests/gates/baselines),
+  `docs` (prose, changelog, mission artifacts), `chore` (config, CI, tooling).
+  The scope keeps every fold greppable (`git log --grep '(landing)'`).
+
+  > **Do not write `landing fold: ...`.** This runbook prescribed that label
+  > until 2026-08-04 and it is **rejected by the repo's own commitlint gate**:
+  > "landing fold" contains a space, so the Conventional Commits parser
+  > extracts no type at all and every such commit fails both `type-empty` and
+  > `subject-empty`. It went unnoticed for several landing passes because
+  > commitlint only lints commits **in the PR range** — main's own
+  > `landing fold:` commits were never checked, so the violation only ever
+  > surfaces on the PR that carries the folds. commitlint is not a
+  > `devDependency`, so mirror CI's own invocation (`ci-quality.yml`, the
+  > `commitlint` step) and verify the whole batch before pushing:
+  > ```bash
+  > for c in $(git rev-list upstream/main..HEAD); do
+  >   npx --yes @commitlint/cli@19.8.1 --config commitlint.config.cjs \
+  >     --from "$c~1" --to "$c" --verbose \
+  >     || echo "FAILED: $(git log --format=%s -n1 "$c")"
+  > done
+  > ```
+  > Allowed types come from `type-enum` in `commitlint.config.cjs`
+  > (`build chore ci docs feat fix lint perf plan refactor revert spec style
+  > test`). There is no `scope-enum`, so `(landing)` needs no registration.
 - Explain every fold in the remediation summary comment ([step 10](#10-post-the-remediation-summary)).
 
 Typical folds: canonical-source fixes (the changelog lives in
@@ -243,6 +319,34 @@ the adversarial squad above — the squad finds and classifies, subagents
 implement the fold, the maintainer adjudicates and lands it as one commit
 ([step 5](#5-folds-remediation-commits-on-the-contributor-branch)).
 
+Mechanics that make a parallel pass work, learned on 2026-08-04 (24+ folds,
+14 delegated agents):
+
+- **Give every agent its own worktree and an explicit no-touch list.** Name
+  the files other in-flight agents hold. Without it, two agents edit
+  `resolver.py` and both cherry-picks conflict. Sequence anything that shares
+  a file; parallelise everything that does not.
+- **Agents commit in their own worktree and never push.** The maintainer
+  cherry-picks onto the landing branch. Because the worktrees share one object
+  store, `git cherry-pick <sha>` works with no remote round-trip.
+- **A revert pair cancels out — skip both and prove tree parity.** An agent
+  that self-corrects may leave `X` and `Revert "X"` plus a re-landed `X'`.
+  Cherry-pick the net set, then prove nothing was lost:
+  ```bash
+  git diff <agent-branch> HEAD -- <the files that agent owned>   # expect empty
+  ```
+- **Convergence is the signal worth acting on.** When independent lenses
+  reproduce the same defect with live before/after output, treat it as
+  confirmed and fix it — do not re-derive. Conversely, a single lens's
+  *proposed fix* still needs checking: on 2026-08-04 two lenses proposed the
+  same one-line change and the implementer correctly rejected it, because that
+  line would have destroyed a legitimately-empty configured value. Brief
+  agents to **verify the diagnosis before applying the prescription**, and to
+  stop and report if the code disagrees with the brief.
+- **Instruct agents never to fabricate evidence.** A measurement they could
+  not take must be reported as not taken. A matrix row marked `pending` with a
+  reason is worth more than one marked `pass` without proof.
+
 ## 9. Push discipline
 
 Before any force-push to a fork branch, check for commits you have not seen —
@@ -250,9 +354,10 @@ Copilot-review commits and parallel-session commits get cherry-picked, never
 clobbered:
 
 ```bash
-git fetch <fork-remote> <branch>
-git log <old-head>..FETCH_HEAD --oneline   # anything here? cherry-pick it first
-LEASE_SHA=$(git rev-parse FETCH_HEAD)
+# Fetch into an explicit remote-tracking ref — never rely on FETCH_HEAD.
+git fetch <fork-remote> <branch>:refs/remotes/<fork-remote>/<branch> --force
+git log <old-head>..refs/remotes/<fork-remote>/<branch> --oneline  # anything here? cherry-pick it first
+LEASE_SHA=$(git rev-parse refs/remotes/<fork-remote>/<branch>)
 git push <fork-remote> HEAD:refs/heads/<branch> --force-with-lease=<branch>:"$LEASE_SHA"
 ```
 
@@ -265,6 +370,14 @@ Two lease lessons from the 2026-07-04 pass, both worth internalizing:
 2. **The lease sha must come from `git rev-parse`, never retyped from a
    display.** Two pushes in the pass were rejected because a lease sha was
    retyped from a 9-character abbreviated prefix.
+3. **`rev-parse FETCH_HEAD` is only valid immediately after fetching the ref
+   you mean.** `FETCH_HEAD` is a single global file that *every* fetch
+   overwrites, so a `git fetch upstream main` between the fork fetch and the
+   push silently substitutes main's sha into the lease — producing a
+   `(stale info)` rejection that looks like "someone else pushed" when nothing
+   moved. This cost a rejected push on the 2026-08-04 pass. Fetch into an
+   explicit `refs/remotes/<fork-remote>/<branch>` and rev-parse that, as
+   above; it survives any number of intervening fetches.
 
 ## 10. Post the remediation summary
 
@@ -341,6 +454,49 @@ been fixed, the end-state is stated instead of the trap.
   a pre-existing red only surfaces on the first PR that does — the innocent
   PR wears the failure. Classify it as pre-existing (bin three of
   [step 4](#4-classify-every-red-check)), not as the PR's defect.
+  **Your own folds trigger this too:** a fold that touches a new path un-skips
+  that path's shard, so the pass surfaces reds the PR never caused. On
+  2026-08-04 a fold under `cli/commands/agent/` un-skipped `fast-tests-agent`
+  and exposed a golden-contract drift that reproduced cleanly on
+  `abca7ec96`. Re-classify after each batch of folds, not only at the start.
+- **File-scoped linters lint the whole file, not your diff.** `markdownlint`
+  runs over *changed files*, so editing one line of a long-lived document
+  subjects its entire pre-existing violation set to the gate. Touching
+  `docs/changelog/CHANGELOG.md` surfaced ~21 pre-existing `MD049` findings
+  spread across the file. Expect this on any changelog or large-doc fold, and
+  budget for fixing the file rather than only your lines. Run the repo's own
+  markdownlint invocation (see the step in `.github/workflows/ci-quality.yml`)
+  rather than a default config.
+- **Moving or adding a test file trips completeness baselines.** New or
+  relocated test files must join their registries in the *same commit* as the
+  move, each with a dated rationale: `tests/_arch_shard_map.py`
+  (`_ARCH_SHARD_N_FILES`), `tests/_next_shard_map.py`,
+  `tests/architectural/marker_baseline.txt`, and
+  `tests/architectural/_golden_count_baseline.json`. Search the repo for the
+  new filename before committing. Never key an allowlist by line number or
+  whole file (banned by #2077 / `DIRECTIVE_041`) — use content descriptors.
+- **Verify architectural gates from a non-dot path.** Gates that walk the tree
+  can silently skip dot-prefixed path segments, so a run from
+  `.worktrees/…` or `.claude/worktrees/…` can report a false green. Confirm
+  from a plain checkout before declaring a gate satisfied:
+  ```bash
+  git worktree add /tmp/verify-<N> <sha>
+  cd /tmp/verify-<N> && PWHEADLESS=1 uv run pytest tests/architectural/<gate>.py -q
+  ```
+- **A frozen-contract drift with `missing: []` means flags were *added*, not
+  removed.** Read the direction before acting: extras with nothing missing is
+  a pin that was never joined when a feature shipped, so the fix is to re-pin
+  with a dated rationale. Never remove a shipped flag to satisfy a stale pin —
+  that smuggles a breaking change into a landing pass. Trace each addition
+  (`git log -S'--flag-name' -- src/`) and confirm it predates the merge-base
+  before re-pinning.
+- **Never green-wash a red by "updating the test".** Twice on the 2026-08-04
+  pass the obvious read — new gating narrowed a payload, so the assertion is
+  stale — was wrong: the rendered output was byte-identical on both sides and
+  the real defect was a product bug (a `str.replace` deleting a section header
+  along with its body). Prove the assertion is wrong *before* changing it, by
+  showing the expected behaviour genuinely changed. If the test is right, fix
+  the product even when that is the larger job.
 - **`scripts/` invocations need `PYTHONPATH=.`.** The docs scripts import
   `scripts.docs.*` as a package; without it they crash with
   `ModuleNotFoundError: scripts`:
