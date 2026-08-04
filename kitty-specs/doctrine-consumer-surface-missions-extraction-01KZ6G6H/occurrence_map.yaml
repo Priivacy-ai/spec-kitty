@@ -1,0 +1,81 @@
+# Occurrence map for mission doctrine-consumer-surface-missions-extraction-01KZ6G6H
+# (Missions/ Doctrine Tree Relocation & Gate Preconditions).
+#
+# Schema: src/doctrine/schemas/occurrence-map.schema.yaml
+
+target:
+  term: src/doctrine/missions
+  replacement: packs/built-in/missions
+  operation: rename
+
+categories:
+  code_symbols:
+    action: manual_review
+    # Not a symbol rename in itself. Manual review because FR-004's kernel
+    # primitive extraction and its convergence of doctrine/pack_paths.py onto
+    # it renames/replaces internal function bodies (get_package_asset_root's
+    # helpers, _resolve_built_in) — implementation-detail changes the
+    # reviewer should see per-site, not a mechanical find-and-replace.
+  import_paths:
+    action: manual_review
+    # The relocation moves DATA content (templates, mission-steps prompts,
+    # step-contract YAML/MD) under src/doctrine/missions/. Whether any
+    # sibling .py modules there (mission_type_repository.py,
+    # step_contracts.py, etc.) also move — versus staying in place as logic
+    # modules per the #2652 precedent ("retain sibling .py modules") — is
+    # exactly what FR-003's reader inventory decides per file. No blanket
+    # import-path rename is safe to assume before that inventory exists.
+  filesystem_paths:
+    action: manual_review
+    # This IS the mission. Every literal path reference to
+    # src/doctrine/missions (or the specify_cli/missions sibling shape
+    # kernel's _resolve_env_root also hardcodes) needs FR-003's per-site
+    # move/stay/repoint decision — no blanket action is safe.
+  serialized_keys:
+    action: do_not_change
+    # No JSON/YAML/TOML *keys* are renamed by this mission — only a
+    # directory location changes. Mission-type ids (software-dev, research,
+    # documentation, plan) are unchanged.
+  cli_commands:
+    action: do_not_change
+    # No CLI subcommand, flag, or verb changes name.
+  user_facing_strings:
+    action: rename_if_user_visible
+    # Docs/README prose that names the literal src/doctrine/missions path
+    # (e.g. architecture docs, ADRs referencing the pre-move location) should
+    # update to the new path where user/contributor-visible; internal error
+    # messages that happen to embed the old path are covered under
+    # filesystem_paths instead.
+  tests_fixtures:
+    action: rename
+    # Tests asserting the old path/location must be updated to assert the
+    # new one — a test still asserting src/doctrine/missions after the move
+    # is simply wrong, not a case needing individual judgment.
+  logs_telemetry:
+    action: do_not_change
+    # No metric name, log key, or telemetry event references this path.
+
+exceptions:
+  - path: "src/doctrine/missions/*.py"
+    action: do_not_change
+    reason: "CONFIRMED during post-plan review (not merely candidate): the 11 top-level .py logic modules (repository.py, mission_type_repository.py, mission_step_repository.py, step_projection.py, models.py, action_index.py, primitives.py, step_contracts.py, step_offer_seam.py, glossary_hook.py, __init__.py) stay in src/doctrine/missions/ as an ordinary Python package. packs/built-in/ cannot host them (hyphenated name is not a legal package identifier; every sibling kind directory ships YAML/MD content only). These files are repointed (their own internal path assumptions updated to read the new external data root) but not moved."
+  - path: "src/doctrine/drg/migration/extractor.py"
+    action: manual_review
+    reason: "CONFIRMED during post-plan review: _missions_root()'s own docstring asserts missions/ was not relocated by an earlier flatten and 'still lives inside the doctrine package' -- an assumption this mission's move falsifies. Must be repointed as part of the same atomic change (FR-005), with packs/built-in/mission_type.graph.yaml and mission_step_contract.graph.yaml regenerated and diffed against committed state."
+  - path: "src/doctrine/missions/repository.py"
+    field_path: "MissionTemplateRepository.default_missions_root"
+    action: manual_review
+    reason: "CONFIRMED during post-plan review: this classmethod is the already-promoted authority a prior mission's WP06 explicitly deferred converging onto the FR-004 kernel primitive to this issue (#3091) -- see tests/charter/test_missions_root_authority.py's own docstring. Converges onto the kernel primitive per FR-004, not merely repointed to a new literal path."
+
+moves:
+  - from:
+      - src/doctrine/missions/mission_types
+      - src/doctrine/missions/mission-steps
+      - src/doctrine/missions/built_in_step_contracts
+      - src/doctrine/missions/documentation
+      - src/doctrine/missions/plan
+      - src/doctrine/missions/research
+      - src/doctrine/missions/software-dev
+      - src/doctrine/missions/README.md
+    to: packs/built-in/missions
+    reason: "Relocate the missions/ doctrine tree's DATA CONTENT (issue #3091) to the shippable packs/built-in location, alongside every other built-in doctrine kind directory (agent_profiles/, directives/, tactics/, ...). VERIFIED directory listing during post-plan review: src/doctrine/missions/ top level is mission_types/ (per-type .yaml profiles), mission-steps/ (step prompt dirs), built_in_step_contracts/ (step-contract YAML), four per-type content dirs (documentation/, plan/, research/, software-dev/), README.md, plus the 11 .py logic modules (see the do_not_change exception above) and __pycache__ (build artifact, not moved or tracked). Only the data listed here moves -- the .py modules stay, since packs/built-in/ cannot host Python modules. Landed as ONE atomically-reviewed change together with every reader repoint (FR-005) -- a move-without-repoint intermediate state is a genuinely broken build, not a safe incremental step."
