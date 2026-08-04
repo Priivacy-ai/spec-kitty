@@ -1022,6 +1022,34 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   and ADR
   [2026-07-23-1](../adr/3.x/2026-07-23-1-surface-vocabulary-two-domains-and-topology-surface-rename.md);
   no new architectural decision was needed.
+- **Activating a subset of directives, tactics, styleguides, toolguides,
+  mission-step contracts, or glossary packs now actually narrows what your
+  project sees — it didn't before (mission `charter-sole-door-bypass-closure`).**
+  If your `charter.yaml`/pack config selects only some of a pack's
+  directives (or tactics, styleguides, toolguides, mission-step contracts,
+  glossary packs), the runtime, CLI, and rendered context now consistently
+  show only the selected set for those 6 kinds, and mission-type selection
+  is honoured the same way. Previously this filtering only worked for
+  `paradigm`, `procedure`, and `agent_profile` — the other 6 kinds and the
+  `mission-type` token fell through unfiltered, so a deactivated pack could
+  still show up. **If you haven't configured any activation selection,
+  nothing changes** — a bare/unconfigured project's result set is
+  unaffected. One deliberate exception: `.kittify/profiles` (a
+  local-override directory outside the doctrine activation model) is
+  explicitly still unfiltered by this change — a scope call, not a missed
+  site; that area is slated for separate future rework.
+
+  Under the hood, this closes every remaining bypass around the charter's
+  `DoctrineService` factory — the two previously-divergent "canonical"
+  construction paths are now one, ~20 call sites that built repositories or
+  services directly (or reached past the factory's wrapper) now route
+  through it, and 5 zero-tolerance architectural tests guard against
+  regressions in each bypass category. This mission also promotes
+  `MissionTemplateRepository.default_missions_root()` as the single shared
+  missions-root authority and retargets two duplicate hardcoded path
+  constructions onto it, but that consolidation does **not** claim
+  convergence with `doctrine.pack_paths.built_in_dir` — full convergence
+  remains `#3091`'s to deliver.
 
 ### 💥 Breaking Changes
 

@@ -1,0 +1,89 @@
+{
+  "rows": {
+    "#2077": {
+      "evidence_ref": "Referenced by WP09 only as the CONSTRAINT that shaped its gates, not as work this mission performs. #2077's recurrence guard (tests/architectural/test_ratchet_positional_anchor_ban.py, DIR-041, mission content-address-ratchet-allowlists-01KX8M4D) already shipped and is verified live: reviewer read the guard and confirmed it bans int-to-line-sinks and path:NNN literals in module-level allow-list seeds anywhere under tests/architectural/, and confirmed all 46 of its tests pass with WP09's three new gate files in place. WP09 therefore keys its exclusions by content descriptor (file, qualname, token) instead of spec.md NFR-001's literal (file, qualname, line); the drift #2077 exists to prevent was independently reproduced here (registry.py 48->73, profile_resolution.py 81->95, projection.py 84->115, _doctrine_collect.py 193/283/420/828 -> 209/314/468/920). No reopening, no new work required.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": "WP09"
+    },
+    "#2986": {
+      "evidence_ref": "Follow-up: #2986 remains open as its own tracked follow-on -- runtime->doctrine import-ratchet's own function-local-import blind spot, 61 sites/30 files, different pair (spec.md C-003).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP10"
+    },
+    "#3022": {
+      "evidence_ref": "Follow-up: #3022 remains open as its own tracked follow-on -- extract built-in packs into spec-kitty-packs-open, packaging/distribution track (spec.md C-003).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP10"
+    },
+    "#3036": {
+      "evidence_ref": "Follow-up: #3036 remains open as its own tracked follow-on -- a doctrine-content-shippability gate contradiction, different domain (spec.md C-003).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP10"
+    },
+    "#3039": {
+      "evidence_ref": "Follow-up: #3039 remains open as its own tracked follow-on -- a test-file reorganisation unrelated to access-path enforcement (spec.md C-003).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP10"
+    },
+    "#3091": {
+      "evidence_ref": "Follow-up: #3091 remains open as its own tracked follow-on -- relocate src/doctrine/missions/ to packs/built-in, packaging track (spec.md C-003).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP10"
+    },
+    "#3101": {
+      "evidence_ref": "Follow-up: #3101 (kernel->doctrine->charter wheel-cutover track) remains open, likewise untouched by this mission per spec.md C-003; ADR docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md already assesses and sequences the cutover as a deferred no-partial follow-on",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP10"
+    }
+  },
+  "schema_version": 1
+}

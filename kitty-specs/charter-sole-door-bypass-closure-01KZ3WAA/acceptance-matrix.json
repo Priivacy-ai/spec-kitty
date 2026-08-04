@@ -1,0 +1,109 @@
+{
+  "mission_slug": "charter-sole-door-bypass-closure-01KZ3WAA",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 (approved): 4 of 5 AgentProfileRepository sites migrated to charter.resolver.DoctrineService.agent_profile_repository (runtime_bridge_io.py:576, projection.py's collision/org-visibility paths verified, tasks_status_cmd.py:712,823); profile_resolution.py:81 confirmed+documented bootstrap carve-out (5th site, not migrated per corrected spec). Gate 1 (WP09, tests/architectural/test_charter_sole_door_agent_profile_repository.py, 17 tests) independently proves zero raw construction remains outside 4 named composite-key exclusions.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-03T22:07:16.152148+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 (approved): all 6 raw doctrine.service.DoctrineService(...) sites (compiler.py:802, _doctrine_asset.py:75, _doctrine_collect.py's 4 diagnostic sites) migrated onto charter.resolver.DoctrineService, unfiltered diagnostic sites using pack_context=None. tests/charter/test_doctrine_service_unfiltered_mode.py (29 tests) + Gate 2 (WP09, test_charter_sole_door_doctrine_service.py, Policy A zero-allowlist + Policy B locality with 6 wrap-conditional exclusions) independently verified non-vacuous.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-03T22:07:17.998838+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 (approved): CharterTemplateResolver retargeted as a thin delegate onto charter.resolver.DoctrineService's new tier-axis methods (resolve_content_asset/resolve_command_asset/resolve_mission_definition); doctrine/resolver.py unchanged (tier functions stay there per plan.md rationale). tests/charter/test_resolver_tier_axis_via_factory.py (21 cases) proves 3-way equivalence (factory == independently-constructed ResolutionResult == doctrine.resolver's functions) for all 5 tiers.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-03T22:07:19.870370+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06 (approved): missions-root path hardcodes at charter/mission_type_profile_repository.py and specify_cli/runtime/home.py consolidated onto MissionTemplateRepository.default_missions_root() (the promoted single authority); pack_paths convergence explicitly deferred to #3091 (documented, not claimed). Gate 4 (tests/architectural/test_charter_sole_door_hardcoded_paths.py, 11 tests) proves zero-tolerance non-vacuously (reverted fix reds gate naming exact site).",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-03T22:07:21.756979+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 (approved, cycle 2): 6 new activation-gated properties added to charter.resolver.DoctrineService (directives, tactics, styleguides, toolguides, mission_step_contracts, glossary_packs), all following the existing 3-state contract. tests/charter/test_resolver_activation_gating.py + Gate 1/2 (WP09) confirm the 9-kind surface is genuinely gated, not a passthrough.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-03T22:07:23.584383+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP08 (approved): mission-type activation gating implemented entirely within charter.mission_type_profiles.resolve_mission_type_context() (NOT touching MissionTypeProfileRepository's own file, per corrected scope avoiding WP06 ownership overlap). tests/charter/test_mission_type_activation_gating.py (7 tests) proves bare-project set-equality against builtin_mission_type_id_set() and correct subset narrowing; custom (non-built-in) activated types still resolve (gate doesn't overreach).",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-03T22:07:25.414673+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "5-category mission-wide architectural gate complete across 3 WPs: Gate 4 (WP06, hardcoded paths), Gate 5 (WP04, ._inner reach-around on invocation/registry.py + invocation/org_profiles.py), Gates 1-3 (WP09: AgentProfileRepository construction, DoctrineService construction, resolver-import boundary). All 5 gates are AST-based qualname/import-alias resolution, zero-tolerance except for explicitly named, evidence-backed composite-key exclusions (2 pre-existing .kittify/profiles sites C-006, profile_resolution.py bootstrap carve-out, projection.py's escalated gap marked DELETE-not-renew, 6 sanctioned unfiltered-diagnostic wrap sites). Non-vacuity independently reproduced for all 5 gates by WP-specific and WP09 reviewers via revert-and-red tests.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-03T22:07:27.282659+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 (approved, cycle 2): unified builder charter.doctrine_service_builder.build_activation_aware_doctrine_service \u2014 exactly one function constructs ActivationAwareDoctrineService (public delegates to private, verified via grep for zero duplicate constructor calls); active_languages always computed, org_roots always self-resolved (fuller behavior from each divergent builder, picked deliberately not arbitrarily). test_doctrine_service_builder_unification.py's T004 proof (cycle-2 rewrite) compares against an independently-derived raw_repository(prop).list_all() projection for all 9 gated kinds in one unstaged pass (not the tautological self-comparison from cycle 1) \u2014 proven non-vacuous by both WP01 reviewers.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-03T22:07:29.157502+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 (approved, cycle 2) + WP04 (approved): ._inner reach-around closed via 2 mechanisms \u2014 WP01 added raw_repository(kind) as the sanctioned accessor for org_layer.py's 2 provenance-scan sites (replacing raw doctrine.service.DoctrineService construction with the wrapped, sanctioned form); WP04 migrated invocation/registry.py:64 and invocation/org_profiles.py:117 off ._inner reach-arounds onto agent_profile_repository. Gate 5 (test_charter_sole_door_inner_reacharound.py, 6 tests, AST-based import-alias resolution) proves zero ._inner access on charter.resolver.DoctrineService outside src/charter/** remains, non-vacuously (revert-and-red reproduced by 2 independent reviewers).",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-03T22:07:31.033724+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP10 (approved, 2 review cycles): all 5 confirmed-deferred issues (#2986, #3036, #3039, #3091, #3022) plus the cycle-2-discovered 6th reference (#3101) have resolved issue-matrix.json verdicts (deferred-with-followup) with well-formed evidence_ref citing spec.md C-003/SC-006 and the relevant ADR; tracker comments posted on all 5 SC-006-named issues (verified live via gh issue view, all confirmed still OPEN). CHANGELOG.md entry documents the 3 NFR-004-required behaviour changes.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-03T22:07:32.848067+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
