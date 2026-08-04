@@ -84,8 +84,33 @@ META_PATH_VAR_NAMES: frozenset[str] = frozenset(
 # canonical ``load_meta`` parser. Routing a caller onto it is therefore routing
 # THROUGH the canonical authority, not away from it. Omitting it here made this
 # floor read FR-007's routing as a drain (120 -> 103) and fail.
+#
+# ``_load_meta_fail_closed`` and ``_require_meta`` joined this family in the
+# PR #3175 landing pass (2026-08-04), fixing a THIRD recurrence of the same
+# census/floor mismatch. Commit 60b0bf2a2 ("landing fold: route 13
+# authority-bucket sites through the fail-closed wrapper") introduced these two
+# module-private helpers in ``src/specify_cli/mission_metadata.py`` and
+# collapsed 13 literal call sites onto them, mechanically dropping the routed
+# census 120 -> 110 without adding the new delegating names here. Verified
+# delegation chain (not an independent reader): ``mission_metadata._require_meta``
+# calls ``mission_metadata._load_meta_fail_closed``, which calls
+# ``core.paths.load_meta_fail_closed`` (via a deferred import — see that
+# function's own docstring), which calls ``mission_metadata.load_meta`` (the
+# canonical parser) directly. Every call site that moved onto ``_require_meta``/
+# ``_load_meta_fail_closed`` still reaches ``load_meta``; it lost census credit
+# only because the scanner matches callee *names*, not the transitive call
+# graph. Adding the two names here is the fix this gate's structure supports —
+# it does no call-graph resolution, so a full transitive walk would be a larger
+# structural change than this landing fold warrants.
 ROUTED_CALLEES: frozenset[str] = frozenset(
-    {"load_meta", "load_meta_strict", "load_meta_or_empty", "load_meta_fail_closed"}
+    {
+        "load_meta",
+        "load_meta_strict",
+        "load_meta_or_empty",
+        "load_meta_fail_closed",
+        "_load_meta_fail_closed",
+        "_require_meta",
+    }
 )
 
 # --------------------------------------------------------------------------- #
@@ -135,7 +160,7 @@ FLOOR_MARGIN = 2
 # direction — these sites did not stop routing through the canonical authority,
 # they moved onto its typed fail-closed contract.
 #
-# Lowered 123 -> 117 by "landing fold: collapse 7 duplicated meta-guard blocks
+# Lowered -> 117 by "landing fold: collapse 7 duplicated meta-guard blocks
 # in doc_state.py into one helper" (commit 190932c2d, PR #3155 landing pass):
 # that fold legitimately consolidated 7 duplicated inline
 # ``load_meta_fail_closed(...)`` call sites in doc_state.py into ONE shared
@@ -144,13 +169,56 @@ FLOOR_MARGIN = 2
 # route through the canonical reader, just via one shared helper instead of 7
 # duplicated inline calls — but this test counts literal source-text
 # occurrences of routed calls, so deduplication mechanically dropped the live
-# count 123 -> 120. This is the CEILING-ratchet's inverse case (cf.
-# INLINE_META_READ_FLOOR above): a legitimate drop from good deduplication,
-# not a coverage regression. The floor is set to 117 (not 120) to preserve the
-# established 3-below-live gap (mechanic 2) and keep the anti-vacuity check
+# count toward 120 (the value this fold's floor was pinned against). This is
+# the CEILING-ratchet's inverse case (cf. INLINE_META_READ_FLOOR above): a
+# legitimate drop from good deduplication, not a coverage regression. The
+# floor was set to 117 to preserve the established 3-below-live gap
+# (mechanic 2) and keep the anti-vacuity check
 # (``len(routed) > ROUTED_LOAD_META_FLOOR``) strictly satisfied.
+#
+# NOTE ON THIS COMMENT'S OWN HISTORY: the paragraph above and the one before it
+# previously carried internally-inconsistent numbers (a "120 -> 123" header
+# followed by "rose 123 -> 126" body text, then a "123 -> 120" drop claim
+# immediately followed by "floor is set to 117 (not 120)") that did not
+# reconcile with each other or with any measured tree. This is corrected here
+# rather than re-derived a further time: trust the dated entries below, which
+# are each backed by a command actually run against a real tree, not narrative
+# arithmetic.
+#
+# DROPPED 120 -> 110 by commit 60b0bf2a2 ("landing fold: route 13
+# authority-bucket sites through the fail-closed wrapper", PR #3175 landing
+# pass, pre-existing on main): that fold introduced the module-private
+# delegating helpers ``mission_metadata._load_meta_fail_closed`` and
+# ``mission_metadata._require_meta`` and moved 13 literal
+# ``load_meta_fail_closed(...)`` call sites onto them, collapsing the visible
+# text down to 3 direct calls plus the helpers' own internal delegation. Every
+# one of those 13 sites still reaches ``load_meta`` (verified delegation
+# chain: ``_require_meta`` -> ``_load_meta_fail_closed`` ->
+# ``core.paths.load_meta_fail_closed`` -> ``mission_metadata.load_meta``), but
+# neither helper name was added to :data:`ROUTED_CALLEES`, so the census
+# mechanically dropped even though routing coverage did not regress — this is
+# the SAME shape as the PR #3155 drop two paragraphs above (the THIRD
+# recurrence of this exact census/floor mismatch). ``ROUTED_LOAD_META_FLOOR``
+# (117) was left unmoved across this drop, which is what turned it into a
+# false-red CI failure: measured directly via
+# ``PWHEADLESS=1 uv run pytest tests/architectural/test_inline_meta_read_gate.py::test_routed_load_meta_floor``
+# on 2026-08-04, live == 110 < 117.
+#
+# FIXED 2026-08-04 (PR #3175 landing pass, this fold): added
+# ``_load_meta_fail_closed`` and ``_require_meta`` to :data:`ROUTED_CALLEES`
+# (see that constant's comment) so the census counts calls that reach the
+# canonical reader through these verified delegating wrappers, not just literal
+# calls to the four previously-named callees. Re-measured via
+# ``uv run python -c "from tests.architectural.test_inline_meta_read_gate import
+# scan_routed_load_meta_calls, SRC_ROOT; print(len(scan_routed_load_meta_calls(SRC_ROOT)))"``
+# on the same tree: live == 129 (110 + 12 newly-counted call sites in
+# ``mission_metadata.py`` + 7 in ``doc_analysis/doc_state.py``, whose OWN
+# locally-defined ``_require_meta`` also delegates to ``load_meta_fail_closed``
+# — same name, same delegating shape, independently verified). Floor raised
+# 117 -> 126 to restore the established 3-below-live gap (mechanic 2) against
+# the corrected 129, strictly satisfying the anti-vacuity check.
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
-ROUTED_LOAD_META_FLOOR = 117
+ROUTED_LOAD_META_FLOOR = 126
 
 
 # --------------------------------------------------------------------------- #
