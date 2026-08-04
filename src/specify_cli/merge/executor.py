@@ -1052,7 +1052,7 @@ def _commit_coord_seed_events(run: _MergeRunState, status_feature_dir: Path) -> 
     try:
         if not _paths_have_status_changes(coord_worktree_root, [events_path]):
             return  # nothing seeded/uncommitted — resume-safe no-op
-        # Intentionally exercised UN-mocked by tests/regression/test_birth_cutover.py
+        # Intentionally exercised UN-mocked by tests/migration/test_birth_cutover.py
         # (the real git write) — do not add this call to a mock stack.
         commit_coord_seed_bookkeeping(
             repo_root=run.main_repo,
