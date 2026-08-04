@@ -2,7 +2,7 @@
 title: 3.2.x Milestone — Roadmap
 description: 'Operator-facing roadmap for the 3.2.x milestone: the epic dependency spine, degod/unshim wave status, milestone census, exit criteria, and watch items.'
 doc_status: active
-updated: '2026-07-26'
+updated: '2026-08-04'
 related:
 - docs/changelog/index.md
 - docs/plans/index.md
@@ -46,6 +46,10 @@ The corrections, in brief — full PO-facing detail in the
    demonstrated doctrine→runtime governance (already true), not pack-split completion.**
    The real open G1 work is a bounded ~22-door list to make the **charter the sole
    access path** to provisioned assets (it gates only ~3 of ~10 kinds today).
+   **Superseded, 2026-08-04:** the scoping pass this line asked for ran, corrected the
+   count to ~20, and closed the enumerated set — see
+   [Addendum 2026-08-04](#addendum-2026-08-04--charter-sole-door-bypass-closure-substantially-landed)
+   below and the delivery plan's §1.1 for the closed/residual breakdown.
 
 3. **The cycle's organizing frame is an open-core breaking-change window**, not a
    feature-completeness sprint: draw + version the consumer seam, extract built-in
@@ -143,7 +147,46 @@ claim before any tracker action was taken; findings below.*
    (boundary extraction / built-in → packs). Mission 2 hardens the *existing* charter door
    (dispatch-net safety, `charter.yaml` as the sole read authority, one directive authority) but
    does **not** close the ~22 bypass-door list item 2 names — that count is unaffected and remains
-   open work.
+   open work. **Superseded, 2026-08-04:** item 2 itself was closed by a third mission — see
+   [Addendum 2026-08-04](#addendum-2026-08-04--charter-sole-door-bypass-closure-substantially-landed)
+   below.
+
+## Addendum 2026-08-04 — charter-sole-door-bypass-closure substantially landed
+
+*The delivery plan's item 2 ([§3](3-2-x-open-core-delivery-plan.md#3-remaining-work-sequenced)) —
+closing the charter-as-sole-door bypass list — landed as its own mission, following the boundary
+(Mission 1) and existing-door-hardening (Mission 2) pair above.*
+
+1. **Mission 3 — `charter-sole-door-bypass-closure-01KZ3WAA` — landed 2026-08-04.** Ran the
+   scoping pass item 2's own caveat asked for and corrected the door count from this roadmap's
+   ~22 grep estimate to a confirmed **~20** (the mission's `spec.md` and the CHANGELOG both cite
+   ~20). Closed every enumerated direct `AgentProfileRepository(...)`/raw
+   `doctrine.service.DoctrineService(...)` construction site and `._inner` attribute
+   reach-around around the charter's `DoctrineService` factory; unified the two divergent
+   "canonical" builder functions onto one
+   (`charter.doctrine_service_builder.build_activation_aware_doctrine_service`); extended
+   activation gating from 3 of 10 doctrine-artifact kinds to all 9 charter-activatable kinds plus
+   the `mission-type` token (`mission-type` gating itself pre-existed — this mission verified it
+   and added regression coverage, not new construction); consolidated a triplicated
+   missions-root hardcode onto `MissionTemplateRepository.default_missions_root()`; and shipped
+   five zero-tolerance AST/qualname architectural gates, widened during landing with 35
+   injection tests.
+2. **What "closed" proves, precisely:** the enforceable invariant is **Policy A** — a raw
+   service never escapes its acquisition site unwrapped, zero exclusions, covering builder
+   *calls* as well as constructions — not the stronger **Policy B** (one single constructor),
+   which still carries named locality exclusions. Do not read this as "the sole-door claim is
+   now unconditional."
+3. **Residual, not the full door list:** `doctrine.template_catalog.resolve_template_by_id` (5
+   importers), `specify_cli/runtime/resolver.py`'s tier-1–4 reimplementation,
+   `runtime/home.py`'s `importlib.resources` root lookup, three root-relative missions-root
+   duplicates, and one escalated `AgentProfileRepository` site
+   (`tool_surface/profiles/projection.py`) remain open, sequenced as `#3176`/`#3091`/`#3022`/`#3101`.
+4. **SC-008 stayed unmet, honestly.** The mission's own acceptance record carries SC-008
+   (pre-migration p95 baseline captured before any FR-001 site was migrated) as `fail` — the
+   baseline was never persisted and cannot be reconstructed retroactively. The performance
+   *outcome* NFR-005 actually cares about passes (a fresh landing-time A/B measured -2.60% p95,
+   i.e. faster, well inside the ±10% budget) — the two are distinct claims; this mission does not
+   claim SC-008 passed.
 
 ## The dependency spine
 
