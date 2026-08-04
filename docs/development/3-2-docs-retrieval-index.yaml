@@ -8008,6 +8008,13 @@ pages:
     - {slug: "3-remaining-work-sequenced", text: "3. Remaining work, sequenced", level: 2}
     - {slug: "4-consumer-communication-plan", text: "4. Consumer communication plan", level: 2}
     - {slug: "5-open-decisions-for-the-po", text: "5. Open decisions for the PO", level: 2}
+  - path: "docs/plans/charter-sole-door-deferred-issues.md"
+    title: "Charter as Sole Door: Deferred Issues Record"
+    divio_type: "none"
+    abstract: "Citable record of the five GitHub issues confirmed adjacent-but-separate from the charter-sole-door-bypass-closure mission, deferred as their own follow-ons."
+    anchors:
+    - {slug: "the-five-deferred-issues", text: "The five deferred issues", level: 2}
+    - {slug: "verification", text: "Verification", level: 2}
   - path: "docs/plans/doctrine/391-doctrine-usage-test.md"
     title: "#391 Doctrine Usage Test (WP11 dogfood)"
     divio_type: "none"
