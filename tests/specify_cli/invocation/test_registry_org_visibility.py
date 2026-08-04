@@ -135,14 +135,57 @@ class TestNoOrgPacksRegression:
     """T010 — no org packs declared → byte-identical to the project layer (NFR-001)."""
 
     def test_list_all_byte_identical_to_project_layer(self, tmp_path: Path) -> None:
+        """Absence of org packs never perturbs the built-in+project catalog.
+
+        The baseline used to be a bare, unfiltered ``AgentProfileRepository``
+        (no ``active_languages``) because, before
+        charter-sole-door-bypass-closure-01KZ3WAA WP01,
+        ``ProfileRegistry``'s builder never computed ``active_languages``
+        either — the two were byte-identical for a project with no org
+        packs. WP01 unified ``ProfileRegistry``'s builder to always compute
+        ``active_languages=infer_repo_languages(repo_root)`` (the fuller,
+        intentional behaviour), which now narrows the built-in layer to
+        language-agnostic profiles for a ``tmp_path`` with no compiled
+        charter/interview data (an explicitly empty active-language set).
+
+        That narrowing is orthogonal to what this test protects — it is
+        specifically about the org-pack axis (T010/NFR-001): "no org packs
+        declared" must never add, remove, or reorder anything relative to
+        the built-in+project catalog. So the baseline is rebuilt here from
+        the same two primitives ``ProfileRegistry`` itself composes
+        (``build_activation_aware_doctrine_service`` for the
+        language-narrowed built-in layer, and a bare, ungated
+        ``AgentProfileRepository`` for the always-wins project layer)
+        *without* going through ``ProfileRegistry`` — so the assertion still
+        catches any REAL regression in the org-pack-absence contract, rather
+        than comparing ``ProfileRegistry`` against itself.
+        """
         _write_project_profile(tmp_path)
         # No .kittify/config.yaml org packs at all.
         registry = ProfileRegistry(tmp_path)
 
+        from charter.doctrine_service_builder import (
+            build_activation_aware_doctrine_service,
+        )
+
+        service = build_activation_aware_doctrine_service(tmp_path)
+        inner_repo = service._inner.agent_profiles
+        builtin_ids = {
+            profile_id
+            for profile_id in service.agent_profiles
+            if inner_repo.get_provenance(profile_id) == "builtin"
+        }
+
         baseline_repo = AgentProfileRepository(
             project_dir=tmp_path / ".kittify" / "profiles",
         )
-        baseline_ids = [p.profile_id for p in baseline_repo.list_all()]
+        project_ids = {
+            p.profile_id
+            for p in baseline_repo.list_all()
+            if baseline_repo.get_provenance(p.profile_id) == "project"
+        }
+
+        baseline_ids = sorted(builtin_ids | project_ids)
 
         assert _ids(registry) == baseline_ids
         # The org-provenance id never appears when no pack is declared.

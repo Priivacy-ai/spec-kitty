@@ -5,19 +5,24 @@ place profile surfaces (``profile list``/``profile show``, ``charter context
 --include``) should call to obtain a :class:`charter.resolver.DoctrineService`
 that already has per-kind charter activation filters applied.
 
-It generalises the construction pattern used by
-``specify_cli.cli.commands.charter.generate._build_doctrine_service_with_org_layer``
-(``charter/generate.py:46-74``): build the inner
-:class:`doctrine.service.DoctrineService` rooted at built-in doctrine, the
-project layer, and configured org packs, then wrap it in
-:class:`charter.resolver.DoctrineService` together with a
-:class:`~charter.pack_context.PackContext` snapshot of the project's
-activation state.
+FR-008 unification (charter-sole-door-bypass-closure-01KZ3WAA WP01): this
+function is now a **thin re-export** of the single canonical builder,
+:func:`charter.doctrine_service_builder.build_activation_aware_doctrine_service`
+(C-001 — one factory, constructed by exactly one unified builder). Prior to
+this mission, this module and ``charter.doctrine_service_builder`` each held
+an independent implementation that silently diverged on two axes
+(``active_languages`` computation and ``org_roots`` self-resolution); see the
+charter-layer module's docstring for the resolved behaviour. This module is
+kept (rather than deleted and every caller repointed at ``charter.*``
+directly) because it is the layer-correct home for the public entry point:
+``specify_cli.*`` may import ``charter.*``, but the reverse is forbidden
+(C-005), so callers already anchored in ``specify_cli.*`` continue to import
+from here.
 
 Layer rule (C-005)
 ------------------
-This factory lives in ``specify_cli.*`` precisely because it imports from
-``charter.*`` and ``doctrine.service`` — the allowed dependency direction is
+This module lives in ``specify_cli.*`` precisely because it imports from
+``charter.*`` — the allowed dependency direction is
 ``specify_cli → charter → doctrine``.  It must **not** be placed inside
 ``charter.*`` or ``doctrine.*``, which are forbidden from importing
 ``specify_cli``.  The activation wrapper itself is **reused** from
@@ -40,20 +45,20 @@ def build_activation_aware_doctrine_service(
 ) -> ActivationAwareDoctrineService:
     """Build an activation-filtered doctrine service for ``repo_root``.
 
-    Constructs the inner :class:`doctrine.service.DoctrineService` rooted at
-    built-in doctrine + project layer + configured org packs (reusing the
-    existing root resolvers), then wraps it with
-    :class:`charter.resolver.DoctrineService` and a
-    :class:`~charter.pack_context.PackContext` built from
-    ``.kittify/config.yaml``.
+    Thin re-export of
+    :func:`charter.doctrine_service_builder.build_activation_aware_doctrine_service`
+    — see that function's docstring for the full construction contract
+    (built-in + project + self-resolved org packs, ``active_languages``
+    always computed, wrapped with a :class:`~charter.pack_context.PackContext`
+    built from ``.kittify/config.yaml``).
 
     The returned wrapper applies the three-state ``activated_agent_profiles``
     contract on its ``.agent_profiles`` property (and the equivalent filters
-    for paradigms/procedures):
+    for the other eight gated properties):
 
-    * key absent from config → all built-in profiles are available;
-    * explicit empty set → no profiles are available;
-    * explicit set of IDs → only those profiles are available.
+    * key absent from config → all built-in artifacts are available;
+    * explicit empty set → nothing of that kind is available;
+    * explicit set of IDs → only those IDs are available.
 
     Parameters
     ----------
@@ -65,23 +70,8 @@ def build_activation_aware_doctrine_service(
     charter.resolver.DoctrineService
         The activation-aware wrapper around the inner doctrine service.
     """
-    from charter._doctrine_paths import resolve_project_root
-    from charter.pack_context import PackContext
-    from charter.resolver import DoctrineService as ActivationDoctrineService
-    from doctrine.drg.org_pack_config import resolve_org_roots
-    from doctrine.service import DoctrineService
-
-    project_root = resolve_project_root(repo_root)
-    org_roots = [root for root in resolve_org_roots(repo_root) if root.exists()]
-
-    # Each repository self-resolves the built-in tier via ``built_in_dir(kind)``
-    # (packs/built-in/<kind>) — the WP01 seam. Passing resolve_doctrine_root()
-    # here post-relocation would yield the emptied ``src/doctrine/<kind>/built-in``
-    # and silently load nothing, so the built-in root is left unspecified.
-    inner = DoctrineService(
-        project_root=project_root,
-        org_roots=org_roots,
+    from charter.doctrine_service_builder import (
+        build_activation_aware_doctrine_service as _canonical_builder,
     )
 
-    pack_context = PackContext.from_config(repo_root)
-    return ActivationDoctrineService(inner, pack_context=pack_context)
+    return _canonical_builder(repo_root)

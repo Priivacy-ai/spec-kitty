@@ -24,54 +24,25 @@ __all__ = ["generate"]
 def _build_doctrine_service_with_org_layer(repo_root: Path) -> Any:
     """Return an activation-filtered ``DoctrineService`` for charter generation.
 
-    Constructs a :class:`doctrine.service.DoctrineService` rooted at
-    built-in doctrine + project + configured org packs, then wraps it in
-    :class:`charter.resolver.DoctrineService` with the current
-    :class:`~charter.pack_context.PackContext`.  The wrapper applies
-    per-kind activation filters (Pattern B for paradigms/procedures,
-    Pattern C for agent_profiles).
-
-    Org-layer roots are resolved from ``.kittify/config.yaml`` via
-    :func:`specify_cli.doctrine.config.resolve_org_roots`.  Packs missing
-    from disk are silently dropped (a fresh checkout that has not yet run
-    ``spec-kitty doctrine fetch`` must not fail charter generation).
-
-    Architectural note: this helper lives in ``specify_cli`` because it
-    depends on the ``specify_cli.doctrine.config`` reader and
-    ``charter.invocation_context.ProjectContext``, which the ``charter``
-    layer is forbidden from importing.
+    FR-002/FR-008 unification (charter-sole-door-bypass-closure-01KZ3WAA
+    WP01): thin call-through to the single canonical builder,
+    :func:`charter.doctrine_service_builder.build_activation_aware_doctrine_service`
+    — replaces the former inline "build raw, then best-effort wrap" pattern
+    that lived here (and independently in
+    ``specify_cli.charter_runtime.lint.checks.org_layer`` and
+    ``specify_cli.doctrine_service_factory``, C-001). The unified builder
+    always self-resolves org roots and always computes ``active_languages``,
+    and it always returns the activation-aware
+    :class:`charter.resolver.DoctrineService` wrapper — it never falls back
+    to a raw, unwrapped service, closing the fail-open gap FR-002 named at
+    this site (the previous code's ``pack_context`` resolution was wrapped in
+    a bare ``except Exception: pass`` that silently degraded to an
+    unfiltered service on ANY failure, not just the "not yet available"
+    case it was written for).
     """
-    from charter._doctrine_paths import resolve_project_root
-    from charter.resolver import DoctrineService as ActivationDoctrineService
-    from doctrine.service import DoctrineService
+    from charter.doctrine_service_builder import build_activation_aware_doctrine_service
 
-    from specify_cli.doctrine.config import resolve_org_roots
-
-    project_root = resolve_project_root(repo_root) if repo_root is not None else None
-    org_roots = [p for p in resolve_org_roots(repo_root) if p.exists()]
-
-    # Repositories self-resolve packs/built-in/<kind> via built_in_dir(kind)
-    # (the WP01 seam); resolve_doctrine_root() post-relocation points at the
-    # emptied src/doctrine tree and would silently load nothing.
-    inner = DoctrineService(
-        project_root=project_root,
-        org_roots=org_roots,
-    )
-
-    # Obtain pack_context for activation filtering (Pattern B + C).
-    # Degrades silently when charter.invocation_context is not yet available
-    # (WP03 dependency) — returns unfiltered service in that case.
-    pack_context = None
-    if repo_root is not None:
-        try:
-            from charter.invocation_context import ProjectContext  # noqa: PLC0415
-
-            ctx = ProjectContext.from_repo(repo_root)
-            pack_context = ctx.require_pack_context()
-        except Exception:  # noqa: BLE001 — activation filter is best-effort; degraded to unfiltered
-            pass
-
-    return ActivationDoctrineService(inner, pack_context=pack_context)
+    return build_activation_aware_doctrine_service(repo_root)
 
 
 def _is_inside_git_worktree(repo_root: Path) -> bool:
