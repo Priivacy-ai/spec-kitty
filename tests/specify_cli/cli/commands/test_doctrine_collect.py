@@ -233,10 +233,18 @@ class _FakeRepo:
 
 
 class _FakeService:
+    """Stands in for ``charter.resolver.DoctrineService`` (WP03, #2059 followup:
+    charter-sole-door-bypass-closure-01KZ3WAA T013). ``_resolve_artifact_source``
+    now reads through the wrapper's ``raw_repository(plural)`` accessor rather
+    than plain ``getattr(service, plural)`` (the gated per-kind properties on
+    the real wrapper always return a filtered ``dict``, which has no
+    ``.get_provenance()``), so this fake mirrors that accessor's shape.
+    """
+
     def __init__(self, repos: dict[str, Any]) -> None:
         self._repos = repos
 
-    def __getattr__(self, name: str) -> Any:
+    def raw_repository(self, name: str) -> Any:
         return self._repos.get(name)
 
 

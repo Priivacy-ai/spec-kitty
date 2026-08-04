@@ -14,7 +14,6 @@ from typing import TYPE_CHECKING, Any
 
 from ruamel.yaml import YAML
 
-from charter._doctrine_paths import resolve_project_root
 from charter._io import load_charter_file
 from charter.catalog import DoctrineCatalog, load_doctrine_catalog, resolve_doctrine_root
 from charter.charter_yaml_io import save_charter_yaml, update_charter_yaml_section
@@ -283,7 +282,15 @@ def resolve_config_activated_roots(
 
 
 if TYPE_CHECKING:
-    from doctrine.service import DoctrineService
+    # WP03 (charter-sole-door-bypass-closure-01KZ3WAA, FR-002/T011): this name
+    # now denotes the activation-aware wrapper, not the raw
+    # ``doctrine.service.DoctrineService``. Every real caller already passes
+    # (or, after this WP, receives from :func:`_default_doctrine_service`) a
+    # wrapped instance -- ``generate.py``/``pack.py`` via
+    # ``_build_doctrine_service_with_org_layer``, this module via the change
+    # below -- so the annotation now matches what actually flows through
+    # ``compile_charter``'s ``doctrine_service`` parameter and its helpers.
+    from charter.resolver import DoctrineService
 
 
 @dataclass(frozen=True)
@@ -779,7 +786,8 @@ def _sanitize_catalog_selection(
 
 
 def _default_doctrine_service(repo_root: Path | None) -> DoctrineService:
-    """Build a DoctrineService rooted at built-in doctrine plus optional project overlay.
+    """Build an activation-aware DoctrineService rooted at built-in doctrine
+    plus optional project overlay.
 
     The project-root candidate list (in priority order):
     1. ``.kittify/doctrine/``  — Phase 3 synthesis target (FR-009 / T024).
@@ -789,17 +797,43 @@ def _default_doctrine_service(repo_root: Path | None) -> DoctrineService:
     Discovery is conditional on directory presence: legacy projects (pre-
     synthesis) that have none of these directories see ``project_root=None``
     and byte-identical behaviour to the pre-Phase-3 default (R-2 mitigation).
-    """
-    from doctrine.service import DoctrineService
 
-    project_root: Path | None = None
+    WP03 (charter-sole-door-bypass-closure-01KZ3WAA, FR-002/T011): this used
+    to construct a raw, unwrapped ``doctrine.service.DoctrineService``
+    directly -- one of the six original FR-002 violation sites. When
+    *repo_root* is available, construction now routes through WP01's single
+    unified builder, :func:`charter.doctrine_service_builder.
+    build_activation_aware_doctrine_service`, which resolves the identical
+    ``project_root`` via this same :func:`resolve_project_root` call
+    internally, so the R-2 legacy-candidate behaviour above is unchanged.
+    This does add real charter-activation filtering (a `PackContext` sourced
+    from ``.kittify/config.yaml`` under *repo_root*) plus the FR-008
+    "fuller behaviour" axes (``active_languages`` always computed,
+    ``org_roots`` always self-resolved) -- ``compile_charter`` already runs
+    its own, separate ``config_roots`` activation derivation for the
+    reference set (see that function's docstring); the two are independent
+    and this duplication is a documented WP01/FR-005 concern, not resolved
+    here. When *repo_root* is ``None`` (no config to source a `PackContext`
+    from), the raw inner service is still wrapped with `pack_context=None`
+    so no code outside ``charter.resolver``/the unified builder constructs
+    the raw service unwrapped (NFR-001) -- this preserves the exact
+    pre-mission unfiltered behaviour for legacy repo-root-less callers.
+    """
     if repo_root is not None:
-        project_root = resolve_project_root(repo_root)
+        from charter.doctrine_service_builder import (
+            build_activation_aware_doctrine_service,
+        )
+
+        return build_activation_aware_doctrine_service(repo_root)
+
+    from charter.resolver import DoctrineService as _ActivationAwareDoctrineService
+    from doctrine.service import DoctrineService as _RawDoctrineService
+
     # No built_in_root kwarg: repositories self-resolve packs/built-in/<kind>
     # via the built_in_dir seam (default None is behaviour-preserving here;
     # WP04 drops the now-dead param from DoctrineService entirely).
     # resolve_doctrine_root() post-relocation points at the emptied src/doctrine tree.
-    return DoctrineService(project_root=project_root)
+    return _ActivationAwareDoctrineService(_RawDoctrineService(project_root=None))
 
 
 def _build_references(
