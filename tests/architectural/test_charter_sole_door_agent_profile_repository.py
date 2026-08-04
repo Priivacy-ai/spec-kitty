@@ -27,7 +27,7 @@ the literal substring while being an entirely different class. This gate
 resolves each call site's bound name to a real ``(module, name)`` pair by AST
 import analysis — module-level **and** function-local **and** nested
 ``try``/``except`` imports, plus ``as``-aliases, module-qualified calls and
-module-level re-bindings — and then asks Python itself where the object came
+**per-scope** re-bindings — and then asks Python itself where the object came
 from via ``__module__``/``__qualname__``. A rename, a new facade re-export or an
 alias therefore cannot slip past it, and a same-named unrelated class cannot
 false-positive into it.
@@ -41,7 +41,11 @@ AST helpers) now live in :mod:`tests.architectural._sole_door_scan` — a
 non-test library module, not a fourth gate. Gates 1, 2, and 3 all import from
 it directly; see that module's docstring for why library code cannot live
 inside a ``test_`` module (pytest collects it, and ``src/`` cannot import
-``tests/``).
+``tests/``) and for the per-scope alias-rebind fix (A1, landing-fold gate
+hardening) applied there: the predecessor ``_module_level_rebinds`` walked
+only module scope, so ``Local = AgentProfileRepository`` inside a function
+body — a measured miss against injection probes — evaded both this gate and
+Gate 2.
 
 Structural exemptions (directory/file keyed, never line keyed)
 ---------------------------------------------------------------
@@ -481,6 +485,33 @@ def test_detector_follows_module_level_rebinding(tmp_path: Path) -> None:
     )
     assert len(result.sites) == 1, [s.describe() for s in result.sites]
     assert check_agent_profile_gate(result.sites)
+
+
+def test_detector_follows_function_local_rebinding(tmp_path: Path) -> None:
+    """A1 widening: ``Local = AgentProfileRepository`` INSIDE a function reds too.
+
+    Before this fold, ``_module_level_rebinds`` walked only
+    ``ast.iter_child_nodes(tree)`` (module scope), so this exact shape — the
+    measured injection-probe miss (8/11 catch rate on Gate 1) — evaded
+    detection. Injected at function-local scope specifically (NFR-003): this
+    is where the real violations live, not at module level.
+    """
+    result = _agent_profile_scratch(
+        tmp_path,
+        "regressed_local_rebind.py",
+        "def build(project_dir):\n"
+        "    from charter.profiles import AgentProfileRepository\n"
+        "\n"
+        "    Local = AgentProfileRepository\n"
+        "    return Local(project_dir=project_dir)\n",
+    )
+    assert result.unresolved == [], [s.describe() for s in result.unresolved]
+    assert len(result.sites) == 1, [s.describe() for s in result.sites]
+    assert result.sites[0].qualname == "build"
+    assert result.sites[0].canonical == AGENT_PROFILE_REPOSITORY_QUALNAME
+    violations = check_agent_profile_gate(result.sites)
+    assert violations, "the gate must bite on a function-local alias rebind"
+    assert "regressed_local_rebind.py" in violations[0]
 
 
 def test_detector_ignores_a_same_named_unrelated_class(tmp_path: Path) -> None:

@@ -288,23 +288,29 @@ def _lookup_module(dotted: str, chain: list[_Bindings]) -> str:
     return dotted
 
 
-def _module_level_rebinds(
-    tree: ast.Module, candidate_names: frozenset[str]
+def _alias_rebinds_by_scope(
+    scope: ast.AST, bindings: _Bindings, candidate_names: frozenset[str]
 ) -> dict[str, tuple[str, str]]:
-    """``Alias = AgentProfileRepository`` style module-level re-bindings.
+    """``Alias = AgentProfileRepository`` style re-bindings, for ONE scope.
 
-    Closes the "rename it into a module constant, then call the constant"
-    evasion vector.
+    A1 fix (landing-fold gate hardening): the predecessor
+    ``_module_level_rebinds`` walked ``ast.iter_child_nodes(tree)`` — module
+    scope only — so a function-local rebind
+    (``def build(): ... ; Local = AgentProfileRepository; return Local()``)
+    evaded it, even though every real violation these gates close lives at
+    function-local or nested scope (NFR-003). This computes the identical
+    rebind detection per scope via :func:`_own_scope_statements` (already
+    ``try``/``if``/``with``-aware), so the caller can consult it through the
+    same scope chain :func:`_bindings_for_scope` already uses.
     """
-    module_bindings = _bindings_for_scope(tree)
     rebinds: dict[str, tuple[str, str]] = {}
-    for node in ast.iter_child_nodes(tree):
+    for node in _own_scope_statements(scope):
         if not isinstance(node, ast.Assign) or len(node.targets) != 1:
             continue
         target = node.targets[0]
         if not isinstance(target, ast.Name):
             continue
-        origin = module_bindings.from_imports.get(_dotted_name(node.value) or "")
+        origin = bindings.from_imports.get(_dotted_name(node.value) or "")
         if origin is not None and origin[1] in candidate_names:
             rebinds[target.id] = origin
     return rebinds
@@ -330,20 +336,27 @@ def callee_simple_name(call: ast.Call) -> str | None:
 def _resolve_callee(
     call: ast.Call,
     chain: list[_Bindings],
-    rebinds: dict[str, tuple[str, str]],
+    rebinds_chain: list[dict[str, tuple[str, str]]],
     self_module: str,
     locally_defined: frozenset[str],
 ) -> _Origin | None:
-    """Resolve ``call``'s callee to an importable or file-local origin."""
+    """Resolve ``call``'s callee to an importable or file-local origin.
+
+    ``rebinds_chain`` is consulted scope-by-scope (innermost first), exactly
+    the way ``chain`` (``_Bindings.from_imports``) already is — the A1 fix
+    that lets a function-local ``Alias = AgentProfileRepository`` rebind
+    resolve, not just a module-level one.
+    """
     func = call.func
     if isinstance(func, ast.Name):
         for bindings in chain:
             hit = bindings.from_imports.get(func.id)
             if hit is not None:
                 return _Origin(hit[0], hit[1], local=False)
-        rebound = rebinds.get(func.id)
-        if rebound is not None:
-            return _Origin(rebound[0], rebound[1], local=False)
+        for rebinds in rebinds_chain:
+            rebound = rebinds.get(func.id)
+            if rebound is not None:
+                return _Origin(rebound[0], rebound[1], local=False)
         if func.id in locally_defined:
             return _Origin(self_module, func.id, local=True)
         return None
@@ -404,10 +417,14 @@ def scan_file_constructions(
         return None
 
     parents = parent_map(tree)
-    bindings_by_scope = {
-        id(scope): _bindings_for_scope(scope) for scope in _scope_nodes(tree)
+    scopes = _scope_nodes(tree)
+    bindings_by_scope = {id(scope): _bindings_for_scope(scope) for scope in scopes}
+    rebinds_by_scope = {
+        id(scope): _alias_rebinds_by_scope(
+            scope, bindings_by_scope[id(scope)], candidate_names
+        )
+        for scope in scopes
     }
-    rebinds = _module_level_rebinds(tree, candidate_names)
     self_module = module_name_for(rel_path)
     locally_defined = _locally_defined_names(tree)
 
@@ -419,12 +436,20 @@ def scan_file_constructions(
         simple_name = callee_simple_name(node)
         if simple_name is None:
             continue
+        scope_chain = _scope_chain(parents, node, tree)
         chain = [
             bindings_by_scope[id(scope)]
-            for scope in _scope_chain(parents, node, tree)
+            for scope in scope_chain
             if id(scope) in bindings_by_scope
         ]
-        origin = _resolve_callee(node, chain, rebinds, self_module, locally_defined)
+        rebinds_chain = [
+            rebinds_by_scope[id(scope)]
+            for scope in scope_chain
+            if id(scope) in rebinds_by_scope
+        ]
+        origin = _resolve_callee(
+            node, chain, rebinds_chain, self_module, locally_defined
+        )
         # Only names that could possibly be a watched class are worth a
         # canonical lookup. The check is on the *original* imported name so an
         # ``as``-alias cannot dodge it (every live site aliases the import).
