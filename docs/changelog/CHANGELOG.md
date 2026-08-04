@@ -923,6 +923,13 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   `CharterPackConfigError` as a structured error instead of degrading
   silently — you'll notice this as a new, explicit failure where the
   command previously ran quietly with missing markers.
+- **Bump `cryptography` floor to `>=50.0.0`, fixing CVE-2026-69247 (`#3181`).**
+  `cryptography` is the dependency behind AES-256-GCM + scrypt KDF encrypted
+  auth session storage; the previously locked `49.0.0` was affected. There is
+  no user-facing behavior change — encrypted session storage keeps working
+  exactly as before, just on a patched dependency version. Run
+  `spec-kitty auth status` after upgrading if you want to confirm your stored
+  session is still recognized; _no re-login is required_.
 
 ### ♻️ Changed
 
