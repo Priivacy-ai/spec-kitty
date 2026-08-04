@@ -114,8 +114,7 @@ def _profile_catalog(
         )
 
         svc = build_activation_aware_doctrine_service(repo_root)
-        inner = object.__getattribute__(svc, "_inner")
-        doctrine_repo: AgentProfileRepository = inner.agent_profiles
+        doctrine_repo: AgentProfileRepository = svc.agent_profile_repository
         for profile in doctrine_repo.list_all():
             layer = doctrine_repo.get_provenance(profile.profile_id)
             if layer in {"project", "org"}:
