@@ -20,7 +20,7 @@ compatibility), the ``_merge_recorded_planning_commit`` allocator helper
 
 These tests use real git repos (subprocess), matching the project convention
 in ``tests/lanes/test_worktree_allocator.py`` and
-``tests/regression/test_issue_2993_lane_planning_ancestry.py`` -- the defect
+``tests/lanes/test_issue_2993_lane_planning_ancestry.py`` -- the defect
 this WP closes is a git-topology defect, so only real git ancestry checks can
 prove it is fixed.
 """
@@ -48,7 +48,7 @@ WP_ID = "WP01"
 
 
 # ---------------------------------------------------------------------------
-# Shared git helpers (mirrors tests/regression/test_issue_2993_lane_planning_ancestry.py)
+# Shared git helpers (mirrors tests/lanes/test_issue_2993_lane_planning_ancestry.py)
 # ---------------------------------------------------------------------------
 
 

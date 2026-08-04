@@ -650,14 +650,19 @@ def _write_issue_2985_mixed_mission(
     )
 
 
-@pytest.mark.regression
 @pytest.mark.parametrize("at_encoding", ["offset", "zulu"])
 def test_issue_2985_birth_cutover_preserves_every_wp_lane_and_repairs_old_seed(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     at_encoding: str,
 ) -> None:
-    """A real cutover must not let historical seeds supersede active WP state."""
+    """A real cutover must not let historical seeds supersede active WP state.
+
+    Formerly a red-first ``@pytest.mark.regression`` reproduction for #2985
+    (un-marked landing fold: make ``@pytest.mark.regression`` mean exactly
+    one thing, once this test started passing). #2985 is fixed — this is
+    now a permanent guard, not a red-first pin.
+    """
     from specify_cli.migration import runtime_state_cutover
     from specify_cli.migration.runtime_state_cutover import cutover_mission
     from specify_cli.status.reducer import materialize_snapshot

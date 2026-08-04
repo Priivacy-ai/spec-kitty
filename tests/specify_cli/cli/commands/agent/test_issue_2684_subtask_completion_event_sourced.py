@@ -1,5 +1,10 @@
-"""Red-first regression for upstream P0 #2684 — subtask completion must be
-event-sourced, not gated on ``tasks.md`` checkbox bytes.
+"""Issue #2684 — subtask completion must be event-sourced, not gated on
+``tasks.md`` checkbox bytes.
+
+Formerly a red-first ``@pytest.mark.regression`` reproduction; relocated
+here and un-marked (landing fold: make ``@pytest.mark.regression`` mean
+exactly one thing) once the fix landed and this test started passing.
+#2684 is fixed — this is now a permanent guard, not a red-first pin.
 
 #2684 evicts runtime-mutable WP state out of ``tasks/WP##.md`` / ``tasks.md``
 and into the append-only event log; the catfooding comment's **invariant (1)**
@@ -54,8 +59,9 @@ No canonical event path writes subtask completion *without* also writing the
 
 State under test: **the log says the subtasks are done, the ``tasks.md``
 checkboxes say unchecked.** Invariant (1) demands the ``for_review`` transition
-be ALLOWED (the gate must honor the log). It is RED on ``main`` today (the gate
-reads markdown → "unchecked subtasks") and GREEN once the gate honors the log.
+be ALLOWED (the gate must honor the log). This was RED before the fix (the
+gate read markdown -> "unchecked subtasks"); #2684 is now fixed and the gate
+honors the log, so this test is GREEN and stays as a permanent guard.
 
 Harness: mirrors ``tests/regression/test_issue_2647_move_task_lane_worktree_cwd.py``
 — a real ``create_mission_core(SINGLE_BRANCH)`` mission, WP01 claimed to
@@ -90,7 +96,7 @@ from tests.specify_cli.charter_preflight._fixtures import (
     write_metadata,
 )
 
-pytestmark = [pytest.mark.regression, pytest.mark.integration, pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 
@@ -369,12 +375,13 @@ def test_move_to_for_review_honors_log_recorded_subtask_completion(
     append-only log MUST allow ``move-task WP01 --to for_review`` WITHOUT relying
     on ``tasks.md`` checkbox bytes.
 
-    RED on ``main`` today: ``_guard_subtasks`` sources ``unchecked_subtasks``
+    Was RED before the fix: ``_guard_subtasks`` sourced ``unchecked_subtasks``
     from ``tasks.md`` markdown (``tasks_shared.py:412``), so with the checkboxes
-    evicted back to ``- [ ]`` the gate refuses with
+    evicted back to ``- [ ]`` the gate refused with
     ``Cannot move WP01 to for_review - unchecked subtasks`` even though the log
-    records T001..T003 as done. GREEN once the gate's source of truth is the
-    event log, not the markdown byte.
+    recorded T001..T003 as done. #2684 is now fixed: the gate's source of
+    truth is the event log, not the markdown byte, and this is a permanent
+    guard against the defect recurring.
     """
     repo, mission_slug, feature_dir = _build_single_branch_mission_with_in_progress_wp(
         tmp_path, monkeypatch

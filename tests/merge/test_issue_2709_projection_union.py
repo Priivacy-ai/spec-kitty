@@ -1,11 +1,16 @@
 """Scope: #2709 / FR-005 / US2-S4 -- coord->target status projection must UNION.
 
-WP03 witnessing RED (red-first within the fix WP). The coord->target status
-bookkeeping projection (``merge/bookkeeping_projection.py::
-_project_status_bookkeeping_to_target``) historically blind-``write_bytes`` the
+Formerly a red-first ``@pytest.mark.regression`` reproduction (WP03 witnessing
+RED within the fix WP); relocated here and un-marked (landing fold: make
+``@pytest.mark.regression`` mean exactly one thing) once the fix landed and
+this test started passing. #2709 is fixed — this is now a permanent guard,
+not a red-first pin.
+
+The coord->target status bookkeeping projection (``merge/bookkeeping_projection.py::
+_project_status_bookkeeping_to_target``) used to blind-``write_bytes`` the
 coord-worktree ``status.events.jsonl`` **and** ``status.json`` over the target
-checkout. A target-newer event the coord worktree lacks is therefore dropped, and
-the derived ``status.json`` is stale.
+checkout. A target-newer event the coord worktree lacks was therefore dropped, and
+the derived ``status.json`` went stale.
 
 This is a SEPARATE fix surface from the squash-merge repro
 (``test_issue_2709_squash_provenance.py``): the squash test exercises the
@@ -37,7 +42,7 @@ from specify_cli.status import (
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 
-pytestmark = [pytest.mark.regression]
+pytestmark = [pytest.mark.fast]
 
 _SLUG = "test-coord-projection-2709"
 _MISSION_ID = "01KTDVHZKGCHCW6HQ4V577PNES"

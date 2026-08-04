@@ -1,5 +1,10 @@
-"""Regression for #2993: a fresh lane worktree does not descend from the
+"""Issue #2993: a fresh lane worktree used to not descend from the
 mission's own planning artifacts (spec.md/tasks.md/meta.json).
+
+Formerly a red-first ``@pytest.mark.regression`` reproduction; relocated
+here and un-marked (landing fold: make ``@pytest.mark.regression`` mean
+exactly one thing) once the fix landed and this test started passing.
+#2993 is fixed — this is now a permanent guard, not a red-first pin.
 
 Root cause (traced against ``main`` @ upstream/main, WP03 read-side-seam
 mission): ``_ensure_planning_artifacts_committed_git``
@@ -126,7 +131,7 @@ from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
 from specify_cli.missions._create import ensure_coordination_branch
 
-pytestmark = [pytest.mark.regression, pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 MISSION_SLUG = "annoying-bugs-sweep-01KYHQ9F"
 MISSION_ID = "01KYHQ9FTN3W7C5J4K2M6R8QDS"

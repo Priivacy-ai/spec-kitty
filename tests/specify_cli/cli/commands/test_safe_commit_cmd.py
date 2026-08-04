@@ -240,12 +240,14 @@ def test_public_safe_commit_rejects_protected_branch_in_test_mode(
     assert head_after == head_before
 
 
-@pytest.mark.regression
 def test_public_safe_commit_succeeds_after_merged_branch_deleted_3033(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """#3033: post-merge write fails once the merged mission branch is pruned.
+    """Regression guard for the fixed #3033 defect: post-merge write used to
+    fail once the merged mission branch was pruned. #3033 is fixed;
+    ``@pytest.mark.regression`` removed (landing fold: make the marker mean
+    exactly one thing) now that this test passes as a permanent guard.
 
     ``spec-kitty safe-commit`` (no ``--to-branch``, which is load-bearing --
     passing it short-circuits the defect at
@@ -396,11 +398,13 @@ def test_public_safe_commit_succeeds_after_merged_branch_deleted_3033(
     ), committed_blob
 
 
-@pytest.mark.regression
 def test_resolve_placement_only_rejects_pruned_target_branch_3033(
     tmp_path: Path,
 ) -> None:
-    """#3033: the seam itself hands back a pruned branch -- not a CLI artifact.
+    """Regression guard for the fixed #3033 defect: the seam itself used to
+    hand back a pruned branch -- not a CLI artifact. #3033 is fixed;
+    ``@pytest.mark.regression`` removed (landing fold: make the marker mean
+    exactly one thing) now that this test passes as a permanent guard.
 
     #3033 SS7 is explicit: "Fixing it at one call site is whack-a-field."
     ``test_public_safe_commit_succeeds_after_merged_branch_deleted_3033``

@@ -1,4 +1,10 @@
-"""Regression #2684 / SC-007: persisted force-provenance is honest.
+"""#2684 / SC-007: persisted force-provenance is honest.
+
+Formerly a red-first ``@pytest.mark.regression`` reproduction; relocated here
+and un-marked (landing fold: make ``@pytest.mark.regression`` mean exactly
+one thing) once the fix landed and this module started passing. #2684 is
+fixed — this is now a permanent regression guard for the false-force
+provenance bug, not a red-first pin.
 
 Drives the **real** ``move-task`` entry point (Typer ``CliRunner``) and reads the
 **persisted** ``StatusEvent.force`` off ``status.events.jsonl`` — never the plan
@@ -47,7 +53,7 @@ from tests.mocked_env import setup_mocked_env
 if TYPE_CHECKING:
     from click.testing import Result
 
-pytestmark = [pytest.mark.regression, pytest.mark.fast]
+pytestmark = [pytest.mark.integration, pytest.mark.fast]
 
 runner = CliRunner()
 

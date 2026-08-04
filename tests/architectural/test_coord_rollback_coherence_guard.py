@@ -1,5 +1,13 @@
 """WP05 / FR-008 — behavioral class-closing guard for INV-COORD-ROLLBACK (#2786 + #2367-B).
 
+Un-marked ``@pytest.mark.regression`` (landing fold: make
+``@pytest.mark.regression`` mean exactly one thing). This module is a
+PERMANENT behavioral guard, not a red-first P0 reproduction: it passes today
+by construction (T015's own non-vacuity half deliberately drives the guard
+RED via a runtime-stubbed mark to prove it is not a tautology, but that red
+is an in-test ``pytest.raises`` assertion, never a marker-visible collection
+failure) and is expected to stay green as long as INV-COORD-ROLLBACK holds.
+
 INV-COORD-ROLLBACK (data-model): *after any merge rollback, either the
 coordination branch is coherent (no WP from this merge's write-set still reduces
 to ``DONE`` on the committed coord ref while its lane rolled back to
@@ -67,12 +75,11 @@ from tests.regression.test_issue_2367_bake_strand import (
 # ``_init_git_repo`` is DEFINED in the #2711 harness and only re-exported by the
 # #2367-B module; import it from its definition site so mypy's strict
 # no-implicit-reexport check is satisfied.
-from tests.regression.test_issue_2711_merge_rollback_resume_coherence import (
+from tests.merge.test_issue_2711_merge_rollback_resume_coherence import (
     _init_git_repo,
 )
 
 pytestmark = [
-    pytest.mark.regression,
     pytest.mark.architectural,
     pytest.mark.git_repo,
     pytest.mark.non_sandbox,

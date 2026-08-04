@@ -72,7 +72,7 @@ from specify_cli.merge.config import MergeStrategy
 from specify_cli.status import Lane
 
 # Reuse the fused coord-topology harness (never edited in place — WP01/WP02 note).
-from tests.regression.test_issue_2711_merge_rollback_resume_coherence import (
+from tests.merge.test_issue_2711_merge_rollback_resume_coherence import (
     _INJECTED_TARGET_FAILURE,
     WP_ID,
     _assert_pre_target_done_path,

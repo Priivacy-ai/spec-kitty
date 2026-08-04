@@ -1,5 +1,11 @@
-"""Regression (#2684 / FR-009, WP09): event-sourced review-artifact override
+"""#2684 / FR-009, WP09: event-sourced review-artifact override
 recognition — both halves as a matched pair.
+
+Formerly a red-first ``@pytest.mark.regression`` reproduction; relocated here
+and un-marked (landing fold: make ``@pytest.mark.regression`` mean exactly
+one thing) once the fix landed and this module started passing. #2684 is
+fixed — this is now a permanent guard for the override-recognition
+correctness property, not a red-first pin.
 
 The ``review_artifact_override_*`` review-cycle state is evicted from artifact
 frontmatter into the event log's ``review`` snapshot slot as a *matched
@@ -44,7 +50,7 @@ from specify_cli.status.emit import emit_inner_state_changed
 from specify_cli.status.models import Lane, ReviewOverride, StatusEvent, WPInnerStateDelta
 from specify_cli.status.store import append_event
 
-pytestmark = [pytest.mark.regression, pytest.mark.integration]
+pytestmark = [pytest.mark.integration]
 
 _MISSION_SLUG = "wp-runtime-state-eviction-01KXWN13"
 _MISSION_ID = "01KXWN13EVICTION00000000000"

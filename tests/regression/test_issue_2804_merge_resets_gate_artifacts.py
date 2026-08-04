@@ -56,7 +56,7 @@ point (``specify_cli.cli.commands.merge._run_lane_based_merge`` ->
 integrate_mission_into_target`` -> the real ``git merge --squash -X theirs``
 subprocess), never a hand-rolled reimplementation of the merge or of git's
 conflict resolution. The harness mirrors the proven coord-topology
-lane-based-merge fixture in ``tests/regression/
+lane-based-merge fixture in ``tests/merge/
 test_issue_2711_merge_rollback_resume_coherence.py`` (mocking only side
 effects that are irrelevant to git content -- dossier sync, stale-assertion
 scan, merge-gate policy, baseline-commit bookkeeping, done-transition

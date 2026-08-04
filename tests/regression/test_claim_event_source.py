@@ -27,7 +27,7 @@ already-merged work predating this mission:
   checkbox write was retired unconditionally too ("Checkbox bytes ... are
   authored reference material only; neither is persisted by ``mark-status``");
   see also the pre-existing
-  ``tests/regression/test_issue_2684_subtask_completion_event_sourced.py``.
+  ``tests/specify_cli/cli/commands/agent/test_issue_2684_subtask_completion_event_sourced.py``.
 
 Both predate this WP and are GREEN already, run FIRST here as a live
 confirmation. This file therefore cannot be red-first for the event-sourcing

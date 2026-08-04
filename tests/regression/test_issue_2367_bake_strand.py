@@ -100,7 +100,7 @@ from specify_cli.status import Lane, StatusEvent
 # Reuse ONLY the primitive git helpers from the #2711 harness (never the
 # single-WP ``_bootstrap_coord_mission``, which has no bake-loop injection hook
 # and is in no WP's owned_files — WP01 authors its own >=2-WP bootstrap below).
-from tests.regression.test_issue_2711_merge_rollback_resume_coherence import (
+from tests.merge.test_issue_2711_merge_rollback_resume_coherence import (
     _git,
     _init_git_repo,
     _merge_external_mocks,
