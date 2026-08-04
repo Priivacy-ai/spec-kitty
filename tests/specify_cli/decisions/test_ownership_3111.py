@@ -1037,10 +1037,32 @@ def test_ownership_module_has_no_unguarded_eacces_divergent_stat_call() -> None:
     though it covers the family is worse than no guard. It now covers the family
     and implements the rule.
 
-    **The rule.** ``exists`` is banned outright: every use this module has ever had
-    was replaceable by ``open()`` or ``iterdir()``, which answer identically on
-    every interpreter. The rest of the family is permitted **only inside a
-    ``try``**, because a guarded ``stat`` is how the module legitimately probes.
+    **The rule, and it was wrong until #3177.** It used to ban ``exists`` outright
+    and permit the rest — ``is_dir`` included — **inside a ``try``**. That is exactly
+    no protection, because a ``try`` around a call that does not raise is inert. The
+    module shipped ``resolved.is_dir()`` in a ``try`` and this guard was GREEN while
+    the defect was live: on 3.14 the predicate returned ``False``, control took the
+    bare ``continue``, and the ``except OSError`` beneath it never ran. A guard whose
+    docstring reads as though it closed the family, while the family's own worst
+    member is permitted by it, is the same failure as the one-spelling version above.
+
+    The split is now on **raise behaviour**, which is the property that matters,
+    measured on 3.14.4 through a symlink into a ``0o000`` directory:
+
+    ===============  ==========================
+    ``exists``       returns ``False``
+    ``is_dir``       returns ``False``
+    ``is_file``      returns ``False``
+    ``is_symlink``   returns ``False``
+    ``stat``         RAISES ``PermissionError``
+    ``lstat``        RAISES ``PermissionError``
+    ===============  ==========================
+
+    So **every predicate is banned outright** — none of them can express "could not
+    look" on 3.14 at all, and a ``try`` around one is effect-free exception handling
+    that reads as a handled case while handling nothing. ``stat``/``lstat`` are
+    permitted **only inside a ``try``**, because they raise on every interpreter and
+    a guarded ``stat`` is how this module legitimately probes.
 
     Not covered, stated rather than implied: ``getattr(p, "exists")()``, a name
     held in a variable, ``operator.methodcaller``, and a bare imported
@@ -1050,11 +1072,13 @@ def test_ownership_module_has_no_unguarded_eacces_divergent_stat_call() -> None:
     """
     import ast as _ast
 
-    #: `exists` is banned everywhere; the rest only outside a `try`. All share
-    #: `stat()`'s EACCES divergence — see this module's own comment at the
-    #: `is_dir` call site, which says so.
-    banned_anywhere = {"exists"}
-    banned_unguarded = {"is_dir", "is_file", "is_symlink", "stat", "lstat"}
+    #: Split on RAISE BEHAVIOUR, measured — not on which spelling bit us. Every
+    #: predicate swallows EACCES on 3.14 and so cannot express "could not look"
+    #: under any amount of `try`; `stat`/`lstat` raise everywhere, so a guarded
+    #: probe with them is the module's legitimate idiom. See the `stat()` call
+    #: site's comment, which carries the four-interpreter table.
+    banned_anywhere = {"exists", "is_dir", "is_file", "is_symlink"}
+    banned_unguarded = {"stat", "lstat"}
 
     source = Path(ownership_module.__file__).read_text(encoding="utf-8")
     tree = _ast.parse(source)
@@ -1112,12 +1136,16 @@ def test_ownership_module_has_no_unguarded_eacces_divergent_stat_call() -> None:
         f"{ownership_module.__file__} makes {len(offenders)} EACCES-divergent "
         f"stat call(s) that this module has banned: {offenders} "
         f"(scanned {len(source.splitlines())} lines, {len(iterdir_sites)} iterdir "
-        "anchor(s) found). `exists` is banned outright — use an `open()` probe, or "
-        "`iterdir()` (FileNotFoundError for absent, OSError for unlistable), which "
-        "answer identically on every interpreter. The rest of the family is "
-        "permitted only inside a `try`: on 3.11/3.12 they RAISE on EACCES where "
-        "3.14 returns False, so an unguarded one ships a traceback that no local "
-        "run reproduces."
+        "anchor(s) found). Every PREDICATE (`exists`, `is_dir`, `is_file`, "
+        "`is_symlink`) is banned outright, in a `try` or not: all four return False "
+        "on EACCES on 3.14, so they cannot express `could not look` at all and a "
+        "`try` around one handles nothing. Use an `open()` probe, `iterdir()` "
+        "(FileNotFoundError for absent, OSError for unlistable), or "
+        "`S_ISDIR(p.stat().st_mode)`. `stat`/`lstat` are permitted only inside a "
+        "`try` — they raise on every interpreter, which is what makes a guarded "
+        "probe with them meaningful. #3177 is what this rule now encodes: the "
+        "previous form permitted `is_dir` in a `try` and stayed GREEN while that "
+        "exact call shipped the defect."
     )
 
 

@@ -199,6 +199,54 @@ a traceback from a local run that was green.**
 * `Path.glob` is the mirror-image hazard: it **swallows** `EACCES` and returns `[]` on all three
   interpreters, so an `except OSError` wrapped around a glob is unreachable — effect-free handling
   that reads as a handled case while handling nothing.
+* **The remedy is `Path.stat()` / `os.stat`, and only those.** They raise `EACCES` on *every*
+  interpreter; it is the predicate that changed, and **at 3.14, not 3.13**. Measured on four,
+  non-root euid, via a symlink into a `0o000` directory:
+
+  ```
+                             3.11.15   3.12.13   3.13.12   3.14.4
+  Path.stat() / os.stat      RAISES    RAISES    RAISES    RAISES
+  Path.is_dir()              RAISES    RAISES    RAISES    False
+  ```
+
+  3.14 rewrote the predicate to `if follow_symlinks: return os.path.isdir(self)`, and
+  `os.path.isdir` swallows every `OSError`. Through 3.13 it was `S_ISDIR(self.stat().st_mode)`
+  under `except OSError: if not _ignore_error(e): raise`, and `_ignore_error` covers only
+  `ENOENT`/`ENOTDIR`/`EBADF`/`ELOOP`, so `EACCES` propagated. Where the code must *observe* an
+  unreadable path — to record it, refuse on it, or say which one it was — the predicate cannot
+  express that and `S_ISDIR(p.stat().st_mode)` can.
+
+  Two traps in measuring this, both of which caught us. `hasattr(pathlib, "_ignore_error")` is
+  `False` from 3.13, because 3.13 makes `pathlib` a package and moves the helper out of the
+  top-level namespace — a layout change that reads exactly like the behaviour change, one minor
+  version early. And the non-default `follow_symlinks=False` branch still goes through `stat()`,
+  so a probe that passes it measures the arm the code does not take. **Measure the call as
+  called, not the namespace around it.**
+
+  This mission shipped that defect once and then closed it, which is the part worth recording.
+  `_mission_dirs` classified candidates with `resolved.is_dir()`, so on 3.14+ an unreadable
+  candidate took the bare `continue` instead of the `except OSError` that records it — **LOW-8's
+  original defect, reintroduced by LOW-8's own fix.** It was measured (`33 passed` on 3.11.15 and
+  3.12.13; `2 failed, 31 passed` on 3.14.4), filed as
+  [#3177](https://github.com/Priivacy-ai/spec-kitty/issues/3177), and deferred — the reasoning
+  being that it is fail-closed (`owned=False`, nothing transmits) and therefore a *diagnosis*
+  defect rather than a leak.
+
+  Deferring it was the wrong call, for a reason the deferral itself records: `requires-python`
+  is `>=3.11`, so 3.14 is admitted, and **no CI job runs pytest above 3.12** — the deferral would
+  have parked a known regression where no gate could ever rediscover it, with two tests left
+  permanently red to mark the spot. It is closed here instead, by the remedy #3177 itself
+  proposed: route the candidate through an explicit probe rather than a predicate.
+
+  How strong "supported" is here is worth stating plainly rather than settling: `requires-python`
+  admits 3.14, but the trove classifiers stop at 3.13, `.python-version` pins 3.11.15, and the
+  owning shard pins 3.12. So 3.14 is reachable but neither claimed nor exercised. That caps the
+  severity — it does not make a silently-wrong diagnosis in shipped code correct.
+
+  The generalisable rule is about the *direction* of the divergence. A call that raises where you
+  expected a value fails loudly. A call that returns a value where you expected a raise leaves the
+  handler beneath it **present and inert** — code that reads as a handled case while handling
+  nothing, indistinguishable from correct on inspection and on any interpreter that still raises.
 * The correct probes are `open()` and `iterdir()`, which ask the kernel the same question and get
   the same answer everywhere. `iterdir` also answers *absent* vs *unlistable* in one call, so the
   divergent call is not needed at all.
