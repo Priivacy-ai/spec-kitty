@@ -1,0 +1,149 @@
+{
+  "version": 1,
+  "mission_slug": "doctrine-consumer-surface-missions-extraction-01KZ6G6H",
+  "mission_id": "01KZ6G6HPTMWKK5EHGDHG9BJA5",
+  "mission_branch": "kitty/mission-doctrine-consumer-surface-missions-extraction-01KZ6G6H",
+  "target_branch": "research/doctrine-wheel-mission-types-public-api",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "packs/built-in/agent_profiles/doctrine-daphne.agent.yaml",
+        "tests/architectural/_dead_path_scan.py",
+        "tests/architectural/test_dead_builtin_doc_paths.py",
+        "tests/architectural/test_no_dead_cli_paths.py",
+        "tests/architectural/test_no_dead_doctrine_paths.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/doctrine/missions/repository.py",
+        "src/doctrine/pack_paths.py",
+        "src/kernel/paths.py",
+        "tests/architectural/test_kernel_no_doctrine_import.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/charter/mission_type_profiles.py",
+        "tests/charter/test_mission_type_profiles.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        ".kittify/overrides/missions/software-dev/command-templates/implement.md",
+        ".kittify/overrides/missions/software-dev/command-templates/review.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/plans/doctrine/missions-reader-inventory-01KZ6G6H.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "packs/built-in/mission_step_contract.graph.yaml",
+        "packs/built-in/mission_type.graph.yaml",
+        "packs/built-in/missions/**",
+        "src/doctrine/drg/migration/extractor.py",
+        "src/doctrine/missions/README.md",
+        "src/doctrine/missions/built_in_step_contracts/**",
+        "src/doctrine/missions/documentation/**",
+        "src/doctrine/missions/mission-steps/**",
+        "src/doctrine/missions/mission_types/**",
+        "src/doctrine/missions/plan/**",
+        "src/doctrine/missions/research/**",
+        "src/doctrine/missions/software-dev/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-planning"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-08-04T15:34:34.759542+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP03"
+  ],
+  "planning_commit_sha": "135fc3794355eadbcc255cafa1b3b674fd0d5104",
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP02",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/architectural/test_no_dead_doctrine_paths.py' vs 'tests/architectural/test_no_dead_doctrine_paths.py'; WP02 depends on WP01"
+      }
+    ],
+    "total_merges": 1,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 1
+    }
+  }
+}
