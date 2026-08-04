@@ -403,7 +403,7 @@ def test_injected_joinpath_call_is_flagged(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     sites = _scan_file(mod, "snippet.py")
-    assert len(sites) == 1, sites
+    assert len(sites) == 1, sites  # golden-count: cardinality-is-contract
     assert sites[0].qualname == "f"
 
 
@@ -424,7 +424,7 @@ def test_injected_combined_literal_with_separator_is_flagged(tmp_path: Path) -> 
         encoding="utf-8",
     )
     sites = _scan_file(mod, "snippet.py")
-    assert len(sites) == 1, sites
+    assert len(sites) == 1, sites  # golden-count: cardinality-is-contract
     assert sites[0].qualname == "f"
 
 
@@ -447,7 +447,7 @@ def test_injected_function_local_tainted_root_variable_is_flagged(tmp_path: Path
         encoding="utf-8",
     )
     sites = _scan_file(mod, "snippet.py")
-    assert len(sites) == 1, sites
+    assert len(sites) == 1, sites  # golden-count: cardinality-is-contract
     assert sites[0].qualname == "f"
     assert sites[0].lineno == 6
 
@@ -466,7 +466,7 @@ def test_injected_module_level_tainted_root_variable_is_flagged(tmp_path: Path) 
         encoding="utf-8",
     )
     sites = _scan_file(mod, "snippet.py")
-    assert len(sites) == 1, sites
+    assert len(sites) == 1, sites  # golden-count: cardinality-is-contract
 
 
 def test_untainted_root_variable_is_not_flagged(tmp_path: Path) -> None:
