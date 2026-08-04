@@ -2,7 +2,7 @@
 title: '3.2.x Open-Core Delivery Plan'
 description: 'PO-facing 3.2.x synthesis: a verified status re-read, the open-core breaking-change delivery strategy, and the bounded remaining-work sequence.'
 doc_status: proposed
-updated: '2026-07-30'
+updated: '2026-08-04'
 related:
 - docs/plans/3-2-x-approach.md
 - docs/plans/3-2-x-milestone-roadmap.md
@@ -61,14 +61,44 @@ actually delivered the milestone's goals. Re-audited against the code and tracke
     an unbuilt "keystone." It is built. G1's done-signal is **demonstrated
     doctrine→runtime governance** — already true and observable in the three shipping
     types — not "a pack-split epic is 100% complete."
-- **The one real G1 gap: the charter is not yet the *sole* door.** A canonical factory
-  exists but is one of many entry points; the charter wrapper activation-gates only
-  ~3 of ~10 artefact kinds and forwards the rest straight to the raw service. The audit
-  enumerated **~22 bypass doors** (the 5-tier template/command resolver axis, direct
-  repository construction across runtime/review/invocation, two hardcoded source-tree
-  paths, unwrapped service builds). This is a **defined, closeable list**, not
-  open-ended work. *(Unverified: the exact 22 file/line anchors came from a grep sweep;
-  a scoping pass should confirm the closed set before a mission is cut.)*
+- **The one real G1 gap: the charter is not yet the *sole* door — now substantially
+  closed.** Mission `charter-sole-door-bypass-closure-01KZ3WAA` (landed 2026-08-04) ran
+  the scoping pass this section originally flagged as missing, and confirmed the closed
+  set below is real, not a point-in-time grep. *(Door count: the mission's own Phase-0
+  scoping pass corrected this plan's ~22 grep estimate down to ~20 — the mission's
+  `spec.md` and the CHANGELOG both cite ~20 as the confirmed count; treat ~20 as
+  authoritative going forward, not an average of the two figures.)*
+  - *Closed by this mission:* every enumerated direct-construction and `._inner`
+    reach-around bypass around the charter's `DoctrineService` factory — direct
+    `AgentProfileRepository(...)`/`doctrine.service.DoctrineService(...)` construction
+    across runtime/review/invocation, plus two `._inner` attribute reach-arounds (a
+    third, `profiles_cmd.py:117`'s `object.__getattribute__` spelling, was surfaced by a
+    gate this landing pass widened). Activation gating extended from 3 of 10
+    doctrine-artifact kinds to all 9 charter-activatable kinds plus the `mission-type`
+    token — note honestly that `mission-type` gating itself *pre-existed*; this mission
+    verified it and added regression coverage rather than building it new. The two
+    previously-divergent "canonical" builder functions unified onto one
+    (`charter.doctrine_service_builder.build_activation_aware_doctrine_service`), and a
+    triplicated missions-root hardcode consolidated onto
+    `MissionTemplateRepository.default_missions_root()`. Five zero-tolerance AST/qualname
+    architectural gates (one per bypass category) ship the durability guarantee, widened
+    during landing with 35 injection tests.
+  - *What "closed" means, precisely:* the enforceable invariant shipped is **Policy A** —
+    "a raw service never escapes its acquisition site unwrapped" — which carries **zero**
+    exclusions and covers builder *calls* as well as constructions. **Policy B** (one
+    single constructor for every acquisition) remains the aspiration and still carries
+    named locality exclusions. The mission proves Policy A, not Policy B; the two are not
+    the same claim and should not be conflated when reporting this as "done."
+  - *Residual, honestly bounded — not the full door list:*
+    `doctrine.template_catalog.resolve_template_by_id` (5 importers);
+    `specify_cli/runtime/resolver.py`'s tier-1–4 reimplementation; `runtime/home.py`'s
+    `importlib.resources` root lookup (a 4th resolution path for the same root); three
+    root-relative missions-root duplicates (`src/kernel/paths.py`,
+    `src/specify_cli/template/manager.py`,
+    `src/specify_cli/cli/commands/charter/list_cmd.py`); one escalated
+    `AgentProfileRepository` site (`tool_surface/profiles/projection.py`, tracked #3176);
+    and the two `.kittify/profiles` sites, deliberately out of scope per the mission's own
+    C-006. Sequenced follow-ons: #3176, #3091, #3022, #3101.
 - **Creed / Values / signed relationship model — still ahead.** Creed and
   Foundational-Values exist **as design docs only, not in code**. The signed `impacts`
   relation (ADR [2026-07-26-3]) is **accepted but unimplemented**; note that
@@ -197,7 +227,7 @@ next; **P0 fixes run continuously alongside all of it.**
 | **R** | **Re-anchor the tracker** — adopt the placement-seam swarm as executing children of #1619/#2173/#1797; re-score the milestone against real coverage; reconcile this plan / the approach doc / the roadmap so "doctrine-first" is canonical and the spine reflects reality. | Cheapest, highest-value: makes 3.2.x *measurable* again. Prerequisite to any honest PO burn-down. | Pure tracker/doc work. ~½ day. |
 | **0** | **Resolve the CI-red question** — classify the 9 red jobs: baseline P0 pins vs fresh write-side-seam regression. | Gates every release conversation; distinguishes "honest red" from "shipped a bug." | Unverified today — needs per-job failed-test logs. |
 | **1** | **Boundary extraction** — resolve the charter↔doctrine import cycle, lift built-ins into `spec-kitty-doctrine`, in-place via strangler steps + import shims. | Lowest-risk break; removes the P0/restructure rework collision; unblocks the transparent repo split later. | **LANDED** — mission `doctrine-built-in-seam-consolidation` (2026-08-02): one fail-closed built-in doctrine location seam, `packs/built-in` relocation complete. |
-| **2** | **Charter-as-sole-door** — close the ~22 bypass doors so all provisioned assets resolve through the charter. | The G1 done-bar; the *no-bypass* half of the stability contract. | Bounded ~22-door list; confirm closed set first. Adjacent progress (not door-closure itself): mission `charter-pack-usage-journey` (2026-08-02) hardened the *existing* door — `apply`-without-compile keeps dispatch-net safety, `charter.yaml` is now the sole read authority for context/status, and `resolve_project_governance` has one directive authority. The ~22-door count is unaffected. |
+| **2** | **Charter-as-sole-door** — close the ~20 bypass doors so all provisioned assets resolve through the charter. | The G1 done-bar; the *no-bypass* half of the stability contract. | **Substantially LANDED** — mission `charter-sole-door-bypass-closure-01KZ3WAA` (2026-08-04) ran the confirming scoping pass this row's caveat asked for (the ~22 grep estimate is corrected to a confirmed ~20 — see §1.1), closed every enumerated `AgentProfileRepository`/raw `doctrine.service.DoctrineService` construction and `._inner` reach-around, unified the two divergent "canonical" builders, extended activation gating from 3/10 to all 9 charter-activatable kinds plus the `mission-type` token, and shipped 5 zero-tolerance architectural gates. This proves **Policy A** ("a raw service never escapes its acquisition site unwrapped," zero exclusions) — not the stronger **Policy B** (one single constructor), which still carries named exclusions; see §1.1 for the distinction. Residual doors — `resolve_template_by_id`'s 5 importers, `runtime/resolver.py`'s tier-1–4 reimplementation, `runtime/home.py`'s importlib-resources root path, three root-relative missions-root duplicates, and one escalated `AgentProfileRepository` site — are sequenced as #3176/#3091/#3022/#3101. Mission `charter-pack-usage-journey` (2026-08-02) remains unrelated hardening of the *existing* door, not part of this closure. |
 | **3** | **Enumerate + version the consumer surface** — charter access path, CLI verbs, pack/manifest layout, resolution API. | Turns "stable entry points" from aspiration into a checkable contract; the tracked artefact going forward. | New work; small once #2 lands. |
 | **4** | **Schema build** — signed `impacts` relation (fold `in_tension_with` in), then Creed + Foundational-Values. | Schema-shaping = a consumer-visible break → must land *inside* the window, schema-first, then migrate content, then the batched adaptation point. | `impacts` = ADR-accepted, unimplemented; Creed/Values = design-only. |
 | **5** | **Parked degod** — `_read_path_resolver` (~1677 LOC) as its own scoped mission. | Independent of the doctrine work; not a rider. | Known, parked. |
@@ -230,8 +260,11 @@ For the small, known, consenting early-adopter set:
 2. **CI-red disposition (item 0)** — is red-main-is-honest acceptable to hold through
    the window, or do we want a green-able baseline before the first consumer-visible
    break?
-3. **Charter-sole-door scope (item 2)** — confirm the closed door-set before cutting
-   the mission (the ~22 count is a grep estimate).
+3. **Charter-sole-door scope (item 2)** — **resolved.** Mission
+   `charter-sole-door-bypass-closure-01KZ3WAA` ran the scoping pass, confirmed ~20 doors
+   (not ~22), and closed the enumerated set per §1.1/§3 item 2. Remaining decision: whether
+   the residual doors (#3176/#3091/#3022/#3101) ship as their own missions now or wait
+   behind the schema work (item 4).
 4. **`_read_path_resolver` (item 5)** — spec now as an independent mission, or leave
    parked behind the doctrine work?
 5. **Consumer roster** — confirm the named early-adopter set that receives RCs and
