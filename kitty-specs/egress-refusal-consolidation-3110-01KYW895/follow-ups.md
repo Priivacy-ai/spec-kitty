@@ -367,7 +367,14 @@ HIGH/MEDIUM were the stale `in-mission` verdicts now resolved to `fixed`, and tw
 were closed by filing #3177. These four remain, each measured by the gate.
 
 **FU-R (MEDIUM, security) — the env-credential route survives #3111's laundering,
-and spec.md's fold of FR-007 into FR-002 is false there.**
+and spec.md's fold of FR-007 into FR-002 is false there. FILED AS #3178.**
+
+**Tracker: https://github.com/Priivacy-ai/spec-kitty/issues/3178**
+
+Filed rather than left as prose, on FU-Q's own reasoning: a residual that lives
+only in this dossier stops being anybody's inbox the moment the PR merges. Not
+fixed here — the remedy is a destination-authorisation check, a different seam from
+the ownership-detection work this mission scoped.
 
 The destination team is resolved from ambient env vars **before** the per-project
 auth file. So with ownership *legitimately* established, an operator carrying
