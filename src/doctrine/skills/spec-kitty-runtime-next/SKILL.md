@@ -216,10 +216,14 @@ your role, boundaries, and initialization context.
 **Load the profile using the Python API — do NOT read YAML files directly:**
 
 ```python
-from doctrine.agent_profiles import AgentProfileRepository
-from doctrine.service import DoctrineService
+from charter.doctrine_service_builder import build_activation_aware_doctrine_service
 
-repo = AgentProfileRepository()
+service = build_activation_aware_doctrine_service(project_root)
+
+# resolve_profile()'s specializes_from lineage traversal is a repository
+# operation, not available on the filtered `agent_profiles` dict — reach it
+# through the pinned lineage/mutation accessor:
+repo = service.agent_profile_repository
 profile = repo.resolve_profile("<profile-id>")  # e.g. "implementer"
 
 # Internalize identity — acknowledge this at session start
@@ -230,8 +234,7 @@ profile.specialization.primary_focus       # What you actively do
 profile.specialization.avoidance_boundary  # What you must NOT do
 profile.collaboration.handoff_to           # Roles to defer to when out of scope
 
-# Load only the directives this profile references
-service = DoctrineService(project_root=project_root)
+# Load only the directives this profile references (same `service`, gated dict)
 for ref in profile.directive_references:
     directive = service.directives.get(f"DIRECTIVE_{ref.code}")
 ```
@@ -271,9 +274,9 @@ which review criteria apply), pull the specific tactic or directive by ID
 rather than re-loading the full context:
 
 ```python
-from doctrine.service import DoctrineService
+from charter.doctrine_service_builder import build_activation_aware_doctrine_service
 
-service = DoctrineService(project_root=project_root)
+service = build_activation_aware_doctrine_service(project_root)
 
 # Pull a specific tactic when it becomes relevant
 tactic = service.tactics.get("tdd-red-green-refactor")

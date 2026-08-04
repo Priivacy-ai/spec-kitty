@@ -117,8 +117,9 @@ or read the YAML files directly from `packs/built-in/<kind>/` (artifacts live at
 `<type>/<pack>/[<category>/]<name>` — ADR 2026-07-26-2):
 
 ```python
-from doctrine.service import DoctrineService
-service = DoctrineService(project_root=project_root)
+from charter.doctrine_service_builder import build_activation_aware_doctrine_service
+
+service = build_activation_aware_doctrine_service(project_root)
 
 # Read a directive
 directive = service.directives.get("<a-directive-id>")
@@ -355,7 +356,10 @@ directive = service.directives.get("DIRECTIVE_034")
 # directive.title → "Test-First Development"
 # directive.severity → "warn"
 # directive.applies_to → ["implement", "review"]
-# All directives: service.directives.list_all() or read packs/built-in/directives/
+# service.directives is a filtered dict (no .list_all()); to enumerate every
+# directive regardless of activation, use the raw-repository escape hatch:
+# service.raw_repository("directives").list_all()
+# ...or read packs/built-in/directives/ directly.
 ```
 
 **Tactics** — Reusable implementation approaches that describe *how* to do
@@ -418,8 +422,10 @@ profile = service.agent_profiles.get("implementer")
 # profile.purpose.mandate → what this agent is responsible for
 # profile.specialization.boundaries → what it should not do
 
-# Or resolve the best match for a task:
-best = service.agent_profiles.find_best_match(task_context)
+# `find_best_match` is a repository method, not available on the filtered
+# `agent_profiles` dict above — reach it through the pinned lineage/mutation
+# accessor instead:
+best = service.agent_profile_repository.find_best_match(task_context)
 ```
 
 ```bash
@@ -448,8 +454,9 @@ There is no `doctrine list` or `doctrine show` CLI command. Use the programmatic
 `DoctrineService` API or read artifact YAML files directly:
 
 ```python
-from doctrine.service import DoctrineService
-service = DoctrineService(project_root=project_root)
+from charter.doctrine_service_builder import build_activation_aware_doctrine_service
+
+service = build_activation_aware_doctrine_service(project_root)
 
 # List or inspect artifacts by kind
 directive = service.directives.get("DIRECTIVE_034")
@@ -653,47 +660,71 @@ reports `synced=False` / `files_written=[]`, regardless of `--force`.
 
 ## Programmatic Doctrine Access (DoctrineService)
 
-`DoctrineService` is the single entry point for programmatic access to all
-doctrine artifacts. It lazily instantiates repositories on first access.
+`charter.resolver.DoctrineService` — built through
+`charter.doctrine_service_builder.build_activation_aware_doctrine_service` —
+is the single, sanctioned entry point for programmatic access to all doctrine
+artifacts. It wraps the inner `doctrine.service.DoctrineService` and applies
+charter activation filtering; never construct `doctrine.service.DoctrineService`
+or `doctrine.agent_profiles.AgentProfileRepository` directly (five
+architectural gates in `tests/architectural/` ban that construction outside
+this module).
 
 ```python
-from doctrine.service import DoctrineService
+from charter.doctrine_service_builder import build_activation_aware_doctrine_service
 
-service = DoctrineService(project_root=project_root)
+service = build_activation_aware_doctrine_service(project_root)
 ```
 
-### Available Repositories
+### Available Repositories (gated properties)
+
+Nine properties are activation-gated: each returns a plain `dict[str, <Artifact>]`
+filtered to whatever the charter has activated (or every shipped artifact of
+that kind, when nothing is configured). A `dict` supports `.get(id)` but not
+repository-only operations like `.list_all()`, `.save()`, or
+`find_best_match()` — see the raw-repository escape hatch below for those.
 
 | Property | Returns | Artifacts |
 |---|---|---|
-| `service.agent_profiles` | `AgentProfileRepository` | Agent role profiles with DDR-011 matching |
-| `service.directives` | `DirectiveRepository` | Numbered project rules (TEST_FIRST, etc.) |
-| `service.tactics` | `TacticRepository` | Reusable implementation approaches (TDD, ZOMBIES, etc.) |
-| `service.styleguides` | `StyleguideRepository` | Language/domain writing style guides |
-| `service.toolguides` | `ToolguideRepository` | Tool-specific operational guidance |
-| `service.paradigms` | `ParadigmRepository` | High-level development paradigms |
-| `service.procedures` | `ProcedureRepository` | Multi-step reusable workflow primitives |
-| `service.mission_step_contracts` | `MissionStepContractRepository` | Structured action contracts with delegation |
+| `service.agent_profiles` | `dict[str, AgentProfile]` | Agent role profiles with DDR-011 matching |
+| `service.directives` | `dict[str, Directive]` | Numbered project rules (TEST_FIRST, etc.) |
+| `service.tactics` | `dict[str, Tactic]` | Reusable implementation approaches (TDD, ZOMBIES, etc.) |
+| `service.styleguides` | `dict[str, Styleguide]` | Language/domain writing style guides |
+| `service.toolguides` | `dict[str, Toolguide]` | Tool-specific operational guidance |
+| `service.paradigms` | `dict[str, Paradigm]` | High-level development paradigms |
+| `service.procedures` | `dict[str, Procedure]` | Multi-step reusable workflow primitives |
+| `service.mission_step_contracts` | `dict[str, MissionStepContract]` | Structured action contracts with delegation |
+| `service.glossary_packs` | `dict[str, GlossaryPack]` | Canonical terminology packs |
 
 ### Common Repository Operations
 
-All repositories share a consistent pattern:
+`.get()` works directly on the gated dict:
 
 ```python
-# List all artifacts of a kind
-all_tactics = service.tactics.list_all()
-
 # Get a specific artifact by ID
 tactic = service.tactics.get("tdd-red-green-refactor")
+```
+
+Operations the filtered dict cannot support — `.list_all()`, `.save()`,
+`.get_provenance()` — go through the raw-repository escape hatch,
+`service.raw_repository(kind)`, which returns the underlying repository
+object unfiltered (a deliberate, sanctioned bypass of activation filtering,
+not of construction: it still comes from the one wrapped `service`, never a
+second `DoctrineService()`):
+
+```python
+# List all artifacts of a kind (raw repository, not the filtered dict)
+all_tactics = service.raw_repository("tactics").list_all()
 
 # Save a project-local artifact (procedures, step contracts)
-service.procedures.save(my_procedure)
+service.raw_repository("procedures").save(my_procedure)
 ```
 
 ### Agent Profile Resolution
 
-Agent profiles support weighted context-based matching. When the runtime
-needs to assign an agent to a task, it resolves the best profile:
+Agent profiles support weighted context-based matching and `specializes_from`
+lineage traversal. Both are repository operations, not available on the
+filtered `agent_profiles` dict, so they go through the pinned
+`agent_profile_repository` accessor instead of `raw_repository("agent_profiles")`:
 
 ```python
 from doctrine.agent_profiles.profile import TaskContext
@@ -705,7 +736,7 @@ context = TaskContext(
     keywords=["cli", "testing"],
 )
 
-profile = service.agent_profiles.find_best_match(context)
+profile = service.agent_profile_repository.find_best_match(context)
 # profile.purpose.mandate → what this agent is responsible for
 # profile.specialization.boundaries → what it should not do
 # profile.initialization_declaration → startup context text
