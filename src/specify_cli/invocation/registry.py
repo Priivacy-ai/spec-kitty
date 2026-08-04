@@ -51,12 +51,19 @@ class ProfileRegistry:
       always computes ``active_languages=infer_repo_languages(repo_root)``
       (FR-008 unification, charter-sole-door-bypass-closure-01KZ3WAA WP01)
       and every language-scoped profile (e.g. ``frontend-freddy``) is
-      dropped unless it overlaps that set. This filter is inert only when
-      every scoped profile's language is present in ``active_languages``
-      — in particular it is **not** inert for a project with no compiled
-      charter and no interview answers, since ``infer_repo_languages``
-      then returns an *explicitly empty* list (not ``None``), which drops
-      every language-scoped profile rather than admitting all of them.
+      dropped unless it overlaps that set. This filter is inert for a
+      project with no compiled charter and no interview answers because
+      ``infer_repo_languages`` resolves that "truly nothing configured yet"
+      case to ``None`` ("unknown" — admits every scoped profile), not an
+      explicitly empty list (landing-fold regression fix: a prior revision
+      of this unification returned ``[]`` for that case, which dropped
+      every language-scoped profile instead of admitting all of them — see
+      ``charter.language_scope.infer_repo_languages``'s docstring for the
+      ``None``-vs-``[]`` contract). The filter still narrows the catalog for
+      a *configured* project whose compiled charter or interview transcript
+      names a real, non-empty language subset (e.g. this repository's own
+      root, whose compiled charter declares ``languages: [python]``) — that
+      narrowing is intentional, not a bug.
 
     So byte-identity with the pre-mission catalog holds only when both gates
     are simultaneously inert (nothing de-activated, and either every

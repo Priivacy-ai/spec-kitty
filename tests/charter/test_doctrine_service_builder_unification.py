@@ -242,3 +242,49 @@ def test_gated_property_matches_raw_repository_for_bare_project(repo_root: Path,
     assert getattr(result_b, prop) == expected_b
     # Transitively also proves both entry points agree with each other.
     assert getattr(result_a, prop) == getattr(result_b, prop)
+
+
+#: Built-in profiles scoped to a specific language via ``applies_to_languages``
+#: — the exact set the FR-008 regression silently dropped on a truly bare
+#: project (no compiled charter, no interview transcript at all).
+_LANGUAGE_SCOPED_BUILTIN_PROFILE_IDS: tuple[str, ...] = (
+    "python-pedro",
+    "frontend-freddy",
+    "java-jenny",
+    "node-norris",
+)
+
+
+def test_bare_project_admits_language_scoped_builtin_profiles(tmp_path: Path) -> None:
+    """Regression (charter-sole-door-bypass-closure-01KZ3WAA landing-fold fix).
+
+    A project with NO compiled charter (``.kittify/charter/charter.yaml``)
+    and NO interview transcript (``.kittify/charter/interview/answers.yaml``)
+    has no active-language *signal at all* -- ``infer_repo_languages`` must
+    resolve this to ``None`` ("unknown"), not an explicitly empty list.
+    ``doctrine.shared.scoping.applies_to_languages_match`` treats ``None`` as
+    admit-all and an empty active set as admit-none for scoped artifacts, so
+    conflating "no signal" with "explicitly no languages" silently drops
+    every language-scoped built-in profile from the catalog.
+
+    Confirmed red against the pre-fix code: ``active_languages=
+    infer_repo_languages(repo_root)`` computed ``[]`` for this exact bare
+    fixture (no compiled charter, no interview answers), and the four
+    language-scoped built-ins below were absent from
+    ``build_activation_aware_doctrine_service(bare_root).agent_profiles``
+    (14 profiles instead of 18) -- matching the two independent adversarial
+    review lenses that reproduced this on PR #3175.
+    """
+    bare_root = tmp_path / "bare-project"
+    bare_root.mkdir()
+    # Deliberately no ``.kittify`` directory at all: no compiled charter, no
+    # interview transcript -- the "truly nothing configured yet" case.
+
+    service = charter_builder(bare_root)
+    catalog_ids = set(service.agent_profiles)
+
+    missing = [pid for pid in _LANGUAGE_SCOPED_BUILTIN_PROFILE_IDS if pid not in catalog_ids]
+    assert not missing, (
+        f"language-scoped built-in profiles dropped from a bare project's catalog: {missing} "
+        f"(catalog had {len(catalog_ids)} profiles: {sorted(catalog_ids)})"
+    )
