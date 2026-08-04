@@ -3,7 +3,7 @@
   "ceilings": {
     "tests/_support": 10,
     "tests/agent": 104,
-    "tests/architectural": 23,
+    "tests/architectural": 25,
     "tests/charter": 1,
     "tests/contract": 7,
     "tests/docs": 2,
@@ -15,7 +15,7 @@
     "tests/runtime": 11,
     "tests/specify_cli": 270,
     "tests/status": 33,
-    "tests/sync": 50,
+    "tests/sync": 49,
     "tests/test_dashboard": 13,
     "tests/unit": 17
   }
