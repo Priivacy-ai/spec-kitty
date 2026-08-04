@@ -764,7 +764,16 @@ def _st_render_human(st: _StatusState, ports: TasksPorts) -> None:
             profile_repo = build_activation_aware_doctrine_service(
                 st.main_repo_root
             ).agent_profile_repository
-        except Exception:
+        except ImportError:
+            # Genuinely-absent-module case only: ``charter`` is first-party
+            # and ships in the same wheel, so this can only fire under a
+            # broken/partial install. Any other failure here -- most
+            # notably ``charter.pack_context.CharterPackConfigError`` raised
+            # by ``PackContext.from_config()`` for a malformed
+            # ``.kittify/config.yaml`` -- MUST propagate to ``_do_status``'s
+            # outer ``except Exception as e`` handler and surface as a
+            # structured error (FR-002's fail-closed contract), not degrade
+            # this dashboard to an unfiltered/markerless render silently.
             profile_repo = None
 
     for wp in by_lane[Lane.IN_PROGRESS]:
@@ -905,7 +914,15 @@ def _get_hic_marker(
         profile = profile_repo.get(agent_profile)
         if profile and profile.sentinel:
             return "👤 "
-    except Exception:
+    except ImportError:
+        # Genuinely-absent-module case only, matching the sibling call site
+        # (``_st_render_human``): ``charter`` is first-party and ships in the
+        # same wheel, so this can only fire under a broken/partial install.
+        # Any other failure -- most notably
+        # ``charter.pack_context.CharterPackConfigError`` for a malformed
+        # ``.kittify/config.yaml`` -- MUST propagate to the caller rather
+        # than degrade this marker to a silent "" (FR-002's fail-closed
+        # contract).
         return ""
 
     return ""
