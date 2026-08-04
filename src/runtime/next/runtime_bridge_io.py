@@ -571,9 +571,20 @@ def _resolve_tech_stack_for_profile(
     if not profile_id:
         return frozenset()
     try:
-        from doctrine.agent_profiles import AgentProfileRepository  # noqa: PLC0415
+        # WP02 (charter-sole-door-bypass-closure-01KZ3WAA, FR-001): route
+        # through the charter-mediated factory's lineage/mutation accessor
+        # rather than constructing ``AgentProfileRepository`` directly.
+        # ``resolve_profile()`` (lineage composition via ``specializes_from``)
+        # is not available on the gated ``agent_profiles`` dict — a dict has
+        # no such method — so this call site needs the raw accessor, not the
+        # filtered property (contracts/charter-doctrine-service-contract.md
+        # "Lineage/mutation accessor semantics").
+        from charter.doctrine_service_builder import (  # noqa: PLC0415
+            build_activation_aware_doctrine_service,
+        )
 
-        repo = AgentProfileRepository(project_dir=repo_root / KITTIFY_DIR / "doctrine")
+        service = build_activation_aware_doctrine_service(repo_root)
+        repo = service.agent_profile_repository
         profile = repo.resolve_profile(profile_id)
     except Exception:
         return frozenset()

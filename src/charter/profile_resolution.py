@@ -75,6 +75,20 @@ def _default_agent_profile_repository() -> AgentProfileRepository:
     reset the cache via :func:`_reset_agent_profile_cache`. This is the
     no-org-packs fast path; org-aware resolution flows through
     :func:`_activation_aware_profile_map` instead.
+
+    **Confirmed bootstrap carve-out (C-002), NOT migrated by
+    charter-sole-door-bypass-closure-01KZ3WAA WP02/T010.** This function is a
+    zero-argument, module-level cached function with no ``repo_root`` and no
+    org-pack context at all -- there is nothing to build a
+    ``charter.resolver.DoctrineService`` from at this call site (the factory's
+    one builder always takes a ``repo_root``). This is the literal instance of
+    the bootstrap/circularity edge case spec.md names: the "no repo context,
+    no org packs" fast path :func:`_resolve_agent_profile_record` falls back
+    to when ``repo_root is None`` or no org roots exist. The *other*,
+    org-aware branch of that same function (:func:`_activation_aware_profile_map`
+    above) already routes through
+    :func:`~charter.doctrine_service_builder._build_activation_aware_doctrine_service`
+    correctly -- there is nothing left to migrate in this file.
     """
     global _DEFAULT_AGENT_PROFILE_REPO
     if _DEFAULT_AGENT_PROFILE_REPO is None:
