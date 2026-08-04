@@ -108,8 +108,17 @@ def test_infer_repo_languages_empty_compiled_list_is_authoritative_not_absent(tm
     assert infer_repo_languages(tmp_path) == []
 
 
-def test_infer_repo_languages_returns_empty_without_inputs(tmp_path: Path) -> None:
-    assert infer_repo_languages(tmp_path) == []
+def test_infer_repo_languages_returns_none_without_inputs(tmp_path: Path) -> None:
+    """No compiled charter, no interview transcript: truly no signal -> ``None``.
+
+    ``None`` (not ``[]``) is load-bearing here (regression fix,
+    charter-sole-door-bypass-closure-01KZ3WAA landing fold):
+    ``doctrine.shared.scoping.applies_to_languages_match`` treats ``None`` as
+    admit-all for scoped artifacts and ``[]`` as admit-none. This test used
+    to assert ``== []`` before the fix, which silently dropped every
+    language-scoped built-in profile from a bare project's catalog.
+    """
+    assert infer_repo_languages(tmp_path) is None
 
 
 def test_infer_repo_languages_falls_back_when_compiled_charter_predates_structured_field(
@@ -145,22 +154,30 @@ def test_infer_repo_languages_falls_back_when_compiled_charter_predates_structur
     assert infer_repo_languages(tmp_path) == ["python"]
 
 
-def test_infer_repo_languages_returns_empty_when_no_compiled_charter_and_no_interview(
+def test_infer_repo_languages_returns_none_when_no_compiled_charter_and_no_interview(
     tmp_path: Path,
 ) -> None:
-    """No charter.yaml, no interview transcript: resolves to empty — NOT a charter.md scan.
+    """No charter.yaml, no interview transcript: resolves to ``None`` — NOT a charter.md scan.
 
     This is the INV-3 completeness assertion (reviewer guidance): a
     charter.md that would produce a non-empty result via free-text
     extraction must be proven irrelevant. Prior to WP08 this scenario fell
     back to scanning charter.md and returned ``["java"]``; now there is no
-    tier-3 charter.md read at all, so it resolves to ``[]``.
+    tier-3 charter.md read at all.
+
+    ``None`` (not ``[]``) is load-bearing (regression fix,
+    charter-sole-door-bypass-closure-01KZ3WAA landing fold): this is the
+    "truly no signal at all" bare-project case, distinct from a configured
+    project's deliberate empty answer. Before the fix this resolved to
+    ``[]``, which ``doctrine.shared.scoping.applies_to_languages_match``
+    treats as admit-none — silently dropping every language-scoped built-in
+    profile from a bare project's catalog.
     """
     charter_path = tmp_path / ".kittify" / "charter" / "charter.md"
     charter_path.parent.mkdir(parents=True, exist_ok=True)
     charter_path.write_text("This repository uses Java, Maven, and JUnit.", encoding="utf-8")
 
-    assert infer_repo_languages(tmp_path) == []
+    assert infer_repo_languages(tmp_path) is None
 
 
 def test_infer_repo_languages_falls_back_when_charter_yaml_is_malformed(tmp_path: Path) -> None:

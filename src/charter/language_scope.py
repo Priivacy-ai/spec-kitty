@@ -77,7 +77,7 @@ def _read_compiled_languages(repo_root: Path) -> list[str] | None:
     return list(normalize_languages(str(item) for item in languages))
 
 
-def infer_repo_languages(repo_root: Path) -> list[str]:
+def infer_repo_languages(repo_root: Path) -> list[str] | None:
     """Infer active project languages, preferring the compiled charter.
 
     Resolution precedence (FR-008/FR-009/FR-010):
@@ -85,9 +85,30 @@ def infer_repo_languages(repo_root: Path) -> list[str]:
          ``catalog`` section at ``charter generate``/``charter sync`` time.
          Once present, this is authoritative and unconditionally wins — the
          interview transcript is never consulted, even if it would produce
-         a different answer.
+         a different answer. An empty compiled list (``catalog.languages:
+         []``) is a legitimate, deliberate answer — a configured project
+         whose interview transcript named no recognized language — and is
+         returned as ``[]``, not promoted to ``None``.
       2. Otherwise (no compiled charter yet, or a ``charter.yaml`` compiled
-         before this field existed): fall back to the interview transcript.
+         before this field existed): fall back to the interview transcript,
+         if one exists. Its extraction result is returned as-is, including
+         ``[]`` when the transcript exists but names no recognized language
+         — an interview transcript is itself a completed signal, not an
+         absence of one, so it is never promoted to ``None`` either.
+      3. Only when NEITHER a compiled charter NOR an interview transcript
+         exists is there truly no active-language signal at all. That bare/
+         unconfigured-project case resolves to ``None`` — explicitly
+         distinct from the deliberate ``[]`` results above.
+
+    The ``None`` vs. ``[]`` distinction is load-bearing for callers, not
+    cosmetic (regression fix, charter-sole-door-bypass-closure-01KZ3WAA
+    landing fold): ``doctrine.shared.scoping.applies_to_languages_match``
+    treats ``active_languages=None`` as "admit every scoped artifact" and an
+    explicitly empty active set as "admit none". Collapsing "no signal yet"
+    into ``[]`` silently drops every language-scoped built-in profile
+    (``python-pedro``, ``frontend-freddy``, ``java-jenny``, ``node-norris``,
+    …) from an otherwise-unconfigured project's catalog — this happened on
+    PR #3175 and was caught by two independent adversarial review lenses.
 
     There is no further ``charter.md`` prose fallback (WP08 / FR-009):
     ``charter.md`` is a curated narrative document, not a decision input, and
@@ -103,8 +124,6 @@ def infer_repo_languages(repo_root: Path) -> list[str]:
     interview = read_interview_answers(interview_path)
     if interview is not None:
         combined = "\n".join(str(value) for value in interview.answers.values())
-        languages = extract_declared_languages(combined)
-        if languages:
-            return languages
+        return extract_declared_languages(combined)
 
-    return []
+    return None

@@ -370,6 +370,32 @@ def test_resolve_tech_stack_for_profile_empty_on_resolution_failure(tmp_path: Pa
     assert io_seam._resolve_tech_stack_for_profile(tmp_path, "nonexistent-profile") == frozenset()
 
 
+def test_resolve_tech_stack_for_profile_bare_repo_resolves_python_pedro(tmp_path: Path) -> None:
+    """Regression (charter-sole-door-bypass-closure-01KZ3WAA landing-fold fix).
+
+    ``tmp_path`` here has NO ``.kittify`` directory at all -- no compiled
+    charter, no interview transcript -- the same bare-project shape as
+    ``test_resolve_tech_stack_for_profile_empty_on_resolution_failure`` above,
+    but with a REAL built-in profile id (``python-pedro``) instead of a
+    nonexistent one.
+
+    Confirmed red against the pre-fix code: ``build_activation_aware_doctrine_
+    service(tmp_path)`` computed ``active_languages=[]`` (explicitly empty,
+    not ``None``) for this bare fixture, which drops ``python-pedro`` (a
+    language-scoped built-in) from ``agent_profile_repository``, so
+    ``resolve_profile("python-pedro")`` raised ``KeyError`` -- silently
+    swallowed by this function's best-effort ``except Exception`` -- and the
+    resolved tech stack came back empty instead of ``{"python"}``. That
+    silent emptiness fed straight into
+    :class:`~charter.invocation_context.OperationalContext` (see
+    ``test_build_operational_context_for_claim_resolves_profile_from_run_dir``
+    above), so this is a real end-to-end regression, not just an internal
+    resolution detail.
+    """
+    result = io_seam._resolve_tech_stack_for_profile(tmp_path, "python-pedro")
+    assert result == frozenset({"python"})
+
+
 def test_build_operational_context_for_claim_resolves_profile_from_run_dir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
