@@ -179,7 +179,7 @@ def test_sc004_clause1_the_non_fragment_portion_is_byte_identical() -> None:
     remove that fragment from each rendering. What is left must be identical —
     which is only possible if there is one template.
     """
-    root = Path("/tmp/example-project")
+    root = Path("/nonexistent/example-project")
     saas_rendered = egress._render_denied_refusal(root, SAAS_FRAGMENT)
     tracker_rendered = egress._render_denied_refusal(root, TRACKER_FRAGMENT)
 
@@ -427,7 +427,7 @@ def _verdicts() -> Any:
 
 
 def test_nfr004_denied_branch_names_the_operator_action() -> None:
-    rendered = egress._render_denied_refusal(Path("/tmp/p"), SAAS_FRAGMENT)
+    rendered = egress._render_denied_refusal(Path("/nonexistent/p"), SAAS_FRAGMENT)
     assert "sync opt-in" in rendered, (
         f"the DENIED branch does not name a concrete next action: {rendered!r}"
     )
@@ -437,7 +437,7 @@ def test_nfr004_denied_branch_names_the_operator_action() -> None:
 
 
 def test_nfr004_no_resolver_branch_names_the_resolver() -> None:
-    rendered = egress._refusal_for_verdict(_verdicts().NO_RESOLVER, Path("/tmp/p"), SAAS_FRAGMENT)
+    rendered = egress._refusal_for_verdict(_verdicts().NO_RESOLVER, Path("/nonexistent/p"), SAAS_FRAGMENT)
     assert rendered is not None and "resolver" in rendered, (
         f"the NO_RESOLVER branch does not name the resolver: {rendered!r}"
     )
@@ -452,7 +452,7 @@ def test_nfr004_undetermined_and_unanswerable_stay_distinguishable() -> None:
     """
     undetermined = egress.project_egress_refusal(None, SAAS_FRAGMENT)
     unanswerable = egress._refusal_for_verdict(
-        _verdicts().UNANSWERABLE, Path("/tmp/p"), SAAS_FRAGMENT
+        _verdicts().UNANSWERABLE, Path("/nonexistent/p"), SAAS_FRAGMENT
     )
     assert undetermined is not None and unanswerable is not None
     assert "could not be determined" in undetermined
@@ -487,7 +487,7 @@ def test_nfr004_import_failure_branch_carries_the_exception_text(
     monkeypatch.delitem(sys.modules, "specify_cli.sync", raising=False)
     monkeypatch.setattr(builtins, "__import__", _explode)
 
-    refusal = egress.project_egress_refusal(Path("/tmp/p"), SAAS_FRAGMENT)
+    refusal = egress.project_egress_refusal(Path("/nonexistent/p"), SAAS_FRAGMENT)
 
     assert refusal is not None, (
         "an unimportable hosted-sync package produced a PERMIT — inability to "
@@ -505,7 +505,7 @@ def test_nfr004_unrecognised_future_verdict_does_not_reuse_denied_remedy() -> No
         value = "quarantined"
         permits_egress = False
 
-    rendered = egress._refusal_for_verdict(_FutureVerdict(), Path("/tmp/p"), SAAS_FRAGMENT)  # type: ignore[arg-type]
+    rendered = egress._refusal_for_verdict(_FutureVerdict(), Path("/nonexistent/p"), SAAS_FRAGMENT)  # type: ignore[arg-type]
     assert rendered is not None
     assert "quarantined" in rendered, (
         f"the unrecognised-verdict branch drops the verdict name: {rendered!r}"

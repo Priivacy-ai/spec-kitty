@@ -213,7 +213,7 @@ class DecisionOwnership:
     missions_searched: tuple[str, ...]
     unreadable_ledgers: tuple[str, ...]
     #: ``None`` unless the specs root itself defeated the enumeration. Keyed on
-    #: the CAUSE rather than inferred from ``unreadable_ledgers == ("kitty-specs",)``:
+    #: the CAUSE rather than inferred from ``unreadable_ledgers == (_SPECS_DIRNAME,)``:
     #: two different faults produce that same tuple and need two different
     #: operator actions, so the tuple cannot carry the distinction.
     specs_root_fault: SpecsRootFault | None = None
@@ -645,7 +645,7 @@ def ownership_refusal(outcome: DecisionOwnership) -> str | None:
     # through the generic branch below, LOW-6 read "no missions were found ... 1
     # decision ledger(s) could not be read ... To fix: run `git pull`" — which
     # calls a DIRECTORY a ledger and sends the operator to git for a permission
-    # denial. Keyed on the FAULT, not on `unreadable_ledgers == ("kitty-specs",)`:
+    # denial. Keyed on the FAULT, not on `unreadable_ledgers == (_SPECS_DIRNAME,)`:
     # LOW-7 produces that identical tuple and needs a different instruction, so
     # the tuple cannot be the discriminator.
     specs_root_refusal = _specs_root_refusal(outcome)
