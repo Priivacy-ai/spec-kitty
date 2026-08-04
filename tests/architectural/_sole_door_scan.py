@@ -211,9 +211,19 @@ def _own_scope_statements(scope: ast.AST) -> list[ast.AST]:
     return out
 
 
-def _bindings_for_scope(scope: ast.AST) -> _Bindings:
+def _bindings_for_scope(statements: list[ast.AST]) -> _Bindings:
+    """Bindings introduced by *statements* — one scope's own statements.
+
+    Perf note (landing-fold gate hardening, 2026-08): takes the
+    already-computed :func:`_own_scope_statements` result rather than a raw
+    ``scope`` and re-walking it, so callers that also need
+    :func:`_alias_rebinds_by_scope` for the same scope compute the walk once,
+    not twice. ``_own_scope_statements`` itself keeps its original signature
+    (``scope: ast.AST``) since Gate 4 (missions-root hardcode) imports and
+    calls it directly.
+    """
     bindings = _Bindings()
-    for node in _own_scope_statements(scope):
+    for node in statements:
         if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
             for alias in node.names:
                 bindings.from_imports[alias.asname or alias.name] = (
@@ -289,7 +299,7 @@ def _lookup_module(dotted: str, chain: list[_Bindings]) -> str:
 
 
 def _alias_rebinds_by_scope(
-    scope: ast.AST, bindings: _Bindings, candidate_names: frozenset[str]
+    statements: list[ast.AST], bindings: _Bindings, candidate_names: frozenset[str]
 ) -> dict[str, tuple[str, str]]:
     """``Alias = AgentProfileRepository`` style re-bindings, for ONE scope.
 
@@ -299,12 +309,14 @@ def _alias_rebinds_by_scope(
     (``def build(): ... ; Local = AgentProfileRepository; return Local()``)
     evaded it, even though every real violation these gates close lives at
     function-local or nested scope (NFR-003). This computes the identical
-    rebind detection per scope via :func:`_own_scope_statements` (already
-    ``try``/``if``/``with``-aware), so the caller can consult it through the
-    same scope chain :func:`_bindings_for_scope` already uses.
+    rebind detection per scope over *statements* — the same
+    :func:`_own_scope_statements` result the caller already computed once for
+    :func:`_bindings_for_scope`, so the ``try``/``if``/``with``-aware walk
+    itself is not repeated a second time for the same scope (perf note,
+    landing-fold gate hardening 2026-08).
     """
     rebinds: dict[str, tuple[str, str]] = {}
-    for node in _own_scope_statements(scope):
+    for node in statements:
         if not isinstance(node, ast.Assign) or len(node.targets) != 1:
             continue
         target = node.targets[0]
@@ -394,6 +406,39 @@ class FileScan:
     result: ScanResult
 
 
+def _index_file(tree: ast.Module) -> tuple[dict[int, ast.AST], list[ast.AST], list[ast.Call]]:
+    """Parents map, scope nodes, and call nodes — computed in one traversal.
+
+    Perf note (landing-fold gate hardening, 2026-08): :func:`scan_file_constructions`
+    used to compute this via three independent whole-tree traversals —
+    ``parent_map(tree)`` (its own ``ast.walk`` + ``iter_child_nodes`` pass),
+    ``_scope_nodes(tree)`` (another ``ast.walk``), and a third ``ast.walk``
+    to filter ``ast.Call`` nodes. All three visit every node in the file; this
+    walks the tree exactly once via ``ast.iter_child_nodes`` directly (the
+    same primitive ``ast.walk`` itself wraps) and buckets each child into all
+    three outputs as it goes. Output is identical to calling
+    ``parent_map``/``_scope_nodes``/an ``ast.walk`` `Call` filter separately —
+    only the traversal count changes. Not exported: ``parent_map`` and
+    ``_scope_nodes`` keep their standalone signatures and behaviour unchanged
+    for Gate 4 (``test_charter_sole_door_hardcoded_paths.py``), which imports
+    and calls them directly.
+    """
+    parents: dict[int, ast.AST] = {}
+    scopes: list[ast.AST] = [tree]
+    calls: list[ast.Call] = []
+    stack: list[ast.AST] = [tree]
+    while stack:
+        node = stack.pop()
+        for child in ast.iter_child_nodes(node):
+            parents[id(child)] = node
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                scopes.append(child)
+            elif isinstance(child, ast.Call):
+                calls.append(child)
+            stack.append(child)
+    return parents, scopes, calls
+
+
 def scan_file_constructions(
     path: Path,
     rel_path: str,
@@ -408,20 +453,43 @@ def scan_file_constructions(
     identities are comparable (Gate 2 needs exactly that for
     ``doctrine.service.DoctrineService`` vs ``charter.resolver.DoctrineService``).
 
-    Returns ``None`` only when the file cannot be parsed at all.
+    Returns ``None`` when the file cannot be parsed at all, or when a cheap
+    substring pre-check (below) proves it holds no possible match — every
+    caller already treats both as "nothing here" (see e.g.
+    ``scan_file_raw_sites``'s ``if scan is None: return [], ScanResult([], [])``).
     """
     source = path.read_text(encoding="utf-8")
+    # Perf pre-filter (landing-fold gate hardening, 2026-08): every route that
+    # can produce a match — an ``import``/``from``-import of the name, a
+    # ``getattr``/local-rebind of an already-imported name, or a file-local
+    # class/function literally named one of *candidate_names* — requires that
+    # name's exact characters to appear somewhere in the source text first
+    # (as an identifier token, or as a string literal for a dynamic-lookup
+    # spelling). A file whose raw text contains none of *candidate_names* at
+    # all therefore cannot contain a match by construction, so skipping the
+    # parse and the whole-tree walk for it is real work avoided, not a cache
+    # — 96%+ of src/**/*.py never mention either doctrine-service candidate
+    # name, measured against this landing pass's widened scan.
+    if not any(name in source for name in candidate_names):
+        return None
     try:
         tree = ast.parse(source, filename=str(path))
     except SyntaxError:
         return None
 
-    parents = parent_map(tree)
-    scopes = _scope_nodes(tree)
-    bindings_by_scope = {id(scope): _bindings_for_scope(scope) for scope in scopes}
+    parents, scopes, calls = _index_file(tree)
+    # Perf: compute each scope's own-statement walk exactly once and hand the
+    # same list to both the binding pass and the rebind pass, instead of
+    # letting each call ``_own_scope_statements(scope)`` independently (that
+    # duplicate walk was ~half of this scan's measured cost — see
+    # test_gate_runs_under_fast_tier_budget's landing-fold history).
+    statements_by_scope = {id(scope): _own_scope_statements(scope) for scope in scopes}
+    bindings_by_scope = {
+        id(scope): _bindings_for_scope(statements_by_scope[id(scope)]) for scope in scopes
+    }
     rebinds_by_scope = {
         id(scope): _alias_rebinds_by_scope(
-            scope, bindings_by_scope[id(scope)], candidate_names
+            statements_by_scope[id(scope)], bindings_by_scope[id(scope)], candidate_names
         )
         for scope in scopes
     }
@@ -430,9 +498,7 @@ def scan_file_constructions(
 
     matches: list[tuple[ast.Call, ConstructionSite]] = []
     unresolved: list[ConstructionSite] = []
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call):
-            continue
+    for node in calls:
         simple_name = callee_simple_name(node)
         if simple_name is None:
             continue
