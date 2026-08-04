@@ -2,27 +2,27 @@
   "mission_slug": "charter-sole-door-bypass-closure-01KZ3WAA",
   "mission_number": "189",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "fail",
   "criteria": [
     {
       "criterion_id": "FR-001",
       "description": "Eliminate direct AgentProfileRepository(...) construction at the 4 FR-001-named sites (runtime_bridge_io.py:576, projection.py:84, tasks_status_cmd.py:712, tasks_status_cmd.py:823) outside charter.resolver.DoctrineService, excluding the two .kittify/profiles sites (C-006) and the profile_resolution.py bootstrap carve-out.",
       "proof_type": "automated_test",
-      "evidence": "WP02 (approved): 3 of 4 FR-001-named AgentProfileRepository sites migrated to charter.resolver.DoctrineService.agent_profile_repository (runtime_bridge_io.py:576, tasks_status_cmd.py:712 and :823). The 4th, projection.py:84 (default_profile_repository()), was NOT migrated: WP02 escalated it per C-002 as a confirmed blocker rather than silently allowlisting or leaving it unmarked -- build_activation_aware_doctrine_service exposes no parameter to retarget its inner service's project-overlay directory at .kittify/agent_profiles, and a naive migration was empirically shown to silently drop project-overlay profiles (3 test breakages). Tracked at #3176 (issue-matrix.json row, WP02); the composite-key gate exclusion cites the issue number and will be deleted once #3176 lands. Separately, src/charter/profile_resolution.py:81 is a confirmed+documented bootstrap carve-out (zero-argument, module-level cached repository with no repo_root to build a factory from -- not one of the 4 FR-001-named sites, not counted toward the 3-of-4). Gate 1 (WP09, tests/architectural/test_charter_sole_door_agent_profile_repository.py, 17 tests) independently proves zero raw construction remains outside the named composite-key exclusions (the 2 .kittify/profiles C-006 sites, the profile_resolution.py bootstrap carve-out, and projection.py's #3176-tracked gap).",
+      "evidence": "WP02 (approved): 3 of 4 FR-001-named AgentProfileRepository sites migrated to charter.resolver.DoctrineService.agent_profile_repository (runtime_bridge_io.py:576, tasks_status_cmd.py:712 and :823). The 4th, projection.py:84 (default_profile_repository()), was NOT migrated: WP02 escalated it per C-002 as a confirmed blocker rather than silently allowlisting or leaving it unmarked -- build_activation_aware_doctrine_service exposes no parameter to retarget its inner service's project-overlay directory at .kittify/agent_profiles, and a naive migration was empirically shown to silently drop project-overlay profiles (3 test breakages). Tracked at #3176 (issue-matrix.json row, WP02); the composite-key gate exclusion cites the issue number and will be deleted once #3176 lands. Separately, src/charter/profile_resolution.py:81 is a confirmed+documented bootstrap carve-out (zero-argument, module-level cached repository with no repo_root to build a factory from -- not one of the 4 FR-001-named sites, not counted toward the 3-of-4). Gate 1 (WP09, tests/architectural/test_charter_sole_door_agent_profile_repository.py, 18 tests as re-run live in this fold's sweep -- see NFR-001) independently proves zero raw construction remains outside the named composite-key exclusions (the 2 .kittify/profiles C-006 sites, the profile_resolution.py bootstrap carve-out, and projection.py's #3176-tracked gap). Landing-fold `ce3ced4fd` found and fixed a regression at the exact 2 tasks_status_cmd.py sites this evidence names: both had actually migrated to the activation-*gated* `.agent_profiles` dict, not `.agent_profile_repository` as this evidence claims, silently dropping the human-in-charge marker under narrowed activation (`profile.sentinel` is a structural, not activation-gated, property). Both sites now correctly read `.agent_profile_repository` (confirmed via grep at tasks_status_cmd.py:766,912); a red-first regression test (tests/doctrine/test_human_in_charge_profile.py::test_hic_marker_survives_narrowed_activation) reproduced the bug and now passes.",
       "pass_fail": "pass",
       "verified_by": "claude",
-      "verified_at": "2026-08-03T22:07:16.152148+00:00",
-      "notes": "3 of 4 sites migrated; projection.py:84 remains open, tracked at #3176 -- an explicit, C-002-escalated exception, not a silent gap."
+      "verified_at": "2026-08-04T10:15:00.000000+00:00",
+      "notes": "3 of 4 sites migrated; projection.py:84 remains open, tracked at #3176 -- an explicit, C-002-escalated exception, not a silent gap. The 'migrated to .agent_profile_repository' claim above only became fully true after landing-fold ce3ced4fd -- before it, the 2 tasks_status_cmd.py sites read the gated .agent_profiles dict instead, a live regression this fold's sweep found already fixed."
     },
     {
       "criterion_id": "FR-002",
       "description": "Eliminate all 9 unwrapped raw doctrine.service.DoctrineService(...) sites (the original 6 plus 3 post-plan-squad finds: org_layer.py:244/275, generate.py:56), routing each through charter.resolver.DoctrineService (the 4 diagnostic sites via its explicit pack_context=None unfiltered mode), and make org_layer.py's fail-open except ImportError: pass fail-closed.",
       "proof_type": "automated_test",
-      "evidence": "WP03 (approved): all 6 raw doctrine.service.DoctrineService(...) sites (compiler.py:802, _doctrine_asset.py:75, _doctrine_collect.py's 4 diagnostic sites) migrated onto charter.resolver.DoctrineService, unfiltered diagnostic sites using pack_context=None. tests/charter/test_doctrine_service_unfiltered_mode.py (29 tests) + Gate 2 (WP09, test_charter_sole_door_doctrine_service.py, Policy A zero-allowlist + Policy B locality with 6 wrap-conditional exclusions) independently verified non-vacuous.",
+      "evidence": "WP03 (approved): all 6 raw doctrine.service.DoctrineService(...) sites (compiler.py:802, _doctrine_asset.py:75, _doctrine_collect.py's 4 diagnostic sites) migrated onto charter.resolver.DoctrineService, unfiltered diagnostic sites using pack_context=None. tests/charter/test_doctrine_service_unfiltered_mode.py (29 tests) + Gate 2 (WP09, test_charter_sole_door_doctrine_service.py, 23 tests as re-run live in this fold's sweep -- see NFR-001, Policy A zero-allowlist + Policy B locality with named wrap-conditional exclusions) independently verified non-vacuous. This FR's description also requires making org_layer.py's fail-open `except ImportError: pass` fail-closed: two byte-identical fail-open handlers survived WP03's original fold, untouched -- `OrgCharterDeviationChecker.run`'s bare `except Exception: pass` around the pack-context load, and `_build_scan_service`'s `except ImportError: return None` around the charter builder imports, both silently degrading to an unfiltered/skipped check on ANY failure including a malformed `.kittify/config.yaml`. Landing-fold `0afcacac4` deleted both handlers (charter is first-party, ships in the same wheel -- there is no legitimate partial-install case to tolerate here); landing-fold `3f714808b` found the same fail-open shape reinstated at the 2 migrated tasks_status_cmd.py call sites (wrapped in `except Exception`) and narrowed both to `except ImportError` only, so `charter.pack_context.CharterPackConfigError` now propagates instead of degrading the dashboard silently. This closes the FR-002 requirement in full, not just the 6-plus-3 raw-construction sites.",
       "pass_fail": "pass",
       "verified_by": "claude",
-      "verified_at": "2026-08-03T22:07:17.998838+00:00",
-      "notes": "This evidence directly names only the original 6 sites; the other 3 are covered elsewhere in this matrix -- org_layer.py's 2 sites under FR-010's evidence, and generate.py:56 independently re-verified live in this fold (grep confirms it now calls charter.doctrine_service_builder.build_activation_aware_doctrine_service, the unified builder, not a raw construction)."
+      "verified_at": "2026-08-04T10:15:00.000000+00:00",
+      "notes": "This evidence directly names only the original 6 sites; the other 3 are covered elsewhere in this matrix -- org_layer.py's 2 sites under FR-010's evidence, and generate.py:56 independently re-verified live in this fold (grep confirms it now calls charter.doctrine_service_builder.build_activation_aware_doctrine_service, the unified builder, not a raw construction). The fail-open-to-fail-closed requirement was NOT actually met until landing-folds 0afcacac4/3f714808b -- prior evidence for this row never addressed it; CHANGELOG.md documents the resulting user-visible behaviour change (structured error instead of silent degradation on malformed config)."
     },
     {
       "criterion_id": "FR-003",
@@ -71,8 +71,8 @@
       "evidence": "5-category mission-wide architectural gate complete across 3 WPs: Gate 4 (WP06, hardcoded paths), Gate 5 (WP04, ._inner reach-around on invocation/registry.py + invocation/org_profiles.py), Gates 1-3 (WP09: AgentProfileRepository construction, DoctrineService construction, resolver-import boundary). All 5 gates are AST-based qualname/import-alias resolution, zero-tolerance except for explicitly named, evidence-backed composite-key exclusions (2 pre-existing .kittify/profiles sites C-006, profile_resolution.py bootstrap carve-out, projection.py's escalated gap marked DELETE-not-renew, 6 sanctioned unfiltered-diagnostic wrap sites). Non-vacuity independently reproduced for all 5 gates by WP-specific and WP09 reviewers via revert-and-red tests.",
       "pass_fail": "pass",
       "verified_by": "claude",
-      "verified_at": "2026-08-03T22:07:27.282659+00:00",
-      "notes": "All 5 gate files re-run live in this fold (PWHEADLESS=1 uv run pytest against the 5 test_charter_sole_door_*.py files): 71 tests, all passed on PR head."
+      "verified_at": "2026-08-04T10:15:00.000000+00:00",
+      "notes": "All 5 gate files re-run live in this fold (PWHEADLESS=1 uv run pytest against the 5 test_charter_sole_door_*.py files): 89 tests, all passed on PR head (18 + 23 + 17 + 16 + 15) -- up from the 71 previously recorded here. Several landing-pass folds widened detection since that count was taken (alias-rebind tainting, from-package import forms, getattr/__dict__/annotated-assign/object.__getattribute__ reach-arounds, .joinpath/split-literal paths, Gate 5's scope extended to tests/) -- see negative_invariants NI-001..NI-005 for the per-gate breakdown."
     },
     {
       "criterion_id": "FR-008",
@@ -81,8 +81,8 @@
       "evidence": "WP01 (approved, cycle 2): unified builder charter.doctrine_service_builder.build_activation_aware_doctrine_service — exactly one function constructs ActivationAwareDoctrineService (public delegates to private, verified via grep for zero duplicate constructor calls); active_languages always computed, org_roots always self-resolved (fuller behavior from each divergent builder, picked deliberately not arbitrarily). test_doctrine_service_builder_unification.py's T004 proof (cycle-2 rewrite) compares against an independently-derived raw_repository(prop).list_all() projection for all 9 gated kinds in one unstaged pass (not the tautological self-comparison from cycle 1) — proven non-vacuous by both WP01 reviewers.",
       "pass_fail": "pass",
       "verified_by": "claude",
-      "verified_at": "2026-08-03T22:07:29.157502+00:00",
-      "notes": "test_doctrine_service_builder_unification.py re-run live in this fold (part of an 87-test tests/charter/ batch) -- passed."
+      "verified_at": "2026-08-04T10:15:00.000000+00:00",
+      "notes": "test_doctrine_service_builder_unification.py re-run live in this fold -- passed. This fold's sweep found that the 'always computed' active_languages claim above shipped a real regression: infer_repo_languages() returned [] (not None) for a bare project with no compiled charter and no interview transcript, and doctrine.shared.scoping.applies_to_languages_match treats active_languages=None as admit-all but [] as admit-none -- so every language-scoped built-in profile (python-pedro, frontend-freddy, java-jenny, node-norris) silently vanished from an unconfigured project's catalog (measured: 18 profiles -> 14). Two independent adversarial review lenses reproduced this live on PR #3175; landing-fold fedc41478 fixed it by making infer_repo_languages() return None only for the true no-signal-at-all case, preserving [] for a configured-but-empty answer. Red-first tests (test_bare_project_admits_language_scoped_builtin_profiles, test_resolve_tech_stack_for_profile_bare_repo_resolves_python_pedro) failed before the fix and pass after; re-confirmed live in this fold (tests/charter/test_doctrine_service_builder_unification.py + test_language_scope.py + tests/runtime/test_bridge_io.py, 65 passed)."
     },
     {
       "criterion_id": "FR-010",
@@ -108,10 +108,10 @@
       "criterion_id": "NFR-001",
       "description": "Zero in-scope raw AgentProfileRepository(.../DoctrineService(... bypass call sites remain, proven by resolved qualname (not text match), outside charter.resolver.DoctrineService, its one unified builder, and the two composite-key-excluded .kittify/profiles sites; zero ._inner attribute access outside src/charter/**.",
       "proof_type": "automated_test",
-      "evidence": "Live re-run in this fold: `PWHEADLESS=1 uv run pytest tests/architectural/test_charter_sole_door_agent_profile_repository.py -q` (17 passed), then `PWHEADLESS=1 uv run pytest tests/architectural/test_charter_sole_door_hardcoded_paths.py tests/architectural/test_charter_sole_door_resolver_imports.py tests/architectural/test_charter_sole_door_inner_reacharound.py tests/architectural/test_charter_sole_door_doctrine_service.py -q` (54 passed). All 5 gates (71 tests total) green on PR head.",
+      "evidence": "Live re-run in this fold: `PWHEADLESS=1 uv run pytest tests/architectural/test_charter_sole_door_agent_profile_repository.py -q` (18 passed), `test_charter_sole_door_doctrine_service.py` (23 passed), `test_charter_sole_door_resolver_imports.py` (17 passed), `test_charter_sole_door_hardcoded_paths.py` (16 passed), `test_charter_sole_door_inner_reacharound.py` (15 passed). All 5 gates (89 tests total, up from the 71 previously recorded here) green on PR head. The count grew because several landing-pass folds (06b437ce0, 81dfe0201, c258a079e, d6fe34d2e, 82e18136e) widened each gate's detection surface AFTER this row was last verified -- see negative_invariants NI-001..NI-005 for the per-gate widening detail.",
       "pass_fail": "pass",
       "verified_by": "claude",
-      "verified_at": "2026-08-04T05:52:36.681893+00:00",
+      "verified_at": "2026-08-04T10:15:00.000000+00:00",
       "notes": "projection.py:84 remains a named, non-vacuous composite-key exclusion (#3176), not a silent gap; the 'zero... outside the composite-key exclusions' framing still holds since the exclusion is explicit and tracked."
     },
     {
@@ -158,10 +158,10 @@
       "criterion_id": "SC-001",
       "description": "Zero unwrapped doctrine.service.DoctrineService(...) and zero direct AgentProfileRepository(...) constructions remain anywhere in src/ outside charter.resolver.DoctrineService, its one unified builder, and the two .kittify/profiles sites (composite-key excluded) -- gate-enforced, not a point-in-time grep.",
       "proof_type": "automated_test",
-      "evidence": "Same live re-run as NFR-001: Gate 1 (agent_profile_repository, 17 tests) and Gate 2 (doctrine_service, part of the 54-test combined run) both green on PR head, re-confirmed in this fold.",
+      "evidence": "Same live re-run as NFR-001: Gate 1 (agent_profile_repository, 18 tests) and Gate 2 (doctrine_service, 23 tests) both green on PR head, re-confirmed in this fold.",
       "pass_fail": "pass",
       "verified_by": "claude",
-      "verified_at": "2026-08-04T05:52:36.681893+00:00",
+      "verified_at": "2026-08-04T10:15:00.000000+00:00",
       "notes": "projection.py:84 is an explicit, tracked (#3176) composite-key exclusion, not a silent gap in the zero-tolerance count."
     },
     {
@@ -198,10 +198,10 @@
       "criterion_id": "SC-005",
       "description": "A non-vacuous, self-mutation-proven architectural gate exists for each of the five bypass categories (including the FR-010 ._inner closure), with a frozen zero-tolerance baseline excluding only the two .kittify/profiles sites and the _doctrine_collect.py unfiltered-mode sites by composite key, never by whole file.",
       "proof_type": "automated_test",
-      "evidence": "Cites FR-007/NFR-003's recorded evidence (self-mutation proofs inside the 5 gate test files); all 5 gate files re-confirmed green live in this fold (71 tests, see NFR-001).",
+      "evidence": "Cites FR-007/NFR-003's recorded evidence (self-mutation proofs inside the 5 gate test files); all 5 gate files re-confirmed green live in this fold (89 tests, up from the 71 previously cited here -- see NFR-001).",
       "pass_fail": "pass",
       "verified_by": "claude",
-      "verified_at": "2026-08-04T05:52:36.681893+00:00",
+      "verified_at": "2026-08-04T10:15:00.000000+00:00",
       "notes": null
     },
     {
