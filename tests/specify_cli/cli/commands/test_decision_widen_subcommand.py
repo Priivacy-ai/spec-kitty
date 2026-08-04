@@ -27,6 +27,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from rich.console import Console
+from click.testing import Result
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent import app as agent_app
@@ -42,13 +43,22 @@ import pytest
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-DECISION_ID = "01KWIDETEST00000000001"
+#: Corrected for `#3111`/FR-005. The previous literal ``01KWIDETEST00000000001``
+#: was **22 characters and contained an `I`**, so it fails every one of the three
+#: existing ULID regexes — including the one the CLI shape check now reuses.
+#:
+#: **The fixture was corrected; the check was NOT loosened.** Relaxing, widening
+#: or bypassing the ULID check so the old literal passes — including "reuse a
+#: fourth, looser regex here" — is a forbidden repair: Q7's whole point is that
+#: the check reuses **one existing** regex, and a looser one at the CLI would be
+#: this mission's own whack-a-field.
+DECISION_ID = "01KZWDENTEST00000000000042"
 MISSION_SLUG = "test-widen-mission"
 
 runner = CliRunner()
 
 
-def _invoke(args: list[str], cwd: Path | None = None) -> object:
+def _invoke(args: list[str], cwd: Path | None = None) -> Result:
     """Invoke the agent_app with given args."""
     old_cwd = os.getcwd()
     try:
@@ -57,6 +67,51 @@ def _invoke(args: list[str], cwd: Path | None = None) -> object:
         return runner.invoke(agent_app, args, catch_exceptions=False)
     finally:
         os.chdir(old_cwd)
+
+
+def _arrange_owning_ledger(root: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Make *root* genuinely own ``DECISION_ID``, and act from it.
+
+    `#3111` gave ``cmd_widen`` an ownership check that runs **before**
+    ``SaasClient.from_env``: the acting checkout must be able to show, from its
+    own ``kitty-specs/*/decisions/index.json``, that it owns the decision being
+    widened. The live-path tests below drive the command against a bare
+    ``tmp_path`` that owns no ledger at all, so without this arrangement the
+    command refuses before the mocks are ever reached.
+
+    **This is an ARRANGEMENT, not a repair.** The admissible response to those
+    reds is to make the acting root genuinely own the decision — not to make
+    ownership permissive when the acting root has no ``kitty-specs/``. That
+    "no ledger anywhere, so allow it" shortcut is the fall-through `#3111` exists
+    to close, reached from a different direction; it would green all eight
+    live-path tests in one line and reinstate the leak.
+
+    ``SPECIFY_REPO_ROOT`` is set so ``locate_project_root`` resolves to *root*
+    deterministically rather than depending on whatever lies above ``tmp_path``.
+    """
+    decisions = root / "kitty-specs" / MISSION_SLUG / "decisions"
+    decisions.mkdir(parents=True, exist_ok=True)
+    mission_id = "01KZMISSION0000000000000ZA"
+    payload = {
+        "version": 1,
+        "mission_id": mission_id,
+        "entries": [
+            {
+                "decision_id": DECISION_ID,
+                "origin_flow": "plan",
+                "step_id": "step-1",
+                "input_key": "key",
+                "question": "q?",
+                "status": "open",
+                "created_at": "2026-01-01T00:00:00+00:00",
+                "mission_id": mission_id,
+                "mission_slug": MISSION_SLUG,
+            }
+        ],
+    }
+    (decisions / "index.json").write_text(json.dumps(payload), encoding="utf-8")
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(root))
+    return root
 
 
 def _make_widen_response(
@@ -179,8 +234,9 @@ class TestDryRun:
 
 
 class TestLivePath:
-    def test_live_success_exits_zero(self, tmp_path: Path) -> None:
+    def test_live_success_exits_zero(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Successful widen exits 0."""
+        _arrange_owning_ledger(tmp_path, monkeypatch)
         mock_client = MagicMock()
         mock_client.post_widen.return_value = _make_widen_response()
         with patch("specify_cli.saas_client.client.SaasClient.from_env", return_value=mock_client):
@@ -190,8 +246,9 @@ class TestLivePath:
             )
         assert result.exit_code == 0, f"exit {result.exit_code}\n{result.output}"
 
-    def test_live_success_prints_success_json(self, tmp_path: Path) -> None:
+    def test_live_success_prints_success_json(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Successful widen prints JSON with success=True."""
+        _arrange_owning_ledger(tmp_path, monkeypatch)
         mock_client = MagicMock()
         mock_client.post_widen.return_value = _make_widen_response()
         with patch("specify_cli.saas_client.client.SaasClient.from_env", return_value=mock_client):
@@ -202,8 +259,9 @@ class TestLivePath:
         payload = json.loads(result.output)
         assert payload["success"] is True
 
-    def test_live_success_includes_decision_id(self, tmp_path: Path) -> None:
+    def test_live_success_includes_decision_id(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Successful widen prints decision_id."""
+        _arrange_owning_ledger(tmp_path, monkeypatch)
         mock_client = MagicMock()
         mock_client.post_widen.return_value = _make_widen_response()
         with patch("specify_cli.saas_client.client.SaasClient.from_env", return_value=mock_client):
@@ -214,8 +272,9 @@ class TestLivePath:
         payload = json.loads(result.output)
         assert payload["decision_id"] == DECISION_ID
 
-    def test_live_success_calls_post_widen(self, tmp_path: Path) -> None:
+    def test_live_success_calls_post_widen(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Live path calls post_widen with parsed invited list."""
+        _arrange_owning_ledger(tmp_path, monkeypatch)
         mock_client = MagicMock()
         mock_client.post_widen.return_value = _make_widen_response()
         with patch("specify_cli.saas_client.client.SaasClient.from_env", return_value=mock_client):
@@ -227,8 +286,27 @@ class TestLivePath:
             decision_id=DECISION_ID, invited=[101, 102]
         )
 
-    def test_live_saas_error_exits_one(self, tmp_path: Path) -> None:
-        """SaasClientError → exit 1."""
+    def test_live_saas_error_exits_one(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """SaasClientError → exit 1, **and for that reason** (LOW-5).
+
+        This was an exit-code-only assertion, and **an ownership refusal also exits
+        1**. That is why it was a FALSE GREEN during WP04's implementation: it
+        survived while the other seven live-path tests in this class went red, so
+        it read as evidence that the live path still worked when in fact the
+        command was refusing before ``post_widen`` was ever reached. An
+        exit-code-only assertion on a code that two unrelated paths share cannot
+        tell you which path you are on.
+
+        Two assertions are folded in, and they are not redundant with each other:
+
+        * the message, which is what its sibling
+          ``test_live_saas_error_message_in_output`` checks; and
+        * ``post_widen`` having actually been called, which is the sharper
+          discriminator and the thing the sibling does **not** check. An ownership
+          refusal returns before ``from_env``, so a reached ``post_widen`` is
+          positive proof the exit 1 came from :class:`SaasClientError`.
+        """
+        _arrange_owning_ledger(tmp_path, monkeypatch)
         mock_client = MagicMock()
         mock_client.post_widen.side_effect = SaasClientError("server error", status_code=500)
         with patch("specify_cli.saas_client.client.SaasClient.from_env", return_value=mock_client):
@@ -237,9 +315,20 @@ class TestLivePath:
                 cwd=tmp_path,
             )
         assert result.exit_code == 1
+        assert "server error" in result.output, (
+            f"exit 1 without the SaasClientError message: an ownership refusal "
+            f"exits 1 too, so this is the assertion that says WHICH path produced "
+            f"it. Output was: {result.output!r}"
+        )
+        # The live path must have been REACHED, not merely have exited 1: an
+        # ownership refusal returns before ``from_env``, so `post_widen` having
+        # been called is what excludes it. `assert_called_once_with` raises on
+        # failure, so no `assert` wrapper (and no trailing message tuple) here.
+        mock_client.post_widen.assert_called_once_with(decision_id=DECISION_ID, invited=[101])
 
-    def test_live_saas_error_message_in_output(self, tmp_path: Path) -> None:
+    def test_live_saas_error_message_in_output(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """SaasClientError message appears in output and exit code is 1."""
+        _arrange_owning_ledger(tmp_path, monkeypatch)
         mock_client = MagicMock()
         mock_client.post_widen.side_effect = SaasClientError("server error", status_code=500)
         with patch("specify_cli.saas_client.client.SaasClient.from_env", return_value=mock_client):
@@ -250,12 +339,13 @@ class TestLivePath:
         assert result.exit_code == 1
         assert "server error" in result.output
 
-    def test_live_path_passes_repo_root_to_from_env(self, tmp_path: Path) -> None:
+    def test_live_path_passes_repo_root_to_from_env(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """cmd_widen passes repo_root to SaasClient.from_env.
 
         D-5: file-auth path (.kittify/saas-auth.json) must be reachable from the
         widen command — requires from_env(repo_root=<path>), not from_env() (#2248).
         """
+        _arrange_owning_ledger(tmp_path, monkeypatch)
         mock_client = MagicMock()
         mock_client.post_widen.return_value = _make_widen_response()
         captured: list[object] = []
@@ -291,8 +381,9 @@ class TestErrorPaths:
         )
         assert result.exit_code == 1
 
-    def test_whitespace_only_entries_filtered(self, tmp_path: Path) -> None:
+    def test_whitespace_only_entries_filtered(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Whitespace-only entries in --invited are filtered; non-empty passes."""
+        _arrange_owning_ledger(tmp_path, monkeypatch)
         mock_client = MagicMock()
         mock_client.post_widen.return_value = _make_widen_response()
         with patch("specify_cli.saas_client.client.SaasClient.from_env", return_value=mock_client):
