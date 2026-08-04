@@ -201,3 +201,17 @@ credible external contract, not just an import-edge count) still depends on it l
    for the other (runtime→doctrine).
 4. Re-run the charter↔glossary/runtime coupling assessment the ADR explicitly leaves unproven,
    before assuming the charter half of the cutover is as mechanical as the kernel/doctrine half.
+
+## Addendum (2026-08-04) — PR #3175 landed; follow-ups reviewed
+
+[PR #3175](https://github.com/Priivacy-ai/spec-kitty/pull/3175) ("Charter as Sole Door: Close
+Bypass Access Paths" — the mission #3176 belonged to) merged. Its landing pass filed five
+follow-ups (#3181–#3185); reviewed each against the three threads above:
+
+| # | Verdict | Disposition |
+|---|---|---|
+| #3181 (pip-audit CVE bump) | Out of scope | Dependency security bump, unrelated; already closed |
+| #3182 (stale TIER-1 override templates teach the now-banned raw `DoctrineService`/`AgentProfileRepository` construction + reference a deleted `constitution context` command) | **Adjacent — campsite/enabler tooling** | Triaged: `Bug`, `doctrine,tidy-up,catfooding,priority:P2`, milestone `3.2.x`, parented under #2466. Dogfood template content invisible to the AST gates; relevant to (c) as the kind of artifact that should model the canonical construction path once #3179 settles it, but not itself part of the doctrine/charter package surface |
+| #3183 (`UnknownMissionTypeError` message conflates "activated in config" with "has a loadable profile") | **Direct fit — thread (b)** | Triaged: `Bug`, `doctrine,priority:P2`, milestone `3.2.x`, parented under #2652. This is the exact activation-vs-availability vocabulary collision #2652's own AC note addresses ("no second availability source") — a mission-type-relocation slice should resolve this, not inherit it |
+| #3184 (~15 unmarked leftover files in `tests/regression/`) | Out of scope | Test-suite hygiene; belongs under #1931 (Test suite friction epic), not this doctrine slice |
+| #3185 (GC2b gate-coverage red on main) | Out of scope | CI gate-baseline drift, unrelated; already closed (not planned) |
