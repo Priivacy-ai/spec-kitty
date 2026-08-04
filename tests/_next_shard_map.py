@@ -80,6 +80,13 @@ _SPECIFY_CLI_NEXT_SHARD_3_FILES: tuple[str, ...] = (
 # Whole-file assignments under ``tests/runtime`` (including its ``next/``
 # subdirectory — ``tests/runtime/next/test_import_paths.py`` is still under
 # the ``tests/runtime`` root the CI step runs).
+# 2026-08-04 (PR #3175 landing fold): test_runtime_bridge_identity_git_repo.py
+# split out of test_runtime_bridge_identity.py (marker-correctness Rule 1/2 —
+# the corrupt-meta class drove real git via subprocess and needed its own
+# `git_repo` marker instead of the sibling file's `fast`). Registered here
+# alongside its former home so the GC-1 completeness guard
+# (test_next_shard_marker_completeness.py) still sees a total, disjoint
+# partition of every test under `tests/runtime`.
 _RUNTIME_SHARD_1_FILES: tuple[str, ...] = (
     "tests/runtime/next/test_import_paths.py",
     "tests/runtime/test_agent_skills.py",
@@ -89,6 +96,7 @@ _RUNTIME_SHARD_1_FILES: tuple[str, ...] = (
     "tests/runtime/test_global_runtime_convergence_unit.py",
     "tests/runtime/test_paths_unit.py",
     "tests/runtime/test_runtime_bridge_identity.py",
+    "tests/runtime/test_runtime_bridge_identity_git_repo.py",
     "tests/runtime/test_runtime_identity_seam_wiring.py",
     "tests/runtime/test_runtime_seam.py",
     "tests/runtime/test_setup_plan_sync_evidence.py",
