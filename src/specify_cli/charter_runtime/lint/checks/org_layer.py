@@ -14,13 +14,9 @@ yet shipped — they simply return an empty finding list.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from specify_cli.charter_runtime.lint.findings import LintFinding
-
-if TYPE_CHECKING:
-    from charter.pack_context import PackContext
-
 
 _OVERRIDABLE_ARTIFACT_TYPES: tuple[str, ...] = (
     "directives",
@@ -92,8 +88,8 @@ class OrgOverridesBuiltinChecker:
 
         findings: list[LintFinding] = []
         for artifact_type in _OVERRIDABLE_ARTIFACT_TYPES:
-            org_repo = getattr(service, artifact_type, None)
-            built_in_repo = getattr(built_in_only, artifact_type, None)
+            org_repo = service.raw_repository(artifact_type)
+            built_in_repo = built_in_only.raw_repository(artifact_type)
             if org_repo is None or built_in_repo is None:
                 continue
             try:
@@ -213,73 +209,91 @@ class OrgCharterDeviationChecker:
 # ---------------------------------------------------------------------------
 
 
-def _build_service_with_org_layer(
-    repo_root: Path,
-    registry: Any,
-    pack_context: PackContext | None = None,
-) -> Any:
-    """Construct a ``DoctrineService`` rooted at built-in + project + configured org packs.
+def _build_scan_service(repo_root: Path, *, org_roots: list[Path] | None = None) -> Any:
+    """Construct the activation-aware provenance-scan service, unfiltered.
 
-    When *pack_context* is supplied, the returned service is wrapped in
-    :class:`charter.resolver.DoctrineService` for activation filtering
-    (Pattern B + C).
+    Returns a :class:`charter.resolver.DoctrineService` constructed with
+    ``pack_context=None`` — the sanctioned "unfiltered-diagnostic" form
+    named in this mission's ``data-model.md``
+    (charter-sole-door-bypass-closure-01KZ3WAA WP01, FR-002 Option A,
+    cycle-2 review fix for Blocker 1). The wrapper's three-state filter
+    treats ``pack_context is None`` as "admit all"; this call site is
+    distinguished from every activation-gated caller ONLY by that explicit
+    argument, never by a different class or a raw, unwrapped
+    ``doctrine.service.DoctrineService`` returned directly (the cycle-1
+    violation: this function previously returned the raw inner service
+    under a docstring-authorized "exception" that C-002 does not sanction —
+    a docstring is not an escalation, and the claimed
+    ``_doctrine_collect.py`` precedent was itself an unfixed FR-002
+    violation, not a sanctioned pattern).
+
+    :class:`OrgOverridesBuiltinChecker` needs the RAW repository objects
+    behind the wrapper's gated ``dict`` properties — ``.list_all()`` /
+    ``.get_provenance()``, which a ``dict`` has neither of. It reaches them
+    via :meth:`charter.resolver.DoctrineService.raw_repository`, the Option
+    A accessor this cycle adds (the same "filtered dict can't do repository
+    ops" pattern :attr:`~charter.resolver.DoctrineService.agent_profile_repository`
+    already solves for ``agent_profiles``), instead of this function
+    returning an unwrapped service. There is no charter activation
+    *decision* being read here at all — only raw on-disk provenance ("which
+    layer supplied this artifact"), a structural question the activation
+    filter does not answer and the ``raw_repository`` accessor is
+    documented as not gating.
+
+    The inner service is built via
+    :func:`charter.doctrine_service_builder._build_doctrine_service` — the
+    ONE function in this codebase permitted to construct a raw
+    ``doctrine.service.DoctrineService`` (NFR-001) — so this scan path
+    shares the same ``active_languages``/``project_root`` resolution as
+    every other consumer of the unified builder, rather than a bespoke
+    shape that could silently drift from it.
+
+    This helper also closes the FR-002 fail-open bug named at this module's
+    two call sites: the previous code built the raw service, then
+    conditionally attempted to wrap it in ``charter.resolver.DoctrineService``
+    behind a ``try/except ImportError: pass`` that silently returned the
+    unwrapped service on import failure. No caller ever passed the
+    ``pack_context`` that gated that attempt (verified: zero call sites), so
+    the branch was dead code; per the above it would also have been the
+    *wrong* fix had it ever fired. It is removed outright (DIRECTIVE_025 Boy
+    Scout Rule) rather than "fixed" into a wrap that provably breaks the
+    checker.
     """
     try:
-        from charter._doctrine_paths import resolve_project_root
-        from doctrine.service import DoctrineService
+        from charter.doctrine_service_builder import _build_doctrine_service
+        from charter.resolver import DoctrineService as ActivationAwareDoctrineService
     except ImportError:
         return None
 
-    project_root = resolve_project_root(repo_root)
-    org_roots = []
-    for p in registry.packs:
-        eff = p.effective_root(repo_root)
-        if eff.exists():
-            org_roots.append(eff)
+    inner = _build_doctrine_service(repo_root, org_roots=org_roots)
+    return ActivationAwareDoctrineService(inner, pack_context=None)
+
+
+def _build_service_with_org_layer(repo_root: Path, registry: Any) -> Any:
+    """Construct an unfiltered scan service rooted at built-in + project + configured org packs.
+
+    See :func:`_build_scan_service` for the wrapped, unfiltered-diagnostic
+    construction this returns.
+    """
+    org_roots = [
+        effective_root
+        for pack in registry.packs
+        if (effective_root := pack.effective_root(repo_root)).exists()
+    ]
     if not org_roots:
         return None
-    # Repositories self-resolve packs/built-in/<kind> via built_in_dir(kind)
-    # (the WP01 seam); resolve_doctrine_root() would point at the emptied
-    # src/doctrine tree, so the built-in root is left unspecified.
-    inner = DoctrineService(
-        project_root=project_root,
-        org_roots=org_roots,
-    )
-    if pack_context is not None:
-        try:
-            from charter.resolver import DoctrineService as ActivationDoctrineService  # noqa: PLC0415
-            return ActivationDoctrineService(inner, pack_context=pack_context)
-        except ImportError:
-            pass
-    return inner
+    return _build_scan_service(repo_root, org_roots=org_roots)
 
 
-def _build_built_in_only_service(
-    repo_root: Path,
-    pack_context: PackContext | None = None,
-) -> Any:
-    """Construct a ``DoctrineService`` rooted at built-in + project only (no org).
+def _build_built_in_only_service(repo_root: Path) -> Any:
+    """Construct an unfiltered scan service rooted at built-in + project only (no org).
 
-    When *pack_context* is supplied, the returned service is wrapped in
-    :class:`charter.resolver.DoctrineService` for activation filtering.
+    The deliberate absence of an org layer is the baseline
+    :class:`OrgOverridesBuiltinChecker` diffs against to detect an override;
+    see :func:`_build_scan_service` for the wrapped, unfiltered-diagnostic
+    construction this returns.
     """
-    try:
-        from charter._doctrine_paths import resolve_project_root
-        from doctrine.service import DoctrineService
-    except ImportError:
-        return None
-
-    project_root = resolve_project_root(repo_root)
-    # Repositories self-resolve packs/built-in/<kind> via built_in_dir(kind)
-    # (the WP01 seam).
-    inner = DoctrineService(project_root=project_root)
-    if pack_context is not None:
-        try:
-            from charter.resolver import DoctrineService as ActivationDoctrineService  # noqa: PLC0415
-            return ActivationDoctrineService(inner, pack_context=pack_context)
-        except ImportError:
-            pass
-    return inner
+    return _build_scan_service(repo_root)
 
 
 def _load_project_charter_fields(repo_root: Path) -> dict[str, Any]:

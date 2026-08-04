@@ -5,14 +5,38 @@ selected references against available profile/tool catalogs.
 
 Exports ``DoctrineService`` — an activation-aware wrapper around
 :class:`doctrine.service.DoctrineService`.  The wrapper applies per-kind
-activation filters from :class:`~charter.pack_context.PackContext` to the
-``paradigms``, ``procedures``, and ``agent_profiles`` properties.  All other
-properties delegate to the inner doctrine service transparently.
+activation filters from :class:`~charter.pack_context.PackContext` to nine
+gated properties: ``paradigms``, ``procedures``, ``agent_profiles``
+(pre-existing) plus ``directives``, ``tactics``, ``styleguides``,
+``toolguides``, ``mission_step_contracts``, and ``glossary_packs`` (FR-005,
+charter-sole-door-bypass-closure-01KZ3WAA WP01).  All other properties
+delegate to the inner doctrine service transparently via ``__getattr__``.
+
+It also exposes :attr:`DoctrineService.agent_profile_repository` — a second,
+explicitly-named accessor (FR-001) returning the raw, lineage/mutation-capable
+:class:`~doctrine.agent_profiles.repository.AgentProfileRepository` for
+callers that need ``register_overlay()`` or ``get_provenance()``, which the
+filtered ``agent_profiles`` dict cannot support; and
+:meth:`DoctrineService.raw_repository` (FR-002 Option A) — the generic,
+per-kind form of that same "filtered dict can't do repository ops" escape
+hatch, for provenance-scan callers that need raw ``list_all()``/
+``get_provenance()`` access across any of the nine gated kinds.
+
+Finally (FR-003, charter-sole-door-bypass-closure-01KZ3WAA WP05) this module
+is the **sole charter-layer door** onto ``doctrine/resolver.py``'s 5-tier
+asset resolution chain. The tier functions themselves stay in
+``doctrine/resolver.py`` (charter must import doctrine, never the reverse);
+what lives here is the entry point — see the "5-tier resolution axis"
+section of :class:`DoctrineService`. Before WP05,
+``charter.template_resolver.CharterTemplateResolver`` was a *second*
+charter-layer object reaching ``doctrine.resolver`` independently of this
+one; it is now a thin delegate onto these methods.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -22,6 +46,18 @@ from charter.schemas import DirectivesConfig, DoctrineSelectionConfig
 from charter.sync import (
     load_directives_config,
     load_governance_config,
+)
+from doctrine.missions.repository import MissionTemplateRepository
+
+# FR-003: the ONLY import of ``doctrine.resolver``'s tier functions in the
+# charter layer. Aliased with a ``_doctrine_`` prefix so a reader of a call
+# site inside this module can never mistake the doctrine tier function for a
+# charter-layer helper of the same bare name.
+from doctrine.resolver import (
+    ResolutionResult,
+    resolve_command as _doctrine_resolve_command,
+    resolve_mission as _doctrine_resolve_mission,
+    resolve_template as _doctrine_resolve_template,
 )
 
 __all__ = [
@@ -37,16 +73,71 @@ __all__ = [
 
 if TYPE_CHECKING:
     from doctrine.agent_profiles.profile import AgentProfile
+    from doctrine.agent_profiles.repository import AgentProfileRepository
+    from doctrine.directives.models import Directive
     from doctrine.drg.models import DRGGraph
+    from doctrine.glossary_packs.models import GlossaryPack
     from doctrine.missions.mission_step_repository import _PackContextLike
+    from doctrine.missions.step_contracts import MissionStepContract
     from doctrine.paradigms.models import Paradigm
     from doctrine.procedures.models import Procedure
+    from doctrine.styleguides.models import Styleguide
+    from doctrine.tactics.models import Tactic
+    from doctrine.toolguides.models import Toolguide
     import doctrine.service as _doctrine_service_module
     from charter.interview import CharterInterview
     from charter.pack_context import PackContext
 
 DEFAULT_TEMPLATE_SET = "software-dev-default"
 DEFAULT_TOOL_REGISTRY: frozenset[str] = frozenset({"spec-kitty", "git"})
+
+#: The nine gated-property kinds :meth:`DoctrineService.raw_repository`
+#: recognizes -- exactly the kinds with a gated ``dict`` property above.
+_RAW_REPOSITORY_KINDS: frozenset[str] = frozenset(
+    {
+        "paradigms",
+        "procedures",
+        "agent_profiles",
+        "directives",
+        "tactics",
+        "styleguides",
+        "toolguides",
+        "mission_step_contracts",
+        "glossary_packs",
+    }
+)
+
+# ---------------------------------------------------------------------------
+# FR-003 (WP05): the 5-tier resolution axis — shared vocabulary
+# ---------------------------------------------------------------------------
+
+#: Default mission key for the tier chain. Mirrors ``doctrine.resolver``'s own
+#: per-function default so the factory entry point is a behaviour-preserving
+#: pass-through rather than a second policy about "which mission". Private
+#: (and absent from ``__all__``) because it is only ever a default argument
+#: value baked into the signatures below — no caller imports it, and the
+#: symbol-level dead-code gate rightly rejects an unimported export.
+_DEFAULT_RESOLUTION_MISSION = "software-dev"
+
+#: Tier-5 subdirectory names, matching ``doctrine.resolver._resolve_asset``'s
+#: ``subdir`` vocabulary.
+_COMMAND_TEMPLATES_SUBDIR = "command-templates"
+_CONTENT_TEMPLATES_SUBDIR = "templates"
+
+
+@lru_cache(maxsize=8)
+def _mission_template_repository(missions_root: str) -> MissionTemplateRepository:
+    """Return a cached :class:`MissionTemplateRepository` for *missions_root*.
+
+    Replaces the ``lru_cache``d ``_charter_template_resolver_for()`` helper
+    that used to live in ``specify_cli/runtime/resolver.py`` (FR-003): the
+    cache moves into charter alongside the resolution entry point, so the
+    "repeated tier-5 lookups reuse the same repository" property is preserved
+    without runtime holding a charter object of its own. Keyed on the
+    stringified root because ``functools.lru_cache`` needs a hashable key and
+    ``Path`` equality is already string equality here.
+    """
+    return MissionTemplateRepository(Path(missions_root))
 
 
 # ---------------------------------------------------------------------------
@@ -58,9 +149,11 @@ class DoctrineService:
     """Activation-aware wrapper around :class:`doctrine.service.DoctrineService`.
 
     Applies per-kind activation filters from
-    :class:`~charter.pack_context.PackContext` when accessing ``paradigms``,
-    ``procedures``, and ``agent_profiles``.  All other attributes delegate
-    transparently to the underlying doctrine service.
+    :class:`~charter.pack_context.PackContext` when accessing the nine gated
+    properties: ``paradigms``, ``procedures``, ``agent_profiles``,
+    ``directives``, ``tactics``, ``styleguides``, ``toolguides``,
+    ``mission_step_contracts``, and ``glossary_packs``.  All other attributes
+    delegate transparently to the underlying doctrine service.
 
     Layer rule
     ----------
@@ -128,6 +221,356 @@ class DoctrineService:
         if pack_ctx is not None and pack_ctx.activated_agent_profiles is not None:
             return {k: v for k, v in all_profiles.items() if k in pack_ctx.activated_agent_profiles}
         return all_profiles
+
+    # ------------------------------------------------------------------
+    # FR-005: six more mechanical Pattern B properties (identical filtering
+    # shape to paradigms/procedures above -- a reviewer diffing any two of
+    # the nine gated getters should see the same structure modulo the kind
+    # name; see contracts/charter-doctrine-service-contract.md "Gated
+    # properties").
+    # ------------------------------------------------------------------
+
+    @property
+    def directives(self) -> dict[str, Directive]:
+        """Return directives dict, filtered by ``activated_directives`` when set."""
+        all_directives: dict[str, Directive] = {
+            item.id: item for item in self._inner.directives.list_all()
+        }
+        pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
+        if pack_ctx is not None and pack_ctx.activated_directives is not None:
+            return {k: v for k, v in all_directives.items() if k in pack_ctx.activated_directives}
+        return all_directives
+
+    @property
+    def tactics(self) -> dict[str, Tactic]:
+        """Return tactics dict, filtered by ``activated_tactics`` when set."""
+        all_tactics: dict[str, Tactic] = {
+            item.id: item for item in self._inner.tactics.list_all()
+        }
+        pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
+        if pack_ctx is not None and pack_ctx.activated_tactics is not None:
+            return {k: v for k, v in all_tactics.items() if k in pack_ctx.activated_tactics}
+        return all_tactics
+
+    @property
+    def styleguides(self) -> dict[str, Styleguide]:
+        """Return styleguides dict, filtered by ``activated_styleguides`` when set."""
+        all_styleguides: dict[str, Styleguide] = {
+            item.id: item for item in self._inner.styleguides.list_all()
+        }
+        pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
+        if pack_ctx is not None and pack_ctx.activated_styleguides is not None:
+            return {k: v for k, v in all_styleguides.items() if k in pack_ctx.activated_styleguides}
+        return all_styleguides
+
+    @property
+    def toolguides(self) -> dict[str, Toolguide]:
+        """Return toolguides dict, filtered by ``activated_toolguides`` when set."""
+        all_toolguides: dict[str, Toolguide] = {
+            item.id: item for item in self._inner.toolguides.list_all()
+        }
+        pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
+        if pack_ctx is not None and pack_ctx.activated_toolguides is not None:
+            return {k: v for k, v in all_toolguides.items() if k in pack_ctx.activated_toolguides}
+        return all_toolguides
+
+    @property
+    def mission_step_contracts(self) -> dict[str, MissionStepContract]:
+        """Return mission step contracts dict, filtered by ``activated_mission_step_contracts`` when set."""
+        all_contracts: dict[str, MissionStepContract] = {
+            item.id: item for item in self._inner.mission_step_contracts.list_all()
+        }
+        pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
+        if pack_ctx is not None and pack_ctx.activated_mission_step_contracts is not None:
+            return {
+                k: v for k, v in all_contracts.items() if k in pack_ctx.activated_mission_step_contracts
+            }
+        return all_contracts
+
+    @property
+    def glossary_packs(self) -> dict[str, GlossaryPack]:
+        """Return glossary packs dict, filtered by ``activated_glossary_packs`` when set."""
+        all_glossary_packs: dict[str, GlossaryPack] = {
+            item.id: item for item in self._inner.glossary_packs.list_all()
+        }
+        pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
+        if pack_ctx is not None and pack_ctx.activated_glossary_packs is not None:
+            return {
+                k: v for k, v in all_glossary_packs.items() if k in pack_ctx.activated_glossary_packs
+            }
+        return all_glossary_packs
+
+    # ------------------------------------------------------------------
+    # FR-001: pinned lineage/mutation accessor (NOT a gated property --
+    # deliberately outside the three-state activation contract above).
+    # ------------------------------------------------------------------
+
+    @property
+    def agent_profile_repository(self) -> AgentProfileRepository:
+        """Return the raw, lineage/mutation-capable ``AgentProfileRepository``.
+
+        Pinned contract (charter-sole-door-bypass-closure-01KZ3WAA WP01,
+        FR-001): the filtered ``agent_profiles`` dict above cannot support
+        ``register_overlay()`` (needed by
+        ``specify_cli.tool_surface.profiles.projection``) or
+        ``get_provenance()`` (needed by ``specify_cli.invocation.registry``
+        and ``specify_cli.invocation.org_profiles``) because a ``dict`` has
+        neither method. This accessor gives those callers the raw repository
+        object directly, instead of reaching into ``._inner`` themselves
+        (the FR-010 reach-around this accessor exists to close).
+
+        Semantics (pinned, not a default -- see
+        contracts/charter-doctrine-service-contract.md "Lineage/mutation
+        accessor semantics"):
+
+        * ``register_overlay()`` mutates the underlying repository's lineage
+          graph in place. It does NOT create a way to read an unfiltered
+          profile through the gated :attr:`agent_profiles` property
+          afterward -- that property's three-state activation filter still
+          applies on every read, including reads that follow a mutation.
+          Mutation capability and activation filtering are orthogonal.
+        * ``get_provenance()`` is a read-only lookup on the raw repository;
+          it answers "which layer supplied this artifact" (``"builtin"`` /
+          ``"org"`` / ``"project"``), a question the activation filter does
+          not answer and is not gated by it.
+        * ``resolve_profile()``'s ``specializes_from`` lineage traversal
+          reads through the raw repository and MAY cross into a deactivated
+          parent profile -- lineage composition is a below-the-activation-
+          grain operation ("what does this profile inherit from," not "is
+          this profile enabled"). This is a fresh design decision for this
+          accessor, not an extension of existing precedent: the raw-dict
+          branch in :func:`resolve_governance_for_profile` below (module
+          docstring reference: "Pattern C") is an ``isinstance(dict)``
+          compatibility fallback for raw services/mocks, not a real
+          lineage-traversal case -- with this wrapper, ``agent_profiles`` is
+          already a ``dict`` and ``.get()`` runs, so no lineage traversal
+          actually happens there (softened per post-tasks squad review).
+        """
+        repository: AgentProfileRepository = self._inner.agent_profiles
+        return repository
+
+    # ------------------------------------------------------------------
+    # FR-002 Option A (charter-sole-door-bypass-closure-01KZ3WAA WP01
+    # cycle 2): generic raw-repository accessor, the per-kind form of the
+    # same "filtered dict can't do repository ops" problem
+    # :attr:`agent_profile_repository` solves for ``agent_profiles``.
+    # ------------------------------------------------------------------
+
+    def raw_repository(self, kind: str) -> Any:
+        """Return the raw, unfiltered repository object for artifact *kind*.
+
+        The nine gated properties above (:attr:`paradigms` through
+        :attr:`glossary_packs`) all return a filtered ``dict`` — a shape
+        with neither ``.list_all()`` nor ``.get_provenance()``. Provenance-
+        scan callers (e.g.
+        ``specify_cli.charter_runtime.lint.checks.org_layer.OrgOverridesBuiltinChecker``)
+        need those raw repository operations directly. This is the named,
+        sanctioned way to reach them without either (a) reconstructing a
+        second, unwrapped ``doctrine.service.DoctrineService`` (the FR-002
+        violation this accessor exists to close) or (b) reaching into
+        ``._inner`` from outside ``charter.resolver`` (the FR-010
+        reach-around this module's accessors close generally).
+
+        This is a read-only structural accessor — it does not apply charter
+        activation filtering. Raw repository operations
+        (``list_all()``/``get_provenance()``) answer "what artifacts exist
+        and which layer supplied them," a question the activation filter
+        does not gate (mirrors :attr:`agent_profile_repository`'s
+        documented semantics for the identical case).
+
+        Returns ``None`` for a *kind* outside the nine gated kinds, mirroring
+        the ``getattr(service, kind, None)`` degrade-silently pattern this
+        accessor replaces at ``org_layer.py``'s call sites, rather than
+        raising — that module's checkers are advisory-only and expect a
+        missing/unrecognized kind to be a silent skip, not a hard failure.
+        """
+        if kind not in _RAW_REPOSITORY_KINDS:
+            return None
+        inner = object.__getattribute__(self, "_inner")
+        return getattr(inner, kind, None)
+
+    # ------------------------------------------------------------------
+    # FR-003 (charter-sole-door-bypass-closure-01KZ3WAA WP05): the 5-tier
+    # template/command/mission resolution axis.
+    #
+    # ONE charter-layer door. ``doctrine/resolver.py``'s tier functions
+    # (``_resolve_asset``, ``resolve_mission``) are NOT moved, renamed, or
+    # duplicated — they stay in doctrine because charter imports doctrine and
+    # never the reverse. What consolidates here is the *entry point*: before
+    # WP05, ``charter.template_resolver.CharterTemplateResolver`` reached
+    # ``doctrine.resolver`` independently of this class, giving the charter
+    # layer two doors onto the same chain (C-001 violation). It is now a thin
+    # delegate onto the methods below, and
+    # ``specify_cli/runtime/resolver.py``'s tier-5 routing calls them
+    # directly.
+    #
+    # ---- Ungated by design (do NOT add activation filtering here) --------
+    # Unlike the nine gated properties above, these methods apply NO charter
+    # activation filter, and that is deliberate: the 5-tier chain has no
+    # activation concept today (there is no ``activated_templates`` /
+    # ``activated_missions`` key in ``PackContext``), so there is nothing to
+    # filter by. Gating templates is FR-005's separate scope; conflating it
+    # here would invent policy the charter never declared.
+    #
+    # ---- Why ``@staticmethod`` (T019's construction-contract resolution) --
+    # Consequence of "ungated by design": these methods read ZERO instance
+    # state — neither ``_inner`` nor ``_pack_context`` participates. Declaring
+    # them static encodes that contract structurally, so a future edit cannot
+    # quietly start consulting activation state without changing the
+    # signature, and it dissolves the construction-contract mismatch T019
+    # named rather than papering over it. The alternative considered and
+    # rejected — making them instance methods and building the activation-
+    # aware factory at ``specify_cli/runtime/resolver.py``'s tier-5 call site
+    # (from the ``project_dir`` already threaded through the chain) — would
+    # have coupled pure-filesystem template resolution to charter governance
+    # config loading (``PackContext.from_config`` + ``resolve_org_roots`` +
+    # ``infer_repo_languages``) for state these methods provably never read,
+    # newly making template lookup fail-closed on a malformed
+    # ``.kittify/config.yaml``. See the mirroring note at that call site.
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def resolve_content_asset(
+        name: str,
+        project_dir: Path,
+        mission: str = _DEFAULT_RESOLUTION_MISSION,
+    ) -> ResolutionResult:
+        """Resolve a content template through the full 5-tier chain.
+
+        Behaviour-preserving pass-through to
+        :func:`doctrine.resolver.resolve_template` (OVERRIDE > LEGACY >
+        GLOBAL_MISSION > GLOBAL > PACKAGE_DEFAULT). Ungated by design — see
+        the section comment above.
+
+        Args:
+            name: Template filename with extension (e.g. ``"spec-template.md"``).
+            project_dir: Project root containing ``.kittify/``.
+            mission: Mission key used for tiers 3-5.
+
+        Returns:
+            The winning :class:`~doctrine.resolver.ResolutionResult`.
+
+        Raises:
+            FileNotFoundError: If no tier provides the requested template.
+        """
+        return _doctrine_resolve_template(name, project_dir, mission)
+
+    @staticmethod
+    def resolve_command_asset(
+        name: str,
+        project_dir: Path,
+        mission: str = _DEFAULT_RESOLUTION_MISSION,
+    ) -> ResolutionResult:
+        """Resolve a command template through the full 5-tier chain.
+
+        Behaviour-preserving pass-through to
+        :func:`doctrine.resolver.resolve_command`. Ungated by design — see
+        the section comment above.
+
+        Args:
+            name: Command template filename with extension (e.g. ``"plan.md"``).
+            project_dir: Project root containing ``.kittify/``.
+            mission: Mission key used for tiers 3-5.
+
+        Returns:
+            The winning :class:`~doctrine.resolver.ResolutionResult`.
+
+        Raises:
+            FileNotFoundError: If no tier provides the requested command template.
+        """
+        return _doctrine_resolve_command(name, project_dir, mission)
+
+    @staticmethod
+    def resolve_mission_definition(name: str, project_dir: Path) -> ResolutionResult:
+        """Resolve a ``mission.yaml`` through the mission-config tier chain.
+
+        Behaviour-preserving pass-through to
+        :func:`doctrine.resolver.resolve_mission`. Missions are inherently
+        mission-scoped, so that chain has four tiers (no GLOBAL tier).
+        Ungated by design — see the section comment above.
+
+        Args:
+            name: Mission key (e.g. ``"software-dev"``).
+            project_dir: Project root containing ``.kittify/``.
+
+        Returns:
+            The winning :class:`~doctrine.resolver.ResolutionResult`.
+
+        Raises:
+            FileNotFoundError: If no tier provides the mission config.
+        """
+        return _doctrine_resolve_mission(name, project_dir)
+
+    @staticmethod
+    def resolve_package_default_asset_path(
+        *,
+        missions_root: Path,
+        mission: str,
+        subdir: str,
+        name: str,
+    ) -> Path | None:
+        """Resolve the tier-5 (PACKAGE_DEFAULT) path for an asset, or ``None``.
+
+        A tier-5-**only** entry point, deliberately separate from
+        :meth:`resolve_content_asset` / :meth:`resolve_command_asset`:
+        ``specify_cli/runtime/resolver.py`` carries its own tiers 1-4
+        (explicitly out of this mission's scope as deferred debt) and needs to
+        ask charter for tier 5 alone. Keeping the ``subdir`` → repository-method
+        dispatch here is what lets that caller stop knowing
+        :class:`MissionTemplateRepository`'s shape — the intent its existing
+        "runtime never binds directly to doctrine's repository shape" comment
+        already declared.
+
+        *missions_root* is a parameter rather than instance state because the
+        caller's root is ``get_package_asset_root()``, which honours the
+        ``SPEC_KITTY_TEMPLATE_ROOT`` override; hard-wiring
+        ``MissionTemplateRepository.default()`` here (as
+        ``doctrine.resolver``'s own tier 5 does) would silently drop that
+        override. That divergence between the two tier-5 implementations is
+        pre-existing, named deferred debt — this method preserves the caller's
+        side of it verbatim rather than "fixing" it out of scope.
+
+        Args:
+            missions_root: Package missions root to look under.
+            mission: Mission key.
+            subdir: ``"command-templates"``, ``"templates"``, or any other
+                subdirectory (handled by the literal-path fallback).
+            name: Asset filename with extension.
+
+        Returns:
+            The package-default path, or ``None`` when the asset is absent.
+        """
+        repository = _mission_template_repository(str(missions_root))
+        if subdir == _COMMAND_TEMPLATES_SUBDIR:
+            # Command templates are keyed by stem, not filename (repository
+            # contract). ``Path(name).stem`` preserves the exact normalization
+            # the runtime caller applied before FR-003 moved it here.
+            return repository._command_template_path(mission, Path(name).stem)
+        if subdir == _CONTENT_TEMPLATES_SUBDIR:
+            return repository._content_template_path(mission, name)
+        fallback = Path(missions_root) / mission / subdir / name
+        return fallback if fallback.is_file() else None
+
+    @staticmethod
+    def resolve_package_default_mission_config_path(
+        *,
+        missions_root: Path,
+        mission: str,
+    ) -> Path | None:
+        """Resolve the tier-5 (PACKAGE_DEFAULT) ``mission.yaml`` path, or ``None``.
+
+        The mission-config counterpart of
+        :meth:`resolve_package_default_asset_path`; same rationale for taking
+        *missions_root* as a parameter.
+
+        Args:
+            missions_root: Package missions root to look under.
+            mission: Mission key.
+
+        Returns:
+            The package-default ``mission.yaml`` path, or ``None`` when absent.
+        """
+        return _mission_template_repository(str(missions_root))._mission_config_path(mission)
 
     # ------------------------------------------------------------------
     # Delegation: all other attributes forwarded to the inner service

@@ -6,8 +6,38 @@ the ``context.py`` decomposition (research.md Decision 7/8, extraction step
 13). This is the region US1 (#3064 / mission
 ``charter-delivery-finish-context-degod``'s empty-charter workstream) touched
 via ``_build_activation_aware_doctrine_service``'s "always wrap" contract
-(R5); it is extracted here byte-identical, against the now-frozen US1 code —
-no logic changes.
+(R5); it was extracted here byte-identical against the then-frozen US1 code.
+
+FR-008 unification (charter-sole-door-bypass-closure-01KZ3WAA WP01): this
+module now also exposes the single canonical
+:func:`build_activation_aware_doctrine_service` — the ONE public entry point
+that replaces ``specify_cli.doctrine_service_factory.build_activation_aware_doctrine_service``
+(the latter becomes a thin re-export of this one, C-001). It is itself a
+thin delegate to :func:`_build_activation_aware_doctrine_service` — the
+SINGLE body in this module that constructs
+:class:`~charter.resolver.DoctrineService` (cycle-2 review fix, Blocker 2:
+the public function previously duplicated that body's construction logic
+for the ``org_roots=None`` case, re-creating inside one module the exact
+C-001 divergence risk the WP exists to close). It also collapses the "build
+raw, conditionally wrap" pattern previously duplicated inline at
+``specify_cli/charter_runtime/lint/checks/org_layer.py`` (both provenance-
+scan sites now route the raw inner construction through
+:func:`_build_doctrine_service` below — the one place in this codebase that
+constructs a raw ``doctrine.service.DoctrineService`` — then wrap with
+``charter.resolver.DoctrineService(inner, pack_context=None)``, the
+sanctioned unfiltered-diagnostic form; see that module's docstring) and
+``specify_cli/cli/commands/charter/generate.py`` (FR-002). The two former
+"canonical" builders diverged on two axes; the unification always picks the
+*fuller* behaviour on each:
+
+* ``active_languages=infer_repo_languages(repo_root)`` is always computed
+  (the pre-existing behaviour of :func:`_build_doctrine_service` below, i.e.
+  this module's own prior behaviour).
+* ``org_roots`` is always self-resolved via
+  :func:`doctrine.drg.org_pack_config.resolve_org_roots` when a caller does
+  not supply an explicit override (the prior behaviour of
+  ``specify_cli.doctrine_service_factory``'s builder) — no caller can
+  silently lose the org layer by omitting the argument.
 
 Cycle note: :func:`_build_activation_aware_doctrine_service` calls
 :func:`_build_doctrine_service` via a function-local
@@ -22,7 +52,12 @@ this module's :func:`_build_doctrine_service` by reference) preserves that
 single-patch-point contract after the relocation. :func:`_build_doctrine_service`
 similarly resolves ``infer_repo_languages`` via a function-local import from
 ``charter.context`` — ``tests/charter/test_context.py`` patches
-``charter.context.infer_repo_languages`` directly.
+``charter.context.infer_repo_languages`` directly. The private
+:func:`_build_activation_aware_doctrine_service` keeps its ``org_roots``
+override parameter (unlike the new public function) precisely so this
+existing patch seam and its callers (``charter.context``'s agent-profile
+include branch, ``charter.profile_resolution``) are unaffected by the
+unification.
 """
 
 from __future__ import annotations
@@ -31,6 +66,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from charter.resolver import DoctrineService as _ActivationAwareDoctrineService
     import doctrine.service as _doctrine_service_module
 
 from charter._doctrine_paths import resolve_project_root
@@ -38,6 +74,7 @@ from charter._doctrine_paths import resolve_project_root
 __all__ = [
     "_build_activation_aware_doctrine_service",
     "_build_doctrine_service",
+    "build_activation_aware_doctrine_service",
 ]
 
 
@@ -90,9 +127,22 @@ def _build_doctrine_service(
     )
 
 
+def _self_resolve_existing_org_roots(repo_root: Path) -> list[Path]:
+    """Return every configured org-pack root for *repo_root* that exists on disk.
+
+    Single call site for the FR-008 "org_roots always self-resolved" axis —
+    both :func:`_build_activation_aware_doctrine_service`'s default and
+    :func:`build_activation_aware_doctrine_service` route through this one
+    helper so the resolution rule can never drift between them.
+    """
+    from doctrine.drg.org_pack_config import resolve_org_roots  # noqa: PLC0415
+
+    return [root for root in resolve_org_roots(repo_root) if root.exists()]
+
+
 def _build_activation_aware_doctrine_service(
     repo_root: Path, *, org_roots: list[Path] | None = None
-) -> object:
+) -> _ActivationAwareDoctrineService:
     """Build an *activation-aware* doctrine service for ``--include`` fetches.
 
     FR-016: ``charter context --include agent-profile:<id>`` must inherit the
@@ -112,14 +162,73 @@ def _build_activation_aware_doctrine_service(
     treats ``None`` as "admit all", so the unrestricted case stays byte-identical
     in *behaviour* to the legacy fetch path while giving both activation-service
     builders one contract — ``_inner`` is always valid and ``.agent_profiles``
-    is always a gated ``dict``. This matches
-    :func:`specify_cli.doctrine_service_factory.build_activation_aware_doctrine_service`,
-    which also wraps unconditionally.
+    is always a gated ``dict``.
+
+    FR-008: when *org_roots* is not supplied (the common case — charter's own
+    callers historically left this ``None``), it is now self-resolved via
+    :func:`_self_resolve_existing_org_roots` rather than left empty, matching
+    :func:`build_activation_aware_doctrine_service`'s always-self-resolve
+    behaviour. An explicit *org_roots* override (e.g.
+    ``charter.context``'s ``--org-root``-driven single-path list, or
+    ``charter.profile_resolution``'s pre-resolved list) is still honoured
+    verbatim — this only closes the "caller passed nothing" gap.
     """
     from charter.context import _build_doctrine_service  # noqa: PLC0415
     from charter.pack_context import PackContext
     from charter.resolver import DoctrineService as ActivationAwareDoctrineService
 
-    inner = _build_doctrine_service(repo_root, org_roots=org_roots)
+    resolved_org_roots = (
+        org_roots if org_roots is not None else _self_resolve_existing_org_roots(repo_root)
+    )
+    inner = _build_doctrine_service(repo_root, org_roots=resolved_org_roots)
     pack_context = PackContext.from_config(repo_root)
     return ActivationAwareDoctrineService(inner, pack_context=pack_context)
+
+
+def build_activation_aware_doctrine_service(
+    repo_root: Path,
+) -> _ActivationAwareDoctrineService:
+    """Build the ONE canonical activation-aware ``DoctrineService`` (FR-008, C-001).
+
+    This is the single unified builder — replacing
+    ``specify_cli.doctrine_service_factory.build_activation_aware_doctrine_service``
+    (now a thin re-export of this function) and the inline "build raw,
+    conditionally wrap" pattern previously duplicated in
+    ``specify_cli/charter_runtime/lint/checks/org_layer.py`` and
+    ``specify_cli/cli/commands/charter/generate.py`` (FR-002). See this
+    module's docstring for the two behavioural axes the unification picks the
+    *fuller* option on (``active_languages`` always computed, ``org_roots``
+    always self-resolved).
+
+    Unlike the private :func:`_build_activation_aware_doctrine_service`, this
+    public function takes only *repo_root* — no override parameter — because
+    every current call site wants the fully-resolved, activation-aware
+    service; a caller that needs an explicit ``org_roots`` override (or the
+    unfiltered diagnostic mode, ``pack_context=None``) constructs
+    :class:`charter.resolver.DoctrineService` directly, per the
+    "unfiltered-diagnostic contract" documented in this mission's
+    ``data-model.md``.
+
+    Parameters
+    ----------
+    repo_root:
+        Repository root containing ``.kittify/config.yaml``.
+
+    Returns
+    -------
+    charter.resolver.DoctrineService
+        The activation-aware wrapper, always wrapped (never a raw, unwrapped
+        service — closing the fail-open gap FR-002 named at the three
+        collapsed call sites above).
+
+    Cycle-2 review fix (Blocker 2): this is a **thin delegate** to
+    :func:`_build_activation_aware_doctrine_service` with no ``org_roots``
+    override, rather than a second copy of its construction body. Prior to
+    this fix, both functions independently called ``ActivationAwareDoctrineService(...)``
+    with byte-identical logic for the ``org_roots=None`` case — exactly the
+    C-001 "two canonical builders can silently diverge" risk this WP exists
+    to close, re-created *inside* this one module. Only one body may
+    construct the wrapper now; this function exists purely for the
+    no-override call shape every current caller wants.
+    """
+    return _build_activation_aware_doctrine_service(repo_root)
