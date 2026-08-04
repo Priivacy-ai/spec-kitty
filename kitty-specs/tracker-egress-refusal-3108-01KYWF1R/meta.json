@@ -9,6 +9,7 @@
   "purpose_context": "This mission advances tracker egress refusal 3108 on bundle-c-tracker-refusal-3108 so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "tracker egress refusal 3108",
   "slug": "tracker-egress-refusal-3108-01KYWF1R",
+  "status_phase": "1",
   "target_branch": "bundle-c-tracker-refusal-3108",
   "topology": "lanes"
 }
