@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import charter.template_resolver as template_resolver_module
+from charter.resolver import DoctrineService
 from charter.template_resolver import CharterTemplateResolver
 from doctrine.missions.repository import TemplateResult
 from doctrine.resolver import ResolutionResult, ResolutionTier
@@ -21,9 +21,12 @@ def test_resolve_command_template_with_project_context_uses_runtime_chain(
 ) -> None:
     path = tmp_path / "plan.md"
     path.write_text("override command", encoding="utf-8")
+    # FR-003 (WP05): the tier-chain seam moved from a module-level
+    # ``doctrine.resolver`` re-export in charter.template_resolver onto the
+    # canonical factory, so the patch target moved with it.
     monkeypatch.setattr(
-        template_resolver_module,
-        "resolve_command",
+        DoctrineService,
+        "resolve_command_asset",
         lambda *args, **kwargs: ResolutionResult(path=path, tier=ResolutionTier.OVERRIDE, mission="software-dev"),
     )
 
@@ -41,9 +44,10 @@ def test_resolve_content_template_with_project_context_uses_runtime_chain(
 ) -> None:
     path = tmp_path / "spec-template.md"
     path.write_text("legacy content", encoding="utf-8")
+    # FR-003 (WP05): see the sibling test — patch target follows the seam.
     monkeypatch.setattr(
-        template_resolver_module,
-        "resolve_template",
+        DoctrineService,
+        "resolve_content_asset",
         lambda *args, **kwargs: ResolutionResult(path=path, tier=ResolutionTier.LEGACY, mission="software-dev"),
     )
 
