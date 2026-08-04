@@ -1,5 +1,6 @@
 """Gate 5 (FR-007/FR-010, WP04): zero-tolerance `._inner` reach-around on
-``charter.resolver.DoctrineService`` outside ``src/charter/**``.
+``charter.resolver.DoctrineService`` outside ``src/charter/**`` (and
+``tests/charter/**``).
 
 A post-plan squad delegate found that ``src/specify_cli/invocation/registry.py``
 and ``src/specify_cli/invocation/org_profiles.py`` both read
@@ -26,48 +27,53 @@ names are bound (directly or by import alias) to a *construction* of a
 ``charter.resolver.DoctrineService`` -- either the sanctioned factory
 (``build_activation_aware_doctrine_service``, FR-008's unified builder) or the
 wrapper's own constructor (``charter.resolver.DoctrineService``) -- and flags a
-reach-around only when its receiver is one of those tainted names, or an
-inline construction call. ``self._inner`` on an untainted receiver (the two
+reach-around only when its receiver is one of those tainted names, or an inline
+construction call. ``self._inner`` on an untainted receiver (the two
 false-positive risks above) is never flagged, because ``self`` is never
 assigned from either constructor.
 
-Landing-fold gate hardening: three widenings (A2/A3/A4)
-------------------------------------------------------------
-Adversarial-review injection probes measured this gate at a 3/11 real catch
-rate. Three structural root causes accounted for almost every miss:
+Detection widenings (A2/A3/A4) were applied by an earlier fold commit; see
+that commit's message for the measured before/after catch rate.
 
-* **A2 -- ``_tainted_names`` only recognised ``ast.Assign`` with a bare
-  ``ast.Name`` target.** Missed: ``service: DoctrineService = ...``
-  (``ast.AnnAssign`` -- the *default* spelling in a mypy-clean codebase),
-  walrus (``ast.NamedExpr``), and tuple-unpack targets of ``ast.Assign``.
-  :func:`_tainted_names` now handles all four shapes.
-* **A3 -- the ``ast.Attribute`` branch of the sanctioned-origin check consulted
-  only ``module_aliases``, never ``from_imports``.** So ``from charter import
-  resolver`` then ``resolver.DoctrineService(...)`` never tainted. Fixed by
-  reusing :func:`tests.architectural._sole_door_scan._lookup_module` (which
-  already resolves "``from pkg import sub`` then ``sub.Cls(...)``") instead of
-  the local ``module_aliases.get(dotted, dotted)`` -- the same primitive Gates
-  1-3 already share, via the promoted :class:`_Bindings` type.
-* **A4 -- attribute-spelling alternatives were structurally invisible.**
-  Detection required an ``ast.Attribute`` literally spelled ``.attr ==
-  "_inner"``. Missed: ``getattr(svc, "_inner")``,
-  ``object.__getattribute__(svc, "_inner")``, and ``svc.__dict__["_inner"]`` --
-  the reach-around reopens in one line with any of these. Now flagged
-  alongside the original ``.attr`` shape; receiver taint logic is unchanged.
+Landing-fold gate hardening: scope widening and message rewrite
+------------------------------------------------------------------
+**Scope widening.** NFR-001 says "zero ``._inner`` accesses outside
+``src/charter/**``", and ``tests/`` is outside ``src/``. This gate previously
+scanned only ``_SRC_ROOT``. It now also scans ``tests/``, exempting
+``src/charter/**`` (the wrapper's own implementation), ``tests/charter/**``
+(that layer's own test suite, which legitimately exercises ``._inner``
+directly per its own module docstring), and this gate's own fixture file
+(whose planted-violation test bodies are string literals *containing* the
+substring ``._inner``, not real attribute-access AST nodes -- but the
+exemption is named explicitly rather than relying on that distinction holding
+forever).
+
+**Message rewrite.** The violation message previously read "Use the
+``agent_profile_repository`` accessor (or ``raw_repository(kind)`` for other
+gated kinds) instead of..." -- phrasing that blanket-advertises
+``raw_repository(kind)`` as an equally-sanctioned remedy alongside
+``agent_profile_repository``, when ``raw_repository``'s own docstring records
+that it does NOT apply charter activation filtering (i.e. it hands back an
+unfiltered repository, by design, through the sole door). A gate must not
+advertise an ungated-sounding escape hatch as the interchangeable remedy. The
+message now names the ONE accessor that fits the SPECIFIC kind actually
+reached (resolved from the trailing attribute immediately following the
+reach-around, e.g. ``service._inner.agent_profiles`` -> ``"agent_profiles"``
+-> "use the `agent_profile_repository` accessor"), falling back to naming
+both only when the trailing kind cannot be resolved statically.
 
 Known limitation (documented, not hidden): this is a static, per-file,
 name-based approximation -- not full dataflow/type inference. A caller that
 threads a ``DoctrineService`` through an unconventional indirection (e.g. a
-dict of services, or a return value re-assigned across module boundaries)
-could in principle evade detection. This is the same class of tradeoff
-``test_mission_resolver_walker_gate.py`` already accepts for its own taint
-heuristic. Extending the taint model is a deliberate, reviewed edit to this
-file, not silent scope creep.
+dict of services, a ``for`` loop over a computed iterable, or a return value
+re-assigned across module boundaries) could in principle evade detection.
+This is the same class of tradeoff ``test_mission_resolver_walker_gate.py``
+already accepts for its own taint heuristic. Extending the taint model is a
+deliberate, reviewed edit to this file, not silent scope creep.
 
-Zero-tolerance (C-002): no allowlist. Only ``src/charter/**`` -- the
-wrapper's own implementation module, where ``._inner`` access *is* the sole
-door's construction -- is exempt, keyed by directory prefix, never by
-individual file or line.
+Zero-tolerance (C-002): no allowlist. Only ``src/charter/**`` and
+``tests/charter/**`` -- directory-prefix keyed, never by individual file or
+line -- plus this gate's own named fixture-file exemption, are exempt.
 """
 
 from __future__ import annotations
@@ -77,17 +83,25 @@ from pathlib import Path
 
 import pytest
 
-from tests.architectural._sole_door_scan import _Bindings, _lookup_module
+from tests.architectural._sole_door_scan import REPO_ROOT, _Bindings, _lookup_module
 
 pytestmark = pytest.mark.architectural
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-_SRC_ROOT = _REPO_ROOT / "src"
+_SRC_ROOT = REPO_ROOT / "src"
+_TESTS_ROOT = REPO_ROOT / "tests"
 
 # The wrapper's own implementation lives here; ._inner access inside it is
 # the sole door's construction, not a reach-around. Directory-prefix keyed
 # (G-2 style), never per-file/per-line.
-_EXEMPT_DIR_PREFIX = "src/charter/"
+_EXEMPT_DIR_PREFIXES = ("src/charter/", "tests/charter/")
+
+# This gate's own fixture file: its planted-violation test bodies are STRING
+# LITERALS containing "._inner" (never real ast.Attribute nodes in this file's
+# own tree), but the exemption is named explicitly rather than relying on that
+# distinction holding forever as this file grows.
+_EXEMPT_FILES = frozenset(
+    {"tests/architectural/test_charter_sole_door_inner_reacharound.py"}
+)
 
 # The one sanctioned construction path for a charter.resolver.DoctrineService
 # outside src/charter/** (FR-008's unified builder).
@@ -101,6 +115,11 @@ _FACTORY_MODULES = frozenset(
 # constructing it directly outside src/charter/**.
 _CTOR_NAME = "DoctrineService"
 _CTOR_MODULE = "charter.resolver"
+
+#: The pinned lineage/mutation accessor for the ``agent_profiles`` kind
+#: (FR-001). Named specifically so the violation message never has to fall
+#: back to advertising every accessor as an equally valid, blanket remedy.
+_AGENT_PROFILES_KIND = "agent_profiles"
 
 
 def _collect_import_aliases(tree: ast.AST) -> _Bindings:
@@ -140,15 +159,9 @@ def _call_constructs_doctrine_service(call: ast.Call, aliases: _Bindings) -> boo
     module-qualified reference (``module.name(...)``), or by module import
     alias (``import module as m`` then ``m.name(...)``) -- never by bare
     text matching (mirrors NFR-001's qualname-resolution requirement for the
-    sibling raw-construction gate).
-
-    A3 fix (landing-fold gate hardening): the module-qualified branch now
-    resolves *dotted* through :func:`_lookup_module` -- the SAME primitive
-    Gates 1-3 use -- instead of a local ``module_aliases.get(dotted, dotted)``
-    that only ever recognised ``import module as alias``. ``_lookup_module``
-    additionally resolves ``from pkg import sub`` then ``sub.Cls(...)``, so
-    ``from charter import resolver`` followed by
-    ``resolver.DoctrineService(...)`` now taints too.
+    sibling raw-construction gate). The module-qualified branch resolves
+    through the shared :func:`_lookup_module` primitive (Gates 1-3 use the
+    same one), so ``from pkg import sub`` then ``sub.Cls(...)`` resolves too.
     """
     func = call.func
     if isinstance(func, ast.Name):
@@ -182,12 +195,9 @@ def _tainted_names(tree: ast.AST, aliases: _Bindings) -> set[str]:
     ``test_mission_resolver_walker_gate.py``) assigned from a construction
     call.
 
-    A2 fix (landing-fold gate hardening): the predecessor only recognised
-    ``ast.Assign`` with a bare ``ast.Name`` target. Real code frequently binds
-    a ``DoctrineService`` via annotated assignment (``service:
-    DoctrineService = ...`` -- the default spelling in a mypy-clean codebase),
-    walrus (``:=``), or tuple-unpack (``service, flag = ctor(), True``); all
-    four shapes are handled here.
+    Handles ``ast.Assign`` (bare name and tuple-unpack targets),
+    ``ast.AnnAssign`` (the default spelling in a mypy-clean codebase), and
+    walrus (``ast.NamedExpr``).
     """
     tainted: set[str] = set()
     for node in ast.walk(tree):
@@ -217,11 +227,6 @@ def _is_string_literal(node: ast.expr, value: str) -> bool:
 def _is_inner_getattr_call(call: ast.Call) -> bool:
     """True for ``getattr(recv, "_inner")`` or
     ``object.__getattribute__(recv, "_inner")``.
-
-    A4 fix (landing-fold gate hardening): both spellings reach the identical
-    attribute as ``recv._inner`` and are just as capable of reopening the
-    reach-around; a gate that only pattern-matches ``ast.Attribute`` is blind
-    to them.
     """
     func = call.func
     is_getattr = isinstance(func, ast.Name) and func.id == "getattr"
@@ -237,7 +242,7 @@ def _is_inner_getattr_call(call: ast.Call) -> bool:
 
 
 def _is_inner_dict_subscript(node: ast.Subscript) -> bool:
-    """True for ``<recv>.__dict__["_inner"]`` (A4 fix)."""
+    """True for ``<recv>.__dict__["_inner"]``."""
     value = node.value
     if not (isinstance(value, ast.Attribute) and value.attr == "__dict__"):
         return False
@@ -254,12 +259,35 @@ def _receiver_is_tainted(
     )
 
 
-def _find_inner_reacharounds(path: Path) -> list[int]:
-    """Return line numbers of flagged reach-around accesses in *path*.
+def _attribute_wrapping(tree: ast.AST) -> dict[int, ast.Attribute]:
+    """``id(expr) -> the ast.Attribute using expr as its `.value``.
 
-    Covers three spellings (A4 fix): direct ``.attr == "_inner"`` access,
+    Landing-fold gate hardening: lets the caller learn the SPECIFIC trailing
+    kind a reach-around reached (``service._inner.agent_profiles`` ->
+    ``"agent_profiles"``) regardless of which of the three reach-around
+    spellings (``.attr``, ``getattr(...)``, ``__dict__[...]``) produced the
+    tainted expression, so the violation message can name the ONE accessor
+    that fits instead of blanket-advertising every accessor as an equally
+    valid remedy.
+    """
+    return {id(node.value): node for node in ast.walk(tree) if isinstance(node, ast.Attribute)}
+
+
+def _trailing_kind(node: ast.expr, wrapping: dict[int, ast.Attribute]) -> str | None:
+    outer = wrapping.get(id(node))
+    return outer.attr if outer is not None else None
+
+
+def _find_inner_reacharounds(path: Path) -> list[tuple[int, str | None]]:
+    """Return ``(lineno, trailing_kind)`` for every flagged reach-around in *path*.
+
+    Covers three spellings: direct ``.attr == "_inner"`` access,
     ``getattr(recv, "_inner")`` / ``object.__getattribute__(recv, "_inner")``,
-    and ``recv.__dict__["_inner"]``.
+    and ``recv.__dict__["_inner"]``. ``trailing_kind`` is the specific
+    gated-property name immediately following the reach-around
+    (``"agent_profiles"``, ``"tactics"``, ...) when resolvable, else ``None``
+    -- used only to make the violation message name the one accessor that
+    fits (landing-fold gate hardening).
     """
     try:
         tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -268,7 +296,8 @@ def _find_inner_reacharounds(path: Path) -> list[int]:
 
     aliases = _collect_import_aliases(tree)
     tainted = _tainted_names(tree, aliases)
-    violations: list[int] = []
+    wrapping = _attribute_wrapping(tree)
+    violations: list[tuple[int, str | None]] = []
 
     for node in ast.walk(tree):
         receiver: ast.expr
@@ -282,33 +311,68 @@ def _find_inner_reacharounds(path: Path) -> list[int]:
         else:
             continue
         if _receiver_is_tainted(receiver, tainted, aliases):
-            violations.append(node.lineno)
+            violations.append((node.lineno, _trailing_kind(node, wrapping)))
 
     return violations
 
 
 def _rel(path: Path) -> str:
-    return path.relative_to(_REPO_ROOT).as_posix()
+    return path.relative_to(REPO_ROOT).as_posix()
 
 
-def _scan_tree_for_violations(src_root: Path) -> dict[str, list[int]]:
-    """Scan every ``*.py`` under *src_root*, skipping the exempt directory.
+def _is_exempt(rel: str) -> bool:
+    return rel.startswith(_EXEMPT_DIR_PREFIXES) or rel in _EXEMPT_FILES
 
-    Scope is derived from ``src_root.rglob("*.py")`` wholesale -- no
-    hardcoded subdirectory list a new package could silently fall outside
-    of (mirrors ``test_mission_resolver_walker_gate.py``'s G-3 guarantee).
+
+def _iter_scan_files(roots: tuple[Path, ...]) -> list[Path]:
+    files: list[Path] = []
+    for root in roots:
+        files.extend(sorted(root.rglob("*.py")))
+    return [p for p in files if "__pycache__" not in p.parts]
+
+
+def _scan_tree_for_violations(
+    roots: tuple[Path, ...],
+) -> dict[str, list[tuple[int, str | None]]]:
+    """Scan every ``*.py`` under *roots*, skipping the exempt directories/files.
+
+    Scope is derived from ``root.rglob("*.py")`` wholesale for each root -- no
+    hardcoded subdirectory list a new package could silently fall outside of
+    (mirrors ``test_mission_resolver_walker_gate.py``'s G-3 guarantee).
     """
-    violations: dict[str, list[int]] = {}
-    for py_file in sorted(src_root.rglob("*.py")):
-        if "__pycache__" in py_file.parts:
-            continue
+    violations: dict[str, list[tuple[int, str | None]]] = {}
+    for py_file in _iter_scan_files(roots):
         rel = _rel(py_file)
-        if rel.startswith(_EXEMPT_DIR_PREFIX):
+        if _is_exempt(rel):
             continue
         hits = _find_inner_reacharounds(py_file)
         if hits:
             violations[rel] = hits
     return violations
+
+
+def _remedy_message(kind: str | None) -> str:
+    """The specific accessor to point a violator at for *kind*.
+
+    A gate must not advertise a blanket "use raw_repository(kind) for
+    anything else" as if it were an interchangeable, equally-sanctioned
+    remedy alongside ``agent_profile_repository`` -- ``raw_repository``
+    itself returns an UNFILTERED repository (its own docstring: "does not
+    apply charter activation filtering"), so recommending it generically
+    reads as advertising an escape hatch. Name the ONE accessor that fits the
+    kind actually reached; only fall back to naming both when the trailing
+    kind could not be resolved, and even then, tell the caller to name their
+    OWN specific kind rather than treating the fallback as a blanket license.
+    """
+    if kind == _AGENT_PROFILES_KIND:
+        return "use the `agent_profile_repository` accessor"
+    if kind:
+        return f'use `raw_repository("{kind}")`'
+    return (
+        "use the `agent_profile_repository` accessor for agent-profiles "
+        "lineage/provenance operations, or `raw_repository(kind)` naming "
+        "YOUR specific gated kind -- never a blanket substitute for either"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -324,7 +388,7 @@ def test_gate_scan_scope_reaches_known_files() -> None:
     false-positive-risk files -- proving the scan actually visits them
     rather than skipping them by accident.
     """
-    scanned = {_rel(p) for p in _SRC_ROOT.rglob("*.py") if "__pycache__" not in p.parts}
+    scanned = {_rel(p) for p in _iter_scan_files((_SRC_ROOT,))}
 
     representative_sample = {
         "src/specify_cli/invocation/registry.py",
@@ -339,6 +403,28 @@ def test_gate_scan_scope_reaches_known_files() -> None:
         "the src/ walk may have silently narrowed."
     )
     assert len(scanned) > 200
+
+
+def test_gate_scan_scope_now_reaches_the_tests_directory() -> None:
+    """Scope widening (landing-fold gate hardening): ``tests/`` is now scanned.
+
+    NFR-001 says "outside src/charter/**" -- ``tests/`` is outside ``src/``,
+    so it was always in scope by that wording even though the pre-fold
+    implementation only ever walked ``_SRC_ROOT``. This pins the widened
+    walk actually reaches a representative ``tests/`` file, including one
+    inside the newly-exempt ``tests/charter/**`` prefix.
+    """
+    scanned = {_rel(p) for p in _iter_scan_files((_TESTS_ROOT,))}
+    representative_sample = {
+        "tests/charter/test_doctrine_service_builder_unification.py",
+        "tests/architectural/test_charter_sole_door_inner_reacharound.py",
+    }
+    missing = representative_sample - scanned
+    assert not missing, (
+        f"Gate scan scope did not reach: {sorted(missing)} -- "
+        "the tests/ walk may have silently narrowed."
+    )
+    assert len(scanned) > 1000
 
 
 # ---------------------------------------------------------------------------
@@ -358,8 +444,8 @@ def test_gate_does_not_flag_unrelated_inner_attributes() -> None:
         "src/specify_cli/auth/transport.py",
         "src/specify_cli/events/decision_log.py",
     ):
-        hits = _find_inner_reacharounds(_REPO_ROOT / rel)
-        assert hits == [], f"{rel} unexpectedly flagged at lines {hits}"
+        hits = _find_inner_reacharounds(REPO_ROOT / rel)
+        assert hits == [], f"{rel} unexpectedly flagged at {hits}"
 
 
 # ---------------------------------------------------------------------------
@@ -369,24 +455,30 @@ def test_gate_does_not_flag_unrelated_inner_attributes() -> None:
 
 def test_no_inner_reacharound_on_doctrine_service_outside_charter() -> None:
     """Zero reach-around access on a ``charter.resolver.DoctrineService``
-    outside ``src/charter/**`` (FR-010, NFR-001).
+    outside ``src/charter/**`` and ``tests/charter/**`` (FR-010, NFR-001).
 
-    Zero-tolerance (C-002): no allowlist. To fix a violation, use
-    ``DoctrineService.agent_profile_repository`` (for ``agent_profiles``
-    lineage/provenance operations) or ``DoctrineService.raw_repository(kind)``
-    (for any other gated kind's raw repository operations) instead of
-    reaching past the sole door.
+    Zero-tolerance (C-002): no allowlist. To fix a violation, use the
+    ``agent_profile_repository`` accessor (for ``agent_profiles`` lineage /
+    provenance operations) or ``DoctrineService.raw_repository(kind)`` naming
+    the SPECIFIC other gated kind (for any other gated kind's raw repository
+    operations) instead of reaching past the sole door.
     """
-    violations = _scan_tree_for_violations(_SRC_ROOT)
+    violations = _scan_tree_for_violations((_SRC_ROOT, _TESTS_ROOT))
 
     if violations:
-        details = "\n".join(f"  {path}: lines {lines}" for path, lines in sorted(violations.items()))
+        details = "\n".join(
+            f"  {path}: "
+            + "; ".join(
+                f"line {lineno} ({_remedy_message(kind)})" for lineno, kind in hits
+            )
+            for path, hits in sorted(violations.items())
+        )
         pytest.fail(
-            "Found `._inner` attribute access (or an equivalent getattr/__dict__ "
-            "reach-around) on a charter.resolver.DoctrineService "
-            "outside src/charter/** (FR-010). Use the `agent_profile_repository` "
-            "accessor (or `raw_repository(kind)` for other gated kinds) instead of "
-            "reaching past the sole door.\n\n"
+            "Found a `._inner` reach-around (direct attribute access, "
+            "getattr()/object.__getattribute__(), or __dict__ subscript) on a "
+            "charter.resolver.DoctrineService outside src/charter/** and "
+            "tests/charter/** (FR-010). Each finding below names the ONE "
+            "sanctioned accessor for the kind actually reached.\n\n"
             f"Violations:\n{details}"
         )
 
@@ -420,11 +512,12 @@ def test_planted_reacharound_at_function_local_scope_is_detected(tmp_path: Path)
     )
 
     hits = _find_inner_reacharounds(planted)
-    assert hits == [8], (
+    assert [lineno for lineno, _ in hits] == [8], (
         "Anti-mutant test failed to detect a planted ._inner reach-around on a "
         f"doctrine-service-typed variable; got {hits!r}. The gate does not bite "
         "-- investigate the taint heuristic before trusting the green main gate."
     )
+    assert hits[0][1] == "agent_profiles", hits
 
 
 def test_planted_unrelated_inner_attribute_is_not_detected(tmp_path: Path) -> None:
@@ -470,16 +563,15 @@ def test_planted_inline_construction_reacharound_is_detected(tmp_path: Path) -> 
     )
 
     hits = _find_inner_reacharounds(planted)
-    assert hits == [5]
+    assert [lineno for lineno, _ in hits] == [5]
+    assert hits[0][1] == "agent_profiles"
 
 
 def test_annotated_assign_reacharound_is_flagged(tmp_path: Path) -> None:
-    """A2 widening: ``service: DoctrineService = <ctor>(...)`` still taints.
+    """``service: DoctrineService = <ctor>(...)`` still taints.
 
-    ``ast.AnnAssign`` is the *default* spelling in a mypy-clean codebase; the
-    predecessor's ``_tainted_names`` only recognised bare ``ast.Assign``, so
-    this exact shape evaded detection. Injected at function-local scope
-    (NFR-003).
+    ``ast.AnnAssign`` is the *default* spelling in a mypy-clean codebase.
+    Injected at function-local scope (NFR-003).
     """
     planted = tmp_path / "annotated_reacharound.py"
     planted.write_text(
@@ -493,14 +585,14 @@ def test_annotated_assign_reacharound_is_flagged(tmp_path: Path) -> None:
     )
 
     hits = _find_inner_reacharounds(planted)
-    assert hits == [6], hits
+    assert [lineno for lineno, _ in hits] == [6], hits
+    assert hits[0][1] == "tactics"
 
 
 def test_walrus_reacharound_is_flagged(tmp_path: Path) -> None:
-    """A2 widening: a walrus-bound (``:=``) construction still taints.
+    """A walrus-bound (``:=``) construction still taints.
 
-    ``ast.NamedExpr`` was another shape the predecessor's ``ast.Assign``-only
-    check could not see. Injected at function-local scope (NFR-003).
+    Injected at function-local scope (NFR-003).
     """
     planted = tmp_path / "walrus_reacharound.py"
     planted.write_text(
@@ -515,16 +607,16 @@ def test_walrus_reacharound_is_flagged(tmp_path: Path) -> None:
     )
 
     hits = _find_inner_reacharounds(planted)
-    assert hits == [6], hits
+    assert [lineno for lineno, _ in hits] == [6], hits
+    assert hits[0][1] == "procedures"
 
 
 def test_tuple_unpack_reacharound_is_flagged(tmp_path: Path) -> None:
-    """A2 widening: a tuple-unpack target of ``ast.Assign`` still taints.
+    """A tuple-unpack target of ``ast.Assign`` still taints.
 
     ``service, ready = DoctrineService(...), True`` pairs the construction
-    call element-wise against its tuple target; the predecessor's
-    single-``ast.Name``-target check missed this shape entirely. Injected at
-    function-local scope (NFR-003).
+    call element-wise against its tuple target. Injected at function-local
+    scope (NFR-003).
     """
     planted = tmp_path / "tuple_unpack_reacharound.py"
     planted.write_text(
@@ -538,17 +630,13 @@ def test_tuple_unpack_reacharound_is_flagged(tmp_path: Path) -> None:
     )
 
     hits = _find_inner_reacharounds(planted)
-    assert hits == [6], hits
+    assert [lineno for lineno, _ in hits] == [6], hits
+    assert hits[0][1] == "glossary_packs"
 
 
 def test_injected_from_package_import_module_is_flagged(tmp_path: Path) -> None:
-    """A3 widening: ``from charter import resolver`` then
-    ``resolver.DoctrineService(...)`` still taints.
-
-    The predecessor's module-qualified branch resolved ONLY
-    ``module_aliases`` (``import module as alias``), never ``from_imports``
-    (``from pkg import sub``). Reusing the shared ``_lookup_module`` primitive
-    closes both. Injected at function-local scope (NFR-003).
+    """``from charter import resolver`` then ``resolver.DoctrineService(...)``
+    still taints. Injected at function-local scope (NFR-003).
     """
     planted = tmp_path / "frompkg_reacharound.py"
     planted.write_text(
@@ -561,11 +649,12 @@ def test_injected_from_package_import_module_is_flagged(tmp_path: Path) -> None:
     )
 
     hits = _find_inner_reacharounds(planted)
-    assert hits == [5], hits
+    assert [lineno for lineno, _ in hits] == [5], hits
+    assert hits[0][1] == "styleguides"
 
 
 def test_getattr_string_reach_around_is_flagged(tmp_path: Path) -> None:
-    """A4 widening: ``getattr(service, "_inner")`` reaches the same attribute.
+    """``getattr(service, "_inner")`` reaches the same attribute.
 
     A gate that only pattern-matches ``ast.Attribute`` with ``attr ==
     "_inner"`` is structurally blind to this one-line reach-around reopening.
@@ -585,11 +674,12 @@ def test_getattr_string_reach_around_is_flagged(tmp_path: Path) -> None:
     )
 
     hits = _find_inner_reacharounds(planted)
-    assert hits == [8], hits
+    assert [lineno for lineno, _ in hits] == [8], hits
+    assert hits[0][1] == "agent_profiles"
 
 
 def test_dunder_getattribute_reach_around_is_flagged(tmp_path: Path) -> None:
-    """A4 widening: ``object.__getattribute__(service, "_inner")`` also reds."""
+    """``object.__getattribute__(service, "_inner")`` also reds."""
     planted = tmp_path / "dunder_getattribute_reacharound.py"
     planted.write_text(
         "from specify_cli.doctrine_service_factory import (\n"
@@ -604,11 +694,12 @@ def test_dunder_getattribute_reach_around_is_flagged(tmp_path: Path) -> None:
     )
 
     hits = _find_inner_reacharounds(planted)
-    assert hits == [8], hits
+    assert [lineno for lineno, _ in hits] == [8], hits
+    assert hits[0][1] == "tactics"
 
 
 def test_dict_subscript_reach_around_is_flagged(tmp_path: Path) -> None:
-    """A4 widening: ``service.__dict__["_inner"]`` also reopens the reach-around."""
+    """``service.__dict__["_inner"]`` also reopens the reach-around."""
     planted = tmp_path / "dict_subscript_reacharound.py"
     planted.write_text(
         "from specify_cli.doctrine_service_factory import (\n"
@@ -623,15 +714,15 @@ def test_dict_subscript_reach_around_is_flagged(tmp_path: Path) -> None:
     )
 
     hits = _find_inner_reacharounds(planted)
-    assert hits == [8], hits
+    assert [lineno for lineno, _ in hits] == [8], hits
+    assert hits[0][1] == "mission_step_contracts"
 
 
 def test_getattr_on_untainted_receiver_is_not_flagged(tmp_path: Path) -> None:
     """True negative: ``getattr(x, "_inner")`` on an unrelated object is clean.
 
     Mirrors ``test_planted_unrelated_inner_attribute_is_not_detected`` for the
-    A4 getattr spelling specifically -- the widening must not become
-    overbroad.
+    getattr spelling specifically -- the widening must not become overbroad.
     """
     planted = tmp_path / "getattr_unrelated.py"
     planted.write_text(
