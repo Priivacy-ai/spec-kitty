@@ -169,7 +169,11 @@ class TestNoOrgPacksRegression:
         )
 
         service = build_activation_aware_doctrine_service(tmp_path)
-        inner_repo = service._inner.agent_profiles
+        # NFR-001 forbids ``._inner`` access outside ``src/charter/**``; use
+        # the public lineage/mutation accessor instead (same underlying
+        # ``AgentProfileRepository`` — see ``charter.resolver.DoctrineService
+        # .agent_profile_repository``'s docstring).
+        inner_repo = service.agent_profile_repository
         builtin_ids = {
             profile_id
             for profile_id in service.agent_profiles
