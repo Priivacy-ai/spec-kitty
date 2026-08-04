@@ -235,5 +235,61 @@
       "notes": "The capture-before-migration ordering SC-008 requires cannot be satisfied retroactively -- the original data is gone, not merely unverified. Distinguishing from NFR-005 (which the fresh landing-time A/B does satisfy): NFR-005 only needs proof the merged code doesn't regress p95 relative to the pre-mission commit, which that A/B provides; SC-008 additionally requires the capture to have happened before migration started, which did not happen and cannot be reconstructed. Marked fail rather than pending because the missing precondition is permanently unrecoverable, not pending future action."
     }
   ],
-  "negative_invariants": []
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "Zero direct AgentProfileRepository(...) construction outside charter.resolver.DoctrineService/its unified builder/the two composite-key-excluded .kittify/profiles sites/profile_resolution.py's bootstrap carve-out/projection.py's #3176-tracked gap (Gate 1, tests/architectural/test_charter_sole_door_agent_profile_repository.py; FR-001/NFR-001/SC-001).",
+      "verification_method": "custom_command",
+      "verification_command": "PWHEADLESS=1 uv run pytest tests/architectural/test_charter_sole_door_agent_profile_repository.py -q",
+      "result": "confirmed_absent",
+      "evidence": "18 passed (up from 17 at WP09 approval): landing-fold 06b437ce0 widened this gate to taint alias rebinds per scope rather than module-level only, closing a spot the original scan could not see.",
+      "verified_ref": "1c12609d0",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    },
+    {
+      "invariant_id": "NI-002",
+      "description": "Zero unwrapped raw doctrine.service.DoctrineService(...) construction outside charter.resolver.DoctrineService (Policy A, zero exclusions) and outside the 6 named wrap-conditional locality exclusions (Policy B) (Gate 2, tests/architectural/test_charter_sole_door_doctrine_service.py; FR-002/NFR-001/SC-001).",
+      "verification_method": "custom_command",
+      "verification_command": "PWHEADLESS=1 uv run pytest tests/architectural/test_charter_sole_door_doctrine_service.py -q",
+      "result": "confirmed_absent",
+      "evidence": "23 passed. Per-file gate counts re-measured in this fold across all 5 gates: agent_profile_repository=18, doctrine_service=23, resolver_imports=17, hardcoded_paths=16, inner_reacharound=15 -- combined 5-gate total is 89 tests, not the 71 previously cited in this matrix (recorded before several landing-pass gate-widening folds landed).",
+      "verified_ref": "1c12609d0",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    },
+    {
+      "invariant_id": "NI-003",
+      "description": "The 5-tier template/command resolver axis is reachable only through charter.resolver.DoctrineService's tier-axis methods from outside src/charter/**; the banned doctrine.resolver import is caught in its `from package import module` form, not just direct-attribute-access form (Gate 3, tests/architectural/test_charter_sole_door_resolver_imports.py; FR-003/SC-002).",
+      "verification_method": "custom_command",
+      "verification_command": "PWHEADLESS=1 uv run pytest tests/architectural/test_charter_sole_door_resolver_imports.py -q",
+      "result": "confirmed_absent",
+      "evidence": "17 passed. Landing-fold 81dfe0201 widened this gate to catch `from package import module` forms of the banned import, a spelling the original attribute-access AST scan missed.",
+      "verified_ref": "1c12609d0",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    },
+    {
+      "invariant_id": "NI-004",
+      "description": "Zero missions-root path hardcodes outside MissionTemplateRepository.default_missions_root(), including via .joinpath(...) construction and split-literal reassembly, not just literal string concatenation (Gate 4, tests/architectural/test_charter_sole_door_hardcoded_paths.py; FR-004/SC-003).",
+      "verification_method": "custom_command",
+      "verification_command": "PWHEADLESS=1 uv run pytest tests/architectural/test_charter_sole_door_hardcoded_paths.py -q",
+      "result": "confirmed_absent",
+      "evidence": "16 passed (up from 11 at WP06 approval). Landing-fold c258a079e widened the gate to `.joinpath(...)` construction, split-literal reassembly, and tainted-root propagation -- forms the original 11-test gate's direct-concatenation scan did not cover.",
+      "verified_ref": "1c12609d0",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    },
+    {
+      "invariant_id": "NI-005",
+      "description": "Zero ._inner attribute access on charter.resolver.DoctrineService outside src/charter/**, including tests/ (not just src/), and including getattr(...)/__dict__[...]/annotated-assign/object.__getattribute__ spellings, not just literal `.` attribute access (Gate 5, tests/architectural/test_charter_sole_door_inner_reacharound.py; FR-010/SC-005).",
+      "verification_method": "custom_command",
+      "verification_command": "PWHEADLESS=1 uv run pytest tests/architectural/test_charter_sole_door_inner_reacharound.py -q",
+      "result": "confirmed_absent",
+      "evidence": "15 passed (up from 6 at WP04 approval). Landing-fold d6fe34d2e added getattr/__dict__/annotated-assign reach-around detection; fold 82e18136e extended the gate's scanned surface to tests/ (previously src/-only) and removed a docstring line advertising the escape hatch it now closes. This widening is what caught the third ._inner site closed by fold c284ffe2e (src/specify_cli/cli/commands/profiles_cmd.py:117, object.__getattribute__(svc, \"_inner\")), invisible to the original gate.",
+      "verified_ref": "1c12609d0",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    }
+  ]
 }
