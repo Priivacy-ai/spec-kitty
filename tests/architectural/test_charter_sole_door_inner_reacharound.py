@@ -369,7 +369,7 @@ def _remedy_message(kind: str | None) -> str:
     if kind:
         return f'use `raw_repository("{kind}")`'
     return (
-        "use the `agent_profile_repository` accessor for agent-profiles "
+        "use the `agent_profile_repository` accessor for agent-profile "
         "lineage/provenance operations, or `raw_repository(kind)` naming "
         "YOUR specific gated kind -- never a blanket substitute for either"
     )
