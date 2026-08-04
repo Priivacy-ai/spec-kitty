@@ -2588,6 +2588,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/charter-sole-door-deferred-issues.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/doctrine/391-doctrine-usage-test.md
   tag: current
   divio_type: none
