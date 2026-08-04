@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01KZ5PRAH2YN2CTYM18TPT0T4Y",
+  "completed_at": "2026-08-04T06:30:21.429488+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "Triaged issues 3161,3162,3164,3165,3167-3174,3176: set native type, priority label, milestone 3.2.x, and parent epic link where applicable (per docs/development/manage-issue-tracker.md)."
+}
