@@ -227,6 +227,117 @@ class TestWarningLine:
 
 
 # ---------------------------------------------------------------------------
+# Header preservation on substitution (landing fold, origin 873832aa1) —
+# ``_enforce_token_budget`` used to hand the WHOLE ``section_block`` /
+# ``profile_block`` string to ``RenderedSection`` with ``header=""``, even
+# though each block's own first line IS its anchor header (e.g.
+# ``Profile-Cited Directives (<profile-id>):``). A budget-forced swap then
+# deleted the header along with the body it was meant to label — the
+# invariant this module's own ``RenderedSection.header`` docstring promises
+# ("the substitution algorithm never touches the header") did not hold for
+# either caller. These tests pin the fix at the unit level so the defect
+# cannot silently regress behind the (much slower) integration test that
+# first caught it.
+# ---------------------------------------------------------------------------
+
+
+class TestHeaderSurvivesSubstitution:
+    """A section whose body starts with its own header line keeps that
+    header after token-budget substitution."""
+
+    def test_single_header_body_keeps_header_after_swap(self) -> None:
+        from charter.context_renderers.token_budget import _enforce_token_budget
+
+        header_line = "Profile-Cited Directives (reviewer-renata):"
+        profile_block = header_line + "\n" + ("x" * 40_000)
+        text = "Preamble.\n\n" + profile_block
+
+        result = _enforce_token_budget(
+            text,
+            action="advise",
+            profile_block=profile_block,
+            section_block="",
+        )
+
+        # The block was big enough to force a swap...
+        assert "# Governance payload" in result
+        assert ("x" * 40_000) not in result
+        # ...but the anchor header line survived the swap verbatim.
+        assert header_line in result
+
+    def test_multi_kind_profile_block_keeps_every_populated_header(self) -> None:
+        """profile_block joins several kind-blocks (directives, tactics, ...);
+        ALL of their headers must survive, not just the first one swapped."""
+        from charter.context_renderers.token_budget import _enforce_token_budget
+
+        directives_header = "Profile-Cited Directives (reviewer-renata):"
+        tactics_header = "Profile-Cited Tactics (reviewer-renata):"
+        profile_block = "\n\n".join(
+            [
+                directives_header + "\n" + ("d" * 20_000),
+                tactics_header + "\n" + ("t" * 20_000),
+            ]
+        )
+        text = "Preamble.\n\n" + profile_block
+
+        # A tight budget forces BOTH kind-blocks to swap, not just the
+        # longer one — proving every populated header survives, not only
+        # whichever block happens to be picked first.
+        result = _enforce_token_budget(
+            text,
+            action="advise",
+            profile_block=profile_block,
+            section_block="",
+            budget=200,
+        )
+
+        assert "# Governance payload" in result
+        assert ("d" * 20_000) not in result
+        assert ("t" * 20_000) not in result
+        assert directives_header in result
+        assert tactics_header in result
+
+    def test_action_critical_section_block_keeps_outer_header_after_swap(
+        self,
+    ) -> None:
+        from charter.context_renderers.token_budget import _enforce_token_budget
+
+        header_line = "Action-Critical Charter Sections (implement):"
+        section_block = header_line + "\n" + ("y" * 40_000)
+        text = "Preamble.\n\n" + section_block
+
+        result = _enforce_token_budget(
+            text,
+            action="implement",
+            profile_block="",
+            section_block=section_block,
+        )
+
+        assert "# Governance payload" in result
+        assert ("y" * 40_000) not in result
+        assert header_line in result
+
+    def test_header_less_body_still_fully_substituted(self) -> None:
+        """A section with no separate header line (single-line body, the
+        RenderedSection.header='' by-design case) still swaps its ENTIRE
+        body — the header-preservation fix must not change this baseline."""
+        from charter.context_renderers.token_budget import _enforce_token_budget
+
+        body_only = "z" * 40_000
+        text = "Preamble.\n\n" + body_only
+
+        result = _enforce_token_budget(
+            text,
+            action="advise",
+            profile_block=body_only,
+            section_block="",
+        )
+
+        assert "# Governance payload" in result
+        assert body_only not in result
+
+
+# ---------------------------------------------------------------------------
 # Fetch stanza contract
 # ---------------------------------------------------------------------------
 
