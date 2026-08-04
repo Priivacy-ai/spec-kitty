@@ -114,7 +114,7 @@ def resolve_activated_org_profiles(repo_root: Path) -> list[ResolvedOrgProfile]:
 
     service = build_activation_aware_doctrine_service(repo_root)
     activated_profiles: dict[str, AgentProfile] = service.agent_profiles
-    inner_repository = service._inner.agent_profiles
+    inner_repository = service.agent_profile_repository
 
     resolved: list[ResolvedOrgProfile] = []
     for profile_id, profile in activated_profiles.items():
