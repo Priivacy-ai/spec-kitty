@@ -62,6 +62,21 @@ directs not re-asserting what an adjacent gate already proves:
 * **Target** — it bans ``doctrine.*`` broadly for runtime modules; this one bans
   the single ``doctrine.resolver`` module for everyone, including
   ``specify_cli`` modules that the other gate does not audit at all.
+
+A5 fix: ``from package import module`` also binds the guarded module
+------------------------------------------------------------------------
+Adversarial-review injection probes measured this gate at a 4/9 real catch
+rate. The dominant miss: ``from doctrine import resolver`` — in all three
+spellings (plain, aliased, function-local) — fully evaded the ban. For an
+``ast.ImportFrom`` the detector tested only ``node.module`` (``"doctrine"``);
+it never tried ``node.module + "." + alias.name``. But ``from doctrine import
+resolver`` binds the IDENTICAL module object as ``import doctrine.resolver``,
+and ``resolver.resolve_template(...)`` then re-opens the exact ungated second
+resolution path this gate exists to forbid. :func:`scan_file_resolver_imports`
+now extends its candidate dotted-name list with the package-qualified form for
+every ``ImportFrom`` name, closing all three spellings in one change (see
+:func:`test_injected_from_package_import_module_is_flagged` and
+:func:`test_injected_aliased_from_package_import_is_flagged`).
 """
 
 from __future__ import annotations
@@ -74,7 +89,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.architectural.test_charter_sole_door_agent_profile_repository import (
+from tests.architectural._sole_door_scan import (
     REPO_ROOT,
     SRC_ROOT,
     iter_source_files,
@@ -160,6 +175,14 @@ def scan_file_resolver_imports(path: Path, rel_path: str) -> list[ResolverImport
         if isinstance(node, ast.ImportFrom):
             if node.level == 0 and node.module:
                 dotted_names.append(node.module)
+                # A5 fix: ``from doctrine import resolver`` binds the
+                # identical module object as ``import doctrine.resolver`` —
+                # node.module alone ("doctrine") never matches the guarded
+                # "doctrine.resolver" target, so the imported NAME must also
+                # be tried as a dotted extension of the package it came from.
+                dotted_names.extend(
+                    f"{node.module}.{alias.name}" for alias in node.names
+                )
         elif isinstance(node, ast.Import):
             dotted_names.extend(alias.name for alias in node.names)
         else:
@@ -376,6 +399,55 @@ def test_injected_aliased_module_import_is_flagged(tmp_path: Path) -> None:
         s.describe() for s in sites
     ]
     assert sites[0].qualname == "<module>"
+    assert check_resolver_import_gate(tuple(sites))
+
+
+def test_injected_from_package_import_module_is_flagged(tmp_path: Path) -> None:
+    """A5 widening: ``from doctrine import resolver`` binds the identical module.
+
+    Measured injection-probe miss on Gate 3 (4/9 catch rate): for an
+    ``ast.ImportFrom`` the pre-fold detector tested only ``node.module``
+    (``"doctrine"``), never ``node.module + "." + alias.name``. ``from doctrine
+    import resolver`` binds the SAME module object as
+    ``import doctrine.resolver`` — ``resolver.resolve_template(...)`` then
+    re-opens the exact ungated second resolution path this gate exists to
+    forbid. Injected at function-local scope (NFR-003).
+    """
+    sites = _scratch(
+        tmp_path,
+        "src/specify_cli/regressed_frompkg.py",
+        "def resolve(mission):\n"
+        "    from doctrine import resolver\n"
+        "\n"
+        "    return resolver.resolve_template(mission)\n",
+    )
+    assert [s.qualname for s in sites] == ["resolve"], [
+        s.describe() for s in sites
+    ]
+    violations = check_resolver_import_gate(tuple(sites))
+    assert violations, "the gate must bite on a from-package module import"
+    assert "regressed_frompkg.py" in violations[0]
+    assert "resolve" in violations[0]
+
+
+def test_injected_aliased_from_package_import_is_flagged(tmp_path: Path) -> None:
+    """The from-package spelling cannot be laundered by an ``as``-alias either.
+
+    Same A5 vector as the plain-spelling sibling test, with
+    ``from doctrine import resolver as dr`` — the third of the "all three
+    spellings" A5 names (plain, aliased, function-local).
+    """
+    sites = _scratch(
+        tmp_path,
+        "src/specify_cli/regressed_frompkg_aliased.py",
+        "def resolve(mission):\n"
+        "    from doctrine import resolver as dr\n"
+        "\n"
+        "    return dr.resolve_template(mission)\n",
+    )
+    assert [s.qualname for s in sites] == ["resolve"], [
+        s.describe() for s in sites
+    ]
     assert check_resolver_import_gate(tuple(sites))
 
 
