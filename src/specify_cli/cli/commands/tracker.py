@@ -297,11 +297,22 @@ def _check_sync_readiness(*, is_sync_run: bool = False) -> None:
     """Provider-aware readiness gate for sync subcommands.
 
     Local providers (beads, fp) reach the sync command without going through
-    the SaaS surface at all: no auth token, no ``SPEC_KITTY_SAAS_URL``, no
-    reachability probe, no background daemon.  Their direct connectors handle
+    the SaaS *readiness* surface: no auth token, no ``SPEC_KITTY_SAAS_URL``,
+    no reachability probe, no background daemon.  Their direct connectors handle
     connectivity errors on their own.  For those bindings this helper is a
     no-op — the rollout gate is already enforced by :func:`tracker_callback`
     and the binding itself is the proof that setup is complete.
+
+    **This no longer means "without going through the SaaS surface at all"
+    (#3108).** ``LocalTrackerService.sync_pull``/``sync_push``/``sync_run``
+    each consult ``tracker_egress_verdict`` as the first executable statement
+    of their body, and that verdict's Channel 1 reaches the same hosted-sync
+    consent chain (``specify_cli.sync.consent`` / ``specify_cli.sync.routing``)
+    used elsewhere -- independently of whatever this helper decides. So "no
+    auth token, no reachability probe, no background daemon" still holds
+    (nothing here calls the SaaS HTTP client), but a local binding is no
+    longer entirely insulated from hosted-sync consent state: it is consulted
+    as one half of a two-channel join, not skipped.
 
     SaaS-backed (or unknown/unconfigured) bindings get the full readiness
     chain plus the manual-mode daemon-policy check.
@@ -318,6 +329,15 @@ def _check_binding_readiness(*, probe_reachability: bool = False) -> None:
     Mirrors :func:`_check_sync_readiness` without the daemon-policy step: used
     by ``status``, ``map add``, ``map list``, and ``unbind`` which require a
     binding to operate on but do not interact with the background sync daemon.
+
+    **Does not inherit :func:`_check_sync_readiness`'s corrected note about
+    ``tracker_egress_verdict`` and Channel 1 (#3108).** The commands this
+    helper gates construct no connector and run no subprocess -- ``status``
+    reaches ``load_tracker_config`` directly, and ``map add``/``map list``/
+    ``unbind`` are deliberately left ungated by the tracker-egress verdict
+    (only ``sync_pull``/``sync_push``/``sync_run`` consult it) -- so nothing
+    reachable through this helper touches the hosted-sync consent chain at
+    all, and the mirroring stops there.
     """
     if _is_local_binding():
         return
