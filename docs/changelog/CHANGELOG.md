@@ -312,6 +312,30 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **`decision widen` no longer lets one mission's decision travel under
+  another mission's identity (mission `egress-refusal-consolidation-3110`;
+  `#3111`).** Previously, ownership was resolved from whatever the decision
+  ledger it was handed reported rather than from the mission you actually
+  named, so a decision owned by mission A could be widened under a request
+  naming mission B and have the egress consent gate treat it as consented —
+  laundering A's identifying text out under B's team/token. Widening now
+  refuses whenever the acting mission and the decision's recorded owner
+  disagree. The governing rule: identity is a detector, never an actuator.
+- **The consent-refusal gate deciding whether project-identifying text may
+  leave your machine now has one definition site instead of two
+  near-identical copies that could drift apart (`#3110`).**
+  `saas_client/egress_consent.py` and `tracker/egress_consent.py` are
+  replaced by `src/specify_cli/egress.py`.
+- **Listing missions on Python 3.14 no longer reports a permission error as
+  "no missions found" (`#3177`).** An unreadable mission directory was
+  silently dropped instead of being recorded, so the CLI told you to `git
+  pull` for what was actually an `EACCES`. It now reports the directory as
+  unreadable; unaffected on the CLI's supported 3.11–3.13 interpreters.
+- **Internal: a stale docstring in the saas-client/egress invocation adapters
+  no longer claims re-registration only replaces a factory or resolver "when
+  the qualified name matches" (`#3109`).** Both always replaced
+  unconditionally; only the documentation was wrong, and only the control
+  flow used to reach the same assignment differed. Behavior is unchanged.
 - **The dashboard's Charter page no longer misreports a compiled-only project
   as having no charter (mission `doctrine-charter-split-unification`;
   `#3150`).** Before this fix, a project with a compiled
