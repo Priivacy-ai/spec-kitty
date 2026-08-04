@@ -111,8 +111,8 @@ The substitute-for-the-record's-own-project is what recurs. Found and closed so 
 | **a symlinked `<mission>/decisions/`** (or `decisions/index.json`) | *found in review of this mission, not in its design* |
 
 The last two are the sharpest evidence that the invariant is about provenance and not about types:
-both were reached through code written **specifically to prevent** #3111, and both reproduced
-#3111's request line verbatim — B's identifier, addressed to A's team, under A's token. With
+both were reached through code written **specifically to prevent** #3111, and both reproduced #3111's
+request line verbatim — B's identifier, addressed to A's team, under A's token. With
 `A/kitty-specs -> B/kitty-specs` the command exited 0 and put B's `decision_id` on the wire; the
 paired control (no symlink) refused with zero requests. `.resolve()` follows the link, so every
 downstream `is_relative_to(specs_root)` was measured against the *resolved target* and containment
