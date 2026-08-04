@@ -1,6 +1,12 @@
-"""Scope: #2711 merge rollback/resume coherence + duplicate ``done`` (WP02, red-first).
+"""Scope: #2711 merge rollback/resume coherence + duplicate ``done`` (WP02).
 
-ATDD-first (C-011) RED reproduction for #2711 / FR-002. On a coord-topology
+Formerly a red-first ``@pytest.mark.regression`` reproduction (ATDD-first,
+C-011); relocated here and un-marked (landing fold: make
+``@pytest.mark.regression`` mean exactly one thing) once the fix landed and
+this test started passing. #2711 is fixed — this is now a permanent guard,
+not a red-first pin.
+
+On a coord-topology
 mission, ``spec-kitty merge`` records the per-WP ``approved -> done`` transition
 on the coordination branch (``_record_merged_wps_done_for_merge`` ->
 ``_mark_wp_merged_done`` -> ``emit_status_transition_transactional`` ->
@@ -19,9 +25,9 @@ follow:
   SECOND ``done`` — the committed coordination ref then carries two ``done``
   events for the same WP.
 
-Both assertions are RED on the mission base and turn GREEN only when the
-rollback also reverts (or the resume de-duplicates) the committed coordination
-``done``.
+Both assertions were RED before the fix; the rollback now also reverts (and
+the resume de-duplicates) the committed coordination ``done``, so both are
+GREEN.
 
 Supersedes the retired ``tests/merge/test_merge_rollback_resume_ledger_2711.py``
 (upstream #2764): that test drove ``_restore_final_bookkeeping_snapshots`` (the
@@ -84,7 +90,7 @@ from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.merge.config import MergeStrategy
 from specify_cli.status import Lane, StatusEvent
 
-pytestmark = [pytest.mark.regression, pytest.mark.git_repo, pytest.mark.non_sandbox]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
 
 # ---------------------------------------------------------------------------

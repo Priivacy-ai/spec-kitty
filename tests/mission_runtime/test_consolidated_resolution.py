@@ -26,7 +26,7 @@ C-001/002/003/005, NFR-001/004). Covers:
 
 Fixtures build REAL git repos through the actual merge-time bookkeeping entry
 point (:func:`specify_cli.merge.baseline.record_baseline_merge_commit`),
-mirroring ``tests/regression/test_issue_3033_post_consolidation_write.py``
+mirroring ``tests/specify_cli/cli/commands/test_issue_3033_post_consolidation_write.py``
 (WP02) and ``tests/mission_runtime/test_lifecycle_phase.py`` (WP03 T008).
 """
 

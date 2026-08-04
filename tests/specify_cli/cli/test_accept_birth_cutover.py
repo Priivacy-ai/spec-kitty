@@ -41,13 +41,13 @@ from specify_cli.migration.runtime_state_cutover import (
 )
 
 # Cross-test-module reuse of private helpers is an established pattern in this
-# suite (e.g. ``tests/regression/test_birth_cutover.py``'s own docstring notes
+# suite (e.g. ``tests/migration/test_birth_cutover.py``'s own docstring notes
 # ``tests/merge/test_executor_coord_reconcile.py`` importing from
 # ``tests/regression/test_issue_2367_bake_strand.py``). Reused here rather than
 # re-deriving the exact real event-sourced claim/subtask-completion/approval
 # sequence the guard predicate (``_mission_carries_event_log_runtime``)
 # actually requires.
-from tests.regression.test_birth_cutover import (
+from tests.migration.test_birth_cutover import (
     _claim_real,
     _drive_claimed_through_approved,
     _mark_subtask_done,
@@ -113,7 +113,7 @@ def _build_accept_ready_mission(repo: Path) -> Path:
     legacy ``agent``/``shell_pid`` frontmatter) with its runtime driven
     ENTIRELY through the real event-sourced pipeline (seed planned, claim,
     subtask-completion, approval) -- the exact T042 shape
-    ``tests/regression/test_birth_cutover.py`` already proves produces
+    ``tests/migration/test_birth_cutover.py`` already proves produces
     genuine event-log evidence (``_mission_carries_event_log_runtime``) via
     the subtask-completion ``InnerStateChanged`` annotation, and satisfies
     ``_ACCEPTED_READY_LANES`` (``approved``/``done``).

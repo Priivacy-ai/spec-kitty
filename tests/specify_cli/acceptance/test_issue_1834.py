@@ -1,5 +1,10 @@
-"""Regression for issue #1834 — accept overwrites recorded negative-invariant
+"""Issue #1834 — accept overwrites recorded negative-invariant
 results by re-verifying against the PRE-MERGE primary tree.
+
+Formerly a red-first ``@pytest.mark.regression`` reproduction; relocated
+here and un-marked (landing fold: make ``@pytest.mark.regression`` mean
+exactly one thing) once the fix landed and this test started passing.
+#1834 is fixed — this is now a permanent guard, not a red-first pin.
 
 ``spec-kitty accept`` runs the acceptance-matrix gate. Its
 ``_evaluate_acceptance_matrix`` step re-executes every negative invariant's
@@ -40,19 +45,18 @@ from specify_cli.acceptance.matrix import (
     write_acceptance_matrix,
 )
 
-pytestmark = pytest.mark.regression
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="uses POSIX `test -f` custom_command")
 def test_accept_does_not_overwrite_recorded_invariant_against_premerge_tree(
     tmp_path: Path,
 ) -> None:
-    """NOTE:
-    RED-FIRST P0 reproduction of #1834 per ADR 2026-07-17-1
-    (docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md).
-    Intentionally FAILS until the product bug is fixed — a red mainline is the honest
-    signal of this release-blocking P0. Do NOT xfail/skip/quarantine to green; fix the
-    product. Tracking issue: #1834.
+    """Regression guard for the fixed #1834 defect (history, per ADR
+    2026-07-17-1:
+    docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md).
+    Was a RED-FIRST P0 reproduction; #1834 is now fixed and this test is a
+    permanent guard against the defect recurring.
     """
     # ``repo_root`` stands in for the PRE-MERGE primary tree: the mission's
     # changes (the added test suite) are NOT present here — they live on the

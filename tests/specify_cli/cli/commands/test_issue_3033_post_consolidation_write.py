@@ -1,14 +1,14 @@
-"""#3033 (P0) red-first repro: post-consolidation (E2) writes fail against a
+"""#3033 (P0): post-consolidation (E2) writes used to fail against a
 deleted Target Ref.
 
-Mission ``post-merge-write-authoring-finish-01KYRRM5`` WP02 (FR-003, C-006,
-SC-001/SC-002). This module authors ONLY the red-first pins -- **no product
-code is touched here**. Both pins assert the DESIRED (post-fix) outcome and
-are confirmed to FAIL on the current (pre-fix) tree, each for the documented
-reason (the HEAD-vs-ref guard / a structured refusal naming #3033), never an
-unrelated error. They are expected to flip GREEN once WP03/WP04 wire
-``TopologySurface.CONSOLIDATED`` write routing (FR-001..FR-004) -- this same
-test file, unmodified, is the acceptance evidence for that fix.
+Formerly a red-first ``@pytest.mark.regression`` reproduction (mission
+``post-merge-write-authoring-finish-01KYRRM5`` WP02, FR-003, C-006,
+SC-001/SC-002); relocated here and un-marked (landing fold: make
+``@pytest.mark.regression`` mean exactly one thing) once WP03/WP04 wired
+``TopologySurface.CONSOLIDATED`` write routing (FR-001..FR-004) and this
+module started passing. #3033 is fixed — this same test file, unmodified,
+is the acceptance evidence for that fix and is now a permanent guard, not a
+red-first pin.
 
 Terminology (binding, per spec.md "the ``merge`` footgun"):
 
@@ -74,7 +74,7 @@ from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.merge.baseline import record_baseline_merge_commit
 from specify_cli.mission_metadata import load_meta, write_meta
 
-pytestmark = [pytest.mark.regression, pytest.mark.git_repo, pytest.mark.non_sandbox]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
 runner = CliRunner()
 
@@ -359,23 +359,23 @@ def _build_e2_mission_coord(repo: Path) -> tuple[str, str, str]:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.regression
 def test_safe_commit_succeeds_for_primary_kind_write_on_e2_mission(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """#3033 red-first pin (T006 / SC-001 / C-006).
+    """Regression guard for the fixed #3033 defect (T006 / SC-001 / C-006).
 
-    Desired (post-fix) outcome: on a genuine E2 mission (consolidated then
-    published-to-trunk, Target Ref deleted), running the pre-existing
-    ``spec-kitty safe-commit`` on a classified PRIMARY artifact from the
-    repository-root checkout on the Primary Branch commits cleanly (exit 0).
+    On a genuine E2 mission (consolidated then published-to-trunk, Target Ref
+    deleted), running the pre-existing ``spec-kitty safe-commit`` on a
+    classified PRIMARY artifact from the repository-root checkout on the
+    Primary Branch commits cleanly (exit 0).
 
-    TODAY this FAILS: ``resolve_placement_only`` has no CONSOLIDATED wiring
-    yet (FR-001..003 land in WP03/WP04), so it still hands back the deleted
-    Target Ref for a PRIMARY-kind artifact -- both the seam-level resolution
-    and the CLI-level commit fail at exactly the HEAD-vs-ref guard C-006
-    names (``SafeCommitHeadMismatch``), never an unrelated error. This same
-    test, unmodified, is the SC-001 acceptance pin for WP04.
+    Was RED before the fix: ``resolve_placement_only`` had no CONSOLIDATED
+    wiring (FR-001..003, WP03/WP04), so it handed back the deleted Target Ref
+    for a PRIMARY-kind artifact -- both the seam-level resolution and the
+    CLI-level commit failed at exactly the HEAD-vs-ref guard C-006 names
+    (``SafeCommitHeadMismatch``), never an unrelated error. #3033 is now
+    fixed and this same test, unmodified, is the permanent SC-001 acceptance
+    guard.
     """
     monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
     monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
@@ -454,7 +454,6 @@ def test_safe_commit_succeeds_for_primary_kind_write_on_e2_mission(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.regression
 @pytest.mark.parametrize(
     ("kind", "entry_id"),
     [
@@ -466,23 +465,23 @@ def test_safe_commit_succeeds_for_primary_kind_write_on_e2_mission(
 def test_write_artifact_succeeds_for_coord_kind_write_on_e2_mission(
     tmp_path: Path, kind: MissionArtifactKind, entry_id: str
 ) -> None:
-    """#3033 red-first pin (T007 / SC-002).
+    """Regression guard for the fixed #3033 defect (T007 / SC-002).
 
-    Desired (post-fix) outcome: on a genuine E2 mission whose COORD topology
-    coordination branch has ALSO been retired, ``write_artifact`` for a
-    coord-partition kind (issue-matrix / tracer / acceptance-matrix) returns
-    a ``"committed"`` result on the CONSOLIDATED surface.
+    On a genuine E2 mission whose COORD topology coordination branch has
+    ALSO been retired, ``write_artifact`` for a coord-partition kind
+    (issue-matrix / tracer / acceptance-matrix) returns a ``"committed"``
+    result on the CONSOLIDATED surface.
 
-    TODAY this FAILS: the seam's unconditional coordination-surface probe
-    (``mission_runtime.resolution._assemble_core_fragments`` ->
-    ``_resolve_status_surface_dir`` -> ``resolve_status_surface``) raises
+    Was RED before the fix: the seam's unconditional coordination-surface
+    probe (``mission_runtime.resolution._assemble_core_fragments`` ->
+    ``_resolve_status_surface_dir`` -> ``resolve_status_surface``) raised
     ``CoordinationBranchDeleted`` (a ``StatusReadPathNotFound`` subclass),
     wrapped into ``ActionContextError`` and propagated out of
     ``resolve_placement_only`` -- the unroutable-target condition
-    ``write_seam.write_artifact`` maps to a zero-write ``"refused"`` result
-    that explicitly names #3033 in its diagnostic (asserted below, so the
-    red failure is legible as this exact condition, not an unrelated crash).
-    This same test, unmodified, is the SC-002 acceptance pin for WP04.
+    ``write_seam.write_artifact`` mapped to a zero-write ``"refused"``
+    result that explicitly named #3033 in its diagnostic (asserted below).
+    #3033 is now fixed and this same test, unmodified, is the permanent
+    SC-002 acceptance guard.
     """
     repo = tmp_path / "repo"
     mission_slug, target_branch, coordination_branch = _build_e2_mission_coord(repo)

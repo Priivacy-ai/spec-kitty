@@ -1,5 +1,10 @@
 """Executor coord-reconcile marker/heal integration tests (WP03, #2786 + #2367-B).
 
+Un-marked ``@pytest.mark.regression`` (landing fold: make
+``@pytest.mark.regression`` mean exactly one thing). This module is a
+PERMANENT integration test suite for the WP03 executor wiring, not a
+red-first P0 reproduction — it is expected to stay green.
+
 These cover the executor wiring WP03 adds on top of WP02's coordination
 primitives:
 
@@ -56,14 +61,14 @@ from tests.regression.test_issue_2786_revert_failure_split_brain import (
     _reduce_coord_lanes,
     _run_merge_with_target_and_revert_failing,
 )
-from tests.regression.test_issue_2711_merge_rollback_resume_coherence import (
+from tests.merge.test_issue_2711_merge_rollback_resume_coherence import (
     MISSION_ID as REVERT_MISSION_ID,
     WP_ID as REVERT_WP_ID,
     _bootstrap_coord_mission as _bootstrap_revert_mission,
     _init_git_repo as _init_revert_repo,
 )
 
-pytestmark = [pytest.mark.regression, pytest.mark.git_repo, pytest.mark.non_sandbox]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
 
 def _committed_status_events_blob(repo: Path) -> str:

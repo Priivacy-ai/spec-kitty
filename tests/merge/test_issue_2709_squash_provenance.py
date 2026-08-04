@@ -1,12 +1,17 @@
-"""Scope: #2709 red-first repro -- squash merge clobbers target-newer provenance.
+"""Scope: #2709 -- squash merge clobbers target-newer provenance.
 
-WP01 of ``merge-squash-provenance-and-rollback-coherence-01KXRRB7``. This is a
-TEST-ONLY red-first ATDD reproduction (FR-001, US1-S1, US2-S1, SC-001). It
-witnesses that the supported squash merge -- the real ``_run_lane_based_merge``
-with strategy ``SQUASH`` (which runs ``git merge --squash -X theirs
-<mission_branch>`` in ``lanes/merge.py::_merge_branch_into``) -- overwrites
-target-newer ``meta.json`` acceptance/VCS provenance and ``traces/*.md``
-sections with the older mission/coord-branch copy.
+Formerly a red-first ``@pytest.mark.regression`` reproduction (WP01 of
+``merge-squash-provenance-and-rollback-coherence-01KXRRB7``, a TEST-ONLY
+red-first ATDD reproduction, FR-001, US1-S1, US2-S1, SC-001); relocated here
+and un-marked (landing fold: make ``@pytest.mark.regression`` mean exactly
+one thing) once the fix landed and these tests started passing. #2709 is
+fixed — this module is now a permanent guard, not a red-first pin.
+
+It witnesses that the supported squash merge -- the real
+``_run_lane_based_merge`` with strategy ``SQUASH`` (which runs ``git merge
+--squash -X theirs <mission_branch>`` in ``lanes/merge.py::_merge_branch_into``)
+-- used to overwrite target-newer ``meta.json`` acceptance/VCS provenance and
+``traces/*.md`` sections with the older mission/coord-branch copy.
 
 ``meta.json`` has **no** registered merge driver, so ``-X theirs`` steers git's
 built-in text driver to favor the mission/coord branch on every conflicting
@@ -49,7 +54,7 @@ from tests.specify_cli.cli.commands.test_merge_coord_topology_1772 import (
 )
 
 pytestmark = [
-    pytest.mark.regression,
+    pytest.mark.integration,
     pytest.mark.git_repo,
     pytest.mark.non_sandbox,
 ]
@@ -132,11 +137,11 @@ def test_squash_merge_preserves_target_newer_meta_provenance(
     clobber target-newer ``meta.json`` acceptance/VCS provenance with the older
     coord-branch copy.
 
-    RED on the mission base: ``git merge --squash -X theirs`` reverts the
+    Was RED before the fix: ``git merge --squash -X theirs`` reverted the
     target-newer acceptance/VCS fields to the coord branch's older values
-    because ``meta.json`` carries no merge driver. GREEN only once a field-level
-    reconciler preserves target-authoritative provenance (FR-004, out of scope
-    for this test-only WP).
+    because ``meta.json`` carries no merge driver. #2709's field-level
+    reconciler now preserves target-authoritative provenance, and this test
+    is a permanent guard against the defect recurring.
     """
     _init_git_repo(tmp_path)
     feature_dir = _bootstrap_coord_mission(tmp_path)
@@ -262,10 +267,11 @@ def test_squash_merge_preserves_target_newer_trace_section(
     """#2709 / US2-S2: the squash merge must NOT drop a target-newer
     ``traces/*.md`` section.
 
-    RED on the mission base: append-only ``traces/*.md`` has no merge driver and
-    no dedup key, so ``-X theirs`` takes the coord copy and the target-newer
-    section is dropped. GREEN once a markdown-union contract preserves both
-    sides' sections (FR-003, out of scope for this test-only WP).
+    Was RED before the fix: append-only ``traces/*.md`` has no merge driver
+    and no dedup key, so ``-X theirs`` took the coord copy and the
+    target-newer section was dropped. #2709's markdown-union contract now
+    preserves both sides' sections, and this test is a permanent guard
+    against the defect recurring.
     """
     _init_git_repo(tmp_path)
     feature_dir = _bootstrap_coord_mission(tmp_path)

@@ -1,5 +1,10 @@
 """Focused coverage for the #2709 projection source-status fallback branch.
 
+Un-marked ``@pytest.mark.regression`` (landing fold: make
+``@pytest.mark.regression`` mean exactly one thing). This is a permanent
+branch-coverage test, not a red-first P0 reproduction — it is expected to
+stay green.
+
 ``_project_status_bookkeeping_to_target`` unions the coord and target event logs
 and rematerializes ``status.json`` from the union. When BOTH event logs are
 absent (union is ``None``) but the coordination worktree still carries a
@@ -19,14 +24,14 @@ import specify_cli.status  # noqa: F401  # import-order guard (see #2711 harness
 
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.merge.bookkeeping_projection import _project_status_bookkeeping_to_target
-from tests.regression.test_issue_2711_merge_rollback_resume_coherence import (
+from tests.merge.test_issue_2711_merge_rollback_resume_coherence import (
     MID8,
     MISSION_SLUG,
     _bootstrap_coord_mission,
     _init_git_repo,
 )
 
-pytestmark = [pytest.mark.regression, pytest.mark.git_repo, pytest.mark.non_sandbox]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
 
 def test_projection_copies_source_status_when_no_event_logs(tmp_path: Path) -> None:

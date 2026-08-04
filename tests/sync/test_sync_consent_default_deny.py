@@ -1,8 +1,10 @@
-"""P0 red-main pins for hosted-sync consent (#3031).
+"""Regression guard for the hosted-sync consent fix (#3031).
 
-These tests encode the invariants a confidentiality control must satisfy. They
-fail on ``main`` **by design**, per the honest-red-P0 policy (ADR 2026-07-17-1):
-a P0 that cannot be demonstrated failing is a P0 nobody can verify fixed.
+Formerly the RED-FIRST P0 reproduction (ADR 2026-07-17-1); now green and
+guarding the fix (the ``@pytest.mark.regression`` marker was removed once
+these tests passed — landing fold: make the marker mean exactly one thing).
+
+These tests encode the invariants a confidentiality control must satisfy.
 
 Background. A live incident delivered 1,322 events belonging to five projects
 that had never opted in to hosted sync, from a machine-global journal, to a
@@ -43,13 +45,7 @@ from specify_cli.sync.routing import (
     resolve_checkout_sync_routing_readonly,
 )
 
-# ``regression`` is the live index of open-P0 red-first reproductions: the
-# blocking ``regression tests`` CI job selects on it, and the marker is removed
-# once a pin goes green (see ``tests/delivery/test_poison_batch_2736.py``).
-# Without it this file's five reds — #3031's fail-open-default arm, i.e. the
-# arm behind the live 1,322-event leak — never appear in that index, leaving it
-# showing only a partial view of #3031.
-pytestmark = [pytest.mark.fast, pytest.mark.regression]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # A realistic owner/repo pair: consent must not depend on the slug looking
 # special, and this is the shape ``git_metadata.parse_repo_slug`` produces.

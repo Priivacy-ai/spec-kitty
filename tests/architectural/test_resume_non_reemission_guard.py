@@ -1,10 +1,17 @@
 """Class-closing guard (#2711 / FR-008 / SC-005): resume never re-emits an
 already-recorded ``done`` transition.
 
+Un-marked ``@pytest.mark.regression`` (landing fold: make
+``@pytest.mark.regression`` mean exactly one thing). This module is a
+PERMANENT behavioral guard, not a red-first P0 reproduction — it is
+expected to stay green as long as the resume non-re-emission invariant
+holds; see the module-level "Non-vacuity" note below for how the guard
+proves it is not a tautology without ever needing marker-visible red.
+
 This is the WP06 *property* guard that closes the "rollback leaves the ledger
 split-brain; ``--resume`` re-emits duplicate ``done`` transitions" defect class
 **by construction**, not by re-running the WP02 reproduction. It complements
-``tests/regression/test_issue_2711_merge_rollback_resume_coherence.py`` (WP02),
+``tests/merge/test_issue_2711_merge_rollback_resume_coherence.py`` (WP02),
 which drives the full merge executor with an injected target-advance failure:
 that test proves the end-to-end *outcome* on ONE fixed scenario. This guard
 instead pins the *invariant* the Option-A fix rests on — resume derives progress
@@ -249,7 +256,7 @@ def _completed_wps_variants(done_subset: tuple[str, ...]) -> list[list[str]]:
     return seen
 
 
-@pytest.mark.regression
+@pytest.mark.architectural
 @pytest.mark.parametrize(
     "done_subset", _representative_done_subsets(), ids=lambda s: "-".join(s) or "none"
 )

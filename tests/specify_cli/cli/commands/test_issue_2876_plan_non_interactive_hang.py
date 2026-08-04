@@ -1,14 +1,13 @@
-"""RED-FIRST P0 reproduction of #2876 — ``spec-kitty plan`` still emits an
-interactive prompt (and, in a real agent/CI harness with an open, un-closed
-stdin pipe, blocks forever on it) under ``SPEC_KITTY_NON_INTERACTIVE=1``.
+"""Issue #2876 — ``spec-kitty plan`` used to emit an interactive prompt (and,
+in a real agent/CI harness with an open, un-closed stdin pipe, block forever
+on it) under ``SPEC_KITTY_NON_INTERACTIVE=1``.
 
-Intentional red-first P0 reproduction. Tracking issue: #2876. Do NOT
-xfail/skip/quarantine this to green — fix the product (gate the widen
-interview's ``typer.prompt`` calls on the non-interactive contract so the
-command takes defaults or fails fast instead of prompting) and this test
-will turn green on its own.
+Formerly a red-first ``@pytest.mark.regression`` reproduction; relocated
+here and un-marked (landing fold: make ``@pytest.mark.regression`` mean
+exactly one thing) once the fix landed and this test started passing.
+#2876 is fixed — this is now a permanent guard, not a red-first pin.
 
-Defect (per the P0 report): under ``SPEC_KITTY_NON_INTERACTIVE=1`` — the
+Defect (per the P0 report, fixed): under ``SPEC_KITTY_NON_INTERACTIVE=1`` — the
 primary way agents/CI drive this tool, where stdin is closed or not a TTY —
 ``spec-kitty plan`` still reaches ``run_plan_interview``
 (``specify_cli.missions.plan.plan_interview.run_plan_interview``), which
@@ -61,7 +60,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.lifecycle import PLAN_WIDEN_QUESTIONS, plan
 
-pytestmark = [pytest.mark.regression, pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _app = typer.Typer()
 _app.command()(plan)
@@ -156,14 +155,11 @@ def test_plan_non_interactive_never_prompts_or_hangs_2876(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """NOTE:
-    RED-FIRST P0 reproduction of #2876. Intentionally FAILS until the product
-    bug is fixed: ``spec-kitty plan`` must never emit an interactive prompt
-    (and must never block on stdin) when ``SPEC_KITTY_NON_INTERACTIVE=1`` is
-    set — it should take defaults or fail fast instead. Do NOT xfail/skip/
-    quarantine to green; fix the product (gate ``run_plan_interview``'s
-    ``typer.prompt`` calls on the non-interactive contract). Tracking issue:
-    #2876.
+    """Regression guard for the fixed #2876 defect: ``spec-kitty plan`` must
+    never emit an interactive prompt (and must never block on stdin) when
+    ``SPEC_KITTY_NON_INTERACTIVE=1`` is set — it takes defaults or fails fast
+    instead. Was a RED-FIRST P0 reproduction; #2876 is now fixed and this
+    test is a permanent guard against the defect recurring.
     """
     monkeypatch.setenv("SPEC_KITTY_NON_INTERACTIVE", "1")
     _setup_repo(tmp_path)
