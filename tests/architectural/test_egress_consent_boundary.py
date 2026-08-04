@@ -543,12 +543,20 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
         kind=AllowanceKind.SEAM,
         inventory_id="E2",
         note=(
-            "FR-029. _request refuses via project_egress_refusal before the call. "
+            "FR-029. _request refuses via tracker_egress_verdict before the call. "
             "This is the path reached non-interactively during mission creation "
             "(core/mission_creation.py -> tracker/origin_consumer.py -> "
-            "bind_mission_origin), which needed no operator action to fire."
+            "bind_mission_origin), which needed no operator action to fire. "
+            "#3108 swapped the seam from project_egress_refusal to "
+            "tracker_egress_verdict(root, destination=HOSTED_SERVICE), which joins "
+            "the same hosted-sync consent chain (Channel 1) with the project's own "
+            "committed tracker.egress key (Channel 2) as a narrowing conjunct. The "
+            "exemption is strictly safer than before: Channel 1 still decides, and a "
+            "tracker.egress grant is a no-op here because this transport reaches "
+            "spec-kitty's own hosted service. Per FR-016 the Channel-1 refusal text "
+            "stays byte-identical to what #3030 shipped."
         ),
-        seam_symbol="project_egress_refusal",
+        seam_symbol="tracker_egress_verdict",
         seam_module="specify_cli/tracker/saas_client.py",
     ),
     "specify_cli/saas_client/client.py": Allowance(
