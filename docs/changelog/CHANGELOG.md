@@ -903,6 +903,27 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   gone), which is why the gap only showed mid-run — the same "broken precisely
   while running" shape as #2430.
 
+- **Agent context payloads no longer lose their `Profile-Cited Directives`
+  and `Tactics` anchors when the token budget trims a section (mission
+  `charter-sole-door-bypass-closure`).** When the token-budget algorithm
+  substituted a section for a shorter fetch-command stanza, it deleted the
+  section's own header line along with its body — so a governance payload
+  that ran over budget could silently lose the
+  `Profile-Cited Directives (<profile>):` and `Tactics:` anchors an agent
+  reading the payload needs to find the section it wants. The budget
+  algorithm now keeps each populated kind's header intact and swaps out only
+  its body.
+- **`spec-kitty agent tasks status` no longer silently degrades the board on
+  a malformed `.kittify/config.yaml` (mission
+  `charter-sole-door-bypass-closure`).** Previously, a broken activation
+  config (for example, `activated_agent_profiles` set to something other
+  than a list) was swallowed by a blanket exception handler, and the
+  command rendered a status board with no human-in-charge marker and no
+  indication anything was wrong. It now surfaces the underlying
+  `CharterPackConfigError` as a structured error instead of degrading
+  silently — you'll notice this as a new, explicit failure where the
+  command previously ran quietly with missing markers.
+
 ### ♻️ Changed
 
 - **Retrospective policy set in `charter.yaml` now takes precedence over
