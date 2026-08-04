@@ -658,9 +658,9 @@ AGENT_PROFILE_EXCLUSIONS: tuple[ContentDescriptor, ...] = (
         token_substring="AgentProfileRepository ( project_dir = project_dir )",
         occurrence=None,
         rationale=(
-            "ESCALATED C-002 FINDING, TRACKED FOLLOW-UP - NOT A PERMANENT "
-            "CARVE-OUT. The .kittify/agent_profiles project-overlay directory is "
-            "unreachable through the unified builder: the factory's inner "
+            "ESCALATED C-002 FINDING, TRACKED FOLLOW-UP AT #3176 - NOT A "
+            "PERMANENT CARVE-OUT. The .kittify/agent_profiles project-overlay "
+            "directory is unreachable through the unified builder: the factory's inner "
             "service derives its project directory from "
             "charter._doctrine_paths.resolve_project_root's three fixed "
             "candidates (.kittify/doctrine, src/doctrine, doctrine), and "

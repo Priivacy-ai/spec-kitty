@@ -83,6 +83,18 @@
       "title": "<fill at WP-implementation time>",
       "verdict": "deferred-with-followup",
       "wp": "WP10"
+    },
+    "#3176": {
+      "evidence_ref": "Root cause: build_activation_aware_doctrine_service exposes no parameter letting a caller retarget the inner DoctrineService's project-overlay directory to .kittify/agent_profiles (it is fixed to charter._doctrine_paths.resolve_project_root's three doctrine candidates), so projection.py:115's default_profile_repository() cannot migrate onto the factory without silently dropping project-overlay profiles (spec.md FR-001, WP02 escalation, C-002).",
+      "fr": "FR-001",
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "src/specify_cli/tool_surface/profiles/projection.py",
+      "title": "Charter sole door: build_activation_aware_doctrine_service cannot reach .kittify/agent_profiles, blocking projection.py's FR-001 migration",
+      "verdict": "deferred-with-followup",
+      "wp": "WP02"
     }
   },
   "schema_version": 1
