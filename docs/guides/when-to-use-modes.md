@@ -2,7 +2,7 @@
 title: When to use Spec-Kitty modes
 description: 'Choose the lightest Spec Kitty path for your work: no Spec Kitty, ad-hoc specialist session, adversarial squad review, or full mission pipeline.'
 doc_status: active
-updated: '2026-08-05'
+updated: '2026-08-06'
 related:
 - docs/guides/adhoc-specialist-session.md
 - docs/guides/missions-overview.md
@@ -46,7 +46,15 @@ Run adversarial review when an artifact is ready for challenge but you are not s
 
 Expect bookkeeping commits as the mission advances work packages. See [Understanding Spec Kitty Missions](missions-overview.md) and [Multi-agent workflow](multi-agent-workflow.md) for mission setup and parallel work.
 
-## Alternate visual
+## Alternate visuals
+
+### Corporate illustrated (raster)
+
+![When to use Spec-Kitty modes — corporate comics](../assets/images/when-to-use-modes-corporate-comics.png)
+
+![When to use Spec-Kitty modes — corporate memphis](../assets/images/when-to-use-modes-corporate-memphis.png)
+
+### Cyberpunk
 
 ![When to use Spec-Kitty modes — cyberpunk alternate](../assets/images/when-to-use-modes-cyberpunk.png)
 
