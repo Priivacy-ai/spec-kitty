@@ -312,6 +312,11 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **Commands run on a merged coordination mission no longer crash (`#3086`).**
+  Once a coordination mission was merged, later commands against it — creating a
+  retrospective, resuming implementation, or checking its status — failed
+  outright, and this hit every merged coordination mission. Merging now
+  finalizes the mission cleanly, so it stays usable afterward.
 - **`decision widen` no longer lets one mission's decision travel under
   another mission's identity (mission `egress-refusal-consolidation-3110`;
   `#3111`).** Previously, ownership was resolved from whatever the decision
