@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -249,7 +250,21 @@ def test_real_implement_and_review_claims_persist_structured_latest_binding(
             from_lane=Lane.IN_PROGRESS,
             to_lane=Lane.FOR_REVIEW,
             actor="claude",
-            at="2026-08-01T10:00:00+00:00",
+            # Stale-test fix (2026-08-05): this event's ``at`` must sort after
+            # the real ``datetime.now(UTC)`` timestamps that
+            # ``start_implementation_status`` just wrote above -- the
+            # reducer's transition fold is chronological (sorted by
+            # ``(at, event_id)``), so whichever event has the later
+            # timestamp wins as the WP's current lane. Originally hardcoded
+            # to a fixed "2026-08-01T10:00:00+00:00" (added 2026-07-21,
+            # #2816), which relied on the wall clock never reaching that
+            # date; once it did, this literal sorted *before* the
+            # just-recorded "now" events, resurrecting in_progress as the
+            # current lane and rejecting the subsequent
+            # ``start_review_status`` call. Anchoring to real "now" removes
+            # the wall-clock time bomb while preserving the test's intent
+            # (a later, real transition into for_review).
+            at=datetime.now(UTC).isoformat(),
         ),
     )
     review_actor = {
