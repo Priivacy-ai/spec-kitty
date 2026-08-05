@@ -457,6 +457,11 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_resolve_current_agent as _mt_resolve_current_agent,
     _mt_resolve_feedback as _mt_resolve_feedback,
     _mt_resolve_pre_review_workspace as _mt_resolve_pre_review_workspace,
+    # fix(review): the --reviewer resolution shared by the rejected
+    # review-cycle artifact's frontmatter and the structured ReviewResult
+    # derivation joins the family surface like every other native move-task
+    # def (the compat guard's superset invariant requires it).
+    _mt_resolve_reviewer_identity as _mt_resolve_reviewer_identity,
     _mt_resolve_targets as _mt_resolve_targets,
     _mt_review_config_section as _mt_review_config_section,
     _mt_run_decision as _mt_run_decision,
