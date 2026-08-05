@@ -336,6 +336,19 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   the qualified name matches" (`#3109`).** Both always replaced
   unconditionally; only the documentation was wrong, and only the control
   flow used to reach the same assignment differed. Behavior is unchanged.
+- **`UnknownMissionTypeError` no longer labels an activated mission type both
+  "unknown" and "registered" (mission
+  `doctrine-consumer-surface-missions-extraction`; `#3183`).** When a mission
+  type is activated but has no loadable profile, the error now states that
+  distinctly, instead of the contradictory "Unknown mission type '<x>'.
+  Registered types: <x>".
+- **The built-in-doctrine dead-path architectural gates no longer silently lose
+  coverage when a gate file is split, and the shipped `doctrine-daphne` profile
+  no longer carries a repo-local `src/doctrine/graph.yaml` reference (mission
+  `doctrine-consumer-surface-missions-extraction`; `#3036`, `#3182`).** The
+  `src/`-wide gates and the doctrine-content gate are split by actual scope with
+  their discriminator proofs driven from planted synthetic fixtures, and the
+  relocated-tree cross-link scan now covers both shipped roots.
 - **The dashboard's Charter page no longer misreports a compiled-only project
   as having no charter (mission `doctrine-charter-split-unification`;
   `#3150`).** Before this fix, a project with a compiled
@@ -957,6 +970,26 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ♻️ Changed
 
+- **Built-in mission data now ships under `packs/built-in/missions/`, alongside
+  every other built-in doctrine kind (mission
+  `doctrine-consumer-surface-missions-extraction`; `#3091`).** The mission-type
+  profiles, step prompts, step contracts, and per-type content that previously
+  lived embedded in the `doctrine` Python package at `src/doctrine/missions/`
+  now resolve from the shippable `packs/built-in/missions/` location; the 11
+  `.py` logic modules stay in place as an ordinary package. Every reader —
+  across kernel, doctrine, charter, `specify_cli`, and the upgrade migrations —
+  was repointed in one atomic change, and mission-asset resolution now targets
+  the pack location explicitly so it can no longer silently fall back to the
+  (now data-less) package directory in a built/wheel layout. No user action is
+  required: `spec-kitty init` and mission resolution behave exactly as before,
+  and the regenerated DRG graph fragments are byte-identical.
+- **Mission-asset resolution is now a single doctrine-agnostic kernel primitive
+  (mission `doctrine-consumer-surface-missions-extraction`; `#3091`).** The
+  kernel's built-in-content lookup no longer hard-codes the `doctrine` package
+  name or mission-type vocabulary; `doctrine/pack_paths.py` and
+  `MissionTemplateRepository.default_missions_root()` converge onto that one
+  primitive, guarded by a kernel-scoped architectural test that fails on any
+  reintroduced `kernel → doctrine` edge.
 - **Retrospective policy set in `charter.yaml` now takes precedence over
   `charter.md` frontmatter (mission `doctrine-charter-split-unification`).**
   If both files configure retrospective behaviour and they disagree, the
