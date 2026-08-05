@@ -414,6 +414,22 @@ class ReviewOverride:
         """True only when all four fields are non-empty."""
         return bool(self.at and self.actor and self.wp_id and self.reason)
 
+    @property
+    def is_release_sentinel(self) -> bool:
+        """True only when ALL four fields are empty.
+
+        This is the narrow "release" shape ``_mt_emit_runtime_state`` emits on
+        a ``--to planned`` rollback to explicitly clear a stale override (see
+        the reducer's ``_apply_annotation_delta`` docstring). It is
+        deliberately narrower than ``not complete``: a *partially*-filled
+        override (e.g. ``at``/``actor``/``wp_id`` present but a blank
+        ``reason``, #2684 WP09) is incomplete but NOT a release sentinel — it
+        must still be persisted in the snapshot (so its non-completeness keeps
+        blocking the merge gate) rather than silently discarded as if no
+        override attempt had ever been recorded.
+        """
+        return not (self.at or self.actor or self.wp_id or self.reason)
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "at": self.at,
