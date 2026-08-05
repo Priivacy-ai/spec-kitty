@@ -96,10 +96,10 @@ _FORBIDDEN_IMPORT_ROOTS = frozenset({"doctrine", "specify_cli"})
 #: the schemas themselves out of ``doctrine``, or injecting the resolved root
 #: from a caller above kernel) is a deferred design decision -- NOT resolved
 #: by this gate. Exempted here (not silently fixed, not hidden by weakening
-#: the gate) so the gate stays non-vacuous for *new* violations. There is no
-#: tracked follow-up issue for the full decoupling as of this gate's
-#: hardening; do not widen this set for any file this WP or a future one
-#: actually owns.
+#: the gate) so the gate stays non-vacuous for *new* violations. Full
+#: decoupling is tracked as Follow-up: #3206 (retire these two exemptions once
+#: the schemas are relocated or the root is injected); do not widen this set
+#: for any file this WP or a future one actually owns.
 _PRE_EXISTING_EXEMPTIONS = frozenset(
     {
         ("kernel/schema_utils.py", 88),
