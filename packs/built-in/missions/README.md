@@ -24,10 +24,12 @@ Each mission directory contains:
 
 ## Python Utilities
 
-This directory also contains shared mission primitives:
-
-- `primitives.py` — `PrimitiveExecutionContext` dataclass with glossary middleware fields
-- `glossary_hook.py` — `execute_with_glossary()` for wiring glossary checks into mission execution
+The mission **logic modules** are **not** in this directory — this pack ships mission
+**data** only (`mission.yaml`, prompts, templates, step contracts). The Python modules
+(`primitives.py` with `PrimitiveExecutionContext`, `glossary_hook.py` with
+`execute_with_glossary()`, `repository.py`, and the other 8 logic modules) live in the
+`doctrine` package at `src/doctrine/missions/` and read this data at runtime; a pack tree
+cannot host a Python package.
 
 ## Glossary Reference
 
