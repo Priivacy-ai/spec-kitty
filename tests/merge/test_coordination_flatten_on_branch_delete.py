@@ -1,28 +1,28 @@
-"""Red-first reproduction for issue #3086.
+"""Regression guard for issue #3086 (fixed): merge flattens coordination metadata.
 
 ``spec-kitty merge --delete-branch`` (the default) deletes a Mission's
 coordination branch (``kitty/mission-<slug>``) from git inside
-``_phase_cleanup_worktrees_and_branches``, but never clears the paired
-``coordination_branch`` key from that Mission's ``kitty-specs/<slug>/meta.json``.
-Every successfully-merged Mission is therefore left permanently divergent:
-``meta.json`` declares a ``coordination_branch`` that git no longer has. Any
-later command routing through ``resolve_status_surface_with_anchor``
-(``coordination/surface_resolver.py``) then hits ``CoordState.DELETED`` and
-raises ``CoordinationBranchDeleted`` — confirmed hard-crash on
-``retrospect create --update``, ``agent retrospect`` and ``implement``.
+``_phase_cleanup_worktrees_and_branches``. Before the #3086 fix it left the
+paired ``coordination_branch`` key in that Mission's
+``kitty-specs/<slug>/meta.json``, so every merged coordination Mission was left
+divergent — ``meta.json`` named a ``coordination_branch`` git no longer had —
+and any later command routing through ``resolve_status_surface_with_anchor``
+(``coordination/surface_resolver.py``) hit ``CoordState.DELETED`` and raised
+``CoordinationBranchDeleted`` (``retrospect create --update``, ``agent
+retrospect``, ``implement``).
 
-Red-first note: on current ``main`` this test FAILS. After the branch-deletion
-phase runs, ``meta.json`` still contains ``coordination_branch`` (and
-``flattened`` is still ``False``, ``topology`` still present). It goes green
-only when merge's teardown mirrors the canonical *flatten* already performed by
-``spec-kitty mission close --discard`` and ``spec-kitty doctor coordination
---fix``: ``clear_coordination_metadata`` (``mission_metadata.py``) + pop
-``topology`` + set ``flattened=True`` (see ``_coordination_doctor.py``).
+The fix makes the branch-delete gate mirror the canonical flatten already
+performed by ``spec-kitty mission close --discard`` and ``spec-kitty doctor
+coordination --fix``: clear ``coordination_branch`` + pop ``topology`` + set
+``flattened=True``. These tests are the permanent guard that the flatten stays
+wired; they graduated out of ``tests/regression/`` when the fix landed.
 
-The anchor assertion is the *absence of* ``coordination_branch`` — the invariant
-``surface_resolver`` actually keys the ``CoordState.DELETED`` hard-fail on — so
-this repro cannot be greened by a downstream point-guard (e.g. adding an
-``except`` to ``retrospect.py``) while the root-cause divergence remains.
+The primary case anchors on the *absence of* ``coordination_branch`` — the
+invariant ``surface_resolver`` keys its ``CoordState.DELETED`` hard-fail on — so
+it cannot be satisfied by a downstream point-guard while the root-cause
+divergence remains, and it asserts the flatten is committed (clean tree), not
+merely written to the working tree. The companion case pins the idempotent
+no-op for a non-coord Mission.
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ from specify_cli.merge import executor as ex
 from specify_cli.merge.state import MergeState
 from specify_cli.mission_metadata import load_meta
 
-pytestmark = [pytest.mark.regression, pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 # Production-shaped identity (26-char ULID); ``mid8`` is the branch/worktree
 # disambiguator, slug is ``<human>-<mid8>`` per the mission-identity model.
@@ -159,10 +159,10 @@ def test_issue_3086_merge_delete_branch_flattens_coordination_metadata(
         "cleanup did not delete the coordination branch — fixture/wiring error"
     )
 
-    # ANCHOR (red on current main): after deleting the coordination branch from
-    # git, merge MUST clear ``coordination_branch`` from meta.json so the Mission
-    # is flattened and later status-surface resolves route to primary instead of
-    # raising CoordinationBranchDeleted. Read fresh from disk.
+    # ANCHOR: after deleting the coordination branch from git, merge MUST clear
+    # ``coordination_branch`` from meta.json so the Mission is flattened and later
+    # status-surface resolves route to primary instead of raising
+    # CoordinationBranchDeleted. Read fresh from disk.
     meta = load_meta(feature_dir)
     assert meta is not None
     assert "coordination_branch" not in meta, (
