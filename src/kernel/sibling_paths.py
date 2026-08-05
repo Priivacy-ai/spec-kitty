@@ -92,11 +92,45 @@ def _first_match(root: Path, pattern: str) -> Path | None:
     ``pattern`` may be a plain relative path (no wildcards), in which case this
     behaves as a simple existence check, or contain glob wildcards to express
     "any sibling with this shape" generically.
+
+    Called once per ancestor by the bounded walk below; ``root`` differs on
+    every call, so the glob cannot be shared or cached across ancestors --
+    re-globbing per ancestor is inherent to the algorithm, not avoidable
+    overhead, and the walk's own bound (``_MAX_HOPS_PAST_BOUNDARY`` /
+    ``_MAX_ANCESTORS_WITHOUT_BOUNDARY``) already caps how many times this
+    runs per call.
     """
     if not root.is_dir():
         return None
     matches = sorted(candidate for candidate in root.glob(pattern) if candidate.is_dir())
     return matches[0] if matches else None
+
+
+#: Ancestor-directory names that mark a recognizable package/installation
+#: boundary: a dev checkout's ``src/`` layout root, or a virtualenv's/wheel's
+#: site-packages-equivalent directory. Domain-agnostic by construction --
+#: these are generic filesystem conventions, never a specific package name.
+_BOUNDARY_ANCESTOR_NAMES = frozenset({"src", "site-packages", "dist-packages"})
+
+#: Extra ancestor hops permitted past a recognized boundary before the walk
+#: gives up. A dev checkout's repository root -- where a force-included
+#: sibling tree such as ``packs/`` actually lives -- sits ONE level above
+#: ``src/`` itself, so the boundary plus one more hop covers it. An installed
+#: wheel's force-included sibling is a direct child of site-packages,
+#: matching AT the boundary itself (zero extra hops needed).
+_MAX_HOPS_PAST_BOUNDARY = 1
+
+#: Fail-safe cap when no recognized boundary name is ever seen in the
+#: ancestry (an unusual anchor location). Bounds the walk to a small, fixed
+#: number of ancestors -- generous headroom above the depth-2 maximum every
+#: real layout and caller in this codebase requires (see
+#: ``tests/kernel/test_paths.py`` and ``tests/doctrine/test_pack_root_resolver.py``)
+#: -- so a broken install fails closed within a few hops instead of silently
+#: climbing toward the filesystem root and matching an unrelated directory
+#: several levels up (the primitive's own contract,
+#: ``kernel-resolution-primitive.md`` step 4: "never fall back to an
+#: arbitrary tree").
+_MAX_ANCESTORS_WITHOUT_BOUNDARY = 4
 
 
 def resolve_installed_sibling(
@@ -118,6 +152,15 @@ def resolve_installed_sibling(
     :param sibling_relative_path: The relative shape being sought (e.g.
         ``PurePosixPath("packs/built-in")``); may contain glob wildcards.
     :raises SiblingPathNotFound: when no candidate resolves to a directory.
+
+    Bounded walk: the ancestor walk stops within a small, fixed number of
+    hops (see ``_BOUNDARY_ANCESTOR_NAMES``, ``_MAX_HOPS_PAST_BOUNDARY``, and
+    ``_MAX_ANCESTORS_WITHOUT_BOUNDARY`` below) rather than climbing all the
+    way to the filesystem root. This preserves the documented resolution for
+    real editable-checkout and installed-wheel layouts (both match within 1-2
+    ancestors of a recognized ``src``/``site-packages`` boundary) while
+    failing closed on a broken install instead of matching an unrelated
+    directory several levels up an unrelated parent tree.
     """
     if env_override is not None and env_override.is_dir():
         return env_override
@@ -125,6 +168,8 @@ def resolve_installed_sibling(
     pattern = sibling_relative_path.as_posix()
 
     anchor = anchor_file.resolve()
+    hops_past_boundary: int | None = None
+    ancestors_without_boundary = 0
     for ancestor in anchor.parents:
         # This walk alone covers both the editable-checkout case (a src/
         # ancestor holding a sibling package) and the installed-wheel case:
@@ -134,5 +179,16 @@ def resolve_installed_sibling(
         ancestor_candidate = _first_match(ancestor, pattern)
         if ancestor_candidate is not None:
             return ancestor_candidate
+
+        if hops_past_boundary is not None:
+            hops_past_boundary += 1
+            if hops_past_boundary > _MAX_HOPS_PAST_BOUNDARY:
+                break
+        elif ancestor.name in _BOUNDARY_ANCESTOR_NAMES:
+            hops_past_boundary = 0
+        else:
+            ancestors_without_boundary += 1
+            if ancestors_without_boundary >= _MAX_ANCESTORS_WITHOUT_BOUNDARY:
+                break
 
     raise SiblingPathNotFound(sibling_relative_path, anchor_file)

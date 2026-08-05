@@ -187,15 +187,15 @@ def get_package_asset_root() -> Path:
        pattern would self-match the now data-less ``src/doctrine/missions``
        package directory post-relocation.
 
-    Trade-off: the ancestor walk in step 2 has no stop condition and climbs
-    all the way to the filesystem root, so on a broken install it could in
-    principle match an unrelated ``<ancestor>/packs/built-in/missions``
-    several levels up rather than failing closed immediately. Bounded in
-    practice -- real layouts (editable checkout or installed wheel) match at
-    ancestor depth 1-2 -- and this function has a single production consumer
-    (:mod:`charter.catalog`), so a stop condition was judged not worth the
-    added edge-case risk; see :mod:`kernel.sibling_paths`'s module docstring
-    for the walk itself.
+    The ancestor walk in step 2 is bounded: it stops within a small, fixed
+    number of hops of a recognized ``src``/``site-packages`` boundary (or,
+    absent one, after a small fixed number of ancestors) rather than
+    climbing all the way to the filesystem root -- so a broken install fails
+    closed instead of matching an unrelated ``<ancestor>/packs/built-in/missions``
+    several levels up. Real layouts (editable checkout or installed wheel)
+    match at ancestor depth 1-2, comfortably inside the bound; see
+    :mod:`kernel.sibling_paths`'s ``resolve_installed_sibling`` docstring for
+    the walk itself and its stop-condition constants.
 
     Returns:
         Path: Absolute path to the missions directory.

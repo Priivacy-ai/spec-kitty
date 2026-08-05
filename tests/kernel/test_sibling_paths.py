@@ -399,6 +399,40 @@ class TestFailClosed:
                 sibling_relative_path=PurePosixPath("*") / nonce,
             )
 
+    def test_broken_install_without_a_recognizable_boundary_fails_closed(
+        self, tmp_path: Path
+    ) -> None:
+        """Bounded walk: an unrelated match several ancestors up is NOT climbed to.
+
+        Simulates a broken install whose anchor sits under a chain of
+        ordinary (non-``src``/``site-packages``/``dist-packages``-named)
+        directories -- no recognizable package/installation boundary
+        anywhere in its ancestry. An unrelated directory matching the sought
+        pattern exists several levels further up the tree (beyond the
+        primitive's fail-safe cap of ``_MAX_ANCESTORS_WITHOUT_BOUNDARY``
+        ancestors). Before the bounded stop-condition, the unbounded walk
+        would keep climbing past the anchor's own package structure and
+        return this unrelated match -- exactly the "arbitrary tree" the
+        primitive's own contract (kernel-resolution-primitive.md, step 4)
+        forbids returning. The bounded walk must fail closed instead.
+        """
+        anchor = (
+            tmp_path / "alpha" / "beta" / "gamma" / "delta" / "epsilon" / "kernel" / "module.py"
+        )
+        anchor.parent.mkdir(parents=True)
+        # Matches "*/missions" when checked from tmp_path/alpha/beta -- five
+        # ancestor hops above the anchor's own containing directory, well
+        # past the fail-safe cap.
+        unrelated = tmp_path / "alpha" / "beta" / "x" / "missions"
+        unrelated.mkdir(parents=True)
+
+        with pytest.raises(SiblingPathNotFound):
+            resolve_installed_sibling(
+                anchor_file=anchor,
+                env_override=None,
+                sibling_relative_path=PurePosixPath("*") / "missions",
+            )
+
 
 # ---------------------------------------------------------------------------
 # MissionsRootNotFound — the fail-closed path in a real consumer
