@@ -382,21 +382,28 @@ test_reference_enum_ratchet:
 # adding a file requires this diff plus a `# justification:` naming why the
 # sink carries no project data, or why its consent seam is sound.
 test_egress_consent_boundary:
-  # justification: 28 files hold a transmit primitive with a recorded reason —
+  # justification: 27 files hold a transmit primitive with a recorded reason —
   # 12 gated by a named consent seam on the data's own project_uuid (E1/E2/E3
   # and E6-E13), 1 per-project transport whose every caller is separately
-  # seamed (E14), 1 unreachable retired drain pinned by
-  # tests/sync/test_no_queue_drain_constructed_3030.py (E15), and 14 that are
+  # seamed (E14), and 14 that are
   # not project egress at all — auth/OAuth token traffic, the doctrine fetch,
   # the readiness probe, four localhost control endpoints and `sync doctor`'s
   # empty-body connectivity probe (E18). Each was verified individually, not
-  # assumed. 27 -> 28: the callee-agnostic injected-transport rule (added after
+  # assumed. 12 + 1 + 14 = 27. Earlier, 27 -> 28: the callee-agnostic
+  # injected-transport rule (added after
   # E20 showed a `poster(...)` parameter is invisible to any method-name rule)
   # surfaced cli/commands/sync.py, which calls request_with_fallback_sync
   # rather than requests.post. That is the gate finding a file nobody had
   # reasoned about, which is its purpose — not a new leak.
+  # 28 -> 27 (#3167): E15, the UNREACHABLE allowance for the queue-backed drain
+  # in sync/batch.py, was RETIRED — the drain was deleted rather than gated, so
+  # the module holds zero transmit primitives and is no longer on the allowlist
+  # at all. This ratchet is shrink-only (growth fails, shrinkage merely warns),
+  # so leaving it at 28 would have silently held the ceiling one free
+  # unconsented-egress file too high. That is the drift #3167 exists to close,
+  # which is why the count is corrected here even though nothing reds on it.
   # Growth here means a new file transmits: argue it in the diff.
-  egress_allowlist_files: 28
+  egress_allowlist_files: 27
   # justification: 0. The module asserts this set is EMPTY, so any entry is a
   # red build; pinning the baseline at 0 makes recording one cost a second
   # visible diff here as well. Growth is a NEW unconsented egress path — the

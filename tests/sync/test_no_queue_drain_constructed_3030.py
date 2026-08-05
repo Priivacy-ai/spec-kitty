@@ -12,10 +12,30 @@ anything, so it cannot be satisfied by a stub: any production module that
 imports or calls ``batch_sync``/``sync_all_queued_events`` fails it, as does
 re-adding either name to the ``specify_cli.sync`` public API.
 
-Deliberately *not* asserted: references inside ``sync/batch.py`` itself, where
-the two functions are defined and one calls the other. Both are unreachable from
-production, so those are dead-to-dead references. Retiring the implementations
-outright belongs to the work package that already opens ``batch.py`` for FR-014.
+Strengthened for #3167, because the deletion made the green vacuous
+--------------------------------------------------------------------
+``#3167`` deleted the two functions themselves. **Nothing can import a name that
+does not exist**, so from that commit on this file passed for a reason that no
+longer discriminates: a scanner that returned ``[]`` unconditionally, or one
+pointed at an empty directory, would look exactly as green. ``NFR-004`` promises
+this guarantee never *decreases*, and a vacuous green is a decrease — so two
+things changed here rather than nothing:
+
+* ``test_scanner_flags_a_synthetic_reintroduction`` is the positive control the
+  sibling permanence guard (``tests/architectural/test_batch_drain_retired_3167.py``)
+  already carries. It feeds ``_offending_references`` a **synthetic source string**
+  holding ``from .batch import batch_sync`` plus a call, and requires both to be
+  flagged — and a near-identical clean source to be flagged not at all. The
+  string is parsed in memory and never written to ``src/``.
+* The ``sync/batch.py`` self-exclusion is **gone**. It existed because the two
+  functions were *defined* there and one called the other, making those
+  references dead-to-dead. With the definitions deleted the carve-out no longer
+  excuses anything — it just leaves ``batch.py`` as the single file in the tree
+  where re-adding a sender *together with* a caller would be invisible to this
+  gate, which is the exact shape of the bypass ``#3167`` removed.
+
+``test_the_scan_is_non_vacuous`` prints the scanned-module input count, so an
+"all checks passed" here can never be confused with a gate that ran on nothing.
 """
 from __future__ import annotations
 
@@ -28,8 +48,33 @@ pytestmark = [pytest.mark.fast]
 
 RETIRED_DRAIN_NAMES = frozenset({"batch_sync", "sync_all_queued_events"})
 
-# The module that defines them; its internal references are dead-to-dead.
-_DEFINING_MODULE = Path("specify_cli/sync/batch.py")
+#: The module the two senders used to live in. It is scanned like every other
+#: module: #3167 deleted the definitions, so there is no longer any dead-to-dead
+#: reference here to excuse, and excluding it would leave exactly one file where a
+#: reintroduced sender *plus* its caller passes this gate unseen.
+_FORMER_DEFINING_MODULE = "specify_cli/sync/batch.py"
+
+#: POSITIVE CONTROL subject. Parsed in memory, never written to ``src/``: source
+#: reproducing the reintroduction this file exists to catch — the import form and
+#: the call form, which are the two node kinds ``_offending_references`` matches.
+_SYNTHETIC_REINTRODUCTION = """\
+from .batch import batch_sync
+
+
+def _drain_the_queue(queue) -> None:
+    batch_sync(queue)
+"""
+
+#: The same shape routed through the journal dispatcher instead. Structurally
+#: identical (one relative import, one call) so a scanner that flagged *everything*
+#: — the other way to fake a green here — reds on this half of the control.
+_SYNTHETIC_CLEAN = """\
+from .delivery.dispatcher import dispatch_pending
+
+
+def _drain_the_queue(queue) -> None:
+    dispatch_pending(queue)
+"""
 
 
 def _src_root() -> Path:
@@ -39,12 +84,7 @@ def _src_root() -> Path:
 
 
 def _production_modules() -> list[Path]:
-    root = _src_root()
-    return [
-        path
-        for path in sorted(root.rglob("*.py"))
-        if path.relative_to(root) != _DEFINING_MODULE
-    ]
+    return sorted(_src_root().rglob("*.py"))
 
 
 def _offending_references(tree: ast.AST) -> list[str]:
@@ -69,6 +109,64 @@ def _offending_references(tree: ast.AST) -> list[str]:
                 found.append(f"line {node.lineno}: calls {name}")
 
     return found
+
+
+def test_scanner_flags_a_synthetic_reintroduction() -> None:
+    """POSITIVE CONTROL (#3167, NFR-004): the scanner still bites.
+
+    ``#3167`` deleted ``batch_sync`` and ``sync_all_queued_events``, so
+    ``test_no_production_module_constructs_the_queue_backed_drain`` below can no
+    longer fail for the reason it was written to catch — nothing can import a name
+    that is gone. Its green therefore proves the tree is clean **only if** the
+    matcher would still have spoken. That is what this test establishes, on a
+    synthetic source string rather than by mutating ``src/``.
+
+    Both directions are asserted, because either one alone is fakeable: a matcher
+    that returns everything passes the first half, and a matcher that returns
+    nothing passes the second.
+    """
+    flagged = _offending_references(ast.parse(_SYNTHETIC_REINTRODUCTION))
+    assert flagged == ["line 1: imports batch_sync", "line 5: calls batch_sync"], (
+        "the reintroduction matcher no longer flags a source that both imports and "
+        f"calls a retired sender — it returned {flagged!r}. Until this is fixed, the "
+        "clean result from the src/ scan in this file is silence, not evidence."
+    )
+
+    quiet = _offending_references(ast.parse(_SYNTHETIC_CLEAN))
+    assert quiet == [], (
+        "the matcher flagged a structurally identical source that routes through the "
+        f"journal dispatcher instead: {quiet!r}. A matcher that fires on everything "
+        "cannot distinguish a reintroduction from correct code."
+    )
+
+
+def test_the_scan_is_non_vacuous() -> None:
+    """The ``src/`` scan runs on real files, and ``batch.py`` is one of them.
+
+    Two failure modes, both of which would leave the assertion below green:
+
+    * an empty or unreachable input set (a moved package, a renamed ``src/``), and
+    * the ``sync/batch.py`` self-exclusion this WP removed, which — once the
+      definitions were deleted — no longer excused a dead-to-dead reference and
+      instead made ``batch.py`` the one file where re-adding a sender together with
+      its caller was invisible to this gate.
+
+    The input count is printed (visible under ``-s``) so "all checks passed" here is
+    never mistaken for a gate that ran on nothing.
+    """
+    modules = _production_modules()
+    root = _src_root()
+    print(f"[#3167 drain scan] input: {len(modules)} production module(s) scanned under {root}")
+
+    assert len(modules) > 900, f"only {len(modules)} module(s) found under {root} — this scan has lost its input"
+
+    relative = {str(path.relative_to(root)) for path in modules}
+    assert _FORMER_DEFINING_MODULE in relative, (
+        f"{_FORMER_DEFINING_MODULE} is not in the scanned set. #3167 removed its "
+        "self-exclusion on purpose: with the senders deleted there is no dead-to-dead "
+        "reference left to excuse, and skipping it would leave exactly one file where "
+        "a reintroduced sender plus a caller passes this gate unseen."
+    )
 
 
 def test_no_production_module_constructs_the_queue_backed_drain() -> None:

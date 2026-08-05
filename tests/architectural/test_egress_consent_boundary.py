@@ -573,17 +573,14 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
             "local_commit E12, runtime E7) is separately allowlisted with a seam."
         ),
     ),
-    # -- No production caller -------------------------------------------------
-    "specify_cli/sync/batch.py": Allowance(
-        kind=AllowanceKind.UNREACHABLE,
-        inventory_id="E15",
-        note=(
-            "The retired queue-backed drain. Ungated, but unreachable: "
-            "sync_all_queued_events has no caller and both live drain_queue readers "
-            "are read-only. If it is ever re-wired this allowance is void."
-        ),
-        pinned_by="tests/sync/test_no_queue_drain_constructed_3030.py",
-    ),
+    # NOTE: E15 (specify_cli/sync/batch.py, kind=UNREACHABLE) was REMOVED by #3167.
+    # The allowance existed because the queue-backed drain was ungated but had no
+    # production caller. #3167 deleted the drain instead of gating it, so the module
+    # now holds zero transmit primitives and no allowance is owed -- an inert row
+    # here is exactly the quiet drift that mission was opened to close. Do not
+    # re-add it: `sync/batch.py` must not regain a `requests.*` or
+    # `request_with_stdlib_fallback_sync` call, which
+    # `tests/architectural/test_batch_drain_retired_3167.py` now enforces.
     # -- Not project egress (E18), verified individually rather than assumed --
     "specify_cli/auth/transport.py": Allowance(
         kind=AllowanceKind.NOT_PROJECT_DATA,
