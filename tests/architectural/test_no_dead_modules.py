@@ -280,6 +280,14 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # sorts alphabetically AFTER the m_unify_charter_activation* folds at the
         # same tied target_version="3.2.6" (see the module docstring).
         "specify_cli.upgrade.migrations.m_zz_runtime_state_backfill",
+        # review-cycle-verdict-seam-rebuild-01KZ2W7W WP18/T079 (T017): installs
+        # the review-cycle-*.md fail-closed merge driver for already-init'd
+        # clones. Auto-discovered via pkgutil.iter_modules + @MigrationRegistry
+        # .register; never statically imported by runtime code -- same sibling
+        # shape as the m_3_2_6_* merge-driver migrations above. Cross-WP,
+        # unowned-gate edit (WP18 does not own this test file); disclosed in
+        # the WP18 implementation report.
+        "specify_cli.upgrade.migrations.m_3_2_7_review_cycle_merge_driver",
     }
 )
 

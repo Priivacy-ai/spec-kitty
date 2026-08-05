@@ -1,0 +1,165 @@
+diff --git a/src/specify_cli/cli/commands/agent/tasks_move_task.py b/src/specify_cli/cli/commands/agent/tasks_move_task.py
+index 7bc61bdbe..31eab6bb8 100644
+--- a/src/specify_cli/cli/commands/agent/tasks_move_task.py
++++ b/src/specify_cli/cli/commands/agent/tasks_move_task.py
+@@ -1693,12 +1693,20 @@ def _mt_finalize_plan(st: _MoveTaskState, ports: TasksPorts) -> None:
+     the feedback pointer) runs, then the plan is rebuilt when a side-effect produced
+     a ``review_ref``.
+ 
+-    T004/T005 (review-verdict-write-integrity-01KZ1CGF): both the rejection
+-    write AND the ordinary approval write now route through the generalized,
+-    commit-durable ``create_rejected_review_cycle`` — ``ports.coord`` (the
+-    ``CoordCommitRouter``) is threaded in as ``commit_router`` so every write
+-    this function makes is actually git-committed (closes #2697), not left
+-    untracked.
++    T004 (review-verdict-write-integrity-01KZ1CGF): the rejection write routes
++    through the generalized, commit-durable ``create_rejected_review_cycle`` —
++    ``ports.coord`` (the ``CoordCommitRouter``) is threaded in as
++    ``commit_router`` so this write is actually git-committed (closes #2697),
++    not left untracked.
++
++    T005's ordinary-approval write does NOT fire here (M5, adversarial squad,
++    PR #3156): it runs in :func:`_mt_persist_approved_review_cycle`, called
++    from ``_do_move_task`` only AFTER ``_mt_execute`` returns without raising.
++    Firing it here — before the real lane transition ran — left an
++    already-committed ``verdict: approved`` artifact with no compensating
++    action when ``_mt_execute`` failed (an ANTICIPATED failure mode: it holds
++    the status lock and ``_do_move_task`` carries dedicated
++    ``EventPersistenceError`` diagnostics for exactly this).
+     """
+     from specify_cli.cli.commands.agent import tasks as _tasks
+     assert st.decision is not None
+@@ -1709,53 +1717,6 @@ def _mt_finalize_plan(st: _MoveTaskState, ports: TasksPorts) -> None:
+     st.actor = st.agent or "user"
+     st.canonical_lane = decision.plan.canonical_lane
+ 
+-    def _persist_approved_review_cycle() -> None:
+-        """T005: fire the generalized writer on the ordinary approval path.
+-
+-        Only when the WP's current highest-numbered review-cycle artifact is
+-        ``rejected`` — a first-ever cycle (no prior artifact) or an
+-        already-approved latest are both no-ops (FR-001 closes the stale-
+-        rejection gap; it does not write a redundant/duplicate approval).
+-        """
+-        from specify_cli.review.artifacts import latest_review_artifact_verdict
+-        from specify_cli.review.cycle import (
+-            _review_cycle_wp_dir,
+-            create_rejected_review_cycle,
+-        )
+-
+-        wp_slug = _resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id)
+-        sub_artifact_dir = _review_cycle_wp_dir(st.main_repo_root, st.mission_slug, wp_slug)
+-        latest = latest_review_artifact_verdict(sub_artifact_dir)
+-        if latest is None or latest.verdict != "rejected":
+-            return
+-        # Real reviewer_agent (matches ``_mt_plan_review_result``'s own
+-        # fallback chain) — never the literal "unknown" for a genuine
+-        # approval.
+-        reviewer_agent = (st.reviewer or st.agent or st.actor or "unknown").strip() or "unknown"
+-        approval_reference = (
+-            st.approval_ref or st.note_text or f"approval:{st.task_id}"
+-        ).strip() or f"approval:{st.task_id}"
+-        # M1 (adversarial squad, PR #3156): the approval body is synthesized
+-        # by THIS caller, not supplied by a reviewer — pass it via ``body=``
+-        # rather than a throwaway ``feedback_source`` file. This both drops
+-        # the tempfile dance entirely and keeps the write off
+-        # ``_guard_feedback_source_provenance``'s content-identity arm, which
+-        # exists to police externally-supplied feedback files (#990/#2996(b))
+-        # and produces a false collision here: a repeated ``--note "Review
+-        # passed"`` approval synthesizes the SAME deterministic body every
+-        # time, which used to be indistinguishable from a reviewer replaying
+-        # a prior cycle's content.
+-        create_rejected_review_cycle(
+-            main_repo_root=st.main_repo_root,
+-            mission_slug=st.mission_slug,
+-            wp_id=st.task_id,
+-            wp_slug=wp_slug,
+-            body=f"Approved by {reviewer_agent}: {approval_reference}\n",
+-            reviewer_agent=reviewer_agent,
+-            verdict="approved",
+-            commit_router=ports.coord if st.resolved_auto_commit else None,
+-        )
+-
+     if decision.planned_rollback and st.resolved_feedback_source is not None:
+         from specify_cli.review.cycle import create_rejected_review_cycle
+ 
+@@ -1770,8 +1731,6 @@ def _mt_finalize_plan(st: _MoveTaskState, ports: TasksPorts) -> None:
+         )
+         st.review_feedback_pointer = review_cycle.pointer
+         st.rejected_review_result = review_cycle.review_result
+-    if st.target_lane in (Lane.APPROVED, Lane.DONE):
+-        _persist_approved_review_cycle()
+     if decision.done_override_note and not st.json_output:
+         _tasks.console.print(
+             "[yellow]⚠️  Proceeding with done override; reason recorded in "
+@@ -2233,6 +2192,62 @@ def _mt_execute(st: _MoveTaskState, ports: TasksPorts) -> None:
+     _mt_release_review_lock(st)
+ 
+ 
++def _mt_persist_approved_review_cycle(st: _MoveTaskState, ports: TasksPorts) -> None:
++    """T005: fire the generalized writer on the ordinary approval path.
++
++    M5 (adversarial squad, PR #3156): called from ``_do_move_task`` ONLY after
++    ``_mt_execute`` returns without raising, so the approval artifact this
++    writes is never durable unless the lane transition it documents actually
++    happened. See :func:`_mt_finalize_plan`'s docstring for why this moved out
++    of that function (where it used to fire before ``_mt_execute`` ran).
++
++    Only fires when the WP's current highest-numbered review-cycle artifact is
++    ``rejected`` — a first-ever cycle (no prior artifact) or an
++    already-approved latest are both no-ops (FR-001 closes the stale-
++    rejection gap; it does not write a redundant/duplicate approval).
++    """
++    if st.target_lane not in (Lane.APPROVED, Lane.DONE):
++        return
++    from specify_cli.review.artifacts import latest_review_artifact_verdict
++    from specify_cli.review.cycle import (
++        _review_cycle_wp_dir,
++        create_rejected_review_cycle,
++    )
++
++    wp_slug = _resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id)
++    sub_artifact_dir = _review_cycle_wp_dir(st.main_repo_root, st.mission_slug, wp_slug)
++    latest = latest_review_artifact_verdict(sub_artifact_dir)
++    if latest is None or latest.verdict != "rejected":
++        return
++    # Real reviewer_agent (matches ``_mt_plan_review_result``'s own
++    # fallback chain) — never the literal "unknown" for a genuine
++    # approval.
++    reviewer_agent = (st.reviewer or st.agent or st.actor or "unknown").strip() or "unknown"
++    approval_reference = (
++        st.approval_ref or st.note_text or f"approval:{st.task_id}"
++    ).strip() or f"approval:{st.task_id}"
++    # M1 (adversarial squad, PR #3156): the approval body is synthesized
++    # by THIS caller, not supplied by a reviewer — pass it via ``body=``
++    # rather than a throwaway ``feedback_source`` file. This both drops
++    # the tempfile dance entirely and keeps the write off
++    # ``_guard_feedback_source_provenance``'s content-identity arm, which
++    # exists to police externally-supplied feedback files (#990/#2996(b))
++    # and produces a false collision here: a repeated ``--note "Review
++    # passed"`` approval synthesizes the SAME deterministic body every
++    # time, which used to be indistinguishable from a reviewer replaying
++    # a prior cycle's content.
++    create_rejected_review_cycle(
++        main_repo_root=st.main_repo_root,
++        mission_slug=st.mission_slug,
++        wp_id=st.task_id,
++        wp_slug=wp_slug,
++        body=f"Approved by {reviewer_agent}: {approval_reference}\n",
++        reviewer_agent=reviewer_agent,
++        verdict="approved",
++        commit_router=ports.coord if st.resolved_auto_commit else None,
++    )
++
++
+ def _mt_output(st: _MoveTaskState) -> None:
+     """Emit the success envelope + dependent-WP warnings (coord skip arm aware)."""
+     from specify_cli.cli.commands.agent import tasks as _tasks
+@@ -2368,6 +2383,7 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
+         _mt_complete_deferred_for_review_readiness(st)
+         _mt_finalize_plan(st, ports)
+         _mt_execute(st, ports)
++        _mt_persist_approved_review_cycle(st, ports)
+         _mt_output(st)
+     except typer.Exit:
+         raise

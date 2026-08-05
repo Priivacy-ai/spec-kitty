@@ -1,0 +1,327 @@
+{
+  "collapse_report": {
+    "by_rule": {
+      "write_scope_overlap": 8
+    },
+    "events": [
+      {
+        "evidence": "overlapping globs: 'tests/_arch_shard_map.py' vs 'tests/_arch_shard_map.py'; WP02 depends on WP01",
+        "rule": "write_scope_overlap",
+        "wp_a": "WP01",
+        "wp_b": "WP02"
+      },
+      {
+        "evidence": "overlapping globs: 'src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py' vs 'src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py'; WP11 depends on WP06",
+        "rule": "write_scope_overlap",
+        "wp_a": "WP06",
+        "wp_b": "WP11"
+      },
+      {
+        "evidence": "overlapping globs: 'src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py' vs 'src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py'; WP12 depends on WP06",
+        "rule": "write_scope_overlap",
+        "wp_a": "WP06",
+        "wp_b": "WP12"
+      },
+      {
+        "evidence": "overlapping globs: 'src/specify_cli/post_merge/review_artifact_consistency.py' vs 'src/specify_cli/post_merge/review_artifact_consistency.py'; WP13 depends on WP07",
+        "rule": "write_scope_overlap",
+        "wp_a": "WP07",
+        "wp_b": "WP13"
+      },
+      {
+        "evidence": "overlapping globs: 'src/specify_cli/review/artifacts.py' vs 'src/specify_cli/review/artifacts.py'; WP13 depends on WP09",
+        "rule": "write_scope_overlap",
+        "wp_a": "WP09",
+        "wp_b": "WP13"
+      },
+      {
+        "evidence": "overlapping globs: 'src/specify_cli/review/cycle.py' vs 'src/specify_cli/review/cycle.py'; WP13 depends on WP10",
+        "rule": "write_scope_overlap",
+        "wp_a": "WP10",
+        "wp_b": "WP13"
+      },
+      {
+        "evidence": "overlapping globs: 'src/specify_cli/review/arbiter.py' vs 'src/specify_cli/review/arbiter.py'; WP13 depends on WP12",
+        "rule": "write_scope_overlap",
+        "wp_a": "WP12",
+        "wp_b": "WP13"
+      },
+      {
+        "evidence": "overlapping globs: 'src/specify_cli/review/arbiter.py' vs 'src/specify_cli/review/arbiter.py'",
+        "rule": "write_scope_overlap",
+        "wp_a": "WP12",
+        "wp_b": "WP14"
+      }
+    ],
+    "independent_wps_collapsed": 0,
+    "total_merges": 8
+  },
+  "computed_at": "2026-08-03T12:00:17.451340+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "lanes": [
+    {
+      "depends_on_lanes": [],
+      "lane_id": "lane-a",
+      "parallel_group": 0,
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup"
+      ],
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/_arch_shard_map.py",
+        "tests/architectural/_baselines.yaml",
+        "tests/architectural/census/verdict_seam_IC01.yaml",
+        "tests/architectural/test_no_absolute_event_timestamp_mixture.py",
+        "tests/architectural/test_verdict_seam_census.py",
+        "tests/regression/test_2646_stale_verdict_closes_via_fr001.py",
+        "tests/status/test_work_package_lifecycle.py"
+      ]
+    },
+    {
+      "depends_on_lanes": [],
+      "lane_id": "lane-b",
+      "parallel_group": 0,
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/specify_cli/cli/commands/agent/test_mission_cli_golden_contract.py",
+        "tests/specify_cli/invocation/test_registry_builtin_activation_parity.py"
+      ]
+    },
+    {
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "lane_id": "lane-c",
+      "parallel_group": 1,
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/mission_runtime/artifacts.py",
+        "src/mission_runtime/resolution.py",
+        "src/specify_cli/coordination/commit_router.py",
+        "tests/architectural/census/verdict_seam_IC04.yaml",
+        "tests/architectural/test_merge_reconciliation_class_guard.py",
+        "tests/architectural/test_write_surface_placement_guard.py",
+        "tests/coordination/test_analysis_report_rehome.py"
+      ]
+    },
+    {
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "lane_id": "lane-d",
+      "parallel_group": 1,
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-quality.yml",
+        "tests/architectural/ci_topology_census.json",
+        "tests/architectural/test_ci_quality_path_filters.py"
+      ]
+    },
+    {
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-c"
+      ],
+      "lane_id": "lane-f",
+      "parallel_group": 2,
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "src/specify_cli/cli/commands/_review_cycle_reconcile_doctor.py",
+        "src/specify_cli/cli/commands/doctor.py",
+        "tests/architectural/census/verdict_seam_IC08.yaml",
+        "tests/specify_cli/cli/commands/test_review_cycle_reconcile_doctor.py"
+      ]
+    },
+    {
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-c",
+        "lane-f"
+      ],
+      "lane_id": "lane-e",
+      "parallel_group": 3,
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "wp_ids": [
+        "WP06",
+        "WP07",
+        "WP09",
+        "WP10",
+        "WP11",
+        "WP12",
+        "WP13",
+        "WP14"
+      ],
+      "write_scope": [
+        "src/specify_cli/agent_utils/status.py",
+        "src/specify_cli/cli/commands/agent/tasks_materialization.py",
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py",
+        "src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py",
+        "src/specify_cli/cli/commands/review/_lane_gate.py",
+        "src/specify_cli/merge/forecast.py",
+        "src/specify_cli/merge/preflight.py",
+        "src/specify_cli/orchestrator_api/commands.py",
+        "src/specify_cli/post_merge/review_artifact_consistency.py",
+        "src/specify_cli/review/arbiter.py",
+        "src/specify_cli/review/artifacts.py",
+        "src/specify_cli/review/cycle.py",
+        "src/specify_cli/status/models.py",
+        "src/specify_cli/status/reducer.py",
+        "tests/integration/test_two_partition_preview.py",
+        "tests/review/test_artifacts.py",
+        "tests/review/test_cycle.py",
+        "tests/review/test_reader_polarity_merge_gate_regression.py",
+        "tests/specify_cli/cli/commands/agent/test_move_task_durability.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_cli_contract_coord.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_move_task_seam.py",
+        "tests/status/test_reducer.py"
+      ]
+    },
+    {
+      "depends_on_lanes": [
+        "lane-d",
+        "lane-e"
+      ],
+      "lane_id": "lane-g",
+      "parallel_group": 4,
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "wp_ids": [
+        "WP15"
+      ],
+      "write_scope": [
+        "tests/integration/test_review_durability_matrix.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_ports.py"
+      ]
+    },
+    {
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-e",
+        "lane-f"
+      ],
+      "lane_id": "lane-h",
+      "parallel_group": 4,
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "wp_ids": [
+        "WP16"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/plans/engineering-notes/coord-splitbrain-rootcause.md",
+        "docs/plans/investigations/review-artifact-write-integrity-3044.md",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "tests/architectural/test_verdict_name_truthfulness.py",
+        "tests/architectural/verdict_seam_census.yaml"
+      ]
+    },
+    {
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-d",
+        "lane-e",
+        "lane-g",
+        "lane-h",
+        "lane-j"
+      ],
+      "lane_id": "lane-i",
+      "parallel_group": 6,
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "wp_ids": [
+        "WP17"
+      ],
+      "write_scope": [
+        "tests/architectural/mission_exit_baseline.txt",
+        "tests/architectural/test_mission_exit_baseline.py"
+      ]
+    },
+    {
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "lane_id": "lane-j",
+      "parallel_group": 2,
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "wp_ids": [
+        "WP18"
+      ],
+      "write_scope": [
+        ".gitattributes",
+        "src/specify_cli/cli/commands/__init__.py",
+        "src/specify_cli/cli/commands/init.py",
+        "src/specify_cli/cli/commands/merge_driver.py",
+        "src/specify_cli/lanes/merge.py",
+        "src/specify_cli/upgrade/migrations/m_3_2_7_review_cycle_merge_driver.py"
+      ]
+    }
+  ],
+  "mission_branch": "kitty/mission-review-cycle-verdict-seam-rebuild-01KZ2W7W",
+  "mission_id": "01KZ2W7W0F81GE153NF6ZWDNTS",
+  "mission_slug": "review-cycle-verdict-seam-rebuild-01KZ2W7W",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "cff0a3493c7724de853cd056155ed6b83a011124",
+  "target_branch": "pr/review-verdict-write-integrity-01KZ1CGF",
+  "version": 1
+}

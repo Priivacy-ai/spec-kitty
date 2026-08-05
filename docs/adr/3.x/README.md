@@ -122,6 +122,8 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-07-26 | [doctrine artefacts live at `<type>/<pack>/[<category>/]<name>` — misplacement is an error, not invisibility](2026-07-26-2-doctrine-artefact-pack-layout-convention.md) |
 | 2026-07-26 | [a signed `impacts` edge subsumes `in_tension_with` — one relation, sign carries the direction of effect](2026-07-26-3-impacts-edge-subsumes-in-tension-with.md) |
 | 2026-07-28 | [doctrine context is delivered as navigable links, not inlined bodies — `when`/`reason` carry the fetch guidance](2026-07-28-1-progressive-disclosure-of-doctrine-context.md) |
+| 2026-07-29 | [Lane Base Merges the Recorded Planning-Artifact Commit (FR-009)](2026-07-29-1-lane-base-recorded-planning-commit.md) |
 | 2026-07-30 | [CONSOLIDATED Write-Surface Wiring and `consolidate` as Canonical Lane-Consolidation Terminology](2026-07-30-1-consolidated-write-surface-and-consolidate-terminology.md) |
 | 2026-08-02 | [Charter-Wheel Assessment — Extractable in Principle, Cut Over Kernel→Doctrine→Charter as One No-Partial Follow-On](2026-08-02-1-charter-wheel-assessment.md) |
 | 2026-08-04 | [The Egress-Consent Boundary — Consent Is Keyed on the Record Being Sent, Never on Ambient Context](2026-08-04-1-egress-consent-boundary.md) |
+| 2026-08-03 | [Review-Cycle Artifacts Are COORD-Partition Per-WP Bookkeeping](2026-08-03-1-review-cycle-artifacts-are-coord-partition.md) |

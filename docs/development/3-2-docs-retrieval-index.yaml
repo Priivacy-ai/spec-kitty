@@ -2601,6 +2601,21 @@ pages:
     - {slug: "confirmation-and-what-this-adr-does-not-prove", text: "Confirmation — and what this ADR does **not** prove", level: 3}
     - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/3.x/2026-08-03-1-review-cycle-artifacts-are-coord-partition.md"
+    title: "ADR: Review-Cycle Artifacts Are COORD-Partition Per-WP Bookkeeping"
+    divio_type: "none"
+    abstract: "**Deciders**: operator (stijn-dejongh), overriding a squad CRITICAL that had recorded the partition as an unresolved contradiction. The adjudication, verbatim: *\"Land them on COORD in case of a coord topology (this is per-wp bookkeeping, and should be traced in the shared Coord branch, which is aggregated into the primary branch on consolidation). In other topologies -> primary. Ensure read and write paths are consistent.\"*"
+    anchors:
+    - {slug: "context", text: "Context", level: 2}
+    - {slug: "why-this-became-load-bearing", text: "Why this became load-bearing", level: 3}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "required-machinery", text: "Required machinery", level: 3}
+    - {slug: "migration-exception-absorption-not-empty-directory-fallback", text: "Migration: exception absorption, not empty-directory fallback", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "what-the-first-draft-got-wrong", text: "What the first draft got wrong", level: 2}
+    - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
+    - {slug: "scope-note", text: "Scope note", level: 2}
+    - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
@@ -10904,6 +10919,24 @@ pages:
     - {slug: "new-infrastructure-in-generate-schemas-py", text: "New Infrastructure in generate\\_schemas.py", level: 2}
     - {slug: "ddd-paradigm-artifact", text: "DDD Paradigm Artifact", level: 2}
     - {slug: "final-state", text: "Final State", level: 2}
+  - path: "docs/plans/investigations/review-artifact-write-integrity-3044.md"
+    title: "Review-artifact integrity (#3044): the topology-seam connection is historical, the open gap is a missing writer"
+    divio_type: "none"
+    abstract: "Pre-spec research testing whether #3044's review-artifact-integrity cluster (#2275, #2996, #990) is a topology-seam defect; code-verified answer plus a scoped remediation seed."
+    anchors:
+    - {slug: "0-the-one-paragraph-answer", text: "0. The one-paragraph answer", level: 2}
+    - {slug: "1-what-3044-actually-is-corrected-against-current-code", text: "1. What #3044 actually is, corrected against current code", level: 2}
+    - {slug: "2-the-mechanism-verified", text: "2. The mechanism, verified", level: 2}
+    - {slug: "3-the-four-lenses", text: "3. The four lenses", level: 2}
+    - {slug: "architecture-verifier-partially-corroborated-high-confidence", text: "Architecture-verifier — PARTIALLY_CORROBORATED (high confidence)", level: 3}
+    - {slug: "governance-verifier-partially-corroborated", text: "Governance-verifier — PARTIALLY_CORROBORATED", level: 3}
+    - {slug: "skeptic-partially-refuted-medium-high-confidence-i-e-the-topology-seam-framing-survives", text: "Skeptic — PARTIALLY_REFUTED (medium-high confidence — i.e., the topology-seam framing survives", level: 3}
+    - {slug: "advocate-corroborated-high-confidence-for-2275-specifically", text: "Advocate — CORROBORATED (high confidence, for #2275 specifically)", level: 3}
+    - {slug: "synthesis-this-document", text: "Synthesis (this document)", level: 3}
+    - {slug: "4-remediation-options-for-a-future-mission-to-select-from", text: "4. Remediation options (for a future mission to select from)", level: 2}
+    - {slug: "5-open-questions-for-the-operator", text: "5. Open questions for the operator", level: 2}
+    - {slug: "addendum-2026-08-02-post-spec-squad-resolved-all-five-open-questions", text: "Addendum 2026-08-02 — post-spec squad resolved all five open questions", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/plans/investigations/wp-op-schema-model.md"
     title: "WP & Op Schema Model — Formalising Work-Package and Op Records"
     divio_type: "none"
