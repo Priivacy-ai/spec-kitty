@@ -400,7 +400,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   rejected WP through the normal path persists and commits a real
   `verdict: approved` review-cycle artifact with a genuine reviewer identity;
   the override flag still works for actual arbiter decisions but is no longer
-  *needed* for an ordinary approval; a rejection's feedback source is refused
+  _needed_ for an ordinary approval; a rejection's feedback source is refused
   if it's the same or a duplicate of a prior cycle's own artifact (a check
   that a deliberate one-character edit still defeats — it targets accidental
   duplication, not a determined actor); and both `move-task` write paths now
@@ -421,9 +421,9 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   reader could disagree with the event log about which verdict was current if
   the two ever drifted. Now every consumer resolves the current verdict
   through a reader downstream of the reducer (the event-sourced snapshot), and
-  the review-cycle artifact is authoritative only for *what the reviewer
-  said* — the reviewer's prose, affected files, reproduction command — never
-  for *which verdict is current*. This completes the reframing the
+  the review-cycle artifact is authoritative only for _what the reviewer
+  said_ — the reviewer's prose, affected files, reproduction command — never
+  for _which verdict is current_. This completes the reframing the
   predecessor mission's fix above left open: the event is the index, the
   artifact is the payload, and no consumer answers "which verdict" by reading
   the payload.

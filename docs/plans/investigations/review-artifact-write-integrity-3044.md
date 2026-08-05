@@ -63,7 +63,7 @@ topology seam investigation" (`docs/plans/investigations/write-path-topology-roo
 ## 0. The one-paragraph answer
 
 **The connection is real but dated, and the premise needs revising before a mission is scoped.**
-#2275's original defect — the per-WP approve guard reading the **lane** worktree while the merge
+The original defect in #2275 — the per-WP approve guard reading the **lane** worktree while the merge
 gate read the **coord** worktree, so a stale `rejected` artifact stayed authoritative — was a
 genuine instance of the topology-seam program's "which partition is authoritative" disease class,
 and the codebase's own comments say so by issue number: `_review_cycle_wp_dir()`
@@ -175,6 +175,7 @@ mission's stated mechanism is this research's own inference, not something #3044
 the epic frames the fix as write-correctness, full stop.
 
 ### Skeptic — PARTIALLY_REFUTED (medium-high confidence — i.e., the topology-seam framing survives
+
 only for #2275, not the whole epic)
 
 Argued, and confirmed by code, that #2996(b) and #990 have zero worktree/partition content — both
@@ -184,8 +185,8 @@ Found #2275's *own* mechanism (before this research's deeper trace) looked like 
 joins rather than a kind-blind-resolver misuse — a narrower reading than "topology," later refined by
 the advocate and architecture-verifier's deeper trace into: already-fixed read split, open write gap.
 Steelmanned its own refutation honestly: closing the write gap still requires deciding *which*
-worktree to write to (an irreducibly topological choice, even if narrow), and the seam ledger's own
-#2646/#2697/#2275 citation proves maintainers do treat review-cycle placement as seam-adjacent.
+worktree to write to (an irreducibly topological choice, even if narrow), and the seam ledger's
+own #2646/#2697/#2275 citation proves maintainers do treat review-cycle placement as seam-adjacent.
 
 ### Advocate — CORROBORATED (high confidence, for #2275 specifically)
 
@@ -297,8 +298,8 @@ issue text was.*
    be a genuine, still-open member of the read/write topology-seam defect class this doc set out to
    investigate in the first place.
 
-**Net effect**: every #3044 native child (#2275, #2996, #990) is closed by this mission's scope.
-#1817 is closed independently. #2646/#2697 — genuine topology-seam-class members, not #3044 children —
+**Net effect**: every #3044 native child (#2275, #2996, #990) is closed by this mission's scope; #1817
+is closed independently. #2646/#2697 — genuine topology-seam-class members, not #3044 children —
 are fixed as bundled, efficiency-motivated scope, not epic scope. Full detail:
 `kitty-specs/review-verdict-write-integrity-01KZ1CGF/spec.md`.
 
