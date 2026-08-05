@@ -158,6 +158,7 @@ problem, which is a base-ref sync concern and is the sole surviving home for a m
 detect/resync — never a broad "repair the drift after the fact" cure.
 
 ### Composition notes
+
 - **Builds ON PR#2868/#2612** (`safe_commit` sub-worktree-root + HEAD==destination_ref assertion,
   `commit_helpers.py:867-868`): that is the *enforcement primitive*. This prevention feeds it a
   correct write-root by construction; it does not redo the write-path mechanics.
@@ -169,6 +170,7 @@ detect/resync — never a broad "repair the drift after the fact" cure.
   resolver, not on ad-hoc `candidate_feature_dir_for_mission` / hard-coded primary anchors.
 
 ### Branch caveat (verify before scoping mechanical fixes)
+
 On this branch (`doctrine/drg-completeness-2843`), `find_rejected_review_artifact_conflicts`
 (`review_artifact_consistency.py:128-174`) still takes a single `feature_dir` and serves *both* the
 `materialize()` STATUS_STATE read (`:133`) and the `tasks/` WORK_PACKAGE_TASK read (`:143`, `:57-58`)
