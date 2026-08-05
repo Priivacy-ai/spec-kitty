@@ -29,7 +29,7 @@ import pytest
 from ruamel.yaml import YAML
 
 from charter.context import build_charter_context
-from charter.profile_resolution import _reset_agent_profile_cache
+from charter.profile_resolution import _load_agent_profile, _reset_agent_profile_cache
 from specify_cli.invocation.registry import ProfileRegistry
 
 # This file git-inits ``tmp_path`` via subprocess (build_charter_context needs a
@@ -132,13 +132,39 @@ def test_excluded_builtin_absent_from_routing_and_context(tmp_path: Path) -> Non
     assert _EXCLUDED_BUILTIN not in routing_ids
     assert _ACTIVATED_BUILTIN in routing_ids
 
-    # Context: the excluded built-in does not resolve, so its profile-cited
-    # block is absent; the activated one resolves and renders its block.
+    # Context (negative case): the excluded built-in does not resolve, so
+    # its profile-cited block is absent from the rendered prose. An ABSENT
+    # marker is unambiguous even under token-budget substitution (a
+    # truncated render can only ever OMIT more, never fabricate the marker
+    # for a profile that never resolved), so the rendered-text assertion
+    # stays honest here and is kept as-is (T011 Edge Cases / Reviewer
+    # Guidance: this negative assertion is unaffected by the defect).
     excluded_text = _context_text(tmp_path, _EXCLUDED_BUILTIN)
     assert _directives_marker(_EXCLUDED_BUILTIN) not in excluded_text
 
-    activated_text = _context_text(tmp_path, _ACTIVATED_BUILTIN)
-    assert _directives_marker(_ACTIVATED_BUILTIN) in activated_text
+    # Context (positive case, T011 — structured resolution, PREFERRED fix
+    # per the WP03 prompt's option 1): the ORIGINAL defect asserted a
+    # rendered-text marker (`_directives_marker(_ACTIVATED_BUILTIN) in
+    # activated_text`) which is exactly the assertion a token-budget
+    # substitution can falsify — when the compact-governance renderer
+    # exceeds its budget it substitutes a fetch-command stub for a section,
+    # silently dropping the marker even though activation itself was
+    # correct. `_load_agent_profile` is the SAME budget-independent
+    # resolver `build_charter_context` calls internally, before any
+    # rendering happens (`charter/context.py::build_charter_context`,
+    # ``profile_record = _load_agent_profile(profile, repo_root) if profile
+    # else None``) to decide whether a profile-cited section can render at
+    # all — so asserting against its return value proves "the profile
+    # resolved" (R3's actual intent) without depending on prose shape.
+    assert _load_agent_profile(_ACTIVATED_BUILTIN, tmp_path) is not None, (
+        f"{_ACTIVATED_BUILTIN!r} must resolve via the activation-aware "
+        "resolver build_charter_context uses internally"
+    )
+    # Still exercise the full `build_charter_context` render path for the
+    # activated builtin as a smoke check (must not raise) — this is the
+    # exact call whose rendered text triggered the original defect — without
+    # depending on its textual shape for the assertion.
+    _context_text(tmp_path, _ACTIVATED_BUILTIN)
 
 
 def test_no_activation_key_admits_all_builtins_in_routing(tmp_path: Path) -> None:
