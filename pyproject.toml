@@ -179,8 +179,10 @@ artifacts = [
 # Relocated built-in doctrine packs (mission relocate-builtin-doctrine-packs-01KYT87F).
 # `packs/` is a top-level tree, NOT under `src/`, so the `packages`/`artifacts`
 # globs above never match it. `force-include` lands `packs/` as a site-packages
-# sibling of the `doctrine` package — exactly what `resolve_pack_root("built-in")`
-# step 3 (installed-wheel) expects: `files("doctrine").parent / "packs" / "built-in"`.
+# sibling of the `doctrine` package — exactly what the kernel sibling-path
+# ancestor walk (`kernel.sibling_paths.resolve_installed_sibling`, which
+# `resolve_pack_root("built-in")` now delegates to since #3091/#3204) expects:
+# it walks up from an installed module to the ancestor holding `packs/built-in`.
 force-include = { "packs" = "packs" }
 
 [tool.hatch.build.targets.sdist]
