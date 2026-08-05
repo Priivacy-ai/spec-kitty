@@ -1,0 +1,470 @@
+# tests/architectural/verdict_seam_census.yaml
+#
+# WP16 (review-cycle-verdict-seam-rebuild-01KZ2W7W, FR-020, T071) -- the
+# CANONICAL, folded verdict-seam census. `tests/architectural/test_verdict_seam_census.py`
+# loads THIS file (not a fragment) at collection time as its literal
+# writer/resolver/reader expected-set fixture (`_CENSUS_FIXTURE_RELPATH`).
+# Before this fold, the check read `tests/architectural/census/verdict_seam_IC01.yaml`
+# directly and separately re-loaded `tests/architectural/census/verdict_seam_IC08.yaml`
+# just for a retire-row non-vacuity proof -- two fragments, and no single
+# document either a human reader or the check itself consulted as "the
+# census" (the exact "document nothing consults" failure FR-020 exists to
+# end). This file is that single document; see T071's Activity Log entry in
+# `kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks/WP16-truthfulness-sweep-and-census-fold.md`
+# for the fold's own record.
+#
+# ---------------------------------------------------------------------------
+# Provenance
+# ---------------------------------------------------------------------------
+# Every row below carries a `source:` field naming the WP/fragment that
+# originated it (`WP01/IC01` or `WP08/IC08`). This is an INFORMATIONAL,
+# non-schema field -- `_load_census_rows` reads only `category`/`module`/
+# `function`/`status`/`retiring_fr` and silently ignores any other key via
+# `entry.get(...)`, so `source` cannot change the check's pass/fail outcome.
+# It exists purely for the auditability this fold is supposed to deliver: a
+# reviewer can trace any row back to the WP that landed it without
+# re-deriving history from git blame. All per-row narrative comments from the
+# two source fragments (attributing specific rows to WP06/WP10/WP11/WP12's
+# disclosed cross-WP edits, and IC08's own attribution-reasoning block) are
+# preserved verbatim below, in their original position.
+#
+# ---------------------------------------------------------------------------
+# Honest note on WP04's fragment (verdict_seam_IC04.yaml): NOTHING is folded
+# from it, by design, not by oversight.
+# ---------------------------------------------------------------------------
+# `verdict_seam_IC04.yaml` carries ZERO rows in the category/module/function/
+# status/retiring_fr schema below. Its actual content is a DIFFERENT kind of
+# document entirely: a partition/classifier/routing decision record (the
+# `REVIEW_CYCLE` kind, its COORD placement, the commit-router trace, the E2
+# published ruling) plus four cross-WP-dependency findings (WP04-XWP-01
+# through -04). It is not, and was never meant to be, a writer/resolver/
+# reader enumeration -- WP01's own `verdict_seam_IC01.yaml` is explicit about
+# this: "This file's scope is narrowly the partition/classifier/routing
+# decision WP04 itself owns -- it does NOT duplicate WP01's writer/resolver/
+# reader enumeration." WP16's own task prompt describes folding "every row
+# from verdict_seam_IC01.yaml, verdict_seam_IC04.yaml, and
+# verdict_seam_IC08.yaml" as if all three carried rows in this schema; that
+# framing is not accurate for IC04, and this file does not fabricate rows to
+# make it look accurate. IC04's actual content (the routing decision and its
+# four cross-WP findings) remains valuable and is left in place undisturbed
+# -- see the fragment-retention note immediately below.
+#
+# ---------------------------------------------------------------------------
+# Fragment retention: none of the three per-concern fragments are deleted by
+# this fold.
+# ---------------------------------------------------------------------------
+# `verdict_seam_IC01.yaml`, `verdict_seam_IC04.yaml` and `verdict_seam_IC08.yaml`
+# are cited BY PATH, in prose, from a large number of places this WP does not
+# own: the task/Activity-Log files of WP01, WP04, WP06, WP07, WP08, WP10,
+# WP11, WP12, WP14 and WP18 under `kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks/`;
+# `src/specify_cli/review/cycle.py`; `src/specify_cli/cli/commands/_review_cycle_reconcile_doctor.py`;
+# `src/specify_cli/cli/commands/doctor.py`; `tests/coordination/test_analysis_report_rehome.py`;
+# `tests/architectural/test_merge_reconciliation_class_guard.py`; and
+# `tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py` (a golden
+# snapshot of `_review_cycle_reconcile_doctor.py`'s own docstring text). None
+# of these files are in this WP's `owned_files`. Deleting the fragments would
+# silently orphan every one of those citations -- exactly the "if something
+# outside your owned files still references a fragment path, STOP and report
+# rather than breaking it" case this WP's own rules of engagement name. The
+# fragments therefore stay on disk as a frozen historical record; only the
+# architectural CHECK's expected-set fixture moves to this file (confirmed by
+# re-pointing `_CENSUS_FIXTURE_RELPATH` below, not by deleting anything).
+#
+# ---------------------------------------------------------------------------
+# Reader polarity cross-reference (WP14, FR-012/SC-012) -- informational only,
+# not a schema field.
+# ---------------------------------------------------------------------------
+# WP14's own task file (`tasks/WP14-declared-reader-polarity.md`) instructed
+# it to read WP01's fragment for a "Verdict readers and their declared
+# polarity" table and to treat a missing row as a hard blocker. No such
+# table, or `polarity`/`safety_relevant` field, exists anywhere in the actual
+# `_CensusRow` schema (`category`/`module`/`function`/`status`/`retiring_fr`)
+# -- confirmed by reading `test_verdict_seam_census.py::_CensusRow` and both
+# source fragments directly; WP14 recorded its five readers' polarities in
+# prose (its own task file's table, and `tests/review/test_reader_polarity_merge_gate_regression.py`'s
+# module docstring) instead. This file does not invent a polarity column to
+# retrofit that framing; it records the same cross-check narratively, against
+# the reader rows that already exist below, so a reviewer does not have to
+# reconstruct it from WP14's task file:
+#
+#   - `agent_utils/status.py::_get_wp_review_verdict` (reader, WP01/IC01) --
+#     safety-relevant, declared `refuse` (raises `DamagedVerdictRecordError`
+#     on a damaged record; no longer silently returns `None`).
+#   - `agent_utils/status.py::show_kanban_status` (reader, WP01/IC01) --
+#     safety-relevant, declared `refuse` (catches `DamagedVerdictRecordError`
+#     and surfaces a distinguishable board entry).
+#   - `review/cycle.py::_guard_feedback_source_provenance` (reader, WP01/IC01)
+#     -- NOT safety-relevant (a best-effort duplicate-detection heuristic,
+#     fold `97a9ecfae`), declared `skip` -- correct, unchanged by WP14.
+#   - `post_merge/review_artifact_consistency.py::find_rejected_review_artifact_conflicts`
+#     (reader, WP01/IC01) -- safety-relevant (the merge gate itself), declared
+#     `refuse` -- already correct before WP14 (T066 documents *why*: a bare
+#     `except ValueError` incidentally also catches `UnicodeDecodeError`, an
+#     accident of Python's exception hierarchy, not a designed guarantee; see
+#     `tests/review/test_reader_polarity_merge_gate_regression.py`).
+#   - `tasks_parsing_validation.py::_get_latest_review_cycle_verdict` (reader,
+#     WP01/IC01) -- safety-relevant (feeds `move-task`'s review-readiness
+#     check), declared `refuse` after WP14's fix (previously a silent
+#     `except Exception: return None, artifact` fail-open).
+#   - The arbiter override reader (`review/arbiter.py::get_arbiter_overrides_for_wp`,
+#     pre-WP12) is a REASONED ABSENCE, not a row: WP12 retired its manual
+#     frontmatter/JSON-sidecar parse outright, so its post-WP12 body no
+#     longer matches this census's AST reader predicate (no `read_text` +
+#     YAML-load + frontmatter-delimiter/`review-cycle` glob shape) -- it reads
+#     the event-sourced `ReviewOverride` via `wp_snapshot_state` instead. This
+#     is not a gap; manufacturing a row for a function the AST derivation
+#     correctly no longer classifies as a reader would make
+#     `test_derived_census_matches_fixture` fail on "shrinkage" for a function
+#     that is genuinely, correctly no longer in scope.
+#
+# No safety-relevant reader above is `skip`. Only the (correctly)
+# not-safety-relevant provenance scan is `skip`.
+#
+# ---------------------------------------------------------------------------
+# Schema
+# ---------------------------------------------------------------------------
+# Identical to the fragments this file folds: `category` (writer|resolver|
+# reader), `module` (repo-relative path), `function` (bare name, or
+# `Class.method`), `status` (active|retire), `retiring_fr` (required, and
+# must both exist in spec.md's FR table AND be claimed by some WP's
+# `requirement_refs`, only when `status` is `retire` -- see
+# `test_verdict_seam_census.py::_validate_retire_rows`). `source` is the
+# informational provenance field described above.
+#
+# Row counts at this fold (T071): 16 writer / 10 resolver / 16 reader, all
+# `status: active`, folded from `verdict_seam_IC01.yaml` (42 rows) -- plus 5
+# `status: retire` resolver rows folded from `verdict_seam_IC08.yaml` (all
+# under FR-007/FR-003/FR-009). 47 rows total. These are the literal counts
+# `test_derived_census_matches_fixture` and `_validate_retire_rows` are
+# exercised against as of this fold; a later WP changing the live writer/
+# resolver/reader set will change these counts and this file, not the other
+# way around -- no numeral here is authoritative independent of the AST
+# derivation.
+
+- category: writer
+  module: src/specify_cli/cli/commands/agent/tasks_materialization.py
+  function: _persist_review_artifact_override
+  status: active
+  source: WP01/IC01
+- category: writer
+  module: src/specify_cli/cli/commands/agent/tasks_move_task.py
+  function: _mt_emit_transitions
+  status: active
+  source: WP01/IC01
+- category: writer
+  module: src/specify_cli/cli/commands/agent/tasks_move_task.py
+  function: _mt_finalize_plan
+  status: active
+  source: WP01/IC01
+- category: writer
+  module: src/specify_cli/cli/commands/agent/tasks_move_task.py
+  function: _mt_hop_review_result
+  status: active
+  source: WP01/IC01
+- category: writer
+  module: src/specify_cli/cli/commands/agent/tasks_move_task.py
+  function: _mt_plan_review_result
+  status: active
+  source: WP01/IC01
+- category: writer
+  # WP06 (review-cycle-verdict-seam-rebuild-01KZ2W7W): the OLD-timing
+  # review-artifact override write moved here from ``tasks_move_task.py``'s
+  # ``_mt_fire_override_persist``, which is now a pure forwarder with no
+  # write-shaped call in its own body -- correctly no longer writer-classified
+  # (its row, and ``_mt_run_decision``'s row -- promoted only via the
+  # same-module one-hop closure through ``_mt_fire_override_persist`` -- are
+  # both removed from this fixture in the same change).
+  module: src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py
+  function: persist_review_override_before_guard
+  status: active
+  source: WP01/IC01
+- category: writer
+  # WP11 (review-cycle-verdict-seam-rebuild-01KZ2W7W, T048, DM-01KZ6JE62Q6CQ24DMBX8KZZ5R9):
+  # the revert-commit compensator -- deletes an already-committed review-cycle
+  # artifact and commits the deletion (via safe_commit) when a LATER transition-
+  # emit failure means the write it undoes should never have survived (FR-002).
+  # Genuinely a writer (a real git-commit call site), not a duplicate of WP10's
+  # compensator in review/cycle.py (which unlinks an UNCOMMITTED file before any
+  # commit exists, from inside the writer's own call -- see this function's own
+  # docstring for the full distinction). Disclosed here per the WP01 census's
+  # standing cross-WP-edit precedent (WP08/WP10 both added rows the same way).
+  module: src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py
+  function: revert_committed_verdict_write
+  status: active
+  source: WP01/IC01
+- category: writer
+  module: src/specify_cli/cli/commands/agent/workflow.py
+  function: review
+  status: active
+  source: WP01/IC01
+- category: writer
+  module: src/specify_cli/migration/backfill_runtime_state.py
+  function: _review_from_frontmatter
+  status: active
+  source: WP01/IC01
+- category: writer
+  module: src/specify_cli/migration/backfill_runtime_state.py
+  function: read_legacy_runtime
+  status: active
+  source: WP01/IC01
+- category: writer
+  module: src/specify_cli/orchestrator_api/commands.py
+  function: _parse_review_result_json
+  status: active
+  source: WP01/IC01
+- category: writer
+  module: src/specify_cli/orchestrator_api/commands.py
+  function: transition
+  status: active
+  source: WP01/IC01
+# WP12 (review-cycle-verdict-seam-rebuild-01KZ2W7W, T051, FR-009): the
+# ``writer`` row for ``review/arbiter.py::_persist_in_artifact`` is REMOVED
+# here -- deleted outright, retiring the ``arbiter_override``
+# frontmatter-stamping path into the event-sourced ``ReviewOverride`` emit
+# (representation #1; verdict_seam_IC08.yaml's own retire row names this
+# exact function under FR-009). Row removed, not merely relabelled.
+# Disclosed cross-WP edit to a file WP01 owns, per this fixture's own
+# WP06/WP10/WP11 precedent (see this WP's final report).
+- category: writer
+  # WP12: ``persist_arbiter_decision`` STAYS writer-classified (unchanged
+  # row) -- its new body calls ``_persist_review_artifact_override(
+  # artifact_path, ...)``, whose name contains "persist" and whose first
+  # positional arg's display name contains "artifact", so
+  # ``_has_artifact_named_arg`` still matches. No shrinkage here; kept for
+  # the record so a reviewer sees this row was considered, not overlooked.
+  module: src/specify_cli/review/arbiter.py
+  function: persist_arbiter_decision
+  status: active
+  source: WP01/IC01
+- category: writer
+  module: src/specify_cli/review/artifacts.py
+  function: ReviewCycleArtifact.write
+  status: active
+  source: WP01/IC01
+- category: writer
+  module: src/specify_cli/review/cycle.py
+  function: create_rejected_review_cycle
+  status: active
+  source: WP01/IC01
+- category: writer
+  # WP10 (review-cycle-verdict-seam-rebuild-01KZ2W7W, T041/T043): extracted
+  # from create_rejected_review_cycle to keep cycle-number allocation, the
+  # write, and post-write validation inside ONE `with feature_status_lock`
+  # critical section (FR-005/NFR-006) without pushing the parent function
+  # past the C901 complexity ceiling. It builds/writes a
+  # `review-cycle-{cycle_n}.md`-shaped filename and calls `artifact.write`,
+  # so the AST writer predicate correctly detects it as a genuinely new
+  # writer -- this is a disclosed row addition (cross-WP edit to a file
+  # WP01 owns), not a silent one; see this WP's final report.
+  module: src/specify_cli/review/cycle.py
+  function: _allocate_and_write_review_cycle_locked
+  status: active
+  source: WP01/IC01
+- category: resolver
+  module: src/specify_cli/cli/commands/agent/tasks_materialization.py
+  function: _persist_review_feedback
+  status: active
+  source: WP01/IC01
+- category: resolver
+  module: src/specify_cli/cli/commands/agent/tasks_materialization.py
+  function: _resolve_wp_slug
+  status: active
+  source: WP01/IC01
+- category: resolver
+  module: src/specify_cli/cli/commands/agent/workflow.py
+  function: review
+  status: active
+  source: WP01/IC01
+- category: resolver
+  module: src/specify_cli/cli/commands/agent/workflow_cores.py
+  function: has_prior_rejection
+  status: active
+  source: WP01/IC01
+- category: resolver
+  module: src/specify_cli/cli/commands/agent/workflow_executor.py
+  function: implement_try_render_fix_mode_prompt
+  status: active
+  source: WP01/IC01
+- category: resolver
+  module: src/specify_cli/post_merge/review_artifact_consistency.py
+  function: _artifact_dirs_for_wp
+  status: active
+  source: WP01/IC01
+- category: resolver
+  module: src/specify_cli/post_merge/review_artifact_consistency.py
+  function: find_rejected_review_artifact_conflicts
+  status: active
+  source: WP01/IC01
+# WP12 (review-cycle-verdict-seam-rebuild-01KZ2W7W, T051-T053, FR-009): the
+# ``resolver`` rows for ``review/arbiter.py::_find_review_cycle_artifact``,
+# ``get_arbiter_overrides_for_wp``, and ``persist_arbiter_decision`` are
+# REMOVED here (three rows). ``_find_review_cycle_artifact`` is deleted
+# outright (T053: its bare-``wp_id`` join and lexicographic-sort bugs are
+# retired, not fixed in place -- resolution now routes through
+# ``_resolve_wp_slug`` + ``review/cycle.py::_review_cycle_wp_dir``, called
+# from a DIFFERENT module, so the same-module one-hop closure this census
+# uses does not promote the caller). ``get_arbiter_overrides_for_wp`` and
+# ``persist_arbiter_decision`` both survive by name (real callers outside
+# this WP's ``owned_files`` depend on them) but their NEW bodies no longer
+# do a ``tasks``-join or parse frontmatter themselves -- they delegate to
+# other-module resolvers/the event-sourced snapshot, so neither still
+# matches this category's AST shape. verdict_seam_IC08.yaml's own retire
+# rows name all three under FR-009. Disclosed cross-WP edit to a file WP01
+# owns, per this fixture's own WP06/WP10/WP11 precedent (see this WP's
+# final report).
+- category: resolver
+  module: src/specify_cli/review/cycle.py
+  function: _review_cycle_wp_dir
+  status: active
+  source: WP01/IC01
+- category: resolver
+  module: src/specify_cli/review/cycle.py
+  function: create_rejected_review_cycle
+  status: active
+  source: WP01/IC01
+- category: resolver
+  module: src/specify_cli/review/cycle.py
+  function: resolve_review_cycle_pointer
+  status: active
+  source: WP01/IC01
+- category: reader
+  module: src/specify_cli/agent_utils/status.py
+  function: _get_wp_review_verdict
+  status: active
+  source: WP01/IC01
+- category: reader
+  module: src/specify_cli/agent_utils/status.py
+  function: show_kanban_status
+  status: active
+  source: WP01/IC01
+- category: reader
+  module: src/specify_cli/cli/commands/agent/tasks_parsing_validation.py
+  function: _apply_review_status_flags
+  status: active
+  source: WP01/IC01
+- category: reader
+  module: src/specify_cli/cli/commands/agent/tasks_parsing_validation.py
+  function: _get_latest_review_cycle_verdict
+  status: active
+  source: WP01/IC01
+- category: reader
+  module: src/specify_cli/cli/commands/agent/workflow_cores.py
+  function: resolve_review_feedback_pointer
+  status: active
+  source: WP01/IC01
+- category: reader
+  module: src/specify_cli/cli/commands/agent/workflow_executor.py
+  function: implement_try_render_fix_mode_prompt
+  status: active
+  source: WP01/IC01
+- category: reader
+  module: src/specify_cli/post_merge/review_artifact_consistency.py
+  function: find_rejected_review_artifact_conflicts
+  status: active
+  source: WP01/IC01
+# WP12 (review-cycle-verdict-seam-rebuild-01KZ2W7W, T051-T052, FR-009): the
+# ``reader`` rows for ``review/arbiter.py::_persist_in_artifact``,
+# ``get_arbiter_overrides_for_wp``, and ``persist_arbiter_decision`` are
+# REMOVED here (three rows) -- same reasoning as the ``resolver`` removal
+# above: ``_persist_in_artifact`` is deleted outright, and the surviving
+# ``get_arbiter_overrides_for_wp`` / ``persist_arbiter_decision`` no longer
+# parse frontmatter/JSON themselves (the manual YAML parse this census's
+# reader shape detected was ALSO spec.md User Story 4's uncaught-crash
+# defect -- retiring it closes that incidentally, though FR-012/reader
+# failure-polarity remains WP14's owned concern, not claimed here).
+# verdict_seam_IC08.yaml's own retire rows name all three under FR-009.
+# Disclosed cross-WP edit to a file WP01 owns, per this fixture's own
+# WP06/WP10/WP11 precedent (see this WP's final report).
+- category: reader
+  module: src/specify_cli/review/artifacts.py
+  function: ReviewCycleArtifact.from_file
+  status: active
+  source: WP01/IC01
+- category: reader
+  module: src/specify_cli/review/artifacts.py
+  function: ReviewCycleArtifact.latest
+  status: active
+  source: WP01/IC01
+- category: reader
+  module: src/specify_cli/review/artifacts.py
+  function: latest_review_artifact_verdict
+  status: active
+  source: WP01/IC01
+- category: reader
+  module: src/specify_cli/review/artifacts.py
+  function: rejected_review_artifact_for_terminal_lane
+  status: active
+  source: WP01/IC01
+- category: reader
+  module: src/specify_cli/review/cycle.py
+  function: _guard_feedback_source_provenance
+  status: active
+  source: WP01/IC01
+- category: reader
+  # WP10 (review-cycle-verdict-seam-rebuild-01KZ2W7W, T041): same extraction
+  # as the writer row above -- the same-module one-hop closure promotes it
+  # to reader because it calls validate_review_artifact_file (already
+  # reader-classified) by bare name within cycle.py. Disclosed row addition.
+  module: src/specify_cli/review/cycle.py
+  function: _allocate_and_write_review_cycle_locked
+  status: active
+  source: WP01/IC01
+- category: reader
+  module: src/specify_cli/review/cycle.py
+  function: create_rejected_review_cycle
+  status: active
+  source: WP01/IC01
+- category: reader
+  module: src/specify_cli/review/cycle.py
+  function: resolve_review_cycle_pointer
+  status: active
+  source: WP01/IC01
+- category: reader
+  module: src/specify_cli/review/cycle.py
+  function: validate_review_artifact_file
+  status: active
+  source: WP01/IC01
+# ---------------------------------------------------------------------------
+# Retire rows folded from verdict_seam_IC08.yaml (WP08, IC-07, FR-008). Full
+# attribution reasoning, the deadlock this fragment's WP-claim rule resolves,
+# and the "judgment calls NOT to mark retire" record all live in the fragment
+# itself (retained on disk, see the fragment-retention note above) -- not
+# reproduced in full here to avoid a second copy silently drifting from the
+# original; this comment carries only the short form.
+#
+# DEFERRED OBLIGATION (per WP08's own operator ruling, repeated here for a
+# reader who does not also open the fragment): confirming each row's
+# resolver is GENUINELY unresolvable by mission exit is WP17's job
+# (mission-exit-verification, NFR-001/NFR-004/C-005), not re-litigated by
+# this fold.
+# ---------------------------------------------------------------------------
+- category: resolver
+  module: src/specify_cli/post_merge/review_artifact_consistency.py
+  function: _artifact_dirs_for_wp
+  status: retire
+  retiring_fr: FR-007
+  source: WP08/IC08
+- category: resolver
+  module: src/specify_cli/review/cycle.py
+  function: _review_cycle_wp_dir
+  status: retire
+  retiring_fr: FR-003
+  source: WP08/IC08
+- category: resolver
+  module: src/specify_cli/review/arbiter.py
+  function: _find_review_cycle_artifact
+  status: retire
+  retiring_fr: FR-009
+  source: WP08/IC08
+- category: resolver
+  module: src/specify_cli/review/arbiter.py
+  function: persist_arbiter_decision
+  status: retire
+  retiring_fr: FR-009
+  source: WP08/IC08
+- category: resolver
+  module: src/specify_cli/review/arbiter.py
+  function: get_arbiter_overrides_for_wp
+  status: retire
+  retiring_fr: FR-009
+  source: WP08/IC08

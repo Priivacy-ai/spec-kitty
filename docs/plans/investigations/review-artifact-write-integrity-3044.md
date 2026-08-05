@@ -26,6 +26,34 @@ architecture claim below was additionally re-verified by direct `grep`/`Read` af
 reported, because the squad's central finding revises the premise this research started from. Full
 lens outputs are preserved in [§3](#3-the-four-lenses).
 
+> **Superseded, in part (2026-08-05, mission `review-cycle-verdict-seam-rebuild-01KZ2W7W`,
+> ADR [`2026-08-03-1`](/docs/adr/3.x/2026-08-03-1-review-cycle-artifacts-are-coord-partition.md)).**
+> This document's diagnosis stands as an accurate record of what was true when it was written; two
+> of its own claims are now falsified by that mission, which this note marks without rewriting the
+> analysis below.
+>
+> 1. **"`create_rejected_review_cycle` is the only review-cycle artifact writer in the codebase"**
+>    (§2) is no longer true. This document's own **Option A** ("add a writer... through the
+>    existing, already-fixed `_review_cycle_wp_dir` seam") was adopted almost verbatim as this
+>    mission's FR-001/FR-005 scope, and **Option B** (provenance-validated feedback source) as its
+>    content-identity guard (WP10). An approved-verdict writer now exists and durably persists,
+>    closing the exact gap §0–§2 identify.
+> 2. **"The location split is already closed"** (§0, §2's `_review_cycle_wp_dir` citation) needs a
+>    qualifier this document could not have anticipated: this mission's own ADR introduces a
+>    **different**, new location-consistency risk — a coord-topology mission's first review cycle
+>    for a WP lands PRIMARY (no coordination worktree exists yet at commit time) while every
+>    subsequent cycle for the same WP lands COORD, once the worktree materialises. That
+>    create-window split is documented in
+>    `tests/architectural/census/verdict_seam_IC04.yaml` (WP04) and is the reason
+>    `_review_cycle_wp_dir` itself is now a `status: retire` row (FR-003, WP10) in the canonical
+>    census below — not because this document's original "already closed" read-side claim was
+>    wrong for what it analyzed, but because the ground it stood on changed underneath it.
+>
+> **Current source of truth for writer/resolver/reader enumeration:**
+> `tests/architectural/verdict_seam_census.yaml` (checked against the live AST by
+> `tests/architectural/test_verdict_seam_census.py` on every run) — not this document's line-pinned
+> counts, which were accurate on 2026-08-02 and are not maintained here going forward.
+
 **Origin:** the operator asked for pre-spec research connecting #3044 to "the recent read/write
 topology seam investigation" (`docs/plans/investigations/write-path-topology-root-cause.md` and
 `docs/development/read-side-seam-classification.md`) ahead of opening a mission.
