@@ -245,9 +245,17 @@ def test_generate_stages_produced_files(tmp_path: Path) -> None:
     )
 
 
-def test_generate_from_interview_fails_when_answers_missing(tmp_path: Path) -> None:
+def test_generate_from_interview_fails_when_answers_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """``--from-interview`` must not silently fall back to defaults."""
     _git_init(tmp_path)
+    # Hermetic against a stray ``.kittify`` marker anywhere above ``tmp_path``
+    # (e.g. a developer's home-dir kittify root, or another test's litter
+    # under the OS temp dir): without an interview file at ``tmp_path`` yet,
+    # ``locate_project_root``'s walk-up would otherwise happily resolve to
+    # that ambient ancestor instead of this fixture's repo.
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
 
     old_cwd = os.getcwd()
     try:
@@ -264,9 +272,13 @@ def test_generate_from_interview_fails_when_answers_missing(tmp_path: Path) -> N
     assert not (tmp_path / ".kittify" / "charter" / "charter.md").exists()
 
 
-def test_generate_from_interview_missing_answers_json_is_parseable(tmp_path: Path) -> None:
+def test_generate_from_interview_missing_answers_json_is_parseable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """``--json`` error output must stay machine-parseable."""
     _git_init(tmp_path)
+    # See the hermeticity note in test_generate_from_interview_fails_when_answers_missing.
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
 
     old_cwd = os.getcwd()
     try:

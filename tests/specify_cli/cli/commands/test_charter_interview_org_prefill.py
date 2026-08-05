@@ -119,9 +119,19 @@ def test_interview_defaults_picks_up_org_charter_pre_fill(project_with_org_pack:
         os.chdir(old_cwd)
 
 
-def test_interview_without_org_packs_has_no_pre_fill(tmp_path: Path) -> None:
+def test_interview_without_org_packs_has_no_pre_fill(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """When no org packs are configured, `charter interview` runs cleanly with no pre-fill side effects."""
     _git_init(tmp_path)
+    # Hermetic against a stray ``.kittify`` marker anywhere above ``tmp_path``
+    # (e.g. a developer's home-dir kittify root, or another test's litter
+    # under the OS temp dir): unlike ``project_with_org_pack`` (which seeds
+    # ``.kittify/config.yaml`` at tmp_path before invocation and so always
+    # wins the walk-up), this fixture has no ``.kittify`` yet, so
+    # ``locate_project_root`` would otherwise happily resolve to an ambient
+    # ancestor instead of this fixture's repo.
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
     old_cwd = os.getcwd()
     try:
         os.chdir(tmp_path)

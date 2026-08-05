@@ -57,11 +57,19 @@ def _read_config(repo_root: Path) -> dict[str, object]:
 
 def test_interview_promotes_selections_preserving_builtins_on_absent_key(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """No pre-existing config.yaml (absent-key state): promotion must union in
     the real built-in directive/paradigm set, not just the newly-selected ids.
     """
     _git_init(tmp_path)
+    # Hermetic against a stray ``.kittify`` marker anywhere above ``tmp_path``
+    # (e.g. a developer's home-dir kittify root, or another test's litter
+    # under the OS temp dir): with no config.yaml at ``tmp_path`` yet,
+    # ``locate_project_root``'s walk-up would otherwise happily resolve to
+    # that ambient ancestor instead of this fixture's repo, and the
+    # promoted config.yaml would land there instead of under tmp_path.
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
     old_cwd = os.getcwd()
     try:
         os.chdir(tmp_path)
@@ -96,11 +104,16 @@ def test_interview_promotes_selections_preserving_builtins_on_absent_key(
         os.chdir(old_cwd)
 
 
-def test_interview_normalizes_canonical_form_directive_id(tmp_path: Path) -> None:
+def test_interview_normalizes_canonical_form_directive_id(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """A directive selected in canonical id form (DIRECTIVE_010) still promotes
     into config as its config-stem form (ID-form parity, WP01 resolver reuse).
     """
     _git_init(tmp_path)
+    # See the hermeticity note in
+    # test_interview_promotes_selections_preserving_builtins_on_absent_key.
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
     old_cwd = os.getcwd()
     try:
         os.chdir(tmp_path)
@@ -123,8 +136,13 @@ def test_interview_normalizes_canonical_form_directive_id(tmp_path: Path) -> Non
         os.chdir(old_cwd)
 
 
-def test_interview_promotion_is_idempotent_across_runs(tmp_path: Path) -> None:
+def test_interview_promotion_is_idempotent_across_runs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     _git_init(tmp_path)
+    # See the hermeticity note in
+    # test_interview_promotes_selections_preserving_builtins_on_absent_key.
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
     old_cwd = os.getcwd()
     try:
         os.chdir(tmp_path)
