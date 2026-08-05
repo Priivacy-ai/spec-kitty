@@ -38,6 +38,22 @@ canonical home outside ``tasks.py`` are imported directly at module scope
 Per-symbol routing/interception evidence:
 ``kitty-specs/tasks-py-degod-wave2-01KWH9EQ/seam-checklist.md`` (Layer 4 of
 the parity contract).
+
+**Verdict-persistence seam extraction** (WP06, mission
+``review-cycle-verdict-seam-rebuild-01KZ2W7W``, C-003 ruling
+``DM-01KZ3VBAWZ1B5XC25EDGN99BJP``): four verdict-relevant bodies now live in
+``tasks_verdict_persistence.py`` instead of here — the inline verdict
+resolver formerly inside ``_mt_gather_review_facts``, the OLD-timing
+review-artifact override persist formerly the body of
+``_mt_fire_override_persist``, the ``_persist_approved_review_cycle``
+closure + adjacent rollback block formerly inside ``_mt_finalize_plan``, and
+the arbiter-decision persist try/except formerly inside
+``_run_arbiter_override``. ``_mt_gather_review_facts``,
+``_mt_fire_override_persist`` and ``_run_arbiter_override`` themselves STAY
+here (frozen ``tasks.<name>`` compat symbols pinned by name in
+``test_tasks_compat_surface.py``) and now call into the new module for the
+extracted substance — see ``tasks_verdict_persistence.py``'s own module
+docstring for the per-site detail and the C-003 grounds.
 """
 
 from __future__ import annotations
@@ -68,11 +84,9 @@ from specify_cli.cli.commands.agent.tasks_finalize_validation import (
     _read_transactional_wp_lane,
 )
 from specify_cli.cli.commands.agent.tasks_materialization import (
-    _persist_review_artifact_override,
     _resolve_wp_slug,
 )
 from specify_cli.cli.commands.agent.tasks_parsing_validation import (
-    _get_latest_review_cycle_verdict,
     _issue_matrix_approval_blocker,
     _self_review_fallback_option_error,
 )
@@ -84,7 +98,15 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
     _effective_note_text,
     arbiter_persist_signal,
     build_transition_plan,
-    override_persist_signal,
+)
+from specify_cli.cli.commands.agent.tasks_verdict_persistence import (
+    VerdictDurabilitySignal,
+    _persist_approved_review_cycle,
+    persist_arbiter_override_decision,
+    persist_rejected_review_cycle_for_rollback,
+    persist_review_override_before_guard,
+    resolve_review_verdict_facts,
+    revert_committed_verdict_write,
 )
 from specify_cli.coordination.atomic_write import (
     enroll_subprocess_byproducts,
@@ -226,6 +248,15 @@ class _MoveTaskState:
     # (FR-004), so :func:`_mt_emit_runtime_state` does NOT re-emit it as an
     # off-axis ``InnerStateChanged`` delta.
     claim_emitted: bool = False
+    # WP11 (T048/T049/T050): the durability signal from whichever verdict
+    # writer ``_mt_finalize_plan`` called this invocation (approval or planned-
+    # rollback rejection -- the two are mutually exclusive per lane, so at
+    # most one assigns this). ``None`` when neither writer ran, or the
+    # approval no-op guard fired (nothing was written). Read by ``_mt_output``
+    # to surface T049/T050's ``--json`` key, and by ``_do_move_task`` to know
+    # whether T048's revert-compensator has anything to undo after a later
+    # ``_mt_execute`` failure.
+    pending_verdict_write: VerdictDurabilitySignal | None = None
 
 
 # --- phase A: resolve targets (I/O) -----------------------------------------
@@ -555,12 +586,8 @@ def _mt_gather_review_facts(st: _MoveTaskState) -> None:
     review_verdict: str | None = None
     review_artifact_name: str | None = None
     if st.target_lane in (Lane.APPROVED, Lane.DONE):
-        _verdict_wp_dir = st.wp.path.parent / st.wp.path.stem
-        review_verdict, st.verdict_artifact_path = _get_latest_review_cycle_verdict(
-            _verdict_wp_dir
-        )
-        review_artifact_name = (
-            st.verdict_artifact_path.name if st.verdict_artifact_path is not None else None
+        review_verdict, st.verdict_artifact_path, review_artifact_name = (
+            resolve_review_verdict_facts(st.wp.path)
         )
     feedback = _mt_resolve_feedback(st)
     unchecked_subtasks: tuple[str, ...] = ()
@@ -636,24 +663,17 @@ def _mt_complete_deferred_for_review_readiness(st: _MoveTaskState) -> None:
 def _mt_fire_override_persist(st: _MoveTaskState) -> None:
     """OLD-timing review-artifact override (FR-004 partial-write-on-refusal).
 
-    Fires before the guard sequence so a LATER guard's exit-1 refusal still leaves
-    the override on disk — reproducing the un-refactored command's timing.
+    Thin forwarder onto
+    :func:`tasks_verdict_persistence.persist_review_override_before_guard`
+    (WP06 verdict-seam extraction). Kept as a real, natively-defined symbol
+    here (frozen compat surface: ``tasks.py`` re-exports it, and
+    ``test_tasks_compat_surface.py`` pins it as native to this module) so
+    every historical ``tasks.<name>`` reference keeps resolving — mirrors the
+    house forwarder precedent already established by
+    :func:`_mt_run_pre_review_gate` -> :func:`_mt_run_transition_gates`. Do
+    NOT inline the body back here.
     """
-    assert st.request is not None
-    if not (override_persist_signal(st.request) and st.verdict_artifact_path is not None):
-        return
-    override_reason = st.note.strip() if isinstance(st.note, str) else ""
-    # FR-009 (WP09): a single topology-resolved ``InnerStateChanged`` ``review``
-    # emit is authoritative for both the primary and coord worktrees, so the
-    # former ``_persist_review_artifact_override_in_coord`` mirror is collapsed
-    # away — one emit, no coord frontmatter stamp.
-    _persist_review_artifact_override(
-        st.verdict_artifact_path,
-        repo_root=st.main_repo_root,
-        wp_id=st.task_id,
-        actor=st.agent or "operator",
-        reason=override_reason,
-    )
+    persist_review_override_before_guard(st)
 
 
 def _mt_done_ancestry_facts(st: _MoveTaskState) -> tuple[str | None, bool, str]:
@@ -1700,6 +1720,23 @@ def _mt_finalize_plan(st: _MoveTaskState, ports: TasksPorts) -> None:
     ``CoordCommitRouter``) is threaded in as ``commit_router`` so every write
     this function makes is actually git-committed (closes #2697), not left
     untracked.
+
+    WP06 (verdict-seam extraction): the former nested
+    ``_persist_approved_review_cycle`` closure and the adjacent
+    planned-rollback persist block now live in ``tasks_verdict_persistence``
+    as :func:`tasks_verdict_persistence._persist_approved_review_cycle`
+    (de-nested into a top-level function, same name, per C-003 ruling
+    DM-01KZ3VBAWZ1B5XC25EDGN99BJP CONDITION 2) and
+    :func:`persist_rejected_review_cycle_for_rollback`; this function calls
+    into both.
+
+    WP11 (T048, ``DM-01KZ6JE62Q6CQ24DMBX8KZZ5R9``): both writers now return a
+    ``VerdictDurabilitySignal`` describing what they just wrote (or ``None``
+    for the approval no-op guard) — captured onto ``st.pending_verdict_write``
+    so ``_do_move_task`` can revert an already-committed write if the LATER
+    ``_mt_execute`` transition-emit fails. The two calls are mutually
+    exclusive per lane (a planned rollback targets ``planned``; the approval
+    writer only fires for ``APPROVED``/``DONE``), so at most one assigns it.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
     assert st.decision is not None
@@ -1710,69 +1747,10 @@ def _mt_finalize_plan(st: _MoveTaskState, ports: TasksPorts) -> None:
     st.actor = st.agent or "user"
     st.canonical_lane = decision.plan.canonical_lane
 
-    def _persist_approved_review_cycle() -> None:
-        """T005: fire the generalized writer on the ordinary approval path.
-
-        Only when the WP's current highest-numbered review-cycle artifact is
-        ``rejected`` — a first-ever cycle (no prior artifact) or an
-        already-approved latest are both no-ops (FR-001 closes the stale-
-        rejection gap; it does not write a redundant/duplicate approval).
-        """
-        from specify_cli.review.artifacts import latest_review_artifact_verdict
-        from specify_cli.review.cycle import (
-            _review_cycle_wp_dir,
-            create_rejected_review_cycle,
-        )
-
-        wp_slug = _resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id)
-        sub_artifact_dir = _review_cycle_wp_dir(st.main_repo_root, st.mission_slug, wp_slug)
-        latest = latest_review_artifact_verdict(sub_artifact_dir)
-        if latest is None or latest.verdict != "rejected":
-            return
-        # Real reviewer_agent (matches ``_mt_plan_review_result``'s own
-        # fallback chain) — never the literal "unknown" for a genuine
-        # approval.
-        reviewer_agent = (st.reviewer or st.agent or st.actor or "unknown").strip() or "unknown"
-        approval_reference = (
-            st.approval_ref or st.note_text or f"approval:{st.task_id}"
-        ).strip() or f"approval:{st.task_id}"
-        # M1 (adversarial squad, PR #3156): the approval body is synthesized
-        # by THIS caller, not supplied by a reviewer — pass it via ``body=``
-        # rather than a throwaway ``feedback_source`` file. This both drops
-        # the tempfile dance entirely and keeps the write off
-        # ``_guard_feedback_source_provenance``'s content-identity arm, which
-        # exists to police externally-supplied feedback files (#990/#2996(b))
-        # and produces a false collision here: a repeated ``--note "Review
-        # passed"`` approval synthesizes the SAME deterministic body every
-        # time, which used to be indistinguishable from a reviewer replaying
-        # a prior cycle's content.
-        create_rejected_review_cycle(
-            main_repo_root=st.main_repo_root,
-            mission_slug=st.mission_slug,
-            wp_id=st.task_id,
-            wp_slug=wp_slug,
-            body=f"Approved by {reviewer_agent}: {approval_reference}\n",
-            reviewer_agent=reviewer_agent,
-            verdict="approved",
-            commit_router=ports.coord if st.resolved_auto_commit else None,
-        )
-
     if decision.planned_rollback and st.resolved_feedback_source is not None:
-        from specify_cli.review.cycle import create_rejected_review_cycle
-
-        review_cycle = create_rejected_review_cycle(
-            main_repo_root=st.main_repo_root,
-            mission_slug=st.mission_slug,
-            wp_id=st.task_id,
-            wp_slug=_resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id),
-            feedback_source=st.resolved_feedback_source,
-            reviewer_agent=_mt_resolve_reviewer_identity(st),
-            commit_router=ports.coord if st.resolved_auto_commit else None,
-        )
-        st.review_feedback_pointer = review_cycle.pointer
-        st.rejected_review_result = review_cycle.review_result
+        st.pending_verdict_write = persist_rejected_review_cycle_for_rollback(st, ports)
     if st.target_lane in (Lane.APPROVED, Lane.DONE):
-        _persist_approved_review_cycle()
+        st.pending_verdict_write = _persist_approved_review_cycle(st, ports)
     if decision.done_override_note and not st.json_output:
         _tasks.console.print(
             "[yellow]⚠️  Proceeding with done override; reason recorded in "
@@ -2294,6 +2272,15 @@ def _mt_output(st: _MoveTaskState) -> None:
         result["review_feedback"] = st.review_feedback_pointer
     if st.pre_review_gate_metadata is not None:
         result["pre_review_gate"] = st.pre_review_gate_metadata
+    # WP11 (T049/T050): an explicit ``false`` (never a bare missing key) so a
+    # machine consumer never has to infer non-durability from absence.
+    # ``verdict_durability_skip_reason`` distinguishes FR-013's sanctioned
+    # ``--no-auto-commit`` case from the protected-primary-coord case (T050) —
+    # present only when non-durable, since a durable write has no "reason".
+    if st.pending_verdict_write is not None:
+        result["verdict_durably_persisted"] = st.pending_verdict_write.durably_persisted
+        if st.pending_verdict_write.skip_reason is not None:
+            result["verdict_durability_skip_reason"] = st.pending_verdict_write.skip_reason
     _tasks._output_result(
         st.json_output,
         result,
@@ -2354,6 +2341,21 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
 
     T033 (#2649): ``args`` groups the 19 raw CLI-facing inputs the original
     21-parameter signature carried individually — see :class:`_MoveTaskArgs`.
+
+    T048 (``DM-01KZ6JE62Q6CQ24DMBX8KZZ5R9``): ``_mt_execute`` is wrapped
+    in-line (not factored into a new named helper -- the widened ``owned_
+    files`` grant is scoped to this diff only, and adding a new top-level
+    symbol here would also require registering it in ``test_tasks_compat_
+    surface.py``'s consolidated re-export guard, which is out of this WP's
+    two named purposes). On a transition-emit failure, an already-committed
+    verdict write is actively reverted before the failure propagates -- the
+    write-then-emit call order stays UNCHANGED (``_mt_finalize_plan`` already
+    ran; this only wraps the pre-existing, unmodified ``_mt_execute`` step).
+    A revert-compensator failure is NOT swallowed into the original error --
+    see :class:`tasks_verdict_persistence.VerdictRevertError`'s rationale;
+    the bare original exception (unchanged type/traceback) is re-raised on a
+    successful revert, and only a revert FAILURE escalates to a new,
+    explicitly compounded error.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
     ports = ports or _default_move_task_ports()
@@ -2393,7 +2395,20 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
         _mt_run_pre_review_gate(st)
         _mt_complete_deferred_for_review_readiness(st)
         _mt_finalize_plan(st, ports)
-        _mt_execute(st, ports)
+        try:
+            _mt_execute(st, ports)
+        except Exception as execute_error:
+            if st.pending_verdict_write is not None:
+                try:
+                    revert_committed_verdict_write(st, st.pending_verdict_write)
+                except Exception as revert_error:
+                    raise RuntimeError(
+                        f"Transition emit failed for {st.task_id} ({execute_error}); "
+                        f"the FR-002 revert-compensator ALSO failed to undo the "
+                        f"already-committed verdict write ({revert_error}). Operator "
+                        f"attention required -- a committed verdict may still exist."
+                    ) from execute_error
+            raise
         _mt_output(st)
     except typer.Exit:
         raise
@@ -2535,6 +2550,12 @@ def _run_arbiter_override(
     Executes the arbiter-override side effect once ``decide_transition`` has
     authorised it (``Emit.arbiter_forward``). Returns the derived ``review_ref``
     so the emit plan can link the forward event to the rejection it overrides.
+
+    WP06 (verdict-seam extraction): the persist try/except (and its exception
+    handling) now lives in ``tasks_verdict_persistence`` as
+    :func:`persist_arbiter_override_decision`; this function builds the
+    decision and calls straight into it instead of running the try/except
+    inline.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
 
@@ -2542,7 +2563,6 @@ def _run_arbiter_override(
         from specify_cli.review.arbiter import (
             create_arbiter_decision,
             parse_category_from_note,
-            persist_arbiter_decision,
         )
     except ImportError:
         return None
@@ -2563,18 +2583,14 @@ def _run_arbiter_override(
         category=_arb_category,
         explanation=_arb_explanation,
     )
-    try:
-        _arb_path = persist_arbiter_decision(
-            feature_dir=feature_dir,
-            wp_id=task_id,
-            review_ref=_arb_review_ref,
-            decision=arbiter_decision,
-        )
-        if not json_output:
-            _tasks.console.print(f"[yellow]Arbiter override recorded:[/yellow] [bold]{_arb_category}[/bold] — {_arb_explanation}")
-            _tasks.console.print(f"[dim]  Decision persisted: {_arb_path}[/dim]")
-    except Exception as _arb_err:
-        if not json_output:
-            _tasks.console.print(f"[dim]Warning: Could not persist arbiter decision: {_arb_err}[/dim]")
+    persist_arbiter_override_decision(
+        feature_dir=feature_dir,
+        wp_id=task_id,
+        review_ref=_arb_review_ref,
+        decision=arbiter_decision,
+        category=_arb_category,
+        explanation=_arb_explanation,
+        json_output=json_output,
+    )
 
     return _arb_review_ref
