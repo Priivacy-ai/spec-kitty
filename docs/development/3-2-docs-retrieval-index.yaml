@@ -8428,7 +8428,7 @@ pages:
   - path: "docs/plans/doctrine/missions-reader-inventory-01KZ6G6H.md"
     title: "Cross-Layer missions/ Reader Inventory (WP03)"
     divio_type: "none"
-    abstract: "The committed move/stay/repoint inventory of every reader of the built-in missions/ data content across kernel, doctrine, charter, specify_cli, runtime, and upgrade migrations — the authority WP05 consumed for the atomic relocation to packs/built-in/missions."
+    abstract: "Committed move/stay/repoint inventory of every reader of the built-in missions/ data — the authority WP05 consumed for the atomic relocation to packs/built-in/missions."
     anchors:
     - {slug: "method", text: "Method", level: 2}
     - {slug: "live-finding-incorporated-per-this-wp-s-brief-the-post-move-self-match-trap-is-not-closed-by-wp04-alone", text: "Live finding incorporated (per this WP's brief): the post-move self-match trap is NOT closed by WP04 alone", level: 2}
@@ -8444,7 +8444,7 @@ pages:
   - path: "docs/plans/doctrine/next-slice-wheel-mission-types-public-api-research.md"
     title: "2026-08-04 — Next doctrine slice: wheel cutover, mission-type relocation, public API surface"
     divio_type: "none"
-    abstract: "Preliminary research on the scope after #3176 lands — kernel/doctrine/charter wheel packaging, missions/ tree relocation, and creation of a stable public API for doctrine & charter modules (cf. the #645/#460 FastAPI precedent)."
+    abstract: "Preliminary research on the post-#3176 scope: kernel/doctrine/charter wheel packaging, the missions/ tree relocation, and a stable public API for the doctrine & charter modules."
     anchors:
     - {slug: "trigger", text: "Trigger", level: 2}
     - {slug: "a-wheel-modules-already-assessed-decision-made-not-yet-executed", text: "(a) Wheel modules — already assessed, decision made, not yet executed", level: 2}
