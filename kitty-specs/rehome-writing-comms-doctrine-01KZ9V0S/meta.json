@@ -1,0 +1,20 @@
+{
+  "baseline_merge_commit": "53272741a1882acf0c2b216d62b21f64a6ef1add",
+  "coordination_branch": "kitty/mission-rehome-writing-comms-doctrine-01KZ9V0S",
+  "created_at": "2026-08-05T20:49:40.556220+00:00",
+  "flattened": false,
+  "friendly_name": "Rehome & Complete Writing-Comms Doctrine",
+  "mission_id": "01KZ9V0S6BEBY1QHKM0YPT8B8D",
+  "mission_number": null,
+  "mission_slug": "rehome-writing-comms-doctrine-01KZ9V0S",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "A community contribution (PR #2918) adds a valuable writing, communication, terminology-governance, and meeting-minutes doctrine set, but it targets a directory layout the built-in-doctrine consolidation has since removed, and two adversarial reviews flagged routing, authority, and trust-boundary problems. This mission re-homes the set onto the canonical packs/built-in surface, wires it into the doctrine relationship graph so nothing is orphaned, and reconciles the flagged content so the doctrine is honest and non-contradictory — while preserving the original contributor's authorship.",
+  "purpose_tldr": "Land the contributed writing & communications doctrine set (7 agents plus directives, styleguides, procedures, and audience assets) onto the current doctrine surface — fully wired into the doctrine graph and honest about what it enforces.",
+  "slug": "rehome-writing-comms-doctrine-01KZ9V0S",
+  "status_phase": "1",
+  "target_branch": "feat/rehome-writing-comms-doctrine",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-05T21:36:53.628533+00:00"
+}

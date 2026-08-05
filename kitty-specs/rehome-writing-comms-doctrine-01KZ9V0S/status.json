@@ -1,0 +1,81 @@
+{
+  "event_count": 30,
+  "last_event_id": "01KZA2X1KW4622A2PP075V20P5",
+  "materialized_at": "2026-08-05T23:07:26.716685+00:00",
+  "mission_number": "",
+  "mission_slug": "rehome-writing-comms-doctrine-01KZ9V0S",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZA2WWZYNAMQERGS5VJCVPEE",
+      "last_transition_at": "2026-08-05T23:07:21.982661+00:00",
+      "review_result": {
+        "reference": "Review passed: RED-first confirmed (pre-narrowing ca7946b tree -> test_bare_design_verb + test_bare_classify_verb genuinely RED: diagram-daisy beat designer-dagmar, comms-cleo beat incumbent curators; GREEN 9/9 after roles[0] narrowing in 7084ee5). Verb-deviation validated: wireframe/organize map to DESIGNER/CURATOR in CANONICAL_VERB_MAP and are unclaimed by any profile canonical-verbs (design claimed by architect-alphonso, classify by paula-patterns@65 -> both avoided); narrowing is verb-agnostic (roles[0] no longer designer/curator). T002 verbs (diagram/chart/visualize; draft-comms/edit-copy/calibrate-tone; synthesize/reconcile/integrate) do not re-open a bucket. T001 old path empty, 7 profiles present, both READMEs list 25 ids. T002 all 7 doctrine-validate clean. T005 no 031/arch-ban, C4/mermaid/plantuml refs present. T006 mahad over-claims removed. T007 Larry=glossary-diagnostician + carla boundary, carla file untouched. T008 047-050/writing-audience-catalog under context-sources.directives/tactic-references, cross-lane ids declared not pruned. Terminology gate 10/10. Scope clean (7 profiles + 2 READMEs + 1 test). FR-011 Co-Authored-By Zohar Stolar on both commits.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1169964,
+      "shell_pid_created_at": "1785965842.37"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZA2WYMBWNF2N14MVD641Y3E",
+      "last_transition_at": "2026-08-05T23:07:23.659649+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata, independent): T009-T013 grep/validate verified; issue-matrix gate resolved (#2467 already-fixed, #2918 in-mission, #2950 already-fixed).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1217650,
+      "shell_pid_created_at": "1785966810.79"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZA2X048NC9GPVH8F0A2P5T9",
+      "last_transition_at": "2026-08-05T23:07:25.192106+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata, independent): all T014-T019 verified — relocation+inversion clean, 5 trust boundaries substantive, enforcement claims removed, composer refs resolve, type:asset kept. issue-matrix gate resolved.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1221485,
+      "shell_pid_created_at": "1785966910.8"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KZA2X1KW4622A2PP075V20P5",
+      "last_transition_at": "2026-08-05T23:07:26.716685+00:00",
+      "review_result": {
+        "reference": "Review passed: node_count=345 verified empirically (324+21), edge_count=930>=913, regenerate --check clean (generated_by drg-migration-v1, additions-only), doctor 25/25 invalid=[] skipped=[] org_drg.errors=[], pack validate 0 errors, pin move 60->59 genuine+ledgered (minutes-maker-mahad--requires-->DIRECTIVE_050--suggests-->secure-design-checklist verified in frontmatter+graph+ledger row), gates+terminology green. NOTE for WP03 follow-up: 4 of 5 writing-audience assets are DRG orphans (0 inbound) - the writing-audience-catalog tactic references only software-engineer and defers rest to README; not WP04-owned, not gate-flagged, non-blocking.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1354105,
+      "shell_pid_created_at": "1785969105.12"
+    }
+  }
+}
