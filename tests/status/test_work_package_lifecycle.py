@@ -87,7 +87,7 @@ def test_genesis_unseeded_wp_is_rejected_with_actionable_message(tmp_path: Path)
 
 
 def test_genesis_unseeded_wp_with_other_wp_seeded_also_rejected(
-    tmp_path: Path, seed_to_planned: Callable
+    tmp_path: Path, seed_to_planned: Callable[..., None]
 ) -> None:
     """Genesis rejection fires even when other WPs in the same mission have events."""
     feature_dir = _feature_dir(tmp_path)
@@ -107,7 +107,7 @@ def test_genesis_unseeded_wp_with_other_wp_seeded_also_rejected(
 
 
 def test_seeded_wp_happy_path_unaffected_by_genesis_check(
-    tmp_path: Path, seed_to_planned: Callable
+    tmp_path: Path, seed_to_planned: Callable[..., None]
 ) -> None:
     """After finalize-tasks seeds genesis→planned, the WP proceeds normally."""
     feature_dir = _feature_dir(tmp_path)
@@ -134,7 +134,7 @@ def test_seeded_wp_happy_path_unaffected_by_genesis_check(
 
 
 def test_start_implementation_batches_planned_to_in_progress(
-    tmp_path: Path, seed_to_planned: Callable
+    tmp_path: Path, seed_to_planned: Callable[..., None]
 ) -> None:
     feature_dir = _feature_dir(tmp_path)
     seed_to_planned(feature_dir, "WP01", slug=_SLUG)
@@ -165,7 +165,7 @@ def test_start_implementation_batches_planned_to_in_progress(
 
 
 def test_backgrounded_implementation_start_does_not_strand_claimed(
-    tmp_path: Path, seed_to_planned: Callable
+    tmp_path: Path, seed_to_planned: Callable[..., None]
 ) -> None:
     """A normal start writes claim and progress evidence as one durable batch."""
     feature_dir = _feature_dir(tmp_path)
@@ -209,7 +209,7 @@ def test_start_implementation_resumes_claimed_same_actor(tmp_path: Path) -> None
 
 def test_real_implement_and_review_claims_persist_structured_latest_binding(
     tmp_path: Path,
-    seed_to_planned: Callable,
+    seed_to_planned: Callable[..., None],
 ) -> None:
     """The lifecycle entry points persist actor + binding in one claim unit."""
     feature_dir = _feature_dir(tmp_path)
@@ -243,6 +243,23 @@ def test_real_implement_and_review_claims_persist_structured_latest_binding(
     assert len(stream.annotations) == 1  # golden-count: cardinality-is-contract -- one atomic binding annotation
     assert stream.annotations[0].delta.agent_profile == "python-pedro"
 
+    # #3157: this event must sort strictly BETWEEN the real `now()` timestamp
+    # `start_implementation_status` (above) already recorded and the real
+    # `now()` timestamp `start_review_status` (below) is about to record, in
+    # `reduce()`'s `(e.at, e.event_id)` sort order -- forever, regardless of
+    # what wall-clock date the suite happens to run on. A second
+    # absolute-literal `at` (e.g. bumped to some later fixed year) would only
+    # buy a longer fuse on the same defect (spec.md's Revision History calls
+    # this out explicitly as the wrong fix). Capturing `datetime.now(UTC)`
+    # HERE, between the two calls, relies only on wall-clock time being
+    # monotonically non-decreasing during a single test run -- not on any
+    # absolute date -- so it is strictly later than every timestamp
+    # `start_implementation_status` already wrote (that call already
+    # returned) and strictly earlier than every timestamp `start_review_
+    # status` is about to write (that call has not started yet). This
+    # ordering property holds at ANY future run date, including the system
+    # clock advanced by ten years: it is derived relative to the call's own
+    # execution moment, never a second fixed literal.
     append_event(
         feature_dir,
         _event(
