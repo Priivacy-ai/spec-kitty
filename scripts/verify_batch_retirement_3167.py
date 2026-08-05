@@ -113,32 +113,16 @@ def _referenced_names(node: ast.AST) -> set[str]:
     return {n.id for n in ast.walk(node) if isinstance(n, ast.Name)}
 
 
-def _classify_external(path: Path, symbols: set[str]) -> dict[str, str]:
-    """Return {symbol: 'CODE'|'STR-TARGET'|'PROSE'} for symbols referenced in path."""
-    try:
-        text = path.read_text(encoding="utf-8")
-    except (UnicodeDecodeError, OSError):
-        return {}
-    present = {s for s in symbols if s in text}
-    if not present:
-        return {}
-
-    result: dict[str, str] = {}
-    try:
-        tree = ast.parse(text)
-    except SyntaxError:
-        return dict.fromkeys(present, "PROSE")
-
-    # names imported directly from the target module, and module aliases for it
+def _target_imports(tree: ast.Module, in_target_package: bool) -> tuple[set[str], set[str]]:
+    """Names imported directly from the target module, and module aliases for it."""
     direct: set[str] = set()
     aliases: set[str] = set()
+
     # A sibling module inside src/specify_cli/sync/ reaches the target as the
     # RELATIVE ``from .batch import X`` (node.module == "batch", level >= 1).
     # Missing this case reported every production consumer as having no
     # reference at all -- including run_final_sync_with_retries, which
     # sync/background.py imports exactly that way.
-    in_target_package = str(path.parent).endswith("specify_cli/sync")
-
     def _is_target(node: ast.ImportFrom) -> bool:
         mod = node.module or ""
         if mod.endswith(TARGET_MODULE_TAIL):
@@ -157,18 +141,42 @@ def _classify_external(path: Path, symbols: set[str]) -> dict[str, str]:
             for a in node.names:
                 if a.name.endswith(TARGET_MODULE_TAIL):
                     aliases.add(a.asname or a.name.split(".")[0])
+    return direct, aliases
 
+
+def _string_target_tails(tree: ast.Module) -> set[str]:
+    """Trailing names of string literals naming the module path (monkeypatch/patch targets)."""
+    tails: set[str] = set()
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Constant) and isinstance(n.value, str) and TARGET_MODULE_TAIL in n.value:
+            tails.add(n.value.rsplit(".", 1)[-1])
+    return tails
+
+
+def _classify_external(path: Path, symbols: set[str]) -> dict[str, str]:
+    """Return {symbol: 'CODE'|'STR-TARGET'|'PROSE'} for symbols referenced in path."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (UnicodeDecodeError, OSError):
+        return {}
+    present = {s for s in symbols if s in text}
+    if not present:
+        return {}
+
+    result: dict[str, str] = {}
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return dict.fromkeys(present, "PROSE")
+
+    direct, aliases = _target_imports(tree, str(path.parent).endswith("specify_cli/sync"))
     code_names = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)}
     attr_on_alias = {
         n.attr
         for n in ast.walk(tree)
         if isinstance(n, ast.Attribute) and isinstance(n.value, ast.Name) and n.value.id in aliases
     }
-    # string literals naming the module path (monkeypatch/patch targets)
-    str_targets: set[str] = set()
-    for n in ast.walk(tree):
-        if isinstance(n, ast.Constant) and isinstance(n.value, str) and TARGET_MODULE_TAIL in n.value:
-            str_targets.add(n.value.rsplit(".", 1)[-1])
+    str_targets = _string_target_tails(tree)
 
     # tokens appearing only in comments -> prose. (docstrings are ast.Constant,
     # already excluded from code_names)
@@ -190,6 +198,73 @@ def _classify_external(path: Path, symbols: set[str]) -> dict[str, str]:
         else:
             result[s] = "PROSE"
     return result
+
+
+def _scan_external(root: Path, symbols: set[str]) -> tuple[dict[str, dict[str, str]], int]:
+    """Classify references once per file under SEARCH_ROOTS.
+
+    Returns ``({symbol: {relative_path: kind}}, files_scanned)``. Insertion order of
+    each inner dict follows the walk order, which is what the unsorted
+    ``prod CODE refs`` column prints.
+    """
+    external: dict[str, dict[str, str]] = {}
+    scanned = 0
+    for r in SEARCH_ROOTS:
+        if not (root / r).exists():
+            continue
+        for p in (root / r).rglob("*.py"):
+            rel = p.relative_to(root)
+            if rel == TARGET:
+                continue
+            scanned += 1
+            hits = _classify_external(p, symbols)
+            for sym, kind in hits.items():
+                external.setdefault(sym, {})[str(rel)] = kind
+    return external, scanned
+
+
+def _close_dead(
+    seeded: set[str],
+    symbols: set[str],
+    consts: set[str],
+    decls: dict[str, ast.AST],
+    uses: dict[str, set[str]],
+    prod_code_refs: Callable[[str], list[str]],
+) -> set[str]:
+    """Grow ``seeded`` to the fixpoint of symbols with no live referrer."""
+    dead = set(seeded)
+    changed = True
+    while changed:
+        changed = False
+        for sym in symbols:
+            if sym in dead or sym in API_ALIVE:
+                continue
+            referrers = {n for n, u in uses.items() if sym in u}
+            # A symbol with NO intra-module referrer is an ENTRY POINT, and an empty
+            # referrer set satisfies ``referrers <= dead`` vacuously: its liveness
+            # rests entirely on external evidence. The first version demanded
+            # ``referrers and referrers <= dead``, so an entry point could never be
+            # derived dead however the external evidence fell --
+            # run_final_sync_with_retries stayed ALIVE even with background.py's
+            # ``from .batch import`` block deleted, which made the ALIVE tier an
+            # artifact of the rule rather than a finding. Unreferenced CONSTANTS keep
+            # the original carve-out (deferred to ruff / dead-symbol review) so this
+            # correction cannot silently widen the deletion set.
+            if sym in consts and not referrers:
+                continue
+            if referrers <= dead and not prod_code_refs(sym):
+                dead.add(sym)
+                changed = True
+
+        # constants referenced only from dead functions
+        for c in consts - dead:
+            if c in API_ALIVE or prod_code_refs(c):
+                continue
+            referrers = {n for n, node in decls.items() if c in _referenced_names(node)}
+            if referrers and referrers <= dead:
+                dead.add(c)
+                changed = True
+    return dead
 
 
 def _test_file_dispositions(
@@ -241,6 +316,40 @@ def _print_tiers(
         print(f"   {s:44} {tag}")
 
 
+def _print_preamble(
+    symbols: set[str],
+    decls: dict[str, ast.AST],
+    consts: set[str],
+    scanned: int,
+    dead: set[str],
+    prod_code_refs: Callable[[str], list[str]],
+) -> None:
+    """Emit the run's inputs and the seed-premise verdicts."""
+    print(f"target: {TARGET}   seeds: {sorted(SEEDS)}")
+    print(f"declared symbols: {len(symbols)}  (callables/classes {len(decls)}, constants {len(consts)})")
+    print(f"files scanned for references: {scanned}  (roots: {[str(r) for r in SEARCH_ROOTS]})")
+    print(f"API-alive via specify_cli.sync lazy map: {sorted(API_ALIVE)}")
+    # The seed premise, tested rather than assumed. Printed with the evidence so a
+    # reader can see WHICH seed earned deletion and on what basis.
+    for s in sorted(SEEDS):
+        verdict = "no production CODE ref -> deletable" if s in dead else f"HAS production CODE refs {prod_code_refs(s)}"
+        print(f"seed premise: {s:32} {verdict}")
+    print()
+
+
+def _print_coupling(dead: set[str], external: dict[str, dict[str, str]]) -> None:
+    """Emit the test-file disposition split for the dead set."""
+    print("\n== test files with CODE/STR-TARGET coupling to any dead symbol ==")
+    coupled, prose_only = _test_file_dispositions(dead, external)
+    for f in sorted(coupled):
+        print(f"   {f}\n        {sorted(coupled[f])}")
+    print(f"\ncode-coupled test files: {len(coupled)}")
+
+    print(f"prose-only test files (no code work; correct the prose): {len(prose_only)}")
+    for f in sorted(prose_only):
+        print(f"   {f}")
+
+
 def main() -> int:
     root = Path.cwd()
     if not (root / TARGET).exists():
@@ -260,19 +369,7 @@ def main() -> int:
     }
 
     # external classification, once per file
-    external: dict[str, dict[str, str]] = {}
-    scanned = 0
-    for r in SEARCH_ROOTS:
-        if not (root / r).exists():
-            continue
-        for p in (root / r).rglob("*.py"):
-            rel = p.relative_to(root)
-            if rel == TARGET:
-                continue
-            scanned += 1
-            hits = _classify_external(p, symbols)
-            for sym, kind in hits.items():
-                external.setdefault(sym, {})[str(rel)] = kind
+    external, scanned = _scan_external(root, symbols)
 
     def prod_code_refs(sym: str) -> list[str]:
         return [f for f, k in external.get(sym, {}).items() if k == "CODE" and f.startswith(("src/", "scripts/"))]
@@ -291,67 +388,20 @@ def main() -> int:
     # Seeding is still required (``sync_all_queued_events`` has no intra-module
     # referrer, so the ``referrers <= dead`` rule can never derive it), but it is
     # now conditional on the same evidence every other symbol must supply.
-    dead = {s for s in SEEDS if s not in API_ALIVE and not prod_code_refs(s)}
-    unproven_seeds = sorted(SEEDS - dead)
-    changed = True
-    while changed:
-        changed = False
-        for sym in symbols:
-            if sym in dead or sym in API_ALIVE:
-                continue
-            referrers = {n for n, u in uses.items() if sym in u}
-            # A symbol with NO intra-module referrer is an ENTRY POINT, and an empty
-            # referrer set satisfies ``referrers <= dead`` vacuously: its liveness
-            # rests entirely on external evidence. The first version demanded
-            # ``referrers and referrers <= dead``, so an entry point could never be
-            # derived dead however the external evidence fell --
-            # run_final_sync_with_retries stayed ALIVE even with background.py's
-            # ``from .batch import`` block deleted, which made the ALIVE tier an
-            # artifact of the rule rather than a finding. Unreferenced CONSTANTS keep
-            # the original carve-out (deferred to ruff / dead-symbol review) so this
-            # correction cannot silently widen the deletion set.
-            if sym in consts and not referrers:
-                continue
-            if referrers <= dead and not prod_code_refs(sym):
-                dead.add(sym)
-                changed = True
-
-        # constants referenced only from dead functions
-        for c in consts - dead:
-            if c in API_ALIVE or prod_code_refs(c):
-                continue
-            referrers = {n for n, node in decls.items() if c in _referenced_names(node)}
-            if referrers and referrers <= dead:
-                dead.add(c)
-                changed = True
+    seeded = {s for s in SEEDS if s not in API_ALIVE and not prod_code_refs(s)}
+    # Read the refusal off the SEEDED set, before the closure grows it: a seed is
+    # unproven exactly when the evidence above did not earn it deadness.
+    unproven_seeds = sorted(SEEDS - seeded)
+    dead = _close_dead(seeded, symbols, consts, decls, uses, prod_code_refs)
 
     first = sorted(s for s in dead if not test_refs(s))
     second = sorted(s for s in dead if test_refs(s))
     alive = sorted(symbols - dead)
 
-    print(f"target: {TARGET}   seeds: {sorted(SEEDS)}")
-    print(f"declared symbols: {len(symbols)}  (callables/classes {len(decls)}, constants {len(consts)})")
-    print(f"files scanned for references: {scanned}  (roots: {[str(r) for r in SEARCH_ROOTS]})")
-    print(f"API-alive via specify_cli.sync lazy map: {sorted(API_ALIVE)}")
-    # The seed premise, tested rather than assumed. Printed with the evidence so a
-    # reader can see WHICH seed earned deletion and on what basis.
-    for s in sorted(SEEDS):
-        verdict = "no production CODE ref -> deletable" if s in dead else f"HAS production CODE refs {prod_code_refs(s)}"
-        print(f"seed premise: {s:32} {verdict}")
-    print()
-
+    _print_preamble(symbols, decls, consts, scanned, dead, prod_code_refs)
     _print_tiers(first, second, alive, prod_code_refs, test_refs)
-
     print(f"\nTOTALS  dead={len(dead)} (first={len(first)} second={len(second)})  alive={len(alive)}")
-    print("\n== test files with CODE/STR-TARGET coupling to any dead symbol ==")
-    coupled, prose_only = _test_file_dispositions(dead, external)
-    for f in sorted(coupled):
-        print(f"   {f}\n        {sorted(coupled[f])}")
-    print(f"\ncode-coupled test files: {len(coupled)}")
-
-    print(f"prose-only test files (no code work; correct the prose): {len(prose_only)}")
-    for f in sorted(prose_only):
-        print(f"   {f}")
+    _print_coupling(dead, external)
 
     if unproven_seeds:
         print(
