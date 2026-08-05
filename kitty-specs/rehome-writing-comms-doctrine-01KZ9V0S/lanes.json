@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "mission_slug": "rehome-writing-comms-doctrine-01KZ9V0S",
+  "mission_id": "01KZ9V0S6BEBY1QHKM0YPT8B8D",
+  "mission_branch": "kitty/mission-rehome-writing-comms-doctrine-01KZ9V0S",
+  "target_branch": "feat/rehome-writing-comms-doctrine",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "packs/built-in/agent_profiles/README.md",
+        "packs/built-in/agent_profiles/analyst-annie.agent.yaml",
+        "packs/built-in/agent_profiles/comms-cleo.agent.yaml",
+        "packs/built-in/agent_profiles/diagram-daisy.agent.yaml",
+        "packs/built-in/agent_profiles/lexical-larry.agent.yaml",
+        "packs/built-in/agent_profiles/minutes-maker-mahad.agent.yaml",
+        "packs/built-in/agent_profiles/scribe-sally.agent.yaml",
+        "packs/built-in/agent_profiles/synthesizer-sam.agent.yaml",
+        "src/doctrine/agent_profiles/README.md",
+        "tests/specify_cli/invocation/test_writing_comms_routing.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "packs/built-in/directives/047-audience-oriented-writing.directive.yaml",
+        "packs/built-in/directives/048-version-governance.directive.yaml",
+        "packs/built-in/directives/049-agent-declaration-and-self-introduction.directive.yaml",
+        "packs/built-in/directives/050-credential-handling-discipline.directive.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "packs/built-in/assets/audiences/README.md",
+        "packs/built-in/assets/audiences/agentic-framework-core-team.md",
+        "packs/built-in/assets/audiences/agentic-framework-core-team.md.asset.yaml",
+        "packs/built-in/assets/audiences/automation_agent.md",
+        "packs/built-in/assets/audiences/automation_agent.md.asset.yaml",
+        "packs/built-in/assets/audiences/line_manager.md",
+        "packs/built-in/assets/audiences/line_manager.md.asset.yaml",
+        "packs/built-in/assets/audiences/nontech_educator.md",
+        "packs/built-in/assets/audiences/nontech_educator.md.asset.yaml",
+        "packs/built-in/assets/audiences/software_engineer.md",
+        "packs/built-in/assets/audiences/software_engineer.md.asset.yaml",
+        "packs/built-in/procedures/glossary-maintenance-workflow.procedure.yaml",
+        "packs/built-in/procedures/meeting-minutes-pipeline.procedure.yaml",
+        "packs/built-in/styleguides/meeting-minutes-format.styleguide.yaml",
+        "packs/built-in/styleguides/professional-communications.styleguide.yaml",
+        "packs/built-in/tactics/communication/writing-audience-catalog.tactic.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "packs/built-in/agent_profile.graph.yaml",
+        "packs/built-in/asset.graph.yaml",
+        "packs/built-in/directive.graph.yaml",
+        "packs/built-in/procedure.graph.yaml",
+        "packs/built-in/styleguide.graph.yaml",
+        "packs/built-in/tactic.graph.yaml",
+        "tests/doctrine/drg/test_reachability.py",
+        "tests/doctrine/test_pack_relocation_doctor_gate.py",
+        "tests/doctrine/test_shipped_profiles.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-08-05T21:28:40.762538+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "25881063c53488e8f946b8700bfa115a593dfae6"
+}

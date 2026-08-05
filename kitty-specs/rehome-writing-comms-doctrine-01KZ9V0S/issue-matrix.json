@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#2467": {
+      "evidence_ref": "Built-in\u2192packs/built-in relocation landed on main@1051c430d (packs/built-in canonical; src/doctrine/*/built-in removed). This mission builds on it, does not fix it.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP04"
+    },
+    "#2918": {
+      "evidence_ref": "The Magnificent 7 writing-comms doctrine set re-homed onto packs/built-in + reconciled across WP01-WP04 (approved); the mission PR supersedes #2918. Original author Zohar Stolar credited.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP04"
+    },
+    "#2950": {
+      "evidence_ref": "Referenced as context (DRG generation surface). regenerate-graph + generated per-kind fragments present on main; this mission consumes that surface, does not modify it.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": "WP04"
+    }
+  },
+  "schema_version": 1
+}
