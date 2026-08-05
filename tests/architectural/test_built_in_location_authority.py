@@ -41,7 +41,6 @@ three independent contract clauses:
 
 Known pre-existing exemption (read before extending ``_KNOWN_JOIN_ALLOWLIST``)
 --------------------------------------------------------------------------------
-Exactly one non-authority join site currently exists in ``src/``:
 ``src/charter/kind_vocabulary.py``'s ``_scan_roots`` iterates ``org_roots`` and
 joins ``root / kind.plural / "built-in"`` -- syntactically a filesystem join
 (C3.1's third limb), but *semantically* it is the **ORG tier's** own legacy
@@ -58,6 +57,48 @@ join added to this file (e.g. a resurrected built-in-tier dual-read) still
 fails the gate. Reintroducing a similar org-tier convention elsewhere requires
 a deliberate allowlist edit naming the new site's rationale, mirroring
 ``tests/architectural/test_protection_resolver_call_sites.py``.
+
+Additional exemptions (2026-08-05, mission
+``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` WP05 CI-remediation
+fold, #3204) fall into two rationale classes, neither of which is a
+``resolve_pack_root("built-in")``/``built_in_root()`` reconstruction:
+
+1. **Layer-boundary / import-avoidance sibling-shape sites.** ``kernel`` sits
+   *below* ``doctrine`` (``kernel <- doctrine <- charter <- specify_cli``,
+   C-004) and cannot import ``doctrine.pack_paths`` at all --
+   ``src/kernel/paths.py``'s own module docstring states these functions "have
+   no spec-kitty-specific dependencies". ``specify_cli/runtime/agent_commands.py``
+   *could* import ``doctrine.pack_paths`` (the layer allows it) but
+   deliberately does not, to avoid triggering doctrine's heavy validation
+   imports on every CLI startup (see its own module docstring: "Uses import
+   metadata rather than ``import doctrine``"). Both instead build a
+   ``PurePosixPath("packs")/"built-in"/<name>`` *relative-shape constant*
+   consumed generically by :func:`kernel.sibling_paths.resolve_installed_sibling`
+   -- a *different*, domain-agnostic primitive than the ``doctrine.pack_paths``
+   authority this gate protects (``kernel.sibling_paths``'s own docstring
+   names these as two of its three sanctioned convergent call sites, the third
+   being ``doctrine.missions.repository.MissionTemplateRepository.default_missions_root``,
+   itself the authority these two mirror the *shape* of but cannot import).
+2. **Caller-supplied-root sites (env-var override / legacy dev-checkout
+   acceptance).** Several sites resolve ``packs/built-in/missions`` relative to
+   an arbitrary directory the *caller* supplied (``SPEC_KITTY_TEMPLATE_ROOT``,
+   a ``--template-root``/``--local-repo`` override, or a lint's ``repo_root``
+   parameter) rather than relative to the running installation's own module
+   location. ``resolve_pack_root("built-in")``/``built_in_root()`` ignore any
+   such caller-supplied root entirely -- they only ever resolve *this*
+   installation's own built-in tier -- so routing these through the authority
+   would silently substitute the real installed tree for the caller's
+   explicitly-requested one, breaking the exact ``tmp_path``-rooted fixtures
+   these functions are tested against (e.g.
+   ``tests/charter/test_neutrality_lint.py::test_default_scan_roots_include_relocated_builtin_missions``,
+   ``tests/test_template/test_manager.py::test_copy_specify_base_from_local_copies_expected_assets``).
+   These are the "org-tier own contract" pattern above, generalized to a
+   caller-root pattern instead of an org-pack pattern.
+
+Each site below is allowlisted by exact ``(file, lineno)``, not by file, so any
+FUTURE join added to these files still fails the gate. Reintroducing a similar
+pattern elsewhere requires a deliberate allowlist edit naming the new site's
+rationale.
 """
 
 from __future__ import annotations
@@ -81,17 +122,64 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 #: path join (both `built_in_dir` and `built_in_root` live here -- C2.1/C3.1).
 _AUTHORITY_FILE = Path("src/doctrine/pack_paths.py")
 
-#: Narrow, exact (file, lineno) allowlist for the ONE known pre-existing
-#: non-authority join -- see the module docstring "Known pre-existing
-#: exemption" section above for the full rationale. Extending this requires a
-#: deliberate, documented policy decision naming the ONE site and WHY it is
-#: not a built-in-tier reconstruction.
+#: Narrow, exact (file, lineno) allowlist for known pre-existing non-authority
+#: joins -- see the module docstring "Known pre-existing exemption" section
+#: above for the full rationale of each. Extending this requires a deliberate,
+#: documented policy decision naming the new site and WHY it is not a
+#: built-in-tier reconstruction.
 _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
     {
         # src/charter/kind_vocabulary.py::_scan_roots -- org-tier legacy
         # nested-pack join (`root / kind.plural / "built-in"`), NOT a
         # built-in-tier reconstruction. See module docstring.
         (Path("src/charter/kind_vocabulary.py"), 183),
+        # src/kernel/paths.py::_MISSION_ASSETS_SIBLING_PATTERN -- a relative
+        # SHAPE constant (input to kernel.sibling_paths.resolve_installed_sibling),
+        # not a filesystem join against a concrete root. kernel cannot import
+        # doctrine.pack_paths (layer boundary, C-004). See module docstring
+        # class 1.
+        (Path("src/kernel/paths.py"), 88),
+        # src/kernel/paths.py::_find_relocated_missions_ancestor -- walks a
+        # caller-supplied SPEC_KITTY_TEMPLATE_ROOT override directory, not
+        # this installation's own built-in tier. kernel cannot import
+        # doctrine.pack_paths (layer boundary, C-004). See module docstring
+        # class 2.
+        (Path("src/kernel/paths.py"), 130),
+        # src/doctrine/missions/repository.py::_MISSIONS_ROOT_SIBLING_PATTERN --
+        # a relative SHAPE constant (input to
+        # kernel.sibling_paths.resolve_installed_sibling), the SAME primitive
+        # doctrine.pack_paths._resolve_built_in uses -- a documented
+        # alternate convergent call site (kernel.sibling_paths's own
+        # docstring), not a doctrine.pack_paths reconstruction. See module
+        # docstring class 1.
+        (Path("src/doctrine/missions/repository.py"), 29),
+        # src/specify_cli/runtime/agent_commands.py::_MISSIONS_SIBLING_PATTERN --
+        # a relative SHAPE constant; this module deliberately avoids
+        # `import doctrine` on the CLI startup path (own module docstring),
+        # so it cannot call built_in_dir/built_in_root/resolve_pack_root.
+        # See module docstring class 1.
+        (Path("src/specify_cli/runtime/agent_commands.py"), 93),
+        # src/specify_cli/runtime/home.py::_find_relocated_missions_ancestor --
+        # walks a caller-supplied SPEC_KITTY_TEMPLATE_ROOT override directory
+        # (legacy specify_cli shim mirroring kernel.paths's own env-var
+        # handling), not this installation's own built-in tier. See module
+        # docstring class 2.
+        (Path("src/specify_cli/runtime/home.py"), 79),
+        # src/specify_cli/template/manager.py::copy_specify_base_from_local --
+        # joins against a caller-supplied `repo_root` (a local dev checkout
+        # to copy FROM), not this installation's own built-in tier. See
+        # module docstring class 2.
+        (Path("src/specify_cli/template/manager.py"), 52),
+        # src/specify_cli/template/manager.py::get_local_repo_root::_is_template_root --
+        # content-sniffs a caller-supplied `override_path`/checkout root, not
+        # this installation's own built-in tier. See module docstring class 2.
+        (Path("src/specify_cli/template/manager.py"), 165),
+        # src/charter/neutrality/lint.py::_default_scan_roots -- scans a
+        # caller-supplied `repo_root` (tmp_path-rooted in tests; see
+        # tests/charter/test_neutrality_lint.py::test_default_scan_roots_include_relocated_builtin_missions),
+        # not this installation's own built-in tier. See module docstring
+        # class 2.
+        (Path("src/charter/neutrality/lint.py"), 353),
     }
 )
 
