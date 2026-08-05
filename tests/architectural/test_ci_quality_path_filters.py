@@ -54,6 +54,13 @@ _MARKER_EXPR = "not windows_ci and (git_repo or integration or architectural)"
 # The legacy catch-all core-misc selection (the pre-shard universe): every
 # ``--ignore`` it carried plus its marker selector. Hoisted to a module
 # constant so the ~117-line test body reads as intent, not literal data.
+#
+# ``--ignore=tests/docs`` added 2026-08-05 (PR #3204, operator decision): the
+# #2359 docs over-coverage fail-safe was retired, so the `misc` shard no
+# longer runs tests/docs and this "intended selection" baseline must not
+# expect it either -- tests/docs runs ONLY in the dedicated `fast-tests-docs`
+# job now (see the ci-quality.yml fast-tests-docs job header for the
+# accepted tradeoff).
 _LEGACY_CORE_MISC_ARGS: list[str] = [
     "--ignore=tests/doctrine",
     "--ignore=tests/kernel",
@@ -74,6 +81,7 @@ _LEGACY_CORE_MISC_ARGS: list[str] = [
     "--ignore=tests/runtime",
     "--ignore=tests/charter",
     "--ignore=tests/agent",
+    "--ignore=tests/docs",
     "-m",
     _MARKER_EXPR,
 ]
@@ -104,7 +112,13 @@ _SHARD_COMMANDS: list[list[str]] = [
         "tests/contract",
         "tests/core",
         "tests/cross_branch",
-        "tests/docs",
+        # tests/docs REMOVED 2026-08-05 (PR #3204, operator decision): the
+        # #2359 docs over-coverage fail-safe was retired from the `misc`
+        # shard, so it must not appear in the "new" (post-shard) universe
+        # either -- see the matching --ignore=tests/docs added to
+        # _LEGACY_CORE_MISC_ARGS above, which keeps this comparison coherent
+        # (shards ∪ e2e == the intended selection, and the intended selection
+        # no longer includes docs in core-misc).
         "tests/doctor",
         "tests/init",
         "tests/migration",
