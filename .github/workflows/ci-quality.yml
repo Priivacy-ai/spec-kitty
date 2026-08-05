@@ -361,9 +361,11 @@ jobs:
             # instead of the full core-misc code cone. Docs prose, the docs test
             # suite, and the docs tooling under scripts/docs all map here. This
             # class ONLY narrows the docs->code direction; every non-docs path
-            # keeps triggering exactly what it triggered before (docs/** was
-            # removed from core_misc, but tests/docs stays selected by the
-            # core-misc jobs so a src change still over-covers docs). See #2359.
+            # keeps triggering exactly what it triggered before. Retired
+            # 2026-08-05 (PR #3204, operator decision): the #2359 fail-safe that
+            # ALSO ran tests/docs from the core-misc `misc` shard (so a src-only
+            # change over-covered docs) was removed to save CI minutes — see the
+            # fast-tests-docs job header for the accepted tradeoff.
             docs:
               - 'docs/**'
               - 'tests/docs/**'
@@ -1784,9 +1786,20 @@ jobs:
   # guards that must still trigger on docs prose changes (terminology canon and
   # CLI-reference parity). Marker is `not windows_ci` (NOT `fast`): tests/docs
   # and both arch guards carry architectural/git_repo/unit markers, so a `fast`
-  # selector would silently deselect them. tests/docs stays ALSO selected by
-  # fast-tests-core-misc + integration-tests-core-misc, so orphan coverage is
-  # unchanged and a src change still over-covers docs (fail-safe).
+  # selector would silently deselect them.
+  #
+  # #2359 over-coverage RETIRED 2026-08-05 (PR #3204, operator decision):
+  # tests/docs used to ALSO run from the core-misc `misc` shard in
+  # integration-tests-core-misc, as a deliberate fail-safe so a src-only change
+  # that broke a docs test (e.g. a CLI-reference drift) was still caught even
+  # though the `docs` path filter did not fire. The operator traded that
+  # fail-safe away to cut CI minutes: tests/docs now runs ONLY here, gated on
+  # the `docs` path filter. Accepted tradeoff: a src-only change that breaks a
+  # docs test is now caught only when a docs/** (or tests/docs/**,
+  # scripts/docs/**) path also changes in the same PR, or on the next `push`
+  # trigger (this job also runs unconditionally on `push`, see the `if:` below)
+  # — a source change with zero docs-path footprint that regresses a docs test
+  # is no longer caught pre-merge.
   # ---------------------------------------------------------------------------
   fast-tests-docs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
@@ -1924,7 +1937,6 @@ jobs:
               tests/coordination
               tests/core
               tests/cross_branch
-              tests/docs
               tests/doctor
               tests/dossier
               tests/init
