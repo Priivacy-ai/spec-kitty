@@ -217,8 +217,18 @@ FLOOR_MARGIN = 2
 # — same name, same delegating shape, independently verified). Floor raised
 # 117 -> 126 to restore the established 3-below-live gap (mechanic 2) against
 # the corrected 129, strictly satisfying the anti-vacuity check.
+#
+# FIXED 2026-08-05 (PR #3211 landing pass, F3): the 10 landing folds already
+# applied to this tree grew the routed census further -- measured directly
+# via ``PWHEADLESS=1 uv run pytest
+# tests/architectural/test_inline_meta_read_gate.py::test_routed_load_meta_floor``,
+# live == 131 > 126 + margin(4). No delegation-chain regression; genuine
+# growth in routed call sites. Floor raised 126 -> 128 to restore the
+# established 3-below-live gap (mechanic 2) against the corrected 131,
+# strictly satisfying the anti-vacuity check (same convention as the two
+# prior entries above).
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
-ROUTED_LOAD_META_FLOOR = 126
+ROUTED_LOAD_META_FLOOR = 128
 
 
 # --------------------------------------------------------------------------- #
