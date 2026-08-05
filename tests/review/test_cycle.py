@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import subprocess
+import threading
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 from specify_cli.review.cycle import (
+    CreatedRejectedReviewCycle,
     ReviewCycleError,
     build_review_cycle_pointer,
     create_rejected_review_cycle,
@@ -94,7 +96,19 @@ def test_resolve_canonical_pointer_validates_required_frontmatter(tmp_path: Path
 
 
 def test_resolve_canonical_pointer_returns_valid_artifact(tmp_path: Path) -> None:
+    # T046: this fixture calls create_rejected_review_cycle, which (T041) now
+    # acquires feature_status_lock -- feature_status_lock_path resolves
+    # through _git_common_dir(repo_root), which shells out to
+    # `git rev-parse --git-common-dir` with cwd=repo_root. A bare, never-
+    # created tmp_path/"repo" directory makes that subprocess call raise
+    # FileNotFoundError (no such cwd) instead of the tolerant "not a git
+    # repo" fallback -- so this fixture needs a real, initialized repo at
+    # its OWN root, the same pattern every other fixture in this file uses
+    # (never an ancestor -- that would reintroduce the #2990 hazard from the
+    # other direction).
     repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
     feedback = tmp_path / "feedback.md"
     feedback.write_text("**Issue**: canonical context.\n", encoding="utf-8")
     created = create_rejected_review_cycle(
