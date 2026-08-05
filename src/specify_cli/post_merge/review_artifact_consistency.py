@@ -41,7 +41,7 @@ class RejectedReviewArtifactFinding:
 
     wp_id: str
     lane: str
-    artifact_path: Path
+    artifact_path: Path | None
     cycle_number: int
     verdict: str
 
@@ -318,6 +318,47 @@ def _resolve_terminal_verdict_conflict(
     return artifact_state if artifact_state.verdict == "rejected" else None
 
 
+def _no_artifact_terminal_conflict(
+    wp_id: str,
+    lane: str,
+    snapshot_override: ReviewOverride | None,
+    event_verdict: str | None,
+) -> RejectedReviewArtifactFinding | None:
+    """Fail-open gap fix: a terminal WP with NO on-disk review artifact at all
+    must still be blocked when the event log's own opinion is
+    ``changes_requested``.
+
+    Before this helper existed, ``find_rejected_review_artifact_conflicts``
+    returned early the moment ``_latest_review_artifact_path`` found nothing
+    (``if latest_path is None: continue``) — never consulting
+    :func:`_event_sourced_gate_verdict` at all. A terminal-lane WP whose event
+    log recorded ``changes_requested`` (e.g. a ``--force`` exit from
+    ``in_review`` that never wrote a review-cycle artifact) therefore passed
+    the merge gate for free.
+
+    Mirrors :func:`_resolve_terminal_verdict_conflict`'s precedence (terminal
+    lane, no complete override, event says ``changes_requested`` -> blocking)
+    but there is no on-disk :class:`~specify_cli.review.artifacts.LatestReviewArtifactVerdict`
+    to build from here, so the reported ``artifact_path`` is ``None`` — there
+    is no artifact file to point at. ``event_verdict is None`` (no opinion) or
+    ``"approved"`` both defer to "no finding", matching the pre-existing
+    behaviour for a WP whose event log has nothing to add.
+    """
+    if lane not in TERMINAL_REVIEW_LANES:
+        return None
+    if snapshot_override is not None and snapshot_override.complete:
+        return None
+    if event_verdict != "changes_requested":
+        return None
+    return RejectedReviewArtifactFinding(
+        wp_id=wp_id,
+        lane=lane,
+        artifact_path=None,
+        cycle_number=0,
+        verdict=event_verdict,
+    )
+
+
 def _review_cycle_number(path: Path) -> int:
     match = re.search(r"review-cycle-(\d+)\.md$", path.name)
     return int(match.group(1)) if match else 0
@@ -407,6 +448,11 @@ def find_rejected_review_artifact_conflicts(
         artifact_dir = _artifact_dirs_for_wp(feature_dir, wp_id)
         latest_path = _latest_review_artifact_path(artifact_dir)
         if latest_path is None:
+            no_artifact_finding = _no_artifact_terminal_conflict(
+                wp_id, lane, snapshot_override, event_verdict
+            )
+            if no_artifact_finding is not None:
+                findings.append(no_artifact_finding)
             continue
         try:
             artifact_state = latest_review_artifact_verdict(
@@ -449,6 +495,12 @@ def format_review_artifact_conflict(
 ) -> str:
     """Render one finding with a stable path for operator diagnostics."""
     path = finding.artifact_path
+    if path is None:
+        return (
+            f"{finding.wp_id} is lane '{finding.lane}', but the event-sourced "
+            f"review verdict is '{finding.verdict}' and no on-disk review "
+            "artifact exists."
+        )
     if repo_root is not None:
         with suppress(ValueError):
             path = path.relative_to(repo_root)
@@ -483,8 +535,8 @@ def review_artifact_conflict_diagnostic(
     repo_root: Path | None = None,
 ) -> dict[str, object]:
     """Return the stable diagnostic contract payload for one conflict."""
-    path = finding.artifact_path
-    if repo_root is not None:
+    path: Path | None = finding.artifact_path
+    if path is not None and repo_root is not None:
         with suppress(ValueError):
             path = path.relative_to(repo_root)
     return {
@@ -493,7 +545,7 @@ def review_artifact_conflict_diagnostic(
         "violated_invariant": REJECTED_REVIEW_ARTIFACT_INVARIANT,
         "remediation": REJECTED_REVIEW_ARTIFACT_REMEDIATION,
         "lane": finding.lane,
-        "latest_review_cycle_path": str(path),
+        "latest_review_cycle_path": str(path) if path is not None else None,
         "latest_review_cycle_verdict": finding.verdict,
         "review_cycle_number": finding.cycle_number,
     }
