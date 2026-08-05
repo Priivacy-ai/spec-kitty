@@ -754,7 +754,7 @@ def create_rejected_review_cycle(
                 cycle_number=artifact.cycle_number,
                 verdict=verdict,
             )
-        except ReviewCycleError:
+        except Exception:
             # M2 (adversarial squad, PR #3156): a failed commit must not
             # leave an orphaned, uncommitted artifact on disk. Without this
             # rollback, a rejection retry hits the content-identity guard
@@ -770,6 +770,22 @@ def create_rejected_review_cycle(
             # serialized-allocation ``artifact_path`` by the time it reaches
             # this line, so no racing writer can ever observe or be confused
             # by another writer's own orphan cleanup.
+            #
+            # Widened from ``except ReviewCycleError`` (landing-pass fold,
+            # #2697 shape): ``_commit_review_cycle_artifact`` raises
+            # ``ReviewCycleError`` for a non-"committed" ``CommitArtifactResult``,
+            # but the commit_router call can also raise a bare exception the
+            # router/mission-resolution layer surfaces directly (e.g. a
+            # ``MissionSelectorAmbiguous`` or an ``OSError`` from the
+            # underlying git invocation) rather than routing it through
+            # ``ReviewCycleError``. The narrower catch let such a raise escape
+            # this rollback entirely, orphaning an uncommitted verdict
+            # artifact that the working-tree reader would treat as latest —
+            # the same failure-mode ``revert_committed_verdict_write``
+            # (``cli/commands/agent/tasks_verdict_persistence.py``) exists to
+            # prevent for its own, later-phase compensator. Re-raises
+            # unconditionally, matching that function's own convention: a
+            # rollback must never silently swallow the triggering failure.
             artifact_path.unlink(missing_ok=True)
             raise
 

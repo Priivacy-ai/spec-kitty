@@ -1024,6 +1024,101 @@ def test_create_rejected_review_cycle_raises_when_commit_fails(tmp_path: Path) -
     assert retried.artifact.cycle_number == 1
 
 
+@dataclass
+class _RaisingCommitRouter:
+    """Stub ``CoordCommitRouter`` whose ``commit_artifact`` raises a bare
+    exception directly (NOT a ``CommitArtifactResult`` with ``status="error"``,
+    and NOT a ``ReviewCycleError``) -- mirrors a raise-based failure escaping
+    from the mission-resolution/router layer underneath ``commit_artifact``
+    itself (e.g. ``MissionSelectorAmbiguous`` or an ``OSError`` from the git
+    invocation), as opposed to ``_FailingCommitRouter``'s modeled
+    result-object failure that ``_commit_review_cycle_artifact`` converts into
+    ``ReviewCycleError``.
+    """
+
+    calls: list[Path] = field(default_factory=list)
+
+    def feature_write_dir(self, mission: MissionHandle) -> Path:
+        raise AssertionError("feature_write_dir is not used by this call site")
+
+    def commit_status(
+        self,
+        request: TransitionRequest,
+        *,
+        capability: GuardCapability,
+    ) -> CommitStatusResult:
+        raise AssertionError("commit_status is not used by this call site")
+
+    def commit_artifact(
+        self,
+        mission: MissionHandle,
+        paths: Sequence[Path],
+        message: str,
+        *,
+        kind: MissionArtifactKind,
+        policy: ProtectionPolicy,
+    ) -> CommitArtifactResult:
+        self.calls.extend(paths)
+        raise RuntimeError("simulated raise-based commit failure (not ReviewCycleError)")
+
+
+def test_raise_based_commit_failure_rolls_back_artifact_and_propagates(
+    tmp_path: Path,
+) -> None:
+    """Landing-pass fold (#2697 shape): a raise-based commit failure --
+    anything that is not a ``ReviewCycleError`` -- must roll back the
+    orphaned write exactly like the ``ReviewCycleError`` path above, and must
+    propagate the original exception rather than being swallowed.
+
+    Before this fix, ``create_rejected_review_cycle``'s rollback was scoped
+    to ``except ReviewCycleError``, so a bare-exception failure from the
+    commit_router (e.g. a raised ``MissionSelectorAmbiguous`` or ``OSError``)
+    escaped the rollback entirely and orphaned an uncommitted verdict
+    artifact on disk -- one the working-tree reader would treat as latest
+    (the #2697 shape this mission exists to close).
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / "001-mission" / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-core.md").write_text("# WP01\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "seed"], cwd=repo, check=True, capture_output=True
+    )
+    _unprotect_main(repo)
+    feedback = tmp_path / "feedback.md"
+    feedback.write_text("**Issue**: Needs another pass.\n", encoding="utf-8")
+
+    router = _RaisingCommitRouter()
+
+    with pytest.raises(RuntimeError, match="simulated raise-based commit failure"):
+        create_rejected_review_cycle(
+            main_repo_root=repo,
+            mission_slug="001-mission",
+            wp_id="WP01",
+            wp_slug="WP01-core",
+            feedback_source=feedback,
+            reviewer_agent="reviewer-renata",
+            commit_router=router,
+        )
+
+    # The router WAS invoked once, with the written artifact path -- the
+    # failure is real, not swallowed.
+    artifact_path = tasks_dir / "WP01-core" / "review-cycle-1.md"
+    assert router.calls == [artifact_path]
+    # The failed write is rolled back -- no orphaned artifact survives, even
+    # though the failure was a bare raise rather than a ReviewCycleError.
+    assert not artifact_path.exists(), (
+        "a raise-based commit failure must roll back its write -- an orphaned, "
+        "uncommitted artifact would permanently strand a phantom 'latest' verdict"
+    )
+    assert not list((tasks_dir / "WP01-core").glob("review-cycle-*.md")), (
+        "no review-cycle-*.md should survive a rolled-back commit failure"
+    )
+
+
 def test_validation_failure_after_write_leaves_no_orphaned_artifact(
     tmp_path: Path,
 ) -> None:
