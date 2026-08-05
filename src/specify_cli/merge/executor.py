@@ -1243,6 +1243,70 @@ def _phase_push(run: _MergeRunState) -> None:
     console.print(f"[green]✓[/green] Pushed {lanes_manifest.target_branch} to origin")
 
 
+def _flatten_coordination_metadata_after_branch_delete(run: _MergeRunState) -> None:
+    """issue #3086: clear the coordination marker once the coord branch is gone.
+
+    ``spec-kitty merge --delete-branch`` (the default) deletes a Mission's
+    coordination branch (``kitty/mission-<slug>``) from git but, before this fix,
+    left the paired ``coordination_branch`` key in
+    ``kitty-specs/<slug>/meta.json``. Every later command routing through
+    ``resolve_status_surface_with_anchor`` then hit ``CoordState.DELETED`` and
+    raised ``CoordinationBranchDeleted`` — the deliberate #1848 data-loss
+    hard-fail — a 100% crash on merged coord missions.
+
+    This mirrors the canonical flatten already performed by
+    ``spec-kitty mission close --discard`` and ``doctor coordination --fix``:
+    :func:`~specify_cli.mission_metadata.clear_coordination_metadata` + pop the
+    now-stale ``topology`` + record ``flattened=True``. It reuses those existing
+    primitives rather than inventing a new mechanism.
+
+    Ordering matters. This runs AFTER the lane/mission branches were merged into
+    the target: the spec-kitty-meta merge driver treats ``coordination_branch``
+    as a *theirs-authoritative* planning key (``merge/merge_driver.py``), so any
+    earlier clear would be re-populated by driver reconciliation. Running here
+    makes this clear the last writer, so it wins. The edit is persisted through
+    the same protected-flow bookkeeping-commit seam the merge uses for its other
+    meta.json mutations, so the merged target branch is not left dirty.
+
+    A non-coord Mission (``SINGLE_BRANCH`` / ``LANES``) or an already-flattened
+    one carries no ``coordination_branch`` key, so this is an idempotent no-op
+    that leaves ``topology`` / ``flattened`` untouched.
+    """
+    from specify_cli.mission_metadata import (
+        clear_coordination_metadata,
+        load_meta_or_empty,
+        write_meta,
+    )
+
+    feature_dir = run.target_feature_dir
+    meta = load_meta_or_empty(feature_dir)
+    if "coordination_branch" not in meta:
+        return
+
+    # Canonical three-mutation flatten (parity with ``doctor coordination --fix``
+    # / ``mission close --discard``); ``coordination_branch`` presence above means
+    # meta.json exists, so ``clear_coordination_metadata`` cannot raise here.
+    clear_coordination_metadata(feature_dir)
+    meta = load_meta_or_empty(feature_dir)
+    meta.pop("topology", None)
+    meta["flattened"] = True
+    write_meta(feature_dir, meta, validate=False)
+
+    meta_path = feature_dir / "meta.json"
+    if _paths_have_status_changes(run.main_repo, [meta_path]):
+        commit_merge_bookkeeping(
+            repo_root=run.main_repo,
+            worktree_root=run.main_repo,
+            mission_slug=run.mission_slug,
+            branch=run.lanes_manifest.target_branch,
+            message=(
+                f"chore({run.mission_slug}): flatten coordination metadata "
+                f"after branch deletion (#3086)"
+            ),
+            paths=(meta_path,),
+        )
+
+
 def _phase_cleanup_worktrees_and_branches(run: _MergeRunState) -> None:
     """Worktree removal + lane/mission branch deletion + coordination teardown."""
     from specify_cli.lanes.branch_naming import lane_branch_name, worktree_dir_name, worktree_path
@@ -1323,6 +1387,13 @@ def _phase_cleanup_worktrees_and_branches(run: _MergeRunState) -> None:
         else:
             logger.debug("Mission branch %s does not exist, skipping deletion", lanes_manifest.mission_branch)
         console.print(f"  Cleaned up {len(lanes_manifest.lanes)} lane branch(es) + mission branch")
+
+        # issue #3086: the coordination branch is now gone from git; flatten the
+        # mission's meta.json in the SAME gate so we can never delete the branch
+        # yet strand the paired ``coordination_branch`` marker (the 100%-hit-rate
+        # ``CoordinationBranchDeleted`` crash on every later resolve). Decoupled
+        # from the ``remove_worktree`` gate below on purpose.
+        _flatten_coordination_metadata_after_branch_delete(run)
 
     # -- WP07 / FR-016 / SC-10: Coordination worktree teardown --
     #
