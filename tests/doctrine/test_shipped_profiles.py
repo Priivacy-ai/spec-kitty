@@ -57,6 +57,13 @@ EXPECTED_PROFILE_IDS = {
     "reviewer-renata",
     "frontend-freddy",
     "node-norris",
+    "analyst-annie",
+    "comms-cleo",
+    "diagram-daisy",
+    "lexical-larry",
+    "minutes-maker-mahad",
+    "scribe-sally",
+    "synthesizer-sam",
 }
 
 # Sentinel profiles are workflow markers, not real agents.  They intentionally

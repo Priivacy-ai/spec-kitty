@@ -3,7 +3,7 @@
 Three non-fakeable acceptance surfaces for the relocation (NFR-006 / NFR-002):
 
 * **Full doctor health** — ``spec-kitty doctor doctrine --json`` reports FULL
-  health: no skipped/invalid profiles (18/18 valid), no ``org_drg`` errors, no
+  health: no skipped/invalid profiles (25/25 valid), no ``org_drg`` errors, no
   skipped glossary packs, and the shipped glossary term count is unchanged
   (108). A profiles-only gate would miss ``glossary_packs`` / ``assets``
   degradation, so the whole report is asserted.
@@ -12,7 +12,7 @@ Three non-fakeable acceptance surfaces for the relocation (NFR-006 / NFR-002):
   exercise the catalog, so a missed ``catalog.py`` repoint slips through every
   other gate; this is the dedicated guard.
 * **Clean-install full-graph proof** — a wheel installed into a fresh venv
-  resolves ``load_built_in_graph()`` to the full 324/892 identity: the packaged
+  resolves ``load_built_in_graph()`` to the full 345/934 identity: the packaged
   end-to-end proof that the relocated content ships and resolves off
   ``packs/built-in`` in an installed distribution (US3).
 """
@@ -35,7 +35,7 @@ pytestmark = [pytest.mark.doctrine]
 
 runner = CliRunner()
 
-EXPECTED_PROFILE_COUNT = 18
+EXPECTED_PROFILE_COUNT = 25
 EXPECTED_GLOSSARY_TERM_COUNT = 108
 # The 7 charter-catalog built-in kinds (``template_sets`` / ``domains_present``
 # are derived surfaces, not the per-kind artifact catalogs guarded here).
@@ -88,7 +88,7 @@ def test_doctor_doctrine_reports_full_health(bare_project_root: Path) -> None:
     builtin_pack = next(
         p for p in profile_health["packs"] if p["layer"] == "builtin"
     )
-    # 18/18 profiles valid, skipped/invalid profiles empty.
+    # 25/25 profiles valid, skipped/invalid profiles empty.
     assert builtin_pack["discovered_count"] == EXPECTED_PROFILE_COUNT
     assert builtin_pack["valid_count"] == EXPECTED_PROFILE_COUNT
     assert builtin_pack["invalid_profiles"] == []
@@ -137,7 +137,7 @@ def test_charter_catalog_built_in_sets_are_non_empty() -> None:
 def test_clean_install_resolves_full_built_in_graph(
     installed_wheel_venv: dict[str, Path],
 ) -> None:
-    """A wheel installed into a fresh venv resolves the full 324/892 identity."""
+    """A wheel installed into a fresh venv resolves the full 345/934 identity."""
     python = installed_wheel_venv["python"]
     result = subprocess.run(
         [
@@ -157,6 +157,6 @@ def test_clean_install_resolves_full_built_in_graph(
         f"clean-install load_built_in_graph() failed:\n{result.stderr}"
     )
     node_count, edge_count = result.stdout.split()
-    assert (int(node_count), int(edge_count)) == (324, 892), (
+    assert (int(node_count), int(edge_count)) == (345, 934), (
         f"clean-install graph cardinality drifted: {result.stdout!r}"
     )

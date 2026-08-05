@@ -32,6 +32,9 @@ nodes:
 - urn: styleguide:kitty-glossary-writing
   kind: styleguide
   label: Kitty Glossary Writing Styleguide
+- urn: styleguide:meeting-minutes-format
+  kind: styleguide
+  label: Meeting Minutes Format Styleguide
 - urn: styleguide:mutation-aware-test-design
   kind: styleguide
   label: Mutation-Aware Test Design
@@ -41,6 +44,9 @@ nodes:
 - urn: styleguide:planning-and-tracking
   kind: styleguide
   label: Planning & Tracking Styleguide
+- urn: styleguide:professional-communications
+  kind: styleguide
+  label: Professional Communications Styleguide
 - urn: styleguide:publication-authority
   kind: styleguide
   label: Publication Authority Styleguide
@@ -139,6 +145,9 @@ edges:
 - source: styleguide:java-conventions
   target: toolguide:maven-review-checks
   relation: suggests
+- source: styleguide:meeting-minutes-format
+  target: directive:DIRECTIVE_047
+  relation: suggests
 - source: styleguide:plain-language
   target: styleguide:common-docs
   relation: suggests
@@ -156,6 +165,12 @@ edges:
   relation: suggests
 - source: styleguide:planning-and-tracking
   target: toolguide:github-tracker
+  relation: suggests
+- source: styleguide:professional-communications
+  target: directive:DIRECTIVE_047
+  relation: suggests
+- source: styleguide:professional-communications
+  target: tactic:stakeholder-alignment
   relation: suggests
 - source: styleguide:publication-authority
   target: directive:DIRECTIVE_037

@@ -365,6 +365,9 @@ nodes:
 - urn: tactic:work-package-completion-validation
   kind: tactic
   label: Work Package Completion Validation
+- urn: tactic:writing-audience-catalog
+  kind: tactic
+  label: Writing-Audience Catalog
 - urn: tactic:zombies-tdd
   kind: tactic
   label: ZOMBIES TDD
@@ -1299,3 +1302,23 @@ edges:
   target: tactic:test-minimisation
   relation: suggests
   when: Redundant test removal is only safe after the completion validation confirms coverage is intact
+- source: tactic:writing-audience-catalog
+  target: asset:writing-audience-agentic-framework-core-team
+  relation: suggests
+  when: The reader is a maintainer of the agentic framework core.
+- source: tactic:writing-audience-catalog
+  target: asset:writing-audience-automation-agent
+  relation: suggests
+  when: The reader is an AI/LLM-based automation agent consuming the prose.
+- source: tactic:writing-audience-catalog
+  target: asset:writing-audience-line-manager
+  relation: suggests
+  when: The reader is a line manager or non-technical leader.
+- source: tactic:writing-audience-catalog
+  target: asset:writing-audience-nontech-educator
+  relation: suggests
+  when: The reader is a non-technical teacher or educator.
+- source: tactic:writing-audience-catalog
+  target: asset:writing-audience-software-engineer
+  relation: suggests
+  when: The reader is a software or platform engineer; see assets/audiences/README.md.

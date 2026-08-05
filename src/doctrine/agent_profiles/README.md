@@ -54,6 +54,13 @@ the same `profile-id`; project profiles have final precedence.
 | `researcher-robbie` | Researcher Robbie | researcher |
 | `retrospective-facilitator` | Retrospective Facilitator | facilitator |
 | `reviewer-renata` | Reviewer Renata | reviewer |
+| `analyst-annie` | Analyst Annie | analyst |
+| `comms-cleo` | Comms Cleo | communicator |
+| `diagram-daisy` | Diagram Daisy | diagram-author |
+| `lexical-larry` | Lexical Larry | semantic-analyst |
+| `minutes-maker-mahad` | Minutes-Maker Mahad | documentarian |
+| `scribe-sally` | Scribe Sally | documentarian |
+| `synthesizer-sam` | Synthesizer Sam | synthesizer |
 
 ## Python API
 

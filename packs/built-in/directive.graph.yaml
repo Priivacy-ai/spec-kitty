@@ -77,6 +77,18 @@ nodes:
 - urn: directive:DIRECTIVE_046
   kind: directive
   label: Readable and Consistent Pull Requests
+- urn: directive:DIRECTIVE_047
+  kind: directive
+  label: Audience-Oriented Writing
+- urn: directive:DIRECTIVE_048
+  kind: directive
+  label: Version Governance
+- urn: directive:DIRECTIVE_049
+  kind: directive
+  label: Agent Declaration and Self-Introduction
+- urn: directive:DIRECTIVE_050
+  kind: directive
+  label: Credential Handling Discipline
 - urn: directive:DISCIPLINED_REFACTORING
   kind: directive
   label: Disciplined Refactoring
@@ -359,6 +371,21 @@ edges:
   relation: suggests
 - source: directive:DIRECTIVE_046
   target: tactic:reviewer-implementer-role-separation
+  relation: suggests
+- source: directive:DIRECTIVE_047
+  target: tactic:writing-audience-catalog
+  relation: suggests
+- source: directive:DIRECTIVE_048
+  target: directive:DIRECTIVE_018
+  relation: requires
+- source: directive:DIRECTIVE_048
+  target: directive:DIRECTIVE_037
+  relation: requires
+- source: directive:DIRECTIVE_049
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: directive:DIRECTIVE_050
+  target: tactic:secure-design-checklist
   relation: suggests
 - source: directive:DISCIPLINED_REFACTORING
   target: tactic:refactoring-encapsulate-record

@@ -25,6 +25,13 @@ with the language name) extend the base `implementer-ivan` role for polyglot pro
 | `researcher-robbie.agent.yaml` | `researcher-robbie` | researcher |
 | `retrospective-facilitator.agent.yaml` | `retrospective-facilitator` | facilitator |
 | `reviewer-renata.agent.yaml` | `reviewer-renata` | reviewer |
+| `analyst-annie.agent.yaml` | `analyst-annie` | analyst |
+| `comms-cleo.agent.yaml` | `comms-cleo` | communicator |
+| `diagram-daisy.agent.yaml` | `diagram-daisy` | diagram-author |
+| `lexical-larry.agent.yaml` | `lexical-larry` | semantic-analyst |
+| `minutes-maker-mahad.agent.yaml` | `minutes-maker-mahad` | documentarian |
+| `scribe-sally.agent.yaml` | `scribe-sally` | documentarian |
+| `synthesizer-sam.agent.yaml` | `synthesizer-sam` | synthesizer |
 
 Shipped profiles are read-only at the package level. Project-level overrides in
 `.kittify/charter/agents/` can customize any profile by matching `profile-id`.

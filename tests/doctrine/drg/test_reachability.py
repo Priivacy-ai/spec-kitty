@@ -96,7 +96,11 @@ _ACTION_D1_D2_SPREAD = 10
 # {requires, specializes_from} only" — describe that PRE-WP01 state and are now
 # SUPERSEDED. WP01 (FR-001) added ``Relation.SUGGESTS`` to
 # ``PROFILE_CHANNEL_RELATIONS``, so the profile channel now follows ``suggests``:
-# ``_PROFILE_UNREACHABLE`` is 60 (was 153) and ``_PROFILE_RESCUES`` is 30 (was 2).
+# ``_PROFILE_UNREACHABLE`` is 59 (was 153; 60 until mission
+# ``rehome-writing-comms-doctrine-01KZ9V0S`` shipped the DIRECTIVE_050 -> secure-
+# design-checklist ``suggests`` edge required by the new ``minutes-maker-mahad``
+# profile — see that mission's ledger section in the wiring table) and
+# ``_PROFILE_RESCUES`` is 30 (was 2).
 # The ACTION-channel claims in these narratives (``_ACTION_UNREACHABLE_D1``/``D2``
 # and their family moves) are UNCHANGED and remain accurate — WP02's topology is
 # action-inert. See the reconciled ``_PROFILE_UNREACHABLE`` / ``_PROFILE_RESCUES``
@@ -387,7 +391,15 @@ _ACTION_UNREACHABLE_D2: frozenset[str] = frozenset(
 #: (FR-001), so the unbounded ``walk_edges`` closure now follows the soft-
 #: recommendation web out of every activated profile. 93 members left this set —
 #: they became profile-reachable via a ``suggests`` chain from an activated
-#: profile. The per-member composition ledger (which member, via which family/
+#: profile. Mission ``rehome-writing-comms-doctrine-01KZ9V0S`` then removed one
+#: more (60 → 59): ``tactic:secure-design-checklist`` became profile-reachable via
+#: the new ``agent_profile:minutes-maker-mahad`` --requires--> ``directive:DIRECTIVE_050``
+#: --suggests--> ``tactic:secure-design-checklist`` chain (both edges authored in that
+#: mission's frontmatter). It is NOT a ``_PROFILE_RESCUES`` member (it is action-
+#: reachable at d=2, so it is absent from ``_ACTION_UNREACHABLE_D2`` and never
+#: entered ``_ACTION_UNREACHABLE_D2 − _PROFILE_UNREACHABLE``); the rescues set is
+#: unchanged. Ledger row: that mission's section in the wiring table below.
+#: The per-member composition ledger (which member, via which family/
 #: edge, WP01 vs WP02) lives in
 #: ``docs/plans/doctrine/delivery-reachability-wiring-table.md`` under the
 #: "profile-channel walk-activation" ledger; the 30 members that this move pushes
@@ -459,7 +471,6 @@ _PROFILE_UNREACHABLE: frozenset[str] = frozenset(
         "tactic:refactoring-retry-pattern",
         "tactic:reference-architectural-patterns",
         "tactic:requirements-validation-workflow",
-        "tactic:secure-design-checklist",
         "tactic:secure-regex-catastrophic-backtracking",
         "tactic:testing-select-appropriate-level",
         "toolguide:git-agent-commit-signing",
