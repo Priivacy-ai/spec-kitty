@@ -549,8 +549,8 @@ class TestFreshVerdictPersistPin:
 class TestAcceptPromptDrivesAcceptanceVerdict:
     _PROMPT_PATH = (
         _REPO_ROOT
-        / "src"
-        / "doctrine"
+        / "packs"
+        / "built-in"
         / "missions"
         / "mission-steps"
         / "software-dev"

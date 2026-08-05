@@ -61,7 +61,7 @@ def _setup_fixture_profiles(repo_root: Path) -> None:
 
 # NOTE: The shipped DRG already scopes the `software-dev/tasks` action to the
 # candidate URNs declared in ``tasks.step-contract.yaml`` (see
-# ``src/doctrine/missions/software-dev/actions/tasks/index.yaml``). Tests
+# ``packs/built-in/missions/software-dev/actions/tasks/index.yaml``). Tests
 # therefore rely on the shipped graph and do not write a project overlay --
 # adding one would create duplicate-edge validation errors at load time.
 
@@ -78,7 +78,7 @@ def test_tasks_contract_loads_from_repository() -> None:
     assert contract is not None, (
         "Expected MissionStepContractRepository to surface the new "
         "tasks.step-contract.yaml; ensure the file exists under "
-        "src/doctrine/missions/built_in_step_contracts/."
+        "packs/built-in/missions/built_in_step_contracts/."
     )
     assert contract.id == "tasks"
     assert contract.action == "tasks"
@@ -103,7 +103,7 @@ def test_all_five_software_dev_actions_have_shipped_contracts() -> None:
         contract = repo.get_by_action("software-dev", action)
         assert contract is not None, (
             f"Missing shipped contract for software-dev/{action}; expected a "
-            f"file at src/doctrine/missions/built_in_step_contracts/{action}.step-contract.yaml"
+            f"file at packs/built-in/missions/built_in_step_contracts/{action}.step-contract.yaml"
         )
         assert contract.action == action
         assert contract.mission == "software-dev"

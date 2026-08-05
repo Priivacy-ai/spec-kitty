@@ -53,8 +53,10 @@ from specify_cli.skills.command_renderer import (
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-# New doctrine layout: src/doctrine/missions/mission-steps/<mission_type>/
-DOCTRINE_MISSION_STEPS_DIR = Path(__file__).parent.parent.parent.parent / "src" / "doctrine" / "missions" / "mission-steps"
+# New doctrine layout: packs/built-in/missions/mission-steps/<mission_type>/
+# (relocated from src/doctrine/missions/mission-steps by mission
+# doctrine-consumer-surface-missions-extraction-01KZ6G6H, FR-005).
+DOCTRINE_MISSION_STEPS_DIR = Path(__file__).parent.parent.parent.parent / "packs" / "built-in" / "missions" / "mission-steps"
 
 # Default mission type used in most tests.
 _DEFAULT_MISSION_TYPE = "software-dev"

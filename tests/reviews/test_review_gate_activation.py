@@ -24,10 +24,13 @@ import pytest
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+# Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
+# relocated mission-steps/ from src/doctrine/missions/mission-steps to
+# packs/built-in/missions/mission-steps.
 REVIEW_TEMPLATE_PATH = (
     REPO_ROOT
-    / "src"
-    / "doctrine"
+    / "packs"
+    / "built-in"
     / "missions"
     / "mission-steps"
     / "software-dev"

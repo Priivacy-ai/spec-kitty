@@ -31,7 +31,9 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path) -> Path:
         shutil.copytree(memory_src, memory_dest)
 
     # Copy from src/doctrine/templates/ (doctrine artifacts).
-    # Mission content templates live under src/doctrine/missions/<mission>/templates.
+    # Mission content templates live under packs/built-in/missions/<mission>/templates
+    # (mission doctrine-consumer-surface-missions-extraction-01KZ6G6H, FR-005,
+    # relocated the missions data subdirectories out of src/doctrine/missions).
     templates_src = repo_root / "src" / "doctrine" / "templates"
     if templates_src.exists():
         templates_dest = specify_root / "templates"
@@ -42,7 +44,12 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path) -> Path:
         if agents_template.exists():
             shutil.copy2(agents_template, specify_root / "AGENTS.md")
 
-    missions_src = repo_root / "src" / "doctrine" / "missions"
+    # HIGH SEVERITY finding (R-12): before FR-005, this used
+    # `repo_root / "src" / "doctrine" / "missions"` — a directory that still
+    # exists post-relocation (only the .py logic modules remain there) and
+    # would silently `.exists() == True` with zero mission data inside,
+    # producing a broken `.kittify/missions/` scaffold with no error signal.
+    missions_src = repo_root / "packs" / "built-in" / "missions"
     if missions_src.exists():
         missions_dest = specify_root / "missions"
         if missions_dest.exists():
@@ -97,12 +104,38 @@ def copy_specify_base_from_package(project_path: Path) -> Path:
                     shutil.copyfileobj(src, dst)
             break
 
-    missions_resource_candidates = [
-        doctrine_data_root.joinpath("missions"),
-        specify_data_root.joinpath("missions"),  # Legacy fallback
-        specify_data_root.joinpath(".kittify", "missions"),  # Legacy fallback
-        specify_data_root.joinpath("template_data", "missions"),  # Legacy fallback
-    ]
+    # HIGH SEVERITY finding (R-13) — the single default `spec-kitty init` code
+    # path (no `--local` flag). Before FR-005, the first candidate was
+    # `doctrine_data_root.joinpath("missions")` — a resource-package-relative
+    # join that resolved to `src/doctrine/missions`. Mission
+    # doctrine-consumer-surface-missions-extraction-01KZ6G6H relocated the
+    # missions data to `packs/built-in/missions`, which ships as a
+    # site-packages-level *sibling* of the `doctrine` package (hatch
+    # force-include), not a resource nested inside it -- so no
+    # `files("doctrine").joinpath(...)`-shaped join can reach it at all.
+    # `MissionTemplateRepository.default_missions_root()` (FR-004) is the one
+    # promoted authority that resolves it correctly in both an editable
+    # checkout and an installed wheel; the returned `pathlib.Path` satisfies
+    # the same duck-typed `Traversable` interface (`is_dir`/`iterdir`/`open`)
+    # `copy_package_tree` and `_resource_exists` already consume, so it slots
+    # into the existing candidate-list shape unchanged.
+    missions_resource_candidates: list[Traversable] = []
+    try:
+        from doctrine.missions.repository import (  # noqa: PLC0415
+            MissionsRootNotFound,
+            MissionTemplateRepository,
+        )
+
+        missions_resource_candidates.append(MissionTemplateRepository.default_missions_root())
+    except MissionsRootNotFound:
+        pass
+    missions_resource_candidates.extend(
+        [
+            specify_data_root.joinpath("missions"),  # Legacy fallback
+            specify_data_root.joinpath(".kittify", "missions"),  # Legacy fallback
+            specify_data_root.joinpath("template_data", "missions"),  # Legacy fallback
+        ]
+    )
     for missions_resource in missions_resource_candidates:
         if _resource_exists(missions_resource):
             copy_package_tree(missions_resource, specify_root / "missions")
@@ -121,9 +154,15 @@ def get_local_repo_root(override_path: str | None = None) -> Path | None:
         Path to repository root containing doctrine templates and missions, or None
     """
     def _is_template_root(path: Path) -> bool:
+        # The second conjunct checks packs/built-in/missions (mission
+        # doctrine-consumer-surface-missions-extraction-01KZ6G6H, FR-005,
+        # relocated the missions data out of src/doctrine/missions -- that
+        # directory still exists post-relocation, .py-only, so checking it
+        # here would silently accept a checkout whose missions data has
+        # actually moved elsewhere, with no error signal).
         return (
             (path / "src" / "doctrine" / "templates" / "AGENTS.md").is_file()
-            and (path / "src" / "doctrine" / "missions").is_dir()
+            and (path / "packs" / "built-in" / "missions").is_dir()
         )
 
     # Check override path first (from --template-root flag)

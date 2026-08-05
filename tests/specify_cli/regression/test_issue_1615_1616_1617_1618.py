@@ -63,7 +63,7 @@ def test_no_stale_for_review_to_in_progress() -> None:
 def test_no_stale_done_only_dependency() -> None:
     """Doctrine implement prompt must not require only 'done' status."""
     src = _read(
-        "src/doctrine/missions/mission-steps/software-dev/implement/prompt.md"
+        "packs/built-in/missions/mission-steps/software-dev/implement/prompt.md"
     )
     assert "in `done` status before proceeding" not in src, (
         "Stale dependency condition from #1616 re-introduced in implement/prompt.md"

@@ -28,7 +28,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # ``src/doctrine`` literal, which is now emptied of built-in content.
 BUILT_IN_DIR = resolve_pack_root("built-in") / "agent_profiles"
 MISSION_RUNTIME_DIRS = (
-    REPO_ROOT / "src" / "doctrine" / "missions",
+    # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
+    # relocated missions/ from src/doctrine/missions to packs/built-in/missions.
+    REPO_ROOT / "packs" / "built-in" / "missions",
     REPO_ROOT / ".kittify" / "overrides" / "missions",
 )
 # The Python-package README (``src/doctrine/agent_profiles/README.md``) was NOT

@@ -43,7 +43,9 @@ def test_generic_content_template_copies_removed() -> None:
 
 @pytest.mark.parametrize("name", sorted(CONTENT_TEMPLATE_NAMES))
 def test_content_template_source_is_doctrine_mission_tree(name: str) -> None:
-    canonical = REPO_ROOT / "src" / "doctrine" / "missions" / "software-dev" / "templates" / name
+    # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
+    # relocated missions/ from src/doctrine/missions to packs/built-in/missions.
+    canonical = REPO_ROOT / "packs" / "built-in" / "missions" / "software-dev" / "templates" / name
 
     assert canonical.is_file()
 
@@ -63,8 +65,8 @@ def test_runtime_package_default_resolves_doctrine_template(
     assert result.tier == ResolutionTier.PACKAGE_DEFAULT
     assert result.path == (
         REPO_ROOT
-        / "src"
-        / "doctrine"
+        / "packs"
+        / "built-in"
         / "missions"
         / "software-dev"
         / "templates"
@@ -89,8 +91,8 @@ def test_stale_specify_cli_missions_env_root_resolves_doctrine_assets(
     assert content.tier == ResolutionTier.PACKAGE_DEFAULT
     assert content.path == (
         REPO_ROOT
-        / "src"
-        / "doctrine"
+        / "packs"
+        / "built-in"
         / "missions"
         / "software-dev"
         / "templates"
@@ -99,8 +101,8 @@ def test_stale_specify_cli_missions_env_root_resolves_doctrine_assets(
     assert command.tier == ResolutionTier.PACKAGE_DEFAULT
     assert command.path == (
         REPO_ROOT
-        / "src"
-        / "doctrine"
+        / "packs"
+        / "built-in"
         / "missions"
         / "mission-steps"
         / "software-dev"

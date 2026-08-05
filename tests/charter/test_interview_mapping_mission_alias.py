@@ -44,7 +44,7 @@ import pytest
 pytestmark = [pytest.mark.unit]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_SHIPPED_MISSION_TYPES_DIR = _REPO_ROOT / "src" / "doctrine" / "missions" / "mission_types"
+_SHIPPED_MISSION_TYPES_DIR = _REPO_ROOT / "packs" / "built-in" / "missions" / "mission_types"
 
 _SYNTHETIC_ANALYSIS_YAML = (
     "schema_version: 1\n"

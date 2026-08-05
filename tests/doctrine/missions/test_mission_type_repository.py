@@ -121,8 +121,16 @@ class TestMissionTypeModel:
 
 
 def _builtin_repo() -> MissionTypeRepository:
-    """Return a MissionTypeRepository pointed at the doctrine-bundled mission_types dir."""
-    mission_types_dir = Path(__file__).parent.parent.parent.parent / "src" / "doctrine" / "missions" / "mission_types"
+    """Return a MissionTypeRepository pointed at the doctrine-bundled mission_types dir.
+
+    Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
+    (FR-005) relocated ``mission_types/`` from
+    ``src/doctrine/missions/mission_types`` to
+    ``packs/built-in/missions/mission_types``.
+    """
+    mission_types_dir = (
+        Path(__file__).parent.parent.parent.parent / "packs" / "built-in" / "missions" / "mission_types"
+    )
     return MissionTypeRepository(mission_types_dir)
 
 

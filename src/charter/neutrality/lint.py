@@ -334,9 +334,23 @@ def _iter_mission_scan_roots(missions_root: Path) -> list[Path]:
 
 
 def _default_scan_roots(repo_root: Path) -> list[Path]:
-    """Return default scan roots per contract C-3."""
+    """Return default scan roots per contract C-3.
+
+    Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
+    (FR-005, N-04) relocated the doctrine ``missions/`` data (mission
+    prompts, content templates, ``mission.yaml`` manifests) from
+    ``src/doctrine/missions`` to ``packs/built-in/missions`` — without this
+    additional root, the lint would silently stop scanning those relocated
+    prompts/templates while staying green (a gate-coverage loss, not a wrong
+    resolution). The separate, still-live ``src/specify_cli/missions`` legacy
+    tree (a distinct data tree, unaffected by this move — see
+    ``docs/plans/doctrine/missions-reader-inventory-01KZ6G6H.md``'s "Two
+    distinct specify_cli/missions trees" note) keeps its own root below,
+    unchanged.
+    """
     roots: list[Path] = [repo_root / "src" / "doctrine"]
     roots.extend(_iter_charter_scan_roots(repo_root / "src" / "charter"))
+    roots.extend(_iter_mission_scan_roots(repo_root / "packs" / "built-in" / "missions"))
     roots.extend(_iter_mission_scan_roots(repo_root / "src" / "specify_cli" / "missions"))
     return roots
 

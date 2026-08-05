@@ -67,14 +67,22 @@ class MissionTypeRepository:
         tests must never write into the real bundled trees to exercise this
         seam (mirrors the ``builtin_mission_type_ids`` cache-vs-test-seam
         contract, C-010).
-        """
-        try:
-            from importlib.resources import files
 
-            resource = files("doctrine") / "missions" / "mission_types"
-            return cls(Path(str(resource)))
-        except (ModuleNotFoundError, TypeError):
-            return cls(Path(__file__).parent / "mission_types")
+        Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
+        (FR-005) relocated ``mission_types/`` from
+        ``src/doctrine/missions/mission_types`` to
+        ``packs/built-in/missions/mission_types``. This now delegates to the
+        one promoted missions-root authority
+        (:meth:`~doctrine.missions.repository.MissionTemplateRepository.default_missions_root`,
+        FR-004) instead of its own ``importlib.resources.files("doctrine")``
+        literal -- the retired literal would silently resolve to the now
+        data-less ``src/doctrine`` package tree post-relocation, and its bare
+        ``Path(__file__).parent / "mission_types"`` fallback would resolve to
+        a directory that no longer exists at all.
+        """
+        from .repository import MissionTemplateRepository  # noqa: PLC0415
+
+        return cls(MissionTemplateRepository.default_missions_root() / "mission_types")
 
     # ------------------------------------------------------------------
     # Public interface

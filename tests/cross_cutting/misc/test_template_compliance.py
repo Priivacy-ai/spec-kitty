@@ -136,6 +136,11 @@ def test_command_templates_removed():
     templates_dir = spec_kitty_root / "src" / "specify_cli" / "templates"
     doctrine_missions_dir = spec_kitty_root / "src" / "doctrine" / "missions"
     doctrine_templates_dir = spec_kitty_root / "src" / "doctrine" / "templates"
+    # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
+    # relocated missions/ from src/doctrine/missions to packs/built-in/missions;
+    # scan the relocated tree too so this stays a real coverage gate rather
+    # than silently scanning only the now data-less src/doctrine/missions.
+    relocated_missions_dir = spec_kitty_root / "packs" / "built-in" / "missions"
 
     # software-dev/command-templates/ is the canonical source for prompt-driven
     # commands and is intentionally kept (feature 058).
@@ -144,7 +149,7 @@ def test_command_templates_removed():
     }
 
     found = []
-    for parent in [missions_dir, templates_dir, doctrine_missions_dir, doctrine_templates_dir]:
+    for parent in [missions_dir, templates_dir, doctrine_missions_dir, doctrine_templates_dir, relocated_missions_dir]:
         if parent.exists():
             for d in parent.rglob("command-templates"):
                 if d.is_dir():
@@ -201,6 +206,10 @@ def test_no_command_templates_in_mission_dirs():
     spec_kitty_root = Path(__file__).parent.parent.parent.parent
     missions_dir = spec_kitty_root / "src" / "specify_cli" / "missions"
     doctrine_dir = spec_kitty_root / "src" / "doctrine" / "missions"
+    # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
+    # relocated missions/ from src/doctrine/missions to packs/built-in/missions;
+    # scan the relocated tree too, for the same reason noted above.
+    relocated_missions_dir = spec_kitty_root / "packs" / "built-in" / "missions"
 
     # software-dev/command-templates/ is the canonical source for prompt-driven
     # commands and is intentionally kept (feature 058).
@@ -209,7 +218,7 @@ def test_no_command_templates_in_mission_dirs():
     }
 
     violations = []
-    for base in [missions_dir, doctrine_dir]:
+    for base in [missions_dir, doctrine_dir, relocated_missions_dir]:
         if not base.exists():
             continue
         for child in base.rglob("command-templates"):

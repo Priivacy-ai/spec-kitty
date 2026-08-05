@@ -56,7 +56,10 @@ from specify_cli.template.asset_generator import render_command_template
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-TEMPLATES_DIR = Path(__file__).parent.parent.parent.parent / "src" / "doctrine" / "missions" / "mission-steps" / "software-dev"
+# Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
+# relocated mission-steps/ from src/doctrine/missions/mission-steps to
+# packs/built-in/missions/mission-steps.
+TEMPLATES_DIR = Path(__file__).parent.parent.parent.parent / "packs" / "built-in" / "missions" / "mission-steps" / "software-dev"
 
 BASELINE_DIR = Path(__file__).parent / "_twelve_agent_baseline"
 

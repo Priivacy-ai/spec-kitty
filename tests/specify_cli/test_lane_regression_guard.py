@@ -39,7 +39,9 @@ TEMPLATE_DIRS = [
     REPO_ROOT / "src" / "specify_cli" / "missions",
     REPO_ROOT / "src" / "specify_cli" / "templates",  # shared packaged templates
     REPO_ROOT / "src" / "doctrine" / "templates",
-    REPO_ROOT / "src" / "doctrine" / "missions",
+    # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
+    # relocated missions/ from src/doctrine/missions to packs/built-in/missions.
+    REPO_ROOT / "packs" / "built-in" / "missions",
 ]
 
 

@@ -101,10 +101,12 @@ def _type_grain_urns(repo_root: Path) -> set[str]:
     bundle<->graph equality check below rather than requiring every action's
     bundle to redundantly re-declare the whole type grain.
     """
+    # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
+    # relocated missions/ from src/doctrine/missions to packs/built-in/missions.
     profile_path = (
         repo_root
-        / "src"
-        / "doctrine"
+        / "packs"
+        / "built-in"
         / "missions"
         / "documentation"
         / "governance-profile.yaml"
@@ -163,8 +165,8 @@ def test_action_bundle_matches_drg_edges(action: str) -> None:
     repo_root = _repo_root()
     bundle_path = (
         repo_root
-        / "src"
-        / "doctrine"
+        / "packs"
+        / "built-in"
         / "missions"
         / "documentation"
         / "actions"

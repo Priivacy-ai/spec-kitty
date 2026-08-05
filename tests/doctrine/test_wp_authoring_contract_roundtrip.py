@@ -36,18 +36,21 @@ from specify_cli.ownership.frontmatter_source import (
 )
 from specify_cli.ownership.validation import validate_glob_matches, validate_ownership
 from specify_cli.status import WPMetadata
-from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT, REPO_ROOT
+from tests.doctrine.conftest import BUILT_IN_MISSIONS_ROOT, REPO_ROOT
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 # --- The three drifting encodings, pinned to disk -------------------------------
 
-SOFTWARE_DEV_ROOT = DOCTRINE_SOURCE_ROOT / "missions" / "software-dev"
+# Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
+# relocated missions/ from src/doctrine/missions (nested under
+# DOCTRINE_SOURCE_ROOT) to packs/built-in/missions (BUILT_IN_MISSIONS_ROOT,
+# see tests/doctrine/conftest.py).
+SOFTWARE_DEV_ROOT = BUILT_IN_MISSIONS_ROOT / "software-dev"
 
 GUIDELINES_ACTIONS = SOFTWARE_DEV_ROOT / "actions" / "tasks" / "guidelines.md"
 GUIDELINES_STEPS = (
-    DOCTRINE_SOURCE_ROOT
-    / "missions"
+    BUILT_IN_MISSIONS_ROOT
     / "mission-steps"
     / "software-dev"
     / "tasks"

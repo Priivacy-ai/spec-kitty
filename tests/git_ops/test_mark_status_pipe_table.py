@@ -402,10 +402,14 @@ class TestTasksTemplateCheckboxFormat:
         here = Path(__file__).resolve()
         # tests/git_ops/test_mark_status_pipe_table.py → tests/ → repo_root
         repo_root = here.parent.parent.parent
+        # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H
+        # (FR-005) relocated mission-steps/ from
+        # src/doctrine/missions/mission-steps to
+        # packs/built-in/missions/mission-steps.
         return (
             repo_root
-            / "src"
-            / "doctrine"
+            / "packs"
+            / "built-in"
             / "missions"
             / "mission-steps"
             / "software-dev"

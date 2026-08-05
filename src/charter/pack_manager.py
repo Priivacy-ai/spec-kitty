@@ -80,7 +80,7 @@ from charter.activation_engine import (
 )
 from charter.charter_yaml_io import load_charter_yaml, update_charter_yaml_section
 from charter.pack_context import CharterPackConfigError, resolve_charter_yaml_pointer
-from doctrine.pack_paths import built_in_dir
+from doctrine.pack_paths import built_in_dir, built_in_root
 from doctrine.artifact_kinds import (
     CHARTER_KIND_TOKENS,
     MISSION_TYPE_TOKEN,
@@ -206,10 +206,17 @@ def _scan_layout_for(kind: ArtifactKind | None) -> tuple[str, str, bool]:
     Two base-dir outliers do not follow ``doctrine/<plural>``:
 
     * ``mission-step-contract`` lives under
-      ``doctrine/missions/built_in_step_contracts`` (a flat directory, not a
+      ``missions/built_in_step_contracts`` (a flat directory, not a
       ``built-in`` layer segment) — historically there is no org/project layer
       for step contracts, so ``layered`` is ``False``.
-    * ``mission-type`` lives under ``doctrine/missions/mission_types`` (flat).
+    * ``mission-type`` lives under ``missions/mission_types`` (flat).
+
+    Both outliers' ``base_dir`` is relative to :func:`doctrine.pack_paths.built_in_root`
+    (``packs/built-in/``), **not** ``_SRC_ROOT`` — mission
+    ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` (FR-005)
+    relocated ``missions/``'s data subdirectories there; see
+    :meth:`CharterPackManager._scan_layer_dirs`'s flat-kind branch, the one
+    place this distinction actually matters for resolution.
 
     Templates (FR-025) are intentionally **not** handled here; ``template`` is
     resolved mission-tier with mission-qualified IDs by WP18, which extends this
@@ -217,10 +224,10 @@ def _scan_layout_for(kind: ArtifactKind | None) -> tuple[str, str, bool]:
     """
     if kind is None:
         # mission-type: flat mission-tier directory, not an ArtifactKind.
-        return ("doctrine/missions/mission_types", "*.yaml", False)
+        return ("missions/mission_types", "*.yaml", False)
     if kind is ArtifactKind.MISSION_STEP_CONTRACT:
         # Step contracts live in a single flat directory (no layer segment).
-        return ("doctrine/missions/built_in_step_contracts", kind.glob_pattern, False)
+        return ("missions/built_in_step_contracts", kind.glob_pattern, False)
     # The 7 standard artifact kinds: doctrine/<plural>/<layer>/ with the
     # canonical glob from ArtifactKind.
     return (f"doctrine/{kind.plural}", kind.glob_pattern, True)
@@ -702,8 +709,14 @@ class CharterPackManager:
                 candidate = root / base_dir / layer
             elif layer == "built-in":
                 # Flat-directory kinds (mission-type / step contracts) only have
-                # the built-in layer.
-                candidate = root / base_dir
+                # the built-in layer. Their content lives under packs/built-in/
+                # (mission #3091/FR-005 relocated missions/ there), not under
+                # _SRC_ROOT -- resolve through the same built_in_root()
+                # authority pack_paths already provides for every other
+                # built-in-tier lookup, rather than composing a second ad hoc
+                # join against the wrong root. (`root` here is `_SRC_ROOT`,
+                # deliberately unused in this branch.)
+                candidate = built_in_root() / base_dir
             else:
                 continue
             if candidate.is_dir():

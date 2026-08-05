@@ -15,7 +15,7 @@ def test_get_local_repo_root_prefers_env(monkeypatch: pytest.MonkeyPatch, tmp_pa
     templates_dir = tmp_path / "src" / "doctrine" / "templates"
     templates_dir.mkdir(parents=True)
     (templates_dir / "AGENTS.md").write_text("# agents", encoding="utf-8")
-    (tmp_path / "src" / "doctrine" / "missions").mkdir(parents=True)
+    (tmp_path / "packs" / "built-in" / "missions").mkdir(parents=True)
 
     monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(tmp_path))
     try:
@@ -54,7 +54,7 @@ def test_copy_specify_base_from_local_copies_expected_assets(tmp_path: Path) -> 
     (templates_src / "sample.md").write_text("content", encoding="utf-8")
     (repo_root / "src" / "doctrine" / "templates" / "AGENTS.md").write_text("agents", encoding="utf-8")
 
-    missions_src = repo_root / "src" / "doctrine" / "missions" / "default"
+    missions_src = repo_root / "packs" / "built-in" / "missions" / "default"
     missions_src.mkdir(parents=True)
     (missions_src / "rules.md").write_text("rules", encoding="utf-8")
 

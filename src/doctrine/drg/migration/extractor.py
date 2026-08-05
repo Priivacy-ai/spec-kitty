@@ -103,22 +103,27 @@ def _artifacts_root(doctrine_root: Path) -> Path:
 def _missions_root(doctrine_root: Path) -> Path:
     """Resolve the ``missions/`` root for *doctrine_root*.
 
-    Missions were **not** relocated by the flatten (WP03 left ``missions/`` and
-    ``schemas/`` in place), so they still live inside the ``doctrine`` package.
+    Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
+    (FR-005) relocated the missions data subdirectories out of the
+    ``doctrine`` package to ``packs/built-in/missions``, alongside every
+    other built-in artifact kind — falsifying this function's previous
+    assumption that missions stayed inside the ``doctrine`` package,
+    untouched by the WP03 flatten.
 
-    * A flattened **pack** root (``packs/built-in``) does not carry ``missions/``,
-      so the package's own ``missions/`` is resolved via ``files("doctrine")`` —
-      the same in-layer self-reference :mod:`doctrine.pack_paths` uses, valid in
-      both an editable checkout and an installed wheel.
-    * Any **other** root (the package root ``src/doctrine`` that carries
-      ``missions/`` directly, or a synthetic/nonexistent test root that carries
-      none) uses its own ``<root>/missions`` — so a nonexistent root still
-      resolves to an absent, empty missions tree rather than the package's.
+    * A flattened **pack** root (``packs/built-in``, :func:`_is_pack_root`)
+      now carries ``missions/`` directly, exactly like every other kind
+      directory — ``<root>/missions`` needs no further indirection.
+    * The ``doctrine`` **package** root (``src/doctrine``,
+      :func:`_is_doctrine_package_root`) no longer carries missions data
+      (only the 11 ``.py`` logic modules remain there) — resolved via
+      :func:`built_in_root`, the same fail-closed seam :func:`_artifacts_root`
+      uses for the analogous case.
+    * Any **other** root (a synthetic/nonexistent test root) uses its own
+      ``<root>/missions`` — so a nonexistent root still resolves to an
+      absent, empty missions tree rather than the real shipped one.
     """
-    if _is_pack_root(doctrine_root):
-        pkg = doctrine_package_dir()
-        if pkg is not None:
-            return pkg / "missions"
+    if _is_doctrine_package_root(doctrine_root):
+        return built_in_root() / "missions"
     return doctrine_root / "missions"
 
 # ---------------------------------------------------------------------------

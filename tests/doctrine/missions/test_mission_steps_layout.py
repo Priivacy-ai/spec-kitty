@@ -1,4 +1,4 @@
-"""Layout verification tests for src/doctrine/missions/mission-steps/.
+"""Layout verification tests for packs/built-in/missions/mission-steps/.
 
 Verifies:
 - Each built-in mission type has a mission-steps/<type>/ directory.
@@ -28,7 +28,10 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 _TESTS_DIR = Path(__file__).parent          # tests/doctrine/missions/
 _REPO_ROOT = Path(__file__).parents[3]      # worktree root (file → missions → doctrine → tests → root)
 _SRC_DIR = _REPO_ROOT / "src"
-_MISSION_STEPS_ROOT = _SRC_DIR / "doctrine" / "missions" / "mission-steps"
+# Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
+# relocated mission-steps/ from src/doctrine/missions/mission-steps to
+# packs/built-in/missions/mission-steps.
+_MISSION_STEPS_ROOT = _REPO_ROOT / "packs" / "built-in" / "missions" / "mission-steps"
 _SPECIFY_CLI_MISSIONS = _SRC_DIR / "specify_cli" / "missions"
 
 # Built-in mission types that must have a mission-steps directory.
@@ -62,7 +65,7 @@ EXPECTED_SOFTWARE_DEV_STEPS = frozenset({
 
 
 class TestMissionStepsRootExists:
-    """The mission-steps/ directory exists under src/doctrine/missions/."""
+    """The mission-steps/ directory exists under packs/built-in/missions/."""
 
     def test_mission_steps_root_exists(self) -> None:
         assert _MISSION_STEPS_ROOT.is_dir(), (

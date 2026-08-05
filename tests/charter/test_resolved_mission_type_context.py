@@ -375,7 +375,7 @@ class TestResolvedTemplateSet:
 def _write_colliding_override(repo_root: Path) -> None:
     """Write a project override whose type-grain collides with software-dev's
     OWN built-in action grain (``001-architectural-integrity-standard`` is
-    authored in ``src/doctrine/missions/software-dev/actions/*/index.yaml``).
+    authored in ``packs/built-in/missions/software-dev/actions/*/index.yaml``).
 
     Declaring the SAME artifact (different form: ``DIRECTIVE_001``) in the
     type-grain override forces :class:`CrossGrainDoubleDeclarationError` the

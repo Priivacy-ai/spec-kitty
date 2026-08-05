@@ -282,7 +282,7 @@ class TestPlanMissionRegressions:
         assert "tasks_finalize" not in step_ids, "legacy tasks_finalize must stay internal to composition"
 
         # Software-dev content templates are canonical in doctrine.
-        templates_dir = Path("src/doctrine/missions/software-dev/templates")
+        templates_dir = Path("packs/built-in/missions/software-dev/templates")
         assert templates_dir.exists(), "software-dev doctrine templates directory must exist"
         assert len(list(templates_dir.glob("*.md"))) > 0, "software-dev must have at least one template"
 

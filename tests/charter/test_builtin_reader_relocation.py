@@ -76,7 +76,6 @@ def test_python_styleguide_reference_reads_from_packs_built_in(
         interview=_python_interview(),
         paradigms=[],
         directives=[],
-        doctrine_root=resolve_doctrine_root(),
     )
 
     styleguides = [ref for ref in references if ref.kind == "styleguide"]
@@ -112,7 +111,6 @@ def test_non_python_interview_emits_no_styleguide_reference(
         interview=interview,
         paradigms=[],
         directives=[],
-        doctrine_root=resolve_doctrine_root(),
     )
 
     assert not [ref for ref in references if ref.kind == "styleguide"]

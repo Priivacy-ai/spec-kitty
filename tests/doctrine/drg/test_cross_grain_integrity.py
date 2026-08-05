@@ -75,11 +75,13 @@ from doctrine.missions.mission_type_repository import builtin_mission_type_ids
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
-#: The shipped missions root: ``src/doctrine/missions``. Path-derived from
-#: this file (mirrors ``test_shipped_graph_valid.py``'s ``SHIPPED_GRAPH``
-#: constant) rather than a shared fixture, per the no-new-conftest
-#: constraint for this directory.
-MISSIONS_ROOT = Path(__file__).resolve().parents[3] / "src" / "doctrine" / "missions"
+#: The shipped missions root: ``packs/built-in/missions`` (relocated from
+#: ``src/doctrine/missions`` by mission
+#: doctrine-consumer-surface-missions-extraction-01KZ6G6H, FR-005).
+#: Path-derived from this file (mirrors ``test_shipped_graph_valid.py``'s
+#: ``SHIPPED_GRAPH`` constant) rather than a shared fixture, per the
+#: no-new-conftest constraint for this directory.
+MISSIONS_ROOT = Path(__file__).resolve().parents[3] / "packs" / "built-in" / "missions"
 
 #: Mission types whose action grain is expected to carry real content.
 #: ``plan`` is deliberately excluded — its action indexes are intentionally

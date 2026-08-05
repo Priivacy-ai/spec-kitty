@@ -136,7 +136,7 @@ class TestMissionStepContractRepository:
 
     def test_shipped_contract_inputs_are_preserved_for_every_declaring_contract(self) -> None:
         repo = MissionStepContractRepository()
-        shipped_dir = Path("src/doctrine/missions/built_in_step_contracts")
+        shipped_dir = Path("packs/built-in/missions/built_in_step_contracts")
         yaml = YAML(typ="safe")
 
         declared: dict[str, list[dict[str, object]]] = {}

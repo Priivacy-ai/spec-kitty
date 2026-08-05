@@ -215,8 +215,21 @@ class MissionStepRepository:
 
     @classmethod
     def default(cls) -> MissionStepRepository:
-        """Return a repository loaded from the doctrine-bundled mission-steps directory."""
-        return cls(Path(__file__).parent / "mission-steps")
+        """Return a repository loaded from the doctrine-bundled mission-steps directory.
+
+        Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
+        (FR-005) relocated ``mission-steps/`` from
+        ``src/doctrine/missions/mission-steps`` to
+        ``packs/built-in/missions/mission-steps``. Delegates to the one
+        promoted missions-root authority
+        (:meth:`~doctrine.missions.repository.MissionTemplateRepository.default_missions_root`,
+        FR-004) instead of the retired ``Path(__file__).parent``-relative
+        literal, which would resolve to a directory that no longer exists at
+        all post-relocation.
+        """
+        from .repository import MissionTemplateRepository  # noqa: PLC0415
+
+        return cls(MissionTemplateRepository.default_missions_root() / "mission-steps")
 
     # ------------------------------------------------------------------
     # Public interface

@@ -713,7 +713,7 @@ class TestPromptReferencesAuthorityPaths:
 
 class TestImplementTemplateForbidClauseIsHonest:
     """The current template at
-    `src/doctrine/missions/mission-steps/software-dev/implement/prompt.md` says:
+    `packs/built-in/missions/mission-steps/software-dev/implement/prompt.md` says:
 
         > The output of `spec-kitty agent action implement ...` is the authoritative
         > work package prompt and execution context. Do **not** separately call
@@ -726,7 +726,7 @@ class TestImplementTemplateForbidClauseIsHonest:
     required to carry.
     """
 
-    template_path = Path("src/doctrine/missions/mission-steps/software-dev/implement/prompt.md")
+    template_path = Path("packs/built-in/missions/mission-steps/software-dev/implement/prompt.md")
 
     def test_template_either_drops_forbid_or_guarantees_governance_payload(self) -> None:
         text = self.template_path.read_text(encoding="utf-8")

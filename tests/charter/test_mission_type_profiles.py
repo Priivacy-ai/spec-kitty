@@ -283,6 +283,109 @@ class TestResolveMissionTypeGovernanceValidation:
         # An unregistered-but-tolerated type has no built-in action sequence.
         assert bundle.action_sequence == []
 
+    def test_activated_but_unresolvable_profile_message_is_not_contradictory(
+        self, tmp_path: Path
+    ) -> None:
+        """An activated custom type with no loadable profile must not be told,
+        in the same breath, that it is both unknown and registered (#3183,
+        FR-006 / SC-003).
+
+        Unlike ``test_unknown_type_raises_unknown_mission_type_error`` (which
+        covers an id absent from ``existing_mission_types()``), this test's
+        id IS present in the activation set — that is the actual defect
+        scenario. There is deliberately no built-in ``my-custom`` doctrine
+        mission-type definition on disk, so ``_resolve_action_slot`` cannot
+        resolve a profile for it even though it is activated.
+        """
+        _git_init_minimal(tmp_path)
+        feature_dir = tmp_path / "kitty-specs" / "custom-002"
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text(
+            json.dumps({"mission_type": "my-custom", "mission_slug": "custom-002"}),
+            encoding="utf-8",
+        )
+
+        # "my-custom" IS activated (present in existing_mission_types()) but
+        # has no resolvable MissionTypeProfile / mission-type YAML on disk.
+        with (
+            patch(
+                "charter.mission_type_profiles.existing_mission_types",
+                return_value=["my-custom"],
+            ),
+            pytest.raises(UnknownMissionTypeError) as exc_info,
+        ):
+            resolve_mission_type_context(tmp_path, feature_dir=feature_dir)
+
+        msg = str(exc_info.value)
+        assert "my-custom" in msg
+
+        # The defect: the id appears in BOTH an "Unknown mission type ..."
+        # clause AND a "Registered types: my-custom" list in the same
+        # message. Assert that self-contradiction is absent, without pinning
+        # exact prose.
+        if "Registered types:" in msg:
+            registered_clause = msg.split("Registered types:", 1)[1]
+            assert "my-custom" not in registered_clause, (
+                "Message calls 'my-custom' unknown while also listing it "
+                f"among the registered types: {msg!r}"
+            )
+
+        # Positive shape: the message must separately state the two real
+        # facts -- the id is activated, and it has no loadable profile.
+        lowered = msg.lower()
+        assert "activated" in lowered, f"Message does not mention activation: {msg!r}"
+        assert "no loadable profile" in lowered, (
+            f"Message does not state the profile-loadability fact: {msg!r}"
+        )
+
+    def test_other_activated_types_clause_excludes_self(self, tmp_path: Path) -> None:
+        """When multiple types are activated, the "Other activated mission
+        types:" clause must not re-list the failing id (reviewer follow-up
+        on WP06, #3183 / FR-006).
+
+        ``test_activated_but_unresolvable_profile_message_is_not_contradictory``
+        pins self-exclusion from the "Registered types:" sentence, but its
+        ``registered_ids`` fixture is a single-element list
+        (``["my-custom"]``), so the ``if other_registered:`` branch that
+        renders "Other activated mission types: ..." never executes there —
+        that test cannot catch a regression that re-lists the id under this
+        second clause instead. This test activates ``my-custom`` alongside
+        two other types so the clause actually renders, then asserts the
+        failing id occurs exactly once in the whole message — a check that
+        is agnostic to *which* clause a future regression re-lists it under.
+        """
+        _git_init_minimal(tmp_path)
+        feature_dir = tmp_path / "kitty-specs" / "custom-003"
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text(
+            json.dumps({"mission_type": "my-custom", "mission_slug": "custom-003"}),
+            encoding="utf-8",
+        )
+
+        # "my-custom" IS activated, alongside two other registered types, so
+        # the "Other activated mission types:" clause renders. It still has
+        # no resolvable MissionTypeProfile / mission-type YAML on disk.
+        with (
+            patch(
+                "charter.mission_type_profiles.existing_mission_types",
+                return_value=["my-custom", "research", "software-dev"],
+            ),
+            pytest.raises(UnknownMissionTypeError) as exc_info,
+        ):
+            resolve_mission_type_context(tmp_path, feature_dir=feature_dir)
+
+        msg = str(exc_info.value)
+        assert "Other activated mission types:" in msg, (
+            f"Expected the multi-activated clause to render: {msg!r}"
+        )
+        assert msg.count("my-custom") == 1, (
+            "'my-custom' must appear exactly once in the message -- once "
+            "as the failing id, and NOT again inside the 'Other activated "
+            f"mission types:' clause: {msg!r}"
+        )
+        assert "research" in msg
+        assert "software-dev" in msg
+
     def test_missing_mission_type_key_degrades_neutrally(self, tmp_path: Path) -> None:
         """meta.json without 'mission_type' key degrades to the neutral bundle (FR-003a).
 

@@ -52,7 +52,7 @@ from doctrine.missions.mission_type_repository import (
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 _SHIPPED_MISSION_TYPES_DIR = (
-    Path(__file__).resolve().parents[2] / "src" / "doctrine" / "missions" / "mission_types"
+    Path(__file__).resolve().parents[2] / "packs" / "built-in" / "missions" / "mission_types"
 )
 
 _SYNTHETIC_ANALYSIS_YAML = (

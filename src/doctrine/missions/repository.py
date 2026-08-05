@@ -2,13 +2,47 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, cast
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from kernel.sibling_paths import SiblingPathNotFound, resolve_installed_sibling
+
 ParsedConfig = dict[str, Any] | list[Any]
+
+#: Relative shape of this package's own data content, sought as a sibling of
+#: this module's own containing package directory (FR-004). Mission
+#: ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` (WP05) relocated
+#: the missions data subdirectories from ``src/doctrine/missions`` to
+#: ``packs/built-in/missions`` -- ``packs/`` ships as a fixed-name,
+#: site-packages-level sibling of every top-level package (the root
+#: ``pyproject.toml``'s ``force-include = {"packs" = "packs"}``), so this is a
+#: **literal** relative path, not a bare "missions" match. A bare "missions"
+#: pattern would still match one ancestor level above this module's own
+#: containing directory (``src/doctrine``) -- i.e. it would find
+#: ``src/doctrine/missions`` itself, the now data-less directory this
+#: module's own 11 ``.py`` logic modules still live in -- before ever
+#: considering the real data. A fully-qualified ``packs/built-in/missions``
+#: pattern structurally cannot make that mistake.
+_MISSIONS_ROOT_SIBLING_PATTERN = PurePosixPath("packs") / "built-in" / "missions"
+
+
+class MissionsRootNotFound(Exception):
+    """Raised when the missions-content root cannot be located (fail-closed).
+
+    Replaces the previous silent ``Path(__file__).parent`` fallback (FR-004).
+
+    Eager-eval note: ``specify_cli.runtime.home``'s ``dev_roots`` fallback
+    tuple calls ``default_missions_root()`` eagerly as its first element, so
+    a ``MissionsRootNotFound`` raised here propagates before that tuple's
+    second (bare ``Path(__file__)``-relative) entry is ever tried. Not
+    currently triggerable -- ``repository.py``'s own ancestor always matches
+    the ``packs/built-in/missions`` pattern in every layout where this module
+    is importable from a real file -- but a caller relying on the second
+    entry as a fallback should know the first entry is not lazy.
+    """
 
 
 class TemplateResult:
@@ -96,18 +130,25 @@ class MissionTemplateRepository:
 
     @classmethod
     def default_missions_root(cls) -> Path:
-        """Return the missions root bundled with the ``doctrine`` package.
+        """Return the missions-content root bundled alongside this package (FR-004).
 
-        Uses ``importlib.resources`` so that the path is valid both when
-        running from an editable install and from a built wheel.
+        Delegates to the shared kernel sibling-path-resolution primitive
+        (:func:`kernel.sibling_paths.resolve_installed_sibling`) so the path
+        is valid both from an editable install and from a built wheel.
+
+        Fails closed rather than falling back to this module's own directory.
         """
         try:
-            from importlib.resources import files
-
-            resource = files("doctrine") / "missions"
-            return Path(str(resource))
-        except (ModuleNotFoundError, TypeError):
-            return Path(__file__).parent
+            return resolve_installed_sibling(
+                anchor_file=Path(__file__),
+                env_override=None,
+                sibling_relative_path=_MISSIONS_ROOT_SIBLING_PATTERN,
+            )
+        except SiblingPathNotFound as exc:
+            raise MissionsRootNotFound(
+                "Could not locate the missions-content root as a sibling of "
+                f"{__file__}."
+            ) from exc
 
     @classmethod
     def default(cls) -> MissionTemplateRepository:

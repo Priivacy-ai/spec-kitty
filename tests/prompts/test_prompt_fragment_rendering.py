@@ -22,11 +22,14 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
+# Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
+# relocated mission-steps/ from src/doctrine/missions/mission-steps to
+# packs/built-in/missions/mission-steps.
 ACTION_TEMPLATES: list[tuple[str, str]] = [
-    ("src/doctrine/missions/mission-steps/software-dev/specify/prompt.md", "REASONS Guidance — Specify"),
-    ("src/doctrine/missions/mission-steps/software-dev/plan/prompt.md", "REASONS Guidance — Plan"),
-    ("src/doctrine/missions/mission-steps/software-dev/tasks/prompt.md", "REASONS Guidance — Tasks"),
-    ("src/doctrine/missions/mission-steps/software-dev/implement/prompt.md", "REASONS Guidance — Implement"),
+    ("packs/built-in/missions/mission-steps/software-dev/specify/prompt.md", "REASONS Guidance — Specify"),
+    ("packs/built-in/missions/mission-steps/software-dev/plan/prompt.md", "REASONS Guidance — Plan"),
+    ("packs/built-in/missions/mission-steps/software-dev/tasks/prompt.md", "REASONS Guidance — Tasks"),
+    ("packs/built-in/missions/mission-steps/software-dev/implement/prompt.md", "REASONS Guidance — Implement"),
 ]
 
 

@@ -505,7 +505,10 @@ def test_bundled_software_dev_templates_have_descriptions(tmp_path: Path) -> Non
 
     repo_root = Path(__file__).resolve().parents[2]
     legacy_templates_dir = repo_root / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates"
-    doctrine_templates_dir = repo_root / "src" / "doctrine" / "missions" / "mission-steps" / "software-dev"
+    # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
+    # relocated mission-steps/ from src/doctrine/missions/mission-steps to
+    # packs/built-in/missions/mission-steps.
+    doctrine_templates_dir = repo_root / "packs" / "built-in" / "missions" / "mission-steps" / "software-dev"
     template_files = (
         sorted(legacy_templates_dir.glob("*.md"))
         if legacy_templates_dir.is_dir()

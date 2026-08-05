@@ -30,7 +30,12 @@ from doctrine.missions.mission_type_repository import MissionTypeRepository
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
 DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[3] / "src" / "doctrine"
-MISSION_TYPES_DIR = DOCTRINE_ROOT / "missions" / "mission_types"
+# Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
+# relocated mission_types/ from src/doctrine/missions/mission_types to
+# packs/built-in/missions/mission_types. DOCTRINE_ROOT itself is unchanged
+# (still src/doctrine) and stays correct for generate_graph() below, which
+# internally repoints through _missions_root()'s own FR-005 fix.
+MISSION_TYPES_DIR = Path(__file__).resolve().parents[3] / "packs" / "built-in" / "missions" / "mission_types"
 
 _yaml = YAML(typ="safe")
 

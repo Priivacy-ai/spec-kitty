@@ -52,7 +52,10 @@ from doctrine.missions.step_projection import project_action_sequence
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 _REPO_ROOT = Path(__file__).parents[3]
-_MISSION_STEPS_ROOT = _REPO_ROOT / "src" / "doctrine" / "missions" / "mission-steps"
+# Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
+# relocated mission-steps/ from src/doctrine/missions/mission-steps to
+# packs/built-in/missions/mission-steps.
+_MISSION_STEPS_ROOT = _REPO_ROOT / "packs" / "built-in" / "missions" / "mission-steps"
 
 # A prompt counts as "empty/dummy" if it has no meaningful content: zero
 # bytes, or nothing but whitespace / a placeholder TODO marker.

@@ -178,9 +178,19 @@ def resolve_doctrine_root() -> Path:
         return dev_root
 
     # 3. Installed layout: doctrine is not a separate package on PyPI.
-    #    Fall back to the specify_cli package root so that callers can still
-    #    discover missions/ (via get_package_asset_root) and receive empty
-    #    sets for paradigms/directives which don't ship in the wheel.
+    #    Fall back to the parent of the resolved missions root so that callers
+    #    can still discover missions/ (via get_package_asset_root) and receive
+    #    empty sets for paradigms/directives which don't ship in the wheel.
+    #    Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H
+    #    (FR-005/R-08) relocated the missions data (and, per a prior mission,
+    #    every other built-in artifact kind) to packs/built-in/ -- so
+    #    _get_package_asset_root() now resolves packs/built-in/missions, and
+    #    this fallback's ``.parent`` correctly yields packs/built-in, the ONE
+    #    root that actually still carries paradigms/directives/missions
+    #    together (an improvement over the pre-relocation src/doctrine
+    #    fallback, which no longer carries any of them). R-01 (kernel.paths)
+    #    and this fallback must be read together: repointing one without the
+    #    other would silently reintroduce a wrong root here.
     try:
         result = _get_package_asset_root().parent
         _log.debug("doctrine: resolved via package asset root fallback")

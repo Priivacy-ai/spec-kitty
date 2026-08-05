@@ -11,9 +11,10 @@ in kernel so that neither package needs to import from the other.
 
 from __future__ import annotations
 
-import importlib.resources
 import os
 from pathlib import Path, PurePath, PurePosixPath
+
+from kernel.sibling_paths import SiblingPathNotFound, resolve_installed_sibling
 
 
 def _is_windows() -> bool:
@@ -60,45 +61,148 @@ def get_kittify_home() -> Path:
     return Path.home() / ".kittify"
 
 
+#: The relative shape sought for the *env-var* override branch below: either
+#: the mission-assets directory itself, or a checkout/package root one or two
+#: levels above it. Generic (a bare directory name, not a package name) --
+#: see ``_looks_like_missions_root`` for the content sniff that disambiguates
+#: an actual hit from an unrelated directory that happens to be named this.
+_MISSION_ASSETS_DIR_NAME = "missions"
+
+#: The relative shape handed to :func:`kernel.sibling_paths.resolve_installed_sibling`
+#: for the non-env-var (ancestor-walk) branch. Mission
+#: ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` (FR-005, WP05)
+#: relocated the missions *data* subdirectories from ``src/doctrine/missions``
+#: to ``packs/built-in/missions`` -- ``packs/`` ships as a fixed-name,
+#: site-packages-level sibling of every top-level package (the root
+#: ``pyproject.toml``'s ``force-include = {"packs" = "packs"}``), so this
+#: pattern is a **literal** relative path, not a per-package wildcard: it can
+#: only ever match the one real data location, never accidentally the
+#: still-existing-but-now-data-less ``src/doctrine/missions`` package
+#: directory (the ``.py`` logic modules stay there) that a generic
+#: ``"*/missions"`` wildcard pattern would keep matching post-move. This is
+#: the exact self-match trap the mission's reader inventory names as the
+#: highest-severity finding: a bare wildcard pattern still finds *a* directory
+#: named "missions" one ancestor level up from ``src/doctrine/missions``
+#: itself, it is just the wrong (data-less) one. A fully-qualified pattern
+#: naming ``packs/built-in/missions`` structurally cannot make that mistake.
+_MISSION_ASSETS_SIBLING_PATTERN = PurePosixPath("packs") / "built-in" / _MISSION_ASSETS_DIR_NAME
+
+#: The relative shape used only by :func:`_resolve_env_root` below, globbed
+#: directly against a caller-supplied ``SPEC_KITTY_TEMPLATE_ROOT`` checkout
+#: root -- NOT handed to the sibling-resolution primitive. A checkout root
+#: sits *two* levels above the sibling package's missions dir
+#: (``<root>/src/<pkg>/missions``), unlike the primitive's own anchor (this
+#: module's file, one level below ``src/``), so this candidate needs the
+#: ``src/`` segment that :data:`_MISSION_ASSETS_SIBLING_PATTERN` above must
+#: not carry.
+_MISSION_ASSETS_CHECKOUT_GLOB_PATTERN = PurePosixPath("src") / "*" / _MISSION_ASSETS_DIR_NAME
+
+
+def _looks_like_missions_root(path: Path) -> bool:
+    """Content-sniff: does ``path`` hold mission-type subdirectories with real content?
+
+    Generic by construction: the mission-type segment is a glob wildcard, not
+    an enumerated, hard-coded vocabulary of mission-type names.
+    """
+    has_content_templates = any(path.glob("*/templates/*.md"))
+    has_legacy_commands = any(path.glob("*/command-templates/*.md"))
+    has_step_prompts = any(path.glob("mission-steps/*/*/prompt.md"))
+    return has_content_templates or has_legacy_commands or has_step_prompts
+
+
+def _find_relocated_missions_ancestor(root: Path) -> Path | None:
+    """Walk ``root`` and its ancestors for the real, post-relocation missions root.
+
+    Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` (FR-005)
+    moved the missions data from ``src/doctrine/missions`` to
+    ``packs/built-in/missions``. ``SPEC_KITTY_TEMPLATE_ROOT`` may be set to any
+    of several legacy shapes (the bare missions directory, a full checkout
+    root, a stale sibling-package leaf, ...), each sitting at a *different*
+    depth relative to the real repository root -- so this walks every
+    ancestor (including ``root`` itself) rather than assuming a fixed number
+    of ``.parent`` hops, finding the relocated data uniformly regardless of
+    which legacy shape the caller supplied. Unlike the other candidates in
+    :func:`_resolve_env_root`, the ``packs/built-in/missions`` shape is
+    unambiguous -- no unrelated tree can accidentally satisfy it -- so no
+    content-sniff is needed once a candidate is found to exist.
+    """
+    for ancestor in (root, *root.parents):
+        candidate = ancestor / "packs" / "built-in" / _MISSION_ASSETS_DIR_NAME
+        if candidate.is_dir():
+            return candidate
+    return None
+
+
+def _resolve_env_root(root: Path) -> Path:
+    """Resolve ``SPEC_KITTY_TEMPLATE_ROOT`` under its several legacy accepted shapes.
+
+    ``root`` may itself already be the mission-assets directory, a checkout
+    root one or two levels above it, or (historically) a stale sibling
+    package's own copy -- disambiguated by :func:`_looks_like_missions_root`,
+    never by naming a specific package. The relocated ``packs/built-in/missions``
+    location (see :func:`_find_relocated_missions_ancestor`) is tried first and
+    unconditionally, since every legacy shape below predates mission #3091's
+    move and would otherwise resolve into the now data-less
+    ``src/doctrine/missions`` package directory or the unrelated
+    ``specify_cli/missions`` legacy tree.
+
+    Candidate order matters: the checkout-root candidate (bare ``root``) is
+    tried LAST, after the more specific ``src/*/missions`` glob. A real
+    checkout root generally also satisfies ``_looks_like_missions_root``'s
+    loose content sniff on its own (e.g. via an unrelated ``docs/templates/
+    *.md``), so if bare ``root`` were tried first it would short-circuit
+    before the glob ever gets a chance to find the actual missions directory
+    nested under it.
+    """
+    if (relocated := _find_relocated_missions_ancestor(root)) is not None:
+        return relocated
+
+    candidates: list[Path] = [root / _MISSION_ASSETS_DIR_NAME]
+    candidates.extend(sorted(root.glob(str(_MISSION_ASSETS_CHECKOUT_GLOB_PATTERN))))
+    if root.name == _MISSION_ASSETS_DIR_NAME:
+        candidates.extend(sorted(root.parent.parent.glob(f"*/{_MISSION_ASSETS_DIR_NAME}")))
+    candidates.append(root)
+    for candidate in candidates:
+        if candidate.is_dir() and _looks_like_missions_root(candidate):
+            return candidate
+    raise FileNotFoundError(
+        "SPEC_KITTY_TEMPLATE_ROOT does not contain mission assets: "
+        f"{root}. Expected a missions directory or a Spec Kitty checkout root."
+    )
+
+
 def get_package_asset_root() -> Path:
     """Return the path to the package's bundled mission assets.
 
     Resolution order:
-    1. SPEC_KITTY_TEMPLATE_ROOT environment variable (CI/testing)
-    2. importlib.resources.files("doctrine") / "missions" (canonical location)
+    1. SPEC_KITTY_TEMPLATE_ROOT environment variable (CI/testing) -- several
+       accepted legacy shapes, see :func:`_resolve_env_root`.
+    2. The shared kernel sibling-path-resolution primitive
+       (:func:`kernel.sibling_paths.resolve_installed_sibling`): a single
+       ancestor walk that covers both an editable-checkout sibling and an
+       installed-wheel sibling (the site-packages level is always one of the
+       walked ancestors), seeking the fixed ``packs/built-in/missions`` shape
+       (:data:`_MISSION_ASSETS_SIBLING_PATTERN`) rather than a per-package
+       wildcard -- see that constant's own docstring for why a wildcard
+       pattern would self-match the now data-less ``src/doctrine/missions``
+       package directory post-relocation.
+
+    Trade-off: the ancestor walk in step 2 has no stop condition and climbs
+    all the way to the filesystem root, so on a broken install it could in
+    principle match an unrelated ``<ancestor>/packs/built-in/missions``
+    several levels up rather than failing closed immediately. Bounded in
+    practice -- real layouts (editable checkout or installed wheel) match at
+    ancestor depth 1-2 -- and this function has a single production consumer
+    (:mod:`charter.catalog`), so a stop condition was judged not worth the
+    added edge-case risk; see :mod:`kernel.sibling_paths`'s module docstring
+    for the walk itself.
 
     Returns:
-        Path: Absolute path to the missions directory in the doctrine package.
+        Path: Absolute path to the missions directory.
 
     Raises:
         FileNotFoundError: If no valid asset root can be found.
     """
-    def _looks_like_missions_root(path: Path) -> bool:
-        for mission_name in ("software-dev", "documentation", "research", "plan"):
-            mission_dir = path / mission_name
-            has_content_templates = any((mission_dir / "templates").glob("*.md"))
-            has_legacy_commands = any((mission_dir / "command-templates").glob("*.md"))
-            has_step_prompts = any((path / "mission-steps" / mission_name).glob("*/prompt.md"))
-            if has_content_templates or has_legacy_commands or has_step_prompts:
-                return True
-        return False
-
-    def _resolve_env_root(root: Path) -> Path:
-        candidates = (
-            root / "missions",
-            root / "src" / "doctrine" / "missions",
-            root.parent.parent / "doctrine" / "missions",
-            root,
-            root / "src" / "specify_cli" / "missions",
-        )
-        for candidate in candidates:
-            if candidate.is_dir() and _looks_like_missions_root(candidate):
-                return candidate
-        raise FileNotFoundError(
-            "SPEC_KITTY_TEMPLATE_ROOT does not contain mission assets: "
-            f"{root}. Expected a missions directory or a Spec Kitty checkout root."
-        )
-
     # CI/testing override
     if env_root := os.environ.get("SPEC_KITTY_TEMPLATE_ROOT"):
         root = Path(env_root)
@@ -106,15 +210,16 @@ def get_package_asset_root() -> Path:
             return _resolve_env_root(root)
         raise FileNotFoundError(f"SPEC_KITTY_TEMPLATE_ROOT path does not exist: {env_root}")
 
-    # Canonical location: doctrine.missions
     try:
-        doctrine_missions = Path(str(importlib.resources.files("doctrine") / "missions"))
-        if doctrine_missions.is_dir():
-            return doctrine_missions
-    except (TypeError, ModuleNotFoundError):
-        pass
-
-    raise FileNotFoundError("Cannot locate package mission assets. Set SPEC_KITTY_TEMPLATE_ROOT or reinstall spec-kitty-cli.")
+        return resolve_installed_sibling(
+            anchor_file=Path(__file__),
+            env_override=None,
+            sibling_relative_path=_MISSION_ASSETS_SIBLING_PATTERN,
+        )
+    except SiblingPathNotFound as exc:
+        raise FileNotFoundError(
+            "Cannot locate package mission assets. Set SPEC_KITTY_TEMPLATE_ROOT or reinstall spec-kitty-cli."
+        ) from exc
 
 
 def render_runtime_path(path: Path, *, for_user: bool = True) -> str:

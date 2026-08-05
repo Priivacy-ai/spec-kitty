@@ -505,7 +505,7 @@ def test_setup_plan_scaffolds_from_doctrine_package_default(
 
     payload = _run_setup_plan(tmp_path, handle)
 
-    doctrine_plan = Path(__file__).resolve().parents[2] / "src" / "doctrine" / "missions" / "software-dev" / "templates" / "plan-template.md"
+    doctrine_plan = Path(__file__).resolve().parents[2] / "packs" / "built-in" / "missions" / "software-dev" / "templates" / "plan-template.md"
     plan_file = feature_dir / "plan.md"
 
     # #2566/WP06: a pristine scaffold (plan.md byte-equal to the template, not

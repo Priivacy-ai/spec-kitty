@@ -197,7 +197,10 @@ class TestMissionTierExceptions:
         not the "positive pin" the ADR claims. Pinned exactly, consistent with how the DRG
         golden counts are pinned; update deliberately with a note when a contract is added.
         """
-        contracts_dir = _DOCTRINE_ROOT / "missions" / "built_in_step_contracts"
+        # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H
+        # (FR-005) relocated missions/ from src/doctrine/missions to
+        # packs/built-in/missions.
+        contracts_dir = _PACKS_BUILT_IN_ROOT / "missions" / "built_in_step_contracts"
         assert contracts_dir.is_dir(), "authoritative step-contract dir is missing"
         found = sorted(contracts_dir.glob("*.step-contract.yaml"))
         assert len(found) == _EXPECTED_STEP_CONTRACT_COUNT, (
@@ -206,10 +209,15 @@ class TestMissionTierExceptions:
         )
 
     def test_no_step_contract_lives_anywhere_else(self) -> None:
-        expected_parent = _DOCTRINE_ROOT / "missions" / "built_in_step_contracts"
+        # Scans both the doctrine package root (the 11 .py logic modules'
+        # containing dir, now data-less for missions/) and the relocated
+        # packs/built-in tree, so this stays a real coverage gate rather than
+        # silently scanning only the emptied src/doctrine/missions post-FR-005.
+        expected_parent = _PACKS_BUILT_IN_ROOT / "missions" / "built_in_step_contracts"
         strays = [
-            p.relative_to(_DOCTRINE_ROOT).as_posix()
-            for p in _DOCTRINE_ROOT.rglob("*.step-contract.yaml")
+            p.relative_to(root).as_posix()
+            for root in (_DOCTRINE_ROOT, _PACKS_BUILT_IN_ROOT)
+            for p in root.rglob("*.step-contract.yaml")
             if p.parent != expected_parent and "__pycache__" not in p.parts
         ]
         assert not strays, f"step contracts outside the authoritative dir: {strays}"
