@@ -146,30 +146,60 @@ def test_analysis_report_commits_to_primary_ref_and_is_absent_on_coord(
     )
 
 
-def test_review_cycle_authored_lands_on_primary_ref_and_is_absent_on_coord(
+def test_review_cycle_authored_lands_on_coord_ref_and_is_absent_on_primary(
     tmp_path: Path,
 ) -> None:
-    """FR-001 committed-ref proof: an authored review-cycle lands PRIMARY, absent COORD.
+    """FR-023 committed-ref proof: an authored review-cycle lands COORD, absent PRIMARY.
 
-    T009 / DoD line 141 (moved from WP01, renata). ``review-cycle-N.md`` is a
-    ``WORK_PACKAGE_TASK`` artifact (PRIMARY partition), but the pre-fix write site
-    resolved the mission dir via the kind-blind
-    ``candidate_feature_dir_for_mission`` fold → the COORD husk under coord
-    topology. The fix unifies read+write on ``_review_cycle_wp_dir`` (the kind-aware
-    PRIMARY resolver). This drives the REAL write site
-    (:func:`create_rejected_review_cycle`) on a real coord-topology git fixture and
-    proves via COMMITTED TREES:
+    RE-PINNED for ADR 2026-08-03-1 (review-cycle-verdict-seam-rebuild-01KZ2W7W
+    WP04): the ADR makes ``REVIEW_CYCLE`` a COORD-partition kind (per-WP review
+    lifecycle bookkeeping, not stable planning output) and stops it borrowing
+    ``WORK_PACKAGE_TASK``. This test previously pinned the OPPOSITE (pre-ADR)
+    polarity under the name
+    ``test_review_cycle_authored_lands_on_primary_ref_and_is_absent_on_coord``,
+    carried over unmodified from the T009/#2646 fix this docstring used to
+    describe (moved from WP01, renata) — which was correct for ITS OWN mission,
+    a different, earlier defect (the kind-blind
+    ``candidate_feature_dir_for_mission`` fold landing review cycles in the coord
+    husk by accident, not by partition decision). The ADR inverts the partition
+    decision itself, so the direction this test pins must invert too.
 
-    * ``git show <primary_ref>:kitty-specs/<slug>/tasks/<wp>/review-cycle-1.md``
+    **The ADR's own remediation inventory was incomplete.** ADR 2026-08-03-1's
+    Decision §5 names exactly ONE test needing re-pinning to the new polarity —
+    ``test_review_artifact_gate_ignores_stray_artifact_on_coord_husk``
+    (``tests/integration/test_two_partition_preview.py``, harvested from PR
+    #2834) — because that is the READ-side test the ADR's authors traced. THIS
+    test is a SECOND, independently discovered instance encoding the same
+    pre-ADR assumption on the WRITE side, found only by running the full
+    regression suite after WP04's classifier landed (not by design-trace) — see
+    ``tests/architectural/census/verdict_seam_IC04.yaml``'s
+    ``WP04-XWP-04`` finding. A reader relying on the ADR's inventory alone would
+    have missed this one; do not assume that document's "what needs re-pinning"
+    list is exhaustive.
+
+    Drives the REAL write site (:func:`create_rejected_review_cycle`) on a real
+    coord-topology git fixture and proves via COMMITTED TREES — inverted from
+    the pre-ADR pin, not weakened (still a definite placement + definite
+    absence, never merely "does not raise" or "lands somewhere"):
+
+    * ``git show <coord_ref>:kitty-specs/<slug>/tasks/<wp>/review-cycle-1.md``
       SUCCEEDS, and
-    * ``git show <coord_ref>:.../review-cycle-1.md`` FAILS (absent) —
+    * ``git show <primary_ref>:.../review-cycle-1.md`` FAILS (absent) —
 
-    i.e. the review-cycle is authored into its PRIMARY home, never the coord husk.
-    The commit uses the REAL router (``commit_for_mission`` with the PRIMARY
-    ``WORK_PACKAGE_TASK`` kind — no stubbed ``safe_commit``, NFR-001). RED against
-    the pre-fix coord-husk write (``git show <primary_ref>`` fails because the
-    artifact was authored under ``.worktrees/<slug>-coord/``), GREEN after — the
-    direction is pinned by the committed primary ref, not by "green".
+    i.e. the review-cycle is authored (committed) into the COORD partition,
+    never left behind as a stale PRIMARY copy. The commit call deliberately
+    still passes ``kind=MissionArtifactKind.WORK_PACKAGE_TASK`` — the SAME kind
+    the real caller (``review/cycle.py::_commit_review_cycle_artifact``, line
+    422, byte-identical after this WP per its own DoD) passes TODAY, uncorrected
+    by this WP (that caller-kind fix is WP10's, per
+    ``verdict_seam_IC04.yaml``'s ``WP04-XWP-01`` finding). This is the point:
+    ``_group_files_by_partition`` classifies each file by its OWN path-derived
+    kind (via ``is_coord_residue_churn`` -> ``kind_for_mission_file`` ->
+    ``_artifact_kind_for_path``, now returning ``REVIEW_CYCLE`` post-WP04),
+    which OVERRIDES a caller's stale ``kind`` argument when they disagree — so
+    the write-side fix is ALREADY effective for the real, unmodified production
+    caller, not merely for a hypothetical future caller that passes the new
+    kind explicitly.
     """
     from specify_cli.coordination.commit_router import commit_for_mission
     from specify_cli.git.protection_policy import ProtectionPolicy
@@ -184,8 +214,11 @@ def test_review_cycle_authored_lands_on_primary_ref_and_is_absent_on_coord(
         encoding="utf-8",
     )
 
-    # Author the review-cycle through the REAL write site. Its placement decision
-    # lives in ``_review_cycle_wp_dir`` (kind-aware, PRIMARY) — the fix under test.
+    # Author the review-cycle through the REAL write site. Its ON-DISK placement
+    # (before commit) is still the PRIMARY ``tasks/<wp>/`` tree — write-in-home
+    # is unaffected by the COORD partition decision; only the COMMIT destination
+    # (this test's actual subject) changes, which is why the artifact path
+    # assertion below is unchanged from the pre-ADR pin.
     created = create_rejected_review_cycle(
         main_repo_root=ctx.repo,
         mission_slug=ctx.slug,
@@ -195,11 +228,12 @@ def test_review_cycle_authored_lands_on_primary_ref_and_is_absent_on_coord(
         reviewer_agent="reviewer-renata",
     )
 
-    # Post-fix, the artifact is authored under the PRIMARY tasks home, not the husk.
     rel = str(created.artifact_path.relative_to(ctx.repo))
     assert rel == f"kitty-specs/{ctx.slug}/tasks/WP01/review-cycle-1.md", rel
 
-    # Commit through the REAL router as a PRIMARY WORK_PACKAGE_TASK kind.
+    # Commit through the REAL router, with the caller's CURRENT (unfixed, T015
+    # cross-WP finding) kind argument -- the per-file residue classification
+    # overrides it regardless (see docstring above).
     result = commit_for_mission(
         repo_root=ctx.repo,
         mission_slug=ctx.slug,
@@ -210,18 +244,19 @@ def test_review_cycle_authored_lands_on_primary_ref_and_is_absent_on_coord(
         target_branch="main",
     )
     assert result.status == "committed", result
-    assert result.placement_ref == "main", result
-
-    primary_show = _git(ctx.repo, "show", f"main:{rel}")
-    assert primary_show.returncode == 0, (
-        f"review-cycle-1.md is NOT on the primary ref 'main': {primary_show.stderr}"
-    )
-    assert "Reviewer feedback:" in primary_show.stdout
+    assert result.placement_ref == ctx.coord_branch, result
 
     coord_rel = f"kitty-specs/{ctx.slug}/tasks/WP01/review-cycle-1.md"
     coord_show = _git(ctx.repo, "show", f"{ctx.coord_branch}:{coord_rel}")
-    assert coord_show.returncode != 0, (
-        "review-cycle-1.md WAS committed to the coordination ref "
-        f"{ctx.coord_branch!r} — a coord husk copy was authored (write-in-home failed):\n"
-        f"{coord_show.stdout}"
+    assert coord_show.returncode == 0, (
+        f"review-cycle-1.md is NOT on the coordination ref {ctx.coord_branch!r} "
+        f"(ADR 2026-08-03-1 requires it land there): {coord_show.stderr}"
+    )
+    assert "Reviewer feedback:" in coord_show.stdout
+
+    primary_show = _git(ctx.repo, "show", f"main:{rel}")
+    assert primary_show.returncode != 0, (
+        "review-cycle-1.md WAS committed to the primary ref 'main' — a stale "
+        f"PRIMARY copy was left behind (ADR 2026-08-03-1 write-in-home failed):\n"
+        f"{primary_show.stdout}"
     )

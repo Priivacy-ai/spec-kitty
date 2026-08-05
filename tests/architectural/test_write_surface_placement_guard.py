@@ -44,7 +44,9 @@ from ulid import ULID
 import mission_runtime.artifacts as artifacts_mod
 import mission_runtime.resolution as resolution_mod
 from mission_runtime import (
+    CommitTarget,
     MissionArtifactKind,
+    kind_for_mission_file,
     resolve_placement_only,
     resolve_topology,
     routes_through_coordination,
@@ -89,7 +91,16 @@ def _build_coord_mission(tmp_path: Path) -> _CoordMission:
     (repo / ".kittify" / "config.yaml").write_text("project: guard-suite\n", encoding="utf-8")
 
     mission_id = str(ULID())
-    mid8 = mission_id[:8].lower()
+    # NOT lowercased: mission_runtime.identity.resolve_mid8 returns
+    # ``mission_id[:8]`` VERBATIM (uppercase Crockford, matching
+    # ``mid8_from_slug``'s ``[0-9A-HJKMNP-TV-Z]{8}`` regex) -- a lowercased
+    # embedded tail here would make ``_resolve_mid8`` (used by
+    # ``commit_router.py``'s coord-worktree materialisation) derive an
+    # UPPERCASE mid8 that disagrees with this fixture's own LOWERCASE
+    # branch/worktree naming, so a genuine coord commit (T015's
+    # ``result.status == "committed"`` checks, not merely a resolved-ref
+    # check) fails with a worktree/branch HEAD mismatch.
+    mid8 = mission_id[:8]
     slug = f"write-surface-guard-{mid8}"
     coordination_branch = f"kitty/mission-{slug}"
 
@@ -340,6 +351,10 @@ def test_full_partition_resolves_per_membership(coord_mission: _CoordMission) ->
         # classified COORD-partition kinds.
         MissionArtifactKind.DECISION_LOG,
         MissionArtifactKind.TRACER_FILE,
+        # review-cycle-verdict-seam-rebuild-01KZ2W7W WP04 (FR-023, ADR
+        # 2026-08-03-1): review-cycle artifacts are per-WP lifecycle
+        # bookkeeping -- COORD-partition.
+        MissionArtifactKind.REVIEW_CYCLE,
     }
     # Sanity: the two sets partition the whole enum exactly once.
     assert primary_kinds | coord_kinds == set(MissionArtifactKind)
@@ -543,6 +558,20 @@ PARTITION_RATIONALE: dict[MissionArtifactKind, tuple[_Partition, str, str]] = {
         "made it residue-invisible.",
         "mission-tracer-files procedure / retrospective generator traces ingest",
     ),
+    MissionArtifactKind.REVIEW_CYCLE: (
+        "COORD",
+        "review-cycle-verdict-seam-rebuild-01KZ2W7W WP04 (FR-023, ADR "
+        "2026-08-03-1): tasks/<wp>/review-cycle-<N>.md is per-WP review-lifecycle "
+        "bookkeeping, written repeatedly during execution -- not stable planning "
+        "output. It stops borrowing WORK_PACKAGE_TASK, whose PRIMARY placement "
+        "was a path coincidence (living under tasks/), not a partition argument. "
+        "A stale primary copy is coordination residue under coord topology, "
+        "exactly like the other COORD bookkeeping kinds above.",
+        "review/cycle.py's writer (_commit_review_cycle_artifact) + "
+        "post_merge/review_artifact_consistency.py's gate -- neither is edited "
+        "by this WP, but both are the surfaces that break if this kind is "
+        "re-homed",
+    ),
 }
 
 
@@ -668,3 +697,385 @@ def test_rehome_any_load_bearing_kind_flips_resolved_ref(
         f"re-homing {kind.name} left its resolved ref unchanged ({mutated_ref!r}) — "
         "the partition guard would pass vacuously for this kind."
     )
+
+
+# ---------------------------------------------------------------------------
+# T014 — the filename-anchored REVIEW_CYCLE classifier leg.
+#
+# review-cycle-verdict-seam-rebuild-01KZ2W7W WP04 (FR-023): focused unit tests
+# directly against ``kind_for_mission_file`` / ``_artifact_kind_for_path`` (not
+# only the higher-level guard tests above), per the WP's own explicit
+# requirement. The four required cases (one positive, two negative, plus the
+# ADR's permissive-glob boundary case) and the anchoring edge case.
+# ---------------------------------------------------------------------------
+
+_CLASSIFIER_MISSION_SLUG = "some-mission"
+
+
+def test_review_cycle_pattern_classifies_to_review_cycle_kind() -> None:
+    """Positive case: tasks/WP01/review-cycle-1.md -> REVIEW_CYCLE (T014)."""
+    path = f"kitty-specs/{_CLASSIFIER_MISSION_SLUG}/tasks/WP01/review-cycle-1.md"
+    assert kind_for_mission_file(path) is MissionArtifactKind.REVIEW_CYCLE
+
+
+def test_baseline_tests_json_under_wp_dir_stays_work_package_task() -> None:
+    """Negative case: tasks/WP01/baseline-tests.json must NOT be reclassified —
+    this is the regression the filename-anchoring constraint exists to prevent
+    (a directory-anchored rule would silently re-partition it)."""
+    path = f"kitty-specs/{_CLASSIFIER_MISSION_SLUG}/tasks/WP01/baseline-tests.json"
+    assert kind_for_mission_file(path) is MissionArtifactKind.WORK_PACKAGE_TASK
+
+
+def test_single_part_wp_task_file_stays_work_package_task() -> None:
+    """Negative case: tasks/WP01-foo.md (single relative part) must keep
+    classifying WORK_PACKAGE_TASK via the basename-lookup branch, not be
+    accidentally caught by the new nested-pattern leg (which only applies to
+    the multi-part / nested case)."""
+    path = f"kitty-specs/{_CLASSIFIER_MISSION_SLUG}/tasks/WP01-foo.md"
+    assert kind_for_mission_file(path) is MissionArtifactKind.WORK_PACKAGE_TASK
+
+
+def test_review_cycle_pattern_classifies_non_numeric_suffix() -> None:
+    """Fourth case (the ADR's permissive-glob boundary, T014 step 3's explicit
+    call-out): ``review-cycle-notes.md`` does not match the numeric
+    ``review-cycle-<N>.md`` shape ``review/cycle.py``'s OWN writer validates
+    (``_REVIEW_CYCLE_FILE_RE``), but the ADR's decision text names the glob
+    ``review-cycle-*.md`` verbatim -- a permissive glob, not the writer's
+    stricter numeric one. This test makes that boundary EXPLICIT rather than
+    accidental: the classifier intentionally accepts it."""
+    path = f"kitty-specs/{_CLASSIFIER_MISSION_SLUG}/tasks/WP01/review-cycle-notes.md"
+    assert kind_for_mission_file(path) is MissionArtifactKind.REVIEW_CYCLE
+
+
+def test_review_cycle_pattern_anchors_on_final_component_only() -> None:
+    """Edge case: a WP slug that itself contains the substring ``review-cycle``
+    must not trigger the classifier via a whole-path substring test -- only the
+    FINAL path component (the actual filename) may match the glob. A WP-shaped
+    directory segment spelled ``review-cycle-thing`` holding an ordinary WP
+    task file must still classify WORK_PACKAGE_TASK."""
+    path = (
+        f"kitty-specs/{_CLASSIFIER_MISSION_SLUG}/tasks/review-cycle-thing/"
+        "baseline-tests.json"
+    )
+    assert kind_for_mission_file(path) is MissionArtifactKind.WORK_PACKAGE_TASK
+
+
+def test_review_cycle_pattern_matches_regardless_of_wp_slug_separator() -> None:
+    """T014 step 2: the classifier keys purely on the FILENAME pattern, never on
+    directory depth or the parent WP-slug spelling — so every accepted WP-slug
+    separator shape (spec.md US3: ``-``, ``_``, ``.``, or none) classifies
+    identically."""
+    for wp_slug in ("WP01", "WP-01", "WP_01", "WP.01", "wp01"):
+        path = f"kitty-specs/{_CLASSIFIER_MISSION_SLUG}/tasks/{wp_slug}/review-cycle-2.md"
+        assert kind_for_mission_file(path) is MissionArtifactKind.REVIEW_CYCLE, wp_slug
+
+
+# ---------------------------------------------------------------------------
+# T015 — the commit router honours REVIEW_CYCLE for review-cycle paths.
+#
+# review-cycle-verdict-seam-rebuild-01KZ2W7W WP04 (FR-023): traced call chain
+# is ``commit_for_mission`` -> ``_group_files_by_partition`` ->
+# ``is_coord_residue_churn`` -> ``kind_for_mission_file`` (now returns
+# REVIEW_CYCLE post-T014) -> ``kind_is_coordination_residue`` (now True post-
+# T013, since REVIEW_CYCLE is in ``_PLACEMENT_ARTIFACT_KINDS``). This traces
+# and CONFIRMS (see the module-level statement below) that
+# ``commit_router.py`` needed NO production change: ``is_coord_residue_churn``
+# is the sole delegated authority, and T014's classifier fix alone is
+# sufficient. These tests exercise that composed chain end-to-end, driving
+# the REAL ``commit_for_mission`` against the REAL coord/coordless fixtures --
+# no stub, matching this file's existing non-vacuity discipline.
+# ---------------------------------------------------------------------------
+
+_SINGLE_BRANCH_TARGET = "feat/single-branch-guard"
+
+
+def _build_single_branch_mission(tmp_path: Path) -> _CoordMission:
+    """Build a real SINGLE_BRANCH (coordless) mission fixture.
+
+    No ``coordination_branch``, ``topology: single_branch`` -- the REAL
+    resolver classifies this coordless, so EVERY kind (PRIMARY or COORD-
+    partition) resolves to the SAME ``target_branch`` (the coordless-topology
+    collapse ``_group_files_by_partition`` documents).
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", _SINGLE_BRANCH_TARGET)
+    _git(repo, "config", "user.email", "guard@example.com")
+    _git(repo, "config", "user.name", "Guard Suite")
+    (repo / ".kittify").mkdir()
+    (repo / ".kittify" / "config.yaml").write_text("project: guard-suite\n", encoding="utf-8")
+
+    mission_id = str(ULID())
+    # NOT lowercased: mission_runtime.identity.resolve_mid8 returns
+    # ``mission_id[:8]`` VERBATIM (uppercase Crockford, matching
+    # ``mid8_from_slug``'s ``[0-9A-HJKMNP-TV-Z]{8}`` regex) -- a lowercased
+    # embedded tail here would make ``_resolve_mid8`` (used by
+    # ``commit_router.py``'s coord-worktree materialisation) derive an
+    # UPPERCASE mid8 that disagrees with this fixture's own LOWERCASE
+    # branch/worktree naming, so a genuine coord commit (T015's
+    # ``result.status == "committed"`` checks, not merely a resolved-ref
+    # check) fails with a worktree/branch HEAD mismatch.
+    mid8 = mission_id[:8]
+    slug = f"write-surface-guard-single-{mid8}"
+
+    feature_dir = repo / "kitty-specs" / slug
+    (feature_dir / "tasks").mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": mission_id,
+                "mid8": mid8,
+                "mission_slug": slug,
+                "target_branch": _SINGLE_BRANCH_TARGET,
+                "topology": "single_branch",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (feature_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "seed single-branch mission")
+
+    return _CoordMission(
+        repo_root=repo.resolve(),
+        mission_slug=slug,
+        feature_dir=feature_dir,
+        coordination_branch=_SINGLE_BRANCH_TARGET,  # no coord ref; same as target
+        target_branch=_SINGLE_BRANCH_TARGET,
+    )
+
+
+@pytest.fixture
+def single_branch_mission(tmp_path: Path) -> _CoordMission:
+    mission = _build_single_branch_mission(tmp_path)
+    assert not routes_through_coordination(
+        resolve_topology(mission.repo_root, mission.mission_slug)
+    ), "fixture precondition violated: mission must be coordless (SINGLE_BRANCH)"
+    return mission
+
+
+def _write_review_cycle_file(mission: _CoordMission, wp_slug: str, cycle: int) -> Path:
+    wp_dir = mission.feature_dir / "tasks" / wp_slug
+    wp_dir.mkdir(parents=True, exist_ok=True)
+    path = wp_dir / f"review-cycle-{cycle}.md"
+    path.write_text(f"# Review cycle {cycle}\n\nverdict: rejected\n", encoding="utf-8")
+    return path
+
+
+def test_review_cycle_write_lands_on_coord_ref_under_coord_topology(
+    coord_mission: _CoordMission,
+) -> None:
+    """T015 (a): a ``kind=REVIEW_CYCLE`` write lands on the coordination ref
+    under coord topology -- no production change in ``commit_router.py``, only
+    this test coverage (the classifier fix, T014, is the entire mechanism)."""
+    from specify_cli.coordination.commit_router import commit_for_mission
+    from specify_cli.git.protection_policy import ProtectionPolicy
+
+    policy = ProtectionPolicy(
+        protected_branches=frozenset({"main", "master"}), operator_hatch_active=False
+    )
+    artifact_path = _write_review_cycle_file(coord_mission, "WP01", 1)
+
+    result = commit_for_mission(
+        coord_mission.repo_root,
+        coord_mission.mission_slug,
+        (artifact_path,),
+        "chore: Record review-cycle-1 (rejected) for WP01",
+        policy,
+        kind=MissionArtifactKind.REVIEW_CYCLE,
+    )
+
+    assert result.status == "committed", result.diagnostic
+    assert result.placement_ref == coord_mission.coordination_branch
+
+
+def test_review_cycle_write_lands_on_target_branch_under_single_branch_topology(
+    single_branch_mission: _CoordMission,
+) -> None:
+    """T015 (b): the same write under SINGLE_BRANCH lands on ``target_branch``
+    (the coordless collapse -- every kind resolves to the same ref there)."""
+    from specify_cli.coordination.commit_router import commit_for_mission
+    from specify_cli.git.protection_policy import ProtectionPolicy
+
+    policy = ProtectionPolicy(
+        protected_branches=frozenset({"main", "master"}), operator_hatch_active=False
+    )
+    artifact_path = _write_review_cycle_file(single_branch_mission, "WP01", 1)
+
+    result = commit_for_mission(
+        single_branch_mission.repo_root,
+        single_branch_mission.mission_slug,
+        (artifact_path,),
+        "chore: Record review-cycle-1 (rejected) for WP01",
+        policy,
+        kind=MissionArtifactKind.REVIEW_CYCLE,
+    )
+
+    assert result.status == "committed", result.diagnostic
+    assert result.placement_ref == single_branch_mission.target_branch
+
+
+def test_mixed_review_cycle_and_work_package_task_batch_splits_under_coord(
+    coord_mission: _CoordMission,
+) -> None:
+    """T015 edge case: a batch mixing a REVIEW_CYCLE file with a
+    WORK_PACKAGE_TASK file (e.g. a WP task-file edit landing in the same
+    commit as a new review cycle) under coord topology must split into TWO
+    commits against TWO different refs -- the one case
+    ``_group_files_by_partition``'s genuinely-mixed-AND-refs-diverge branch
+    actually exercises new code paths for."""
+    from specify_cli.coordination.commit_router import commit_for_mission
+    from specify_cli.git.protection_policy import ProtectionPolicy
+
+    policy = ProtectionPolicy(
+        protected_branches=frozenset({"main", "master"}), operator_hatch_active=False
+    )
+    review_cycle_path = _write_review_cycle_file(coord_mission, "WP01", 1)
+    wp_task_path = coord_mission.feature_dir / "tasks" / "WP01" / "WP01-foo.md"
+    wp_task_path.write_text("# WP01\n", encoding="utf-8")
+
+    result = commit_for_mission(
+        coord_mission.repo_root,
+        coord_mission.mission_slug,
+        (review_cycle_path, wp_task_path),
+        "chore: mixed batch (review-cycle-1 + WP01 task edit)",
+        policy,
+        # Caller's own kind here is WORK_PACKAGE_TASK -- the per-file residue
+        # classification (not the caller's kind) decides each file's bucket.
+        kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+    )
+
+    assert result.status == "committed", result.diagnostic
+    # #2549 facet B: commit_hashes carries the UNION of every committed
+    # group's hashes -- a genuinely split (mixed-partition) batch reports
+    # BOTH, proving two distinct commits against two distinct refs landed.
+    refs_committed = {ref for ref, _sha in result.commit_hashes}
+    assert refs_committed == {
+        coord_mission.target_branch,
+        coord_mission.coordination_branch,
+    }, (
+        "a mixed REVIEW_CYCLE + WORK_PACKAGE_TASK batch under coord topology "
+        f"must split into two commits against two distinct refs; got {refs_committed!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# T016 — REVIEW_CYCLE's E2 (PUBLISHED) eligibility ruling: INCLUDED.
+#
+# Mirrors the fixture shape of ``tests/mission_runtime/test_consolidated_
+# resolution.py``'s ``_build_e2_mission_coord_fully_retired`` (that file is
+# NOT owned by this WP) so the PUBLISHED + fully-retired-coordination-branch
+# case (the ADR's measured "45 of 45" reality) is exercised for REVIEW_CYCLE
+# specifically, inside this WP's own owned test file.
+# ---------------------------------------------------------------------------
+
+
+def _e2_git(repo: Path, *args: str) -> None:
+    subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
+
+
+def _build_e2_review_cycle_mission(tmp_path: Path) -> tuple[Path, str]:
+    """A genuine PUBLISHED (E2) coord-topology mission whose coordination
+    branch has ALSO been retired (0-of-45 shape, ADR 2026-08-03-1) -- returns
+    ``(repo_root, mission_slug)``. ``main`` is the resolved Primary Branch.
+    """
+    from specify_cli.merge.baseline import record_baseline_merge_commit
+    from specify_cli.mission_metadata import load_meta, write_meta
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _e2_git(repo, "init", "-q", "-b", "main")
+    _e2_git(repo, "config", "user.email", "guard@example.com")
+    _e2_git(repo, "config", "user.name", "Guard Suite")
+    (repo / ".kittify").mkdir()
+    (repo / ".kittify" / "config.yaml").write_text("project: guard-suite\n", encoding="utf-8")
+    (repo / "README.md").write_text("# repo\n", encoding="utf-8")
+    _e2_git(repo, "add", "-A")
+    _e2_git(repo, "commit", "-q", "-m", "init")
+    init_sha = subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+
+    mission_id = str(ULID())
+    mid8 = mission_id[:8]
+    slug = f"review-cycle-e2-guard-{mid8}"
+    target_branch = f"kitty/mission-{slug}"
+    coordination_branch = f"kitty/mission-{slug}-coord"
+
+    _e2_git(repo, "checkout", "-q", "-b", target_branch)
+    _e2_git(repo, "branch", coordination_branch, target_branch)
+    feature_dir = repo / "kitty-specs" / slug
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_slug": slug,
+                "mission_id": mission_id,
+                "mid8": mid8,
+                "mission_number": None,
+                "mission_type": "software-dev",
+                "target_branch": target_branch,
+                "topology": "coord",
+                "coordination_branch": coordination_branch,
+                "friendly_name": "T016 E2 review-cycle guard fixture",
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (feature_dir / "tasks" / "WP01").mkdir(parents=True)
+    (feature_dir / "tasks" / "WP01" / "review-cycle-1.md").write_text(
+        "# Review cycle 1\n\nverdict: rejected\n", encoding="utf-8"
+    )
+    _e2_git(repo, "add", "-A")
+    _e2_git(repo, "commit", "-q", "-m", f"chore({slug}): mission scaffold")
+
+    # E1 consolidation bookkeeping (baseline_merge_commit + mission_number).
+    record_baseline_merge_commit(feature_dir, init_sha, mission_id=mission_id)
+    meta = load_meta(feature_dir)
+    assert meta is not None
+    meta["mission_number"] = 999
+    write_meta(feature_dir, meta, validate=False)
+    _e2_git(repo, "add", "-A")
+    _e2_git(repo, "commit", "-q", "-m", f"chore({slug}): record baseline (E1)")
+
+    # Publish (E2): merge to main, delete BOTH the target and coordination
+    # branches -- the 0-of-45 shape.
+    _e2_git(repo, "branch", "-D", coordination_branch)
+    _e2_git(repo, "checkout", "-q", "main")
+    _e2_git(repo, "merge", "-q", "--no-ff", target_branch, "-m", f"Merge {target_branch}")
+    _e2_git(repo, "branch", "-D", target_branch)
+
+    return repo.resolve(), slug
+
+
+def test_review_cycle_e2_published_resolves_consolidated_surface(tmp_path: Path) -> None:
+    """T016 (INCLUDED): a PUBLISHED mission's REVIEW_CYCLE write resolves the
+    CONSOLIDATED target (the resolved Primary Branch NAME) directly -- the
+    unconditional coordination-surface probe (which would raise
+    ``CoordinationBranchDeleted`` for every one of the ADR's measured 45
+    already-retired-coord missions) is BYPASSED for this phase+kind
+    combination, exactly like ISSUE_MATRIX/TRACER_FILE/ACCEPTANCE_MATRIX."""
+    repo, mission_slug = _build_e2_review_cycle_mission(tmp_path)
+
+    resolved = resolve_placement_only(repo, mission_slug, kind=MissionArtifactKind.REVIEW_CYCLE)
+
+    assert resolved == CommitTarget(ref="main")
+
+
+def test_review_cycle_e2_ruling_does_not_affect_status_state_exclusion(
+    tmp_path: Path,
+) -> None:
+    """T016 non-regression: STATUS_STATE / DECISION_LOG's existing exclusion
+    from the E2-eligible set is unaffected by REVIEW_CYCLE's inclusion --
+    STATUS_STATE still probes coordination (and raises) for the SAME
+    fully-retired-coord E2 fixture."""
+    from mission_runtime import ActionContextError
+
+    repo, mission_slug = _build_e2_review_cycle_mission(tmp_path)
+
+    with pytest.raises(ActionContextError):
+        resolve_placement_only(repo, mission_slug, kind=MissionArtifactKind.STATUS_STATE)

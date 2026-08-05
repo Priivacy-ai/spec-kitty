@@ -111,19 +111,41 @@ _FEATURE_CONTEXT_UNRESOLVED_CODE = "FEATURE_CONTEXT_UNRESOLVED"
 
 # #3033 WP03 (ADR 2026-07-30-1 Decision 1 §6, operator HiC): the E2
 # (PUBLISHED) CONSOLIDATED-surface write routing is SCOPED, not blanket. It
-# applies to every PRIMARY-partition kind PLUS exactly the three coord
-# write kinds named by the ADR. ``STATUS_STATE`` and ``DECISION_LOG`` are
-# DELIBERATELY excluded -- their post-consolidation resolution stays
-# unchanged (SC-005 / C-005 non-regression). This is resolver-INTERNAL kind
-# selection (the resolver already keys on ``MissionArtifactKind`` for the
-# existing ``_PRIMARY_ARTIFACT_KINDS`` split), never call-site
-# kind-conditioning (C-006 preserved).
+# applies to every PRIMARY-partition kind PLUS exactly the four coord
+# write kinds named by the ADR (ISSUE_MATRIX / TRACER_FILE /
+# ACCEPTANCE_MATRIX -- #3033 -- and REVIEW_CYCLE, ruled in below --
+# review-cycle-verdict-seam-rebuild-01KZ2W7W WP04, T016, ADR 2026-08-03-1).
+# ``STATUS_STATE`` and ``DECISION_LOG`` are DELIBERATELY excluded -- their
+# post-consolidation resolution stays unchanged (SC-005 / C-005
+# non-regression). This is resolver-INTERNAL kind selection (the resolver
+# already keys on ``MissionArtifactKind`` for the existing
+# ``_PRIMARY_ARTIFACT_KINDS`` split), never call-site kind-conditioning
+# (C-006 preserved).
+#
+# REVIEW_CYCLE ruling (T016, INCLUDED): review-cycle artifacts share the
+# EXACT "coordination branch is gone post-merge" reality the ADR's own text
+# names for the other three coord kinds already in this set (measured: 45 of
+# 102 review-cycle-carrying missions declare a coordination_branch, and 0 of
+# those 45 branches still exist -- ADR 2026-08-03-1's "Migration" section).
+# Leaving REVIEW_CYCLE unruled would make a PUBLISHED mission's review-cycle
+# write fall through to the unconditional coordination-surface probe below,
+# raising ``CoordinationBranchDeleted`` for every one of those 45 missions --
+# exactly the defect this scoped E2 short-circuit exists to avoid for
+# ISSUE_MATRIX/TRACER_FILE/ACCEPTANCE_MATRIX. This does NOT apply to
+# ``DECISION_LOG``'s exclusion rationale ("in-mission and not an E2 write
+# target by design", ADR 2026-07-30-1 Decision 1 §6): a review-cycle verdict
+# is accept/retrospective-relevant bookkeeping like ISSUE_MATRIX /
+# ACCEPTANCE_MATRIX / TRACER_FILE (the latter is explicitly read by the
+# retrospective generator post-merge, per its own PARTITION_RATIONALE row),
+# not an in-mission-only decision log entry that is never consulted again
+# once a mission is done.
 _E2_CONSOLIDATED_ELIGIBLE_KINDS: frozenset[MissionArtifactKind] = frozenset(
     _PRIMARY_ARTIFACT_KINDS
     | {
         MissionArtifactKind.ISSUE_MATRIX,
         MissionArtifactKind.TRACER_FILE,
         MissionArtifactKind.ACCEPTANCE_MATRIX,
+        MissionArtifactKind.REVIEW_CYCLE,
     }
 )
 
@@ -1387,8 +1409,10 @@ def resolve_placement_only(
         ``destination_ref`` (the value object status events resolve to). For a
         PUBLISHED (E2) mission and an E2-in-scope ``kind`` (every PRIMARY kind
         plus ``ISSUE_MATRIX`` / ``TRACER_FILE`` / ``ACCEPTANCE_MATRIX`` — ADR
-        2026-07-30-1 Decision 1 §6), this is instead the resolved Primary
-        Branch NAME (#3033, T009) — the lifecycle phase is derived internally
+        2026-07-30-1 Decision 1 §6 — and ``REVIEW_CYCLE`` — ADR 2026-08-03-1,
+        review-cycle-verdict-seam-rebuild-01KZ2W7W WP04 T016), this is instead
+        the resolved Primary Branch NAME (#3033, T009) — the lifecycle phase
+        is derived internally
         from durable ``meta.json`` + git state (D2), never threaded as a
         parameter.
 
