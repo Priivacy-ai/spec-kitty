@@ -235,7 +235,7 @@ def _consented_checkout_by_default(monkeypatch: pytest.MonkeyPatch, request: pyt
     assert, which is a fixture artefact, not a finding.
 
     This fixture restores their premise explicitly rather than weakening the
-    production default. It patches only the batch/emit consent read, so:
+    production default. It patches only the routing/emit consent read, so:
 
     * consent itself is still covered, by suites that assert on the real
       resolver — ``tests/sync/test_routing.py`` and the upstream pins in
@@ -252,9 +252,14 @@ def _consented_checkout_by_default(monkeypatch: pytest.MonkeyPatch, request: pyt
     classification and the WebSocket publish decision all resolve consent per project
     through ``EventEmitter._project_consents_to_capture``. Patching only the old seam
     would leave this fixture patching a name production never consults — green for the
-    wrong reason — so the per-project predicate is patched too. The old seams stay
-    listed with ``raising=False`` because ``sync/batch.py`` and ``sync/runtime.py``
-    still have them.
+    wrong reason — so the per-project predicate is patched too.
+
+    **Narrowed for #3167.** Of the two old seams only ``sync/runtime.py``'s survives:
+    it binds the routing predicate at module import and reads it in
+    ``_auto_start_enabled``, so the patch
+    still lands on a name production consults. ``sync/batch.py``'s was removed —
+    see the comment on the ``setattr`` call below for why, and why ``raising=False``
+    went with it.
 
     Most emitters in this package are built with no ``_identity``, so they resolve the
     *ambient* repo's uuid, for which a throwaway home has no record. That is what
@@ -272,14 +277,33 @@ def _consented_checkout_by_default(monkeypatch: pytest.MonkeyPatch, request: pyt
     if any(token in name for token in protected):
         return
 
-    # ``sync/emitter.py`` is deliberately absent from this list: #3030 M1-1 removed the
-    # import, so patching the name there would only *create* an attribute nothing
-    # reads and imply the emitter still consults cwd.
-    for seam in (
-        "specify_cli.sync.batch.is_sync_enabled_for_checkout",
-        "specify_cli.sync.runtime.is_sync_enabled_for_checkout",
-    ):
-        monkeypatch.setattr(seam, lambda *args, **kwargs: True, raising=False)
+    # ``sync/emitter.py`` is deliberately absent here: #3030 M1-1 removed the import,
+    # so patching the name there would only *create* an attribute nothing reads and
+    # imply the emitter still consults cwd.
+    #
+    # ``specify_cli.sync.batch.is_sync_enabled_for_checkout`` used to be patched
+    # alongside this one, in a two-element loop. #3167 retired the queue-backed drain,
+    # and with it ``_is_checkout_sync_enabled_for_batch`` and the ``from .routing
+    # import is_sync_enabled_for_checkout`` that bound the name in ``sync/batch.py``.
+    # That seam therefore named an attribute that no longer exists — and because of
+    # ``raising=False`` it did not error: ``monkeypatch.setattr`` **created** the
+    # attribute instead, on a module where nothing reads it. Not a patch that fails,
+    # a patch that succeeds at nothing — precisely the "green for the wrong reason"
+    # this fixture's own docstring warns about two paragraphs up. It is removed rather
+    # than kept resolvable, because a resolvable name is not a consulted one.
+    #
+    # ``raising=False`` is gone with it, deliberately. The surviving target is bound at
+    # ``sync/runtime.py`` at import and read inside ``_auto_start_enabled``, so the default
+    # ``raising=True`` **resolves** rather than errors — while a future rename or typo
+    # here now fails loudly at setup instead of quietly granting consent to nothing.
+    # That matters because nothing else covers this line:
+    # ``scripts/check_patch_targets.py`` resolves ``patch("...")`` target strings in CI
+    # but its regex never matches ``monkeypatch.setattr("...")``, so ``raising=True``
+    # is the whole guard. Demonstrated by mutation rather than assumed (#3167 T013):
+    # pointing this string at the deleted ``sync.batch`` name errors this package's
+    # every unprotected test in SETUP with ``AttributeError: 'module' object at
+    # specify_cli.sync.batch has no attribute 'is_sync_enabled_for_checkout'``.
+    monkeypatch.setattr("specify_cli.sync.runtime.is_sync_enabled_for_checkout", lambda *args, **kwargs: True)
 
     monkeypatch.setattr(
         "specify_cli.sync.emitter.EventEmitter._project_consents_to_capture",

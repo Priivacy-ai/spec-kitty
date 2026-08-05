@@ -330,6 +330,49 @@ class _PinnedLeak:
 # independently reproduced dirty in the selection that matters, not because
 # the issue records it as clean -- pinning an unconfirmed node would be
 # exactly the "unverified pin" this registry's own docstring forbids.
+#
+# ===========================================================================
+# #3167 CONE HAZARD -- three of these twelve entries sit in another mission's
+# write scope, and the rule that protects them is recorded HERE rather than in
+# that mission's dossier, because a successor opens this file, not a spec
+# (mission chain-b-consent-bypass-3167-01KZ63HK, its C-006).
+#
+# #3167 opens ``tests/sync/conftest.py`` -- this guard's HOST -- and it LANDS
+# BEFORE the sync-cone mission's pinned-leak enumeration opens. That ordering is
+# the hazard: the successor's fresh enumeration only means something if these
+# entries were not churned in the window before it starts. Hence, binding:
+#
+#   DO NOT RE-PIN OPPORTUNISTICALLY. Do not add an entry, widen a marker tuple,
+#   or re-pin a node in order to absorb a red. A pin comes OFF only when its leak
+#   provably stops reproducing AS A CONSEQUENCE of the change that removes it,
+#   and the removal is attributed per node id in that mission's handoff note.
+#   No other reason to touch these three is in scope. (The guard hard-fails on a
+#   pin whose leak stopped, so "leave it and see" is not an option either -- the
+#   choice is un-pin-with-attribution or do not change the behaviour.)
+#
+# The three are marked ``[#3167 cone]`` below. Their state as measured by #3167,
+# at its base ``b0482a832^`` and again after its ``tests/sync/conftest.py``
+# change, so a successor can separate a pre-existing observation from a new one:
+#
+#   * test_lifecycle_readiness.py::test_init_emits_project_init_event_offline
+#     -- ERRORS as a PARTIAL match in the full serial ``tests/sync`` sweep, and
+#     PASSES in isolation. Its ``[E26]`` observability is supplied by an UNPINNED
+#     leak in ``tests/sync/test_dual_write_integration.py``, a file #3167 does
+#     not own. Pre-existing at both commits; not a regression, not #3167's to fix.
+#   * test_runtime.py::TestSyncRuntime::test_starts_background_service -- ACCEPTED.
+#   * test_runtime.py::TestUnauthenticatedBehavior::test_no_websocket_when_unauthenticated
+#     -- ACCEPTED.
+#
+# #3167 changed none of the three, and could not have: the seam it removed from
+# ``conftest.py`` was a ``monkeypatch.setattr`` on a name deleted along with the
+# queue-backed drain, and that name is not a watched entry, so it can neither
+# start nor stop a pinned leak. Note also that the volatile band in this cone --
+# ``live thread name='Thread-N' target=None``, produced by ``_ChainedTimer``
+# (``sync/daemon.py:687,:715,:745``) and ``threading.Timer``
+# (``sync/background.py:528``) -- moves between observing nodes from run to run
+# (``Priivacy-ai/spec-kitty#3193``). The observer moves; the leak does not. Do
+# not pin a node just because it was the observer on the run you happened to see.
+# ===========================================================================
 _PINNED_LEAKS: tuple[_PinnedLeak, ...] = (
     _PinnedLeak(
         "tests/sync/test_background_body.py::TestTimerBodyQueue::test_timer_triggers_when_only_body_queue_has_tasks",
@@ -367,6 +410,12 @@ _PINNED_LEAKS: tuple[_PinnedLeak, ...] = (
         "#3130",
         "BackgroundSyncService's final-sync thread (mocked target) left running past teardown",
     ),
+    # [#3167 cone] Do not re-pin, do not widen these four markers, and un-pin ONLY on
+    # a leak that provably stopped as a consequence of the change removing it -- see
+    # the "#3167 CONE HAZARD" block above for the ordering constraint that makes that
+    # binding rather than advisory. At #3167 (both arms) this entry ERRORS as a PARTIAL
+    # match in the full serial sweep and PASSES in isolation; the observability comes
+    # from an unpinned leak in a file #3167 does not own. Pre-existing, unowned.
     _PinnedLeak(
         "tests/sync/test_lifecycle_readiness.py::test_init_emits_project_init_event_offline",
         ("[E26]", "[E27]", "target=None", "spec-kitty-sync-async-loop"),
@@ -385,12 +434,20 @@ _PINNED_LEAKS: tuple[_PinnedLeak, ...] = (
         "_MarkerBaseline's docstring for why)",
         marker_baselines={"[E26]": _MarkerBaseline(baseline_watch="E26", unobservable_when="clean")},
     ),
+    # [#3167 cone] ACCEPTED at #3167's base and after its conftest change; unchanged by
+    # #3167. Do not re-pin, widen or drop opportunistically -- un-pinning requires a
+    # leak that provably stopped as a consequence of the change, attributed per node id.
+    # See the "#3167 CONE HAZARD" block above for the ordering constraint.
     _PinnedLeak(
         "tests/sync/test_runtime.py::TestSyncRuntime::test_starts_background_service",
         ("spec-kitty-sync-async-loop",),
         "#3130",
         "SyncRuntime._ensure_async_loop's background thread left running past teardown",
     ),
+    # [#3167 cone] ACCEPTED at #3167's base and after its conftest change; unchanged by
+    # #3167. Do not re-pin, widen or drop opportunistically -- un-pinning requires a
+    # leak that provably stopped as a consequence of the change, attributed per node id.
+    # See the "#3167 CONE HAZARD" block above for the ordering constraint.
     _PinnedLeak(
         "tests/sync/test_runtime.py::TestUnauthenticatedBehavior::test_no_websocket_when_unauthenticated",
         ("spec-kitty-sync-async-loop",),

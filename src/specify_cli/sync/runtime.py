@@ -102,6 +102,30 @@ def _auto_start_enabled() -> bool:
             )
         return project_setting
 
+    # #3167 / C-001, operator decision D-M5a-1 = a: this Chain-B routing consult STAYS.
+    # It answers "should the daemon start itself?", which is not an egress decision --
+    # starting the runtime transmits nothing. ``sync.auto_start`` must never be unified
+    # with ``sync.enabled``; see ``_read_project_auto_start``'s docstring just below and
+    # ``consent.PROJECT_CONFIG_ENABLED_KEY`` for why that separation is binding rather
+    # than incidental.
+    #
+    # Do NOT read this line -- or ``event_project_consents_to_publish`` further down --
+    # as a gate that covers every path a started runtime can take. Neither does, and
+    # the counter-example is already in the tree: a started runtime answers server pings
+    # with a ``pong`` carrying a ``build_id`` (``client.py:_handle_ping``), a frame
+    # ``event_project_consents_to_publish`` never sees. It is allowed deliberately, as
+    # the ``E14`` ``TRANSPORT_ONLY`` entry in
+    # ``tests/architectural/test_egress_consent_boundary.py``'s ``_EGRESS_ALLOWLIST``.
+    #
+    # Egress is enumerated PER SENDER, not by any single predicate: that allowlist names
+    # every module that can reach the network and the seam each one carries, and E14's
+    # own note records why the pong needs none (the callers that send project data --
+    # emitter E11, local_commit E12, runtime E7 -- are each allowlisted with their own
+    # seam). Audit coverage by reading that table, not by reading this function.
+    #
+    # The defence-in-depth options this decision declined -- D-M5a-1 (b) a consent
+    # consult here, (c) removing this consult entirely -- are filed as
+    # Priivacy-ai/spec-kitty#3199, so the residual has an owner.
     try:
         routing_enabled = is_sync_enabled_for_checkout(project_root)
     except Exception as e:

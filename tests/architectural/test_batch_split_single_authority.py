@@ -2,40 +2,37 @@
 
 Mission ``sync-batch-400-poison-isolation`` folded the batch-splitting arithmetic
 onto ONE canonical leaf, ``specify_cli.core.batch_partition.split_in_half`` (the
-plain keep-left ``//2`` cut). The legacy 413 byte-shrink,
-``specify_cli.sync.batch._shrink_events_for_retry``, historically re-derived that
-midpoint inline (``events[: max(1, len(events) // 2)]``). #2755 retrofits the
-shrink onto the shared authority so no consumer re-derives the cut on its own.
+plain keep-left ``//2`` cut). #2755 retrofitted every consumer onto that shared
+authority so none re-derives the cut on its own.
 
-This file makes that consolidation permanent with TWO guards:
+**T017 retired by #3167 — read this before assuming coverage was lost.** The
+behavioral-delegation guard patched ``core.batch_partition.split_in_half`` with a
+counting spy and asserted ``specify_cli.sync.batch._shrink_events_for_retry``
+invoked it. That shrink was part of the queue-backed drain #3167 deleted, so the
+guard's subject no longer exists and the test could only have been kept alive by
+inventing a caller. Its requirement — "no consumer re-derives the midpoint" — did
+not die with it; it is carried, over ALL of ``src/``, by T018 below.
 
-* **T017 — behavioral delegation (LOAD-BEARING).** Patch the REAL
-  ``core.batch_partition.split_in_half`` with a counting spy and assert
-  ``_shrink_events_for_retry`` actually *invokes* it for a ``len > 1`` batch.
-  This is behavioral — it survives any source respelling and cannot be faked by
-  a comment or an equivalent inline expression. It is RED until the shrink
-  delegates.
+**T018 — AST single-authority guard (still live, and the reason this file stays).**
+Walk ``src/specify_cli`` for any ``len(...) // 2`` floor-division and assert none
+survive outside the two legitimate, allowlisted sites: the SSOT itself
+(``core/batch_partition.py``) and the unrelated ``doc_analysis/gap_analysis.py``
+core-area heuristic (``len(project_areas) // 2``). ``cli/commands/sync.py``'s
+``limit // 2`` is not ``len()``-based and is naturally out of scope. Non-vacuity
+is proven by a runnable self-test that the matcher fires on a synthetic violating
+snippet (DIRECTIVE_041: a rotting proof is not a gate).
 
-* **T018 — AST single-authority (belt-and-suspenders).** Walk ``src/specify_cli``
-  for any ``len(...) // 2`` floor-division and assert none survive outside the
-  two legitimate, allowlisted sites: the SSOT itself
-  (``core/batch_partition.py``) and the unrelated ``doc_analysis/gap_analysis.py``
-  core-area heuristic (``len(project_areas) // 2``). ``cli/commands/sync.py``'s
-  ``limit // 2`` is not ``len()``-based and is naturally out of scope. Non-vacuity
-  is proven by a runnable self-test that the matcher fires on a synthetic
-  violating snippet (DIRECTIVE_041: a rotting proof is not a gate).
+T018 pins #2755 across the whole source tree **independently of** ``sync/batch.py``,
+so its scope is unchanged by the retirement. ``core/batch_partition.py::split_in_half``
+is deliberately kept as a zero-consumer canonical leaf (operator decision, #3167).
 """
 
 from __future__ import annotations
 
 import ast
-from collections.abc import Callable, Sequence
 from pathlib import Path
 
 import pytest
-
-from specify_cli.core import batch_partition
-from specify_cli.sync import batch as batch_mod
 
 pytestmark = pytest.mark.architectural
 
@@ -52,59 +49,6 @@ _LEN_HALF_ALLOWLIST = frozenset(
         _SRC / "doc_analysis" / "gap_analysis.py",
     }
 )
-
-
-# ---------------------------------------------------------------------------
-# T017 — behavioral delegation (LOAD-BEARING, non-fakeable)
-# ---------------------------------------------------------------------------
-
-
-def test_shrink_delegates_to_shared_split_authority(monkeypatch: pytest.MonkeyPatch) -> None:
-    """``_shrink_events_for_retry`` must invoke the shared ``split_in_half``.
-
-    Patches the REAL ``core.batch_partition.split_in_half`` with a spy that
-    delegates to the original and counts calls, then drives the shrink over a
-    ``len > 1`` batch. An inline re-derivation of ``//2`` would leave the spy
-    at zero calls — this proves delegation, not merely an equal result.
-    """
-    original: Callable[
-        [Sequence[dict[str, object]]],
-        tuple[list[dict[str, object]], list[dict[str, object]]],
-    ] = batch_partition.split_in_half
-    calls: list[int] = []
-
-    def spy(
-        events: list[dict[str, object]],
-    ) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
-        calls.append(len(events))
-        return original(events)
-
-    monkeypatch.setattr(batch_partition, "split_in_half", spy)
-
-    events = [{"event_id": f"e{i}"} for i in range(4)]
-    result = batch_mod._shrink_events_for_retry(events)
-
-    assert calls, "shrink did not delegate to core.batch_partition.split_in_half"
-    # keep-left-drop-rest: the shrink keeps the left half only.
-    assert result == events[: max(1, len(events) // 2)]
-
-
-def test_shrink_uses_plain_split_not_create_aware(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The 413 shrink uses PLAIN ``split_in_half`` — never ``create_aware_midpoint``.
-
-    Byte-sizing must not inherit create-aware key snapping. If the shrink ever
-    reached for the create-aware primitive, this spy would trip.
-    """
-
-    def forbidden(*_args: object, **_kwargs: object) -> int:
-        raise AssertionError(
-            "413 shrink must not call create_aware_midpoint — use plain split_in_half"
-        )
-
-    monkeypatch.setattr(batch_partition, "create_aware_midpoint", forbidden)
-
-    events = [{"event_id": f"e{i}"} for i in range(4)]
-    assert batch_mod._shrink_events_for_retry(events) == events[:2]
 
 
 # ---------------------------------------------------------------------------
