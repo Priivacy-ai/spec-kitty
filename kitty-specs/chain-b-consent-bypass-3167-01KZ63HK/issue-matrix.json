@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#3030": {
+      "evidence_ref": "FR-012 removed the queue-backed event drain: sync/__init__.py:61-66 records delivery/dispatcher.py as the sole event drain; background.py:611-641 states the drain is GONE; zero production callers of batch_sync/sync_all_queued_events. This is why this mission retires rather than migrates.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#3130": {
+      "evidence_ref": "Referenced only as pin context: tests/sync/_leak_guard.py:420,:442,:452 are 3 of the 12 pinned leaks in files this mission's cone touches. Owned by the sync-cone mission tracking Priivacy-ai/spec-kitty#3130 itself. Follow-up: this mission's C-005 handoff artifact contracts/cone-attribution.md is a required input to that mission's WP01 replan gate; no pin is removed or re-pinned here except where one provably stops reproducing as a consequence of this change, with the attribution recorded there.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3167": {
+      "evidence_ref": "TERMINAL VERDICT: deferred-with-followup, NOT fixed. #3167's ask -- migrate the two remaining Chain-B enforcement sites onto the per-project consent seam -- was deliberately NOT delivered as written. Site 1 (sync/batch.py::batch_sync / sync_all_queued_events) was RETIRED rather than migrated: contracts/deletion-manifest.md $5 closes all four routes to obtaining either function object and finds no production caller, so gating code slated for deletion could not have produced a non-manufactured red (spec.md C-002). Measured by WP02 at commit b0482a832: NFR-001 sender count 3 -> 0 (manifest $4, probe controlled against the 4 named transmit sites first); NFR-002 exported-name set 69 -> 69 on a cold import (manifest $6, FROZEN baseline, stable 3x); K=91 retired test nodes each dispositioned by node id at commit c187d1e9a, reconciling 3982 - 91 + 4 = 3895 (manifest 'How K was computed'); the E15 UNREACHABLE allowlist entry removed with a do-not-re-add note at tests/architectural/test_egress_consent_boundary.py:576-583. Site 2 (sync/runtime.py:106) is DELIBERATELY UNCHANGED per operator decision D-M5a-1 = a, recorded as spec.md C-001: auto-start is not an egress boundary, and _read_project_auto_start's docstring plus consent.PROJECT_CONFIG_ENABLED_KEY bind sync.auto_start and sync.enabled apart as a requirement, not a convention. WP04/T017 added a comment there naming the per-sender egress enumeration (_EGRESS_ALLOWLIST, 27 modules) as the actual authority and explicitly disclaiming that any single predicate covers every path -- the websocket pong's build_id (sync/client.py:409-414) is a live counter-example that event_project_consents_to_publish never sees, allowed as E14 TRANSPORT_ONLY. The declined defence-in-depth options (b)/(c) are filed as Priivacy-ai/spec-kitty#3199 so the residual has an owner. Also disclosed, not resolved: the tests/sync error count did NOT return to baseline (5 -> 6/7, non-deterministic, names a different file each run, absent when run narrowed) -- attributed and filed as Priivacy-ai/spec-kitty#3193, with the base arm taken from analysis-report.md $4 at n=5 rather than re-measured (contracts/cone-attribution.md, stated gap). Residuals filed: Priivacy-ai/spec-kitty#3196-#3203 (8), plus the pre-existing #3188/#3190/#3191/#3192/#3193.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP04"
+    }
+  },
+  "schema_version": 1
+}
