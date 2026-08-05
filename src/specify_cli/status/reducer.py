@@ -225,14 +225,18 @@ def _apply_annotation_delta(state: dict[str, Any], delta: WPInnerStateDelta) -> 
       (dedup-preserving order) and takes precedence when both are present — the
       replace channel is what lets a ``--replace`` drop stale refs rather than
       resurrect them.
-    - ``review``: **replace** with ``ReviewOverride.to_dict()`` when *complete*
-      (all four fields non-empty); an *incomplete* override (e.g. the all-empty
-      release sentinel a ``--to planned`` rollback emits, see
-      ``_mt_emit_runtime_state``) is a deliberate **clear** signal instead —
-      it drops the slot back to ``None`` rather than persisting an empty
-      dict, so a stale "superseded by approval" record left by an earlier
-      review-artifact override does not survive onto a WP that has since
-      rolled back to ``planned`` with a fresh rejection.
+    - ``review``: **replace** with ``ReviewOverride.to_dict()``, UNLESS the
+      delta is the all-empty **release sentinel** (:attr:`ReviewOverride.
+      is_release_sentinel` — every field empty, the shape ``--to planned``
+      rollback emits, see ``_mt_emit_runtime_state``), in which case the slot
+      is a deliberate **clear** instead: it drops back to ``None`` rather than
+      persisting an empty dict, so a stale "superseded by approval" record
+      left by an earlier review-artifact override does not survive onto a WP
+      that has since rolled back to ``planned`` with a fresh rejection. A
+      *partially*-filled override (some but not all fields present, e.g. a
+      blank ``reason`` — #2684 WP09) is a DIFFERENT case from the release
+      sentinel: it is still persisted (so its presence remains visible), just
+      not :attr:`ReviewOverride.complete` — the merge gate still blocks on it.
 
     **Precedence vs. ``review_result`` (T026, WP07)**: ``review`` (this slot,
     written here) and ``review_result`` (written in :func:`_wp_state_from_event`
@@ -276,7 +280,9 @@ def _apply_annotation_delta(state: dict[str, Any], delta: WPInnerStateDelta) -> 
                 merged.append(ref)
         state["tracker_refs"] = merged
     if delta.review is not None:
-        state["review"] = delta.review.to_dict() if delta.review.complete else None
+        state["review"] = (
+            None if delta.review.is_release_sentinel else delta.review.to_dict()
+        )
 
 
 def _dedup_preserve_order(refs: list[str]) -> list[str]:
