@@ -37,12 +37,41 @@ def _review_cycle_number(path: Path) -> int:
     return int(match.group(1)) if match else 0
 
 
+class DamagedVerdictRecordError(Exception):
+    """A review-cycle verdict record exists but cannot be read (FR-012/T064).
+
+    Raised by :func:`_get_wp_review_verdict` when the LATEST
+    ``review-cycle-*.md`` artifact for a WP is present on disk, HAS a
+    frontmatter block, but that block cannot be decoded (non-UTF-8 content)
+    or parsed (malformed YAML) -- a damaged record, not an absent one. This
+    is distinct from the legitimate ``None`` the same function still returns
+    when no review-cycle artifact exists yet, or when the artifact has no
+    closing frontmatter delimiter at all (an incomplete-write shape a sibling
+    reader,``tasks_parsing_validation.py::_get_latest_review_cycle_verdict``,
+    also treats as a non-exceptional ``(None, artifact)`` — see that
+    function's docstring). Callers (:func:`show_kanban_status`) must catch
+    this and surface a distinguishable board entry, never let it propagate
+    uncaught, and never silently fold it back into the same ``None`` a
+    genuinely-unverdicted WP produces (the fail-open shape User Story 4/
+    FR-012 exists to close).
+    """
+
+
 def _get_wp_review_verdict(wp_dir: Path) -> str | None:
     """Return the verdict from the latest review-cycle-N.md in wp_dir, or None.
 
-    Globs review-cycle-*.md files sorted by N (highest = latest), parses YAML
-    frontmatter, and returns the ``verdict`` field.  Returns None on any error
-    (file absent, malformed YAML, no frontmatter).
+    Globs review-cycle-*.md files sorted by N (highest = latest) and parses
+    YAML frontmatter for the ``verdict`` field.
+
+    Returns:
+        ``None`` when no ``review-cycle-*.md`` file exists yet (legitimately
+        no verdict recorded -- not damage), or when the latest file has no
+        closing frontmatter delimiter at all.
+
+    Raises:
+        DamagedVerdictRecordError: the latest file exists and has a
+            frontmatter block, but it cannot be decoded or its YAML cannot
+            be parsed as a mapping (FR-012/T064) — a damaged record.
     """
     cycles = sorted(
         wp_dir.glob("review-cycle-*.md"),
@@ -50,16 +79,25 @@ def _get_wp_review_verdict(wp_dir: Path) -> str | None:
     )
     if not cycles:
         return None
+    latest = cycles[-1]
     try:
-        text = cycles[-1].read_text(encoding="utf-8")
-        match = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
-        if not match:
-            return None
-        import yaml  # noqa: PLC0415 — lazy import to avoid top-level dep
-        fm = yaml.safe_load(match.group(1)) or {}
-        return fm.get("verdict")
-    except Exception:  # noqa: BLE001 — review artifact may be absent or malformed; fail-open
+        text = latest.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise DamagedVerdictRecordError(f"cannot read {latest}: {exc}") from exc
+    match = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
+    if not match:
         return None
+    import yaml  # noqa: PLC0415 — lazy import to avoid top-level dep
+    try:
+        fm = yaml.safe_load(match.group(1)) or {}
+    except yaml.YAMLError as exc:
+        raise DamagedVerdictRecordError(
+            f"malformed YAML frontmatter in {latest}: {exc}"
+        ) from exc
+    if not isinstance(fm, dict):
+        raise DamagedVerdictRecordError(f"YAML frontmatter in {latest} is not a mapping")
+    verdict = fm.get("verdict")
+    return str(verdict) if verdict is not None else None
 
 
 def _get_last_event_time(events: list[StatusEvent], wp_id: str) -> datetime | None:
@@ -266,6 +304,12 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
         # --- Stale verdict detection (T023) ---
         # Warn if approved/done WPs have a review artifact with verdict=rejected
         stale_verdicts: list[dict[str, str]] = []
+        # T064/FR-012: a SEPARATE channel from stale_verdicts (not folded into
+        # it) for the "artifact present but unreadable" refusal signal, so the
+        # existing stale_verdicts contract (pinned byte-for-byte by
+        # tests/agent/test_agent_utils_status.py, outside this WP's owned
+        # surface) is untouched for the rejected-verdict case.
+        damaged_verdicts: list[dict[str, str]] = []
         for wp in work_packages:
             if wp["lane"] not in (Lane.APPROVED, Lane.DONE):
                 continue
@@ -273,7 +317,17 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
             if not wp_id:
                 continue
             wp_dir = tasks_dir / str(wp.get("artifact_dir") or wp_id)
-            verdict = _get_wp_review_verdict(wp_dir)
+            try:
+                verdict = _get_wp_review_verdict(wp_dir)
+            except DamagedVerdictRecordError:
+                # refuse (FR-012): distinct board entry, not a command crash —
+                # the exception is caught here, never left to propagate to
+                # this function's outer except Exception below.
+                damaged_verdicts.append(
+                    {"wp_id": wp_id, "artifact": "review artifact: unreadable/damaged verdict record"}
+                )
+                wp["_damaged_verdict"] = True
+                continue
             if verdict == "rejected":
                 stale_verdicts.append({"wp_id": wp_id, "artifact": "review artifact: verdict=rejected"})
                 wp["_stale_verdict"] = True
@@ -321,6 +375,7 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
             "parallelization": parallel_info,
             "stalled_wps": stalled_wps,
             "stale_verdicts": stale_verdicts,
+            "damaged_verdicts": damaged_verdicts,
         }
 
     except Exception as e:
@@ -501,18 +556,26 @@ def _display_status_board(mission_slug: str, work_packages: list, by_lane: dict[
             line = f"  • {wp['id']} - {wp['title']}"
             if wp.get("_stale_verdict"):
                 line += "  [bold yellow]⚠ review artifact: verdict=rejected[/bold yellow]"
+            if wp.get("_damaged_verdict"):
+                # refuse (FR-012): a distinct, declared board entry — not the
+                # same silent "no verdict" a genuinely-unverdicted WP shows.
+                line += "  [bold red]⚠ review artifact: unreadable/damaged verdict record[/bold red]"
             console.print(line)
         console.print()
 
-    # Show done WPs with stale verdict warnings (if any)
-    done_stale = [wp for wp in by_lane[Lane.DONE] if wp.get("_stale_verdict")]
+    # Show done WPs with stale or damaged verdict warnings (if any)
+    done_stale = [
+        wp for wp in by_lane[Lane.DONE] if wp.get("_stale_verdict") or wp.get("_damaged_verdict")
+    ]
     if done_stale:
         console.print("[bold green]✅ Done (with stale verdict warnings):[/bold green]")
         for wp in done_stale:
-            console.print(
-                f"  • {wp['id']} - {wp['title']}"
-                f"  [bold yellow]⚠ review artifact: verdict=rejected[/bold yellow]"
-            )
+            line = f"  • {wp['id']} - {wp['title']}"
+            if wp.get("_stale_verdict"):
+                line += "  [bold yellow]⚠ review artifact: verdict=rejected[/bold yellow]"
+            if wp.get("_damaged_verdict"):
+                line += "  [bold red]⚠ review artifact: unreadable/damaged verdict record[/bold red]"
+            console.print(line)
         console.print()
 
     if by_lane[Lane.IN_PROGRESS]:

@@ -300,9 +300,13 @@ def _get_latest_review_cycle_verdict(wp_dir: Path) -> tuple[str | None, Path | N
     one, and returns the ``verdict`` frontmatter value together with the artifact
     path so callers can name the file in error messages.
 
-    Returns (None, None) when no review-cycle artifacts exist.
-    Returns (None, artifact_path) when the artifact exists but verdict is absent
-    or malformed.
+    Returns (None, None) when no review-cycle artifacts exist -- a legitimate
+    "no verdict recorded yet" (not damage).
+    Returns (None, artifact_path) when the artifact exists but verdict is
+    absent, its frontmatter is missing/malformed, or it could not be decoded
+    (FR-012/T064) -- a damaged/incomplete record. Callers distinguish this
+    from the "no artifact" case via ``artifact is not None``, and must
+    surface it distinctly (see :func:`_apply_review_status_flags`).
 
     If the verdict is present but not in :data:`_VALID_VERDICTS`, a warning is
     logged (but the value is still returned — callers decide what to do with it).
@@ -328,7 +332,16 @@ def _get_latest_review_cycle_verdict(wp_dir: Path) -> tuple[str | None, Path | N
                 sorted(_VALID_VERDICTS),
             )
         return verdict, artifact
-    except Exception:  # noqa: BLE001 — review-cycle artifact may be malformed; fail-open
+    except (OSError, UnicodeDecodeError):
+        # refuse (FR-012/T064): the artifact EXISTS but cannot be decoded --
+        # a damaged record. Narrowed from a blanket ``except Exception`` (no
+        # longer needed: ``split_frontmatter``/``extract_scalar`` are pure
+        # string operations that never raise, so ``read_text`` is the only
+        # call in this block that can fail). Still returns ``(None,
+        # artifact)``, not ``(None, None)`` -- callers distinguish "no
+        # artifact at all" (``artifact is None``) from "artifact present but
+        # damaged" (``artifact is not None and verdict is None``) via this
+        # tuple shape; see :func:`_apply_review_status_flags`.
         return None, artifact
 
 
@@ -364,7 +377,17 @@ def _apply_review_status_flags(
     events: list[StatusEvent],
     stall_threshold_minutes: int,
 ) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
-    """Annotate status rows with stale verdict and stalled-review warnings."""
+    """Annotate status rows with stale verdict, damaged verdict, and
+    stalled-review warnings.
+
+    T064/FR-012: a damaged/malformed review-cycle artifact (``artifact is
+    not None and verdict is None`` -- see
+    :func:`_get_latest_review_cycle_verdict`'s docstring) is folded into the
+    SAME ``stale_verdicts`` channel this function already returns (a
+    ``"damaged": True`` entry), rather than a new return slot -- this keeps
+    the 2-tuple return shape callers outside this WP's owned surface
+    (``tasks_status_cmd.py``) already unpack unchanged.
+    """
     stale_verdicts: list[dict[str, object]] = []
     stalled_wps: list[dict[str, object]] = []
     now = datetime.now(UTC)
@@ -379,7 +402,20 @@ def _apply_review_status_flags(
             wp_dir = _review_artifact_dir_for_wp(tasks_dir, wp)
             if wp_dir is not None:
                 verdict, artifact = _get_latest_review_cycle_verdict(wp_dir)
-                if verdict == "rejected" and artifact is not None:
+                if artifact is not None and verdict is None:
+                    # refuse (FR-012): the artifact exists but no verdict
+                    # could be read from it -- distinguishable from "no
+                    # artifact at all" purely by ``artifact is not None``.
+                    damaged_warning: dict[str, object] = {
+                        "wp_id": wp_id,
+                        "artifact": artifact.name,
+                        "verdict": None,
+                        "damaged": True,
+                    }
+                    stale_verdicts.append(damaged_warning)
+                    wp["_damaged_verdict"] = True
+                    wp["damaged_review_artifact"] = damaged_warning
+                elif verdict == "rejected" and artifact is not None:
                     stale_warning: dict[str, object] = {
                         "wp_id": wp_id,
                         "artifact": artifact.name,
