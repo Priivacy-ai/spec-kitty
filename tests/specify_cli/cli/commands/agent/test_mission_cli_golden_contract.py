@@ -254,6 +254,45 @@ def test_command_exposes_exact_flag_surface(command: str) -> None:
     )
 
 
+def test_acceptance_verdict_flag_removal_reported_as_missing() -> None:
+    """T010 regression: a flag dropped from the ACTUAL surface reds as `missing`.
+
+    `test_command_exposes_exact_flag_surface` asserts full set equality
+    (``actual == expected``), which is symmetric by construction: it can
+    catch a flag being silently ADDED (``extra``) as well as one being
+    silently REMOVED (``missing``). This is proven concretely for
+    ``acceptance-verdict`` (rather than assumed) by simulating one of its six
+    re-pinned flags disappearing from the command's real, introspected
+    surface — without touching ``acceptance_verdict.py`` itself, which stays
+    untouched per T010's binding constraint — and confirming the same
+    ``expected - actual`` computation the parametrized test relies on
+    reports exactly that flag under ``missing``, not silently.
+    """
+    expected = set(_EXPECTED_FLAGS["acceptance-verdict"])
+    actual = _command_flag_tokens("acceptance-verdict")
+    actual.discard("--help")
+    # Sanity precondition: today's real surface matches the frozen contract
+    # exactly. If it didn't, the simulated-removal assertion below would be
+    # vacuous (a real drift would already be masking the injected one).
+    assert actual == expected
+
+    simulated_flag_dropped_from_command = "--negative-invariant"
+    simulated_actual = actual - {simulated_flag_dropped_from_command}
+
+    missing = expected - simulated_actual
+    extra = simulated_actual - expected
+    assert missing == {simulated_flag_dropped_from_command}, (
+        "removing a contracted flag from the command's actual surface must "
+        f"surface it under `missing`; got missing={sorted(missing)}"
+    )
+    assert not extra, f"unexpected extra reported: {sorted(extra)}"
+    # The exact top-level assertion the real, parametrized test performs
+    # (`actual == expected`) must itself go red under the simulated removal —
+    # a half-contract that only compares "is actual a subset of expected"
+    # would NOT catch this.
+    assert simulated_actual != expected
+
+
 @pytest.mark.parametrize("command,name", sorted(_EXPECTED_POSITIONALS.items()))
 def test_command_exposes_positional_argument(command: str, name: str) -> None:
     """Commands with a positional argument expose it as a Click argument."""
