@@ -147,6 +147,17 @@
   status: active
   source: WP01/IC01
 - category: writer
+  # PR #3211 landing pass (2026-08-05, F1): the god-write cutover (FR-006/
+  # FR-007/FR-008, AC-5) moved runtime-state persistence off the WP file and
+  # onto ``emit_inner_state_changed`` off-axis event annotations -- a real
+  # event-log write, so the AST writer predicate correctly matches. Never
+  # classified before this landing pass; disclosed here rather than left
+  # unaccounted.
+  module: src/specify_cli/cli/commands/agent/tasks_move_task.py
+  function: _mt_emit_runtime_state
+  status: active
+  source: landing/pr-3211
+- category: writer
   module: src/specify_cli/cli/commands/agent/tasks_move_task.py
   function: _mt_emit_transitions
   status: active
@@ -161,6 +172,16 @@
   function: _mt_hop_review_result
   status: active
   source: WP01/IC01
+- category: writer
+  # PR #3211 landing pass (2026-08-05, F1): thin forwarder onto
+  # ``_mt_emit_runtime_state`` (the real event-log write) post-cutover -- the
+  # WP file no longer carries runtime state (IC-04 flip complete). Never
+  # classified before this landing pass; disclosed here rather than left
+  # unaccounted.
+  module: src/specify_cli/cli/commands/agent/tasks_move_task.py
+  function: _mt_persist_wp_file
+  status: active
+  source: landing/pr-3211
 - category: writer
   module: src/specify_cli/cli/commands/agent/tasks_move_task.py
   function: _mt_plan_review_result
@@ -197,6 +218,16 @@
   function: review
   status: active
   source: WP01/IC01
+- category: writer
+  # PR #3211 landing pass (2026-08-05, F1): the ``review-cycle-N.md`` merge
+  # driver's collision resolver -- writes ``ours`` back out (either the
+  # trivial identical-content fast path, or the fail-closed conflict-marker
+  # document) via ``Path.write_text``, a genuine writer. Never classified
+  # before this landing pass; disclosed here rather than left unaccounted.
+  module: src/specify_cli/cli/commands/merge_driver.py
+  function: merge_driver_review_cycle
+  status: active
+  source: landing/pr-3211
 - category: writer
   module: src/specify_cli/migration/backfill_runtime_state.py
   function: _review_from_frontmatter
