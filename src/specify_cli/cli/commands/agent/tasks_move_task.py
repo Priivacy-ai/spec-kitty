@@ -118,6 +118,7 @@ from specify_cli.status import (
     EVENTS_FILENAME,
     EventPersistenceError,
     Lane,
+    ReviewOverride,
     ReviewResult,
     ResolvedBinding,
     StatusEvent,
@@ -2103,6 +2104,18 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
             fields["agent"] = ""
         if "shell_pid" not in fields:
             fields["shell_pid"] = 0
+        # The ``review`` runtime slot records durable evidence that a REJECTED
+        # review was superseded by an approval override
+        # (``_persist_review_artifact_override``). A rollback to ``planned`` --
+        # whether via a fresh rejection (the common case) or any other route
+        # back to ``planned`` -- means that prior "superseded by approval" note
+        # no longer describes the WP's state, so it is released here alongside
+        # the claim triple: an all-empty ``ReviewOverride`` sentinel, which
+        # ``_apply_annotation_delta`` (reducer) folds to a cleared (``None``)
+        # snapshot slot rather than persisting an empty override. Without this
+        # a reader of ``status.json`` could see a withdrawn "approved" verdict
+        # on a WP that is actually back in ``planned`` awaiting rework.
+        fields["review"] = ReviewOverride(at="", actor="", wp_id="", reason="")
 
     delta = WPInnerStateDelta(**fields)
     if delta.is_empty():

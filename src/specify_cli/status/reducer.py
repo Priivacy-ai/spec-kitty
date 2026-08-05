@@ -172,7 +172,14 @@ def _apply_annotation_delta(state: dict[str, Any], delta: WPInnerStateDelta) -> 
       (dedup-preserving order) and takes precedence when both are present — the
       replace channel is what lets a ``--replace`` drop stale refs rather than
       resurrect them.
-    - ``review``: **replace** with ``ReviewOverride.to_dict()``.
+    - ``review``: **replace** with ``ReviewOverride.to_dict()`` when *complete*
+      (all four fields non-empty); an *incomplete* override (e.g. the all-empty
+      release sentinel a ``--to planned`` rollback emits, see
+      ``_mt_emit_runtime_state``) is a deliberate **clear** signal instead —
+      it drops the slot back to ``None`` rather than persisting an empty
+      dict, so a stale "superseded by approval" record left by an earlier
+      review-artifact override does not survive onto a WP that has since
+      rolled back to ``planned`` with a fresh rejection.
 
     Never increments ``force_count``.
     """
@@ -198,7 +205,7 @@ def _apply_annotation_delta(state: dict[str, Any], delta: WPInnerStateDelta) -> 
                 merged.append(ref)
         state["tracker_refs"] = merged
     if delta.review is not None:
-        state["review"] = delta.review.to_dict()
+        state["review"] = delta.review.to_dict() if delta.review.complete else None
 
 
 def _dedup_preserve_order(refs: list[str]) -> list[str]:
