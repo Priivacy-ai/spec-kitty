@@ -40,6 +40,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.sync import app
 from specify_cli.event_journal.journal import EventJournal, reset_journal_cache
 from specify_cli.event_journal.models import Event
+from tests._support.ansi import strip_ansi
 
 pytestmark = pytest.mark.fast
 
@@ -674,7 +675,14 @@ class TestPurgeAll:
         result = runner.invoke(app, ["purge", "--help"])
 
         assert result.exit_code == 0, result.output
-        flat = " ".join(result.output.split()).lower()
+        # Rich force-enables terminal styling under CI (``GITHUB_ACTIONS`` is
+        # always set) even though CliRunner captures to a non-TTY buffer, and
+        # its option highlighter emits the leading ``--`` as a separately
+        # styled span from the rest of the flag name. A raw substring check
+        # on the coloured output then misses ``--all`` even though it is
+        # exposed in the plain text the user actually reads — strip the SGR
+        # codes first so the assertion pins the contract, not the renderer.
+        flat = " ".join(strip_ansi(result.output).split()).lower()
         assert "--all" in flat
         for overclaim in ("everything on this machine", "all checkouts", "machine-wide"):
             assert overclaim not in flat, f"--all is advertised as {overclaim!r}"
