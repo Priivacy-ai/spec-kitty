@@ -163,6 +163,16 @@ from ._daemon_doctor import run_orphan_daemons, run_restart_daemon  # noqa: E402
 # reimplementing corpus walking or verification (plan IC-05).
 from ._cutover_doctor import run_cutover_audit  # noqa: E402
 
+# WP08 (review-cycle-verdict-seam-rebuild-01KZ2W7W, FR-008): the review-cycle
+# reconciliation detector was extracted to a standalone
+# ``_review_cycle_reconcile_doctor`` from the start (a new subcommand, not a
+# de-godding extraction, mirroring WP05's ``_cutover_doctor`` precedent). The
+# ``review-cycle-reconcile`` @app.command shell delegates to
+# ``run_review_cycle_reconciliation``; it finds review-cycle / arbiter-override
+# records stranded under a path this mission's census marks retired, ahead of
+# WP13's consumer-unification narrowing the fan-out that used to find them.
+from ._review_cycle_reconcile_doctor import run_review_cycle_reconciliation  # noqa: E402
+
 logger = logging.getLogger(__name__)
 
 
@@ -1338,3 +1348,51 @@ def cutover(
         console.print("[red]Error:[/red] Not in a spec-kitty project")
         raise typer.Exit(1)
     run_cutover_audit(repo_root, json_output=json_output)
+
+
+# ---------------------------------------------------------------------------
+# WP08 (review-cycle-verdict-seam-rebuild-01KZ2W7W, FR-008): review-cycle
+# reconciliation detector.
+# ---------------------------------------------------------------------------
+
+
+@app.command(name="review-cycle-reconcile")
+def review_cycle_reconcile(
+    mission: Annotated[
+        str | None,
+        typer.Option("--mission", help="Scope to a single mission (mission_id / mid8 / slug)"),
+    ] = None,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Machine-readable JSON output"),
+    ] = False,
+) -> None:
+    """Find review-cycle / arbiter-override records stranded under a retired
+    resolver path, ahead of WP13's consumer-unification (FR-008).
+
+    Every retired resolver comes from this mission's own verdict-seam census
+    fragment (``tests/architectural/census/verdict_seam_IC08.yaml``), not a
+    guessed set. Reports two DISTINCT stranded classes per finding: a
+    deleted-coordination-branch mission (absorbed to PRIMARY, the measured
+    45-mission corpus) and a live-coordination-branch mission still carrying a
+    pre-ADR PRIMARY record. Never a bare count — every finding names its
+    mission, WP, retired resolver, and resolved directory.
+
+    Informational only: always exits 0. No ``--fix`` — a stranded record may
+    have a legitimate divergent sibling, and this command does not pick a
+    winner.
+
+    Examples:
+        spec-kitty doctor review-cycle-reconcile
+        spec-kitty doctor review-cycle-reconcile --mission my-mission-01ABCD
+        spec-kitty doctor review-cycle-reconcile --json
+    """
+    try:
+        repo_root = locate_project_root()
+    except Exception as exc:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1) from exc
+    if repo_root is None:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1)
+    run_review_cycle_reconciliation(repo_root, json_output=json_output, mission=mission)
