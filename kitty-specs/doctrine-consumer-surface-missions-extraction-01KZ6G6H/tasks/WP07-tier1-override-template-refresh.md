@@ -7,6 +7,9 @@ requirement_refs:
 planning_base_branch: research/doctrine-wheel-mission-types-public-api
 merge_target_branch: research/doctrine-wheel-mission-types-public-api
 branch_strategy: Planning artifacts for this mission were generated on research/doctrine-wheel-mission-types-public-api. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into research/doctrine-wheel-mission-types-public-api unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-doctrine-consumer-surface-missions-extraction-01KZ6G6H
+base_commit: 11f36ea6b8c8e890ccdb0cf94ee2fa6821d01671
+created_at: '2026-08-04T16:59:13.388969+00:00'
 subtasks:
 - T029
 - T030

@@ -1,78 +1,78 @@
 {
   "mission_slug": "doctrine-consumer-surface-missions-extraction-01KZ6G6H",
-  "mission_number": "",
+  "mission_number": "190",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
-      "description": "Verify FR-001 is satisfied",
+      "description": "Gate split by scope with shared helpers single-sourced.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "Gate C in test_no_dead_doctrine_paths.py; Gate A+B in test_no_dead_cli_paths.py; Gate D in test_dead_builtin_doc_paths.py; shared machinery (Site/_rel/_read_lines/_text_files/_render + _REPO_ROOT/_SRC_ROOT/_DOCTRINE_ROOT/_PACKS_ROOT/_TEXT_SUFFIXES) hoisted to _dead_path_scan.py, imported by all three, redefined by none. Commit 2c5a7ca2b. 45 passed on merged tree.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (independent mission-acceptance review)",
+      "verified_at": "2026-08-05T00:39:44+00:00",
+      "notes": "Verified on merged tree research/doctrine-wheel-mission-types-public-api @ 08022adbc."
     },
     {
       "criterion_id": "FR-002",
-      "description": "Verify FR-002 is satisfied",
+      "description": "Discriminator proof on a planted synthetic fixture; daphne graph.yaml mention removed; forbidding_mentions empty and never pinned == [].",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "test_forbidding_mention_would_false_red_without_its_discriminator writes a tmp_path synthetic-forbidding-mention.agent.yaml and pins the FIXTURE effect set; doctrine-daphne.agent.yaml no longer names src/doctrine/graph.yaml (grep NONE); Gate C C3 analogue added. Commits 0b8027893, 7d39fe9c2, 4c7bea177.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (independent mission-acceptance review)",
+      "verified_at": "2026-08-05T00:39:44+00:00",
+      "notes": "Verified on merged tree research/doctrine-wheel-mission-types-public-api @ 08022adbc."
     },
     {
       "criterion_id": "FR-003",
-      "description": "Verify FR-003 is satisfied",
+      "description": "Cross-layer reader inventory committed with move/stay/repoint per reader; SC-007 no empty cells.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "docs/plans/doctrine/missions-reader-inventory-01KZ6G6H.md: 64 table rows, zero empty cells, zero TODO/TBD; names default_missions_root (R-01), DRG _missions_root (R-06), and the .py-vs-data split; surfaces the R-01 self-match trap and R-09 data-less hazard by symbol-tracing. Cycle-2 additive remediation approved.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (independent mission-acceptance review)",
+      "verified_at": "2026-08-05T00:39:44+00:00",
+      "notes": "Verified on merged tree research/doctrine-wheel-mission-types-public-api @ 08022adbc."
     },
     {
       "criterion_id": "FR-004",
-      "description": "Verify FR-004 is satisfied",
+      "description": "Kernel primitive replaces files('doctrine') string lookup; non-vacuous kernel AST gate; doctrine_package_dir() survives; SiblingPathNotFound translated to PackRootNotFound.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "kernel/sibling_paths.py::resolve_installed_sibling; pack_paths._resolve_built_in catches and re-raises PackRootNotFound; doctrine_package_dir() intact and in __all__; test_kernel_no_doctrine_import.py full-AST walk with self-mutation + prose-non-false-positive + anti-vacuity proofs. Commits c681a8910, ed3377e32, 140426eb3.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (independent mission-acceptance review)",
+      "verified_at": "2026-08-05T00:39:44+00:00",
+      "notes": "Verified on merged tree research/doctrine-wheel-mission-types-public-api @ 08022adbc."
     },
     {
       "criterion_id": "FR-005",
-      "description": "Verify FR-005 is satisfied",
+      "description": "Data subdirs moved to packs/built-in/missions; 11 .py modules stayed and import; every reader repointed; sibling pattern fully-qualified so it can't self-match; DRG fragments byte-identical.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "src/doctrine/missions/{mission_types,mission-steps,software-dev,documentation,research,plan,built_in_step_contracts} moved under packs/built-in/missions/; 11 .py modules remain and import; _MISSIONS_ROOT_SIBLING_PATTERN = packs/built-in/missions (repository.py:29) structurally cannot self-match the data-less dir; test_regen_roundtrip.py byte-identical green; caller-level wheel test asserts real data != decoy. Commit 8a65cede5.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (independent mission-acceptance review)",
+      "verified_at": "2026-08-05T00:39:44+00:00",
+      "notes": "Verified on merged tree research/doctrine-wheel-mission-types-public-api @ 08022adbc."
     },
     {
       "criterion_id": "FR-006",
-      "description": "Verify FR-006 is satisfied",
+      "description": "UnknownMissionTypeError distinguishes activated-but-no-loadable-profile from unknown; red-first test.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "mission_type_profiles.py emits 'activated but has no loadable profile'; new test_activated_but_unresolvable_profile_message_is_not_contradictory + self-exclusion pin. Commits dfcc0f4e0, e61a0222a.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (independent mission-acceptance review)",
+      "verified_at": "2026-08-05T00:39:44+00:00",
+      "notes": "Verified on merged tree research/doctrine-wheel-mission-types-public-api @ 08022adbc."
     },
     {
       "criterion_id": "FR-007",
-      "description": "Verify FR-007 is satisfied",
+      "description": "TIER-1 override templates rebased on canonical (activation-aware doctrine service; no retired constitution context).",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "implement.md/review.md use build_activation_aware_doctrine_service; zero AgentProfileRepository(/DoctrineService(/constitution context (grep NONE). Commits 02d1a2239, 83a328606.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (independent mission-acceptance review)",
+      "verified_at": "2026-08-05T00:39:44+00:00",
+      "notes": "Verified on merged tree research/doctrine-wheel-mission-types-public-api @ 08022adbc."
     }
   ],
   "negative_invariants": []

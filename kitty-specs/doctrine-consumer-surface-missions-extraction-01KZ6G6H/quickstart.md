@@ -4,9 +4,15 @@ How a maintainer verifies each Success Criterion locally, once implementation la
 
 ## SC-001 — `missions/` relocated
 
+Only the **data subdirectories** move; `src/doctrine/missions/` itself survives as a Python package holding its 11 `.py` logic modules (spec R9 / FR-005). An earlier draft of this section asserted `test ! -d src/doctrine/missions`, which would fail on a correct implementation — corrected 2026-08-04.
+
 ```bash
-test ! -d src/doctrine/missions && echo "OK: old location gone"
+for d in mission_types mission-steps built_in_step_contracts documentation plan research software-dev; do
+  test ! -e "src/doctrine/missions/$d" || echo "FAIL: src/doctrine/missions/$d still present"
+done
+test -f src/doctrine/missions/repository.py && echo "OK: .py package retained"
 test -d packs/built-in/missions && echo "OK: new location exists"
+PYTHONPATH=src python -c "import doctrine.missions.repository" && echo "OK: package still importable"
 # Editable-checkout resolution:
 PYTHONPATH=src python -c "from kernel.paths import get_package_asset_root; print(get_package_asset_root())"
 # Installed-wheel resolution (build + install into a scratch venv, then re-run the same import):
@@ -53,8 +59,12 @@ PYTHONPATH=src python -m pytest tests/architectural/ -k "forbidding_mention" -q 
 # Confirm the inventory artifact exists, every row has a decision + rationale, AND
 # specifically includes MissionTemplateRepository.default_missions_root() and the
 # DRG extractor's _missions_root() by name (both already identified pre-implementation).
-test -f kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/research.md  # or wherever FR-003 lands it
-grep -l "default_missions_root\|_missions_root" kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/research.md
+# Corrected 2026-08-04: the inventory lands OUTSIDE kitty-specs/ (issue #2643 —
+# finalize-tasks rejects a WP owned_files entry under kitty-specs/). Canonical path:
+INV=docs/plans/doctrine/missions-reader-inventory-01KZ6G6H.md
+test -f "$INV" && echo "OK: inventory committed"
+grep -c "default_missions_root" "$INV"   # expect >= 1
+grep -c "_missions_root" "$INV"          # expect >= 1
 ```
 
 ## SC-008 — DRG fragments regenerated

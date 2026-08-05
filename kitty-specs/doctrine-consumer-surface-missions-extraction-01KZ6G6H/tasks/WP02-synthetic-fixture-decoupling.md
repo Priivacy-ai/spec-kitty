@@ -26,6 +26,8 @@ execution_mode: code_change
 model: ''
 owned_files:
 - tests/architectural/test_no_dead_doctrine_paths.py
+- tests/architectural/test_no_dead_cli_paths.py
+- tests/architectural/_dead_path_scan.py
 - packs/built-in/agent_profiles/doctrine-daphne.agent.yaml
 role: implementer
 tags: []
@@ -127,3 +129,4 @@ PYTHONPATH=src python -m pytest tests/architectural/ -k "forbidding_mention or c
 > **CRITICAL**: Activity log entries MUST be in chronological order (oldest first, newest last). Append new entries at the end.
 
 - 2026-08-04T15:30:00Z – system – Prompt created.
+- 2026-08-04T18:08:24Z – claude – shell_pid=2497200 – FR-002/SC-006 delivered at commit 0b8027893. (a) A2 proof (test_no_dead_cli_paths.py::test_forbidding_mention_would_false_red_without_its_discriminator) redriven onto a tmp_path-planted .agent.yaml fixture, no longer pinned to live doctrine-daphne content. (b) Gate C gains new discriminator C3 (boundary_escapes) in test_no_dead_doctrine_paths.py, exempting links that legitimately escape the doctrine/pack root, proven fixture-only from the start. (c) daphne cleanup: line 136's literal src/doctrine/graph.yaml replaced with the retired monolith graph.yaml -- a genuine decoupling (no repo-tree path remains), not a regex dodge; both wordings already said the file no longer exists so no live coupling was hidden, and avoidance-boundary guidance is preserved. Three gate modules: 20 -> 22 passed (net +2 new C3 tests). Terminology guard: 10 passed. Ratchet suite (gate-coverage/ci-collection-completeness/ci-architectural-gate-coverage): 82 passed, matches WP01 baseline, _gate_coverage_baseline.json untouched. ruff and mypy clean on both changed test files. All three NFR-002 strength properties (empty-effect-set reds, anti-widening reds, planted-violation reds) demonstrated live via temporary mutation + revert for both A2 and C3; no assertion loosened or deleted.

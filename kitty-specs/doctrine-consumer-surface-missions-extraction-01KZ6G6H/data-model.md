@@ -49,8 +49,8 @@ The post-split shape of `test_no_dead_doctrine_paths.py`.
 
 | Module (name TBD) | Scans | Scope root | Contains |
 |---|---|---|---|
-| CLI-wide gate module | Gate A + Gate B | `_SRC_ROOT` (`src/`) | `scan_graph_monolith_paths`/`_shipped`, `scan_shipped_pack_paths`/`_shipped`, their discriminator-proof tests, their planted-violation tests |
-| Doctrine-content gate module | Gate C | `_DOCTRINE_ROOT` (`src/doctrine/`) | `scan_doctrine_cross_links`/`_shipped`, its discriminator-proof tests, planted-violation test, the FR-002 synthetic-fixture decoupling |
+| CLI-wide gate module | Gate A + Gate B | `_SRC_ROOT` (`src/`) | `scan_graph_monolith_paths`/`_shipped`, `scan_shipped_pack_paths`/`_shipped`, their discriminator-proof tests, their planted-violation tests — **including `test_forbidding_mention_would_false_red_without_its_discriminator` and therefore FR-002's synthetic-fixture decoupling of it** |
+| Doctrine-content gate module | Gate C | `_DOCTRINE_ROOT` (`src/doctrine/`) | `scan_doctrine_cross_links`/`_shipped`, its discriminator-proof tests, planted-violation test, and FR-002's *second* deliverable — the same fixture-decoupling principle applied to Gate C's own on-disk cross-link case (US2-AS3) |
 | Docs gate module | Gate D | `docs/` | `test_no_live_doc_names_a_pre_move_builtin_path` |
 
 **Invariant**: the union of all three modules' assertions equals the current file's assertions exactly — no assertion silently dropped or narrowed (NFR-003's own requirement). The shared scan helpers (`Site` dataclass, `_rel`, `_read_lines`, `_text_files`, and the `_REPO_ROOT`/`_SRC_ROOT`/`_DOCTRINE_ROOT`/`_PACKS_ROOT`/`_TEXT_SUFFIXES` constants — used by Gates A, B, and C today) land in one shared helper module both post-split modules import; they are not duplicated.

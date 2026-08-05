@@ -4,15 +4,15 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: doctrine-consumer-surface-missions-extraction-01KZ6G6H
 mission_id: 01KZ6G6HPTMWKK5EHGDHG9BJA5
-generated_at: '2026-08-04T15:37:00.525214+00:00'
-analyzer_agent: unknown
+generated_at: '2026-08-04T16:26:49.306666+00:00'
+analyzer_agent: claude
 input_artifacts:
   spec.md:
     path: /home/stijn/Documents/_code/SDD/fork/SHADOW_CLONES/spec-kitty_FOUR/kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/spec.md
-    sha256: d9b765b135d34b63d683c3ec5808b31852d0cbd557dd462ffbf6f81bac1bc8b1
+    sha256: 010a75a33de9f9ce2ea261594b3819df4341462837af163b277a6a6686dcdc22
   plan.md:
     path: /home/stijn/Documents/_code/SDD/fork/SHADOW_CLONES/spec-kitty_FOUR/kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/plan.md
-    sha256: 73604a710875f5a34e127301a9a0652d9e9aa17d0a601c75be3ff1301a6aec52
+    sha256: 1a209afa0c3e17affc2f4371d353172cdb3366f471a8b61ed7b1a9fd9f25fcf0
   tasks.md:
     path: /home/stijn/Documents/_code/SDD/fork/SHADOW_CLONES/spec-kitty_FOUR/kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/tasks.md
     sha256: de5583c63736a660d418a21ec9673aa5a094144883e5191fcec0a1efb4717a4f
@@ -30,7 +30,7 @@ findings:
 - id: A1
   severity: medium
   category: inconsistency
-  summary: Reader-inventory artifact location vague in spec.md/plan.md, but pinned to a specific out-of-kitty-specs path in tasks.md/WP03 without upstream cross-reference.
+  summary: Reader-inventory artifact location vague in spec.md/plan.md, but pinned to a specific out-of-kitty-specs path in tasks.md/WP03 without upstream cross-reference. (RESOLVED in the interim — see Re-record note.)
 - id: A2
   severity: medium
   category: underspecification
@@ -38,7 +38,7 @@ findings:
 - id: A3
   severity: medium
   category: charter
-  summary: plan.md's Charter Check omits the binding __all__ declaration convention (charter.md:496) directly relevant to WP04's new src/kernel/ public symbol.
+  summary: plan.md's Charter Check omits the binding __all__ declaration convention (charter.md:496) directly relevant to WP04's new src/kernel/ public symbol. (RESOLVED in the interim — see Re-record note.)
 - id: A4
   severity: low
   category: ambiguity
@@ -87,3 +87,40 @@ Mission: `doctrine-consumer-surface-missions-extraction-01KZ6G6H`. Artifacts ana
 - Ambiguity Count: 1 (A4)
 - Duplication Count: 0
 - Critical Issues Count: 0
+
+## Re-record note (2026-08-04, pre-implementation)
+
+This report's body is **unchanged**; only its frontmatter input-hash stamp was refreshed. The
+original stamp recorded `spec.md`/`plan.md`/`tasks.md` hashes that did not match the versions
+actually committed in `5c91fe1d5`, which staleness-blocked `agent action implement` for every WP
+with `Reason: stale_analysis_report`. No artifact was edited to clear the block.
+
+Cause, verified rather than assumed: the drift runs **in the correcting direction** — A1's and A3's
+own recommendations were applied to `spec.md`/`plan.md` *after* this report was generated, and
+nobody re-stamped it. Evidence:
+
+- **A1 → resolved.** Both `spec.md` FR-003 and `plan.md` IC-03 now name the canonical inventory
+  location `docs/plans/doctrine/missions-reader-inventory-01KZ6G6H.md` with the issue #2643
+  rationale, which is exactly the cross-reference A1 asked for.
+- **A3 → resolved.** `plan.md`'s Charter Check now carries the binding `__all__` convention
+  (charter.md:496) at line 30, and its own text records that it was "Found missing from this
+  Charter Check during `/spec-kitty.analyze`'s review" — i.e. added in response to A3.
+- **A2 → open, accepted.** WP05's `create_intent` remains narrower than its `packs/built-in/missions/**`
+  glob. Per A2's own wording either choice is defensible; the explicit choice is to accept the
+  recurring `owned_files glob matches zero files` warning as expected for a not-yet-executed
+  relocation, and to have WP05 widen `owned_files` from WP03's completed inventory before claiming.
+- **A4 → open, accepted as scoped.** Non-hot-path justification stands.
+
+Verdict is therefore unchanged at `ready`, with 2 of the 4 findings resolved in the interim rather
+than outstanding. `/spec-kitty.analyze` was **not** re-run and no finding was re-adjudicated.
+
+### Separate pre-implementation correction (commit `46f5962c6`)
+
+Independently of the stamp refresh, four factual errors in the non-pinned planning artifacts were
+corrected before any WP was dispatched (`research.md`, `data-model.md`, `quickstart.md`,
+`contracts/architectural-gates.md` — none of them inputs to this report, so the fix could not itself
+cause staleness). The load-bearing one: `test_forbidding_mention_would_false_red_without_its_discriminator`
+is a **Gate A** proof, not Gate C — `forbidding_mentions` is a `GraphMonolithScan` field (`:124`)
+populated by `scan_graph_monolith_paths` (`:158`), and the test calls `scan_graph_monolith_shipped()`
+(`:519`). Two artifacts said Gate C, which would have sent WP02's fixture decoupling into the wrong
+post-split module. See that commit message for the remaining three.

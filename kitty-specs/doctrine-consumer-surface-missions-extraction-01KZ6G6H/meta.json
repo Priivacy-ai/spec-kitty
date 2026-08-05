@@ -1,15 +1,33 @@
 {
+  "accept_commit": "b986304b8ed1c64329014a945c98f5d4ebf09df6",
+  "acceptance_history": [
+    {
+      "accept_commit": "b986304b8ed1c64329014a945c98f5d4ebf09df6",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-08-05T00:40:02.734107+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "8e28305a20e11c01d1e5ebff6df25bea4f3124f8"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-08-05T00:40:02.734107+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "8e28305a20e11c01d1e5ebff6df25bea4f3124f8",
+  "baseline_merge_commit": "24c64b7c8b0110ff291de28ee82349c52a3ec939",
   "change_mode": "bulk_edit",
   "created_at": "2026-08-04T13:42:51.867446+00:00",
   "flattened": false,
   "friendly_name": "Missions/ Doctrine Tree Relocation & Gate Preconditions",
   "mission_id": "01KZ6G6HPTMWKK5EHGDHG9BJA5",
-  "mission_number": null,
+  "mission_number": 190,
   "mission_slug": "doctrine-consumer-surface-missions-extraction-01KZ6G6H",
   "mission_type": "software-dev",
   "purpose_context": "Charter-sole-door (PR #3175 / #3176) closed the enumerated bypass paths around DoctrineService construction, which the project's own 3.2.x delivery plan declares as the precondition for the next steps in its sequencing rule: boundary -> sole-door -> contract -> schema. A post-spec adversarial squad found the missions/ relocation more architecturally involved than originally scoped, and already-once-deferred territory (relocate-builtin-doctrine-packs-01KYT87F) -- the operator elected to split the original two-thread spec, de-risking this harder relocation piece first. This mission completes the missions/ tree relocation to packs/built-in, resolves the two CI-gate preconditions that block legitimate doctrine-content cleanup, and folds in two small bundled fixes. The doctrine/charter public API contract (#3179) is a separate follow-on mission. The full kernel/doctrine/charter wheel publish remains explicitly deferred to a separate future mission.",
   "purpose_tldr": "Relocate the missions/ doctrine tree to packs/built-in (with the kernel resolver-primitive extraction that makes it sound), clearing two CI-gate preconditions along the way -- the de-risking half of the next scoped step in the 3.2.x doctrine rework, split off from the public-API contract per post-spec squad findings.",
   "slug": "doctrine-consumer-surface-missions-extraction-01KZ6G6H",
+  "status_phase": "1",
   "target_branch": "research/doctrine-wheel-mission-types-public-api",
-  "topology": "single_branch"
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-04T16:27:01.661320+00:00"
 }
