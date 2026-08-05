@@ -263,3 +263,18 @@ Terms describing tool invocation and semantic safety gates during generation.
 | **Symbols unchanged this slice** | This entry canonicalizes the prose term only. The underlying code symbols (`primary_feature_dir_*` and the rest of the Sense-C checkout cluster) are **not** renamed in this mission; the code rename is Track 2 (#2730). |
 | **Do NOT use when** | The concept is the artifact-kind partition — use [PRIMARY partition](./orchestration.md#primary-partition). The concept is the repository's default integration branch — use [primary branch](./orchestration.md#primary-branch). The concept is the ref planning artifacts commit to — use [Target Ref / Commit Target](./orchestration.md#target-ref--commit-target). Avoid the retired aliases "primary surface" and "primary checkout". |
 | **Related terms** | [Build](./orchestration.md#build), [MissionExecutionContext](#missionexecutioncontext), [Lane](./orchestration.md#lane), [primary branch](./orchestration.md#primary-branch) |
+
+---
+
+### Shadow Clone (Isolated Dev Environment)
+
+| | |
+|---|---|
+| **Definition** | A contributor/maintainer practice for developing Spec Kitty itself: a standalone repository-root checkout of the Spec Kitty codebase whose CLI and runtime state are pinned to that checkout, so it does not interfere with a machine-global install or with sibling checkouts. Isolation has two axes — **code** (a clone-local `.venv` editable install placed first on `PATH`, so `spec-kitty` runs the checkout's live `src/`) and **state** (`SPEC_KITTY_HOME` pointed at a clone-local root so the offline queue, sync daemon, event journal, auth, gate-locks, and trackers do not land in the shared `~/.spec-kitty`). It is the non-containerised isolation option, chosen for speed over the stronger isolation of a container. |
+| **Context** | Execution |
+| **Status** | candidate |
+| **Applicable to** | `3.x` |
+| **Examples** | A stable *primary* checkout backing the machine-global `spec-kitty`, plus one or more *shadow* checkouts each activated per-session against its own `.venv` and `SPEC_KITTY_HOME`. |
+| **Use when** | Describing how a maintainer runs several Spec Kitty checkouts on one machine without cross-mission pollution, or the `SPEC_KITTY_HOME` / clone-local `.venv` isolation levers that make that safe. |
+| **Do NOT use when** | The concept is a per-work-package worktree under [`.worktrees/`](./configuration-project-structure.md#worktrees) inside a single checkout (that is intra-mission execution isolation, not a separate clone). The concept is the canonical [repository root checkout](#repository-root-checkout) of a *consumer* project rather than a maintainer's isolated development copy of Spec Kitty. |
+| **Related terms** | [repository root checkout](#repository-root-checkout), [Lane](./orchestration.md#lane), [Build](./orchestration.md#build) |

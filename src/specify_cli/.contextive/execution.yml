@@ -41,6 +41,8 @@ contexts:
         definition: "An optional YAML file (`.kittify/glossaries/{scope}.yaml`) that pre-loads domain glossary terms before the runtime starts extracting new ones. Gives teams a head start by defining known terminology upfront."
       - name: "Semantic Check"
         definition: "Deterministic validation step that compares extracted terms with active glossary scope(s) before generation proceeds."
+      - name: "Shadow Clone (Isolated Dev Environment)"
+        definition: "A contributor/maintainer practice for developing Spec Kitty itself: a standalone repository-root checkout of the Spec Kitty codebase whose CLI and runtime state are pinned to that checkout, so it does not interfere with a machine-global install or with sibling checkouts. Isolation has two axes — code (a clone-local `.venv` editable install placed first on `PATH`, so `spec-kitty` runs the checkout's live `src/`) and state (`SPEC_KITTY_HOME` pointed at a clone-local root so the offline queue, sync daemon, event journal, auth, gate-locks, and trackers do not land in the shared `~/.spec-kitty`). It is the non-containerised isolation option, chosen for speed over the stronger isolation of a container."
       - name: "Slash Command"
         definition: "User-facing command surface that triggers a lifecycle operation (for example specify, plan, tasks, review, merge)."
       - name: "Tool"

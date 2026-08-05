@@ -30,6 +30,7 @@ Runbooks scoped to maintainers (and agents acting in a maintainer capacity), not
 - [Landing contributor PRs](pr-landing.md) — the claim → isolate → rebase → classify → fold → squad → hand-off maintainer runbook.
 - [Onboarding run](onboarding-run.md) — a reusable priming prompt and 12-step SDD cadence for onboarding a prospective co-maintainer.
 - [Known current friction points](known-friction-points.md) — the fast-drifting list of current repo/tooling gotchas an agent hits mid-mission.
+- [Isolated dev environments (Shadow Clones)](isolated_dev_environments.md) — run several standalone checkouts on one machine without cross-mission pollution: clone-local `.venv` plus a clone-local `SPEC_KITTY_HOME` state root, machine-global CLI left intact.
 - [Managing the issue tracker](manage-issue-tracker.md) — epics vs. meta-trackers, native sub-issue parenting, and triage conventions.
 
 ## Testing the Spec Kitty codebase
