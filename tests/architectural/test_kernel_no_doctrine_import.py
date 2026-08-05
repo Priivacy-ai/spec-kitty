@@ -75,19 +75,53 @@ _FORBIDDEN_IMPORT_ROOTS = frozenset({"doctrine", "specify_cli"})
 #: WP04 -- owned_files: src/kernel/paths.py, src/doctrine/pack_paths.py,
 #: src/doctrine/missions/repository.py). ``schema_utils.py`` was promoted to
 #: kernel by an unrelated, already-merged mission
-#: (charter-mediated-doctrine-selection-01KRTZCA, WP07) and its dev-checkout
-#: fallback names "doctrine" as a literal path segment
-#: (``Path(__file__).resolve().parent.parent / "doctrine" / "schemas"``).
-#: This is real, pre-existing debt this gate is the first thing to catch --
-#: exempted here (not silently fixed, not hidden by weakening the gate) so
-#: the gate stays non-vacuous for *new* violations while not blocking this
-#: WP's merge on an unrelated file. Tracked as a follow-up; do not widen this
-#: set for any file this WP or a future one actually owns.
+#: (charter-mediated-doctrine-selection-01KRTZCA, WP07); its
+#: ``_resolve_schema_path`` helper names "doctrine" at BOTH exempted sites
+#: below -- this gate's segment-aware ``ast.Constant`` matcher (``value ==
+#: root or value.startswith(root + ".")``) now catches both, where the
+#: original exact-equality matcher only caught the second:
+#:
+#: * line 88 -- ``files("doctrine.schemas")``, the installed-wheel resource
+#:   lookup. A dotted-module-path string literal (the string-literal
+#:   equivalent of ``import doctrine.schemas``) -- exactly the shape an
+#:   exact-equality match cannot see, since ``"doctrine.schemas" !=
+#:   "doctrine"``.
+#: * line 96 -- the dev-checkout fallback path segment
+#:   (``Path(__file__).resolve().parent.parent / "doctrine" / "schemas"``),
+#:   an exact ``"doctrine"`` literal, already caught before this gate's
+#:   segment-aware upgrade.
+#:
+#: This is real, disclosed, pre-existing coupling: a kernel schema-loading
+#: utility loads doctrine-owned schema files, and full decoupling (relocating
+#: the schemas themselves out of ``doctrine``, or injecting the resolved root
+#: from a caller above kernel) is a deferred design decision -- NOT resolved
+#: by this gate. Exempted here (not silently fixed, not hidden by weakening
+#: the gate) so the gate stays non-vacuous for *new* violations. There is no
+#: tracked follow-up issue for the full decoupling as of this gate's
+#: hardening; do not widen this set for any file this WP or a future one
+#: actually owns.
 _PRE_EXISTING_EXEMPTIONS = frozenset(
     {
+        ("kernel/schema_utils.py", 88),
         ("kernel/schema_utils.py", 96),
     }
 )
+
+
+def _matches_forbidden_vocabulary(value: str) -> bool:
+    """True if ``value`` IS a forbidden root, or dot-segments into one.
+
+    Segment/prefix-aware: catches both an exact forbidden literal
+    (``"doctrine"``) and a dotted-module-path literal rooted in one
+    (``"doctrine.schemas"``) -- the string-literal shape
+    ``importlib.resources.files("doctrine.schemas")`` uses, which is the
+    literal-string equivalent of ``import doctrine.schemas`` already caught
+    by the ``ast.Import``/``ast.ImportFrom`` branches below via
+    ``_module_root``. A bare exact-equality check (``value in
+    _FORBIDDEN_STRINGS``) misses this dotted form entirely -- exactly the
+    escape this gate exists to close (see ``src/kernel/schema_utils.py:88``).
+    """
+    return any(value == root or value.startswith(f"{root}.") for root in _FORBIDDEN_STRINGS)
 
 
 def _docstring_nodes(tree: ast.AST) -> set[int]:
@@ -137,7 +171,7 @@ def _scan_file(path: Path, relative_to: Path) -> list[tuple[str, int, str]]:
         elif isinstance(node, ast.Constant):
             if id(node) in docstring_ids:
                 continue
-            if isinstance(node.value, str) and node.value in _FORBIDDEN_STRINGS:
+            if isinstance(node.value, str) and _matches_forbidden_vocabulary(node.value):
                 found.append((rel, node.lineno, f"string literal {node.value!r}"))
     return found
 
@@ -276,3 +310,36 @@ def test_walker_catches_module_level_import(tmp_path: Path) -> None:
         ("fromform.py", 1, "from specify_cli.paths import ..."),
         ("plain.py", 1, "import doctrine.pack_paths"),
     ]
+
+
+def test_walker_catches_dotted_module_path_string_literal(tmp_path: Path) -> None:
+    """Segment-aware NFR-002 proof: a dotted-root literal escapes exact-equality.
+
+    Reproduces the exact shape ``src/kernel/schema_utils.py`` uses at its own
+    installed-wheel resource lookup -- ``files("doctrine.schemas")`` -- the
+    one violation an EXACT-equality ``ast.Constant`` match
+    (``node.value in _FORBIDDEN_STRINGS``) cannot see, since the literal
+    ``"doctrine.schemas"`` is never equal to the bare forbidden root
+    ``"doctrine"``. This is the exact gap the gate's own docstring names as
+    "escaping": a string-literal dotted form the pytestarch ``LayerRule``
+    (import-edge-only) and this gate's pre-segment-aware matcher both miss.
+
+    Red-first: against the pre-fix exact-equality matcher this assertion
+    fails (the walker reports zero violations for this file); the
+    segment/prefix-aware matcher (``value == root or value.startswith(root +
+    "."))``) makes it pass.
+    """
+    module = tmp_path / "schema_utils.py"
+    module.write_text(
+        "import importlib.resources\n"
+        "\n"
+        "\n"
+        "def _resolve_schema_path():\n"
+        '    resource = importlib.resources.files("doctrine.schemas")\n'
+        "    return resource\n",
+        encoding="utf-8",
+    )
+
+    violations = collect_forbidden_vocabulary(tmp_path, relative_to=tmp_path)
+
+    assert violations == [("schema_utils.py", 5, "string literal 'doctrine.schemas'")]
