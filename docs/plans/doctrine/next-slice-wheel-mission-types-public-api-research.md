@@ -1,6 +1,6 @@
 ---
 title: '2026-08-04 — Next doctrine slice: wheel cutover, mission-type relocation, public API surface'
-description: 'Preliminary research on the scope after #3176 lands — kernel/doctrine/charter wheel packaging, missions/ tree relocation, and creation of a stable public API for doctrine & charter modules (cf. the #645/#460 FastAPI precedent).'
+description: 'Preliminary research on the post-#3176 scope: kernel/doctrine/charter wheel packaging, the missions/ tree relocation, and a stable public API for the doctrine & charter modules.'
 doc_status: active
 updated: '2026-08-04'
 ---
