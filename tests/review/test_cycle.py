@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+from dataclasses import dataclass, field
 import subprocess
 import threading
 from pathlib import Path
@@ -7,6 +9,14 @@ from unittest.mock import patch
 
 import pytest
 
+from mission_runtime import MissionArtifactKind
+from specify_cli.agent_tasks_ports import (
+    CommitArtifactResult,
+    CommitStatusResult,
+    MissionHandle,
+)
+from specify_cli.core.commit_guard import GuardCapability
+from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.review.cycle import (
     CreatedRejectedReviewCycle,
     ReviewCycleError,
@@ -16,6 +26,7 @@ from specify_cli.review.cycle import (
     validate_review_artifact_file,
     validate_review_cycle_pointer,
 )
+from specify_cli.status import TransitionRequest
 
 pytestmark = pytest.mark.git_repo
 
@@ -150,12 +161,1269 @@ def test_sentinel_pointer_is_not_feedback_artifact(tmp_path: Path) -> None:
     assert resolved.path is None
 
 
-# NOTE: ``test_self_referential_feedback_source_is_rejected`` and
-# ``test_new_cycle_body_never_duplicates_a_prior_cycle_file`` (#2996(b),
-# RED-FIRST P0 reproductions) were extracted to
-# ``tests/regression/test_issue_2996_self_referential_and_duplicate_feedback.py``
-# (landing fold: make ``@pytest.mark.regression`` mean exactly one thing --
-# every non-regression suite is expected green, so an intentionally-failing
-# P0 reproduction cannot share a file with the passing ``review.cycle`` unit
-# tests above). ``MISSION_SLUG`` / ``WP_ID`` / ``WP_SLUG`` and ``_init_repo``
-# were local to those two tests only and moved with them.
+MISSION_SLUG = "annoying-bugs-sweep-01KYHQ9F"
+WP_ID = "WP03"
+WP_SLUG = "WP03-ledger-grammar"
+
+
+@pytest.mark.regression
+def test_self_referential_feedback_source_is_rejected(tmp_path: Path) -> None:
+    """Pin #2996(b): handing ``create_rejected_review_cycle`` the WP's OWN
+    prior ``review-cycle-N.md`` as ``feedback_source`` must be refused, not
+    silently duplicated into a new cycle.
+
+    Root cause (traced against ``main`` @ upstream/main):
+    ``create_rejected_review_cycle``
+    (``src/specify_cli/review/cycle.py:277-346``) validates ``feedback_source``
+    only for existence / is-a-file / non-empty content
+    (lines 288-295) and computes the next cycle number purely from
+    ``len(sub_artifact_dir.glob("review-cycle-*.md")) + 1``
+    (``ReviewCycleArtifact.next_cycle_number``,
+    ``src/specify_cli/review/artifacts.py:288-295``) -- it never inspects
+    *what* ``feedback_source`` points at. Passing the WP's own
+    ``review-cycle-1.md`` (the ``--review-feedback-file`` shape from the
+    ticket) is accepted: its full text -- frontmatter delimiters and all --
+    is read as plain body content and written out as ``review-cycle-2.md``,
+    fabricating a duplicate cycle that outranks the real reviewer's original
+    verdict (``ReviewCycleArtifact.latest`` always returns the
+    highest-numbered file).
+
+    This test asserts the artifact-first, guard-second contract that would
+    need to hold once #2996(b) is fixed. It is expected to fail (red) at the
+    ``pytest.raises`` line TODAY, before the guard exists -- ``DID NOT RAISE``
+    is the correct failure signature for a regression test pinning a missing
+    guard, not a defect in the test itself.
+    """
+    from specify_cli.review.artifacts import ReviewCycleArtifact
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / MISSION_SLUG / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / f"{WP_SLUG}.md").write_text("# WP03\n", encoding="utf-8")
+    wp_dir = tasks_dir / WP_SLUG
+
+    real_feedback = tmp_path / "feedback.md"
+    real_feedback.write_text(
+        "**Issue**: Ledger grammar drops the census delimiter.\n",
+        encoding="utf-8",
+    )
+
+    created = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug=MISSION_SLUG,
+        wp_id=WP_ID,
+        wp_slug=WP_SLUG,
+        feedback_source=real_feedback,
+        reviewer_agent="reviewer-renata",
+    )
+    assert created.artifact_path == wp_dir / "review-cycle-1.md"
+    assert created.artifact.reviewer_agent == "reviewer-renata"
+
+    # Hand the WP's OWN canonical review-cycle-1.md back in as the feedback
+    # source -- the exact ``--review-feedback-file <review-cycle-1.md path>``
+    # shape from the ticket -- with an empty reviewer_agent (also from the
+    # ticket).
+    #
+    # The match pattern is deliberately narrower than the original
+    # "review-cycle|duplicate|feedback": today's PRE-EXISTING guards ("Review
+    # feedback file not found: ..." / "Review feedback file is empty: ...")
+    # both contain the word "feedback", so that loose an alternation lets an
+    # unrelated failure satisfy this assertion for the wrong reason. Only a
+    # message that names the self-reference explicitly can match here.
+    with pytest.raises(
+        ReviewCycleError, match=r"own review-cycle|self-referential feedback"
+    ) as exc_info:
+        create_rejected_review_cycle(
+            main_repo_root=repo,
+            mission_slug=MISSION_SLUG,
+            wp_id=WP_ID,
+            wp_slug=WP_SLUG,
+            feedback_source=created.artifact_path,
+            reviewer_agent="",
+        )
+
+    # The operator's stated preference is loud failures WITH clear
+    # instructions: the message must name what was wrong (feedback_source is
+    # the WP's own prior review-cycle artifact) and tell the caller what to
+    # do instead (pass the underlying reviewer feedback, not a prior cycle
+    # artifact).
+    message = str(exc_info.value)
+    assert created.artifact_path.name in message, (
+        "error message must name the offending review-cycle artifact so the "
+        f"caller can identify it -- got: {message!r}"
+    )
+    assert any(
+        word in message.lower() for word in ("instead", "use ", "pass ", "provide ")
+    ), (
+        "error message must be actionable -- it must tell the caller what to "
+        f"do instead of the self-referential feedback_source -- got: {message!r}"
+    )
+
+    # These hold once the guard exists: no fabricated cycle-2, and the real
+    # reviewer's cycle-1 verdict remains the authoritative "latest".
+    assert not (wp_dir / "review-cycle-2.md").exists()
+    latest = ReviewCycleArtifact.latest(wp_dir)
+    assert latest is not None
+    assert latest.reviewer_agent == "reviewer-renata"
+
+
+@pytest.mark.regression
+def test_duplicate_prose_in_an_ordinary_feedback_file_is_admitted(
+    tmp_path: Path,
+) -> None:
+    """T045 (FR-004/SC-001/US1 AC5): an ORDINARY feedback file (never a
+    review-cycle artifact) whose prose happens to duplicate a prior cycle's
+    body verbatim must be ADMITTED and recorded as a genuine new cycle -- not
+    refused.
+
+    HISTORY -- read before touching this test again: this test was
+    previously named ``test_new_cycle_body_never_duplicates_a_prior_cycle_file``
+    and asserted the OPPOSITE -- that this exact scenario must raise
+    ``ReviewCycleError``. That assertion was WRONG against this mission's
+    finalized spec, for three independent reasons (operator ruling, recorded
+    here so nobody re-derives or re-litigates it):
+
+    1. **US1 Acceptance Scenario 5** (spec.md): "Given a reviewer who finds
+       the same defect a second time, When they submit reviewer feedback
+       identical to a prior cycle's, Then the rejection is accepted and
+       recorded as a new cycle." This test drives exactly that scenario, and
+       the spec requires ADMISSION.
+    2. **SC-001** names the OLD refusal behaviour as the defect being fixed,
+       quoting the very error this test used to assert:
+       ``ReviewCycleError: feedback_source content duplicates a prior
+       review-cycle artifact (review-cycle-1.md) verbatim``.
+    3. **spec.md's Revision History** records that the original SC-001 was
+       refuted: "the real defect is the opposite: a second rejection with
+       identical feedback is permanently refused" -- resolved to FR-004 + US1
+       AC5, with an explicit warning that a literal reading of the OLD
+       wording "would have had an implementer delete the content-identity
+       guard and re-open #990/#2996(b)" -- precisely the trap the narrowed,
+       parse-based guard (:func:`_guard_feedback_source_provenance`) avoids.
+
+    The old test's own justification cited spec.md Acceptance Scenario 2 ("the
+    operation is refused") -- a MISATTRIBUTION: that scenario is about a
+    transition failing after a write ("no approved verdict is readable... the
+    latest verdict is still rejected"), not content duplication. It said
+    nothing that supported the old assertion.
+
+    This is NOT a weakening of the #990/#2996(b) control. The old test's own
+    docstring stated it drove "an ORDINARY feedback file -- never a
+    review-cycle artifact" -- by construction it was never a #990 test. The
+    #990/#2996(b) control lives in ``_guard_feedback_source_provenance``'s
+    path leg (``test_self_referential_feedback_source_is_rejected``, still
+    refuses) PLUS the parse-based content leg
+    (``test_a_byte_copy_of_a_stored_artifact_under_a_new_name_is_still_rejected``
+    below, added alongside this rewrite to carry #990/#2996(b) forward
+    explicitly). C-002 protects that control's GUARANTEE, not this test's
+    prior, over-broad collateral refusal.
+    """
+    from specify_cli.review.artifacts import ReviewCycleArtifact
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / MISSION_SLUG / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / f"{WP_SLUG}.md").write_text("# WP03\n", encoding="utf-8")
+    wp_dir = tasks_dir / WP_SLUG
+
+    real_feedback = tmp_path / "feedback.md"
+    real_feedback.write_text(
+        "**Issue**: Ledger grammar drops the census delimiter.\n",
+        encoding="utf-8",
+    )
+    cycle1 = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug=MISSION_SLUG,
+        wp_id=WP_ID,
+        wp_slug=WP_SLUG,
+        feedback_source=real_feedback,
+        reviewer_agent="reviewer-renata",
+    )
+    cycle1_bytes_before = cycle1.artifact_path.read_bytes()
+
+    # An ORDINARY feedback file -- never a review-cycle artifact -- whose
+    # content happens to duplicate cycle-1's body verbatim (US1 AC5's "the
+    # same defect a second time" scenario).
+    duplicate_feedback = tmp_path / "duplicate-feedback.md"
+    duplicate_feedback.write_text(cycle1.artifact.body, encoding="utf-8")
+
+    cycle2 = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug=MISSION_SLUG,
+        wp_id=WP_ID,
+        wp_slug=WP_SLUG,
+        feedback_source=duplicate_feedback,
+        reviewer_agent="reviewer-second-opinion",
+    )
+
+    # Admitted as a genuine new cycle, correctly numbered.
+    assert cycle2.artifact_path == wp_dir / "review-cycle-2.md"
+    assert cycle2.artifact.cycle_number == 2
+    assert cycle2.artifact.body == cycle1.artifact.body
+    assert cycle2.artifact.reviewer_agent == "reviewer-second-opinion"
+
+    # The prior cycle's on-disk bytes are unchanged -- admission is a NEW
+    # write, never a mutation of cycle 1.
+    assert cycle1.artifact_path.read_bytes() == cycle1_bytes_before
+
+    latest = ReviewCycleArtifact.latest(wp_dir)
+    assert latest is not None
+    assert latest.cycle_number == 2
+    assert latest.reviewer_agent == "reviewer-second-opinion"
+
+
+@pytest.mark.regression
+def test_a_byte_copy_of_a_stored_artifact_under_a_new_name_is_still_rejected(
+    tmp_path: Path,
+) -> None:
+    """#990/#2996(b), carried forward by T045's narrowed content leg: a
+    BYTE-COPY of a stored ``review-cycle-N.md`` artifact, saved under a
+    DIFFERENT name/path that does not itself match the
+    ``review-cycle-N.md`` shape (so the PATH leg does not fire), must still
+    be refused -- because its content PARSES as a ``ReviewCycleArtifact``
+    (it genuinely IS a verdict record, just relocated/renamed).
+
+    This is the case that makes
+    ``test_duplicate_prose_in_an_ordinary_feedback_file_is_admitted``'s
+    admission defensible rather than a #990/#2996(b) regression: distinct,
+    ordinary reviewer PROSE that merely repeats earlier words is admitted
+    (that test), but an actual copy of the artifact FILE itself -- frontmatter
+    and all -- is not "prose"; it parses as a verdict record and stays
+    refused, regardless of where it is saved.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / MISSION_SLUG / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / f"{WP_SLUG}.md").write_text("# WP03\n", encoding="utf-8")
+    wp_dir = tasks_dir / WP_SLUG
+
+    real_feedback = tmp_path / "feedback.md"
+    real_feedback.write_text(
+        "**Issue**: Ledger grammar drops the census delimiter.\n",
+        encoding="utf-8",
+    )
+    cycle1 = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug=MISSION_SLUG,
+        wp_id=WP_ID,
+        wp_slug=WP_SLUG,
+        feedback_source=real_feedback,
+        reviewer_agent="reviewer-renata",
+    )
+
+    # A BYTE-COPY of the stored artifact, saved OUTSIDE sub_artifact_dir under
+    # a name that does NOT match review-cycle-N.md -- the path leg is moot
+    # here; only the content-parse leg can catch this.
+    relocated_copy = tmp_path / "renamed-copy-of-cycle-1.md"
+    relocated_copy.write_bytes(cycle1.artifact_path.read_bytes())
+
+    with pytest.raises(ReviewCycleError, match=r"parses as a review-cycle artifact"):
+        create_rejected_review_cycle(
+            main_repo_root=repo,
+            mission_slug=MISSION_SLUG,
+            wp_id=WP_ID,
+            wp_slug=WP_SLUG,
+            feedback_source=relocated_copy,
+            reviewer_agent="reviewer-renata",
+        )
+
+    assert not (wp_dir / "review-cycle-2.md").exists()
+
+
+@pytest.mark.regression
+def test_hand_edited_own_path_feedback_source_is_still_rejected(tmp_path: Path) -> None:
+    """T006 step 2: a feedback file at a ``review-cycle-N.md``-shaped path
+    inside the WP's OWN directory is refused even when its content has been
+    hand-edited to no longer duplicate any existing cycle's body.
+
+    Both ``test_self_referential_feedback_source_is_rejected`` (exact-path,
+    exact-content) and ``test_new_cycle_body_never_duplicates_a_prior_cycle_file``
+    (content-only, different path) can each be satisfied by a fix that only
+    implements ONE of the two checks. This is the case that forces genuine
+    path-based detection to exist alongside content-based detection: the path
+    is the WP's own review-cycle home, but the content is deliberately
+    different from every existing cycle's body.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / MISSION_SLUG / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / f"{WP_SLUG}.md").write_text("# WP03\n", encoding="utf-8")
+    wp_dir = tasks_dir / WP_SLUG
+
+    real_feedback = tmp_path / "feedback.md"
+    real_feedback.write_text(
+        "**Issue**: Ledger grammar drops the census delimiter.\n",
+        encoding="utf-8",
+    )
+    created = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug=MISSION_SLUG,
+        wp_id=WP_ID,
+        wp_slug=WP_SLUG,
+        feedback_source=real_feedback,
+        reviewer_agent="reviewer-renata",
+    )
+
+    # Hand-edit cycle-1's own file in place: same path, deliberately DIFFERENT
+    # (non-duplicate) content.
+    created.artifact_path.write_text(
+        "---\nverdict: rejected\n---\n\nThis text does not match any prior body.\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ReviewCycleError, match=r"own review-cycle"):
+        create_rejected_review_cycle(
+            main_repo_root=repo,
+            mission_slug=MISSION_SLUG,
+            wp_id=WP_ID,
+            wp_slug=WP_SLUG,
+            feedback_source=created.artifact_path,
+            reviewer_agent="reviewer-renata",
+        )
+
+    assert not (wp_dir / "review-cycle-2.md").exists()
+
+
+@pytest.mark.regression
+def test_unreadable_prior_cycle_does_not_crash_the_provenance_scan(
+    tmp_path: Path,
+) -> None:
+    """M3 (adversarial squad, PR #3156): a prior ``review-cycle-N.md`` that is
+    not valid UTF-8 must be SKIPPED by the provenance scan, not crash it.
+
+    ``_guard_feedback_source_provenance`` best-effort-falls-back on
+    ``ValueError`` from ``ReviewCycleArtifact.from_file`` by re-reading the
+    same file with the same ``encoding="utf-8"`` -- which raises the
+    IDENTICAL ``UnicodeDecodeError`` (a ``ValueError`` subclass) a second
+    time, this time uncaught. One non-UTF-8 or unreadable prior artifact in a
+    WP dir then bricks EVERY subsequent review-cycle write for that WP. An
+    unparseable/unreadable prior artifact cannot be the duplicate being
+    searched for, so it must simply be skipped.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / MISSION_SLUG / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / f"{WP_SLUG}.md").write_text("# WP03\n", encoding="utf-8")
+    wp_dir = tasks_dir / WP_SLUG
+    wp_dir.mkdir(parents=True)
+
+    # A prior "review-cycle-1.md" that is NOT valid UTF-8 (and thus also not
+    # parseable as frontmatter) -- simulates a corrupted or binary-garbled
+    # prior artifact reaching the provenance scan.
+    (wp_dir / "review-cycle-1.md").write_bytes(b"---\nverdict: rejected\n---\n\n\xff\xfe\x00bad")
+
+    real_feedback = tmp_path / "feedback.md"
+    real_feedback.write_text(
+        "**Issue**: New, unrelated feedback.\n", encoding="utf-8"
+    )
+
+    created = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug=MISSION_SLUG,
+        wp_id=WP_ID,
+        wp_slug=WP_SLUG,
+        feedback_source=real_feedback,
+        reviewer_agent="reviewer-renata",
+    )
+
+    assert created.artifact_path == wp_dir / "review-cycle-2.md"
+    assert created.artifact.verdict == "rejected"
+
+
+@pytest.mark.regression
+def test_frontmatter_shaped_feedback_prose_resubmitted_verbatim_is_admitted(
+    tmp_path: Path,
+) -> None:
+    """M4 lineage (adversarial squad, PR #3156), reassessed under T045's
+    operator ruling: a feedback file that merely OPENS with a ``---``
+    frontmatter-shaped block of plain prose (not valid YAML frontmatter --
+    ``"Blocking issues"`` is a bare scalar, not a mapping, so it does NOT
+    parse as a ``ReviewCycleArtifact``) is an ORDINARY feedback file, never a
+    stored verdict record. Re-submitting it VERBATIM a second time is US1
+    Acceptance Scenario 5's exact scenario ("a reviewer... submit[s] reviewer
+    feedback identical to a prior cycle's") and must be ADMITTED.
+
+    HISTORY: this test previously asserted the OPPOSITE (refusal), under the
+    name ``test_resubmitted_feedback_with_its_own_frontmatter_is_still_rejected``,
+    reasoning that the resubmission was "exactly the #990/#2996(b) shape the
+    guard exists to refuse." Re-examined under the SAME operator ruling that
+    corrected ``test_duplicate_prose_in_an_ordinary_feedback_file_is_admitted``
+    (see that test's docstring for the full spec citations -- US1 AC5, SC-001,
+    spec.md's Revision History): the premise was wrong. #990/#2996(b) is about
+    a feedback_source that IS a prior verdict record (by path, or by content
+    that PARSES as one -- see
+    ``test_a_byte_copy_of_a_stored_artifact_under_a_new_name_is_still_rejected``).
+    A feedback file that never parses as an artifact -- even one that visually
+    resembles frontmatter -- is not that; resubmitting its identical prose is
+    exactly what FR-004/US1 AC5 licenses. The ORIGINAL M4 finding this test's
+    name preserves (frontmatter-stripping must run symmetrically on both
+    sides of a comparison) is now moot: T045 retired the body-equality
+    comparison entirely in favor of the self-contained parse-check, so there
+    is no longer an asymmetric-stripping bug to guard against.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / MISSION_SLUG / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / f"{WP_SLUG}.md").write_text("# WP03\n", encoding="utf-8")
+    wp_dir = tasks_dir / WP_SLUG
+
+    # Feedback file that itself opens with a frontmatter-SHAPED block but is
+    # not valid YAML frontmatter -- an ORDINARY feedback file, not a stored
+    # artifact.
+    feedback = tmp_path / "feedback.md"
+    feedback.write_text(
+        "---\nBlocking issues\n---\nFix the null check.\n", encoding="utf-8"
+    )
+
+    created = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug=MISSION_SLUG,
+        wp_id=WP_ID,
+        wp_slug=WP_SLUG,
+        feedback_source=feedback,
+        reviewer_agent="reviewer-renata",
+    )
+    assert created.artifact_path == wp_dir / "review-cycle-1.md"
+
+    # Re-submit the SAME feedback file verbatim -- US1 AC5's "identical
+    # feedback" re-report -- must now be admitted as cycle 2.
+    resubmitted = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug=MISSION_SLUG,
+        wp_id=WP_ID,
+        wp_slug=WP_SLUG,
+        feedback_source=feedback,
+        reviewer_agent="reviewer-renata",
+    )
+
+    assert resubmitted.artifact_path == wp_dir / "review-cycle-2.md"
+    assert resubmitted.artifact.body == created.artifact.body
+
+
+def test_concurrent_verdict_writes_do_not_clobber_each_other(tmp_path: Path) -> None:
+    """T040/T041 (FR-005/NFR-006): two callers racing
+    ``create_rejected_review_cycle`` for the SAME ``wp_id``/``wp_slug`` must
+    each produce a distinct, correct record -- never a silent loss where one
+    caller's write clobbers the other's while BOTH callers report success.
+
+    A threaded harness racing on a ``threading.Barrier`` is sufficient here:
+    ``feature_status_lock`` is a real inter-process ``FileLock`` keyed on a
+    path under the shared git common-dir, so two threads in this process
+    contend on the exact same lock FILE two separate OS processes would.
+    This is deliberately NOT SC-004's full durability-matrix bar (50+
+    iterations across 2+ real OS processes, not threads) -- that heavier bar
+    belongs to WP15's coverage over the real command surface.
+    # TODO(WP15): upgrade to a real multi-process (not threaded) harness for
+    # SC-004's full bar (>=50 iterations, 2+ OS processes) -- this fixture's
+    # shape (two distinct feedback files, a barrier, disk-state assertions)
+    # carries over unchanged; only the ``threading.Thread``/``Barrier`` pair
+    # needs to become ``multiprocessing.Process``/a process-safe barrier.
+
+    RED-FIRST EVIDENCE (T040, observed against the pre-T041 writer with NO
+    lock on the allocate-then-write path): both threads reported SUCCESS,
+    but only ONE ``review-cycle-*.md`` file existed on disk afterward --
+    both threads' ``next_cycle_number`` calls read the (empty) directory
+    before either write landed, so both allocated cycle 1 and raced to the
+    identical path; whichever write landed last silently clobbered the
+    other's content, with ZERO exception raised to either caller. See this
+    WP's Activity Log / final report for the verbatim captured failure.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / MISSION_SLUG / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / f"{WP_SLUG}.md").write_text("# WP03\n", encoding="utf-8")
+    wp_dir = tasks_dir / WP_SLUG
+
+    feedback_a = tmp_path / "feedback-a.md"
+    feedback_a.write_text("Reviewer A's feedback.\n", encoding="utf-8")
+    feedback_b = tmp_path / "feedback-b.md"
+    feedback_b.write_text("Reviewer B's feedback.\n", encoding="utf-8")
+
+    barrier = threading.Barrier(2)
+    results: dict[str, CreatedRejectedReviewCycle] = {}
+    errors: dict[str, Exception] = {}
+
+    def _race(name: str, feedback: Path, reviewer: str) -> None:
+        barrier.wait()
+        try:
+            results[name] = create_rejected_review_cycle(
+                main_repo_root=repo,
+                mission_slug=MISSION_SLUG,
+                wp_id=WP_ID,
+                wp_slug=WP_SLUG,
+                feedback_source=feedback,
+                reviewer_agent=reviewer,
+            )
+        except Exception as exc:
+            errors[name] = exc
+
+    thread_a = threading.Thread(target=_race, args=("a", feedback_a, "reviewer-a"))
+    thread_b = threading.Thread(target=_race, args=("b", feedback_b, "reviewer-b"))
+    thread_a.start()
+    thread_b.start()
+    thread_a.join(timeout=10)
+    thread_b.join(timeout=10)
+
+    assert not errors, f"unexpected exception(s) from concurrent writers: {errors}"
+    assert set(results) == {"a", "b"}, "both concurrent callers must report a result"
+
+    on_disk = sorted(wp_dir.glob("review-cycle-*.md"))
+    assert {p.name for p in on_disk} == {"review-cycle-1.md", "review-cycle-2.md"}, (
+        "expected exactly the two distinct, stably-named review-cycle "
+        f"artifacts, found {[p.name for p in on_disk]}"
+    )
+    bodies = {p.name: validate_review_artifact_file(p).body for p in on_disk}
+    assert set(bodies.values()) == {
+        "Reviewer A's feedback.\n",
+        "Reviewer B's feedback.\n",
+    }, f"both callers' distinct bodies must survive on disk intact: {bodies}"
+    assert results["a"].artifact_path != results["b"].artifact_path
+
+
+def test_crash_orphan_between_write_and_commit_permits_a_clean_retry(
+    tmp_path: Path,
+) -> None:
+    """T043/T044 (FR-003): a process killed cleanly AFTER ``artifact.write()``
+    + ``validate_review_artifact_file()`` landed but BEFORE the commit call
+    ever started leaves an uncommitted "orphan" ``review-cycle-N.md`` on
+    disk. A hard ``SIGKILL`` cannot be caught by any ``try/except`` -- this
+    is a DIFFERENT mechanism than T043's validation-failure compensator, so
+    it is reproduced directly: write a real, fully-valid orphan artifact to
+    disk (bypassing ``create_rejected_review_cycle``/the commit step
+    entirely -- the exact on-disk state a clean kill between a completed
+    write and a not-yet-started commit leaves behind), then call
+    ``create_rejected_review_cycle`` again with the SAME feedback, exactly
+    as a caller's retry (or ``move-task`` re-invoked) would.
+
+    Scoped precisely to spec.md's Acceptance Scenario 4 ("a process killed
+    between the write and the commit") -- NOT a mid-write kill, which can
+    leave a partially-written file on some filesystems and is a different,
+    out-of-scope hazard no pure-Python mitigation can fully close.
+
+    RED-FIRST EVIDENCE (T044, observed against the pre-T043/T045 writer):
+    the identical retry was NOT idempotent -- it hit the (pre-narrowing)
+    content-identity guard against its own orphan and was refused FOREVER
+    with "feedback_source content duplicates a prior review-cycle artifact
+    (review-cycle-1.md) verbatim", with no path to recover short of manually
+    deleting the orphan file. See this WP's Activity Log / final report for
+    the verbatim captured failure.
+
+    GREEN (post T045): T045's narrowed guard no longer refuses plain
+    reviewer prose merely because it repeats a prior stored body verbatim,
+    so the retry succeeds cleanly. The orphan itself is NOT cleaned up by
+    this call (nothing this writer's own T043 compensator wrote during this
+    test run, so it never had a chance to intercept anything) -- it remains
+    on disk as inert, untracked cycle-1 clutter, a consciously accepted
+    residual for the genuine-crash case. The retry's own outcome -- a
+    correct new record, allocated at the NEXT cycle number rather than
+    colliding with the orphan -- requires zero manual cleanup, which is the
+    actual FR-003 guarantee this test proves.
+    """
+    from specify_cli.review.artifacts import ReviewCycleArtifact
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / MISSION_SLUG / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / f"{WP_SLUG}.md").write_text("# WP03\n", encoding="utf-8")
+    wp_dir = tasks_dir / WP_SLUG
+    wp_dir.mkdir(parents=True)
+
+    feedback_text = "**Issue**: Ledger grammar drops the census delimiter.\n"
+    feedback = tmp_path / "feedback.md"
+    feedback.write_text(feedback_text, encoding="utf-8")
+
+    # Simulate the crash: write the orphan artifact DIRECTLY (bypassing
+    # create_rejected_review_cycle and its commit step entirely).
+    orphan = ReviewCycleArtifact(
+        cycle_number=1,
+        wp_id=WP_ID,
+        mission_slug=MISSION_SLUG,
+        reviewer_agent="reviewer-renata",
+        verdict="rejected",
+        reviewed_at="2026-01-01T00:00:00Z",
+        body=feedback_text,
+    )
+    orphan.write(wp_dir / "review-cycle-1.md")
+
+    # The identical retry, exactly as a caller (or move-task re-invoked)
+    # would perform it.
+    retried = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug=MISSION_SLUG,
+        wp_id=WP_ID,
+        wp_slug=WP_SLUG,
+        feedback_source=feedback,
+        reviewer_agent="reviewer-renata",
+    )
+
+    assert retried.artifact.verdict == "rejected"
+    assert retried.artifact.reviewer_agent == "reviewer-renata"
+    # The orphan (cycle 1) still occupies its slot; the retry lands as the
+    # NEXT number rather than colliding with or silently overwriting it.
+    assert retried.artifact.cycle_number == 2
+    assert retried.artifact_path == wp_dir / "review-cycle-2.md"
+    assert retried.artifact_path.exists()
+
+
+def test_create_rejected_review_cycle_with_approved_verdict(tmp_path: Path) -> None:
+    """T006 step 3: the generalized writer, called with ``verdict="approved"``
+    against a WP whose latest artifact is ``rejected``, writes a new
+    highest-numbered artifact with ``verdict: approved`` and a real
+    ``reviewer_agent``.
+    """
+    from specify_cli.review.artifacts import ReviewCycleArtifact
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / "001-mission" / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-core.md").write_text("# WP01\n", encoding="utf-8")
+
+    rejection_feedback = tmp_path / "rejection-feedback.md"
+    rejection_feedback.write_text("**Issue**: Missing regression test.\n", encoding="utf-8")
+    rejected_cycle = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        feedback_source=rejection_feedback,
+        reviewer_agent="reviewer-renata",
+    )
+    assert rejected_cycle.artifact.verdict == "rejected"
+
+    approval_feedback = tmp_path / "approval-feedback.md"
+    approval_feedback.write_text(
+        "Approved by reviewer-renata: the missing test was added.\n", encoding="utf-8"
+    )
+    approved_cycle = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        feedback_source=approval_feedback,
+        reviewer_agent="reviewer-renata",
+        verdict="approved",
+    )
+
+    assert approved_cycle.artifact.verdict == "approved"
+    assert approved_cycle.artifact.cycle_number == 2
+    assert approved_cycle.artifact.reviewer_agent == "reviewer-renata"
+    assert approved_cycle.review_result.verdict == "approved"
+
+    latest = ReviewCycleArtifact.latest(tasks_dir / "WP01-core")
+    assert latest is not None
+    assert latest.verdict == "approved"
+    assert latest.cycle_number == 2
+
+
+def _unprotect_main(repo: Path) -> None:
+    """Disable branch protection so a real commit lands on ``main`` (T006 step 4).
+
+    Mirrors ``tests/coordination/test_analysis_report_rehome.py``'s
+    ``_disable_branch_protection`` fixture idiom.
+    """
+    kittify_dir = repo / ".kittify"
+    kittify_dir.mkdir(parents=True, exist_ok=True)
+    (kittify_dir / "config.yaml").write_text(
+        "protection:\n  protected_branches: []\n", encoding="utf-8"
+    )
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "test: unprotect main"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+
+
+def test_create_rejected_review_cycle_commits_the_written_artifact(tmp_path: Path) -> None:
+    """T006 step 4 / T004: passing a ``commit_router`` actually commits the write.
+
+    Real git-fixture repo (real ``git init``), the REAL ``RealCoordCommitRouter``
+    (no stubbed ``safe_commit`` -- NFR-001), post-call proof read straight from
+    ``git status --porcelain`` and ``git log`` -- mirrors quickstart.md's FR-001
+    commit-step verification and the fixture idiom in
+    ``tests/coordination/test_analysis_report_rehome.py``.
+    """
+    from specify_cli.agent_tasks_ports import RealCoordCommitRouter
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / "001-mission" / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-core.md").write_text("# WP01\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "seed"], cwd=repo, check=True, capture_output=True
+    )
+    _unprotect_main(repo)
+
+    feedback = tmp_path / "feedback.md"
+    feedback.write_text("**Issue**: Needs another pass.\n", encoding="utf-8")
+
+    created = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        feedback_source=feedback,
+        reviewer_agent="reviewer-renata",
+        commit_router=RealCoordCommitRouter(),
+    )
+
+    status = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    rel = str(created.artifact_path.relative_to(repo))
+    assert rel not in status.stdout, (
+        f"the written artifact is NOT committed -- git status still shows it:\n"
+        f"{status.stdout}"
+    )
+
+    log = subprocess.run(
+        ["git", "log", "-1", "--name-only", "--pretty=format:"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "review-cycle-1.md" in log.stdout
+
+
+@dataclass
+class _FailingCommitRouter:
+    """Stub ``CoordCommitRouter`` whose ``commit_artifact`` simulates a real
+    commit failure (mirrors what ``commit_for_mission`` returns when it catches
+    a ``ProtectedBranchRefused``/``CalledProcessError`` -- see
+    ``coordination/commit_router.py``'s ``_STATUS_ERROR`` branch) without
+    needing a real protected-branch git fixture. Modeled on
+    ``_RecordingCoordRouter`` in
+    ``test_tasks_move_task_pre_review_gate_observability.py``.
+    """
+
+    calls: list[Path] = field(default_factory=list)
+
+    def feature_write_dir(self, mission: MissionHandle) -> Path:
+        raise AssertionError("feature_write_dir is not used by this call site")
+
+    def commit_status(
+        self,
+        request: TransitionRequest,
+        *,
+        capability: GuardCapability,
+    ) -> CommitStatusResult:
+        raise AssertionError("commit_status is not used by this call site")
+
+    def commit_artifact(
+        self,
+        mission: MissionHandle,
+        paths: Sequence[Path],
+        message: str,
+        *,
+        kind: MissionArtifactKind,
+        policy: ProtectionPolicy,
+    ) -> CommitArtifactResult:
+        self.calls.extend(paths)
+        return CommitArtifactResult(
+            status="error",
+            placement_ref=str(paths[0]) if paths else "",
+            diagnostic="simulated ProtectedBranchRefused: destination branch is protected",
+        )
+
+
+def test_create_rejected_review_cycle_raises_when_commit_fails(tmp_path: Path) -> None:
+    """Cycle 2 fix (#2697) + M2 (adversarial squad, PR #3156): a non-
+    ``"committed"`` ``CommitArtifactResult`` must surface as a hard failure
+    AND roll back the orphaned write -- not merely surface the failure while
+    stranding an uncommitted artifact on disk.
+
+    Before the M2 rollback fix, the write and the commit were not atomic: a
+    failed commit left ``review-cycle-1.md`` on disk with no rollback. A
+    rejection retry would then hit the content-identity guard against its
+    own orphan ("duplicates a prior review-cycle artifact") and be refused
+    forever, permanently bricking the WP. Rolling back on failure means the
+    failure state is "no artifact" -- not "uncommitted artifact" -- so an
+    immediate retry with the SAME feedback succeeds cleanly.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / "001-mission" / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-core.md").write_text("# WP01\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "seed"], cwd=repo, check=True, capture_output=True
+    )
+    _unprotect_main(repo)
+    feedback = tmp_path / "feedback.md"
+    feedback.write_text("**Issue**: Needs another pass.\n", encoding="utf-8")
+
+    router = _FailingCommitRouter()
+
+    with pytest.raises(ReviewCycleError, match="Failed to commit"):
+        create_rejected_review_cycle(
+            main_repo_root=repo,
+            mission_slug="001-mission",
+            wp_id="WP01",
+            wp_slug="WP01-core",
+            feedback_source=feedback,
+            reviewer_agent="reviewer-renata",
+            commit_router=router,
+        )
+
+    # The router WAS invoked once, with the written artifact path -- the
+    # failure is real, not swallowed.
+    artifact_path = tasks_dir / "WP01-core" / "review-cycle-1.md"
+    assert router.calls == [artifact_path]
+    # M2: the failed write is rolled back -- no orphaned artifact survives.
+    assert not artifact_path.exists(), (
+        "a failed commit must roll back its write -- an orphaned, "
+        "uncommitted artifact would permanently brick a retry"
+    )
+    assert not list((tasks_dir / "WP01-core").glob("review-cycle-*.md")), (
+        "no review-cycle-*.md should survive a rolled-back commit failure"
+    )
+
+    # An immediate retry with the SAME feedback, now with a working commit
+    # router, must succeed and land as cycle 1 again -- proving the orphan's
+    # phantom count did not inflate ``next_cycle_number``.
+    from specify_cli.agent_tasks_ports import RealCoordCommitRouter
+
+    retried = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        feedback_source=feedback,
+        reviewer_agent="reviewer-renata",
+        commit_router=RealCoordCommitRouter(),
+    )
+    assert retried.artifact_path == artifact_path
+    assert retried.artifact.cycle_number == 1
+
+
+def test_validation_failure_after_write_leaves_no_orphaned_artifact(
+    tmp_path: Path,
+) -> None:
+    """T043: widen the write-side compensator to cover
+    ``validate_review_artifact_file`` failures, not only commit failures.
+
+    Before this fix, ``artifact.write()`` and ``validate_review_artifact_file()``
+    sat OUTSIDE the existing ``try/except ReviewCycleError: unlink; raise``
+    compensator (which wrapped only the commit call) -- so a validation
+    failure left the just-written artifact orphaned on disk with no
+    rollback. Forcing ``validate_review_artifact_file`` to raise
+    unconditionally (patched at its call site's own module symbol,
+    ``specify_cli.review.cycle.validate_review_artifact_file`` -- the same
+    bare name :func:`_allocate_and_write_review_cycle_locked` resolves
+    through the module's globals at call time) and asserting the artifact
+    file does not survive proves the widened compensator actually runs, not
+    merely a comment claiming it does.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / "001-mission" / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-core.md").write_text("# WP01\n", encoding="utf-8")
+    feedback = tmp_path / "feedback.md"
+    feedback.write_text("**Issue**: Needs another pass.\n", encoding="utf-8")
+
+    def _always_raise(path: Path) -> None:
+        raise ReviewCycleError("forced validation failure for T043")
+
+    with (
+        patch("specify_cli.review.cycle.validate_review_artifact_file", _always_raise),
+        pytest.raises(ReviewCycleError, match="forced validation failure"),
+    ):
+        create_rejected_review_cycle(
+            main_repo_root=repo,
+            mission_slug="001-mission",
+            wp_id="WP01",
+            wp_slug="WP01-core",
+            feedback_source=feedback,
+            reviewer_agent="reviewer-renata",
+        )
+
+    assert not (tasks_dir / "WP01-core" / "review-cycle-1.md").exists(), (
+        "a validate_review_artifact_file failure must leave no orphaned "
+        "artifact on disk -- the widened T043 compensator must have "
+        "unlinked it"
+    )
+    assert not list((tasks_dir / "WP01-core").glob("review-cycle-*.md"))
+
+
+@dataclass
+class _ContendingThenSucceedingCommitRouter:
+    """Spy ``CoordCommitRouter`` simulating T042's transient index.lock
+    contention window: the FIRST ``commit_artifact`` call reports
+    ``status="error"`` while a real ``index.lock`` marker sits under the
+    repo's ``.git`` dir (so ``git_operation_in_progress`` reports ``True``);
+    the SECOND call clears the marker and succeeds -- modelling the lock
+    being released between this writer's bounded retry attempts."""
+
+    lock_marker: Path
+    attempts: int = 0
+
+    def feature_write_dir(self, mission: MissionHandle) -> Path:
+        raise AssertionError("feature_write_dir is not used by this call site")
+
+    def commit_status(
+        self,
+        request: TransitionRequest,
+        *,
+        capability: GuardCapability,
+    ) -> CommitStatusResult:
+        raise AssertionError("commit_status is not used by this call site")
+
+    def commit_artifact(
+        self,
+        mission: MissionHandle,
+        paths: Sequence[Path],
+        message: str,
+        *,
+        kind: MissionArtifactKind,
+        policy: ProtectionPolicy,
+    ) -> CommitArtifactResult:
+        self.attempts += 1
+        placement_ref = str(paths[0]) if paths else ""
+        if self.attempts < 2:
+            return CommitArtifactResult(
+                status="error",
+                placement_ref=placement_ref,
+                diagnostic="simulated transient index.lock contention",
+            )
+        self.lock_marker.unlink(missing_ok=True)
+        return CommitArtifactResult(
+            status="committed", placement_ref=placement_ref, commit_hash="deadbeef"
+        )
+
+
+def test_commit_retries_on_index_lock_contention_and_then_succeeds(
+    tmp_path: Path,
+) -> None:
+    """T042: a transient ``index.lock`` contention window retries the SAME
+    ``commit_artifact`` call and succeeds once the probe stops firing.
+
+    Uses a REAL ``index.lock`` marker file under the repo's own ``.git`` dir
+    (the same primary-checkout layout ``_resolve_git_dirs`` scans) so
+    ``git_operation_in_progress`` -- the existing, unmocked, filesystem-only
+    probe -- genuinely reports ``True`` on the first attempt, proving the
+    retry gates on the REAL probe, not a stubbed boolean.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / "001-mission" / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-core.md").write_text("# WP01\n", encoding="utf-8")
+    feedback = tmp_path / "feedback.md"
+    feedback.write_text("**Issue**: Needs another pass.\n", encoding="utf-8")
+
+    lock_marker = repo / ".git" / "index.lock"
+    lock_marker.write_text("", encoding="utf-8")
+
+    router = _ContendingThenSucceedingCommitRouter(lock_marker=lock_marker)
+    created = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        feedback_source=feedback,
+        reviewer_agent="reviewer-renata",
+        commit_router=router,
+    )
+
+    assert router.attempts == 2, (
+        "expected exactly one retry after the first index.lock-contending "
+        f"error, observed {router.attempts} attempt(s)"
+    )
+    assert created.artifact_path.exists()
+    assert not lock_marker.exists()
+
+
+@dataclass
+class _AlwaysContendingCommitRouter:
+    """Spy ``CoordCommitRouter`` where every ``commit_artifact`` call reports
+    ``status="error"`` while the ``index.lock`` marker never clears -- T042's
+    "retries exhausted, contention never resolved" case."""
+
+    attempts: int = 0
+
+    def feature_write_dir(self, mission: MissionHandle) -> Path:
+        raise AssertionError("feature_write_dir is not used by this call site")
+
+    def commit_status(
+        self,
+        request: TransitionRequest,
+        *,
+        capability: GuardCapability,
+    ) -> CommitStatusResult:
+        raise AssertionError("commit_status is not used by this call site")
+
+    def commit_artifact(
+        self,
+        mission: MissionHandle,
+        paths: Sequence[Path],
+        message: str,
+        *,
+        kind: MissionArtifactKind,
+        policy: ProtectionPolicy,
+    ) -> CommitArtifactResult:
+        self.attempts += 1
+        return CommitArtifactResult(
+            status="error",
+            placement_ref=str(paths[0]) if paths else "",
+            diagnostic="simulated permanent index.lock contention",
+        )
+
+
+def test_commit_retries_are_bounded_and_report_exhausted_contention(
+    tmp_path: Path,
+) -> None:
+    """T042: when the probe keeps firing across every bounded retry attempt,
+    the writer raises a message distinguishing "exhausted contention
+    retries" from a plain commit failure -- and the failed write is still
+    rolled back (M2's existing compensator, unaffected by T042's retry loop).
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / "001-mission" / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-core.md").write_text("# WP01\n", encoding="utf-8")
+    feedback = tmp_path / "feedback.md"
+    feedback.write_text("**Issue**: Needs another pass.\n", encoding="utf-8")
+
+    lock_marker = repo / ".git" / "index.lock"
+    lock_marker.write_text("", encoding="utf-8")
+    try:
+        router = _AlwaysContendingCommitRouter()
+        with pytest.raises(ReviewCycleError, match="Exhausted contention retries"):
+            create_rejected_review_cycle(
+                main_repo_root=repo,
+                mission_slug="001-mission",
+                wp_id="WP01",
+                wp_slug="WP01-core",
+                feedback_source=feedback,
+                reviewer_agent="reviewer-renata",
+                commit_router=router,
+            )
+        # _COMMIT_CONTENTION_MAX_ATTEMPTS is 3 (module constant) -- asserted
+        # as a literal here so this test fails loudly if that bound ever
+        # changes without an accompanying review of this expectation.
+        assert router.attempts == 3
+        assert not (tasks_dir / "WP01-core" / "review-cycle-1.md").exists(), (
+            "an exhausted-contention commit failure must still roll back "
+            "the write (M2), not merely T042's own new failure path"
+        )
+    finally:
+        lock_marker.unlink(missing_ok=True)
+
+
+def test_create_rejected_review_cycle_without_commit_router_is_unchanged(
+    tmp_path: Path,
+) -> None:
+    """T006 step 5: backward compatibility -- omitting ``verdict``/``commit_router``
+    (every existing caller's shape) still produces identical ``rejected``,
+    uncommitted behavior.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / "001-mission" / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-core.md").write_text("# WP01\n", encoding="utf-8")
+    feedback = tmp_path / "feedback.md"
+    feedback.write_text("**Issue**: Fix the rejected behavior.\n", encoding="utf-8")
+
+    created = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        feedback_source=feedback,
+        reviewer_agent="codex",
+    )
+
+    assert created.artifact.verdict == "rejected"
+    assert created.review_result.verdict == "changes_requested"
+    assert created.artifact_path == tasks_dir / "WP01-core" / "review-cycle-1.md"
+    assert created.artifact_path.exists()
+    # No commit_router was supplied -- the write must remain uncommitted:
+    # nothing under kitty-specs/ has ever been staged/committed in this
+    # fixture, so git still reports it as untracked.
+    status = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "kitty-specs" in status.stdout, (
+        "an uncommitted write should still show as untracked in git status"
+    )
+
+
+def test_create_rejected_review_cycle_completes_within_a_fixed_time_budget(
+    tmp_path: Path,
+) -> None:
+    """NFR-003: one write + one ``commit_artifact`` call completes quickly.
+
+    A fixed-budget check (not a before/after benchmark) is proportionate here:
+    the new work per write is one filesystem write plus one additional git
+    commit -- the same shape the existing rejection path already performs
+    today.
+    """
+    import time
+
+    from specify_cli.agent_tasks_ports import RealCoordCommitRouter
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / "001-mission" / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-core.md").write_text("# WP01\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "seed"], cwd=repo, check=True, capture_output=True
+    )
+    _unprotect_main(repo)
+
+    feedback = tmp_path / "feedback.md"
+    feedback.write_text("**Issue**: Needs another pass.\n", encoding="utf-8")
+
+    started = time.perf_counter()
+    create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        feedback_source=feedback,
+        reviewer_agent="reviewer-renata",
+        commit_router=RealCoordCommitRouter(),
+    )
+    elapsed = time.perf_counter() - started
+
+    assert elapsed < 2.0, (
+        f"create_rejected_review_cycle (write + commit) took {elapsed:.3f}s, "
+        "expected under a generous 2s fixed budget on CI hardware"
+    )
+
+
+@dataclass
+class _CountingCommitRouter:
+    """Spy ``CoordCommitRouter`` counting ``commit_artifact`` invocations only
+    (T075) -- ``commit_status`` is asserted unreachable because this writer's
+    call site never invokes it at all; that leg belongs to a DIFFERENT
+    module (``tasks_move_task.py``'s ``_mt_execute``), outside this WP's
+    owned surface.
+    """
+
+    invocation_count: int = 0
+
+    def feature_write_dir(self, mission: MissionHandle) -> Path:
+        raise AssertionError("feature_write_dir is not used by this call site")
+
+    def commit_status(
+        self,
+        request: TransitionRequest,
+        *,
+        capability: GuardCapability,
+    ) -> CommitStatusResult:
+        raise AssertionError(
+            "commit_status belongs to a different call site (_mt_execute), "
+            "outside this WP's owned surface"
+        )
+
+    def commit_artifact(
+        self,
+        mission: MissionHandle,
+        paths: Sequence[Path],
+        message: str,
+        *,
+        kind: MissionArtifactKind,
+        policy: ProtectionPolicy,
+    ) -> CommitArtifactResult:
+        self.invocation_count += 1
+        return CommitArtifactResult(
+            status="committed",
+            placement_ref=str(paths[0]) if paths else "",
+            commit_hash="deadbeef",
+        )
+
+
+def test_create_rejected_review_cycle_invokes_commit_artifact_at_most_once(
+    tmp_path: Path,
+) -> None:
+    """T075: NFR-005's countable clause, restated against the ONE named port
+    method this WP's writer actually calls.
+
+    NFR-005 as spec.md words it ("at most one durable-persistence invocation
+    per verdict", full stop) is unsatisfiable literally -- plan.md's
+    Technical Context corrects this explicitly: every verdict already costs
+    TWO durable-persistence invocations (one ``commit_artifact`` call for
+    the review-cycle record, made HERE by
+    ``_commit_review_cycle_artifact``; one ``commit_status`` call for the
+    status event, made by a DIFFERENT call site --
+    ``tasks_move_task.py``'s ``_mt_execute``), and FR-001's authority split
+    REQUIRES both to exist. A countable clause nobody can satisfy is not a
+    requirement, it is decoration.
+
+    This restates the clause as: recording one verdict invokes THIS
+    writer's own ``commit_artifact`` port method AT MOST ONCE. It
+    deliberately does not (and must not) also count ``commit_status`` --
+    a future reader must not attempt to collapse the review-cycle write and
+    the status-event emit into a single invocation, which the authority
+    split forbids. The existing fixed-budget wall-clock assertion
+    (``test_create_rejected_review_cycle_completes_within_a_fixed_time_budget``)
+    is unchanged by this test -- this is an ADDITIONAL, countable assertion
+    alongside it, not a replacement.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / "001-mission" / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-core.md").write_text("# WP01\n", encoding="utf-8")
+    feedback = tmp_path / "feedback.md"
+    feedback.write_text("**Issue**: Needs another pass.\n", encoding="utf-8")
+
+    router = _CountingCommitRouter()
+    create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        feedback_source=feedback,
+        reviewer_agent="reviewer-renata",
+        commit_router=router,
+    )
+
+    assert router.invocation_count == 1, (
+        "recording one verdict must invoke commit_artifact at most once "
+        f"(observed {router.invocation_count} invocations)"
+    )
