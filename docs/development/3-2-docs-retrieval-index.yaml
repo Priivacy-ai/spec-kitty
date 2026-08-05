@@ -2579,6 +2579,21 @@ pages:
     - {slug: "option-b-assess-and-sequence-one-atomic-cutover-chosen", text: "Option B — Assess and sequence one atomic cutover (chosen)", level: 3}
     - {slug: "option-c-abandon-the-split", text: "Option C — Abandon the split", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/3.x/2026-08-03-1-review-cycle-artifacts-are-coord-partition.md"
+    title: "ADR: Review-Cycle Artifacts Are COORD-Partition Per-WP Bookkeeping"
+    divio_type: "none"
+    abstract: "**Deciders**: operator (stijn-dejongh), overriding a squad CRITICAL that had recorded the partition as an unresolved contradiction. The adjudication, verbatim: *\"Land them on COORD in case of a coord topology (this is per-wp bookkeeping, and should be traced in the shared Coord branch, which is aggregated into the primary branch on consolidation). In other topologies -> primary. Ensure read and write paths are consistent.\"*"
+    anchors:
+    - {slug: "context", text: "Context", level: 2}
+    - {slug: "why-this-became-load-bearing", text: "Why this became load-bearing", level: 3}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "required-machinery", text: "Required machinery", level: 3}
+    - {slug: "migration-exception-absorption-not-empty-directory-fallback", text: "Migration: exception absorption, not empty-directory fallback", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "what-the-first-draft-got-wrong", text: "What the first draft got wrong", level: 2}
+    - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
+    - {slug: "scope-note", text: "Scope note", level: 2}
+    - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md"
     title: "ADR: The Egress-Consent Boundary — Consent Is Keyed on the Record Being Sent, Never on Ambient Context"
     divio_type: "none"
@@ -2601,21 +2616,6 @@ pages:
     - {slug: "confirmation-and-what-this-adr-does-not-prove", text: "Confirmation — and what this ADR does **not** prove", level: 3}
     - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
-  - path: "docs/adr/3.x/2026-08-03-1-review-cycle-artifacts-are-coord-partition.md"
-    title: "ADR: Review-Cycle Artifacts Are COORD-Partition Per-WP Bookkeeping"
-    divio_type: "none"
-    abstract: "**Deciders**: operator (stijn-dejongh), overriding a squad CRITICAL that had recorded the partition as an unresolved contradiction. The adjudication, verbatim: *\"Land them on COORD in case of a coord topology (this is per-wp bookkeeping, and should be traced in the shared Coord branch, which is aggregated into the primary branch on consolidation). In other topologies -> primary. Ensure read and write paths are consistent.\"*"
-    anchors:
-    - {slug: "context", text: "Context", level: 2}
-    - {slug: "why-this-became-load-bearing", text: "Why this became load-bearing", level: 3}
-    - {slug: "decision", text: "Decision", level: 2}
-    - {slug: "required-machinery", text: "Required machinery", level: 3}
-    - {slug: "migration-exception-absorption-not-empty-directory-fallback", text: "Migration: exception absorption, not empty-directory fallback", level: 3}
-    - {slug: "consequences", text: "Consequences", level: 2}
-    - {slug: "what-the-first-draft-got-wrong", text: "What the first draft got wrong", level: 2}
-    - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
-    - {slug: "scope-note", text: "Scope note", level: 2}
-    - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
@@ -2866,6 +2866,7 @@ pages:
     - {slug: "spec-kitty-doctor-ops", text: "spec-kitty doctor ops", level: 2}
     - {slug: "spec-kitty-doctor-orphan-daemons", text: "spec-kitty doctor orphan-daemons", level: 2}
     - {slug: "spec-kitty-doctor-restart-daemon", text: "spec-kitty doctor restart-daemon", level: 2}
+    - {slug: "spec-kitty-doctor-review-cycle-reconcile", text: "spec-kitty doctor review-cycle-reconcile", level: 2}
     - {slug: "spec-kitty-doctor-shim-registry", text: "spec-kitty doctor shim-registry", level: 2}
     - {slug: "spec-kitty-doctor-skills", text: "spec-kitty doctor skills", level: 2}
     - {slug: "spec-kitty-doctor-sparse-checkout", text: "spec-kitty doctor sparse-checkout", level: 2}
