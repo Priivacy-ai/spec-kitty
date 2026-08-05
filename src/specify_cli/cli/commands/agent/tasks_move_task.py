@@ -1710,7 +1710,7 @@ def _mt_finalize_plan(st: _MoveTaskState) -> None:
             wp_id=st.task_id,
             wp_slug=_resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id),
             feedback_source=st.resolved_feedback_source,
-            reviewer_agent=st.agent or "unknown",
+            reviewer_agent=_mt_resolve_reviewer_identity(st),
         )
         st.review_feedback_pointer = review_cycle.pointer
         st.rejected_review_result = review_cycle.review_result
@@ -1744,6 +1744,19 @@ def _mt_finalize_plan(st: _MoveTaskState) -> None:
         )
 
 
+def _mt_resolve_reviewer_identity(st: _MoveTaskState) -> str:
+    """Resolve the effective reviewer identity: ``--reviewer``, else ``--agent``,
+    else the emit actor, else ``"unknown"``.
+
+    Shared by the rejected review-cycle artifact's ``reviewer_agent`` frontmatter
+    (:func:`_mt_finalize_plan`) and the structured :class:`ReviewResult` derivation
+    (:func:`_mt_plan_review_result`) so the two never diverge (the caller-declared
+    ``--reviewer`` identity, when present, is authoritative over the WP *actor*
+    driving the CLI invocation).
+    """
+    return (st.reviewer or st.agent or st.actor or "unknown").strip() or "unknown"
+
+
 def _mt_plan_review_result(st: _MoveTaskState) -> ReviewResult | None:
     """Structured review outcome justifying a force-free exit from ``in_review``.
 
@@ -1764,7 +1777,7 @@ def _mt_plan_review_result(st: _MoveTaskState) -> ReviewResult | None:
         return None
     if st.rejected_review_result is not None:
         return st.rejected_review_result
-    reviewer = (st.reviewer or st.agent or st.actor or "unknown").strip() or "unknown"
+    reviewer = _mt_resolve_reviewer_identity(st)
     if st.target_lane in (Lane.APPROVED, Lane.DONE):
         verdict = "approved"
         reference = (st.approval_ref or f"approval:{st.task_id}").strip() or (
