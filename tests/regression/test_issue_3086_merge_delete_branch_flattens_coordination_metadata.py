@@ -180,3 +180,92 @@ def test_issue_3086_merge_delete_branch_flattens_coordination_metadata(
     assert "topology" not in meta, (
         "issue #3086: flatten must pop the stale 'topology' key"
     )
+
+    # PR #3218 landing fold: the flatten must be COMMITTED, not merely written to
+    # the working tree — otherwise a merged coord Mission leaves the target branch
+    # dirty (the docstring's "not left dirty" contract). The assertions above read
+    # on-disk content, which ``write_meta`` produces *before* the bookkeeping
+    # commit is reached; a regression that dropped only the commit would pass them
+    # silently. Asserting a clean tree closes that gap.
+    porcelain = subprocess.run(
+        ["git", "status", "--porcelain", "--", "kitty-specs"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    assert porcelain == "", (
+        "issue #3086: the coordination-metadata flatten was written but not "
+        f"committed — merged target left dirty: {porcelain!r}"
+    )
+
+
+def test_issue_3086_flatten_is_noop_for_non_coord_mission(tmp_path: Path) -> None:
+    """The flatten guard leaves a non-coord Mission untouched (PR #3218 fold).
+
+    A ``SINGLE_BRANCH`` / ``LANES`` (or already-flattened) Mission carries no
+    ``coordination_branch`` key, so there is nothing to strand: the helper must
+    early-return before mutating ``meta.json`` or attempting a bookkeeping commit.
+    Covers the guard branch the coord repro above does not exercise.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init")
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "Spec Kitty Test")
+    (repo / "README.md").write_text("seed\n")
+    _git(repo, "add", "README.md")
+    _git(repo, "commit", "-m", "seed")
+
+    slug = "non-coord-repro-01jqanar"
+    feature_dir = repo / "kitty-specs" / slug
+    feature_dir.mkdir(parents=True)
+    original = {
+        "mission_id": _MISSION_ID,
+        "mid8": _MISSION_ID[:8],
+        "mission_slug": slug,
+        "topology": "single_branch",
+    }
+    (feature_dir / "meta.json").write_text(json.dumps(original, indent=2) + "\n")
+
+    run = ex._MergeRunState(
+        main_repo=repo,
+        mission_slug=slug,
+        canonical_id=_MISSION_ID,
+        canonical_mission_id=_MISSION_ID,
+        feature_dir=feature_dir,
+        target_feature_dir=feature_dir,
+        lanes_manifest=SimpleNamespace(
+            target_branch="main",
+            mission_branch=f"kitty/mission-{slug}",
+            lanes=[SimpleNamespace(lane_id="lane-a", wp_ids=["WP01"])],
+        ),
+        all_wp_ids=["WP01"],
+        push=False,
+        delete_branch=True,
+        remove_worktree=False,
+        strategy=ex.MergeStrategy.SQUASH,
+        assume_yes=True,
+        planning_artifact_only=False,
+        state=MergeState(
+            mission_id=_MISSION_ID,
+            mission_slug=slug,
+            target_branch="main",
+            wp_order=["WP01"],
+        ),
+        is_resume=False,
+        baseline_mission_id=_MISSION_ID,
+    )
+
+    ex._flatten_coordination_metadata_after_branch_delete(run)
+
+    meta = load_meta(feature_dir)
+    assert meta is not None
+    # Untouched: no coordination_branch to clear, so the guard adds no
+    # ``flattened`` provenance and leaves the authored ``topology`` in place.
+    assert "coordination_branch" not in meta
+    assert "flattened" not in meta, (
+        "issue #3086: a non-coord mission must not be marked flattened"
+    )
+    assert meta.get("topology") == "single_branch", (
+        "issue #3086: the no-op path must not pop a non-coord mission's topology"
+    )
