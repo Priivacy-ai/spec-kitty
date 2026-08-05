@@ -1,6 +1,6 @@
 """Hidden git merge-driver entrypoints for Spec Kitty repositories.
 
-Five custom drivers keep mission bookkeeping semantic under
+Six custom drivers keep mission bookkeeping semantic under
 ``git merge --squash -X theirs`` (the squash mission→target integration in
 ``lanes/merge.py::_merge_branch_into``). A custom driver overrides ``-X theirs``
 on the paths it is registered for, so target-newer canonical state is reconciled
@@ -19,6 +19,11 @@ rather than clobbered (#2709 / FR-003 / FR-004 / FR-008):
   algorithm.md``).
 - ``merge-driver-issue-matrix``      — ``issue-matrix.json`` row-aware,
   base-aware (3-way) merge over ``rows``, keyed by canonicalized ``issue_ref``.
+- ``merge-driver-review-cycle``      — ``tasks/<wp>/review-cycle-*.md`` refuse-
+  fail-closed on a genuine two-verdict collision (review-cycle-verdict-seam-
+  rebuild-01KZ2W7W WP18/T077); see that driver's own docstring for why this is
+  the ONE driver in this module that never reconciles by unioning/field-
+  merging — a review verdict document must never be blended.
 
 Git invokes a driver with ``%O %A %B`` = base / ours / theirs and expects the
 merged result written to the ``ours`` (``%A``) path with exit 0. Under the squash
@@ -647,3 +652,121 @@ def merge_driver_acceptance_matrix(
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
     ours.write_text(json.dumps(merged, indent=2) + "\n", encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# review-cycle-*.md (review-cycle-verdict-seam-rebuild-01KZ2W7W WP18/T077):
+# a two-verdict collision must REFUSE, never blend
+# ---------------------------------------------------------------------------
+#
+# T017's discharge (see WP04's ruling, tests/architectural/census/
+# verdict_seam_IC04.yaml, and tests/architectural/test_merge_reconciliation_
+# class_guard.py::test_review_cycle_tasks_hazard_is_ruled_and_tracked): the
+# create-window split (ADR 2026-08-03-1) means a coord mission's review
+# cycles land on TWO different physical surfaces during the migration window
+# (cycle 1 on PRIMARY at ``tasks/<wp>/``, a later cycle mis-numbered "1" again
+# on COORD because ``ReviewCycleArtifact.next_cycle_number`` globs only the
+# worktree it is called from) -- so a genuine, DIFFERENT-content collision
+# under the SAME ``review-cycle-N.md`` filename is reachable, not
+# hypothetical.
+#
+# THE DESIGN DECISION (T077, weighed against FR-006 / C-002(b)):
+#
+#   (a) REFUSE fail-closed -- embed both raw verdict documents, verbatim and
+#       clearly demarcated (never interleaved/blended), and exit non-zero so
+#       ``git merge --squash -X theirs`` reports the path as an unresolved
+#       conflict (``_merge_branch_into`` then ``git merge --abort``s and
+#       raises -- the target ref is never advanced. See
+#       ``test_review_cycle_merge_driver.py``'s red-first ``_merge_branch_into``
+#       proof).
+#
+#   (b) RENUMBER -- silently reassign the incoming ("theirs") record the next
+#       free cycle number in the reconciled directory and write it out as a
+#       SECOND file, leaving ``ours`` untouched.
+#
+# This driver implements (a), not (b). Reasoning:
+#
+# * A ``review-cycle-N.md`` is a *verdict record* -- FR-001/US2's entire point
+#   is that a reader can trust the recorded verdict is the one a reviewer
+#   actually wrote, unmodified. Renumbering only touches the FILENAME/
+#   ``cycle_number`` field, never the verdict body -- but that field IS part
+#   of the record a reviewer signed off on (it is what
+#   ``latest_review_artifact_verdict`` / ``ReviewCycleArtifact.latest`` use to
+#   decide WHICH record is authoritative-latest). Silently reassigning it
+#   during an unattended squash merge changes which record downstream
+#   consumers treat as "the latest verdict" without any human present to
+#   confirm the reordering is chronologically correct -- this is the
+#   "inventing" failure mode C-002(b)/FR-006 warn about, just at the
+#   metadata layer instead of the body.
+# * The renumbering computation itself would have to trust a directory
+#   listing (``next_cycle_number``-shaped: glob + count/max) at merge time --
+#   but an unreliable directory listing THAT SPANS TWO PARTITIONS is the
+#   ROOT CAUSE of this exact hazard (create-window split). Re-deriving "next
+#   free" via the same class of mechanism that caused the collision, this
+#   time unattended inside a squash-merge subprocess with no operator able to
+#   sanity-check chronology across the split, is not clearly safer than
+#   refusing -- it just moves the same fragile assumption one layer down and
+#   removes the human check.
+# * Refusing loses NOTHING: both verdict documents survive byte-for-byte
+#   (embedded verbatim in the conflict-marked ``ours`` path, AND the
+#   incoming/mission side is untouched on its own branch since the whole
+#   squash aborts) -- satisfying FR-006's "never overwrites" literally, not
+#   just in spirit. A human resolves the actual chronology, which is exactly
+#   the judgment call an automated merge driver should not make silently.
+#
+# Identical content on both sides is NOT this collision -- it is the
+# trivial, common case (the same verdict was independently recorded/copied
+# onto both partitions) and resolves cleanly with no conflict at all.
+
+
+def merge_driver_review_cycle(
+    base_path: str = typer.Argument(..., metavar="BASE"),
+    ours_path: str = typer.Argument(..., metavar="OURS"),
+    theirs_path: str = typer.Argument(..., metavar="THEIRS"),
+) -> None:
+    """Resolve a ``review-cycle-N.md`` collision without fabricating a verdict.
+
+    Two distinct verdict documents colliding under the same filename are
+    NEVER unioned/field-merged/interleaved into one document -- see the
+    module-level design-decision comment immediately above this function for
+    the full reasoning (refuse fail-closed, not renumber).
+
+    Identical content on both sides (byte-for-byte) is the trivial fast path:
+    resolves cleanly, exit 0, never reported as a conflict. Otherwise, both
+    raw documents are embedded verbatim inside standard git-style conflict
+    markers (never blended field-by-field -- a whole-document refusal, since
+    a review verdict has no safely mergeable sub-fields the way a JSON matrix
+    row does) and the driver exits non-zero so git reports the path as an
+    unresolved conflict for a human to reconcile.
+    """
+    base, ours, theirs = _resolve_merge_driver_paths_or_exit(base_path, ours_path, theirs_path)
+    _ = base  # %O ancestor: unused -- an add/add collision has no common base,
+    # and the refuse-vs-fast-path decision is a pure 2-way (ours vs theirs)
+    # content comparison regardless of whether a base exists.
+    ours_text = ours.read_text(encoding="utf-8") if ours.exists() else ""
+    theirs_text = theirs.read_text(encoding="utf-8") if theirs.exists() else ""
+
+    if ours_text == theirs_text:
+        # Trivial fast path (T077 validation checklist): the same verdict
+        # landed on both partitions -- not a conflict, nothing to reconcile.
+        ours.write_text(ours_text, encoding="utf-8")
+        return
+
+    conflict_document = "\n".join(
+        (
+            _CONFLICT_MARKER_OURS,
+            ours_text,
+            _CONFLICT_MARKER_SEP,
+            theirs_text,
+            _CONFLICT_MARKER_THEIRS,
+        )
+    )
+    ours.write_text(conflict_document, encoding="utf-8")
+    typer.echo(
+        f"refusing to auto-resolve review-cycle verdict collision at {ours.name}: "
+        "two distinct verdict records collided under one filename (T017/T077 "
+        "create-window hazard); conflict markers written, resolve manually -- "
+        "never fabricating a merged verdict",
+        err=True,
+    )
+    raise typer.Exit(1)
