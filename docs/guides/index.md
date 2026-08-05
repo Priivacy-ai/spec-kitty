@@ -49,6 +49,7 @@ related:
 - [Manage AI agents](manage-agents.md), [switch missions](switch-missions.md),
   [sync workspaces](sync-workspaces.md).
 - [Start an ad-hoc specialist session](adhoc-specialist-session.md).
+- [When to use Spec-Kitty modes](when-to-use-modes.md).
 - [Build a custom orchestrator](build-custom-orchestrator.md), [run the
   external orchestrator](run-external-orchestrator.md).
 - [Keep MCP agents in the worktree](worktrees-with-mcp-agents.md).
