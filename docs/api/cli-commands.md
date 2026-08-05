@@ -371,8 +371,12 @@ _Charter bundle validation commands._
 │                                               action grain is typeless and   │
 │                                               never inherits software-dev    │
 │                                               (#883).                        │
-│ --json                                        Output JSON. `directives` is   │
-│                                               action-scoped;                 │
+│ --json                                        Output JSON.                   │
+│                                               `context_schema_version`       │
+│                                               stamps the top-level payload   │
+│                                               shape (#2787, tracking         │
+│                                               contract -- not yet frozen).   │
+│                                               `directives` is action-scoped; │
 │                                               `all_directives` and           │
 │                                               `project_charter` describe the │
 │                                               project-local charter, while   │
@@ -611,16 +615,30 @@ _Charter pack management commands._
  explicitly authored) is left untouched unless ``--force`` is passed, in
  which case every key the pack declares is overwritten.
 
+ Pass ``--compile`` to also chain the existing compile seam
+ (``spec-kitty charter generate --no-from-interview``) so
+ ``.kittify/charter/charter.yaml`` is produced in the same step. That
+ flag requires a git repository (inherited from ``generate``); the
+ default merge (no ``--compile``) stays a pure, git-agnostic additive
+ merge (C-004).
+
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    name      TEXT  Built-in pack name to apply (e.g. 'default',            │
 │                      'minimal').                                             │
 │                      [required]                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --force            Overwrite activation keys already present in config.yaml  │
-│                    (default: leave them untouched).                          │
-│ --json             Output as JSON.                                           │
-│ --help   -h        Show this message and exit.                               │
+│ --force              Overwrite activation keys already present in            │
+│                      config.yaml (default: leave them untouched).            │
+│ --compile            Also compile the merged activation into                 │
+│                      .kittify/charter/charter.yaml by chaining the existing  │
+│                      `spec-kitty charter generate --no-from-interview` seam  │
+│                      (no new compiler is introduced). Requires a git         │
+│                      repository -- inherits `charter generate`'s             │
+│                      git-worktree requirement. The default merge (without    │
+│                      this flag) stays git-agnostic.                          │
+│ --json               Output as JSON.                                         │
+│ --help     -h        Show this message and exit.                             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -799,7 +817,7 @@ _Charter pack management commands._
  2. ``.kittify/doctrine/PROVENANCE.md`` — human-readable record of the
     fresh-project seed path, citing #839.
 
- The runtime falls back to the built-in doctrine (``src/doctrine/``) for
+ The runtime falls back to the built-in doctrine (``packs/built-in/``) for
  all artifact lookups until the harness writes per-target YAML and the
  operator re-runs ``synthesize`` (which then takes the normal adapter
  path). The fresh-project path is **idempotent**: re-running produces
@@ -1114,38 +1132,42 @@ _Project health diagnostics_
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ command-files       Check all agent command files for correctness.           │
-│ skills              Check command-skill manifest drift for Codex, Vibe, Pi,  │
-│                     and Letta.                                               │
-│ tool-surfaces       Audit (and optionally repair) every configured tool      │
-│                     surface.                                                 │
-│ state-roots         Show state roots, surface classification, and safety     │
-│                     warnings.                                                │
-│ workspaces          Report .worktrees/ husk directories (entries lacking a   │
-│                     .git entry).                                             │
-│ identity            Report mission-identity health across kitty-specs/.      │
-│ topology            Report each mission's STORED topology across             │
-│                     kitty-specs/.                                            │
-│ sparse-checkout     Detect and optionally remediate legacy sparse-checkout   │
-│                     state.                                                   │
-│ shim-registry       Check for overdue compatibility shims in the shim        │
-│                     registry.                                                │
-│ contracts           Validate the Contract Registry for well-formedness.      │
-│ invocation-pairing  List orphan profile-invocation lifecycle records.        │
-│ ops                 List orphan Op records; --close-stale sweeps stale ones  │
-│                     closed as abandoned.                                     │
-│ orphan-daemons      List orphan daemon owner records and emit retirement     │
-│                     hints.                                                   │
-│ restart-daemon      Stop the registered sync daemon and respawn it at the    │
-│                     foreground.                                              │
-│ mission-state       Audit, repair, or TeamSpace-validate mission-state       │
-│                     shapes.                                                  │
-│ doctrine            Check org doctrine snapshot status and list installed    │
-│                     pack artifacts.                                          │
-│ coordination        Run the WP04 #1348 coordination + sparse-checkout health │
-│                     checks.                                                  │
-│ cutover             Audit every mission's cut-over status outside CI         │
-│                     (FR-007).                                                │
+│ command-files           Check all agent command files for correctness.       │
+│ skills                  Check command-skill manifest drift for Codex, Vibe,  │
+│                         Pi, and Letta.                                       │
+│ tool-surfaces           Audit (and optionally repair) every configured tool  │
+│                         surface.                                             │
+│ state-roots             Show state roots, surface classification, and safety │
+│                         warnings.                                            │
+│ workspaces              Report .worktrees/ husk directories (entries lacking │
+│                         a .git entry).                                       │
+│ identity                Report mission-identity health across kitty-specs/.  │
+│ topology                Report each mission's STORED topology across         │
+│                         kitty-specs/.                                        │
+│ sparse-checkout         Detect and optionally remediate legacy               │
+│                         sparse-checkout state.                               │
+│ shim-registry           Check for overdue compatibility shims in the shim    │
+│                         registry.                                            │
+│ contracts               Validate the Contract Registry for well-formedness.  │
+│ invocation-pairing      List orphan profile-invocation lifecycle records.    │
+│ ops                     List orphan Op records; --close-stale sweeps stale   │
+│                         ones closed as abandoned.                            │
+│ orphan-daemons          List orphan daemon owner records and emit retirement │
+│                         hints.                                               │
+│ restart-daemon          Stop the registered sync daemon and respawn it at    │
+│                         the foreground.                                      │
+│ mission-state           Audit, repair, or TeamSpace-validate mission-state   │
+│                         shapes.                                              │
+│ doctrine                Check org doctrine snapshot status and list          │
+│                         installed pack artifacts.                            │
+│ coordination            Run the WP04 #1348 coordination + sparse-checkout    │
+│                         health checks.                                       │
+│ cutover                 Audit every mission's cut-over status outside CI     │
+│                         (FR-007).                                            │
+│ review-cycle-reconcile  Find review-cycle / arbiter-override records         │
+│                         stranded under a retired                             │
+│                         resolver path, ahead of WP13's consumer-unification  │
+│                         (FR-008).                                            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1462,6 +1484,39 @@ _Project health diagnostics_
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Emit a single JSON object instead of human-readable text.  │
 │ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctor review-cycle-reconcile
+
+```
+ Usage: spec-kitty doctor review-cycle-reconcile [OPTIONS]
+
+ Find review-cycle / arbiter-override records stranded under a retired resolver
+ path, ahead of WP13's consumer-unification (FR-008).
+
+ Every retired resolver comes from this mission's own verdict-seam census
+ fragment (``tests/architectural/census/verdict_seam_IC08.yaml``), not a
+ guessed set. Reports two DISTINCT stranded classes per finding: a
+ deleted-coordination-branch mission (absorbed to PRIMARY, the measured
+ 45-mission corpus) and a live-coordination-branch mission still carrying a
+ pre-ADR PRIMARY record. Never a bare count — every finding names its
+ mission, WP, retired resolver, and resolved directory.
+
+ Informational only: always exits 0. No ``--fix`` — a stranded record may
+ have a legitimate divergent sibling, and this command does not pick a
+ winner.
+
+ Examples:
+     spec-kitty doctor review-cycle-reconcile
+     spec-kitty doctor review-cycle-reconcile --mission my-mission-01ABCD
+     spec-kitty doctor review-cycle-reconcile --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --mission          TEXT  Scope to a single mission (mission_id / mid8 /      │
+│                          slug)                                               │
+│ --json                   Machine-readable JSON output                        │
+│ --help     -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1929,7 +1984,8 @@ _Validate or assemble doctrine packs._
  Regenerate the shipped DRG graph source deterministically (FR-009).
 
  Composes the DRG extractor + calibrator into per-populated-node-kind
- ``src/doctrine/*.graph.yaml`` fragments (sharded per mission #2680 WP05),
+ ``packs/built-in/*.graph.yaml`` fragments (sharded per mission #2680 WP05;
+ relocated from ``src/doctrine/`` by the pack flatten),
  retiring the legacy ``graph.yaml`` monolith in the same write. Running twice
  on unchanged inputs yields byte-identical fragments. With ``--check`` the
  command never writes: it regenerates into a temp directory and compares the
@@ -1949,7 +2005,7 @@ _Validate or assemble doctrine packs._
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --check            Do not write; regenerate into a temp directory and        │
 │                    compare the per-kind graph fragments against the          │
-│                    committed src/doctrine source. Exit 1 when stale          │
+│                    committed packs/built-in source. Exit 1 when stale        │
 │                    (operator-runnable freshness gate). Exit 0 when fresh.    │
 │ --json             Emit machine-readable JSON instead of rich text.          │
 │ --help   -h        Show this message and exit.                               │
