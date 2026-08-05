@@ -1155,30 +1155,6 @@ _CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
 )
 
 
-# ---------- C. Context-contract schema-freshness pin (#3161) ----------
-# ``charter.context_contract::CONTEXT_CONTRACT_TOP_LEVEL_KEYS`` is a
-# versioned tracking contract for the ``charter context --json`` top-level
-# payload shape (#2787), per the module's own docstring: it is deliberately
-# a test-side freshness pin, not runtime API. Its only consumer is
-# ``tests/charter/test_context_schema_version_ledger.py``, which asserts the
-# key set emitted by ``build_charter_context_json`` still matches this
-# ledger -- a legitimate use this gate does not credit (test-only callers
-# never satisfy it by design). Same shape as the existing
-# ``specify_cli.sync.migrate_journal::MIGRATION_NOTE`` precedent in this
-# allowlist: a documented public constant with no ``src/``-side importer.
-# Not wired to a runtime caller (none exists), not removed from ``__all__``
-# (it is the documented external contract surface for #2787), not deleted
-# (actively maintained per the module's "maintenance rule"). Follow-up
-# tracker: Priivacy-ai/spec-kitty#3161.
-
-_CATEGORY_C_CONTEXT_CONTRACT_SCHEMA_PIN: frozenset[SymbolKey] = frozenset(
-    {
-        # charter.context_contract::CONTEXT_CONTRACT_TOP_LEVEL_KEYS
-        SymbolKey("CONTEXT_CONTRACT_TOP_LEVEL_KEYS", "637ab6307f841f6bdb24a0fae79f8e3f77636c5b95ec7e266667bc2a89326abe"),
-    }
-)
-
-
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``). Entries are
@@ -1210,7 +1186,6 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED
     | _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841
     | _CATEGORY_C_DELIVERY_RAIL_FORWARD_API
-    | _CATEGORY_C_CONTEXT_CONTRACT_SCHEMA_PIN
 )
 
 
