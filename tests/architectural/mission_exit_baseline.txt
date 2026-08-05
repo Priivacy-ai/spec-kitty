@@ -27,8 +27,13 @@
 # (research/baseline-8466727eb.md, measured at merge-base 8466727eb) named
 # as failing -- #3157 and #3160 -- now PASS; see that document's dated
 # mission-exit section for the reconciliation.
+#
+# 2026-08-05 REBASE RE-ANCHOR: regenerated against upstream/main after the
+# mission was rebased onto it. Collected count 2886 (was 2877 at 8466727eb);
+# the delta reflects main's own test additions/relocations (e.g. the #2996
+# reproductions now live in tests/regression/test_issue_2996_*.py). Floor
+# re-anchored to current main per NFR-001's merge-base rule.
 tests/integration/test_ac5_hash_guard.py::test_ac5_hash_stable_across_driven_lifecycle_with_proof_of_drive
-tests/integration/test_review_cycle_rejection_only.py::test_approving_a_rejected_wp_writes_no_verdict_artifact
 tests/integration/test_review_cycle_rejection_only.py::test_review_cycle_counter_advances_only_on_real_rejection
 tests/integration/test_review_cycle_rejection_only.py::test_two_rejections_produce_two_distinct_artifacts
 tests/integration/test_wp_file_hash_stability.py::test_move_task_writer_cut_leaves_wp_file_and_tasks_md_byte_stable
@@ -507,6 +512,12 @@ tests/review/test_verdict_aggregation.py::test_single_terminal_is_hard_stop_rega
 tests/review/test_verdict_aggregation.py::test_single_terminal_is_hard_stop_regardless_of_block_or_force[True-True-cancelled]
 tests/review/test_verdict_aggregation.py::test_single_terminal_is_hard_stop_regardless_of_block_or_force[True-True-timed_out]
 tests/review/test_verdict_aggregation.py::test_warnings_preserve_dispatch_order_and_do_not_resort
+tests/specify_cli/cli/commands/agent/test_2684_force_provenance.py::test_evidence_gated_backward_edge_persists_force_free[approved-planned]
+tests/specify_cli/cli/commands/agent/test_2684_force_provenance.py::test_evidence_gated_backward_edge_persists_force_free[in_progress-planned]
+tests/specify_cli/cli/commands/agent/test_2684_force_provenance.py::test_evidence_gated_backward_edge_persists_force_free[in_review-in_progress]
+tests/specify_cli/cli/commands/agent/test_2684_force_provenance.py::test_evidence_gated_backward_edge_persists_force_free[in_review-planned]
+tests/specify_cli/cli/commands/agent/test_2684_force_provenance.py::test_genuine_force_leaving_done_persists_force_truthy
+tests/specify_cli/cli/commands/agent/test_2684_force_provenance.py::test_wp02_window_edges_persist_force_truthy[approved-in_progress]
 tests/specify_cli/cli/commands/agent/test_check_unchecked_subtasks_snapshot_source.py::test_empty_authored_roster_is_nothing_to_block_on
 tests/specify_cli/cli/commands/agent/test_check_unchecked_subtasks_snapshot_source.py::test_fail_closed_when_snapshot_silent
 tests/specify_cli/cli/commands/agent/test_check_unchecked_subtasks_snapshot_source.py::test_gate_follows_snapshot_complete_over_unchecked_markdown
@@ -580,6 +591,8 @@ tests/specify_cli/cli/commands/agent/test_implement_single_resolution.py::test_a
 tests/specify_cli/cli/commands/agent/test_implement_single_resolution.py::test_create_then_consume_resolved_context_no_no_workspace_error
 tests/specify_cli/cli/commands/agent/test_implement_single_resolution.py::test_husk_workspace_is_blocked_not_recreated
 tests/specify_cli/cli/commands/agent/test_implement_single_resolution.py::test_unmaterialized_after_create_raises_structured_error
+tests/specify_cli/cli/commands/agent/test_issue_2684_subtask_completion_event_sourced.py::test_control_move_to_for_review_refused_when_subtasks_genuinely_incomplete
+tests/specify_cli/cli/commands/agent/test_issue_2684_subtask_completion_event_sourced.py::test_move_to_for_review_honors_log_recorded_subtask_completion
 tests/specify_cli/cli/commands/agent/test_issue_verdict_command.py::TestCliWiring::test_registered_on_the_agent_app_and_writes_json_envelope
 tests/specify_cli/cli/commands/agent/test_issue_verdict_command.py::TestCoordAwareReadSurface::test_reads_the_coord_surface_when_topology_routes_there
 tests/specify_cli/cli/commands/agent/test_issue_verdict_command.py::TestDoIssueVerdictSetsVerdict::test_bare_digits_issue_ref_is_normalized_with_hash_prefix
@@ -1213,6 +1226,7 @@ tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py::test_guard_sy
 tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py::test_guard_symbol_is_genuinely_native_to_its_seam[tasks_move_task._mt_resolve_feedback]
 tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py::test_guard_symbol_is_genuinely_native_to_its_seam[tasks_move_task._mt_resolve_gate_baseline]
 tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py::test_guard_symbol_is_genuinely_native_to_its_seam[tasks_move_task._mt_resolve_pre_review_workspace]
+tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py::test_guard_symbol_is_genuinely_native_to_its_seam[tasks_move_task._mt_resolve_reviewer_identity]
 tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py::test_guard_symbol_is_genuinely_native_to_its_seam[tasks_move_task._mt_resolve_scope_source]
 tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py::test_guard_symbol_is_genuinely_native_to_its_seam[tasks_move_task._mt_resolve_targets]
 tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py::test_guard_symbol_is_genuinely_native_to_its_seam[tasks_move_task._mt_resolve_transition_gate_inputs]
@@ -1373,6 +1387,7 @@ tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py::test_tasks_bi
 tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py::test_tasks_binding_is_seam_object[tasks_move_task._mt_resolve_feedback]
 tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py::test_tasks_binding_is_seam_object[tasks_move_task._mt_resolve_gate_baseline]
 tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py::test_tasks_binding_is_seam_object[tasks_move_task._mt_resolve_pre_review_workspace]
+tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py::test_tasks_binding_is_seam_object[tasks_move_task._mt_resolve_reviewer_identity]
 tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py::test_tasks_binding_is_seam_object[tasks_move_task._mt_resolve_scope_source]
 tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py::test_tasks_binding_is_seam_object[tasks_move_task._mt_resolve_targets]
 tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py::test_tasks_binding_is_seam_object[tasks_move_task._mt_resolve_transition_gate_inputs]
