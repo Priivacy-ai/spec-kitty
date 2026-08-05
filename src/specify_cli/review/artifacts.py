@@ -26,6 +26,57 @@ TERMINAL_REVIEW_LANES = frozenset({"approved", "done"})
 REVIEW_ARTIFACT_VERDICTS = frozenset({"approved", "rejected"})
 
 
+_REVIEW_CYCLE_NUMBER_RE = re.compile(r"review-cycle-(\d+)\.md$")
+
+
+def _parse_review_cycle_candidates(sub_artifact_dir: Path) -> tuple[list[int], list[str]]:
+    """Parse ``review-cycle-*.md`` siblings into cycle numbers, for T032/T033.
+
+    Returns a tuple of (parsed cycle numbers, unparseable filenames). A
+    filename is "unparseable" when it matches the ``review-cycle-*.md`` glob
+    but not the strict ``review-cycle-(\\d+)\\.md$`` numbering regex (e.g.
+    ``review-cycle-final.md``). Used only by :meth:`ReviewCycleArtifact.
+    next_cycle_number` — deliberately NOT shared with :func:`_cycle_number_or_zero`
+    (WP13/T058's consolidation of the two former ``latest()``/
+    ``latest_review_artifact_verdict`` closures), which answers a different
+    question ("highest currently readable artifact", where an unparseable
+    sibling correctly sorts as `0`) under different, already-shipped refusal
+    semantics — this function's REFUSAL on an unparseable sibling must not
+    leak into that helper's tolerant sort.
+    """
+    parsed_numbers: list[int] = []
+    unparseable_names: list[str] = []
+    for candidate in sub_artifact_dir.glob("review-cycle-*.md"):
+        match = _REVIEW_CYCLE_NUMBER_RE.search(candidate.name)
+        if match is None:
+            unparseable_names.append(candidate.name)
+        else:
+            parsed_numbers.append(int(match.group(1)))
+    return parsed_numbers, unparseable_names
+
+
+def _cycle_number_or_zero(path: Path) -> int:
+    """Sort key answering "what cycle number does *path* look like it is",
+    where an unparseable ``review-cycle-*.md`` sibling sorts as ``0`` (i.e.
+    lowest, never masking a genuinely higher-numbered readable artifact).
+
+    WP13 (T058) consolidation: this was two byte-identical inline closures,
+    one each inside :meth:`ReviewCycleArtifact.latest` and
+    :func:`latest_review_artifact_verdict`. Both answer the SAME question
+    ("highest currently-*readable* artifact") and are consolidated here.
+    Deliberately NOT merged with :func:`_parse_review_cycle_candidates`
+    (used only by :meth:`ReviewCycleArtifact.next_cycle_number`), which
+    answers a DIFFERENT question ("is it safe to allocate the next cycle
+    number") under different, already-shipped refusal semantics (WP09) — an
+    unparseable sibling REFUSES there, it does not sort as `0`. Leaking that
+    refusal semantic into this helper would change `latest()`'s answer for
+    already-passing callers; this helper's behaviour is unchanged from the
+    two closures it replaces.
+    """
+    match = _REVIEW_CYCLE_NUMBER_RE.search(path.name)
+    return int(match.group(1)) if match else 0
+
+
 def _make_yaml() -> YAML:
     """Create a configured ruamel.yaml instance for frontmatter serialization."""
     yaml = YAML()
@@ -287,21 +338,48 @@ class ReviewCycleArtifact:
         if not candidates:
             return None
 
-        def _cycle_num(p: Path) -> int:
-            m = re.search(r"review-cycle-(\d+)\.md$", p.name)
-            return int(m.group(1)) if m else 0
-
-        candidates.sort(key=_cycle_num)
+        candidates.sort(key=_cycle_number_or_zero)
         return ReviewCycleArtifact.from_file(candidates[-1])
 
     @staticmethod
     def next_cycle_number(sub_artifact_dir: Path) -> int:
         """Return the next cycle number for a new artifact in *sub_artifact_dir*.
 
-        Returns 1 if no review-cycle-*.md files exist.
+        Derives the result as ``max(parsed cycle numbers) + 1`` — never a count
+        of files present (FR-006 / I-2) — so a numbering gap (e.g. cycles 1 and
+        3 present, 2 missing) cannot produce a number that collides with an
+        existing artifact. Returns 1 if no review-cycle-*.md files exist.
+
+        Raises:
+            ValueError: if any sibling filename matches the
+                ``review-cycle-*.md`` glob but cannot be parsed for its cycle
+                number under the strict ``review-cycle-(\\d+)\\.md$`` regex —
+                the true next number cannot be established with confidence
+                while such a file is present, so this refuses rather than
+                silently excluding it from the derivation (which would
+                reproduce the identical defect one level down). Also raised
+                (defensively) if the derived next number already names a file
+                that exists on disk.
         """
-        candidates = list(sub_artifact_dir.glob("review-cycle-*.md"))
-        return len(candidates) + 1
+        parsed_numbers, unparseable_names = _parse_review_cycle_candidates(
+            sub_artifact_dir
+        )
+        if unparseable_names:
+            raise ValueError(
+                f"Cannot determine next cycle number in {sub_artifact_dir}: "
+                "unparseable review-cycle filename(s): "
+                f"{', '.join(sorted(unparseable_names))}"
+            )
+        if not parsed_numbers:
+            return 1
+        next_number = max(parsed_numbers) + 1
+        collision_path = sub_artifact_dir / f"review-cycle-{next_number}.md"
+        if collision_path.exists():
+            raise ValueError(
+                f"Cannot allocate cycle number {next_number} in "
+                f"{sub_artifact_dir}: {collision_path.name} already exists"
+            )
+        return next_number
 
 
 def latest_review_artifact_verdict(
@@ -330,11 +408,7 @@ def latest_review_artifact_verdict(
     if not candidates:
         return None
 
-    def _cycle_num(p: Path) -> int:
-        m = re.search(r"review-cycle-(\d+)\.md$", p.name)
-        return int(m.group(1)) if m else 0
-
-    candidates.sort(key=_cycle_num)
+    candidates.sort(key=_cycle_number_or_zero)
     path = candidates[-1]
     artifact = ReviewCycleArtifact.from_file(path)
     snapshot_complete = snapshot_override is not None and snapshot_override.complete

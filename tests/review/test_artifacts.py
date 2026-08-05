@@ -6,6 +6,7 @@ Coverage target: 90%+ for src/specify_cli/review/artifacts.py
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -16,6 +17,7 @@ from specify_cli.review.artifacts import (
     latest_review_artifact_verdict,
     rejected_review_artifact_for_terminal_lane,
 )
+from specify_cli.review.cycle import create_rejected_review_cycle
 
 pytestmark = pytest.mark.git_repo
 
@@ -25,7 +27,7 @@ pytestmark = pytest.mark.git_repo
 # ---------------------------------------------------------------------------
 
 def _sample_artifact(**kwargs: object) -> ReviewCycleArtifact:
-    defaults: dict = {
+    defaults: dict[str, Any] = {
         "cycle_number": 1,
         "wp_id": "WP01",
         "mission_slug": "066-review-loop-stabilization",
@@ -42,7 +44,7 @@ def _sample_artifact(**kwargs: object) -> ReviewCycleArtifact:
         "body": "## Feedback\n\nPlease fix the issues.",
     }
     defaults.update(kwargs)
-    return ReviewCycleArtifact(**defaults)  # type: ignore[arg-type]
+    return ReviewCycleArtifact(**defaults)
 
 
 # ---------------------------------------------------------------------------
@@ -389,3 +391,99 @@ def test_incomplete_override_still_flags_rejected_terminal_lane(tmp_path: Path) 
     flagged = rejected_review_artifact_for_terminal_lane(tmp_path, "approved")
     assert flagged is not None
     assert flagged.verdict == "rejected"
+
+
+# ---------------------------------------------------------------------------
+# WP09 (FR-006 / I-2): next_cycle_number must derive from the numbers actually
+# on disk (max(parsed) + 1), never a count of files present. A numbering gap
+# (e.g. cycles 1 and 3 present, 2 missing) must not produce a colliding
+# number, and an unparseable sibling must be a hard refusal, not a silent
+# skip that falls back to max() over only the parseable candidates.
+# ---------------------------------------------------------------------------
+
+def test_next_cycle_number_survives_a_numbering_gap(tmp_path: Path) -> None:
+    """FR-006 reproduction: cycles 1 and 3 present must derive next = 4.
+
+    ``len(candidates) + 1`` (the pre-fix behavior) returns 3 here, colliding
+    with the live ``review-cycle-3.md``. This test was run against the
+    unmodified ``next_cycle_number`` and observed failing with 3 before
+    T032/T033 landed (see WP09's Activity Log for the verbatim output).
+    """
+    (tmp_path / "review-cycle-1.md").write_text("---\n---\n", encoding="utf-8")
+    (tmp_path / "review-cycle-3.md").write_text("---\n---\n", encoding="utf-8")
+
+    assert ReviewCycleArtifact.next_cycle_number(tmp_path) == 4
+
+
+def test_next_cycle_number_refuses_on_unparseable_sibling(tmp_path: Path) -> None:
+    """A sibling matching the glob but not the strict numbering regex must
+    refuse, naming the offending filename — not be silently excluded from
+    max(), which would reproduce the identical defect one level down.
+    """
+    (tmp_path / "review-cycle-1.md").write_text("---\n---\n", encoding="utf-8")
+    (tmp_path / "review-cycle-garbage.md").write_text("---\n---\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match=r"review-cycle-garbage\.md"):
+        ReviewCycleArtifact.next_cycle_number(tmp_path)
+
+
+def test_next_cycle_number_empty_directory_still_returns_one(tmp_path: Path) -> None:
+    """Backward-compatibility regression: the zero-candidate case is unchanged
+    by the max(parsed) + 1 rewrite."""
+    assert ReviewCycleArtifact.next_cycle_number(tmp_path) == 1
+
+
+def test_next_cycle_number_refuses_when_derived_number_already_exists(
+    tmp_path: Path,
+) -> None:
+    """Defensive collision guard: even if the parse step reports only cycle 1
+    (e.g. a concurrent writer added review-cycle-2.md between the parse and
+    the existence check), a derived number that already exists on disk must
+    still refuse rather than silently colliding with the live file.
+    """
+    (tmp_path / "review-cycle-1.md").write_text("---\n---\n", encoding="utf-8")
+    (tmp_path / "review-cycle-2.md").write_text("---\n---\n", encoding="utf-8")
+
+    with (
+        patch(
+            "specify_cli.review.artifacts._parse_review_cycle_candidates",
+            return_value=([1], []),
+        ),
+        pytest.raises(ValueError, match=r"review-cycle-2\.md"),
+    ):
+        ReviewCycleArtifact.next_cycle_number(tmp_path)
+
+
+def test_create_rejected_review_cycle_survives_a_numbering_gap(tmp_path: Path) -> None:
+    """Integration (FR-006 / SC-002): with cycles 1 and 3 present, recording a
+    new verdict lands at review-cycle-4.md and does not touch cycle 3 — its
+    bytes are read before and after the operation and compared byte-for-byte.
+    """
+    repo = tmp_path / "repo"
+    artifact_dir = repo / "kitty-specs" / "001-mission" / "tasks" / "WP01-core"
+    artifact_dir.mkdir(parents=True)
+    _sample_artifact(cycle_number=1, body="cycle 1 verdict content").write(
+        artifact_dir / "review-cycle-1.md"
+    )
+    _sample_artifact(cycle_number=3, body="cycle 3 verdict content").write(
+        artifact_dir / "review-cycle-3.md"
+    )
+    cycle_3_path = artifact_dir / "review-cycle-3.md"
+    cycle_3_bytes_before = cycle_3_path.read_bytes()
+
+    feedback = tmp_path / "feedback.md"
+    feedback.write_text("**Issue**: still broken after cycle 3.\n", encoding="utf-8")
+
+    created = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug="001-mission",
+        wp_id="WP01",
+        wp_slug="WP01-core",
+        feedback_source=feedback,
+        reviewer_agent="codex",
+    )
+
+    assert created.artifact_path == artifact_dir / "review-cycle-4.md"
+    assert created.artifact_path.exists()
+    cycle_3_bytes_after = cycle_3_path.read_bytes()
+    assert cycle_3_bytes_after == cycle_3_bytes_before
