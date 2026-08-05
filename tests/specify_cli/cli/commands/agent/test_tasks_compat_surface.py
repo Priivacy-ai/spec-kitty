@@ -261,6 +261,11 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2); grown to 75 via WP09, +1 
     "_mt_pre_review_scope_override",
     "_pre_review_gate_filter_groups",
     "_pre_review_gate_composite_routing",
+    # fix(review) (2026-08-05): the --reviewer resolution shared by the
+    # rejected review-cycle artifact's frontmatter and the structured
+    # ReviewResult derivation is a native move-task seam def and therefore
+    # joins the compat surface like every other one (77 -> 78).
+    "_mt_resolve_reviewer_identity",
 )
 
 _TASKS_MARK_STATUS: tuple[str, ...] = (  # WP08 (wave2) — 13 symbols
@@ -499,5 +504,9 @@ def test_guard_covers_full_142_symbol_surface() -> None:
     checkbox, a shape none of the four legacy resolvers matched — and
     ``owning_wp_from_authored_roster``, the owning-WP helper its two
     event-emit call sites share with it (tasks_mark_status 13 -> 15):
-    157 -> 159."""
-    assert len(SYMBOL_TO_MODULE) == 159  # golden-count: cardinality-is-contract
+    157 -> 159. fix(review) (2026-08-05, CI-remediation fold on PR #3204) added
+    ``_mt_resolve_reviewer_identity`` — the shared --reviewer/--agent/actor
+    resolution the rejected review-cycle artifact and the structured
+    ReviewResult derivation both call — a native move-task seam def
+    (tasks_move_task 77 -> 78): 159 -> 160."""
+    assert len(SYMBOL_TO_MODULE) == 160  # golden-count: cardinality-is-contract
