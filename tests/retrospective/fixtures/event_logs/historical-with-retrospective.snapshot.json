@@ -21,14 +21,16 @@
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KS049J4V9CSWBKJHTY2FB008",
-      "last_transition_at": "2026-05-01T09:45:00+00:00"
+      "last_transition_at": "2026-05-01T09:45:00+00:00",
+      "review_result": null
     },
     "WP02": {
       "actor": "runtime",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KS049J4V9CSWBKJHTY2FB012",
-      "last_transition_at": "2026-05-01T10:15:00+00:00"
+      "last_transition_at": "2026-05-01T10:15:00+00:00",
+      "review_result": null
     }
   },
   "retrospective": {
