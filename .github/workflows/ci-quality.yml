@@ -1634,8 +1634,6 @@ jobs:
     if: >-
       always()
       && (needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.execution_context == 'true' || needs.changes.outputs.glossary == 'true' || needs.changes.outputs.acceptance == 'true' || needs.changes.outputs.auth_audit_git == 'true' || needs.changes.outputs.lifecycle == 'true' || needs.changes.outputs.agent_surface == 'true' || needs.changes.outputs.closeout == 'true' || needs.changes.outputs.governance == 'true' || needs.changes.outputs.platform == 'true' || github.event_name == 'push')
-      && needs.kernel-tests.result != 'failure'
-      && needs.fast-tests-doctrine.result != 'failure'
     strategy:
       fail-fast: false
       matrix:
