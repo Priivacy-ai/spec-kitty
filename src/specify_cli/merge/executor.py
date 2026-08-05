@@ -1260,13 +1260,26 @@ def _flatten_coordination_metadata_after_branch_delete(run: _MergeRunState) -> N
     now-stale ``topology`` + record ``flattened=True``. It reuses those existing
     primitives rather than inventing a new mechanism.
 
-    Ordering matters. This runs AFTER the lane/mission branches were merged into
-    the target: the spec-kitty-meta merge driver treats ``coordination_branch``
-    as a *theirs-authoritative* planning key (``merge/merge_driver.py``), so any
-    earlier clear would be re-populated by driver reconciliation. Running here
-    makes this clear the last writer, so it wins. The edit is persisted through
-    the same protected-flow bookkeeping-commit seam the merge uses for its other
-    meta.json mutations, so the merged target branch is not left dirty.
+    Placement & ordering. This lives in the ``delete_branch`` gate, co-located
+    with the branch deletion, so the marker is cleared **iff** the branch it
+    names is deleted — the two mutations stay atomic. It is deliberately NOT
+    folded into the earlier, unconditional ``_phase_commit_and_assert``: doing so
+    would (a) require duplicating this gate's ``delete_branch`` guard into a phase
+    that must stay unconditional, and (b) clear the marker *before* the branch is
+    deleted, so a failed deletion would strand the inverse inconsistency (a
+    cleared marker with a still-live branch). It still runs after the lane->target
+    merge-driver reconciliation (which treats ``coordination_branch`` as a
+    *theirs-authoritative* planning key, ``merge/merge_driver.py``), so the clear
+    is the last writer regardless.
+
+    The edit is persisted through the same protected-flow bookkeeping-commit seam
+    the merge uses for its other meta.json mutations. A commit failure here is
+    logged and swallowed (fail-open), never raised: this runs in the post-push
+    cleanup phase, the on-disk flatten has already cleared ``coordination_branch``
+    (so #3086 stays fixed), and aborting an otherwise-complete merge — or
+    restoring the pre-flatten snapshot, which would re-strand the marker — is
+    worse than a locally-dirty meta.json (recoverable via
+    ``spec-kitty doctor coordination --fix``).
 
     A non-coord Mission (``SINGLE_BRANCH`` / ``LANES``) or an already-flattened
     one carries no ``coordination_branch`` key, so this is an idempotent no-op
@@ -1293,7 +1306,15 @@ def _flatten_coordination_metadata_after_branch_delete(run: _MergeRunState) -> N
     write_meta(feature_dir, meta, validate=False)
 
     meta_path = feature_dir / "meta.json"
-    if _paths_have_status_changes(run.main_repo, [meta_path]):
+    if not _paths_have_status_changes(run.main_repo, [meta_path]):
+        return
+
+    # Fail-open, unlike ``_phase_commit_and_assert``'s restore-and-reraise: the
+    # on-disk flatten already cleared ``coordination_branch`` (so #3086 stays
+    # fixed even if the commit does not land), and restoring the pre-flatten
+    # snapshot would re-strand the marker. A recovered commit (``commit_sha`` set)
+    # actually landed and is a success; every other failure is logged, not raised.
+    try:
         commit_merge_bookkeeping(
             repo_root=run.main_repo,
             worktree_root=run.main_repo,
@@ -1304,6 +1325,24 @@ def _flatten_coordination_metadata_after_branch_delete(run: _MergeRunState) -> N
                 f"after branch deletion (#3086)"
             ),
             paths=(meta_path,),
+        )
+    except SafeCommitRecoveryFailed as exc:
+        if exc.commit_sha is None:
+            logger.warning(
+                "Flatten bookkeeping commit did not land for %s (%s); meta.json is "
+                "flattened on disk but may be uncommitted — recover with "
+                "`spec-kitty doctor coordination --fix`",
+                run.mission_slug,
+                exc,
+            )
+    except Exception as exc:
+        # Fail-open: never abort a completed merge for a bookkeeping-commit failure.
+        logger.warning(
+            "Flatten bookkeeping commit failed for %s (%s); meta.json is flattened "
+            "on disk but may be uncommitted — recover with "
+            "`spec-kitty doctor coordination --fix`",
+            run.mission_slug,
+            exc,
         )
 
 
