@@ -872,8 +872,13 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md
 - path: docs/adr/3.x/2026-08-03-1-review-cycle-artifacts-are-coord-partition.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md
   tag: current
   divio_type: none
   owning_workstream: none
