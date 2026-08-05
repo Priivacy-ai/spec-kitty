@@ -8233,6 +8233,7 @@ pages:
     - {slug: "why-family-e-is-inert-measured-not-assumed-wp08-helper-r-1", text: "Why Family E is INERT — measured, not assumed (WP08 helper, R-1)", level: 3}
     - {slug: "composition-ledger-nfr-004-family-e-3063-analysis-terminology-reasons-canvas-family", text: "Composition ledger (NFR-004) — Family E (#3063 ANALYSIS / TERMINOLOGY / REASONS-CANVAS family)", level: 2}
     - {slug: "family-f-3063-orphan-governance-directives-operator-interview-outcome-accept-no-edges-authored", text: "Family F (#3063 ORPHAN GOVERNANCE DIRECTIVES) — operator interview outcome, ACCEPT (no edges authored)", level: 2}
+    - {slug: "composition-ledger-nfr-004-mission-rehome-writing-comms-doctrine-01kz9v0s-wp04", text: "Composition ledger (NFR-004) — mission `rehome-writing-comms-doctrine-01KZ9V0S` (WP04)", level: 2}
   - path: "docs/plans/doctrine/doctrine-artifact-selection-preflight.md"
     title: "Pre-flight investigation — user-authored doctrine artifact selection"
     divio_type: "none"
