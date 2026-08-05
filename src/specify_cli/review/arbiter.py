@@ -2,8 +2,16 @@
 
 When an arbiter overrides a rejection (detected as a forward --force move from
 ``planned`` after a rejection event), the system presents a 5-question checklist,
-derives a category, records the decision, and persists it in the review-cycle
-artifact's frontmatter.
+derives a category, and records the decision as a durable, event-sourced
+``ReviewOverride`` (FR-009/FR-010/FR-011, mission
+``review-cycle-verdict-seam-rebuild-01KZ2W7W`` WP12, "arbiter-override-retirement")
+— the SAME event-sourced mechanism ``--skip-review-artifact-check``'s override
+path already uses (:func:`specify_cli.cli.commands.agent.tasks_materialization.
+_persist_review_artifact_override`, ADR 2026-07-19-1). Two prior, non-durable,
+never-committed representations are retired (data-model.md's "Arbiter override"
+entity, representations #2/#3): an ``arbiter_override`` block stamped onto
+``review-cycle-N.md``'s frontmatter, and a standalone ``arbiter-override-N.json``
+sidecar.
 
 The ``review_ref`` in the emitted event points to the existing ``review-cycle://``
 artifact — no new pointer scheme is introduced.
@@ -11,16 +19,16 @@ artifact — no new pointer scheme is introduced.
 
 from __future__ import annotations
 
-import json
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.core.time_utils import now_utc_iso
-from specify_cli.core.utils import write_text_within_directory
+from specify_cli.review.artifacts import ReviewCycleArtifact
+from specify_cli.review.cycle import _review_cycle_wp_dir
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -367,137 +375,102 @@ def _is_arbiter_override(
 # ---------------------------------------------------------------------------
 
 
-def _find_review_cycle_artifact(
-    feature_dir: Path,
-    wp_id: str,
-    review_ref: str,
-) -> Path | None:
-    """Locate the review-cycle artifact file for the given review_ref.
-
-    Searches in ``<feature_dir>/tasks/<wp-slug>/`` for markdown files whose
-    frontmatter ``review_ref`` or filename matches the pointer.  Returns
-    ``None`` when no artifact is found (e.g. WP01 hasn't landed yet).
-    """
-    # review_ref is typically "feedback://mission/WP##/<filename>"
-    # The review-cycle artifacts live alongside WP files in tasks/
-    tasks_dir = feature_dir / "tasks"
-    if not tasks_dir.exists():
-        return None
-
-    # Check tasks/<wp_id> subdirectory first
-    wp_subdir = tasks_dir / wp_id
-    if wp_subdir.exists():
-        for candidate in sorted(wp_subdir.glob("review-cycle-*.md")):
-            return candidate  # Return the most recently created one
-
-    # Fallback: scan tasks/ level for review-cycle files
-    for candidate in sorted(tasks_dir.glob(f"*{wp_id}*review-cycle*.md")):
-        return candidate
-
-    return None
-
-
 def persist_arbiter_decision(
     feature_dir: Path,
     wp_id: str,
     review_ref: str | None,
     decision: ArbiterDecision,
-    auto_commit: bool = False,
     repo_root: Path | None = None,
 ) -> Path:
-    """Persist an ArbiterDecision alongside review-cycle artifacts.
+    """Persist an ArbiterDecision as a durable, event-sourced ``ReviewOverride``.
 
-    Primary path: add ``arbiter_override`` section to the review-cycle artifact
-    frontmatter and rewrite the file.
+    FR-009/FR-010/FR-011 (WP12, arbiter-override-retirement): retires the two
+    non-authoritative representations this function used to dispatch between
+    — a frontmatter ``arbiter_override`` block and a standalone
+    ``arbiter-override-N.json`` sidecar, NEITHER ever durably committed
+    (data-model.md's "Arbiter override" entity, representations #2/#3). Both
+    retire INTO representation #1: the already-durable, already-merge-gate-
+    consumed event-sourced ``ReviewOverride``
+    (:func:`specify_cli.cli.commands.agent.tasks_materialization.
+    _persist_review_artifact_override` — the SAME mechanism
+    ``--skip-review-artifact-check``'s override path already uses, ADR
+    2026-07-19-1). Exactly ONE path now: resolve the review-cycle artifact
+    this override annotates via the SAME slug-aware owner-function resolver
+    the writer uses (``_resolve_wp_slug`` + ``_review_cycle_wp_dir`` — WP13/
+    FR-007: ADR 2026-08-03-1 designates review-cycle artifacts COORD-partition
+    under a coordination topology, PRIMARY otherwise, but ``_review_cycle_
+    wp_dir`` deliberately still resolves PRIMARY only — see that function's
+    own docstring for the disclosed safety finding blocking the full flip;
+    this call inherits whichever behaviour that owner function has, unchanged
+    by anything in this file — T053: the retired resolver bare-``wp_id``-joined
+    a directory that
+    almost never existed, and picked the lexicographically- rather than
+    numerically-highest cycle once a WP reached ten review cycles), then
+    emit the override event unconditionally — no branch on whether an
+    artifact happens to already exist on disk
+    (``_persist_review_artifact_override`` only needs the artifact PATH's
+    shape to derive its emit target, never the file's existence; see that
+    function's own docstring).
 
-    Fallback path (when no review-cycle artifact exists): write a standalone
-    JSON file at ``<feature_dir>/tasks/<wp_id>/arbiter-override-{N}.json``.
+    ``ArbiterCategory``/``ArbiterChecklist`` have no home in
+    ``ReviewOverride``'s frozen four-field shape (``at``/``actor``/``wp_id``/
+    ``reason`` — ``specify_cli.status.models.ReviewOverride``'s docstring
+    forbids a fifth field): the category is folded into ``reason`` as
+    ``"[category] explanation"`` prose, the same format
+    :func:`parse_category_from_note` already parses back out elsewhere (see
+    :func:`get_arbiter_overrides_for_wp`, below) — never dropped, never a new
+    field.
 
-    Args:
-        feature_dir: Path to the feature directory (``kitty-specs/<mission>``).
-        wp_id: Work package ID.
-        review_ref: Pointer to the rejection's review-cycle artifact.
-        decision: The ArbiterDecision to persist.
-        auto_commit: If True, commit the persisted file to git.
-        repo_root: Repository root for git commit (required when auto_commit=True).
+    ``review_ref`` is accepted for call-site/signature compatibility but is
+    NOT consulted for resolution (T053's slug/cycle-number resolution
+    supersedes it) — this mirrors PRE-EXISTING behaviour: the retired
+    ``_find_review_cycle_artifact`` never actually used its own
+    ``review_ref`` parameter either (measured dead even before this WP).
+
+    ``repo_root`` resolves the emitted event's status-lock (optional per
+    ``emit_inner_state_changed``'s own docstring). When the caller does not
+    supply it — as ``_run_arbiter_override`` in ``tasks_move_task.py``
+    (outside this WP's ``owned_files``, a frozen compat symbol per WP06's
+    extraction) currently does not — this falls back to
+    ``feature_dir.parent.parent``, the SINGLE_BRANCH/LANES-topology
+    inference every existing test fixture for this path exercises. A
+    coordination-topology mission needs the real caller-resolved
+    ``main_repo_root`` threaded through once that call site is touched by a
+    WP that owns it — a disclosed limitation of this WP's ownership
+    boundary, not silently papered over.
 
     Returns:
-        Path to the file where the decision was written.
+        The (possibly not-yet-existing-on-disk) review-cycle artifact path
+        this override annotates.
     """
-    artifact_path = _find_review_cycle_artifact(feature_dir, wp_id, review_ref or "") if review_ref else None
-
-    if artifact_path is not None and artifact_path.exists():
-        # Primary path: update review-cycle artifact frontmatter
-        return _persist_in_artifact(artifact_path, decision)
-    else:
-        # Fallback path: standalone JSON
-        return _persist_standalone_json(feature_dir, wp_id, decision)
-
-
-def _persist_in_artifact(artifact_path: Path, decision: ArbiterDecision) -> Path:
-    """Add arbiter_override section to a review-cycle artifact's frontmatter."""
-    from ruamel.yaml import YAML
-
-    from kernel.yaml_io import serialize_mapping
-
-    content = artifact_path.read_text(encoding="utf-8")  # NOSONAR(pythonsecurity:S2083) - path is resolved from trusted project structure, not user-controlled input
-
-    # Split frontmatter from body
-    fm_match = re.match(r"^---\n(.*?)\n---\n?(.*)", content, re.DOTALL)
-    if fm_match:
-        fm_text = fm_match.group(1)
-        body_text = fm_match.group(2)
-
-        yaml = YAML()
-        yaml.preserve_quotes = True
-        data = yaml.load(fm_text)
-        if data is None:
-            data = {}
-
-        # Add arbiter_override section
-        data["arbiter_override"] = decision.to_dict()
-
-        # #3058: serialize_mapping's rt dumper (default width 4096) — not the
-        # prior bare YAML()/width~80 dump, which wrapped reviewer prose and
-        # left trailing-whitespace continuation lines. This intentionally
-        # widens the on-disk wrap from ~80 to 4096, unifying arbiter with
-        # review/artifacts.py's own frontmatter width (#3058).
-        new_fm = serialize_mapping(data).decode("utf-8").rstrip("\n")
-
-        new_content = f"---\n{new_fm}\n---\n{body_text}"
-    else:
-        # No frontmatter: prepend it
-        fm_dict = {"arbiter_override": decision.to_dict()}
-        fm_text = serialize_mapping(fm_dict).decode("utf-8").rstrip("\n")
-        new_content = f"---\n{fm_text}\n---\n{content}"
-
-    write_text_within_directory(artifact_path, new_content, root=artifact_path.parent, encoding="utf-8")
-    return artifact_path
-
-
-def _persist_standalone_json(
-    feature_dir: Path,
-    wp_id: str,
-    decision: ArbiterDecision,
-) -> Path:
-    """Write decision to a standalone JSON file when no review-cycle artifact exists."""
-    tasks_dir = feature_dir / "tasks"
-    # FR-001: validate wp_id before joining into a FS path and calling mkdir (traversal guard).
-    _safe_wp_id = assert_safe_path_segment(wp_id)
-    wp_subdir = tasks_dir / _safe_wp_id
-    wp_subdir.mkdir(parents=True, exist_ok=True)
-
-    # Find next N
-    existing = sorted(wp_subdir.glob("arbiter-override-*.json"))
-    n = len(existing) + 1
-    path: Path = wp_subdir / f"arbiter-override-{n}.json"
-    write_text_within_directory(
-        path,
-        json.dumps(decision.to_dict(), indent=2, sort_keys=True),
-        root=feature_dir,
-        encoding="utf-8",
+    from specify_cli.cli.commands.agent.tasks_materialization import (
+        _persist_review_artifact_override,
+        _resolve_wp_slug,
     )
-    return path
+
+    main_repo_root = repo_root or feature_dir.parent.parent
+    mission_slug = feature_dir.name
+    # ``str()``/``Path`` coercions below are DELIBERATE (not decorative): both
+    # ``_resolve_wp_slug`` and ``_review_cycle_wp_dir`` resolve as ``Any`` at
+    # this module's ``follow_imports=skip`` boundary (the same narrowing
+    # ``_review_cycle_wp_dir``'s own docstring and ``_resolve_wp_slug``'s own
+    # comment describe) — bind explicitly so this function's declared
+    # ``-> Path`` return stays real, not a laundered ``Any``.
+    wp_slug: str = str(_resolve_wp_slug(main_repo_root, mission_slug, wp_id))
+    wp_subdir: Path = Path(_review_cycle_wp_dir(main_repo_root, mission_slug, wp_slug))
+    latest = ReviewCycleArtifact.latest(wp_subdir) if wp_subdir.exists() else None
+    cycle_number = latest.cycle_number if latest is not None else 0
+    artifact_path: Path = wp_subdir / f"review-cycle-{cycle_number}.md"
+
+    reason = f"[{decision.category}] {decision.explanation}"
+    _persist_review_artifact_override(
+        artifact_path,
+        repo_root=main_repo_root,
+        wp_id=wp_id,
+        actor=decision.arbiter,
+        reason=reason,
+    )
+    return artifact_path
 
 
 # ---------------------------------------------------------------------------
@@ -509,40 +482,49 @@ def get_arbiter_overrides_for_wp(
     feature_dir: Path,
     wp_id: str,
 ) -> list[dict[str, Any]]:
-    """Collect all arbiter override records for a work package.
+    """Return the current durable override for a WP, event-sourced (FR-009).
 
-    Scans review-cycle artifacts and standalone JSON files in
-    ``<feature_dir>/tasks/<wp_id>/`` and returns a list of raw decision dicts.
+    Retired (T051/T052): this used to scan ``arbiter-override-*.json``
+    sidecars and ``review-cycle-*.md`` frontmatter under a bare-``wp_id``-
+    joined directory — both non-authoritative, never-durably-committed
+    representations, and (per spec.md User Story 4) an uncaught-crash-prone
+    manual YAML parse inconsistent with every other reader's declared
+    failure polarity. The event-sourced ``ReviewOverride`` on the reduced
+    ``review`` snapshot slot (the SAME record
+    ``_persist_review_artifact_override`` writes) is now the single source,
+    read via :func:`specify_cli.status.wp_snapshot_state` — the shared
+    spelling of ``read_event_stream`` -> ``reduce`` ->
+    ``work_packages.get(wp_id)`` (IC-08 / #2093), not a hand-rolled
+    re-derivation.
 
-    Used by ``agent tasks status`` to surface override history.
+    Returns AT MOST one entry: the event-sourced override is a single
+    reduced CURRENT state, not the per-cycle accumulation the retired
+    frontmatter/JSON scan used to build up. Kept list-shaped so
+    ``agent tasks status``'s existing
+    ``for override in get_arbiter_overrides_for_wp(...)`` call site
+    (``tasks_status_cmd.py``, outside this WP's ``owned_files``) keeps
+    working unmodified. An incomplete override (missing any of
+    ``at``/``actor``/``wp_id``/``reason``) is never surfaced, mirroring
+    ``ReviewOverride.complete``'s predicate everywhere else it is honoured.
     """
-    overrides: list[dict[str, Any]] = []
-    tasks_dir = feature_dir / "tasks"
-    if not tasks_dir.exists():
-        return overrides
+    from specify_cli.status import ReviewOverride, wp_snapshot_state
 
-    wp_subdir = tasks_dir / wp_id
-    if not wp_subdir.exists():
-        return overrides
-
-    # Standalone JSON fallback files
-    for json_file in sorted(wp_subdir.glob("arbiter-override-*.json")):
-        try:
-            data = json.loads(json_file.read_text(encoding="utf-8"))
-            overrides.append(data)
-        except (json.JSONDecodeError, OSError):
-            pass
-
-    # Review-cycle artifacts with arbiter_override in frontmatter
-    for md_file in sorted(wp_subdir.glob("review-cycle-*.md")):
-        content = md_file.read_text(encoding="utf-8")
-        fm_match = re.match(r"^---\n(.*?)\n---", content, re.DOTALL)
-        if fm_match:
-            from ruamel.yaml import YAML
-
-            yaml = YAML()
-            data = yaml.load(fm_match.group(1))
-            if data and "arbiter_override" in data:
-                overrides.append(dict(data["arbiter_override"]))
-
-    return overrides
+    state = wp_snapshot_state(feature_dir, wp_id)
+    review_raw = state.get("review") if state is not None else None
+    if not isinstance(review_raw, Mapping):
+        return []
+    try:
+        override = ReviewOverride.from_dict(review_raw)
+    except (KeyError, TypeError, ValueError):
+        return []
+    if not override.complete:
+        return []
+    category, explanation = parse_category_from_note(override.reason)
+    return [
+        {
+            "arbiter": override.actor,
+            "category": str(category),
+            "explanation": explanation,
+            "decided_at": override.at,
+        }
+    ]
