@@ -43,6 +43,7 @@ import specify_cli
 from mission_runtime.artifacts import (
     _COORD_RESIDUE_DIRS,
     _MISSION_FILE_KIND_BY_BASENAME,
+    _PLACEMENT_ARTIFACT_KINDS,
     MissionArtifactKind,
     kind_for_mission_file,
 )
@@ -270,6 +271,39 @@ def _canonical_artifact_file_globs() -> dict[str, MissionArtifactKind]:
 # .gitattributes / init seed / upgrade migration, T013b below) -- traces is
 # divergent, not human-source, and its driver already exists; this dir set
 # only needed WP02's classification decision documented, not new plumbing.
+#
+# review-cycle-verdict-seam-rebuild-01KZ2W7W WP04 (T017, ADR 2026-08-03-1):
+# ``tasks`` ITSELF stays in this non-divergent set, and stays correct, for a
+# subtle reason worth stating explicitly rather than leaving implicit. T014
+# classifies ``tasks/<wp>/review-cycle-*.md`` via a FILENAME-anchored pattern
+# leg in ``_artifact_kind_for_path`` that runs BEFORE the unconditional
+# ``_COORD_RESIDUE_DIRS.get("tasks")`` fallback this set's membership governs
+# -- so a review-cycle file NEVER reaches the ``tasks`` directory-kind
+# fallback at all once T014 lands; only genuinely single-writer WP task files
+# (``tasks/WP*.md``, ``tasks/<wp>/baseline-tests.json``) still do, and THEIR
+# non-divergent classification is unaffected. This is precisely why (per the
+# WP's own risk note) this guard's own ``divergent_dirs == {"traces"}``
+# assertion below does NOT go red on a skipped T017 -- REVIEW_CYCLE is
+# invisible to BOTH of this file's enumeration mechanisms
+# (``_COORD_RESIDUE_DIRS`` directory-kinds and ``_MISSION_FILE_KIND_BY_
+# BASENAME`` exact-basename kinds), because it uses a THIRD, pattern-based
+# mechanism neither enumerates.
+#
+# The real hazard is NOT in this dict's classification (which stays
+# accurate) -- it is that ``review-cycle-*.md`` is a genuinely both-sides-
+# divergent COORD artifact (PARTITION_RATIONALE, T013) living inside the SAME
+# physical ``tasks/`` directory ``git merge --squash -X theirs`` reconciles
+# as ONE opaque unit at the git level, which has NO visibility into this
+# module's kind-level distinctions. See
+# ``test_review_cycle_tasks_hazard_is_ruled_and_tracked`` below for the T017
+# ruling (option (a): a reconcile driver, scoped narrowly to
+# ``kitty-specs/**/tasks/*/review-cycle-*.md`` -- never the whole
+# ``tasks/*.md`` glob, which would wrongly union-merge single-writer WP task
+# files too) and why it is recorded as a cross-WP dependency
+# (``tests/architectural/census/verdict_seam_IC04.yaml``) rather than landed
+# in this WP: registering it touches ``.gitattributes`` /
+# ``specify_cli.lanes.merge._MERGE_DRIVERS`` / the ``init`` seed / an upgrade
+# migration, all OUTSIDE this WP's ``owned_files``.
 _NON_DIVERGENT_COORD_RESIDUE_DIRS: frozenset[str] = frozenset({"tasks", "checklists"})
 
 
@@ -322,6 +356,99 @@ def test_both_sides_divergent_canonical_artifacts_carry_merge_driver() -> None:
         "-X theirs`. Register a reconcile driver (C-006) or, if genuinely "
         "single-writer/derived/human-source, classify in "
         f"_NON_DIVERGENT_CANONICAL_ARTIFACTS: {uncovered}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# T017 — the tasks/ two-sided REVIEW_CYCLE hazard (review-cycle-verdict-seam-
+# rebuild-01KZ2W7W WP04, ADR 2026-08-03-1).
+#
+# RULING: option (a) -- a reconcile driver -- not option (b). Option (b)
+# requires "a passing test that demonstrates the clobber scenario cannot
+# occur"; no such test can be honest today. Per the ADR's own measurement, a
+# coord mission's first review cycle for a WP lands PRIMARY (create-window
+# split, T018) and every later cycle lands COORD -- BOTH are live for the SAME
+# wp_id simultaneously during the migration window, before WP05a's atomicity
+# and WP06b's consumer unification land, so nothing in the tree today
+# structurally prevents the #2804 clobber shape for `tasks/<wp>/review-cycle-
+# <N>.md`. Per the WP's own instruction ("if you cannot produce such a test,
+# option (a) is required, not preferred"), (a) is the ruling.
+#
+# NOT landed as a driver diff in this WP: implementing (a) requires (1) a NEW
+# merge-driver command (union-merging two independently-numbered review-cycle
+# documents is not a safe line-union like `merge_driver_traces` -- two
+# DIFFERENT verdicts under the SAME filename must not be interleaved into one
+# nonsensical document; the correct reconciliation needs to coordinate with
+# WP09's numbering rework, not just union bytes) PLUS (2) registration across
+# FOUR surfaces (`.gitattributes`, `specify_cli.lanes.merge._MERGE_DRIVERS`,
+# the `init` command seed, an upgrade migration) that are ALL outside this
+# WP's `owned_files`. Recorded as an explicit, cited, time-critical cross-WP
+# dependency in `tests/architectural/census/verdict_seam_IC04.yaml` instead of
+# silently expanding this WP's file ownership (mirrors T015's caller-side
+# finding).
+#
+# This test PINS the current, honest state (no driver yet) as a fail-closed
+# tripwire: it goes RED the instant the review-cycle pattern coincides with an
+# already-registered driver (drift-catcher) and is the single place a future
+# WP flips the assertion to a positive "driver IS registered" check once the
+# cross-WP dependency above is closed.
+# ---------------------------------------------------------------------------
+
+_REVIEW_CYCLE_MERGE_DRIVER_PATTERN = "kitty-specs/**/tasks/*/review-cycle-*.md"
+
+
+def test_review_cycle_tasks_hazard_is_ruled_and_tracked() -> None:
+    """T017: REVIEW_CYCLE's tasks/ two-sided divergence hazard is ruled
+    (option (a): a reconcile driver, scoped narrowly) AND LANDED (WP18,
+    review-cycle-verdict-seam-rebuild-01KZ2W7W): a refuse-fail-closed driver
+    is registered in root .gitattributes, closing the cross-WP dependency
+    recorded in tests/architectural/census/verdict_seam_IC04.yaml
+    (WP04-XWP-03) rather than leaving a vague "downstream WPs should check
+    this."
+    """
+    # REVIEW_CYCLE must actually be COORD-partition for the hazard to apply at
+    # all -- if this ever flipped PRIMARY, the whole tasks/ two-sidedness
+    # this test guards against would not exist.
+    assert MissionArtifactKind.REVIEW_CYCLE in _PLACEMENT_ARTIFACT_KINDS
+
+    # REVIEW_CYCLE is invisible to BOTH of this guard's existing enumeration
+    # mechanisms (basename-exact and directory-kind) -- it uses a THIRD,
+    # pattern-based classifier leg neither one enumerates. This is a factual
+    # statement about the current classifier shape, not aspirational: if
+    # REVIEW_CYCLE ever appeared in either map, this guard's OWN completeness
+    # check above would already be enumerating it and this whole T017 test
+    # would need to be revisited.
+    assert MissionArtifactKind.REVIEW_CYCLE not in _MISSION_FILE_KIND_BY_BASENAME.values()
+    assert MissionArtifactKind.REVIEW_CYCLE not in _COORD_RESIDUE_DIRS.values()
+
+    # The ``tasks`` directory-kind residue itself must NOT be reclassified
+    # divergent -- T014's filename-anchoring means genuinely single-writer WP
+    # task files are the ONLY files still reaching the ``tasks`` directory-kind
+    # fallback; review-cycle files are intercepted by the pattern leg first
+    # (see ``_NON_DIVERGENT_COORD_RESIDUE_DIRS``'s own comment above). Restates
+    # (does not silently duplicate) the invariant
+    # ``test_both_sides_divergent_canonical_artifacts_carry_merge_driver``
+    # already pins (``divergent_dirs == {"traces"}``), so a reader of THIS
+    # test does not have to assume it holds.
+    assert "tasks" in _NON_DIVERGENT_COORD_RESIDUE_DIRS
+
+    # LANDED (WP18/T078). This was a tripwire asserting NO driver was
+    # registered yet, whose failure message instructed exactly this flip once
+    # the cross-WP dependency WP04-XWP-03 landed. WP18 registered the driver,
+    # so the assertion is now the positive presence check the tripwire asked
+    # for, mirroring the ``traces`` pattern check above.
+    #
+    # The driver is deliberately NOT a union merge (unlike ``traces``): two
+    # DIFFERENT verdicts colliding under the SAME filename must never be
+    # byte-interleaved, because that fabricates a verdict no reviewer wrote.
+    # ``merge_driver_review_cycle`` refuses fail-closed instead, embedding both
+    # documents verbatim behind conflict markers.
+    registered_patterns = set(_gitattributes_merge_drivers())
+    assert _REVIEW_CYCLE_MERGE_DRIVER_PATTERN in registered_patterns, (
+        "the review-cycle merge driver regressed out of root .gitattributes -- "
+        f"{_REVIEW_CYCLE_MERGE_DRIVER_PATTERN!r} must stay registered or the "
+        "tasks/ two-sided create-window clobber (T017/WP04-XWP-03) re-opens "
+        "under `git merge --squash -X theirs`"
     )
 
 

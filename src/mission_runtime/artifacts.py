@@ -7,6 +7,7 @@ symbols from the package root.
 from __future__ import annotations
 
 import enum
+import fnmatch
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
@@ -94,6 +95,16 @@ class MissionArtifactKind(enum.Enum):
     # tracer files) is a COORD-partition kind -- doctrine-correct classification
     # corrects the prior unclassified (residue-invisible) state.
     TRACER_FILE = "tracer_file"
+    # review-cycle-verdict-seam-rebuild-01KZ2W7W WP04 (FR-023, ADR 2026-08-03-1):
+    # tasks/<wp>/review-cycle-<N>.md is a COORD-partition kind -- per-WP review
+    # lifecycle bookkeeping (written repeatedly during execution), not stable
+    # planning output. It stops borrowing WORK_PACKAGE_TASK, whose PRIMARY
+    # placement was a path coincidence (living under tasks/), not a partition
+    # argument. See the file-pattern classifier leg in
+    # ``_artifact_kind_for_path`` below -- filename-anchored, never
+    # directory-anchored, so ``tasks/<wp>/baseline-tests.json`` stays
+    # WORK_PACKAGE_TASK.
+    REVIEW_CYCLE = "review_cycle"
 
 
 @dataclass(frozen=True)
@@ -179,6 +190,11 @@ _PLACEMENT_ARTIFACT_KINDS: frozenset[MissionArtifactKind] = frozenset(
         # above for the per-kind rationale.
         MissionArtifactKind.DECISION_LOG,
         MissionArtifactKind.TRACER_FILE,
+        # review-cycle-verdict-seam-rebuild-01KZ2W7W WP04 (FR-023, ADR
+        # 2026-08-03-1): review-cycle artifacts are per-WP lifecycle
+        # bookkeeping -- COORD-partition, not the WORK_PACKAGE_TASK they used
+        # to borrow. See the enum member docstring above.
+        MissionArtifactKind.REVIEW_CYCLE,
     }
 )
 
@@ -237,6 +253,17 @@ _COORD_RESIDUE_DIRS: dict[str, MissionArtifactKind] = {
     # tracer files) is a COORD-partition kind (see ``_PLACEMENT_ARTIFACT_KINDS``).
     "traces": MissionArtifactKind.TRACER_FILE,
 }
+
+# review-cycle-verdict-seam-rebuild-01KZ2W7W WP04 (FR-023, ADR 2026-08-03-1):
+# the FILENAME-anchored classifier leg for review-cycle artifacts. Deliberately
+# NOT a ``_COORD_RESIDUE_DIRS["tasks"]`` entry (that dict is a DIRECTORY-kind
+# fallback keyed on ``mission_rel_parts[0]`` alone, which would also swallow
+# ``tasks/<wp>/baseline-tests.json`` -- deliberately PRIMARY -- and any other
+# non-review-cycle file under ``tasks/``). The permissive glob (not a stricter
+# numeric ``review-cycle-\d+.md``) matches the ADR's own text verbatim; see
+# ``test_review_cycle_pattern_classifies_non_numeric_suffix`` for the explicit
+# boundary this choice draws.
+_REVIEW_CYCLE_FILENAME_GLOB = "review-cycle-*.md"
 
 
 def artifact_home_for(
@@ -399,5 +426,21 @@ def _artifact_kind_for_path(
     if len(mission_rel_parts) == 1:
         name = mission_rel_parts[0]
         return _MISSION_FILE_KIND_BY_BASENAME.get(name) or _COORD_RESIDUE_DIRS.get(name)
+
+    # review-cycle-verdict-seam-rebuild-01KZ2W7W WP04 (FR-023, T014): a
+    # nested-pattern leg keyed PURELY on the final path component's filename
+    # shape -- never on directory depth or the WP-slug segment's spelling (a
+    # WP directory named e.g. ``review-cycle-something`` must not itself
+    # trigger this; only the FILE's own basename does), and it runs BEFORE the
+    # unconditional ``_COORD_RESIDUE_DIRS`` directory-kind fallback below. Only
+    # ``tasks/`` is in scope (review-cycle files never live under
+    # ``checklists/`` / ``traces/``); anything under ``tasks/`` that does NOT
+    # match the glob (``baseline-tests.json``, ``WP*.md`` when nested -- not a
+    # real shape today but defensive) falls through unchanged to the
+    # directory-kind fallback, exactly as before this WP.
+    if mission_rel_parts[0] == "tasks" and fnmatch.fnmatch(
+        mission_rel_parts[-1], _REVIEW_CYCLE_FILENAME_GLOB
+    ):
+        return MissionArtifactKind.REVIEW_CYCLE
 
     return _COORD_RESIDUE_DIRS.get(mission_rel_parts[0])
