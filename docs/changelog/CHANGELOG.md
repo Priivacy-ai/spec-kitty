@@ -412,21 +412,22 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   `_persist_review_feedback`, does not yet thread a commit router at all.
   `agent tasks status`'s stale-verdict display (`#2646`) is confirmed to close
   as a side effect of the durable writer, with no separate code change needed.
-- **A work package's current verdict now has exactly one authority to ask —
-  the status event log, not a review artifact's frontmatter (mission
-  `review-cycle-verdict-seam-rebuild-01KZ2W7W`; ADR `2026-08-03-1`).** Before
-  this fix, "is this WP approved?" had no single answer: some readers (the
-  kanban board, `move-task`'s review-readiness check) parsed a
-  `review-cycle-N.md` artifact's `verdict:` frontmatter field directly, so a
-  reader could disagree with the event log about which verdict was current if
-  the two ever drifted. Now every consumer resolves the current verdict
-  through a reader downstream of the reducer (the event-sourced snapshot), and
-  the review-cycle artifact is authoritative only for _what the reviewer
+- **A work package's current verdict now has a single authority that wins on
+  disagreement — the status event log, not a review artifact's frontmatter
+  (mission `review-cycle-verdict-seam-rebuild-01KZ2W7W`; ADR
+  `2026-08-03-1`).** Before this fix, "is this WP approved?" had no single
+  answer: some readers (the kanban board, `move-task`'s review-readiness
+  check) parsed a `review-cycle-N.md` artifact's `verdict:` frontmatter field
+  directly, so a reader could disagree with the event log about which verdict
+  was current if the two ever drifted. Now the event-sourced verdict wins on
+  any such disagreement; frontmatter reads remain in place as a fallback for
+  the case where the event log carries no opinion (for example, legacy
+  coord-topology missions that predate this seam), and no new
+  frontmatter-reading path was added — the merge gate still drives its
+  readiness loop off a frontmatter reader for that no-opinion case, by design.
+  The review-cycle artifact remains authoritative for _what the reviewer
   said_ — the reviewer's prose, affected files, reproduction command — never
-  for _which verdict is current_. This completes the reframing the
-  predecessor mission's fix above left open: the event is the index, the
-  artifact is the payload, and no consumer answers "which verdict" by reading
-  the payload.
+  for _which verdict is current_ once the event log has an opinion to give.
 - **An arbiter's override decision now durably persists and clears the merge
   gate on its own — no separate flag or manual step required afterward
   (mission `review-cycle-verdict-seam-rebuild-01KZ2W7W`; ADR
