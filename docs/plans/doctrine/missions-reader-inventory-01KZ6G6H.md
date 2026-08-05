@@ -1,3 +1,10 @@
+---
+title: 'Cross-Layer missions/ Reader Inventory (WP03)'
+description: 'The committed move/stay/repoint inventory of every reader of the built-in missions/ data content across kernel, doctrine, charter, specify_cli, runtime, and upgrade migrations — the authority WP05 consumed for the atomic relocation to packs/built-in/missions.'
+doc_status: active
+updated: '2026-08-05'
+---
+
 # Cross-layer `missions/` reader inventory
 
 **Mission**: `doctrine-consumer-surface-missions-extraction-01KZ6G6H` (WP03, FR-003, SC-007)
