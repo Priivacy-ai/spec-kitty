@@ -17,7 +17,8 @@ from specify_cli.post_merge.review_artifact_consistency import (
     review_artifact_finding_diagnostic,
 )
 from specify_cli.review.artifacts import ReviewCycleArtifact
-from specify_cli.status.models import Lane
+from specify_cli.status.models import Lane, ReviewResult, StatusEvent
+from specify_cli.status.store import append_event
 from tests.reliability.fixtures import (
     WorkPackageSpec,
     append_status_event,
@@ -453,3 +454,101 @@ def test_merge_review_artifact_consistency_gate_blocks_malformed_artifact(
     assert "violated_invariant: review_cycle_frontmatter_must_match_schema" in output
     assert "schema_error:" in output
     assert "Traceback" not in output
+
+
+def test_terminal_wp_event_sourced_changes_requested_blocks_without_artifact(
+    tmp_path: Path,
+) -> None:
+    """Fail-open gap: a terminal WP with NO on-disk review artifact at all must
+    still be blocked when the event-sourced ``review_result`` verdict is
+    ``changes_requested``.
+
+    Before the fix, ``find_rejected_review_artifact_conflicts`` returned early
+    (``if latest_path is None: continue``) the moment no ``review-cycle-*.md``
+    file existed for a WP — never consulting ``_event_sourced_gate_verdict`` at
+    all. A terminal-lane WP whose event log records a rejection (e.g. a
+    ``--force`` exit from ``in_review`` that never wrote frontmatter) therefore
+    passed the merge gate for free. This reproduces exactly that shape: WP01 is
+    in the terminal ``approved`` lane, no ``review-cycle-*.md`` file exists
+    anywhere under its tasks dir, and the reduced snapshot's ``review_result``
+    slot carries ``verdict="changes_requested"``.
+    """
+    mission = create_mission_fixture(tmp_path)
+    write_work_package(mission, WorkPackageSpec(lane="approved"))
+    append_event(
+        mission.mission_dir,
+        StatusEvent(
+            event_id="01KQKV85APPROVEDNOARTIFACT1",
+            mission_slug=mission.mission_slug,
+            mission_id=mission.mission_id,
+            wp_id="WP01",
+            from_lane=Lane.IN_REVIEW,
+            to_lane=Lane.APPROVED,
+            at="2026-05-03T12:00:00+00:00",
+            actor="operator",
+            force=True,
+            execution_mode="worktree",
+            reason="force-approved despite rejection",
+            review_result=ReviewResult(
+                reviewer="reviewer-renata",
+                verdict="changes_requested",
+                reference="feedback://release-320-workflow-reliability-01KQKV85/WP01/1",
+            ),
+        ),
+    )
+    artifact_dir = mission.tasks_dir / "WP01-regression-harness"
+    assert not artifact_dir.exists() or not list(
+        artifact_dir.glob("review-cycle-*.md")
+    ), "precondition: no on-disk review artifact must exist for this WP"
+
+    findings = find_rejected_review_artifact_conflicts(mission.mission_dir)
+
+    assert len(findings) == 1, (
+        "a terminal WP with an event-sourced changes_requested verdict must "
+        f"block merge even with no on-disk artifact, got: {findings}"
+    )
+    assert findings[0].wp_id == "WP01"
+    assert findings[0].lane == "approved"
+    assert findings[0].verdict == "changes_requested"
+    assert findings[0].artifact_path is None
+
+    message = format_review_artifact_conflict(findings[0], repo_root=mission.repo_root)
+    assert "WP01" in message
+    assert "changes_requested" in message
+
+    diagnostic = review_artifact_conflict_diagnostic(
+        findings[0], repo_root=mission.repo_root
+    )
+    assert diagnostic["diagnostic_code"] == "REJECTED_REVIEW_ARTIFACT_CONFLICT"
+    assert diagnostic["latest_review_cycle_verdict"] == "changes_requested"
+    assert diagnostic["latest_review_cycle_path"] is None
+
+
+def test_terminal_wp_no_artifact_no_event_opinion_is_not_blocked(
+    tmp_path: Path,
+) -> None:
+    """Guard against over-blocking: a terminal WP with NO on-disk artifact and
+    NO event-sourced ``review_result`` opinion must NOT be flagged.
+
+    This is the pre-existing, correct behaviour (an un-migrated mission, or a
+    WP that never exited ``in_review``) — the fix above must not regress it.
+    """
+    mission = create_mission_fixture(tmp_path)
+    write_work_package(mission, WorkPackageSpec(lane="approved"))
+    append_status_event(
+        mission,
+        from_lane=Lane.FOR_REVIEW,
+        to_lane=Lane.APPROVED,
+        event_id="01KQKV85APPROVEDNOOPINION01",
+    )
+    artifact_dir = mission.tasks_dir / "WP01-regression-harness"
+    assert not artifact_dir.exists() or not list(
+        artifact_dir.glob("review-cycle-*.md")
+    ), "precondition: no on-disk review artifact must exist for this WP"
+
+    findings = find_rejected_review_artifact_conflicts(mission.mission_dir)
+
+    assert findings == [], (
+        "no on-disk artifact and no event-sourced opinion must not block merge, "
+        f"got: {findings}"
+    )
