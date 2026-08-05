@@ -29,6 +29,7 @@ from doctrine.drg.migration.id_normalizer import artifact_to_urn
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.validator import assert_valid
 from doctrine.missions.mission_step_repository import MissionStepRepository
+from doctrine.missions.repository import MissionTemplateRepository
 from doctrine.missions.step_projection import iter_template_refs, project_action_sequence
 from doctrine.pack_paths import built_in_root, doctrine_package_dir
 from doctrine.template_catalog import template_id_for, template_urn
@@ -116,14 +117,20 @@ def _missions_root(doctrine_root: Path) -> Path:
     * The ``doctrine`` **package** root (``src/doctrine``,
       :func:`_is_doctrine_package_root`) no longer carries missions data
       (only the 11 ``.py`` logic modules remain there) — resolved via
-      :func:`built_in_root`, the same fail-closed seam :func:`_artifacts_root`
-      uses for the analogous case.
+      :meth:`~doctrine.missions.repository.MissionTemplateRepository.default_missions_root`,
+      the missions-root authority (not :func:`built_in_root`: joining a
+      segment onto that bare-root seam locally is the exact drift
+      ``test_no_builtin_path_joins_outside_pack_paths_authority`` forbids;
+      ``default_missions_root`` resolves the identical
+      ``packs/built-in/missions`` directory via the same underlying
+      :func:`kernel.sibling_paths.resolve_installed_sibling` primitive,
+      anchored on a sibling module within the same ``doctrine`` package).
     * Any **other** root (a synthetic/nonexistent test root) uses its own
       ``<root>/missions`` — so a nonexistent root still resolves to an
       absent, empty missions tree rather than the real shipped one.
     """
     if _is_doctrine_package_root(doctrine_root):
-        return built_in_root() / "missions"
+        return MissionTemplateRepository.default_missions_root()
     return doctrine_root / "missions"
 
 # ---------------------------------------------------------------------------

@@ -80,7 +80,8 @@ from charter.activation_engine import (
 )
 from charter.charter_yaml_io import load_charter_yaml, update_charter_yaml_section
 from charter.pack_context import CharterPackConfigError, resolve_charter_yaml_pointer
-from doctrine.pack_paths import built_in_dir, built_in_root
+from doctrine.missions.repository import MissionTemplateRepository
+from doctrine.pack_paths import built_in_dir
 from doctrine.artifact_kinds import (
     CHARTER_KIND_TOKENS,
     MISSION_TYPE_TOKEN,
@@ -211,8 +212,9 @@ def _scan_layout_for(kind: ArtifactKind | None) -> tuple[str, str, bool]:
       for step contracts, so ``layered`` is ``False``.
     * ``mission-type`` lives under ``missions/mission_types`` (flat).
 
-    Both outliers' ``base_dir`` is relative to :func:`doctrine.pack_paths.built_in_root`
-    (``packs/built-in/``), **not** ``_SRC_ROOT`` — mission
+    Both outliers' ``base_dir`` is relative to
+    :meth:`doctrine.missions.repository.MissionTemplateRepository.default_missions_root`
+    (``packs/built-in/missions/``), **not** ``_SRC_ROOT`` — mission
     ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` (FR-005)
     relocated ``missions/``'s data subdirectories there; see
     :meth:`CharterPackManager._scan_layer_dirs`'s flat-kind branch, the one
@@ -709,14 +711,26 @@ class CharterPackManager:
                 candidate = root / base_dir / layer
             elif layer == "built-in":
                 # Flat-directory kinds (mission-type / step contracts) only have
-                # the built-in layer. Their content lives under packs/built-in/
-                # (mission #3091/FR-005 relocated missions/ there), not under
-                # _SRC_ROOT -- resolve through the same built_in_root()
-                # authority pack_paths already provides for every other
-                # built-in-tier lookup, rather than composing a second ad hoc
-                # join against the wrong root. (`root` here is `_SRC_ROOT`,
-                # deliberately unused in this branch.)
-                candidate = built_in_root() / base_dir
+                # the built-in layer. Their content lives under
+                # packs/built-in/missions/<segment> (mission #3091/FR-005
+                # relocated missions/ there), not under _SRC_ROOT. Neither
+                # outlier is resolvable through built_in_dir(kind) --
+                # mission-type is not an ArtifactKind at all, and
+                # MISSION_STEP_CONTRACT is part of the derived complement
+                # built_in_dir refuses (no packs/built-in/<plural>/ content
+                # dir) -- and `built_in_root() / base_dir` would be the exact
+                # "reuse the bare-root seam and reconstruct a path locally"
+                # drift the architectural gate
+                # (test_no_builtin_path_joins_outside_pack_paths_authority)
+                # exists to catch. Route through the SAME missions-root
+                # authority doctrine.missions.repository.MissionTemplateRepository
+                # already provides instead (one of the three sanctioned
+                # kernel.sibling_paths convergent call sites). `base_dir` is
+                # always "missions/<segment>" for both outlier kinds (see
+                # _scan_layout_for), so only its final segment is joined onto
+                # the missions root. (`root` here is `_SRC_ROOT`, deliberately
+                # unused in this branch.)
+                candidate = MissionTemplateRepository.default_missions_root() / Path(base_dir).name
             else:
                 continue
             if candidate.is_dir():
