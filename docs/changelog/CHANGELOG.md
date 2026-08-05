@@ -412,6 +412,41 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   `_persist_review_feedback`, does not yet thread a commit router at all.
   `agent tasks status`'s stale-verdict display (`#2646`) is confirmed to close
   as a side effect of the durable writer, with no separate code change needed.
+- **A work package's current verdict now has exactly one authority to ask —
+  the status event log, not a review artifact's frontmatter (mission
+  `review-cycle-verdict-seam-rebuild-01KZ2W7W`; ADR `2026-08-03-1`).** Before
+  this fix, "is this WP approved?" had no single answer: some readers (the
+  kanban board, `move-task`'s review-readiness check) parsed a
+  `review-cycle-N.md` artifact's `verdict:` frontmatter field directly, so a
+  reader could disagree with the event log about which verdict was current if
+  the two ever drifted. Now every consumer resolves the current verdict
+  through a reader downstream of the reducer (the event-sourced snapshot), and
+  the review-cycle artifact is authoritative only for *what the reviewer
+  said* — the reviewer's prose, affected files, reproduction command — never
+  for *which verdict is current*. This completes the reframing the
+  predecessor mission's fix above left open: the event is the index, the
+  artifact is the payload, and no consumer answers "which verdict" by reading
+  the payload.
+- **An arbiter's override decision now durably persists and clears the merge
+  gate on its own — no separate flag or manual step required afterward
+  (mission `review-cycle-verdict-seam-rebuild-01KZ2W7W`; ADR
+  `2026-08-03-1`).** Before this fix, the arbiter override writer never
+  git-committed its output under any topology, so an override could be
+  present in a working tree and still vanish from a fresh clone or a
+  branch switch — the exact gap that made `--skip-review-artifact-check`
+  feel unreliable even when it had "worked." Now the override is committed
+  through the same seam every other verdict-relevant write uses, so it
+  survives a fresh clone and the merge gate accepts it without repeating the
+  override flag.
+- **An arbiter override can no longer be mistaken for, or silently absorbed
+  into, a genuine reviewer approval (mission
+  `review-cycle-verdict-seam-rebuild-01KZ2W7W`; ADR `2026-08-03-1`).** Before
+  this fix, nothing distinguished a knowingly-overridden standing rejection
+  from an approval a reviewer actually performed — both could present the
+  same way to a consumer reading only the latest verdict. Now the override is
+  recorded and read back as its own first-class outcome (a stated actor and
+  reason, event-sourced on the same partition as the record it annotates),
+  never fabricated as an approval review nobody performed.
 - **Applying a charter pack no longer leaves your project worse off than doing
   nothing (mission `charter-pack-usage-journey`; `#3104`, `#3105`).** Before
   this fix, `spec-kitty charter pack apply <pack>` on an unconfigured project

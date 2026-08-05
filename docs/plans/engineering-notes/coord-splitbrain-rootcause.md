@@ -52,6 +52,25 @@ coord topology); **PRIMARY** = `_PRIMARY_ARTIFACT_KINDS` (lives on `target_branc
 | **notes** (status snapshot slot) | **Derived** — reduced per-WP slot (`reducer.py:50,188-191`) | source `note` events via emit (`tasks.py:944`, `tasks_move_task.py:1670`, `tasks_transition_core.py:598`) → coord log | materialized snapshot / views | COORD (`STATUS_STATE`) | **None** — pure reduction of the event log, one authority | already derived |
 | **traces/\*.md** | **Authored** (agent tracer prose) | no Python writer; agent-authored, cross-branch reconciled by the **union merge driver** (`merge_driver.py:180-215`, registered `init.py:60`, `lanes/merge.py:74-77`) | retrospective home = **PRIMARY** (`retrospective_terminus.py:79-81`, `generator.py:224-242`) | **Unclassified in SSOT** (doctrine/glossary label it COORD — `docs/context/orchestration.md:506`) | **Partition GAP** — `traces/` is absent from `_COORD_RESIDUE_DIRS` (`artifacts.py:156-159`), so `_artifact_kind_for_path` returns `None` and a primary `traces/*.md` is "real dirt," not residue. Code sites it PRIMARY/lane + union-merge; doctrine says coord. Doc-vs-SSOT mismatch. | classify it (add a `TRACE` kind + residue-dir entry, OR correct the glossary to PRIMARY/lane); union-merge already prevents lane drift |
 
+> **Resolved (2026-08-05, mission `review-cycle-verdict-seam-rebuild-01KZ2W7W`, ADR
+> [`2026-08-03-1`](/docs/adr/3.x/2026-08-03-1-review-cycle-artifacts-are-coord-partition.md)) — the
+> `review-cycle-N.md` row above.** This note marks the row as historical without rewriting it: it
+> was an accurate diagnosis of the pre-ADR split. The dual authority / "written to COORD but
+> declared PRIMARY" shape it describes is what that mission's ADR and WP04/WP07/WP13 resolve —
+> `review-cycle-N.md` is reclassified as its own `REVIEW_CYCLE` kind (not inherited from
+> `WORK_PACKAGE_TASK`), filename-anchored (`review-cycle-*.md`, not directory-anchored), and its
+> read/write seam is unified through `_artifact_dirs_for_wp`/`_review_cycle_wp_dir`. This closes
+> forks (a) and (b) the row names (wrong-declared-partition, and dry-run/real-merge reading
+> different partitions). Fork (c) — the verdict duplicated across authored markdown and the
+> event-log `review` slot — is re-framed, not eliminated, by this mission's FR-001: the event is now
+> authoritative for *which* verdict and *where*, the markdown artifact for *what the reviewer said*
+> — a deliberate two-representation design (index + payload), not the accidental drift this row
+> describes. The two cited line-pinned call sites (`cycle.py:272,299` → `artifacts.py:199,214`,
+> and the kind-**blind** `candidate_feature_dir_for_mission` resolver) no longer describe live code
+> at those exact lines after this mission's rewrite; the current source of truth for the writer/
+> resolver/reader shape is `tests/architectural/verdict_seam_census.yaml`, checked against the live
+> AST on every run, not a line-pinned table entry.
+
 ---
 
 ## 2. The single load-bearing seam

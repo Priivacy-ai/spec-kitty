@@ -3,22 +3,39 @@
 WP04 (#676) — Review-cycle counter inventory
 ============================================
 The ``review-cycle-N.md`` artifact and the implicit counter ``N`` (computed
-from ``len(glob("review-cycle-*.md")) + 1``) are mutated in **exactly one**
-place across the runtime: ``_persist_review_feedback`` in
-``src/specify_cli/cli/commands/agent/tasks.py`` (currently lines 403-456).
-That helper is invoked from a single call site —
-``move-task ... --to planned --review-feedback-file <path>`` — which is the
-canonical reviewer-rejection event (``tasks.py`` ~line 1233).
+from ``len(glob("review-cycle-*.md")) + 1``) are mutated by
+``_persist_review_feedback``, which lives in
+``src/specify_cli/cli/commands/agent/tasks_materialization.py`` — see that
+function's own docstring for the current behaviour rather than a line-number
+pin here, which would only go stale again (``tasks.py`` re-exports the same
+symbol as a compatibility shim; it does not define it). That helper is
+invoked from a single call site — ``move-task ... --to planned
+--review-feedback-file <path>`` — which is the canonical reviewer-rejection
+event.
+
+**Correction (WP16/T072, review-cycle-verdict-seam-rebuild-01KZ2W7W):** the
+original claim above — that this is the **exactly one** mutation point for a
+review-cycle verdict across the whole runtime — was already false when
+written, and more so after this mission's WP07/WP10/WP12 landed. The
+authoritative count of verdict writers, location resolvers, and frontmatter
+readers is no longer restated as a number in this docstring at all — it is
+whatever ``tests/architectural/verdict_seam_census.yaml`` (the WP16-folded,
+machine-checked census; see ``tests/architectural/test_verdict_seam_census.py``)
+currently enumerates as ``status: active`` rows per category, because that
+file is verified against the live AST on every run and this docstring is
+not. Consult the census directly for the current count instead of trusting a
+number restated here, which is exactly the kind of claim that goes stale
+silently.
 
 Sites in this module that **mention** ``review-cycle-*`` artifacts but do
 **not** mutate the counter or write any artifact:
 
-* line ~112-113 — docstring of ``_resolve_review_feedback_pointer`` describing
-  the canonical pointer scheme.
-* line ~279 — ``_has_prior_rejection`` performs a read-only ``glob`` check.
-* line ~798-807 — fix-mode prompt rendering reads the latest artifact via
+* ``_resolve_review_feedback_pointer``'s docstring, describing the canonical
+  pointer scheme.
+* ``_has_prior_rejection``, which performs a read-only ``glob`` check.
+* fix-mode prompt rendering, which reads the latest artifact via
   ``ReviewCycleArtifact.from_file`` / ``.latest``; no write.
-* line ~1729-1731 — review-prompt rendering computes a *placeholder* path
+* review-prompt rendering, which computes a *placeholder* path
   ``review-cycle-{next_cycle}.md`` for inclusion in instructional output to
   the human reviewer. Nothing is written; the file only materialises when
   the reviewer subsequently runs ``move-task --to planned``.
