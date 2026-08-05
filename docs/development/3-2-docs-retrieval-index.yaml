@@ -8408,6 +8408,34 @@ pages:
     - {slug: "non-goals", text: "Non-goals", level: 2}
     - {slug: "estimated-effort", text: "Estimated effort", level: 2}
     - {slug: "what-this-proposed-scope-does-not-cover", text: "What this proposed scope does NOT cover", level: 2}
+  - path: "docs/plans/doctrine/missions-reader-inventory-01KZ6G6H.md"
+    title: "Cross-Layer missions/ Reader Inventory (WP03)"
+    divio_type: "none"
+    abstract: "The committed move/stay/repoint inventory of every reader of the built-in missions/ data content across kernel, doctrine, charter, specify_cli, runtime, and upgrade migrations — the authority WP05 consumed for the atomic relocation to packs/built-in/missions."
+    anchors:
+    - {slug: "method", text: "Method", level: 2}
+    - {slug: "live-finding-incorporated-per-this-wp-s-brief-the-post-move-self-match-trap-is-not-closed-by-wp04-alone", text: "Live finding incorporated (per this WP's brief): the post-move self-match trap is NOT closed by WP04 alone", level: 2}
+    - {slug: "two-distinct-specify-cli-missions-trees-do-not-conflate", text: "Two distinct `specify_cli/missions` trees (do not conflate)", level: 2}
+    - {slug: "reader-inventory", text: "Reader inventory", level: 2}
+    - {slug: "a-already-identified-sites-confirmed-not-rediscovered-per-this-wp-s-brief", text: "A. Already-identified sites (confirmed, not rediscovered — per this WP's brief)", level: 3}
+    - {slug: "b-the-py-vs-data-split-within-src-doctrine-missions-itself", text: "B. The `.py`-vs-data split within `src/doctrine/missions/` itself", level: 3}
+    - {slug: "c-repoint-genuinely-new-findings-this-wp-s-deliverable", text: "C. Repoint — genuinely new findings (this WP's deliverable)", level: 3}
+    - {slug: "d-stay-confirmed-correct-or-genuinely-unaffected", text: "D. Stay — confirmed correct or genuinely unaffected", level: 3}
+    - {slug: "summary-the-explicit-repoint-set-for-wp05-s-owned-files-widening", text: "Summary: the explicit `repoint` set (for WP05's `owned_files` widening)", level: 2}
+    - {slug: "readers-that-would-silently-resolve-to-the-data-less-src-doctrine-missions-package-directory-after-the-move", text: "Readers that would silently resolve to the data-less `src/doctrine/missions` package directory after the move", level: 2}
+    - {slug: "bugs-found-not-fixed-per-this-wp-s-scope-recorded-for-a-future-wp", text: "Bugs found, not fixed (per this WP's scope — recorded for a future WP)", level: 2}
+  - path: "docs/plans/doctrine/next-slice-wheel-mission-types-public-api-research.md"
+    title: "2026-08-04 — Next doctrine slice: wheel cutover, mission-type relocation, public API surface"
+    divio_type: "none"
+    abstract: "Preliminary research on the scope after #3176 lands — kernel/doctrine/charter wheel packaging, missions/ tree relocation, and creation of a stable public API for doctrine & charter modules (cf. the #645/#460 FastAPI precedent)."
+    anchors:
+    - {slug: "trigger", text: "Trigger", level: 2}
+    - {slug: "a-wheel-modules-already-assessed-decision-made-not-yet-executed", text: "(a) Wheel modules — already assessed, decision made, not yet executed", level: 2}
+    - {slug: "b-mission-type-relocation-two-overlapping-efforts-one-epic", text: "(b) Mission-type relocation — two overlapping efforts, one epic", level: 2}
+    - {slug: "c-public-api-on-doctrine-charter-filed-as-3179-https-github-com-priivacy-ai-spec-kitty-issues-3179", text: "(c) Public API on doctrine & charter — filed as [#3179](https://github.com/Priivacy-ai/spec-kitty/issues/3179)", level: 2}
+    - {slug: "how-the-three-threads-interlock", text: "How the three threads interlock", level: 2}
+    - {slug: "suggested-next-steps-not-yet-committed-to-a-mission", text: "Suggested next steps (not yet committed to a mission)", level: 2}
+    - {slug: "addendum-2026-08-04-pr-3175-landed-follow-ups-reviewed", text: "Addendum (2026-08-04) — PR #3175 landed; follow-ups reviewed", level: 2}
   - path: "docs/plans/doctrine/org-doctrine-layer-architecture-review.md"
     title: "Org Doctrine Layer — Post-Implementation Architecture Review"
     divio_type: "none"

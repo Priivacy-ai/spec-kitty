@@ -2702,6 +2702,18 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/doctrine/missions-reader-inventory-01KZ6G6H.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/next-slice-wheel-mission-types-public-api-research.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/doctrine/org-doctrine-layer-architecture-review.md
   tag: current
   divio_type: none
