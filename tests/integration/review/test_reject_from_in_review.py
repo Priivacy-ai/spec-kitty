@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent import tasks as tasks_module
 from specify_cli.cli.commands.agent.tasks import app as tasks_app
+from specify_cli.review.artifacts import ReviewCycleArtifact
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event, read_events
 from tests.lane_test_utils import write_single_lane_manifest
@@ -159,3 +160,54 @@ def test_empty_feedback_fails_before_status_mutation(
     assert "Review feedback file is empty" in _json_payload(result.stdout)["error"]
     assert len(read_events(feature_dir)) == before
     assert not (feature_dir / "tasks" / "WP01-core" / "review-cycle-1.md").exists()
+
+
+@patch("specify_cli.cli.commands.agent.tasks.get_mission_type", return_value="software-dev")
+def test_move_task_reject_threads_declared_reviewer_into_artifact(
+    _mock_mission: Mock,
+    in_review_repo: tuple[Path, str, Path],
+) -> None:
+    """The ``--reviewer`` option must be threaded into the rejected review-cycle
+    artifact's ``reviewer_agent`` frontmatter.
+
+    ``--agent`` names the WP *actor* driving the CLI invocation (which may be
+    the reviewer's own tooling identity, an orchestrator, or a bot); it is not
+    the same fact as the reviewer's declared identity. Declaring a distinct
+    ``--reviewer`` must win over both ``--agent`` and the ``"unknown"``
+    fallback in ``create_rejected_review_cycle``.
+    """
+    repo, mission_slug, feature_dir = in_review_repo
+    feedback = repo / "feedback.md"
+    feedback.write_text("**Issue**: The reviewer rejected this WP.\n", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "planned",
+            "--mission",
+            mission_slug,
+            "--review-feedback-file",
+            str(feedback),
+            "--agent",
+            "orchestrator-bot",
+            "--reviewer",
+            "reviewer-renata",
+            "--json",
+            "--no-auto-commit",
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    artifact_path = feature_dir / "tasks" / "WP01-core" / "review-cycle-1.md"
+    assert artifact_path.is_file()
+    artifact = ReviewCycleArtifact.from_file(artifact_path)
+    assert artifact.reviewer_agent == "reviewer-renata", (
+        "expected the rejected review-cycle artifact to record the declared "
+        f"--reviewer identity 'reviewer-renata', got {artifact.reviewer_agent!r}. "
+        f"CLI stdout:\n{result.stdout}"
+    )
+
+
