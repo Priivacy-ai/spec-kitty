@@ -5469,6 +5469,7 @@ pages:
     - {slug: "effector", text: "Effector", level: 3}
     - {slug: "communication-artefact", text: "communication artefact", level: 3}
     - {slug: "repository-root-checkout", text: "repository root checkout", level: 3}
+    - {slug: "shadow-clone-isolated-dev-environment", text: "Shadow Clone (Isolated Dev Environment)", level: 3}
   - path: "docs/context/governance-files.md"
     title: "Governance Files Reference"
     divio_type: "none"
@@ -5833,6 +5834,22 @@ pages:
     - {slug: "release-and-ci-policy", text: "Release and CI policy", level: 2}
     - {slug: "non-page-artifacts", text: "Non-page artifacts", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/development/isolated_dev_environments.md"
+    title: "Isolated Dev Environments (Shadow Clones)"
+    divio_type: "how-to"
+    abstract: "Run several standalone spec-kitty checkouts on one machine without cross-mission pollution: a clone-local venv plus a clone-local runtime-state root, machine-global CLI intact."
+    anchors:
+    - {slug: "the-two-things-that-actually-leak", text: "The two things that actually leak", level: 2}
+    - {slug: "mental-model-primary-vs-shadow", text: "Mental model: primary vs. shadow", level: 2}
+    - {slug: "one-time-machine-setup-the-global-cli", text: "One-time machine setup (the global CLI)", level: 2}
+    - {slug: "per-clone-setup-each-shadow-clone", text: "Per-clone setup (each Shadow Clone)", level: 2}
+    - {slug: "1-create-the-clone-local-virtualenv-editable-install-dev-extras", text: "1. Create the clone-local virtualenv (editable install + dev extras)", level: 3}
+    - {slug: "2-activate-the-isolated-environment-for-your-session", text: "2. Activate the isolated environment for your session", level: 3}
+    - {slug: "3-verify-the-isolation", text: "3. Verify the isolation", level: 3}
+    - {slug: "optional-auto-activate-with-direnv", text: "Optional: auto-activate with direnv", level: 2}
+    - {slug: "what-is-and-is-not-isolated", text: "What is (and is not) isolated", level: 2}
+    - {slug: "troubleshooting", text: "Troubleshooting", level: 2}
+    - {slug: "related", text: "Related", level: 2}
   - path: "docs/development/known-friction-points.md"
     title: "Known Current Friction Points"
     divio_type: "reference"
