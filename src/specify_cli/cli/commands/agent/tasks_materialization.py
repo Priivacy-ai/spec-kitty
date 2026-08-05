@@ -16,8 +16,18 @@ from datetime import datetime, UTC
 from kernel._safe_re import re
 from mission_runtime import MissionArtifactKind, placement_seam
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from specify_cli.status import EVENTS_FILENAME, SNAPSHOT_FILENAME
+
+if TYPE_CHECKING:
+    # Type-only: ``kernel._safe_re``'s ``re`` has no statically-typed
+    # ``Pattern`` attribute mypy can resolve as an annotation target (only
+    # plain stdlib ``re`` supports ``re.Pattern[str]``). RE2-compiled patterns
+    # are structurally identical to stdlib ``Pattern`` objects for the methods
+    # this module calls (``.fullmatch``), so annotating against the stdlib
+    # type is accurate, not a fiction.
+    import re as _typing_re
 
 # WP02 (#2058): the shared result vocabulary, the inline-subtasks regex, and the
 # pipe-table row parsers live in the ``tasks_outline`` seam. Imported here so
@@ -102,31 +112,90 @@ def _collect_status_artifacts(feature_dir: Path) -> list[Path]:
     return [p for p in candidates if p.exists()]
 
 
+class WpSlugAmbiguous(ValueError):
+    """Raised when ``tasks/`` carries multiple files matching the same task id
+    to DIFFERENT resolved slugs (T057/US3 AC3): e.g. both ``WP01-foo.md`` and
+    ``WP01_bar.md`` present. Refuse rather than silently pick the first
+    ``iterdir()`` result — the divergence FR-007 exists to close.
+    """
+
+
+#: T057 (US3 AC1): the accepted separator set between a task id and the rest
+#: of a ``tasks/`` filename's stem — hyphen, underscore, dot, or no separator
+#: at all (an exact-stem match). Anchored immediately after the task id so a
+#: task id that is a PREFIX of another (``WP1`` vs ``WP10``) never matches the
+#: longer one's file: the char right after the task id, if any, must itself
+#: be one of these three.
+_WP_SLUG_SEPARATOR_CHARS = "-_."
+
+
+def _wp_slug_pattern(task_id: str) -> _typing_re.Pattern[str]:
+    """Build the T057 separator-anchored matcher for one task id.
+
+    A file stem matches when it equals *task_id* exactly, or starts with
+    *task_id* followed immediately by one of ``-``/``_``/``.``. This is the
+    SINGLE place the accepted-separator rule is expressed — every other
+    resolver in this mission consumes an already-resolved ``wp_slug`` string
+    rather than re-implementing this matching rule locally (T057 step 4).
+    """
+    escaped = re.escape(task_id)
+    separators = re.escape(_WP_SLUG_SEPARATOR_CHARS)
+    # ``re.compile(...)`` (the RE2-backed ``kernel._safe_re`` module) resolves
+    # as ``Any`` to mypy (see the ``TYPE_CHECKING`` import above); bind
+    # explicitly so the declared ``Pattern[str]`` return narrows back from
+    # ``Any`` rather than mypy flagging an implicit ``Any`` return.
+    compiled: _typing_re.Pattern[str] = re.compile(rf"{escaped}(?:[{separators}].*)?")
+    return compiled
+
+
+def _wp_slug_candidates(tasks_dir: Path, task_id: str) -> list[str]:
+    """Return every DISTINCT ``tasks/`` file stem matching *task_id* (T057)."""
+    pattern = _wp_slug_pattern(task_id)
+    return sorted(
+        {
+            str(p.stem)
+            for p in tasks_dir.iterdir()
+            if pattern.fullmatch(str(p.stem))
+        }
+    )
+
+
 def _resolve_wp_slug(main_repo_root: Path, mission_slug: str, task_id: str) -> str:
     """Resolve the WP slug (e.g. 'WP01-some-title') from a task ID.
 
-    Looks for a file named '{task_id}-*.md' in kitty-specs/<mission>/tasks/.
-    Falls back to bare task_id if no matching file is found.
+    Looks for a ``tasks/`` file whose stem equals *task_id* or starts with
+    *task_id* followed by one of the accepted separators -- ``-``, ``_``,
+    ``.``, or no separator at all (spec.md US3 AC1). Falls back to the bare
+    *task_id* when no ``tasks/`` file matches. Raises :class:`WpSlugAmbiguous`
+    (US3 AC3) when more than one ``tasks/`` file matches *task_id* to
+    DIFFERENT slugs -- refusing rather than silently picking an arbitrary
+    ``iterdir()`` order, which is exactly the divergence FR-007 closes.
+
+    Exact-stem and hyphen-prefix matching stay byte-for-byte unchanged from
+    the pre-T057 behaviour: every existing caller that only ever wrote
+    ``WP01-slug.md`` files sees identical output.
     """
     # WP04 / FR-006: ``tasks/WP*.md`` is a WORK_PACKAGE_TASK (primary-partition)
     # artifact — author+read on PRIMARY (INV-5). Route the read through the
     # kind-aware seam so a coord-topology mission's stale ``-coord`` husk cannot
     # shadow the real primary WP files (#2062 read-side close).
-    tasks_dir = (
-        placement_seam(main_repo_root, mission_slug).read_dir(
-            MissionArtifactKind.WORK_PACKAGE_TASK
-        )
-        / "tasks"
+    # ``placement_seam(...).read_dir`` is typed ``-> Path`` but mypy widens it to
+    # ``Any`` through the ``follow_imports=skip`` boundary on ``specify_cli.*``;
+    # bind explicitly so the join's return narrows back to ``Path``.
+    mission_dir: Path = placement_seam(main_repo_root, mission_slug).read_dir(
+        MissionArtifactKind.WORK_PACKAGE_TASK
     )
-    if tasks_dir.exists():
-        for p in tasks_dir.iterdir():
-            if p.stem.startswith(f"{task_id}-") or p.stem == task_id:
-                # Narrow ``str()`` coercion: when this seam is type-checked in
-                # isolation, mypy resolves the cross-package ``resolve_planning_read_dir``
-                # result as ``Any`` (follow-imports narrowing), so ``p.stem`` is
-                # inferred ``Any``. The coercion restores ``str`` without a suppression.
-                return str(p.stem)
-    return task_id
+    tasks_dir = mission_dir / "tasks"
+    if not tasks_dir.exists():
+        return task_id
+    candidates = _wp_slug_candidates(tasks_dir, task_id)
+    if len(candidates) > 1:
+        raise WpSlugAmbiguous(
+            f"task id {task_id!r} matches multiple tasks/ files resolving to "
+            f"different slugs: {', '.join(candidates)}. Rename so exactly one "
+            "file matches this task id before retrying."
+        )
+    return candidates[0] if candidates else task_id
 
 
 def _persist_review_feedback(
