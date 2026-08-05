@@ -236,6 +236,85 @@ def test_resolve_asset_tier1_override_asserts_path_tier_mission(
     assert result.mission == "docs"
 
 
+def test_resolve_asset_tier1_mission_scoped_override_resolves(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Tier-1 override resolves a MISSION-SCOPED override at
+    ``.kittify/overrides/missions/{mission}/{subdir}/{name}`` (e.g. the
+    dogfood layout ``.kittify/overrides/missions/software-dev/command-templates/implement.md``).
+
+    Before this fix, Tier-1 only checked the flat
+    ``.kittify/overrides/{subdir}/{name}`` path, so every mission-scoped
+    override was inert (never found, silently falling through to a lower
+    tier or raising FileNotFoundError).
+    """
+    project = tmp_path / "project"
+    kittify = project / ".kittify"
+    mission_scoped_dir = kittify / "overrides" / "missions" / "software-dev" / "command-templates"
+    mission_scoped_dir.mkdir(parents=True)
+    asset = mission_scoped_dir / "implement.md"
+    asset.write_text("mission-scoped override content", encoding="utf-8")
+
+    monkeypatch.setattr(resolver_module, "get_kittify_home", lambda: tmp_path / "no-home")
+
+    result = _resolve_asset("implement.md", "command-templates", project, mission="software-dev")
+
+    assert result.tier.name == ResolutionTier.OVERRIDE.name
+    assert result.path == asset
+    assert result.mission == "software-dev"
+
+
+def test_resolve_asset_tier1_mission_scoped_override_wins_over_global_override(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When both a mission-scoped and a global (non-mission-scoped) override
+    exist, the more specific mission-scoped override wins."""
+    project = tmp_path / "project"
+    kittify = project / ".kittify"
+
+    global_dir = kittify / "overrides" / "command-templates"
+    global_dir.mkdir(parents=True)
+    (global_dir / "implement.md").write_text("global override content", encoding="utf-8")
+
+    mission_scoped_dir = kittify / "overrides" / "missions" / "software-dev" / "command-templates"
+    mission_scoped_dir.mkdir(parents=True)
+    mission_scoped_asset = mission_scoped_dir / "implement.md"
+    mission_scoped_asset.write_text("mission-scoped override content", encoding="utf-8")
+
+    monkeypatch.setattr(resolver_module, "get_kittify_home", lambda: tmp_path / "no-home")
+
+    result = _resolve_asset("implement.md", "command-templates", project, mission="software-dev")
+
+    assert result.tier.name == ResolutionTier.OVERRIDE.name
+    assert result.path == mission_scoped_asset
+    assert result.path.read_text(encoding="utf-8") == "mission-scoped override content"
+
+
+def test_resolve_asset_tier1_global_override_backward_compat(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A global (non-mission-scoped) override at
+    ``.kittify/overrides/{subdir}/{name}`` still resolves as Tier-1 OVERRIDE
+    when no mission-scoped override exists (backward compatibility)."""
+    project = tmp_path / "project"
+    kittify = project / ".kittify"
+    global_dir = kittify / "overrides" / "command-templates"
+    global_dir.mkdir(parents=True)
+    asset = global_dir / "implement.md"
+    asset.write_text("global override content", encoding="utf-8")
+
+    monkeypatch.setattr(resolver_module, "get_kittify_home", lambda: tmp_path / "no-home")
+
+    result = _resolve_asset("implement.md", "command-templates", project, mission="software-dev")
+
+    assert result.tier.name == ResolutionTier.OVERRIDE.name
+    assert result.path == asset
+    assert result.mission == "software-dev"
+
+
 def test_resolve_asset_tier2_legacy_asserts_path_tier_mission(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
