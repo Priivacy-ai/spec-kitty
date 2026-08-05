@@ -1,0 +1,21 @@
+{
+  "baseline_merge_commit": "d8fefa8c5cbe9c3bf08cfa41492f92858ccca313",
+  "coordination_branch": "kitty/mission-review-cycle-verdict-seam-rebuild-01KZ2W7W",
+  "created_at": "2026-08-03T03:56:20.369377+00:00",
+  "flattened": false,
+  "friendly_name": "Review-Cycle Verdict Seam Rebuild",
+  "mission_id": "01KZ2W7W0F81GE153NF6ZWDNTS",
+  "mission_number": null,
+  "mission_slug": "review-cycle-verdict-seam-rebuild-01KZ2W7W",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Reviewers today can end up with a work package whose recorded verdict disagrees with what actually happened, in four distinct ways: an approval committed before the transition runs, an approval fabricated from a deliberate arbiter waiver, an approval skipped entirely because components resolve the artifact directory differently, and an approval written but never git-committed. Each is currently defended against separately. This mission rebuilds the write seam so those states are structurally unrepresentable rather than individually guarded, and retires the duplicated writers, resolvers and readers that let them arise.",
+  "purpose_tldr": "Make a recorded review verdict and a completed lane transition the same event, so an approval can never be lost, fabricated, or silently left uncommitted.",
+  "slug": "review-cycle-verdict-seam-rebuild-01KZ2W7W",
+  "source_description": "Fast-follow to closed PR #3156. Five-lens adversarial squad findings plus issues #3157, #3158, #3159, #3160.",
+  "status_phase": "1",
+  "target_branch": "pr/review-verdict-write-integrity-01KZ1CGF",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-03T12:09:09.552499+00:00"
+}

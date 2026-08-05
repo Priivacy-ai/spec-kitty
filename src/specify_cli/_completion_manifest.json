@@ -677,6 +677,11 @@
      "help": "Audit every mission's cut-over status outside CI (FR-007).\n\nBacked by ``migration.runtime_state_cutover.cutover_repo(dry_run=True)``:\nthe same fail-closed seed-then-verify spine the birth-cutover migration\nuses, read-only and writing nothing. Reports each mission slug, whether\nit is cut over, and a reason when it is not.\n\nInformational only: always exits 0 with a summary count.\n\nExamples:\n    spec-kitty doctor cutover\n    spec-kitty doctor cutover --json",
      "hidden": false,
      "deprecated": false
+    },
+    "review-cycle-reconcile": {
+     "help": "Find review-cycle / arbiter-override records stranded under a retired\nresolver path, ahead of WP13's consumer-unification (FR-008).\n\nEvery retired resolver comes from this mission's own verdict-seam census\nfragment (``tests/architectural/census/verdict_seam_IC08.yaml``), not a\nguessed set. Reports two DISTINCT stranded classes per finding: a\ndeleted-coordination-branch mission (absorbed to PRIMARY, the measured\n45-mission corpus) and a live-coordination-branch mission still carrying a\npre-ADR PRIMARY record. Never a bare count — every finding names its\nmission, WP, retired resolver, and resolved directory.\n\nInformational only: always exits 0. No ``--fix`` — a stranded record may\nhave a legitimate divergent sibling, and this command does not pick a\nwinner.\n\nExamples:\n    spec-kitty doctor review-cycle-reconcile\n    spec-kitty doctor review-cycle-reconcile --mission my-mission-01ABCD\n    spec-kitty doctor review-cycle-reconcile --json",
+     "hidden": false,
+     "deprecated": false
     }
    }
   },
@@ -879,6 +884,11 @@
   },
   "merge-driver-meta": {
    "help": "Field-merge conflicting ``meta.json`` blobs; write result to ``ours``.",
+   "hidden": true,
+   "deprecated": false
+  },
+  "merge-driver-review-cycle": {
+   "help": "Resolve a ``review-cycle-N.md`` collision without fabricating a verdict.\n\nTwo distinct verdict documents colliding under the same filename are\nNEVER unioned/field-merged/interleaved into one document -- see the\nmodule-level design-decision comment immediately above this function for\nthe full reasoning (refuse fail-closed, not renumber).\n\nIdentical content on both sides (byte-for-byte) is the trivial fast path:\nresolves cleanly, exit 0, never reported as a conflict. Otherwise, both\nraw documents are embedded verbatim inside standard git-style conflict\nmarkers (never blended field-by-field -- a whole-document refusal, since\na review verdict has no safely mergeable sub-fields the way a JSON matrix\nrow does) and the driver exits non-zero so git reports the path as an\nunresolved conflict for a human to reconcile.",
    "hidden": true,
    "deprecated": false
   },

@@ -539,7 +539,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | The artifact-kind partition that holds stable planning artifacts — spec, plan, work-package outlines, and `meta.json` — as distinct from the [COORD partition](#coord-partition) that holds the lifecycle artifacts (status, notes, trace, issue-matrix, `move-task`). A partition is an artifact-kind *routing* concept: it decides which [topology surface](#topology-surface) an artifact kind is written to. It is **not** a git branch. Missions with no coordination topology (`SINGLE_BRANCH` / `LANES`) route every artifact kind to PRIMARY. This is `primary` **Sense A**. |
+| **Definition** | The artifact-kind partition that holds stable planning artifacts — spec, plan, work-package outlines, and `meta.json` — as distinct from the [COORD partition](#coord-partition) that holds the lifecycle artifacts (status events, notes, trace, issue-matrix, acceptance-matrix, review cycles, `move-task`). A partition is an artifact-kind *routing* concept: it decides which [topology surface](#topology-surface) an artifact kind is written to. It is **not** a git branch. Missions with no coordination topology (`SINGLE_BRANCH` / `LANES`) route every artifact kind to PRIMARY. This is `primary` **Sense A**. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |

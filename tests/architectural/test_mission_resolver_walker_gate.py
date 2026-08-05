@@ -115,6 +115,12 @@ _LEGACY_WALKER_ALLOWLIST: frozenset[str] = frozenset(
         # `spec-kitty doctor` coordination health-check enumeration across
         # every mission.
         "src/specify_cli/cli/commands/_coordination_doctor.py",
+        # `spec-kitty doctor review-cycle-reconcile` (WP08, FR-008)
+        # reconciliation sweep across every mission -- the same
+        # cross-mission health-check enumeration shape as
+        # `_coordination_doctor.py` above, not an identity-resolution
+        # decision for one handle.
+        "src/specify_cli/cli/commands/_review_cycle_reconcile_doctor.py",
         # `spec-kitty doctor identity` topology enumeration -- distinct file
         # from status/identity_audit.py (both are legitimate walkers).
         "src/specify_cli/cli/commands/_identity_audit.py",

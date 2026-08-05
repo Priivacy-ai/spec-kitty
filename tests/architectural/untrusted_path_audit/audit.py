@@ -370,12 +370,25 @@ KNOWN_CANDIDATE_FILES: tuple[str, ...] = (
     # assert_safe_path_segment before the slug join; no sinks remain.
     # dossier/drift_detector.py — removed from tripwire: WP03 added
     # assert_safe_path_segment in save_baseline/load_baseline; no sinks remain.
+    # review/arbiter.py — removed from tripwire: mission
+    # review-cycle-verdict-seam-rebuild-01KZ2W7W WP12 (FR-009,
+    # arbiter-override-retirement) deleted `_find_review_cycle_artifact`
+    # outright and reimplemented `get_arbiter_overrides_for_wp` over the
+    # event-sourced `ReviewOverride` snapshot slot; no `tasks_dir / wp_id`
+    # (or any other untrusted-segment) join remains in this module.
+    # post_merge/review_artifact_consistency.py — removed from tripwire: the
+    # SAME mission's WP13 (T059) rewrote `_artifact_dirs_for_wp` to resolve a
+    # single directory through `review/cycle.py::_review_cycle_wp_dir` (T058's
+    # owner function, already a KNOWN_CANDIDATE_FILES entry below) instead of
+    # this module's own raw `tasks_dir / wp_id` fan-out join. The one
+    # remaining local join in this file (`feature_dir / "tasks" / flat_slug`,
+    # the no-workspace-root degrade) uses `flat_slug` -- a locally-derived
+    # variable, not a name in `UNTRUSTED_SEGMENT_NAMES` -- so no
+    # untrusted-segment join is AST-discoverable in this module any more.
     "coordination/surface_resolver.py",
     "missions/_read_path_resolver.py",
     "migration/mission_state.py",
     "review/cycle.py",
-    "review/arbiter.py",
-    "post_merge/review_artifact_consistency.py",
     "status/store.py",
     "status/views.py",
     "status/lifecycle.py",

@@ -8,9 +8,11 @@ every subsequent extraction WP.
 It pins, independently of the implementation source:
 
 * the exact set of registered subcommand names (set-equality, order-free);
-  18 as of runtime-state-birth-cutover-all-paths-01KYH654 WP05, which added the
-  ``cutover`` subcommand (on-demand cut-over audit, FR-007) on top of the 17
-  prior names (16 de-godding names from #2059 + ``contracts`` from #2441);
+  19 as of review-cycle-verdict-seam-rebuild-01KZ2W7W WP08, which added the
+  ``review-cycle-reconcile`` subcommand (FR-008 stranded-record reconciliation)
+  on top of the 18 prior names (17 names as of runtime-state-birth-cutover-all-
+  paths-01KYH654 WP05's ``cutover`` addition: 16 de-godding names from #2059 +
+  ``contracts`` from #2441);
 * each subcommand's option flags + arity (flag/value/multi);
 * each subcommand's ``--help`` body (whitespace-normalized snapshot);
 * the documented exit-code contracts, including the three load-bearing names
@@ -71,6 +73,7 @@ FROZEN_SUBCOMMANDS: frozenset[str] = frozenset(
         "doctrine",
         "coordination",
         "cutover",
+        "review-cycle-reconcile",
     }
 )
 
@@ -111,6 +114,7 @@ EXPECTED_OPTIONS: dict[str, dict[str, str]] = {
     "doctrine": {"--json": "flag"},
     "coordination": {"--fix": "flag", "--json": "flag", "--check-staleness": "flag"},
     "cutover": {"--json": "flag"},
+    "review-cycle-reconcile": {"--mission": "value", "--json": "flag"},
 }
 
 # Golden ``--help`` snapshots (whitespace-normalized) per subcommand.
@@ -421,6 +425,29 @@ EXPECTED_HELP: dict[str, list[str]] = {
         'spec-kitty doctor cutover',
         'spec-kitty doctor cutover --json',
         'Options',
+        '--json Machine-readable JSON output',
+        '--help -h Show this message and exit.',
+    ],
+    'review-cycle-reconcile': [
+        'Usage: doctor review-cycle-reconcile [OPTIONS]',
+        "Find review-cycle / arbiter-override records stranded under a retired "
+        "resolver path, ahead of WP13's consumer-unification (FR-008).",
+        "Every retired resolver comes from this mission's own verdict-seam census",
+        'fragment (``tests/architectural/census/verdict_seam_IC08.yaml``), not a',
+        'guessed set. Reports two DISTINCT stranded classes per finding: a',
+        'deleted-coordination-branch mission (absorbed to PRIMARY, the measured',
+        '45-mission corpus) and a live-coordination-branch mission still carrying a',
+        'pre-ADR PRIMARY record. Never a bare count — every finding names its',
+        'mission, WP, retired resolver, and resolved directory.',
+        'Informational only: always exits 0. No ``--fix`` — a stranded record may',
+        'have a legitimate divergent sibling, and this command does not pick a',
+        'winner.',
+        'Examples:',
+        'spec-kitty doctor review-cycle-reconcile',
+        'spec-kitty doctor review-cycle-reconcile --mission my-mission-01ABCD',
+        'spec-kitty doctor review-cycle-reconcile --json',
+        'Options',
+        '--mission TEXT Scope to a single mission (mission_id / mid8 / slug)',
         '--json Machine-readable JSON output',
         '--help -h Show this message and exit.',
     ],
