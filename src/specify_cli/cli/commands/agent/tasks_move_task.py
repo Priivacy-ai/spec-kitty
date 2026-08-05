@@ -1748,7 +1748,20 @@ def _mt_finalize_plan(st: _MoveTaskState, ports: TasksPorts) -> None:
     st.canonical_lane = decision.plan.canonical_lane
 
     if decision.planned_rollback and st.resolved_feedback_source is not None:
-        st.pending_verdict_write = persist_rejected_review_cycle_for_rollback(st, ports)
+        # `persist_rejected_review_cycle_for_rollback` (tasks_verdict_persistence,
+        # frozen boundary) writes the rejected artifact's ``reviewer_agent`` from
+        # ``st.agent`` alone, which ignores a caller-declared ``--reviewer`` that
+        # differs from ``--agent`` (the WP actor driving this CLI invocation, not
+        # necessarily the reviewer). Thread the already-resolved reviewer identity
+        # through ``st.agent`` for just this call, then restore it immediately so
+        # every OTHER consumer of ``st.agent`` below (the real actor/agent facts)
+        # is unaffected.
+        declared_agent = st.agent
+        st.agent = _mt_resolve_reviewer_identity(st)
+        try:
+            st.pending_verdict_write = persist_rejected_review_cycle_for_rollback(st, ports)
+        finally:
+            st.agent = declared_agent
     if st.target_lane in (Lane.APPROVED, Lane.DONE):
         st.pending_verdict_write = _persist_approved_review_cycle(st, ports)
     if decision.done_override_note and not st.json_output:
