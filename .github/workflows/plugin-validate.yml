@@ -35,16 +35,16 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: "20"
 
       - name: Install Claude CLI
         run: npm install -g @anthropic-ai/claude-code
 
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@v8.1.0
 
       - name: Install spec-kitty-cli
         run: uv sync --frozen --all-extras
@@ -76,9 +76,9 @@ jobs:
     # which asserts the forbidden ``hooks``/``agents`` keys are absent and the
     # required interface fields are present (FR-026, FR-028, C-003).
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@v8.1.0
 
       - name: Install spec-kitty-cli
         run: uv sync --frozen --all-extras
