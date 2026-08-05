@@ -1,6 +1,6 @@
 ---
 title: Isolated Dev Environments (Shadow Clones)
-description: How to run several standalone spec-kitty checkouts on one machine without cross-mission pollution — clone-local virtualenv plus a clone-local runtime-state root — while keeping the machine-global CLI intact.
+description: 'Run several standalone spec-kitty checkouts on one machine without cross-mission pollution: a clone-local venv plus a clone-local runtime-state root, machine-global CLI intact.'
 doc_status: active
 updated: '2026-08-05'
 type: how-to
