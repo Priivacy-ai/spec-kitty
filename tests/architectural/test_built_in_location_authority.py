@@ -139,12 +139,10 @@ _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
         # doctrine.pack_paths (layer boundary, C-004). See module docstring
         # class 1.
         (Path("src/kernel/paths.py"), 88),
-        # src/kernel/paths.py::_find_relocated_missions_ancestor -- walks a
-        # caller-supplied SPEC_KITTY_TEMPLATE_ROOT override directory, not
-        # this installation's own built-in tier. kernel cannot import
-        # doctrine.pack_paths (layer boundary, C-004). See module docstring
-        # class 2.
-        (Path("src/kernel/paths.py"), 130),
+        # (formerly src/kernel/paths.py:130 -- _find_relocated_missions_ancestor
+        # re-inlined the packs/built-in/missions shape; it now reuses the
+        # _MISSION_ASSETS_SIBLING_PATTERN constant, so it no longer joins a
+        # built-in literal and needs no exemption. Removed 2026-08-05, PR #3204.)
         # src/doctrine/missions/repository.py::_MISSIONS_ROOT_SIBLING_PATTERN --
         # a relative SHAPE constant (input to
         # kernel.sibling_paths.resolve_installed_sibling), the SAME primitive

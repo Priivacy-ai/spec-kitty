@@ -127,7 +127,7 @@ def _find_relocated_missions_ancestor(root: Path) -> Path | None:
     content-sniff is needed once a candidate is found to exist.
     """
     for ancestor in (root, *root.parents):
-        candidate = ancestor / "packs" / "built-in" / _MISSION_ASSETS_DIR_NAME
+        candidate = ancestor / _MISSION_ASSETS_SIBLING_PATTERN
         if candidate.is_dir():
             return candidate
     return None
