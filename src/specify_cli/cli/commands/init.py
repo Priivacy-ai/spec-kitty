@@ -74,6 +74,15 @@ _ACCEPTANCE_MATRIX_GITATTRIBUTES_ENTRY = (
 # WP11 (FR-008): repointed from issue-matrix.md -- WP05 migrated the canonical
 # artifact to structured JSON (C-008); the .md pattern is inert on new repos.
 _ISSUE_MATRIX_GITATTRIBUTES_ENTRY = "kitty-specs/**/issue-matrix.json merge=spec-kitty-issue-matrix"
+# review-cycle-verdict-seam-rebuild-01KZ2W7W WP18 (T017/T078): review-cycle
+# verdict artifacts become genuinely two-sided during the create-window
+# migration (ADR 2026-08-03-1) -- a refuse-fail-closed driver (never a union)
+# keeps a genuine two-verdict collision from being clobbered by `-X theirs`.
+# Filename-anchored (never `tasks/*.md`), so `tasks/<wp>/baseline-tests.json`
+# and `tasks/WP*.md` are unaffected.
+_REVIEW_CYCLE_GITATTRIBUTES_ENTRY = (
+    "kitty-specs/**/tasks/*/review-cycle-*.md merge=spec-kitty-review-cycle"
+)
 _COMMAND_SKILL_AGENTS = {"codex", "vibe", "pi", "letta"}
 _GITHUB_DIFF_GITATTRIBUTES_ENTRIES = (
     "kitty-specs/**/status.json linguist-generated=true",
@@ -201,6 +210,7 @@ def _ensure_event_log_merge_attributes(project_path: Path) -> bool:
         _TRACES_GITATTRIBUTES_ENTRY,
         _ACCEPTANCE_MATRIX_GITATTRIBUTES_ENTRY,
         _ISSUE_MATRIX_GITATTRIBUTES_ENTRY,
+        _REVIEW_CYCLE_GITATTRIBUTES_ENTRY,
         *_GITHUB_DIFF_GITATTRIBUTES_ENTRIES,
     )
     missing = [entry for entry in required_entries if entry not in lines]

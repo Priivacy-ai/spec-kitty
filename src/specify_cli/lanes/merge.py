@@ -105,6 +105,19 @@ _MERGE_DRIVERS: tuple[_MergeDriverSpec, ...] = (
         # any canonical path any more, so the .md pattern would be inert.
         pattern="kitty-specs/**/issue-matrix.json",
     ),
+    # review-cycle-verdict-seam-rebuild-01KZ2W7W WP18 (T017/T078): a
+    # refuse-fail-closed driver, NOT a union/field-merge -- see
+    # merge_driver.py::merge_driver_review_cycle's docstring for why this one
+    # driver in the registry never reconciles a collision, only refuses it.
+    # Filename-anchored pattern (never `tasks/*.md`) so genuinely
+    # single-writer WP task files (`tasks/WP*.md`,
+    # `tasks/<wp>/baseline-tests.json`) are unaffected.
+    _MergeDriverSpec(
+        config_key="spec-kitty-review-cycle",
+        name="Spec Kitty review-cycle verdict collision refusal",
+        command="spec-kitty merge-driver-review-cycle %O %A %B",
+        pattern="kitty-specs/**/tasks/*/review-cycle-*.md",
+    ),
 )
 
 
