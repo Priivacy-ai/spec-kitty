@@ -376,15 +376,17 @@ def _guard_rejected_verdict(req: MoveTaskRequest) -> RefuseExit1 | None:
 
     FR-001 (review-verdict-write-integrity-01KZ1CGF): a latest verdict of
     ``"rejected"`` no longer fails-closed the ORDINARY approve path by itself.
-    Before the durable writer existed (T001/T005's
-    ``_persist_approved_review_cycle``), refusing here was the only way to
-    stop a rejected verdict from being silently approved over — there was
+    Before the durable writer existed (T001/T005's ``_persist_approved_review_cycle``
+    — since WP06's verdict-seam extraction, a top-level function in
+    ``tasks_verdict_persistence.py``, not this file), refusing here was the only
+    way to stop a rejected verdict from being silently approved over — there was
     nothing that could record a genuine approval artifact, so blocking was
-    the safest failure mode. Now that ``_mt_finalize_plan`` persists a real
-    ``verdict: approved`` review-cycle artifact once the transition proceeds,
-    continuing to refuse would keep the ordinary reject-fix-approve path
-    hitting the "only escape hatch" this mission exists to close (spec.md
-    User Story 1, Acceptance Scenarios 1 & 2 / SC-002 / NFR-002).
+    the safest failure mode. Now that ``tasks_move_task.py``'s ``_mt_finalize_plan``
+    calls into that function and persists a real ``verdict: approved``
+    review-cycle artifact once the transition proceeds, continuing to refuse
+    would keep the ordinary reject-fix-approve path hitting the "only escape
+    hatch" this mission exists to close (spec.md User Story 1, Acceptance
+    Scenarios 1 & 2 / SC-002 / NFR-002).
 
     What this guard still refuses:
 

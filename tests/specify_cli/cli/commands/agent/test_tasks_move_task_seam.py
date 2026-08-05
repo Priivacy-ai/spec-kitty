@@ -43,13 +43,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specify_cli.cli.commands.agent import tasks, tasks_move_task
+from specify_cli.cli.commands.agent import tasks, tasks_move_task, tasks_verdict_persistence
 from specify_cli.cli.commands.agent.tasks_move_task import _MoveTaskState
-from specify_cli.status import Lane
+from specify_cli.status import Lane, ReviewResult
 
 pytestmark = pytest.mark.fast
 
 _TASKS = "specify_cli.cli.commands.agent.tasks"
+_VERDICT_SEAM = "specify_cli.cli.commands.agent.tasks_verdict_persistence"
 
 
 class _SentinelHit(Exception):
@@ -355,3 +356,436 @@ def test_default_ports_constructs_through_tasks_bindings() -> None:
 # exact-set claim), which covers the same 51-symbol ``tasks_move_task``
 # surface. See the module docstring above for the reconcile ruling on the
 # interception battery kept in this file.
+
+
+# ===========================================================================
+# WP06 (review-cycle-verdict-seam-rebuild-01KZ2W7W): the verdict-persistence
+# seam extraction. Two batteries below:
+#
+# 1. ``tasks_verdict_persistence`` direct unit coverage — exercises the four
+#    extracted sites' actual logic against real fixtures/fakes (NOT merely
+#    re-running the existing ``tasks_move_task`` suite through the new call
+#    path), satisfying the ≥90% diff-coverage obligation the move carries.
+# 2. Delegation/forwarder interception — proves the three frozen-compat
+#    symbols left behind in ``tasks_move_task.py``
+#    (``_mt_fire_override_persist``, ``_mt_finalize_plan``'s two call sites,
+#    ``_run_arbiter_override``) call straight into the new module rather than
+#    re-implementing the extracted logic inline.
+# ===========================================================================
+
+
+def _write_review_cycle_artifact(wp_dir: Path, cycle_n: int, verdict: str) -> Path:
+    wp_dir.mkdir(parents=True, exist_ok=True)
+    artifact = wp_dir / f"review-cycle-{cycle_n}.md"
+    artifact.write_text(
+        f"---\ncycle_number: {cycle_n}\nverdict: {verdict}\nwp_id: WP01\n---\n\nBody.\n",
+        encoding="utf-8",
+    )
+    return artifact
+
+
+# --- resolve_review_verdict_facts (site 1) ----------------------------------
+
+
+def test_resolve_review_verdict_facts_no_artifacts(tmp_path: Path) -> None:
+    """No review-cycle artifacts under the WP dir -> all-``None`` facts."""
+    wp_path = tmp_path / "WP01-do-a-thing.md"
+    verdict, artifact_path, artifact_name = tasks_verdict_persistence.resolve_review_verdict_facts(
+        wp_path
+    )
+    assert (verdict, artifact_path, artifact_name) == (None, None, None)
+
+
+def test_resolve_review_verdict_facts_picks_highest_cycle(tmp_path: Path) -> None:
+    """Resolves against ``<wp_path>.parent / <wp_path>.stem`` and picks the
+    highest-numbered cycle's verdict + artifact name — the exact site-1 shape."""
+    wp_path = tmp_path / "WP01-do-a-thing.md"
+    wp_dir = tmp_path / "WP01-do-a-thing"
+    _write_review_cycle_artifact(wp_dir, 1, "rejected")
+    cycle2 = _write_review_cycle_artifact(wp_dir, 2, "approved")
+    verdict, artifact_path, artifact_name = tasks_verdict_persistence.resolve_review_verdict_facts(
+        wp_path
+    )
+    assert verdict == "approved"
+    assert artifact_path == cycle2
+    assert artifact_name == cycle2.name
+
+
+def test_mt_gather_review_facts_delegates_to_resolve_review_verdict_facts() -> None:
+    """``_mt_gather_review_facts`` (frozen compat symbol) calls straight into
+    the extracted resolver rather than resolving the verdict inline."""
+    st = _make_state(to="approved")
+    st.target_lane = Lane.APPROVED
+    st.wp = cast(Any, SimpleNamespace(path=Path("WP01-x.md"), frontmatter=""))
+    with (
+        patch(f"{_TASKS}._check_unchecked_subtasks", return_value=[]),
+        patch(f"{_TASKS}._validate_ready_for_review", return_value=(True, [])),
+        patch(
+            f"{tasks_move_task.__name__}.resolve_review_verdict_facts",
+            return_value=("approved", Path("review-cycle-1.md"), "review-cycle-1.md"),
+        ) as resolve_mock,
+    ):
+        tasks_move_task._mt_gather_review_facts(st)
+    resolve_mock.assert_called_once_with(Path("WP01-x.md"))
+    assert st.verdict_artifact_path == Path("review-cycle-1.md")
+    assert st.request is not None
+    assert st.request.review_verdict == "approved"
+    assert st.request.review_artifact_name == "review-cycle-1.md"
+
+
+# --- persist_review_override_before_guard (site 2) --------------------------
+
+
+def test_persist_review_override_before_guard_noop_without_signal(tmp_path: Path) -> None:
+    """No override signal -> the write helper is never reached."""
+    st = _make_state()
+    st.request = cast(Any, SimpleNamespace())
+    st.verdict_artifact_path = tmp_path / "review-cycle-1.md"
+    with (
+        patch(f"{_VERDICT_SEAM}.override_persist_signal", return_value=False),
+        patch(f"{_VERDICT_SEAM}._persist_review_artifact_override") as persist_mock,
+    ):
+        tasks_verdict_persistence.persist_review_override_before_guard(st)
+    persist_mock.assert_not_called()
+
+
+def test_persist_review_override_before_guard_fires_write(tmp_path: Path) -> None:
+    """Signal true + a resolved artifact path -> the write helper fires with
+    the exact args the incumbent inline block used."""
+    st = _make_state(agent="claude", note="  because reasons  ")
+    st.request = cast(Any, SimpleNamespace())
+    st.verdict_artifact_path = tmp_path / "review-cycle-1.md"
+    st.main_repo_root = tmp_path
+    st.task_id = "WP01"
+    with (
+        patch(f"{_VERDICT_SEAM}.override_persist_signal", return_value=True),
+        patch(f"{_VERDICT_SEAM}._persist_review_artifact_override") as persist_mock,
+    ):
+        tasks_verdict_persistence.persist_review_override_before_guard(st)
+    persist_mock.assert_called_once_with(
+        st.verdict_artifact_path,
+        repo_root=tmp_path,
+        wp_id="WP01",
+        actor="claude",
+        reason="because reasons",
+    )
+
+
+def test_mt_fire_override_persist_forwards_to_verdict_seam() -> None:
+    """``_mt_fire_override_persist`` (frozen compat symbol) is a thin
+    forwarder onto :func:`persist_review_override_before_guard`."""
+    st = _make_state()
+    with patch(
+        f"{tasks_move_task.__name__}.persist_review_override_before_guard"
+    ) as forward_mock:
+        tasks_move_task._mt_fire_override_persist(st)
+    forward_mock.assert_called_once_with(st)
+
+
+# --- _persist_approved_review_cycle / persist_rejected_review_cycle_for_rollback (site 3) ---
+
+
+def test_persist_approved_review_cycle_noop_when_no_prior_cycle(tmp_path: Path) -> None:
+    """No prior review-cycle artifact -> no-op (first-ever approval, FR-001)."""
+    st = _make_state(to="approved")
+    st.main_repo_root = tmp_path
+    st.mission_slug = "034-feature"
+    st.task_id = "WP01"
+    ports = MagicMock()
+    with (
+        patch(f"{_VERDICT_SEAM}.latest_review_artifact_verdict", return_value=None),
+        patch(f"{_VERDICT_SEAM}.create_rejected_review_cycle") as create_mock,
+    ):
+        tasks_verdict_persistence._persist_approved_review_cycle(st, ports)
+    create_mock.assert_not_called()
+
+
+def test_persist_approved_review_cycle_noop_when_latest_already_approved(tmp_path: Path) -> None:
+    """The latest cycle is already ``approved`` -> no redundant write."""
+    st = _make_state(to="approved")
+    st.main_repo_root = tmp_path
+    st.mission_slug = "034-feature"
+    st.task_id = "WP01"
+    ports = MagicMock()
+    latest = SimpleNamespace(verdict="approved")
+    with (
+        patch(f"{_VERDICT_SEAM}.latest_review_artifact_verdict", return_value=latest),
+        patch(f"{_VERDICT_SEAM}.create_rejected_review_cycle") as create_mock,
+    ):
+        tasks_verdict_persistence._persist_approved_review_cycle(st, ports)
+    create_mock.assert_not_called()
+
+
+def test_persist_approved_review_cycle_writes_over_stale_rejection(tmp_path: Path) -> None:
+    """A stale ``rejected`` latest -> a fresh ``approved`` cycle is written
+    (FR-001), threading ``ports.coord`` as the commit router when auto-commit
+    is resolved on."""
+    st = _make_state(to="approved", reviewer="alice", approval_ref="LGTM")
+    st.main_repo_root = tmp_path
+    st.mission_slug = "034-feature"
+    st.task_id = "WP01"
+    st.resolved_auto_commit = True
+    latest = SimpleNamespace(verdict="rejected")
+    ports = MagicMock()
+    with (
+        patch(f"{_VERDICT_SEAM}.latest_review_artifact_verdict", return_value=latest),
+        patch(f"{_VERDICT_SEAM}.create_rejected_review_cycle") as create_mock,
+    ):
+        tasks_verdict_persistence._persist_approved_review_cycle(st, ports)
+    create_mock.assert_called_once()
+    call_kwargs = create_mock.call_args.kwargs
+    assert call_kwargs["verdict"] == "approved"
+    assert call_kwargs["reviewer_agent"] == "alice"
+    assert "Approved by alice: LGTM" in call_kwargs["body"]
+    assert call_kwargs["commit_router"] is ports.coord
+
+
+def test_persist_rejected_review_cycle_for_rollback_writes_and_updates_state(
+    tmp_path: Path,
+) -> None:
+    """The rollback persist writes the rejection cycle and mutates ``st`` in
+    place (``review_feedback_pointer`` / ``rejected_review_result``) exactly
+    as the incumbent inline block did."""
+    st = _make_state()
+    st.main_repo_root = tmp_path
+    st.mission_slug = "034-feature"
+    st.task_id = "WP01"
+    st.resolved_feedback_source = tmp_path / "feedback.md"
+    st.resolved_feedback_source.write_text("fix this", encoding="utf-8")
+    st.agent = "claude"
+    st.resolved_auto_commit = False
+    review_result = ReviewResult(reviewer="claude", verdict="changes_requested", reference="ref")
+    # WP11 (T048/T049/T050, DM-01KZ6JE62Q6CQ24DMBX8KZZ5R9): the rollback
+    # writer now also reads ``artifact_path``/``artifact.cycle_number`` off
+    # the created cycle to build a ``VerdictDurabilitySignal`` -- the fake
+    # needs those two fields alongside the pre-existing ``pointer``/
+    # ``review_result`` this test already asserted on.
+    fake_cycle = SimpleNamespace(
+        pointer="review-cycle://034-feature/WP01/1",
+        review_result=review_result,
+        artifact_path=tmp_path / "review-cycle-1.md",
+        artifact=SimpleNamespace(cycle_number=1),
+    )
+    ports = MagicMock()
+    with patch(
+        f"{_VERDICT_SEAM}.create_rejected_review_cycle", return_value=fake_cycle
+    ) as create_mock:
+        tasks_verdict_persistence.persist_rejected_review_cycle_for_rollback(st, ports)
+    create_mock.assert_called_once()
+    assert create_mock.call_args.kwargs["feedback_source"] == st.resolved_feedback_source
+    assert create_mock.call_args.kwargs["commit_router"] is None  # auto-commit resolved off
+    assert st.review_feedback_pointer == fake_cycle.pointer
+    assert st.rejected_review_result is review_result
+
+
+def test_persist_rejected_review_cycle_for_rollback_asserts_feedback_source() -> None:
+    """The guard lives at the call site (``_mt_finalize_plan``); this function
+    asserts its precondition rather than silently no-op-ing on a broken caller."""
+    st = _make_state()
+    st.resolved_feedback_source = None
+    with pytest.raises(AssertionError):
+        tasks_verdict_persistence.persist_rejected_review_cycle_for_rollback(st, MagicMock())
+
+
+def test_finalize_plan_delegates_approved_persist() -> None:
+    """``_mt_finalize_plan`` calls :func:`_persist_approved_review_cycle`
+    rather than running the former closure's body inline."""
+    st = _make_state(to="approved")
+    st.target_lane = Lane.APPROVED
+    st.old_lane = Lane.IN_PROGRESS
+    st.resolved_feedback_source = None
+    st.decision = cast(
+        Any,
+        SimpleNamespace(
+            plan=SimpleNamespace(canonical_lane="approved"),
+            evidence_dict=None,
+            note_text=None,
+            planned_rollback=False,
+            arbiter_forward=False,
+            done_override_note=False,
+        ),
+    )
+    ports = MagicMock()
+    with (
+        patch(
+            f"{tasks_move_task.__name__}.persist_rejected_review_cycle_for_rollback"
+        ) as rollback_mock,
+        patch(f"{tasks_move_task.__name__}._persist_approved_review_cycle") as approved_mock,
+    ):
+        tasks_move_task._mt_finalize_plan(st, ports)
+    rollback_mock.assert_not_called()
+    approved_mock.assert_called_once_with(st, ports)
+
+
+def test_finalize_plan_delegates_rollback_persist(tmp_path: Path) -> None:
+    """``_mt_finalize_plan`` calls
+    :func:`persist_rejected_review_cycle_for_rollback` for the planned-rollback
+    path rather than running the former inline block."""
+    st = _make_state(to="planned")
+    st.target_lane = Lane.PLANNED
+    st.old_lane = Lane.IN_PROGRESS
+    st.resolved_feedback_source = tmp_path / "feedback.md"
+    st.decision = cast(
+        Any,
+        SimpleNamespace(
+            plan=SimpleNamespace(canonical_lane="planned"),
+            evidence_dict=None,
+            note_text=None,
+            planned_rollback=True,
+            arbiter_forward=False,
+            done_override_note=False,
+        ),
+    )
+    ports = MagicMock()
+    with (
+        patch(f"{tasks_move_task.__name__}.build_transition_plan") as build_mock,
+        patch(
+            f"{tasks_move_task.__name__}.persist_rejected_review_cycle_for_rollback"
+        ) as rollback_mock,
+        patch(f"{tasks_move_task.__name__}._persist_approved_review_cycle") as approved_mock,
+    ):
+        tasks_move_task._mt_finalize_plan(st, ports)
+    rollback_mock.assert_called_once_with(st, ports)
+    approved_mock.assert_not_called()
+    build_mock.assert_called_once()
+
+
+# --- persist_arbiter_override_decision (site 4) -----------------------------
+
+
+def test_persist_arbiter_override_decision_success_prints_and_persists(
+    tmp_path: Path,
+) -> None:
+    """The happy path persists the decision and prints both console lines,
+    matching the incumbent inline try block exactly."""
+    from specify_cli.review.arbiter import ArbiterCategory, create_arbiter_decision
+
+    decision = create_arbiter_decision(
+        arbiter_name="claude", category="wrong_context", explanation="wrong WP"
+    )
+    feature_dir = tmp_path / "feature"
+    persisted_path = tmp_path / "arbiter-override-1.json"
+    with (
+        patch(f"{_TASKS}.console") as console_mock,
+        patch(
+            "specify_cli.review.arbiter.persist_arbiter_decision",
+            return_value=persisted_path,
+        ) as persist_mock,
+    ):
+        tasks_verdict_persistence.persist_arbiter_override_decision(
+            feature_dir=feature_dir,
+            wp_id="WP01",
+            review_ref="review-cycle://034-feature/WP01/1",
+            decision=decision,
+            category=ArbiterCategory.WRONG_CONTEXT,
+            explanation="wrong WP",
+            json_output=False,
+        )
+    persist_mock.assert_called_once_with(
+        feature_dir=feature_dir,
+        wp_id="WP01",
+        review_ref="review-cycle://034-feature/WP01/1",
+        decision=decision,
+    )
+    assert console_mock.print.call_count == 2
+
+
+def test_persist_arbiter_override_decision_json_output_suppresses_console(
+    tmp_path: Path,
+) -> None:
+    """``json_output=True`` never prints, but the persist call still fires."""
+    from specify_cli.review.arbiter import ArbiterCategory, create_arbiter_decision
+
+    decision = create_arbiter_decision(
+        arbiter_name="claude", category="custom", explanation="custom reason"
+    )
+    with (
+        patch(f"{_TASKS}.console") as console_mock,
+        patch(
+            "specify_cli.review.arbiter.persist_arbiter_decision",
+            return_value=tmp_path / "x.json",
+        ) as persist_mock,
+    ):
+        tasks_verdict_persistence.persist_arbiter_override_decision(
+            feature_dir=tmp_path / "feature",
+            wp_id="WP01",
+            review_ref=None,
+            decision=decision,
+            category=ArbiterCategory.CUSTOM,
+            explanation="custom reason",
+            json_output=True,
+        )
+    persist_mock.assert_called_once()
+    console_mock.print.assert_not_called()
+
+
+def test_persist_arbiter_override_decision_propagates_persist_error(
+    tmp_path: Path,
+) -> None:
+    """T054 (FR-009/FR-010/FR-011, WP12, DM-01KZ6X4Y7A3XPK5AJ96AA49XJ9):
+    RE-PINNED. A raising persist call used to degrade to a dim console
+    warning and swallow the exception -- silent under ``--json`` (the
+    ``if not json_output:`` guard meant NO output at all in that mode). Once
+    T051/T052 retire the frontmatter/JSON-sidecar fallbacks, the event-sourced
+    ``ReviewOverride`` emit inside ``persist_arbiter_decision`` is the ONLY
+    durable record of an override -- a failure here is not a best-effort
+    side effect to warn-and-continue past. The exception now propagates
+    (this function no longer catches it at all) to
+    ``tasks_move_task.py``'s existing outer ``except Exception as e:``
+    handler, which already reports failures correctly under both ``--json``
+    and plain output -- see that module's ``_do_move_task``. This test
+    asserts the NEW contract: the call raises, and no success/console
+    output is produced by this function on the way out.
+    """
+    from specify_cli.review.arbiter import ArbiterCategory, create_arbiter_decision
+
+    decision = create_arbiter_decision(
+        arbiter_name="claude", category="custom", explanation="custom reason"
+    )
+    with (
+        patch(f"{_TASKS}.console") as console_mock,
+        patch(
+            "specify_cli.review.arbiter.persist_arbiter_decision",
+            side_effect=OSError("disk full"),
+        ),
+        pytest.raises(OSError, match="disk full"),
+    ):
+        tasks_verdict_persistence.persist_arbiter_override_decision(
+            feature_dir=tmp_path / "feature",
+            wp_id="WP01",
+            review_ref=None,
+            decision=decision,
+            category=ArbiterCategory.CUSTOM,
+            explanation="custom reason",
+            json_output=False,
+        )
+    console_mock.print.assert_not_called()
+
+
+def test_run_arbiter_override_delegates_persist_to_verdict_seam(tmp_path: Path) -> None:
+    """``_run_arbiter_override`` (frozen compat symbol) builds the decision
+    and calls straight into :func:`persist_arbiter_override_decision` instead
+    of running the persist try/except inline."""
+    fake_event = SimpleNamespace(wp_id="WP01", review_ref="review-cycle://034-feature/WP01/1")
+    with (
+        patch(f"{_TASKS}.read_events_transactional", return_value=[fake_event]),
+        patch(
+            f"{tasks_move_task.__name__}.persist_arbiter_override_decision"
+        ) as persist_mock,
+    ):
+        result = tasks_move_task._run_arbiter_override(
+            feature_dir=tmp_path,
+            mission_slug="034-feature",
+            main_repo_root=tmp_path,
+            task_id="WP01",
+            note_text="pre_existing_failure: flaky in CI",
+            agent="claude",
+            json_output=False,
+        )
+    persist_mock.assert_called_once()
+    call_kwargs = persist_mock.call_args.kwargs
+    assert call_kwargs["feature_dir"] == tmp_path
+    assert call_kwargs["wp_id"] == "WP01"
+    assert call_kwargs["review_ref"] == "review-cycle://034-feature/WP01/1"
+    assert call_kwargs["json_output"] is False
+    assert result == "review-cycle://034-feature/WP01/1"
