@@ -578,17 +578,22 @@ def test_nfr004_all_canonical_steps_render() -> None:
     assert not render_errors, f"Commands failed to render: {render_errors}"
 
 
-def test_nfr004_command_installer_resolves_doctrine_path() -> None:
-    """NFR-004: command_installer._resolve_template uses the doctrine path.
+def test_nfr004_command_installer_resolves_relocated_missions_path() -> None:
+    """NFR-004: command_installer._resolve_template resolves the relocated missions path.
 
-    Verify that the installer's path resolver points into doctrine, not into
-    the old specify_cli/missions/software-dev/command-templates/ directory.
+    FR-005 moved mission data out of the doctrine package into
+    packs/built-in/missions/. Verify the installer's path resolver follows
+    that relocation and lands on a real file under the new canonical
+    location, and that it never falls back to the old
+    specify_cli/missions/software-dev/command-templates/ directory.
     """
     from specify_cli.skills.command_installer import _resolve_template
 
     template_path = _resolve_template(Path("/unused"), "specify")
 
     assert template_path.name == "prompt.md", f"Expected template filename 'prompt.md', got '{template_path.name}'"
-    assert "doctrine" in str(template_path), f"Resolved template path does not go through 'doctrine': {template_path}"
+    assert "packs/built-in/missions" in str(template_path).replace("\\", "/"), (
+        f"Resolved template path does not go through the relocated 'packs/built-in/missions' location: {template_path}"
+    )
     assert "command-templates" not in str(template_path), f"Resolved template path still references legacy 'command-templates': {template_path}"
     assert template_path.is_file(), f"Resolved template path does not exist on disk: {template_path}"
