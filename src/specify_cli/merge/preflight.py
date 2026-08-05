@@ -365,7 +365,15 @@ def _enforce_review_artifact_consistency(
     mission_slug: str,
     wp_ids: list[str],
 ) -> None:
-    """Block terminal signoff when the latest review artifact is rejected."""
+    """Block terminal signoff when the latest review artifact is rejected.
+
+    FR-001 (WP07/T030, traced not assumed): this function consumes
+    ``run_review_artifact_consistency_preflight``'s ``ReviewArtifactPreflightResult``
+    opaquely (``.passed`` / ``.findings`` / the diagnostic dicts it renders below)
+    and performs no independent frontmatter re-parse of its own. The event-sourced
+    ``review_result`` reducer slot T029 wired into the gate therefore reaches this
+    call site automatically — no additional code change is needed here.
+    """
     preflight = run_review_artifact_consistency_preflight(feature_dir, wp_ids=wp_ids)
     if preflight.passed:
         return

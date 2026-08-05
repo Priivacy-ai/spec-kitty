@@ -57,7 +57,14 @@ def _emit_review_artifact_block(
     resolved_target_branch: str,
     json_output: bool,
 ) -> None:
-    """Emit the review-artifact gate failure (REJECTED_REVIEW_ARTIFACT_CONFLICT)."""
+    """Emit the review-artifact gate failure (REJECTED_REVIEW_ARTIFACT_CONFLICT).
+
+    FR-001 (WP07/T030, traced not assumed): renders ``review_artifact_preflight``
+    opaquely (``.diagnostics()`` / ``.findings``) — no independent frontmatter
+    re-parse of its own. The event-sourced ``review_result`` reducer slot T029
+    wired into ``run_review_artifact_consistency_preflight`` therefore reaches
+    the dry-run preview automatically; no additional code change is needed here.
+    """
     diagnostics = review_artifact_preflight.diagnostics(
         repo_root=main_repo_for_diag,
     )
