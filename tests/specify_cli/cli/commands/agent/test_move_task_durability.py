@@ -64,7 +64,13 @@ from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
     FakeRender,
 )
 
-pytestmark = pytest.mark.fast
+# PR #3211 landing pass (2026-08-05, F6): re-marked from `fast` to
+# `integration, git_repo` -- both tests drive the REAL `_do_move_task`
+# orchestrator against a REAL git-fixture repo (see the module docstring),
+# which `test_pytest_marker_correctness.py`'s Rule 1/Rule 2 require: `git_repo`
+# presence, and `fast` exclusion, for any file that invokes git via
+# subprocess.
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _MISSION = "wp11-durability"
 _WP_ID = "WP01"

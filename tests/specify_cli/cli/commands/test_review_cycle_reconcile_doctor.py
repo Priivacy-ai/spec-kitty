@@ -27,7 +27,13 @@ import specify_cli.cli.commands.doctor as doctor_module
 from specify_cli.cli.commands import _review_cycle_reconcile_doctor as rcr
 from specify_cli.missions._read_path_resolver import coord_feature_dir
 
-pytestmark = [pytest.mark.fast]
+# PR #3211 landing pass (2026-08-05, F6): re-marked from `fast` to
+# `integration, git_repo` -- both fixture classes above build a REAL git
+# repo/worktree and drive it via ``subprocess`` (see ``_git``/
+# ``_init_git_repo`` below), which `test_pytest_marker_correctness.py`'s
+# Rule 1/Rule 2 require: `git_repo` presence, and `fast` exclusion, for any
+# file that invokes git via subprocess.
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 

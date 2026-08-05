@@ -183,7 +183,17 @@ from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
 # refine individual tests further; this module-level mark satisfies the
 # file-level presence check and reflects the file's home (real command
 # surface + real git, not pure unit logic).
-pytestmark = [pytest.mark.integration]
+#
+# PR #3211 landing pass (2026-08-05, F6): ``git_repo`` added at module level --
+# EVERY cell (including the ``@pytest.mark.fast``-decorated ones above)
+# transitively drives a real ``git init``/``git add``/``git commit`` via
+# ``_seed_fixture`` -> ``_init_repo`` (see that helper's own docstring: the
+# production writer's ``feature_status_lock`` is keyed under the real git
+# common dir, so there is no way to exercise it against a non-git
+# ``tmp_path``). ``test_pytest_marker_correctness.py``'s Rule 1 requires the
+# marker at file scope whenever the file invokes git via subprocess anywhere,
+# which this file does.
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 # ---------------------------------------------------------------------------
 # Shared constants (Sonar S1192: every repeated literal below is named once)
