@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -26,12 +27,13 @@ from .models import (
     InnerStateChanged,
     Lane,
     RetrospectiveSnapshot,
+    ReviewResult,
     StatusEvent,
     StatusSnapshot,
     WPInnerStateDelta,
     actor_identity_str,
 )
-from .store import read_event_stream, read_events_raw
+from .store import StoreError, read_event_stream, read_events_raw
 
 #: Per-WP runtime slots carried forward across lane transitions (per-field
 #: independence, FR-002). A transition updates ``lane``/``actor``/… and MUST
@@ -112,6 +114,40 @@ def _wp_state_from_event(
     runtime slot: it extracts ``shell_pid``/``shell_pid_created_at``/``agent``
     from its ``policy_metadata`` sidecar into the snapshot slots (FR-004 claim
     path). ``policy_metadata`` may be ``None`` — read defensively.
+
+    **``review_result`` (FR-001/T025-T026, WP07)** is a second, analogous
+    exception, but its trigger is WIDER than "outbound from ``in_review``"
+    alone. The FSM guard (``wp_state.InReviewState.guard_for`` ->
+    ``_check_review_result``) requires a ``ReviewResult`` only on a
+    non-forced outbound-from-``in_review`` edge — but the EMIT path applies no
+    ``from_lane`` filter of its own: ``status/emit.py``,
+    ``coordination/status_transition.py``, and
+    ``orchestrator_api/commands.py``'s external ``transition`` command all
+    thread an operator/caller-supplied ``review_result`` onto the event
+    verbatim, regardless of ``from_lane``. ``in_progress -> approved`` is a
+    legal edge (``InProgressState.allowed_targets``) gated on evidence, not on
+    ``from_lane`` — so a single-hop transition carrying both ``evidence`` and
+    a populated ``ReviewResult`` is constructible and persistable without ever
+    passing through ``in_review``. A trigger keyed SOLELY on
+    ``from_lane == IN_REVIEW`` would silently drop that verdict (and, on a
+    later unrelated transition, resurrect whatever stale value a prior
+    ``in_review`` cycle had carried-forward) — exactly the multi-authority bug
+    this mission exists to close. The rule is therefore: **any event carrying
+    a populated ``ReviewResult`` populates the slot with it, full stop**; the
+    ``from_lane == IN_REVIEW`` leg exists ADDITIONALLY to capture the
+    forced-null case the guard bypass creates (a forced exit from
+    ``in_review`` supplying no ``ReviewResult`` still must land an explicit
+    ``None``, T028 — an event with no ``review_result`` and ``from_lane !=
+    IN_REVIEW`` has no such guarantee to make, so it only carries forward).
+    Deliberately NOT a ``_RUNTIME_SLOTS`` row (plan.md IC-04's risk note;
+    widening that tuple would red ``test_2093_authority_invariant.py``'s arm
+    2). The slot being written to ``None`` (T028) is distinct from the slot
+    being entirely ABSENT for a WP that has never carried a verdict or exited
+    ``in_review`` (T027's un-migrated/never-reviewed compatibility case). See
+    :func:`review_result_from_state` / :func:`event_sourced_review_result` for
+    the reader that preserves this three-way distinction, and
+    :func:`_apply_annotation_delta`'s ``review`` slot docstring for the
+    precedence rule between the two (T026).
     """
     prior_force_count = 0
     if previous is not None:
@@ -149,6 +185,23 @@ def _wp_state_from_event(
         if agent is not None:
             state["agent"] = agent
 
+    # review_result exception (T025/T026, WP07): see the docstring above.
+    # Trigger is "the event carries a verdict" OR "outbound-from-in_review"
+    # (NOT from_lane == IN_REVIEW alone — emit applies no from_lane filter, so
+    # a single-hop in_progress -> approved carrying evidence + review_result
+    # is a real, reachable event shape the narrower trigger would silently
+    # drop). Either way the slot is OVERRIDDEN (not carry-forward-merged):
+    # a populated ReviewResult always lands as itself, and a forced
+    # in_review exit with no ReviewResult still lands an explicit ``None``
+    # (T028). Any other transition carries the slot forward verbatim
+    # (sticky) from ``previous`` so it is never silently erased.
+    if event.review_result is not None or event.from_lane == Lane.IN_REVIEW:
+        state["review_result"] = (
+            event.review_result.to_dict() if event.review_result is not None else None
+        )
+    elif previous is not None and "review_result" in previous:
+        state["review_result"] = previous["review_result"]
+
     return state
 
 
@@ -180,6 +233,24 @@ def _apply_annotation_delta(state: dict[str, Any], delta: WPInnerStateDelta) -> 
       dict, so a stale "superseded by approval" record left by an earlier
       review-artifact override does not survive onto a WP that has since
       rolled back to ``planned`` with a fresh rejection.
+
+    **Precedence vs. ``review_result`` (T026, WP07)**: ``review`` (this slot,
+    written here) and ``review_result`` (written in :func:`_wp_state_from_event`
+    on an outbound-from-``in_review`` transition) are two DIFFERENT facts and
+    are never collapsed into one — ``review`` is the arbiter's override
+    decision, ``review_result`` is the reviewer's own verdict. Both may be
+    populated simultaneously for the same WP (an override recorded after a
+    standing rejection, for instance). **Precedence rule**: an arbiter
+    override in ``review`` (when :meth:`ReviewOverride.complete` is true)
+    clears the merge gate over a ``review_result`` of ``"changes_requested"``
+    for gate-clearing purposes ONLY — this matches the pre-existing arbiter
+    behaviour (an override already clears the gate without a fresh approval,
+    ``test_2684_review_override_recognition.py``). It does **not** overwrite
+    or erase the ``review_result`` slot's own value: a consumer asking "what
+    did the reviewer actually say" (as opposed to "is the gate clear") still
+    reads the real, un-mutated ``review_result``. Gate-clearing precedence is
+    applied by each consumer (e.g. ``post_merge/review_artifact_consistency.
+    py``'s event-sourced check), never by overwriting either slot here.
 
     Never increments ``force_count``.
     """
@@ -399,6 +470,102 @@ def wp_snapshot_state(feature_dir: Path, wp_id: str) -> Mapping[str, Any] | None
     # cast: work_packages values are dict[str, Any], so .get() is Any|None at the
     # follow_imports=skip boundary; narrow to the declared read-only Mapping.
     return cast("Mapping[str, Any] | None", snapshot.work_packages.get(wp_id))
+
+
+@dataclass(frozen=True)
+class ReviewResultLookup:
+    """Outcome of resolving the event-sourced ``review_result`` verdict for one WP.
+
+    Deliberately a three-way outcome (T027/T028), never collapsed to a single
+    ``ReviewResult | None``:
+
+    - ``slot_present=False`` (``result=None``): the reduced snapshot carries no
+      ``review_result`` key for this WP at all — no reduced entry exists, or
+      the WP has never undergone an outbound-from-``in_review`` transition
+      (the only transition class :func:`_wp_state_from_event` writes this slot
+      on). This is the un-migrated / never-reviewed compatibility case: FR-001
+      still requires a reader here, so callers fall back to the pre-existing
+      frontmatter-parsing path (``rejected_review_artifact_for_terminal_lane``
+      / ``latest_review_artifact_verdict``) rather than reporting "no verdict"
+      for a safety gate (SC-012).
+    - ``slot_present=True, result=None``: the event log HAS spoken for this
+      WP's most recent outbound-from-``in_review`` transition, and its
+      authoritative answer is "no verdict was ever recorded" — typically a
+      ``--force`` transition that supplied no ``ReviewResult`` (T028). This is
+      NOT the un-migrated case: falling back to frontmatter here would
+      resurrect a stale artifact and reintroduce the multi-authority bug this
+      mission closes. (An individual gate MAY still choose to defer to its
+      existing frontmatter-only answer when this is the outcome, because the
+      event genuinely has no opinion to contribute either way — see
+      ``post_merge/review_artifact_consistency.py``'s event-sourced gate
+      helper — but that is a call-site choice, not a resurrection of the
+      un-migrated fallback.)
+    - ``slot_present=True, result=<ReviewResult>``: the event log's own
+      recorded verdict — authoritative per FR-001, regardless of what any
+      review-cycle artifact's frontmatter says.
+    """
+
+    slot_present: bool
+    result: ReviewResult | None
+
+
+def review_result_from_state(state: Mapping[str, Any]) -> ReviewResultLookup:
+    """Resolve the event-sourced ``review_result`` verdict from an already-
+    materialized per-WP snapshot state ``Mapping``.
+
+    Mirrors ``post_merge/review_artifact_consistency.py``'s
+    ``_snapshot_review_override`` convention of taking the reduced state
+    directly rather than re-deriving it: a caller that already holds a
+    :class:`StatusSnapshot` (e.g. via :func:`materialize_snapshot`) must not
+    pay a second reduce for the same fact. Use
+    :func:`event_sourced_review_result` when no snapshot is in hand yet.
+
+    Fails closed on a malformed slot value (present but not a mapping, or
+    missing required ``ReviewResult`` fields): treated as ``slot_present=True,
+    result=None`` — "no verdict", never a crash and never a fabricated
+    verdict. See :class:`ReviewResultLookup` for the full three-way contract.
+    """
+    if "review_result" not in state:
+        return ReviewResultLookup(slot_present=False, result=None)
+    raw = state["review_result"]
+    if raw is None:
+        return ReviewResultLookup(slot_present=True, result=None)
+    if not isinstance(raw, Mapping):
+        return ReviewResultLookup(slot_present=True, result=None)
+    try:
+        return ReviewResultLookup(
+            slot_present=True, result=ReviewResult.from_dict(dict(raw))
+        )
+    except (KeyError, TypeError, ValueError):
+        return ReviewResultLookup(slot_present=True, result=None)
+
+
+def event_sourced_review_result(feature_dir: Path, wp_id: str) -> ReviewResultLookup:
+    """Resolve the event-sourced ``review_result`` verdict for one WP (FR-001).
+
+    Snapshot-first: reads the reduced snapshot's ``review_result`` slot via
+    :func:`wp_snapshot_state`. Snapshot-first-WITH-FALLBACK is the CALLER's
+    job, not this function's — matching :func:`wp_snapshot_state`'s own
+    established convention ("a snapshot-first reader vs. a frontmatter
+    fallback is a call-site decision, not this accessor's"). See
+    :class:`ReviewResultLookup` for the three-way outcome this preserves.
+
+    **Failure polarity (fail-closed, stated for the WP01 reader census):** a
+    corrupted/unreadable event log raises :class:`~specify_cli.status.store.
+    StoreError` from the underlying ``read_event_stream`` call; this function
+    treats that identically to "no reduced entry" (``slot_present=False``),
+    so the caller's un-migrated-mission fallback path fires rather than an
+    uncaught crash or a verdict fabricated from a damaged log. This governs
+    only the SNAPSHOT read; a caller's own frontmatter-fallback source has its
+    own, separately-declared polarity (see each consumer).
+    """
+    try:
+        state = wp_snapshot_state(feature_dir, wp_id)
+    except StoreError:
+        return ReviewResultLookup(slot_present=False, result=None)
+    if state is None:
+        return ReviewResultLookup(slot_present=False, result=None)
+    return review_result_from_state(state)
 
 
 def _runtime_only_wp_state(actor: ActorField) -> dict[str, Any]:

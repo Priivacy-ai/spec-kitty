@@ -29,6 +29,14 @@ def check_wp_lanes(
     """Step 1 — WP lane check.
 
     Appends findings to the provided list and prints to console.
+
+    FR-001 (WP07/T029): ``find_rejected_review_artifact_conflicts`` (below) is
+    the single shared implementation also used by the merge gate
+    (``post_merge/review_artifact_consistency.py``) — it already consults both
+    the event-sourced ``review_result`` reducer slot and the frontmatter
+    artifact, with the event winning on disagreement. This call therefore
+    consults the event-sourced answer too, with no separate reader call
+    needed in this module (traced, not assumed).
     """
     snapshot = materialize(feature_dir)
     non_done = [
