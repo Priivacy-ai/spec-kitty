@@ -205,8 +205,18 @@ _ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/specify_cli/cli/commands/_coordination_doctor.py", "_apply_coord_staleness_fixes"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/_coordination_doctor.py", "_collect_coordination_findings"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/_coordination_doctor.py", "check_and_warn_coord_staleness"): (1, "silent-by-contract"),
+    # PR #3211 landing pass (2026-08-05, F4): reads with
+    # `on_malformed="none"` and returns None (no reconciliation) on an
+    # unreadable meta.json -- deliberately silent, not fail-closed.
+    ("src/specify_cli/cli/commands/_review_cycle_reconcile_doctor.py", "_report_for_mission"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/agent/mission_check_prerequisites.py", "_read_meta_for_emission"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/agent/mission_repair.py", "run_mission_repair"): (1, "silent-by-contract"),
+    # PR #3211 landing pass (2026-08-05, F4): reads the primary metadata with
+    # `allow_missing=True, on_malformed="none"` to best-effort resolve a
+    # coord worktree for a revert compensator -- a missing/malformed
+    # mission_id is handled explicitly below (raises a typed
+    # VerdictRevertError), so this read itself is deliberately silent.
+    ("src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py", "_resolve_revert_commit_worktree"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/mission_type.py", "_delete_legacy_coordination_branch"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/mission_type.py", "_expected_discard_branches"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/mission_type.py", "_read_mission_mid8"): (1, "silent-by-contract"),
