@@ -31,7 +31,7 @@ test_no_dead_modules:
   # wp-lane-state-machine-fsm): upstream #1756 added m_3_3_0_session_presence_all_harnesses
   # and m_3_3_0_session_presence_claude_code; both auto-discovered via
   # pkgutil.iter_modules, never statically imported. Growth here is expected/routine.
-  category_1_auto_discovered_migrations: 98  # justification: 96 after PR #3007 added m_3_2_6_retire_rtk_search_tooling, an auto-discovered upgrade migration that cleans up the retired rtk-search-tooling toolguide activation from existing consumer configs (#3009 operator ruling). +1 (96->97, PR #3070): m_3_2_x_normalize_activation_absence, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules) that normalizes activation absence during charter-activation unification — no static importer, so registration not suppression. +1 (97->98, write-side-seam-matrix-tracer-01KYP3MH WP05/FR-008, commit 09f740bd4): m_3_2_6_issue_matrix_driver_repoint, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules, wired via cli/commands/upgrade.py's auto_discover_migrations()) that repoints the #2804 gate-artifact merge driver from issue-matrix.md to issue-matrix.json — no static importer, same false-positive class as every sibling m_3_2_6_* entry. Category 1 exists precisely to enumerate auto-discovered migration modules that have no static importer.
+  category_1_auto_discovered_migrations: 99  # justification: 96 after PR #3007 added m_3_2_6_retire_rtk_search_tooling, an auto-discovered upgrade migration that cleans up the retired rtk-search-tooling toolguide activation from existing consumer configs (#3009 operator ruling). +1 (96->97, PR #3070): m_3_2_x_normalize_activation_absence, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules) that normalizes activation absence during charter-activation unification — no static importer, so registration not suppression. +1 (97->98, write-side-seam-matrix-tracer-01KYP3MH WP05/FR-008, commit 09f740bd4): m_3_2_6_issue_matrix_driver_repoint, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules, wired via cli/commands/upgrade.py's auto_discover_migrations()) that repoints the #2804 gate-artifact merge driver from issue-matrix.md to issue-matrix.json — no static importer, same false-positive class as every sibling m_3_2_6_* entry. +1 (98->99, review-cycle-verdict-seam-rebuild-01KZ2W7W WP18/T079): m_3_2_7_review_cycle_merge_driver, an auto-discovered migration (@MigrationRegistry.register, pkgutil.iter_modules) that installs the fail-closed review-cycle-*.md merge driver for already-initialized clones — no static importer, same false-positive class as every sibling driver-seeding migration. Category 1 exists precisely to enumerate auto-discovered migration modules that have no static importer.
   # justification: 3 schema generator modules consumed by
   # scripts/generate_schemas.py via importlib.import_module.
   # Shrunk from 4 → 3 when doctrine.missions.models gained a live
@@ -415,3 +415,55 @@ test_unfiltered_journal_read_boundary:
   # never-opted-in events on 2026-07-27: argue it in the diff, or use
   # `read_identity_projection(project_uuids=...)` instead.
   unfiltered_read_allowlist_sites: 4
+
+# tests/architectural/test_verdict_seam_census.py
+# NFR-007 / FR-020 (mission review-cycle-verdict-seam-rebuild-01KZ2W7W, WP01).
+# Not a growth-gated ratchet like the sections above -- this check's own
+# in-file comparison against tests/architectural/census/verdict_seam_IC01.yaml
+# is the live enforcement (fails on growth AND shrinkage, both directions).
+# This section is the recorded STARTING MEASUREMENT WP01's own derivation
+# produced, for later WPs (WP07/WP08/WP13/WP14) to set their reduction targets
+# against -- per NFR-007, no numeral was pinned in advance; these are exactly
+# what the AST derivation counted the first time it ran.
+#
+# Revised post-review (opus pass 1, F1-F5): the resolver predicate was
+# tightened to be ARTIFACT-anchored (review-cycle-*.md), not directory-anchored
+# (tasks/<wp>/ also holds baseline-tests.json and tasks/WP*.md, per ADR
+# 2026-08-03-1) -- F1; scope gained a second leg keyed on ReviewResult/
+# ReviewOverride construction, reaching the orchestrator_api external ingress
+# and the migration/backfill_runtime_state.py legacy reconstruction, neither of
+# which mentions review-cycle/review_cycle text -- F2; workflow.py::review's
+# independent cycle-number allocation was added as a writer -- F3; a narrow
+# cross-module try/except(ValueError, OSError) "translator" pass was added so
+# the merge gate (find_rejected_review_artifact_conflicts) gets a reader row
+# for its fail-closed polarity -- F4; and a print()-only display mention no
+# longer counts as writer evidence, dropping the false-positive
+# implement_try_render_fix_mode_prompt writer row (its reader row stays) -- F5.
+test_verdict_seam_census:
+  # justification: 16 functions matching the writer shape (builds/writes a
+  # review-cycle-*.md-shaped filename outside a print()-only display call, is a
+  # .write-shaped method on a ReviewCycle*-named class, threads an
+  # artifact-named path into a write/persist call, or constructs the
+  # event-side ReviewResult/ReviewOverride) across the UNION of the
+  # review-cycle/review_cycle token scope and the ReviewResult/ReviewOverride
+  # constructor-call scope (F2). Includes same-module one-hop call-closure
+  # promotions (e.g. persist_arbiter_decision, which delegates entirely to
+  # _persist_in_artifact) and workflow.py::review's independent cycle-number
+  # allocation (F3).
+  writer_count: 16
+  # justification: 13 functions matching the ARTIFACT-anchored resolver shape
+  # (F1): a "tasks"-literal path join, gated on a wp_id/wp_slug/task_id-shaped
+  # parameter (so a feature-level tasks/ lister does not qualify), excluding
+  # any function referencing the baseline-tests.json literal or globbing a
+  # non-review-cycle pattern (a bare {wp_id}*.md WP-file glob is a DIFFERENT,
+  # deliberately-PRIMARY artifact kind sharing the same directory).
+  resolver_count: 13
+  # justification: 18 functions matching the reader shape (ReviewCycleArtifact.
+  # from_file, extract_scalar(..., "verdict"), or a manual read_text + ---
+  # frontmatter-delimiter + YAML-load parse). Includes the fifth,
+  # easily-missed reader spec.md names explicitly:
+  # tasks_parsing_validation.py::_get_latest_review_cycle_verdict, and (F4) the
+  # narrow cross-module translator promotion for
+  # post_merge/review_artifact_consistency.py::find_rejected_review_artifact_conflicts
+  # and cli/commands/agent/workflow_cores.py::resolve_review_feedback_pointer.
+  reader_count: 18

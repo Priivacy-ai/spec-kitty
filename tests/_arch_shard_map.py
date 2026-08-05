@@ -157,6 +157,18 @@ _ARCH_SHARD_1_FILES: tuple[str, ...] = (
     "tests/architectural/test_uv_lock_pin_drift.py",
     "tests/architectural/test_workflow_coherence.py",
     "tests/architectural/test_wp_owned_files_no_kitty_specs.py",
+    # Added post-data-model.md (new file, mission
+    # review-cycle-verdict-seam-rebuild-01KZ2W7W WP02, FR-014/SC-013 -- the
+    # absolute-event-timestamp mixture guard closing #3157's class of
+    # defect). Recounted by `def test_` after WP01's own append to shard_3
+    # landed (test_verdict_seam_census.py): shard_1=288, shard_2=312,
+    # shard_3=308 -- shard_1 was the lightest, so this 10-test file lands
+    # here (note: a naive grep for `^def test_` over this file's own text
+    # returns 17, not 10 -- 7 of those lines are `def test_...` occurrences
+    # embedded inside this file's own synthetic fixture *source strings*,
+    # not real pytest-collected functions; `pytest --collect-only` confirms
+    # 10 real tests, which is the weight used for this placement decision).
+    "tests/architectural/test_no_absolute_event_timestamp_mixture.py",
 )
 
 _ARCH_SHARD_2_FILES: tuple[str, ...] = (
@@ -235,6 +247,13 @@ _ARCH_SHARD_2_FILES: tuple[str, ...] = (
     # stayed present). shard_2 was the lightest by file count (36 vs 37/39)
     # when this file landed, so it lands here.
     "tests/architectural/test_ci_fast_jobs_have_timeout.py",
+    # Added post-data-model.md (new file, mission
+    # review-cycle-verdict-seam-rebuild-01KZ2W7W WP16, FR-017/SC-007 — the
+    # test-name-truthfulness audit over the touched-union-keyword-matched
+    # denominator). shard_2 was the lightest by file count (37 vs 38/40) when
+    # this file landed (4 real tests by `pytest --collect-only`), so it lands
+    # here.
+    "tests/architectural/test_verdict_name_truthfulness.py",
 )
 
 _ARCH_SHARD_3_FILES: tuple[str, ...] = (
@@ -335,6 +354,12 @@ _ARCH_SHARD_3_FILES: tuple[str, ...] = (
     "tests/architectural/test_charter_sole_door_resolver_imports.py",
     "tests/architectural/test_charter_sole_door_hardcoded_paths.py",
     "tests/architectural/test_charter_sole_door_inner_reacharound.py",
+    # Added post-data-model.md (new file, mission
+    # review-cycle-verdict-seam-rebuild-01KZ2W7W WP01, NFR-007/FR-020 -- the
+    # verdict-seam census check). Measured at implementation time by `def
+    # test_` count: shard_1=288, shard_2=312, shard_3=286 -- shard_3 was the
+    # lightest, so this 18-test file lands here.
+    "tests/architectural/test_verdict_seam_census.py",
 )
 
 # ``relpath -> shard`` for exact-file (architectural) units.
