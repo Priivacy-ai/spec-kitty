@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -45,6 +46,51 @@ def _job_run_script(data: dict[str, Any], job_name: str, step_name: str) -> str:
 
 def _job(data: dict[str, Any], job_name: str) -> dict[str, Any]:
     return dict(data["jobs"][job_name])
+
+
+# T021 (mission review-cycle-verdict-seam-rebuild-01KZ2W7W, WP05): a shard job
+# must not condition its own execution on a predecessor's `.result` — it
+# should still run and report its own outcome regardless of whether the
+# predecessor passed or failed. This regex catches both classes of gate this
+# WP removed: `needs.<job>.result != 'failure'` (Class 1, e.g. a coverage
+# shard gated on kernel-tests/fast-tests-status) and `needs.<job>.result ==
+# 'success'` (Class 2, an integration-tests-* job gated on its fast-tests-*
+# counterpart).
+_RESULT_GATE_PATTERN = re.compile(r"needs\.[\w-]+\.result\s*(?:!=\s*'failure'|==\s*'success')")
+
+# Single named, justified exception (see the DoD in
+# kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks/WP05-ci-shard-independence.md):
+# ``consumer-compatibility``'s ``needs.build-wheel.result == 'success'`` gate
+# is a release-packaging aggregator dependency (a wheel it consumes), not a
+# coverage-shard result-gate the way the removed edges were — build-wheel
+# produces the artifact consumer-compatibility installs, so gating on its
+# result is a genuine "don't bother installing a wheel that was never built"
+# check, not the redundant "predecessor's test outcome shouldn't block my own
+# report" coupling this test exists to forbid. This is a single named
+# constant, not a general allowlist: any job matching the pattern that is NOT
+# named here fails the test below, and adding a name here requires the same
+# explicit justification as this comment.
+_NON_SHARD_AGGREGATOR_EXCEPTIONS = frozenset({"consumer-compatibility"})
+
+
+def _find_result_gated_jobs(jobs: dict[str, Any]) -> dict[str, str]:
+    """Return ``{job_name: if_expr}`` for jobs gating on a predecessor's ``.result``.
+
+    A job's ``if:`` arrives here, post-PyYAML-parse, as one of three shapes: a
+    plain string, a folded ``>-`` block scalar (also just a ``str`` once
+    parsed), or absent (key missing, defaults to always-run) — all three are
+    handled uniformly by coercing to ``str`` and skipping ``None``.
+    """
+    offending: dict[str, str] = {}
+    for job_name, job in jobs.items():
+        if job_name in _NON_SHARD_AGGREGATOR_EXCEPTIONS:
+            continue
+        if_expr = job.get("if") if isinstance(job, dict) else None
+        if if_expr is None:
+            continue
+        if _RESULT_GATE_PATTERN.search(str(if_expr)):
+            offending[job_name] = str(if_expr)
+    return offending
 
 
 # Marker selector shared by the legacy catch-all universe and every shard
@@ -553,3 +599,63 @@ def test_security_scan_steps_set_pipefail(step_id: str) -> None:
         f"security scan step '{step_id}' must ``set -o pipefail`` so its ``| tee`` "
         "pipeline does not swallow a non-zero scan exit (vacuous security gate)"
     )
+
+
+def test_no_shard_gates_execution_on_a_predecessor_result() -> None:
+    """No shard job may condition its own execution on a predecessor's ``.result``.
+
+    T021 (mission review-cycle-verdict-seam-rebuild-01KZ2W7W, WP05): guards
+    against silently reintroducing the coupling this WP removed — e.g. a new
+    shard added by copy-pasting an existing job's ``if:`` block with its
+    ``.result`` gate left intact. A job may still declare a real ``needs:``
+    artifact dependency (checkout/cache/coverage-XML handoff); what it must
+    NOT do is skip its own execution — and therefore its own reported result —
+    because a predecessor failed or didn't succeed. See
+    kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/tasks/WP05-ci-shard-independence.md.
+    """
+    data = _load_workflow()
+    offending = _find_result_gated_jobs(data["jobs"])
+    assert not offending, (
+        "job(s) still gate their own execution on a predecessor's .result "
+        "(a shard must run and report its own outcome regardless of whether "
+        f"an upstream shard passed or failed): {offending}"
+    )
+
+
+def test_result_gate_checker_catches_a_reintroduced_gate() -> None:
+    """Synthetic-poison proof that ``_find_result_gated_jobs`` reds on a new gate.
+
+    Permanent regression proof for T021: constructs a minimal synthetic
+    ``jobs`` mapping containing a deliberately (re)introduced Class 1 style
+    gate (``!= 'failure'``, folded ``if: >-`` block shape) and a Class 2 style
+    gate (``== 'success'``), alongside an ungated job and a job with no ``if:``
+    key at all, and confirms the checker flags exactly the two poisoned jobs.
+    This is what proves the checker actually catches the regression it exists
+    to prevent — not merely that it currently passes against an
+    already-fixed workflow.
+    """
+    poisoned_jobs = {
+        "fast-tests-example": {
+            "if": (
+                "always()\n"
+                "&& (needs.changes.outputs.example == 'true' || github.event_name == 'push')\n"
+                "&& needs.fast-tests-status.result != 'failure'\n"
+            ),
+        },
+        "integration-tests-example": {
+            "if": (
+                "always()\n"
+                "&& (needs.changes.outputs.example == 'true' || github.event_name == 'push')\n"
+                "&& needs.fast-tests-example.result == 'success'\n"
+            ),
+        },
+        "clean-job": {
+            "if": "always() && (needs.changes.outputs.example == 'true' || github.event_name == 'push')",
+        },
+        "no-if-job": {},
+        "consumer-compatibility": {
+            "if": "always() && needs.changes.outputs.release == 'true' && needs.build-wheel.result == 'success'",
+        },
+    }
+    offending = _find_result_gated_jobs(poisoned_jobs)
+    assert set(offending) == {"fast-tests-example", "integration-tests-example"}
