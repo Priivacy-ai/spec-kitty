@@ -185,9 +185,17 @@ def for_review_repo(
         ),
     )
 
-    workspace = repo / ".worktrees" / f"{MISSION_SLUG}-lane-a"
-    workspace.mkdir(parents=True)
-
+    # Deliberately no ``.worktrees/<slug>-lane-a`` directory: an empty,
+    # non-git directory there is a "husk" (``resolve_workspace_for_wp``
+    # resolves it as a lane workspace, but
+    # ``src/specify_cli/cli/commands/agent/tasks_parsing_validation.py``'s
+    # ``_check_worktree_health`` then refuses any transition through it for
+    # missing a ``.git`` entry). Leaving the path absent makes
+    # ``_validate_worktree_state`` skip worktree validation entirely
+    # (``worktree_path.exists()`` is False), which is correct here: this WP's
+    # lifecycle is driven entirely through the status-event log and the
+    # review-cycle artifact writer, never through real lane-worktree code
+    # changes.
     subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
     subprocess.run(
         ["git", "commit", "-m", "seed for-review fixture"],
@@ -312,6 +320,22 @@ def test_approving_a_rejected_wp_writes_no_verdict_artifact(
     assert latest_after_rejection is not None
     assert latest_after_rejection.verdict == "rejected"
 
+    # Commit the freshly-written review-cycle-1.md, exactly as the CLI's own
+    # dirty-worktree guard (``_validate_research_artifacts``,
+    # ``src/specify_cli/cli/commands/agent/tasks_parsing_validation.py:526``)
+    # instructs a real caller to before any further lane transition --
+    # otherwise the later approve attempt is refused for an uncommitted WP01
+    # file that is unrelated to the defect this test pins.
+    subprocess.run(
+        ["git", "add", f"kitty-specs/{MISSION_SLUG}/"], cwd=repo, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "docs(WP01): record cycle 1 rejection feedback"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+
     # Drive the WP back through the FULL lifecycle after the rejection --
     # in_review -> planned (rejected) -> claimed -> in_progress -> for_review
     # -> in_review -- exactly as a real implementer reworking and
@@ -357,12 +381,40 @@ def test_approving_a_rejected_wp_writes_no_verdict_artifact(
         ),
     )
 
+    # Drive T001 to "done" through the REAL completion surface -- the
+    # ``mark-status`` command's ``InnerStateChanged`` subtask-completion emit
+    # (``_ms_emit_subtask_state``,
+    # ``src/specify_cli/cli/commands/agent/tasks_mark_status.py:310``) -- so
+    # the approval guard's event-sourced snapshot
+    # (``_snapshot_unchecked_subtasks``,
+    # ``src/specify_cli/cli/commands/agent/tasks_transition_core.py:461``)
+    # reflects genuine completion. Hand-faking the reduced snapshot would
+    # prove nothing about the real defect this test pins; the WP01 fixture's
+    # authored ``subtasks: ["T001"]`` roster lets ``mark-status`` resolve
+    # T001's owning WP without any extra wiring.
+    runner = CliRunner()
+    mark_status_result = runner.invoke(
+        agent_tasks.app,
+        [
+            "mark-status",
+            "T001",
+            "--status",
+            "done",
+            "--mission",
+            MISSION_SLUG,
+            "--no-auto-commit",
+        ],
+    )
+    assert mark_status_result.exit_code == 0, (
+        "expected marking T001 done via the real mark-status command to "
+        f"succeed. CLI stdout:\n{mark_status_result.stdout}"
+    )
+
     # The reviewer is now satisfied and approves -- a plain approve, with NO
     # override flags, and a caller-declared reviewer identity via --agent
     # (the real option the CLI already exposes -- see
     # src/specify_cli/cli/commands/agent/tasks.py:610).
     reviewer_identity = "reviewer-renata"
-    runner = CliRunner()
     result = runner.invoke(
         agent_tasks.app,
         [
