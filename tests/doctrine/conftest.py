@@ -5,6 +5,18 @@ Compliance-guard and consistency tests import this constant instead of
 hardcoding ``REPO_ROOT / "src" / "doctrine"`` independently.  The path is
 intentionally *not* routed through ``MissionTemplateRepository`` — these tests
 act as layout canaries and should break if the directory structure changes.
+
+BUILT_IN_MISSIONS_ROOT is the analogous canonical constant for the missions
+DATA subdirectories, relocated by mission
+``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` (FR-005) from
+``src/doctrine/missions`` (nested under ``DOCTRINE_SOURCE_ROOT``) to
+``packs/built-in/missions`` (a sibling of ``DOCTRINE_SOURCE_ROOT``, not nested
+under it). Compliance-guard/layout-canary tests that need the shipped mission
+data on disk should import this constant rather than composing
+``DOCTRINE_SOURCE_ROOT / "missions"`` themselves -- that composition still
+type-checks and still resolves to an *existing* directory post-relocation
+(the 11 ``.py`` logic modules stay there), it is just the wrong, now
+data-less one.
 """
 
 from __future__ import annotations
@@ -22,6 +34,10 @@ REPO_ROOT: Path = Path(__file__).resolve().parents[2]
 
 DOCTRINE_SOURCE_ROOT: Path = REPO_ROOT / "src" / "doctrine"
 """Canonical on-disk path to the doctrine source tree (``src/doctrine/``)."""
+
+BUILT_IN_MISSIONS_ROOT: Path = REPO_ROOT / "packs" / "built-in" / "missions"
+"""Canonical on-disk path to the relocated missions data tree
+(``packs/built-in/missions/``) -- see module docstring."""
 
 
 # ---------------------------------------------------------------------------

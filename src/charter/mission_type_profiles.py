@@ -191,7 +191,7 @@ class GovernancePayload:
 
 
 class UnknownMissionTypeError(ValueError):
-    """Raised when a mission type matches no activated mission type.
+    """Raised when a mission type cannot be resolved to a loadable profile.
 
     The hard-fail behaviour is the FR-001 / FR-003 contract: there MUST NOT be
     a silent ``software-dev-default`` fallback for non-software missions.  The
@@ -201,10 +201,21 @@ class UnknownMissionTypeError(ValueError):
     FR-009: The message MUST also list the registered (activated) mission
     type IDs so operators know what values are valid.
 
+    FR-006 / SC-003 (#3183): ``mission_type_id`` is not always absent from
+    ``registered_ids`` — a project may activate a custom type
+    (``existing_mission_types()`` returns it) that still has no resolvable
+    ``MissionTypeProfile`` / mission-type definition on disk (see
+    :func:`resolve_mission_type_context`'s ``_resolve_action_slot`` caller).
+    That is a genuinely different fact from "not activated at all", so the
+    message states it separately ("is activated but has no loadable
+    profile") instead of folding the id into the same "Unknown mission type
+    ... Registered types: ..." sentence, which would call the same id both
+    unknown and registered at once.
+
     Attributes
     ----------
     mission_type_id:
-        The unknown mission type ID that was looked up.
+        The mission type ID that failed to resolve.
     registered_ids:
         Sorted list of activated mission type IDs at the time of the error.
     """
@@ -216,7 +227,21 @@ class UnknownMissionTypeError(ValueError):
     ) -> None:
         self.mission_type_id = mission_type_id
         self.registered_ids: list[str] = registered_ids if registered_ids is not None else []
-        if self.registered_ids:
+        if mission_type_id in self.registered_ids:
+            # Activated-but-unresolvable case (#3183): naming this id both
+            # "unknown" and "registered" in one sentence is the defect this
+            # branch exists to avoid. State the two real facts separately.
+            message = (
+                f"Mission type {mission_type_id!r} is activated but has no "
+                "loadable profile."
+            )
+            other_registered = [
+                rid for rid in self.registered_ids if rid != mission_type_id
+            ]
+            if other_registered:
+                others_str = ", ".join(other_registered)
+                message += f" Other activated mission types: {others_str}."
+        elif self.registered_ids:
             ids_str = ", ".join(self.registered_ids)
             message = (
                 f"Unknown mission type {mission_type_id!r}. "
@@ -411,9 +436,11 @@ def existing_mission_types(repo_root: Path) -> list[str]:
     ``MissionTypeProfile`` that :func:`resolve_mission_type_context` can
     actually load (governance slot) and/or a doctrine-layer action-sequence
     definition (action slot); lacking either, resolution still hard-fails with
-    :class:`UnknownMissionTypeError` even though the id appears in this
-    function's return value (see :func:`resolve_mission_type_context`'s
-    "Known message caveat" note for the exact, reproduced contradiction).
+    :class:`UnknownMissionTypeError`, even though the id appears in this
+    function's return value — :class:`UnknownMissionTypeError` distinguishes
+    that "activated but has no loadable profile" case from a genuinely
+    unregistered id (FR-006, #3183) rather than calling the same id both
+    unknown and registered.
 
     Reads ``.kittify/config.yaml`` via :class:`~charter.pack_context.PackContext`
     to obtain the activation set.  When the config file is absent or the
@@ -503,15 +530,18 @@ def resolve_mission_type_context(
     :func:`existing_mission_types` — see that function's docstring for the
     full account of what this mission verified versus added.
 
-    Known message caveat (pre-existing, out of scope for this mission): an
-    activated custom type id that has no resolvable ``MissionTypeProfile`` on
-    disk still hard-fails via :class:`UnknownMissionTypeError` from the
-    governance or action slot, and that error's message lists the very id it
-    calls unknown among its own ``registered_ids`` — e.g. activating only
-    ``my-custom`` and resolving it raises "Unknown mission type 'my-custom'.
-    Registered types: my-custom." "Registered" there means "activated", not
-    "has a loadable profile"; fixing that contradiction needs its own mission
-    and is not attempted here.
+    Activated-but-unresolvable message fix (FR-006, #3183): an activated
+    custom type id that has no resolvable ``MissionTypeProfile`` on disk
+    still hard-fails via :class:`UnknownMissionTypeError` from the action
+    slot, but the message no longer lists the very id it names among its own
+    ``registered_ids`` as if that were a contradiction — e.g. activating only
+    ``my-custom`` and resolving it now raises "Mission type 'my-custom' is
+    activated but has no loadable profile." instead of the old "Unknown
+    mission type 'my-custom'. Registered types: my-custom." See
+    :class:`UnknownMissionTypeError`'s own docstring for the branch that
+    distinguishes the two cases, and
+    ``tests/charter/test_mission_type_profiles.py::TestResolveMissionTypeGovernanceValidation::test_activated_but_unresolvable_profile_message_is_not_contradictory``
+    for the red-first reproduction this fix answers.
 
     Parameters
     ----------

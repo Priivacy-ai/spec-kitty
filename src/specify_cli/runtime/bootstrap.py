@@ -94,6 +94,23 @@ def populate_from_package(target: Path) -> None:
     Args:
         target: Destination directory (typically a temporary staging area).
     """
+    # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005,
+    # N-03) relocated the missions data to packs/built-in/missions;
+    # asset_root (via get_package_asset_root(), R-09) now resolves there
+    # correctly, so missions_src below needs no separate repoint. The
+    # scripts_src/agents_src ".parent"-derived candidates below were,
+    # independent of this move, ALREADY never satisfied in a real
+    # installed/editable layout -- neither src/doctrine/scripts nor
+    # src/doctrine/AGENTS.md exist for real (the actual shipped scripts/ tree
+    # is packaged from src/specify_cli/scripts/, per pyproject.toml's wheel
+    # "artifacts" list, and the real AGENTS.md lives at
+    # src/doctrine/templates/AGENTS.md) -- confirmed by checking both
+    # directories directly. Only the SPEC_KITTY_TEMPLATE_ROOT-driven test
+    # fixture (tests/runtime/test_bootstrap_unit.py's fake_assets, a
+    # synthetic sibling layout) ever exercises these two branches
+    # successfully; this is a pre-existing gap, unrelated to and not
+    # worsened by this WP's relocation, recorded here rather than expanded
+    # into this WP's scope.
     asset_root = get_package_asset_root()
     target.mkdir(parents=True, exist_ok=True)
 

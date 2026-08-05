@@ -19,7 +19,6 @@ shape consumed by ``MissionStepContract`` is named
 
 from __future__ import annotations
 
-from importlib.resources import files
 from pathlib import Path
 from typing import Literal
 
@@ -189,14 +188,22 @@ class MissionStepContractRepository(BaseDoctrineRepository[MissionStepContract])
 
     @staticmethod
     def _default_built_in_dir() -> Path:
-        """Locate the built-in step-contract directory packaged with doctrine."""
-        try:
-            resource = files("doctrine.missions.built_in_step_contracts")
-            if hasattr(resource, "joinpath"):
-                return Path(str(resource))
-            return Path(str(resource))
-        except (ModuleNotFoundError, TypeError):
-            return Path(__file__).parent / "built_in_step_contracts"
+        """Locate the built-in step-contract directory packaged with doctrine.
+
+        Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
+        (FR-005) relocated ``built_in_step_contracts/`` from
+        ``src/doctrine/missions/built_in_step_contracts`` to
+        ``packs/built-in/missions/built_in_step_contracts`` -- the retired
+        ``files("doctrine.missions.built_in_step_contracts")`` dotted-resource
+        lookup addressed exactly the old, now-nonexistent location and would
+        raise post-relocation, as would its ``Path(__file__).parent``-relative
+        fallback. Delegates to the one promoted missions-root authority
+        (:meth:`~doctrine.missions.repository.MissionTemplateRepository.default_missions_root`,
+        FR-004) instead.
+        """
+        from doctrine.missions.repository import MissionTemplateRepository  # noqa: PLC0415
+
+        return MissionTemplateRepository.default_missions_root() / "built_in_step_contracts"
 
     @property
     def _schema(self) -> type[MissionStepContract]:

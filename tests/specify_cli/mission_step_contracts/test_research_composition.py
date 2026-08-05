@@ -8,7 +8,7 @@ in order to dispatch a `research/<action>` invocation actually line up:
    :class:`MissionStepContractRepository`.
 2. ``_ACTION_PROFILE_DEFAULTS`` carries the agreed default profile for each
    `("research", action)` pair.
-3. Each action's doctrine bundle (``src/doctrine/missions/research/actions/
+3. Each action's doctrine bundle (``packs/built-in/missions/research/actions/
    <action>/index.yaml``) exists and parses to non-empty governance content.
 4. The merged DRG resolves a non-empty governance context for each
    `action:research/<action>` URN at the same depth the composer uses.
@@ -106,8 +106,8 @@ def _action_index_path(action: str) -> Path:
     """Resolve the shipped action doctrine bundle index for a research action."""
     return (
         _repo_root()
-        / "src"
-        / "doctrine"
+        / "packs"
+        / "built-in"
         / "missions"
         / "research"
         / "actions"
@@ -128,7 +128,7 @@ def test_all_research_contracts_load(action: str) -> None:
 
     assert contract is not None, (
         f"Missing shipped contract for research/{action}; expected a file at "
-        f"src/doctrine/missions/built_in_step_contracts/research-{action}.step-contract.yaml"
+        f"packs/built-in/missions/built_in_step_contracts/research-{action}.step-contract.yaml"
     )
     assert contract.mission == "research"
     assert contract.action == action
@@ -150,7 +150,7 @@ def test_research_doctrine_bundle_resolved(action: str) -> None:
     """Each action's doctrine bundle exists and declares non-empty content.
 
     The bundle is the YAML index file at
-    ``src/doctrine/missions/research/<action>/index.yaml``. The DRG extractor
+    ``packs/built-in/missions/research/<action>/index.yaml``. The DRG extractor
     (``doctrine.drg.migration.extractor``) compiles ``directives``, ``tactics``,
     ``styleguides``, ``toolguides``, and ``procedures`` from this file into
     ``scope`` edges from the ``action:research/<action>`` node. If every

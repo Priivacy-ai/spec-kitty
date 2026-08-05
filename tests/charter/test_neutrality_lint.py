@@ -124,6 +124,38 @@ def test_default_scan_roots_include_mission_templates(tmp_path: Path) -> None:
     assert any(hit.term_id == "PY-001" for hit in result.hits), f"Expected PY-001 ('pytest') hit from mission templates; got hits={result.hits}"
 
 
+def test_default_scan_roots_include_relocated_builtin_missions(tmp_path: Path) -> None:
+    """The relocated ``packs/built-in/missions/`` tree must be scanned by default.
+
+    Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` (FR-005,
+    N-04) moved the doctrine ``missions/`` data subdirectories from
+    ``src/doctrine/missions`` to ``packs/built-in/missions``. Without this
+    root, the lint would silently stop scanning those relocated prompts and
+    content templates while staying green — a gate-coverage loss with no red
+    test, distinct from a wrong-resolution bug. This test reds against a
+    pre-fix ``_default_scan_roots`` that omits the new root.
+    """
+    mission_templates = tmp_path / "packs" / "built-in" / "missions" / "research" / "templates"
+    mission_templates.mkdir(parents=True)
+    (mission_templates / "plan-template.md").write_text(
+        "Generic mission guidance that accidentally tells the user to run pytest.\n",
+        encoding="utf-8",
+    )
+
+    empty_allowlist = tmp_path / "allow.yaml"
+    empty_allowlist.write_text("schema_version: '1'\npaths: []\n", encoding="utf-8")
+
+    result = run_neutrality_lint(
+        repo_root=tmp_path,
+        allowlist_path=empty_allowlist,
+    )
+
+    assert any(hit.term_id == "PY-001" for hit in result.hits), (
+        f"Expected PY-001 ('pytest') hit from relocated packs/built-in/missions "
+        f"templates; got hits={result.hits}"
+    )
+
+
 def test_default_scan_roots_include_both_mission_template_dirs(tmp_path: Path) -> None:
     """Both ``command-templates/`` and ``templates/`` are scanned when they coexist.
 

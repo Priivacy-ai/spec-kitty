@@ -47,13 +47,13 @@ from pathlib import Path
 
 import pytest
 
-import doctrine.missions
 from charter.mission_type_profiles import (
     ResolvedGovernance,
     UnknownMissionTypeError,
     resolve_mission_type_context,
 )
 from doctrine.missions.action_index import ActionIndex, load_action_index
+from doctrine.missions.repository import MissionTemplateRepository
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -62,8 +62,12 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 # Doctrine source roots + canonical URN normalization
 # ---------------------------------------------------------------------------
 
-#: On-disk root of the shipped mission doctrine (``src/doctrine/missions``).
-MISSIONS_ROOT: Path = Path(doctrine.missions.__file__).resolve().parent
+#: On-disk root of the shipped mission doctrine (``packs/built-in/missions``,
+#: relocated from ``src/doctrine/missions`` by mission
+#: doctrine-consumer-surface-missions-extraction-01KZ6G6H, FR-005). The
+#: retired ``Path(doctrine.missions.__file__).resolve().parent`` construction
+#: would resolve to the now data-less ``.py``-only package directory instead.
+MISSIONS_ROOT: Path = MissionTemplateRepository.default_missions_root()
 
 #: The non-software mission types whose resolved governance MUST be free of
 #: software-dev-only doctrine (FR-005 / SC-001).

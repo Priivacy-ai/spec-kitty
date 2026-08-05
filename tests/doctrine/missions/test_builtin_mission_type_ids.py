@@ -4,7 +4,7 @@ Covers (per WP01 / contracts/canonical-accessor.md, IC-1a):
 - SC-001: a synthetic mission-type YAML injected via a monkeypatched
   ``MissionTypeRepository.default`` root is picked up after
   ``builtin_mission_type_ids.cache_clear()`` — without ever touching the
-  real ``src/doctrine/missions/mission_types/`` tree (C-010 cache-vs-test
+  real ``packs/built-in/missions/mission_types/`` tree (C-010 cache-vs-test
   seam).
 - Un-monkeypatched behavior matches the four shipped built-in ids, sorted.
 - ``builtin_mission_type_id_set()`` is a frozenset projection of the same ids.
@@ -30,7 +30,7 @@ from doctrine.missions.mission_type_repository import (
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 _SHIPPED_MISSION_TYPES_DIR = (
-    Path(__file__).parent.parent.parent.parent / "src" / "doctrine" / "missions" / "mission_types"
+    Path(__file__).parent.parent.parent.parent / "packs" / "built-in" / "missions" / "mission_types"
 )
 _SHIPPED_IDS = ("documentation", "plan", "research", "software-dev")
 

@@ -29,8 +29,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 SPECIFY_PROMPT = (
     REPO_ROOT
-    / "src"
-    / "doctrine"
+    / "packs"
+    / "built-in"
     / "missions"
     / "mission-steps"
     / "software-dev"

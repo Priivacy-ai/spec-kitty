@@ -283,10 +283,12 @@ def test_dashboard_progress_reads_snapshot_not_checkboxes(tmp_path: Path) -> Non
 # ---------------------------------------------------------------------------
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
+# Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)
+# relocated missions/ from src/doctrine/missions to packs/built-in/missions.
 _EDITED_TASKS_TEMPLATES = (
-    "src/doctrine/missions/software-dev/templates/tasks-template.md",
-    "src/doctrine/missions/documentation/templates/tasks-template.md",
-    "src/doctrine/missions/research/templates/tasks-template.md",
+    "packs/built-in/missions/software-dev/templates/tasks-template.md",
+    "packs/built-in/missions/documentation/templates/tasks-template.md",
+    "packs/built-in/missions/research/templates/tasks-template.md",
     "src/specify_cli/missions/documentation/templates/tasks-template.md",
     "src/specify_cli/missions/research/templates/tasks-template.md",
 )
@@ -306,7 +308,7 @@ def test_source_tasks_templates_have_no_checkbox_rows(rel_path: str) -> None:
 
 
 def test_source_tasks_prompt_directs_mark_status() -> None:
-    prompt = _REPO_ROOT / "src/doctrine/missions/mission-steps/software-dev/tasks/prompt.md"
+    prompt = _REPO_ROOT / "packs/built-in/missions/mission-steps/software-dev/tasks/prompt.md"
     text = prompt.read_text(encoding="utf-8")
     assert "mark-status" in text, "the tasks prompt must direct agents to mark-status"
 

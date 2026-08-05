@@ -133,10 +133,10 @@ specialization:
     kind cannot be referenced inline" is an edge, not a wider enum. (A plain path to genuinely
     non-artifact material — an ADR, a README, a template — remains legitimate in `references:`;
     that is raw reference material, not a relationship.) Does not hand-edit a generated
-    `<kind>.graph.yaml` fragment, and does not tell an operator to edit `src/doctrine/graph.yaml`,
-    which no longer exists. Does not author an `applies` edge — and states the reason precisely,
-    because the imprecise version is written in the codebase and is false. `applies` is not
-    unread: the orphan lint accepts it as an inbound edge on a directive node, and the charter
+    `<kind>.graph.yaml` fragment, and does not tell an operator to edit the retired monolith
+    `graph.yaml`, which no longer exists. Does not author an `applies` edge — and states the reason
+    precisely, because the imprecise version is written in the codebase and is false. `applies` is
+    not unread: the orphan lint accepts it as an inbound edge on a directive node, and the charter
     project-tier synthesizer emits it during project-tier synthesis. What is true is
     that no *traversal* follows it — context resolution walks `scope`, then `requires` and
     `suggests`, and the charter cascade walks `requires`/`suggests`/`refines` — so an authored

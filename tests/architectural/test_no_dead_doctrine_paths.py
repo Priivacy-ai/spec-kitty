@@ -1,19 +1,20 @@
-"""Architectural gate: doctrine paths named in guidance must exist on disk.
+"""Architectural gate: relative cross-links in built-in doctrine markdown
+must resolve on disk.
 
-Mission ``doctrine-silence-guards-01KYFV7Q`` WP07 (FR-008, FR-009, NFR-003).
+Narrowed (mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
+WP01, FR-001) to Gate C alone -- the only ``_DOCTRINE_ROOT``-scoped gate of
+the three this file used to carry. Gate A and Gate B (both ``src/``-wide, not
+doctrine-scoped) moved to ``test_no_dead_cli_paths.py``; Gate D
+(``docs/``-scoped) moved to ``test_dead_builtin_doc_paths.py``. This file
+keeps its original name because, after the split, the name means what it
+says: doctrine-content-scoped only.
 
-Three defect classes, one shared shape: a source site tells a reader to look
-at, edit, or link to a doctrine path that is not there.
-
-``A`` -- the DRG monolith ``src/doctrine/graph.yaml``, sharded out of
-existence by #2680 into one ``<kind>.graph.yaml`` fragment per kind.
-
-``B`` -- the ``<kind>/shipped/`` pack layer, which has never existed on disk;
-the shipped pack layer is ``<kind>/built-in/``.
+Originally: mission ``doctrine-silence-guards-01KYFV7Q`` WP07 (FR-008, FR-009,
+NFR-003).
 
 ``C`` -- relative cross-links in built-in doctrine markdown.
 
-Each gate carries **discriminators**: semantic exclusions that keep it from
+Gate C carries **discriminators**: semantic exclusions that keep it from
 false-redding on correct code. A gate that flags every mention of a string is
 not a gate, it is a spell-checker, and the first correct site it flags gets it
 deleted. NFR-003 therefore requires every discriminator be proven by a fixture
@@ -30,272 +31,29 @@ There is no violation allowlist. Discriminators exclude sites that are
 from __future__ import annotations
 
 import re
-import subprocess
 from dataclasses import dataclass
-from functools import lru_cache
 from pathlib import Path
 
 import pytest
 
+from tests.architectural._dead_path_scan import (
+    _DOCTRINE_ROOT,
+    _PACKS_ROOT,
+    Site,
+    _read_lines,
+    _rel,
+    _render,
+)
+
 #: Without this the CI shard that selects ``-m architectural`` collects none of
 #: these tests, and the gate silently never runs.
 pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
-
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-_SRC_ROOT = _REPO_ROOT / "src"
-_DOCTRINE_ROOT = _SRC_ROOT / "doctrine"
-
-#: Relocated built-in pack root (mission ``relocate-builtin-doctrine-packs-01KYT87F``).
-#: The shipped built-in doctrine content that names paths -- agent profiles,
-#: glossary packs, toolguide markdown, and the per-kind ``*.graph.yaml`` fragments
-#: -- moved out of ``src/doctrine/`` into this top-level pack root. The dead-path
-#: defect class now spans BOTH trees (consuming code under ``src/``; authored pack
-#: content under ``packs/built-in/``), so every shipped gate below scans the pair
-#: and merges the result. ``_rel`` addresses each site repo-relatively, so a merged
-#: site keeps its true ``src/...`` or ``packs/...`` prefix.
-_PACKS_ROOT = _REPO_ROOT / "packs" / "built-in"
-
-#: Text suffixes worth scanning for path-shaped guidance.
-_TEXT_SUFFIXES = frozenset({".py", ".md", ".yaml", ".yml", ".json", ".toml", ".txt"})
 
 #: Mission-tier templates are copied into a mission directory before anyone
 #: reads them, so their sibling links resolve at the destination and never at
 #: the source. Gate C scopes them out wholesale rather than allowlisting each
 #: link; the exclusion is asserted by ``test_cross_link_scope_is_pinned``.
 _DEPLOYMENT_RELATIVE_SUBTREE = "missions"
-
-
-@dataclass(frozen=True, order=True)
-class Site:
-    """One matched occurrence, addressed repo-relatively."""
-
-    path: str
-    line: int
-    text: str
-
-
-def _rel(path: Path, root: Path) -> str:
-    """Repo-relative address, falling back to *root* for scanner unit tests."""
-    try:
-        return path.relative_to(_REPO_ROOT).as_posix()
-    except ValueError:
-        return path.relative_to(root).as_posix()
-
-
-def _read_lines(path: Path) -> list[str]:
-    return path.read_text(encoding="utf-8").splitlines()
-
-
-@lru_cache(maxsize=8)
-def _text_files(root: Path) -> tuple[tuple[Path, tuple[str, ...]], ...]:
-    """Read every scannable text file under *root* once per root."""
-    found: list[tuple[Path, tuple[str, ...]]] = []
-    for candidate in sorted(root.rglob("*")):
-        if candidate.is_file() and candidate.suffix in _TEXT_SUFFIXES:
-            found.append((candidate, tuple(_read_lines(candidate))))
-    return tuple(found)
-
-
-# ---------------------------------------------------------------------------
-# Gate A -- the dead DRG monolith path
-# ---------------------------------------------------------------------------
-
-#: Any slash-joined literal naming a ``graph.yaml`` directly inside a
-#: ``doctrine`` directory. Deliberately broader than the exact built-in
-#: string: the defect class is "names a doctrine graph monolith", and a gate
-#: keyed only on ``src/doctrine/graph.yaml`` is evaded by rewording the prefix.
-_GRAPH_MONOLITH_RE = re.compile(r"[\w./<>-]*doctrine/graph\.yaml")
-
-#: Discriminator A1. The project tier really does write a single
-#: ``graph.yaml`` under ``.kittify/doctrine/``; that path is live, not dead.
-_PROJECT_TIER_PATH = ".kittify/doctrine/graph.yaml"
-
-#: Discriminator A2. An agent profile's avoidance boundary names a path in
-#: order to *forbid* it. Rewriting such a mention inverts the sentence.
-_FORBIDDING_FIELD = "avoidance-boundary:"
-
-
-@dataclass(frozen=True)
-class GraphMonolithScan:
-    """Gate A result, split by discriminator."""
-
-    violations: tuple[Site, ...]
-    project_tier: tuple[Site, ...]
-    forbidding_mentions: tuple[Site, ...]
-
-    @property
-    def naive(self) -> tuple[Site, ...]:
-        """Every match, as a gate with no discriminators would report it."""
-        return tuple(sorted(self.violations + self.project_tier + self.forbidding_mentions))
-
-
-def _forbidding_span(path: Path, lines: tuple[str, ...]) -> tuple[int, int] | None:
-    """Return the 1-based inclusive line span of an agent profile's
-    ``avoidance-boundary`` block, or ``None`` when the file has no such block.
-
-    The span is derived from YAML block structure (key indentation), not from
-    prose matching, so it cannot be widened by wording.
-    """
-    if not path.name.endswith(".agent.yaml"):
-        return None
-    for index, line in enumerate(lines):
-        stripped = line.lstrip()
-        if not stripped.startswith(_FORBIDDING_FIELD):
-            continue
-        key_indent = len(line) - len(stripped)
-        end = len(lines)
-        for follow in range(index + 1, len(lines)):
-            following = lines[follow]
-            if not following.strip():
-                continue
-            if len(following) - len(following.lstrip()) <= key_indent:
-                end = follow
-                break
-        return (index + 1, end)
-    return None
-
-
-def scan_graph_monolith_paths(root: Path) -> GraphMonolithScan:
-    """Classify every ``doctrine/graph.yaml`` mention under *root*."""
-    violations: list[Site] = []
-    project_tier: list[Site] = []
-    forbidding: list[Site] = []
-    for path, lines in _text_files(root):
-        span = _forbidding_span(path, lines)
-        for number, line in enumerate(lines, start=1):
-            for match in _GRAPH_MONOLITH_RE.finditer(line):
-                site = Site(_rel(path, root), number, match.group(0))
-                if _PROJECT_TIER_PATH in match.group(0):
-                    project_tier.append(site)
-                elif span is not None and span[0] <= number <= span[1]:
-                    forbidding.append(site)
-                else:
-                    violations.append(site)
-    return GraphMonolithScan(
-        violations=tuple(sorted(violations)),
-        project_tier=tuple(sorted(project_tier)),
-        forbidding_mentions=tuple(sorted(forbidding)),
-    )
-
-
-# ---------------------------------------------------------------------------
-# Gate B -- the `<kind>/shipped/` pack layer that never existed
-# ---------------------------------------------------------------------------
-
-#: Discriminator B1 is the leading path segment: ``shipped/`` only counts as a
-#: pack-layer reference when a directory segment precedes it. English prose
-#: ("the shipped/packaged artifact", "a shipped/custom step") has no such
-#: segment and is not a path.
-_SHIPPED_PATH_RE = re.compile(r"(?:<[A-Za-z_][\w-]*>|[A-Za-z_][\w-]*)/shipped/")
-
-#: The same class with B1 removed -- used only to prove B1 does work.
-_SHIPPED_NAIVE_RE = re.compile(r"shipped/")
-
-#: The whole dead path, not just its ``<segment>/shipped/`` core. Discriminator
-#: B2 compares this token against the frozen seed, so a pack that *invented* a
-#: sibling dead path under the same segment cannot ride the seed's coat-tails.
-_SHIPPED_FULL_PATH_RE = re.compile(
-    r"[\w./<>-]*(?:<[A-Za-z_][\w-]*>|[A-Za-z_][\w-]*)/shipped/[\w./-]*"
-)
-
-#: Discriminator B2 -- built-in glossary packs mirroring a hash-pinned seed.
-#:
-#: ``src/doctrine/glossary_packs/built-in/<pack-id>.glossary-pack.yaml`` is a
-#: field-for-field migration of the read-only seed
-#: ``.kittify/glossaries/<pack-id>.yaml`` (the ``{scope.value}.yaml`` layout
-#: ``glossary.scope.load_seed_file`` resolves). Two standing gates make the pack
-#: text non-editable in BOTH directions: ``test_glossary_pack_parity`` requires
-#: every seed-present field to round-trip byte-identically, and
-#: ``test_glossary_pack_no_regression`` pins the seed's sha256 under C-003 ("the
-#: seed is READ, never modified"). A stale doctrine path quoted inside that prose
-#: is therefore a *frozen historical inaccuracy*, not a live defect: it cannot be
-#: corrected on the pack side without breaking parity, nor on the seed side
-#: without breaking the C-003 content pin. Dead path, frozen artefact -- different
-#: problems, and a dead-path sweep owns only the first.
-#:
-#: The exclusion is derived, not declared: it fires only for a token that is
-#: present VERBATIM in the seed the pack mirrors. It is also self-retiring --
-#: when Mission C retires the seed, the token stops resolving and every pack site
-#: reverts to a violation with no edit here.
-# Relocated to the flattened pack root (mission relocate-builtin-doctrine-packs-01KYT87F):
-# the built-in glossary packs now live at ``packs/built-in/glossary_packs/`` (the
-# inner ``built-in`` segment is dropped). Matched as a parent-path substring.
-_GLOSSARY_PACK_SUBTREE = "built-in/glossary_packs"
-_GLOSSARY_PACK_SUFFIX = ".glossary-pack.yaml"
-_GLOSSARY_SEED_DIR = _REPO_ROOT / ".kittify" / "glossaries"
-
-
-@lru_cache(maxsize=8)
-def _frozen_seed_text(seed_path: Path) -> str:
-    return seed_path.read_text(encoding="utf-8")
-
-
-def _frozen_seed_for_pack(path: Path) -> Path | None:
-    """The hash-pinned migration seed *path* mirrors, or ``None``.
-
-    Anchored at ``_REPO_ROOT`` rather than the scan root on purpose: the seed
-    lives under ``.kittify/``, outside every root gate B is pointed at.
-    """
-    if not path.name.endswith(_GLOSSARY_PACK_SUFFIX):
-        return None
-    if _GLOSSARY_PACK_SUBTREE not in path.parent.as_posix():
-        return None
-    pack_id = path.name[: -len(_GLOSSARY_PACK_SUFFIX)]
-    seed = _GLOSSARY_SEED_DIR / f"{pack_id.replace('-', '_')}.yaml"
-    return seed if seed.is_file() else None
-
-
-def _full_path_token(line: str, naive: re.Match[str]) -> str | None:
-    """The whole path literal enclosing a bare ``shipped/`` match."""
-    for hit in _SHIPPED_FULL_PATH_RE.finditer(line):
-        if hit.start() <= naive.start() and naive.end() <= hit.end():
-            return hit.group(0)
-    return None
-
-
-@dataclass(frozen=True)
-class ShippedLayerScan:
-    """Gate B result, split by discriminator."""
-
-    violations: tuple[Site, ...]
-    prose: tuple[Site, ...]
-    frozen_mirrors: tuple[Site, ...]
-
-    @property
-    def naive(self) -> tuple[Site, ...]:
-        return tuple(sorted(self.violations + self.prose + self.frozen_mirrors))
-
-
-def scan_shipped_pack_paths(root: Path) -> ShippedLayerScan:
-    """Classify every ``shipped/`` occurrence under *root*."""
-    violations: list[Site] = []
-    prose: list[Site] = []
-    frozen_mirrors: list[Site] = []
-    for path, lines in _text_files(root):
-        for number, line in enumerate(lines, start=1):
-            for match in _SHIPPED_NAIVE_RE.finditer(line):
-                start = match.start()
-                window = line[:start]
-                as_path = any(hit.end() == match.end() for hit in _SHIPPED_PATH_RE.finditer(line))
-                site = Site(_rel(path, root), number, (window[-24:] + match.group(0)).strip())
-                if not as_path:
-                    prose.append(site)
-                    continue
-                token = _full_path_token(line, match)
-                seed = _frozen_seed_for_pack(path)
-                if token is not None and seed is not None and token in _frozen_seed_text(seed):
-                    # Site.text is the full path token here (not the prose window
-                    # the other buckets carry): it is what B2 actually matched on,
-                    # so it is stable identity for the effect-set pin below.
-                    frozen_mirrors.append(Site(_rel(path, root), number, token))
-                    continue
-                violations.append(site)
-    return ShippedLayerScan(
-        violations=tuple(sorted(violations)),
-        prose=tuple(sorted(prose)),
-        frozen_mirrors=tuple(sorted(frozen_mirrors)),
-    )
-
 
 # ---------------------------------------------------------------------------
 # Gate C -- relative cross-links in built-in doctrine markdown
@@ -316,6 +74,7 @@ class CrossLinkScan:
     unresolved: tuple[Site, ...]
     code_examples: tuple[Site, ...]
     placeholders: tuple[Site, ...]
+    boundary_escapes: tuple[Site, ...]
 
 
 def _link_targets(line: str) -> list[str]:
@@ -329,27 +88,85 @@ def _resolves(md_path: Path, target: str) -> bool:
     return (md_path.parent / bare).exists()
 
 
-def _classify_link(md_path: Path, number: int, target: str, root: Path) -> tuple[str, Site] | None:
+def _escapes_boundary(
+    md_path: Path,
+    target: str,
+    root: Path,
+    boundary_roots: tuple[Path, ...] | None = None,
+) -> bool:
+    """True when *target*, resolved relative to *md_path*, would land outside
+    **every** root in *boundary_roots* -- the in-boundary set Gate C is
+    actually scoped to. Defaults to ``(root,)`` so callers that scan a single
+    tree in isolation (the four ``tmp_path`` unit tests below) keep
+    single-root semantics unchanged.
+
+    Discriminator C3 (US2-AS3, mission
+    ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` WP02, FR-002).
+    Requiring such a link to resolve on THIS repo's own disk forever is the
+    same coupling shape #3036 tracks for discriminator A2: a link that
+    legitimately cross-references content outside its own package boundary
+    (the project's ``docs/`` glossary, ...) is not a dead-path defect, but the
+    package cannot verify or guarantee that target's presence once it ships
+    on its own -- so Gate C stops trying, rather than perpetually depending on
+    the surrounding monorepo checkout to keep the link alive.
+
+    Crucially, this is a per-link *union* test, not a per-root test: a link
+    from ``src/doctrine/**`` into ``packs/built-in/**`` (or the reverse) is
+    NOT a boundary escape when both trees are members of *boundary_roots* --
+    ``scan_doctrine_cross_links_shipped()`` treats both shipped roots as one
+    corpus, so the escape/no-escape verdict must agree with that model
+    regardless of which single root a link happened to be scanned under.
+    """
+    boundary = boundary_roots if boundary_roots is not None else (root,)
+    bare = target.split("#", 1)[0].strip()
+    if not bare:
+        return False
+    resolved = (md_path.parent / bare).resolve()
+    for boundary_root in boundary:
+        try:
+            resolved.relative_to(boundary_root.resolve())
+            return False
+        except ValueError:
+            continue
+    return True
+
+
+def _classify_link(
+    md_path: Path,
+    number: int,
+    target: str,
+    root: Path,
+    boundary_roots: tuple[Path, ...] | None = None,
+) -> tuple[str, Site] | None:
     if target.startswith(_EXTERNAL_PREFIXES):
         return None
     site = Site(_rel(md_path, root), number, target)
     if _PLACEHOLDER_RE.search(target):
         return ("placeholder", site)
+    if _escapes_boundary(md_path, target, root, boundary_roots):
+        return ("boundary_escape", site)
     if _resolves(md_path, target):
         return None
     return ("unresolved", site)
 
 
-def scan_doctrine_cross_links(root: Path) -> CrossLinkScan:
+def scan_doctrine_cross_links(
+    root: Path, boundary_roots: tuple[Path, ...] | None = None
+) -> CrossLinkScan:
     """Resolve every relative markdown cross-link under *root*.
 
     Discriminator C1 drops links that live inside a fenced code block or an
     inline code span: those are *illustrations of link syntax*, not
     navigation. Discriminator C2 drops targets carrying a ``{placeholder}``.
+    Discriminator C3 drops targets that resolve outside every root in
+    *boundary_roots* (defaulting to ``(root,)`` -- see ``_escapes_boundary``)
+    -- a legitimate cross-reference to content outside the shipped package
+    boundary, not a dead path within it.
     """
     unresolved: list[Site] = []
     code_examples: list[Site] = []
     placeholders: list[Site] = []
+    boundary_escapes: list[Site] = []
     skipped = root / _DEPLOYMENT_RELATIVE_SUBTREE
     for md_path in sorted(root.rglob("*.md")):
         if skipped in md_path.parents:
@@ -371,321 +188,49 @@ def scan_doctrine_cross_links(root: Path) -> CrossLinkScan:
                     continue
                 code_examples.append(Site(_rel(md_path, root), number, target))
             for target in live_targets:
-                verdict = _classify_link(md_path, number, target, root)
+                verdict = _classify_link(md_path, number, target, root, boundary_roots)
                 if verdict is None:
                     continue
                 bucket, site = verdict
-                (placeholders if bucket == "placeholder" else unresolved).append(site)
+                if bucket == "placeholder":
+                    placeholders.append(site)
+                elif bucket == "boundary_escape":
+                    boundary_escapes.append(site)
+                else:
+                    unresolved.append(site)
     return CrossLinkScan(
         unresolved=tuple(sorted(unresolved)),
         code_examples=tuple(sorted(code_examples)),
         placeholders=tuple(sorted(placeholders)),
-    )
-
-
-def _render(sites: tuple[Site, ...]) -> str:
-    return "\n".join(f"  {site.path}:{site.line}: {site.text}" for site in sites)
-
-
-# ---------------------------------------------------------------------------
-# Two-tree shipped scans (mission relocate-builtin-doctrine-packs-01KYT87F)
-# ---------------------------------------------------------------------------
-# The shipped assertions walk BOTH ``src/`` (consuming code) and
-# ``packs/built-in/`` (relocated authored pack content), because the dead-path
-# defect class now spans the two. The mutation-proof tests keep calling the
-# single-root scanners against a ``tmp_path`` fixture and are untouched by this.
-#
-# NOTE (#3036): this is a scope widening, not a re-framing. #3036 tracks the
-# fuller rework of this suite (canonical pack-root discovery in place of a
-# hard-coded root pair); that reframing is deliberately NOT attempted here.
-
-
-def scan_graph_monolith_shipped() -> GraphMonolithScan:
-    """Gate A over the shipped trees: ``src/`` merged with ``packs/built-in/``."""
-    src, pack = (
-        scan_graph_monolith_paths(_SRC_ROOT),
-        scan_graph_monolith_paths(_PACKS_ROOT),
-    )
-    return GraphMonolithScan(
-        violations=tuple(sorted(src.violations + pack.violations)),
-        project_tier=tuple(sorted(src.project_tier + pack.project_tier)),
-        forbidding_mentions=tuple(sorted(src.forbidding_mentions + pack.forbidding_mentions)),
-    )
-
-
-def scan_shipped_pack_shipped() -> ShippedLayerScan:
-    """Gate B over the shipped trees: ``src/`` merged with ``packs/built-in/``."""
-    src, pack = (
-        scan_shipped_pack_paths(_SRC_ROOT),
-        scan_shipped_pack_paths(_PACKS_ROOT),
-    )
-    return ShippedLayerScan(
-        violations=tuple(sorted(src.violations + pack.violations)),
-        prose=tuple(sorted(src.prose + pack.prose)),
-        frozen_mirrors=tuple(sorted(src.frozen_mirrors + pack.frozen_mirrors)),
+        boundary_escapes=tuple(sorted(boundary_escapes)),
     )
 
 
 def scan_doctrine_cross_links_shipped() -> CrossLinkScan:
     """Gate C over the shipped doctrine markdown: ``src/doctrine/`` merged with
-    ``packs/built-in/``."""
+    ``packs/built-in/``.
+
+    The in-boundary set for *both* sub-scans is the union of both shipped
+    roots (mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
+    WP02 cycle-2, B1): a link is a ``boundary_escape`` only when it lands
+    outside every shipped root, not merely outside whichever single root it
+    was scanned under. Without this, a link crossing ``src/doctrine/`` <->
+    ``packs/built-in/`` escaped the boundary of its own scan root even though
+    the two scans are merged into one corpus two lines below -- silently
+    exempting a genuinely broken cross-tree link from resolution checking
+    instead of surfacing it as ``unresolved``.
+    """
+    boundary_roots = (_DOCTRINE_ROOT, _PACKS_ROOT)
     src, pack = (
-        scan_doctrine_cross_links(_DOCTRINE_ROOT),
-        scan_doctrine_cross_links(_PACKS_ROOT),
+        scan_doctrine_cross_links(_DOCTRINE_ROOT, boundary_roots),
+        scan_doctrine_cross_links(_PACKS_ROOT, boundary_roots),
     )
     return CrossLinkScan(
         unresolved=tuple(sorted(src.unresolved + pack.unresolved)),
         code_examples=tuple(sorted(src.code_examples + pack.code_examples)),
         placeholders=tuple(sorted(src.placeholders + pack.placeholders)),
+        boundary_escapes=tuple(sorted(src.boundary_escapes + pack.boundary_escapes)),
     )
-
-
-# ---------------------------------------------------------------------------
-# Gate A assertions
-# ---------------------------------------------------------------------------
-
-
-def test_no_source_site_names_the_dead_drg_monolith() -> None:
-    """FR-008 / SC-007: nothing under the shipped trees (``src/`` +
-    ``packs/built-in/``) points at the sharded-away ``src/doctrine/graph.yaml``."""
-    scan = scan_graph_monolith_shipped()
-    assert not scan.violations, (
-        "These sites name a doctrine graph monolith that #2680 deleted. "
-        "Point them at the per-kind fragment (src/doctrine/<kind>.graph.yaml):\n" + _render(scan.violations)
-    )
-
-
-def test_the_migration_hint_names_a_fragment_that_exists() -> None:
-    """FR-008: the hint an operator is handed must be followable -- the file
-    it names must be on disk for every artifact kind that can raise it."""
-    from doctrine.shared.errors import build_migration_hint
-
-    kinds = (
-        "directive",
-        "tactic",
-        "procedure",
-        "paradigm",
-        "styleguide",
-        "toolguide",
-        "agent_profile",
-    )
-    unfollowable: list[str] = []
-    for kind in kinds:
-        hint = build_migration_hint(forbidden_field="tactic_refs", source_kind=kind, source_id="example")
-        named = [token for token in hint.split() if token.endswith(".graph.yaml")]
-        if len(named) != 1 or not (_REPO_ROOT / named[0]).is_file():
-            unfollowable.append(f"{kind}: {hint}")
-            continue
-        # Existence alone is too weak: every per-kind fragment exists, so a hint
-        # hard-coded to any one of them passes an is_file() check for all seven.
-        # Review proved it by replacing the interpolation with a constant
-        # "tactic.graph.yaml" -- 61 tests stayed green while an operator holding
-        # a directive-sourced edge was sent to the tactic shard. Edges shard by
-        # SOURCE kind (extractor._partition_by_kind), verified against all 774
-        # shipped edges, so the named fragment must be the source kind's own.
-        # Relocated (mission relocate-builtin-doctrine-packs-01KYT87F): the shipped
-        # per-kind fragments moved from ``src/doctrine/`` to the ``packs/built-in/``
-        # pack root, so the followable hint names the fragment there.
-        expected = f"packs/built-in/{kind}.graph.yaml"
-        if named[0] != expected:
-            unfollowable.append(f"{kind}: names {named[0]}, but its edges shard into {expected}")
-    assert not unfollowable, (
-        "Migration hints that do not name the fragment the operator must open:\n"
-        + "\n".join(unfollowable)
-    )
-
-
-def test_project_tier_graph_path_would_false_red_without_its_discriminator() -> None:
-    """NFR-003 proof for discriminator A1, with its effect set pinned."""
-    scan = scan_graph_monolith_shipped()
-    assert scan.project_tier, (
-        "A1 excludes nothing, so it cannot be proven. Either the live project-tier path is gone (delete A1) or the pattern stopped matching it."
-    )
-    naive_paths = {site.path for site in scan.naive}
-    kept_paths = {site.path for site in scan.violations} | {site.path for site in scan.forbidding_mentions}
-    excluded = sorted(naive_paths - kept_paths)
-    assert excluded == [
-        "src/charter/synthesizer/manifest.py",
-        "src/charter/synthesizer/project_drg.py",
-        "src/doctrine/drg/merge.py",
-        "src/glossary/drg_builder.py",
-        "src/specify_cli/charter_runtime/freshness/computer.py",
-        "src/specify_cli/state/contract.py",
-    ], f"A1's effect set moved -- widening it needs a reason, not a regex tweak: {excluded}"
-
-
-def test_forbidding_mention_would_false_red_without_its_discriminator() -> None:
-    """NFR-003 proof for discriminator A2, with its effect set pinned."""
-    scan = scan_graph_monolith_shipped()
-    # (path, matched text) rather than a path set plus a count: a second
-    # forbidding mention in the SAME file collapses out of a path set, and a
-    # different mention swapped in for this one keeps any count unchanged.
-    # ``Site.text`` is gate A's raw ``match.group(0)`` -- the path itself, so it
-    # is stable identity rather than surrounding prose.
-    #
-    # Relocated (mission relocate-builtin-doctrine-packs-01KYT87F): doctrine-daphne's
-    # profile moved to the flattened pack root, so her avoidance-boundary mention
-    # of the retired monolith now addresses as ``packs/built-in/agent_profiles/``.
-    excluded = sorted((site.path, site.text) for site in scan.forbidding_mentions)
-    assert excluded == [
-        (
-            "packs/built-in/agent_profiles/doctrine-daphne.agent.yaml",
-            "src/doctrine/graph.yaml",
-        )
-    ], f"A2's effect set moved -- widening it needs a reason: {_render(scan.forbidding_mentions)}"
-
-
-def test_gate_a_rejects_a_planted_violation(tmp_path: Path) -> None:
-    """Self-mutation: the gate must catch the regression it exists to catch."""
-    planted = tmp_path / "guidance.md"
-    planted.write_text("Add the edge to src/doctrine/graph.yaml.\n", encoding="utf-8")
-    scan = scan_graph_monolith_paths(tmp_path)
-    assert [site.text for site in scan.violations] == ["src/doctrine/graph.yaml"]
-
-
-def test_gate_a_discriminators_do_not_swallow_a_planted_violation(tmp_path: Path) -> None:
-    """A1/A2 must not become blanket escapes: a dead path inside an agent
-    profile but *outside* its avoidance boundary is still a violation."""
-    profile = tmp_path / "example.agent.yaml"
-    profile.write_text(
-        "specialization:\n"
-        "  primary-focus: >\n"
-        "    Edit src/doctrine/graph.yaml to add the edge.\n"
-        "  avoidance-boundary: >\n"
-        "    Does not tell an operator to edit src/doctrine/graph.yaml.\n",
-        encoding="utf-8",
-    )
-    scan = scan_graph_monolith_paths(tmp_path)
-    assert [site.line for site in scan.violations] == [3]
-    assert [site.line for site in scan.forbidding_mentions] == [5]
-
-
-# ---------------------------------------------------------------------------
-# Gate B assertions
-# ---------------------------------------------------------------------------
-
-
-def test_no_source_site_references_the_shipped_pack_layer() -> None:
-    """FR-009 / SC-008: ``<kind>/shipped/`` has never existed; the shipped
-    pack layer is ``<kind>/built-in/``."""
-    scan = scan_shipped_pack_shipped()
-    assert not scan.violations, "These sites reference a `shipped/` pack layer that is not on disk. The shipped pack layer is `<kind>/built-in/`:\n" + _render(
-        scan.violations
-    )
-
-
-def test_shipped_prose_would_false_red_without_the_path_shape_discriminator() -> None:
-    """NFR-003 proof for discriminator B1, with its effect set pinned."""
-    scan = scan_shipped_pack_shipped()
-    # A list, not a set: duplicates survive, so a second prose match appearing in
-    # any of these three files goes red instead of collapsing into the same path.
-    # Unlike gate A, ``Site.text`` here is a 24-char prose window built for the
-    # failure message, so it is not part of the pinned identity.
-    #
-    # 2026-07-29 (PR #3070 landing pass, WP05 doctrine-delivery-reachability):
-    # widened by one entry for `src/specify_cli/cli/commands/_doctrine_asset.py`
-    # — its module docstring reads "...resolve shipped/overlay doctrine assets",
-    # genuine English prose (no `<segment>/` immediately precedes `shipped/`),
-    # not a `<kind>/shipped/` pack-layer path reference.
-    excluded = sorted(site.path for site in scan.prose)
-    assert excluded == [
-        "src/doctrine/model_task_routing/catalog/model-to-task_type.yaml",
-        "src/runtime/next/_internal_runtime/planner.py",
-        "src/specify_cli/cli/commands/_doctrine_asset.py",
-    ], f"B1's effect set moved -- widening it needs a reason: {_render(scan.prose)}"
-
-
-def test_frozen_seed_mirror_would_false_red_without_its_discriminator() -> None:
-    """NFR-003 proof for discriminator B2, with its effect set pinned.
-
-    A list of ``(path, token)`` pairs, duplicates intact: the pack quotes the
-    same dead path twice (once in the term's ``definition`` prose, once in its
-    ``see_also`` entry) and both must stay excluded. Collapsing to a set would
-    let one of the two silently become a violation.
-    """
-    scan = scan_shipped_pack_shipped()
-    excluded = sorted((site.path, site.text) for site in scan.frozen_mirrors)
-    # Relocated (mission relocate-builtin-doctrine-packs-01KYT87F): the built-in
-    # glossary pack moved to the flattened ``packs/built-in/glossary_packs/`` home.
-    pack = "packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml"
-    dead_path = "src/doctrine/tactics/shipped/secure-regex-catastrophic-backtracking.tactic.yaml"
-    assert excluded == [(pack, dead_path), (pack, dead_path)], (
-        "B2's effect set moved. It may only exclude a pack site whose dead path "
-        "is verbatim in the hash-pinned seed it mirrors -- widening it needs a "
-        f"reason, not a regex tweak: {_render(scan.frozen_mirrors)}"
-    )
-
-
-def test_frozen_seed_mirror_discriminator_is_anchored_in_the_live_seed() -> None:
-    """B2 is only sound while the seed really does carry the dead path.
-
-    Reads the seed directly rather than trusting the scan: if the seed were
-    edited to "fix" the path (the C-003 violation this discriminator exists to
-    make unnecessary), B2 would go quietly inert and the pack sites would flip
-    to violations with no explanation. This fails first, and says why.
-    """
-    seed = _GLOSSARY_SEED_DIR / "spec_kitty_core.yaml"
-    assert seed.is_file(), f"the mirrored migration seed is missing: {seed}"
-    dead_path = "src/doctrine/tactics/shipped/secure-regex-catastrophic-backtracking.tactic.yaml"
-    assert dead_path in _frozen_seed_text(seed), (
-        f"the seed no longer carries {dead_path!r}. The seed is READ, never "
-        "modified (C-003, pinned by test_glossary_pack_no_regression) -- if it "
-        "was legitimately retired, drop discriminator B2 and fix the pack."
-    )
-
-
-def test_gate_b_frozen_mirror_discriminator_requires_the_seed_to_carry_the_path(
-    tmp_path: Path,
-) -> None:
-    """B2 must not degrade into a subtree escape for the glossary-pack dir.
-
-    Three planted sites in the pack subtree, one excluded: only the path the
-    real seed actually carries. A sibling dead path under the same
-    ``tactics/shipped/`` segment, and a pack whose id maps to no seed at all,
-    both stay violations.
-    """
-    # Flattened pack home (mission relocate-builtin-doctrine-packs-01KYT87F):
-    # ``packs/built-in/glossary_packs/`` (the inner ``built-in`` is dropped).
-    pack_dir = tmp_path / "packs" / "built-in" / "glossary_packs"
-    pack_dir.mkdir(parents=True)
-    mirrored = "src/doctrine/tactics/shipped/secure-regex-catastrophic-backtracking.tactic.yaml"
-    (pack_dir / "spec-kitty-core.glossary-pack.yaml").write_text(
-        f"a: {mirrored}\nb: src/doctrine/tactics/shipped/invented.tactic.yaml\n",
-        encoding="utf-8",
-    )
-    (pack_dir / "no-such-seed.glossary-pack.yaml").write_text(
-        f"a: {mirrored}\n", encoding="utf-8"
-    )
-    scan = scan_shipped_pack_paths(tmp_path)
-    assert [(site.path, site.line) for site in scan.frozen_mirrors] == [
-        ("packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml", 1)
-    ]
-    assert [(site.path, site.line) for site in scan.violations] == [
-        ("packs/built-in/glossary_packs/no-such-seed.glossary-pack.yaml", 1),
-        ("packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml", 2),
-    ]
-
-
-def test_gate_b_rejects_a_planted_violation(tmp_path: Path) -> None:
-    """Self-mutation: a planted pack-layer path must be flagged, and the
-    adjacent prose form must not be."""
-    planted = tmp_path / "guide.md"
-    planted.write_text(
-        "Artifacts live in src/doctrine/tactics/shipped/.\nThe shipped/packaged catalogue is generated.\n",
-        encoding="utf-8",
-    )
-    scan = scan_shipped_pack_paths(tmp_path)
-    assert [site.line for site in scan.violations] == [1]
-    assert [site.line for site in scan.prose] == [2]
-
-
-def test_gate_b_flags_the_placeholder_pack_layer_form(tmp_path: Path) -> None:
-    """``<kind>/shipped/`` is the operator-facing form and must not slip
-    through on account of its angle brackets."""
-    planted = tmp_path / "guide.md"
-    planted.write_text("Shipped artifacts: src/doctrine/<kind>/shipped/\n", encoding="utf-8")
-    scan = scan_shipped_pack_paths(tmp_path)
-    assert len(scan.violations) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -722,6 +267,146 @@ def test_placeholder_links_would_false_red_without_their_discriminator() -> None
         ("src/doctrine/templates/guides/HOW-TO.template.md", "../reference/{file}.md"),
         ("src/doctrine/templates/guides/HOW-TO.template.md", "./{related-guide}.md"),
     ], f"C2's effect set moved: {excluded}"
+
+
+def test_boundary_escaping_link_would_false_red_without_its_discriminator(tmp_path: Path) -> None:
+    """NFR-003 proof for discriminator C3, driven from a planted ``tmp_path``
+    fixture from the start (mission
+    ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` WP02, FR-002,
+    US2-AS3) rather than a live corpus pin.
+
+    Unlike A2 (see the sibling proof in ``test_no_dead_cli_paths.py``), C3 has
+    no pre-existing live-pinned assertion to redrive: it is added here to
+    close the same coupling shape before it becomes a live defect. A doctrine
+    markdown file legitimately cross-referencing something outside its own
+    package boundary (the project's ``docs/`` glossary, the sibling doctrine
+    tree, ...) must not be forced to resolve on THIS repo's disk forever --
+    once ``packs/built-in`` or ``src/doctrine`` ships on its own, whatever
+    lives outside its boundary is not guaranteed to be checked out alongside
+    it.
+    """
+    root = tmp_path / "doctrine_root"
+    root.mkdir()
+    (root / "page.md").write_text(
+        "See [glossary](../../docs/context/doctrine.md#term).\n",
+        encoding="utf-8",
+    )
+    scan = scan_doctrine_cross_links(root)
+    assert scan.boundary_escapes, (
+        "C3 excludes nothing, so it cannot be proven. Either the escaping-link "
+        "case no longer applies (delete C3) or the pattern stopped matching it."
+    )
+    assert [site.text for site in scan.boundary_escapes] == [
+        "../../docs/context/doctrine.md#term"
+    ], f"C3's effect set moved -- widening it needs a reason: {_render(scan.boundary_escapes)}"
+    assert not scan.unresolved, "A legitimately escaping link must not become a false unresolved-link red."
+
+
+def test_gate_c_boundary_discriminator_does_not_swallow_an_in_boundary_violation(tmp_path: Path) -> None:
+    """C3 must not become a blanket escape: a broken link that stays inside
+    *root* is still a violation, and a resolvable sibling stays resolved,
+    alongside a genuinely escaping link in the same file."""
+    root = tmp_path / "doctrine_root"
+    root.mkdir()
+    (root / "sibling.md").write_text("ok\n", encoding="utf-8")
+    planted = root / "page.md"
+    planted.write_text(
+        "See [outside](../../docs/context/doctrine.md#term).\n"
+        "See [gone](./missing.md).\n"
+        "See [here](./sibling.md).\n",
+        encoding="utf-8",
+    )
+    scan = scan_doctrine_cross_links(root)
+    assert [site.text for site in scan.boundary_escapes] == ["../../docs/context/doctrine.md#term"]
+    assert [site.text for site in scan.unresolved] == ["./missing.md"]
+
+
+def test_gate_c_boundary_discriminator_treats_sibling_shipped_roots_as_in_boundary(
+    tmp_path: Path,
+) -> None:
+    """B1 regression (mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
+    WP02 cycle 2): the shipped scan's in-boundary set is the *union* of both
+    shipped roots, not each root scanned in isolation.
+
+    ``test_gate_c_boundary_discriminator_does_not_swallow_an_in_boundary_violation``
+    above only plants a broken link inside a *single* root, which is why the
+    sibling-tree gap survived cycle 1: a link from one shipped root into the
+    other escaped the boundary of whichever root it was scanned under, even
+    though ``scan_doctrine_cross_links_shipped()`` merges both roots into one
+    corpus. This test builds two sibling roots (mimicking ``src/doctrine`` and
+    ``packs/built-in``) and plants three links in root A: one to a *real* file
+    in root B (must resolve -- neither ``boundary_escape`` nor
+    ``unresolved``), one to a *missing* file in root B (must surface as
+    ``unresolved``, not be exempted as a ``boundary_escape``), and one to a
+    file genuinely outside both roots (must stay a ``boundary_escape``).
+    """
+    root_a = tmp_path / "root_a"
+    root_b = tmp_path / "root_b"
+    root_a.mkdir()
+    root_b.mkdir()
+    (root_b / "real.md").write_text("ok\n", encoding="utf-8")
+    (tmp_path / "outside.md").write_text("ok\n", encoding="utf-8")
+    (root_a / "page.md").write_text(
+        "See [real sibling](../root_b/real.md).\n"
+        "See [broken sibling](../root_b/missing.md).\n"
+        "See [truly outside](../outside.md).\n",
+        encoding="utf-8",
+    )
+    scan = scan_doctrine_cross_links(root_a, boundary_roots=(root_a, root_b))
+    assert [site.text for site in scan.unresolved] == ["../root_b/missing.md"], (
+        "A broken link into a sibling SHIPPED root must surface as unresolved -- "
+        "it must not be exempted as a boundary_escape just because it was scanned "
+        "under a different single root."
+    )
+    assert [site.text for site in scan.boundary_escapes] == ["../outside.md"], (
+        "A link genuinely outside every shipped root must still escape the boundary."
+    )
+
+
+def test_boundary_escape_live_count_has_a_floor() -> None:
+    """C3's live effect bucket, unlike C1 and C2's, is not pinned by an exact
+    site list -- the reviewer flagged this gap in WP02 cycle 1 (mission
+    ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``): C1 and C2 pin
+    their exact live excluded sites, but C3 pins only its fixture, leaving its
+    live effect invisible.
+
+    Why a count and not the sites: pinning the exact live paths would
+    reintroduce the same repo-local coupling FR-002 exists to remove -- just
+    moved from the resolution side to the exclusion side. A bound keeps the
+    AS3 exemption (US2-AS3) intact for ordinary content churn while still
+    failing loudly if ``_escapes_boundary`` is ever narrowed/refactored until
+    this bucket collapses toward zero -- which would silently change Gate C's
+    only live check on those sites (``relative_link_fixer.py`` scans
+    ``docs/`` only, not doctrine markdown). A future maintainer who
+    "improves" this into a site-list pin undoes that fix -- don't.
+
+    This floor only catches *collapse*, not widening: widening is instead
+    caught by ``test_gate_c_boundary_discriminator_does_not_swallow_an_in_boundary_violation``
+    and ``test_gate_c_boundary_discriminator_treats_sibling_shipped_roots_as_in_boundary``
+    above, which each plant a genuinely in-boundary violation and assert it is
+    NOT exempted -- a widened discriminator would swallow those and red them
+    directly, independent of this count.
+
+    Measured 2026-08-04 (cycle 1, before the B1 fix): 33 live
+    ``boundary_escapes`` sites -- 15 of which were ``src/doctrine`` <->
+    ``packs/built-in`` sibling-tree links wrongly exempted by the
+    single-root bug B1 fixed (cycle 2). Re-measured 2026-08-04 (cycle 2,
+    after the fix): 18 -- exactly the ``docs/``-pointing set, since the 15
+    sibling-tree links are now in-boundary (the union of both shipped roots)
+    and resolution-checked like any other link, not exempted. Pinned at
+    ``>= 12``: comfortably below 18 so ordinary content churn does not red
+    this, but high enough that a collapse toward zero -- a wholesale
+    silencing move -- still fails.
+    """
+    scan = scan_doctrine_cross_links_shipped()
+    assert len(scan.boundary_escapes) >= 12, (
+        f"C3's live boundary_escapes count fell to {len(scan.boundary_escapes)} from a "
+        "measured 18 (post-B1-fix). This bucket is Gate C's only live check on these "
+        "sites (relative_link_fixer.py scans docs/ only) -- a collapse toward zero means "
+        "_escapes_boundary stopped matching real cross-boundary links, silently "
+        "removing coverage rather than exercising the AS3 exemption. If intentional, "
+        "say why and re-pin."
+    )
 
 
 def test_cross_link_scope_is_pinned() -> None:
@@ -784,58 +469,3 @@ def test_gate_c_fence_discriminator_does_not_swallow_live_links(tmp_path: Path) 
     scan = scan_doctrine_cross_links(tmp_path)
     assert [site.text for site in scan.unresolved] == ["./also-nope.md"]
     assert [site.text for site in scan.code_examples] == ["./nope.md"]
-
-
-# ---------------------------------------------------------------------------
-# Gate D -- live documentation must not name a pre-move built-in path
-# (mission relocate-builtin-doctrine-packs-01KYT87F, T024 / FR-011)
-# ---------------------------------------------------------------------------
-
-#: The two path shapes the relocation retired from ``src/doctrine/``: the
-#: per-kind built-in content home ``src/doctrine/<kind>/built-in`` and the
-#: sharded per-kind fragments ``src/doctrine/<kind>.graph.yaml``. Both now live
-#: under ``packs/built-in/``.
-_MOVED_BUILTIN_DOC_RE = r"src/doctrine/[a-z_]+/built-in|src/doctrine/[a-zA-Z0-9_.-]*\.graph\.yaml"
-
-#: Documentation subtrees excluded from the live-reference guard, each because
-#: its references are NOT live pointers to where doctrine currently lives:
-#:  * ``docs/adr`` -- immutable decision snapshots (the Terminology Canon keeps
-#:    historical wording frozen; an ADR records the world as it was).
-#:  * ``docs/plans`` -- point-in-time mission planning and adversarial-squad
-#:    analysis (line-numbered ``*.graph.yaml`` citations, and hypothetical paths
-#:    such as ``src/doctrine/values/built-in/…`` that never existed on disk).
-#:  * the generated retrieval index -- a derived aggregate that mirrors the
-#:    ``docs/plans`` headings it indexes, so it carries their frozen wording and
-#:    is regenerated, never hand-edited.
-#:  * the relocation migration note -- its whole job is to document the move, so
-#:    its old->new mapping table NAMES the retired ``src/doctrine/.../built-in``
-#:    paths as the "from" column. That is a record of where content used to live,
-#:    not a live pointer to where it lives now (same rationale as ``docs/adr``).
-_GUARD_DOC_EXCLUSIONS = (
-    ":(exclude)docs/adr",
-    ":(exclude)docs/plans",
-    ":(exclude)docs/development/3-2-docs-retrieval-index.yaml",
-    ":(exclude)docs/migrations/relocate-builtin-doctrine-packs.md",
-)
-
-
-def test_no_live_doc_names_a_pre_move_builtin_path() -> None:
-    """FR-011 committed guard: the T024 live-reference sweep is observable, not
-    eyeballed. ``git grep`` of live ``docs/`` (minus the snapshot/derived subtrees
-    pinned above) for a retired ``src/doctrine/`` built-in path must return zero;
-    a hit means a live doc still sends a reader to a home that moved to
-    ``packs/built-in/`` (see docs/migrations/relocate-builtin-doctrine-packs.md)."""
-    result = subprocess.run(
-        ["git", "grep", "-nE", _MOVED_BUILTIN_DOC_RE, "--", "docs", *_GUARD_DOC_EXCLUSIONS],
-        cwd=_REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode not in (0, 1):
-        pytest.skip(f"git grep unavailable ({result.returncode}): {result.stderr.strip()}")
-    # git grep exit status: 0 == matches found (dead refs present); 1 == clean.
-    assert result.returncode == 1, (
-        "Live documentation still names a pre-move built-in path. Repoint each to "
-        "packs/built-in/ (drop the inner `built-in` segment):\n" + result.stdout
-    )

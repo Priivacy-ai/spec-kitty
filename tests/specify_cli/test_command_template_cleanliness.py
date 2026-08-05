@@ -48,8 +48,8 @@ PLANNING_WORKFLOW_TEMPLATES: list[str] = [
 
 _PROMPT_STEPS_DIR = (
     Path(__file__).parent.parent.parent
-    / "src"
-    / "doctrine"
+    / "packs"
+    / "built-in"
     / "missions"
     / "mission-steps"
     / "software-dev"
@@ -380,8 +380,8 @@ def test_analyze_template_persists_analysis_report() -> None:
     """analyze.md must persist durable proof before implementation."""
     content = (
         _REPO_ROOT
-        / "src"
-        / "doctrine"
+        / "packs"
+        / "built-in"
         / "missions"
         / "mission-steps"
         / "software-dev"

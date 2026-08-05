@@ -22,8 +22,9 @@ import logging
 import os
 import sys
 from importlib.util import find_spec
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
+from kernel.sibling_paths import SiblingPathNotFound, resolve_installed_sibling
 from specify_cli.core.config import DEFAULT_MISSION_KEY
 from specify_cli.runtime.bootstrap import _get_cli_version, _lock_exclusive
 from specify_cli.runtime.home import get_kittify_home
@@ -75,13 +76,34 @@ def get_global_command_dir(agent_key: str) -> Path:
 # ---------------------------------------------------------------------------
 
 
+#: The relative shape sought below, anchored on the (cheaply-discovered,
+#: never-imported) ``doctrine`` package's own file location. Mission
+#: ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` (FR-005)
+#: relocated the missions data to ``packs/built-in/missions`` -- a directory
+#: that, unlike the pre-relocation shape, sits at a *different* relative
+#: depth from the doctrine package directory in an installed wheel
+#: (``<site-packages>/packs/built-in/missions``, one parent hop) versus an
+#: editable checkout (``<repo>/packs/built-in/missions``, two parent hops,
+#: since an extra ``src/`` level sits in between). No single fixed-depth
+#: ``Path(...).parent / ...`` join can express both, so this is resolved via
+#: the shared kernel sibling-path-resolution primitive instead (the same
+#: ancestor-walk-covers-both-layouts algorithm :mod:`kernel.paths` and
+#: :mod:`doctrine.missions.repository` already use), anchored on the
+#: doctrine package's own file rather than this module's.
+_MISSIONS_SIBLING_PATTERN = PurePosixPath("packs") / "built-in" / "missions"
+
+
 def _get_command_templates_dir() -> Path:
     """Return the command-templates directory from the doctrine package.
 
     Uses import metadata rather than ``import doctrine`` so CLI startup does
     not execute doctrine's heavy validation imports before command dispatch.
+    :mod:`kernel.sibling_paths` has zero dependency on ``doctrine`` (C-001
+    layer direction), so resolving through it below does not reintroduce
+    that heavy import either.
 
-    Raises ``FileNotFoundError`` if the doctrine package is absent, which
+    Raises ``FileNotFoundError`` if the doctrine package is absent or the
+    relocated missions data cannot be located as its sibling, either of which
     indicates a corrupted install.
     """
     if os.environ.get("SPEC_KITTY_TEMPLATE_ROOT"):
@@ -95,17 +117,31 @@ def _get_command_templates_dir() -> Path:
     loaded_doctrine = sys.modules.get("doctrine")
     loaded_file = getattr(loaded_doctrine, "__file__", None)
     if isinstance(loaded_file, str) and loaded_file:
-        return Path(loaded_file).parent / "missions" / "mission-steps" / DEFAULT_MISSION_KEY
+        anchor = Path(loaded_file)
+    else:
+        try:
+            spec = find_spec("doctrine")
+        except (ModuleNotFoundError, ValueError):
+            spec = None
+        locations = list(spec.submodule_search_locations or ()) if spec is not None else []
+        if not locations:
+            raise FileNotFoundError("doctrine package has no search location; installation may be corrupted")
+        # A file-shaped anchor (matching the sys.modules branch above) so the
+        # primitive's ancestor walk starts from the package *directory*, not
+        # one level above it.
+        anchor = Path(locations[0]) / "__init__.py"
 
     try:
-        spec = find_spec("doctrine")
-    except (ModuleNotFoundError, ValueError):
-        spec = None
-    locations = list(spec.submodule_search_locations or ()) if spec is not None else []
-    if not locations:
-        raise FileNotFoundError("doctrine package has no search location; installation may be corrupted")
-    doctrine_path = Path(locations[0])
-    return doctrine_path / "missions" / "mission-steps" / DEFAULT_MISSION_KEY
+        missions_root = resolve_installed_sibling(
+            anchor_file=anchor,
+            env_override=None,
+            sibling_relative_path=_MISSIONS_SIBLING_PATTERN,
+        )
+    except SiblingPathNotFound as exc:
+        raise FileNotFoundError(
+            "doctrine package has no search location; installation may be corrupted"
+        ) from exc
+    return missions_root / "mission-steps" / DEFAULT_MISSION_KEY
 
 
 def _resolve_script_type() -> str:

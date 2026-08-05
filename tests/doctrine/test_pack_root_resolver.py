@@ -1,17 +1,22 @@
 """Resolution matrix for :func:`doctrine.pack_paths.resolve_pack_root` (WP02).
 
-Covers the four-step ``built-in`` resolution order plus the ``org`` / ``project``
-pass-through seam:
+Covers the three-step ``built-in`` resolution order (env override, ancestor
+walk, fail-closed -- FR-004) plus the ``org`` / ``project`` pass-through seam.
+"Editable" and "Installed" below are both exercised through the same
+ancestor-walk step; there is no separate installed-wheel branch (see
+:mod:`kernel.sibling_paths`'s module docstring):
 
 * **Editable** — the nearest ancestor of the module file holding ``packs/built-in/``
   is returned.
 * **Installed** — a *faithful filesystem simulation* of the site-packages layout
   (``<site>/doctrine`` package dir with a sibling ``<site>/packs/built-in``) is
-  resolved via the ``files("doctrine")`` step. We simulate rather than build and
-  ``pip install`` a wheel into a clean venv: the simulation exercises the exact
-  step-3 branch (``files("doctrine").parent / "packs" / "built-in"``) deterministically
-  and in milliseconds; a real wheel install would add minutes of CI cost for the
-  same code path. This trade-off is documented per the WP02 task allowance.
+  resolved via the shared kernel primitive's ancestor walk (FR-004; there is no
+  separate "installed" branch -- the walk started at the module's own file
+  reaches the site-packages ancestor naturally). We simulate rather than build
+  and ``pip install`` a wheel into a clean venv: the simulation exercises the
+  same walk deterministically and in milliseconds; a real wheel install would
+  add minutes of CI cost for the same code path. This trade-off is documented
+  per the WP02 task allowance.
 * **Symlinked checkout** — with the module file reached through a directory symlink,
   ``.resolve()`` (called before walking ``.parents``) still finds the *real*
   repo-root ``packs/``.
@@ -21,8 +26,8 @@ pass-through seam:
   is raised and no ``src/doctrine`` path is returned.
 
 All cases monkeypatch the module-level ``__file__`` and ``files`` names so the
-resolver's three discovery steps are fully controlled and hermetic (the real
-repository tree is never consulted).
+resolver's inputs are fully controlled and hermetic (the real repository tree
+is never consulted).
 """
 
 from __future__ import annotations
@@ -75,25 +80,35 @@ def test_editable_resolves_repo_root_packs(
     assert resolve_pack_root("built-in") == packs_built_in
 
 
-def test_installed_resolves_site_packages_sibling(
+def test_installed_layout_resolves_site_packages_sibling_via_ancestor_walk(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Installed layout: ``files('doctrine').parent/packs/built-in`` is returned.
+    """Installed layout: the module's own package dir's parent/packs/built-in is returned.
 
-    Faithful simulation of the site-packages sibling layout (documented above).
-    The module file lives in an isolated tree with no ``packs/`` ancestor so the
-    editable step (2) misses and step (3) fires.
+    Reimplemented for FR-004 (mission
+    doctrine-consumer-surface-missions-extraction-01KZ6G6H):
+    ``_resolve_built_in`` no longer resolves this via a distinct step 3
+    (``files("doctrine")`` or ``Path(__file__).resolve().parent.parent`` as
+    its own separate probe) -- it delegates entirely to the shared kernel
+    primitive's *ancestor walk*, which reaches the site-packages level
+    naturally because ``anchor.parent.parent`` is always one of
+    ``anchor.parents``. ``module_file`` is placed *inside* ``doctrine_dir``
+    itself here, matching how ``__file__`` genuinely behaves in a real
+    installed wheel (a ``pack_paths.py`` file always lives inside the
+    ``doctrine`` package directory); the walk started at that file answers at
+    the site-packages ancestor -- there is no separate "step 3" branch left
+    to exercise (see ``kernel.sibling_paths``'s module docstring).
     """
     site = tmp_path / "site-packages"
     doctrine_dir = site / "doctrine"
-    doctrine_dir.mkdir(parents=True)
     packs_built_in = site / "packs" / "built-in"
     packs_built_in.mkdir(parents=True)
 
-    # Isolated module location with no packs/built-in anywhere up its tree.
-    module_file = _make_pkg_file(tmp_path / "isolated" / "nested" / "doctrine")
+    # Realistic module location: pack_paths.py lives inside the doctrine
+    # package dir itself, so its parent.parent is the site-packages level.
+    module_file = _make_pkg_file(doctrine_dir)
 
-    _isolate(monkeypatch, module_file=module_file, doctrine_dir=doctrine_dir)
+    _isolate(monkeypatch, module_file=module_file, doctrine_dir=None)
 
     assert resolve_pack_root("built-in") == packs_built_in
 
@@ -176,7 +191,14 @@ def test_fail_closed_when_no_packs_anywhere(
 def test_fail_closed_when_files_unavailable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """When ``files('doctrine')`` raises, step 3 is skipped and resolution fails closed."""
+    """No candidate anywhere in the ancestor walk -> fails closed.
+
+    The ``doctrine_dir=None`` isolation (``files("doctrine")`` raising) is
+    kept for symmetry with ``_isolate``'s other callers but is not actually
+    consulted here: ``_resolve_built_in`` no longer calls ``files()`` at all
+    (FR-004) -- what makes this fail closed is that the ancestor walk from
+    ``module_file`` finds no ``packs/built-in/`` anywhere.
+    """
     module_file = _make_pkg_file(tmp_path / "isolated" / "doctrine")
 
     _isolate(monkeypatch, module_file=module_file, doctrine_dir=None)

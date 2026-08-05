@@ -62,7 +62,7 @@ _EXCLUDED_PATH_FRAGMENTS: tuple[str, ...] = (
 _BARE_ANALYZE_COMMAND_RE = re.compile(r"spec-kitty\s+analyze\b")
 
 _CANONICAL_PROMPT = Path(
-    "src/doctrine/missions/mission-steps/software-dev/analyze/prompt.md"
+    "packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md"
 )
 _CANONICAL_COMMAND = "agent mission record-analysis"
 

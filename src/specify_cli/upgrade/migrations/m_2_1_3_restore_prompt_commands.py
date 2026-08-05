@@ -84,17 +84,19 @@ def _get_runtime_command_templates_dir() -> Path | None:
     4. ``~/.kittify/missions/software-dev/command-templates/`` (installed runtime).
     """
     try:
-        import doctrine  # noqa: PLC0415
+        from doctrine.missions.repository import (  # noqa: PLC0415
+            MissionsRootNotFound,
+            MissionTemplateRepository,
+        )
 
         doctrine_steps = (
-            Path(doctrine.__file__).parent
-            / "missions"
+            MissionTemplateRepository.default_missions_root()
             / "mission-steps"
             / _MISSION_NAME
         )
         if doctrine_steps.is_dir():
             return doctrine_steps
-    except ImportError:
+    except (ImportError, MissionsRootNotFound):
         pass
 
     from specify_cli.runtime.home import get_kittify_home, get_package_asset_root

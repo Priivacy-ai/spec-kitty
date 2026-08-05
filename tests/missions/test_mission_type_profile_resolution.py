@@ -36,7 +36,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_MISSION_ROOT = _REPO_ROOT / "src" / "doctrine" / "missions"
+_MISSION_ROOT = _REPO_ROOT / "packs" / "built-in" / "missions"
 _REQUIRED_MISSION_TYPES = ("software-dev", "documentation", "research", "plan")
 
 

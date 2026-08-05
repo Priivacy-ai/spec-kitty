@@ -108,9 +108,11 @@ def _get_runtime_command_templates_dir() -> Path | None:
     """Return the doctrine mission-steps directory for the active mission type.
 
     Templates now live under
-    ``doctrine/missions/mission-steps/<mission_type>/<step_id>/prompt.md``
+    ``packs/built-in/missions/mission-steps/<mission_type>/<step_id>/prompt.md``
     (moved from ``specify_cli/missions/<mission_type>/command-templates/``
-    by the charter-doctrine-mission-type-configuration mission).
+    by the charter-doctrine-mission-type-configuration mission, and from
+    ``src/doctrine/missions/mission-steps/`` to ``packs/built-in/missions/mission-steps/``
+    by mission doctrine-consumer-surface-missions-extraction-01KZ6G6H, FR-005).
 
     Resolution order (highest priority first):
 
@@ -121,17 +123,19 @@ def _get_runtime_command_templates_dir() -> Path | None:
        ``ensure_runtime()`` calls.
     """
     try:
-        import doctrine  # noqa: PLC0415
+        from doctrine.missions.repository import (  # noqa: PLC0415
+            MissionsRootNotFound,
+            MissionTemplateRepository,
+        )
 
         doctrine_steps = (
-            Path(doctrine.__file__).parent
-            / "missions"
+            MissionTemplateRepository.default_missions_root()
             / "mission-steps"
             / _MISSION_NAME
         )
         if doctrine_steps.is_dir():
             return doctrine_steps
-    except ImportError:
+    except (ImportError, MissionsRootNotFound):
         pass
 
     # Fallback: legacy command-templates path for older installs without doctrine.

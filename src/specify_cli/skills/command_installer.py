@@ -49,7 +49,7 @@ from kernel.paths import to_posix
 #: while the roster has exactly one definition (#1941).
 
 #: Commands installed as full prompt-backed Agent Skills.  These match the
-#: step directories under ``src/doctrine/missions/mission-steps/software-dev/``.
+#: step directories under ``packs/built-in/missions/mission-steps/software-dev/``.
 #: ``checklist`` was retired in 3.2.0a5 (FR-003 / FR-004 / #815).
 PROMPT_BACKED_COMMANDS: tuple[str, ...] = (
     "accept",
@@ -98,10 +98,15 @@ def _package_templates_dir(mission_type: str = "software-dev") -> Path:
     """Return the directory containing canonical command step directories inside
     the installed ``doctrine`` package.
 
-    Templates ship as regular files inside the doctrine package under
-    ``missions/mission-steps/<mission_type>/``.  Deriving the path from
-    ``doctrine.__file__`` yields a real :class:`pathlib.Path` that works
-    identically in editable and wheel installs.
+    Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
+    (FR-005) relocated ``mission-steps/`` from
+    ``src/doctrine/missions/mission-steps`` to
+    ``packs/built-in/missions/mission-steps`` — the retired
+    ``Path(doctrine.__file__).parent``-relative construction addressed
+    exactly the old, now-nonexistent location. Resolved through the one
+    promoted missions-root authority
+    (:meth:`~doctrine.missions.repository.MissionTemplateRepository.default_missions_root`,
+    FR-004) instead, which works identically in editable and wheel installs.
 
     Parameters
     ----------
@@ -109,11 +114,10 @@ def _package_templates_dir(mission_type: str = "software-dev") -> Path:
         The mission type sub-directory to resolve (defaults to
         ``"software-dev"``).
     """
-    import doctrine  # noqa: PLC0415 — deferred to avoid import-time side effects
+    from doctrine.missions.repository import MissionTemplateRepository  # noqa: PLC0415 — deferred to avoid import-time side effects
 
     return (
-        Path(doctrine.__file__).parent
-        / "missions"
+        MissionTemplateRepository.default_missions_root()
         / "mission-steps"
         / mission_type
     )

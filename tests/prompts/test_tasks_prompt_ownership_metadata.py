@@ -11,8 +11,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _TASKS_PROMPT_SURFACES = (
     _REPO_ROOT
-    / "src"
-    / "doctrine"
+    / "packs"
+    / "built-in"
     / "missions"
     / "mission-steps"
     / "software-dev"

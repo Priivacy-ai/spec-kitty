@@ -34,24 +34,43 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 class TestGetCommandTemplatesDir:
     """FR-001: _get_command_templates_dir() must return a doctrine-based Path."""
 
-    def test_returns_correct_doctrine_path(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Resolver returns <doctrine_dir>/missions/mission-steps/software-dev.
+    @staticmethod
+    def _build_fake_doctrine_with_relocated_missions(tmp_path: Path) -> Path:
+        """Build a synthetic post-relocation layout: doctrine pkg + sibling packs/.
 
-        RED in lane-d (buggy resolver uses get_package_asset_root / kittify_home);
-        GREEN after WP01 merges (resolver uses doctrine.__file__).
+        Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
+        (FR-005) relocated ``mission-steps/`` to ``packs/built-in/missions``,
+        a sibling of the ``tmp_path`` root the fake ``doctrine`` package
+        directory also lives directly under -- mirroring the installed-wheel
+        depth (``<site-packages>/{doctrine,packs}``) the shared kernel
+        sibling-path primitive resolves through. Returns the fake
+        ``doctrine/__init__.py`` path.
         """
         fake_doctrine_init = tmp_path / "doctrine" / "__init__.py"
         fake_doctrine_init.parent.mkdir(parents=True)
         fake_doctrine_init.write_text("")
+
+        mission_steps = tmp_path / "packs" / "built-in" / "missions" / "mission-steps" / "software-dev"
+        mission_steps.mkdir(parents=True)
+        return fake_doctrine_init
+
+    def test_returns_correct_doctrine_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Resolver returns <packs/built-in>/missions/mission-steps/software-dev.
+
+        RED in lane-d (buggy resolver uses get_package_asset_root / kittify_home);
+        GREEN after WP01 merges (resolver uses doctrine.__file__ as the
+        sibling-path primitive's anchor).
+        """
+        fake_doctrine_init = self._build_fake_doctrine_with_relocated_missions(tmp_path)
 
         monkeypatch.setattr("doctrine.__file__", str(fake_doctrine_init))
 
         from specify_cli.runtime.agent_commands import _get_command_templates_dir
 
         result = _get_command_templates_dir()
-        expected = fake_doctrine_init.parent / "missions" / "mission-steps" / "software-dev"
+        expected = tmp_path / "packs" / "built-in" / "missions" / "mission-steps" / "software-dev"
         assert result == expected
 
     def test_return_type_is_path_not_none(
@@ -61,9 +80,7 @@ class TestGetCommandTemplatesDir:
 
         RED in lane-d (buggy resolver can return None); GREEN after WP01.
         """
-        fake_doctrine_init = tmp_path / "doctrine" / "__init__.py"
-        fake_doctrine_init.parent.mkdir(parents=True)
-        fake_doctrine_init.write_text("")
+        fake_doctrine_init = self._build_fake_doctrine_with_relocated_missions(tmp_path)
 
         monkeypatch.setattr("doctrine.__file__", str(fake_doctrine_init))
 
@@ -79,6 +96,7 @@ class TestGetCommandTemplatesDir:
 
         RED in lane-d; GREEN after WP01 merges.
         """
+        self._build_fake_doctrine_with_relocated_missions(tmp_path)
         fake_mod = types.ModuleType("doctrine")
         fake_mod.__file__ = str(tmp_path / "doctrine" / "__init__.py")
         monkeypatch.setitem(sys.modules, "doctrine", fake_mod)
@@ -91,7 +109,7 @@ class TestGetCommandTemplatesDir:
         importlib.reload(ac)
 
         result = ac._get_command_templates_dir()
-        assert result == tmp_path / "doctrine" / "missions" / "mission-steps" / "software-dev"
+        assert result == tmp_path / "packs" / "built-in" / "missions" / "mission-steps" / "software-dev"
 
 
 # ---------------------------------------------------------------------------

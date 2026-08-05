@@ -52,8 +52,8 @@ pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _IMPLEMENT_TEMPLATE = (
     _REPO_ROOT
-    / "src"
-    / "doctrine"
+    / "packs"
+    / "built-in"
     / "missions"
     / "mission-steps"
     / "software-dev"
@@ -62,8 +62,8 @@ _IMPLEMENT_TEMPLATE = (
 )
 _REVIEW_TEMPLATE = (
     _REPO_ROOT
-    / "src"
-    / "doctrine"
+    / "packs"
+    / "built-in"
     / "missions"
     / "mission-steps"
     / "software-dev"

@@ -6,19 +6,25 @@ filesystem root of a doctrine pack tier. ``packs/built-in/`` is deliberately
 -- so a package-relative :func:`importlib.resources.files` lookup cannot
 address it. A filesystem walk is required instead.
 
-Resolution order for the ``built-in`` tier:
+Resolution order for the ``built-in`` tier (delegated to the shared kernel
+sibling-path-resolution primitive, :func:`kernel.sibling_paths.resolve_installed_sibling`
+-- FR-004, mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``):
 
 1. ``SPEC_KITTY_PACKS_ROOT`` environment override -> ``<env>/built-in`` if it
    exists.
-2. Editable checkout: the nearest ancestor of this module's resolved location
-   that contains ``packs/built-in/``. ``Path(__file__).resolve()`` is called
+2. Ancestor walk: the nearest ancestor of this module's resolved location that
+   contains ``packs/built-in/``. ``Path(__file__).resolve()`` is called
    **before** iterating ``.parents`` so that symlinked editable installs still
-   walk up the real repository tree rather than the symlink's parent.
-3. Installed wheel: ``packs/`` ships as a site-packages sibling of the
-   ``doctrine`` package (hatch ``force-include``), so
-   ``files("doctrine").parent / "packs" / "built-in"``.
-4. Otherwise :class:`PackRootNotFound` -- fail-closed; never fall open to an
-   arbitrary tree or to a path inside ``src/doctrine/``.
+   walk up the real repository tree rather than the symlink's parent. This
+   single walk covers both the editable-checkout case and the installed-wheel
+   case: ``packs/`` ships as a site-packages sibling of every top-level
+   package (hatch ``force-include``), including this module's own containing
+   package, and the site-packages directory is always one of
+   ``Path(__file__).resolve()``'s ancestors -- so there is no separate
+   "installed wheel" probe distinct from this walk.
+3. Otherwise the primitive's own :class:`~kernel.sibling_paths.SiblingPathNotFound`
+   is caught and re-raised as :class:`PackRootNotFound` -- fail-closed; never
+   fall open to an arbitrary tree or to a path inside ``src/doctrine/``.
 
 For the ``org`` / ``project`` tiers the seam is shared but the input differs:
 the caller-supplied root is returned unchanged.
@@ -35,21 +41,26 @@ should compose its own ``resolve_pack_root("built-in") / ...`` join.
 Layer note (C-004): doctrine sits below charter/specify_cli in the dependency
 graph and must not import upward. This module imports only the standard
 library (``os``, ``pathlib``, :func:`importlib.resources.files`) plus
-:class:`~doctrine.artifact_kinds.ArtifactKind`, an in-layer sibling that is
-itself a zero-dependency leaf (imports only ``enum``) -- so this stays
-import-cycle-safe. The ``files("doctrine")`` call is an in-layer
-self-reference and is made lazily *inside* the function to avoid an import
-cycle with ``doctrine/__init__.py``.
+:class:`~doctrine.artifact_kinds.ArtifactKind` (an in-layer sibling, itself a
+zero-dependency leaf importing only ``enum``) and
+:mod:`kernel.sibling_paths` (the root layer *below* doctrine -- a downward,
+allowed import per ``kernel (root) <- doctrine <- charter <- specify_cli``)
+-- so this stays import-cycle-safe. The ``files("doctrine")`` call inside
+:func:`doctrine_package_dir` is an in-layer self-reference and is made lazily
+*inside* the function to avoid an import cycle with ``doctrine/__init__.py``;
+:func:`_resolve_built_in` no longer calls it directly (FR-004) -- see
+:func:`doctrine_package_dir`'s own docstring for its remaining callers.
 """
 
 from __future__ import annotations
 
 import os
 from importlib.resources import files
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Literal
 
 from doctrine.artifact_kinds import ArtifactKind
+from kernel.sibling_paths import SiblingPathNotFound, resolve_installed_sibling
 
 # ``PackTier`` is intentionally *not* exported: it is the internal annotation
 # for ``resolve_pack_root``'s ``tier`` parameter and has no external importer, so
@@ -175,32 +186,32 @@ def built_in_dir(kind: ArtifactKind) -> Path:
 
 
 def _resolve_built_in() -> Path:
-    """Resolve the ``built-in`` tier via the 4-step order (env, editable, installed, fail)."""
-    # (1) Explicit environment override wins.
+    """Resolve the ``built-in`` tier via the shared kernel primitive (FR-004).
+
+    Delegates the 3-step order (env, ancestor walk, fail) to
+    :func:`kernel.sibling_paths.resolve_installed_sibling` -- the ancestor
+    walk covers both the editable-checkout and the installed-wheel case (see
+    the module docstring above and :mod:`kernel.sibling_paths`'s own
+    docstring for why a distinct third "installed wheel" step is redundant
+    with it). Kernel cannot
+    import :class:`PackRootNotFound` (layer direction), so the primitive's own
+    :class:`~kernel.sibling_paths.SiblingPathNotFound` is caught and
+    translated here -- at least one consumer
+    (``specify_cli/doctrine/pack_validator.py``'s
+    ``except (PackRootNotFound, BuiltInContentDirNotAvailable)``) depends on
+    the specific :class:`PackRootNotFound` type surviving at this boundary.
+    """
     env_value = os.environ.get(_PACKS_ROOT_ENV)
-    if env_value:
-        env_candidate = Path(env_value) / _BUILT_IN
-        if env_candidate.is_dir():
-            return env_candidate
+    env_candidate = Path(env_value) / _BUILT_IN if env_value else None
 
-    # (2) Editable checkout: nearest ancestor holding packs/built-in/.
-    #     .resolve() BEFORE walking parents so symlinked installs reach the
-    #     real repository root.
-    here = Path(__file__).resolve()
-    for ancestor in here.parents:
-        editable_candidate = ancestor / "packs" / _BUILT_IN
-        if editable_candidate.is_dir():
-            return editable_candidate
-
-    # (3) Installed wheel: packs/ is a site-packages sibling of the doctrine pkg.
-    doctrine_dir = doctrine_package_dir()
-    if doctrine_dir is not None:
-        installed_candidate = doctrine_dir.parent / "packs" / _BUILT_IN
-        if installed_candidate.is_dir():
-            return installed_candidate
-
-    # (4) Fail-closed.
-    raise PackRootNotFound(_BUILT_IN)
+    try:
+        return resolve_installed_sibling(
+            anchor_file=Path(__file__),
+            env_override=env_candidate,
+            sibling_relative_path=PurePosixPath("packs") / _BUILT_IN,
+        )
+    except SiblingPathNotFound as exc:
+        raise PackRootNotFound(_BUILT_IN) from exc
 
 
 def doctrine_package_dir() -> Path | None:

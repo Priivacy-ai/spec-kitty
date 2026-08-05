@@ -871,9 +871,17 @@ def _build_references_from_yaml(
     interview: CharterInterview,
     paradigms: list[str],
     directives: list[str],
-    doctrine_root: Path,
 ) -> list[CharterReference]:
-    """Load references by scanning YAML files directly (fallback path)."""
+    """Load references by scanning YAML files directly (fallback path).
+
+    Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
+    (FR-005) retired this function's former ``doctrine_root`` parameter: its
+    last read (the template-set reference) now resolves through
+    ``_template_reference``'s own promoted authority instead of a
+    caller-supplied root, and the styleguide read below already routes
+    through ``built_in_dir`` (relocate-builtin-doctrine-packs), leaving no
+    remaining use.
+    """
     references: list[CharterReference] = []
 
     paradigm_sources = _index_yaml_assets(built_in_dir(ArtifactKind.PARADIGM), "*.paradigm.yaml")
@@ -897,17 +905,16 @@ def _build_references_from_yaml(
             )
         )
 
-    references.append(_template_reference(doctrine_root=doctrine_root, mission=mission, template_set=template_set))
+    references.append(_template_reference(mission=mission, template_set=template_set))
 
     language_hints = interview.answers.get("languages_frameworks", "").lower()
     if "python" in language_hints:
-        # Built-in styleguides were flattened out of ``<doctrine_root>/styleguides``
-        # into ``packs/built-in/styleguides`` (relocation mission); resolve through
-        # the shared ``built_in_dir`` seam, matching the paradigm/directive reads
-        # above. ``doctrine_root`` stays for the template reference (templates
-        # remain under ``src/doctrine``). The file is currently absent, but
-        # repointing the root keeps this ``.exists()``-guarded read correct
-        # if/when it ships again.
+        # Built-in styleguides were flattened out of the doctrine package's own
+        # ``styleguides/`` into ``packs/built-in/styleguides`` (relocation
+        # mission); resolve through the shared ``built_in_dir`` seam, matching
+        # the paradigm/directive reads above. The file is currently absent,
+        # but repointing the root keeps this ``.exists()``-guarded read
+        # correct if/when it ships again.
         styleguide_path = built_in_dir(ArtifactKind.STYLEGUIDE) / "python-implementation.styleguide.yaml"
         if styleguide_path.exists():
             references.append(
@@ -1056,7 +1063,7 @@ def _build_references_from_service(
     for artifact_type, artifact_id in graph.unresolved:
         diagnostics.append(f"Unresolved reference: {artifact_type}/{artifact_id}")
 
-    references.append(_template_reference(doctrine_root=doctrine_root, mission=mission, template_set=template_set))
+    references.append(_template_reference(mission=mission, template_set=template_set))
 
     return references
 
@@ -1308,12 +1315,24 @@ def _doctrine_yaml_reference(
     )
 
 
-def _template_reference(*, doctrine_root: Path, mission: str, template_set: str) -> CharterReference:
+def _template_reference(*, mission: str, template_set: str) -> CharterReference:
+    """Build the mission template-set reference.
+
+    Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
+    (FR-005) retired this function's former ``doctrine_root`` parameter: the
+    primary arm (``repo._mission_config_path``) is the one actually read below
+    via ``get_mission_config``, correctly resolved through the FR-004 kernel
+    primitive regardless of the mission's relocation. The display-only
+    fallback (used when a mission's ``mission.yaml`` genuinely doesn't exist)
+    now uses ``repo._missions_root`` -- the same promoted authority -- rather
+    than a stale ``doctrine_root / "missions"`` literal naming the
+    pre-relocation location.
+    """
     from doctrine.missions import MissionTemplateRepository
 
     repo = MissionTemplateRepository.default()
     config = repo.get_mission_config(mission)
-    mission_path = repo._mission_config_path(mission) or (doctrine_root / "missions" / mission / "mission.yaml")
+    mission_path = repo._mission_config_path(mission) or (repo._missions_root / mission / "mission.yaml")
     raw_parsed = config.parsed if config is not None else {"name": mission}
     source: dict[str, object] = (
         {str(key): value for key, value in raw_parsed.items()}

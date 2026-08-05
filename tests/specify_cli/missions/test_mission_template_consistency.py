@@ -40,7 +40,7 @@ pytestmark = pytest.mark.fast
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _MISSIONS_ROOT = _REPO_ROOT / "src" / "specify_cli" / "missions"
-_DOCTRINE_STEPS_ROOT = _REPO_ROOT / "src" / "doctrine" / "missions" / "mission-steps"
+_DOCTRINE_STEPS_ROOT = _REPO_ROOT / "packs" / "built-in" / "missions" / "mission-steps"
 
 
 # (mission_key, prompt_template) pairs whose steps are not yet routed through

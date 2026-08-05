@@ -15,7 +15,7 @@ import pytest
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-PROMPT_DIR = REPO_ROOT / "src" / "doctrine" / "missions" / "mission-steps" / "software-dev"
+PROMPT_DIR = REPO_ROOT / "packs" / "built-in" / "missions" / "mission-steps" / "software-dev"
 
 
 def test_command_templates_do_not_teach_bare_implement() -> None:

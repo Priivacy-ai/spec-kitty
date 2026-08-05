@@ -29,7 +29,7 @@ GENERIC_SURFACES = (
     Path("src/doctrine/skills"),
     Path("packs/built-in/tactics"),
     Path("src/doctrine/templates"),
-    Path("src/doctrine/missions/software-dev/templates"),
+    Path("packs/built-in/missions/software-dev/templates"),
     Path("src/specify_cli/templates"),
     Path("src/charter/defaults.yaml"),
 )

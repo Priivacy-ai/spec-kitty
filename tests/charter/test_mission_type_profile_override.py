@@ -35,7 +35,7 @@ from doctrine.missions.mission_type_repository import builtin_mission_type_ids
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 _SHIPPED_MISSIONS_ROOT = (
-    Path(__file__).resolve().parents[2] / "src" / "doctrine" / "missions"
+    Path(__file__).resolve().parents[2] / "packs" / "built-in" / "missions"
 )
 
 
