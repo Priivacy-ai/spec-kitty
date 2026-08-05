@@ -11,7 +11,9 @@ Not an HTTP/API contract — this is the pass/fail contract the split gate modul
 | C | `scan_doctrine_cross_links`/`_shipped` | `src/doctrine/` (the only doctrine-scoped gate) | `test_code_example_links_would_false_red_without_their_discriminator`, `test_placeholder_links_would_false_red_without_their_discriminator` |
 | D | `test_no_live_doc_names_a_pre_move_builtin_path` | `docs/` | (self-contained) |
 
-Currently, Gate C's discriminator-proof (`test_forbidding_mention_would_false_red_without_its_discriminator`) is pinned to the **live** artifact `packs/built-in/agent_profiles/doctrine-daphne.agent.yaml`'s `src/doctrine/graph.yaml` mention (line 136) — the exact contradiction #3036 tracks. (This is the *current* path — the profile was relocated from `src/doctrine/agent_profiles/built-in/` by an earlier, already-merged mission.)
+Currently, **Gate A's** discriminator-proof (`test_forbidding_mention_would_false_red_without_its_discriminator`, :517) is pinned to the **live** artifact `packs/built-in/agent_profiles/doctrine-daphne.agent.yaml`'s `src/doctrine/graph.yaml` mention (line 136) — the exact contradiction #3036 tracks. (This is the *current* path — the profile was relocated from `src/doctrine/agent_profiles/built-in/` by an earlier, already-merged mission.)
+
+> **Correction (verified 2026-08-04, pre-implementation).** An earlier draft of this contract attributed this test to **Gate C**. That is factually wrong: `forbidding_mentions` is a field of `GraphMonolithScan` (`:124`), populated by `scan_graph_monolith_paths` (`:158`), and the test calls `scan_graph_monolith_shipped()` (`:519`) — it is a **Gate A** proof. Consequence for FR-002/WP02: the fixture decoupling lands in the **CLI-wide (A+B) module** WP01 creates, *not* the narrowed doctrine-scoped Gate C module. Gate C's own analogous case (the on-disk cross-link resolution requirement, US2-AS3) is a **separate** second deliverable of FR-002 and does live in the Gate C module. `test_gate_a_discriminators_do_not_swallow_a_planted_violation` (`:546`) already plants a `tmp_path` fixture that exercises `forbidding_mentions` — that is the established local idiom to build the decoupled proof on.
 
 All three gate functions (A, B, C) share a common set of helpers today: the `Site` dataclass, `_rel`, `_read_lines`, `_text_files` (an `lru_cache`-backed reader), and the `_REPO_ROOT`/`_SRC_ROOT`/`_DOCTRINE_ROOT`/`_PACKS_ROOT`/`_TEXT_SUFFIXES` constants.
 
@@ -26,7 +28,7 @@ All three gate functions (A, B, C) share a common set of helpers today: the `Sit
 
 1. `test_forbidding_mention_would_false_red_without_its_discriminator` (or its post-split equivalent) is redriven against a `tmp_path`-planted synthetic fixture, not `doctrine-daphne.agent.yaml`.
 2. The fixture-based proof still fails (reds) if the discriminator's effect set is empty, or if it silently swallows a new, unexpected exclusion (the anti-widening property) — i.e. it is provably equivalent in strength to the pre-state live-artifact proof, just decoupled from *which* artifact demonstrates it.
-3. `src/doctrine/agent_profiles/built-in/doctrine-daphne.agent.yaml`'s `avoidance-boundary` no longer mentions `src/doctrine/graph.yaml` (the "daphne cleanup"), and the full gate suite is green with that removal in place.
+3. `packs/built-in/agent_profiles/doctrine-daphne.agent.yaml`'s `avoidance-boundary` (line 136) no longer mentions `src/doctrine/graph.yaml` (the "daphne cleanup"), and the full gate suite is green with that removal in place. (Corrected 2026-08-04: this item previously cited the pre-relocation path `src/doctrine/agent_profiles/built-in/...`, which no longer exists on disk.)
 4. Gate C's cross-link case receives the same fixture-decoupling treatment for its own on-disk-resolution requirement (per US2-AS3).
 
 ## Falsification

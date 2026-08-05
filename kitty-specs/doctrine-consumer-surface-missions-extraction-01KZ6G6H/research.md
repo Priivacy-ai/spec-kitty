@@ -8,7 +8,7 @@ Verified directly against the file (841 lines):
 
 | Gate | Scan function | Scope root | Discriminator-proof test |
 |---|---|---|---|
-| A | `scan_graph_monolith_paths` (:158) / `scan_graph_monolith_shipped` (:403) | `_SRC_ROOT` (`src/`, all of it) | `test_project_tier_graph_path_would_false_red_without_its_discriminator` (:498) |
+| A | `scan_graph_monolith_paths` (:158) / `scan_graph_monolith_shipped` (:403) | `_SRC_ROOT` (`src/`, all of it) | `test_project_tier_graph_path_would_false_red_without_its_discriminator` (:498), **`test_forbidding_mention_would_false_red_without_its_discriminator` (:517)** |
 | B | `scan_shipped_pack_paths` (:269) / `scan_shipped_pack_shipped` (:416) | `_SRC_ROOT` (`src/`, **not** `_DOCTRINE_ROOT` — also CLI-wide) | `test_shipped_prose_would_false_red_without_the_path_shape_discriminator` (:577), `test_frozen_seed_mirror_would_false_red_without_its_discriminator` (:598) |
 | C | `scan_doctrine_cross_links` (:343) / `scan_doctrine_cross_links_shipped` (:429) | `_DOCTRINE_ROOT` (`src/doctrine/` — the only gate actually scoped here) | `test_code_example_links_would_false_red_without_their_discriminator` (:702), `test_placeholder_links_would_false_red_without_their_discriminator` (:716) |
 | D | `test_no_live_doc_names_a_pre_move_builtin_path` (:822) | `docs/` (a third, distinct scope) | (self-contained; no separate discriminator-proof pair) |
@@ -21,7 +21,7 @@ Verified directly against the file (841 lines):
 
 ## R2 — The NFR-003 proof's exact current shape and #3036's recorded fix (grounds IC-02)
 
-`test_forbidding_mention_would_false_red_without_its_discriminator` (:517-535) does:
+`test_forbidding_mention_would_false_red_without_its_discriminator` (:517-535) — a **Gate A** proof, not Gate C: `forbidding_mentions` is a `GraphMonolithScan` field (:124) populated by `scan_graph_monolith_paths` (:158), and this test calls `scan_graph_monolith_shipped()` (:519). It therefore follows Gate A into the CLI-wide (A+B) module at the FR-001 split. It does:
 
 ```python
 excluded = sorted((site.path, site.text) for site in scan.forbidding_mentions)
@@ -110,3 +110,5 @@ This mission's FR-005 directly falsifies that assumption once the data content m
 Confirmed directly (directory listing, not assumed): the directory holds 11 top-level `.py` modules (`repository.py`, `mission_type_repository.py`, `mission_step_repository.py`, `step_projection.py`, `models.py`, `action_index.py`, `primitives.py`, `step_contracts.py`, `step_offer_seam.py`, `glossary_hook.py`, `__init__.py`) alongside data: `mission_types/` (per-type `.yaml` profiles), `mission-steps/` (per-type step-prompt directories), `built_in_step_contracts/` (step-contract YAML), four per-type content directories (`documentation/`, `plan/`, `research/`, `software-dev/`), and `README.md`. Multiple existing call sites do `from doctrine.missions.repository import ...`-shaped imports — these must keep working. `packs/built-in/` cannot host Python modules: the hyphenated name is not a legal package identifier, and `pack_paths.py`'s own docstring establishes every sibling kind directory ships YAML/MD content only.
 
 **Decision**: only the data subdirectories relocate to `packs/built-in/missions/`; the `.py` modules stay in `src/doctrine/missions/` as an ordinary Python package, repointed (via the FR-004 primitive, through `MissionTemplateRepository.default_missions_root()`) to read data from the new external root. `plan.md`'s Project Structure and this mission's spec.md were both corrected to state this explicitly rather than the ambiguous "`missions/` deleted" framing the earlier draft used.
+
+**WP03's completed cross-layer reader inventory** (FR-003/SC-007 deliverable) lives at [`docs/plans/doctrine/missions-reader-inventory-01KZ6G6H.md`](../../docs/plans/doctrine/missions-reader-inventory-01KZ6G6H.md) — a set of readers require repoint (that table is the authority; do not hard-code a count here, since it drifts as sites are found), including two the post-move ancestor-walk self-match trap still catches even after WP04's convergence; see that document for the full move/stay/repoint table WP05 must consume.

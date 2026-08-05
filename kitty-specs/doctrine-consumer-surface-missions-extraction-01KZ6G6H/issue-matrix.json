@@ -1,7 +1,43 @@
 {
   "rows": {
+    "#2468": {
+      "evidence_ref": "Explicit non-goal under constraint C-002 (spec.md:135): full mission-type-as-ArtifactKind promotion. This mission relocates missions/ DATA content only; it does not promote mission_type to an activatable ArtifactKind (see src/doctrine/artifact_kinds.py _NON_AUGMENTATION_ELIGIBLE_KINDS and charter.kind_vocabulary, where mission-type raises MissionTypeNotAnArtifactKind by design). Follow-up handle: GitHub issue #2468 remains open.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#2643": {
+      "evidence_ref": "Not a deliverable of this mission -- cited in spec.md FR-003 (and plan.md IC-03, tasks.md WP03, quickstart.md) only as a known upstream CLI gap this mission routes AROUND: finalize-tasks rejects any WP owned_files entry under kitty-specs/, so FR-003's reader inventory lands at docs/plans/doctrine/missions-reader-inventory-01KZ6G6H.md instead. WP03's own text forbids fixing it here ('Do not attempt to route around this by disabling the check; this WP's artifact location is the workaround'). Follow-up: #2643 remains open upstream. Row added by reviewer at WP01 approval because the matrix-completeness gate demands a row per referenced issue and this one was missed at planning time (it appears only in FR-003 prose).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#2652": {
+      "evidence_ref": "Explicit non-goal under constraint C-002 (spec.md:135): retirement of src/specify_cli/missions. Cited in occurrence_map.yaml import_paths as the precedent for RETAINING sibling .py modules in place, which is the rule this mission follows (the 11 .py logic modules stay in src/doctrine/missions/ per the do_not_change exception). Retiring the specify_cli/missions sibling is separate. Follow-up handle: GitHub issue #2652 remains open.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
     "#2986": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Explicit non-goal under constraint C-002 (spec.md:135): runtime->doctrine function-local-import boundary blind spot. Follow-up handle: GitHub issue #2986 itself remains open and is the tracking artifact.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,11 +45,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "deferred-with-followup",
       "wp": null
     },
     "#3022": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Explicit non-goal under constraint C-002 (spec.md:135): further extraction of built-in packs into a separate spec-kitty-packs-open repo. Follow-up handle: GitHub issue #3022 itself remains open.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,11 +57,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "deferred-with-followup",
       "wp": null
     },
     "#3036": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "0b8027893: both instances named in #3036 closed. (A2) test_forbidding_mention_would_false_red_without_its_discriminator redriven onto a tmp_path .agent.yaml fixture with its effect-set pin intact (not loosened - reviewer reproduced the empty-set red AND the anti-widening red by mutation). (Gate C) new discriminator C3 boundary_escapes exempts links escaping the pack boundary, incl. the exact src/doctrine/templates/diagrams/README.md:65-71 ../../../../docs/architecture/... sites the issue body names; 33 live sites now exempt, zero live reds silenced. (Content) packs/built-in/agent_profiles/doctrine-daphne.agent.yaml:136 repo-relative src/doctrine/ prefix removed; live forbidding_mentions now 0 with gate suite green - the gate no longer requires the coupling.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,11 +69,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "fixed",
+      "wp": "WP02"
     },
     "#3039": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP01 2c5a7ca2b: dead-path gates split by actual scan scope; approved.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,11 +81,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "fixed",
+      "wp": "WP01"
     },
     "#3091": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP05 8a65cede5: missions/ data relocated to packs/built-in/missions with all readers repointed and the self-match pattern trap closed (literal packs/built-in/missions); DRG regen byte-identical; caller-level wheel test proves real-data resolution. Approved by reviewer-renata (task a10209608b2429afa).",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -57,11 +93,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "fixed",
+      "wp": "WP05"
     },
     "#3101": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Explicit non-goal under constraint C-001 (spec.md:134): the kernel/doctrine/charter wheel PUBLISH. src/kernel, src/doctrine, src/charter stay in the root wheel. Follow-up handle: GitHub issue #3101 itself remains open. Note research.md R3 records a known limitation this defers: the packs/-as-site-packages-sibling invariant holds only while C-001 keeps one wheel.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -69,11 +105,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "deferred-with-followup",
       "wp": null
     },
     "#3175": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Sole-door bypass closure landed pre-mission as PR #3175 (merged 1ca578877, mission charter-sole-door-bypass-closure-01KZ3WAA). This mission consumes it as the boundary->sole-door precondition per docs/plans/3-2-x-open-core-delivery-plan.md; no work required here. spec.md:32.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,11 +117,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "verified-already-fixed",
       "wp": null
     },
     "#3176": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Closed by PR #3175 (merged 1ca578877) before this mission opened. Recorded for completeness because spec.md:32 cites it as the sole-door step; no work required here.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -93,11 +129,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "verified-already-fixed",
       "wp": null
     },
     "#3179": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Carved out to its own follow-on mission by an explicit operator scope-split decision after a 4-lens post-spec adversarial squad (spec.md:20-28). The doctrine/charter public API contract is adjacent but NOT gating this relocation -- docs/plans/doctrine/next-slice-wheel-mission-types-public-api-research.md states \"(b) is not strictly gating (a)\". Follow-up handle: GitHub issue #3179 remains open; the follow-on mission is not yet created.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -105,11 +141,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "deferred-with-followup",
       "wp": null
     },
     "#3182": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Fixed by WP07, commit 02d1a2239 in lane-e. Both TIER-1 overrides (.kittify/overrides/missions/software-dev/command-templates/{implement,review}.md) refreshed onto build_activation_aware_doctrine_service; retired spec-kitty constitution context removed; additionally the nonexistent spec-kitty agent workflow replaced with spec-kitty agent action. Reviewer independently verified SC-004 grep clean (exit 1), both substitute commands exist via --help, and the builder signature matches src/charter/doctrine_service_builder.py:188. NOTE: WP07 review-cycle-1 rejected SOLELY on this matrix row being unknown -- a row outside WP07 owned_files, so its implementer could not have set it in scope.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -117,11 +153,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "fixed",
+      "wp": "WP07"
     },
     "#3183": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Fixed by WP06, commit dfcc0f4e0 in lane-d. UnknownMissionTypeError no longer claims an id is both unknown and registered; red-first reproduction added for the activated-but-unresolvable-profile case through the pre-existing resolve_mission_type_context() entry point (the existing test_unknown_type_raises_unknown_mission_type_error covers only an id ABSENT from existing_mission_types(), a different scenario). Pending WP06 review.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -129,8 +165,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "fixed",
+      "wp": "WP06"
     }
   },
   "schema_version": 1

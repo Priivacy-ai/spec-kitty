@@ -1,0 +1,320 @@
+schema_version: 1
+mission_id: 01KZ6G6HPTMWKK5EHGDHG9BJA5
+mission_slug: doctrine-consumer-surface-missions-extraction-01KZ6G6H
+mission_number: 190
+friendly_name: Missions/ Doctrine Tree Relocation & Gate Preconditions
+mission_type: software-dev
+target_branch: research/doctrine-wheel-mission-types-public-api
+created_at: '2026-08-05T00:20:04.629871+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-08-05T00:20:04.629871+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-002
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-003
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-012
+not_helpful:
+- id: n-016
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-032
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented
+    issues and decisions.
+- id: n-013
+  category: implementation
+  summary: WP03 needed 2 implementation cycles
+  evidence_refs:
+  - e-029
+  details: WP WP03 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-014
+  category: implementation
+  summary: WP04 needed 3 implementation cycles
+  evidence_refs:
+  - e-030
+  details: WP WP04 entered in_progress 3 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-015
+  category: implementation
+  summary: WP07 needed 2 implementation cycles
+  evidence_refs:
+  - e-031
+  details: WP WP07 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-006
+  category: process
+  summary: WP01 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-018
+  details: WP WP01 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-004
+  category: process
+  summary: WP02 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-016
+  details: WP WP02 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-007
+  category: process
+  summary: WP02 required 5 --force override(s) during workflow
+  evidence_refs:
+  - e-019
+  details: WP WP02 required 5 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-008
+  category: process
+  summary: WP03 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-020
+  details: WP WP03 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-005
+  category: process
+  summary: WP04 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-017
+  details: WP WP04 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-009
+  category: process
+  summary: WP04 required 5 --force override(s) during workflow
+  evidence_refs:
+  - e-021
+  details: WP WP04 required 5 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-010
+  category: process
+  summary: WP05 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-022
+  details: WP WP05 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-011
+  category: process
+  summary: WP06 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-023
+  details: WP WP06 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-012
+  category: process
+  summary: WP07 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-024
+  details: WP WP07 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: review_loop
+  summary: WP03 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-013
+  details: WP WP03 was sent back from review to planning 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP04 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-014
+  details: WP WP04 was sent back from review to planning 1 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP07 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-015
+  details: WP WP07 was sent back from review to planning 1 time(s).
+gaps:
+- id: g-001
+  category: process
+  summary: Arbiter override needed for WP02 (1x)
+  evidence_refs:
+  - e-025
+  details: WP WP02 required 1 arbiter override(s). Arbiter overrides are an escape hatch; recurring use suggests the
+    normal review path is blocked and the underlying policy/guard may need adjustment.
+- id: g-002
+  category: process
+  summary: Arbiter override needed for WP03 (1x)
+  evidence_refs:
+  - e-026
+  details: WP WP03 required 1 arbiter override(s). Arbiter overrides are an escape hatch; recurring use suggests the
+    normal review path is blocked and the underlying policy/guard may need adjustment.
+- id: g-003
+  category: process
+  summary: Arbiter override needed for WP04 (1x)
+  evidence_refs:
+  - e-027
+  details: WP WP04 required 1 arbiter override(s). Arbiter overrides are an escape hatch; recurring use suggests the
+    normal review path is blocked and the underlying policy/guard may need adjustment.
+- id: g-004
+  category: process
+  summary: Arbiter override needed for WP07 (1x)
+  evidence_refs:
+  - e-028
+  details: WP WP07 required 1 arbiter override(s). Arbiter overrides are an escape hatch; recurring use suggests the
+    normal review path is blocked and the underlying policy/guard may need adjustment.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/tasks/WP01-gate-file-scope-split.md
+- id: e-006
+  kind: file
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/tasks/WP02-synthetic-fixture-decoupling.md
+- id: e-007
+  kind: file
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/tasks/WP03-missions-reader-inventory.md
+- id: e-008
+  kind: file
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/tasks/WP04-kernel-resolution-primitive.md
+- id: e-009
+  kind: file
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/tasks/WP05-missions-data-relocation.md
+- id: e-010
+  kind: file
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/tasks/WP06-mission-type-error-message-fix.md
+- id: e-011
+  kind: file
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/tasks/WP07-tier1-override-template-refresh.md
+- id: e-012
+  kind: file
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/status.events.jsonl
+- id: e-013
+  kind: event_range
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/status.events.jsonl
+  range: 01KZ72KRJT614AAPX0YZ4SPY4T
+- id: e-014
+  kind: event_range
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/status.events.jsonl
+  range: 01KZ70FD5VV7C7AT5K06SWDVPQ..01KZ78386R747QPZ0C7EYGBRJA
+- id: e-015
+  kind: event_range
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/status.events.jsonl
+  range: 01KZ6X2JVW4WS5GTFVCK65BT0N
+- id: e-016
+  kind: event_range
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/status.events.jsonl
+  range: 01KZ77GF50BXQF50VNEX8MVPE5
+- id: e-017
+  kind: event_range
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/status.events.jsonl
+  range: 01KZ78386R747QPZ0C7EYGBRJA
+- id: e-018
+  kind: event_range
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/status.events.jsonl
+  range: 01KZ6X6WQA10KXA5XG479VKVJ3
+- id: e-019
+  kind: event_range
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/status.events.jsonl
+  range: 01KZ7559Z4RBX32FKQM3PFSHHX..01KZ78Y15WNG5C6BBWXBZGFRKE
+- id: e-020
+  kind: event_range
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/status.events.jsonl
+  range: 01KZ799WEVM13V6M20CPXCZ5DB..01KZ79W9KKFNK0BC6K0D1QY4GJ
+- id: e-021
+  kind: event_range
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/status.events.jsonl
+  range: 01KZ754RF1YHKPPVN3F3ZR0W07..01KZ79PD0SXZG9H4GX2NF7QYYJ
+- id: e-022
+  kind: event_range
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/status.events.jsonl
+  range: 01KZ7JTZ0G8XGQMPEEFR36N95T..01KZ7M8B2MC1CWH4BNAWK83ZJ3
+- id: e-023
+  kind: event_range
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/status.events.jsonl
+  range: 01KZ755C8DA9V1VCVMZJFK7Z8X
+- id: e-024
+  kind: event_range
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/status.events.jsonl
+  range: 01KZ78JE0NJXTB4J6PTS3WAAXG
+- id: e-025
+  kind: event_range
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/status.events.jsonl
+  range: 01KZ78Y15WNG5C6BBWXBZGFRKE
+- id: e-026
+  kind: event_range
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/status.events.jsonl
+  range: 01KZ79W9KKFNK0BC6K0D1QY4GJ
+- id: e-027
+  kind: event_range
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/status.events.jsonl
+  range: 01KZ79PD0SXZG9H4GX2NF7QYYJ
+- id: e-028
+  kind: event_range
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/status.events.jsonl
+  range: 01KZ78JE0NJXTB4J6PTS3WAAXG
+- id: e-029
+  kind: event_range
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/status.events.jsonl
+  range: implementation_cycles
+- id: e-030
+  kind: event_range
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/status.events.jsonl
+  range: implementation_cycles
+- id: e-031
+  kind: event_range
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/status.events.jsonl
+  range: implementation_cycles
+- id: e-032
+  kind: file
+  path: kitty-specs/doctrine-consumer-surface-missions-extraction-01KZ6G6H/analysis-report.md
+generator_version: '1.0'
+provenance_history: []
