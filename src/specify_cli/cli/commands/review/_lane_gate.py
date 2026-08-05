@@ -93,7 +93,11 @@ def check_wp_lanes(
                 "type": finding_type,
                 "wp_id": conflict.wp_id,
                 "lane": conflict.lane,
-                "artifact_path": str(conflict.artifact_path),
+                "artifact_path": (
+                    str(conflict.artifact_path)
+                    if conflict.artifact_path is not None
+                    else "<no review artifact>"
+                ),
                 "diagnostic_code": str(diagnostic["diagnostic_code"]),
                 "branch_or_work_package": str(
                     diagnostic["branch_or_work_package"]
