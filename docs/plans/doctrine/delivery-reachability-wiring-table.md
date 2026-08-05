@@ -1035,3 +1035,36 @@ directives stay in the deferred set (now understood as intentionally-gated /
 authored, F accepted, and the four depth-gated artefacts accepted (see the
 depth-gated note above). All residual delivery/activation work is owned by the
 fast-follow walk-update mission and #3064.
+
+## Composition ledger (NFR-004) — mission `rehome-writing-comms-doctrine-01KZ9V0S` (WP04)
+
+The writing/comms rehome ships 7 new agent profiles, directives 047–050, two
+styleguides, two procedures, one tactic and five audience assets. Regenerating the
+DRG off that final frontmatter (`spec-kitty doctrine regenerate-graph`) moved the
+following counts — each measured via `load_built_in_graph()` /
+`profile_channel_reachable` / `action_channel_reachable`, never estimated:
+
+- **Shipped built-in graph `nodes 324 → 345` (+21), `edges 892 → 930` (+38).** The
+  +21 nodes are exactly the shipped artefacts (7 profiles + 4 directives + 2
+  styleguides + 2 procedures + 1 tactic + 5 assets); pinned in
+  `tests/doctrine/test_pack_relocation_doctor_gate.py` as `(345, 930)`.
+- **`_PROFILE_UNREACHABLE` 60 → 59** (`tests/doctrine/drg/test_reachability.py`).
+  One member left the set: `tactic:secure-design-checklist` became
+  profile-reachable via the authored chain
+  `agent_profile:minutes-maker-mahad` --`requires`--> `directive:DIRECTIVE_050`
+  (`050-credential-handling-discipline`, whose `references` list carries
+  `type: tactic, id: secure-design-checklist`, minted as a `suggests` edge)
+  --`suggests`--> `tactic:secure-design-checklist`. Both edges are authored
+  frontmatter shipped by this mission (WP01/WP02); the profile channel seeds every
+  agent profile, so the new profile's `requires` edge animates the pre-existing
+  `DIRECTIVE_050 -> secure-design-checklist` reference.
+- **`_PROFILE_RESCUES` UNCHANGED (30).** `secure-design-checklist` is
+  action-reachable at `d=2` (absent from `_ACTION_UNREACHABLE_D2`), so it was never
+  in `_ACTION_UNREACHABLE_D2 − _PROFILE_UNREACHABLE`; removing it from
+  `_PROFILE_UNREACHABLE` does not change the rescues set. The ledger-coverage
+  cross-check (`TestProfileRescuesHaveLedgerCoverage`) is therefore unaffected.
+- **`_ACTION_UNREACHABLE_D1` (60) and `_ACTION_UNREACHABLE_D2` (50) UNCHANGED** —
+  measured, not assumed. The new artefacts are not charter-activated in the
+  dogfood `.kittify/charter/charter.yaml`, and `agent_profile`/`asset` are not
+  activation kinds, so the action-channel activated-unreachable pins do not move.
+- **Glossary term count UNCHANGED (108)** — no glossary edits.

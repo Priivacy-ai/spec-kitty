@@ -29,12 +29,18 @@ nodes:
 - urn: procedure:example-mapping-workshop
   kind: procedure
   label: Example Mapping Workshop
+- urn: procedure:glossary-maintenance-workflow
+  kind: procedure
+  label: Glossary Maintenance Workflow
 - urn: procedure:issue-triage-state-machine
   kind: procedure
   label: Issue Triage State Machine
 - urn: procedure:legacy-codebase-triage
   kind: procedure
   label: Legacy Codebase Triage
+- urn: procedure:meeting-minutes-pipeline
+  kind: procedure
+  label: Meeting Minutes Pipeline
 - urn: procedure:migrate-project-guidance-to-spec-kitty-charter
   kind: procedure
   label: Migrate Project Guidance to Spec Kitty Charter
@@ -159,6 +165,21 @@ edges:
 - source: procedure:example-mapping-workshop
   target: tactic:usage-examples-sync
   relation: requires
+- source: procedure:glossary-maintenance-workflow
+  target: directive:DIRECTIVE_032
+  relation: requires
+- source: procedure:glossary-maintenance-workflow
+  target: styleguide:kitty-glossary-writing
+  relation: suggests
+- source: procedure:glossary-maintenance-workflow
+  target: tactic:context-boundary-inference
+  relation: requires
+- source: procedure:glossary-maintenance-workflow
+  target: tactic:glossary-curation-interview
+  relation: requires
+- source: procedure:glossary-maintenance-workflow
+  target: tactic:terminology-extraction-mapping
+  relation: requires
 - source: procedure:issue-triage-state-machine
   target: procedure:disciplined-defect-diagnosis
   relation: requires
@@ -200,6 +221,15 @@ edges:
   relation: requires
 - source: procedure:legacy-codebase-triage
   target: tactic:strategic-domain-classification
+  relation: requires
+- source: procedure:meeting-minutes-pipeline
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: procedure:meeting-minutes-pipeline
+  target: directive:DIRECTIVE_047
+  relation: requires
+- source: procedure:meeting-minutes-pipeline
+  target: directive:DIRECTIVE_050
   relation: requires
 - source: procedure:migrate-project-guidance-to-spec-kitty-charter
   target: directive:DIRECTIVE_003

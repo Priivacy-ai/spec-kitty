@@ -2,9 +2,15 @@ schema_version: '1.0'
 generated_at: STATIC
 generated_by: drg-migration-v1
 nodes:
+- urn: agent_profile:analyst-annie
+  kind: agent_profile
+  label: Analyst Annie
 - urn: agent_profile:architect-alphonso
   kind: agent_profile
   label: Architect Alphonso
+- urn: agent_profile:comms-cleo
+  kind: agent_profile
+  label: Comms Cleo
 - urn: agent_profile:curator-carla
   kind: agent_profile
   label: Curator Carla
@@ -14,6 +20,9 @@ nodes:
 - urn: agent_profile:designer-dagmar
   kind: agent_profile
   label: Designer Dagmar
+- urn: agent_profile:diagram-daisy
+  kind: agent_profile
+  label: Diagram Daisy
 - urn: agent_profile:doctrine-daphne
   kind: agent_profile
   label: Doctrine Daphne
@@ -32,6 +41,12 @@ nodes:
 - urn: agent_profile:java-jenny
   kind: agent_profile
   label: Java Jenny
+- urn: agent_profile:lexical-larry
+  kind: agent_profile
+  label: Lexical Larry
+- urn: agent_profile:minutes-maker-mahad
+  kind: agent_profile
+  label: Minutes-Maker Mahad
 - urn: agent_profile:node-norris
   kind: agent_profile
   label: Node Norris
@@ -56,7 +71,22 @@ nodes:
 - urn: agent_profile:reviewer-renata
   kind: agent_profile
   label: Reviewer Renata
+- urn: agent_profile:scribe-sally
+  kind: agent_profile
+  label: Scribe Sally
+- urn: agent_profile:synthesizer-sam
+  kind: agent_profile
+  label: Synthesizer Sam
 edges:
+- source: agent_profile:analyst-annie
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: agent_profile:analyst-annie
+  target: directive:DIRECTIVE_032
+  relation: requires
+- source: agent_profile:analyst-annie
+  target: directive:DIRECTIVE_047
+  relation: requires
 - source: agent_profile:architect-alphonso
   target: directive:DIRECTIVE_001
   relation: requires
@@ -102,6 +132,16 @@ edges:
   target: tactic:development-bdd
   relation: requires
   reason: Use BDD behavioral contract definition during architecture design to express observable system boundaries in stakeholder-readable terms. Behavioral contracts precede implementation and shape system component boundaries.
+- source: agent_profile:comms-cleo
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: agent_profile:comms-cleo
+  target: directive:DIRECTIVE_047
+  relation: requires
+- source: agent_profile:comms-cleo
+  target: tactic:writing-audience-catalog
+  relation: requires
+  reason: Provides the ready-to-use catalog of writing-audience personas needed to satisfy the Audience-Oriented Writing directive. Selects one of the built-in persona library's five personas (or an org-extension addition) instead of inventing an audience ad hoc. Not the same pattern as the architecture stakeholder-alignment tactic — this is about who is reading the prose, not who has a stake in a design decision.
 - source: agent_profile:curator-carla
   target: directive:DIRECTIVE_018
   relation: requires
@@ -136,6 +176,9 @@ edges:
   reason: The structural-fix plan must be evaluated for intent (does this close the class?) and risk (what is the blast radius of the structural change?) before handoff
 - source: agent_profile:designer-dagmar
   target: directive:DIRECTIVE_031
+  relation: requires
+- source: agent_profile:diagram-daisy
+  target: directive:USE_C4_MODEL_TECHNIQUES
   relation: requires
 - source: agent_profile:doctrine-daphne
   target: directive:DIRECTIVE_003
@@ -322,6 +365,39 @@ edges:
   target: tactic:behavior-driven-development
   relation: requires
   reason: BDD scenarios define acceptance criteria for Java features. Wire Gherkin scenarios via Cucumber-JVM as acceptance tests before implementing production code.
+- source: agent_profile:lexical-larry
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: agent_profile:lexical-larry
+  target: directive:DIRECTIVE_032
+  relation: requires
+- source: agent_profile:lexical-larry
+  target: directive:DIRECTIVE_048
+  relation: requires
+- source: agent_profile:lexical-larry
+  target: tactic:context-boundary-inference
+  relation: requires
+  reason: Exposes vocabulary ownership conflicts between bounded contexts as a diagnostic input
+- source: agent_profile:lexical-larry
+  target: tactic:glossary-curation-interview
+  relation: requires
+  reason: Structured term-capture interview that feeds proposals to curator-carla for acceptance
+- source: agent_profile:lexical-larry
+  target: tactic:terminology-extraction-mapping
+  relation: requires
+  reason: Systematic term extraction and mapping is Larry's core drift-detection pass
+- source: agent_profile:minutes-maker-mahad
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: agent_profile:minutes-maker-mahad
+  target: directive:DIRECTIVE_047
+  relation: requires
+- source: agent_profile:minutes-maker-mahad
+  target: directive:DIRECTIVE_049
+  relation: requires
+- source: agent_profile:minutes-maker-mahad
+  target: directive:DIRECTIVE_050
+  relation: requires
 - source: agent_profile:node-norris
   target: agent_profile:implementer-ivan
   relation: specializes_from
@@ -614,3 +690,15 @@ edges:
   target: tactic:test-scaffolding-as-design-smell
   relation: requires
   reason: Treat heavy test setup or many infrastructure mocks in a diff as a design smell to flag, not accept — request a pure boundary/seam instead of more doubles.
+- source: agent_profile:scribe-sally
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: agent_profile:scribe-sally
+  target: directive:DIRECTIVE_047
+  relation: requires
+- source: agent_profile:scribe-sally
+  target: directive:DIRECTIVE_048
+  relation: requires
+- source: agent_profile:synthesizer-sam
+  target: directive:DIRECTIVE_047
+  relation: requires
