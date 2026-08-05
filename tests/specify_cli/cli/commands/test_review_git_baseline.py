@@ -409,14 +409,9 @@ def test_review_passes_with_notes_when_dead_code_scan_finds_symbol(
 
     from types import SimpleNamespace
 
-    def _fake_run(  # type: ignore[no-untyped-def]
-        cmd,
-        cwd=None,
-        capture_output=False,
-        text=False,
-        encoding=None,
-        errors=None,
-    ):
+    _real_run = subprocess.run
+
+    def _fake_run(cmd, **kwargs):  # type: ignore[no-untyped-def]
         # WP01 hermetic-gate preflight: pytest-availability probe. The
         # production path is `assert_pytest_available()` in
         # `specify_cli.cli.commands._test_env_check`, but the monkeypatch
@@ -431,7 +426,11 @@ def test_review_passes_with_notes_when_dead_code_scan_finds_symbol(
                 stdout="+++ b/src/pkg/example.py\n+def PublicSymbol():\n",
                 returncode=0,
             )
-        raise AssertionError(f"unexpected command: {cmd!r}")
+        # Anything else (e.g. the target-branch resolver's own `git
+        # symbolic-ref` / `git rev-parse` probes) is real git run against
+        # the real repo this fixture built — only the dead-code-scan diff
+        # and the pytest-availability probe need a deterministic fake.
+        return _real_run(cmd, **kwargs)
 
     monkeypatch.setattr("specify_cli.cli.commands.review.subprocess.run", _fake_run)
 
