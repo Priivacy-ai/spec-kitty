@@ -1,0 +1,137 @@
+{
+  "mission_slug": "chain-b-consent-bypass-3167-01KZ63HK",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Retire the dead senders: batch_sync and sync_all_queued_events are DELETED from sync/batch.py (not migrated onto the consent seam), so an ungated queue drain cannot be revived by a one-line edit. SC-001: sync/batch.py defines 0 senders that POST queued events without a per-project consent decision, down from a stated baseline, with both numbers printed.",
+      "proof_type": "negative_invariant_grep_absence",
+      "evidence": "PASS. batch_sync and sync_all_queued_events deleted, not migrated (spec.md C-002: gating code slated for deletion cannot produce a non-manufactured red). Executable form: negative invariant NI-001, grep_absence over src/specify_cli/sync/batch.py -> confirmed_absent, with a positive control ('def categorize_error' present), a negative control (bare 'batch_sync' would false-red on the docstring at batch.py:4) and a non-vacuity check (the pattern fires when the two defs are appended to a copy). Deleted at commit b0482a832; scope frozen ahead of the edit by WP01's contracts/deletion-manifest.md $1 tier table (24 first-tier + 9 second-tier dead symbols, 21 ALIVE) whose three controls -- known-consumer resolution, injected-caller flip, real-caller deletion flip -- each ran before the tier table was trusted.",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-08-04T22:44:29.106647+00:00",
+      "notes": "Red achievable (spec.md register): the absence assertion was red before the deletion and green after. Executable as negative invariant NI-001."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Prove non-reachability BEFORE deleting: reachability is established by static enumeration PLUS a check for dynamic entry points, so 'no callers' is a measurement and not an impression. Its red is a caller found.",
+      "proof_type": "static_enumeration_plus_dynamic_entry_probe",
+      "evidence": "PASS, and established BEFORE the deletion landed. contracts/deletion-manifest.md $5 enumerates exactly four routes to obtaining either function object and closes each, stating for each why a caller would otherwise have appeared: (1) static import, (2) the specify_cli.sync package public surface, (3) dynamic resolution (getattr/importlib/entry points), (4) a separate-process entry point. Not a bare 'no callers found': WP01 ran three controls first ($0 'Provenance and the three controls') -- known production consumers must resolve, an injected caller must flip a symbol out of the dead set, and deleting a real caller must flip ALIVE -> dead -- and disclosed one control failure of its own ($'A control failure of my own, disclosed') rather than suppressing it. One route carries a disclosed gap, recorded at $5 'Disclosed gap' rather than papered over.",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-08-04T22:44:31.439023+00:00",
+      "notes": "Red achievable: the enumeration IS the deliverable and its red is a caller found. WP01 disclosed one of its own control failures rather than suppressing it, and one reachability route carries a disclosed gap."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Retire only the dead surface: sync/batch.py's live helpers and the specify_cli.sync public API are unchanged, so retirement does not become a breaking change. SC-002: the exported name set is identical to baseline -- set difference empty, both set sizes printed. Already true at baseline; lands as a regression guard (spec.md C-007).",
+      "proof_type": "frozen_set_comparison_cold_import",
+      "evidence": "PASS. specify_cli.sync's exported name set is IDENTICAL to baseline: 69 -> 69, set difference empty, both sizes stated (SC-002). Diffed against WP01's FROZEN list at contracts/deletion-manifest.md $6, not a re-derived one. The measurement is only valid on a COLD import and the manifest says so with the measurement that proves it: specify_cli.sync is a lazy package, so touching one lazy name binds 11 submodules as package attributes and inflates dir() from 69 to 80 -- comparing against a figure taken after any prior attribute access would have shown an 11-name 'difference' and read as an NFR-002 violation that never occurred. Count stable at 69 across 3 cold runs. sync/batch.py's live helpers (categorize_error, format_sync_summary, generate_failure_report, write_failure_report, run_final_sync_with_retries, BatchEventResult, BatchSyncResult) all survive.",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-08-04T22:44:33.744664+00:00",
+      "notes": "NOT red-achievable -- already true at baseline, so declared a regression guard rather than padded with an inspection claim (spec.md C-007). Obligation is not to break. Cold-import caveat is load-bearing: a warm import reads as an 11-name violation that never happened."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Dispose of orphaned tests explicitly: every test retired alongside a deleted sender is named with its reason in the commit, so no #3030-era regression test disappears silently. SC-004: K/K retired tests have their reason recorded, K stated.",
+      "proof_type": "per_node_id_disposition",
+      "evidence": "PASS with K stated and reconciled, not asserted. K = 91 retired test nodes, each dispositioned by node id in the commit record at c187d1e9a. K was COMPUTED: pytest --collect-only over tests/sync + tests/architectural at WP02's base f04ee0a78 and again after, pre = 3982 nodes, post = 3895, added = 4 (tests/architectural/test_batch_drain_retired_3167.py), reconciling exactly 3982 - 91 + 4 = 3895. Per-file retired/survived table matches plan.md IC-02 figure for figure with no collateral loss elsewhere in either cone. Three of the 91 name a survivor covering the area but not the specific branch; rather than dress those up as coverage they are filed as Priivacy-ai/spec-kitty#3192, and the per-event forbidden-key screen still owed is Priivacy-ai/spec-kitty#3191.",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-08-04T22:44:36.073894+00:00",
+      "notes": "NOT red-achievable -- text/tracker requirement, declared as such. K=91 was computed and reconciled (3982 - 91 + 4 = 3895), not asserted. Three of the 91 name a survivor covering the area but not the branch; filed as Priivacy-ai/spec-kitty#3192 rather than counted as coverage."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Clean the blinding fixture: tests/sync/conftest.py stops patching a name production no longer consults, so the cone cannot pass for the wrong reason. SC-005: conftest.py patches 0 names production does not consult, verified by resolving each patch target against the post-change tree, with the number of targets checked stated.",
+      "proof_type": "patch_target_resolution_over_post_change_tree",
+      "evidence": "PASS. tests/sync/conftest.py's autouse _consented_checkout_by_default (:223) no longer patches specify_cli.sync.batch.is_sync_enabled_for_checkout -- the name #3167 deleted along with _is_checkout_sync_enabled_for_batch. The two-element patch loop is now a single setattr on specify_cli.sync.runtime.is_sync_enabled_for_checkout, which production genuinely binds (sync/runtime.py:37) and reads (sync/runtime.py:106). SC-005: 0 patch targets remain that production does not consult, verified by resolving each target against the post-change tree. Landed at commit 6770e479b (WP03). Rationale recorded in place at conftest.py:283-292 so a successor reads it in the file, not in this dossier.",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-08-04T22:44:38.950799+00:00",
+      "notes": "Red achievable: the assertion was red before the fixture change and green after."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Make mis-targeted patches loud: raising=False is removed from that fixture (or justified in place), so a wrong patch target FAILS instead of going inert. The failure mode being closed is a monkeypatch that succeeds at nothing.",
+      "proof_type": "mutation_demonstrated_not_asserted",
+      "evidence": "PASS. raising=False is gone from that setattr, deliberately, and its removal is demonstrated by mutation rather than assumed (WP03 T013): with the default raising=True, pointing the target string at the deleted sync.batch name errors every unprotected test in the package during SETUP with \"AttributeError: 'module' object at specify_cli.sync.batch has no attribute 'is_sync_enabled_for_checkout'\". That matters because nothing else covers the line -- scripts/check_patch_targets.py resolves patch('...') strings in CI but its regex never matches monkeypatch.setattr('...'), so raising=True is the whole guard. Rationale at tests/sync/conftest.py:294-304. The surviving raising=False at conftest.py:197 is a monkeypatch.delenv for env keys and is a different concern, not a residual of this FR.",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-08-04T22:44:41.337675+00:00",
+      "notes": "Red achievable, and demonstrated BY MUTATION rather than asserted -- nothing else covers the line, since scripts/check_patch_targets.py's regex never matches monkeypatch.setattr('...')."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Remove the E15 allowance entry: the UNREACHABLE allowlist entry for sync/batch.py is removed once its sender is gone, so the egress inventory does not carry an inert row. SC-007: the egress-allowlist consistency test passes with E15 removed.",
+      "proof_type": "negative_invariant_grep_absence",
+      "evidence": "PASS. The E15 UNREACHABLE allowance for specify_cli/sync/batch.py is removed from the egress inventory, so it no longer carries an inert row. Executable form: negative invariant NI-003, grep_absence for the ENTRY form inventory_id=\"E15\" over tests/architectural/test_egress_consent_boundary.py -> confirmed_absent, with a positive control (inventory_id=\"E14\" still present, so sibling entries are untouched and grep is reading the file), a negative control (a bare 'E15' grep exits 0 because the file deliberately keeps the removal NOTE at :576-583) and a non-vacuity check (the pattern fires when an inventory_id=\"E15\" Allowance is appended to a copy). Live allowlist measured at 27 modules with sync/batch.py absent. Boundary suite green, measured at the pre-merge pass with the exact command `.venv/bin/python -m pytest tests/architectural/test_egress_consent_boundary.py -ra -p no:cacheprovider -q` (redirected, not piped): 29 passed / 2 xfailed / 0 errors, EXIT=0, 31 nodes. The 2 xfails are the pre-existing #3113 pins, documented red-first. CORRECTION: this field previously read '851 passed', which reconciles to no selection anyone could name and was removed rather than rationalised. A pre-merge lens independently measured 33 passed / 2 xfailed; that figure is also unreconciled to a command, so the number above is the one with a command attached and the discrepancy is disclosed rather than resolved by preference.",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-08-04T22:44:43.668529+00:00",
+      "notes": "Red achievable. Executable as negative invariant NI-003. The file deliberately RETAINS an explanatory NOTE naming E15, so the invariant pins the entry form and not the bare token."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Annotate the auto-start boundary: sync/runtime.py:106 is commented as a non-egress auto-start decision pointing at the PER-SENDER egress enumeration, WITHOUT claiming one gate covers every path. The second clause is the load-bearing one -- a fresh false coverage claim two lines from the one this mission fixes would reproduce the defect being removed.",
+      "proof_type": "code_review_of_the_annotation",
+      "evidence": "PASS, and the harder half of the requirement -- not overclaiming -- is met explicitly. sync/runtime.py:105-127 now carries a comment that (a) names operator decision D-M5a-1 = a / spec.md C-001 as why the Chain-B routing consult stays, (b) states that auto-start is not an egress decision and points at _read_project_auto_start's docstring and consent.PROJECT_CONFIG_ENABLED_KEY for the binding auto_start-vs-enabled separation, (c) directs the reader to the PER-SENDER enumeration -- _EGRESS_ALLOWLIST in tests/architectural/test_egress_consent_boundary.py, 27 modules -- as the actual egress authority, and (d) states in terms that NEITHER this line NOR event_project_consents_to_publish covers every path a started runtime can take, giving the live counter-example: the pong's build_id at sync/client.py:409-414, a frame the publish predicate never sees, allowed as E14 TRANSPORT_ONLY. The declined defence-in-depth options (b)/(c) are filed as Priivacy-ai/spec-kitty#3199. ruff check clean on 1 input file, with a negative control confirming ruff is not silent on this file's content.",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-08-04T22:44:45.992756+00:00",
+      "notes": "NOT red-achievable -- text requirement, verified by reading and declared as such rather than dressed as a test. The declined defence-in-depth options are filed as Priivacy-ai/spec-kitty#3199."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Disambiguate 'the drain': each use of the term names its referent OR is covered by a glossary entry, so the overload stops producing false findings. Three referents (dispatch selection / body upload / the retired queue-backed drain), two after this mission.",
+      "proof_type": "glossary_entry_plus_filed_residual",
+      "evidence": "PASS via the requirement's second limb ('name its referent OR be covered by a glossary entry'). docs/context/orchestration.md gains a 'The drain' entry following the primary / merge / routing precedent already there, covering all THREE referents: the dispatch-selection drain (delivery/selection.py, live), the body drain (sync/background.py:280, live) and the retired queue-backed drain (sync/batch.py, gone as of this mission), plus a 'why this entry exists' note recording that the overload already caused a defect -- this mission's own first draft read a TRUE docstring as false and would have rewritten correct documentation into a false coverage claim. In-place prose naming is scoped by operator decision to the files this mission already opens; the 12 out-of-scope files are filed as Priivacy-ai/spec-kitty#3203 rather than swept, because they are hot cross-mission surfaces. The count is 12, NOT the 13 asserted at plan.md:270 and WP04:86 -- neither figure was ever derived, WP01 measured every reading and reproduced 12, with 13 reachable only by counting sync/batch.py (inside this mission's write scope). Control reproduced: emitter.py = 11 occurrences case-insensitively; a case-SENSITIVE grep returns 10 and silently disagrees with the dossier. Generated glossary artifacts regenerated; scripts/generate_contextive_glossaries.py check -> 'All 13 generated file(s) are up-to-date.'",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-08-04T22:44:48.866480+00:00",
+      "notes": "NOT red-achievable -- text requirement. Satisfied via the requirement's SECOND limb (glossary coverage), not by an in-place sweep: the 12 out-of-scope files are filed as Priivacy-ai/spec-kitty#3203 per operator scoping. The count is 12, not the undervied 13 asserted in plan.md/WP04."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Close the tracker honestly: #3167 is dispositioned with the evidence -- one site retired rather than migrated, one site deliberately unchanged -- and the residuals are FILED as issues rather than absorbed. SC-008: K/K residuals in spec.md's register are filed with numbers recorded there, K stated.",
+      "proof_type": "tracker_state_verified_with_control",
+      "evidence": "PASS. #3167's issue-matrix row moved from in-mission (rejected on the done transition) to the terminal verdict deferred-with-followup via the canonical writer, and the verdict is deliberately NOT 'fixed': the issue's ask was not delivered as written. Site 1 was RETIRED rather than migrated because it had no production caller; site 2 (sync/runtime.py:106) is DELIBERATELY UNCHANGED per D-M5a-1 = a with the defence-in-depth residual filed as Priivacy-ai/spec-kitty#3199. Also disclosed rather than resolved: the tests/sync error count did NOT return to baseline (5 -> 6/7, non-deterministic, a different file each run, absent when run narrowed), attributed and filed as Priivacy-ai/spec-kitty#3193, with the base arm taken from analysis-report.md $4 at n=5 rather than re-measured (a stated gap in contracts/cone-attribution.md). SC-008: K = 8 residuals filed as Priivacy-ai/spec-kitty#3196-#3203, numbers recorded in spec.md's register; the ninth register row (revocation between selection and POST) is dispositioned Fold and deliberately NOT filed. Each of the 8 was checked against open issues first, and against the five already-filed non-register follow-ups #3188/#3190/#3191/#3192/#3193 -- no duplicates. Verified with discover_issue_references(mission_dir) -- the multi-file API the merge gate calls, not the spec.md-only detector -- against a positive control (a bare #4242 in a scratch tree IS discovered) and a negative control (Priivacy-ai/spec-kitty#4243 is NOT, which is the property the owner/repo# citation rule depends on): 3 minted refs, all with matrix rows, 0 minted-but-no-row, 0 non-terminal verdicts.",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-08-04T22:44:51.242511+00:00",
+      "notes": "NOT red-achievable -- tracker state, declared as such. #3167's terminal verdict is deferred-with-followup, deliberately NOT 'fixed': the original ask was not delivered as written. The tests/sync error count did NOT return to baseline; that is disclosed and filed (Priivacy-ai/spec-kitty#3193), not explained away."
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "FR-001: the two retired senders 'batch_sync' and 'sync_all_queued_events' define nothing in sync/batch.py. Pattern pins the DEFINITION form ('def <name>') on purpose: both names still appear in the module's own docstring at batch.py:4, which explains what was removed, so a bare-name grep would report still_present on a correct tree. Positive control (proves grep reads the scoped file): 'def categorize_error' -> exit 0. Negative control (the naive pattern): 'batch_sync' -> exit 0, i.e. it would false-red. Non-vacuity: appending 'def batch_sync(' + 'def sync_all_queued_events(' to a copy of the file makes this pattern exit 0. Measured by WP02 at b0482a832; K=91 retired nodes dispositioned per node id at c187d1e9a.",
+      "verification_method": "grep_absence",
+      "verification_command": "def batch_sync\\|def sync_all_queued_events",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "src/specify_cli/sync/batch.py"
+    },
+    {
+      "invariant_id": "NI-002",
+      "description": "NFR-001: zero transmit primitives remain in sync/batch.py. NFR-001's baseline was measured, not asserted: 3 senders (batch_sync direct via requests.post:1125 and request_with_stdlib_fallback_sync:1212,:1282; _fetch_advertised_sync_ingress_limits direct via requests.get:223; sync_all_queued_events transitively) out of 45 top-level callables, and the probe was controlled first against the four transmit sites the WP prompt named before the count was trusted. Post-deletion the same enumeration yields 0, so 3 -> 0. Pattern requires a CALL (an open paren) because the module docstring at batch.py:21 warns 'Do not add a requests.* or request_with_stdlib_fallback_sync call here' -- negative control 'requests\\.' -> exit 0, i.e. the naive pattern false-reds on that warning. Non-vacuity: appending a requests.post(...) and a request_with_stdlib_fallback_sync(...) call to a copy of the file makes this pattern exit 0.",
+      "verification_method": "grep_absence",
+      "verification_command": "requests\\.[a-z]*(\\|request_with_stdlib_fallback_sync(",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "src/specify_cli/sync/batch.py"
+    },
+    {
+      "invariant_id": "NI-003",
+      "description": "FR-007: the E15 UNREACHABLE allowlist entry for sync/batch.py is gone from the egress inventory. Pattern pins the ENTRY form 'inventory_id=\"E15\"' because the file deliberately retains an explanatory NOTE at :576-583 recording that E15 was removed and must not be re-added -- negative control 'E15' -> exit 0, i.e. a bare-token grep would false-red on the very note that documents the removal. Positive control (proves grep reads the scoped file AND that sibling entries are untouched): 'inventory_id=\"E14\"' -> exit 0. Non-vacuity: appending an Allowance(..., inventory_id=\"E15\") line to a copy of the file makes this pattern exit 0. Live allowlist size measured at 27 modules with sync/batch.py absent and sync/client.py still transport-only.",
+      "verification_method": "grep_absence",
+      "verification_command": "inventory_id=\"E15\"",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "tests/architectural/test_egress_consent_boundary.py"
+    }
+  ]
+}
