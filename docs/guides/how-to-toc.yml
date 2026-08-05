@@ -22,6 +22,8 @@
   href: setup-codex-spec-kitty-launcher.md
 - name: Review Artifacts with PlanBridge
   href: review-artifacts-with-planbridge.md
+- name: When to use Spec-Kitty modes
+  href: when-to-use-modes.md
 - name: Create a Specification
   href: create-specification.md
 - name: Keep Main Clean
