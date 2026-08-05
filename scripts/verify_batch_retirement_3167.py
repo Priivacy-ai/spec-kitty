@@ -368,8 +368,15 @@ def main() -> int:
         name: (_referenced_names(node) & symbols) - {name} for name, node in decls.items()
     }
 
-    # external classification, once per file
-    external, scanned = _scan_external(root, symbols)
+    # External classification, once per file. The scanned set is ``symbols | SEEDS``,
+    # not ``symbols``: on the POST-retirement tree the seeds are no longer declared in
+    # the target module, so classifying only the declared symbols never resolves a
+    # reference to them at all. ``prod_code_refs(seed)`` was then structurally ``[]``,
+    # ``unproven_seeds`` structurally empty, and the exit-1 refusal below unreachable --
+    # a re-runnable closure that could only ever fire on a pre-retirement tree. Adding
+    # the seeds keeps a resurrected or leftover caller of an already-deleted seed inside
+    # the resolver's reach, which is the only state in which this guard has work to do.
+    external, scanned = _scan_external(root, symbols | SEEDS)
 
     def prod_code_refs(sym: str) -> list[str]:
         return [f for f, k in external.get(sym, {}).items() if k == "CODE" and f.startswith(("src/", "scripts/"))]
