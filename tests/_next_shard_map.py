@@ -38,6 +38,14 @@ _NEXT_SHARD_1_FILES: tuple[str, ...] = (
     "tests/next/test_prompt_file_invariant.py",
 )
 _NEXT_SHARD_2_FILES: tuple[str, ...] = (
+    # 2026-08-06 (mission meta-fail-closed-3162-01KZ7FSQ, WP08 / ledger F10):
+    # WP02 landed this file (census row 4 — ``planner._resolve_workflow_for_mission``
+    # routed fail-closed) without registering it here, so every test in it carried
+    # NO ``next_shard_N`` marker and the GC-1 completeness guard
+    # (test_next_shard_marker_completeness.py) went red on 5 unmarked nodes.
+    # shard_2 was the lightest by file count (24/22/25) when this fix landed, so
+    # both of WP02's new files land here, per this module's documented pick rule.
+    "tests/next/test_wp02_row04_planner_fail_closed.py",
     "tests/next/test_finalized_task_routing.py",
     "tests/next/test_internal_runtime_parity.py",
     "tests/next/test_mission_run_back_reference.py",
@@ -105,6 +113,16 @@ _RUNTIME_SHARD_1_FILES: tuple[str, ...] = (
     "tests/runtime/test_workspace_context_unit.py",
 )
 _RUNTIME_SHARD_2_FILES: tuple[str, ...] = (
+    # 2026-08-06 (mission meta-fail-closed-3162-01KZ7FSQ, WP08 / ledger F10):
+    # WP02's census row 5 file (``runtime_bridge_io._workflow_runtime_template``
+    # routed fail-closed), likewise unregistered when it landed. Its absence cost
+    # more than the GC-1 red: with no ``next_shard_N`` marker, ``integration-tests-next``
+    # (``-m '<shard> and not windows_ci and (git_repo or integration)'``) could not
+    # select it and NO other job covered ``tests/runtime``, so it was selected by
+    # ZERO CI gates (test_gate_coverage::test_no_new_orphan_surfaces,
+    # test_ci_collection_completeness — 6 nodes dark on a push to main).
+    # It lands in shard_2 beside its own subject's sibling test_bridge_io.py.
+    "tests/runtime/test_wp02_row05_bridge_io_fail_closed.py",
     "tests/runtime/test_banner_visibility.py",
     "tests/runtime/test_bridge_compat_surface.py",
     "tests/runtime/test_bridge_composition.py",

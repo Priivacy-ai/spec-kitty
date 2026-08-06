@@ -44,3 +44,48 @@ justified-survivor`, and a live `_is_self_write_only_diff` symbol -- rather
 than silently retained, per plan.md's "if implementation finds a genuine
 must-keep, it becomes an explicit, justified registry row, never a silent
 survivor" (WP15 precedent).
+
+**Mission `meta-fail-closed-3162-01KZ7FSQ` (WP05 / IC-05) made the `meta.json`
+arm diagnosable and did NOT retire the mechanism.**
+
+*Line-number convention for this row: every coordinate below is **post-edit** --
+it names the line on the tree this row is committed with, not the pre-edit line
+it replaced. (Review cycle 1 MINOR: the first version of this paragraph cited
+`implement_cores.py:426-431`, a pre-edit coordinate that post-edit lands inside
+the `_is_self_write_only_diff` docstring -- a registry row pointing at prose
+instead of at the branch it describes.)*
+
+The predicate's `meta.json` branch (`implement_cores.py:455-466`) reads and
+parses `meta.json` without reaching the canonical fail-closed seam, so a corrupt
+file returned `False` silently -- indistinguishable from "this is a genuine
+operator edit".
+
+That branch now **appends** a message naming `meta.json` and the resolved
+`source` path to the caller-supplied `diagnostics` sink (`:461-465`) before
+returning `False`. It does not print: this module is deliberately free of
+console/typer side effects, so the operator-visible half is the executor's --
+`implement._ensure_planning_artifacts_committed_git` allocates the sink, passes
+it through `resolve_planning_artifact_staging`, and prints what comes back
+before the generic "Planning artifacts not committed" listing. Both halves are
+required and both are present; the sink alone reaches no operator, and review
+cycle 1 rejected an earlier version of this row that claimed the branch "emits"
+when only the append existed. The end-to-end path is pinned by
+`TestSitesCandDReachTheOperator` in
+`tests/specify_cli/cli/commands/test_meta_bypass_diagnosability.py`, which
+drives the executor -- not this predicate -- and goes red if the sink stops
+being threaded from the production caller.
+
+The return contract, the filename gate, the `literals:`/`symbol:` above and
+`status: justified-survivor` are all unchanged, and the WP14/IC-07d
+justification above still stands in full.
+
+**The mechanism was NOT routed onto the seam, and the reason is the routed
+budget -- not structure.** `C-004`'s original claim that these sites
+"structurally cannot use the seam" is **refuted and struck**: `source` at
+`implement_cores.py:452` is a real resolved filesystem path under a
+`name == _META_JSON_FILENAME` gate (`:455`) and its parent IS a feature dir, so
+`specify_cli.core.paths:load_meta_fail_closed` fits here today. The mission's
+admissible routed band is two-sided (`[127, 130]`, derived from
+`test_routed_load_meta_floor`), and its single net routed call was spent
+routing `specify_cli.git.ref_advance:_meta_change_is_vcs_lock_only` instead.
+Full routing of this site is deferred to issue **#3230** (the `Q2` residue).

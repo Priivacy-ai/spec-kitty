@@ -32,6 +32,7 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import MissionTopology, classify_topology, routes_through_coordination
+from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.missions._read_path_resolver import (
     CoordState,
     candidate_feature_dir_for_mission,
@@ -93,16 +94,33 @@ def test_corrupt_meta_raises_typed_error_not_classified_primary(tmp_path: Path) 
     """(a-) C-004: malformed primary ``meta.json`` RAISES, never silent PRIMARY.
 
     The guarded read-side seam reads primary meta first; a malformed ``meta.json``
-    cannot be classified, so the read path surfaces the typed corrupt-meta
-    ``ValueError`` (the historical default ``load_meta`` contract). The absent-field
-    collapse must NOT fold this arm into a silent PRIMARY classification — doing so
-    is the over-collapse mutant this kills.
+    cannot be classified, so the read path surfaces a typed corrupt-meta refusal.
+    The absent-field collapse must NOT fold this arm into a silent PRIMARY
+    classification — doing so is the over-collapse mutant this kills.
+
+    Re-pinned by #3162: the refusal is now
+    :class:`~specify_cli.core.paths.MissionMetaReadError`, not the raw
+    ``ValueError`` this assertion used to expect. That raw escape was the DEFECT
+    the fail-closed mission removed (FR-001) — ``read_primary_meta`` (census rows
+    10/11) routes through ``load_meta_fail_closed``, so the malformed-JSON
+    ``ValueError`` is now wrapped and preserved as ``__cause__``. The mutant the
+    test kills is unchanged, and the assertion is strengthened: it pins the raise
+    AND that the refusal came from the canonical seam rather than a local
+    re-wrap, which a bare exception-type check cannot distinguish.
     """
     _init_repo(tmp_path)
     _write_malformed_meta(tmp_path / "kitty-specs" / SLUG_WITH_MID8)
 
-    with pytest.raises(ValueError, match="Malformed JSON"):
+    with pytest.raises(MissionMetaReadError, match="Malformed JSON") as excinfo:
         resolve_handle_to_read_path(tmp_path, SLUG_WITH_MID8, require_exists=True)
+
+    # Still a raise, never a silent PRIMARY classification — and the underlying
+    # malformed-JSON ValueError is preserved rather than swallowed.
+    assert isinstance(excinfo.value.__cause__, ValueError)
+    assert not isinstance(excinfo.value, ValueError), (
+        "MissionMetaReadError must not be a ValueError, or every pre-existing "
+        "'except ValueError' degrade arm would keep absorbing the refusal"
+    )
 
 
 def test_absent_topology_field_classifies_concrete_never_none(tmp_path: Path) -> None:

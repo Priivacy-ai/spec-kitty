@@ -19,9 +19,59 @@ assertions below were updated to require that the real, accepted evidence
 is never silently discarded (the #2804 invariant), matching the new
 driver's behavior verified against this exact fixture.
 
-RED-FIRST P0 reproduction, intentionally FAILING until the product defect is
-fixed. Tracking issue: https://github.com/Priivacy-ai/spec-kitty/issues/2804.
-Do NOT xfail/skip/quarantine to green; fix the product.
+**WP07 (mission ``meta-fail-closed-3162-01KZ7FSQ``, FR-009/FR-010/FR-011)
+re-pin.** This module was previously framed as "intentionally FAILING until the
+product defect is fixed". That framing is now FALSE and has been removed: the
+red was an **inverted red** -- honestly red on ``main``, but the *assertions*
+were wrong, not the product. Both assertions under the single
+``# --- CONTRACT (RED on base) ---`` banner have been re-pinned to what the
+current merge design actually guarantees. ``Q10`` is **settled: keep the
+marker.**
+
+What the two assertions pin NOW:
+
+1. **Admissible verdict.** ``overall_verdict`` is one of the design's
+   admissible values (:data:`ADMISSIBLE_MERGED_VERDICTS`); the scaffold's
+   placeholder must never win outright. It deliberately **admits** ``pending``.
+2. **Evidence survival.** The accepted evidence handle
+   (:data:`ACCEPTED_EVIDENCE_HANDLE`) must still appear in the merged document
+   -- including inside a structured conflict marker. Negatively controlled
+   against the take-theirs / scaffold-clobber shape by
+   :func:`test_widened_2804_assertion_rejects_wrong_verdict`.
+
+**Why the shape changed.** Assertion 1 was ``overall_verdict == "pass"`` and
+assertion 2 was ``SCAFFOLD_TODO_MARKER not in json.dumps(post_matrix)``. Under
+the **row-union authority model** shipped as ``#3076``'s FR-008 the union
+admits BOTH sides' rows, so the merged document legitimately contains the
+scaffold row -- whose ``description``/``notes`` *are* the marker -- and
+legitimately computes ``pending``. The cross-file sibling
+``tests/specify_cli/cli/commands/test_row_aware_merge_driver.py::
+test_merge_driver_acceptance_matrix_writes_result_to_ours`` pins
+``merged["overall_verdict"] == "pending"`` for exactly this union shape; that
+sibling is **correct and untouched**. The marker moved, not the design.
+
+**The product defect is FILED, NOT FIXED here** (mission constraint ``C-006``;
+filed per ``C-009``). One admitted scaffold row makes the aggregate
+``overall_verdict`` ``pending`` (``src/specify_cli/acceptance/matrix.py:263``,
+``any(v == "pending")`` dominates), and
+``src/specify_cli/acceptance/gates_core.py:525``
+(``verdict = acc_matrix.overall_verdict``) feeds that straight into the
+acceptance gate, where ``:528-529`` turns it into a blocking activity issue. The
+candidate fix -- a scaffold-row suppression rule in the reconciler -- was
+**rejected for this mission**: the driver has zero scaffold awareness today and
+the rule would amend the ``#3076`` FR-008 authority model.
+Product defect: https://github.com/Priivacy-ai/spec-kitty/issues/3231.
+Superseding issue for #2804:
+https://github.com/Priivacy-ai/spec-kitty/issues/3232. Original tracking issue:
+https://github.com/Priivacy-ai/spec-kitty/issues/2804 (**superseded, not
+reopened**). Returning-red bisect: #3138.
+
+Do NOT xfail/skip/quarantine this module to green, and do NOT delete assertion
+2 -- its content is the only remaining executable statement of the real #2804
+contract. The unit gate that used to hold this invariant,
+``tests/merge/test_gate_artifact_merge_drivers_2804.py``, was deleted in
+``b04da00e1`` (-249 lines); no requirement currently owns its absence, which is
+cited in the superseding issue and deliberately NOT restored here.
 
 Root-cause mechanism (confirmed by replaying the real incident's git history --
 mission ``charter-deadcode-noop-campsite-01KXW0NY``, reflog entries
@@ -68,9 +118,11 @@ from __future__ import annotations
 
 import json
 import subprocess
+from collections.abc import Mapping
 from contextlib import ExitStack
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -80,8 +132,13 @@ import pytest
 # guard) so this module stays importable under ``PYTHONPATH=src``.
 import specify_cli.status  # noqa: F401  # import-order guard
 
-from specify_cli.acceptance.matrix import SCAFFOLD_TODO_MARKER
+from specify_cli.acceptance.matrix import (
+    SCAFFOLD_TODO_MARKER,
+    VERDICT_PASS_PENDING_CONSOLIDATION,
+    AcceptanceMatrix,
+)
 from specify_cli.cli.commands.merge import _run_lane_based_merge
+from specify_cli.cli.commands.merge_driver import reconcile_acceptance_matrix_documents
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.merge.config import MergeStrategy
@@ -95,6 +152,30 @@ MISSION_BRANCH = f"kitty/mission-{MISSION_SLUG}"
 LANE_ID = "lane-a"
 LANE_CODE = "src/charter/generator.py"
 WP_ID = "WP01"
+
+# --- WP07 (FR-009): the design's admissible post-merge verdicts -------------
+# ``overall_verdict`` is a COMPUTED property, never a stored/merged field
+# (``src/specify_cli/acceptance/matrix.py:248-271``,
+# ``AcceptanceMatrix.overall_verdict``), with domain
+# {``pass``, ``pending``, ``fail``, ``pass_pending_consolidation``}.
+#
+# ``"fail"`` IS a concrete disallowed verdict and is reachable from a
+# one-criterion fixture (``matrix.py:259``, ``if any(v == "fail" for v in
+# criterion_results)``), so this predicate is genuinely falsifiable -- see
+# ``test_widened_2804_assertion_rejects_wrong_verdict``.
+#
+# **But ``"fail"`` alone is INSUFFICIENT evidence of non-vacuity.** ``pending``
+# is the #2804 defect's own signature and must nevertheless be ADMITTED here,
+# because the cross-file sibling
+# ``tests/specify_cli/cli/commands/test_row_aware_merge_driver.py::
+# test_merge_driver_acceptance_matrix_writes_result_to_ours`` pins
+# ``merged["overall_verdict"] == "pending"`` for exactly this union shape.
+# A predicate of the form ``verdict in {"pass", "pending"}`` therefore passes
+# with the regression fully present. Assertion 2 (evidence survival) is what
+# carries the falsifiability; see ``_assert_2804_acceptance_contract``.
+ADMISSIBLE_MERGED_VERDICTS: frozenset[str] = frozenset(
+    {"pass", "pending", VERDICT_PASS_PENDING_CONSOLIDATION}
+)
 
 # --- Realistic, production-shaped acceptance-matrix.json ------------------
 # Mirrors the real (pre-clobber) evidence recorded for the incident mission
@@ -199,6 +280,80 @@ PLACEHOLDER_ISSUE_MATRIX: dict[str, object] = {
         }
     },
 }
+
+
+# --- WP07 (FR-009): the accepted-evidence handle, and the ONE shared predicate
+# both the marker and its falsifiability companion call ------------------------
+#
+# The handle is the commit already carried by ``FILLED_ACCEPTANCE_MATRIX``'s
+# ``FR-001`` evidence (``:117-124`` above) -- the acceptance-matrix twin of the
+# ``"verified-already-fixed"`` handle the issue-matrix sibling at the bottom of
+# this module already uses. It appears nowhere in
+# ``PLACEHOLDER_ACCEPTANCE_MATRIX``, which is what makes the take-theirs
+# negative control meaningful.
+ACCEPTED_EVIDENCE_HANDLE = "d5b8324f9"
+
+
+def _assert_evidence_handle_fixture_self_control() -> None:
+    """Two-way fixture self-control for :data:`ACCEPTED_EVIDENCE_HANDLE`.
+
+    Neither direction is catchable by the merged-document assertion alone:
+    a handle **absent** from the filled side makes the evidence-survival pin
+    unsatisfiable (a permanent false red), while a handle **present** on the
+    placeholder side makes it vacuous (it would survive even a total
+    take-theirs clobber). Asserted on every call so the pin can never go
+    silently vacuous through a later fixture edit.
+    """
+    assert ACCEPTED_EVIDENCE_HANDLE in json.dumps(FILLED_ACCEPTANCE_MATRIX), (
+        f"fixture self-control: the accepted evidence handle "
+        f"{ACCEPTED_EVIDENCE_HANDLE!r} is no longer present in "
+        "FILLED_ACCEPTANCE_MATRIX -- the evidence-survival pin below is "
+        "unsatisfiable by construction, not red because of a product defect."
+    )
+    assert ACCEPTED_EVIDENCE_HANDLE not in json.dumps(PLACEHOLDER_ACCEPTANCE_MATRIX), (
+        f"fixture self-control: the accepted evidence handle "
+        f"{ACCEPTED_EVIDENCE_HANDLE!r} leaked into PLACEHOLDER_ACCEPTANCE_MATRIX "
+        "-- the evidence-survival pin below would then be VACUOUS: it would "
+        "survive even a total take-theirs clobber of the accepted content."
+    )
+
+
+def _assert_2804_acceptance_contract(post_matrix: Mapping[str, Any]) -> None:
+    """The re-pinned #2804 acceptance-matrix contract, as ONE shared predicate.
+
+    Called by :func:`test_merge_resets_filled_gate_artifacts_to_placeholder`
+    (the marker, against the document a REAL squash merge left on the
+    integration branch) and by
+    :func:`test_widened_2804_assertion_rejects_wrong_verdict` (the
+    falsifiability companion, against the defect's own fixture). The companion
+    must exercise **this** predicate, not a paraphrase of it -- a copy proves a
+    copy falsifiable and the marker nothing at all.
+
+    Assertion 1 -- the merged verdict is one of the design's admissible values
+    (:data:`ADMISSIBLE_MERGED_VERDICTS`); the scaffold's placeholder must never
+    win outright.
+
+    Assertion 2 -- **evidence survival**: the accepted evidence handle must
+    appear somewhere in the merged document, INCLUDING inside a structured
+    conflict marker. This is the clause that carries falsifiability, because
+    ``pending`` (the #2804 defect's own signature) is deliberately admitted by
+    assertion 1.
+    """
+    _assert_evidence_handle_fixture_self_control()
+    verdict = post_matrix.get("overall_verdict")
+    assert verdict in ADMISSIBLE_MERGED_VERDICTS, (
+        "#2804 (assertion 1, re-pinned): spec-kitty merge left "
+        f"acceptance-matrix.json's overall_verdict at {verdict!r}, outside the "
+        f"design's admissible verdicts {sorted(ADMISSIBLE_MERGED_VERDICTS)!r} -- "
+        "the scaffold placeholder won outright over the target's "
+        f"already-accepted fill. Post-merge content: {post_matrix!r}"
+    )
+    assert ACCEPTED_EVIDENCE_HANDLE in json.dumps(post_matrix), (
+        "#2804 (assertion 2, evidence survival): spec-kitty merge discarded the "
+        f"target's real, accepted evidence ({ACCEPTED_EVIDENCE_HANDLE!r}) "
+        "without leaving any trace of it -- not even inside a structured "
+        f"conflict marker. Post-merge content: {post_matrix!r}"
+    )
 
 
 def _run(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
@@ -418,16 +573,18 @@ def _merge_external_mocks() -> ExitStack:
 
 
 def test_merge_resets_filled_gate_artifacts_to_placeholder(tmp_path: Path) -> None:
-    """RED-FIRST P0 reproduction of #2804.
+    """Real-merge reproduction of #2804, re-pinned by WP07.
 
-    Intentionally FAILS until the product bug is fixed: ``spec-kitty merge``
-    must NEVER clobber an already-filled, already-accepted ``acceptance-
-    matrix.json`` / ``issue-matrix.json`` back to the empty scaffold placeholder.
-    Do NOT xfail/skip/quarantine to green -- fix the product (preserve the
-    filled coord gate artifacts through the mission->target squash merge,
-    e.g. by projecting them like ``_project_status_bookkeeping_to_target``
-    already does for ``status.events.jsonl``/``status.json``, or by excluding
-    them from the ``-X theirs`` add/add resolution). Tracking issue: #2804.
+    ``spec-kitty merge`` must NEVER discard an already-filled, already-accepted
+    ``acceptance-matrix.json`` / ``issue-matrix.json``. Under the row-union
+    authority model (``#3076`` FR-008) "must not discard" no longer means "the
+    placeholder must be absent" -- the union legitimately admits the scaffold
+    row -- so the contract is pinned as: the merged verdict stays inside the
+    design's admissible values, AND the accepted evidence survives somewhere in
+    the merged document, including inside a structured conflict marker. See
+    :func:`_assert_2804_acceptance_contract` (the shared predicate) and the
+    module docstring for why the shape changed and where the product defect is
+    filed. Do NOT xfail/skip/quarantine to green.
     """
     repo = tmp_path / "repo"
     _init_git_repo(repo)
@@ -479,18 +636,28 @@ def test_merge_resets_filled_gate_artifacts_to_placeholder(tmp_path: Path) -> No
     # conflict resolution takes the mission branch's stale placeholder over
     # target's already-accepted fill. ---
     post_matrix = json.loads((feature_dir / "acceptance-matrix.json").read_text(encoding="utf-8"))
-    assert post_matrix.get("overall_verdict") == "pass", (
-        "#2804: spec-kitty merge reset acceptance-matrix.json's overall_verdict "
-        f"to {post_matrix.get('overall_verdict')!r} -- the filled, accepted "
-        "evidence was clobbered by the mission->target squash merge's "
-        "'-X theirs' conflict resolution (mission branch's stale placeholder "
-        "won over target's already-accepted fill)."
-    )
-    assert SCAFFOLD_TODO_MARKER not in json.dumps(post_matrix), (
-        "#2804: spec-kitty merge reset acceptance-matrix.json's criteria back "
-        f"to the scaffold placeholder ({SCAFFOLD_TODO_MARKER!r}), discarding "
-        f"the real accepted evidence. Post-merge content: {post_matrix!r}"
-    )
+    # WP07 (FR-009): re-pinned. Under the row-union authority model (`#3076`
+    # FR-008) a genuine same-key divergence with no base to arbitrate is a
+    # structured conflict, NEVER a silent pick either way -- so, exactly as the
+    # issue-matrix sibling below already says, both clauses are satisfied
+    # whether the merge cleanly resolves to the real verdict or surfaces it
+    # inside a structured conflict marker. What must never happen is the
+    # scaffold's placeholder verdict winning OUTRIGHT, or the accepted evidence
+    # vanishing without a trace.
+    #
+    # Assertion 2 was `SCAFFOLD_TODO_MARKER not in json.dumps(post_matrix)`. It
+    # is RE-PINNED, NOT DELETED: under the row-union it is unsatisfiable BY
+    # DESIGN -- the union admits the scaffold row, whose `description` and
+    # `notes` ARE the marker (see PLACEHOLDER_ACCEPTANCE_MATRIX above). Measured
+    # through the reconciler, control first:
+    #     CONTROL filled fixture contains marker?  False
+    #     merged criterion_ids: ['AC-001', 'FR-001', 'FR-003']
+    #     overall_verdict: pending
+    #     POST contains SCAFFOLD_TODO_MARKER?      True
+    # Its CONTENT is the real #2804 contract, so it moves to evidence survival
+    # rather than being dropped. Both clauses live in ONE shared predicate that
+    # the falsifiability companion calls too.
+    _assert_2804_acceptance_contract(post_matrix)
 
     post_issue_matrix = json.loads((feature_dir / "issue-matrix.json").read_text(encoding="utf-8"))
     merged_row = post_issue_matrix["rows"]["#2373"]
@@ -515,3 +682,135 @@ def test_merge_resets_filled_gate_artifacts_to_placeholder(tmp_path: Path) -> No
         f"trace of it (not even in a structured conflict marker). Post-merge "
         f"row: {merged_row!r}"
     )
+
+
+# ---------------------------------------------------------------------------
+# WP07 (SC-010) -- falsifiability companion for the re-pinned pair above.
+# ---------------------------------------------------------------------------
+
+
+def _take_theirs_acceptance_document() -> dict[str, Any]:
+    """The #2804 defect's **own** fixture: the take-theirs / scaffold-clobber
+    document.
+
+    This is exactly the shape the pre-fix merge produced -- the mission
+    branch's placeholder winning outright, so the criteria are reset to
+    ``PLACEHOLDER_ACCEPTANCE_MATRIX`` alone. Built through the real
+    :class:`AcceptanceMatrix` so ``overall_verdict`` is COMPUTED (``pending``),
+    not hand-asserted, and the accepted evidence handle is **absent**.
+    """
+    return dict(AcceptanceMatrix.from_dict(PLACEHOLDER_ACCEPTANCE_MATRIX).to_dict())
+
+
+def _row_union_merged_acceptance_document() -> dict[str, Any]:
+    """The positive twin: what the shipped row-aware reconciler actually
+    produces for this fixture pair (FILLED as *ours*, PLACEHOLDER as *theirs*,
+    empty base -- the add/add divergence #2804 is about)."""
+    return dict(
+        reconcile_acceptance_matrix_documents(
+            {}, FILLED_ACCEPTANCE_MATRIX, PLACEHOLDER_ACCEPTANCE_MATRIX
+        )
+    )
+
+
+def _one_criterion_fail_document() -> dict[str, Any]:
+    """A one-criterion document whose single criterion is ``pass_fail: "fail"``,
+    so ``overall_verdict`` computes ``"fail"`` (``matrix.py:259``)."""
+    doc: dict[str, Any] = {
+        "mission_slug": MISSION_SLUG,
+        "criteria": [
+            {
+                "criterion_id": "FR-001",
+                "description": "one-criterion disallowed-verdict witness",
+                "proof_type": "automated_test",
+                "evidence": f"WP01 (commit {ACCEPTED_EVIDENCE_HANDLE}): witness",
+                "pass_fail": "fail",
+                "notes": None,
+            }
+        ],
+        "negative_invariants": [],
+    }
+    return dict(AcceptanceMatrix.from_dict(doc).to_dict())
+
+
+def test_widened_2804_assertion_rejects_wrong_verdict() -> None:
+    """SC-010: the re-pinned #2804 pair is falsifiable **by the defect it
+    exists to catch**, not by an unrelated disallowed value.
+
+    **Anti-vacuity argument (this is the whole point of the test).**
+    ``overall_verdict`` has domain {``pass``, ``pending``, ``fail``,
+    ``pass_pending_consolidation``}. The cross-file sibling
+    ``test_merge_driver_acceptance_matrix_writes_result_to_ours`` pins
+    ``pending`` for exactly this union shape, so the widened predicate MUST
+    admit ``pending`` -- and ``pending`` is the #2804 defect's **own
+    signature**. A predicate of the form ``verdict in {"pass", "pending"}``
+    therefore passes with the regression fully present, and a companion test
+    fed only a ``"fail"`` fixture reports "non-vacuous" about a value that has
+    nothing to do with the defect. That is precisely how ``SC-010`` passed
+    while the defect was fully present. So the failing case here is the
+    **defect's own fixture** -- the take-theirs / scaffold-clobber document, in
+    which the criteria are reset to the placeholder and the accepted evidence
+    handle is absent -- and it is **assertion 2 (evidence survival)** that
+    carries the falsifiability.
+
+    The ``"fail"`` case below is a **secondary witness, explicitly insufficient
+    on its own**: it records that ``"fail"`` is a concrete, reachable
+    disallowed verdict for assertion 1, and nothing more. It is NOT ``SC-010``
+    evidence.
+
+    Fast by construction: this exercises the shared predicate and the
+    reconciler directly and never runs the squash-merge harness.
+    """
+    # --- POSITIVE TWIN: the shared predicate passes on the real merged
+    # document. A negative with no positive twin is the vacuous gate the
+    # charter's architectural-gate-non-vacuity standing order forbids. ---
+    merged = _row_union_merged_acceptance_document()
+    assert merged["overall_verdict"] == "pending", (
+        "positive twin precondition: the row-union merged document computes "
+        f"'pending' for this fixture pair; got {merged['overall_verdict']!r}"
+    )
+    _assert_2804_acceptance_contract(merged)
+
+    # --- THE SC-010 CASE: the defect's own fixture. ---
+    take_theirs = _take_theirs_acceptance_document()
+    assert take_theirs["overall_verdict"] == "pending", (
+        "defect-fixture precondition: the take-theirs clobber computes the "
+        f"defect's own signature 'pending'; got {take_theirs['overall_verdict']!r}"
+    )
+    assert ACCEPTED_EVIDENCE_HANDLE not in json.dumps(take_theirs), (
+        "defect-fixture precondition: the accepted evidence handle must be "
+        "ABSENT from the take-theirs clobber -- that absence IS the defect"
+    )
+    with pytest.raises(AssertionError) as excinfo:
+        _assert_2804_acceptance_contract(take_theirs)
+
+    # The pair must fail, and the failure must be attributable to the
+    # EVIDENCE-SURVIVAL clause -- so a future edit that moves the failure to
+    # some other clause (or to the fixture self-control) is visible here.
+    message = str(excinfo.value)
+    assert "assertion 2, evidence survival" in message, (
+        "SC-010: the re-pinned pair must fail on the defect's own fixture via "
+        "the EVIDENCE-SURVIVAL clause. It failed via some other clause "
+        f"instead, which is not SC-010 evidence. Raised: {message!r}"
+    )
+    assert ACCEPTED_EVIDENCE_HANDLE in message, (
+        "SC-010: the failure message must name the discarded evidence handle; "
+        f"raised: {message!r}"
+    )
+    assert "assertion 1" not in message, (
+        "SC-010: 'pending' is the defect's own signature and MUST be ADMITTED "
+        "by assertion 1 (the cross-file row-aware sibling pins it). Assertion 1 "
+        f"fired on the defect fixture instead. Raised: {message!r}"
+    )
+
+    # --- SECONDARY, EXPLICITLY INSUFFICIENT WITNESS: "fail" is a concrete
+    # disallowed verdict for assertion 1, reachable from a one-criterion
+    # fixture (matrix.py:259). On its own this proves NOTHING about #2804:
+    # the defect's signature is 'pending', not 'fail'. ---
+    fail_doc = _one_criterion_fail_document()
+    assert fail_doc["overall_verdict"] == "fail", (
+        "'fail' witness precondition: a one-criterion 'fail' fixture must "
+        f"compute 'fail'; got {fail_doc['overall_verdict']!r}"
+    )
+    with pytest.raises(AssertionError, match="assertion 1"):
+        _assert_2804_acceptance_contract(fail_doc)

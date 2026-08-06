@@ -1,4 +1,5 @@
 # E3 baseline (mission ci-test-topology-performance-01KXBJRT WP02). REAL `pytest --collect-only` node-id UNION across every leg of job='integration-tests-next' (workflow='ci-quality.yml'), refrozen by mission runtime-state-corpus-cutover-01KXZ0AX WP06 (#2816): the flag-OFF dual-write twin (test_move_task_rollback_clears_claim_flag_off) was deleted and the flag-ON/flag-OFF split suite reconciled to the single post-cutover snapshot-authority end-state, changing this job's collected node-id set. Regenerate ONLY with an explicit provenance comment (data-model E3) when a WP legitimately changes this job's selection: uv run python -m tests.architectural._gate_coverage --freeze-baselines
+# Refrozen by mission meta-fail-closed-3162-01KZ7FSQ WP08 (ledger F10): tests/runtime/test_wp02_row05_bridge_io_fail_closed.py was registered into the `next` shard split (tests/_next_shard_map.py, shard 2), which is what finally put its 6 tests inside integration-tests-next's real selection -- before that they were selected by ZERO CI gates and ran nowhere. Measured delta against the previous snapshot: 442 -> 448 node-ids, 0 DROPPED, +6 ADDED, and every one of the 6 is from that file. This refreeze therefore records coverage GAINED; it accepts no gap and drops no test. Diff quoted in the WP08 commit message.
 tests/next/test_finalized_task_routing.py::test_finalized_active_implementation_lanes_route_to_implement[claimed]
 tests/next/test_finalized_task_routing.py::test_finalized_active_implementation_lanes_route_to_implement[in_progress]
 tests/next/test_finalized_task_routing.py::test_finalized_approved_wps_route_to_accept
@@ -374,6 +375,12 @@ tests/runtime/test_setup_plan_sync_evidence.py::TestSetupPlanPreflightIntegratio
 tests/runtime/test_setup_plan_sync_evidence.py::TestSetupPlanPreflightIntegration::test_setup_plan_refuses_on_orphan_owner_record
 tests/runtime/test_setup_plan_sync_evidence.py::TestSetupPlanRefusesWithoutAuthWhenSaasEnabled::test_setup_plan_refuses_without_auth_when_saas_enabled
 tests/runtime/test_setup_plan_sync_evidence.py::test_module_is_importable
+tests/runtime/test_wp02_row05_bridge_io_fail_closed.py::test_census_row05_corrupt_meta_raises_typed_error_through_ephemeral_query_run
+tests/runtime/test_wp02_row05_bridge_io_fail_closed.py::test_census_row05_corrupt_meta_raises_typed_error_through_get_or_start_run
+tests/runtime/test_wp02_row05_bridge_io_fail_closed.py::test_census_row05_is_routed_exactly_once_and_is_not_folded
+tests/runtime/test_wp02_row05_bridge_io_fail_closed.py::test_census_row05_module_carries_no_local_typed_raise
+tests/runtime/test_wp02_row05_bridge_io_fail_closed.py::test_census_row05_negative_control_absent_meta_returns_none_pair
+tests/runtime/test_wp02_row05_bridge_io_fail_closed.py::test_census_row05_negative_control_valid_meta_returns_none_pair
 tests/specify_cli/next/test_runtime_bridge_composition.py::TestCustomMissionComposition::test_builtin_software_dev_dispatches_with_none_profile_hint
 tests/specify_cli/next/test_runtime_bridge_composition.py::TestCustomMissionComposition::test_builtin_software_dev_ignores_template_agent_profile
 tests/specify_cli/next/test_runtime_bridge_composition.py::TestCustomMissionComposition::test_custom_mission_dispatch_resolves_via_registry
