@@ -116,9 +116,17 @@ def build_protected_target_repo(base_dir: Path) -> ProtectedTargetRepo:
 
     # The .kittify/ marker is what makes _is_spec_kitty_project True. Without it
     # the guard short-circuits — this is the RISK-5 precondition.
+    # mission_type_activations is provisioned too (WP04 C-A1): consumers that
+    # go on to call create_mission_core (e.g. the golden-path suite's
+    # protected-primary edge case) need a non-empty activated mission-type
+    # set for the create/use-boundary fail-closed; guard-only consumers never
+    # read this key, so it is inert for them.
     kittify = repo / ".kittify"
     kittify.mkdir()
-    (kittify / "config.yaml").write_text("project: guard-suite\n", encoding="utf-8")
+    (kittify / "config.yaml").write_text(
+        "project: guard-suite\nmission_type_activations:\n  - software-dev\n",
+        encoding="utf-8",
+    )
 
     (repo / "README.md").write_text("# Guard suite fixture\n", encoding="utf-8")
     _git(repo, "add", "-A")

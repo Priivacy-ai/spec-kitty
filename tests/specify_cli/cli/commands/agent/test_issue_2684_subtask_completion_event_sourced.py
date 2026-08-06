@@ -139,6 +139,12 @@ def _build_single_branch_mission_with_in_progress_wp(
     _git(repo, "config", "user.name", "Issue 2684 Regression")
     _git(repo, "config", "commit.gpgsign", "false")
     (repo / ".kittify").mkdir()
+    # WP04 (C-A1): the provisioned charter is the sole mission-type activation
+    # authority, so `create_mission_core`'s require-boundary fails closed
+    # without a non-empty `mission_type_activations` list.
+    (repo / ".kittify" / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
 
     # Fully-fresh charter so `agent action implement`'s preflight passes.
     charter_path, metadata_path = seed_charter(repo)

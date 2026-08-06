@@ -262,7 +262,9 @@ def test_resolve_config_activated_roots_reads_kittify_config_yaml(tmp_path: Path
         "activated_directives:\n"
         "  - 010-specification-fidelity-requirement\n"
         "activated_styleguides:\n"
-        "  - aggregate-design-rules\n",
+        "  - aggregate-design-rules\n"
+        "mission_type_activations:\n"
+        "  - software-dev\n",
         encoding="utf-8",
     )
 
@@ -282,7 +284,8 @@ def test_resolve_config_activated_roots_raises_on_unresolvable_stem(tmp_path: Pa
     config_path = tmp_path / ".kittify" / "config.yaml"
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(
-        "activated_directives:\n  - not-a-real-directive-stem\n",
+        "activated_directives:\n  - not-a-real-directive-stem\n"
+        "mission_type_activations:\n  - software-dev\n",
         encoding="utf-8",
     )
 
@@ -308,7 +311,8 @@ def test_build_synthesis_request_sources_selections_from_config_not_answers(tmp_
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(
         "activated_directives:\n  - 010-specification-fidelity-requirement\n"
-        "activated_paradigms:\n  - domain-driven-design\n",
+        "activated_paradigms:\n  - domain-driven-design\n"
+        "mission_type_activations:\n  - software-dev\n",
         encoding="utf-8",
     )
 
@@ -348,7 +352,14 @@ def test_build_synthesis_request_first_run_empty_config_selects_zero_directives(
 
     answers_path = tmp_path / ".kittify" / "charter" / "interview" / "answers.yaml"
     write_interview_answers(answers_path, _interview_with(selected_directives=["DIRECTIVE_003"]))
-    # Deliberately no .kittify/config.yaml -- the genuine first-run signal.
+    # Deliberately no activated_directives key at all -- the genuine first-run
+    # signal this test pins. mission_type_activations is provisioned as a
+    # minimal, orthogonal key (WP04, C-A1: absence of THAT key alone is now a
+    # hard construction precondition, independent of the activated_directives
+    # three-state fallback this test exercises).
+    config_path = tmp_path / ".kittify" / "config.yaml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
 
     request, _adapter = _build_synthesis_request(tmp_path, "fixture")
 
@@ -369,7 +380,14 @@ def test_build_synthesis_request_first_run_demands_zero_companion_tactics(tmp_pa
 
     answers_path = tmp_path / ".kittify" / "charter" / "interview" / "answers.yaml"
     write_interview_answers(answers_path, _interview_with(selected_directives=["DIRECTIVE_003"]))
-    # Deliberately no .kittify/config.yaml -- the genuine first-run signal.
+    # Deliberately no activated_directives key at all -- the genuine first-run
+    # signal this test pins. mission_type_activations is provisioned as a
+    # minimal, orthogonal key (WP04, C-A1: absence of THAT key alone is now a
+    # hard construction precondition, independent of the activated_directives
+    # three-state fallback this test exercises).
+    config_path = tmp_path / ".kittify" / "config.yaml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
 
     request, _adapter = _build_synthesis_request(tmp_path, "fixture")
     snapshot = normalize_interview_snapshot(dict(request.interview_snapshot))
@@ -396,7 +414,9 @@ def test_build_synthesis_request_explicit_activation_still_demands_companion_tac
     config_path.write_text(
         "activated_directives:\n"
         "  - 010-specification-fidelity-requirement\n"
-        "  - 024-locality-of-change\n",
+        "  - 024-locality-of-change\n"
+        "mission_type_activations:\n"
+        "  - software-dev\n",
         encoding="utf-8",
     )
 
@@ -497,6 +517,18 @@ def test_lynn_cole_free_text_intent_activates_end_to_end_via_config_promotion(tm
     # Construction-time aliasing already fired on the interview object itself.
     assert "DIRECTIVE_039" in interview.selected_directives
     assert "deep-module-design" in interview.selected_paradigms
+
+    # Preseed ONLY `mission_type_activations` (unrelated to the directive/
+    # paradigm promotion this test pins) so the `PackContext.from_config`
+    # round-trip below doesn't hard-fail (WP04, C-A1). `_promote_interview_
+    # selections` never writes this key itself, and `activated_directives`/
+    # `activated_paradigms` are still genuinely absent here, so the
+    # "absent-key parity" promotion warnings asserted below are unaffected.
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    (kittify / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
 
     warnings = _promote_interview_selections(tmp_path, interview)
     # No promotion FAILURE (e.g. an unresolvable id) -- the "absent-key

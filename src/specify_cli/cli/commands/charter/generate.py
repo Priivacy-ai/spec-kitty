@@ -271,7 +271,11 @@ def generate(
       gitignore updates, or staging. Update the symlink target directly or
       replace it with a regular runtime charter.
     """
-    from charter.compiler import compile_charter, write_compiled_charter
+    from charter.compiler import (
+        compile_charter,
+        provision_mission_type_activations,
+        write_compiled_charter,
+    )
     from charter.pack_context import PackContext
 
     try:
@@ -327,6 +331,16 @@ def generate(
             resolved_mission_type=resolved_mission_type,
             profile=profile,
         )
+
+        # WP04 (charter-activation-authority): the provisioned charter is the
+        # SOLE mission-type activation authority. Construction returns an empty
+        # set on an absent key; a project with no activated types offers none
+        # (mission-CREATE then fails closed). Emit it
+        # into the activation authority FIRST (additive/idempotent, built-in
+        # set from default.yaml) so `generate` self-heals a pre-provisioning
+        # pointer charter instead of crashing on the very key it is about to
+        # (re)generate.
+        provision_mission_type_activations(repo_root)
 
         # FR-001/FR-002 (WP02): `.kittify/config.yaml` `activated_*` is the
         # activation authority the compiled reference set derives from --

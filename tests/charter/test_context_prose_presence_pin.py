@@ -111,6 +111,17 @@ def _seed_charter_dir(tmp_path: Path, *, with_yaml: bool, with_md: bool) -> Path
     charter_dir = tmp_path / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
     (charter_dir / "governance.yaml").write_text(_GOVERNANCE_YAML, encoding="utf-8")
+    # No ``charter:`` pointer is written to config.yaml here, so PackContext
+    # reads activation directly from config.yaml (legacy/un-migrated path).
+    # ``mission_type_activations`` is provisioned so ``PackContext.from_config``
+    # (WP04, C-A1: the provisioned charter is the sole activation authority)
+    # does not hard-fail on a genuinely absent key. Written unconditionally
+    # (independent of the with_yaml/with_md presence cell under test) since
+    # PackContext resolution is orthogonal to the charter.yaml/charter.md
+    # prose-presence gate this fixture pins.
+    (tmp_path / ".kittify" / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
     if with_yaml:
         (charter_dir / "charter.yaml").write_text(_CHARTER_YAML, encoding="utf-8")
     if with_md:

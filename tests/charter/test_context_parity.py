@@ -76,6 +76,15 @@ _GHOST_DIRECTIVE_CODE = "998"
 def _write_common_charter_files(tmp_path: Path, charter_md: str) -> None:
     charter_dir = tmp_path / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
+    # No ``charter:`` pointer is written to config.yaml here, so PackContext
+    # reads activation directly from config.yaml (legacy/un-migrated path).
+    # ``mission_type_activations`` is provisioned so ``PackContext.from_config``
+    # (WP04, C-A1: the provisioned charter is the sole activation authority),
+    # unconditionally called by ``_resolve_action_bundle`` on every bootstrap
+    # render, does not hard-fail on a genuinely absent key.
+    (tmp_path / ".kittify" / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
     (charter_dir / "charter.md").write_text(charter_md, encoding="utf-8")
     (charter_dir / "governance.yaml").write_text(
         textwrap.dedent(
@@ -405,8 +414,21 @@ class TestEmptyCharterProvenance:
         """
         from specify_cli.invocation.empty_charter import resolve_generic_fallback
 
-        # Wholly-empty repo: no .kittify at all (the maximally-empty charter
-        # state — mirrors tests/charter/test_empty_charter_governance_agreement.py).
+        # Wholly-empty repo: no charter, no interview transcript, no
+        # activations (the maximally-empty charter state — mirrors
+        # tests/charter/test_empty_charter_governance_agreement.py).
+        # ``PackContext.from_config`` (WP04, C-A1) fail-closes when
+        # ``mission_type_activations`` is absent from ``.kittify/config.yaml``
+        # -- unconditionally read by ``is_charter_empty`` -- so a minimal
+        # config carrying ONLY that key is provisioned here; this test's own
+        # subject (empty-charter provenance / no-directive-leak) is unrelated
+        # to mission-type activation, and no other activation key is written.
+        kittify = tmp_path / ".kittify"
+        kittify.mkdir(parents=True, exist_ok=True)
+        (kittify / "config.yaml").write_text(
+            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+        )
+
         decision = resolve_generic_fallback(tmp_path, "please help me tidy this up")
         assert decision is not None
         assert decision.profile_id == "generic-agent"

@@ -45,11 +45,18 @@ def _git_init(repo: Path) -> None:
 
 
 def _write_stale_activation_config(repo: Path) -> None:
-    """A ``.kittify/config.yaml`` activating a directive stem that does not exist."""
+    """A ``.kittify/config.yaml`` activating a directive stem that does not exist.
+
+    ``mission_type_activations`` is provisioned here too -- unrelated to the
+    stale-directive-stem rejection this module pins, but WP04 (C-A1) made it a
+    hard construction precondition for ``PackContext.from_config``; without it
+    the CLI would reject on the missing key before ever reaching the
+    stale-stem resolution path this test exercises.
+    """
     config_dir = repo / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
     (config_dir / "config.yaml").write_text(
-        "activated_directives:\n  - does-not-exist-directive-stem\n",
+        "mission_type_activations:\n  - software-dev\nactivated_directives:\n  - does-not-exist-directive-stem\n",
         encoding="utf-8",
     )
 

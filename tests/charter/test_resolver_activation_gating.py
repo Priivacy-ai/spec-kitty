@@ -41,10 +41,25 @@ def _mock_item(item_id: str) -> MagicMock:
     return item
 
 
+def _provision_mission_type_activation(tmp_path: Path) -> None:
+    """Write the minimal config.yaml key required for ``PackContext.from_config``
+    to construct at all (WP04, C-A1: a genuinely absent ``mission_type_activations``
+    key hard-fails). This is orthogonal to the ``activated_*`` fields under test
+    here -- those stay absent (``None``) exactly as the bare-project assertions
+    below require.
+    """
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    (kittify / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
+
+
 @pytest.mark.parametrize("prop, activated_field", _NEW_MECHANICAL_KINDS)
 def test_bare_project_precondition_is_none(tmp_path: Path, prop: str, activated_field: str) -> None:
     """A bare (no ``.kittify/config.yaml``) project has every new field at ``None``."""
     _ = prop
+    _provision_mission_type_activation(tmp_path)
     pack_ctx = PackContext.from_config(tmp_path)
     assert getattr(pack_ctx, activated_field) is None
 
@@ -66,6 +81,7 @@ def test_wrapped_equals_unwrapped_for_bare_project(
     items = [_mock_item("alpha"), _mock_item("beta")]
     getattr(inner, prop).list_all.return_value = items
 
+    _provision_mission_type_activation(tmp_path)
     bare_pack_ctx = PackContext.from_config(tmp_path)
     wrapped = DoctrineService(inner, pack_context=bare_pack_ctx)
     unwrapped_inner = DoctrineService(inner, pack_context=None)

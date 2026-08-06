@@ -124,6 +124,16 @@ def _write_minimal_kittify_charter(repo_root: Path) -> None:
     charter_dir = repo_root / ".kittify" / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)
     (charter_dir / "charter.md").write_text(_MINIMAL_CHARTER_MD, encoding="utf-8")
+    # A usable project is provisioned: the mission-type-use boundary
+    # (prompt build during implement/review) resolves ``software-dev``
+    # through the project's activation set, so the fixture must declare it.
+    # Without this, ``resolve_mission_type_context`` hard-fails with
+    # ``UnknownMissionTypeError`` (empty activation set) exactly as it would
+    # for a genuinely unprovisioned project (WP04 construction-total pivot:
+    # the fail-closed lives at the create / use boundary, not construction).
+    (repo_root / ".kittify" / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
 
 
 _WP_WITH_PYTHON_PEDRO = """\

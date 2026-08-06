@@ -57,6 +57,17 @@ def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
 def _init_repo(repo: Path) -> None:
     (repo / ".kittify").mkdir(exist_ok=True)
     (repo / "kitty-specs").mkdir(exist_ok=True)
+    # A usable project is provisioned: mission creation resolves its mission
+    # type through the project's activation set. The WP04 construction-total
+    # pivot moved the empty-activation fail-closed to the create boundary
+    # (``create_mission_core``), so an unprovisioned fixture now blocks
+    # creation with ``CharterPackConfigError`` exactly as a real
+    # unprovisioned project would. Declare the built-ins the create tests use.
+    (repo / ".kittify" / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n  - documentation\n"
+        "  - research\n  - plan\n",
+        encoding="utf-8",
+    )
     subprocess.run(["git", "init", "-b", "main"], cwd=repo, capture_output=True, check=True)
     _git(repo, "config", "user.email", "test@test.com")
     _git(repo, "config", "user.name", "Test")

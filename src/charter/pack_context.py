@@ -120,10 +120,16 @@ class PackContext:
     activated_mission_types: frozenset[str]
     """Mission type IDs activated in the project charter.
 
-    Defaults to the four built-in mission type IDs
-    (``software-dev``, ``documentation``, ``research``, ``plan``)
-    when the ``mission_type_activations`` key is absent or empty in
-    ``.kittify/config.yaml``.
+    Read directly from the provisioned ``mission_type_activations`` key
+    (WP04): the provisioned charter is the sole activation authority, with no
+    implicit "all built-ins" backfill (absent != all-four, #2657/FR-008).
+    Both a genuinely absent key AND an explicit empty list
+    (``mission_type_activations: []``) resolve to ``frozenset()``
+    (C-A2/FR-039/C-008) — construction is total and never raises on
+    absence. Provisioning (``spec-kitty init`` / ``spec-kitty upgrade``) is
+    the only writer of a non-empty set. The fail-closed for an empty set
+    fires at the mission-create / mission-type-use boundary
+    (``create_mission_core``), never at construction.
     """
 
     pack_roots: tuple[Path, ...]
@@ -201,10 +207,17 @@ class PackContext:
     def from_config(cls, repo_root: Path) -> PackContext:
         """Construct a ``PackContext`` from ``.kittify/config.yaml``.
 
-        Reads the project charter activation state and pack roots.
-        When config.yaml is absent or a key is missing, backward-
-        compatible defaults are applied (all built-in kinds active;
-        all four built-in mission types active; no org packs).
+        Reads the project charter activation state and pack roots. When
+        config.yaml is absent, ``activated_kinds`` defaults to all
+        built-in kinds and ``org_pack_names``/``pack_roots`` default to
+        no org packs. ``mission_type_activations`` defaults to
+        ``frozenset()`` on an absent key (WP04): construction is total and
+        never raises on an unprovisioned project, since ``PackContext`` is
+        built on dozens of read / compose hot paths that must not crash.
+        The fail-closed for an empty activation set lives at the
+        mission-create / mission-type-use boundary
+        (``specify_cli.core.mission_creation.create_mission_core``), not
+        here.
 
         Parameters
         ----------
@@ -215,6 +228,14 @@ class PackContext:
         -------
         PackContext
             Frozen, immutable snapshot ready for the doctrine resolver.
+
+        Raises
+        ------
+        CharterPackConfigError
+            When an activation key has an invalid shape (e.g. a non-list
+            value), or a ``charter:`` pointer is dangling / unreadable.
+            An absent ``mission_type_activations`` key is NOT an error
+            (it resolves to ``frozenset()``).
         """
         data = _load_config(repo_root)
 
@@ -601,22 +622,30 @@ def _read_activated_kinds(data: dict[str, Any]) -> frozenset[str]:
 def _read_activated_mission_types(data: dict[str, Any]) -> frozenset[str]:
     """Extract ``mission_type_activations`` from parsed config data.
 
-    Falls back to the built-in mission type IDs when the key is absent
-    (new project / pre-migration state — FR-019 migration intent). An
-    explicit empty list ``[]`` returns ``frozenset()`` (FR-039 fix).
+    Construction is **total** — this reader never raises on absence (WP04
+    re-architecture). A genuinely absent ``mission_type_activations`` key
+    resolves to ``frozenset()``, the same result as an explicit empty list
+    (``mission_type_activations: []``, C-A2/FR-039/C-008). Absent is
+    deliberately NOT backfilled to the all-four built-in roster
+    (#2657/FR-008): the provisioned charter (``spec-kitty init`` /
+    ``spec-kitty upgrade``, see ``specify_cli.provisioning.default_charter``)
+    is the sole writer of a non-empty set, so absent != all-four.
 
-    The default is derived lazily from the single canonical accessor
-    (:func:`doctrine.missions.mission_type_repository.builtin_mission_type_id_set`,
-    #2669 Roster B) rather than a hardcoded literal — importing this module
-    must not read ``mission_types/`` off disk (NFR-001), so the import is
-    function-local and only fires when the key is actually absent.
+    Why totality: ``PackContext`` is constructed on dozens of hot read /
+    compose paths (runtime-bridge composition through
+    ``doctrine_service_builder``, invocation ``ProfileRegistry``, charter
+    listing, tool-surface projection, ``doctor``) that must not crash on an
+    unprovisioned project. Reading an empty activation set is a valid, total
+    outcome. The fail-closed "a mission requires at least one activated
+    mission type" lives at the mission-create / mission-type-use boundary
+    (``specify_cli.core.mission_creation.create_mission_core``), NOT here:
+    only *creating / requiring* a mission against an empty set is the
+    actionable, unusable case — never merely *reading* it.
     """
-    from doctrine.missions.mission_type_repository import (  # noqa: PLC0415 — lazy; import-time-I/O timing (NFR-001), not cycle avoidance
-        builtin_mission_type_id_set,
-    )
-
     activated = _read_list_key(data, "mission_type_activations")
-    return builtin_mission_type_id_set() if activated is None else activated
+    if activated is None:
+        return frozenset()
+    return activated
 
 
 def _read_activated_directives(data: dict[str, Any]) -> frozenset[str] | None:

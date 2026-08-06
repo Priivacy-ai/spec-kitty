@@ -24,6 +24,7 @@ import pytest
 
 from charter.consistency_check import ConsistencyReport, run_consistency_check
 from charter.invocation_context import ProjectContext
+from charter.pack_context import PackContext
 
 pytestmark = pytest.mark.unit
 
@@ -47,9 +48,60 @@ def _write_config(tmp_path: Path, content: str) -> None:
 
 
 def _ctx_with_config(tmp_path: Path, config_yaml: str) -> ProjectContext:
-    """Build a ProjectContext with the supplied config content."""
-    _write_config(tmp_path, config_yaml)
+    """Build a ProjectContext with the supplied config content.
+
+    ``mission_type_activations`` is appended unconditionally: every caller
+    here supplies only ``activated_directives`` content (or none at all),
+    and ``ProjectContext.from_repo`` eagerly resolves
+    ``PackContext.from_config()``, which now hard-fails (WP04, C-A1) when
+    that key is absent. The mission-type kind is unrelated to the
+    consistency-check behavior these tests pin.
+    """
+    _write_config(tmp_path, config_yaml + "mission_type_activations:\n  - software-dev\n")
     return ProjectContext.from_repo(tmp_path)
+
+
+def _ctx_with_config_no_activation_keys(tmp_path: Path, config_yaml: str) -> ProjectContext:
+    """Build a ProjectContext against config content with NO activation keys
+    at all -- including no ``mission_type_activations``.
+
+    Unlike ``_ctx_with_config``, this does NOT append
+    ``mission_type_activations`` to the written config.yaml: doing so would
+    make ``_has_explicit_activation`` (which loops over every
+    ``YAML_KEY_MAP`` entry, including the "mission-type" ->
+    ``mission_type_activations`` mapping) see a non-``None`` value for that
+    kind and incorrectly flip "no activation keys at all" to "one activation
+    key present" -- exactly the kind of uniform-loop assertion this
+    module's ``test_no_activation_keys_skips_doctrine_scan`` pins (see
+    module docstring hazard notes in the WP04 remediation task). Instead,
+    ``pack_context`` is built directly via the ``PackContext`` dataclass
+    constructor (bypassing ``PackContext.from_config``, so the WP04, C-A1
+    hard-fail on an absent ``mission_type_activations`` key never fires)
+    while ``_load_raw_activation_lists`` -- which reads activation state
+    from the ON-DISK ``config.yaml``/``charter.yaml``, not from
+    ``ctx.pack_context`` -- still observes the genuinely key-free config
+    content this test needs.
+    """
+    _write_config(tmp_path, config_yaml)
+    pack_context = PackContext(
+        activated_kinds=frozenset(
+            {
+                "directives",
+                "tactics",
+                "styleguides",
+                "toolguides",
+                "paradigms",
+                "procedures",
+                "agent_profiles",
+                "mission_step_contracts",
+            }
+        ),
+        activated_mission_types=frozenset({"software-dev"}),
+        pack_roots=(),
+        org_pack_names=(),
+        repo_root=tmp_path,
+    )
+    return ProjectContext(repo_root=tmp_path, pack_context=pack_context)
 
 
 # ---------------------------------------------------------------------------
@@ -173,7 +225,7 @@ def test_no_activation_keys_skips_doctrine_scan(
     """A minimal project has no IDs to validate, so it must not scan doctrine."""
     import charter.consistency_check as consistency_check
 
-    ctx = _ctx_with_config(tmp_path, "# minimal valid project\n")
+    ctx = _ctx_with_config_no_activation_keys(tmp_path, "# minimal valid project\n")
 
     def fail_scan(*_args: object, **_kwargs: object) -> dict[str, frozenset[str]]:
         raise AssertionError("doctrine scan should not run without activation keys")

@@ -108,19 +108,33 @@ def _patch_default_root(monkeypatch: pytest.MonkeyPatch, root: Path) -> None:
 
 
 class TestDefaultActivationSetIsSingleSourced:
-    """``PackContext``'s default activation set derives from the WP01 accessor."""
+    """``PackContext`` has no default activation set for mission types (WP04).
 
-    def test_default_activated_mission_types_includes_synthetic_type(
+    This class originally pinned "the default activation set, when the
+    ``mission_type_activations`` key is absent, single-sources from the WP01
+    ``MissionTypeRepository`` accessor rather than a hardcoded literal." WP04
+    retired the default-on-absence behavior entirely -- ``pack_context.py`` no
+    longer references ``MissionTypeRepository``/``builtin_mission_type_id_set``
+    at all. The final WP04 re-architecture then made construction TOTAL: an
+    absent key resolves to ``frozenset()`` (never the all-four backfill, never
+    a raise), with the fail-closed moved to the mission-create boundary (see
+    ``tests/charter/test_pack_context.py::test_from_config_no_config_yaml_returns_empty_not_raise``).
+    There is no "default set" for this accessor-swap contract to single-source.
+    """
+
+    def test_synthetic_accessor_type_does_not_create_an_implicit_default(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A synthetic mission-type injected via the accessor root flows through
-        to ``PackContext.from_config``'s default set (no ``mission_type_activations``
-        key in config.yaml).
+        """An absent ``mission_type_activations`` key resolves to an EMPTY set
+        even when the ``MissionTypeRepository`` accessor root carries a
+        synthetic type that used to leak into the old hardcoded-default
+        fallback.
 
-        RED before T008: today's ``_BUILTIN_MISSION_TYPE_IDS`` is a hardcoded
-        4-tuple literal in ``pack_context.py`` that never consults
-        ``MissionTypeRepository`` at all, so the monkeypatched synthetic type
-        cannot appear in the result no matter what the accessor root is.
+        Supersedes the pre-WP04
+        ``test_default_activated_mission_types_includes_synthetic_type``: proves
+        the retired backfill is not quietly reintroduced by an accessor-sourced
+        type -- the absent key reads as ``frozenset()`` (absent != all-four),
+        not the synthetic-inclusive roster, and construction does not raise.
         """
         mission_types_root = tmp_path / "mission_types"
         mission_types_root.mkdir()
@@ -134,11 +148,11 @@ class TestDefaultActivationSetIsSingleSourced:
         builtin_mission_type_ids.cache_clear()
 
         project_root = tmp_path / "project"
-        _write_config(project_root, _MINIMAL_CONFIG)
+        _write_config(project_root, _MINIMAL_CONFIG)  # no mission_type_activations key
 
         ctx = PackContext.from_config(project_root)
 
-        assert "analysis" in ctx.activated_mission_types
+        assert ctx.activated_mission_types == frozenset()
 
 
 # ---------------------------------------------------------------------------

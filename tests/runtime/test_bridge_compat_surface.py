@@ -158,7 +158,16 @@ def _scaffold_project(
     repo_root = tmp_path / "project"
     repo_root.mkdir()
     _init_git_repo(repo_root)
-    (repo_root / ".kittify").mkdir()
+    kittify_dir = repo_root / ".kittify"
+    kittify_dir.mkdir()
+    # WP04 fail-closed (C-A1): composition (_dispatch_via_composition) calls
+    # resolve_mission_type_context for real, so this fixture's mission types
+    # -- software-dev (default) and research (the research-loop scenario) --
+    # must both be activated for that resolution to succeed.
+    (kittify_dir / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n  - research\n",
+        encoding="utf-8",
+    )
     feature_dir = repo_root / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
     # Modern ULID mission_id + mid8 meta (canonical shared test utility, see

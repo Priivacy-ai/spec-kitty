@@ -133,6 +133,14 @@ def _write_fixture_repo(tmp_path: Path, *, charter_md: str | None) -> None:
     (charter_dir / "charter.yaml").write_text(_CHARTER_YAML_WITH_DIRECTIVE_001, encoding="utf-8")
     if charter_md is not None:
         (charter_dir / "charter.md").write_text(charter_md, encoding="utf-8")
+    # No ``charter:`` pointer is written to config.yaml here, so PackContext
+    # reads activation directly from config.yaml (legacy/un-migrated path).
+    # ``mission_type_activations`` is provisioned so ``PackContext.from_config``
+    # (WP04, C-A1: the provisioned charter is the sole activation authority)
+    # does not hard-fail on a genuinely absent key.
+    (tmp_path / ".kittify" / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
 
 
 def _mock_graph() -> DRGGraph:

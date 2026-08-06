@@ -336,7 +336,7 @@ class TestGetPackageAssetRoot:
     def test_resolves_in_a_wheel_layout_via_the_caller_s_own_pattern(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """Binds ``kernel.paths``' own ``_MISSION_ASSETS_SIBLING_PATTERN``, not a
+        """Binds ``kernel.paths``' own ``MISSION_ASSETS_SIBLING_PATTERN``, not a
         pattern written inside the test.
 
         ``TestWheelShapedAnchor`` (``test_sibling_paths.py``) proves the shared
@@ -362,7 +362,7 @@ class TestGetPackageAssetRoot:
         ``doctrine/missions`` package directory side by side in one synthetic
         wheel layout. This test only passes if the resolver finds the real
         data, not the data-less decoy -- it reds if
-        ``_MISSION_ASSETS_SIBLING_PATTERN`` ever regresses to a bare/wildcard
+        ``MISSION_ASSETS_SIBLING_PATTERN`` ever regresses to a bare/wildcard
         ``"*/missions"`` shape, which would match the decoy at the
         site-packages ancestor before ever considering ``packs/built-in``.
         """
@@ -378,6 +378,63 @@ class TestGetPackageAssetRoot:
             "package directory instead of the relocated real data -- the "
             "exact self-match trap this mission's WP05 exists to close."
         )
+
+
+class TestGetPackageAssetRootPacksRoot:
+    """SPEC_KITTY_PACKS_ROOT relocates the built-in pack root (DR-1; C-R2/C-R3/C-R4).
+
+    The unified resolver locates the ``built-in`` pack from the env-supplied
+    pack root and the door returns ``<PACKS_ROOT>/built-in/missions`` through
+    the kernel built-in-pack-root primitive. PACKS_ROOT governs pack-root
+    *location* and wins over ``SPEC_KITTY_TEMPLATE_ROOT`` for it (C-R3); a pack
+    root with no ``built-in/missions`` tree fails closed rather than falling
+    through to a legacy layout (C-R4 / FR-013).
+    """
+
+    def test_packs_root_relocates_the_door(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """A PACKS_ROOT with ``built-in/missions`` present resolves under it."""
+        packs_root = tmp_path / "packs-root"
+        missions = packs_root / "built-in" / "missions"
+        missions.mkdir(parents=True)
+        monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
+        monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(packs_root))
+
+        assert get_package_asset_root() == missions
+
+    def test_packs_root_without_missions_tree_fails_closed(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """A PACKS_ROOT whose ``built-in`` has no ``missions`` leaf raises, no fall-through."""
+        packs_root = tmp_path / "packs-root"
+        # ``built-in`` exists (the env override resolves) but carries no
+        # ``missions`` leaf: the door must fail closed, never fall through to a
+        # legacy layout or the ancestor walk's real tree.
+        (packs_root / "built-in").mkdir(parents=True)
+        monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
+        monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(packs_root))
+
+        with pytest.raises(FileNotFoundError):
+            get_package_asset_root()
+
+    def test_packs_root_wins_over_template_root(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """With BOTH env vars set, PACKS_ROOT governs pack-root location (C-R3)."""
+        packs_root = tmp_path / "packs-root"
+        packs_missions = packs_root / "built-in" / "missions"
+        packs_missions.mkdir(parents=True)
+
+        template_root = tmp_path / "template-root"
+        template_templates = template_root / "software-dev" / "templates"
+        template_templates.mkdir(parents=True)
+        (template_templates / "plan-template.md").write_text("# Plan\n", encoding="utf-8")
+
+        monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(packs_root))
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(template_root))
+
+        assert get_package_asset_root() == packs_missions
 
 
 class TestRenderRuntimePath:

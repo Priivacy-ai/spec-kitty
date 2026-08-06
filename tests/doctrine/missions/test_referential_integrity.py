@@ -252,11 +252,21 @@ class TestDispatchInvariance:
 
         ``resolve_mission_type_context`` is the function the runtime "next"
         loop calls to learn a mission's action sequence
-        (``ResolvedMissionType.action_sequence``). An empty ``tmp_path`` repo
-        root carries no project-layer doctrine overrides, so this resolves
-        purely against the built-in doctrine WP05 touched -- the same surface
-        a real mission of this type would see.
+        (``ResolvedMissionType.action_sequence``). The ``tmp_path`` repo root
+        is provisioned with the built-in mission types (the WP04
+        construction-total pivot moved the empty-activation fail-closed to the
+        resolver's use boundary, so a bare repo would hard-fail with
+        ``UnknownMissionTypeError``) but carries no project-layer doctrine
+        overrides, so this resolves purely against the built-in doctrine WP05
+        touched -- the same surface a real mission of this type would see.
         """
+        kittify = tmp_path / ".kittify"
+        kittify.mkdir(parents=True, exist_ok=True)
+        (kittify / "config.yaml").write_text(
+            "mission_type_activations:\n  - software-dev\n  - documentation\n"
+            "  - research\n  - plan\n",
+            encoding="utf-8",
+        )
         bundle = resolve_mission_type_context(tmp_path, mission_type=mission_type)
 
         assert bundle.action_sequence == _EXPECTED_ACTION_SEQUENCES[mission_type], (

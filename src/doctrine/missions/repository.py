@@ -2,18 +2,24 @@
 
 from __future__ import annotations
 
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Any, cast
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-from kernel.sibling_paths import SiblingPathNotFound, resolve_installed_sibling
+from doctrine.pack_paths import built_in_missions_root
+from kernel.paths import MISSION_ASSETS_SIBLING_PATTERN
 
 ParsedConfig = dict[str, Any] | list[Any]
 
-#: Relative shape of this package's own data content, sought as a sibling of
-#: this module's own containing package directory (FR-004). Mission
+#: Relative shape of this package's own data content (FR-004/FR-012). Owned
+#: once at the kernel floor (:data:`kernel.paths.MISSION_ASSETS_SIBLING_PATTERN`
+#: -- the ``packs/built-in/missions`` shape) and re-bound to this
+#: module-local name so existing internal references and this module's own
+#: tests keep resolving the identical pattern object, not a second,
+#: independently-typed copy of the literal (mission
+#: ``resolution-activation-foundation-01KZ9FKG``, WP02, FR-012). Mission
 #: ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` (WP05) relocated
 #: the missions data subdirectories from ``src/doctrine/missions`` to
 #: ``packs/built-in/missions`` -- ``packs/`` ships as a fixed-name,
@@ -26,7 +32,7 @@ ParsedConfig = dict[str, Any] | list[Any]
 #: module's own 11 ``.py`` logic modules still live in -- before ever
 #: considering the real data. A fully-qualified ``packs/built-in/missions``
 #: pattern structurally cannot make that mistake.
-_MISSIONS_ROOT_SIBLING_PATTERN = PurePosixPath("packs") / "built-in" / "missions"
+_MISSIONS_ROOT_SIBLING_PATTERN = MISSION_ASSETS_SIBLING_PATTERN
 
 
 class MissionsRootNotFound(Exception):
@@ -34,14 +40,16 @@ class MissionsRootNotFound(Exception):
 
     Replaces the previous silent ``Path(__file__).parent`` fallback (FR-004).
 
-    Eager-eval note: ``specify_cli.runtime.home``'s ``dev_roots`` fallback
-    tuple calls ``default_missions_root()`` eagerly as its first element, so
-    a ``MissionsRootNotFound`` raised here propagates before that tuple's
-    second (bare ``Path(__file__)``-relative) entry is ever tried. Not
-    currently triggerable -- ``repository.py``'s own ancestor always matches
-    the ``packs/built-in/missions`` pattern in every layout where this module
-    is importable from a real file -- but a caller relying on the second
-    entry as a fallback should know the first entry is not lazy.
+    ``default_missions_root`` (below) is not lazy: it resolves the built-in
+    pack root and checks the ``missions`` leaf's existence eagerly on every
+    call, via :func:`doctrine.pack_paths.built_in_missions_root`. There is no
+    ``dev_roots`` fallback tuple anywhere in the runtime-home topology
+    (:mod:`specify_cli.runtime.home` re-exports the kernel-floor
+    ``get_package_asset_root``/``get_kittify_home`` pair directly and carries
+    no such tuple; the legacy ``specify_cli/missions`` importlib probe and any
+    ``dev_root`` fallback were intentionally removed, DR-2) -- so a raised
+    ``MissionsRootNotFound`` here is the final word for this call, not one
+    entry in a multi-candidate chain.
     """
 
 
@@ -132,23 +140,32 @@ class MissionTemplateRepository:
     def default_missions_root(cls) -> Path:
         """Return the missions-content root bundled alongside this package (FR-004).
 
-        Delegates to the shared kernel sibling-path-resolution primitive
-        (:func:`kernel.sibling_paths.resolve_installed_sibling`) so the path
-        is valid both from an editable install and from a built wheel.
+        Delegates to :func:`doctrine.pack_paths.built_in_missions_root`, itself
+        a thin join onto :func:`doctrine.pack_paths.built_in_root` -- the
+        single built-in-pack-root authority, which in turn delegates to the
+        kernel-floor primitive :func:`kernel.paths.get_built_in_pack_root`
+        (DR-1: exactly one ``SPEC_KITTY_PACKS_ROOT`` env read across the
+        whole resolution stack, FR-001/FR-003). This module no longer walks
+        its own ``env_override=None`` sibling-path search.
 
-        Fails closed rather than falling back to this module's own directory.
+        ``built_in_root()`` (and so ``built_in_missions_root()``) only proves
+        ``packs/built-in`` exists -- it does not know about the ``missions``
+        leaf beneath it -- so this method adds its own ``.is_dir()`` check on
+        the joined leaf and fails closed with :class:`MissionsRootNotFound`
+        when absent (I-4): a bare join would otherwise silently hand back a
+        nonexistent path.
+
+        Fails closed rather than falling back to this module's own directory;
+        a missing built-in pack root propagates :class:`doctrine.pack_paths.PackRootNotFound`
+        unchanged from :func:`~doctrine.pack_paths.built_in_root`.
         """
-        try:
-            return resolve_installed_sibling(
-                anchor_file=Path(__file__),
-                env_override=None,
-                sibling_relative_path=_MISSIONS_ROOT_SIBLING_PATTERN,
-            )
-        except SiblingPathNotFound as exc:
-            raise MissionsRootNotFound(
-                "Could not locate the missions-content root as a sibling of "
-                f"{__file__}."
-            ) from exc
+        root = built_in_missions_root()
+        if root.is_dir():
+            return root
+        raise MissionsRootNotFound(
+            f"Built-in pack root has no {_MISSIONS_ROOT_SIBLING_PATTERN.name!r} "
+            f"leaf directory: {root}"
+        )
 
     @classmethod
     def default(cls) -> MissionTemplateRepository:

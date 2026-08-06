@@ -154,6 +154,13 @@ class TestFR006JsonPresentSignalFlip:
         charter_dir = tmp_path / ".kittify" / "charter"
         charter_dir.mkdir(parents=True)
         (charter_dir / "charter.yaml").write_text("schema_version: '2.0.0'\n", encoding="utf-8")
+        # ``mission_type_activations`` is unrelated to the FR-006 present-signal
+        # flip this test pins, but WP04 (C-A1) made it a hard construction
+        # precondition for ``PackContext.from_config`` (invoked internally by
+        # ``build_charter_context_json``'s action-bundle resolution).
+        (tmp_path / ".kittify" / "config.yaml").write_text(
+            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+        )
 
         from charter.sync import SyncResult
 
@@ -209,6 +216,13 @@ class TestFR006JsonPresentSignalFlip:
         # source); once charter.yaml exists we delete charter.md to prove
         # the read surface no longer depends on it (SC-002).
         (charter_dir / "charter.md").write_text("# Curated Charter\n", encoding="utf-8")
+        # ``mission_type_activations`` is unrelated to the FR-006 present-signal
+        # flip this test pins, but WP04 (C-A1) made it a hard construction
+        # precondition for ``PackContext.from_config`` -- provision it so both
+        # the ``generate`` and ``context`` CLI invocations below can construct.
+        (repo_root / ".kittify" / "config.yaml").write_text(
+            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+        )
 
         with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=repo_root):
             generate_result = runner.invoke(app, ["generate", "--json", "--no-from-interview"])
@@ -260,6 +274,14 @@ class TestFoldCLegacyCharterMdOnlyPresentFlipCell:
             "# Legacy Curated Charter\n", encoding="utf-8"
         )
         assert not (charter_dir / "charter.yaml").exists()
+        # ``mission_type_activations`` is unrelated to the present-signal
+        # divergence this test pins, but WP04 (C-A1) made it a hard
+        # construction precondition for ``PackContext.from_config``. A
+        # separate file from ``charter.yaml`` (whose absence is the fixture
+        # precondition under test), so this does not disturb that assertion.
+        (tmp_path / ".kittify" / "config.yaml").write_text(
+            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+        )
 
         from charter.sync import SyncResult
 
@@ -304,6 +326,12 @@ class TestFoldCLegacyCharterMdOnlyPresentFlipCell:
             "# Legacy Curated Charter\n", encoding="utf-8"
         )
         assert not (charter_dir / "charter.yaml").exists()
+        # ``mission_type_activations`` is unrelated to the text-renderer
+        # divergence this test pins, but WP04 (C-A1) made it a hard
+        # construction precondition for ``PackContext.from_config``.
+        (tmp_path / ".kittify" / "config.yaml").write_text(
+            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+        )
 
         from doctrine.drg.models import DRGGraph
         from ruamel.yaml import YAML

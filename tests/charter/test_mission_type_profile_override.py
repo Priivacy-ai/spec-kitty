@@ -61,6 +61,16 @@ def _git_init_minimal(repo_root: Path) -> None:
         ["git", "config", "commit.gpgsign", "false"],
     ):
         subprocess.run(args, cwd=repo_root, check=True, capture_output=True)
+    # WP04 (C-A1): existing_mission_types() -> PackContext.from_config()
+    # fail-closes without mission_type_activations. resolve_mission_type_context
+    # in this module always resolves "software-dev", so that's the type
+    # provisioned here -- unrelated to the project/org/builtin override stack
+    # under test.
+    kittify = repo_root / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    (kittify / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
 
 
 # ---------------------------------------------------------------------------

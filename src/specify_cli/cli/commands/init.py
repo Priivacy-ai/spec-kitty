@@ -39,6 +39,10 @@ from specify_cli.template import (
     copy_specify_base_from_package,
     get_local_repo_root,
 )
+from specify_cli.provisioning.default_charter import (
+    DefaultCharterPackMissingError,
+    provision_default_mission_type_activations,
+)
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 from specify_cli.skills.installer import install_skills_for_agent
 from specify_cli.skills.manifest import ManagedSkillManifest, save_manifest
@@ -1140,6 +1144,21 @@ def init(  # noqa: C901
 
     if _ensure_event_log_merge_attributes(project_path):
         _console.print("[dim]Updated .gitattributes for Spec Kitty generated artifacts[/dim]")
+
+    # Fresh-init provisioning (FR-009/010/011, NFR-004): seed
+    # mission_type_activations from the shipped default charter pack so a
+    # brand-new project always has an explicit, non-empty activation set.
+    # This is the load-bearing prerequisite for removing the config-absent
+    # implicit backfill elsewhere in the charter runtime (mission
+    # resolution-activation-foundation-01KZ9FKG, WP04) -- unlike the
+    # best-effort steps around it, this one fails closed (C-A4): a broken
+    # install missing default.yaml must stop init, never silently produce an
+    # empty or implicit mission-type set.
+    try:
+        provision_default_mission_type_activations(project_path)
+    except DefaultCharterPackMissingError as exc:
+        _console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
 
     # Copy AGENTS.md from template source (not user project)
     # In global runtime mode, AGENTS.md resolves from ~/.kittify/ so skip copying.

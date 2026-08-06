@@ -34,8 +34,19 @@ _CORE_MODULE = "specify_cli.core.mission_creation"
 
 def _init_git_repo(repo: Path) -> None:
     """Initialise a minimal git repo with .kittify and kitty-specs."""
-    (repo / ".kittify").mkdir(exist_ok=True)
+    kittify_dir = repo / ".kittify"
+    kittify_dir.mkdir(exist_ok=True)
     (repo / "kitty-specs").mkdir(exist_ok=True)
+    # WP04 fail-closed (C-A1): create_mission_core requires a non-empty
+    # activated mission-type set, and mission types used in this file with
+    # REAL (unmocked) resolve_mission_type_context resolution -- software-dev
+    # (default) and documentation (test_documentation_mission_resolves_
+    # authored_spec_template) -- must each be activated for their real
+    # resolution to succeed.
+    (kittify_dir / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n  - documentation\n",
+        encoding="utf-8",
+    )
     subprocess.run(
         ["git", "init"],
         cwd=repo,

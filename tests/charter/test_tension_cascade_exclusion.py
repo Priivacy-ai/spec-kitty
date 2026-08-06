@@ -63,8 +63,15 @@ def project_root(tmp_path: Path) -> Path:
     """
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
+    # ``mission_type_activations`` is unrelated to the directive/tactic
+    # cascade-exclusion behavior this module pins, but WP04 (C-A1) made it a
+    # hard construction precondition for ``PackContext.from_config`` -- a
+    # genuinely absent key now raises rather than defaulting. Provision it so
+    # the ``charter activate`` CLI invocation below can construct at all.
     (kittify / "config.yaml").write_text(
-        "activated_directives: []\nactivated_tactics: []\n", encoding="utf-8"
+        "mission_type_activations:\n  - software-dev\n"
+        "activated_directives: []\nactivated_tactics: []\n",
+        encoding="utf-8",
     )
     return tmp_path
 

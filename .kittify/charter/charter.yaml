@@ -1586,3 +1586,8 @@ activated_procedures:
 - post-merge-arch-gate-adjudication
 - mission-wrap-up-sequence
 - red-main-release-discipline
+mission_type_activations:
+- software-dev
+- documentation
+- research
+- plan

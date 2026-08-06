@@ -443,10 +443,16 @@ def existing_mission_types(repo_root: Path) -> list[str]:
     unknown and registered.
 
     Reads ``.kittify/config.yaml`` via :class:`~charter.pack_context.PackContext`
-    to obtain the activation set.  When the config file is absent or the
-    ``mission_type_activations`` key is missing, all four built-in types are
-    returned (new-project / pre-migration fallback handled by
-    :meth:`~charter.pack_context.PackContext.from_config`).
+    to obtain the activation set. ``PackContext.activated_mission_types`` is
+    the sole activation authority for this gate (WP04): it is read directly
+    from the provisioned ``mission_type_activations`` key, with no implicit
+    "all built-ins" backfill when that key is absent.  Provisioning
+    (``spec-kitty init`` / ``spec-kitty upgrade``) is the only writer of a
+    non-empty set. This is a **read / gating** path: an unprovisioned project
+    returns an EMPTY list here WITHOUT raising (construction is now total,
+    WP04). The actionable fail-closed for "a mission requires at least one
+    activated mission type" fires only at the mission-create / require
+    boundary (``create_mission_core``), never on this read path.
 
     FR-006 activation gate — this function IS the gate, and it pre-existed FR-006
     ---------------------------------------------------------------------------
@@ -458,12 +464,16 @@ def existing_mission_types(repo_root: Path) -> list[str]:
     since before this mission touched this file. ``PackContext.activated_mission_types``
     is not three-state like the other activation fields
     (:class:`~charter.pack_context.PackContext` docstring); it is always a
-    concrete ``frozenset[str]``, already collapsed to
-    :func:`~doctrine.missions.mission_type_repository.builtin_mission_type_id_set`
-    at construction time when nothing was authored. That collapse, plus this
-    function's filtering return statement, is what makes mission-type gating
-    binary (filtered / not) rather than the three-state ``None``/``frozenset()``/
-    ``{ids}`` branching the other 9 kinds require.
+    concrete ``frozenset[str]`` at construction time -- read directly from the
+    provisioned ``mission_type_activations`` key, with **no** implicit
+    collapse to :func:`~doctrine.missions.mission_type_repository.builtin_mission_type_id_set`
+    when the key is absent (WP04 removed that backfill; an absent key resolves
+    to ``frozenset()`` and construction stays total -- the fail-closed moved
+    to the create/require boundary instead of raising here). That
+    concreteness, plus this function's filtering return statement, is what
+    makes mission-type gating binary (filtered / not) rather than the
+    three-state ``None``/``frozenset()``/``{ids}`` branching the other 9
+    kinds require.
 
     What this mission actually did here: it **verified** the gate was live (by
     reverting this module to its pre-mission state and confirming the mission's

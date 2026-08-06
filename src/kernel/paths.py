@@ -16,6 +16,29 @@ from pathlib import Path, PurePath, PurePosixPath
 
 from kernel.sibling_paths import SiblingPathNotFound, resolve_installed_sibling
 
+#: Environment variable naming the pack root (default- or operator-supplied).
+#: Read here, at the kernel floor, so built-in-pack-root resolution has exactly
+#: ONE ``SPEC_KITTY_PACKS_ROOT`` read (FR-001/DR-1); every layer above --
+#: the ``get_package_asset_root`` door here and ``doctrine.pack_paths`` -- must
+#: delegate to :func:`get_built_in_pack_root` rather than forking a second read.
+_PACKS_ROOT_ENV = "SPEC_KITTY_PACKS_ROOT"
+
+#: Environment variable naming a template/asset-copy root (CI/testing). Still
+#: honoured for the asset-copy/template path, but only when ``PACKS_ROOT`` is
+#: not governing pack-root location (C-R3): ``PACKS_ROOT`` wins for *location*.
+_TEMPLATE_ROOT_ENV = "SPEC_KITTY_TEMPLATE_ROOT"
+
+#: The fixed ``built-in`` pack directory name, both as the child of a
+#: ``PACKS_ROOT`` override and as the ``packs/built-in`` sibling segment.
+_BUILT_IN_DIR_NAME = "built-in"
+
+#: Fail-closed message when no package mission assets can be located. Kept as a
+#: module constant so the door's two closed-error branches speak with one voice.
+_MISSION_ASSETS_NOT_FOUND_MSG = (
+    "Cannot locate package mission assets. "
+    "Set SPEC_KITTY_TEMPLATE_ROOT or reinstall spec-kitty-cli."
+)
+
 
 def _is_windows() -> bool:
     """Return True when running on Windows."""
@@ -85,7 +108,21 @@ _MISSION_ASSETS_DIR_NAME = "missions"
 #: named "missions" one ancestor level up from ``src/doctrine/missions``
 #: itself, it is just the wrong (data-less) one. A fully-qualified pattern
 #: naming ``packs/built-in/missions`` structurally cannot make that mistake.
-_MISSION_ASSETS_SIBLING_PATTERN = PurePosixPath("packs") / "built-in" / _MISSION_ASSETS_DIR_NAME
+#:
+#: PUBLIC (exported via ``kernel.__all__``): the ``packs/built-in`` sibling
+#: shape used by :func:`get_built_in_pack_root` to locate the built-in pack
+#: root, and the single owner of that shape (FR-012 / C-R1) so
+#: ``doctrine.pack_paths`` delegates to a public kernel symbol rather than
+#: forking the literal. Built with the multi-argument ``PurePosixPath``
+#: constructor (not ``/`` joins) so the shape is a single owned constant, not a
+#: scattered ``<path> / "built-in"`` filesystem-join literal.
+BUILT_IN_PACK_SIBLING_PATTERN = PurePosixPath("packs", _BUILT_IN_DIR_NAME)
+
+#: PUBLIC: the full ``packs/built-in/missions`` sibling shape -- the built-in
+#: pack pattern above composed with the ``missions`` leaf. The one owned
+#: composition every consumer (this module's ancestor walk; WP02's
+#: ``doctrine.missions.repository``) reuses instead of re-spelling the literal.
+MISSION_ASSETS_SIBLING_PATTERN = BUILT_IN_PACK_SIBLING_PATTERN / _MISSION_ASSETS_DIR_NAME
 
 #: The relative shape used only by :func:`_resolve_env_root` below, globbed
 #: directly against a caller-supplied ``SPEC_KITTY_TEMPLATE_ROOT`` checkout
@@ -93,9 +130,16 @@ _MISSION_ASSETS_SIBLING_PATTERN = PurePosixPath("packs") / "built-in" / _MISSION
 #: sits *two* levels above the sibling package's missions dir
 #: (``<root>/src/<pkg>/missions``), unlike the primitive's own anchor (this
 #: module's file, one level below ``src/``), so this candidate needs the
-#: ``src/`` segment that :data:`_MISSION_ASSETS_SIBLING_PATTERN` above must
+#: ``src/`` segment that :data:`MISSION_ASSETS_SIBLING_PATTERN` above must
 #: not carry.
-_MISSION_ASSETS_CHECKOUT_GLOB_PATTERN = PurePosixPath("src") / "*" / _MISSION_ASSETS_DIR_NAME
+#: The editable-checkout ``src`` layout marker: the grandparent directory name
+#: a ``<root>/src/<pkg>/missions`` TEMPLATE_ROOT sits under. Owned once so the
+#: checkout glob and the sibling-scan guard in :func:`_resolve_env_root` agree.
+_SRC_LAYOUT_DIR_NAME = "src"
+
+_MISSION_ASSETS_CHECKOUT_GLOB_PATTERN = (
+    PurePosixPath(_SRC_LAYOUT_DIR_NAME) / "*" / _MISSION_ASSETS_DIR_NAME
+)
 
 
 def _looks_like_missions_root(path: Path) -> bool:
@@ -127,7 +171,7 @@ def _find_relocated_missions_ancestor(root: Path) -> Path | None:
     content-sniff is needed once a candidate is found to exist.
     """
     for ancestor in (root, *root.parents):
-        candidate = ancestor / _MISSION_ASSETS_SIBLING_PATTERN
+        candidate = ancestor / MISSION_ASSETS_SIBLING_PATTERN
         if candidate.is_dir():
             return candidate
     return None
@@ -159,7 +203,14 @@ def _resolve_env_root(root: Path) -> Path:
 
     candidates: list[Path] = [root / _MISSION_ASSETS_DIR_NAME]
     candidates.extend(sorted(root.glob(str(_MISSION_ASSETS_CHECKOUT_GLOB_PATTERN))))
-    if root.name == _MISSION_ASSETS_DIR_NAME:
+    # Sibling-package scan only for a real ``<checkout>/src/<pkg>/missions``
+    # shape (grandparent named ``src``): remap a stale sibling package's
+    # missions leaf onto the canonical one. Guarded by the grandparent name so
+    # a bare ``<dir>/missions`` TEMPLATE_ROOT never scans its arbitrary
+    # grandparent's children (which, under a shared pytest tmp base, would
+    # non-deterministically pick an unrelated sibling ``*/missions``) -- this
+    # preserves the pre-collapse ``home.py`` behavior (behavior parity, DR-1).
+    if root.name == _MISSION_ASSETS_DIR_NAME and root.parent.parent.name == _SRC_LAYOUT_DIR_NAME:
         candidates.extend(sorted(root.parent.parent.glob(f"*/{_MISSION_ASSETS_DIR_NAME}")))
     candidates.append(root)
     for candidate in candidates:
@@ -171,31 +222,59 @@ def _resolve_env_root(root: Path) -> Path:
     )
 
 
+def get_built_in_pack_root() -> Path:
+    """Return the ``built-in`` pack root (missions included), ``PACKS_ROOT``-aware.
+
+    The single kernel-floor resolution of the built-in pack root (FR-001/FR-002,
+    DR-1). ``SPEC_KITTY_PACKS_ROOT`` -- joined with the fixed ``built-in``
+    child -- wins as the env override when it names an existing directory;
+    otherwise the shared ancestor-walk primitive
+    (:func:`kernel.sibling_paths.resolve_installed_sibling`) locates the
+    ``packs/built-in`` sibling (:data:`BUILT_IN_PACK_SIBLING_PATTERN`), covering
+    both an editable checkout and an installed wheel in one bounded walk.
+
+    Callers above this layer -- the :func:`get_package_asset_root` door here,
+    and ``doctrine.pack_paths`` (WP02) -- delegate to this one primitive rather
+    than forking a second ``SPEC_KITTY_PACKS_ROOT`` read.
+
+    Returns:
+        Path: Absolute path to the built-in pack root.
+
+    Raises:
+        SiblingPathNotFound: fail-closed when neither the env override nor the
+            ancestor walk resolves. The caller translates it -- the door to
+            ``FileNotFoundError``; ``doctrine.pack_paths`` to ``PackRootNotFound``
+            -- so kernel need not know either upward-layer error type.
+    """
+    env_value = os.environ.get(_PACKS_ROOT_ENV)
+    env_override = Path(env_value) / _BUILT_IN_DIR_NAME if env_value else None
+    return resolve_installed_sibling(
+        anchor_file=Path(__file__),
+        env_override=env_override,
+        sibling_relative_path=BUILT_IN_PACK_SIBLING_PATTERN,
+    )
+
+
 def get_package_asset_root() -> Path:
     """Return the path to the package's bundled mission assets.
 
-    Resolution order:
-    1. SPEC_KITTY_TEMPLATE_ROOT environment variable (CI/testing) -- several
-       accepted legacy shapes, see :func:`_resolve_env_root`.
-    2. The shared kernel sibling-path-resolution primitive
-       (:func:`kernel.sibling_paths.resolve_installed_sibling`): a single
-       ancestor walk that covers both an editable-checkout sibling and an
-       installed-wheel sibling (the site-packages level is always one of the
-       walked ancestors), seeking the fixed ``packs/built-in/missions`` shape
-       (:data:`_MISSION_ASSETS_SIBLING_PATTERN`) rather than a per-package
-       wildcard -- see that constant's own docstring for why a wildcard
-       pattern would self-match the now data-less ``src/doctrine/missions``
-       package directory post-relocation.
+    Resolution order (DR-1 unified resolver):
 
-    The ancestor walk in step 2 is bounded: it stops within a small, fixed
-    number of hops of a recognized ``src``/``site-packages`` boundary (or,
-    absent one, after a small fixed number of ancestors) rather than
-    climbing all the way to the filesystem root -- so a broken install fails
-    closed instead of matching an unrelated ``<ancestor>/packs/built-in/missions``
-    several levels up. Real layouts (editable checkout or installed wheel)
-    match at ancestor depth 1-2, comfortably inside the bound; see
-    :mod:`kernel.sibling_paths`'s ``resolve_installed_sibling`` docstring for
-    the walk itself and its stop-condition constants.
+    1. ``SPEC_KITTY_PACKS_ROOT`` governs pack-root *location* and wins for it
+       (C-R3): whenever it is set, the assets are ``<built-in-pack-root>/missions``
+       resolved through :func:`get_built_in_pack_root`, ahead of the retained
+       ``SPEC_KITTY_TEMPLATE_ROOT`` branch below.
+    2. ``SPEC_KITTY_TEMPLATE_ROOT`` (CI/testing), when ``PACKS_ROOT`` is not
+       governing -- several accepted legacy shapes, see :func:`_resolve_env_root`.
+    3. Otherwise the same :func:`get_built_in_pack_root` primitive locates the
+       installed ``packs/built-in`` sibling and the ``missions`` leaf is joined
+       onto it. The primitive's ancestor walk is bounded (see
+       :mod:`kernel.sibling_paths`) so a broken install fails closed instead of
+       matching an unrelated tree several levels up.
+
+    Fail-closed (C-R4 / FR-013): raises rather than returning a nonexistent
+    path, and never falls through to a legacy ``specify_cli/missions`` or
+    ``dev_root`` layout (those fallbacks are intentionally gone, DR-2).
 
     Returns:
         Path: Absolute path to the missions directory.
@@ -203,23 +282,27 @@ def get_package_asset_root() -> Path:
     Raises:
         FileNotFoundError: If no valid asset root can be found.
     """
-    # CI/testing override
-    if env_root := os.environ.get("SPEC_KITTY_TEMPLATE_ROOT"):
+    # SPEC_KITTY_TEMPLATE_ROOT still governs the asset-copy/template path, but
+    # only when PACKS_ROOT is not governing pack-root location (PACKS_ROOT-first
+    # ordering, C-R3): PACKS_ROOT wins.
+    if not os.environ.get(_PACKS_ROOT_ENV) and (env_root := os.environ.get(_TEMPLATE_ROOT_ENV)):
         root = Path(env_root)
         if root.is_dir():
             return _resolve_env_root(root)
-        raise FileNotFoundError(f"SPEC_KITTY_TEMPLATE_ROOT path does not exist: {env_root}")
+        raise FileNotFoundError(f"{_TEMPLATE_ROOT_ENV} path does not exist: {env_root}")
 
     try:
-        return resolve_installed_sibling(
-            anchor_file=Path(__file__),
-            env_override=None,
-            sibling_relative_path=_MISSION_ASSETS_SIBLING_PATTERN,
-        )
+        pack_root = get_built_in_pack_root()
     except SiblingPathNotFound as exc:
-        raise FileNotFoundError(
-            "Cannot locate package mission assets. Set SPEC_KITTY_TEMPLATE_ROOT or reinstall spec-kitty-cli."
-        ) from exc
+        raise FileNotFoundError(_MISSION_ASSETS_NOT_FOUND_MSG) from exc
+
+    missions = pack_root / _MISSION_ASSETS_DIR_NAME
+    if missions.is_dir():
+        return missions
+    raise FileNotFoundError(
+        f"Built-in pack root {pack_root} has no {_MISSION_ASSETS_DIR_NAME!r} directory "
+        "(fail-closed: no legacy fall-through)."
+    )
 
 
 def render_runtime_path(path: Path, *, for_user: bool = True) -> str:
@@ -316,6 +399,9 @@ def repo_tree_path(file_path: Path, repo_root: Path) -> tuple[Path, str]:
 
 
 __all__ = [
+    "BUILT_IN_PACK_SIBLING_PATTERN",
+    "MISSION_ASSETS_SIBLING_PATTERN",
+    "get_built_in_pack_root",
     "get_kittify_home",
     "get_package_asset_root",
     "render_runtime_path",

@@ -53,8 +53,15 @@ def _git(repo: Path, *args: str) -> None:
 
 
 def _init_git_repo(repo: Path) -> None:
-    (repo / ".kittify").mkdir(exist_ok=True)
+    kittify_dir = repo / ".kittify"
+    kittify_dir.mkdir(exist_ok=True)
     (repo / "kitty-specs").mkdir(exist_ok=True)
+    # WP04 fail-closed (C-A1): create_mission_core requires a non-empty
+    # activated mission-type set for the default software-dev resolution
+    # exercised throughout this file.
+    (kittify_dir / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
     _git(repo, "init", "-q", "-b", _CHECKOUT_BRANCH)
     _git(repo, "config", "user.email", "test@test.com")
     _git(repo, "config", "user.name", "Test")

@@ -1,10 +1,16 @@
-"""Unit tests for ``charter.pack_context.PackContext`` (WP06, T040).
+"""Unit tests for ``charter.pack_context.PackContext`` (WP06, T040; WP04, T019/T022).
 
 Covers:
-- T040-1: ``PackContext.from_config()`` with minimal config.yaml produces
-  correct ``activated_mission_types``.
-- T040-2: ``PackContext.from_config()`` with no config.yaml returns fallback
-  PackContext with all built-in mission types.
+- T040-1: ``PackContext.from_config()`` with a provisioned config.yaml (the
+  ``mission_type_activations`` key explicitly present, as WP03 provisioning
+  writes it) produces correct ``activated_mission_types`` (C-A6 parity).
+- T040-2 (WP04 re-architecture): ``PackContext.from_config()`` with no
+  config.yaml at all -- the ``mission_type_activations`` key is genuinely
+  absent -- construction is TOTAL and returns ``frozenset()`` (never raises,
+  never the all-four built-in backfill: absent != all-four). The fail-closed
+  for an empty activation set moved to the mission-create / mission-type-use
+  boundary (``create_mission_core``); construction must stay total because
+  ``PackContext`` is built on dozens of read / compose hot paths.
 - T040-3: ``PackContext`` is immutable (``FrozenInstanceError`` on mutation).
 - T040-4: ``pack_roots`` is a ``tuple`` (not a list).
 - T040-5: ``activated_kinds`` is a ``frozenset``.
@@ -38,12 +44,24 @@ pytestmark = [pytest.mark.fast]
 # Helpers
 # ---------------------------------------------------------------------------
 
+#: A minimal but PROVISIONED config: ``mission_type_activations`` is
+#: explicitly present (as WP03 provisioning writes it for every real
+#: project), listing all four built-ins. This is the fixture used by every
+#: test in this module that exercises something OTHER than the
+#: mission-type-activation fallback itself -- since WP04 removed the
+#: config-absent backfill, an unprovisioned config now fails closed, and
+#: these unrelated tests need a config that constructs successfully.
 _MINIMAL_CONFIG = """\
 vcs:
   type: git
 agents:
   available:
     - claude
+mission_type_activations:
+  - software-dev
+  - documentation
+  - research
+  - plan
 """
 
 _CONFIG_WITH_ACTIVATIONS = """\
@@ -60,6 +78,11 @@ activated_kinds:
 _CONFIG_WITH_ORG_PACKS = """\
 vcs:
   type: git
+mission_type_activations:
+  - software-dev
+  - documentation
+  - research
+  - plan
 doctrine:
   org:
     packs:
@@ -74,13 +97,30 @@ def _write_config(tmp_path: Path, content: str) -> None:
     (kittify / "config.yaml").write_text(content, encoding="utf-8")
 
 
+#: The provisioned ``mission_type_activations`` YAML block (WP03 shape).
+#: Prepended to config fixtures below that test something OTHER than the
+#: mission-type-activation fallback itself, so ``PackContext.from_config``
+#: doesn't fail closed on an unrelated test's fixture (WP04 T020 removed
+#: the config-absent backfill).
+_PROVISIONED_MISSION_TYPES_YAML = (
+    "mission_type_activations:\n  - software-dev\n  - documentation\n  - research\n  - plan\n"
+)
+
+
 # ---------------------------------------------------------------------------
-# T040-1: from_config with minimal config → all built-in mission types
+# T040-1 / WP04 T019(a): from_config with a PROVISIONED config (key present,
+# all four built-ins) → activated_mission_types returns exactly those four.
+# This is the C-A6/NFR-003 authority parity case, measured at the activation
+# authority (PackContext), not at list_available_missions.
 # ---------------------------------------------------------------------------
 
 
-def test_from_config_minimal_config_uses_builtin_mission_types(tmp_path: Path) -> None:
-    """Minimal config.yaml with no mission_type_activations → all four built-ins."""
+def test_from_config_provisioned_with_all_builtins_returns_exactly_those_four(
+    tmp_path: Path,
+) -> None:
+    """``mission_type_activations`` present (provisioned with the four
+    built-ins) → ``activated_mission_types`` returns exactly those four --
+    no more, no fewer -- read from the explicit list, never a fallback."""
     _write_config(tmp_path, _MINIMAL_CONFIG)
 
     ctx = PackContext.from_config(tmp_path)
@@ -93,16 +133,52 @@ def test_from_config_minimal_config_uses_builtin_mission_types(tmp_path: Path) -
 
 
 # ---------------------------------------------------------------------------
-# T040-2: from_config with no config.yaml → fallback PackContext
+# T040-2 / WP04 (re-architecture): from_config with no config.yaml at all →
+# the mission_type_activations key is genuinely absent → construction is
+# TOTAL and returns ``frozenset()`` (never raises, never the all-four
+# built-in backfill). ``PackContext`` is built on dozens of read / compose
+# hot paths that must not crash on an unprovisioned project; the fail-closed
+# for an empty set moved to the mission-create / mission-type-use boundary
+# (``create_mission_core``), verified in
+# ``tests/core/test_mission_create_activation_gate.py``.
 # ---------------------------------------------------------------------------
 
 
-def test_from_config_no_config_yaml_returns_fallback(tmp_path: Path) -> None:
-    """No .kittify/config.yaml → fallback with all built-in mission types."""
-    # Don't write any config
+def test_from_config_no_config_yaml_returns_empty_not_raise(tmp_path: Path) -> None:
+    """No ``.kittify/config.yaml`` at all → ``mission_type_activations`` is
+    genuinely absent → ``activated_mission_types`` is an empty frozenset,
+    NOT a raise and NEVER the builtin roster (absent != all-four)."""
+    # Don't write any config -- the key is genuinely absent.
     ctx = PackContext.from_config(tmp_path)
 
-    assert ctx.activated_mission_types == builtin_mission_type_id_set()
+    assert ctx.activated_mission_types == frozenset()
+    assert isinstance(ctx.activated_mission_types, frozenset)
+
+
+def test_from_config_explicit_empty_mission_type_list_returns_empty(
+    tmp_path: Path,
+) -> None:
+    """An explicit empty list (``mission_type_activations: []``, C-008) reads
+    as ``frozenset()`` -- the SAME total outcome as an absent key. Neither
+    shape backfills the built-in roster, and neither raises at construction.
+    """
+    _write_config(tmp_path, "vcs:\n  type: git\nmission_type_activations: []\n")
+
+    ctx = PackContext.from_config(tmp_path)
+
+    assert ctx.activated_mission_types == frozenset()
+
+
+def test_from_config_provisioned_minimal_config_other_defaults_unchanged(
+    tmp_path: Path,
+) -> None:
+    """Scope guard: a provisioned-but-otherwise-minimal config still defaults
+    ``activated_kinds``/``org_pack_names``/``repo_root`` the same way as
+    before -- only the ``mission_type_activations`` fallback changed."""
+    _write_config(tmp_path, _MINIMAL_CONFIG)
+
+    ctx = PackContext.from_config(tmp_path)
+
     assert ctx.activated_kinds == _BUILTIN_ARTIFACT_KINDS
     assert ctx.org_pack_names == ()
     assert ctx.repo_root == tmp_path
@@ -115,6 +191,7 @@ def test_from_config_no_config_yaml_returns_fallback(tmp_path: Path) -> None:
 
 def test_pack_context_is_immutable(tmp_path: Path) -> None:
     """Attempting to set a field raises FrozenInstanceError."""
+    _write_config(tmp_path, _MINIMAL_CONFIG)
     ctx = PackContext.from_config(tmp_path)
 
     with pytest.raises(dataclasses.FrozenInstanceError):
@@ -153,6 +230,7 @@ def test_pack_roots_contains_builtin_root(tmp_path: Path) -> None:
 
 def test_activated_kinds_is_frozenset(tmp_path: Path) -> None:
     """activated_kinds must be a frozenset."""
+    _write_config(tmp_path, _MINIMAL_CONFIG)
     ctx = PackContext.from_config(tmp_path)
 
     assert isinstance(ctx.activated_kinds, frozenset)
@@ -246,6 +324,7 @@ def test_org_pack_names_and_roots_populated(tmp_path: Path) -> None:
 
 def test_repo_root_is_stored(tmp_path: Path) -> None:
     """repo_root field is set to the provided repo_root."""
+    _write_config(tmp_path, _MINIMAL_CONFIG)
     ctx = PackContext.from_config(tmp_path)
 
     assert ctx.repo_root == tmp_path
@@ -258,6 +337,7 @@ def test_repo_root_is_stored(tmp_path: Path) -> None:
 
 def test_activated_mission_types_is_frozenset(tmp_path: Path) -> None:
     """activated_mission_types must be a frozenset."""
+    _write_config(tmp_path, _MINIMAL_CONFIG)
     ctx = PackContext.from_config(tmp_path)
 
     assert isinstance(ctx.activated_mission_types, frozenset)
@@ -284,11 +364,11 @@ def test_activated_kinds_empty_list_returns_frozenset_not_builtin_fallback(
     tmp_path: Path,
 ) -> None:
     """FR-039 regression: [] must produce frozenset(), not built-in fallback."""
-    content = """\
+    content = f"""\
 vcs:
   type: git
 activated_kinds: []
-"""
+{_PROVISIONED_MISSION_TYPES_YAML}"""
     _write_config(tmp_path, content)
     ctx = PackContext.from_config(tmp_path)
 
@@ -311,11 +391,11 @@ def test_activated_directives_absent_returns_none(tmp_path: Path) -> None:
 
 def test_activated_directives_empty_list_returns_empty_frozenset(tmp_path: Path) -> None:
     """[] → frozenset() (explicitly nothing activated)."""
-    content = """\
+    content = f"""\
 vcs:
   type: git
 activated_directives: []
-"""
+{_PROVISIONED_MISSION_TYPES_YAML}"""
     _write_config(tmp_path, content)
     ctx = PackContext.from_config(tmp_path)
 
@@ -324,13 +404,13 @@ activated_directives: []
 
 def test_activated_directives_populated_returns_frozenset(tmp_path: Path) -> None:
     """Non-empty list → frozenset of IDs."""
-    content = """\
+    content = f"""\
 vcs:
   type: git
 activated_directives:
   - dir-001
   - dir-002
-"""
+{_PROVISIONED_MISSION_TYPES_YAML}"""
     _write_config(tmp_path, content)
     ctx = PackContext.from_config(tmp_path)
 
@@ -354,11 +434,11 @@ def test_activated_agent_profiles_empty_list_returns_empty_frozenset(
     tmp_path: Path,
 ) -> None:
     """[] → frozenset() (explicitly nothing activated)."""
-    content = """\
+    content = f"""\
 vcs:
   type: git
 activated_agent_profiles: []
-"""
+{_PROVISIONED_MISSION_TYPES_YAML}"""
     _write_config(tmp_path, content)
     ctx = PackContext.from_config(tmp_path)
 
@@ -367,13 +447,13 @@ activated_agent_profiles: []
 
 def test_activated_agent_profiles_populated_returns_frozenset(tmp_path: Path) -> None:
     """Non-empty list → frozenset of IDs."""
-    content = """\
+    content = f"""\
 vcs:
   type: git
 activated_agent_profiles:
   - python-pedro
   - reviewer-renata
-"""
+{_PROVISIONED_MISSION_TYPES_YAML}"""
     _write_config(tmp_path, content)
     ctx = PackContext.from_config(tmp_path)
 
@@ -390,7 +470,10 @@ def test_packcontext_has_all_eleven_activated_fields(tmp_path: Path) -> None:
     _write_config(tmp_path, _MINIMAL_CONFIG)
     ctx = PackContext.from_config(tmp_path)
 
-    # Existing fields (no key absent → built-in fallback for these two)
+    # Existing fields: activated_kinds still defaults when its key is absent
+    # (a different, out-of-scope contract); activated_mission_types is read
+    # from the explicit provisioned list in _MINIMAL_CONFIG (WP04: no
+    # implicit backfill any more when the key is genuinely absent).
     assert ctx.activated_kinds is not None
     assert ctx.activated_mission_types is not None
 
@@ -413,11 +496,11 @@ def test_packcontext_has_all_eleven_activated_fields(tmp_path: Path) -> None:
 
 def test_activated_directives_malformed_value_raises(tmp_path: Path) -> None:
     """A non-list value for activated_directives must not fail open."""
-    content = """\
+    content = f"""\
 vcs:
   type: git
 activated_directives: not-a-list
-"""
+{_PROVISIONED_MISSION_TYPES_YAML}"""
     _write_config(tmp_path, content)
 
     with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID"):
@@ -426,11 +509,11 @@ activated_directives: not-a-list
 
 def test_activated_tactics_malformed_value_raises(tmp_path: Path) -> None:
     """A non-list value for activated_tactics must not fail open."""
-    content = """\
+    content = f"""\
 vcs:
   type: git
 activated_tactics: 42
-"""
+{_PROVISIONED_MISSION_TYPES_YAML}"""
     _write_config(tmp_path, content)
 
     with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID"):
@@ -476,15 +559,15 @@ def test_from_config_unset_pack_env_var_propagates_fail_closed(
     from doctrine.drg.org_pack_config import OrgPackEnvVarUnsetError  # noqa: PLC0415
 
     monkeypatch.delenv("SPEC_KITTY_PACK_HOME_FIXTURE_UNSET", raising=False)
-    content = """\
+    content = f"""\
 vcs:
   type: git
 doctrine:
   org:
     packs:
       - name: acme-pack
-        local_path: ${SPEC_KITTY_PACK_HOME_FIXTURE_UNSET}/acme-pack
-"""
+        local_path: ${{SPEC_KITTY_PACK_HOME_FIXTURE_UNSET}}/acme-pack
+{_PROVISIONED_MISSION_TYPES_YAML}"""
     _write_config(tmp_path, content)
 
     with pytest.raises(OrgPackEnvVarUnsetError):
@@ -518,7 +601,7 @@ doctrine:
       - name: acme-pack
         local_path: {pack_root}
         subdir: escape
-"""
+{_PROVISIONED_MISSION_TYPES_YAML}"""
     _write_config(tmp_path, content)
 
     with pytest.raises(OrgPackSubdirEscapeError):

@@ -22,9 +22,10 @@ from charter.interview import (
     LocalSupportDeclaration,
     validate_local_support_declarations,
 )
+from charter.default_pack import load_default_pack_activation_ids
 from charter.kind_vocabulary import ArtifactKind, resolve_artifact_urn
 from charter.language_scope import extract_declared_languages
-from charter.pack_context import PackContext
+from charter.pack_context import CharterPackConfigError, PackContext
 from charter.resolver import DEFAULT_TOOL_REGISTRY
 from charter.schemas import (
     CharterCatalog,
@@ -43,9 +44,16 @@ __all__ = [
     "CompiledCharter",
     "WriteBundleResult",
     "compile_charter",
+    "provision_mission_type_activations",
     "resolve_config_activated_roots",
     "write_compiled_charter",
 ]
+
+#: The flat charter/config activation key that WP04 (charter-activation-
+#: authority) made mandatory for ``PackContext.from_config``. The
+#: ``mission-type`` charter kind is the documented outlier that does not follow
+#: the ``activated_<plural>`` pattern (see ``pack_manager.YAML_KEY_MAP``).
+_MISSION_TYPE_ACTIVATIONS_KEY = "mission_type_activations"
 # NOTE: ``ConfigActivatedRoots`` is intentionally NOT public API -- it is the
 # return type of ``resolve_config_activated_roots`` but every real caller
 # (e.g. ``specify_cli.cli.commands.charter._synthesis``) consumes the
@@ -492,7 +500,80 @@ def write_compiled_charter(
             charter_yaml_path, catalog=catalog, metadata=metadata, repo_root=repo_root
         )
 
+    # WP04 (charter-activation-authority): the generated charter is the SOLE
+    # mission-type activation authority, so generation MUST emit
+    # ``mission_type_activations`` — otherwise the freshly written charter offers
+    # NO mission types (construction reads an empty set; mission-CREATE then
+    # fails closed against it). Additive and
+    # idempotent: a charter that already carries the key (from the config-verbatim
+    # bootstrap copy, a custom set, or an explicit ``[]`` opt-out) is untouched;
+    # only an absent key is seeded from the built-in set. Skipped when there is
+    # no project root to resolve the activation authority against.
+    if repo_root is not None:
+        provision_mission_type_activations(repo_root)
+
     return WriteBundleResult(files_written=["charter.yaml"])
+
+
+def provision_mission_type_activations(repo_root: Path) -> bool:
+    """Ensure the activation authority carries ``mission_type_activations``.
+
+    WP04 (charter-activation-authority) made the provisioned charter the SOLE
+    mission-type activation authority. Construction
+    (:meth:`PackContext.from_config`) returns an EMPTY set when the key is
+    absent (no all-four backfill); the fail-closed fires at the mission-CREATE
+    boundary (``create_mission_core`` — a mission needs >=1 activated type).
+    The charter *generation* path emits the key so a generated/pointer charter
+    actually offers its mission types, mirroring the built-in
+    ``activated_<kind>`` keys.
+
+    Additive and idempotent (charter contract C-A2): the built-in mission-type
+    set authored in ``src/charter/packs/default.yaml`` is written ONLY when the
+    key is entirely absent from the activation authority. An already-present
+    list — a custom set or an explicit ``[]`` fail-closed opt-out — is left
+    untouched.
+
+    The write routes through
+    :func:`charter.pack_manager.resolve_activation_write_target` (the single
+    write-side authority resolver, INV-2/INV-5/INV-9): for a migrated project
+    (``config.yaml`` ``charter:`` pointer present) the target is the pointed-at
+    ``charter.yaml`` and only its flat activation keys are touched; for a legacy
+    project the target is ``config.yaml`` itself. That resolver never constructs
+    a :class:`PackContext`, so provisioning does NOT re-trigger the fail-closed
+    read it exists to repair (the WP04 chicken-and-egg where every
+    ``PackContext``-building command refuses to run on an unprovisioned charter).
+
+    Returns ``True`` when the key was written, ``False`` when provisioning was a
+    no-op because the key was already present.
+
+    Raises
+    ------
+    CharterPackConfigError
+        When the shipped default pack declares no ``mission_type_activations``
+        set (a broken install) — fail-closed rather than seeding an empty,
+        equally-unusable list.
+    """
+    # Lazy import breaks the ``pack_manager`` <-> ``compiler`` cycle (mirrors
+    # :func:`_legacy_activation_keys`).
+    from charter.pack_manager import resolve_activation_write_target  # noqa: PLC0415
+
+    target_path, data, save = resolve_activation_write_target(repo_root)
+    if _MISSION_TYPE_ACTIVATIONS_KEY in data:
+        return False
+
+    builtin = load_default_pack_activation_ids().get(_MISSION_TYPE_ACTIVATIONS_KEY, [])
+    if not builtin:
+        raise CharterPackConfigError(
+            "The shipped default charter pack "
+            "(src/charter/packs/default.yaml) declares no "
+            "'mission_type_activations' set; cannot provision the mission-type "
+            "activation authority. Reinstall spec-kitty or run `spec-kitty "
+            "upgrade` to restore the default charter pack."
+        )
+
+    data[_MISSION_TYPE_ACTIVATIONS_KEY] = list(builtin)
+    save(target_path, data)
+    return True
 
 
 def _build_catalog_dict(compiled: CompiledCharter) -> dict[str, Any]:

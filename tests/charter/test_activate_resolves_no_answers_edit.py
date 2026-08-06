@@ -72,7 +72,9 @@ def project_root(tmp_path: Path) -> Path:
         "activated_paradigms: []\n"
         "activated_procedures: []\n"
         "activated_agent_profiles: []\n"
-        "activated_mission_step_contracts: []\n",
+        "activated_mission_step_contracts: []\n"
+        "mission_type_activations:\n"
+        "  - software-dev\n",
         encoding="utf-8",
     )
     return tmp_path

@@ -62,6 +62,30 @@ def _write_charter_files(
     }
     with (charter_dir / "charter.yaml").open("w", encoding="utf-8") as fh:
         yaml.dump(document, fh)
+    # ``mission_type_activations`` is unrelated to the governance/directives
+    # resolution this module pins, but WP04 (C-A1) made it a hard
+    # construction precondition for ``PackContext.from_config`` -- callers of
+    # ``resolve_project_governance``/``collect_governance_diagnostics``
+    # construct a ``PackContext`` internally to read ``activated_directives``,
+    # so every fixture built by this helper needs the key provisioned. There
+    # is no ``charter:`` pointer in this fixture's config.yaml, so activation
+    # is read directly from config.yaml (the legacy/un-migrated path) --
+    # this key lands there, not in charter.yaml.
+    #
+    # Unlike ``charter.yaml`` above (deliberately written at the CANONICAL
+    # root for FR-010 worktree transparency), ``PackContext.from_config``
+    # reads ``.kittify/config.yaml`` from its ``repo_root`` argument
+    # literally, with no canonical-root resolution of its own. Several
+    # callers in this file pass ``root`` as a *subdirectory* of the
+    # conftest-git-initialized ``tmp_path`` (e.g. ``tmp_path / "repo"``,
+    # which resolves to a DIFFERENT canonical root than ``root`` itself) and
+    # then call ``resolve_project_governance(root)`` with that same literal
+    # subdirectory -- so this key must be written at ``root``, not
+    # ``canonical_root``, or ``PackContext.from_config`` will not find it.
+    config_path = root / ".kittify" / "config.yaml"
+    if not config_path.exists():
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
     return charter_dir
 
 

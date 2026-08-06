@@ -76,8 +76,13 @@ def _init_project(tmp_path: Path) -> Path:
     # destination from the checked-out HEAD) can persist locally. T009 proves
     # topology survival through implement+merge, NOT protected-branch policy; the
     # generic legacy-no-coord done-marking is already covered by the merge suite.
+    # WP04 fail-closed (C-A1): create_mission_core (invoked via `specify`) requires
+    # a non-empty activated mission-type set; this fixture's missions are all
+    # created with the default software-dev type.
     (kittify / "config.yaml").write_text(
-        "project_slug: topology-fixture\nprotection:\n  protected_branches: []\n",
+        "project_slug: topology-fixture\n"
+        "protection:\n  protected_branches: []\n"
+        "mission_type_activations:\n  - software-dev\n",
         encoding="utf-8",
     )
     (repo / "kitty-specs").mkdir()

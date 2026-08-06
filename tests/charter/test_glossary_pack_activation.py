@@ -59,7 +59,14 @@ class TestGlossaryPackDefaultOnEndToEnd:
         all still yields ``activated_kinds == _BUILTIN_ARTIFACT_KINDS``
         (backward-compat default), which must now include
         ``glossary_packs`` for the built-in pack to survive the filter.
+
+        A minimal ``config.yaml`` carrying ONLY ``mission_type_activations``
+        is written here -- WP04 (C-A1) fail-closes ``from_config`` on that
+        key's absence regardless of ``activated_kinds``, which this test
+        does not exercise; no ``activated_kinds`` key is written, so the
+        default-on behaviour under test is untouched.
         """
+        _write_config(tmp_path, "mission_type_activations:\n  - software-dev\n")
         pack_context = PackContext.from_config(tmp_path)
         graph = load_built_in_graph()
         filtered = filter_graph_by_activation(graph, pack_context)
@@ -81,7 +88,8 @@ class TestGlossaryPackDefaultOnEndToEnd:
         """
         _write_config(
             tmp_path,
-            "vcs:\n  type: git\nagents:\n  available:\n    - claude\n",
+            "vcs:\n  type: git\nagents:\n  available:\n    - claude\n"
+            "mission_type_activations:\n  - software-dev\n",
         )
         pack_context = PackContext.from_config(tmp_path)
         assert "glossary_packs" in pack_context.activated_kinds
@@ -105,7 +113,8 @@ class TestGlossaryPackDefaultOnEndToEnd:
         """
         _write_config(
             tmp_path,
-            "vcs:\n  type: git\nactivated_kinds:\n  - directives\n  - tactics\n",
+            "vcs:\n  type: git\nactivated_kinds:\n  - directives\n  - tactics\n"
+            "mission_type_activations:\n  - software-dev\n",
         )
         pack_context = PackContext.from_config(tmp_path)
         assert "glossary_packs" not in pack_context.activated_kinds
@@ -146,7 +155,9 @@ class TestGlossaryPackCascadeIsGeneric:
     def project_root(self, tmp_path: Path) -> Path:
         kittify = tmp_path / ".kittify"
         kittify.mkdir()
-        (kittify / "config.yaml").write_text("# empty config\n", encoding="utf-8")
+        (kittify / "config.yaml").write_text(
+            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+        )
         return tmp_path
 
     def test_activate_glossary_pack_with_cascade_all_writes_config(

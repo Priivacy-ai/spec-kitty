@@ -103,8 +103,15 @@ def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
 
 
 def _init_git_repo(repo: Path, *, branch: str = "main") -> None:
-    (repo / ".kittify").mkdir(parents=True, exist_ok=True)
+    kittify_dir = repo / ".kittify"
+    kittify_dir.mkdir(parents=True, exist_ok=True)
     (repo / "kitty-specs").mkdir(parents=True, exist_ok=True)
+    # WP04 fail-closed (C-A1): create_mission_core requires a non-empty
+    # activated mission-type set; every mission this fixture creates is
+    # software-dev (see _create_mission).
+    (kittify_dir / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
     subprocess.run(["git", "init", "-b", branch], cwd=repo, capture_output=True, check=True)
     _git(repo, "config", "user.email", "golden-path@spec-kitty.test")
     _git(repo, "config", "user.name", "Golden Path Fixture")

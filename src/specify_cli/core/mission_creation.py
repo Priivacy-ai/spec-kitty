@@ -274,6 +274,12 @@ def create_mission_core(
     ------
     MissionCreationError
         On any validation or creation failure.
+    charter.pack_context.CharterPackConfigError
+        When the project has no activated mission types (an absent or empty
+        ``mission_type_activations`` set). This is the WP04 fail-closed at the
+        mission-create / mission-type-use boundary: ``PackContext``
+        construction is total, so the "provision your charter" error is
+        raised here rather than at construction time.
     specify_cli.runtime.resolver.TemplateConfigurationError
         If the activated mission type cannot resolve its configured ``spec``
         template. Resolution happens before any mission state is created.
@@ -340,8 +346,34 @@ def create_mission_core(
     # Resolve the activated mission's specification template before creating
     # any mission state. A configuration failure must not leave a directory,
     # metadata, or lifecycle events that look like a successful creation.
-    from charter.mission_type_profiles import resolve_mission_type_context
+    from charter.mission_type_profiles import (
+        existing_mission_types,
+        resolve_mission_type_context,
+    )
+    from charter.pack_context import CharterPackConfigError
     from specify_cli.runtime.resolver import resolve_configured_template
+
+    # Fail-closed at the mission-create / mission-type-use boundary (WP04
+    # re-architecture): ``PackContext`` construction is now total (an absent
+    # or empty ``mission_type_activations`` key reads as ``frozenset()``
+    # without raising, so the dozens of read / compose hot paths never crash).
+    # The actionable "provision your charter" error therefore fires HERE, at
+    # the narrowest funnel every mission-create path passes through (the CLI
+    # ``agent mission create`` command, the ticket-first ``tracker`` flow, and
+    # the ``make_mission`` test factory all call this function). A project
+    # with an EMPTY activated set -- whether the key is absent or an authored
+    # ``[]`` -- cannot host a mission: a mission requires at least one
+    # activated mission type. Read/gating callers of ``existing_mission_types``
+    # keep returning empty WITHOUT raising; only this require boundary raises.
+    if not existing_mission_types(resolved_root):
+        raise CharterPackConfigError(
+            "This project has no activated mission types, so a mission cannot "
+            "be created. A mission requires at least one activated mission "
+            "type. Provision the project's charter: run `spec-kitty init` "
+            "(new project) or `spec-kitty upgrade` (existing project), or add a "
+            "non-empty `mission_type_activations` list to .kittify/config.yaml "
+            "(or the charter.yaml it points to)."
+        )
 
     selected_mission_type = mission or "software-dev"
     mission_type_context = resolve_mission_type_context(

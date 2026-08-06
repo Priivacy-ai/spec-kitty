@@ -106,12 +106,32 @@ def _configure_org_pack(repo_root: Path, org_root: Path) -> None:
     )
 
 
+def _configure_provisioned_activation(repo_root: Path) -> None:
+    """Write the minimal ``mission_type_activations`` key WP04 now requires.
+
+    ``PackContext.from_config`` (WP04, C-A1) fails closed when this key is
+    absent from ``.kittify/config.yaml`` -- unrelated to the gated-property
+    axes this module actually exercises. No other activation key is written,
+    so every OTHER gated property's ``PackContext.activated_*`` field stays
+    the bare-project ``None`` ("admit all") the tests below depend on.
+    """
+    _write_yaml(
+        repo_root / ".kittify" / "config.yaml",
+        {"mission_type_activations": ["software-dev"]},
+    )
+
+
 @pytest.fixture()
 def repo_root(tmp_path: Path) -> Path:
     """A repo root exercising BOTH former call sites' fuller-behaviour axes."""
     root = tmp_path / "repo"
     root.mkdir()
     _configure_language_diverse_fixture(root)
+    # Must run BEFORE ``_configure_org_pack``: ``save_pack_registry`` merges
+    # into an existing ``config.yaml`` (reads-then-writes), whereas this
+    # helper's ``_write_yaml`` call replaces the file outright -- reversing
+    # the order would silently drop the org-pack registration.
+    _configure_provisioned_activation(root)
     _configure_org_pack(root, tmp_path / "org")
     return root
 
@@ -277,8 +297,14 @@ def test_bare_project_admits_language_scoped_builtin_profiles(tmp_path: Path) ->
     """
     bare_root = tmp_path / "bare-project"
     bare_root.mkdir()
-    # Deliberately no ``.kittify`` directory at all: no compiled charter, no
-    # interview transcript -- the "truly nothing configured yet" case.
+    # Deliberately no compiled charter, no interview transcript -- the "truly
+    # nothing configured yet" case for the active-language signal this test
+    # exercises. WP04 (C-A1) now fail-closes ``PackContext.from_config`` on
+    # any repo_root lacking ``mission_type_activations``, so a minimal
+    # ``config.yaml`` carrying ONLY that key is provisioned here -- it does
+    # not touch the charter.yaml / interview-transcript axes this test is
+    # actually about.
+    _configure_provisioned_activation(bare_root)
 
     service = charter_builder(bare_root)
     catalog_ids = set(service.agent_profiles)

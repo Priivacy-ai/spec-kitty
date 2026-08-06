@@ -51,7 +51,18 @@ def project_root(tmp_path: Path) -> Path:
 
 @pytest.fixture()
 def ctx(project_root: Path) -> ProjectContext:
-    return ProjectContext.from_repo(project_root)
+    """ProjectContext built from the minimal project root.
+
+    Uses the direct constructor rather than ``ProjectContext.from_repo`` --
+    ``CharterPackManager`` only ever calls ``ctx.require_repo_root()``
+    (``pack_context`` is never read), and ``from_repo`` eagerly resolves
+    ``PackContext.from_config()``, which now hard-fails (WP04, C-A1) when
+    ``mission_type_activations`` is absent from config.yaml. These tests
+    intentionally exercise a bare/near-bare config.yaml, so building the
+    full pack context here would force an unrelated mission-type activation
+    key onto every fixture.
+    """
+    return ProjectContext(repo_root=project_root)
 
 
 @pytest.fixture()
@@ -285,7 +296,7 @@ class TestActivationDelegation:
         config.write_text(
             "activated_directives:\n  - keep-me\n  - drop-me\n", encoding="utf-8"
         )
-        ctx = ProjectContext.from_repo(project_root)
+        ctx = ProjectContext(repo_root=project_root)
         result = manager.deactivate(ctx, kind="directive", artifact_id="drop-me")
         assert "drop-me" in result.deactivated
         data = yaml.safe_load(config.read_text())

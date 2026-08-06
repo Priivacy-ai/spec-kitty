@@ -74,13 +74,19 @@ def test_home_dev_roots_fallback_matches_promoted_authority(
 
 
 def test_home_dev_roots_tuple_first_entry_is_the_promoted_authority() -> None:
-    """Direct unit pin: the retargeted literal is gone from ``home.py`` source.
+    """Direct unit pin: ``home.py`` delegates to the single resolution authority.
 
-    Complements the behavioral test above with a structural check that the
-    old ``Path(__file__).parents[2] / "doctrine" / "missions"`` literal was
-    actually replaced (not merely shadowed by an earlier resolution step
-    that happened to return the same value).
+    Complements the behavioral test above with a structural check that
+    ``home.py`` reconstructs nothing itself. Updated for mission
+    ``resolution-activation-foundation`` WP01 (DR-1/DR-2): ``home.py`` collapsed
+    from a second resolver (which called
+    ``MissionTemplateRepository.default_missions_root()`` inside its own
+    ``dev_roots`` fallback) into a thin delegate to the ONE canonical door,
+    ``kernel.paths.get_package_asset_root()``. The old
+    ``Path(__file__).parents[2] / "doctrine" / "missions"`` literal stays gone;
+    the doctrine-repository call it once carried is now equally gone -- home
+    no longer reaches doctrine at all, it delegates to the kernel authority.
     """
     source = Path(home_module.__file__).read_text(encoding="utf-8")
     assert 'Path(__file__).parents[2] / "doctrine" / "missions"' not in source
-    assert "MissionTemplateRepository.default_missions_root()" in source
+    assert "kernel.paths.get_package_asset_root()" in source

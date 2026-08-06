@@ -123,7 +123,9 @@ def _write_all_kinds_empty_config(consumer: Path) -> Path:
         "activated_paradigms: []\n"
         "activated_procedures: []\n"
         "activated_agent_profiles: []\n"
-        "activated_mission_step_contracts: []\n",
+        "activated_mission_step_contracts: []\n"
+        "mission_type_activations:\n"
+        "  - software-dev\n",
         encoding="utf-8",
     )
     return config_path
@@ -237,8 +239,17 @@ class TestOrgRequiredPromotedIntoConfig:
         )
         consumer = tmp_path / "consumer"
         consumer.mkdir()
-        # No activated_* keys at all -- the absent-key state.
-        _write_consumer_config(consumer, [("pack", pack)])
+        # No activated_<kind> keys at all -- the absent-key state under
+        # test. ``mission_type_activations`` is preseeded (an unrelated
+        # key) purely so the later ``PackContext.from_config`` round-trip
+        # below doesn't hard-fail (WP04, C-A1) -- it has no bearing on the
+        # absent-key ``activated_directives`` builtin-preservation
+        # assertion this test exists to pin.
+        _write_consumer_config(
+            consumer,
+            [("pack", pack)],
+            preseed={"mission_type_activations": ["software-dev"]},
+        )
 
         apply_org_charter_to_interview(_Interview(), consumer)
 
@@ -314,8 +325,17 @@ class TestOrgRequiredIdFormNormalizedBeforePromotion:
         # ambiguity (an explicitly-empty preseed round-trips as a null
         # scalar, which the absent-key LAND-BLOCKER safety materializes
         # every built-in for -- orthogonal to what this test pins down).
+        # ``mission_type_activations`` is preseeded so the ``PackContext.
+        # from_config`` round-trip below doesn't hard-fail (WP04, C-A1);
+        # it is unrelated to the directive-stem-normalization behavior
+        # under test.
         _write_consumer_config(
-            consumer, [("pack", pack)], preseed={"activated_directives": ["project-pinned"]}
+            consumer,
+            [("pack", pack)],
+            preseed={
+                "activated_directives": ["project-pinned"],
+                "mission_type_activations": ["software-dev"],
+            },
         )
 
         apply_org_charter_to_interview(_Interview(), consumer)

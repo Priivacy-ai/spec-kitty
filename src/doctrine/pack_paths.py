@@ -6,20 +6,25 @@ filesystem root of a doctrine pack tier. ``packs/built-in/`` is deliberately
 -- so a package-relative :func:`importlib.resources.files` lookup cannot
 address it. A filesystem walk is required instead.
 
-Resolution order for the ``built-in`` tier (delegated to the shared kernel
-sibling-path-resolution primitive, :func:`kernel.sibling_paths.resolve_installed_sibling`
--- FR-004, mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``):
+Resolution order for the ``built-in`` tier (delegated wholesale to the kernel
+floor primitive, :func:`kernel.paths.get_built_in_pack_root` -- FR-001/FR-004,
+mission ``resolution-activation-foundation-01KZ9FKG``, WP02): this module no
+longer forks its own ``SPEC_KITTY_PACKS_ROOT`` read or ancestor-walk call --
+:func:`kernel.paths.get_built_in_pack_root` owns the entire three-step order
+below, and every layer above it (this module's :func:`_resolve_built_in`, and
+``doctrine.missions.repository.default_missions_root``) delegates to that one
+primitive (DR-1):
 
 1. ``SPEC_KITTY_PACKS_ROOT`` environment override -> ``<env>/built-in`` if it
    exists.
-2. Ancestor walk: the nearest ancestor of this module's resolved location that
-   contains ``packs/built-in/``. ``Path(__file__).resolve()`` is called
-   **before** iterating ``.parents`` so that symlinked editable installs still
-   walk up the real repository tree rather than the symlink's parent. This
-   single walk covers both the editable-checkout case and the installed-wheel
-   case: ``packs/`` ships as a site-packages sibling of every top-level
-   package (hatch ``force-include``), including this module's own containing
-   package, and the site-packages directory is always one of
+2. Ancestor walk: the nearest ancestor of :mod:`kernel.paths`'s resolved
+   location that contains ``packs/built-in/``. ``Path(__file__).resolve()``
+   is called **before** iterating ``.parents`` so that symlinked editable
+   installs still walk up the real repository tree rather than the symlink's
+   parent. This single walk covers both the editable-checkout case and the
+   installed-wheel case: ``packs/`` ships as a site-packages sibling of every
+   top-level package (hatch ``force-include``), including ``kernel``'s own
+   containing package, and the site-packages directory is always one of
    ``Path(__file__).resolve()``'s ancestors -- so there is no separate
    "installed wheel" probe distinct from this walk.
 3. Otherwise the primitive's own :class:`~kernel.sibling_paths.SiblingPathNotFound`
@@ -40,10 +45,10 @@ should compose its own ``resolve_pack_root("built-in") / ...`` join.
 
 Layer note (C-004): doctrine sits below charter/specify_cli in the dependency
 graph and must not import upward. This module imports only the standard
-library (``os``, ``pathlib``, :func:`importlib.resources.files`) plus
+library (``pathlib``, :func:`importlib.resources.files`) plus
 :class:`~doctrine.artifact_kinds.ArtifactKind` (an in-layer sibling, itself a
-zero-dependency leaf importing only ``enum``) and
-:mod:`kernel.sibling_paths` (the root layer *below* doctrine -- a downward,
+zero-dependency leaf importing only ``enum``), :mod:`kernel.sibling_paths`,
+and :mod:`kernel.paths` (the root layer *below* doctrine -- a downward,
 allowed import per ``kernel (root) <- doctrine <- charter <- specify_cli``)
 -- so this stays import-cycle-safe. The ``files("doctrine")`` call inside
 :func:`doctrine_package_dir` is an in-layer self-reference and is made lazily
@@ -54,13 +59,13 @@ allowed import per ``kernel (root) <- doctrine <- charter <- specify_cli``)
 
 from __future__ import annotations
 
-import os
 from importlib.resources import files
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Literal
 
 from doctrine.artifact_kinds import ArtifactKind
-from kernel.sibling_paths import SiblingPathNotFound, resolve_installed_sibling
+from kernel.paths import MISSION_ASSETS_SIBLING_PATTERN, get_built_in_pack_root
+from kernel.sibling_paths import SiblingPathNotFound
 
 # ``PackTier`` is intentionally *not* exported: it is the internal annotation
 # for ``resolve_pack_root``'s ``tier`` parameter and has no external importer, so
@@ -79,13 +84,13 @@ __all__ = [
     "BuiltInContentDirNotAvailable",
     "PackRootNotFound",
     "built_in_dir",
+    "built_in_missions_root",
     "built_in_root",
     "doctrine_package_dir",
 ]
 
 PackTier = Literal["built-in", "org", "project"]
 
-_PACKS_ROOT_ENV = "SPEC_KITTY_PACKS_ROOT"
 _BUILT_IN = "built-in"
 
 
@@ -185,31 +190,53 @@ def built_in_dir(kind: ArtifactKind) -> Path:
     return resolve_pack_root("built-in") / kind.plural
 
 
-def _resolve_built_in() -> Path:
-    """Resolve the ``built-in`` tier via the shared kernel primitive (FR-004).
+def built_in_missions_root() -> Path:
+    """Return the built-in pack's shipped ``missions`` leaf path (unchecked).
 
-    Delegates the 3-step order (env, ancestor walk, fail) to
-    :func:`kernel.sibling_paths.resolve_installed_sibling` -- the ancestor
-    walk covers both the editable-checkout and the installed-wheel case (see
-    the module docstring above and :mod:`kernel.sibling_paths`'s own
-    docstring for why a distinct third "installed wheel" step is redundant
-    with it). Kernel cannot
-    import :class:`PackRootNotFound` (layer direction), so the primitive's own
-    :class:`~kernel.sibling_paths.SiblingPathNotFound` is caught and
-    translated here -- at least one consumer
+    ``built_in_root() / <missions-leaf-name>`` -- composed here because this
+    module is the one file the built-in-location architectural ratchet
+    (``tests/architectural/test_built_in_location_authority.py``) permits to
+    join a path onto :func:`built_in_root`'s result; a caller composing its
+    own ``built_in_root() / ...`` join elsewhere would trip that gate. This
+    lets ``doctrine.missions.repository.default_missions_root`` (mission
+    ``resolution-activation-foundation-01KZ9FKG``, WP02) route through the
+    one built-in-root authority for its ``missions`` leaf without forking a
+    second join site. The leaf name itself is read from
+    :data:`kernel.paths.MISSION_ASSETS_SIBLING_PATTERN`'s final path segment
+    rather than a re-typed ``"missions"`` string literal, so the leaf name
+    stays owned once at the kernel floor (FR-012).
+
+    Returns the joined path unconditionally -- it may not exist on disk.
+    Callers needing fail-closed semantics (e.g.
+    ``doctrine.missions.repository.MissionsRootNotFound``) perform their own
+    ``.is_dir()`` check on the result.
+
+    :raises PackRootNotFound: when the built-in pack root itself (not the
+        ``missions`` leaf) cannot be located -- propagated unchanged from
+        :func:`built_in_root`.
+    """
+    return built_in_root() / MISSION_ASSETS_SIBLING_PATTERN.name
+
+
+def _resolve_built_in() -> Path:
+    """Resolve the ``built-in`` tier via the shared kernel primitive (FR-001/FR-004).
+
+    Delegates *wholesale* to :func:`kernel.paths.get_built_in_pack_root` -- the
+    one kernel-floor primitive that owns both the ``SPEC_KITTY_PACKS_ROOT``
+    env read and the ancestor walk (DR-1: exactly one env read across the
+    whole resolution stack). This module no longer forks a second env read or
+    composes its own ``sibling_relative_path`` -- see the module docstring
+    above for the full 3-step order the primitive owns.
+
+    Kernel cannot import :class:`PackRootNotFound` (layer direction), so the
+    primitive's own :class:`~kernel.sibling_paths.SiblingPathNotFound` is
+    caught and translated here -- at least one consumer
     (``specify_cli/doctrine/pack_validator.py``'s
     ``except (PackRootNotFound, BuiltInContentDirNotAvailable)``) depends on
     the specific :class:`PackRootNotFound` type surviving at this boundary.
     """
-    env_value = os.environ.get(_PACKS_ROOT_ENV)
-    env_candidate = Path(env_value) / _BUILT_IN if env_value else None
-
     try:
-        return resolve_installed_sibling(
-            anchor_file=Path(__file__),
-            env_override=env_candidate,
-            sibling_relative_path=PurePosixPath("packs") / _BUILT_IN,
-        )
+        return get_built_in_pack_root()
     except SiblingPathNotFound as exc:
         raise PackRootNotFound(_BUILT_IN) from exc
 

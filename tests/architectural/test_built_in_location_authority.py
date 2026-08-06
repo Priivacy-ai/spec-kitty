@@ -71,14 +71,23 @@ fold, #3204) fall into two rationale classes, neither of which is a
    *could* import ``doctrine.pack_paths`` (the layer allows it) but
    deliberately does not, to avoid triggering doctrine's heavy validation
    imports on every CLI startup (see its own module docstring: "Uses import
-   metadata rather than ``import doctrine``"). Both instead build a
-   ``PurePosixPath("packs")/"built-in"/<name>`` *relative-shape constant*
-   consumed generically by :func:`kernel.sibling_paths.resolve_installed_sibling`
-   -- a *different*, domain-agnostic primitive than the ``doctrine.pack_paths``
-   authority this gate protects (``kernel.sibling_paths``'s own docstring
-   names these as two of its three sanctioned convergent call sites, the third
-   being ``doctrine.missions.repository.MissionTemplateRepository.default_missions_root``,
-   itself the authority these two mirror the *shape* of but cannot import).
+   metadata rather than ``import doctrine``"). It instead consumes
+   ``kernel.paths.MISSION_ASSETS_SIBLING_PATTERN`` -- the kernel-owned
+   ``packs/built-in/missions`` *relative-shape constant* (FR-012, mission
+   ``resolution-activation-foundation-01KZ9FKG`` WP02 collapsed the
+   independently-typed per-module literal onto this one authority) -- as the
+   ``sibling_relative_path`` input to
+   :func:`kernel.sibling_paths.resolve_installed_sibling`, a *different*,
+   domain-agnostic primitive than the ``doctrine.pack_paths`` authority this
+   gate protects. Consuming an imported constant by plain-name reference is
+   not a ``/``-join, so this site never trips the AST scan below regardless of
+   its line number -- it needs no allowlist entry.
+   ``doctrine.missions.repository.MissionTemplateRepository.default_missions_root``
+   (formerly a peer convergent call site of this same primitive) was
+   re-pointed by the same WP02 onto :func:`doctrine.pack_paths.built_in_missions_root`
+   -- a join that lives inside the authority file itself -- so it no longer
+   performs its own sibling-resolution walk or needs a class-1 exemption
+   either.
 2. **Caller-supplied-root sites (env-var override / legacy dev-checkout
    acceptance).** Several sites resolve ``packs/built-in/missions`` relative to
    an arbitrary directory the *caller* supplied (``SPEC_KITTY_TEMPLATE_ROOT``,
@@ -143,20 +152,22 @@ _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
         # re-inlined the packs/built-in/missions shape; it now reuses the
         # _MISSION_ASSETS_SIBLING_PATTERN constant, so it no longer joins a
         # built-in literal and needs no exemption. Removed 2026-08-05, PR #3204.)
-        # src/doctrine/missions/repository.py::_MISSIONS_ROOT_SIBLING_PATTERN --
-        # a relative SHAPE constant (input to
-        # kernel.sibling_paths.resolve_installed_sibling), the SAME primitive
-        # doctrine.pack_paths._resolve_built_in uses -- a documented
-        # alternate convergent call site (kernel.sibling_paths's own
-        # docstring), not a doctrine.pack_paths reconstruction. See module
-        # docstring class 1.
-        (Path("src/doctrine/missions/repository.py"), 29),
-        # src/specify_cli/runtime/agent_commands.py::_MISSIONS_SIBLING_PATTERN --
-        # a relative SHAPE constant; this module deliberately avoids
-        # `import doctrine` on the CLI startup path (own module docstring),
-        # so it cannot call built_in_dir/built_in_root/resolve_pack_root.
-        # See module docstring class 1.
-        (Path("src/specify_cli/runtime/agent_commands.py"), 93),
+        # (formerly src/doctrine/missions/repository.py:29 --
+        # _MISSIONS_ROOT_SIBLING_PATTERN. Mission
+        # resolution-activation-foundation-01KZ9FKG WP02 re-bound this constant
+        # to kernel.paths.MISSION_ASSETS_SIBLING_PATTERN by plain-name
+        # reference (no `/` join at this site at all) and retired
+        # default_missions_root's own sibling-resolution walk in favor of
+        # doctrine.pack_paths.built_in_missions_root -- a join that lives
+        # inside the authority file itself. Removed 2026-08-05.)
+        # (formerly src/specify_cli/runtime/agent_commands.py:93 --
+        # _MISSIONS_SIBLING_PATTERN. Mission
+        # resolution-activation-foundation-01KZ9FKG WP02 re-bound this constant
+        # to kernel.paths.MISSION_ASSETS_SIBLING_PATTERN by plain-name
+        # reference; the constant definition itself is no longer a `/` join
+        # (only its use as resolve_installed_sibling's sibling_relative_path
+        # argument remains, unchanged, and that call is not a `/` join either).
+        # See module docstring class 1. Removed 2026-08-05.)
         # src/specify_cli/runtime/home.py::_find_relocated_missions_ancestor --
         # walks a caller-supplied SPEC_KITTY_TEMPLATE_ROOT override directory
         # (legacy specify_cli shim mirroring kernel.paths's own env-var

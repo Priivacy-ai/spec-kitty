@@ -61,8 +61,16 @@ def _write_config(tmp_path: Path, content: str) -> None:
 
 
 def _ctx_with_config(tmp_path: Path, config_yaml: str) -> ProjectContext:
-    """Build a ProjectContext (real built-in pack) with the supplied config."""
-    _write_config(tmp_path, config_yaml)
+    """Build a ProjectContext (real built-in pack) with the supplied config.
+
+    ``mission_type_activations`` is appended unconditionally: every caller
+    here supplies only ``activated_directives`` content (the kind under
+    test), and ``ProjectContext.from_repo`` eagerly resolves
+    ``PackContext.from_config()``, which now hard-fails (WP04, C-A1) when
+    that key is absent. The mission-type kind is unrelated to the DRG
+    graph-parity behavior these tests pin.
+    """
+    _write_config(tmp_path, config_yaml + "mission_type_activations:\n  - software-dev\n")
     return ProjectContext.from_repo(tmp_path)
 
 

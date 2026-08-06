@@ -83,7 +83,13 @@ def _register_org_pack(repo_root: Path, pack_root: Path, *, name: str = "securit
     kittify.mkdir(parents=True, exist_ok=True)
     with (kittify / "config.yaml").open("w", encoding="utf-8") as fh:
         YAML().dump(
-            {"doctrine": {"org": {"packs": [{"name": name, "local_path": str(pack_root)}]}}},
+            {
+                # WP04 (C-A1): PackContext.from_config fail-closes without
+                # this key; unrelated to the org-pack union this fixture
+                # exercises, so no other activation key is written.
+                "mission_type_activations": ["software-dev"],
+                "doctrine": {"org": {"packs": [{"name": name, "local_path": str(pack_root)}]}},
+            },
             fh,
         )
 

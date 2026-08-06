@@ -437,6 +437,13 @@ def test_setup_plan_uses_single_loaded_meta_snapshot_when_file_changes_after_rea
     (feature_dir / "spec.md").write_text("substantive spec", encoding="utf-8")
     meta_path = feature_dir / "meta.json"
     meta_path.write_text('{"mission_type":"software-dev"}', encoding="utf-8")
+    # WP04 (C-A1): the provisioned charter is the sole mission-type activation
+    # authority, so ``resolve_mission_type_context`` fails closed without this.
+    kittify_dir = tmp_path / ".kittify"
+    kittify_dir.mkdir(parents=True, exist_ok=True)
+    (kittify_dir / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
     template_src = tmp_path / "configured-plan.md"
     template_src.write_text("CONFIGURED PLAN", encoding="utf-8")
     load_calls = 0
@@ -516,6 +523,13 @@ def test_setup_plan_resolves_template_context_from_primary_planning_surface(
     coord_dir.mkdir(parents=True)
     (primary_dir / "meta.json").write_text('{"mission_type":"software-dev"}', encoding="utf-8")
     (primary_dir / "spec.md").write_text("substantive spec", encoding="utf-8")
+    # WP04 (C-A1): the provisioned charter is the sole mission-type activation
+    # authority, so ``resolve_mission_type_context`` fails closed without this.
+    kittify_dir = tmp_path / ".kittify"
+    kittify_dir.mkdir(parents=True, exist_ok=True)
+    (kittify_dir / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
     template_src = tmp_path / "configured-plan.md"
     template_src.write_text("CONFIGURED PLAN", encoding="utf-8")
     configured_calls: list[tuple[str, Path, ResolvedMissionType]] = []

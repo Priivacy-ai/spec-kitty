@@ -42,8 +42,18 @@ def project_root(tmp_path: Path) -> Path:
 
 @pytest.fixture()
 def ctx(project_root: Path) -> ProjectContext:
-    """ProjectContext built from the minimal project root."""
-    return ProjectContext.from_repo(project_root)
+    """ProjectContext built from the minimal project root.
+
+    Uses the direct constructor rather than ``ProjectContext.from_repo`` --
+    ``CharterPackManager`` only ever calls ``ctx.require_repo_root()``
+    (``pack_context`` is never read), and ``from_repo`` eagerly resolves
+    ``PackContext.from_config()``, which now hard-fails (WP04, C-A1) when
+    ``mission_type_activations`` is absent from config.yaml. These tests
+    intentionally exercise a bare/near-bare config.yaml for the
+    ``activated_*`` keys under test, so building the full pack context here
+    would force an unrelated mission-type activation key onto every fixture.
+    """
+    return ProjectContext(repo_root=project_root)
 
 
 @pytest.fixture()
@@ -242,7 +252,7 @@ class TestDeactivateExistingSet:
             "activated_directives:\n  - something-else\n",
             encoding="utf-8",
         )
-        ctx = ProjectContext.from_repo(project_root)
+        ctx = ProjectContext(repo_root=project_root)
         result = manager.deactivate(ctx, kind="directive", artifact_id="not-present")
         assert result.deactivated == []
         assert any("not in the activation set" in w for w in result.warnings)
@@ -275,7 +285,7 @@ class TestListActivated:
             "activated_directives:\n  - aaa\n  - bbb\n",
             encoding="utf-8",
         )
-        ctx = ProjectContext.from_repo(project_root)
+        ctx = ProjectContext(repo_root=project_root)
         result = manager.list_activated(ctx)
         assert result["directive"] == frozenset({"aaa", "bbb"})
 
@@ -285,7 +295,7 @@ class TestListActivated:
             "activated_directives:\n  - something\n",
             encoding="utf-8",
         )
-        ctx = ProjectContext.from_repo(project_root)
+        ctx = ProjectContext(repo_root=project_root)
         result = manager.list_activated(ctx)
         assert result["tactic"] is None
         assert result["paradigm"] is None
@@ -311,7 +321,7 @@ class TestMergeDefaults:
             "activated_directives:\n  - only-mine\n",
             encoding="utf-8",
         )
-        ctx = ProjectContext.from_repo(project_root)
+        ctx = ProjectContext(repo_root=project_root)
         result = manager.merge_defaults(ctx)
         data = yaml.safe_load(config.read_text())
         # existing directive key must not be overwritten
@@ -350,7 +360,7 @@ class TestActivateCascadeWarning:
             "activated_directives:\n  - 001-architectural-integrity-standard\n",
             encoding="utf-8",
         )
-        ctx = ProjectContext.from_repo(project_root)
+        ctx = ProjectContext(repo_root=project_root)
         result = manager.activate(
             ctx,
             kind="directive",
@@ -370,7 +380,7 @@ class TestDeactivateCascadeAndInvalidKind:
         """deactivate(cascade=True) keeps manager warnings scoped to activation state."""
         config = project_root / ".kittify" / "config.yaml"
         config.write_text("activated_directives:\n  - to-remove\n", encoding="utf-8")
-        ctx = ProjectContext.from_repo(project_root)
+        ctx = ProjectContext(repo_root=project_root)
         result = manager.deactivate(ctx, kind="directive", artifact_id="to-remove", cascade=True)
         assert not any("cascade" in w.lower() for w in result.warnings)
 

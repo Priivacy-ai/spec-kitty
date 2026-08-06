@@ -94,7 +94,12 @@ def _write_activation_config(root: Path, *, activated_directives: list[str] | No
     """
     kittify_dir = root / ".kittify"
     kittify_dir.mkdir(parents=True, exist_ok=True)
-    lines = ["vcs:", "  type: git"]
+    # ``mission_type_activations`` is unrelated to the ``activated_directives``
+    # three-state contract this module pins, but WP04 (C-A1) made it a hard
+    # construction precondition for ``PackContext.from_config`` -- a genuinely
+    # absent key now raises rather than defaulting. Provision it here so every
+    # activation-config fixture in this module can construct.
+    lines = ["mission_type_activations:", "  - software-dev", "vcs:", "  type: git"]
     if activated_directives is not None:
         lines.append("activated_directives:")
         if activated_directives:
@@ -169,8 +174,18 @@ def test_bare_project_with_no_activation_key_keeps_catalog_default(
     "bare projects still see built-ins" contract explicitly."""
     _patch_catalog(monkeypatch)
     _write_charter_files(tmp_path)  # empty selected_directives, empty local directives
-    # Deliberately do NOT call _write_activation_config: no .kittify/config.yaml
-    # at all -> PackContext.from_config's activated_directives is None.
+    # Deliberately do NOT call _write_activation_config: no ``activated_directives``
+    # key at all -> PackContext.from_config's activated_directives is None (the
+    # three-state contract this test pins). A bare ``mission_type_activations``
+    # key IS still provisioned here (WP04, C-A1: an absent key is a hard
+    # construction precondition, orthogonal to the activated_directives state
+    # under test) -- this is the minimal config that keeps the project
+    # "bare" with respect to directive activation.
+    kittify_dir = tmp_path / ".kittify"
+    kittify_dir.mkdir(parents=True, exist_ok=True)
+    (kittify_dir / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
 
     result = resolve_project_governance(tmp_path)
 

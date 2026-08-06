@@ -96,7 +96,14 @@ def _register_org_pack(repo_root: Path, pack_root: Path, *, name: str = _ORG_PAC
     kittify.mkdir(parents=True, exist_ok=True)
     with (kittify / "config.yaml").open("w", encoding="utf-8") as fh:
         YAML().dump(
-            {"doctrine": {"org": {"packs": [{"name": name, "local_path": str(pack_root)}]}}},
+            {
+                # WP04 (C-A1): PackContext.from_config fail-closes without
+                # this key. Every test in this module resolves the
+                # "software-dev" mission type, unrelated to the org∪project
+                # activation-union semantics under test.
+                "mission_type_activations": ["software-dev"],
+                "doctrine": {"org": {"packs": [{"name": name, "local_path": str(pack_root)}]}},
+            },
             fh,
         )
 

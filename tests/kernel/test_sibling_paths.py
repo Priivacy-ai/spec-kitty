@@ -18,6 +18,7 @@ from pathlib import Path, PurePosixPath
 
 import pytest
 
+import kernel.paths as kernel_paths
 from kernel.sibling_paths import SiblingPathNotFound, resolve_installed_sibling
 
 pytestmark = pytest.mark.fast
@@ -440,35 +441,43 @@ class TestFailClosed:
 
 
 class TestMissionsRootNotFoundFailClosedPath:
-    """default_missions_root() translates SiblingPathNotFound -> MissionsRootNotFound.
+    """default_missions_root() fails closed with MissionsRootNotFound.
 
-    This is the new fail-closed path introduced by FR-004 in
-    doctrine.missions.repository.MissionTemplateRepository; cycle-1 review
+    Re-pinned for mission ``resolution-activation-foundation-01KZ9FKG`` WP02
+    (charter DIRECTIVE_041 re-pin discipline): ``default_missions_root()`` no
+    longer calls ``resolve_installed_sibling`` directly, so it no longer
+    translates a ``SiblingPathNotFound`` itself. It now delegates to
+    :func:`doctrine.pack_paths.built_in_missions_root` (a thin join onto the
+    single built-in-pack-root authority) and raises ``MissionsRootNotFound``
+    directly from its own ``.is_dir()`` check on the joined ``missions`` leaf.
+    These tests re-point at that mechanism: monkeypatching
+    ``repository_module.built_in_missions_root`` to answer a path with no
+    ``missions`` leaf on disk is the equivalent fail-closed trigger in the new
+    implementation -- this is the new fail-closed path introduced by FR-004 in
+    ``doctrine.missions.repository.MissionTemplateRepository``; cycle-1 review
     noted it was never reached by any test.
     """
 
-    def test_sibling_path_not_found_is_translated_to_missions_root_not_found(
-        self, monkeypatch: pytest.MonkeyPatch
+    def test_missing_missions_leaf_raises_missions_root_not_found(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         from doctrine.missions import repository as repository_module
         from doctrine.missions.repository import (
             MissionsRootNotFound,
             MissionTemplateRepository,
         )
-        from kernel.sibling_paths import SiblingPathNotFound as RealSiblingPathNotFound
 
-        def _raise(**_kwargs: object) -> Path:
-            raise RealSiblingPathNotFound(
-                PurePosixPath("missions"), Path("/nonexistent/repository.py")
-            )
-
-        monkeypatch.setattr(repository_module, "resolve_installed_sibling", _raise)
+        nonexistent_missions = tmp_path / "built-in" / "missions"
+        assert not nonexistent_missions.exists()
+        monkeypatch.setattr(
+            repository_module, "built_in_missions_root", lambda: nonexistent_missions
+        )
 
         with pytest.raises(MissionsRootNotFound):
             MissionTemplateRepository.default_missions_root()
 
     def test_default_classmethod_propagates_missions_root_not_found(
-        self, monkeypatch: pytest.MonkeyPatch
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         """MissionTemplateRepository.default() also fails closed, via the same path."""
         from doctrine.missions import repository as repository_module
@@ -476,14 +485,12 @@ class TestMissionsRootNotFoundFailClosedPath:
             MissionsRootNotFound,
             MissionTemplateRepository,
         )
-        from kernel.sibling_paths import SiblingPathNotFound as RealSiblingPathNotFound
 
-        def _raise(**_kwargs: object) -> Path:
-            raise RealSiblingPathNotFound(
-                PurePosixPath("missions"), Path("/nonexistent/repository.py")
-            )
-
-        monkeypatch.setattr(repository_module, "resolve_installed_sibling", _raise)
+        nonexistent_missions = tmp_path / "built-in" / "missions"
+        assert not nonexistent_missions.exists()
+        monkeypatch.setattr(
+            repository_module, "built_in_missions_root", lambda: nonexistent_missions
+        )
 
         with pytest.raises(MissionsRootNotFound):
             MissionTemplateRepository.default()
@@ -497,22 +504,33 @@ class TestMissionsRootNotFoundFailClosedPath:
 
 
 class TestDefaultMissionsRootWheelLayout:
-    """default_missions_root() resolves via repository.py's OWN committed pattern.
+    """default_missions_root() resolves via the kernel authority's OWN committed pattern.
 
     ``TestWheelShapedAnchor`` above proves the shared primitive resolves
     correctly *given* a pattern the test supplies. This class instead
-    monkeypatches ``repository.py``'s own ``__file__`` and calls the real
+    monkeypatches ``kernel.paths``'s own ``__file__`` and calls the real
     public entry point, exercising the actual committed
-    ``_MISSIONS_ROOT_SIBLING_PATTERN`` module constant -- the constant
-    mission #3091's WP05 is chartered to repoint (see
-    ``MissionsRootNotFound``'s docstring). Binding it now means a future
-    regression to that constant (e.g. an accidental ``src/``-prefixed shape
-    that can never match an installed wheel, the same defect class WP04
-    cycle 1 shipped in ``kernel.paths``) reds here instead of shipping
-    silently.
+    ``BUILT_IN_PACK_SIBLING_PATTERN`` module constant -- the constant mission
+    #3091's WP05 is chartered to repoint (see ``MissionsRootNotFound``'s
+    docstring). Binding it now means a future regression to that constant
+    (e.g. an accidental ``src/``-prefixed shape that can never match an
+    installed wheel, the same defect class WP04 cycle 1 shipped in
+    ``kernel.paths``) reds here instead of shipping silently.
+
+    Re-pinned for mission ``resolution-activation-foundation-01KZ9FKG`` WP02
+    (charter DIRECTIVE_041 re-pin discipline): before this mission,
+    ``default_missions_root()`` performed its own ancestor walk anchored on
+    ``repository.py``'s own ``__file__``. WP02 collapsed that onto
+    :func:`kernel.paths.get_built_in_pack_root`, so the anchor the ancestor
+    walk actually starts from is now ``kernel.paths.__file__`` -- patching
+    ``repository_module.__file__`` (as this test used to) no longer has any
+    effect on the walk at all. The behavior under test (the wheel-shaped
+    resolution reaching the real relocated data, not the data-less decoy) is
+    unchanged and still meaningful, so this test is re-pointed at the
+    relocated anchor rather than dropped.
     """
 
-    def test_resolves_in_a_wheel_layout_via_the_module_s_own_pattern(
+    def test_resolves_in_a_wheel_layout_via_the_kernel_s_own_pattern(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         """The caller-level wheel test for mission #3091's own thesis (WP05).
@@ -525,21 +543,20 @@ class TestDefaultMissionsRootWheelLayout:
         :func:`build_post_relocation_wheel_shaped_site_packages` instead,
         which plants BOTH the real relocated data (``packs/built-in/missions``)
         AND the still-existing, now data-less ``doctrine/missions`` package
-        directory side by side -- proving the module's own committed
-        ``_MISSIONS_ROOT_SIBLING_PATTERN`` resolves the real data, not the
+        directory side by side -- proving the kernel's own committed
+        ``BUILT_IN_PACK_SIBLING_PATTERN`` resolves the real data, not the
         decoy. This test reds if that pattern ever regresses to a bare/
         wildcard ``"missions"`` shape (which would match the data-less decoy
         one ancestor level above this module's own file, before ever reaching
         ``packs/built-in``) -- see ``MissionsRootNotFound``'s docstring.
         """
-        from doctrine.missions import repository as repository_module
         from doctrine.missions.repository import MissionTemplateRepository
 
-        site, _kernel_anchor, repository_anchor = build_post_relocation_wheel_shaped_site_packages(
+        site, kernel_anchor, repository_anchor = build_post_relocation_wheel_shaped_site_packages(
             tmp_path
         )
 
-        monkeypatch.setattr(repository_module, "__file__", str(repository_anchor))
+        monkeypatch.setattr(kernel_paths, "__file__", str(kernel_anchor))
 
         result = MissionTemplateRepository.default_missions_root()
 

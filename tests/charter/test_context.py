@@ -112,6 +112,14 @@ def _setup_fixture_repo(tmp_path: Path) -> None:
     # References are read from charter.yaml's ``catalog.references`` (#2773), not
     # the retired references.yaml — writing charter.yaml here exercises that path.
     (charter_dir / "charter.yaml").write_text(_CHARTER_YAML, encoding="utf-8")
+    # No ``charter:`` pointer is written to config.yaml here, so PackContext
+    # reads activation directly from config.yaml (legacy/un-migrated path).
+    # ``mission_type_activations`` is provisioned so ``PackContext.from_config``
+    # (WP04, C-A1: the provisioned charter is the sole activation authority)
+    # does not hard-fail on a genuinely absent key.
+    (tmp_path / ".kittify" / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
 
 
 def _write_graph_fixture(tmp_path: Path) -> None:
@@ -388,6 +396,8 @@ class TestBuildContextV2:
         )
         (tmp_path / ".kittify" / "config.yaml").write_text(
             textwrap.dedent(f"""\
+                mission_type_activations:
+                  - software-dev
                 doctrine:
                   org:
                     packs:
