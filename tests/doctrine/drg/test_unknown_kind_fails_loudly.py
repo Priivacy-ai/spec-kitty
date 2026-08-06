@@ -104,14 +104,20 @@ pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 #:           anti_pattern:<smell> edges) -> 324/892. T006's Family-A `when`
 #:           backfill is content-only (no count move). Full delta is
 #:           projection-ledger entry (14).
-#: Net: 324/892 = pure 311/764 plus the hand-authored overlay's 13 nodes / 128
+#:   (15)    rehome-writing-comms-doctrine: +21 EXTRACTOR-DERIVED nodes (7 agent
+#:           profiles, 4 numeric directives DIRECTIVE_047-050, 2 styleguides, 2
+#:           procedures, 1 tactic, 5 writing-audience assets) / +42 extractor edges
+#:           (overlay unchanged) -> 345/934. USE_C4_MODEL_TECHNIQUES leaves the pure
+#:           orphan set (agent_profile:diagram-daisy now references it). Full delta
+#:           is projection-ledger entry (15).
+#: Net: 345/934 = pure 332/806 plus the hand-authored overlay's 13 nodes / 128
 #: edges. (WP09 and families A–D were ledgered in the projection module but this
 #: shipped-graph mirror was left stale at 310/781 through those changes; corrected
 #: with family D, whose full delta is projection-ledger entry (12); family E adds
 #: +9 edges, projection-ledger entry (13); WP02 adds +7 nodes / +10 edges,
-#: projection-ledger entry (14).)
-_EXPECTED_NODE_COUNT = 324
-_EXPECTED_EDGE_COUNT = 892
+#: projection-ledger entry (14); entry (15) adds +21 nodes / +42 edges.)
+_EXPECTED_NODE_COUNT = 345
+_EXPECTED_EDGE_COUNT = 934
 
 # Relocated built-in pack root (mission relocate-builtin-doctrine-packs-01KYT87F):
 # the shipped DRG fragments the seam merges now live under ``packs/built-in/``.

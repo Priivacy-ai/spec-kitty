@@ -50,10 +50,13 @@ CONTEXT_SCHEMA_VERSION = "1.0.0"
 #:   ``references``) are populated in place by
 #:   ``charter.progressive_disclosure.build_disclosure_payload``, which
 #:   never introduces a *new* top-level key of its own.
-#: * ``tests/charter/fixtures/context_parity/json_corpus.golden.txt`` (the
-#:   byte-parity golden for a bootstrap-mode payload), whose recorded key
-#:   set is exactly this set minus ``context_schema_version`` (added by this
-#:   ledger's stamp).
+#: * ``tests/charter/test_context_parity.py`` --
+#:   ``TestJsonEntryPointParity::test_json_entry_point_is_valid_bootstrap_payload``
+#:   (the structural guard on a bootstrap-mode payload), which asserts the
+#:   presence of the array-valued governance keys. (This replaced a frozen
+#:   ``json_corpus.golden.txt`` byte-parity fixture retired in mission
+#:   rehome-writing-comms-doctrine because it embedded the live directive
+#:   catalog and red on every doctrine addition.)
 #:
 #: This is a superset guard, not a strict-equality contract: which of these
 #: keys are actually present is conditional on the action (bootstrap vs.
