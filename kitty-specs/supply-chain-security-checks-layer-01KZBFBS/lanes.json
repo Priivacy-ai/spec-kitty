@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "mission_slug": "supply-chain-security-checks-layer-01KZBFBS",
+  "mission_id": "01KZBFBS3V1JMRXS5VQ2S5WWPY",
+  "mission_branch": "kitty/mission-supply-chain-security-checks-layer-01KZBFBS",
+  "target_branch": "feat/supply-chain-security-checks-layer",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "packs/built-in/directives/047-supply-chain-install-safety.directive.yaml",
+        "packs/built-in/tactics/architecture/dependency-hygiene.tactic.yaml",
+        "packs/built-in/tactics/security/supply-chain-install-safety.tactic.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "packs/built-in/action.graph.yaml",
+        "packs/built-in/missions/built_in_step_contracts/implement.step-contract.yaml",
+        "packs/built-in/missions/built_in_step_contracts/plan.step-contract.yaml",
+        "packs/built-in/missions/built_in_step_contracts/review.step-contract.yaml",
+        "packs/built-in/missions/software-dev/actions/implement/index.yaml",
+        "packs/built-in/missions/software-dev/actions/plan/index.yaml",
+        "packs/built-in/missions/software-dev/actions/review/index.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "packs/built-in/agent_profile.graph.yaml",
+        "packs/built-in/agent_profiles/architect-alphonso.agent.yaml",
+        "packs/built-in/agent_profiles/frontend-freddy.agent.yaml",
+        "packs/built-in/agent_profiles/implementer-ivan.agent.yaml",
+        "packs/built-in/agent_profiles/java-jenny.agent.yaml",
+        "packs/built-in/agent_profiles/node-norris.agent.yaml",
+        "packs/built-in/agent_profiles/python-pedro.agent.yaml",
+        "packs/built-in/agent_profiles/reviewer-renata.agent.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "packs/built-in/missions/mission-steps/software-dev/implement/guidelines.md",
+        "packs/built-in/missions/mission-steps/software-dev/implement/prompt.md",
+        "packs/built-in/missions/mission-steps/software-dev/plan/guidelines.md",
+        "packs/built-in/missions/mission-steps/software-dev/plan/prompt.md",
+        "packs/built-in/missions/mission-steps/software-dev/review/guidelines.md",
+        "packs/built-in/missions/mission-steps/software-dev/review/prompt.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "tests/architectural/test_supply_chain_step_contract_advisory.py",
+        "tests/charter/test_supply_chain_profile_bindings.py",
+        "tests/doctrine/test_supply_chain_security_layer.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-08-06T14:15:23.681315+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
