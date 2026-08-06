@@ -382,16 +382,16 @@ class TestPush:
         _, kwargs = mock_http.request.call_args
         assert kwargs["headers"]["Idempotency-Key"] == "my-key-123"
 
-    @patch("specify_cli.tracker.saas_client.time.sleep")
     @patch("specify_cli.tracker.saas_client.time.monotonic")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_push_202_polls_until_completed(
         self,
         mock_cls: MagicMock,
         mock_monotonic: MagicMock,
-        mock_sleep: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
+        mock_sleep = MagicMock()
+        client._sleep = mock_sleep
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -409,16 +409,16 @@ class TestPush:
         result = client.push("jira", "proj-1", [{"title": "X"}])
         assert result == {"pushed": 2}
 
-    @patch("specify_cli.tracker.saas_client.time.sleep")
     @patch("specify_cli.tracker.saas_client.time.monotonic")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_push_202_polls_failed_raises(
         self,
         mock_cls: MagicMock,
         mock_monotonic: MagicMock,
-        mock_sleep: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
+        mock_sleep = MagicMock()
+        client._sleep = mock_sleep
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -464,16 +464,16 @@ class TestRun:
         idem_key = kwargs["headers"]["Idempotency-Key"]
         uuid.UUID(idem_key)  # validates UUID format
 
-    @patch("specify_cli.tracker.saas_client.time.sleep")
     @patch("specify_cli.tracker.saas_client.time.monotonic")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_run_202_polls_until_completed(
         self,
         mock_cls: MagicMock,
         mock_monotonic: MagicMock,
-        mock_sleep: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
+        mock_sleep = MagicMock()
+        client._sleep = mock_sleep
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -499,14 +499,12 @@ class TestPolling:
         "specify_cli.tracker.saas_client.secrets.randbelow",
         side_effect=[1000, 2000, 3000],  # basis points → jitter factors 0.9, 1.0, 1.1
     )
-    @patch("specify_cli.tracker.saas_client.time.sleep")
     @patch("specify_cli.tracker.saas_client.time.monotonic")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_exponential_backoff_intervals(
         self,
         mock_cls: MagicMock,
         mock_monotonic: MagicMock,
-        mock_sleep: MagicMock,
         mock_randbelow: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
@@ -759,10 +757,25 @@ class TestPolling:
         "no construct could be found" (round 2's error), but "the construct
         is named, the instrument that could see it is proven, and it still
         did not see it here." Left open for WP14 on that basis.
+
+        **FIXED (#3187 fold, landing pass for #3209):** the root cause was
+        the shared attack surface itself, not any one producer -- patching
+        the process-wide ``time.sleep`` can never be made immune to whatever
+        else is alive in the process. ``SaaSTrackerClient`` now binds
+        ``self._sleep = time.sleep`` once per instance (``saas_client.py``
+        ``__init__``) and both retry/poll call sites use ``self._sleep(...)``
+        instead of the bare ``time.sleep(...)``. This test patches
+        ``client._sleep`` directly below, so its mock only ever records
+        calls this ``client`` instance's own two call sites make -- immune
+        to ``subprocess.Popen._wait``, leaked threads from other tests, or
+        anything else sharing the process, by construction rather than by
+        continued forensic exclusion.
         """
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_sleep = MagicMock()
+        client._sleep = mock_sleep
 
         # pending, pending, pending, completed
         mock_http.request.side_effect = [
@@ -786,16 +799,16 @@ class TestPolling:
         assert delays == [0.9, 2.0, 4.4]
         assert mock_randbelow.call_count == 3
 
-    @patch("specify_cli.tracker.saas_client.time.sleep")
     @patch("specify_cli.tracker.saas_client.time.monotonic")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_timeout_after_5_minutes(
         self,
         mock_cls: MagicMock,
         mock_monotonic: MagicMock,
-        mock_sleep: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
+        mock_sleep = MagicMock()
+        client._sleep = mock_sleep
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -806,16 +819,16 @@ class TestPolling:
         with pytest.raises(SaaSTrackerClientError, match="timed out after 5 minutes"):
             client._poll_operation("op-timeout")
 
-    @patch("specify_cli.tracker.saas_client.time.sleep")
     @patch("specify_cli.tracker.saas_client.time.monotonic")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_pending_then_running_then_completed(
         self,
         mock_cls: MagicMock,
         mock_monotonic: MagicMock,
-        mock_sleep: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
+        mock_sleep = MagicMock()
+        client._sleep = mock_sleep
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -896,12 +909,10 @@ class TestRetryBehaviors:
         with pytest.raises(SaaSTrackerClientError, match="Session expired"):
             client._request_with_retry("GET", "/api/v1/tracker/status")
 
-    @patch("specify_cli.tracker.saas_client.time.sleep")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_429_respects_retry_after(
         self,
         mock_cls: MagicMock,
-        mock_sleep: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
         """#3115 (WP06, FR-005) -- corrected pointer (round 2).
@@ -923,6 +934,8 @@ class TestRetryBehaviors:
         round-2 corrections (magnitude exclusion, completed `daemon.py`
         census, the `0.05`/doubling fingerprint measurement).
         """
+        mock_sleep = MagicMock()
+        client._sleep = mock_sleep
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -936,14 +949,14 @@ class TestRetryBehaviors:
         assert result.status_code == 200
         mock_sleep.assert_called_once_with(3.0)
 
-    @patch("specify_cli.tracker.saas_client.time.sleep")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_429_defaults_to_5s_when_missing(
         self,
         mock_cls: MagicMock,
-        mock_sleep: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
+        mock_sleep = MagicMock()
+        client._sleep = mock_sleep
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -956,14 +969,14 @@ class TestRetryBehaviors:
         client._request_with_retry("GET", "/api/v1/tracker/status")
         mock_sleep.assert_called_once_with(5.0)
 
-    @patch("specify_cli.tracker.saas_client.time.sleep")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_429_double_failure_raises(
         self,
         mock_cls: MagicMock,
-        mock_sleep: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
+        mock_sleep = MagicMock()
+        client._sleep = mock_sleep
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -1084,19 +1097,19 @@ class TestAsyncErrorEnvelopeParsing:
     """Fix 1 (FR-017/NFR-002): Failed async operations must parse the error
     envelope dict, not dump it as a raw string."""
 
-    @patch("specify_cli.tracker.saas_client.time.sleep")
     @patch("specify_cli.tracker.saas_client.time.monotonic")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_failed_operation_parses_error_envelope_dict(
         self,
         mock_cls: MagicMock,
         mock_monotonic: MagicMock,
-        mock_sleep: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
         """When the 'error' field is an ErrorEnvelope dict, the raised exception
         must contain the human-readable 'message' and 'user_action_required',
         not a repr of the dict."""
+        mock_sleep = MagicMock()
+        client._sleep = mock_sleep
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -1125,17 +1138,17 @@ class TestAsyncErrorEnvelopeParsing:
         assert "{'error_code'" not in error_text
         assert "provider_auth_expired" not in error_text
 
-    @patch("specify_cli.tracker.saas_client.time.sleep")
     @patch("specify_cli.tracker.saas_client.time.monotonic")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_failed_operation_with_string_error_still_works(
         self,
         mock_cls: MagicMock,
         mock_monotonic: MagicMock,
-        mock_sleep: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
         """When the 'error' field is a plain string, it should still work."""
+        mock_sleep = MagicMock()
+        client._sleep = mock_sleep
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -1149,17 +1162,17 @@ class TestAsyncErrorEnvelopeParsing:
         with pytest.raises(SaaSTrackerClientError, match="Something went wrong"):
             client.push("jira", "proj-1", [{"title": "Bug"}])
 
-    @patch("specify_cli.tracker.saas_client.time.sleep")
     @patch("specify_cli.tracker.saas_client.time.monotonic")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_failed_operation_with_no_error_field(
         self,
         mock_cls: MagicMock,
         mock_monotonic: MagicMock,
-        mock_sleep: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
         """When the 'error' field is missing, a fallback message is used."""
+        mock_sleep = MagicMock()
+        client._sleep = mock_sleep
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -1316,15 +1329,15 @@ class TestErrorEnrichmentAttributes:
         assert exc_info.value.status_code == 400
         assert str(exc_info.value) == "HTTP 400"
 
-    @patch("specify_cli.tracker.saas_client.time.sleep")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_429_enrichment_has_error_code_and_status(
         self,
         mock_cls: MagicMock,
-        mock_sleep: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
         """Double 429 raises with error_code='rate_limited' and status_code=429."""
+        mock_sleep = MagicMock()
+        client._sleep = mock_sleep
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
