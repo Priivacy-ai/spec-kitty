@@ -636,19 +636,35 @@ def assert_worktree_supported(command_name: str, start: Path | None = None) -> N
 
 
 def load_meta_fail_closed(feature_dir: Path) -> dict[str, Any] | None:
-    """Load meta.json fail-closed on corruption -- the ONE public reader (FR-007).
+    """Load meta.json fail-closed on corruption -- the ONE public reader (#3140#FR-007).
 
     This is the single place that owns the field-absent vs read-failure
     decision.  Every fail-closed ``meta.json`` reader delegates here; there is
-    deliberately **no** second authority (FR-007 / #3140).  The canonical
+    deliberately **no** second authority (#3140#FR-007).  The canonical
     *parser* remains :func:`specify_cli.mission_metadata.load_meta` -- this
     function adds only the typed fail-closed **contract** on top of it, so a
     corrupt ``meta.json`` never surfaces a raw :class:`ValueError` to a caller.
 
-    Callers that must stay deliberately silent about corruption (placement
-    probes, best-effort displays) keep using
-    :func:`specify_cli.mission_metadata.load_meta_or_empty` or the canonical
-    reader's ``on_malformed="none"`` arm instead -- they are not routed here.
+    (The requirement id above is qualified with its owning issue because #3140's
+    ``FR-007`` collides with a *different* ``FR-007`` in mission
+    ``meta-fail-closed-3162``; DIR-032 requires foreign ids be disambiguated.)
+
+    Deliberately-silent callers ARE routed here (#3162 / FR-012, operator ruling
+    R-2).  Four degrade sites -- ``mission_runtime.resolution._mid8_from_primary_meta``,
+    ``._resolve_coordination_branch``, ``._resolve_mission_id`` and
+    ``specify_cli.upgrade.feature_meta.load_feature_meta`` -- are silent about
+    corruption *by outcome* and are nonetheless clients of this function.  They
+    keep the **malformed arm** by catching :class:`MissionMetaReadError` in the
+    caller's own ``except`` and degrading to that site's own sentinel (``""``,
+    ``None``, ``legacy-<slug>``, ``None`` respectively); the absent-file and
+    valid arms are unchanged.  So corruption is *absorbed at the call site*,
+    never inside this reader -- this function's contract stays strictly
+    fail-closed, and the choice to stay silent is visible in the caller.
+
+    ``load_meta_or_empty`` and the canonical reader's ``on_malformed="none"``
+    arm remain available for callers that prefer to express that silence at the
+    read rather than in an ``except``, but silence alone no longer implies a
+    caller is outside this function's client set.
 
     Args:
         feature_dir: Mission directory containing (or expected to contain)

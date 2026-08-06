@@ -14,7 +14,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from specify_cli.mission_metadata import load_meta
+from specify_cli.core.paths import load_meta_fail_closed
 from specify_cli.bulk_edit.diff_check import (
     DiffCheckResult,
     check_diff_compliance,
@@ -54,7 +54,7 @@ def _is_bulk_edit_mission(feature_dir: Path) -> bool:
     :func:`check_review_diff_compliance`, so "what counts as bulk_edit"
     cannot drift between the two gate entry points.
     """
-    meta = load_meta(feature_dir)
+    meta = load_meta_fail_closed(feature_dir)
     return meta is not None and meta.get("change_mode") == "bulk_edit"
 
 
@@ -77,7 +77,7 @@ def ensure_occurrence_classification_ready(feature_dir: Path) -> GateResult:
 
     For non-bulk-edit missions, always passes (zero cost).
     """
-    meta = load_meta(feature_dir)
+    meta = load_meta_fail_closed(feature_dir)
     if meta is None:
         return GateResult(passed=True, change_mode=None)
 

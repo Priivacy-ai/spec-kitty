@@ -35,7 +35,7 @@ from specify_cli.decisions.models import (
     IndexEntry,
     OriginFlow,
 )
-from specify_cli.mission_metadata import load_meta
+from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 from spec_kitty_events.decisionpoint import DECISION_POINT_OPENED
 
 __all__ = [
@@ -130,23 +130,37 @@ def _resolve_mission_id(repo_root: Path, mission_slug: str) -> str:
     # FR-005 / post-#2091: this site hard-fails on a missing meta.json
     # (DecisionError(MISSION_NOT_FOUND)) -- allow_missing=True would MASK
     # that guard and silently re-introduce the removed legacy tolerance.
+    #
+    # FR-003/FR-004 (#3162): routed onto the single fail-closed reader
+    # ``core.paths.load_meta_fail_closed``, which returns None when meta.json
+    # is ABSENT and raises MissionMetaReadError when it exists but is corrupt.
+    # It never raises FileNotFoundError, so the arm that used to carry the
+    # missing-file refusal is gone and the ``if meta is None:`` arm below
+    # carries it instead -- absence must keep reporting the MISSING-FILE cause,
+    # not the field-absent "has no mission_id field" one two arms down.
     try:
-        meta = load_meta(feature_dir, allow_missing=False, on_malformed="raise") or {}
-    except FileNotFoundError as exc:
-        raise DecisionError(
-            code=DecisionErrorCode.MISSION_NOT_FOUND,
-            details={"mission_slug": mission_slug},
-            message=f"meta.json not found for mission {mission_slug!r}",
-        ) from exc
-    except ValueError as exc:
-        # load_meta(on_malformed="raise") wraps both a JSON syntax error and
-        # a read/decode (OSError) failure into ValueError -- the same two
-        # failure modes the pre-#2091 local try/except caught directly.
+        meta = load_meta_fail_closed(feature_dir)
+    except (ValueError, MissionMetaReadError) as exc:
+        # C-002 / coupling 4: MissionMetaReadError is a RuntimeError, NOT a
+        # ValueError -- an un-widened ``except ValueError`` stops catching
+        # corruption the moment this site is routed and lets the wrapper leak
+        # where DecisionError is contracted. The seam now wraps JSON-syntax and
+        # read/decode (OSError) failures into MissionMetaReadError; ValueError
+        # stays named so any unwrapped parse failure is still translated here.
+        # Never widen to a bare Exception catch: MissionSelectorAmbiguous
+        # (missions/_read_path_resolver.py:44) is a plain Exception and a broad
+        # catch would swallow an ambiguous-handle refusal.
         raise DecisionError(
             code=DecisionErrorCode.MISSION_NOT_FOUND,
             details={"mission_slug": mission_slug},
             message=f"Failed to read meta.json for mission {mission_slug!r}: {exc}",
         ) from exc
+    if meta is None:
+        raise DecisionError(
+            code=DecisionErrorCode.MISSION_NOT_FOUND,
+            details={"mission_slug": mission_slug},
+            message=f"meta.json not found for mission {mission_slug!r}",
+        )
     mission_id = meta.get("mission_id")
     if not mission_id:
         raise DecisionError(

@@ -25,7 +25,12 @@ Spec source: FR-030, SC-02.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.core.paths import WorkspaceRootNotFound, resolve_canonical_root
+from specify_cli.core.paths import (
+    MissionMetaReadError,
+    WorkspaceRootNotFound,
+    load_meta_fail_closed,
+    resolve_canonical_root,
+)
 from collections.abc import Mapping
 import enum
 from pathlib import Path
@@ -840,10 +845,8 @@ def read_primary_meta(
     (≈:251) so the seam and the orchestrator share ONE primitive (NFR-004) rather
     than two parallel cascades.
     """
-    from specify_cli.mission_metadata import load_meta
-
     primary_dir = _compose_primary_feature_dir(repo_root, handle)
-    meta = load_meta(primary_dir) or {}
+    meta = load_meta_fail_closed(primary_dir) or {}
     if not meta:
         # Non-composed handle (bare ``mid8``, full ULID, numeric prefix): the raw
         # handle does NOT name the on-disk ``<slug>-<mid8>`` directory, so the
@@ -859,7 +862,7 @@ def read_primary_meta(
         canonical = _canonicalize_handle(repo_root, handle)
         if canonical is not None:
             _, _, canonical_dir = canonical
-            meta = load_meta(canonical_dir) or {}
+            meta = load_meta_fail_closed(canonical_dir) or {}
     branch = meta.get("coordination_branch")
     declares_coordination = isinstance(branch, str) and bool(branch.strip())
     return meta, declares_coordination
@@ -1248,13 +1251,22 @@ def _stored_topology_best_effort(
     DISTINCT paths (C-004). :class:`MissionSelectorAmbiguous` is NOT caught — an
     ambiguous handle must propagate as the structured no-silent-fallback error
     (C-CTX-4 / C-009).
+
+    :class:`~specify_cli.core.paths.MissionMetaReadError` is caught ALONGSIDE
+    ``ValueError`` (#3162): once :func:`read_primary_meta` routes through
+    ``load_meta_fail_closed`` it raises the typed error, whose MRO is
+    ``RuntimeError -> Exception`` — it is deliberately NOT a ``ValueError``, so a
+    bare ``except ValueError`` would silently stop absorbing corruption here and
+    this never-raise primitive would start raising. Widening the arm keeps this
+    caller's degrade contract byte-identical (C-001: no arm changed); the typed
+    refusal is for the callers that WANT to fail closed, not for this one.
     """
     try:
         canonical_handle = _canonicalize_bare_modern_handle(
             repo_root, mission_slug, resolver=resolver
         )
         primary_meta, _ = read_primary_meta(repo_root, canonical_handle)
-    except (ValueError, OSError):
+    except (MissionMetaReadError, ValueError, OSError):
         return None
     primary_dir = _compose_primary_feature_dir(repo_root, canonical_handle)
     return classify_from_meta(primary_meta, primary_dir)

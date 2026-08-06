@@ -45,7 +45,7 @@ from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.core.constants import MISSION_TYPE_DOCUMENTATION
 from specify_cli.doc_analysis.doc_state import GeneratorConfig
 from specify_cli.mission import _canonical_meta_mission_type, get_mission_type
-from specify_cli.core.paths import load_meta_fail_closed
+from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 from specify_cli.runtime.resolver import TemplateConfigurationError
 
 from specify_cli.cli.commands.agent.mission_branch_context import (
@@ -298,7 +298,17 @@ def _resolve_setup_plan_feature_dir(repo_root: Path, feature: str | None, *, jso
             cwd,
             explicit_feature=resolved_feature,
         )
-    except (ValueError, ActionContextError) as detection_error:
+    # ``MissionMetaReadError`` is caught ALONGSIDE ``ValueError`` (#3162). Once
+    # ``read_primary_meta`` — reached here via ``_find_feature_directory`` ->
+    # ``resolve_handle_to_read_path`` — routes through ``load_meta_fail_closed``,
+    # a corrupt ``meta.json`` raises the typed error, whose MRO is
+    # ``RuntimeError -> Exception``: it is deliberately NOT a ``ValueError``. A
+    # bare ``except (ValueError, ActionContextError)`` therefore stops absorbing
+    # corruption and drops this command's structured detection payload
+    # (``error_code`` / ``mission_flag`` / ``available_missions`` /
+    # ``example_command``) on the floor, silently changing an agent-facing JSON
+    # contract — the arm change C-001 forbids.
+    except (MissionMetaReadError, ValueError, ActionContextError) as detection_error:
         payload = _build_setup_plan_detection_error(repo_root, str(detection_error), feature)
         if json_output:
             _emit_json(payload)

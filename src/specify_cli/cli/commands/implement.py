@@ -677,6 +677,13 @@ def _ensure_planning_artifacts_committed_git(
     # into an empty commit that hard-fails the claim (read=HEAD / write=coord
     # divergence; #2653). ``None`` keeps the PRIMARY-vs-HEAD / COORD-vs-coord split.
     verbatim_ref = placement_ref.ref if placement_ref is not None else None
+    # WP05 / FR-005 / SC-012: the core's meta.json bypass reads (sites C and D)
+    # collect their decode diagnoses into this caller-allocated sink; this
+    # executor is the operator-visible surface that emits them. Without the
+    # sink a corrupt meta.json is silently indistinguishable from an ordinary
+    # dirty planning artifact -- the generic "Planning artifacts not committed"
+    # listing below would be the only thing the operator sees.
+    meta_diagnostics: list[str] = []
     plan = resolve_planning_artifact_staging(
         repo_root,
         artifact_source_dir,
@@ -684,7 +691,12 @@ def _ensure_planning_artifacts_committed_git(
         extra_file_paths,
         auto_commit=auto_commit,
         verbatim_ref=verbatim_ref,
+        diagnostics=meta_diagnostics,
     )
+    # Deduped: the core applies its self-write predicate twice (see its
+    # docstring), so a single corrupt meta.json yields the same note twice.
+    for note in dict.fromkeys(meta_diagnostics):
+        console.print(f"\n{_RED_ERROR_PREFIX}{note}")
 
     files_to_commit = plan.files_to_commit
     if not files_to_commit:

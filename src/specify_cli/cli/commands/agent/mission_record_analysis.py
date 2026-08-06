@@ -35,6 +35,7 @@ from specify_cli.coordination.coherence import is_coord_residue_churn, is_self_b
 from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.core.git_ops import is_git_repo
 from specify_cli.core.paths import (
+    MissionMetaReadError,
     get_feature_target_branch,
     get_main_repo_root,
     locate_project_root,
@@ -256,7 +257,13 @@ def record_analysis(
                 Path.cwd().resolve(),
                 explicit_feature=feature,
             )
-        except (ValueError, ActionContextError) as detection_error:
+        # ``MissionMetaReadError`` is caught ALONGSIDE ``ValueError`` (#3162):
+        # the routed ``read_primary_meta`` behind ``_find_feature_directory``
+        # raises a ``RuntimeError`` subclass on a corrupt ``meta.json``, which a
+        # ``ValueError``-only arm no longer absorbs — dropping this command's
+        # structured detection payload and silently changing an agent-facing
+        # JSON contract (C-001).
+        except (MissionMetaReadError, ValueError, ActionContextError) as detection_error:
             payload = _build_setup_plan_detection_error(
                 repo_root,
                 str(detection_error),

@@ -327,15 +327,43 @@ def resolve_precondition_ref(repo_rel_path: str, coord_branch_for_filter: str | 
     return _commit_target_ref_for(None)
 
 
-def _committed_meta_mapping(repo_root: Path, repo_rel: str, ref: str | None, *, git: GitPort = DEFAULT_GIT_PORT) -> dict[str, Any] | None:
+def _committed_meta_mapping(
+    repo_root: Path,
+    repo_rel: str,
+    ref: str | None,
+    *,
+    git: GitPort = DEFAULT_GIT_PORT,
+    diagnostics: list[str] | None = None,
+) -> dict[str, Any] | None:
     """The committed meta.json mapping at the path-resolved precondition ref
     (:func:`resolve_precondition_ref` -- ``HEAD`` for meta.json, which is
     always a PRIMARY kind), or ``None`` when the path is absent there or
-    unparseable."""
-    blob = git.show_blob(repo_root, resolve_precondition_ref(repo_rel, ref), repo_rel)
+    unparseable.
+
+    Both causes still return ``None`` (the return contract is unchanged --
+    :func:`_is_self_write_only_diff` and :func:`_is_vcs_lock_only_meta_diff`
+    depend on it), but they are no longer indistinguishable to the operator:
+    an absent path is silent, while an UNPARSEABLE committed blob appends a
+    diagnosis to *diagnostics* naming ``meta.json`` and the ref-qualified path
+    (FR-005).
+
+    Args:
+        diagnostics: Optional sink for operator-facing decode diagnoses. This
+            module is deliberately free of console/typer side effects, so a
+            diagnosis is collected rather than printed.
+    """
+    resolved_ref = resolve_precondition_ref(repo_rel, ref)
+    blob = git.show_blob(repo_root, resolved_ref, repo_rel)
     if blob is None:
+        # Absent at the precondition ref -- NOT a corruption. Silent.
         return None
-    return _parse_meta_mapping(blob)
+    parsed = _parse_meta_mapping(blob)
+    if parsed is None and diagnostics is not None:
+        diagnostics.append(
+            f"{resolved_ref}:{repo_rel}: meta.json could not be decoded at "
+            f"{resolved_ref} (committed blob is not a JSON object)"
+        )
+    return parsed
 
 
 def _parse_wp_frontmatter(text: str) -> tuple[Mapping[str, Any] | None, str, str]:
@@ -391,6 +419,7 @@ def _is_self_write_only_diff(
     ref: str | None,
     *,
     git: GitPort = DEFAULT_GIT_PORT,
+    diagnostics: list[str] | None = None,
 ) -> bool:
     """True iff *repo_rel*'s only diff vs *ref* is the runtime's OWN claim-time
     self-write -- a vcs-lock-only ``meta.json`` change (#2222 / C-003) or a
@@ -426,8 +455,18 @@ def _is_self_write_only_diff(
     if name == _META_JSON_FILENAME:
         working = _parse_meta_mapping(source.read_bytes())
         if working is None:
+            # Corrupt working-copy meta.json: still NOT a self-write-only diff
+            # (return False is unchanged, so it keeps blocking), but say why
+            # instead of being silently indistinguishable from a real edit.
+            if diagnostics is not None:
+                diagnostics.append(
+                    f"{source}: meta.json could not be decoded; "
+                    "not treated as a self-write-only diff"
+                )
             return False
-        committed = _committed_meta_mapping(repo_root, repo_rel, ref, git=git)
+        committed = _committed_meta_mapping(
+            repo_root, repo_rel, ref, git=git, diagnostics=diagnostics
+        )
         return _is_vcs_lock_only_meta_diff(committed, working)
     if not _WP_SELF_WRITE_FILENAME_RE.match(name):
         return False
@@ -550,6 +589,7 @@ def resolve_planning_artifact_staging(
     auto_commit: bool,
     verbatim_ref: str | None = None,
     git: GitPort = DEFAULT_GIT_PORT,
+    diagnostics: list[str] | None = None,
 ) -> PlanningArtifactStagingPlan:
     """Pure staging decision for planning-artifact commits (T016).
 
@@ -571,6 +611,22 @@ def resolve_planning_artifact_staging(
     PRIMARY artifact already-identical on the (coord) write ref is dropped
     instead of re-committed into an empty commit that hard-fails the claim. See
     :func:`_files_changed_vs_precondition_ref`.
+
+    ``diagnostics`` (WP05 / FR-005) is the caller-allocated sink that carries the
+    bypass-read decode diagnoses of sites C (:func:`_is_self_write_only_diff`)
+    and D (:func:`_committed_meta_mapping`) out to an operator-visible surface.
+    This module is deliberately free of console/typer side effects, so the split
+    is the same "core collects, executor emits" one already used for
+    ``structural``: the git-executor caller in ``implement.py`` allocates the
+    list, passes it here, and prints what came back (``SC-012`` -- without a
+    caller-supplied sink a corrupt ``meta.json`` at C or D is indistinguishable
+    from an ordinary dirty artifact in everything the operator sees).
+
+    The sink may receive the SAME diagnosis more than once: ``_self_write`` is
+    applied twice below (once to ``status_paths``, once to the deduped
+    ``files_to_commit``), and a path kept by the first pass is re-tested by the
+    second. Callers that render the sink de-duplicate it; the append-only,
+    order-preserving contract of :func:`_is_self_write_only_diff` is unchanged.
     """
     entries = _feature_dir_status_entries(repo_root, artifact_source_dir, git=git)
     structural = _structural_entries(entries)
@@ -578,7 +634,9 @@ def resolve_planning_artifact_staging(
         return PlanningArtifactStagingPlan(structural=structural, files_to_commit=[], status_paths_to_commit=[])
 
     def _self_write(repo_rel: str) -> bool:
-        return _is_self_write_only_diff(repo_root, repo_rel, coord_branch_for_filter, git=git)
+        return _is_self_write_only_diff(
+            repo_root, repo_rel, coord_branch_for_filter, git=git, diagnostics=diagnostics
+        )
 
     status_paths = _status_paths_for_commit(entries, coord_branch_for_filter)
     if not auto_commit:

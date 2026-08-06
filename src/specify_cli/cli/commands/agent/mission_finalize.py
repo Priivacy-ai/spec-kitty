@@ -46,6 +46,7 @@ from mission_runtime import ActionContextError, MissionArtifactKind
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.dependency_graph import detect_cycles, validate_dependencies
+from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.missions._resolve_planning_branch import PlanningBranchResolutionFailed
 from specify_cli.lanes.models import LanesManifest
@@ -288,7 +289,13 @@ def _resolve_mission_slug(repo_root: Path, feature: str | None, *, json_output: 
 
     try:
         feature_dir = _mission._find_feature_directory(repo_root, cwd, explicit_feature=feature)
-    except (ValueError, ActionContextError) as detection_error:
+    # ``MissionMetaReadError`` is caught ALONGSIDE ``ValueError`` (#3162): the
+    # primary-anchored leg above and this ``_find_feature_directory`` fallback
+    # both reach the routed ``read_primary_meta``, which raises a ``RuntimeError``
+    # subclass on a corrupt ``meta.json``. A ``ValueError``-only arm no longer
+    # absorbs it and drops this command's structured detection payload — an
+    # agent-facing JSON contract change (C-001).
+    except (MissionMetaReadError, ValueError, ActionContextError) as detection_error:
         payload = _build_setup_plan_detection_error(
             repo_root,
             str(ambiguous or detection_error),

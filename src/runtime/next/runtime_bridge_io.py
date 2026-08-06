@@ -98,8 +98,8 @@ from runtime.next._internal_runtime.schema import MissionTemplate, load_mission_
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
+from specify_cli.core.paths import load_meta_fail_closed
 from specify_cli.lanes.branch_naming import resolve_mid8
-from specify_cli.mission_metadata import load_meta
 from specify_cli.status import CanonicalStatusNotFoundError, get_wp_lane
 
 if TYPE_CHECKING:
@@ -374,10 +374,12 @@ def _workflow_runtime_template(
 
     del mission_type
     mission_dir = _rb._resolve_runtime_feature_dir(repo_root, mission_slug)
-    # load_meta (post-#2091 canonical contract): allow_missing=True absorbs a
-    # missing meta.json to None; malformed content still raises (on_malformed
-    # defaults to "raise"), matching the prior unguarded json.loads.
-    meta = load_meta(mission_dir)
+    # load_meta_fail_closed (FR-007, the ONE public fail-closed reader): a
+    # missing meta.json is absorbed to None (it hard-codes allow_missing=True),
+    # so the `(None, None)` arm below is unchanged; malformed content raises the
+    # typed MissionMetaReadError rather than the raw ValueError this call site
+    # used to leak (#3162, census row 5).
+    meta = load_meta_fail_closed(mission_dir)
     if meta is None:
         return None, None
 

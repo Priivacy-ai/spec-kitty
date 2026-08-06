@@ -24,11 +24,11 @@ from specify_cli.context.models import MissionContext
 from specify_cli.context.store import load_context as _load_context
 from specify_cli.context.store import save_context
 from specify_cli.core.git_ops import resolve_primary_branch
-from specify_cli.core.paths import read_target_branch_from_meta
+from specify_cli.core.paths import load_meta_fail_closed, read_target_branch_from_meta
 from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.persistence import require_lanes_json
-from specify_cli.mission_metadata import load_meta, mission_identity_fields
+from specify_cli.mission_metadata import mission_identity_fields
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
 from specify_cli.status import WPMetadata, read_authored_wp_frontmatter
@@ -69,13 +69,21 @@ def _read_meta_json(feature_dir: Path, repo_root: Path) -> dict[str, str]:
     # (MissingIdentityError) and propagates a malformed-JSON failure rather
     # than silently tolerating it -- allow_missing=True or on_malformed="empty"
     # would MASK that guard and silently re-introduce the removed legacy
-    # tolerance. ``allow_missing=False`` never returns None, so ``or {}`` only
-    # narrows the type for mypy (mirrors mission_metadata.load_meta_strict).
-    try:
-        data = load_meta(feature_dir, allow_missing=False, on_malformed="raise") or {}
-    except FileNotFoundError as exc:
+    # tolerance.
+    #
+    # FR-003/FR-004 (#3162): routed onto the single fail-closed reader
+    # ``core.paths.load_meta_fail_closed``. That seam returns None when
+    # meta.json is ABSENT and raises MissionMetaReadError when it exists but is
+    # corrupt or unreadable -- it never raises FileNotFoundError. The
+    # ``if data is None:`` arm below IS the MissingIdentityError guard: absence
+    # must refuse here, because falling through with an empty mapping would let
+    # ``data.get("mission_id") or feature_dir.name`` fabricate an identity from
+    # a directory name and silently re-introduce exactly the tolerance this
+    # comment forbids. Corruption propagates as MissionMetaReadError.
+    data = load_meta_fail_closed(feature_dir)
+    if data is None:
         msg = f"meta.json not found at {feature_dir / 'meta.json'}."
-        raise MissingIdentityError(msg) from exc
+        raise MissingIdentityError(msg)
 
     mission_id = data.get("mission_id") or feature_dir.name
     # FR-008 / #2139: delegate to the single read_target_branch_from_meta

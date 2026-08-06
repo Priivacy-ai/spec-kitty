@@ -41,6 +41,7 @@ from specify_cli.cli.commands.agent.mission_parsing import (
     _emit_console_or_json_error,
     _emit_json,
 )
+from specify_cli.core.paths import MissionMetaReadError
 
 
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
@@ -77,7 +78,7 @@ def _read_meta_for_emission(feature_dir: Path) -> dict[str, Any] | None:
 def _emit_check_prerequisites_detection_error(
     *,
     repo_root: Path,
-    detection_error: ValueError | ActionContextError,
+    detection_error: MissionMetaReadError | ValueError | ActionContextError,
     feature: str | None,
     json_output: bool,
     paths_only: bool,
@@ -235,7 +236,13 @@ def check_prerequisites(
                     cwd,
                     explicit_feature=feature,
                 )
-        except (ValueError, ActionContextError) as detection_error:
+        # ``MissionMetaReadError`` is caught ALONGSIDE ``ValueError`` (#3162):
+        # both the primary anchor and the ``_find_feature_directory`` fallback
+        # read the primary meta through the routed ``read_primary_meta``, which
+        # raises a ``RuntimeError`` subclass on a corrupt ``meta.json``. A
+        # ``ValueError``-only arm no longer absorbs it and drops this command's
+        # structured detection payload — an agent-facing contract change (C-001).
+        except (MissionMetaReadError, ValueError, ActionContextError) as detection_error:
             _emit_check_prerequisites_detection_error(
                 repo_root=repo_root,
                 detection_error=detection_error,

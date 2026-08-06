@@ -193,20 +193,49 @@ def _committed_meta_object(
     worktree: Path,
     path: str,
     env: dict[str, str] | None,
+    *,
+    diagnostics: list[str] | None = None,
 ) -> dict[str, object]:
     """Return the ``meta.json`` object committed at ``HEAD:<path>``.
 
     An empty dict is returned when the file is absent at HEAD (a newly added
     ``meta.json``) or the committed blob is not a JSON object -- so every
     working-copy key is treated as changed and a real file exceeds the lock set.
+
+    The two ``{}`` causes stay **distinct to the operator** even though they
+    share a return value: absent-at-HEAD is ``returncode != 0`` and is silent,
+    while an unparseable committed blob appends a diagnosis to *diagnostics*
+    naming ``meta.json`` and the ref-qualified path (FR-005). The return
+    contract is deliberately unchanged -- ``_parse_meta_object`` keeps its
+    ``dict | None`` shape, pinned by the run-only
+    ``tests/regression/test_issue_2795_claim_blocker.py``.
+
+    Args:
+        diagnostics: Optional sink for operator-facing decode diagnoses.
     """
     result = _run_git(worktree, ["show", f"HEAD:{path}"], env=env)
     if result.returncode != 0:
+        # Absent at HEAD (newly added meta.json) -- NOT a corruption. Silent.
         return {}
     parsed = _parse_meta_object(result.stdout)
-    return parsed if parsed is not None else {}
+    if parsed is None:
+        if diagnostics is not None:
+            diagnostics.append(
+                f"HEAD:{path}: meta.json could not be decoded at HEAD "
+                "(committed blob is not a JSON object); "
+                "treating every working-copy key as changed"
+            )
+        return {}
+    return parsed
 
 
+# Q8 (#3228): this comparison is duplicated -- ``_VCS_LOCK_META_FIELDS`` is
+# declared both here (:42) and at ``implement_cores.py:50``, with a second,
+# NON-equivalent comparator ``implement_cores._is_vcs_lock_only_meta_diff``
+# (:241) that uses a missing-key sentinel where this one uses ``.get()``.
+# Filed, deliberately NOT unified here (C-009): the field set is inlined on
+# purpose because this module is git plumbing (see :37-38), so unifying needs a
+# placement decision this work package does not own.
 def _is_vcs_lock_only_meta_change(
     worktree_meta: dict[str, object],
     committed_meta: dict[str, object],
@@ -232,22 +261,59 @@ def _meta_change_is_vcs_lock_only(
     worktree: Path,
     path: str,
     env: dict[str, str] | None,
+    *,
+    diagnostics: list[str] | None = None,
 ) -> bool:
     """Whether the tracked-modified ``meta.json`` at ``path`` is a lock stamp.
 
-    Reads the working-copy object and the committed object and compares them.
-    A malformed working copy (or a deletion) is treated as genuine dirt
-    (``False``) so it still blocks the advance.
+    Reads the working copy through the canonical fail-closed seam
+    :func:`specify_cli.core.paths.load_meta_fail_closed` and compares it with
+    the committed object. An absent working copy and a corrupt one are both
+    still treated as genuine dirt (``False``) so they block the advance -- but
+    a corrupt one also appends a diagnosis to *diagnostics* naming
+    ``meta.json`` and the path, instead of being reported as an ordinary dirty
+    entry indistinguishable from an operator edit (FR-005).
+
+    **The seam substitution is exact at this site**, not approximate. The sole
+    consumer gates on ``Path(path).name == _META_FILENAME`` (see the call in
+    :func:`_dirty_entries`), so ``meta_path.parent / "meta.json" == meta_path``
+    by construction; and ``load_meta``'s ``encoding`` default is ``"utf-8"``
+    (``mission_metadata.py:285``, ``_UTF8`` at ``:31``), exactly the encoding
+    of the ``read_text`` this replaces -- NOT BOM-tolerant ``utf-8-sig``.
+
+    Args:
+        diagnostics: Optional sink for operator-facing decode diagnoses. The
+            caller passes a list and folds any entry into the dirty report.
     """
+    # Deferred import (LOAD-BEARING -- do NOT hoist to module level): this
+    # module is git plumbing and deliberately carries no module-level
+    # ``specify_cli`` dependency (see the note at :37-38). ``core.paths``
+    # defers its own ``mission_metadata`` import for the same class of reason.
+    from specify_cli.core.paths import (  # noqa: PLC0415
+        MissionMetaReadError,
+        load_meta_fail_closed,
+    )
+
     meta_path = worktree / path
     try:
-        worktree_text = meta_path.read_text(encoding="utf-8")
-    except OSError:
+        worktree_meta = load_meta_fail_closed(meta_path.parent)
+    except MissionMetaReadError as exc:
+        # MANDATORY catch, by name. ``MissionMetaReadError`` is a
+        # ``RuntimeError`` (``core/paths.py:506``) -- NOT a ``ValueError`` and
+        # NOT an ``OSError`` -- so without this arm the routing would convert
+        # "a corrupt meta.json is genuine dirt" into an uncaught crash inside
+        # the dirty-worktree scan. Never widen this to ``except Exception``.
+        if diagnostics is not None:
+            diagnostics.append(
+                f"{path}: meta.json could not be decoded ({exc}); "
+                "treated as genuine local state"
+            )
         return False
-    worktree_meta = _parse_meta_object(worktree_text)
     if worktree_meta is None:
         return False
-    committed_meta = _committed_meta_object(worktree, path, env)
+    committed_meta = _committed_meta_object(
+        worktree, path, env, diagnostics=diagnostics
+    )
     return _is_vcs_lock_only_meta_change(worktree_meta, committed_meta)
 
 
@@ -312,10 +378,16 @@ def _dirty_entries(
         # VCS lock is a regenerable stamp, not destructive local state: the
         # resync discards it and the next claim rewrites it (#2795 / C-010). A
         # genuine meta edit still falls through and blocks (no false-open).
-        if Path(path).name == _META_FILENAME and _meta_change_is_vcs_lock_only(
-            worktree, path, env
-        ):
-            continue
+        if Path(path).name == _META_FILENAME:
+            notes: list[str] = []
+            if _meta_change_is_vcs_lock_only(worktree, path, env, diagnostics=notes):
+                continue
+            # A meta.json that could not be decoded still blocks, but says so:
+            # annotate the porcelain line rather than reporting it as an
+            # ordinary edit (same idiom as the obstruction annotation above).
+            if notes:
+                dirty.append(f"{line} ({notes[0]})")
+                continue
         dirty.append(line)
     return dirty
 

@@ -558,10 +558,20 @@ def _husk_is_authoritative_surface(repo_root: Path, mission_slug: str) -> bool:
     husk-consulting behaviour), since without a stored topology the husk short-
     circuit cannot be safely overridden — the downstream primary re-anchor still
     surfaces the malformed-meta diagnostic.
+
+    :class:`~specify_cli.core.paths.MissionMetaReadError` is caught ALONGSIDE
+    ``ValueError`` (#3162): once :func:`read_primary_meta` routes through
+    ``load_meta_fail_closed`` it raises the typed error, whose MRO is
+    ``RuntimeError -> Exception`` — deliberately NOT a ``ValueError``, so a bare
+    ``except ValueError`` would silently stop absorbing corruption and this
+    degrade arm would start raising. Widening keeps the documented
+    "malformed meta degrades to ``True``" contract byte-identical (C-001).
     """
+    from specify_cli.core.paths import MissionMetaReadError  # noqa: PLC0415
+
     try:
         primary_meta, _ = read_primary_meta(repo_root, mission_slug)
-    except (ValueError, OSError):
+    except (MissionMetaReadError, ValueError, OSError):
         return True
     stored = stored_topology_from_meta(primary_meta)
     if stored is None:

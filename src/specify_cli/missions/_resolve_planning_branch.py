@@ -39,7 +39,7 @@ from __future__ import annotations
 from pathlib import Path
 from collections.abc import Mapping
 
-from specify_cli.mission_metadata import load_meta
+from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 
 __all__ = [
     "PlanningBranchResolutionFailed",
@@ -110,24 +110,37 @@ def load_mission_target_branch(feature_dir: Path) -> str:
     The lookup is read-only and tolerant of missing/corrupt files —
     those cases surface as :class:`PlanningBranchResolutionFailed` so
     the CLI emits a single, consistent diagnostic.
+
+    FR-003/FR-004 (#3162): the read is routed through the single fail-closed
+    seam :func:`specify_cli.core.paths.load_meta_fail_closed`. ``None`` is that
+    seam's ABSENT signal (it never raises ``FileNotFoundError``), so the
+    ``if data is None:`` arm below is the live missing-file refusal and carries
+    the ``--target-branch`` remediation. Corruption arrives as
+    ``MissionMetaReadError``.
     """
     meta_path = feature_dir / "meta.json"
     try:
-        data = load_meta(feature_dir, allow_missing=False, on_malformed="raise")
-    except FileNotFoundError as exc:
-        raise PlanningBranchResolutionFailed(
-            f"meta.json not found at {meta_path}. "
-            "Re-run with --target-branch <ref> to override."
-        ) from exc
-    except ValueError as exc:
+        data = load_meta_fail_closed(feature_dir)
+    except (ValueError, MissionMetaReadError) as exc:
+        # C-002 / coupling 4: MissionMetaReadError is a RuntimeError, NOT a
+        # ValueError, so an un-widened ``except ValueError`` would stop catching
+        # corruption the moment this site was routed and leak the wrapper past
+        # the contracted PlanningBranchResolutionFailed. ValueError stays named
+        # so any unwrapped parse failure is still translated here. Never widen
+        # to a bare Exception catch: MissionSelectorAmbiguous
+        # (missions/_read_path_resolver.py:44) is a plain Exception and would be
+        # swallowed.
         raise PlanningBranchResolutionFailed(
             f"meta.json at {meta_path} is unreadable: {exc}. "
             "Re-run with --target-branch <ref> to override."
         ) from exc
     if data is None:
-        # Unreachable: allow_missing=False + on_malformed="raise" never
-        # returns None. Narrows the type for mypy without an assert.
+        # Live absent-file arm (was dead-by-comment before routing): the seam
+        # returns None only when meta.json does not exist. Carries the same
+        # remediation the removed FileNotFoundError arm carried, so no
+        # behaviour is lost by that removal (SC-015).
         raise PlanningBranchResolutionFailed(
-            f"meta.json at {meta_path} is not a JSON object."
+            f"meta.json not found at {meta_path}. "
+            "Re-run with --target-branch <ref> to override."
         )
     return resolve_planning_branch_from_meta(data)

@@ -15,7 +15,8 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.core.git_ops import resolve_primary_branch
-from specify_cli.mission_metadata import load_meta, write_meta
+from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
+from specify_cli.mission_metadata import write_meta
 
 _BRANCH_PATTERNS = (
     re.compile(r"(?im)^\*\*target branch\*\*:\s*`?([^\n`]+)`?\s*$"),
@@ -30,17 +31,26 @@ _BRANCH_PATTERNS = (
 
 
 def load_feature_meta(feature_dir: Path) -> dict[str, Any] | None:
-    """Load ``meta.json``.  Delegates to :func:`feature_metadata.load_meta`.
+    """Load ``meta.json``.  Delegates to :func:`core.paths.load_meta_fail_closed`.
 
-    Kept for backward compatibility with migration code.
-    ``load_meta()`` raises ``ValueError`` for malformed JSON, but frozen
-    migrations catch ``json.JSONDecodeError``.  This wrapper converts
-    ``ValueError`` to ``None`` so callers that treat missing/unreadable
+    Kept for backward compatibility with migration code.  Frozen migrations
+    catch ``json.JSONDecodeError``, so this wrapper absorbs the corrupt-meta
+    error and returns ``None``, letting callers that treat missing/unreadable
     meta as "needs repair" continue to work.
+
+    #3162: the read is routed through the ONE public fail-closed reader, so the
+    absorbed error is now :class:`~specify_cli.core.paths.MissionMetaReadError`
+    -- a ``RuntimeError`` subclass (``core/paths.py:506``) and deliberately
+    **not** a ``ValueError``.  The observable contract is unchanged
+    (``NFR-003``): ``None`` for both an absent and a malformed file, the parsed
+    mapping when valid.  ``load_meta_fail_closed`` takes the same defaults this
+    wrapper always relied on (``allow_missing=True, on_malformed="raise"``,
+    ``mission_metadata.py:280-285``), so the swap is exact including the
+    absent-file arm.
     """
     try:
-        return load_meta(feature_dir)
-    except ValueError:
+        return load_meta_fail_closed(feature_dir)
+    except MissionMetaReadError:
         return None
 
 
