@@ -443,6 +443,55 @@ def _surface_drift_error(summary: DriftPolicySummary) -> str:
     )
 
 
+def _provision_missing_mission_type_activations(
+    project_path: Path, *, dry_run: bool
+) -> list[str]:
+    """Backfill a missing ``mission_type_activations`` key on upgrade.
+
+    Fold for PR #3246 (mission ``resolution-activation-foundation-01KZ9FKG``,
+    WP04): removing the config-absent implicit "all four built-ins" backfill
+    made mission creation fail closed (``CharterPackConfigError``) whenever
+    ``.kittify/config.yaml`` lacks ``mission_type_activations``. Fresh
+    ``spec-kitty init`` got a provisioner
+    (:func:`specify_cli.provisioning.default_charter.provision_default_mission_type_activations`)
+    but ``upgrade`` had no equivalent — the only seeder was the version-pinned
+    ``3.2.0rc35_activate_builtin_mission_types`` migration, and
+    ``MigrationRegistry.get_applicable``'s ``from_v < target <= to_v`` window
+    never selects it for a project first initialised on rc36-rc38 (already
+    past rc35) upgrading to a later target. Such projects are stranded: every
+    ``mission create`` fails, even though the create-gate's own error message
+    tells the operator to run ``spec-kitty upgrade``.
+
+    This reuses the init-time provisioner (not a second seeder) so fresh-init
+    and upgrade converge on one seed helper: additive-only (never overwrites
+    an authored list, including an authored empty ``[]``), idempotent (a
+    second call is a no-op), and fail-closed if the shipped
+    ``src/charter/packs/default.yaml`` is missing.
+
+    Must run on every real ``upgrade`` invocation, mirroring
+    ``_run_upgrade_surface_repair``'s "even when no migrations are pending"
+    wiring (FR-001/FR-002) — this exact gap is why the rc36-rc38 stranding
+    survived the version-pinned migration path. Never writes during
+    ``--dry-run``.
+
+    Returns:
+        A list of human-readable error messages (empty on success/no-op).
+    """
+    if dry_run:
+        return []
+
+    from specify_cli.provisioning.default_charter import (
+        DefaultCharterPackMissingError,
+        provision_default_mission_type_activations,
+    )
+
+    try:
+        provision_default_mission_type_activations(project_path)
+    except DefaultCharterPackMissingError as exc:
+        return [str(exc)]
+    return []
+
+
 def _check_project_not_too_new(
     project_path: Path,
     *,
@@ -765,21 +814,28 @@ def upgrade(  # noqa: C901
             surface_repair_summary,
             confirm=confirm,
         )
+        # Heal a missing mission_type_activations key even when no
+        # migrations are pending (fold #3246) — the exact rc36-rc38 stranded
+        # case never reaches the version-pinned migration below.
+        mission_type_activation_errors = _provision_missing_mission_type_activations(
+            project_path, dry_run=dry_run
+        )
+        upgrade_failed = surface_drift_failed or bool(mission_type_activation_errors)
 
         if json_output:
             warnings = list(worktree_warnings)
             if auto_commit_warning:
                 warnings.append(auto_commit_warning)
-            errors: list[str] = []
+            errors: list[str] = list(mission_type_activation_errors)
             if surface_drift_failed and surface_repair_summary is not None:
                 errors.append(_surface_drift_error(surface_repair_summary))
             print(
                 json.dumps(
                     {
-                        "status": "failed" if surface_drift_failed else "up_to_date",
+                        "status": "failed" if upgrade_failed else "up_to_date",
                         "current_version": current_version,
                         "target_version": target_version,
-                        "success": not surface_drift_failed,
+                        "success": not upgrade_failed,
                         "errors": errors,
                         "auto_committed": auto_committed,
                         "auto_commit_paths": auto_commit_paths,
@@ -790,16 +846,20 @@ def upgrade(  # noqa: C901
                     }
                 )
             )
-            if surface_drift_failed:
+            if upgrade_failed:
                 raise typer.Exit(1)
         else:
             console.print("[green]Project is already up to date![/green]")
             for warning in worktree_warnings:
                 console.print(f"[yellow]Warning:[/yellow] {warning}")
+            for error in mission_type_activation_errors:
+                console.print(f"[red]Error:[/red] {error}")
             if auto_committed:
                 console.print(f"[cyan]→ Auto-committed upgrade changes ({len(auto_commit_paths)} files)[/cyan]")
             if auto_commit_warning:
                 console.print(f"[yellow]Warning:[/yellow] {auto_commit_warning}")
+            if mission_type_activation_errors:
+                raise typer.Exit(1)
         return
 
     # Show migration plan
@@ -893,6 +953,18 @@ def upgrade(  # noqa: C901
         surface_repair_summary,
         confirm=confirm,
     )
+    # Heal a missing mission_type_activations key after migrations run
+    # (fold #3246): the version-pinned rc35 migration may not have applied
+    # (project first initialised on rc36-rc38), leaving the key absent even
+    # though other, unrelated migrations were needed and ran above. Mutating
+    # `result` here so both the JSON and human-readable output below (which
+    # read `result.errors`/`result.success` directly) surface the failure.
+    mission_type_activation_errors = _provision_missing_mission_type_activations(
+        project_path, dry_run=dry_run
+    )
+    if mission_type_activation_errors:
+        result.errors.extend(mission_type_activation_errors)
+        result.success = False
     errors = list(result.errors)
     if surface_drift_failed and surface_repair_summary is not None:
         errors.append(_surface_drift_error(surface_repair_summary))
