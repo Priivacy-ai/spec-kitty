@@ -6,7 +6,7 @@ Validate that the new doctrine layer resolves correctly for software-dev plannin
 
 ## Prerequisites
 
-- Repository root checkout: `/Users/zohar/apps/spec-kitty`
+- Repository root checkout: current project repository root
 - Active branch: `feat/supply-chain-security-checks-layer`
 - Mission handle: `01KZBFBS3V1JMRXS5VQ2S5WWPY`
 

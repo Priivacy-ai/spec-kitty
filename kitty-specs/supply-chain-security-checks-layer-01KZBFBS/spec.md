@@ -3,7 +3,7 @@
 **Mission Branch**: `feat/supply-chain-security-checks-layer`
 **Created**: 2026-08-06
 **Status**: Draft
-**Input**: `/Users/zohar/Downloads/shai-hulud_research_brief_c998a584.plan.md`
+**Input**: Operator-provided Shai-Hulud security planning brief
 
 ## User Scenarios & Testing *(mandatory)*
 
