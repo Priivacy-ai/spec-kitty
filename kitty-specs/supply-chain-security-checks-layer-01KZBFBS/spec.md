@@ -52,12 +52,29 @@ As a maintainer, I want the new layer to improve detection and decision quality 
 1. **Given** the updated review step contract, **When** transitions are inspected, **Then** existing transition-gate behavior remains unchanged while new security review steps are present.
 2. **Given** repositories with different validator maturity levels, **When** missions run through software-dev flow, **Then** security checks are surfaced consistently without introducing unexpected hard-blocking behavior.
 
+---
+
+### User Story 4 - Adversarial squad cadence is explicitly applied to security decisions (Priority: P2)
+
+As a mission operator, I want adversarial squad instructions explicitly tied to this security layer so independent challenge happens at key planning and review point-cuts before mission readiness claims are accepted.
+
+**Why this priority**: Supply-chain threats evolve quickly; single-agent interpretation is brittle. Explicit adversarial challenge reduces blind spots and prevents unchallenged assumptions from becoming policy.
+
+**Independent Test**: Resolve mission/action guidance for this mission’s security workflow and verify adversarial squad cadence instructions are present, including evidence expectations and disposition requirements for contested findings.
+
+**Acceptance Scenarios**:
+
+1. **Given** security-impacting scope in a software-dev mission, **When** planning readiness is assessed, **Then** guidance requires an adversarial squad pass (or explicitly documented rationale for deferral) before claiming plan readiness.
+2. **Given** adversarial squad findings that challenge a security assumption, **When** the mission records outcomes, **Then** each challenged point is explicitly dispositioned (accepted, changed, or deferred with rationale) in mission evidence.
+3. **Given** review readiness for security-sensitive changes, **When** final approval is prepared, **Then** guidance requires explicit reference to adversarial challenge outcomes rather than silent acceptance.
+
 ### Edge Cases
 
 - Package exists but only on an unapproved mirror or unexpected namespace; mission guidance must require explicit operator attention.
 - Package is newly published during an active incident window; guidance must force visibility and operator acknowledgment rather than silent acceptance.
 - Project runs non-LTS or outdated Node for valid business reasons; guidance must document that rationale while still flagging elevated risk.
 - Lifecycle scripts are required for legitimate native builds; guidance must support explicit allowlisting with documented justification instead of blanket script enablement.
+- Adversarial squad feedback conflicts with implementer or reviewer conclusions; guidance must require explicit adjudication rather than dropping dissenting findings.
 
 ## Domain Language
 
@@ -66,6 +83,7 @@ As a maintainer, I want the new layer to improve detection and decision quality 
 - **Package freshness signal**: age and recency metadata (first publish and version publish/update timing) used to inform risk decisions.
 - **Lifecycle script approval discipline**: deny-by-default handling of `preinstall`/`install`/`postinstall` scripts unless explicitly justified.
 - **Node LTS skew**: mismatch between project/runtime Node versions and current Active LTS baseline.
+- **Adversarial squad cadence**: structured multi-lens challenge of mission assumptions at key point-cuts, with explicit evidence and disposition of findings.
 
 ## Requirements *(mandatory)*
 
@@ -82,6 +100,7 @@ As a maintainer, I want the new layer to improve detection and decision quality 
 | FR-007 | Update software-dev SOURCE mission-step guidance | As an agent operator, I need source prompts/guidelines to reference the new security checks so generated agent surfaces inherit the behavior through canonical upgrade flow. | Medium | Open |
 | FR-008 | Provide regression tests for doctrine and context wiring | As a maintainer, I need automated tests proving the new directive/tactic/profile and action/step-contract bindings resolve correctly in software-dev contexts. | High | Open |
 | FR-009 | Preserve advisory rollout strategy in v1 | As a maintainer, I need v1 to remain advisory (no new fail-closed gate handler) while still requiring visibility and evidence in plan/implement/review workflows. | Medium | Open |
+| FR-010 | Integrate adversarial squad instructions into security-check workflow | As a mission operator, I need security-check guidance and affected mission-step instructions to explicitly include adversarial squad cadence, including when to run challenge passes and how to record dispositions for contested findings. | Medium | Open |
 
 ### Non-Functional Requirements
 
@@ -91,6 +110,7 @@ As a maintainer, I want the new layer to improve detection and decision quality 
 | NFR-002 | Profile coverage consistency | 100% of targeted profile context resolutions (reviewer + implementation-focused profiles listed in scope) expose the new supply-chain expectations after mission changes. | Reliability | High | Open |
 | NFR-003 | Advisory compatibility | 0 new fail-closed transition gate handlers are introduced by this mission in software-dev review flow; existing transition gates continue operating with no additional hard-block configuration requirements. | Compatibility | High | Open |
 | NFR-004 | Validation fidelity | New or updated tests for this mission pass with no unresolved placeholders and demonstrate red-to-green behavior for at least one action-index wiring path, one step-contract wiring path, and one profile-binding path. | Quality | Medium | Open |
+| NFR-005 | Adversarial evidence traceability | 100% of security-related readiness outcomes produced by this mission’s workflow surfaces include explicit adversarial challenge evidence or explicit deferred rationale, with no silent omission of contested findings. | Governance | Medium | Open |
 
 ### Constraints
 
@@ -101,6 +121,7 @@ As a maintainer, I want the new layer to improve detection and decision quality 
 | C-003 | No fail-closed security gate in v1 | The mission must not introduce a new fail-closed transition gate handler for software-dev review flow in this release. | Technical | High | Open |
 | C-004 | No live external denylist sync in core | The mission must not add continuously synced external package denylist ingestion into Spec Kitty core behavior. | Scope | Medium | Open |
 | C-005 | Terminology canon compliance | Mission artifacts must use canonical terminology conventions and avoid deprecated feature-language where mission-language is required. | Governance | Medium | Open |
+| C-006 | Adversarial cadence remains guidance-level in v1 | The mission must integrate adversarial squad instructions as explicit governance and evidence requirements without introducing a mandatory runtime orchestration dependency that blocks all progress when squad tooling is unavailable. | Process | Medium | Open |
 
 ### Key Entities
 
@@ -118,6 +139,7 @@ As a maintainer, I want the new layer to improve detection and decision quality 
 - **SC-002**: Targeted built-in profiles resolve with documented supply-chain checks, including registry authenticity, package freshness visibility, script-approval discipline, and Node LTS awareness.
 - **SC-003**: At least one automated test each validates action wiring, step-contract wiring, and profile binding introduced by this mission.
 - **SC-004**: No new fail-closed security transition handler is added in v1, while review guidance still requires explicit security evidence before approval recommendation.
+- **SC-005**: Security-check guidance for affected software-dev stages explicitly includes adversarial squad cadence and requires recorded disposition of challenged findings, verified in mission guidance validation outputs.
 
 ## Assumptions
 
