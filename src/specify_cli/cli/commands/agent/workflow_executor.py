@@ -1094,16 +1094,33 @@ def implement_try_render_fix_mode_prompt(
     review-cycle artifacts. The fix-prompt completely replaces the full WP
     prompt (not appended). Returns the written prompt path, or ``None`` when
     fix-mode does not apply (caller should render the full prompt instead).
+
+    ``feature_dir`` is retained for the stable public signature (this WP's
+    only caller, ``workflow.py``, passes it by keyword) but is no longer
+    read: WP05 (verdict-seam-write-unification-01KZ9Q35, T024) repointed the
+    artifact-directory resolution onto ``repo_root``/``mission_slug`` via
+    :func:`~specify_cli.review.cycle._review_cycle_wp_dir` (the T058 owner
+    function) instead of a raw ``feature_dir``-anchored join.
     """
+    del feature_dir  # WP05/T024: directory resolution now routes through repo_root + mission_slug
     if not fix_mode_active:
         return None
 
     try:
         from specify_cli.cli.console import console
         from specify_cli.review.artifacts import ReviewCycleArtifact
+        from specify_cli.review.cycle import _review_cycle_wp_dir
         from specify_cli.review.fix_prompt import generate_fix_prompt
 
-        sub_artifact_dir = feature_dir / "tasks" / wp_slug
+        # WP05 (verdict-seam-write-unification-01KZ9Q35, T024): routed through
+        # the T058 owner function instead of a raw ``feature_dir / "tasks" /
+        # wp_slug`` join -- one of the three sites WP04's own
+        # ``verdict_seam_IC04.yaml`` fragment flagged as unrouted (alongside
+        # ``workflow_cores.py::has_prior_rejection`` and ``workflow.py::
+        # review``). This function's own ``.from_file``/``.latest`` calls
+        # below remain content/cycle-number loaders (squad #1 — KEPT, not
+        # verdict readers), unaffected by this directory-resolution fix.
+        sub_artifact_dir = _review_cycle_wp_dir(repo_root, mission_slug, wp_slug)
         # Declared up front (#2675 T054): ``.from_file(...)`` returns a
         # non-Optional ``ReviewCycleArtifact`` while ``.latest(...)`` returns
         # ``ReviewCycleArtifact | None`` -- without this explicit annotation

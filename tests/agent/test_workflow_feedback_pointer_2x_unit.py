@@ -248,7 +248,6 @@ def test_implement_fix_cycle_prefers_review_cycle_artifact_over_review_claim_tok
         wp_id="WP01",
         mission_slug="001-test-feature",
         reviewer_agent="codex",
-        verdict="rejected",
         reviewed_at="2026-04-10T06:36:14Z",
         affected_files=[AffectedFile(path="apps/cli_auth/views_authorization.py", line_range="51-88")],
         reproduction_command="pytest tests/agent -q",

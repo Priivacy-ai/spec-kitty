@@ -147,6 +147,7 @@ from specify_cli.status import (
     TransitionRequest,
     WPInnerStateDelta,
     resolve_lane_alias,
+    verdict_vocab,
 )
 from specify_cli.task_utils import (
     WorkPackage,
@@ -1829,12 +1830,16 @@ def _mt_plan_review_result(st: _MoveTaskState) -> ReviewResult | None:
         return st.rejected_review_result
     reviewer = _mt_resolve_reviewer_identity(st)
     if st.target_lane in (Lane.APPROVED, Lane.DONE):
-        verdict = "approved"
+        # FR-005: route through the canonical bridge instead of hardcoding
+        # the event-vocabulary literal -- this hop is an approval outcome
+        # (the emission-scoped "approved" artifact verdict), so its event
+        # verdict is derived the same way any other approval is.
+        verdict = verdict_vocab.emission_event_verdict(verdict_vocab.APPROVED)
         reference = (st.approval_ref or f"approval:{st.task_id}").strip() or (
             f"approval:{st.task_id}"
         )
     else:
-        verdict = "changes_requested"
+        verdict = verdict_vocab.emission_event_verdict(verdict_vocab.REJECTED)
         reference = (
             st.review_feedback_pointer or st.note_text or f"review:{st.task_id}"
         ).strip() or f"review:{st.task_id}"
@@ -2564,6 +2569,15 @@ def _run_arbiter_override(
     authorised it (``Emit.arbiter_forward``). Returns the derived ``review_ref``
     so the emit plan can link the forward event to the rejection it overrides.
 
+    FR-016 (WP07, arbiter-root-threading): this function's own already-resolved
+    ``main_repo_root`` parameter is now threaded straight through to
+    :func:`persist_arbiter_override_decision` (and, from there, into
+    :func:`specify_cli.review.arbiter.persist_arbiter_decision`'s now-required
+    ``repo_root``) instead of being dropped on the floor and left to that
+    function's retired ``feature_dir.parent.parent`` self-inference — a
+    wrong-partition bug under a materialized coordination topology, where
+    ``feature_dir`` here may already be the coord-husk mission dir.
+
     WP06 (verdict-seam extraction): the persist try/except (and its exception
     handling) now lives in ``tasks_verdict_persistence`` as
     :func:`persist_arbiter_override_decision`; this function builds the
@@ -2604,6 +2618,7 @@ def _run_arbiter_override(
         category=_arb_category,
         explanation=_arb_explanation,
         json_output=json_output,
+        main_repo_root=main_repo_root,
     )
 
     return _arb_review_ref

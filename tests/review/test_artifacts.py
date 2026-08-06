@@ -11,13 +11,23 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from specify_cli.post_merge.review_artifact_consistency import (
+    RejectedReviewArtifactFinding,
+    find_rejected_review_artifact_conflicts,
+)
 from specify_cli.review.artifacts import (
     AffectedFile,
     ReviewCycleArtifact,
-    latest_review_artifact_verdict,
-    rejected_review_artifact_for_terminal_lane,
 )
 from specify_cli.review.cycle import create_rejected_review_cycle
+from specify_cli.status import (
+    ReviewOverride,
+    ReviewResult,
+    StatusEvent,
+    append_event,
+    emit_inner_state_changed,
+)
+from specify_cli.status.models import Lane, WPInnerStateDelta
 
 pytestmark = pytest.mark.git_repo
 
@@ -32,7 +42,6 @@ def _sample_artifact(**kwargs: object) -> ReviewCycleArtifact:
         "wp_id": "WP01",
         "mission_slug": "066-review-loop-stabilization",
         "reviewer_agent": "claude",
-        "verdict": "rejected",
         "reviewed_at": "2026-04-06T12:00:00Z",
         "affected_files": [
             AffectedFile(
@@ -54,13 +63,13 @@ def _sample_artifact(**kwargs: object) -> ReviewCycleArtifact:
 def test_review_cycle_artifact_to_dict_round_trip() -> None:
     original = _sample_artifact()
     d = original.to_dict()
+    assert "verdict" not in d  # FR-003/SC-007 (WP06): structurally no verdict field
     restored = ReviewCycleArtifact.from_dict(d, body=original.body)
 
     assert restored.cycle_number == original.cycle_number
     assert restored.wp_id == original.wp_id
     assert restored.mission_slug == original.mission_slug
     assert restored.reviewer_agent == original.reviewer_agent
-    assert restored.verdict == original.verdict
     assert restored.reviewed_at == original.reviewed_at
     assert restored.reproduction_command == original.reproduction_command
     assert restored.body == original.body
@@ -85,7 +94,6 @@ def test_write_and_from_file_round_trip(tmp_path: Path) -> None:
     assert restored.wp_id == artifact.wp_id
     assert restored.mission_slug == artifact.mission_slug
     assert restored.reviewer_agent == artifact.reviewer_agent
-    assert restored.verdict == artifact.verdict
     assert restored.reviewed_at == artifact.reviewed_at
     assert restored.reproduction_command == artifact.reproduction_command
     assert restored.body.strip() == artifact.body.strip()
@@ -189,12 +197,16 @@ def test_frontmatter_field_completeness(tmp_path: Path) -> None:
         "wp_id",
         "mission_slug",
         "reviewer_agent",
-        "verdict",
         "reviewed_at",
         "affected_files",
         "reproduction_command",
     ):
         assert field_name in text, f"Missing field '{field_name}' in written artifact"
+    # FR-003/SC-007 (WP06): the artifact structurally carries no verdict field
+    # -- a dedicated, non-vacuous serialized assertion lives in
+    # tests/review/test_artifacts_no_verdict_field.py; this is a light
+    # corroborating check at this test's own existing completeness site.
+    assert "verdict" not in text
 
 
 # ---------------------------------------------------------------------------
@@ -306,91 +318,178 @@ def test_persist_review_feedback_creates_artifact(tmp_path: Path) -> None:
     assert artifact.wp_id == "WP01"
     assert artifact.mission_slug == "066-test-mission"
     assert artifact.reviewer_agent == "claude"
-    assert artifact.verdict == "rejected"
     assert "Please fix." in artifact.body
 
 
+# ---------------------------------------------------------------------------
+# WP05 (verdict-seam-write-unification-01KZ9Q35, FR-003) retired
+# ``latest_review_artifact_verdict`` and ``rejected_review_artifact_for_
+# terminal_lane`` (review/artifacts.py's two genuine verdict-parser
+# functions) along with their frontmatter-override-recognition logic -- every
+# consumer now resolves the event authority
+# (``status.event_sourced_review_result`` / the reduced ``review`` snapshot
+# slot) instead. The five tests below are REPOINTED, not deleted (a prior
+# mission's NFR-001 node-id floor, ``tests/architectural/
+# mission_exit_baseline.txt``, pins their names): each now exercises the
+# EVENT-SOURCED successor of what it originally asserted about the retired
+# frontmatter functions, using the surviving merge gate
+# (``find_rejected_review_artifact_conflicts``) and the KEPT content loader
+# (``ReviewCycleArtifact.latest``) instead.
+# ---------------------------------------------------------------------------
+
+_TEST_ARTIFACTS_MISSION_SLUG = "066-artifacts-collapse-demo"
+
+
+def _artifacts_feature_dir(tmp_path: Path) -> Path:
+    """A real, git-initialized ``<repo_root>/kitty-specs/<slug>`` fixture.
+
+    A bare non-git ``feature_dir`` (no real ``.git`` ancestor) makes
+    ``feature_status_lock``'s git-common-dir probe fail and fall back to
+    creating its OWN ``.git/spec-kitty-locks`` directly inside ``feature_dir``
+    -- which then makes ``resolve_canonical_root(feature_dir)`` treat
+    ``feature_dir`` itself as a (fake) repo root, so a LATER
+    ``resolve_artifact_surface``-based path reconstruction
+    (``post_merge/review_artifact_consistency.py::_resolve_partition_read_dir``)
+    doubles the ``kitty-specs/<slug>`` suffix. A real ``git init`` avoids the
+    ambiguity entirely -- matching this module's own ``pytest.mark.git_repo``
+    marker intent.
+    """
+    import subprocess
+
+    subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
+    feature_dir = tmp_path / "kitty-specs" / _TEST_ARTIFACTS_MISSION_SLUG
+    feature_dir.mkdir(parents=True)
+    return feature_dir
+
+
+def _artifacts_append_terminal_event(
+    feature_dir: Path,
+    *,
+    verdict: str,
+    to_lane: Lane,
+    event_id: str,
+) -> None:
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id=event_id,
+            mission_slug=feature_dir.name,
+            wp_id="WP01",
+            from_lane=Lane.IN_REVIEW,
+            to_lane=to_lane,
+            at="2026-01-01T00:00:00+00:00",
+            actor="reviewer-renata",
+            force=False,
+            execution_mode="worktree",
+            review_result=ReviewResult(reviewer="reviewer-renata", verdict=verdict, reference="x"),
+        ),
+    )
+
+
 def test_latest_review_artifact_verdict_reads_highest_cycle(tmp_path: Path) -> None:
-    _sample_artifact(cycle_number=1, verdict="rejected").write(tmp_path / "review-cycle-1.md")
-    _sample_artifact(cycle_number=2, verdict="approved").write(tmp_path / "review-cycle-2.md")
+    """WP05 repoint: the KEPT content loader (``ReviewCycleArtifact.latest``,
+    squad #1 -- not a verdict-authority reader) still answers "what does the
+    highest-numbered artifact say", the same question this test originally
+    asked of the now-retired ``latest_review_artifact_verdict``. WP06 (FR-003/
+    SC-007): the artifact carries no ``verdict`` field anymore, so the
+    "what does it say" content this test checks is the prose ``body`` --
+    still the highest-cycle-wins guarantee, just via a field that survives."""
+    _sample_artifact(cycle_number=1, body="cycle 1 body").write(tmp_path / "review-cycle-1.md")
+    _sample_artifact(cycle_number=2, body="cycle 2 body").write(tmp_path / "review-cycle-2.md")
 
-    state = latest_review_artifact_verdict(tmp_path)
+    latest = ReviewCycleArtifact.latest(tmp_path)
 
-    assert state is not None
-    assert state.path == tmp_path / "review-cycle-2.md"
-    assert state.cycle_number == 2
-    assert state.verdict == "approved"
+    assert latest is not None
+    assert latest.cycle_number == 2
+    assert latest.body.strip() == "cycle 2 body"
 
 
 def test_terminal_lane_rejected_artifact_helper_flags_approved_or_done(tmp_path: Path) -> None:
-    _sample_artifact(cycle_number=1, verdict="rejected").write(tmp_path / "review-cycle-1.md")
+    """WP05 repoint: the event-sourced merge gate
+    (``find_rejected_review_artifact_conflicts``) flags a terminal WP whose
+    CURRENT event-sourced verdict is ``changes_requested``, for both
+    ``approved`` and ``done`` -- the event-authority successor of the retired
+    ``rejected_review_artifact_for_terminal_lane`` helper."""
+    for lane, event_id in ((Lane.APPROVED, "01ARTREJ0000000000000001"), (Lane.DONE, "01ARTREJ0000000000000002")):
+        sub_tmp_path = tmp_path / str(lane)
+        sub_tmp_path.mkdir(parents=True)
+        feature_dir = _artifacts_feature_dir(sub_tmp_path)
+        _artifacts_append_terminal_event(
+            feature_dir, verdict="changes_requested", to_lane=lane, event_id=event_id
+        )
 
-    approved_state = rejected_review_artifact_for_terminal_lane(tmp_path, "approved")
-    done_state = rejected_review_artifact_for_terminal_lane(tmp_path, "done")
+        findings = find_rejected_review_artifact_conflicts(feature_dir)
 
-    assert approved_state is not None
-    assert approved_state.verdict == "rejected"
-    assert done_state is not None
-    assert done_state.verdict == "rejected"
+        assert len(findings) == 1
+        finding = findings[0]
+        assert isinstance(finding, RejectedReviewArtifactFinding)
+        assert finding.verdict == "changes_requested"
 
 
 def test_terminal_lane_rejected_artifact_helper_ignores_non_rejected_latest(tmp_path: Path) -> None:
-    _sample_artifact(cycle_number=1, verdict="rejected").write(tmp_path / "review-cycle-1.md")
-    _sample_artifact(cycle_number=2, verdict="approved").write(tmp_path / "review-cycle-2.md")
+    """WP05 repoint: an event-sourced ``approved`` verdict is not flagged by
+    the merge gate -- the event-authority successor of the retired helper's
+    "ignores non-rejected latest" guarantee."""
+    feature_dir = _artifacts_feature_dir(tmp_path)
+    _artifacts_append_terminal_event(
+        feature_dir, verdict="approved", to_lane=Lane.APPROVED, event_id="01ARTAPP0000000000000001"
+    )
 
-    assert rejected_review_artifact_for_terminal_lane(tmp_path, "approved") is None
-    assert rejected_review_artifact_for_terminal_lane(tmp_path, "for_review") is None
-
-
-def _write_rejected_with_override(
-    path: Path,
-    *,
-    actor: str | None = "operator",
-    reason: str | None = "cycle1 verified: blocker resolved, all gates green",
-) -> None:
-    """Write a rejected review-cycle artifact carrying an approval-override block.
-
-    Mirrors what the approval gate (``move-task --to approved`` over a rejected
-    latest) stamps onto the artifact via ``_persist_review_artifact_override``.
-    """
-    _sample_artifact(cycle_number=1, verdict="rejected").write(path)
-    text = path.read_text(encoding="utf-8")
-    lines = ["review_artifact_override_at: '2026-06-13T17:24:12Z'"]
-    if actor is not None:
-        lines.append(f"review_artifact_override_actor: '{actor}'")
-    if reason is not None:
-        lines.append(f"review_artifact_override_reason: '{reason}'")
-    block = "\n".join(lines) + "\n"
-    # Inject the override keys into the YAML frontmatter (before the closing ---).
-    closing = text.index("\n---", 3)
-    path.write_text(text[:closing] + "\n" + block.rstrip("\n") + text[closing:], encoding="utf-8")
+    assert find_rejected_review_artifact_conflicts(feature_dir) == []
 
 
 def test_complete_override_is_honored_for_terminal_lane(tmp_path: Path) -> None:
-    """#1924: a rejected latest with a complete override is NOT a merge conflict."""
-    _write_rejected_with_override(tmp_path / "review-cycle-1.md")
+    """#1924, WP05 repoint: a complete event-sourced :class:`ReviewOverride`
+    clears the merge gate over a ``changes_requested`` verdict -- the
+    event-authority successor of the retired frontmatter-override
+    recognition this test originally asserted."""
+    feature_dir = _artifacts_feature_dir(tmp_path)
+    _artifacts_append_terminal_event(
+        feature_dir, verdict="changes_requested", to_lane=Lane.APPROVED, event_id="01ARTOVR0000000000000001"
+    )
+    emit_inner_state_changed(
+        feature_dir,
+        "WP01",
+        WPInnerStateDelta(
+            review=ReviewOverride(
+                at="2026-01-02T00:00:00+00:00",
+                actor="operator",
+                wp_id="WP01",
+                reason="cycle1 verified: blocker resolved, all gates green",
+            )
+        ),
+        actor="operator",
+        mission_slug=feature_dir.name,
+    )
 
-    state = latest_review_artifact_verdict(tmp_path)
-    assert state is not None
-    assert state.verdict == "rejected"
-    assert state.has_override is True
-
-    # The approval gate honored the override; the terminal-lane gate must too.
-    assert rejected_review_artifact_for_terminal_lane(tmp_path, "approved") is None
-    assert rejected_review_artifact_for_terminal_lane(tmp_path, "done") is None
+    assert find_rejected_review_artifact_conflicts(feature_dir) == []
 
 
 def test_incomplete_override_still_flags_rejected_terminal_lane(tmp_path: Path) -> None:
-    """An override missing the reason is incomplete and must NOT suppress the flag."""
-    _write_rejected_with_override(tmp_path / "review-cycle-1.md", reason=None)
+    """WP05 repoint: an override missing the reason is incomplete
+    (:class:`ReviewOverride`'s own ``complete`` predicate) and must NOT
+    suppress the merge-gate flag -- the event-authority successor of the
+    retired helper's "incomplete override still flags" guarantee."""
+    feature_dir = _artifacts_feature_dir(tmp_path)
+    _artifacts_append_terminal_event(
+        feature_dir, verdict="changes_requested", to_lane=Lane.APPROVED, event_id="01ARTINC0000000000000001"
+    )
+    emit_inner_state_changed(
+        feature_dir,
+        "WP01",
+        WPInnerStateDelta(
+            review=ReviewOverride(at="2026-01-02T00:00:00+00:00", actor="operator", wp_id="WP01", reason="")
+        ),
+        actor="operator",
+        mission_slug=feature_dir.name,
+    )
 
-    state = latest_review_artifact_verdict(tmp_path)
-    assert state is not None
-    assert state.has_override is False
+    findings = find_rejected_review_artifact_conflicts(feature_dir)
 
-    flagged = rejected_review_artifact_for_terminal_lane(tmp_path, "approved")
-    assert flagged is not None
-    assert flagged.verdict == "rejected"
+    assert len(findings) == 1
+    finding = findings[0]
+    assert isinstance(finding, RejectedReviewArtifactFinding)
+    assert finding.verdict == "changes_requested"
 
 
 # ---------------------------------------------------------------------------

@@ -32,7 +32,7 @@ from typer.testing import CliRunner
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
-from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.status.models import Lane, ReviewResult, StatusEvent
 from specify_cli.status.store import append_event
 
 pytestmark = [pytest.mark.regression, pytest.mark.integration, pytest.mark.git_repo]
@@ -49,6 +49,7 @@ def _make_event(
     to_lane: Lane = Lane.CLAIMED,
     review_ref: str | None = None,
     mission_slug: str = MISSION_SLUG,
+    review_result: ReviewResult | None = None,
 ) -> StatusEvent:
     return StatusEvent(
         event_id=event_id,
@@ -61,6 +62,7 @@ def _make_event(
         force=False,
         execution_mode="worktree",
         review_ref=review_ref,
+        review_result=review_result,
     )
 
 
@@ -318,7 +320,12 @@ def test_approving_a_rejected_wp_writes_no_verdict_artifact(
     assert persisted.name == "review-cycle-1.md"
     latest_after_rejection = ReviewCycleArtifact.latest(sub_artifact_dir)
     assert latest_after_rejection is not None
-    assert latest_after_rejection.verdict == "rejected"
+    # WP06 (FR-003/SC-007): ``ReviewCycleArtifact`` no longer carries a
+    # ``verdict`` field -- ``_persist_review_feedback`` (called directly
+    # here, not through the full move-task transition machinery) never
+    # emits a review_result event either, so the real reviewer body content
+    # is the checkable proxy that this is genuinely the rejection write.
+    assert "off-by-one" in latest_after_rejection.body
 
     # Commit the freshly-written review-cycle-1.md, exactly as the CLI's own
     # dirty-worktree guard (``_validate_research_artifacts``,
@@ -340,12 +347,26 @@ def test_approving_a_rejected_wp_writes_no_verdict_artifact(
     # in_review -> planned (rejected) -> claimed -> in_progress -> for_review
     # -> in_review -- exactly as a real implementer reworking and
     # resubmitting the WP for a genuine second review round would.
+    #
+    # WP06 (FR-003/SC-007) repoint: this IN_REVIEW -> PLANNED transition is
+    # the event-authority record of the rejection (WP05, verdict-seam-write-
+    # unification-01KZ9Q35, FR-013 pure-event repoint) -- without a
+    # ``review_result`` on THIS event, the reducer's exit-from-in_review rule
+    # marks the WP's review slot "damaged" (present but unparseable), which
+    # is exactly what a real ``move-task --to planned --review-feedback-file``
+    # would never do (it always records the ``changes_requested`` result on
+    # the SAME transition). Carrying it here mirrors that real write path.
     append_event(
         feature_dir,
         _make_event(
             event_id="01TEST00000000000000000005",
             from_lane=Lane.IN_REVIEW,
             to_lane=Lane.PLANNED,
+            review_result=ReviewResult(
+                reviewer="claude",
+                verdict="changes_requested",
+                reference=f"review-cycle://{MISSION_SLUG}/{WP_SLUG}/review-cycle-1.md",
+            ),
         ),
     )
     append_event(
@@ -449,9 +470,14 @@ def test_approving_a_rejected_wp_writes_no_verdict_artifact(
         f"{latest.cycle_number} -- the stale rejected cycle 1 is still "
         f"'latest'. CLI stdout:\n{result.stdout}"
     )
-    assert latest.verdict == "approved", (
-        f"expected the latest review-cycle artifact's verdict to be "
-        f"'approved', got {latest.verdict!r}. CLI stdout:\n{result.stdout}"
+    # WP06 (FR-003/SC-007): ``ReviewCycleArtifact`` no longer carries a
+    # ``verdict`` field -- the approval write path's own synthesized body
+    # ("Approved by ...", ``_persist_approved_review_cycle``) is the
+    # checkable proxy that this is genuinely an approval, not a stale
+    # rejection artifact.
+    assert latest.body.startswith("Approved by "), (
+        f"expected the latest review-cycle artifact to carry an approval "
+        f"body, got {latest.body!r}. CLI stdout:\n{result.stdout}"
     )
     # The artifact must echo the identity the CALLER declared -- not an
     # identity inferred from ambient state. An invocation that declares no

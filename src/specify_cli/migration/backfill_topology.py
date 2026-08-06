@@ -34,8 +34,16 @@ from specify_cli.lanes import CorruptLanesError, read_lanes_json
 logger = logging.getLogger(__name__)
 
 # Canonical meta.json keys (hoisted per Sonar S1192 — used in >=3 sites).
-_TOPOLOGY_KEY = "topology"
-_FLATTENED_KEY = "flattened"
+#
+# ``TOPOLOGY_KEY`` / ``FLATTENED_KEY`` are PUBLIC (promoted from the former
+# module-private ``_TOPOLOGY_KEY`` / ``_FLATTENED_KEY`` by
+# verdict-seam-write-unification-01KZ9Q35 WP10 / D-PLAN-17): this module is
+# their semantic owner, and ``mission_metadata.flatten_coordination_metadata``
+# (#3219 / FR-015) imports them directly rather than re-spelling the string
+# literals at the import site (squad #16). ``_COORDINATION_BRANCH_KEY`` stays
+# private -- no other module needs to reference it by name.
+TOPOLOGY_KEY = "topology"
+FLATTENED_KEY = "flattened"
 _COORDINATION_BRANCH_KEY = "coordination_branch"
 
 # Valid stored topology string values (the enum's stable .value forms).
@@ -99,7 +107,7 @@ def read_topology(feature_dir: Path) -> MissionTopology:
         raise FileNotFoundError(feature_dir / "meta.json")
     meta: dict[str, Any] = meta_result or {}
 
-    stored = meta.get(_TOPOLOGY_KEY)
+    stored = meta.get(TOPOLOGY_KEY)
     if isinstance(stored, str) and stored in _VALID_TOPOLOGY_VALUES:
         return MissionTopology(stored)
 
@@ -180,7 +188,7 @@ def backfill_mission_topology(
             reason=f"corrupt json: {exc}",
         )
 
-    stored = meta.get(_TOPOLOGY_KEY)
+    stored = meta.get(TOPOLOGY_KEY)
     if isinstance(stored, str) and stored in _VALID_TOPOLOGY_VALUES:
         return TopologyBackfillResult(
             feature_dir=feature_dir,
@@ -226,8 +234,8 @@ def backfill_mission_topology(
                 )
 
     if not dry_run:
-        meta[_TOPOLOGY_KEY] = topology.value
-        meta.setdefault(_FLATTENED_KEY, False)
+        meta[TOPOLOGY_KEY] = topology.value
+        meta.setdefault(FLATTENED_KEY, False)
         _write_meta_canonical(meta_path, meta)
 
     return TopologyBackfillResult(
@@ -282,6 +290,8 @@ def backfill_topology_repo(
 
 
 __all__ = [
+    "FLATTENED_KEY",
+    "TOPOLOGY_KEY",
     "backfill_topology_repo",
     "read_topology",
 ]

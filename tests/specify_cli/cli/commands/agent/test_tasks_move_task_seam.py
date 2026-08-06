@@ -45,7 +45,7 @@ import pytest
 
 from specify_cli.cli.commands.agent import tasks, tasks_move_task, tasks_verdict_persistence
 from specify_cli.cli.commands.agent.tasks_move_task import _MoveTaskState
-from specify_cli.status import Lane, ReviewResult
+from specify_cli.status import Lane, ReviewResult, ReviewResultLookup, StatusEvent, append_event
 
 pytestmark = pytest.mark.fast
 
@@ -397,12 +397,45 @@ def test_resolve_review_verdict_facts_no_artifacts(tmp_path: Path) -> None:
 
 
 def test_resolve_review_verdict_facts_picks_highest_cycle(tmp_path: Path) -> None:
-    """Resolves against ``<wp_path>.parent / <wp_path>.stem`` and picks the
-    highest-numbered cycle's verdict + artifact name — the exact site-1 shape."""
-    wp_path = tmp_path / "WP01-do-a-thing.md"
-    wp_dir = tmp_path / "WP01-do-a-thing"
+    """WP05 (verdict-seam-write-unification-01KZ9Q35, T023) repoint: resolves
+    the event-sourced verdict (``event_sourced_review_result``), never
+    ``review-cycle-N.md`` frontmatter — the exact site-1 shape, now
+    event-authority-bound. The on-disk artifacts are written only as
+    realistic surrounding state (matching what the real writer leaves
+    behind); the returned ``artifact_path`` comes from the event's own
+    ``feedback_path``, never a re-glob of the directory.
+
+    Nests the WP file under ``tasks/`` (unlike the flat pre-WP05 fixture)
+    so ``wp_path.parent.parent`` resolves to an ISOLATED per-test
+    ``tmp_path`` for the event log -- not the shared pytest base tmp dir a
+    flat one-level fixture would degrade onto.
+    """
+    tasks_dir = tmp_path / "tasks"
+    wp_path = tasks_dir / "WP01-do-a-thing.md"
+    wp_dir = tasks_dir / "WP01-do-a-thing"
     _write_review_cycle_artifact(wp_dir, 1, "rejected")
     cycle2 = _write_review_cycle_artifact(wp_dir, 2, "approved")
+    append_event(
+        tmp_path,
+        StatusEvent(
+            event_id="01T023PICKSHIGHEST0000001",
+            mission_slug=tmp_path.name,
+            wp_id="WP01",
+            from_lane=Lane.IN_REVIEW,
+            to_lane=Lane.APPROVED,
+            at="2026-01-01T00:00:00+00:00",
+            actor="reviewer-renata",
+            force=False,
+            execution_mode="worktree",
+            review_result=ReviewResult(
+                reviewer="reviewer-renata",
+                verdict="approved",
+                reference=f"review-cycle://{tmp_path.name}/WP01-do-a-thing/review-cycle-2.md",
+                feedback_path=str(cycle2),
+            ),
+        ),
+    )
+
     verdict, artifact_path, artifact_name = tasks_verdict_persistence.resolve_review_verdict_facts(
         wp_path
     )
@@ -486,14 +519,22 @@ def test_mt_fire_override_persist_forwards_to_verdict_seam() -> None:
 
 
 def test_persist_approved_review_cycle_noop_when_no_prior_cycle(tmp_path: Path) -> None:
-    """No prior review-cycle artifact -> no-op (first-ever approval, FR-001)."""
+    """No prior event-sourced verdict -> no-op (first-ever approval, FR-001).
+
+    WP05 (verdict-seam-write-unification-01KZ9Q35, T023): the "is the current
+    verdict a rejection" probe was repointed from ``latest_review_artifact_
+    verdict`` (retired) to ``event_sourced_review_result``.
+    """
     st = _make_state(to="approved")
     st.main_repo_root = tmp_path
     st.mission_slug = "034-feature"
     st.task_id = "WP01"
     ports = MagicMock()
     with (
-        patch(f"{_VERDICT_SEAM}.latest_review_artifact_verdict", return_value=None),
+        patch(
+            f"{_VERDICT_SEAM}.event_sourced_review_result",
+            return_value=ReviewResultLookup(slot_present=False, result=None),
+        ),
         patch(f"{_VERDICT_SEAM}.create_rejected_review_cycle") as create_mock,
     ):
         tasks_verdict_persistence._persist_approved_review_cycle(st, ports)
@@ -501,15 +542,18 @@ def test_persist_approved_review_cycle_noop_when_no_prior_cycle(tmp_path: Path) 
 
 
 def test_persist_approved_review_cycle_noop_when_latest_already_approved(tmp_path: Path) -> None:
-    """The latest cycle is already ``approved`` -> no redundant write."""
+    """The event-sourced verdict is already ``approved`` -> no redundant write."""
     st = _make_state(to="approved")
     st.main_repo_root = tmp_path
     st.mission_slug = "034-feature"
     st.task_id = "WP01"
     ports = MagicMock()
-    latest = SimpleNamespace(verdict="approved")
+    lookup = ReviewResultLookup(
+        slot_present=True,
+        result=ReviewResult(reviewer="reviewer-renata", verdict="approved", reference="x"),
+    )
     with (
-        patch(f"{_VERDICT_SEAM}.latest_review_artifact_verdict", return_value=latest),
+        patch(f"{_VERDICT_SEAM}.event_sourced_review_result", return_value=lookup),
         patch(f"{_VERDICT_SEAM}.create_rejected_review_cycle") as create_mock,
     ):
         tasks_verdict_persistence._persist_approved_review_cycle(st, ports)
@@ -517,18 +561,21 @@ def test_persist_approved_review_cycle_noop_when_latest_already_approved(tmp_pat
 
 
 def test_persist_approved_review_cycle_writes_over_stale_rejection(tmp_path: Path) -> None:
-    """A stale ``rejected`` latest -> a fresh ``approved`` cycle is written
-    (FR-001), threading ``ports.coord`` as the commit router when auto-commit
-    is resolved on."""
+    """A stale event-sourced ``changes_requested`` verdict -> a fresh
+    ``approved`` cycle is written (FR-001), threading ``ports.coord`` as the
+    commit router when auto-commit is resolved on."""
     st = _make_state(to="approved", reviewer="alice", approval_ref="LGTM")
     st.main_repo_root = tmp_path
     st.mission_slug = "034-feature"
     st.task_id = "WP01"
     st.resolved_auto_commit = True
-    latest = SimpleNamespace(verdict="rejected")
+    lookup = ReviewResultLookup(
+        slot_present=True,
+        result=ReviewResult(reviewer="reviewer-renata", verdict="changes_requested", reference="x"),
+    )
     ports = MagicMock()
     with (
-        patch(f"{_VERDICT_SEAM}.latest_review_artifact_verdict", return_value=latest),
+        patch(f"{_VERDICT_SEAM}.event_sourced_review_result", return_value=lookup),
         patch(f"{_VERDICT_SEAM}.create_rejected_review_cycle") as create_mock,
     ):
         tasks_verdict_persistence._persist_approved_review_cycle(st, ports)
@@ -680,12 +727,14 @@ def test_persist_arbiter_override_decision_success_prints_and_persists(
             category=ArbiterCategory.WRONG_CONTEXT,
             explanation="wrong WP",
             json_output=False,
+            main_repo_root=tmp_path,
         )
     persist_mock.assert_called_once_with(
         feature_dir=feature_dir,
         wp_id="WP01",
         review_ref="review-cycle://034-feature/WP01/1",
         decision=decision,
+        repo_root=tmp_path,
     )
     assert console_mock.print.call_count == 2
 
@@ -714,6 +763,7 @@ def test_persist_arbiter_override_decision_json_output_suppresses_console(
             category=ArbiterCategory.CUSTOM,
             explanation="custom reason",
             json_output=True,
+            main_repo_root=tmp_path,
         )
     persist_mock.assert_called_once()
     console_mock.print.assert_not_called()
@@ -758,6 +808,7 @@ def test_persist_arbiter_override_decision_propagates_persist_error(
             category=ArbiterCategory.CUSTOM,
             explanation="custom reason",
             json_output=False,
+            main_repo_root=tmp_path,
         )
     console_mock.print.assert_not_called()
 
@@ -765,7 +816,16 @@ def test_persist_arbiter_override_decision_propagates_persist_error(
 def test_run_arbiter_override_delegates_persist_to_verdict_seam(tmp_path: Path) -> None:
     """``_run_arbiter_override`` (frozen compat symbol) builds the decision
     and calls straight into :func:`persist_arbiter_override_decision` instead
-    of running the persist try/except inline."""
+    of running the persist try/except inline.
+
+    FR-016 (WP07): also pins that this function's own already-resolved
+    ``main_repo_root`` parameter is forwarded to ``persist_arbiter_override_
+    decision`` rather than dropped on the floor -- the regression this WP
+    fixes (the downstream ``persist_arbiter_decision`` no longer self-infers
+    it from ``feature_dir.parent.parent``, which is wrong under a
+    coordination topology).
+    """
+    other_root = tmp_path / "resolved-main-repo-root"
     fake_event = SimpleNamespace(wp_id="WP01", review_ref="review-cycle://034-feature/WP01/1")
     with (
         patch(f"{_TASKS}.read_events_transactional", return_value=[fake_event]),
@@ -776,7 +836,7 @@ def test_run_arbiter_override_delegates_persist_to_verdict_seam(tmp_path: Path) 
         result = tasks_move_task._run_arbiter_override(
             feature_dir=tmp_path,
             mission_slug="034-feature",
-            main_repo_root=tmp_path,
+            main_repo_root=other_root,
             task_id="WP01",
             note_text="pre_existing_failure: flaky in CI",
             agent="claude",
@@ -788,4 +848,5 @@ def test_run_arbiter_override_delegates_persist_to_verdict_seam(tmp_path: Path) 
     assert call_kwargs["wp_id"] == "WP01"
     assert call_kwargs["review_ref"] == "review-cycle://034-feature/WP01/1"
     assert call_kwargs["json_output"] is False
+    assert call_kwargs["main_repo_root"] == other_root
     assert result == "review-cycle://034-feature/WP01/1"

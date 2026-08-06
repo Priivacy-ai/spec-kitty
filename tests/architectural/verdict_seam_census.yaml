@@ -238,6 +238,27 @@
   function: read_legacy_runtime
   status: active
   source: WP01/IC01
+# WP01 (verdict-seam-write-unification-01KZ9Q35, T002/T003/T005, FR-010):
+# `_runtime_repair_delta` constructs `ReviewOverride` via
+# `ReviewOverride.from_dict(review_raw)` -- a `.from_dict` FACTORY call, not a
+# direct constructor. Research.md's D-PLAN-14 named this function as the
+# ALREADY-matched direct-ctor case (distinct from the real gap at
+# `status/models.py:570`) -- re-verified directly against the live tree
+# (T002's own "don't assume" discipline), that attribution is wrong: this
+# function independently uses the SAME factory shape and was, before T003,
+# equally invisible to both legs. A second, honest instance of the same gap,
+# not a duplicate of the models.py row. `_plan_compatibility_repairs` is its
+# same-module one-hop caller, promoted alongside it.
+- category: writer
+  module: src/specify_cli/migration/backfill_runtime_state.py
+  function: _runtime_repair_delta
+  status: active
+  source: WP01/verdict-seam-write-unification-01KZ9Q35
+- category: writer
+  module: src/specify_cli/migration/backfill_runtime_state.py
+  function: _plan_compatibility_repairs
+  status: active
+  source: WP01/verdict-seam-write-unification-01KZ9Q35
 - category: writer
   module: src/specify_cli/orchestrator_api/commands.py
   function: _parse_review_result_json
@@ -248,6 +269,38 @@
   function: transition
   status: active
   source: WP01/IC01
+# WP01 (verdict-seam-write-unification-01KZ9Q35, T002/T003/T005, FR-010/G2):
+# these three `post_merge/review_artifact_consistency.py` rows are newly
+# swept in by T003's broadened `.from_dict` factory predicate.
+# `_snapshot_review_override` and `_event_sourced_gate_verdict` reconstruct
+# `ReviewOverride`/`ReviewResult` via `.from_dict` from an ALREADY-REDUCED
+# event snapshot -- the same event-authority-deserializer shape as
+# `status/reducer.py`/`status/wp_review.py` (G2), which stay module-excluded
+# instead. This module cannot receive the same module-level exclusion: it
+# already carries other genuine resolver/reader rows for this exact file
+# (see below), so wholesale exclusion would silently drop those into
+# "shrinkage". Both are disclosed here as honest new writer rows rather than
+# left unaccounted or force-fitted into an exclusion that would break G3.
+# `find_rejected_review_artifact_conflicts` (already an active reader/
+# resolver row below) additionally becomes writer-classified via the
+# same-module one-hop closure, because its own body calls both functions
+# directly (line ~446-447) -- an added ROLE on an existing function, not a
+# new function.
+- category: writer
+  module: src/specify_cli/post_merge/review_artifact_consistency.py
+  function: _snapshot_review_override
+  status: active
+  source: WP01/verdict-seam-write-unification-01KZ9Q35
+- category: writer
+  module: src/specify_cli/post_merge/review_artifact_consistency.py
+  function: _event_sourced_gate_verdict
+  status: active
+  source: WP01/verdict-seam-write-unification-01KZ9Q35
+- category: writer
+  module: src/specify_cli/post_merge/review_artifact_consistency.py
+  function: find_rejected_review_artifact_conflicts
+  status: active
+  source: WP01/verdict-seam-write-unification-01KZ9Q35
 # WP12 (review-cycle-verdict-seam-rebuild-01KZ2W7W, T051, FR-009): the
 # ``writer`` row for ``review/arbiter.py::_persist_in_artifact`` is REMOVED
 # here -- deleted outright, retiring the ``arbiter_override``
@@ -267,6 +320,22 @@
   function: persist_arbiter_decision
   status: active
   source: WP01/IC01
+# WP01 (verdict-seam-write-unification-01KZ9Q35, T002/T003/T005, FR-010): the
+# "Reader polarity cross-reference" note near the top of this file records
+# `get_arbiter_overrides_for_wp` (pre-WP12) as a REASONED ABSENCE from the
+# READER category -- WP12 retired its manual frontmatter/JSON-sidecar parse,
+# so its post-WP12 body no longer matches the reader predicate. That reasoning
+# is UNCHANGED and still correct: this row is a DIFFERENT category. T003's
+# broadened `.from_dict` factory predicate newly classifies the function's
+# post-WP12 body itself -- `ReviewOverride.from_dict(review_raw)` rehydrating
+# the event-sourced snapshot slot -- as a WRITER (same shape as the
+# `post_merge/review_artifact_consistency.py` rows above). Disclosed as a new
+# row, not a contradiction of the reader-absence note.
+- category: writer
+  module: src/specify_cli/review/arbiter.py
+  function: get_arbiter_overrides_for_wp
+  status: active
+  source: WP01/verdict-seam-write-unification-01KZ9Q35
 - category: writer
   module: src/specify_cli/review/artifacts.py
   function: ReviewCycleArtifact.write
@@ -291,6 +360,32 @@
   function: _allocate_and_write_review_cycle_locked
   status: active
   source: WP01/IC01
+# WP01 (verdict-seam-write-unification-01KZ9Q35, T002/T003/T005, FR-010/G2):
+# `status/models.py` is deliberately NOT added to `_EXCLUDED_MODULE_REASONS`
+# (see that dict's own comment) because it is home to the VERIFIED real
+# `.from_dict` gap (`WPInnerStateDelta.from_dict`, D-PLAN-14/T002) that this
+# WP exists to close -- a module-level exclusion cannot admit one function
+# while excluding a sibling. `WPInnerStateDelta.from_dict` (status/models.py:570)
+# reconstructs the WP's `review` delta slot via `ReviewOverride.from_dict`;
+# it is the WANTED new writer row (SC-006's real-data proof target).
+# `StatusEvent.from_dict` is the module's OWN wire-format event decoder
+# (parses `status.events.jsonl`) and nests a call to
+# `ReviewResult.from_dict(review_result_data)` while reassembling a full
+# event -- an honest, disclosed COLLATERAL sweep-in of the same broadened
+# predicate, not a second "gap": it is decoding the event log's own already-
+# authoritative payload (same event-authority reasoning as the
+# `status/reducer.py`/`status/wp_review.py` exclusions), it simply cannot be
+# excluded without also hiding the wanted row in the same file.
+- category: writer
+  module: src/specify_cli/status/models.py
+  function: WPInnerStateDelta.from_dict
+  status: active
+  source: WP01/verdict-seam-write-unification-01KZ9Q35
+- category: writer
+  module: src/specify_cli/status/models.py
+  function: StatusEvent.from_dict
+  status: active
+  source: WP01/verdict-seam-write-unification-01KZ9Q35
 - category: resolver
   module: src/specify_cli/cli/commands/agent/tasks_materialization.py
   function: _persist_review_feedback
@@ -311,21 +406,41 @@
   function: has_prior_rejection
   status: active
   source: WP01/IC01
+# WP05 (verdict-seam-write-unification-01KZ9Q35, FR-006/FR-001): the new
+# resolver `has_prior_rejection`'s raw ``feature_dir / "tasks" / wp_slug``
+# join now routes through -- one of the "2 raw-join re-homes" FR-006 names.
+- category: resolver
+  module: src/specify_cli/cli/commands/agent/workflow_cores.py
+  function: _resolve_review_cycle_sub_artifact_dir
+  status: active
+  source: WP05/verdict-seam-write-unification-01KZ9Q35
+# WP05 (verdict-seam-write-unification-01KZ9Q35, FR-006/FR-001): the raw
+# ``feature_dir / "tasks" / wp_slug`` join this function's OWN body used to
+# contain is gone -- it now routes through
+# ``review.cycle._review_cycle_wp_dir`` instead, so it no longer matches the
+# resolver AST shape itself (one of the "2 raw-join re-homes" FR-006 names).
 - category: resolver
   module: src/specify_cli/cli/commands/agent/workflow_executor.py
   function: implement_try_render_fix_mode_prompt
-  status: active
-  source: WP01/IC01
-- category: resolver
-  module: src/specify_cli/post_merge/review_artifact_consistency.py
-  function: _artifact_dirs_for_wp
-  status: active
-  source: WP01/IC01
+  status: retire
+  retiring_fr: FR-001
+  source: WP05/verdict-seam-write-unification-01KZ9Q35
+# NOTE: ``_artifact_dirs_for_wp``'s WP01/IC01 "active" declaration is
+# INTENTIONALLY not repeated here -- it duplicated the WP08/IC08 retire row
+# further below (both name the same (module, function) pair); WP05 removes
+# the stale duplicate rather than declaring the same pair active AND retired
+# twice in one file.
+# WP05 (verdict-seam-write-unification-01KZ9Q35, FR-013): pure-event repoint
+# retired the artifact-frontmatter leg entirely -- this function no longer
+# resolves any on-disk review-cycle directory, so it no longer matches the
+# resolver shape either (a SEPARATE row from its own reader-category
+# retirement above).
 - category: resolver
   module: src/specify_cli/post_merge/review_artifact_consistency.py
   function: find_rejected_review_artifact_conflicts
-  status: active
-  source: WP01/IC01
+  status: retire
+  retiring_fr: FR-013
+  source: WP05/verdict-seam-write-unification-01KZ9Q35
 # WP12 (review-cycle-verdict-seam-rebuild-01KZ2W7W, T051-T053, FR-009): the
 # ``resolver`` rows for ``review/arbiter.py::_find_review_cycle_artifact``,
 # ``get_arbiter_overrides_for_wp``, and ``persist_arbiter_decision`` are
@@ -361,23 +476,27 @@
 - category: reader
   module: src/specify_cli/agent_utils/status.py
   function: _get_wp_review_verdict
-  status: active
-  source: WP01/IC01
+  status: retire
+  retiring_fr: FR-004
+  source: WP05/verdict-seam-write-unification-01KZ9Q35
 - category: reader
   module: src/specify_cli/agent_utils/status.py
   function: show_kanban_status
-  status: active
-  source: WP01/IC01
+  status: retire
+  retiring_fr: FR-004
+  source: WP05/verdict-seam-write-unification-01KZ9Q35
 - category: reader
   module: src/specify_cli/cli/commands/agent/tasks_parsing_validation.py
   function: _apply_review_status_flags
-  status: active
-  source: WP01/IC01
+  status: retire
+  retiring_fr: FR-004
+  source: WP05/verdict-seam-write-unification-01KZ9Q35
 - category: reader
   module: src/specify_cli/cli/commands/agent/tasks_parsing_validation.py
   function: _get_latest_review_cycle_verdict
-  status: active
-  source: WP01/IC01
+  status: retire
+  retiring_fr: FR-002
+  source: WP05/verdict-seam-write-unification-01KZ9Q35
 - category: reader
   module: src/specify_cli/cli/commands/agent/workflow_cores.py
   function: resolve_review_feedback_pointer
@@ -391,8 +510,9 @@
 - category: reader
   module: src/specify_cli/post_merge/review_artifact_consistency.py
   function: find_rejected_review_artifact_conflicts
-  status: active
-  source: WP01/IC01
+  status: retire
+  retiring_fr: FR-013
+  source: WP05/verdict-seam-write-unification-01KZ9Q35
 # WP12 (review-cycle-verdict-seam-rebuild-01KZ2W7W, T051-T052, FR-009): the
 # ``reader`` rows for ``review/arbiter.py::_persist_in_artifact``,
 # ``get_arbiter_overrides_for_wp``, and ``persist_arbiter_decision`` are
@@ -419,13 +539,15 @@
 - category: reader
   module: src/specify_cli/review/artifacts.py
   function: latest_review_artifact_verdict
-  status: active
-  source: WP01/IC01
+  status: retire
+  retiring_fr: FR-003
+  source: WP05/verdict-seam-write-unification-01KZ9Q35
 - category: reader
   module: src/specify_cli/review/artifacts.py
   function: rejected_review_artifact_for_terminal_lane
-  status: active
-  source: WP01/IC01
+  status: retire
+  retiring_fr: FR-003
+  source: WP05/verdict-seam-write-unification-01KZ9Q35
 - category: reader
   module: src/specify_cli/review/cycle.py
   function: _guard_feedback_source_provenance
@@ -499,3 +621,31 @@
   status: retire
   retiring_fr: FR-009
   source: WP08/IC08
+# ---------------------------------------------------------------------------
+# REMOVED at post-merge consolidation (verdict-seam-write-unification-01KZ9Q35,
+# all 10 WPs squash-merged onto `feat/verdict-seam-write-unification`).
+# ---------------------------------------------------------------------------
+# WP02 (in its own lane, where `migration/verdict_provenance_backfill.py` was
+# NOT excluded) previously added 8 `active` rows here for that module -- 2
+# writer (`_backfill_event_for_wp`, `backfill_verdict_provenance`), 2 resolver
+# (`_review_cycle_candidate_dirs`, `terminal_review_artifact`), 4 reader
+# (`terminal_review_artifact`, `backfill_verdict_provenance`,
+# `stranded_verdict_findings`, and WP06's `_legacy_frontmatter_verdict`).
+#
+# On the CONSOLIDATED tree those 8 rows are STALE and were removed: WP01
+# forward-declared `migration/verdict_provenance_backfill.py` in
+# `_EXCLUDED_MODULE_REASONS` (a one-time provenance migration, out of the LIVE
+# verdict seam), so `_candidate_modules` skips the module wholesale and
+# `_derive_census(root)` produces ZERO rows for it. Keeping the 8 rows would
+# fail `test_derived_census_matches_fixture` on shrinkage (fixture rows the
+# derivation no longer produces). The exclusion and the fixture are now
+# reconciled: fixture == derived == 0 rows for this module.
+#
+# This is NOT a silent deletion of a real reader. `_legacy_frontmatter_verdict`
+# DOES match the census reader predicate (`read_text` + `yaml.load` + a manual
+# `\n---` frontmatter delimiter -- its whole job is recovering a historical
+# `verdict:` key from raw `.md` frontmatter). That genuine reader is suppressed
+# by the wholesale module-level exclusion -- a #3217-class blind spot, filed as
+# #3236 and disclosed in this module's `_EXCLUDED_MODULE_REASONS` reason. The
+# exclusion is KEPT (documented) rather than pretending the function is not a
+# reader; #3236 tracks narrowing it to a function-level exclusion.

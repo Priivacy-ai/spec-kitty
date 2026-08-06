@@ -5,22 +5,27 @@ DAMAGED verdict record (non-UTF-8 content, or a malformed event-sourced
 slot), and both about pinning an ALREADY-correct behaviour rather than
 introducing a new one:
 
-* T066 -- the merge gate (``post_merge/review_artifact_consistency.py::
-  find_rejected_review_artifact_conflicts``) is already fail-closed on a
-  non-UTF-8 verdict record, but only BECAUSE ``UnicodeDecodeError`` happens
-  to subclass ``ValueError`` and the gate's own bare ``except ValueError``
-  catches it. That is an ACCIDENT of Python's exception hierarchy, not a
-  designed guarantee -- a future reader-side exception outside that
-  hierarchy (e.g. a raw ``OSError`` that stops being wrapped into
-  ``ValueError``) would silently re-open the gate to fail-open behaviour
-  with no edit to the gate itself. This WP does not own
-  ``post_merge/review_artifact_consistency.py`` or its existing test file
-  (``tests/post_merge/test_review_artifact_consistency.py`` -- both belong
-  to WP07/WP13) and makes no edit to either; this file is the pinning
-  regression T066 requires instead, calling the gate's public entry point
-  as a black box. The rationale comment WP13 could add at the gate's
-  exception-handling site recording this incidental-inheritance fact is
-  filed as a cross-WP finding in this WP's Activity Log, not authored here.
+* T066 -- **superseded by WP05 (verdict-seam-write-unification-01KZ9Q35,
+  T028/FR-013/D-PLAN-8)**: the merge gate (``post_merge/
+  review_artifact_consistency.py::find_rejected_review_artifact_conflicts``)
+  is now pure-event -- it consults ONLY the reduced snapshot's event-sourced
+  ``review_result``/``review`` slots and no longer resolves, opens, or
+  parses any on-disk ``review-cycle-N.md`` artifact at all (see
+  ``_terminal_event_conflict``'s docstring). The former accident this test
+  pinned -- ``UnicodeDecodeError`` happening to subclass ``ValueError`` and
+  landing in the gate's own ``except ValueError`` -- can no longer occur:
+  there is no read of the artifact file left to raise it, and
+  ``ReviewArtifactSchemaFinding`` (the malformed-artifact finding type this
+  test originally asserted) is now unreachable dead code, retained only
+  because an unowned caller (``cli/commands/review/_lane_gate.py``) still
+  imports it. This test is REPOINTED (not deleted -- baseline-pinned, see
+  ``tests/architectural/mission_exit_baseline.txt``) to pin the NEW
+  guarantee instead: a genuinely damaged/non-UTF-8 ``.md`` file coexisting
+  on disk with a real event-sourced rejection must neither crash the gate
+  nor suppress the real finding -- the gate reports exactly the event's
+  verdict, as a ``RejectedReviewArtifactFinding`` with ``artifact_path=None``
+  (G2, contracts/verdict-authority-read.md: a safety-gate consumer never
+  reads or is disturbed by artifact-file damage it no longer depends on).
 
 * T065 -- ``review/arbiter.py::get_arbiter_overrides_for_wp`` was, before
   WP12 (T051-T053), an uncaught-crash site: a manual YAML/JSON parse of two
@@ -45,12 +50,12 @@ from pathlib import Path
 import pytest
 
 from specify_cli.post_merge.review_artifact_consistency import (
-    ReviewArtifactSchemaFinding,
+    RejectedReviewArtifactFinding,
     find_rejected_review_artifact_conflicts,
 )
 from specify_cli.review.arbiter import get_arbiter_overrides_for_wp
 from specify_cli.status import ReviewOverride
-from specify_cli.status.models import Lane
+from specify_cli.status.models import Lane, ReviewResult
 from tests.reliability.fixtures import (
     WorkPackageSpec,
     append_status_event,
@@ -70,29 +75,23 @@ pytestmark = pytest.mark.fast
 def test_merge_gate_returns_structured_finding_for_non_utf8_verdict_record(
     tmp_path: Path,
 ) -> None:
-    """A non-UTF-8 ``review-cycle-1.md`` must surface as a structured
-    :class:`ReviewArtifactSchemaFinding`, never propagate an exception out of
-    :func:`find_rejected_review_artifact_conflicts` (the merge gate's public
-    entry point, called here as a black box -- no reimplementation of its
-    internals).
+    """WP05 repoint (T028/FR-013): a non-UTF-8 ``review-cycle-1.md`` sitting
+    on disk must neither crash the pure-event gate nor suppress a genuine
+    event-sourced rejection -- :func:`find_rejected_review_artifact_conflicts`
+    (the merge gate's public entry point, called here as a black box) never
+    opens that file at all, so the finding it reports comes ENTIRELY from
+    the reduced snapshot's event-sourced verdict.
 
-    Why this passes today (recorded per T066, not fixed here): the gate's
-    read path (``review/artifacts.py::ReviewCycleArtifact.from_file`` via
-    ``latest_review_artifact_verdict``) calls ``path.read_text(encoding=
-    "utf-8")`` directly -- NOT inside its own ``except OSError`` guard (that
-    guard only wraps the read call itself and re-raises as ``ValueError``,
-    but ``UnicodeDecodeError`` is not an ``OSError``, so it is never caught
-    there). ``UnicodeDecodeError`` IS a ``ValueError`` subclass, though, so it
-    propagates uncaught out of ``from_file``/``latest_review_artifact_verdict``
-    as a ``ValueError`` and lands in
-    ``find_rejected_review_artifact_conflicts``'s own ``except ValueError``
-    (``post_merge/review_artifact_consistency.py:415``). That is an accident
-    of Python's exception hierarchy, not a designed guarantee -- a future
-    reader-side exception type outside it (e.g. a raw, unwrapped ``OSError``)
-    would silently re-open the gate to fail-open behaviour with NO code
-    change to the gate itself. This test is what converts the accident into a
-    guarded invariant: a future refactor that narrows the gate's catch clause
-    (e.g. to ``except FileNotFoundError`` only) reds this test immediately.
+    Before WP05, this exact fixture shape reached the gate's now-retired
+    artifact-frontmatter leg and only survived by an ACCIDENT of Python's
+    exception hierarchy (``UnicodeDecodeError`` subclassing ``ValueError``,
+    caught by a bare ``except ValueError``) -- see this module's docstring.
+    That leg (and the ``ReviewArtifactSchemaFinding`` it could produce) is
+    now retired outright (unreachable dead code); the pure-event gate can no
+    longer be disturbed by artifact-file damage it does not depend on, so
+    the finding below is a plain ``RejectedReviewArtifactFinding`` with
+    ``artifact_path=None`` -- not the schema-invalid finding this test
+    originally asserted.
     """
     mission = create_mission_fixture(tmp_path)
     write_work_package(mission, WorkPackageSpec(lane="approved"))
@@ -101,11 +100,18 @@ def test_merge_gate_returns_structured_finding_for_non_utf8_verdict_record(
         from_lane=Lane.FOR_REVIEW,
         to_lane=Lane.APPROVED,
         event_id="01KZ1CGFWP14MERGEGATE00001",
+        # WP05: the pure-event gate's ONLY signal -- a genuine, current
+        # rejection recorded on the event authority, not on-disk frontmatter.
+        review_result=ReviewResult(
+            reviewer="reviewer-renata", verdict="changes_requested", reference="x"
+        ),
     )
     artifact_dir = mission.tasks_dir / "WP01-regression-harness"
     artifact_dir.mkdir(parents=True, exist_ok=True)
     # 0xFF is never a valid UTF-8 lead byte -- guaranteed UnicodeDecodeError
-    # on ``.read_text(encoding="utf-8")``, not merely malformed YAML content.
+    # on a naive ``.read_text(encoding="utf-8")``. Written to prove the gate
+    # never attempts that read at all (it would raise if it did); left on
+    # disk deliberately, not asserted against.
     (artifact_dir / "review-cycle-1.md").write_bytes(
         b"---\n\xffverdict: approved\n---\n# Review\n"
     )
@@ -117,9 +123,10 @@ def test_merge_gate_returns_structured_finding_for_non_utf8_verdict_record(
 
     assert len(findings) == 1
     finding = findings[0]
-    assert isinstance(finding, ReviewArtifactSchemaFinding)
+    assert isinstance(finding, RejectedReviewArtifactFinding)
     assert finding.wp_id == "WP01"
-    assert finding.artifact_path == artifact_dir / "review-cycle-1.md"
+    assert finding.artifact_path is None
+    assert finding.verdict == "changes_requested"
 
 
 # ---------------------------------------------------------------------------

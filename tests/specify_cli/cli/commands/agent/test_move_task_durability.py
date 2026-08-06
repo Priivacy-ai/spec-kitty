@@ -13,9 +13,12 @@ left over from the reverted failed attempt.
 
 ``exit_code == 0``/``typer.Exit`` is asserted as necessary but never
 sufficient in either test: every assertion also queries recorded state
-directly (``latest_review_artifact_verdict`` -- the same reader the census's
-"reader" category exercises -- git HEAD content, and the transactional lane),
-never mere file-listing or exit-code alone.
+directly (``ReviewCycleArtifact.latest`` -- WP05
+(verdict-seam-write-unification-01KZ9Q35) retired ``latest_review_artifact_
+verdict``, the census "reader"-category verdict parser this test used to
+call; ``.latest`` is the KEPT content/cycle-number loader, squad #1 -- git
+HEAD content, and the transactional lane), never mere file-listing or
+exit-code alone.
 
 Both drive the REAL ``_do_move_task`` orchestrator against a REAL
 git-fixture repo with the REAL ``RealCoordCommitRouter.commit_artifact`` (so
@@ -52,8 +55,8 @@ from specify_cli.cli.commands.agent.tasks_finalize_validation import (
 )
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.protection_policy import ProtectionPolicy
-from specify_cli.review.artifacts import latest_review_artifact_verdict
-from specify_cli.review.cycle import ReviewCycleError, create_rejected_review_cycle
+from specify_cli.review.artifacts import ReviewCycleArtifact
+from specify_cli.review.cycle import create_rejected_review_cycle
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 from specify_cli.status import TransitionRequest
@@ -145,6 +148,22 @@ def _build_wp_file(repo: Path, mission_slug: str, wp_id: str) -> tuple[Path, Pat
     return feature_dir, wp_file
 
 
+def _seed_event_at(seq: int) -> str:
+    """A monotonically increasing timestamp keyed by *seq*.
+
+    WP05 (verdict-seam-write-unification-01KZ9Q35) fixture fix:
+    ``status/reducer.py::reduce`` sorts transitions by ``(at, event_id)``
+    ascending -- every seed call in this module used the SAME literal
+    ``at``, so ties broke on ``event_id`` STRING order instead of the
+    intended seed/call sequence (e.g. ``"...-in_review-2"`` sorts before
+    ``"...-rejected-1"`` lexicographically, silently reordering a rejection
+    AFTER a later reopen and corrupting the reduced "current lane"). Giving
+    each seeded event its own ``seq``-derived minute makes the sort
+    unambiguous and matches the caller's intended chronological order.
+    """
+    return f"2026-01-01T00:{seq:02d}:00+00:00"
+
+
 def _seed_wp_event(feature_dir: Path, wp_id: str, to_lane: str, *, seq: int) -> None:
     append_event(
         feature_dir,
@@ -154,10 +173,52 @@ def _seed_wp_event(feature_dir: Path, wp_id: str, to_lane: str, *, seq: int) -> 
             wp_id=wp_id,
             from_lane=Lane.PLANNED,
             to_lane=Lane(to_lane),
-            at="2026-01-01T00:00:00+00:00",
+            at=_seed_event_at(seq),
             actor="test",
             force=True,
             execution_mode="worktree",
+        ),
+    )
+
+
+def _seed_rejection_result_event(feature_dir: Path, wp_id: str, *, seq: int) -> None:
+    """Seed the ``in_review -> planned`` rejection's ``review_result`` directly.
+
+    WP05 (verdict-seam-write-unification-01KZ9Q35, T023) repoint:
+    ``_persist_approved_review_cycle``'s "is the current verdict a
+    rejection" probe now resolves the event authority
+    (``event_sourced_review_result``), not ``review-cycle-N.md``
+    frontmatter. This module's fixtures write the rejected artifact for
+    real (via ``create_rejected_review_cycle``) but never emit a matching
+    event -- the fault-injectable/minimal-state harnesses here stand in
+    for the full ``commit_status`` -> ``emit_status_transition`` path this
+    WP's real production callers use. Without this, the approval probe
+    correctly (per G2) treats the rejection as absent and no-ops the
+    write -- not a WP05 regression, but a test-fixture gap this WP's
+    repoint newly exposes.
+
+    ``seq`` also fixes the ``at`` value (see :func:`_seed_event_at`) so this
+    event sorts at its intended position relative to sibling
+    ``_seed_wp_event`` calls in the same fixture, not merely by event_id.
+    """
+    from specify_cli.status.models import ReviewResult
+
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id=f"test-{wp_id}-rejected-{seq}",
+            mission_slug=feature_dir.name,
+            wp_id=wp_id,
+            from_lane=Lane.IN_REVIEW,
+            to_lane=Lane.PLANNED,
+            at=_seed_event_at(seq),
+            actor="test",
+            force=False,
+            execution_mode="worktree",
+            reason="rejected on review",
+            review_result=ReviewResult(
+                reviewer="reviewer-renata", verdict="changes_requested", reference="x"
+            ),
         ),
     )
 
@@ -324,6 +385,15 @@ def _setup_fixture(repo: Path) -> Path:
         verdict="rejected",
         commit_router=RealCoordCommitRouter(),
     )
+    # WP05 repoint: record the rejection's review_result on the event
+    # authority too (see ``_seed_rejection_result_event``'s docstring), then
+    # reopen to in_review -- the reducer's carry-forward rule (this event's
+    # ``from_lane`` is PLANNED, not IN_REVIEW, and it carries no
+    # ``review_result`` of its own) preserves the just-recorded
+    # ``changes_requested`` verdict while restoring the "currently in_review"
+    # precondition every test in this module relies on.
+    _seed_rejection_result_event(feature_dir, _WP_ID, seq=1)
+    _seed_wp_event(feature_dir, _WP_ID, "in_review", seq=2)
     return feature_dir
 
 
@@ -350,14 +420,18 @@ def test_failed_transition_emit_is_reverted_leaving_no_committed_verdict(
         _run_move(repo, ports=ports, note="Review passed")
     assert exc_info.value.exit_code == 1  # necessary, never sufficient (see below)
 
-    # (a) No readable committed verdict for this WP -- queried the way the
-    # census's "reader" category would (latest_review_artifact_verdict), not
-    # raw file listing. The reverted write must not be the latest: cycle 1
-    # (rejected, seeded by the fixture) is still the true latest.
-    latest = latest_review_artifact_verdict(wp_dir)
-    assert latest is not None and latest.verdict == "rejected", (
+    # (a) No readable committed verdict for this WP -- queried via the KEPT
+    # content loader (``ReviewCycleArtifact.latest``, squad #1), not raw file
+    # listing. The reverted write must not be the latest: cycle 1 (rejected,
+    # seeded by the fixture) is still the true latest.
+    # WP06 (FR-003/SC-007): ``ReviewCycleArtifact`` no longer carries a
+    # ``verdict`` field -- ``cycle_number`` is the checkable proxy for "which
+    # write is the reader-visible latest" (exactly what this assertion is
+    # about: the reverted cycle-2 must not be promoted over cycle-1).
+    latest = ReviewCycleArtifact.latest(wp_dir)
+    assert latest is not None and latest.cycle_number == 1, (
         f"expected the pre-existing rejected cycle 1 to still be the reader-"
-        f"visible latest verdict after the revert, got {latest}"
+        f"visible latest after the revert, got {latest}"
     )
 
     # (b) The orphan file itself is gone from disk...
@@ -437,8 +511,11 @@ def test_retry_after_reverted_orphan_records_the_genuine_approval(
     # in detail by the sibling test) -- confirm no orphan survives to retry
     # against, so this test's own assertions mean what they claim to.
     assert not (wp_dir / "review-cycle-2.md").exists()
-    latest_before_retry = latest_review_artifact_verdict(wp_dir)
-    assert latest_before_retry is not None and latest_before_retry.verdict == "rejected"
+    # WP06 (FR-003/SC-007): ``ReviewCycleArtifact`` no longer carries a
+    # ``verdict`` field -- ``cycle_number`` is the checkable proxy here (the
+    # pre-existing rejected cycle-1 is still the true latest).
+    latest_before_retry = ReviewCycleArtifact.latest(wp_dir)
+    assert latest_before_retry is not None and latest_before_retry.cycle_number == 1
 
     # Retry: SAME command, its OWN genuine approval_ref, failure removed.
     # Reaching the line after this call (no exception) is "exit 0" --
@@ -471,8 +548,11 @@ def test_retry_after_reverted_orphan_records_the_genuine_approval(
         "the artifact still carries the FIRST FAILED attempt's stale "
         "reference -- the revert did not actually clear the prior write"
     )
-    latest_after_retry = latest_review_artifact_verdict(wp_dir)
-    assert latest_after_retry is not None and latest_after_retry.verdict == "approved"
+    # WP06 (FR-003/SC-007): ``ReviewCycleArtifact`` no longer carries a
+    # ``verdict`` field -- the approval write's own synthesized body
+    # ("Approved by ...") is the checkable proxy.
+    latest_after_retry = ReviewCycleArtifact.latest(wp_dir)
+    assert latest_after_retry is not None and latest_after_retry.body.startswith("Approved by ")
 
     status = _git_status(repo)
     assert "review-cycle-2.md" not in status, (
@@ -569,6 +649,16 @@ def _minimal_state(
     )
     st.main_repo_root = repo
     st.mission_slug = mission_slug
+    # WP05 (verdict-seam-write-unification-01KZ9Q35, T023) repoint:
+    # ``_persist_approved_review_cycle``/``persist_rejected_review_cycle_for_
+    # rollback`` now resolve ``event_sourced_review_result(st.feature_dir,
+    # st.task_id)`` -- a hand-built state that skips the real orchestrator's
+    # ``st.feature_dir = st.mt_feature_dir`` assignment (``tasks_move_task.
+    # py``) left this at its dataclass default (``Path()`` == cwd), so the
+    # probe silently read the WRONG directory's (nonexistent) event log and
+    # always found "absent". Set it here to match what real orchestration
+    # would have resolved for this flat-topology fixture.
+    st.feature_dir = repo / "kitty-specs" / mission_slug
     st.resolved_auto_commit = resolved_auto_commit
     st.skip_target_branch_commit = skip_target_branch_commit
     st.note_text = note
@@ -579,6 +669,11 @@ def _minimal_state(
 def _seed_rejected_cycle_1(repo: Path, mission_slug: str, wp_id: str) -> None:
     """A prior rejected cycle on disk, UNCOMMITTED -- sufficient for the
     no-op guard's precondition; this reproduction is not about that guard.
+
+    WP05 repoint: also records the rejection's ``review_result`` on the
+    event authority (see ``_seed_rejection_result_event``'s docstring) --
+    the event-sourced probe this WP repointed needs it, not merely the
+    on-disk artifact frontmatter the pre-WP05 probe used to read.
     """
     create_rejected_review_cycle(
         main_repo_root=repo,
@@ -589,24 +684,34 @@ def _seed_rejected_cycle_1(repo: Path, mission_slug: str, wp_id: str) -> None:
         reviewer_agent="reviewer-renata",
         verdict="rejected",
     )
+    _seed_rejection_result_event(repo / "kitty-specs" / mission_slug, wp_id, seq=0)
 
 
 def test_pre_fix_naive_commit_router_gating_crashes_on_protected_target_branch(
-    tmp_path: Path,
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """T050 red-first: reproduces the PRE-FIX defect this WP's Objective
+    """T050 originally reproduced the PRE-FIX defect this WP's Objective
     section describes -- gating the review-cycle-artifact ``commit_router``
     on ``resolved_auto_commit`` ALONE (ignoring ``skip_target_branch_commit``,
-    the naive expression this WP replaces) raises ``ReviewCycleError``
-    uncaught on a protected-primary-coord topology, where
-    ``resolved_auto_commit=True`` but ``skip_target_branch_commit=True``.
+    the naive expression this WP replaces) raised ``ReviewCycleError``
+    uncaught on a protected-primary-coord topology.
+
+    **WP05 (verdict-seam-write-unification-01KZ9Q35, T026/D-PLAN-11) INVERTS
+    the failure mode this pins**: a non-``"committed"`` result is now a
+    logged WARNING, never a raised ``ReviewCycleError`` -- so the naive gate
+    no longer crashes either. What T050 actually cares about survives
+    unchanged, though: the naive expression still ATTEMPTS a protected-branch
+    ``commit_artifact`` call at all (an unwanted attempt the FIXED gate
+    avoids entirely -- see ``test_protected_target_branch_completes_without_
+    raising_after_fix``'s ``router.artifact_calls == []`` assertion), it just
+    no longer crashes when that attempt is refused.
 
     This does not call ``_persist_approved_review_cycle`` itself (that
     function is ALREADY fixed in this diff) -- it inlines the exact
     pre-fix expression (``ports.coord if st.resolved_auto_commit else
     None``) verbatim to prove, in isolation, that the naive gate is what
-    crashes -- per the rule against reverting tracked files to observe
-    pre-fix behaviour.
+    attempts the unwanted commit -- per the rule against reverting tracked
+    files to observe pre-fix behaviour.
     """
     repo = tmp_path
     _init_repo(repo)
@@ -624,7 +729,7 @@ def test_pre_fix_naive_commit_router_gating_crashes_on_protected_target_branch(
     # persistence.py's two call sites used to read exactly this).
     naive_commit_router = router if st.resolved_auto_commit else None
 
-    with pytest.raises(ReviewCycleError, match="ProtectedBranchRefused|protected"):
+    with caplog.at_level("WARNING", logger="specify_cli.review.cycle"):
         create_rejected_review_cycle(
             main_repo_root=st.main_repo_root,
             mission_slug=st.mission_slug,
@@ -635,6 +740,17 @@ def test_pre_fix_naive_commit_router_gating_crashes_on_protected_target_branch(
             verdict="approved",
             commit_router=naive_commit_router,
         )
+
+    assert router.artifact_calls, (
+        "the naive gate must still ATTEMPT the protected-branch commit -- "
+        "that unwanted attempt, not a crash, is what the fixed gate avoids"
+    )
+    assert any(
+        "Failed to commit review-cycle" in record.message for record in caplog.records
+    ), (
+        "the refused protected-branch commit must still be logged as a "
+        f"WARNING (T026), never silently dropped; records={caplog.records}"
+    )
 
 
 def test_protected_target_branch_completes_without_raising_after_fix(
@@ -679,7 +795,10 @@ def test_protected_target_branch_completes_without_raising_after_fix(
     wp_dir = _wp_dir(repo)
     artifact = wp_dir / "review-cycle-2.md"
     assert artifact.exists()
-    assert "verdict: approved" in artifact.read_text(encoding="utf-8")
+    # WP06 (FR-003/SC-007): ReviewCycleArtifact no longer carries a verdict
+    # field -- the approval write's own synthesized body ("Approved by ...")
+    # is the checkable proxy.
+    assert "Approved by" in artifact.read_text(encoding="utf-8")
 
     # Rejection call site: same gating, exercised via a fresh rollback state.
     st2 = _minimal_state(
@@ -752,9 +871,12 @@ def test_no_auto_commit_announces_the_non_durable_write_on_console(
     assert "written but NOT committed" in captured.out
     assert "--no-auto-commit" in captured.out
 
-    latest = latest_review_artifact_verdict(_wp_dir(repo))
+    # WP06 (FR-003/SC-007): ``ReviewCycleArtifact`` no longer carries a
+    # ``verdict`` field -- the approval write's own synthesized body
+    # ("Approved by ...") is the checkable proxy.
+    latest = ReviewCycleArtifact.latest(_wp_dir(repo))
     assert latest is not None
-    assert latest.verdict == "approved"
+    assert latest.body.startswith("Approved by ")
 
 
 def test_json_output_suppresses_the_durability_console_notice(

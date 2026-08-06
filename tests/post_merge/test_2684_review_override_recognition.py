@@ -47,7 +47,7 @@ from specify_cli.post_merge.review_artifact_consistency import (
 from specify_cli.review.artifacts import ReviewCycleArtifact
 from specify_cli.status import materialize
 from specify_cli.status.emit import emit_inner_state_changed
-from specify_cli.status.models import Lane, ReviewOverride, StatusEvent, WPInnerStateDelta
+from specify_cli.status.models import Lane, ReviewOverride, ReviewResult, StatusEvent, WPInnerStateDelta
 from specify_cli.status.store import append_event
 
 pytestmark = [pytest.mark.integration]
@@ -77,8 +77,18 @@ def _make_feature_dir(root: Path) -> Path:
     return feature_dir
 
 
-def _append_approved_event(feature_dir: Path, event_id: str) -> None:
-    """Put ``_WP_ID`` in the terminal ``approved`` lane via a transition event."""
+def _append_approved_event(
+    feature_dir: Path, event_id: str, *, review_result: ReviewResult | None = None
+) -> None:
+    """Put ``_WP_ID`` in the terminal ``approved`` lane via a transition event.
+
+    ``review_result`` (WP05, verdict-seam-write-unification-01KZ9Q35,
+    additive/backward-compatible): the merge gate
+    (``find_rejected_review_artifact_conflicts``) is now pure-event (FR-013)
+    -- callers that need the gate to see a CURRENT rejection (so an
+    override/negative-control scenario has something genuine to
+    clear/block) must seed it here, not merely write the on-disk artifact.
+    """
     event = StatusEvent(
         event_id=event_id,
         mission_slug=_MISSION_SLUG,
@@ -91,6 +101,7 @@ def _append_approved_event(feature_dir: Path, event_id: str) -> None:
         force=False,
         execution_mode="worktree",
         reason="approved for merge",
+        review_result=review_result,
     )
     append_event(feature_dir, event)
 
@@ -102,7 +113,6 @@ def _write_rejected_artifact(feature_dir: Path) -> Path:
         wp_id=_WP_ID,
         mission_slug=_MISSION_SLUG,
         reviewer_agent="reviewer-renata",
-        verdict="rejected",
         reviewed_at="2026-07-19T11:00:00+00:00",
         body="# Review\n\nVerdict: rejected — changes needed.\n",
     )
@@ -126,7 +136,12 @@ def test_event_sourced_complete_override_does_not_block_merge(tmp_path: Path) ->
     read half resolves the event-sourced override, not the frontmatter parse.
     """
     feature_dir = _make_feature_dir(tmp_path)
-    _append_approved_event(feature_dir, "01KXWN13WP09REGRESSION0001")
+    _append_approved_event(
+        feature_dir, "01KXWN13WP09REGRESSION0001",
+        review_result=ReviewResult(
+            reviewer="reviewer-renata", verdict="changes_requested", reference="x"
+        ),
+    )
     artifact_path = _write_rejected_artifact(feature_dir)
 
     before_bytes = artifact_path.read_bytes()
@@ -169,14 +184,22 @@ def test_event_sourced_complete_override_does_not_block_merge(tmp_path: Path) ->
 def test_rejected_without_override_still_blocks_merge(tmp_path: Path) -> None:
     """A genuinely-unresolved rejection (no override) still blocks merge."""
     feature_dir = _make_feature_dir(tmp_path)
-    _append_approved_event(feature_dir, "01KXWN13WP09REGRESSION0002")
+    _append_approved_event(
+        feature_dir, "01KXWN13WP09REGRESSION0002",
+        review_result=ReviewResult(
+            reviewer="reviewer-renata", verdict="changes_requested", reference="x"
+        ),
+    )
     _write_rejected_artifact(feature_dir)  # no override emitted anywhere
 
     findings = find_rejected_review_artifact_conflicts(feature_dir, [_WP_ID])
 
     assert findings, "Genuine rejection with no override must block merge"
     assert findings[0].wp_id == _WP_ID
-    assert getattr(findings[0], "verdict", None) == "rejected"
+    # WP05 (verdict-seam-write-unification-01KZ9Q35, FR-013): the pure-event
+    # gate reports the event-domain verdict value, not the artifact-domain
+    # one -- "changes_requested", never "rejected".
+    assert getattr(findings[0], "verdict", None) == "changes_requested"
     diagnostic = review_artifact_finding_diagnostic(findings[0])
     assert diagnostic["diagnostic_code"] == REJECTED_REVIEW_ARTIFACT_CONFLICT
 
@@ -193,7 +216,12 @@ def test_incomplete_event_sourced_override_still_blocks_merge(tmp_path: Path) ->
     ``has_complete_override`` predicate.
     """
     feature_dir = _make_feature_dir(tmp_path)
-    _append_approved_event(feature_dir, "01KXWN13WP09REGRESSION0003")
+    _append_approved_event(
+        feature_dir, "01KXWN13WP09REGRESSION0003",
+        review_result=ReviewResult(
+            reviewer="reviewer-renata", verdict="changes_requested", reference="x"
+        ),
+    )
     _write_rejected_artifact(feature_dir)
 
     # Emit an override with a blank ``reason`` — incomplete.

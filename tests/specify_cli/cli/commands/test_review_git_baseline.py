@@ -184,11 +184,22 @@ def test_review_passes_when_all_done(tmp_path: Path, monkeypatch: pytest.MonkeyP
     assert "findings: 0" in content
 
 
-def test_review_fails_with_schema_diagnostic_for_malformed_review_artifact(
+def test_review_ignores_malformed_review_artifact_after_fr013_repoint(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Review lane gate must not crash on schema-invalid review-cycle frontmatter."""
+    """A malformed review-cycle artifact is irrelevant to the review lane gate.
+
+    FR-013 (verdict-seam-write-unification-01KZ9Q35) retired the artifact-
+    frontmatter *schema* leg: the lane gate no longer parses ``review-cycle-N.md``
+    at all, so a malformed-but-unreviewed artifact on a ``done`` WP can no longer
+    fabricate a ``REVIEW_ARTIFACT_SCHEMA_INVALID`` block. This test — formerly
+    ``test_review_fails_with_schema_diagnostic_for_malformed_review_artifact`` —
+    is repointed to the pure-event contract: the review passes cleanly and, most
+    importantly, never crashes on the malformed frontmatter (the original intent).
+    Mirrors the merge-side repoint in
+    ``test_real_merge_schema_preflight_does_not_write_merge_state``.
+    """
     repo_root, feature_dir = _setup_fixture(
         tmp_path,
         {"WP01": "done"},
@@ -211,15 +222,15 @@ def test_review_fails_with_schema_diagnostic_for_malformed_review_artifact(
     runner = CliRunner()
     result = runner.invoke(app, ["--mission", _MISSION_SLUG, "--mode", "lightweight"])
 
-    assert result.exit_code == 1, result.output
-    assert "diagnostic_code: REVIEW_ARTIFACT_SCHEMA_INVALID" in result.output
-    assert "affected_files entries must be mappings" in result.output.replace("\n", "")
+    # Pure-event contract: malformed frontmatter is irrelevant — no schema block,
+    # no crash, review passes on a done WP with no rejected review_result event.
+    assert result.exit_code == 0, result.output
     assert "Traceback" not in result.output
+    assert "REVIEW_ARTIFACT_SCHEMA_INVALID" not in result.output
 
     report_text = (feature_dir / "mission-review-report.md").read_text(encoding="utf-8")
-    assert "verdict: fail" in report_text
-    assert "review_artifact_schema_invalid" in report_text
-    assert "REVIEW_ARTIFACT_SCHEMA_INVALID" in report_text
+    assert "verdict: pass" in report_text
+    assert "review_artifact_schema_invalid" not in report_text
 
 
 def test_review_report_frontmatter_structure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

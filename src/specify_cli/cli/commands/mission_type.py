@@ -838,15 +838,24 @@ def _verify_discard_complete(
 
 
 def _flatten_discarded_mission(feature_dir: Path) -> None:
-    """Drop the dangling ``coordination_branch`` marker after a discard (#2120).
+    """Flatten a discarded mission's coordination metadata (#2120 / #3219).
+
+    Converged onto the canonical ``flatten_coordination_metadata`` primitive
+    (FR-015 / D-PLAN-17): pops BOTH ``coordination_branch`` AND the now-stale
+    ``topology``, and records ``flattened=True``. Fixes a latent bug the prior
+    ``clear_coordination_metadata``-only call left: it cleared
+    ``coordination_branch`` but never popped ``topology``, so a discarded
+    coord mission could still carry a stored ``topology: "coord"`` value and
+    route back through coordination, hitting ``CoordinationBranchDeleted`` on
+    a mission that was supposed to be flattened.
 
     Tolerant: a missing meta.json (legacy mission) is a no-op — flattening is a
     best-effort cleanup, never a hard failure of an otherwise-successful discard.
     """
-    from specify_cli.mission_metadata import clear_coordination_metadata
+    from specify_cli.mission_metadata import flatten_coordination_metadata
 
     with contextlib.suppress(FileNotFoundError):
-        clear_coordination_metadata(feature_dir)
+        flatten_coordination_metadata(feature_dir)
 
 
 def _confirm_discard(mission_slug: str, *, force: bool) -> None:

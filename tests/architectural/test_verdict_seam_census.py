@@ -70,13 +70,18 @@ ingress in ``orchestrator_api/commands.py`` is the live instance -- see below).
   `review_cycle` token (module text, string literals, docstrings, imports --
   :data:`_SCOPE_TOKEN_RE`).
 * Leg 2 -- every ``*.py`` under ``src/`` calling ``ReviewResult(`` or
-  ``ReviewOverride(`` as a constructor (:data:`_RECORD_CTOR_CALL_RE`),
-  regardless of whether it also matches Leg 1.
+  ``ReviewOverride(`` as a constructor, OR either record's ``.from_dict(``
+  FACTORY/classmethod form (:data:`_RECORD_CTOR_CALL_RE`; the ``.from_dict``
+  half is T003/FR-010 -- a prior, now-closed blind spot: a record rehydrated
+  via a factory call is exactly as much "construction" as a bare ``(...)``
+  call), regardless of whether it also matches Leg 1.
 
 Neither leg is a fixed module list -- both are re-derived from source text
-each run. Exactly two named, reasoned exclusions are subtracted from the
-union (:data:`_EXCLUDED_MODULE_REASONS`) -- by CONTENT (the concept each file
-owns), not by filename:
+each run. A small, growing set of named, reasoned exclusions is subtracted
+from the union (:data:`_EXCLUDED_MODULE_REASONS`; the count has grown across
+several WPs -- read the dict literal for the current, authoritative set
+rather than trusting a number restated in prose here) -- by CONTENT (the
+concept each file owns), not by filename. The original two:
 
 * ``src/specify_cli/review/pre_review_gate.py`` -- its ``SOURCE_MISMATCH``
   outcome is a deliberate fail-open over baseline/head ``ScopeSource``
@@ -208,10 +213,16 @@ def _census_fixture_path(root: Path) -> Path:
 
 _SCOPE_TOKEN_RE: re.Pattern[str] = re.compile(r"review[-_]cycle")
 
-#: Leg 2 (F2): a module that constructs the event-side record directly is
-#: in scope even with zero `review-cycle`/`review_cycle` text -- see module
-#: docstring's "blind spot" section.
-_RECORD_CTOR_CALL_RE: re.Pattern[str] = re.compile(r"\b(?:ReviewResult|ReviewOverride)\(")
+#: Leg 2 (F2): a module that constructs the event-side record directly, OR
+#: via a ``.from_dict(`` FACTORY/classmethod call (T003, FR-010) -- a
+#: ``.from_dict``-shaped rehydration is exactly as much "construction" as a
+#: bare ``ReviewResult(...)``/``ReviewOverride(...)`` call, just spelled as a
+#: classmethod invocation -- is in scope even with zero
+#: `review-cycle`/`review_cycle` text -- see module docstring's "blind spot"
+#: section.
+_RECORD_CTOR_CALL_RE: re.Pattern[str] = re.compile(
+    r"\b(?:ReviewResult|ReviewOverride)(?:\(|\.from_dict\()"
+)
 
 _EXCLUDED_MODULE_REASONS: dict[str, str] = {
     "src/specify_cli/review/pre_review_gate.py": (
@@ -238,15 +249,85 @@ _EXCLUDED_MODULE_REASONS: dict[str, str] = {
         "report). Counting it here would double-count the same five retired "
         "resolvers under a different module path."
     ),
+    # T004 (FR-010): the broadened `.from_dict` factory shape (T003) newly
+    # matches these two modules' OWN `.from_dict`-based rehydration of an
+    # ALREADY-REDUCED event snapshot's "review"/"review_result" slot back into
+    # a typed `ReviewOverride`/`ReviewResult` -- the canonical event-authority
+    # deserialization path (G2), not a NEW verdict construction. Both modules
+    # contribute ZERO rows today (verified: no existing census row names
+    # either path), so excluding them wholesale carries no shrinkage risk.
+    # This is the census's negative control (US5 scenario 2): a genuine
+    # event-authority deserializer stays excluded by a named reason, proving
+    # T003's broadened predicate does not over-match every `.from_dict` call.
+    # `status/models.py` -- home of BOTH the verified real gap
+    # (`WPInnerStateDelta.from_dict`, T002) and its own event-log wire-format
+    # decoder (`StatusEvent.from_dict`) -- is deliberately NOT added here: a
+    # module-level exclusion cannot distinguish the two, and the gap must stay
+    # counted, so `StatusEvent.from_dict` is instead disclosed as an honest,
+    # non-hazardous new writer row directly in the fixture (see its `source`
+    # comment there).
+    "src/specify_cli/status/reducer.py": (
+        "`review_result_from_state` rehydrates the reduced snapshot's "
+        "`review_result` slot via `ReviewResult.from_dict` -- decoding the "
+        "event log's OWN already-authoritative payload, not constructing a "
+        "new verdict from a frontmatter/external source. Its same-module "
+        "one-hop delegate `event_sourced_review_result` inherits the same "
+        "reasoning, not a second finding."
+    ),
+    "src/specify_cli/status/wp_review.py": (
+        "the canonical shared reader for the reduced-snapshot `review` slot "
+        "(module docstring: single seam for the merge gate + CLI review-"
+        "context resolution) reconstructs `ReviewOverride` via `.from_dict` "
+        "from the reducer's own dict-shaped snapshot value -- event-authority "
+        "rehydration, not a review-cycle-artifact reader/writer."
+    ),
+    # T004 forward-declared exclusions: authored HERE, by WP01, so neither
+    # WP02 nor WP04 ever needs to edit this census test -- no concurrent-edit
+    # race on the exclusion list between dependency-unordered lanes (paula F2).
+    # POST-MERGE UPDATE (verdict-seam-write-unification-01KZ9Q35
+    # consolidation): both modules NOW EXIST on disk (WP02 landed
+    # `verdict_provenance_backfill.py`, WP04 landed `verdict_vocab.py`), so
+    # these are no longer vacuous forward guards -- the exclusions were
+    # re-verified against the REAL modules per the trip-wire in
+    # `test_forward_declared_backfill_and_vocab_modules_are_excluded` below:
+    # `verdict_vocab.py` is a pure string->string vocabulary map (no artifact
+    # verdict I/O), correctly excluded; `verdict_provenance_backfill.py` is a
+    # one-time migration whose disclosed reader blind spot is tracked in #3236
+    # (see its exclusion reason below).
+    "src/specify_cli/migration/verdict_provenance_backfill.py": (
+        "WP02's provenance-backfill migration (FR-012/SC-008) reduces a "
+        "terminal `.md` verdict into `status.events.jsonl` via a hand-"
+        "constructed `review_result` event (`append_events_atomic_verified`, "
+        "NOT `emit_status_transition` -- D-PLAN-10). This is a ONE-TIME "
+        "migration recovering PRE-schema-change data, out of scope of the "
+        "LIVE verdict seam this census tracks, so the whole module is "
+        "excluded. DISCLOSED BLIND SPOT (#3236, sibling of #3217): WP06's "
+        "`_legacy_frontmatter_verdict` GENUINELY matches this census's reader "
+        "predicate (`read_text` + `yaml.load` + a manual `\\n---` frontmatter "
+        "delimiter -- its whole job is recovering a historical `verdict:` key "
+        "from raw `.md` frontmatter). The module-level exclusion suppresses "
+        "that reader row silently; this is NOT a claim the function is not a "
+        "reader -- it is, and #3236 tracks narrowing this to a function-level "
+        "exclusion so a FUTURE live reader moved into this module cannot hide "
+        "behind the wholesale skip."
+    ),
+    "src/specify_cli/status/verdict_vocab.py": (
+        "WP04's pure vocabulary-mapping surface bridges lane-transition verbs "
+        "to `{approved, rejected}` `review_result` strings (D-PLAN-14: "
+        "display-only for `arbiter_override`/`approved_after_orchestrator_fix` "
+        "-- those never synthesize a `review_result` event). It maps strings "
+        "to strings; it never reads, writes, or resolves a review-cycle "
+        "verdict record."
+    ),
 }
 
 
 def _candidate_modules(root: Path) -> list[Path]:
     """Grep-derived candidate module scope: every ``*.py`` under ``src/``
     matching EITHER the ``review-cycle``/``review_cycle`` token (Leg 1) OR a
-    ``ReviewResult(``/``ReviewOverride(`` constructor call (Leg 2), minus the
-    two named exclusions above. NOT a hand-typed allowlist -- see module
-    docstring."""
+    ``ReviewResult(``/``ReviewOverride(``/``.from_dict(`` constructor call
+    (Leg 2), minus the named exclusions above. NOT a hand-typed allowlist --
+    see module docstring."""
     candidates: list[Path] = []
     for path in sorted((root / "src").rglob("*.py")):
         relpath = path.relative_to(root).as_posix()
@@ -399,8 +480,22 @@ def _contains_review_cycle_filename_literal(node: ast.AST) -> bool:
     return False
 
 
+def _is_record_from_dict_call(call: ast.Call, names: frozenset[str]) -> bool:
+    """T003 (FR-010): True for a ``<Record>.from_dict(...)`` FACTORY call --
+    ``_call_name`` resolves such a call's own name to ``"from_dict"`` (the
+    attribute), never the record name, so a direct ``in names`` check on
+    ``_call_name`` alone is structurally blind to this shape (the pre-T003
+    gap). Reuses ``_call_base_name`` (already shared with the reader
+    predicate's ``ReviewCycleArtifact.from_file`` check) to resolve the
+    callee's OWN base object instead."""
+    return _call_name(call) == "from_dict" and _call_base_name(call) in names
+
+
 def _contains_ctor(node: ast.AST, names: frozenset[str]) -> bool:
-    return any(_call_name(call) in names for call in _iter_calls(node))
+    return any(
+        _call_name(call) in names or _is_record_from_dict_call(call, names)
+        for call in _iter_calls(node)
+    )
 
 
 def _classify_writer(node: ast.AST, enclosing_class: str | None) -> bool:
@@ -991,6 +1086,40 @@ def test_exclusion_reasons_are_named_and_non_empty() -> None:
         assert reason.strip(), f"{relpath} exclusion has no recorded reason"
 
 
+def test_wp_inner_state_delta_from_dict_is_the_verified_from_dict_gap() -> None:
+    """T002/T005 real-data test (D-PLAN-14, NFR-002): the VERIFIED live
+    ``.from_dict`` gap site is ``status/models.py::WPInnerStateDelta.from_dict``
+    -- it constructs ``ReviewOverride`` via ``ReviewOverride.from_dict(review_raw)``
+    at ``status/models.py:570`` while rehydrating a WP's review-delta annotation.
+    (Re-verification note, T002's own "don't assume" discipline: research.md's
+    D-PLAN-14 names ``migration/backfill_runtime_state.py::_runtime_repair_delta``
+    as the ALREADY-matched direct-ctor case, distinct from this gap -- but
+    re-checked directly against the live tree, ``_runtime_repair_delta`` turns
+    out to ALSO use the ``.from_dict`` factory shape today, not a direct ctor;
+    it is a second, independent instance of the same gap and is reconciled as
+    its own active row below, not conflated with this one.) Classified as a
+    writer only after T003's broadened predicate -- the real-data companion to
+    the synthetic poison test (NFR-002: >=1 synthetic + >=1 real-data)."""
+    root = _repo_root()
+    derived_writers = _derive_census(root)["writer"]
+    assert ("src/specify_cli/status/models.py", "WPInnerStateDelta.from_dict") in derived_writers
+
+
+def test_reducer_event_authority_deserializer_stays_excluded_by_named_reason() -> None:
+    """T004/T005 negative control (US5 scenario 2, G2): ``status/reducer.py``'s
+    ``review_result_from_state`` constructs ``ReviewResult`` via ``.from_dict``
+    from an ALREADY-REDUCED event snapshot -- the exact call shape T003's
+    broadened predicate would otherwise sweep in as a new writer -- yet stays
+    OUT of the derived writer set because its whole module is named-excluded
+    with a recorded reason, never a silent skip (T004: a growth failure here
+    would mean the exclusion stopped working; an empty/missing reason would
+    fail ``test_exclusion_reasons_are_named_and_non_empty`` instead)."""
+    root = _repo_root()
+    derived_writers = _derive_census(root)["writer"]
+    assert ("src/specify_cli/status/reducer.py", "review_result_from_state") not in derived_writers
+    assert _EXCLUDED_MODULE_REASONS["src/specify_cli/status/reducer.py"].strip()
+
+
 def test_review_slot_is_event_authoritative_and_not_a_frontmatter_bypass() -> None:
     """T003 non-vacuity: ``"review"`` is one of the reducer's own
     ``_EVENT_SLOTS`` (imported, not re-derived) -- so a function that reads
@@ -1154,6 +1283,44 @@ def test_scope_leg_2_catches_a_bare_review_result_constructor(tmp_path: Path) ->
     assert (relpath, "parse_external_review_result") in derived_writers
 
 
+def test_new_module_with_from_dict_factory_writer_shape_reds(tmp_path: Path) -> None:
+    """T001 (FR-010, red-first): a function constructing a review record via a
+    FACTORY/classmethod call -- ``ReviewOverride.from_dict(...)`` -- rather
+    than a direct ``ReviewOverride(...)`` constructor, must still join the
+    candidate scope (Leg 2) and red the census as a writer, exactly the live
+    ``status/models.py::WPInnerStateDelta.from_dict`` shape (T002: verified
+    directly -- ``ReviewOverride.from_dict(review_raw)`` at
+    ``status/models.py:570``, not ``migration/backfill_runtime_state.py::
+    _runtime_repair_delta``, which research.md's D-PLAN-14 named as the
+    already-matched direct-ctor case but which -- re-verified against the live
+    tree -- turns out to ALSO use the ``.from_dict`` factory shape; see the
+    real-data test and the module-docstring note below). Neither
+    ``_RECORD_CTOR_CALL_RE`` (Leg 2's module-scope regex: literal
+    ``ReviewResult(``/``ReviewOverride(``) nor ``_contains_ctor``'s
+    ``_call_name``-based callee match (which resolves a ``.from_dict(``
+    call's own name to ``"from_dict"``, never the record name) recognizes this
+    shape before T003 extends both via ``_call_base_name`` -- so this
+    synthetic module is invisible to BOTH legs and the function is
+    unclassified: RED before T003 lands (verified: this test's commit precedes
+    T003's in the WP01 commit trail, C-002), GREEN after."""
+    relpath = "src/specify_cli/review/synthetic_from_dict_poison.py"
+    _write_module(
+        tmp_path,
+        relpath,
+        "from specify_cli.status.models import ReviewOverride\n\n\n"
+        "def rehydrate_review_override(raw: dict) -> object:\n"
+        "    return ReviewOverride.from_dict(raw)\n",
+    )
+    candidate_relpaths = {p.relative_to(tmp_path).as_posix() for p in _candidate_modules(tmp_path)}
+    assert relpath in candidate_relpaths, (
+        "a `.from_dict(` factory call must join the candidate scope (Leg 2), "
+        "same as a direct constructor call"
+    )
+
+    derived_writers = {(c.module, c.qualname) for c in _classify_all(tmp_path) if c.is_writer}
+    assert (relpath, "rehydrate_review_override") in derived_writers
+
+
 def test_cross_module_translator_reaches_a_fail_closed_finder(tmp_path: Path) -> None:
     """F4 non-vacuity: reproduces the ``find_rejected_review_artifact_conflicts``
     shape exactly -- a direct reader and a SAME-MODULE one-hop delegate to it
@@ -1249,6 +1416,55 @@ def test_exclusion_mechanism_removes_a_synthetic_pre_review_gate_lookalike(tmp_p
     )
     candidate_relpaths = {p.relative_to(tmp_path).as_posix() for p in _candidate_modules(tmp_path)}
     assert "src/specify_cli/review/pre_review_gate.py" not in candidate_relpaths
+
+
+def test_forward_declared_backfill_and_vocab_modules_are_excluded() -> None:
+    """WP01 forward-declared ``migration/verdict_provenance_backfill.py`` and
+    ``status/verdict_vocab.py`` as ``_EXCLUDED_MODULE_REASONS`` entries BEFORE
+    WP02/WP04 created them -- and asserted they were still absent, a designed
+    trip-wire so that when the modules landed a reviewer would be forced to
+    re-verify the exclusions against the REAL code rather than trusting a
+    vacuous forward guard.
+
+    Post-merge (verdict-seam-write-unification-01KZ9Q35 consolidation) that
+    trip-wire has fired: both modules now EXIST (WP02/WP04 landed). The
+    exclusions were re-verified against the live code and HOLD:
+
+    * ``status/verdict_vocab.py`` is a pure vocabulary map (string -> string,
+      no ``read_text``/``write_text``/``from_file``/YAML load/record ctor), so
+      it never reads, writes, or resolves a review-cycle verdict record --
+      correctly excluded, and it contributes zero derived rows.
+    * ``migration/verdict_provenance_backfill.py`` is a one-time provenance
+      migration, out of the LIVE verdict seam; its exclusion reason discloses
+      the ``_legacy_frontmatter_verdict`` reader blind spot (#3236) honestly
+      rather than pretending the function is not a reader.
+
+    This replaces the now-false ``assert not exists`` with the assertion that
+    matches the modules' actual, intended end state -- membership in the
+    exclusion dict with a recorded reason -- while preserving the original
+    non-vacuity intent (the exclusions must be real, reasoned, and consistent
+    with what the derivation actually does)."""
+    root = _repo_root()
+    derived = _derive_census(root)
+    for relpath in (
+        "src/specify_cli/migration/verdict_provenance_backfill.py",
+        "src/specify_cli/status/verdict_vocab.py",
+    ):
+        assert relpath in _EXCLUDED_MODULE_REASONS
+        assert _EXCLUDED_MODULE_REASONS[relpath].strip(), (
+            f"{relpath} exclusion must carry a recorded reason"
+        )
+        assert (root / relpath).exists(), (
+            f"{relpath} must exist now that WP02/WP04 have landed -- if it does "
+            "not, the module set has drifted and this exclusion is stale again"
+        )
+        # Non-vacuity: an excluded module never contributes a derived row in
+        # any category (the wholesale skip is what actually suppresses it).
+        for category, pairs in derived.items():
+            assert relpath not in {module for module, _ in pairs}, (
+                f"{relpath} is excluded yet appears in the derived {category} "
+                "set -- the exclusion stopped taking effect"
+            )
 
 
 def test_malformed_retire_row_with_no_retiring_fr_is_a_hard_failure() -> None:

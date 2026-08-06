@@ -25,7 +25,7 @@ import subprocess
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 import typer
 
@@ -157,6 +157,72 @@ def _capture_merge_snapshots(main_repo: Path, *paths: Path) -> dict[Path, bytes 
     )
 
 
+# #2804 / FR-009 (write-surface-coherence WP08): the gate-artifact basenames
+# whose target-checkout content the mission->target squash merge must never
+# silently clobber. Both are PLACEMENT-partition kinds (``ACCEPTANCE_MATRIX`` /
+# ``ISSUE_MATRIX``) that WP08's write-surface fix (``scaffold_acceptance_matrix``
+# / the accept-fill path) stops authoring a SECOND, divergent PRIMARY copy of
+# under coordination topology — this defense-in-depth guard covers the
+# genuinely parallel case: an already-accepted target-checkout copy that
+# predates that fix, or a topology where the artifacts legitimately live on the
+# PRIMARY partition (``SINGLE_BRANCH`` / ``LANES``) and can still diverge from a
+# stale mission-branch scaffold placeholder (the exact #2804 incident shape).
+_GATE_ARTIFACT_FILENAMES: Final[tuple[str, ...]] = ("acceptance-matrix.json", "issue-matrix.json")
+
+
+def _gate_artifact_paths(run: _MergeRunState) -> tuple[Path, ...]:
+    """Target-checkout paths for the #2804 gate-artifact preservation guard."""
+    return tuple(run.target_feature_dir / name for name in _GATE_ARTIFACT_FILENAMES)
+
+
+def _capture_pre_target_gate_artifacts(run: _MergeRunState) -> None:
+    """Snapshot the TARGET's gate-artifact bytes BEFORE the mission->target squash.
+
+    Called before :func:`_phase_mission_to_target` — the squash-merge step whose
+    ``-X theirs`` add/add conflict resolution can discard an already-accepted
+    target-checkout ``acceptance-matrix.json`` / ``issue-matrix.json`` in favor of
+    the mission branch's stale finalize-time scaffold placeholder (#2804). A
+    mission's gate artifacts are per-mission (``kitty-specs/<slug>/...``), so in
+    ordinary operation (no #2404-class divergent write) target carries nothing
+    here pre-merge and this snapshot is empty/``None`` — a genuine no-op for
+    :func:`_restore_regressed_gate_artifacts` below.
+    """
+    run.pre_target_gate_artifact_snapshots = _capture_merge_snapshots(
+        run.main_repo, *_gate_artifact_paths(run)
+    )
+
+
+def _restore_regressed_gate_artifacts(run: _MergeRunState) -> None:
+    """Preserve an already-accepted target gate artifact through the squash merge (#2804).
+
+    D-PLAN-7: the durable fix is at the WRITE surface (WP08 T040/T041 stop a
+    second, divergent PRIMARY-partition copy from ever being authored under
+    coordination topology) — row-aware reconciliation of a genuine same-key
+    divergence is WP09's merge-driver defense-in-depth, not this function's job.
+    This guard is narrower and complementary: when the target checkout ALREADY
+    held gate-artifact content before the squash merge (:func:`_capture_pre_
+    target_gate_artifacts`) and the squash step's ``-X theirs`` resolution
+    changed it, the pre-merge bytes are restored verbatim — an established,
+    already-accepted verdict is never silently discarded by the squash step.
+    Restored paths are recorded on ``run`` so the caller can fold them into the
+    same final bookkeeping commit and the post-merge porcelain-invariant gate
+    (both in this module) rather than leaving the working tree unexpectedly
+    dirty.
+    """
+    for path in _gate_artifact_paths(run):
+        original = run.pre_target_gate_artifact_snapshots.get(path)
+        if original is None:
+            # Target held nothing here pre-merge (the ordinary, non-divergent
+            # case) — whatever the squash merge produced is authoritative.
+            continue
+        current = path.read_bytes() if path.exists() else None
+        if current == original:
+            continue
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(original)
+        run.gate_artifact_restored_paths.append(path)
+
+
 def _emit_merge_diff_summary(
     *,
     repo_root: Path,
@@ -259,6 +325,12 @@ class _MergeRunState:
     # Rollback snapshots
     pre_target_bookkeeping_snapshots: dict[Path, bytes | None] = field(default_factory=dict)
     final_bookkeeping_snapshots: dict[Path, bytes | None] = field(default_factory=dict)
+
+    # #2804 / FR-009: the target's pre-squash gate-artifact bytes, and the
+    # subset the post-squash restore actually rewrote (folded into the final
+    # bookkeeping commit + the porcelain-invariant expected-paths set).
+    pre_target_gate_artifact_snapshots: dict[Path, bytes | None] = field(default_factory=dict)
+    gate_artifact_restored_paths: list[Path] = field(default_factory=list)
 
     # #2711 FR-006 (Option A): the coordination-branch ref + tip SHA captured
     # BEFORE the pre-target ``done`` emit. On a target-advance rollback the
@@ -929,6 +1001,8 @@ def _phase_record_done_and_project(run: _MergeRunState) -> None:
     run.target_events_path = target_events_path
     run.target_status_path = target_status_path
 
+    _restore_regressed_gate_artifacts(run)
+
     _run_birth_cutover(run)
 
 
@@ -1085,6 +1159,11 @@ def _phase_porcelain_invariant(run: _MergeRunState) -> None:
         expected_paths.add(str(run.mission_number_meta_path.relative_to(run.main_repo)))
     if run.birth_cutover_meta_path is not None:
         expected_paths.add(str(run.birth_cutover_meta_path.relative_to(run.main_repo)))
+    # #2804 / FR-009: a path this run's gate-artifact preservation guard
+    # rewrote is an EXPECTED post-merge delta, folded into the same final
+    # bookkeeping commit below — never a violation of the post-merge invariant.
+    for restored_path in run.gate_artifact_restored_paths:
+        expected_paths.add(str(restored_path.relative_to(run.main_repo)))
 
     def _is_coord_residue(path_part: str) -> bool:
         # FR-012: consult the single canonical toolchain-churn classifier so this
@@ -1137,6 +1216,10 @@ def _phase_commit_and_assert(run: _MergeRunState) -> None:
         files_to_commit.append(run.baseline_meta_path)
     if run.birth_cutover_meta_path is not None:
         files_to_commit.append(run.birth_cutover_meta_path)
+    # #2804 / FR-009: fold any gate-artifact path the preservation guard
+    # rewrote into the SAME final bookkeeping commit, so the restored,
+    # already-accepted content is the one that lands on the target branch.
+    files_to_commit.extend(run.gate_artifact_restored_paths)
     files_to_commit = list(dict.fromkeys(files_to_commit))
     # Drop any candidate that genuinely does not exist on disk (e.g. a mission
     # whose ``status.json`` was never materialized): ``safe_commit`` stages
@@ -1256,9 +1339,24 @@ def _flatten_coordination_metadata_after_branch_delete(run: _MergeRunState) -> N
 
     This mirrors the canonical flatten already performed by
     ``spec-kitty mission close --discard`` and ``doctor coordination --fix``:
-    :func:`~specify_cli.mission_metadata.clear_coordination_metadata` + pop the
-    now-stale ``topology`` + record ``flattened=True``. It reuses those existing
-    primitives rather than inventing a new mechanism.
+    all three converge on the single
+    :func:`~specify_cli.mission_metadata.flatten_coordination_metadata`
+    primitive (#3219 / FR-015 / D-PLAN-17), rather than each call site
+    inventing its own copy of the pop-``coordination_branch`` / pop-``topology``
+    / set-``flattened`` mutation set.
+
+    **Known residual (T054, verdict-seam-write-unification-01KZ9Q35 WP10):**
+    this flatten (and its bookkeeping commit) runs in
+    ``_phase_cleanup_worktrees_and_branches``, which executes AFTER
+    ``_phase_push``. On a ``spec-kitty merge --push``, the flatten bookkeeping
+    commit therefore lands LOCAL-ONLY -- it is never pushed to origin, so
+    origin/target keeps the stale ``coordination_branch`` key even though the
+    local target branch is correctly flattened. Verified as a real, pre-existing
+    ordering gap (not introduced or regressed by WP10's convergence); fixing it
+    would mean either re-ordering the two phases or pushing a second time after
+    cleanup, both out of WP10's scope (a lane-owned convergence WP, not a merge
+    phase-ordering change) -- tracked as a follow-up rather than silently
+    expanded into here.
 
     Placement & ordering. This lives in the ``delete_branch`` gate, co-located
     with the branch deletion, so the marker is cleared **iff** the branch it
@@ -1285,25 +1383,20 @@ def _flatten_coordination_metadata_after_branch_delete(run: _MergeRunState) -> N
     one carries no ``coordination_branch`` key, so this is an idempotent no-op
     that leaves ``topology`` / ``flattened`` untouched.
     """
-    from specify_cli.mission_metadata import (
-        clear_coordination_metadata,
-        load_meta_or_empty,
-        write_meta,
-    )
+    from specify_cli.mission_metadata import flatten_coordination_metadata, load_meta_or_empty
 
     feature_dir = run.target_feature_dir
     meta = load_meta_or_empty(feature_dir)
     if "coordination_branch" not in meta:
         return
 
-    # Canonical three-mutation flatten (parity with ``doctor coordination --fix``
-    # / ``mission close --discard``); ``coordination_branch`` presence above means
-    # meta.json exists, so ``clear_coordination_metadata`` cannot raise here.
-    clear_coordination_metadata(feature_dir)
-    meta = load_meta_or_empty(feature_dir)
-    meta.pop("topology", None)
-    meta["flattened"] = True
-    write_meta(feature_dir, meta, validate=False)
+    # Canonical three-mutation flatten (#3219 / FR-015 / D-PLAN-17), converged
+    # onto the ONE shared primitive -- parity with ``doctor coordination --fix``
+    # / ``mission close --discard``, and closes the double-write window the
+    # former two-call (clear + separate topology/flattened write) shape here
+    # invited. ``coordination_branch`` presence above means meta.json exists,
+    # so ``flatten_coordination_metadata`` cannot raise here.
+    flatten_coordination_metadata(feature_dir)
 
     meta_path = feature_dir / "meta.json"
     if not _paths_have_status_changes(run.main_repo, [meta_path]):
@@ -1607,6 +1700,7 @@ def _run_lane_based_merge_locked(
     _phase_merge_lanes(run)
     _phase_baseline_and_surface(run)
     _phase_bake_and_pre_target_done(run)
+    _capture_pre_target_gate_artifacts(run)
     _phase_mission_to_target(run)
     _phase_capture_and_baseline(run)
     _phase_record_done_and_project(run)

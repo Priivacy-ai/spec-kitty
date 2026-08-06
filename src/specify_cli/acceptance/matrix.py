@@ -428,6 +428,8 @@ def scaffold_acceptance_matrix(
     requirement_ids: list[str] | None = None,
     *,
     home_dir: Path | None = None,
+    repo_root: Path | None = None,
+    policy: ProtectionPolicyLike | None = None,
 ) -> Path | None:
     """Author a minimal, schema-valid ``acceptance-matrix.json`` for a feature.
 
@@ -450,6 +452,26 @@ def scaffold_acceptance_matrix(
     diverge across copies. When ``home_dir`` is omitted the check falls back to
     ``feature_dir`` (the flat/create-window case, where primary IS the home).
 
+    **write-surface-coherence WP08 (#2804 / #2404) — no PRIMARY husk under
+    coord topology.** ``home_dir`` (:func:`~specify_cli.acceptance.gates_core.
+    _acceptance_matrix_read_dir`) is materialization-AWARE: when the mission's
+    stored topology routes through coordination but the coord worktree has not
+    been materialized yet (finalize can run before it does), it affirmatively
+    substitutes PRIMARY for READS (AH-2) — a legitimate read-time degrade. Using
+    that same substitution as a WRITE target would author the placeholder
+    scaffold directly onto the PRIMARY partition, creating exactly the add/add
+    divergence #2404 describes once the mission's real coord-authored fill
+    lands later. When ``repo_root`` is supplied, the write instead routes
+    through :func:`write_and_commit_acceptance_matrix` (the WP03 write-seam),
+    which resolves the destination via the materialization-BLIND write
+    resolver (``write_target(ACCEPTANCE_MATRIX)``, C-001) and self-materializes
+    the coordination worktree on demand — mirroring the sibling, already-fixed
+    ``issue-matrix.json`` scaffold (:func:`~specify_cli.tasks.issue_matrix.
+    scaffold_issue_matrix`). A coord-less topology (``SINGLE_BRANCH`` /
+    ``LANES``) resolves to the SAME primary ``target_branch`` either way — no
+    behaviour change there. Omitting ``repo_root`` (the historical contract;
+    every existing caller/test) preserves the byte-identical bare write.
+
     When ``requirement_ids`` are supplied (e.g. functional requirement ids from
     ``spec.md``), one ``pending`` criterion is derived per requirement. When no
     requirement ids are available, a single placeholder criterion carrying
@@ -463,9 +485,17 @@ def scaffold_acceptance_matrix(
         requirement_ids: Optional functional requirement ids to seed criteria.
         home_dir: The matrix's declared home directory, when the caller has
             resolved it. Used for the single-home idempotency check.
+        repo_root: Primary checkout root. Supplying this opts the WRITE into
+            the coord-aware write-seam (T040/T041); omitted, the scaffold
+            writes directly to ``feature_dir`` exactly as before.
+        policy: An optional pre-resolved protection policy for the write-seam
+            path; resolved from ``repo_root`` when omitted.
 
     Returns:
-        Path to the scaffolded (or pre-existing) ``acceptance-matrix.json``.
+        Path to the scaffolded (or pre-existing) ``acceptance-matrix.json``,
+        or ``None`` when a ``repo_root``-routed write was refused (FR-011
+        zero-write refusal — e.g. an unroutable mission) rather than authored
+        on the wrong surface.
     """
     home = home_dir if home_dir is not None else feature_dir
     home_path = home / MATRIX_FILENAME
@@ -506,6 +536,23 @@ def scaffold_acceptance_matrix(
         )
 
     matrix = AcceptanceMatrix(mission_slug=mission_slug, criteria=criteria)
+    if repo_root is not None:
+        result = write_and_commit_acceptance_matrix(
+            repo_root,
+            mission_slug,
+            feature_dir,
+            matrix,
+            entry_id="finalize-scaffold",
+            message=f"chore({mission_slug}): scaffold acceptance-matrix",
+            policy=policy,
+        )
+        if result.status in ("committed", "unchanged"):
+            return path
+        # FR-011 zero-write refusal (or a genuine commit error): never fall
+        # back to a bare PRIMARY write here — that is exactly the silent
+        # degrade this fix retires. The caller treats ``None`` as "nothing
+        # scaffolded this run" (a convenience artifact, never finalize-blocking).
+        return None
     return write_acceptance_matrix(feature_dir, matrix)
 
 

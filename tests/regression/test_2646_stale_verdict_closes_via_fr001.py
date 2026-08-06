@@ -127,7 +127,11 @@ def _drive_reject_then_approve(repo: Path, mission_slug: str, tmp_path: Path) ->
         reviewer_agent="reviewer-renata",
         commit_router=RealCoordCommitRouter(),
     )
-    assert rejected.artifact.verdict == "rejected"
+    # WP06 (verdict-seam-write-unification-01KZ9Q35, FR-003/SC-007):
+    # ReviewCycleArtifact no longer carries a verdict field -- the reviewer's
+    # real feedback body is the checkable proxy that this is genuinely the
+    # rejection write.
+    assert "Missing regression coverage" in rejected.artifact.body
 
     approval_feedback = tmp_path / "approval-feedback.md"
     approval_feedback.write_text(
@@ -144,14 +148,26 @@ def _drive_reject_then_approve(repo: Path, mission_slug: str, tmp_path: Path) ->
         verdict="approved",
         commit_router=RealCoordCommitRouter(),
     )
-    assert approved.artifact.verdict == "approved"
+    # WP06 (verdict-seam-write-unification-01KZ9Q35, FR-003/SC-007):
+    # ReviewCycleArtifact no longer carries a verdict field -- the approval
+    # write's own synthesized body ("Approved by ...") is the checkable proxy.
+    assert approved.artifact.body.startswith("Approved by ")
     assert approved.artifact.cycle_number == 2
 
-    # T008 step 3: confirm review-cycle-2.md exists, carries verdict: approved,
-    # and is actually committed (not merely written).
+    # T008 step 3: confirm review-cycle-2.md exists, carries the approval
+    # body, and is actually committed (not merely written). The frontmatter
+    # itself carries no verdict key at all (SC-007) -- confirm that too.
     assert approved.artifact_path.exists()
     assert approved.artifact_path.name == "review-cycle-2.md"
-    assert "verdict: approved" in approved.artifact_path.read_text(encoding="utf-8")
+    committed_text = approved.artifact_path.read_text(encoding="utf-8")
+    assert "Approved by" in committed_text
+    frontmatter = committed_text.split("---", 2)[1]
+    frontmatter_keys = {
+        line.split(":", 1)[0].strip()
+        for line in frontmatter.splitlines()
+        if line and not line.startswith((" ", "\t", "-"))
+    }
+    assert "verdict" not in frontmatter_keys
 
     status = subprocess.run(
         ["git", "status", "--porcelain"],

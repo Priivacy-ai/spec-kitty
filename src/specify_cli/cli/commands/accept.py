@@ -24,6 +24,7 @@ from specify_cli.acceptance import (
 from specify_cli.acceptance.matrix import AcceptanceMatrixParseError
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.migration.runtime_state_cutover import MissingMissionIdError
+from specify_cli.migration.verdict_provenance_backfill import stranded_verdict_findings
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError
 from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_mission_handle
@@ -48,6 +49,38 @@ def _safe_emit_error_logged(message: str) -> None:
     except Exception:
         # Non-blocking: never fail the command on emission errors
         pass
+
+
+def _stranded_verdict_provenance_note(feature_dir: Path) -> str | None:
+    """Non-blocking SC-008 diagnostic: a WP with a terminal review-cycle ``.md``
+    verdict but no event-log ``review_result`` slot.
+
+    ``verdict-seam-write-unification-01KZ9Q35`` collapsed every verdict reader
+    onto the event authority and deleted the frontmatter readers. The
+    protective backfill runs on ``spec-kitty upgrade``; this diagnostic surfaces
+    any mission still carrying a stranded verdict so an operator who has not yet
+    upgraded (or whose consumers read the retired authority mid-upgrade) is told
+    to run it. It is advisory only -- it never blocks acceptance and never
+    raises: a diagnostic that could abort ``accept`` would be worse than the gap
+    it reports.
+
+    Returns ``None`` when there is nothing stranded (the converged, post-backfill
+    steady state) or when the scan cannot run.
+    """
+    try:
+        findings = stranded_verdict_findings(feature_dir)
+    except Exception as exc:  # noqa: BLE001 — advisory diagnostic, never fatal
+        logger.debug("stranded-verdict provenance scan skipped for %s: %s", feature_dir, exc)
+        return None
+    if not findings:
+        return None
+    wp_list = ", ".join(finding.wp_id for finding in findings)
+    return (
+        f"Stranded verdict provenance: {len(findings)} WP(s) ({wp_list}) carry a "
+        "terminal review-cycle .md verdict with no event-log review_result slot. "
+        "Run `spec-kitty upgrade` to backfill the event authority (FR-012/SC-008) "
+        "before any consumer reads the retired frontmatter verdict mid-upgrade."
+    )
 
 
 def _dirty_paths_with_prefix(status_lines: list[str], prefix: str) -> list[str]:
@@ -639,6 +672,9 @@ def accept(
 
     if not json_output:
         tracker.complete("detect", mission_slug)
+        provenance_note = _stranded_verdict_provenance_note(resolved.feature_dir)
+        if provenance_note is not None:
+            console.print(f"[yellow]⚠ {provenance_note}[/yellow]")
 
     requested_mode = (mode or "auto").lower()
     actual_mode = choose_mode(requested_mode, repo_root)

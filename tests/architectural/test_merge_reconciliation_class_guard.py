@@ -392,6 +392,20 @@ def test_both_sides_divergent_canonical_artifacts_carry_merge_driver() -> None:
 # already-registered driver (drift-catcher) and is the single place a future
 # WP flips the assertion to a positive "driver IS registered" check once the
 # cross-WP dependency above is closed.
+#
+# verdict-seam-write-unification-01KZ9Q35 WP09 (FR-014/D-PLAN-6): the driver
+# WP18 registered here was originally REFUSE-fail-closed (exit 1, abort the
+# squash). WP05 of this later mission demoted the ``.md`` render to
+# non-authoritative, unread best-effort prose (``status.events.jsonl``'s
+# ``review_result`` slot is the sole verdict authority now), so the
+# fabrication risk that justified refusing no longer applies -- WP09
+# DOWNGRADED the driver to non-aborting: it still embeds both divergent
+# renders verbatim behind conflict markers (never blending/fabricating a
+# merged verdict), but no longer raises, so the squash proceeds. This test's
+# own assertions below are unaffected (they only check the driver stays
+# REGISTERED in .gitattributes, not its exit-code class) --
+# ``test_review_cycle_driver_downgraded_to_non_aborting`` immediately below
+# is the guard that pins the new reconciliation class.
 # ---------------------------------------------------------------------------
 
 _REVIEW_CYCLE_MERGE_DRIVER_PATTERN = "kitty-specs/**/tasks/*/review-cycle-*.md"
@@ -400,11 +414,13 @@ _REVIEW_CYCLE_MERGE_DRIVER_PATTERN = "kitty-specs/**/tasks/*/review-cycle-*.md"
 def test_review_cycle_tasks_hazard_is_ruled_and_tracked() -> None:
     """T017: REVIEW_CYCLE's tasks/ two-sided divergence hazard is ruled
     (option (a): a reconcile driver, scoped narrowly) AND LANDED (WP18,
-    review-cycle-verdict-seam-rebuild-01KZ2W7W): a refuse-fail-closed driver
-    is registered in root .gitattributes, closing the cross-WP dependency
-    recorded in tests/architectural/census/verdict_seam_IC04.yaml
-    (WP04-XWP-03) rather than leaving a vague "downstream WPs should check
-    this."
+    review-cycle-verdict-seam-rebuild-01KZ2W7W): a driver is registered in
+    root .gitattributes, closing the cross-WP dependency recorded in
+    tests/architectural/census/verdict_seam_IC04.yaml (WP04-XWP-03) rather
+    than leaving a vague "downstream WPs should check this." The driver's
+    exit-code class (originally refuse-fail-closed, downgraded to
+    non-aborting by WP09/FR-014) is pinned separately below -- this test
+    only guards registration, not behavior.
     """
     # REVIEW_CYCLE must actually be COORD-partition for the hazard to apply at
     # all -- if this ever flipped PRIMARY, the whole tasks/ two-sidedness
@@ -438,11 +454,12 @@ def test_review_cycle_tasks_hazard_is_ruled_and_tracked() -> None:
     # so the assertion is now the positive presence check the tripwire asked
     # for, mirroring the ``traces`` pattern check above.
     #
-    # The driver is deliberately NOT a union merge (unlike ``traces``): two
-    # DIFFERENT verdicts colliding under the SAME filename must never be
-    # byte-interleaved, because that fabricates a verdict no reviewer wrote.
-    # ``merge_driver_review_cycle`` refuses fail-closed instead, embedding both
-    # documents verbatim behind conflict markers.
+    # The driver is deliberately NOT a byte-union merge (unlike ``traces``):
+    # two DIFFERENT verdicts colliding under the SAME filename are never
+    # interleaved -- ``merge_driver_review_cycle`` embeds both documents
+    # verbatim behind conflict markers instead. What CHANGED (WP09/FR-014,
+    # see the module-comment block above) is only whether that embedding
+    # aborts the squash: it no longer does.
     registered_patterns = set(_gitattributes_merge_drivers())
     assert _REVIEW_CYCLE_MERGE_DRIVER_PATTERN in registered_patterns, (
         "the review-cycle merge driver regressed out of root .gitattributes -- "
@@ -450,6 +467,32 @@ def test_review_cycle_tasks_hazard_is_ruled_and_tracked() -> None:
         "tasks/ two-sided create-window clobber (T017/WP04-XWP-03) re-opens "
         "under `git merge --squash -X theirs`"
     )
+
+
+def test_review_cycle_driver_downgraded_to_non_aborting(tmp_path: Path) -> None:
+    """WP09 (FR-014/D-PLAN-6): the reconciliation-class guard for the
+    review-cycle driver -- a genuine two-verdict collision must embed both
+    renders verbatim behind conflict markers (never blend/fabricate) AND must
+    NOT raise, now that the ``.md`` is non-authoritative, unread prose (WP05
+    of this mission demoted it; the event-sourced ``review_result`` slot is
+    the sole verdict authority). This is the guard
+    ``test_review_cycle_tasks_hazard_is_ruled_and_tracked`` above explicitly
+    defers to for the driver's exit-code CLASS."""
+    from specify_cli.cli.commands.merge_driver import merge_driver_review_cycle
+
+    base = tmp_path / "O"
+    ours = tmp_path / "A"
+    theirs = tmp_path / "B"
+    base.write_text("", encoding="utf-8")
+    ours.write_text("verdict: approved\n", encoding="utf-8")
+    theirs.write_text("verdict: rejected\n", encoding="utf-8")
+
+    merge_driver_review_cycle(str(base), str(ours), str(theirs))  # must NOT raise
+
+    merged = ours.read_text(encoding="utf-8")
+    assert "verdict: approved" in merged
+    assert "verdict: rejected" in merged
+    assert "<<<<<<<" in merged, "both renders must still be embedded, never blended"
 
 
 # ---------------------------------------------------------------------------

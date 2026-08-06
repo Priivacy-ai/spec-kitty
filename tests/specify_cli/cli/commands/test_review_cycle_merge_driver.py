@@ -4,8 +4,8 @@ driver (T077-T080).
 Covers:
 
 - T077: ``merge_driver_review_cycle``'s two decision branches (identical
-  content resolves cleanly; a genuine two-verdict collision refuses
-  fail-closed and never blends the two documents into one).
+  content resolves cleanly; a genuine two-verdict collision embeds both
+  documents verbatim behind conflict markers, never blending them into one).
 - T078: the ``.gitattributes`` pattern is filename-anchored -- it must not
   sweep in ``tasks/<wp>/baseline-tests.json`` or ``tasks/WP*.md``.
 - T079: the upgrade migration is idempotent and additive (preserves
@@ -15,11 +15,25 @@ Covers:
   path (``specify_cli.lanes.merge._merge_branch_into`` -> real
   ``git merge --squash -X theirs``), first WITHOUT the driver registered
   (RED: the target's genuine cycle-1 verdict is destroyed) and then WITH it
-  (GREEN: the squash aborts before the target ref ever advances, so the
-  verdict survives). A second, fully hermetic proof drives ``git merge``
+  (GREEN: both verdicts survive, embedded behind conflict markers, and the
+  squash still succeeds). A second, fully hermetic proof drives ``git merge``
   directly with an explicit, absolute-interpreter-path driver command this
   test builds itself (never the ambient ``.git/config``, never bare
   ``spec-kitty`` on ``PATH``).
+
+verdict-seam-write-unification-01KZ9Q35 WP09 (FR-014/D-PLAN-6) update: WP18's
+original driver REFUSED fail-closed (exit 1, abort the squash) on a genuine
+collision. This mission's WP05 (a hard dependency of WP09) demoted the
+``.md`` render to non-authoritative, unread best-effort prose -- the
+event-sourced ``review_result`` slot is the sole verdict authority now -- so
+WP09 downgraded the driver to non-aborting: both documents still survive
+verbatim behind conflict markers (never blended/fabricated), but the driver
+no longer raises and the squash proceeds. The tests below that asserted the
+OLD refuse-fail-closed contract are re-pinned to the new non-aborting
+contract (renamed where the old name asserted "refuses"/aborts); none are
+deleted -- see ``tests/review/test_review_cycle_merge_driver.py`` for WP09's
+own new red-first proof of the downgrade through the same real squash-merge
+path.
 """
 
 from __future__ import annotations
@@ -31,7 +45,6 @@ import sys
 from pathlib import Path
 
 import pytest
-import typer
 
 from specify_cli.cli.commands.merge_driver import merge_driver_review_cycle
 from specify_cli.lanes.merge import _MERGE_DRIVERS, _merge_branch_into
@@ -175,10 +188,13 @@ def test_merge_driver_review_cycle_identical_content_resolves_cleanly(tmp_path: 
 
 
 @pytest.mark.unit
-def test_merge_driver_review_cycle_distinct_verdicts_refuses_never_blends(tmp_path: Path) -> None:
-    """Validation checklist: two distinct verdicts under one filename never
+def test_merge_driver_review_cycle_distinct_verdicts_embeds_both_without_raising(
+    tmp_path: Path,
+) -> None:
+    """WP09/FR-014 re-pin: two distinct verdicts under one filename never
     produce a blended document -- both survive verbatim inside conflict
-    markers, never interleaved, and the driver reports a conflict (exit 1)."""
+    markers, never interleaved -- but the driver no longer raises (the
+    ``.md`` is non-authoritative, unread prose; the squash must proceed)."""
     base = tmp_path / "O"
     ours = tmp_path / "A"
     theirs = tmp_path / "B"
@@ -186,9 +202,7 @@ def test_merge_driver_review_cycle_distinct_verdicts_refuses_never_blends(tmp_pa
     ours.write_text(_TARGET_VERDICT, encoding="utf-8")
     theirs.write_text(_MISCOUNTED_VERDICT, encoding="utf-8")
 
-    with pytest.raises(typer.Exit) as exc_info:
-        merge_driver_review_cycle(str(base), str(ours), str(theirs))
-    assert exc_info.value.exit_code == 1
+    merge_driver_review_cycle(str(base), str(ours), str(theirs))  # must NOT raise
 
     merged = ours.read_text(encoding="utf-8")
 
@@ -204,11 +218,15 @@ def test_merge_driver_review_cycle_distinct_verdicts_refuses_never_blends(tmp_pa
 
 
 @pytest.mark.unit
-def test_merge_driver_review_cycle_missing_theirs_side_is_not_a_conflict(tmp_path: Path) -> None:
-    """A pure add-on-one-side (git would not normally invoke the driver for
-    this, but the function must degrade sanely if it ever is): an absent
-    side reads as empty text, so a real file vs. a genuinely absent file
-    differ and correctly still refuse rather than silently pick a side."""
+def test_merge_driver_review_cycle_missing_theirs_side_embeds_both_without_raising(
+    tmp_path: Path,
+) -> None:
+    """WP09/FR-014 re-pin: a pure add-on-one-side (git would not normally
+    invoke the driver for this, but the function must degrade sanely if it
+    ever is): an absent side reads as empty text, so a real file vs. a
+    genuinely absent file differ -- the driver still never silently picks a
+    side (both are embedded, the absent side as an empty block), but no
+    longer raises."""
     base = tmp_path / "O"
     ours = tmp_path / "A"
     theirs = tmp_path / "B"
@@ -216,8 +234,12 @@ def test_merge_driver_review_cycle_missing_theirs_side_is_not_a_conflict(tmp_pat
     ours.write_text(_TARGET_VERDICT, encoding="utf-8")
     # theirs deliberately not created.
 
-    with pytest.raises(typer.Exit):
-        merge_driver_review_cycle(str(base), str(ours), str(theirs))
+    merge_driver_review_cycle(str(base), str(ours), str(theirs))  # must NOT raise
+
+    merged = ours.read_text(encoding="utf-8")
+    assert _TARGET_VERDICT in merged
+    assert "<<<<<<< ours" in merged
+    assert ">>>>>>> theirs" in merged
 
 
 # ---------------------------------------------------------------------------
@@ -355,32 +377,43 @@ def test_create_window_collision_clobbers_target_without_driver_registered(
 
 @pytest.mark.git_repo
 @pytest.mark.non_sandbox  # shells out to `spec-kitty merge-driver-*` via git
-def test_driver_registered_target_verdict_survives_real_squash_merge(tmp_path: Path) -> None:
-    """GREEN (T080): the SAME real merge path, this time with the
-    review-cycle driver present in the real, unmodified ``_MERGE_DRIVERS``
-    registry. The fail-closed refusal makes the squash fail before ``main``
-    is ever advanced, so the target's genuine verdict survives -- and the
-    incoming (mission-side) verdict is not destroyed either, since nothing
-    was ever squashed."""
+def test_driver_registered_embeds_both_verdicts_without_aborting_real_squash_merge(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """WP09/FR-014 re-pin of the T080 GREEN case: the SAME real merge path,
+    with the review-cycle driver present in the real, unmodified
+    ``_MERGE_DRIVERS`` registry. The driver no longer aborts the squash --
+    both verdicts survive, embedded verbatim behind conflict markers, and
+    ``main`` DOES advance (unlike the pre-WP09 refuse-fail-closed contract).
+
+    ``PYTHONPATH`` is pinned to this lane's own ``src/`` (never inherited
+    ambient ``PATH``/site-packages ordering): the spawned
+    ``spec-kitty merge-driver-review-cycle`` subprocess must import THIS
+    lane's ``specify_cli``, not whatever editable install happens to win on
+    an unrelated ambient ``PATH`` (the exact hazard the sibling hermetic test
+    below already guards against for the ``git merge`` direct-invocation
+    path; this pins the same guarantee for ``_merge_branch_into``'s own
+    subprocess plumbing)."""
+    monkeypatch.setenv("PYTHONPATH", str(_SRC_ROOT))
     repo = tmp_path / "repo"
     mission_branch = _bootstrap_create_window_collision(repo)
 
     pre = _show(repo, "main", _REVIEW_CYCLE_REL_PATH)
     assert pre == _TARGET_VERDICT
 
-    with pytest.raises(RuntimeError, match="Squash merge"):
-        _merge_branch_into(repo, mission_branch, "main", strategy=MergeStrategy.SQUASH)
+    changed = _merge_branch_into(repo, mission_branch, "main", strategy=MergeStrategy.SQUASH)
+    assert changed is True, "the squash must succeed (non-aborting driver)"
 
     post = _show(repo, "main", _REVIEW_CYCLE_REL_PATH)
-    assert post == _TARGET_VERDICT, (
-        "T080: the driver is registered, but the target's genuine verdict "
-        f"was still altered by the aborted squash attempt. Got: {post!r}"
+    assert _TARGET_VERDICT in post, (
+        "the target's genuine verdict must survive verbatim, embedded inside "
+        f"the conflict-marked document. Got: {post!r}"
     )
-    mission_side = _show(repo, mission_branch, _REVIEW_CYCLE_REL_PATH)
-    assert mission_side == _MISCOUNTED_VERDICT, (
-        "the incoming (mission-side) verdict must not be destroyed either -- "
-        f"nothing should have been lost. Got: {mission_side!r}"
+    assert _MISCOUNTED_VERDICT in post, (
+        "the incoming (mission-side) verdict must also survive verbatim -- "
+        f"never lost/fabricated. Got: {post!r}"
     )
+    assert "<<<<<<<" in post, "both verdicts must stay demarcated, never blended"
 
 
 def _hermetic_driver_command_line() -> str:
@@ -406,12 +439,13 @@ def _hermetic_env() -> dict[str, str]:
 def test_driver_registered_via_absolute_interpreter_path_survives_real_git_merge(
     tmp_path: Path,
 ) -> None:
-    """T080 (fully hermetic variant): registers the driver with an absolute
-    interpreter path + explicit PYTHONPATH this test constructs itself
-    (never relying on ambient ``.git/config`` or ``PATH``), then drives a
-    genuine ``git merge --squash -X theirs`` subprocess directly -- proving
-    the driver's own behavior through git's real merge-driver contract,
-    independent of ``_merge_branch_into``'s internal environment plumbing."""
+    """T080 (fully hermetic variant), re-pinned by WP09/FR-014: registers the
+    driver with an absolute interpreter path + explicit PYTHONPATH this test
+    constructs itself (never relying on ambient ``.git/config`` or
+    ``PATH``), then drives a genuine ``git merge --squash -X theirs``
+    subprocess directly -- proving the driver's own (now non-aborting)
+    behavior through git's real merge-driver contract, independent of
+    ``_merge_branch_into``'s internal environment plumbing."""
     repo = tmp_path / "repo"
     mission_branch = _bootstrap_create_window_collision(repo)
     (repo / ".gitattributes").write_text(_REVIEW_CYCLE_ATTR_ENTRY + "\n", encoding="utf-8")
@@ -425,12 +459,12 @@ def test_driver_registered_via_absolute_interpreter_path_survives_real_git_merge
         ["git", "merge", "--squash", "-X", "theirs", mission_branch],
         cwd=str(repo), capture_output=True, text=True, env=_hermetic_env(),
     )
-    assert result.returncode != 0, (
-        "expected the review-cycle driver to refuse (non-zero exit) on a "
-        f"genuine two-verdict collision; stdout={result.stdout!r} "
-        f"stderr={result.stderr!r}"
+    assert result.returncode == 0, (
+        "expected the review-cycle driver to resolve WITHOUT aborting on a "
+        f"genuine two-verdict collision (FR-014/D-PLAN-6); "
+        f"stdout={result.stdout!r} stderr={result.stderr!r}"
     )
-    assert "review-cycle verdict collision" in result.stderr, result.stderr
+    assert "review-cycle verdict collision" in result.stdout, result.stdout
 
     working_tree_content = (repo / _REVIEW_CYCLE_REL_PATH).read_text(encoding="utf-8")
     assert _TARGET_VERDICT in working_tree_content, (

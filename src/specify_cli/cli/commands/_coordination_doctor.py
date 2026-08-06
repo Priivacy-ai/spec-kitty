@@ -802,7 +802,7 @@ def _fix_never_created_branches(findings: list[DoctorFinding]) -> list[str]:
 
     Returns a list of mission slugs that were modified.
     """
-    from specify_cli.mission_metadata import load_meta_or_empty, write_meta
+    from specify_cli.mission_metadata import flatten_coordination_metadata, load_meta_or_empty
 
     fixed: list[str] = []
     for f in findings:
@@ -815,15 +815,15 @@ def _fix_never_created_branches(findings: list[DoctorFinding]) -> list[str]:
         meta = load_meta_or_empty(mission_dir)
         if "coordination_branch" not in meta:
             continue
-        del meta["coordination_branch"]
-        # Clear the stale stored topology so backfill_topology_repo re-derives it:
-        # backfill never overwrites an existing topology (migration/backfill_topology.py),
-        # and every mission minted post-#2069 stores `topology` at create time — leaving it
-        # would keep the mission routed through coordination (false-green flatten). Record the
-        # flatten via the provenance flag. (#2614 adversarial-squad remediation)
-        meta.pop("topology", None)
-        meta["flattened"] = True
-        write_meta(mission_dir, meta, validate=False)
+        # Canonical three-mutation flatten (#3219 / FR-015 / D-PLAN-17), converged
+        # onto the ONE shared primitive: clears `coordination_branch`, pops the
+        # stale `topology` so `backfill_topology_repo` re-derives it (backfill
+        # never overwrites an existing topology, and every mission minted
+        # post-#2069 stores `topology` at create time -- leaving it would keep
+        # the mission routed through coordination, a false-green flatten), and
+        # records the flatten via `flattened=True` (#2614 adversarial-squad
+        # remediation).
+        flatten_coordination_metadata(mission_dir)
         fixed.append(mission_dir.name)
     return fixed
 

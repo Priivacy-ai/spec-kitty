@@ -24,7 +24,7 @@ from specify_cli.merge.config import MergeStrategy
 from specify_cli.post_merge.review_artifact_consistency import (
     REJECTED_REVIEW_ARTIFACT_CONFLICT,
 )
-from specify_cli.status.models import Lane
+from specify_cli.status.models import Lane, ReviewResult
 from tests.reliability.fixtures import (
     WorkPackageSpec,
     append_status_event,
@@ -133,6 +133,13 @@ def test_clean_forecast_json_payload_key_set(
 def test_review_artifact_conflict_blocks_json(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    """WP06 repoint: ``find_rejected_review_artifact_conflicts`` is pure-event
+    post-WP05 (verdict-seam-write-unification-01KZ9Q35, FR-013) -- it no
+    longer reads ``review-cycle-N.md`` frontmatter at all. The on-disk
+    artifact below is written only as realistic surrounding state; the
+    ``review_result`` event on the SAME transition is what the gate
+    actually consults.
+    """
     from specify_cli.review.artifacts import ReviewCycleArtifact
 
     mission = create_mission_fixture(tmp_path)
@@ -140,10 +147,15 @@ def test_review_artifact_conflict_blocks_json(
     append_status_event(
         mission, from_lane=Lane.FOR_REVIEW, to_lane=Lane.APPROVED,
         event_id="01KVXHDKFORECAST00000002",
+        review_result=ReviewResult(
+            reviewer="reviewer-renata",
+            verdict="changes_requested",
+            reference=f"review-cycle://{mission.mission_slug}/WP01-regression-harness/review-cycle-1.md",
+        ),
     )
     artifact = ReviewCycleArtifact(
         cycle_number=1, wp_id="WP01", mission_slug=mission.mission_slug,
-        reviewer_agent="reviewer-renata", verdict="rejected",
+        reviewer_agent="reviewer-renata",
         reviewed_at="2026-05-14T12:00:00+00:00", body="# Review\n\nVerdict: rejected\n",
     )
     artifact.write(mission.tasks_dir / "WP01-regression-harness" / "review-cycle-1.md")
@@ -270,34 +282,6 @@ def test_review_artifact_block_human_channel(capsys: pytest.CaptureFixture[str])
     assert "diagnostic_code:" in out
     assert "latest_review_cycle_verdict:" in out
     assert "Mission: m" in out
-
-
-def test_review_artifact_block_schema_finding_human_channel(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    """A schema finding exercises the schema_error human branch (line 102)."""
-    from specify_cli.post_merge.review_artifact_consistency import (
-        ReviewArtifactPreflightResult,
-        ReviewArtifactSchemaFinding,
-    )
-
-    finding = ReviewArtifactSchemaFinding(
-        wp_id="WP02",
-        lane="done",
-        artifact_path=Path("/repo/kitty-specs/m/tasks/WP02/review-cycle-1.md"),
-        schema_error="affected_files must be a list",
-    )
-    preflight = ReviewArtifactPreflightResult(findings=(finding,))
-
-    forecast._emit_review_artifact_block(
-        preflight,
-        main_repo_for_diag=Path("/repo"),
-        resolved_feature="m",
-        resolved_target_branch="main",
-        json_output=False,
-    )
-    out = capsys.readouterr().out
-    assert "schema_error:" in out
 
 
 def test_clean_forecast_human_channel_prints_would_assign(

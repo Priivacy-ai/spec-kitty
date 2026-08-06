@@ -49,6 +49,7 @@ if TYPE_CHECKING:
     from specify_cli.post_merge.review_artifact_consistency import (
         RejectedReviewArtifactFinding,
     )
+    from specify_cli.status.models import ReviewResult
 
 # Re-export the fixtures so pytest discovers them in this module.
 __all__ = ["coord_topology_mission", "flat_topology_mission"]
@@ -57,13 +58,24 @@ __all__ = ["coord_topology_mission", "flat_topology_mission"]
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
-def _seed_terminal_wp01(ctx: CoordTopologyContext, *, event_id: str) -> None:
+def _seed_terminal_wp01(
+    ctx: CoordTopologyContext,
+    *,
+    event_id: str,
+    review_result: ReviewResult | None = None,
+) -> None:
     """Drive WP01 to a terminal (approved) lane on the REAL coord-husk status log.
 
     The fixture pre-seeds a raw-text marker line (a wrong-leg probe) that is not a
     schema-valid ``StatusEvent`` and is never meant to survive ``materialize`` — so
     replace it with a real, well-formed terminal transition and exercise production
     materialization end to end. (Idiom harvested from @rayjohnson's PR #2834.)
+
+    ``review_result`` (WP05, verdict-seam-write-unification-01KZ9Q35,
+    T028/FR-013): the merge gate is now pure-event -- it never reads
+    ``review-cycle-N.md`` frontmatter at all, so a caller that needs the gate
+    to see a genuine CURRENT verdict must seed it here, on the SAME terminal
+    transition, not merely write the on-disk artifact.
     """
     from specify_cli.status.models import Lane, StatusEvent
     from specify_cli.status.store import append_event
@@ -83,6 +95,7 @@ def _seed_terminal_wp01(ctx: CoordTopologyContext, *, event_id: str) -> None:
             force=False,
             execution_mode="worktree",
             reason="approved for merge",
+            review_result=review_result,
         ),
     )
 
@@ -91,7 +104,6 @@ def _write_review_cycle(
     ctx: CoordTopologyContext,
     *,
     base_dir: Path,
-    verdict: str,
     reviewed_at: str,
     body: str,
 ) -> None:
@@ -117,7 +129,6 @@ def _write_review_cycle(
         wp_id="WP01",
         mission_slug=ctx.slug,
         reviewer_agent="reviewer-renata",
-        verdict=verdict,
         reviewed_at=reviewed_at,
         body=body,
     ).write(base_dir / "tasks" / "WP01" / "review-cycle-1.md")
@@ -143,26 +154,37 @@ def _rejected_finding(
 def test_review_artifact_gate_catches_genuine_rejection_on_coord_topology(
     coord_topology_mission: CoordTopologyContext,
 ) -> None:
-    """A genuinely-rejected review-cycle artifact on a terminal WP is caught (US2.1).
+    """A genuine rejection on a terminal WP is caught (US2.1) under coord topology.
 
-    Harvested from @rayjohnson's PR #2834. Requires BOTH partitions to resolve
-    correctly at once: the WP's lane (terminal) must come from the coord husk's real
-    status log (``STATUS_STATE``), and the review-cycle verdict from the PRIMARY
-    checkout (``WORK_PACKAGE_TASK``). Reading lane state from PRIMARY (no
-    authoritative status log there for a coord mission) never reaches a terminal
-    lane; reading the review-cycle from the coord husk finds no ``tasks/`` dir at all
-    — either wrong leg makes this silently find nothing.
+    Harvested from @rayjohnson's PR #2834, REPOINTED by WP05
+    (verdict-seam-write-unification-01KZ9Q35, T028/FR-013/D-PLAN-8): the gate
+    is now pure-event -- it consults ONLY the coord husk's real status log
+    (``STATUS_STATE``), never the PRIMARY-partition ``review-cycle-N.md``
+    frontmatter this test used to also write. The lane read must still
+    correctly reach the coord husk (that partition concern is unchanged and
+    still the thing this test exercises), but the verdict now comes from the
+    SAME terminal transition's ``review_result`` slot. The on-disk artifact
+    is still written to prove it is genuinely never opened -- if it were,
+    the still-``rejected``-typed frontmatter would agree by coincidence, not
+    prove anything; the DISTINCT ``changes_requested`` event-domain value
+    below is what actually pins the pure-event read.
     """
     from specify_cli.post_merge.review_artifact_consistency import (
         find_rejected_review_artifact_conflicts,
     )
+    from specify_cli.status.models import ReviewResult
 
     ctx = coord_topology_mission
-    _seed_terminal_wp01(ctx, event_id="01KW2E7A0TERMINAL00000001")
+    _seed_terminal_wp01(
+        ctx,
+        event_id="01KW2E7A0TERMINAL00000001",
+        review_result=ReviewResult(
+            reviewer="reviewer-renata", verdict="changes_requested", reference="x"
+        ),
+    )
     _write_review_cycle(
         ctx,
         base_dir=ctx.primary_feature_dir,
-        verdict="rejected",
         reviewed_at="2026-06-26T00:30:00+00:00",
         body="# Review\n\nVerdict: rejected.\n",
     )
@@ -170,12 +192,11 @@ def test_review_artifact_gate_catches_genuine_rejection_on_coord_topology(
     findings = find_rejected_review_artifact_conflicts(ctx.primary_feature_dir, ["WP01"])
 
     assert len(findings) == 1, (
-        "Expected the genuine rejection to be caught. An empty result means either "
-        "the lane read missed the coord husk's terminal status, or the review-cycle "
-        f"read missed the PRIMARY checkout's tracked artifact. Got: {findings}"
+        "Expected the genuine rejection to be caught. An empty result means "
+        f"the lane/verdict read missed the coord husk's real status log. Got: {findings}"
     )
     assert findings[0].wp_id == "WP01"
-    assert _rejected_finding(findings[0]).verdict == "rejected"
+    assert _rejected_finding(findings[0]).verdict == "changes_requested"
 
 
 def test_review_artifact_gate_ignores_stray_artifact_on_coord_husk(
@@ -213,18 +234,32 @@ def test_review_artifact_gate_ignores_stray_artifact_on_coord_husk(
     UNCHANGED, matching this WP's actual, safety-preserved implementation —
     the ADR's COORD-wins conflict rule remains an open, tracked follow-up
     gated on the WRITE-side flip becoming safe (see this WP's final report).
+
+    **WP05 repoint (verdict-seam-write-unification-01KZ9Q35, T028/FR-013):**
+    the gate no longer reads EITHER on-disk artifact at all -- both
+    ``_write_review_cycle`` calls below are now inert clutter, kept only to
+    prove neither is ever opened. The real, current verdict is the terminal
+    transition's own event-sourced ``review_result`` (seeded ``approved``,
+    matching this test's "real state" narrative), which is what the
+    assertion below now actually exercises.
     """
     from specify_cli.post_merge.review_artifact_consistency import (
         find_rejected_review_artifact_conflicts,
     )
+    from specify_cli.status.models import ReviewResult
 
     ctx = coord_topology_mission
-    _seed_terminal_wp01(ctx, event_id="01KW2E7A0TERMINAL00000002")
+    _seed_terminal_wp01(
+        ctx,
+        event_id="01KW2E7A0TERMINAL00000002",
+        review_result=ReviewResult(
+            reviewer="reviewer-renata", verdict="approved", reference="x"
+        ),
+    )
     # The real, correct artifact on PRIMARY: approved.
     _write_review_cycle(
         ctx,
         base_dir=ctx.primary_feature_dir,
-        verdict="approved",
         reviewed_at="2026-06-26T00:30:00+00:00",
         body="# Review\n\nVerdict: approved.\n",
     )
@@ -232,7 +267,6 @@ def test_review_artifact_gate_ignores_stray_artifact_on_coord_husk(
     _write_review_cycle(
         ctx,
         base_dir=ctx.coord_feature_dir,
-        verdict="rejected",
         reviewed_at="2026-06-25T00:00:00+00:00",
         body="# Review\n\nVerdict: rejected (stale, never forwarded).\n",
     )
@@ -258,17 +292,32 @@ def test_preview_and_consolidation_agree_on_rejected_review_case(
     verdicts on a genuinely-rejected terminal WP: preview said ready, consolidation
     refused. After the split, each input re-resolves both partitions from the
     mission identity, so the two legs return the IDENTICAL finding.
+
+    **WP05 repoint (verdict-seam-write-unification-01KZ9Q35, T028/FR-013):**
+    the gate is now pure-event, so the "verdict" leg of both preview and
+    consolidation resolves the SAME event-sourced ``review_result`` off the
+    coord husk's status log regardless of which directory the caller hands
+    in (:func:`~specify_cli.post_merge.review_artifact_consistency.
+    _resolve_lane_state_read_dir` always re-resolves ``STATUS_STATE``). The
+    on-disk artifact write below is now inert clutter, kept only to prove it
+    is never opened by either leg.
     """
     from specify_cli.post_merge.review_artifact_consistency import (
         find_rejected_review_artifact_conflicts,
     )
+    from specify_cli.status.models import ReviewResult
 
     ctx = coord_topology_mission
-    _seed_terminal_wp01(ctx, event_id="01KW2E7A0TERMINAL00000003")
+    _seed_terminal_wp01(
+        ctx,
+        event_id="01KW2E7A0TERMINAL00000003",
+        review_result=ReviewResult(
+            reviewer="reviewer-renata", verdict="changes_requested", reference="x"
+        ),
+    )
     _write_review_cycle(
         ctx,
         base_dir=ctx.primary_feature_dir,
-        verdict="rejected",
         reviewed_at="2026-06-26T00:30:00+00:00",
         body="# Review\n\nVerdict: rejected.\n",
     )
@@ -291,7 +340,7 @@ def test_preview_and_consolidation_agree_on_rejected_review_case(
     # Non-vacuity: both legs actually caught the rejection (not both-empty agreement).
     assert len(preview_findings) == 1
     assert preview_findings[0].wp_id == "WP01"
-    assert _rejected_finding(preview_findings[0]).verdict == "rejected"
+    assert _rejected_finding(preview_findings[0]).verdict == "changes_requested"
 
 
 # ---------------------------------------------------------------------------
@@ -377,6 +426,15 @@ def test_c001_merge_gate_agrees_with_real_writer_single_branch_two_separators(
     freshly-added ``WP02_second_wp.md`` (underscore). Drives the REAL
     production writer (:func:`create_rejected_review_cycle`), not a
     hand-seeded fixture file, so this is an end-to-end writer-to-gate proof.
+
+    **WP05 repoint (verdict-seam-write-unification-01KZ9Q35, T028/FR-013):**
+    the gate is now pure-event, so "agrees with the real writer" is proven by
+    appending the SAME :class:`~specify_cli.status.models.ReviewResult` the
+    writer's own return value (``created.review_result``) carries -- the
+    exact value the production ``move-task`` caller would emit -- rather than
+    by the gate re-reading the ``.md`` file the writer produced. The writer
+    still runs for real (the slug-resolution/writer-agreement concern this
+    test's name declares is unchanged); only the gate's read mechanism moved.
     """
     from specify_cli.cli.commands.agent.tasks_materialization import _resolve_wp_slug
     from specify_cli.post_merge.review_artifact_consistency import (
@@ -396,6 +454,16 @@ def test_c001_merge_gate_agrees_with_real_writer_single_branch_two_separators(
         ("WP01", "01KW2E7B0TERMC00100001A"),
         ("WP02", "01KW2E7B0TERMC00100001B"),
     ):
+        wp_slug = _resolve_wp_slug(ctx.repo, ctx.slug, wp_id)
+        created = create_rejected_review_cycle(
+            main_repo_root=ctx.repo,
+            mission_slug=ctx.slug,
+            wp_id=wp_id,
+            wp_slug=wp_slug,
+            body=f"# Review\n\nVerdict: rejected for {wp_id}.\n",
+            reviewer_agent="reviewer-renata",
+            verdict="rejected",
+        )
         append_event(
             ctx.primary_feature_dir,
             StatusEvent(
@@ -410,17 +478,8 @@ def test_c001_merge_gate_agrees_with_real_writer_single_branch_two_separators(
                 force=False,
                 execution_mode="worktree",
                 reason="approved for merge",
+                review_result=created.review_result,
             ),
-        )
-        wp_slug = _resolve_wp_slug(ctx.repo, ctx.slug, wp_id)
-        create_rejected_review_cycle(
-            main_repo_root=ctx.repo,
-            mission_slug=ctx.slug,
-            wp_id=wp_id,
-            wp_slug=wp_slug,
-            body=f"# Review\n\nVerdict: rejected for {wp_id}.\n",
-            reviewer_agent="reviewer-renata",
-            verdict="rejected",
         )
 
     findings = find_rejected_review_artifact_conflicts(
@@ -431,7 +490,9 @@ def test_c001_merge_gate_agrees_with_real_writer_single_branch_two_separators(
         "C-001: the merge gate must reach a verdict for every WP the writer "
         f"actually wrote, for both accepted separators. Got: {findings}"
     )
-    assert all(_rejected_finding(finding).verdict == "rejected" for finding in findings)
+    assert all(
+        _rejected_finding(finding).verdict == "changes_requested" for finding in findings
+    )
 
 
 def test_c001_merge_gate_agrees_with_real_writer_under_coord_topology(
@@ -446,6 +507,14 @@ def test_c001_merge_gate_agrees_with_real_writer_under_coord_topology(
     disclosed WP13 finding), this test goes red FIRST -- proving writer and
     gate have drifted apart, which is exactly the fail-open class of defect
     C-001 exists to prevent.
+
+    **WP05 repoint (verdict-seam-write-unification-01KZ9Q35, T028/FR-013):**
+    same treatment as this file's single-branch sibling above -- the
+    terminal transition now carries the writer's own ``created.review_result``
+    (constructed AFTER the real writer call, since that's what production's
+    ``move-task`` does too), and the gate's finding always reports
+    ``artifact_path=None`` (the pure-event gate never resolves an on-disk
+    path at all), not ``created.artifact_path``.
     """
     from specify_cli.cli.commands.agent.tasks_materialization import _resolve_wp_slug
     from specify_cli.post_merge.review_artifact_consistency import (
@@ -457,6 +526,16 @@ def test_c001_merge_gate_agrees_with_real_writer_under_coord_topology(
 
     ctx = coord_topology_mission
     ctx.status_events_path.write_text("", encoding="utf-8")
+    wp_slug = _resolve_wp_slug(ctx.repo, ctx.slug, "WP01")
+    created = create_rejected_review_cycle(
+        main_repo_root=ctx.repo,
+        mission_slug=ctx.slug,
+        wp_id="WP01",
+        wp_slug=wp_slug,
+        body="# Review\n\nVerdict: rejected.\n",
+        reviewer_agent="reviewer-renata",
+        verdict="rejected",
+    )
     append_event(
         ctx.coord_feature_dir,
         StatusEvent(
@@ -471,17 +550,8 @@ def test_c001_merge_gate_agrees_with_real_writer_under_coord_topology(
             force=False,
             execution_mode="worktree",
             reason="approved for merge",
+            review_result=created.review_result,
         ),
-    )
-    wp_slug = _resolve_wp_slug(ctx.repo, ctx.slug, "WP01")
-    created = create_rejected_review_cycle(
-        main_repo_root=ctx.repo,
-        mission_slug=ctx.slug,
-        wp_id="WP01",
-        wp_slug=wp_slug,
-        body="# Review\n\nVerdict: rejected.\n",
-        reviewer_agent="reviewer-renata",
-        verdict="rejected",
     )
 
     findings = find_rejected_review_artifact_conflicts(ctx.primary_feature_dir, ["WP01"])
@@ -491,8 +561,8 @@ def test_c001_merge_gate_agrees_with_real_writer_under_coord_topology(
         f"writer wrote, even under coord topology. writer wrote to "
         f"{created.artifact_path}; got findings={findings}"
     )
-    assert _rejected_finding(findings[0]).verdict == "rejected"
-    assert findings[0].artifact_path == created.artifact_path
+    assert _rejected_finding(findings[0]).verdict == "changes_requested"
+    assert findings[0].artifact_path is None
 
 
 def test_c001_merge_gate_reports_no_verdict_for_wp_with_no_artifact(
@@ -667,11 +737,23 @@ def test_resolve_review_verdict_facts_routes_through_owner_function(
     guards against a future regression that reintroduces a bare-id-based join
     here (which a pre-T057-style resolver WOULD get wrong for this exact
     separator).
+
+    **WP05 repoint (verdict-seam-write-unification-01KZ9Q35, T023):**
+    ``resolve_review_verdict_facts`` no longer parses ``review-cycle-N.md``
+    frontmatter at all -- it resolves ``event_sourced_review_result`` and
+    threads ``ReviewResult.feedback_path`` back as ``artifact_path``. The
+    underscore-separator concern this test pins is now about
+    ``feedback_path`` carrying the SAME correctly-resolved directory a
+    real writer would have produced, not about a frontmatter re-parse; the
+    on-disk artifact is still written (as a real writer would leave one) but
+    is no longer itself the source of the returned facts.
     """
     from specify_cli.cli.commands.agent.tasks_verdict_persistence import (
         resolve_review_verdict_facts,
     )
     from specify_cli.review.artifacts import ReviewCycleArtifact
+    from specify_cli.status.models import Lane, ReviewResult, StatusEvent
+    from specify_cli.status.store import append_event
 
     ctx = flat_topology_mission
     wp_path = ctx.primary_feature_dir / "tasks" / "WP02_second_wp.md"
@@ -680,15 +762,37 @@ def test_resolve_review_verdict_facts_routes_through_owner_function(
         encoding="utf-8",
     )
     correct_dir = ctx.primary_feature_dir / "tasks" / "WP02_second_wp"
+    correct_path = correct_dir / "review-cycle-1.md"
     ReviewCycleArtifact(
         cycle_number=1,
         wp_id="WP02",
         mission_slug=ctx.slug,
         reviewer_agent="reviewer-renata",
-        verdict="rejected",
         reviewed_at="2026-06-26T00:30:00+00:00",
         body="# Review\n\nVerdict: rejected.\n",
-    ).write(correct_dir / "review-cycle-1.md")
+    ).write(correct_path)
+    append_event(
+        ctx.primary_feature_dir,
+        StatusEvent(
+            event_id="01KW2E7B0RVFROUTE0000001",
+            mission_slug=ctx.slug,
+            mission_id=ctx.mission_id,
+            wp_id="WP02",
+            from_lane=Lane.FOR_REVIEW,
+            to_lane=Lane.APPROVED,
+            at="2026-06-26T00:30:00+00:00",
+            actor="reviewer-renata",
+            force=False,
+            execution_mode="worktree",
+            reason="rejected on review",
+            review_result=ReviewResult(
+                reviewer="reviewer-renata",
+                verdict="changes_requested",
+                reference=f"feedback://{ctx.slug}/WP02_second_wp/review-cycle-1.md",
+                feedback_path=str(correct_path),
+            ),
+        ),
+    )
 
     # Sanity: a naive bare-id join would look at a DIFFERENT, empty directory.
     naive_bare_dir = ctx.primary_feature_dir / "tasks" / "WP02"
@@ -697,5 +801,5 @@ def test_resolve_review_verdict_facts_routes_through_owner_function(
     verdict, artifact_path, artifact_name = resolve_review_verdict_facts(wp_path)
 
     assert verdict == "rejected"
-    assert artifact_path == correct_dir / "review-cycle-1.md"
+    assert artifact_path == correct_path
     assert artifact_name == "review-cycle-1.md"

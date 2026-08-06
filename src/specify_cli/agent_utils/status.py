@@ -7,7 +7,6 @@ to display beautiful status boards without going through the CLI.
 from __future__ import annotations
 
 from mission_runtime import MissionArtifactKind, placement_seam
-import re
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
@@ -25,79 +24,19 @@ from specify_cli.core.paths import (
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status import Lane, NON_DISPLAY_LANES, StatusEvent
 from specify_cli.status import PROGRESS_SEMANTICS, compute_done_percentage, compute_weighted_progress
-from specify_cli.status import wp_state_for
+from specify_cli.status import event_sourced_review_result, wp_state_for
+from specify_cli.status.verdict_vocab import is_changes_requested
 from specify_cli.task_utils import extract_scalar, split_frontmatter
 
 console = Console()
 
-
-def _review_cycle_number(path: Path) -> int:
-    """Return the numeric review-cycle suffix for sorting review artifacts."""
-    match = re.search(r"review-cycle-(\d+)\.md", path.name)
-    return int(match.group(1)) if match else 0
-
-
-class DamagedVerdictRecordError(Exception):
-    """A review-cycle verdict record exists but cannot be read (FR-012/T064).
-
-    Raised by :func:`_get_wp_review_verdict` when the LATEST
-    ``review-cycle-*.md`` artifact for a WP is present on disk, HAS a
-    frontmatter block, but that block cannot be decoded (non-UTF-8 content)
-    or parsed (malformed YAML) -- a damaged record, not an absent one. This
-    is distinct from the legitimate ``None`` the same function still returns
-    when no review-cycle artifact exists yet, or when the artifact has no
-    closing frontmatter delimiter at all (an incomplete-write shape a sibling
-    reader,``tasks_parsing_validation.py::_get_latest_review_cycle_verdict``,
-    also treats as a non-exceptional ``(None, artifact)`` — see that
-    function's docstring). Callers (:func:`show_kanban_status`) must catch
-    this and surface a distinguishable board entry, never let it propagate
-    uncaught, and never silently fold it back into the same ``None`` a
-    genuinely-unverdicted WP produces (the fail-open shape User Story 4/
-    FR-012 exists to close).
-    """
-
-
-def _get_wp_review_verdict(wp_dir: Path) -> str | None:
-    """Return the verdict from the latest review-cycle-N.md in wp_dir, or None.
-
-    Globs review-cycle-*.md files sorted by N (highest = latest) and parses
-    YAML frontmatter for the ``verdict`` field.
-
-    Returns:
-        ``None`` when no ``review-cycle-*.md`` file exists yet (legitimately
-        no verdict recorded -- not damage), or when the latest file has no
-        closing frontmatter delimiter at all.
-
-    Raises:
-        DamagedVerdictRecordError: the latest file exists and has a
-            frontmatter block, but it cannot be decoded or its YAML cannot
-            be parsed as a mapping (FR-012/T064) — a damaged record.
-    """
-    cycles = sorted(
-        wp_dir.glob("review-cycle-*.md"),
-        key=_review_cycle_number,
-    )
-    if not cycles:
-        return None
-    latest = cycles[-1]
-    try:
-        text = latest.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError) as exc:
-        raise DamagedVerdictRecordError(f"cannot read {latest}: {exc}") from exc
-    match = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
-    if not match:
-        return None
-    import yaml  # noqa: PLC0415 — lazy import to avoid top-level dep
-    try:
-        fm = yaml.safe_load(match.group(1)) or {}
-    except yaml.YAMLError as exc:
-        raise DamagedVerdictRecordError(
-            f"malformed YAML frontmatter in {latest}: {exc}"
-        ) from exc
-    if not isinstance(fm, dict):
-        raise DamagedVerdictRecordError(f"YAML frontmatter in {latest} is not a mapping")
-    verdict = fm.get("verdict")
-    return str(verdict) if verdict is not None else None
+# WP05 (verdict-seam-write-unification-01KZ9Q35, FR-002/FR-004/T024): the
+# board's stale/damaged-verdict detection used to glob ``review-cycle-*.md``
+# and parse its YAML frontmatter directly (``_get_wp_review_verdict`` +
+# ``DamagedVerdictRecordError``, both retired) -- the exact fail-open surface
+# this mission closes. The loop inside :func:`show_kanban_status` now resolves
+# :func:`~specify_cli.status.event_sourced_review_result` instead; see that
+# loop for the three-way (absent/damaged/present) translation.
 
 
 def _get_last_event_time(events: list[StatusEvent], wp_id: str) -> datetime | None:
@@ -316,19 +255,21 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
             wp_id = wp["id"]
             if not wp_id:
                 continue
-            wp_dir = tasks_dir / str(wp.get("artifact_dir") or wp_id)
-            try:
-                verdict = _get_wp_review_verdict(wp_dir)
-            except DamagedVerdictRecordError:
+            lookup = event_sourced_review_result(feature_dir, wp_id)
+            if not lookup.slot_present:
+                # absent -- legitimately no verdict recorded yet, not damage.
+                continue
+            if lookup.result is None:
                 # refuse (FR-012): distinct board entry, not a command crash —
-                # the exception is caught here, never left to propagate to
-                # this function's outer except Exception below.
+                # a damaged event-log ``review_result`` slot, never silently
+                # folded into the same "no verdict" case a genuinely absent
+                # slot produces.
                 damaged_verdicts.append(
                     {"wp_id": wp_id, "artifact": "review artifact: unreadable/damaged verdict record"}
                 )
                 wp["_damaged_verdict"] = True
                 continue
-            if verdict == "rejected":
+            if is_changes_requested(lookup.result.verdict):
                 stale_verdicts.append({"wp_id": wp_id, "artifact": "review artifact: verdict=rejected"})
                 wp["_stale_verdict"] = True
 

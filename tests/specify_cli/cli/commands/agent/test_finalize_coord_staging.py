@@ -76,16 +76,21 @@ def test_staging_copies_only_existing_non_status_artifacts(tmp_path: Path) -> No
     assert not (coord_wt / "kitty-specs" / "060-test" / "acceptance-matrix.json").exists()
 
 
-def test_collect_finalize_artifacts_includes_issue_matrix(tmp_path: Path) -> None:
+def test_collect_finalize_artifacts_includes_issue_matrix_json(tmp_path: Path) -> None:
+    """write-surface-coherence WP08 (#2804 / #2404 T043 / G3): the terminal
+    ``issue-matrix.json`` is the finalize-commit candidate — the retired
+    ``issue-matrix.md`` (no canonical path authors it any more, WP05) is not.
+    """
     feature_dir = tmp_path / "repo" / "kitty-specs" / "060-test"
     tasks_dir = feature_dir / "tasks"
     _write(feature_dir / "tasks.md", "# tasks\n")
-    _write(feature_dir / "issue-matrix.md", "# issues\n")
+    _write(feature_dir / "issue-matrix.json", '{"schema_version": 1, "rows": {}}\n')
     _write(tasks_dir / "WP01.md", "# WP01\n")
 
     artifacts = _collect_finalize_artifacts(feature_dir, tasks_dir, "060-test")
 
-    assert feature_dir / "issue-matrix.md" in artifacts
+    assert feature_dir / "issue-matrix.json" in artifacts
+    assert feature_dir / "issue-matrix.md" not in artifacts
 
 
 def test_branch_tree_relative_path_strips_target_worktree_prefix(tmp_path: Path) -> None:

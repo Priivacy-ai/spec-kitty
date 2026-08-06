@@ -74,7 +74,7 @@ from specify_cli.review.arbiter import (
     create_arbiter_decision,
     persist_arbiter_decision,
 )
-from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.status.models import Lane, ReviewResult, StatusEvent
 from specify_cli.status.store import append_event
 from tests.integration.coord_topology_fixture import (
     CoordTopologyContext,
@@ -248,9 +248,22 @@ def _simple_mission(root: Path, slug: str, *, execution_mode: str = "code_change
 
 
 def _seed_event(
-    feature_dir: Path, from_lane: str, to_lane: str, ordinal: int, *, review_ref: str | None = None
+    feature_dir: Path,
+    from_lane: str,
+    to_lane: str,
+    ordinal: int,
+    *,
+    review_ref: str | None = None,
+    review_result: ReviewResult | None = None,
 ) -> None:
-    """Append one real StatusEvent (production-shaped ULID event id)."""
+    """Append one real StatusEvent (production-shaped ULID event id).
+
+    ``review_result`` (WP05, verdict-seam-write-unification-01KZ9Q35,
+    additive/backward-compatible): every verdict reader (the approval
+    guard, the merge gate) is now event-sourced -- callers that need a
+    scenario to carry a CURRENT rejection/approval must seed it here, not
+    merely write the on-disk ``review-cycle-N.md`` artifact.
+    """
     append_event(
         feature_dir,
         StatusEvent(
@@ -264,6 +277,7 @@ def _seed_event(
             force=True,
             execution_mode="worktree",
             review_ref=review_ref,
+            review_result=review_result,
         ),
     )
 
@@ -464,6 +478,16 @@ def _run_all_scenarios(mkdir: Any) -> dict[str, Scenario]:
     fd = _simple_mission(mkdir(), f"rejected-{_MID8}")
     _seed_chain(fd, [("planned", "claimed"), ("claimed", "in_progress"), ("in_progress", "for_review")])
     _write_review_cycle(fd, 1, "rejected")
+    # WP05 (verdict-seam-write-unification-01KZ9Q35, T023): the writer's own
+    # "is the current verdict a rejection" probe is now event-sourced --
+    # seed the SAME review_result the real writer produces, not just the
+    # on-disk artifact above. A same-lane no-op transition (raw event-log
+    # append, no FSM check) keeps this the LAST/current event without
+    # perturbing ``_seed_chain``'s own lane sequence.
+    _seed_event(
+        fd, "for_review", "for_review", 4,
+        review_result=ReviewResult(reviewer="reviewer-renata", verdict="changes_requested", reference="x"),
+    )
     # Cycle 2 fix (review-verdict-write-integrity-01KZ1CGF WP01):
     # ``_persist_approved_review_cycle`` now threads a REAL ``commit_artifact``
     # call and raises on a non-"committed" result. This fixture's root is a
@@ -494,6 +518,14 @@ def _run_all_scenarios(mkdir: Any) -> dict[str, Scenario]:
     fd = _simple_mission(mkdir(), f"override-{_MID8}")
     _seed_chain(fd, [("planned", "claimed"), ("claimed", "in_progress"), ("in_progress", "for_review")])
     artifact = _write_review_cycle(fd, 1, "rejected")
+    # WP05 (verdict-seam-write-unification-01KZ9Q35, T023): see the identical
+    # rationale on the ``rejected_verdict_block`` scenario above -- the
+    # override-authorize guard also requires a non-None event-sourced
+    # ``review_artifact_name``.
+    _seed_event(
+        fd, "for_review", "for_review", 4,
+        review_result=ReviewResult(reviewer="reviewer-renata", verdict="changes_requested", reference="x"),
+    )
     # Cycle 2 fix (review-verdict-write-integrity-01KZ1CGF WP01): same
     # ``commit_for_mission`` stub as the ``rejected_verdict_block`` scenario
     # above -- see that comment for the full rationale.

@@ -31,7 +31,7 @@ from specify_cli.cli.commands import merge as merge_module
 from specify_cli.post_merge.review_artifact_consistency import (
     REJECTED_REVIEW_ARTIFACT_CONFLICT,
 )
-from specify_cli.status.models import Lane
+from specify_cli.status.models import Lane, ReviewResult
 from tests.reliability.fixtures import (
     WorkPackageSpec,
     append_status_event,
@@ -457,7 +457,6 @@ def _write_rejected_review_artifact(mission: MissionFixture) -> None:
         wp_id="WP01",
         mission_slug=mission.mission_slug,
         reviewer_agent="reviewer-renata",
-        verdict="rejected",
         reviewed_at="2026-05-14T12:00:00+00:00",
         body="# Review\n\nVerdict: rejected\n",
     )
@@ -467,7 +466,15 @@ def _write_rejected_review_artifact(mission: MissionFixture) -> None:
 def test_dry_run_json_emits_rejected_review_artifact_conflict(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A rejected latest review-cycle on an approved WP blocks dry-run with the conflict code."""
+    """A rejected latest review-cycle on an approved WP blocks dry-run with the conflict code.
+
+    WP06 repoint: ``find_rejected_review_artifact_conflicts`` is pure-event
+    post-WP05 (verdict-seam-write-unification-01KZ9Q35, FR-013) -- it no
+    longer reads ``review-cycle-N.md`` frontmatter at all. The on-disk
+    artifact is written only as realistic surrounding state; the
+    ``review_result`` event on the SAME transition is what the gate
+    actually consults.
+    """
     mission = create_mission_fixture(tmp_path)
     write_work_package(mission, WorkPackageSpec(lane="approved"))
     append_status_event(
@@ -475,6 +482,11 @@ def test_dry_run_json_emits_rejected_review_artifact_conflict(
         from_lane=Lane.FOR_REVIEW,
         to_lane=Lane.APPROVED,
         event_id="01KVXHDKGOLDEN0000000002",
+        review_result=ReviewResult(
+            reviewer="reviewer-renata",
+            verdict="changes_requested",
+            reference=f"review-cycle://{mission.mission_slug}/WP01-regression-harness/review-cycle-1.md",
+        ),
     )
     _write_rejected_review_artifact(mission)
     _write_lanes_json(mission)

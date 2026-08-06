@@ -370,7 +370,7 @@ def _st_apply_review_flags(st: _StatusState) -> None:
     st.review_stall_threshold = _tasks._review_stall_threshold_minutes(st.main_repo_root)
     st.stale_verdicts, st.stalled_wps = _apply_review_status_flags(
         st.work_packages,
-        tasks_dir=st.tasks_dir,
+        feature_dir=st.feature_dir,
         events=st.events,
         stall_threshold_minutes=st.review_stall_threshold,
     )

@@ -68,6 +68,7 @@ call sites above).
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -77,14 +78,12 @@ from specify_cli.cli.commands.agent.tasks_materialization import (
     _persist_review_artifact_override,
     _resolve_wp_slug,
 )
-from specify_cli.cli.commands.agent.tasks_parsing_validation import (
-    _get_latest_review_cycle_verdict,
-)
 from specify_cli.cli.commands.agent.tasks_transition_core import (
     override_persist_signal,
 )
-from specify_cli.review.artifacts import latest_review_artifact_verdict
 from specify_cli.review.cycle import _review_cycle_wp_dir, create_rejected_review_cycle
+from specify_cli.status import event_sourced_review_result
+from specify_cli.status.verdict_vocab import to_artifact_verdict
 
 if TYPE_CHECKING:
     from specify_cli.agent_tasks_ports import CoordCommitRouter
@@ -99,6 +98,26 @@ if TYPE_CHECKING:
 # each string is referenced from two sites (the resolver + its tests).
 _DURABILITY_REASON_NO_AUTO_COMMIT = "no_auto_commit"
 _DURABILITY_REASON_PROTECTED_TARGET_BRANCH = "protected_target_branch"
+
+# WP05 (verdict-seam-write-unification-01KZ9Q35, T023) bugfix: the bare-id
+# a WP task file's stem carries, up to (not including) its FIRST accepted
+# T057 separator (``-``, ``_``, ``.``) or end-of-string -- the SAME
+# separator-anchored convention ``task_utils/support.py::
+# get_lane_from_frontmatter`` and ``workspace/context.py::_wp_id_from_path``
+# already use for this identical "derive a bare WP id from a task filename"
+# problem. A naive ``stem.split("-")[0]`` (this function's first cut) silently
+# returns the WHOLE stem unchanged for an underscore- or dot-separated file
+# (e.g. ``"WP02_second_wp"``, not ``"WP02"``), which then never matches any
+# real event's ``wp_id`` -- a fail-CLOSED-shaped bug (a real verdict reads as
+# absent) rather than a crash, so it would have gone unnoticed without a
+# regression exercising a non-hyphen separator.
+_WP_ID_PREFIX_RE = re.compile(r"^(WP\d+)(?=$|[-_.])", re.IGNORECASE)
+
+
+def _wp_id_from_stem(stem: str) -> str:
+    """Return the bare WP id anchored at the start of *stem* (T057 separators)."""
+    match = _WP_ID_PREFIX_RE.match(stem)
+    return match.group(1).upper() if match else stem
 
 
 @dataclass(frozen=True)
@@ -386,7 +405,7 @@ def _announce_verdict_durability_gap(
 def resolve_review_verdict_facts(
     wp_path: Path,
 ) -> tuple[str | None, Path | None, str | None]:
-    """Resolve the latest review-cycle verdict for an approval-lane move.
+    """Resolve the latest review verdict for an approval-lane move (FR-002/D-PLAN-9).
 
     Extracted verbatim (site 1) from the inline block formerly inside
     ``_mt_gather_review_facts`` (``tasks_move_task.py:557``), guarded there by
@@ -394,26 +413,94 @@ def resolve_review_verdict_facts(
     the call site; this function is the unconditional resolve step.
     Returns ``(review_verdict, verdict_artifact_path, review_artifact_name)``.
 
-    **WP13 fix (FR-007, operator-directed scope addition,
-    DM-01KZ77DS4F1PZ92MK6V8ATCJWW):** this used to join
-    ``wp_path.parent / wp_path.stem`` directly -- a SECOND, independent
-    ``tasks/<slug>`` construction never routed through this mission's T058
-    owner function (``review/cycle.py::_review_cycle_wp_dir``). Now routes
-    through it (see :func:`_resolve_verdict_wp_dir`), signature UNCHANGED
-    (``wp_path`` only) so this call's own existing unit tests
-    (``tests/specify_cli/cli/commands/agent/test_tasks_move_task_seam.py``,
-    outside this WP's ``owned_files``) and its ONE call site
-    (``tasks_move_task.py:589``, also outside ``owned_files``) need no
-    companion edit.
+    **WP05 (verdict-seam-write-unification-01KZ9Q35, T023) repoint:** this
+    used to parse ``review-cycle-N.md`` frontmatter
+    (``_get_latest_review_cycle_verdict``) — the exact fail-open surface this
+    mission closes. Now resolves the event authority
+    (:func:`~specify_cli.status.event_sourced_review_result`) and translates
+    its three-way :class:`~specify_cli.status.ReviewResultLookup` outcome into
+    the SAME three-value shape the two unowned callers
+    (``tasks_move_task.py``'s ``_mt_gather_review_facts``, ``tasks_transition_
+    core.py``'s ``_guard_rejected_verdict``/``_authorize_review_override``)
+    already destructure, so neither needs a companion edit:
+
+    - **absent** (``slot_present=False``) -> ``(None, None, None)`` — no
+      verdict recorded; the caller's guard already treats
+      ``review_artifact_name is None`` as "nothing to refuse on" (G2: absent
+      is "no approval [blocker]", not a crash).
+    - **damaged** (``slot_present=True, result=None``) -> a non-``None``
+      synthetic ``review_artifact_name`` paired with ``review_verdict=None``
+      — this is deliberate, not an oversight: the caller's guard refuses on
+      exactly that combination ("no parseable review verdict"), so a
+      corrupted event-log slot must still fail closed instead of silently
+      passing as "no artifact at all" (SC-004).
+    - **present** -> the artifact-domain verdict
+      (:func:`~specify_cli.status.verdict_vocab.to_artifact_verdict`, mapping
+      ``changes_requested`` back to ``rejected`` for the caller's existing
+      string comparison) plus the ORIGINAL write-time artifact path
+      (``ReviewResult.feedback_path``, threaded back from
+      :func:`~specify_cli.review.cycle.create_rejected_review_cycle`'s own
+      write) when present, else a directory-anchored synthetic path — never
+      re-reads or re-parses ``review-cycle-N.md`` frontmatter for this.
+
+    The event log is read from the **STATUS_STATE-authoritative** feature dir
+    (:func:`_resolve_verdict_read_feature_dir`), not the PRIMARY
+    ``wp_path.parent.parent`` alone — under a coordination topology the event
+    log lives on the coord worktree, so reading the PRIMARY dir would find an
+    always-empty log and treat every verdict as absent (the exact hazard
+    ``_review_cycle_wp_dir``'s own docstring discloses this function used to
+    carry, now fixed as part of this WP's repoint).
     """
     verdict_wp_dir = _resolve_verdict_wp_dir(wp_path)
-    review_verdict, verdict_artifact_path = _get_latest_review_cycle_verdict(
-        verdict_wp_dir
+    wp_id = _wp_id_from_stem(wp_path.stem)
+    status_read_feature_dir = _resolve_verdict_read_feature_dir(wp_path)
+    lookup = event_sourced_review_result(status_read_feature_dir, wp_id)
+    if not lookup.slot_present:
+        return None, None, None
+    if lookup.result is None:
+        synthetic_path = verdict_wp_dir / "review-cycle-damaged-event-record.md"
+        return None, synthetic_path, synthetic_path.name
+    review_verdict = to_artifact_verdict(lookup.result.verdict)
+    artifact_path = (
+        Path(lookup.result.feedback_path)
+        if lookup.result.feedback_path
+        else verdict_wp_dir / "review-cycle-event-recorded.md"
     )
-    review_artifact_name = (
-        verdict_artifact_path.name if verdict_artifact_path is not None else None
+    return review_verdict, artifact_path, artifact_path.name
+
+
+def _resolve_verdict_read_feature_dir(wp_path: Path) -> Path:
+    """Resolve the STATUS_STATE-authoritative feature dir for *wp_path*'s mission.
+
+    Mirrors ``post_merge/review_artifact_consistency.py::
+    _resolve_lane_state_read_dir``'s own convention: the event log
+    (``status.events.jsonl``) is COORD-partition under a coordination
+    topology, PRIMARY otherwise — resolving it through the kind-aware
+    placement seam (rather than trusting ``wp_path.parent.parent`` — the
+    PRIMARY mission dir every caller of this function happens to hold) is
+    what makes the read agree with wherever
+    :func:`~specify_cli.status.emit_status_transition` actually wrote the
+    ``review_result`` slot.
+
+    Degrades to the PRIMARY ``feature_dir`` unchanged when no workspace root
+    is derivable (a bare non-git test fixture) — the same "flat self-home"
+    degrade :func:`_resolve_verdict_wp_dir` uses for the identical edge case.
+    """
+    from mission_runtime import MissionArtifactKind, placement_seam
+
+    from specify_cli.core.paths import WorkspaceRootNotFound, resolve_canonical_root
+
+    feature_dir = wp_path.parent.parent
+    try:
+        main_repo_root = resolve_canonical_root(feature_dir)
+    except WorkspaceRootNotFound:
+        return feature_dir
+
+    mission_slug = feature_dir.name
+    resolved: Path = placement_seam(main_repo_root, mission_slug).read_dir(
+        MissionArtifactKind.STATUS_STATE
     )
-    return review_verdict, verdict_artifact_path, review_artifact_name
+    return resolved
 
 
 def _resolve_verdict_wp_dir(wp_path: Path) -> Path:
@@ -527,13 +614,27 @@ def _persist_approved_review_cycle(
     caller already asserts non-``None`` cannot exist without one), so this
     guard is a no-op in production and only avoids breaking those tests'
     unrelated fixtures.
+
+    **WP05 (verdict-seam-write-unification-01KZ9Q35, T023) repoint:** the
+    "is the current verdict a rejection" probe used to parse
+    ``review-cycle-N.md`` frontmatter (``latest_review_artifact_verdict``,
+    D-PLAN-9's "approval-write probe") — now resolves the event authority
+    (:func:`~specify_cli.status.event_sourced_review_result`) from
+    ``st.feature_dir`` (the STATUS_STATE-authoritative dir this state already
+    carries — coord-aware, unlike a raw ``main_repo_root``-anchored join).
+    Absent or damaged both no-op here (fail closed on the SAFE side for a
+    WRITE decision: when this probe cannot establish "the current verdict IS
+    a rejection", it must not synthesize a redundant/fabricated approval —
+    matching the pre-existing no-op contract for "no prior artifact" /
+    "already approved").
     """
     if st.request is not None and st.request.is_arbiter_override:
         return None
     wp_slug = _resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id)
-    sub_artifact_dir = _review_cycle_wp_dir(st.main_repo_root, st.mission_slug, wp_slug)
-    latest = latest_review_artifact_verdict(sub_artifact_dir)
-    if latest is None or latest.verdict != "rejected":
+    lookup = event_sourced_review_result(st.feature_dir, st.task_id)
+    if not lookup.slot_present or lookup.result is None:
+        return None
+    if lookup.result.verdict != "changes_requested":
         return None
     # Real reviewer_agent (matches ``_mt_plan_review_result``'s own
     # fallback chain) — never the literal "unknown" for a genuine
@@ -609,8 +710,18 @@ def persist_arbiter_override_decision(
     category: ArbiterCategory,
     explanation: str,
     json_output: bool,
+    main_repo_root: Path,
 ) -> None:
     """The OLD-timing arbiter-decision persist (FR-004 partial-write-on-refusal).
+
+    FR-016 (WP07, arbiter-root-threading): ``main_repo_root`` is the caller's
+    already-resolved repo root (``_run_arbiter_override``'s own parameter of
+    the same name) and is threaded straight through to :func:`persist_arbiter_
+    decision` as its now-required ``repo_root``. This function never infers
+    it — under a coordination topology, ``feature_dir`` may already be the
+    coord-husk mission dir, so any inference from it (e.g.
+    ``feature_dir.parent.parent``) would land on the coord WORKTREE root, not
+    the real ``main_repo_root`` the downstream event-sourced write needs.
 
     Extracted verbatim (site 4) from ``_run_arbiter_override``
     (``tasks_move_task.py:2540-2552``). ``_run_arbiter_override`` itself stays
@@ -654,6 +765,7 @@ def persist_arbiter_override_decision(
         wp_id=wp_id,
         review_ref=review_ref,
         decision=decision,
+        repo_root=main_repo_root,
     )
     if not json_output:
         _tasks.console.print(

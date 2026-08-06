@@ -33,6 +33,8 @@ from .models import (
 )
 from .reducer import (
     SNAPSHOT_FILENAME,
+    ReviewResultLookup,
+    event_sourced_review_result,
     materialize,
     materialize_snapshot,
     materialize_to_json,
@@ -267,6 +269,18 @@ def uninitialized_status_error(mission_slug: str, wp_id: str, feature_dir: Path)
 __all__ = [
     "ActiveWPStatus",
     "CutOverVerdict",
+    # WP05 (verdict-seam-write-unification-01KZ9Q35, out-of-map): promoted onto
+    # the facade so every verdict-authority reader (tasks_verdict_persistence,
+    # agent_utils.status, tasks_parsing_validation, workflow_cores/executor)
+    # can resolve the event-sourced verdict WITHOUT a direct
+    # ``specify_cli.status.reducer`` import (SR-2, test_status_module_boundary.py).
+    # This file is not in WP05's owned_files, but the promotion is a single,
+    # mechanical two-name addition required by the contract's own stated public
+    # API (contracts/verdict-authority-read.md names
+    # ``event_sourced_review_result``/``ReviewResultLookup`` as the read seam);
+    # without it the reader collapse cannot happen through the facade at all.
+    "ReviewResultLookup",
+    "event_sourced_review_result",
     "AgentAssignment",
     "actor_identity_str",
     "ALLOWED_TRANSITIONS",

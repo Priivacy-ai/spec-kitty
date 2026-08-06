@@ -87,6 +87,45 @@ def _seed_wp_event(feature_dir: Path, wp_id: str, to_lane: str) -> None:
     )
 
 
+def _seed_rejection_result_event(feature_dir: Path, wp_id: str) -> None:
+    """Seed the ``in_review -> planned`` rejection's ``review_result`` directly.
+
+    WP05 (verdict-seam-write-unification-01KZ9Q35, T023) repoint:
+    ``_persist_approved_review_cycle``'s "is the current verdict a
+    rejection" probe now resolves the event authority
+    (``event_sourced_review_result``), not ``review-cycle-N.md``
+    frontmatter. This test's ``FakeCoordCommitRouter.commit_status`` is a
+    canned stub (``CommitStatusResult(event=None, ...)``) that never
+    appends to the real event log at all -- the event log here is
+    ENTIRELY hand-seeded via ``_seed_wp_event``/this helper, standing in
+    for what the real ``commit_status`` -> ``emit_status_transition`` path
+    would have durably recorded for the reject move that just ran. Without
+    this, the approval probe correctly (per G2) treats the rejection as
+    absent and no-ops the second cycle's write -- not a WP05 regression,
+    but a test-fixture gap this WP's repoint newly exposes.
+    """
+    from specify_cli.status.models import ReviewResult
+
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id=f"test-{wp_id}-rejected-{len(list(feature_dir.glob('status.events*')))}",
+            mission_slug=feature_dir.name,
+            wp_id=wp_id,
+            from_lane=Lane.IN_REVIEW,
+            to_lane=Lane.PLANNED,
+            at="2026-01-01T00:00:00+00:00",
+            actor="test",
+            force=False,
+            execution_mode="worktree",
+            reason="rejected on review",
+            review_result=ReviewResult(
+                reviewer="reviewer-renata", verdict="changes_requested", reference="x"
+            ),
+        ),
+    )
+
+
 def _fake_ports(feature_dir: Path) -> TasksPorts:
     coord = FakeCoordCommitRouter(
         write_dir=feature_dir,
@@ -162,12 +201,16 @@ def test_reject_approve_reject_approve_with_identical_note_succeeds(
     feedback1.write_text("**Issue**: first pass needs work.\n", encoding="utf-8")
     _run_move(tmp_path, to="planned", ports=ports, review_feedback_file=feedback1)
     assert (wp_dir / "review-cycle-1.md").exists()
+    _seed_rejection_result_event(feature_dir, _WP_ID)
 
     # Cycle 2: approve with the machine's hard-coded note.
     _seed_wp_event(feature_dir, _WP_ID, "in_review")
     _run_move(tmp_path, to="approved", ports=ports, note="Review passed")
     assert (wp_dir / "review-cycle-2.md").exists()
-    assert "verdict: approved" in (wp_dir / "review-cycle-2.md").read_text(
+    # WP06 (verdict-seam-write-unification-01KZ9Q35, FR-003/SC-007):
+    # ReviewCycleArtifact no longer carries a verdict field -- the approval
+    # write's own synthesized body ("Approved by ...") is the checkable proxy.
+    assert "Approved by" in (wp_dir / "review-cycle-2.md").read_text(
         encoding="utf-8"
     )
 
@@ -177,6 +220,7 @@ def test_reject_approve_reject_approve_with_identical_note_succeeds(
     feedback2.write_text("**Issue**: second pass needs work.\n", encoding="utf-8")
     _run_move(tmp_path, to="planned", ports=ports, review_feedback_file=feedback2)
     assert (wp_dir / "review-cycle-3.md").exists()
+    _seed_rejection_result_event(feature_dir, _WP_ID)
 
     # Cycle 4: approve AGAIN with the byte-identical note. This is the M1
     # reproduction -- must succeed, not raise.
@@ -194,6 +238,6 @@ def test_reject_approve_reject_approve_with_identical_note_succeeds(
         "cycle 4 (the second approval) was never written -- the collision "
         "blocked the write entirely"
     )
-    assert "verdict: approved" in (wp_dir / "review-cycle-4.md").read_text(
+    assert "Approved by" in (wp_dir / "review-cycle-4.md").read_text(
         encoding="utf-8"
     )
