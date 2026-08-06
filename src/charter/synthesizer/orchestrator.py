@@ -128,13 +128,12 @@ def synthesize(
 
     try:
         from doctrine.drg.models import DRGGraph as _DRGGraph  # noqa: PLC0415
-        from importlib.metadata import version as _pkg_version  # noqa: PLC0415
-        _SPEC_KITTY_VERSION = _pkg_version("spec-kitty-cli")
         from .interview_mapping import normalize_interview_snapshot as _normalize_interview_snapshot  # noqa: PLC0415
         from .interview_mapping import resolve_sections as _resolve_sections  # noqa: PLC0415
         from .project_drg import apply_post_condition as _apply_post_condition  # noqa: PLC0415
         from .project_drg import emit_project_layer as _emit_project_layer  # noqa: PLC0415
         from .project_drg import persist as _persist_project_graph  # noqa: PLC0415
+        from .synthesize_pipeline import _get_synthesizer_version  # noqa: PLC0415
         from .synthesize_pipeline import run_all as _run_all  # noqa: PLC0415
         from .staging import StagingDir as _StagingDir  # noqa: PLC0415
         from .targets import build_targets as _build_targets  # noqa: PLC0415
@@ -147,6 +146,14 @@ def synthesize(
             "synthesize() is not yet fully implemented — WP02 must deliver "
             "synthesize_pipeline.py and WP03 must deliver write_pipeline.py."
         ) from exc
+
+    # Version resolution is deliberately outside the import-guard above:
+    # importlib.metadata.PackageNotFoundError is a subclass of ImportError
+    # (PackageNotFoundError -> ModuleNotFoundError -> ImportError), so calling
+    # it inside that try/except previously let an unresolvable-metadata
+    # failure masquerade as "synthesize_pipeline.py is missing". Delegate to
+    # the package's canonical version helper, which never raises.
+    _SPEC_KITTY_VERSION = _get_synthesizer_version()
 
     # --- In-memory pipeline (WP02) ---
     results = _run_all(request, adapter=adapter)
@@ -267,9 +274,15 @@ def resynthesize(
     """
     try:
         from .resynthesize_pipeline import run as _run  # noqa: PLC0415
-        return _run(request, topic=topic, adapter=adapter)
     except ImportError as exc:
         raise NotImplementedError(
             "resynthesize() is not yet implemented — WP05 will deliver "
             "src/charter/synthesizer/resynthesize_pipeline.py."
         ) from exc
+
+    # The pipeline call is deliberately outside the import-guard above: any
+    # ImportError raised while *running* the pipeline (e.g. a transitive
+    # importlib.metadata.PackageNotFoundError, which subclasses ImportError)
+    # must propagate as itself, not be mislabeled as "resynthesize_pipeline.py
+    # is missing".
+    return _run(request, topic=topic, adapter=adapter)

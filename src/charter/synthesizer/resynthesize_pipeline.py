@@ -360,8 +360,15 @@ def run(
     from .project_drg import persist as _persist_project_graph  # noqa: PLC0415
     from .staging import StagingDir as _StagingDir  # noqa: PLC0415
     from .validation_gate import validate as _validate_project_graph  # noqa: PLC0415
-    from importlib.metadata import version as _pkg_version  # noqa: PLC0415
-    _SPEC_KITTY_VERSION = _pkg_version("spec-kitty-cli")
+
+    # _get_synthesizer_version() (module-level import, above) never raises —
+    # it catches importlib.metadata.PackageNotFoundError (and any other
+    # metadata-resolution failure) internally and falls back to a dev
+    # sentinel. A bare importlib.metadata.version() call here previously let
+    # PackageNotFoundError (a subclass of ImportError) escape and be
+    # mislabeled by orchestrator.resynthesize()'s except ImportError as
+    # "resynthesize_pipeline.py is missing".
+    _SPEC_KITTY_VERSION = _get_synthesizer_version()
 
     _repo_root = repo_root if repo_root is not None else Path.cwd()
 
