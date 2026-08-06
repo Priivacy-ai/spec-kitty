@@ -12,5 +12,7 @@
   "purpose_tldr": "Add a built-in security checks layer for dependency and install-time supply-chain risks across software-dev workflows.",
   "slug": "supply-chain-security-checks-layer-01KZBFBS",
   "target_branch": "feat/supply-chain-security-checks-layer",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-06T14:44:34.051234+00:00"
 }
