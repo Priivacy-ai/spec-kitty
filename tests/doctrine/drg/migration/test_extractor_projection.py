@@ -28,17 +28,31 @@ from doctrine.drg.loader import load_built_in_graph
 from doctrine.drg.migration.extractor import extract_mission_type_edges, generate_graph
 from doctrine.drg.migration.hand_authored_overlay import (
     HAND_AUTHORED_EDGES,
-    HAND_AUTHORED_NODES,
     generate_reference_graph_with_overlay,
 )
 from doctrine.drg.models import Relation
 from doctrine.missions.mission_step_repository import MissionStepRepository
+from tests.doctrine._builtin_inventory import (
+    pure_builtin_node_count,
+    shipped_builtin_node_count,
+)
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
 _REPO_ROOT: Path = Path(__file__).resolve().parents[4]
 DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 
+#: HISTORICAL LEDGER (#3234). The node/edge counts below are now DERIVED from the
+#: ``packs/built-in`` filesystem inventory (see ``_EXPECTED_NODE_COUNT`` at the end
+#: of this block and ``tests/doctrine/_builtin_inventory.py``), so this delta-by-
+#: delta journal is no longer a live frozen contract that every doctrine addition
+#: must append to. It is retained as the audit trail of how the corpus reached its
+#: present size and as the authority other tests cite for orphan-membership,
+#: relation-histogram, and reachability moves. The bare ``_EXPECTED_NODE_COUNT ->``
+#: / ``_EXPECTED_EDGE_COUNT ->`` count arithmetic in entries below is frozen at the
+#: values current when each entry landed; do not hand-reconcile it going forward --
+#: the derived assertion and ``regenerate-graph --check`` are the live guards.
+#:
 #: Baseline DRG counts pinned by the mission-step-authority mission (NFR-002).
 #: Any drift here is a defect, not an accepted change -- see WP04's Definition
 #: of Done in kitty-specs/mission-step-authority-01KXNZMT/tasks/WP04-extractor-repoint.md.
@@ -460,8 +474,19 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 #:     9 -> 8). Shipped orphans UNCHANGED at 21 (USE_C4 already had shipped edges via
 #:     the overlay, so it was never a shipped orphan). None of the 21 new artefacts
 #:     is an orphan (all edge-incident), so no bucket gains a member.
-_EXPECTED_NODE_COUNT = 332
-_EXPECTED_EDGE_COUNT = 806
+#: Node count DERIVED from the ``packs/built-in`` inventory (#3234), not frozen: a
+#: fresh ``generate_graph`` (pure, no overlay) must produce exactly one node per
+#: shipped source file across the file-backed kinds, plus the structurally-derived
+#: action/template nodes. Adding a shipped artifact bumps both the inventory and the
+#: graph in lockstep (no false red); a loader/extractor that drops or mis-mints one
+#: reds. See ``tests/doctrine/_builtin_inventory.py`` for the anti-tautology contract.
+_EXPECTED_NODE_COUNT = pure_builtin_node_count()
+#: No frozen ``_EXPECTED_EDGE_COUNT``: edge totals come from frontmatter refs and
+#: cannot be independently derived from the filesystem. EXACT edge integrity is
+#: guaranteed by ``spec-kitty doctrine regenerate-graph --check`` (committed
+#: fragments == a fresh regeneration) and, in-process, by
+#: ``test_shipped_graph_is_fresh_and_byte_identical`` (regenerated edge SET ==
+#: shipped edge SET). Count assertions below use an ``edges >= nodes`` floor.
 
 # ---------------------------------------------------------------------------
 # Orphan MEMBERSHIP, not an orphan count
@@ -761,8 +786,13 @@ class TestDRGZeroDelta:
     def test_regenerated_graph_matches_baseline_counts(self, tmp_path: Path) -> None:
         graph = generate_graph(DOCTRINE_ROOT, tmp_path / "graph.yaml")
 
-        assert len(graph.nodes) == _EXPECTED_NODE_COUNT  # golden-count: cardinality-is-contract
-        assert len(graph.edges) == _EXPECTED_EDGE_COUNT  # golden-count: cardinality-is-contract
+        assert len(graph.nodes) == _EXPECTED_NODE_COUNT, (
+            "pure regeneration node count drifted from the packs/built-in "
+            "inventory -- a shipped artifact was dropped or mis-minted"
+        )
+        # Edge floor (see the _EXPECTED_NODE_COUNT note above): exact edge integrity
+        # is guaranteed by regenerate-graph --check and by the byte-identity test.
+        assert len(graph.edges) >= len(graph.nodes)
 
         orphans = _orphan_urns(graph.nodes, graph.edges)
         assert orphans == _INTENTIONAL_ORPHANS, _describe_orphan_drift(
@@ -859,12 +889,17 @@ class TestDRGZeroDelta:
         assert {
             (e.source, e.target, e.relation.value) for e in regenerated.edges
         } == {(e.source, e.target, e.relation.value) for e in shipped.edges}
-        assert len(regenerated.nodes) == len(shipped.nodes) == _EXPECTED_NODE_COUNT + len(
-            HAND_AUTHORED_NODES
+        # Node count is the inventory-derived shipped figure (pure + overlay).
+        assert (
+            len(regenerated.nodes)
+            == len(shipped.nodes)
+            == shipped_builtin_node_count()
         )
-        assert len(regenerated.edges) == len(shipped.edges) == _EXPECTED_EDGE_COUNT + len(
-            HAND_AUTHORED_EDGES
-        )
+        # No frozen edge integer: the SET equality asserted above already proves the
+        # regenerated and shipped edge sets are byte-identical (the in-process
+        # equivalent of regenerate-graph --check). Assert their sizes agree exactly
+        # (non-frozen) plus the floor.
+        assert len(regenerated.edges) == len(shipped.edges) >= len(shipped.nodes)
 
 
 @pytest.mark.doctrine

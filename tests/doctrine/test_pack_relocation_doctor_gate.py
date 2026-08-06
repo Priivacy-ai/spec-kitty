@@ -3,18 +3,24 @@
 Three non-fakeable acceptance surfaces for the relocation (NFR-006 / NFR-002):
 
 * **Full doctor health** — ``spec-kitty doctor doctrine --json`` reports FULL
-  health: no skipped/invalid profiles (25/25 valid), no ``org_drg`` errors, no
-  skipped glossary packs, and the shipped glossary term count is unchanged
-  (108). A profiles-only gate would miss ``glossary_packs`` / ``assets``
-  degradation, so the whole report is asserted.
+  health: no skipped/invalid profiles (every shipped profile valid), no
+  ``org_drg`` errors, no skipped glossary packs, and the shipped glossary term
+  count matches the source pack. A profiles-only gate would miss
+  ``glossary_packs`` / ``assets`` degradation, so the whole report is asserted.
 * **Charter catalog non-empty** — ``charter.catalog.load_doctrine_catalog()``
   returns non-empty built-in sets for the 7 catalog kinds. ``doctor`` does NOT
   exercise the catalog, so a missed ``catalog.py`` repoint slips through every
   other gate; this is the dedicated guard.
 * **Clean-install full-graph proof** — a wheel installed into a fresh venv
-  resolves ``load_built_in_graph()`` to the full 345/934 identity: the packaged
+  resolves ``load_built_in_graph()`` to the full built-in identity: the packaged
   end-to-end proof that the relocated content ships and resolves off
   ``packs/built-in`` in an installed distribution (US3).
+
+Cardinality/inventory expectations here are **derived from the on-disk
+``packs/built-in`` inventory** (#3234) rather than frozen literals -- see
+``tests/doctrine/_builtin_inventory.py`` for the anti-tautology contract. Exact
+edge integrity is guaranteed by ``regenerate-graph --check``, so the clean-install
+gate asserts the derived node count exactly and an ``edges >= nodes`` floor.
 """
 
 from __future__ import annotations
@@ -30,13 +36,21 @@ from typer.testing import CliRunner
 from charter.catalog import load_doctrine_catalog
 from doctrine.glossary_packs import GlossaryPackRepository
 from specify_cli.cli.commands.doctor import app as doctor_app
+from tests.doctrine._builtin_inventory import (
+    builtin_glossary_term_count,
+    builtin_profile_count,
+    shipped_builtin_node_count,
+)
 
 pytestmark = [pytest.mark.doctrine]
 
 runner = CliRunner()
 
-EXPECTED_PROFILE_COUNT = 25
-EXPECTED_GLOSSARY_TERM_COUNT = 108
+# Derived from the packs/built-in filesystem inventory, not frozen (#3234): a
+# loader that skips a shipped profile/glossary term diverges from these; adding
+# one does not red the gate. See tests/doctrine/_builtin_inventory.py.
+EXPECTED_PROFILE_COUNT = builtin_profile_count()
+EXPECTED_GLOSSARY_TERM_COUNT = builtin_glossary_term_count()
 # The 7 charter-catalog built-in kinds (``template_sets`` / ``domains_present``
 # are derived surfaces, not the per-kind artifact catalogs guarded here).
 CATALOG_KINDS = (
@@ -137,7 +151,14 @@ def test_charter_catalog_built_in_sets_are_non_empty() -> None:
 def test_clean_install_resolves_full_built_in_graph(
     installed_wheel_venv: dict[str, Path],
 ) -> None:
-    """A wheel installed into a fresh venv resolves the full 345/934 identity."""
+    """A wheel installed into a fresh venv resolves the full built-in graph.
+
+    Node count is derived from the ``packs/built-in`` inventory (the same content
+    the wheel ships), so this reds if the installed distribution drops a shipped
+    artifact but not when the corpus legitimately grows. Exact edge integrity is
+    the job of ``regenerate-graph --check``; here we only floor ``edges >= nodes``
+    to catch a degenerate/empty resolution.
+    """
     python = installed_wheel_venv["python"]
     result = subprocess.run(
         [
@@ -156,7 +177,14 @@ def test_clean_install_resolves_full_built_in_graph(
     assert result.returncode == 0, (
         f"clean-install load_built_in_graph() failed:\n{result.stderr}"
     )
-    node_count, edge_count = result.stdout.split()
-    assert (int(node_count), int(edge_count)) == (345, 934), (
-        f"clean-install graph cardinality drifted: {result.stdout!r}"
+    node_count, edge_count = (int(part) for part in result.stdout.split())
+    expected_nodes = shipped_builtin_node_count()
+    assert node_count == expected_nodes, (
+        f"clean-install node count {node_count} != inventory-derived "
+        f"{expected_nodes}: the wheel dropped or added a shipped artifact "
+        f"({result.stdout!r})"
+    )
+    assert edge_count >= node_count, (
+        f"clean-install edge floor breached: {edge_count} edges < {node_count} "
+        f"nodes -- a degenerate/empty graph resolved ({result.stdout!r})"
     )
