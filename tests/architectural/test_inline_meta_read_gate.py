@@ -228,7 +228,7 @@ FLOOR_MARGIN = 2
 # strictly satisfying the anti-vacuity check (same convention as the two
 # prior entries above).
 #
-# FIXED 2026-08-07 (PR #3248 landing pass, this fold): pre-existing main
+# FIXED 2026-08-07 (PR #3248 landing pass): pre-existing main
 # breakage — the same red reproduces on ``upstream/main`` (live == 133 > 128 +
 # margin(4)); this docs-only PR adds no routed ``load_meta`` call sites in
 # ``src/``, so the growth is genuine census drift accumulated by merges between
