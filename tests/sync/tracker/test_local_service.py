@@ -428,3 +428,71 @@ class TestNoSaaSImports:
         # CredentialStore from sync/auth should not appear
         assert "sync.auth" not in source
         assert "from specify_cli.sync" not in source
+
+
+# ---------------------------------------------------------------------------
+# Backend contract parity (#3168)
+# ---------------------------------------------------------------------------
+
+
+def _delegated_facade_methods() -> list[str]:
+    """Public ``TrackerService`` methods that delegate straight to a backend.
+
+    Derived from the source rather than hardcoded, so a ninth delegation added
+    later is picked up without editing this test.
+    """
+    import ast
+    import inspect
+
+    from specify_cli.tracker import service as service_module
+
+    tree = ast.parse(inspect.getsource(service_module))
+    names: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == "TrackerService":
+            for member in node.body:
+                if (
+                    isinstance(member, ast.FunctionDef)
+                    and not member.name.startswith("_")
+                    and "_resolve_backend()" in ast.unparse(member.body)
+                ):
+                    names.append(member.name)
+    return names
+
+
+def test_local_backend_implements_every_delegated_facade_method() -> None:
+    """#3168: the facade delegates blindly, so a missing backend method is an AttributeError.
+
+    Pinned against the BACKEND, deliberately. A ``MagicMock(spec=TrackerService)``
+    cannot catch this class of defect because the *facade* does define every
+    delegated name — only the backend is missing one. The original bug shipped
+    green because the covering test used a bare ``MagicMock()`` with no ``spec=``,
+    so ``sync_publish`` auto-existed on the mock.
+    """
+    delegated = _delegated_facade_methods()
+    assert delegated, "no delegating methods found — the AST probe is broken, not the backend"
+
+    missing = [name for name in delegated if not hasattr(LocalTrackerService, name)]
+    assert missing == [], (
+        f"LocalTrackerService is missing {len(missing)} of {len(delegated)} delegated "
+        f"facade methods: {missing}. The facade calls these unconditionally, so each "
+        f"one raises an uncaught AttributeError on a local (beads/fp) binding."
+    )
+
+
+def test_sync_publish_refuses_cleanly_on_a_local_binding(repo: Path) -> None:
+    """#3168: local bindings must refuse publish with a caught error, not crash.
+
+    ``_check_sync_readiness`` short-circuits for local bindings, so this lands
+    directly on the backend. The error must be ``TrackerServiceError`` because
+    that is what the CLI catches; ``LocalTrackerServiceError`` is a sibling
+    ``RuntimeError`` that the CLI does not handle.
+    """
+    from specify_cli.tracker.service import TrackerServiceError
+
+    service = LocalTrackerService(repo, TrackerProjectConfig(provider="beads"))
+
+    with pytest.raises(TrackerServiceError) as excinfo:
+        service.sync_publish()
+
+    assert "publish" in str(excinfo.value).lower()
