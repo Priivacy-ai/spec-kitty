@@ -326,6 +326,23 @@ class TestRunSyncDaemonWiring:
         }
         assert not leaked, f"non-daemon threads leaked: {leaked}"
 
+        # #3130 fold: run_sync_daemon also starts a daemon-flagged
+        # "spec-kitty-sync-runtime-start" thread (_start_runtime_bootstrap_thread)
+        # that sleeps _RUNTIME_BACKGROUND_START_DELAY_SECONDS (1.0s) before its
+        # OWN deferred `from specify_cli.sync.runtime import get_runtime` --
+        # invisible to the `not t.daemon` check above, and long enough to
+        # outlive this test's own body if not waited for. Outliving it matters:
+        # once this function returns, pytest's monkeypatch teardown restores
+        # the real specify_cli.sync.runtime in sys.modules, so a late-firing
+        # import would resolve to the REAL module and bootstrap a REAL
+        # SyncRuntime/BackgroundSyncService in the background, landing on
+        # whichever LATER test happens to be running when it completes (the
+        # exact "guard attributes a victim as the polluter" shape #3130's own
+        # comment thread names). Waiting past the delay here means the
+        # deferred import fires while the fake module patched above is still
+        # in sys.modules, so it resolves to the harmless MagicMock instead.
+        time.sleep(daemon._RUNTIME_BACKGROUND_START_DELAY_SECONDS + 0.3)
+
     @pytest.mark.skipif(os.name == "nt", reason="POSIX signal semantics only")
     def test_sigterm_exits_without_deadlocking_server_shutdown(self, tmp_path: Path) -> None:
         """SIGTERM must stop the daemon instead of deadlocking serve_forever()."""

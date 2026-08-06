@@ -94,6 +94,26 @@ def _read_wp_frontmatter_lane(mission_dir: Path, wp_id: str) -> str | None:
     return None
 
 
+@pytest.fixture(autouse=True)
+def _reset_sync_singletons_after_emit():
+    """#3130 fold: every test in this module drives ``emit_status_transition``,
+
+    whose production call chain bootstraps the ``sync.runtime._runtime`` (E26)
+    and ``sync.background._service`` (E27) singletons -- and BackgroundSyncService
+    self-reschedules a live ``threading.Timer`` on ``start()`` -- with no
+    restoring finally of its own. None of the four tests here call any reset
+    seam, so the first one to run in a worker leaks E26/E27 plus two threads,
+    and every later one leaks a fresh timer thread on top. Reset both
+    singletons after every test so nothing here outlives its own test.
+    """
+    yield
+    from specify_cli.sync.background import reset_sync_service
+    from specify_cli.sync.runtime import reset_runtime
+
+    reset_runtime()
+    reset_sync_service()
+
+
 # ── Tests ────────────────────────────────────────────────────────
 
 

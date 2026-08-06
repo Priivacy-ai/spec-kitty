@@ -417,12 +417,18 @@ class TestTimerBodyQueue:
         assert service._body_queue.size() == 1
 
         service._running = True
-        service._on_timer()
+        try:
+            service._on_timer()
 
-        # Should have run a sync (via _perform_sync), observable as the body
-        # upload being pushed — body work is the daemon's only drain (FR-012).
-        mock_push.assert_called_once()
-        assert service._body_queue.size() == 0
+            # Should have run a sync (via _perform_sync), observable as the
+            # body upload being pushed — body work is the daemon's only
+            # drain (FR-012).
+            mock_push.assert_called_once()
+            assert service._body_queue.size() == 0
+        finally:
+            # #3130 fold: _on_timer() self-reschedules a new threading.Timer
+            # (_schedule_next_sync) while _running is True; stop() cancels it.
+            service.stop()
 
     @patch("specify_cli.sync.background.is_saas_sync_enabled", return_value=True)
     def test_timer_skips_when_both_queues_empty(
@@ -436,9 +442,14 @@ class TestTimerBodyQueue:
         assert service._body_queue.size() == 0
 
         service._running = True
-        with patch.object(service, "_perform_sync") as mock_perform:
-            service._on_timer()
-            mock_perform.assert_not_called()
+        try:
+            with patch.object(service, "_perform_sync") as mock_perform:
+                service._on_timer()
+                mock_perform.assert_not_called()
+        finally:
+            # #3130 fold: _on_timer() self-reschedules a new threading.Timer
+            # (_schedule_next_sync) while _running is True; stop() cancels it.
+            service.stop()
 
 
 # --- sync_now() drains body queue ---
@@ -522,10 +533,15 @@ class TestRuntimeLifecycle:
 
         runtime = SyncRuntime()
         runtime.start()
-
-        assert runtime.body_queue is not None
-        assert runtime.body_queue.db_path == db_path
-        assert mock_service._body_queue is runtime.body_queue
+        try:
+            assert runtime.body_queue is not None
+            assert runtime.body_queue.db_path == db_path
+            assert mock_service._body_queue is runtime.body_queue
+        finally:
+            # #3130 fold: start() spawns a real spec-kitty-sync-async-loop
+            # thread; stop() joins it (unlike test_stop_clears_body_queue
+            # below, which already calls stop() as part of its own assertion).
+            runtime.stop()
 
     @patch("specify_cli.sync.runtime.is_saas_sync_enabled", return_value=True)
     @patch("specify_cli.sync.runtime._auto_start_enabled", return_value=True)
@@ -574,6 +590,10 @@ class TestRuntimeLifecycle:
 
         runtime = SyncRuntime()
         runtime.start()
-
-        assert runtime.body_queue is not None
-        assert runtime.body_queue.db_path == mock_service.queue.db_path
+        try:
+            assert runtime.body_queue is not None
+            assert runtime.body_queue.db_path == mock_service.queue.db_path
+        finally:
+            # #3130 fold: start() spawns a real spec-kitty-sync-async-loop
+            # thread; stop() joins it.
+            runtime.stop()

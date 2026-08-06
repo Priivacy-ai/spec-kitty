@@ -22,6 +22,7 @@ scenario so the cross-cutting integration is exercised.
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -308,6 +309,7 @@ def test_init_emits_project_init_event_offline(tmp_path: Path, monkeypatch):
     (``drain_blocked_reason == "no_auth"`` or ``"no_team"``).
     """
     # Reset emitter and runtime singletons so the init harness starts clean.
+    from specify_cli.sync.background import reset_sync_service
     from specify_cli.sync.events import reset_emitter
     from specify_cli.sync.runtime import reset_runtime
 
@@ -340,14 +342,44 @@ def test_init_emits_project_init_event_offline(tmp_path: Path, monkeypatch):
     # the test fast and hermetic.
     from specify_cli.cli.commands.init import _emit_project_init_event
 
-    _emit_project_init_event(project_path)
+    try:
+        _emit_project_init_event(project_path)
 
-    queue = OfflineQueue(db_path=queue_db)
-    events = queue.drain_queue(limit=10)
-    assert any(e.get("event_type") == "BuildRegistered" for e in events), (
-        "expected init to queue a BuildRegistered event into the durable outbox"
-    )
-    build_event = next(e for e in events if e["event_type"] == "BuildRegistered")
-    assert build_event.get("drain_blocked_reason") in {"no_auth", "no_team"}
-    assert build_event["payload"]["build_id"]
-    assert build_event["payload"]["project_uuid"]
+        queue = OfflineQueue(db_path=queue_db)
+        events = queue.drain_queue(limit=10)
+        assert any(e.get("event_type") == "BuildRegistered" for e in events), (
+            "expected init to queue a BuildRegistered event into the durable outbox"
+        )
+        build_event = next(e for e in events if e["event_type"] == "BuildRegistered")
+        assert build_event.get("drain_blocked_reason") in {"no_auth", "no_team"}
+        assert build_event["payload"]["build_id"]
+        assert build_event["payload"]["project_uuid"]
+    finally:
+        # #3130 fold: _emit_project_init_event bootstraps both the
+        # SyncRuntime (E26, its own async-loop thread included) and the
+        # BackgroundSyncService singleton (E27, its own timer/final-sync
+        # threads included) with no restoring finally of its own; reset_runtime()
+        # joins the former, reset_sync_service() cancels/joins the latter.
+        #
+        # Capture the async-loop handles BEFORE reset_runtime() clears them:
+        # SyncRuntime.stop() suppresses RuntimeError around
+        # call_soon_threadsafe(loop.stop), so a stop signal that fails to
+        # queue (e.g. the loop thread has not entered run_forever() yet) is
+        # silent, and stop() nulls its own _async_loop/_async_loop_thread
+        # pointers regardless of join success -- a second stop() call on the
+        # same (now-reset) singleton cannot re-issue the signal or re-join.
+        # Only handles taken before reset can retry both.
+        import specify_cli.sync.runtime as _runtime_mod
+
+        _leaked_loop = None
+        _leaked_thread = None
+        if _runtime_mod._runtime is not None:
+            _leaked_loop = _runtime_mod._runtime._async_loop
+            _leaked_thread = _runtime_mod._runtime._async_loop_thread
+        reset_runtime()
+        reset_sync_service()
+        if _leaked_thread is not None and _leaked_thread.is_alive():
+            if _leaked_loop is not None:
+                with contextlib.suppress(RuntimeError):
+                    _leaked_loop.call_soon_threadsafe(_leaked_loop.stop)
+            _leaked_thread.join(timeout=5.0)

@@ -374,55 +374,69 @@ class _PinnedLeak:
 # not pin a node just because it was the observer on the run you happened to see.
 # ===========================================================================
 _PINNED_LEAKS: tuple[_PinnedLeak, ...] = (
-    _PinnedLeak(
-        "tests/sync/test_background_body.py::TestTimerBodyQueue::test_timer_triggers_when_only_body_queue_has_tasks",
-        ("target=None",),
-        "#3130",
-        "anonymous live thread (Thread-N, target unresolvable) left running past teardown",
-    ),
-    _PinnedLeak(
-        "tests/sync/test_background_body.py::TestTimerBodyQueue::test_timer_skips_when_both_queues_empty",
-        ("target=None",),
-        "#3130",
-        "anonymous live thread (Thread-N, target unresolvable) left running past teardown",
-    ),
-    _PinnedLeak(
-        "tests/sync/test_background_body.py::TestRuntimeLifecycle::test_start_creates_body_queue",
-        ("spec-kitty-sync-async-loop",),
-        "#3130",
-        "SyncRuntime._ensure_async_loop's background thread left running past teardown",
-    ),
-    _PinnedLeak(
-        "tests/sync/test_background_body.py::TestRuntimeLifecycle::test_shared_db_path",
-        ("spec-kitty-sync-async-loop",),
-        "#3130",
-        "SyncRuntime._ensure_async_loop's background thread left running past teardown",
-    ),
-    _PinnedLeak(
-        "tests/sync/test_issue_598_hang_fixes.py::TestBackgroundStopBounded::test_stop_does_not_hang_when_sync_is_slow",
-        ("_guarded_final_sync",),
-        "#3130",
-        "BackgroundSyncService's final-sync thread (mocked target) left running past teardown",
-    ),
-    _PinnedLeak(
-        "tests/sync/test_issue_598_hang_fixes.py::TestBackgroundStopBounded::test_stop_emits_structured_warning_when_sync_times_out",
-        ("_guarded_final_sync",),
-        "#3130",
-        "BackgroundSyncService's final-sync thread (mocked target) left running past teardown",
-    ),
+    # UN-PINNED 2026-08-06 (#3130 fold, landing pass for #3209; attributed
+    # per node id below, per the "un-pinning requires a leak that provably
+    # stopped as a consequence of the change" rule stated for this registry).
+    # All four node-ids below now call stop()/service.stop() in a try/finally
+    # after starting real background work (a self-rescheduling
+    # threading.Timer for the TestTimerBodyQueue pair, a real
+    # spec-kitty-sync-async-loop thread for the TestRuntimeLifecycle pair) --
+    # none of them previously joined/cancelled what they started. Removing
+    # the pin and re-running each in isolation confirms the guard's own
+    # self-proving mechanism: "this run left NOTHING dirty. The pinned leak
+    # no longer reproduces" for all four.
+    #   - tests/sync/test_background_body.py::TestTimerBodyQueue::test_timer_triggers_when_only_body_queue_has_tasks
+    #   - tests/sync/test_background_body.py::TestTimerBodyQueue::test_timer_skips_when_both_queues_empty
+    #   - tests/sync/test_background_body.py::TestRuntimeLifecycle::test_start_creates_body_queue
+    #   - tests/sync/test_background_body.py::TestRuntimeLifecycle::test_shared_db_path
+    # UN-PINNED 2026-08-06 (#3130 fold, landing pass for #3209; attributed
+    # per node id below). Both node-ids' final-sync thread is a deliberately-
+    # outlives-the-bounded-join thread (that IS the behaviour under test --
+    # stop() must not block on a slow sync) with no external seam to reach
+    # it; both now track it via the same TrackingThread pattern
+    # test_stop_final_sync_thread_is_daemon (same file) already used, and
+    # join it after their own assertions so it has actually finished before
+    # the guard's post-teardown snapshot runs. Removing the pin and
+    # re-running each in isolation confirms the guard's own self-proving
+    # mechanism: "this run left NOTHING dirty. The pinned leak no longer
+    # reproduces" for both.
+    #   - tests/sync/test_issue_598_hang_fixes.py::TestBackgroundStopBounded::test_stop_does_not_hang_when_sync_is_slow
+    #   - tests/sync/test_issue_598_hang_fixes.py::TestBackgroundStopBounded::test_stop_emits_structured_warning_when_sync_times_out
     # [#3167 cone] Do not re-pin, do not widen these four markers, and un-pin ONLY on
     # a leak that provably stopped as a consequence of the change removing it -- see
     # the "#3167 CONE HAZARD" block above for the ordering constraint that makes that
     # binding rather than advisory. At #3167 (both arms) this entry ERRORS as a PARTIAL
     # match in the full serial sweep and PASSES in isolation; the observability comes
     # from an unpinned leak in a file #3167 does not own. Pre-existing, unowned.
+    # NARROWED 2026-08-06 (#3130 fold, landing pass for #3209; per the
+    # guard's own instruction -- "remove ONLY the markers that no longer
+    # reproduce ... or investigate why a marker that should still be present
+    # is not"). The test now calls reset_runtime()/reset_sync_service() in a
+    # finally after _emit_project_init_event, which provably fixes two of
+    # the four original markers -- re-running confirms both are now
+    # genuinely absent, not merely unobservable:
+    #   - [E27] (_service singleton)
+    #   - target=None (the anonymous thread)
+    # The other two do NOT reliably clear and are kept. [E26] keeps its
+    # existing marker_baselines entry (history below, unchanged). The
+    # async-loop thread is NEW evidence, not previously distinguished from
+    # the anonymous one: debug instrumentation showed
+    # specify_cli.sync.runtime._runtime is already back to None by the time
+    # this test's own finally block runs -- something OTHER than this test's
+    # cleanup resets the singleton mid-test (most likely a background
+    # final-sync retry churn -- this test's own stderr shows "Final sync
+    # failed after local command success") without joining the thread it
+    # abandons, so this test has no reachable handle to retry the join.
+    # Filed as its own issue rather than chased further here (production-code
+    # async-lifecycle tracing, not test hygiene): Priivacy-ai/spec-kitty#3237.
     _PinnedLeak(
         "tests/sync/test_lifecycle_readiness.py::test_init_emits_project_init_event_offline",
-        ("[E26]", "[E27]", "target=None", "spec-kitty-sync-async-loop"),
+        ("[E26]", "spec-kitty-sync-async-loop"),
         "#3130",
-        "four leaks per #3130's own row 11: E26 (_runtime: SyncRuntime -> None), E27 "
-        "(_service: None -> BackgroundSyncService(...)), plus two live threads (an "
-        "anonymous one and the async-loop) past teardown. round-3 review: this WP's "
+        "two of the original four leaks per #3130's own row 11 remain: E26 (_runtime: "
+        "SyncRuntime -> None, unobservable on a clean baseline -- see marker_baselines "
+        "below) and the async-loop thread (orphaned by a mid-test singleton reset this "
+        "test's own cleanup cannot reach -- filed as #3237). round-3 review: this WP's "
         "first pin modelled three of the four and omitted [E26] -- re-derived from "
         "#3130's leaked-symbol column, not from one local run's output. round-5 review: "
         "[E26] is ALSO structurally unobservable whenever nothing earlier in the same "
@@ -434,48 +448,47 @@ _PINNED_LEAKS: tuple[_PinnedLeak, ...] = (
         "_MarkerBaseline's docstring for why)",
         marker_baselines={"[E26]": _MarkerBaseline(baseline_watch="E26", unobservable_when="clean")},
     ),
-    # [#3167 cone] ACCEPTED at #3167's base and after its conftest change; unchanged by
-    # #3167. Do not re-pin, widen or drop opportunistically -- un-pinning requires a
-    # leak that provably stopped as a consequence of the change, attributed per node id.
-    # See the "#3167 CONE HAZARD" block above for the ordering constraint.
-    _PinnedLeak(
-        "tests/sync/test_runtime.py::TestSyncRuntime::test_starts_background_service",
-        ("spec-kitty-sync-async-loop",),
-        "#3130",
-        "SyncRuntime._ensure_async_loop's background thread left running past teardown",
-    ),
-    # [#3167 cone] ACCEPTED at #3167's base and after its conftest change; unchanged by
-    # #3167. Do not re-pin, widen or drop opportunistically -- un-pinning requires a
-    # leak that provably stopped as a consequence of the change, attributed per node id.
-    # See the "#3167 CONE HAZARD" block above for the ordering constraint.
-    _PinnedLeak(
-        "tests/sync/test_runtime.py::TestUnauthenticatedBehavior::test_no_websocket_when_unauthenticated",
-        ("spec-kitty-sync-async-loop",),
-        "#3130",
-        "SyncRuntime._ensure_async_loop's background thread left running past teardown",
-    ),
-    _PinnedLeak(
-        "tests/sync/test_target_authority.py::test_all_fields_populated_under_env_equals_config",
-        ("[E51/E52]",),
-        "#3130",
-        "raw os.environ['SPEC_KITTY_SAAS_URL'] write, no monkeypatch/restore -- matches WP04's own E51 row",
-    ),
-    _PinnedLeak(
-        "tests/sync/tracker/test_saas_client_consent_gate_3030.py::test_mission_creation_bind_transmits_for_a_consenting_project",
-        ("[E26]",),
-        "#3130",
-        "E26 (_runtime singleton) left set with no restoring finally",
-    ),
-    _PinnedLeak(
-        "tests/sync/test_target_authority_wiring.py::test_readiness_host_config_keys_off_resolved_target",
-        ("[E51/E52]",),
-        "#3130",
-        "raw os.environ['SPEC_KITTY_SAAS_URL'] write, no monkeypatch/restore -- matches WP04's own E52 row; "
-        "observable only when this node's own before-snapshot for that entry is clean (see "
-        "requires_clean_baseline on this pin, and _pin_baseline_was_already_dirty below)",
-        requires_clean_baseline=True,
-        baseline_watch="E51/E52",
-    ),
+    # UN-PINNED 2026-08-06 (#3130 fold, landing pass for #3209; per the
+    # "un-pinning requires a leak that provably stopped as a consequence of
+    # the change, attributed per node id" rule the #3167-cone block above
+    # states). Both of the following two node-ids added `runtime.stop()` in a
+    # try/finally (they construct their own local SyncRuntime() and call
+    # start(), which spawns a real spec-kitty-sync-async-loop thread neither
+    # test previously joined -- unlike their sibling tests in this same file
+    # that patch `_ensure_async_loop` and never spawn a real thread at all).
+    # Removing the pin and re-running each in isolation confirms the guard's
+    # own self-proving mechanism: "this run left NOTHING dirty. The pinned
+    # leak no longer reproduces" -- both nodes now pass clean.
+    #   - tests/sync/test_runtime.py::TestSyncRuntime::test_starts_background_service
+    #   - tests/sync/test_runtime.py::TestUnauthenticatedBehavior::test_no_websocket_when_unauthenticated
+    # UN-PINNED 2026-08-06 (#3130 fold, landing pass for #3209). Both node-ids
+    # below, plus every OTHER raw `os.environ["SPEC_KITTY_SAAS_URL"] = ...`
+    # write across test_target_authority.py and test_target_authority_wiring.py
+    # (11 total, only 2 of which were ever pinned here), now go through
+    # `monkeypatch.setenv(...)`, which restores the pre-test value in
+    # teardown. Fixing only the two pinned node-ids would not have proven
+    # anything: `test_all_fields_populated_under_env_equals_config`'s own fix
+    # immediately re-exposed `test_env_equals_config_is_not_an_override`'s
+    # identical unfixed leak in the very next serial node, and
+    # `test_readiness_host_config_keys_off_resolved_target`'s
+    # `requires_clean_baseline` framing (history kept above) exists
+    # specifically because an UNFIXED upstream leak in this same file family
+    # can make a clean node's own before-snapshot dirty. All 11 sites needed
+    # fixing together to actually reach a clean baseline. Re-running the full
+    # serial suite (`-p no:xdist`, matching the ordering both pins'
+    # historical notes above depend on) confirms the guard's own self-proving
+    # mechanism for both: "this run left NOTHING dirty. The pinned leak no
+    # longer reproduces."
+    #   - tests/sync/test_target_authority.py::test_all_fields_populated_under_env_equals_config
+    #   - tests/sync/test_target_authority_wiring.py::test_readiness_host_config_keys_off_resolved_target
+    # UN-PINNED 2026-08-06 (#3130 fold, landing pass for #3209): the test now
+    # wraps its call chain in try/finally and calls
+    # specify_cli.sync.runtime.reset_runtime() to restore the singleton the
+    # production call chain sets, with no restoring finally of its own.
+    # Re-running in isolation confirms the guard's own self-proving
+    # mechanism: "this run left NOTHING dirty. The pinned leak no longer
+    # reproduces."
+    #   - tests/sync/tracker/test_saas_client_consent_gate_3030.py::test_mission_creation_bind_transmits_for_a_consenting_project
 )
 
 _PINNED_LEAKS_BY_NODE_ID: dict[str, _PinnedLeak] = {pin.node_id: pin for pin in _PINNED_LEAKS}

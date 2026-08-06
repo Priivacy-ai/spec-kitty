@@ -65,11 +65,15 @@ def _write_config(root: Path, server_url: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_all_fields_populated_under_env_equals_config(target_root: Path) -> None:
+def test_all_fields_populated_under_env_equals_config(
+    target_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     _write_config(target_root, CONFIG_URL)
-    import os
 
-    os.environ["SPEC_KITTY_SAAS_URL"] = CONFIG_URL  # env == config, no override
+    # #3130 fold: monkeypatch.setenv restores the pre-test value in teardown
+    # (or unsets it if absent) -- the raw os.environ[...] = ... this replaced
+    # left SPEC_KITTY_SAAS_URL set for the rest of the worker process.
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", CONFIG_URL)  # env == config, no override
 
     target = resolve_sync_target(user_id="alice@example.com", team_slug="team-red")
 
@@ -151,30 +155,30 @@ def test_resolved_target_is_immutable(target_root: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_env_equals_config_is_not_an_override(target_root: Path) -> None:
+def test_env_equals_config_is_not_an_override(
+    target_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     _write_config(target_root, CONFIG_URL)
-    import os
-
-    os.environ["SPEC_KITTY_SAAS_URL"] = CONFIG_URL + "/"  # trailing slash only
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", CONFIG_URL + "/")  # trailing slash only
     target = resolve_sync_target()
     assert target.override_mode is OverrideMode.NONE
     assert target.resolved_server_url == CONFIG_URL
 
 
-def test_missing_config_with_matching_env_is_not_override(target_root: Path) -> None:
-    import os
-
-    os.environ["SPEC_KITTY_SAAS_URL"] = DEFAULT_SERVER_URL
+def test_missing_config_with_matching_env_is_not_override(
+    target_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", DEFAULT_SERVER_URL)
     target = resolve_sync_target()
     assert target.configured_server_url is None
     assert target.override_mode is OverrideMode.NONE
     assert target.resolved_server_url == DEFAULT_SERVER_URL
 
 
-def test_missing_config_with_differing_env_is_process_override(target_root: Path) -> None:
-    import os
-
-    os.environ["SPEC_KITTY_SAAS_URL"] = ENV_URL
+def test_missing_config_with_differing_env_is_process_override(
+    target_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", ENV_URL)
     target = resolve_sync_target()
     assert target.configured_server_url is None
     assert target.override_mode is OverrideMode.PROCESS_OVERRIDE
@@ -187,12 +191,10 @@ def test_missing_config_with_differing_env_is_process_override(target_root: Path
 
 
 def test_whole_process_override_resolves_url_and_scope_consistently(
-    target_root: Path,
+    target_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _write_config(target_root, CONFIG_URL)
-    import os
-
-    os.environ["SPEC_KITTY_SAAS_URL"] = ENV_URL  # disagrees with config
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", ENV_URL)  # disagrees with config
     target = resolve_sync_target(user_id="alice@example.com", team_slug="team-red")
 
     # Whole-process override (default): both the resolved URL AND the derived
@@ -204,11 +206,11 @@ def test_whole_process_override_resolves_url_and_scope_consistently(
     assert "config.example.com" not in target.derived_queue_scope
 
 
-def test_ambiguous_setup_only_disagreement_fails_closed(target_root: Path) -> None:
+def test_ambiguous_setup_only_disagreement_fails_closed(
+    target_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     _write_config(target_root, CONFIG_URL)
-    import os
-
-    os.environ["SPEC_KITTY_SAAS_URL"] = ENV_URL
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", ENV_URL)
     with pytest.raises(SyncTargetSplitBrainError) as excinfo:
         resolve_sync_target(process_wide_override=False)
 
@@ -234,13 +236,13 @@ def test_scope_is_deterministic_for_same_inputs(target_root: Path) -> None:
     assert a.queue_db_path == b.queue_db_path
 
 
-def test_different_resolved_url_changes_scope_and_db_path(target_root: Path) -> None:
+def test_different_resolved_url_changes_scope_and_db_path(
+    target_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     _write_config(target_root, CONFIG_URL)
     config_target = resolve_sync_target(user_id="alice@example.com", team_slug="team-red")
 
-    import os
-
-    os.environ["SPEC_KITTY_SAAS_URL"] = ENV_URL  # process override → env wins
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", ENV_URL)  # process override → env wins
     env_target = resolve_sync_target(user_id="alice@example.com", team_slug="team-red")
 
     assert config_target.derived_queue_scope != env_target.derived_queue_scope
