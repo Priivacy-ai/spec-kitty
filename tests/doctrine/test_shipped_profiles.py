@@ -18,6 +18,7 @@ from doctrine.agent_profiles.profile import AgentProfile, Role
 from doctrine.agent_profiles.repository import AgentProfileRepository
 from doctrine.agent_profiles.validation import validate_agent_profile_yaml
 from doctrine.pack_paths import resolve_pack_root
+from tests.doctrine._builtin_inventory import builtin_profile_ids
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -38,33 +39,15 @@ MISSION_RUNTIME_DIRS = (
 AGENT_PROFILES_README = REPO_ROOT / "src" / "doctrine" / "agent_profiles" / "README.md"
 BUILT_IN_README = BUILT_IN_DIR / "README.md"
 
-EXPECTED_PROFILE_IDS = {
-    "architect-alphonso",
-    "curator-carla",
-    "debugger-debbie",
-    "designer-dagmar",
-    "doctrine-daphne",
-    "generic-agent",
-    "human-in-charge",
-    "implementer-ivan",
-    "java-jenny",
-    "paula-patterns",
-    "planner-priti",
-    "python-pedro",
-    "randy-reducer",
-    "researcher-robbie",
-    "retrospective-facilitator",
-    "reviewer-renata",
-    "frontend-freddy",
-    "node-norris",
-    "analyst-annie",
-    "comms-cleo",
-    "diagram-daisy",
-    "lexical-larry",
-    "minutes-maker-mahad",
-    "scribe-sally",
-    "synthesizer-sam",
-}
+# Derived from the shipped ``packs/built-in/agent_profiles/*.agent.yaml`` source
+# files (#3234), not a frozen literal: this drives the per-profile contract
+# parametrization AND is the independent inventory the load assertions compare
+# against. ``builtin_profile_ids()`` globs the source files and parses each
+# ``profile-id``; the repository fixtures below LOAD those files through the real
+# ``AgentProfileRepository`` pipeline. So ``loaded_ids == EXPECTED_PROFILE_IDS``
+# still reds if the loader skips a shipped profile or loads a mismatched id --
+# but a newly-added profile file is inventoried automatically and does not red.
+EXPECTED_PROFILE_IDS = builtin_profile_ids()
 
 # Sentinel profiles are workflow markers, not real agents.  They intentionally
 # have empty context sources and directive references.

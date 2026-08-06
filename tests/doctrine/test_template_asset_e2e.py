@@ -40,6 +40,7 @@ from doctrine.drg.models import DRGGraph, NodeKind, Relation
 from doctrine.drg.org_pack_loader import OrgDRGFragment, load_org_pack
 from doctrine.drg.query import resolve_transitive_refs
 from specify_cli.doctrine.pack_validator import validate_pack
+from tests.doctrine._builtin_inventory import builtin_asset_urns
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -309,21 +310,20 @@ class TestNoRegressionForExistingKinds:
         which shipped the five ``asset:writing-audience-*`` audience descriptors
         (see the composition ledger in
         ``tests/doctrine/drg/migration/test_extractor_projection.py`` entry (15));
-        each is edge-incident (non-orphan) by construction — none is a bare node."""
+        each is edge-incident (non-orphan) by construction — none is a bare node.
+
+        The expected URN set is DERIVED from the shipped
+        ``packs/built-in/assets/**/*.asset.yaml`` sidecars (#3234), not frozen: the
+        loaded-graph asset URNs must equal the source inventory, so a loader that
+        drops a shipped asset reds while a newly-shipped asset is picked up
+        automatically. See ``tests/doctrine/_builtin_inventory.py``."""
         built_in = _built_in_graph()
         kinds_present = {node.kind for node in built_in.nodes}
         asset_urns = {
             node.urn for node in built_in.nodes if node.kind == NodeKind.ASSET
         }
 
-        assert asset_urns == {
-            "asset:common-docs-structural-lint",
-            "asset:writing-audience-agentic-framework-core-team",
-            "asset:writing-audience-automation-agent",
-            "asset:writing-audience-line-manager",
-            "asset:writing-audience-nontech-educator",
-            "asset:writing-audience-software-engineer",
-        }
+        assert asset_urns == builtin_asset_urns()
         assert NodeKind.TEMPLATE in kinds_present
         assert NodeKind.DIRECTIVE in kinds_present
 

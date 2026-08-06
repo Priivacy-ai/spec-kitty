@@ -23,6 +23,7 @@ from doctrine.drg.loader import (
     load_built_in_graph,
 )
 from doctrine.pack_paths import PackRootNotFound
+from tests.doctrine._builtin_inventory import shipped_builtin_node_count
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -68,7 +69,15 @@ def test_load_built_in_graph_fails_closed_when_pack_root_missing(
 
 
 def test_load_built_in_graph_loads_full_corpus_when_pack_root_present() -> None:
-    """Positive control: the unpatched loader yields the full built-in corpus."""
+    """Positive control: the unpatched loader yields the full built-in corpus.
+
+    Node count is DERIVED from the ``packs/built-in`` inventory (#3234), so a
+    loader that skips a shipped fragment falls short of the source files it should
+    have loaded (red), while a legitimately grown corpus stays green. Exact edge
+    integrity is guaranteed by ``regenerate-graph --check``; here the ``edges >=
+    nodes`` floor is the contrast to the fail-closed ``0/0`` graph the tests above
+    guard against.
+    """
     graph = load_built_in_graph()
-    assert len(graph.nodes) == 345  # golden-count: cardinality-is-contract
-    assert len(graph.edges) == 934  # golden-count: cardinality-is-contract
+    assert len(graph.nodes) == shipped_builtin_node_count()
+    assert len(graph.edges) >= len(graph.nodes)
