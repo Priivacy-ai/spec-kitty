@@ -204,6 +204,47 @@ class TestPriorSynthesisBaseline:
 
 
 # ---------------------------------------------------------------------------
+# Regression: importlib.metadata.PackageNotFoundError must not be mislabeled
+# as "resynthesize_pipeline.py is missing" (PackageNotFoundError subclasses
+# ModuleNotFoundError, which subclasses ImportError). resynthesize_pipeline.
+# run() previously called importlib.metadata.version() directly; a metadata
+# resolution failure there would propagate through orchestrator.resynthesize()
+# 's except ImportError guard and surface as a false NotImplementedError.
+# ---------------------------------------------------------------------------
+
+
+class TestResynthesizeSurvivesPackageMetadataFailure:
+    def test_resynthesize_run_does_not_raise_on_package_not_found(
+        self,
+        base_request: SynthesisRequest,
+        adapter: FixtureAdapter,
+        repo_with_prior_synthesis: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A PackageNotFoundError from version lookup must not surface as
+        ImportError/NotImplementedError; resynthesize_pipeline.run() must
+        complete normally, falling back to the dev sentinel version."""
+        from importlib.metadata import PackageNotFoundError
+
+        repo = repo_with_prior_synthesis
+
+        def _raise_package_not_found(name: str) -> str:
+            raise PackageNotFoundError(name)
+
+        monkeypatch.setattr("importlib.metadata.version", _raise_package_not_found)
+
+        result = resynthesize_run(
+            request=base_request,
+            adapter=adapter,
+            topic="directive:PROJECT_001",
+            repo_root=repo,
+        )
+
+        assert not result.is_noop
+        assert result.resolved_topic.matched_form == "kind_slug"
+
+
+# ---------------------------------------------------------------------------
 # US-3: kind+slug local-first → exactly one artifact regenerated
 # ---------------------------------------------------------------------------
 

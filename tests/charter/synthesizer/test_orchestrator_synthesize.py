@@ -233,6 +233,38 @@ class TestSynthesizeEntryPoint:
 
 
 # ---------------------------------------------------------------------------
+# Regression: importlib.metadata.PackageNotFoundError must not be mislabeled
+# as "synthesize_pipeline.py is missing" (PackageNotFoundError subclasses
+# ModuleNotFoundError, which subclasses ImportError).
+# ---------------------------------------------------------------------------
+
+
+class TestSynthesizeSurvivesPackageMetadataFailure:
+    """orchestrator.synthesize() must not raise NotImplementedError when
+    package metadata for ``spec-kitty-cli`` is unresolvable (e.g. an
+    editable/src-layout install without discoverable dist-info)."""
+
+    def test_synthesize_does_not_raise_notimplementederror(
+        self,
+        full_request: SynthesisRequest,
+        adapter: FixtureAdapter,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A PackageNotFoundError from version lookup must not surface as
+        NotImplementedError; synthesize() must complete normally."""
+        from importlib.metadata import PackageNotFoundError
+
+        def _raise_package_not_found(name: str) -> str:
+            raise PackageNotFoundError(name)
+
+        monkeypatch.setattr("importlib.metadata.version", _raise_package_not_found)
+
+        result = synthesize(full_request, adapter=adapter, repo_root=tmp_path)
+        assert result.target_kind in {"directive", "tactic", "styleguide"}
+
+
+# ---------------------------------------------------------------------------
 # FR-014 / NFR-006: Idempotency
 # ---------------------------------------------------------------------------
 
