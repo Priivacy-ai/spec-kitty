@@ -1,0 +1,994 @@
+# Work package manifest — meta-fail-closed-3162-01KZ7FSQ
+#
+# Transcribed from plan.md (IC-01 … IC-08, the lane assignment, the collision
+# matrix, the headroom allocation table and the five atomicity couplings).
+# One WP per implementation concern; no concern needed splitting (max 7 subtasks).
+#
+# Lane map (plan.md "Lane assignment justified by the matrix"):
+#   A  WP01              — manifest / both floors / budget allocation (planning_artifact,
+#                          runs at the REPOSITORY ROOT; owns one re-runnable measurement script)
+#   B  WP02 → WP03 → WP04 — forced union on the routing ledger, 0-net routed
+#   C  WP05 → WP06        — bypass/:247 routing then widening + floor re-derivation, +1 routed
+#   D  WP07               — #2804, files disjoint from every other lane
+#   E  WP08               — terminal integration verify, sweep handshake, DRAFT PR (planning_artifact,
+#                          runs at the REPOSITORY ROOT; owns one re-runnable measurement script)
+#
+# Dependency edges (see plan.md "Dependency graph"):
+#   WP01 -> WP02 -> WP03 -> WP04   (lane B is SEQUENTIAL, not three parallel siblings)
+#   WP01 -> WP05 -> WP06           (lane C is sequential)
+#   WP01 -> WP07                   (WP07 quotes WP01's measurement command VERBATIM;
+#                                   zero scheduling cost, unions no lane)
+#   WP02..WP07 -> WP08
+#
+# Lanes B and C are parallel-safe ONLY because of the 0-net routed constraint in
+# plan.md's Headroom Allocation table. WP05 is the single allocator of the one net
+# routed call (129 → 130). Any other WP moving the count — INCLUDING DOWNWARD, by
+# folding rows 10/11's two calls into one — breaks the merged tree in a way no
+# single lane's own gate run can see. 126 is RED. The count is closed by TWELVE
+# per-site call-count assertions across WP02/WP03/WP04 (exact number of
+# load_meta_fail_closed( calls and ZERO load_meta( calls in each routed function),
+# not by narrated pre/post prints: a fold reads 128, which is green under all three
+# clauses at FLOOR=126/MARGIN=4, and 129 — also green — after WP06 sets 127.
+#
+# owned_files overlap between WPs joined by a directed dependency path is legal and
+# is used deliberately here (src/specify_cli/ownership/validation.py:160-205). The
+# routing ledger appears in WP02, WP03 and WP04 because coupling 2 requires every
+# routing commit to delete its own row in the SAME commit, and the ledger gates on
+# exact equality in both directions. The WP02 → WP03 → WP04 chain is what makes
+# that legal. tests/architectural/ is globbed at FILE level, never as a directory.
+#
+# `spec-kitty agent tasks mark-status` carries NO evidence: it exposes only
+# --status/--mission/--auto-commit/--json and its payload is a bare {T0xx: Status}
+# (src/specify_cli/status/models.py:481). Each WP names ONE committed evidence
+# destination — contracts/ for WP01 and WP08 (plus their committed scripts/ measurement script),
+# kitty-specs/<mission>/evidence/WP0N-evidence.md for WP02..WP07 — as a declared out-of-map
+# planning write. Nothing load-bearing in /tmp.
+#
+# Every WP runs from the REPOSITORY ROOT, is started with `spec-kitty implement WP##`
+# (`agent action implement` only DISPLAYS the prompt), and carries PYTHONPATH=<workspace>/src
+# on any python -c / pytest that could run elsewhere: .venv's editable .pth pins imports
+# to the MAIN tree's src/, while SRC_ROOT (test_inline_meta_read_gate.py:61) and _SRC_ROOT
+# (test_meta_fail_closed_full_census_contract.py:54) derive from the TEST FILE's own
+# location, so a worktree run censuses edited source while asserting against unedited source.
+
+work_packages:
+- id: WP01
+  title: "Freeze the routing manifest, both floors, and the budget allocation"
+  dependencies: []
+  # planning_artifact — routes this WP to the repository ROOT (workspace/context.py:752,761),
+  # the only tree with a .venv (.gitignore:31-32), which is what makes its commands runnable.
+  # A code_change declaration would give it a lane worktree where .venv/bin/python does not exist.
+  #
+  # The kitty-specs/ prohibition (mission_parsing.py:153-157; :207-215, hard error via
+  # mission_finalize.py:918-937) is real, but it does NOT "force" owning a scripts/ file — that
+  # claim is struck from the prompt. The scripts/ entry is here because an ownership manifest
+  # needs a NON-EMPTY owned_files: build_wp_manifests requires execution_mode AND owned_files
+  # (ownership/validation.py:355-357), compute_lanes raises "Executable WP 'WP01' has no
+  # ownership manifest" without one (lanes/compute.py:326-336), and validate_authoritative_surface
+  # (:223-253) requires authoritative_surface to prefix an owned_files entry. owned_files: [] is
+  # honoured at the INFERENCE layer (mission_parsing.py:161-187; mission_finalize.py:796-801) but
+  # REFUSED at the lane layer — measured. [UNVERIFIED — upstream gap] _PLANNING_PREFIXES is
+  # ("kitty-specs/", "docs/"), so scripts/ earns a non-fatal consistency warning; file it upstream.
+  #
+  # The script is a REAL, REQUIRED deliverable (WP01 T004; WP08 T049), not a placeholder: it is the
+  # re-runnable form of the counts. The earlier defect was naming it ONLY in frontmatter while the
+  # DoD forbade creating any other file, so the WP could be marked done with an empty write surface.
+  execution_mode: planning_artifact
+  owned_files:
+  - scripts/verify_meta_routing_manifest_3162.py
+  create_intent:
+  - scripts/verify_meta_routing_manifest_3162.py
+  requirement_refs:
+  - FR-002
+  - NFR-002
+  - C-001
+  - C-003
+  plan_concern_refs:
+  - IC-01
+  subtasks:
+  - T001
+  - T002
+  - T003
+  - T004
+  - T005
+  priority: High
+  success_criteria:
+  - SC-011
+  - SC-013
+  subtask_details:
+    T001:
+      parallel: false
+      description: >-
+        Author contracts/routing-manifest.md: the 13 call sites x arm
+        (4 degrade / 2 refuse-typed / 7 refuse-raw) x handler x _ACCOUNTED_SITES
+        ledger row (12 rows; read_primary_meta carries rows 10 and 11 under one row
+        with count 2). Cite every site by SYMBOL per C-003, never by line alone —
+        edits shift lines. State the counting convention per count ("site" = call
+        site, 13; "ledger row" = _ACCOUNTED_SITES row, 12).
+    T002:
+      parallel: false
+      description: >-
+        Pin the 6 `except ValueError` handlers by symbol and file:line —
+        resolution.py:514, :853, :1108; decisions/service.py:141;
+        _resolve_planning_branch.py:122; upgrade/feature_meta.py:43 — and record why
+        a naive `grep -c` gives 9 (a comment at resolution.py:491 plus two unrelated
+        handlers). Record that the 2 refuse-typed sites also catch ValueError and
+        would leak the wrapper, which is why the count is 6 and not 4.
+    T003:
+      parallel: false
+      description: >-
+        Record the bypass set with its declared convention: 5 read expressions /
+        6 invocation sites (merge_driver._load_json_object is invoked from :243 AND
+        :244 under the call-site convention). Reconcile the line-citation divergence
+        flagged as plan.md [UNVERIFIED] item 4 — analysis-report cites ref_advance.py
+        :203 (the `git show` read) and :242 (`meta_path = worktree / path`) while
+        research/3162-census.md cites :206 (the parse) and :244 (`read_text`) — by
+        pinning ONE line per read expression and ONE per parse, in both conventions.
+        Record that 5/6 is the current count, not the closure.
+    T004:
+      parallel: false
+      description: >-
+        Record both live counts with the exact measurement command and its INPUT FILE
+        COUNT: routed 129, inline 7. Derive the admissible band [127, 130] by quoting
+        all three assertions of test_routed_load_meta_floor (:1084) VERBATIM, not
+        paraphrased — `len >= FLOOR`, `len > FLOOR` (anti-vacuous), `len - FLOOR <=
+        MARGIN`. State machine-readably that the band is TWO-SIDED and 126 is RED, so
+        the downward failure mode cannot be lost. Record that ROUTED_CALLEES matches
+        callee NAMES over all of src/ (it counts doc_analysis/doc_state.py's locally
+        defined _require_meta), so an unrelated commit moves the number — the gate's
+        header records three prior false reds from exactly this miscount.
+    T005:
+      parallel: true
+      description: >-
+        Author contracts/headroom-allocation.md: the per-concern routed allocation
+        table with exactly ONE allocator (WP05/IC-05 spends the +1 at
+        ref_advance.py:247; every other concern is 0-net) and the pre/post print
+        obligation per concern. Plus the NFR-002 / SC-013 PREDICATE-SYMBOL PRE-LIST —
+        enumerate the symbols that answer "is this meta.json readable"
+        (load_meta, load_meta_fail_closed, _require_meta, _parse_meta_object,
+        _parse_meta_mapping, _load_json_object, ...) as SYMBOLS, not a count, so the
+        post-list has something to be compared against.
+
+  prompt_file: tasks/WP01-freeze-the-routing-manifest.md
+  agent_profile: debugger-debbie
+  role: investigator
+  agent: claude
+- id: WP02
+  title: "Route the 5 refuse-raw ledger rows (6 call sites), each with its ledger row"
+  dependencies:
+  - WP01
+  owned_files:
+  - "src/runtime/next/_internal_runtime/planner.py"
+  - "src/runtime/next/runtime_bridge_io.py"
+  - "src/specify_cli/bulk_edit/gate.py"
+  - "src/specify_cli/missions/_read_path_resolver.py"
+  - "tests/specify_cli/test_meta_fail_closed_full_census_contract.py"
+  - "tests/specify_cli/bulk_edit/**"
+  - "tests/next/**"
+  - "tests/runtime/**"
+  - "tests/missions/**"
+  requirement_refs:
+  - FR-001
+  - NFR-001
+  - C-001
+  - C-008
+  plan_concern_refs:
+  - IC-02
+  subtasks:
+  - T006
+  - T007
+  - T008
+  - T009
+  - T010
+  - T011
+  - T012
+  priority: High
+  success_criteria:
+  - SC-001
+  - SC-011
+  - SC-017
+  subtask_details:
+    T006:
+      parallel: false
+      description: >-
+        Print the live routed count PRE this work package's own edit, using WP01's
+        recorded command and input file count. Must read 129 and lie inside
+        [127, 130]. A delta of anything other than 0 at the end of this WP stops the
+        concern.
+    T007:
+      parallel: false
+      description: >-
+        Ledger row for planner.py:188 (_resolve_workflow_for_mission) — ONE commit:
+        route onto load_meta_fail_closed, delete its pending-batch-a ledger row
+        (currently :201; match by row CONTENT, the line numbers shift as rows are
+        deleted), and add its SC-001 test. The test must drive a REAL corrupt
+        meta.json on disk through the site's own public entry point — no patching of
+        load_meta_fail_closed — and assert both halves: behavioural (the traceback
+        carries a core/paths.py frame inside load_meta_fail_closed, __cause__ is the
+        decode error) and structural (the read expression is a load_meta_fail_closed(
+        call and the module raises no MissionMetaReadError of its own).
+    T008:
+      parallel: false
+      description: >-
+        Ledger row for runtime_bridge_io.py:380 (_workflow_runtime_template) — ONE
+        commit, same shape, ledger row currently :202. Needs a real repo-root /
+        runtime-bridge fixture; the earlier cost objection rested on no attempted
+        construction. Check whether the new import is module-level (this module
+        imports mission_metadata at :102) rather than assuming.
+    T009:
+      parallel: false
+      description: >-
+        Ledger row for bulk_edit/gate.py:57 (_is_bulk_edit_mission) — ONE commit,
+        ledger row currently :203, with its corrupt-file test through the public
+        entry point.
+    T010:
+      parallel: false
+      description: >-
+        Ledger row for bulk_edit/gate.py:80 (ensure_occurrence_classification_ready)
+        — ONE commit, ledger row currently :204, with its corrupt-file test.
+    T011:
+      parallel: false
+      description: >-
+        Ledger row for _read_path_resolver.py:846 AND :862 (read_primary_meta, both
+        reads under ONE ledger row with count 2, currently :243) — ONE commit. Route
+        BOTH calls and DO NOT fold them into one: a fold takes lane-local routed to
+        128 and is the exact pattern behind three prior floor mismatches; a second
+        fold anywhere reaches 126, which is RED. Row 11 is reachable — drive
+        read_primary_meta's canonicalize-on-miss path with bare-mid8 / full-ULID
+        handles per tests/status/test_aggregate_coord_deleted_contract.py:70-92,
+        writing corrupt JSON instead of valid to reach :862.
+    T012:
+      parallel: false
+      description: >-
+        Post evidence. Print the routed count POST — delta must be exactly 0, both
+        readings 129. `ruff check` and `mypy --strict` clean on all 4 source files
+        (SC-017; no new noqa / type: ignore / per-file ignore). Quote the 5 deleted
+        ledger rows from the diff. Run tests/status/test_aggregate_coord_deleted_
+        contract.py green WITHOUT editing it — if it needs editing, rows 10/11's
+        behaviour changed and the concern stops. Check each new import site
+        individually for module-level vs deferred; do NOT "tidy" core/paths.py's
+        load-bearing deferred mission_metadata import (:665-670).
+
+  prompt_file: tasks/WP02-route-the-refuse-raw-rows.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP03
+  title: "Route the 3 allow_missing=False sites — routing + None arm + handler, one commit per site"
+  dependencies:
+  - WP01
+  - WP02
+  owned_files:
+  - "src/specify_cli/context/resolver.py"
+  - "src/specify_cli/decisions/service.py"
+  - "src/specify_cli/missions/_resolve_planning_branch.py"
+  - "tests/specify_cli/test_meta_fail_closed_full_census_contract.py"
+  # NARROWED: the previous "tests/specify_cli/context/**" glob claimed
+  # tests/specify_cli/context/test_resolver.py, which WP03 itself declares RUN-ONLY and
+  # must leave byte-identical (its :256 message pin is row 8's only assertion). Own the
+  # new module explicitly instead of globbing the directory.
+  - "tests/specify_cli/context/test_wp03_row08_resolver_fail_closed.py"
+  - "tests/specify_cli/decisions/**"
+  - "tests/context/**"
+  - "tests/missions/**"
+  requirement_refs:
+  - FR-003
+  - FR-004
+  - FR-013
+  - FR-014
+  - NFR-001
+  - C-001
+  - C-002
+  - C-008
+  plan_concern_refs:
+  - IC-03
+  subtasks:
+  - T013
+  - T014
+  - T015
+  - T016
+  - T017
+  - T018
+  - T019
+  priority: High
+  success_criteria:
+  - SC-003
+  - SC-004
+  - SC-011
+  - SC-015
+  - SC-016
+  - SC-017
+  subtask_details:
+    T013:
+      parallel: false
+      description: >-
+        Print the live routed count PRE this work package's edit against WP01's
+        recorded command and input count; must read 129. This WP is 0-net (3 swaps).
+    T014:
+      parallel: false
+      description: >-
+        Census row 8 — context/resolver.py:75 (_read_meta_json) — ONE indivisible
+        commit (couplings 2 and 3): route, ADD the `if result is None:` arm carrying
+        the missing-file message, remove the now-dead `except FileNotFoundError` arm
+        (:91-93), reconcile the `or {}` at :75 and the guard comment at :68-73, and
+        delete the ledger row (currently :215). Routing WITHOUT the None arm turns
+        `or {}` from a mypy no-op into load-bearing control flow: absent meta.json ->
+        {} -> `mission_id = feature_dir.name` (:80) -> a FABRICATED IDENTITY,
+        silently, with MissingIdentityError never raised. That is the regression this
+        mission exists to prevent and it must not exist in any committed interval.
+    T015:
+      parallel: false
+      description: >-
+        Census row 9 — decisions/service.py:134 (_resolve_mission_id) — ONE commit:
+        route, add the `if result is None:` arm carrying the MISSING-FILE cause (the
+        pre-existing arm says "has no mission_id field", which is the wrong cause),
+        widen the handler at :141 to catch MissionMetaReadError BY NAME (never
+        `except Exception` — MissionSelectorAmbiguous is confirmed not a ValueError,
+        _read_path_resolver.py:44, plain Exception), remove the dead
+        `except FileNotFoundError`, and delete the ledger row (currently :222).
+        Routing without the handler makes SC-001 pass and SC-003 fail: DecisionError
+        is contracted, MissionMetaReadError (a RuntimeError) would leak.
+    T016:
+      parallel: false
+      description: >-
+        Census row 12 — _resolve_planning_branch.py:116 (load_mission_target_branch)
+        — ONE commit: route, add the `if result is None:` arm restoring the
+        --target-branch remediation that the FileNotFoundError arm carried (the
+        existing :127-131 arm says "not a JSON object" and is commented
+        "Unreachable"), change the handler at :122 to catch
+        PlanningBranchResolutionFailed's cause by name, remove the dead
+        `except FileNotFoundError`, and delete the ledger row (currently :244).
+    T017:
+      parallel: false
+      description: >-
+        SC-004 mutation probe, per site, 3 of 3: delete the `if result is None:` arm,
+        quote the FAILING ASSERTION — which must be the MESSAGE assertion, not a type
+        assertion — then restore. A type-only guard is green at baseline, green after,
+        and green under arm-deletion at rows 9 and 12, so it proves nothing. Row 8's
+        probe must fail at tests/specify_cli/context/test_resolver.py:256
+        (`match="meta.json not found"`).
+    T018:
+      parallel: false
+      description: >-
+        SC-003 negative controls: a VALID meta.json returns cleanly at rows 9 and 12,
+        and each handler catches MissionMetaReadError by name. Run the two run-only
+        pins and leave them BYTE-IDENTICAL: tests/specify_cli/context/test_resolver.py
+        :256 and tests/integration/test_coord_loop_workspace.py:611,627 (meta-less
+        husk -> MissingIdentityError). The second was outside the previously declared
+        cone, which is why this concern's own verification would not have caught the
+        fail-open.
+    T019:
+      parallel: false
+      description: >-
+        Post evidence. Routed count POST — delta 0, both 129. SC-015: `grep -n
+        "except FileNotFoundError"` over the three functions returns 0 matches,
+        quoted with the input count, red before the removal (3 matches) and green
+        after, with the justification printed (load_meta_fail_closed hard-codes
+        allow_missing=True at core/paths.py:638, so the arm is unreachable).
+        SC-016: `git show <sha> -- <file>` per site showing the routing hunk, the None
+        arm and the except change in ONE commit. `ruff check` + `mypy --strict` clean
+        (SC-017). `ruff check --select C901` PRE and POST, per file, for _read_meta_json,
+        _resolve_mission_id and load_mission_target_branch — the values are open in
+        plan.md's complexity register and measuring them is the deliverable.
+
+  prompt_file: tasks/WP03-route-the-allow-missing-false-sites.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP04
+  title: "Route the 4 degrade sites and change their 4 handlers — fallback pin, then routing, then handlers (three commits, one WP)"
+  dependencies:
+  - WP01
+  - WP03
+  owned_files:
+  - "src/mission_runtime/resolution.py"
+  - "src/specify_cli/upgrade/feature_meta.py"
+  - "src/specify_cli/core/paths.py"
+  - "tests/specify_cli/test_meta_fail_closed_full_census_contract.py"
+  - "tests/mission_runtime/**"
+  - "tests/upgrade/**"
+  requirement_refs:
+  - FR-002
+  - FR-012
+  - FR-014
+  - NFR-003
+  - C-001
+  - C-002
+  - C-008
+  plan_concern_refs:
+  - IC-04
+  subtasks:
+  - T020
+  - T021
+  - T022
+  - T023
+  - T024
+  - T025
+  - T026
+  priority: High
+  success_criteria:
+  - SC-002
+  - SC-007
+  - SC-011
+  - SC-014
+  - SC-016
+  - SC-017
+  subtask_details:
+    T020:
+      parallel: false
+      description: >-
+        Print the live routed count PRE (129) against WP01's recorded command and
+        input count, and stand up the baseline worktree at 96494e5ec that the SC-002
+        probe's `pre` capture runs against (previously unowned).
+    T021:
+      parallel: false
+      description: >-
+        Build the SC-002 probe harness and capture pre.txt. Inputs are ENUMERATED,
+        not left open: 4 sites x 3 input shapes (malformed, ABSENT, valid) = 12
+        captured lines per run, with the input count printed. A malformed-only probe
+        satisfied the earlier form while the absent-file arm regressed untouched.
+        POSITIVE CONTROL FIRST: deliberately break one handler, show the `diff`
+        non-empty, quote it. A same-run double-print, or an empty diff over two empty
+        captures, is not evidence. Record per site whether the fallback is DERIVED or
+        CONSTANT (row 1 -> "" constant; row 3 -> legacy-<slug>, derived from the
+        malformed file and therefore able to produce a plausible-but-wrong value).
+    T022:
+      parallel: false
+      description: >-
+        COMMIT 1 — ROUTING ONLY, and quote the escaping MissionMetaReadError as the
+        RED with the commit SHA. Route resolution.py rows 1 (_mid8_from_primary_meta,
+        degrade -> ""), 2 (_resolve_coordination_branch, degrade -> None) and 3
+        (_resolve_mission_id, degrade -> legacy-<slug>), plus upgrade/feature_meta.py
+        row 13 (load_feature_meta, degrade -> None). Amend core/paths.py:648-651's
+        docstring in THIS SAME COMMIT (R-2 / FR-012): it currently states the
+        deliberately-silent caller class is "not routed here", which is exactly what
+        these 4 sites now do. Delete the 4 ledger rows (currently :198, :199, :200,
+        :249). MissionMetaReadError is a RuntimeError (core/paths.py:506), so this
+        commit turns 4 silent fallbacks into 4 loud crashes — that escape IS the only
+        red available, because NFR-003 forbids any behaviour change and therefore no
+        base-red can exist.
+    T023:
+      parallel: false
+      description: >-
+        COMMIT 2 — HANDLERS ONLY, green on the same selection, SHA quoted. The 4
+        `except` clauses gain MissionMetaReadError. resolution.py:514 is EXTENDED,
+        NOT NARROWED — write the tuple `except (MissionMetaReadError, ValueError)`,
+        because its `try` also wraps _canonicalize_primary_read_handle and
+        _compose_primary_feature_dir whose traversal guard raises a real ValueError.
+        `except Exception` is banned at all six C-002 handlers.
+    T024:
+      parallel: false
+      description: >-
+        SC-007's three assertions. (a) A test that TRIPS the traversal guard and
+        asserts the stated outcome — the call still returns "" — captured pre and
+        post; `pytest.raises(ValueError)` alone is red at baseline and green after
+        while the degrade-to-"" behaviour is silently deleted. (b) An AMBIGUOUS
+        mission handle still propagates MissionSelectorAmbiguous (plain Exception,
+        _read_path_resolver.py:44) from inside the same `try`, so resolution.py
+        :493-498's note still holds. (c) None of the 6 handlers listed in C-002 is
+        `except Exception`, asserted over all six.
+    T025:
+      parallel: false
+      description: >-
+        Capture post.txt at branch head with the same probe; `diff pre.txt post.txt`
+        EMPTY with both files at non-zero `wc -l` and 12 lines each, all quoted.
+        SC-014: quote core/paths.py's docstring pre and post, and run
+        `git show --stat <routing sha>` showing the commit contains BOTH
+        src/specify_cli/core/paths.py AND the routed degrade site files.
+        PLUS the DOCSTRING-ONLY proof for core/paths.py, which this WP is granted
+        whole-file for four lines of prose while CONCURRENT WP05 depends on its
+        contract (load_meta_fail_closed is WP05's seam; MissionMetaReadError is the
+        type WP05 catches by name). Quote from `git diff <base> -- core/paths.py`:
+        every changed line is inside a docstring or comment (no statement, def or
+        class line); load_meta_fail_closed's `def` line byte-identical pre and post;
+        `class MissionMetaReadError(RuntimeError)` (:506) unchanged — no new exception
+        class, no changed base; and the return contract unchanged (allow_missing=True,
+        on_malformed="raise" still hard-coded at :676, None on absence,
+        MissionMetaReadError with __cause__ on corruption). A signature, exception-class
+        or return-contract change breaks WP05 across a lane boundary no file-overlap
+        check inspects — this is the only file coupling the two.
+    T026:
+      parallel: false
+      description: >-
+        Closing evidence. `git log --oneline` proving routing precedes handler INSIDE
+        this work package and that BOTH commits survive in the lane's final history,
+        unsquashed — the ordering is the ATDD evidence that replaces the impossible
+        base-red (plan.md Complexity Tracking row 1, five reviewer verification
+        steps). Routed count POST — delta 0, both 129. `ruff check` + `mypy --strict`
+        clean (SC-017). `ruff check --select C901` pre/post for
+        _mid8_from_primary_meta. File SC-009 register row 5: NFR-001's recorded
+        residue — the 4 degrade sites remain knowingly indistinguishable under D4=a,
+        with Q4 (log on degrade?) as the candidate remedy and explicitly NOT decided
+        here; verify with `gh issue view <n>`.
+
+  prompt_file: tasks/WP04-route-the-degrade-sites.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP05
+  title: "Make the bypass reads diagnosable, route ref_advance.py:247, and file Q8 + the L1 primitive"
+  dependencies:
+  - WP01
+  owned_files:
+  - "src/specify_cli/git/ref_advance.py"
+  - "src/specify_cli/cli/commands/implement_cores.py"
+  - "src/specify_cli/cli/commands/merge_driver.py"
+  - "tests/specify_cli/git/**"
+  - "tests/specify_cli/cli/commands/test_meta_bypass_diagnosability.py"
+  - "tests/architectural/tool_artifact_enrolment/registry/_is_self_write_only_diff.md"
+  requirement_refs:
+  - FR-005
+  - NFR-002
+  - C-003
+  - C-004
+  - C-009
+  plan_concern_refs:
+  - IC-05
+  subtasks:
+  - T027
+  - T028
+  - T029
+  - T030
+  - T031
+  - T032
+  - T033
+  priority: High
+  success_criteria:
+  - SC-011
+  - SC-012
+  - SC-013
+  - SC-017
+  subtask_details:
+    T027:
+      parallel: false
+      description: >-
+        Print the live routed count PRE (129) against WP01's recorded command and
+        input count. Then VERIFY the gate before relying on the routing identity: the
+        consumer at ref_advance.py:315 is gated on
+        `Path(path).name == _META_FILENAME`, so
+        `meta_path.parent / "meta.json" == meta_path` holds by construction with the
+        same encoding. If that gate were absent, `load_meta_fail_closed(
+        meta_path.parent)` would silently read a different file.
+    T028:
+      parallel: false
+      description: >-
+        FILE BEFORE EDITING THE CODE (C-009 / DIR-024 — this is the concern with the
+        strongest pull toward absorbing the debt, and C-009 had zero enforcement
+        anywhere). Q8: the lock-only comparison exists in THREE copies,
+        _VCS_LOCK_META_FIELDS is declared twice (ref_advance.py:42 AND
+        implement_cores.py:50) and there are two independent comparators
+        (ref_advance.py:210, implement_cores.py:241) — file it, cite both declarations
+        and both comparators, and cite the issue number in a comment at the surviving
+        comparison. Also file the L1 PURE-DECODE PRIMITIVE (text|bytes -> dict|None,
+        typed) — the missing seam tier without which the two blob sites cannot route.
+        Also file the Q2 residue (full routing of the 4 non-routed bypass sites).
+        `gh issue view <n>` for each. SC-009 register rows 4, 6, 8.
+    T029:
+      parallel: false
+      description: >-
+        COMMIT 1 — route ref_advance.py:247 to
+        `load_meta_fail_closed(meta_path.parent)` with its test. This spends the
+        mission's ENTIRE routed headroom: print routed PRE 129 / POST 130, with the
+        floor still 126, and quote all three clauses of test_routed_load_meta_floor.
+        Any further routed call anywhere reds the gate upward at 131. No ledger row
+        moves here — `grep -c 'load_meta(' src/specify_cli/git/ref_advance.py` is 0
+        and scan_load_meta_call_sites matches the exact name `load_meta` only
+        (_TARGET), so routing onto load_meta_fail_closed neither adds nor deletes a
+        row. This routed state is also what gives WP06 its only charter-compliant
+        green landing state.
+    T030:
+      parallel: false
+      description: >-
+        COMMIT 2 — ref_advance.py remaining diagnosability. _committed_meta_object
+        (:192-207, `git show` read at :203) gains a CORRUPT-AT-HEAD arm distinct from
+        absent-at-HEAD; its existing `returncode != 0` check already separates the two
+        internally, so a fail-closed variant is writable without losing the newly-added
+        case. _parse_meta_object (:181-189) must name meta.json AND the path in its
+        message instead of hiding behind the generic dirty-worktree message.
+    T031:
+      parallel: false
+      description: >-
+        COMMIT 3 — implement_cores.py diagnosability: _parse_meta_mapping (:259),
+        _committed_meta_mapping (:330-338, show_blob at :335) and
+        _is_self_write_only_diff (:388-446, read_bytes at :421-427, under a
+        `name == _META_JSON_FILENAME` gate) — plus the registry note at
+        tests/architectural/tool_artifact_enrolment/registry/_is_self_write_only_diff.md.
+        That .md is a FILE-LEVEL surface; a tests/architectural/ directory glob would
+        union this concern with WP06's gate concern for nothing.
+    T032:
+      parallel: false
+      description: >-
+        COMMIT 4 — merge_driver.py diagnosability: _load_json_object (:167), its read
+        (:171) and BOTH invocations (:243, :244). This module runs AS A SUBPROCESS —
+        lanes/merge.py:84 registers `spec-kitty merge-driver-meta` for
+        kitty-specs/**/meta.json — so the edit is invisible until `pip install -e .`.
+        REINSTALL BEFORE CAPTURING ANY EVIDENCE that crosses it; otherwise expect the
+        documented stale-install false-red class.
+    T033:
+      parallel: false
+      description: >-
+        Record the seam family and close the evidence. Three tiers: L1 pure decode
+        (missing primitive, FILED not built — T028); L2 path-level (_parse_meta_text
+        exists but takes a Path and performs the read itself,
+        mission_metadata.py:331-349, so it can serve neither `git show` stdout (str)
+        nor show_blob output (bytes) — it needs a public fail-closed entry for the
+        temp-blob case at merge_driver.py:167); L3 dir-level (load_meta_fail_closed,
+        reachable by 2 of the 5). Diagnosable-only for the other four rests on the
+        ROUTED BUDGET — do NOT repeat the struck claim that they "structurally cannot
+        use the seam". SC-012: per bypass site, a corrupt fixture produces an
+        operator-visible message naming meta.json AND the path, asserted on the
+        MESSAGE TEXT not the exception type, with a valid-file negative control;
+        convention declared and input count printed. SC-013: post predicate-symbol
+        enumeration against WP01's pre-list, plus the mutation probe (add a second
+        local predicate at one bypass site, show the criterion goes red, revert). Run
+        tests/specify_cli/cli/commands/test_implement_cores.py and
+        tests/regression/test_issue_2795_claim_blocker.py green and UNEDITED.
+        `ruff check` + `mypy --strict` (SC-017) and `ruff check --select C901` pre/post
+        for _meta_change_is_vcs_lock_only, _committed_meta_object and
+        _is_self_write_only_diff.
+
+  prompt_file: tasks/WP05-make-the-bypass-reads-diagnosable.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP06
+  title: "Widen the gate, re-derive both floors, and give the control a positive twin"
+  dependencies:
+  - WP05
+  owned_files:
+  - "tests/architectural/test_inline_meta_read_gate.py"
+  - "tests/architectural/inline_meta_read_allowlist.yaml"
+  - "tests/architectural/_baselines.yaml"
+  # The two CI ratchet baselines. Five WPs create new test files in directories these
+  # govern and NO WP owned either file. WP06 is the right owner: same
+  # authoritative_surface (tests/architectural/), already owns _baselines.yaml,
+  # sequential with WP05, file-disjoint from lane B — so this addition unions no lane.
+  # _gate_coverage_baseline.json: "fails on any NEW orphan file not listed here"
+  # (orphan_files: []). _golden_count_baseline.json: "A directory absent here has an
+  # implicit ceiling of 0 -- any convert-classified site appearing there fails the guard
+  # immediately"; its ceilings map omits tests/regression, tests/missions, tests/context,
+  # tests/mission_runtime, tests/upgrade and tests/merge. T040 RUNS both gates rather
+  # than assuming them — the red was inferred, never observed.
+  - "tests/architectural/_gate_coverage_baseline.json"
+  - "tests/architectural/_golden_count_baseline.json"
+  - "tests/architectural/_fixtures/unreachability_control.py"
+  - "tests/architectural/_fixtures/unreachability_control_twin.py"
+  requirement_refs:
+  - FR-006
+  - FR-007
+  - FR-008
+  - NFR-002
+  - NFR-004
+  - C-005
+  - C-008
+  plan_concern_refs:
+  - IC-06
+  subtasks:
+  - T034
+  - T035
+  - T036
+  - T037
+  - T038
+  - T039
+  - T040
+  priority: High
+  success_criteria:
+  - SC-005
+  - SC-006
+  - SC-011
+  - SC-017
+  subtask_details:
+    T034:
+      parallel: false
+      description: >-
+        Print the live inline count (7) and the live routed count (130, after WP05's
+        :247 routing) PRE the widening, each with its command and input file count,
+        against WP01's recorded measurement.
+    T035:
+      parallel: false
+      description: >-
+        Add the two control fixtures under tests/architectural/_fixtures/ — NOT under
+        src/: scan_inline_meta_reads walks SRC_ROOT, so a fully-inlined read committed
+        there would raise the live census and red the very floor the control exists to
+        prove. (a) The unreachability control: a scratch module with the read fully
+        inlined, scanned by the WIDENED scanner by EXPLICIT ARGUMENT, printing
+        `sites: 0`. (b) Its POSITIVE TWIN: the same scratch module with the read
+        inlined and the path named `meta_path`, printing `sites: 1`. A bare `sites: 0`
+        is indistinguishable from a broken scanner and is the vacuous negative
+        architectural-gate-non-vacuity forbids. Both land in the SAME commit as the
+        widening (T037).
+    T036:
+      parallel: true
+      description: >-
+        Add the SYNTHETIC pin for FR-006's read_bytes half and FR-008 — marked "no red
+        possible" in the red-first register because read_bytes adds 0 new sites over
+        src/ (measured; control fixture expected 1->2 and got 1->2), so no live site's
+        detection flips. The pin is a tmp_path FIXTURE PAIR generated at runtime — not
+        a third committed fixture — whose module's read is read_bytes-fed: red before
+        the _extract_read_base change, green after. It therefore lives inside
+        test_inline_meta_read_gate.py, alongside the two committed control fixtures of
+        T035 rather than as a file beside them. A live-tree red cannot be manufactured
+        without adding an unrouted read to src/, which reds the floor.
+    T037:
+      parallel: false
+      description: >-
+        ONE COMMIT — coupling D1, the three inline assertions are MUTUALLY LOCKING and
+        any one moving alone reds another: test_inline_meta_read_floor (:1061),
+        test_allowlist_matches_floor (:1116, an EQUALITY —
+        `len(allowlist) == INLINE_META_READ_FLOOR`; no mission artifact previously
+        mentioned it, and it is the assertion that forecloses the middle escape) and
+        test_inline_meta_read_gate_green_against_seeded_allowlist (:1109). The commit
+        carries: the one-hop intra-module parse-helper anchor in scan_inline_meta_reads
+        (:589); read_bytes added to _extract_read_base (:507); INLINE_META_READ_FLOOR
+        (:127); FLOOR_MARGIN (:134); inline_meta_read_baseline DECLARED UNCHANGED at 7;
+        inline_meta_read_allowlist.yaml DECLARED UNCHANGED at 7 entries — NO allowlist
+        entry is written for the scanner-invisible shapes, whose closure is
+        UNCONDITIONAL because test_allowlist_entries_are_still_live (:1166) requires
+        every entry to match a live DETECTED site, so such an entry is stale on arrival
+        and red at ANY baseline; ROUTED_LOAD_META_FLOOR (:221) and its margin (:220);
+        and both control fixtures from T035. Attribute the zero false positives to
+        CLAUSE 2 (which rejects 17 of 19 candidates), NOT clause 3 (which rejects
+        exactly one) — stating clause 3 as the guard licenses a future widening of
+        clause 2 that unlocks ~17 candidates with no measured protection.
+    T038:
+      parallel: false
+      description: >-
+        Re-derive ROUTED_LOAD_META_FLOOR from the MEASURED live count. Do NOT copy
+        plan.md [UNVERIFIED] item 1's 127 and [128, 131] — those are derived from the
+        ruling's stated 3-below-live rule, not measured on this tree. Print the live
+        count, derive the floor from it, and re-assert all three clauses of
+        test_routed_load_meta_floor at the new floor, printing the live routed count
+        pre and post the floor move.
+    T039:
+      parallel: false
+      description: >-
+        SC-006. Run the widened scanner TWICE — against src/ at the measurement
+        baseline 96494e5ec AND at branch head — printing both counts (this is the
+        runnable equivalent of SC-008's unrunnable "passes on current main", since the
+        widened marker lives on the branch). Report the WIDENING DELTA (sites the
+        predicate change adds at a fixed tree) and the CODE DELTA (sites the source
+        change adds at a fixed predicate) as TWO SEPARATE NUMBERS; one number hides
+        both. Confirm live inline returns to 7 because WP05 routed :247 — the struck
+        branch "or made diagnosable -> live returns to 7" is FALSE, measured
+        (diagnosability changes neither the json.loads in _parse_meta_object nor the
+        call at :247, so the widened scanner still flags it and live stays at 8).
+        Confirm test_gate_runs_under_fast_tier_budget (:1229) still holds, and that
+        test_allowlist_matches_floor, test_allowlist_shrink_only (:1125) and
+        test_allowlist_entries_are_still_live are all green.
+    T040:
+      parallel: false
+      description: >-
+        SECOND COMMIT — the governance surface. tests/architectural/_baselines.yaml:
+        register `inline_meta`, OR file the register deviation with
+        test_allowlist_shrink_only (:1125) and test_allowlist_matches_floor (:1116)
+        cited as the compensating control. The absence is verified (`grep -c
+        inline_meta` -> 0), so the allowlist this mission governs currently sits OFF
+        the charter's Burn-down Policy §(a) register; which remedy the policy wants is
+        a governance call to PUT TO THE OPERATOR (plan.md [UNVERIFIED] item 6) —
+        silence is not an option. Also file FR-007's deferral issue for the 4
+        scanner-invisible read expressions (no allowlist entry is possible for them).
+        `gh issue view <n>` for both. SC-009 register rows 3 and 7.
+
+  prompt_file: tasks/WP06-widen-the-gate.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP07
+  title: "Re-pin both of #2804's red assertions and close the tracker honestly"
+  # WP01 -> WP07: WP07 (T041 step 3, T045 step 3) quotes WP01's recorded routed-count
+  # measurement command VERBATIM, so it depends on that command existing. Zero
+  # scheduling cost and no lane union — WP01 is lane A with no source/test files and must
+  # land first regardless; WP07 stays lane D, files disjoint from every other lane.
+  dependencies:
+  - WP01
+  owned_files:
+  - "tests/regression/test_issue_2804_merge_resets_gate_artifacts.py"
+  requirement_refs:
+  - FR-009
+  - FR-010
+  - FR-011
+  - C-006
+  - C-008
+  - C-009
+  plan_concern_refs:
+  - IC-07
+  subtasks:
+  - T041
+  - T042
+  - T043
+  - T044
+  - T045
+  - T046
+  priority: Medium
+  success_criteria:
+  - SC-008
+  - SC-009
+  - SC-010
+  subtask_details:
+    T041:
+      parallel: false
+      description: >-
+        Quote BOTH red assertions verbatim before any edit — `overall_verdict ==
+        "pass"` (:482) and `assert SCAFFOLD_TODO_MARKER not in json.dumps(post_matrix)`
+        — both under the one `# --- CONTRACT (RED on base) ---` banner. Reproduce the
+        marker red on PRISTINE upstream/main 98198e980 in a clean `git worktree`, same
+        selection, `1 failed`, `^ERROR tests/` = 0, `E assert 'pending' == 'pass'` —
+        a genuine same-selection pre-existing red, not a known-class deferral. Then
+        capture the reconciler measurement pair, CONTROL FIRST, from the fixture rows
+        at :172-185: `CONTROL filled fixture contains marker? False`; merged
+        `criterion_ids: ['AC-001','FR-001','FR-003']`; `overall_verdict: pending`;
+        `POST contains SCAFFOLD_TODO_MARKER? True`. Widening only the verdict
+        assertion CANNOT make SC-008 pass.
+    T042:
+      parallel: false
+      description: >-
+        COMMIT 1 — widen assertion 1, matched to the issue-matrix sibling's
+        already-widened form. Record in the docstring that `"fail"` is the concrete
+        disallowed verdict (reachable from a one-criterion fixture,
+        acceptance/matrix.py:259) and that `pending` — the #2804 defect's OWN
+        signature — must be ADMITTED, since the sibling test pins it. A predicate of
+        the form `verdict in {"pass","pending"}` passes with the regression fully
+        present, which is why assertion 2 carries the falsifiability.
+    T043:
+      parallel: false
+      description: >-
+        COMMIT 2 — RE-PIN assertion 2, do NOT delete it: it is the only remaining
+        executable statement of the real #2804 contract, and it is unsatisfiable by
+        design under the row-union authority model (the union admits the scaffold row
+        whose description and notes ARE the marker), not merely stale. Re-pin to
+        EVIDENCE SURVIVAL — `"<accepted-evidence-handle>" in json.dumps(post_matrix)`
+        — negatively controlled against a TAKE-THEIRS fixture where it must be absent.
+        Measured: accepted evidence survives True; take-theirs control (placeholder
+        alone) False.
+    T044:
+      parallel: false
+      description: >-
+        COMMIT 3 — the companion test test_widened_2804_assertion_rejects_wrong_verdict,
+        fed THE DEFECT'S OWN FIXTURE: the take-theirs / scaffold-clobber document in
+        which the criteria are reset to the placeholder and the accepted evidence
+        handle is ABSENT. The RE-PINNED PAIR of assertions must FAIL on it. SC-010
+        previously passed while the defect it exists to catch was fully present,
+        because a companion fed only a `fail` verdict reports "non-vacuous" about a
+        value unrelated to the defect. Q10 is settled: no — the marker is KEPT.
+    T045:
+      parallel: true
+      description: >-
+        SC-008's two byte-identity proofs, both redirected with node counts recorded:
+        `git diff --stat upstream/main --
+        tests/specify_cli/cli/commands/test_row_aware_merge_driver.py` prints NOTHING,
+        quoted (that file is read-only for this WP and must stay byte-identical); and
+        `git diff --stat <measurement baseline> -- src/` prints NOTHING, quoted. Note
+        in the evidence that this capture is LANE-LOCAL and PERISHABLE — WP08
+        re-captures it on the integrated tree after `pip install -e .`.
+    T046:
+      parallel: false
+      description: >-
+        COMMIT 4 — the tracker filings. (a) The superseding issue for #2804: what is
+        pinned now, why the shape changed, and that b04da00e1 deleted
+        tests/merge/test_gate_artifact_merge_drivers_2804.py (-249 lines) — the unit
+        gate that held this invariant and that no requirement owned; CITE it, do not
+        restore it. (b) The pending-poisons-the-aggregate PRODUCT DEFECT, with
+        src/specify_cli/acceptance/gates_core.py:525 as evidence and the scaffold-row
+        suppression rule as the candidate fix — NOT fixed here (C-006); widening the
+        pin without filing it makes a red go away without addressing what it pointed
+        at. Verify each with `gh issue view <n> --json number,title,body`. SC-009
+        register rows 1 and 2.
+
+  prompt_file: tasks/WP07-repin-2804-assertions.md
+  agent_profile: python-pedro
+  role: implementer
+  agent: claude
+- id: WP08
+  title: "Terminal integration verification, the sweep handshake, and the DRAFT PR"
+  dependencies:
+  - WP02
+  - WP03
+  - WP04
+  - WP05
+  - WP06
+  - WP07
+  # planning_artifact — same rationale as WP01, and load-bearing here: `pip install -e .` (T048)
+  # and `.venv/bin/python` only resolve in the tree .venv was installed from, so a lane worktree
+  # would make this WP's central obligation impossible.
+  # contracts/integration-verification.md is a declared out-of-map planning write; the scripts/
+  # entry supplies the ownership manifest lane computation requires and is a REAL deliverable
+  # (T049) — the re-runnable form of the integration counts, which are perishable by construction.
+  execution_mode: planning_artifact
+  owned_files:
+  - scripts/verify_meta_fail_closed_integration_3162.py
+  create_intent:
+  - scripts/verify_meta_fail_closed_integration_3162.py
+  requirement_refs:
+  - NFR-002
+  - C-003
+  - C-007
+  - C-008
+  plan_concern_refs:
+  - IC-08
+  subtasks:
+  - T047
+  - T048
+  - T049
+  - T050
+  - T051
+  - T052
+  priority: High
+  success_criteria:
+  - SC-006
+  - SC-008
+  - SC-009
+  - SC-010
+  - SC-011
+  - SC-017
+  subtask_details:
+    T047:
+      parallel: true
+      description: >-
+        Perform the tests/sync sweep-window handshake with the sibling mission at
+        ~/dev/sk-missions/3167 (C-007) BEFORE any broad sweep, and confirm
+        `pgrep -af 'run_sync[_]daemon'` is empty before each invocation. Record that
+        this mission's declared 14-directory cone contains NEITHER tests/sync NOR
+        tests/cli, so the mission never needs the window — the handshake exists so a
+        broad sweep does not take it by accident. Record that
+        tests/specify_cli/cli/commands/ is INSIDE tests/specify_cli and is not the
+        barred top-level tests/cli; the census conflated the two.
+    T048:
+      parallel: false
+      description: >-
+        Run `pip install -e .`, THEN re-capture SC-008 and SC-010 on the integrated
+        tree. WP07's lane-local evidence does not survive: (i) WP04's resolution.py
+        routing sits on the marker's live code path — the marker imports
+        _run_lane_based_merge, merge/executor.py:116 imports resolve_placement_only,
+        which reaches _assemble_core_fragments -> _resolve_mission_id (census row 3)
+        and _resolve_coordination_branch (row 2); (ii) WP05 edits merge_driver.py:167,
+        which runs as a subprocess via lanes/merge.py:84. A capture taken BEFORE the
+        reinstall is a stale-install false red or a stale-install false green — both
+        worthless.
+    T049:
+      parallel: false
+      description: >-
+        RE-DERIVE the routed and inline counts on the integrated tree — never summed
+        from per-lane numbers, because ROUTED_CALLEES is global over src/ and matches
+        callee NAMES, so an unrelated concurrent landing moves it. Expected: routed
+        130 (0-net from WP02/WP03/WP04, +1 from WP05) against WP06's re-derived floor,
+        with all three clauses of test_routed_load_meta_floor holding; inline 7. ANY
+        deviation is ATTRIBUTED against WP01's recorded command and input file count
+        BEFORE anything is "fixed" — the gate's header records three prior false reds
+        from this exact miscount.
+    T050:
+      parallel: false
+      description: >-
+        Run the declared 14-directory cone: tests/specify_cli, tests/mission_runtime,
+        tests/regression, tests/merge, tests/architectural, tests/integration,
+        tests/missions, tests/runtime, tests/next, tests/context, tests/status,
+        tests/upgrade, tests/coordination, tests/lanes. Redirect output, quote the
+        `N passed` line PER DIRECTORY, print input counts, use `-ra` never `-rf`, and
+        count `^ERROR tests/` — NOT `^ERROR `. Targeted cone runs per charter
+        §Testing Requirements; do NOT substitute a full-suite run, which is reserved
+        for post-merge mission-level validation. Classify any red against the
+        baseline-red gotcha before treating it as this mission's.
+    T051:
+      parallel: true
+      description: >-
+        Complete the SC-009 filing register — one row per mandated filing, each
+        verified with `gh issue view <n> --json number,title,body` and the number
+        recorded. At least 5 are mandated and 8 are enumerated in spec.md: the #2804
+        superseding issue, the product defect, the 4-read-expression deferral, Q8, the
+        NFR-001 degrade residue with Q4, the L1 pure-decode primitive, the
+        _baselines.yaml register gap, and the Q2 full-routing residue.
+    T052:
+      parallel: false
+      description: >-
+        History compaction, rebase onto the current upstream base, and the DRAFT
+        cross-fork PR — the operator merges. DO NOT SQUASH WP04's two commits: the
+        routing-then-handler ordering IS the ATDD evidence that replaces the
+        impossible base-red. The PR body must carry: SC-006's argued raise for any
+        raised inline floor (with the code delta printed as 0); the widening delta and
+        the code delta as TWO SEPARATE NUMBERS; and the C-011 documented exception
+        with its five reviewer verification steps — if the body omits them the
+        exception is undocumented and the charter row reverts to a violation. Also
+        state any remaining Sonar UI-side work explicitly.
+  prompt_file: tasks/WP08-terminal-integration-verification.md
+  agent_profile: debugger-debbie
+  role: investigator
+  agent: claude

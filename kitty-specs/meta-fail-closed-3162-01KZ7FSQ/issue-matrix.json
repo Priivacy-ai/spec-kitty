@@ -1,0 +1,125 @@
+{
+  "rows": {
+    "#1848": {
+      "evidence_ref": "MERGED upstream (fix(coordination): fall back to primary checkout when coordination branch is deleted). Incidental citation only: WP02 preserved the #1848 divergence rationale intact at its routed site. No obligation owed by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": "WP02"
+    },
+    "#1931": {
+      "evidence_ref": "OPEN EPIC 'Test suite friction'. Not closable by this mission. WP06 only READS the zero-gate worklist whose provenance cites it. Follow-up: #1931 remains open as the parent epic.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP06"
+    },
+    "#1933": {
+      "evidence_ref": "CLOSED upstream. Appears solely inside the provenance docstring of tests/architectural/_gate_coverage_baseline.json, which WP06 reads. Incidental citation, not mission scope.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": "WP06"
+    },
+    "#2034": {
+      "evidence_ref": "CLOSED upstream. Same provenance docstring as #1933 ('Gate-coverage ratchet baseline (Issue #2034 / #1933)'). Incidental citation, not mission scope.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": "WP06"
+    },
+    "#2804": {
+      "evidence_ref": "WP07: marker re-pinned (a199e4865 verdict, cea544596 evidence-survival, 06258eb46 SC-010 companion). Inverted red \u2014 assertions wrong, not the product. Superseded by #3232; product defect filed as #3231, NOT fixed here (C-006).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP07"
+    },
+    "#3138": {
+      "evidence_ref": "Mission input. WP07 widened #2804's acceptance-matrix assertion (a199e4865 intermediate red, cea544596 evidence-survival re-pin, 06258eb46 SC-010 companion) and superseded #2804 via #3232, with the product defect filed as #3231 rather than suppressed. The rejected alternative was the reconciler scaffold-row suppression rule, not the widening.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP07"
+    },
+    "#3155": {
+      "evidence_ref": "MERGED upstream (Doctrine-Charter Split: single charter read/path authority foundation) \u2014 routed 170+ meta.json reads. This mission exists to close its 13-read residue, tracked as #3162. Prior art, not an open obligation.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#3162": {
+      "evidence_ref": "The mission issue itself: 13 meta.json reads left unrouted after #3155. Closed by WP01-WP08 of this mission; per-site evidence in each WP's evidence/ file and the routing manifest.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    },
+    "#3231": {
+      "evidence_ref": "Filed by WP07 and deliberately NOT fixed here, per C-006 and the operator's non-negotiable rider on #3138. Product defect: one admitted scaffold row makes overall_verdict pending. Evidence acceptance/gates_core.py:525. Follow-up: #3231.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP07"
+    },
+    "#3232": {
+      "evidence_ref": "Filed by WP07; supersedes #2804, recording that its pin changed shape and that b04da00e1 deleted tests/merge/test_gate_artifact_merge_drivers_2804.py (-249 lines). Deliberately not restored. Follow-up: #3232.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP07"
+    }
+  },
+  "schema_version": 1
+}
