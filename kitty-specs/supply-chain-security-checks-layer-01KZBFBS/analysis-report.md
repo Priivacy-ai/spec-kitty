@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: supply-chain-security-checks-layer-01KZBFBS
 mission_id: 01KZBFBS3V1JMRXS5VQ2S5WWPY
-generated_at: '2026-08-06T14:44:09.738750+00:00'
+generated_at: '2026-08-06T18:02:06.144239+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
@@ -15,15 +15,15 @@ input_artifacts:
     sha256: 857dd5586b939a7b6415b8aa1d23a118744cf5b5bb23581453f83132ed352812
   tasks.md:
     path: /Users/zohar/apps/spec-kitty/kitty-specs/supply-chain-security-checks-layer-01KZBFBS/tasks.md
-    sha256: d4398cf7dd1bbc2f9076bb5c5b99d3c1e3904edf7d49fe3c9488ec79c9206eb0
+    sha256: df27884321c90d4ad6324c66091b890f54ba77bc57df4f9c72d7707a05ff5e86
   charter:
-    path: /Users/zohar/apps/spec-kitty/.kittify/charter/charter.md
-    sha256: cb2dc6cd12aade3d5464997467b7ecdbd3849ea3581207b58c207c3d16fff9b8
+    path: /Users/zohar/apps/spec-kitty/.kittify/charter/charter.yaml
+    sha256: ee1ff523dab5f9297c5b4062c0c84dfe2c4bbc5ac6b8b384fed0288485b86534
 verdict: ready
 issue_counts:
   low: 1
-  critical: 0
   high: 0
+  critical: 0
   medium: 0
   info: 0
 findings:
