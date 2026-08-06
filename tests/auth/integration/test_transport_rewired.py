@@ -135,13 +135,25 @@ def test_websocket_provisioning_uses_factory() -> None:
     assert "get_token_manager" in source
 
 
-def test_sync_batch_uses_factory() -> None:
-    """``sync/batch.py`` must obtain tokens via the factory (FR-017)."""
+def test_sync_batch_does_not_reference_legacy_classes() -> None:
+    """``sync/batch.py`` must not reintroduce the retired legacy auth classes.
+
+    #3167 retired ``batch.py``'s queue-backed transmit primitives
+    (``batch_sync`` / ``sync_all_queued_events``); the module now holds no
+    transmit surface (see its module docstring) and performs no I/O of its
+    own, so it no longer calls ``get_token_manager``. The former
+    ``test_sync_batch_uses_factory`` asserted that call and started failing
+    the moment the transmit code it guarded was deleted -- it was checking a
+    caller that no longer exists. FR-017 factory coverage for the sync
+    surface remains enforced via ``test_sync_background_uses_factory``
+    below, since ``sync/background.py`` is the actual HTTP caller that
+    consumes ``batch.py``'s result types.
+    """
     import specify_cli.sync.batch as batch_mod
 
     source = inspect.getsource(batch_mod)
-    assert "get_token_manager" in source
     assert "AuthClient" not in source
+    assert "CredentialStore" not in source
 
 
 def test_sync_background_uses_factory() -> None:
