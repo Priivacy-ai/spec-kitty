@@ -113,6 +113,8 @@ directives: []
 catalog: {}
 activated_directives:
   - 010-specification-fidelity-requirement
+mission_type_activations:
+  - software-dev
 metadata:
   bundle_schema_version: 2
 """
@@ -145,10 +147,22 @@ def test_wholly_unconfigured_project_keeps_builtins_convenience(tmp_path: Path) 
     convenience default so a fresh project still resolves shipped doctrine. Only
     a project that activates *some* kind but omits another delivers empty for the
     omitted kind (see the test above).
+
+    ``mission_type_activations`` is the one exception (WP04, C-A1): it has no
+    "absence => all" convenience default under ANY circumstance, "wholly
+    unconfigured" included, and its absence is now a hard construction
+    precondition rather than a per-kind delivery signal. A minimal config.yaml
+    naming it is provisioned below so ``PackContext.from_config`` can build at
+    all; every OTHER activation key (``activated_paradigms``/``activated_directives``
+    among them) stays genuinely absent, so the "wholly unconfigured w.r.t.
+    paradigms/directives" scenario this test actually pins is unchanged.
     """
     from charter.catalog import load_doctrine_catalog
 
-    # No .kittify/config.yaml written -> wholly unconfigured.
+    # No activated_* keys written -> wholly unconfigured w.r.t. paradigms/
+    # directives (the FR-018 boundary under test). Only mission_type_activations
+    # is provisioned, for the orthogonal WP04 construction precondition.
+    _write_config(tmp_path, "mission_type_activations:\n  - software-dev\n")
     roots = resolve_config_activated_roots(repo_root=tmp_path)
 
     catalog = load_doctrine_catalog()

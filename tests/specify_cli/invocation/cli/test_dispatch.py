@@ -365,14 +365,33 @@ def test_dispatch_explicit_profile_bypasses_empty_charter_fallback(tmp_path: Pat
     assert "Empty Charter" not in result.output
 
 
-def test_dispatch_empty_charter_software_dev_mission_type_still_available(tmp_path: Path) -> None:
-    """The routing fallback is scoped to invocation dispatch only -- mission-type
-    activation is a separate PackContext dimension and stays "admit all
-    built-ins" (three-state None) under the very same empty-charter repo the
-    dispatch tests above exercise.
+def test_dispatch_empty_charter_still_routes_despite_empty_mission_type_activation(
+    tmp_path: Path,
+) -> None:
+    """Dispatch routing is independent of mission-type activation.
+
+    WP04 (C-A1) retired the "absence admits all built-ins" convenience
+    default for ``mission_type_activations`` specifically (#2657): an absent
+    or empty key now reads as ``frozenset()``, not "all built-in mission
+    types." The actionable fail-closed for that empty set lives at the
+    mission-create / mission-type-use boundary
+    (``specify_cli.core.mission_creation.create_mission_core``) -- a
+    dimension ``spec-kitty dispatch`` never touches. Dispatch routes purely
+    through the ``ProfileRegistry`` / ``ActionRouter`` (proven by the
+    empty-charter generic-agent fallback tests above); it has no dependency
+    on mission-type activation at all. So under the very same empty-charter
+    repo those tests exercise: mission-type activation is genuinely empty
+    (not "all built-ins"), AND dispatch still functions end-to-end via its
+    profile-routing fallback.
     """
     project = _setup_project(tmp_path)
 
     pack_context = PackContext.from_config(project)
+    assert pack_context.activated_mission_types == frozenset()
+    assert "software-dev" not in pack_context.activated_mission_types
 
-    assert "software-dev" in pack_context.activated_mission_types
+    envelope = _invoke_json(project, ["dispatch", "implement the payment module", "--json"])
+
+    assert envelope["profile_id"] == "generic-agent"
+    assert envelope["router_confidence"] == "generic_fallback"
+    assert envelope["empty_charter_fallback"] is True

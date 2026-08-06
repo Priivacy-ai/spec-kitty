@@ -22,8 +22,9 @@ import logging
 import os
 import sys
 from importlib.util import find_spec
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
+from kernel.paths import MISSION_ASSETS_SIBLING_PATTERN
 from kernel.sibling_paths import SiblingPathNotFound, resolve_installed_sibling
 from specify_cli.core.config import DEFAULT_MISSION_KEY
 from specify_cli.runtime.bootstrap import _get_cli_version, _lock_exclusive
@@ -89,8 +90,14 @@ def get_global_command_dir(agent_key: str) -> Path:
 #: the shared kernel sibling-path-resolution primitive instead (the same
 #: ancestor-walk-covers-both-layouts algorithm :mod:`kernel.paths` and
 #: :mod:`doctrine.missions.repository` already use), anchored on the
-#: doctrine package's own file rather than this module's.
-_MISSIONS_SIBLING_PATTERN = PurePosixPath("packs") / "built-in" / "missions"
+#: doctrine package's own file rather than this module's. Owned once at the
+#: kernel floor (:data:`kernel.paths.MISSION_ASSETS_SIBLING_PATTERN`) and
+#: re-bound to this module-local name (FR-012, mission
+#: ``resolution-activation-foundation-01KZ9FKG`` WP02) instead of a second,
+#: independently-typed ``packs/built-in/missions`` literal -- the
+#: ``_get_command_templates_dir`` body below is unchanged, it just now
+#: passes the shared constant.
+_MISSIONS_SIBLING_PATTERN = MISSION_ASSETS_SIBLING_PATTERN
 
 
 def _get_command_templates_dir() -> Path:

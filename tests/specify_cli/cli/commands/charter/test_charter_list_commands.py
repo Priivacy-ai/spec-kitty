@@ -41,10 +41,18 @@ _ALL_KINDS = [
 
 @pytest.fixture()
 def empty_project_root(tmp_path: Path) -> Path:
-    """A project with empty config.yaml (no activation keys)."""
+    """A project with empty config.yaml (no activation keys other than the
+    provisioned mission-type authority).
+
+    Carries ``mission_type_activations`` (WP04, C-A1): the provisioned
+    charter is the sole mission-type activation authority, so
+    ``PackContext.from_config`` fails closed when the key is absent.
+    """
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
-    (kittify / "config.yaml").write_text("# empty config\n", encoding="utf-8")
+    (kittify / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
     return tmp_path
 
 
@@ -53,7 +61,10 @@ def project_with_directive(tmp_path: Path) -> Path:
     """A project with activated_directives: [python-style-guide] in config.yaml."""
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
-    config_data = "activated_directives:\n  - python-style-guide\n"
+    config_data = (
+        "activated_directives:\n  - python-style-guide\n"
+        "mission_type_activations:\n  - software-dev\n"
+    )
     (kittify / "config.yaml").write_text(config_data, encoding="utf-8")
     return tmp_path
 
@@ -111,7 +122,8 @@ class TestListExplicitActivations:
         kittify.mkdir()
         # Empty list for directive → explicit restriction
         (kittify / "config.yaml").write_text(
-            "activated_directives: []\n", encoding="utf-8"
+            "activated_directives: []\nmission_type_activations:\n  - software-dev\n",
+            encoding="utf-8",
         )
         result = _invoke_list(tmp_path)
         assert result.exit_code == 0, result.output

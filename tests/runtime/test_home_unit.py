@@ -254,16 +254,80 @@ class TestGetPackageAssetRoot:
         result = get_package_asset_root()
         assert result.is_dir()
 
-    def test_dev_layout_fallback(
+    def test_delegates_fail_closed_to_kernel_authority(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Falls back to dev layout when importlib discovery fails."""
+        """Fail-closed delegation (retargeted C-007 seam).
+
+        Replaces the retired ``importlib.resources``/dev-layout fallback seam:
+        after IC-01 ``specify_cli.runtime.home.get_package_asset_root`` is a
+        thin delegate to the single kernel authority
+        (``kernel.paths.get_package_asset_root``), which drops the legacy
+        ``specify_cli/missions`` importlib and dev-root fallbacks (DR-2). This
+        forces the kernel resolution primitive to fail and asserts the delegate
+        surfaces the closed ``FileNotFoundError`` rather than falling through.
+        """
+        from pathlib import PurePosixPath
+
+        from kernel.sibling_paths import SiblingPathNotFound
+
         monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
-        # Block importlib path so it falls through to dev layout
-        monkeypatch.setattr(
-            "specify_cli.runtime.home.importlib.resources.files",
-            lambda _pkg: type("Fake", (), {"__truediv__": lambda s, n: Path("/nonexistent")})(),
-        )
-        result = get_package_asset_root()
-        assert result.is_dir()
-        assert result.name == "missions"
+        monkeypatch.delenv("SPEC_KITTY_PACKS_ROOT", raising=False)
+
+        def _raise(**_kwargs: object) -> Path:
+            raise SiblingPathNotFound(PurePosixPath("missions"), Path("/nonexistent"))
+
+        monkeypatch.setattr("kernel.paths.resolve_installed_sibling", _raise)
+        with pytest.raises(FileNotFoundError, match="Cannot locate package mission assets"):
+            get_package_asset_root()
+
+
+class TestGetPackageAssetRootPacksRoot:
+    """SPEC_KITTY_PACKS_ROOT relocates the collapsed home door (DR-1; C-R2/C-R3/C-R4).
+
+    After IC-01 ``specify_cli.runtime.home.get_package_asset_root`` delegates to
+    the single kernel authority, so the same PACKS_ROOT relocation, fail-closed,
+    and both-vars-precedence contracts hold through this compatibility surface.
+    """
+
+    def test_packs_root_relocates_the_door(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """A PACKS_ROOT with ``built-in/missions`` present resolves under it."""
+        packs_root = tmp_path / "packs-root"
+        missions = packs_root / "built-in" / "missions"
+        missions.mkdir(parents=True)
+        monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
+        monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(packs_root))
+
+        assert get_package_asset_root() == missions
+
+    def test_packs_root_without_missions_tree_fails_closed(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """A PACKS_ROOT whose ``built-in`` has no ``missions`` leaf raises, no fall-through."""
+        packs_root = tmp_path / "packs-root"
+        (packs_root / "built-in").mkdir(parents=True)
+        monkeypatch.delenv("SPEC_KITTY_TEMPLATE_ROOT", raising=False)
+        monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(packs_root))
+
+        with pytest.raises(FileNotFoundError):
+            get_package_asset_root()
+
+    def test_packs_root_wins_over_template_root(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """With BOTH env vars set, PACKS_ROOT governs pack-root location (C-R3)."""
+        packs_root = tmp_path / "packs-root"
+        packs_missions = packs_root / "built-in" / "missions"
+        packs_missions.mkdir(parents=True)
+
+        template_root = tmp_path / "template-root"
+        template_templates = template_root / "software-dev" / "templates"
+        template_templates.mkdir(parents=True)
+        (template_templates / "plan-template.md").write_text("# Plan\n", encoding="utf-8")
+
+        monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(packs_root))
+        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(template_root))
+
+        assert get_package_asset_root() == packs_missions

@@ -56,6 +56,13 @@ def project(tmp_path: Path) -> Iterator[Path]:
         ignore=shutil.ignore_patterns("context-state.json"),
     )
     shutil.copy(src / ".kittify" / "config.yaml", dst_kittify / "config.yaml")
+    # This checkout's own config.yaml points at charter.yaml (the activation
+    # source once the ``charter:`` pointer is present). The copied charter.yaml
+    # now carries the WP04 (C-A1) ``mission_type_activations`` provisioning key
+    # verbatim from the checkout's tracked file -- the charter generation path
+    # (``charter.compiler.provision_mission_type_activations``) emits it -- so
+    # ``PackContext.from_config`` resolves this isolated fixture project without
+    # any fixture-side append.
     subprocess.run(["git", "init", "--quiet", str(tmp_path)], check=False, capture_output=True)
     yield tmp_path
     try:

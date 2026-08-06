@@ -18,9 +18,15 @@ glossary_types
     supporting types. Canonical definitions; consumed as re-exports by
     ``glossary`` and ``doctrine.shared``.
 paths
-    Path resolution utilities: ``get_kittify_home()`` and
-    ``get_package_asset_root()``. Canonical implementations; re-exported
-    by ``specify_cli.runtime.home`` for backward compatibility.
+    Path resolution utilities: ``get_kittify_home()``, the ``PACKS_ROOT``-aware
+    built-in-pack-root primitive ``get_built_in_pack_root()``, and the
+    single-door ``get_package_asset_root()`` that resolves
+    ``<built-in-pack-root>/missions`` through it (FR-005, DR-1). These are the
+    canonical implementations; ``specify_cli.runtime.home.get_package_asset_root``
+    is a thin delegate to this authority, not a second resolver. The
+    ``BUILT_IN_PACK_SIBLING_PATTERN`` / ``MISSION_ASSETS_SIBLING_PATTERN``
+    shape constants are exported here so downstream layers (e.g.
+    ``doctrine.pack_paths``) reuse one owned pattern instead of forking it.
 glossary_runner
     Plugin registry for the glossary runner. Defines
     ``GlossaryRunnerProtocol``, ``register()``, ``get_runner()``, and
@@ -29,5 +35,15 @@ glossary_runner
     calls ``get_runner()`` without importing ``specify_cli``.
 """
 
-__all__: list[str] = []
+from kernel.paths import (
+    BUILT_IN_PACK_SIBLING_PATTERN,
+    MISSION_ASSETS_SIBLING_PATTERN,
+    get_built_in_pack_root,
+)
+
+__all__: list[str] = [
+    "BUILT_IN_PACK_SIBLING_PATTERN",
+    "MISSION_ASSETS_SIBLING_PATTERN",
+    "get_built_in_pack_root",
+]
 

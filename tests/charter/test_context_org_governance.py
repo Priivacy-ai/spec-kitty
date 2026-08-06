@@ -88,7 +88,14 @@ def _write_org_pack(repo_root: Path) -> Path:
 
 
 def _write_config(repo_root: Path, pack_root: Path, *, activated: list[str] | None) -> None:
+    # ``mission_type_activations`` is provisioned unconditionally (WP04,
+    # C-A1: the provisioned charter is the sole activation authority for
+    # mission types) so ``PackContext.from_config`` -- read on every
+    # ``build_charter_context`` call, regardless of the agent-profile
+    # activation state under test here -- does not hard-fail on a
+    # genuinely absent key.
     data: dict[str, object] = {
+        "mission_type_activations": ["software-dev"],
         "doctrine": {"org": {"packs": [{"name": _PACK_NAME, "local_path": str(pack_root)}]}},
     }
     if activated is not None:
@@ -145,7 +152,14 @@ class TestNoOrgPacksGovernanceRegression:
     def test_builtin_profile_path_unchanged_and_deterministic(self, tmp_path: Path) -> None:
         repo = tmp_path / "no_packs"
         repo.mkdir()
-        # No .kittify/config.yaml org packs at all.
+        # No .kittify/config.yaml org packs at all, but mission_type_activations
+        # is still provisioned (WP04, C-A1) since PackContext.from_config always
+        # needs it, even on the no-org-packs path this test pins.
+        kittify = repo / ".kittify"
+        kittify.mkdir(parents=True, exist_ok=True)
+        (kittify / "config.yaml").write_text(
+            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+        )
 
         first = _governance_text(repo, _BUILTIN_ID)
         _reset_agent_profile_cache()
@@ -244,6 +258,11 @@ def _register_activation_org_pack(repo_root: Path, pack_root: Path) -> None:
     with (kittify / "config.yaml").open("w", encoding="utf-8") as fh:
         YAML().dump(
             {
+                # Provisioned (WP04, C-A1) so PackContext.from_config -- read
+                # by _resolve_bootstrap's build_charter_context call -- does
+                # not hard-fail on a genuinely absent key. This test targets
+                # mission_type="software-dev" (see _resolve_bootstrap).
+                "mission_type_activations": ["software-dev"],
                 "doctrine": {
                     "org": {"packs": [{"name": _ACTIVATION_ORG_PACK_NAME, "local_path": str(pack_root)}]}
                 }
@@ -302,7 +321,15 @@ class TestActivationUnionShadowPathAndByteIdentity:
         repo = tmp_path / "no_org_pack"
         repo.mkdir()
         _write_activation_project_fixture(repo)
-        # Deliberately no .kittify/config.yaml org packs at all.
+        # Deliberately no .kittify/config.yaml org packs at all, but
+        # mission_type_activations is still provisioned (WP04, C-A1) since
+        # PackContext.from_config always needs it, even on this no-org-pack
+        # path the test pins.
+        kittify = repo / ".kittify"
+        kittify.mkdir(parents=True, exist_ok=True)
+        (kittify / "config.yaml").write_text(
+            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+        )
 
         first = _resolve_bootstrap(repo)
         second = _resolve_bootstrap(repo)

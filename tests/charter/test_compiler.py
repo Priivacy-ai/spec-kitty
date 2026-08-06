@@ -246,6 +246,17 @@ def test_compile_with_repo_root_uses_project_drg_overlay(tmp_path: Path) -> None
         selected_directives=["DIRECTIVE_003"],
     )
 
+    # doctrine_service=None below makes compile_charter build its own
+    # default doctrine service via PackContext.from_config(tmp_path), which
+    # now hard-fails (WP04, C-A1) without a provisioned
+    # mission_type_activations key -- unrelated to the repo_root/DRG-overlay
+    # behavior this test exercises.
+    kittify_dir = tmp_path / ".kittify"
+    kittify_dir.mkdir(parents=True)
+    (kittify_dir / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
+
     # An empty project overlay at .kittify/doctrine/graph.yaml is enough
     # to prove the repo_root branch executes load_validated_graph. We use
     # an empty edges/nodes overlay so shipped edges dominate and the
@@ -329,6 +340,19 @@ def test_compile_with_repo_root_handles_missing_shipped_graph(tmp_path: Path, mo
     from charter import _drg_helpers as drg_helpers_module
 
     interview = default_interview(mission="software-dev", profile="minimal")
+
+    # doctrine_service=None below makes compile_charter build its own
+    # default doctrine service via PackContext.from_config(tmp_path), which
+    # now hard-fails (WP04, C-A1) without a provisioned
+    # mission_type_activations key -- unrelated to the graph-load-failure
+    # fallback behavior this test exercises (the explicit ``pack_context``
+    # passed to compile_charter itself is unaffected -- see
+    # ``_empty_pack_context``'s direct dataclass construction below).
+    kittify_dir = tmp_path / ".kittify"
+    kittify_dir.mkdir(parents=True)
+    (kittify_dir / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
 
     def _raise_fnf(_repo_root: Path) -> object:
         raise FileNotFoundError("synthetic: shipped graph missing")

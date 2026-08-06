@@ -1040,6 +1040,17 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ♻️ Changed
 
+- **Doctrine-pack resolution and charter activation now run through a single
+  authority (mission `resolution-activation-foundation`; `#2657`, `#3210`).**
+  One kernel primitive resolves the packs root and honours
+  `SPEC_KITTY_PACKS_ROOT` for every reader — the duplicate runtime `home.py`
+  resolver is collapsed onto it — so resolution can no longer diverge between
+  call sites. Fresh `spec-kitty init` provisions the default charter by
+  deterministic copy instead of re-scanning, so a freshly initialised project
+  and a migrated one start from an identical charter. The provisioned charter
+  is the sole authority for what is activated, and an unresolved mission-type
+  now fails closed at the create/use boundary instead of resolving implicitly.
+  Existing projects need no action.
 - **Built-in mission data now ships under `packs/built-in/missions/`, alongside
   every other built-in doctrine kind (mission
   `doctrine-consumer-surface-missions-extraction`; `#3091`).** The mission-type

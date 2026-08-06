@@ -65,6 +65,12 @@ def _clone_doctrine_tracked_repo(dest: Path) -> Path:
     local mask that hides doctrine churn in this working checkout is never
     copied. The clone therefore observes the committed ``.gitignore`` state,
     where ``.kittify/doctrine/**`` and ``.kittify/charter/*`` are tracked.
+
+    The committed ``charter.yaml`` now carries the WP04 (C-A1)
+    ``mission_type_activations`` provisioning key (emitted by the charter
+    generation path — ``charter.compiler.provision_mission_type_activations``),
+    so the clone is already a provisioned, ``PackContext.from_config``-readable
+    baseline with no fixture-side append/commit required.
     """
     head_sha = _run_git(["rev-parse", "HEAD"], cwd=_REPO_ROOT).stdout.strip()
     _run_git(

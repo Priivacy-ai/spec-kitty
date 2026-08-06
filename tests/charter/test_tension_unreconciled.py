@@ -77,8 +77,18 @@ def _write_config(tmp_path: Path, content: str) -> None:
 
 
 def _ctx_with_config(tmp_path: Path, config_yaml: str) -> ProjectContext:
-    """Build a fully-populated ProjectContext (real built-in pack) with *config_yaml*."""
-    _write_config(tmp_path, config_yaml)
+    """Build a fully-populated ProjectContext (real built-in pack) with *config_yaml*.
+
+    ``mission_type_activations`` is unrelated to the tension-reconciliation
+    contract this module pins (directive/tactic activation), but WP04
+    (C-A1) made it a hard construction precondition for
+    ``PackContext.from_config`` -- a genuinely absent key now raises rather
+    than defaulting. It is prepended here, ahead of each call site's own
+    *config_yaml*, so every fixture in this module (including the
+    deliberately-no-activation-keys-at-all case exercised by
+    ``test_always_on_under_implicit_all_active``) can construct.
+    """
+    _write_config(tmp_path, "mission_type_activations:\n  - software-dev\n" + config_yaml)
     return ProjectContext.from_repo(tmp_path)
 
 

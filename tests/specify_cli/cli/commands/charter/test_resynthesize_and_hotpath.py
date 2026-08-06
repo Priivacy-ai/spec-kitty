@@ -95,10 +95,17 @@ _REAL_PARADIGM_STEM_B = "atomic-design"
 
 
 def _minimal_project(tmp_path: Path) -> Path:
-    """A minimal project with only ``.kittify/config.yaml`` (no charter bundle)."""
+    """A minimal project with only ``.kittify/config.yaml`` (no charter bundle).
+
+    Carries ``mission_type_activations`` (WP04, C-A1): the provisioned
+    charter is the sole mission-type activation authority, so
+    ``PackContext.from_config`` fails closed when the key is absent.
+    """
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
-    (kittify / "config.yaml").write_text("# empty config\n", encoding="utf-8")
+    (kittify / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
     return tmp_path
 
 
@@ -199,11 +206,18 @@ def _seed_synthesized_repo(
     (charter_dir / "directives.yaml").write_text("schema_version: '1'\n", encoding="utf-8")
     _write_references(charter_dir, ref_entries)
     charter_yaml_path = seed_charter_yaml(repo)
-    if activation:
-        # Bake the pre-mutation activation state into charter.yaml BEFORE the
-        # manifest is stamped, so the recomputed bundle hash covers it and the
-        # precondition reads ``fresh``.
-        update_charter_yaml_section(charter_yaml_path, "activation", activation)
+    # Bake the pre-mutation activation state into charter.yaml BEFORE the
+    # manifest is stamped, so the recomputed bundle hash covers it and the
+    # precondition reads ``fresh``. ``mission_type_activations`` is always
+    # baked (WP04, C-A1): the provisioned charter (here, this fixture's
+    # charter.yaml, which config.yaml's ``charter:`` pointer routes activation
+    # reads to) is the sole mission-type activation authority, so
+    # ``PackContext.from_config`` fails closed when the key is absent.
+    update_charter_yaml_section(
+        charter_yaml_path,
+        "activation",
+        {"mission_type_activations": ["software-dev"], **(activation or {})},
+    )
     seed_manifest(repo, built_in_only=False)
     _seed_project_graph(repo)
     # Migrated-project shape: config.yaml points at charter.yaml so activation
@@ -292,7 +306,11 @@ def test_default_deactivate_triggers_zero_synthesis_calls(
 ) -> None:
     """``charter deactivate`` without ``--resynthesize`` never calls generate/synthesize."""
     project_root = _minimal_project(tmp_path)
-    _write_config(project_root, f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n")
+    _write_config(
+        project_root,
+        f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n"
+        "mission_type_activations:\n  - software-dev\n",
+    )
     mock_generate, mock_synthesize = _patch_synthesis_spies(monkeypatch)
 
     result = _invoke("deactivate", project_root, "directive", _REAL_DIRECTIVE_STEM)
@@ -334,7 +352,11 @@ def test_deactivate_resynthesize_invokes_existing_pipeline_exactly_once(
 ) -> None:
     """``deactivate --resynthesize`` is symmetric with ``activate --resynthesize``."""
     project_root = _minimal_project(tmp_path)
-    _write_config(project_root, f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n")
+    _write_config(
+        project_root,
+        f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n"
+        "mission_type_activations:\n  - software-dev\n",
+    )
     mock_generate, mock_synthesize = _patch_synthesis_spies(monkeypatch)
 
     result = _invoke(

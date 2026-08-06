@@ -55,9 +55,14 @@ def _init_repo(tmp_path: Path) -> None:
     _git(tmp_path, "config", "user.email", "test@test.com")
     _git(tmp_path, "config", "user.name", "Test")
     # .kittify/config.yaml so locate_project_root() stops here.
+    # mission_type_activations (WP04, C-A1): the provisioned charter is the
+    # sole mission-type activation authority, so resolve_mission_type_context
+    # fails closed without this key.
     kittify = tmp_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
-    (kittify / "config.yaml").write_text("agents: {}\n", encoding="utf-8")
+    (kittify / "config.yaml").write_text(
+        "agents: {}\nmission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
     (tmp_path / "README.md").write_text("init\n", encoding="utf-8")
     _git(tmp_path, "add", "-A")
     _git(tmp_path, "commit", "-m", "init")

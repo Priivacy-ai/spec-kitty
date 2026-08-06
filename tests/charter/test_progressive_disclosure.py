@@ -21,6 +21,8 @@ The properties under test:
 """
 from __future__ import annotations
 
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -83,10 +85,41 @@ _KIND_BY_ARRAY = {
 }
 
 
-def _json_payload(*, include_all: bool = False) -> dict[str, object]:
+def _project_root(tmp_path: Path) -> Path:
+    """Copy the checkout's activated charter into an isolated tmp project.
+
+    The built-in doctrine graph ships in the installed package, so only the
+    project-local activation surface (``.kittify/charter`` + ``config.yaml``)
+    needs copying for the action bundle to resolve exactly as it does in the
+    checkout.
+
+    ``mission_type_activations`` is unrelated to the progressive-disclosure
+    delivery contract this module pins, but WP04 (C-A1) made it a hard
+    construction precondition for ``PackContext.from_config``. The checkout's
+    own charter.yaml now carries that provisioning key (emitted by the charter
+    generation path — ``charter.compiler.provision_mission_type_activations``),
+    so the COPY inherits it with no fixture-side append. Every test in this
+    module resolves the ``software-dev`` grain, which is one of the provisioned
+    built-in mission types. (Mirrors the fixture in
+    ``tests/charter/test_every_load_delivery.py``.)
+    """
+    src = _repo_root()
+    dst_kittify = tmp_path / ".kittify"
+    dst_kittify.mkdir(parents=True)
+    shutil.copytree(
+        src / ".kittify" / "charter",
+        dst_kittify / "charter",
+        ignore=shutil.ignore_patterns("context-state.json"),
+    )
+    shutil.copy(src / ".kittify" / "config.yaml", dst_kittify / "config.yaml")
+    subprocess.run(["git", "init", "--quiet", str(tmp_path)], check=False, capture_output=True)
+    return tmp_path
+
+
+def _json_payload(tmp_path: Path, *, include_all: bool = False) -> dict[str, object]:
     from charter.context import build_charter_context, build_charter_context_json
 
-    repo = _repo_root()
+    repo = _project_root(tmp_path)
     # depth is state-driven; force the bootstrap depth without mutating state.
     result = build_charter_context(
         repo, action="implement", mark_loaded=False, mission_type="software-dev"
@@ -160,8 +193,8 @@ class TestReferencesOnDto:
         edge = _edge("directive:D1", "directive:D2", Relation.REQUIRES, when=None)
         assert pd.edge_to_reference(edge)["when"] is None
 
-    def test_payload_dto_carries_references(self) -> None:
-        payload = _json_payload()
+    def test_payload_dto_carries_references(self, tmp_path: Path) -> None:
+        payload = _json_payload(tmp_path)
         entries = _entries(payload)
         assert entries, "expected a populated implement-grain payload"
         for entry in entries:
@@ -169,8 +202,8 @@ class TestReferencesOnDto:
             for ref in entry["references"]:  # type: ignore[union-attr]
                 assert set(ref) == {"id", "relation", "when", "reason"}
 
-    def test_payload_uncovered_suggests_reference_is_never_blank(self) -> None:
-        payload = _json_payload()
+    def test_payload_uncovered_suggests_reference_is_never_blank(self, tmp_path: Path) -> None:
+        payload = _json_payload(tmp_path)
         suggests_refs = [
             ref
             for entry in _entries(payload)
@@ -213,8 +246,8 @@ class TestDefaultCadence:
         assert inline == {"directive:A"}
         assert link == {"tactic:S"}
 
-    def test_payload_marks_delivery_and_has_links(self) -> None:
-        payload = _json_payload()
+    def test_payload_marks_delivery_and_has_links(self, tmp_path: Path) -> None:
+        payload = _json_payload(tmp_path)
         entries = _entries(payload)
         for entry in entries:
             assert entry.get("delivery") in {pd.DELIVERY_INLINE, pd.DELIVERY_LINK}
@@ -222,8 +255,8 @@ class TestDefaultCadence:
         # render must contain at least one linked (lazy) artefact.
         assert any(e.get("delivery") == pd.DELIVERY_LINK for e in entries)
 
-    def test_payload_top_level_link_set_present(self) -> None:
-        payload = _json_payload()
+    def test_payload_top_level_link_set_present(self, tmp_path: Path) -> None:
+        payload = _json_payload(tmp_path)
         assert isinstance(payload.get("references"), list)
         assert payload["references"], "the link set names the reachable-but-not-inlined artefacts"
 
@@ -261,15 +294,15 @@ class TestIncludeAllHatch:
         assert allof[0]["delivery"] == pd.DELIVERY_INLINE
         assert inline  # guard: the fixture stays meaningful
 
-    def test_include_all_marks_every_entry_inline(self) -> None:
-        payload = _json_payload(include_all=True)
+    def test_include_all_marks_every_entry_inline(self, tmp_path: Path) -> None:
+        payload = _json_payload(tmp_path, include_all=True)
         entries = _entries(payload)
         assert entries
         assert all(e.get("delivery") == pd.DELIVERY_INLINE for e in entries)
 
-    def test_include_all_inlined_ids_superset_of_progressive(self) -> None:
-        progressive = _json_payload(include_all=False)
-        allof = _json_payload(include_all=True)
+    def test_include_all_inlined_ids_superset_of_progressive(self, tmp_path: Path) -> None:
+        progressive = _json_payload(tmp_path / "progressive", include_all=False)
+        allof = _json_payload(tmp_path / "allof", include_all=True)
         prog_inlined = _inlined_ids(progressive)
         all_inlined = _inlined_ids(allof)
         assert prog_inlined <= all_inlined
@@ -322,15 +355,15 @@ class TestCompletenessByNaming:
         # cardinality check would be a strictly weaker, redundant duplicate.
         assert referenced == {pd.bare_id(u) for u in leaves}
 
-    def test_payload_union_equals_delivered(self) -> None:
-        payload = _json_payload()
+    def test_payload_union_equals_delivered(self, tmp_path: Path) -> None:
+        payload = _json_payload(tmp_path)
         delivered = _delivered_ids(payload)
         assert _inlined_ids(payload) | _referenced_ids(payload) >= delivered
 
-    def test_linked_artifact_retrievable_via_include(self) -> None:
+    def test_linked_artifact_retrievable_via_include(self, tmp_path: Path) -> None:
         from charter.context import build_charter_context_include
 
-        payload = _json_payload()
+        payload = _json_payload(tmp_path)
         linked: tuple[str, str] | None = None
         for array, kind in _KIND_BY_ARRAY.items():
             for entry in payload.get(array, []):  # type: ignore[union-attr]
@@ -341,5 +374,9 @@ class TestCompletenessByNaming:
                 break
         assert linked is not None, "expected at least one linked artefact"
         kind, artefact_id = linked
-        text = build_charter_context_include(_repo_root(), f"{kind}:{artefact_id}")
+        # Reuses the SAME tmp project ``_json_payload`` already provisioned at
+        # ``tmp_path`` (rather than the checkout's own real repo root) so the
+        # include lookup resolves against the identical provisioned copy the
+        # payload was rendered from.
+        text = build_charter_context_include(tmp_path, f"{kind}:{artefact_id}")
         assert artefact_id in text

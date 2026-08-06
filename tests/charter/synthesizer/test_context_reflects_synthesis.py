@@ -116,6 +116,19 @@ def test_compiler_service_reflects_project_directives_after_synthesis(
     synthesis_request: SynthesisRequest,
     adapter: FixtureAdapter,
 ) -> None:
+    # ``_default_doctrine_service`` routes through
+    # ``build_activation_aware_doctrine_service``, which calls
+    # ``PackContext.from_config(tmp_path)`` whenever a repo_root is supplied.
+    # ``mission_type_activations`` is provisioned so that call (WP04, C-A1:
+    # the provisioned charter is the sole activation authority for mission
+    # types) does not hard-fail on a genuinely absent key -- unrelated to
+    # this test's own subject (post-synthesis project-directive visibility).
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    (kittify / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
+
     before_ids = _project_directive_ids(_default_doctrine_service(tmp_path))
     assert before_ids == set()
 

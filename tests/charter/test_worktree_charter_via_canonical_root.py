@@ -49,8 +49,26 @@ def _init_main_checkout(main_root: Path) -> Path:
     charter_dir.mkdir(parents=True)
     (charter_dir / "charter.md").write_text(_CHARTER_BODY, encoding="utf-8")
 
+    # ``mission_type_activations`` is unrelated to the worktree/canonical-root
+    # transparency this module pins, but WP04 (C-A1) made it a hard
+    # construction precondition for ``PackContext.from_config`` -- provision
+    # it so ``build_charter_context`` (which resolves a pack context under
+    # the hood) can construct at all from either the main checkout or a
+    # linked worktree.
+    (main_root / ".kittify" / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
+
     subprocess.run(
-        ["git", "-C", str(main_root), "add", ".gitignore", ".kittify/charter/charter.md"],
+        [
+            "git",
+            "-C",
+            str(main_root),
+            "add",
+            ".gitignore",
+            ".kittify/charter/charter.md",
+            ".kittify/config.yaml",
+        ],
         check=True,
     )
     subprocess.run(

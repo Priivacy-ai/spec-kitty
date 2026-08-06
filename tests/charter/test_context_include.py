@@ -114,6 +114,23 @@ def _patch_service(monkeypatch: pytest.MonkeyPatch, service: _StubService) -> No
     )
 
 
+def _write_minimal_config(repo_root: Path) -> None:
+    """Provision ``mission_type_activations`` on a bare ``tmp_path``.
+
+    The ``agent-profile`` include branch routes through
+    ``_build_activation_aware_doctrine_service``, which always calls
+    ``PackContext.from_config`` (WP04, C-A1: the provisioned charter is the
+    sole activation authority for mission types) -- a genuinely absent key
+    hard-fails even though these tests only exercise selector routing, not
+    mission-type activation.
+    """
+    kittify = repo_root / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    (kittify / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
+
+
 # ---------------------------------------------------------------------------
 # agent-profile selector (FR-022/023) — the original bug
 # ---------------------------------------------------------------------------
@@ -123,6 +140,7 @@ class TestAgentProfileInclude:
     def test_hyphenated_agent_profile_resolves(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        _write_minimal_config(tmp_path)
         profile = _DummyAgentProfile(
             name="Python Pedro",
             purpose="Implement Python work with TDD discipline.",
@@ -140,6 +158,7 @@ class TestAgentProfileInclude:
     def test_underscore_agent_profile_resolves(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        _write_minimal_config(tmp_path)
         profile = _DummyAgentProfile(
             name="Python Pedro", purpose="p", roles=["implementer"]
         )
@@ -155,6 +174,7 @@ class TestAgentProfileInclude:
     def test_mixed_case_kind_resolves(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        _write_minimal_config(tmp_path)
         profile = _DummyAgentProfile(
             name="Python Pedro", purpose="p", roles=["implementer"]
         )
@@ -170,6 +190,7 @@ class TestAgentProfileInclude:
     def test_unknown_agent_profile_id_fails_closed(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        _write_minimal_config(tmp_path)
         _patch_service(monkeypatch, _StubService())
 
         with pytest.raises(ValueError, match="No agent_profile found"):
@@ -300,6 +321,7 @@ class TestJsonEntryPoint:
         from specify_cli.cli.commands.charter import charter_app
         import specify_cli.cli.commands.charter as charter_pkg
 
+        _write_minimal_config(tmp_path)
         profile = _DummyAgentProfile(
             name="Python Pedro", purpose="p", roles=["implementer"]
         )

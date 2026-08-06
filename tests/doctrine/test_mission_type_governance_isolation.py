@@ -58,6 +58,30 @@ from doctrine.missions.repository import MissionTemplateRepository
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
+@pytest.fixture(autouse=True)
+def _provision_all_builtin_mission_types(tmp_path: Path) -> None:
+    """Provision the per-test ``tmp_path`` with the four built-in mission types.
+
+    These tests resolve ``software-dev`` / ``documentation`` / ``research`` /
+    ``plan`` through ``resolve_mission_type_context`` against ``tmp_path``. The
+    WP04 construction-total pivot made ``PackContext`` construction total (an
+    absent ``mission_type_activations`` key reads as ``frozenset()``), so an
+    unprovisioned ``tmp_path`` resolves an EMPTY activation set and the resolver
+    hard-fails at the use boundary with ``UnknownMissionTypeError`` for any
+    typed request. A usable project is provisioned; declaring the four
+    built-ins here is exactly that. The negative-path tests (unknown/typeless)
+    are unaffected — an unregistered id and a typeless caller behave the same
+    with or without this activation set.
+    """
+    kittify = tmp_path / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    (kittify / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n  - documentation\n"
+        "  - research\n  - plan\n",
+        encoding="utf-8",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Doctrine source roots + canonical URN normalization
 # ---------------------------------------------------------------------------

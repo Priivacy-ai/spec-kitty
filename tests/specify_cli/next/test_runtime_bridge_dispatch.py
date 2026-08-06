@@ -75,6 +75,22 @@ def _restore_modules(saved: dict) -> None:
             sys.modules[key] = val
 
 
+def _provision_mission_type_activation(repo_root: Path) -> None:
+    """Provision ``mission_type_activations`` for a bare ``tmp_path`` repo.
+
+    WP04 (C-A1): the provisioned charter is the sole mission-type activation
+    authority, so ``resolve_mission_type_context`` fails closed on a repo
+    root with no ``.kittify/config.yaml`` at all. These tests exercise the
+    REAL resolution path (not a mocked ``existing_mission_types``), so they
+    need a genuine activation record on disk.
+    """
+    kittify = repo_root / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    (kittify / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
+
+
 # ---------------------------------------------------------------------------
 # NFR-002 regression gate: all software-dev steps dispatch via composition
 # ---------------------------------------------------------------------------
@@ -325,6 +341,7 @@ class TestNFR001LazyGovernanceBoundary:
         """The real production hot path (``.action_sequence`` only) does zero action-grain I/O."""
         from charter.mission_type_profiles import resolve_mission_type_context
 
+        _provision_mission_type_activation(tmp_path)
         with patch(
             "charter.mission_type_profiles.aggregate_action_grain"
         ) as spy_aggregate:
@@ -341,6 +358,7 @@ class TestNFR001LazyGovernanceBoundary:
         """Proves the lazy boundary is real: first ``.governance`` read DOES call it."""
         from charter.mission_type_profiles import resolve_mission_type_context
 
+        _provision_mission_type_activation(tmp_path)
         with patch(
             "charter.mission_type_profiles.aggregate_action_grain",
             return_value={},

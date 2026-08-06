@@ -16,6 +16,23 @@ and NOT under the src/doctrine tree — so the styleguide reference materializes
 only when the read is repointed to the pack root. A regression back to
 ``doctrine_root`` would find nothing and drop the reference, re-reddening this
 test.
+
+Fixture note (mission ``resolution-activation-foundation-01KZ9FKG`` WP02,
+charter DIRECTIVE_041 re-pin discipline): ``_template_reference`` (exercised
+via ``_build_references_from_yaml`` below) calls
+``MissionTemplateRepository.default()``, which resolves
+``default_missions_root()`` under this same ``SPEC_KITTY_PACKS_ROOT``. Since
+WP02 made ``default_missions_root()`` correctly honor ``SPEC_KITTY_PACKS_ROOT``
+(previously it silently ignored the var and always resolved the real
+installed/editable missions tree instead), a synthetic PACKS_ROOT that carries
+only ``built-in/styleguides/`` now fails closed with ``MissionsRootNotFound``
+on the missing ``missions`` leaf -- correct new behavior, not a bug. Each
+fixture below adds an empty ``built-in/missions/`` stub alongside the
+styleguide fixture so ``MissionTemplateRepository.default()`` resolves (an
+empty directory is sufficient: ``get_mission_config`` returns ``None`` for an
+absent ``mission.yaml`` and ``_template_reference`` falls back to a display-only
+``{"name": mission}`` in that case) and this test keeps exercising what it
+always intended -- the styleguide read, not the missions fail-closed path.
 """
 
 from __future__ import annotations
@@ -59,6 +76,11 @@ def test_python_styleguide_reference_reads_from_packs_built_in(
     styleguide_path.parent.mkdir(parents=True)
     styleguide_path.write_text(_STYLEGUIDE_YAML, encoding="utf-8")
 
+    # MissionTemplateRepository.default() also resolves under this same
+    # SPEC_KITTY_PACKS_ROOT (WP02) -- an empty missions/ leaf is sufficient
+    # fail-closed satisfaction; see module docstring "Fixture note".
+    (packs_root / "built-in" / "missions").mkdir(parents=True)
+
     # The fixture must exist ONLY in the pack root — never in the src/doctrine
     # tree — so this test can only pass by reading the relocated home. If the
     # emptied tree ever regains this file the guard would weaken silently.
@@ -94,6 +116,11 @@ def test_non_python_interview_emits_no_styleguide_reference(
     styleguide_path = packs_root / "built-in" / "styleguides" / "python-implementation.styleguide.yaml"
     styleguide_path.parent.mkdir(parents=True)
     styleguide_path.write_text(_STYLEGUIDE_YAML, encoding="utf-8")
+
+    # MissionTemplateRepository.default() also resolves under this same
+    # SPEC_KITTY_PACKS_ROOT (WP02); see module docstring "Fixture note".
+    (packs_root / "built-in" / "missions").mkdir(parents=True)
+
     monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(packs_root))
 
     interview = CharterInterview(

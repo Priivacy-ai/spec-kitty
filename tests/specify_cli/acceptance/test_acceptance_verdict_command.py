@@ -99,6 +99,18 @@ def _init_flat_mission(tmp_path: Path, slug: str) -> tuple[Path, Path]:
     _git(repo_root, "config", "user.email", "test@example.com")
     _git(repo_root, "config", "user.name", "Test")
 
+    # A ``.kittify/`` marker gives ``locate_project_root`` a definite project
+    # boundary at ``repo_root`` (WP04 C-A1 fixture hardening): without one,
+    # repo-root detection falls back to a bare ``.git`` walk-up that can
+    # escape past this fixture into an unrelated ancestor project on a
+    # contaminated filesystem. ``mission_type_activations`` mirrors every
+    # mission this fixture mints (``mission_type": "software-dev"`` above).
+    kittify_dir = repo_root / ".kittify"
+    kittify_dir.mkdir(parents=True, exist_ok=True)
+    (kittify_dir / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
+
     feature_dir = repo_root / "kitty-specs" / slug
     feature_dir.mkdir(parents=True)
     mission_id = _mission_id_for(slug)

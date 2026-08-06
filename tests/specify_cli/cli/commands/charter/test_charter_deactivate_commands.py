@@ -30,10 +30,18 @@ pytestmark = [pytest.mark.fast]
 
 @pytest.fixture()
 def project_root_with_directive(tmp_path: Path) -> Path:
-    """A project with activated_directives: [some-directive] in config.yaml."""
+    """A project with activated_directives: [some-directive] in config.yaml.
+
+    Also carries ``mission_type_activations`` (WP04, C-A1): the provisioned
+    charter is the sole mission-type activation authority, so
+    ``PackContext.from_config`` fails closed when the key is absent.
+    """
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
-    config_data = "activated_directives:\n  - some-directive\n"
+    config_data = (
+        "activated_directives:\n  - some-directive\n"
+        "mission_type_activations:\n  - software-dev\n"
+    )
     (kittify / "config.yaml").write_text(config_data, encoding="utf-8")
     return tmp_path
 

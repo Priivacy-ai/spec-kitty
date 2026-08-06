@@ -210,6 +210,17 @@ class TestCommitPlanChartersYamlSectionPreservation:
 
 # ---------------------------------------------------------------------------
 # CharterPackManager end-to-end against a migrated project
+#
+# NOTE: these tests build ``ProjectContext(repo_root=tmp_path)`` via the bare
+# dataclass constructor rather than ``ProjectContext.from_repo(tmp_path)``.
+# ``CharterPackManager.activate``/``deactivate``/``list_activated``/
+# ``merge_defaults`` only ever call ``ctx.require_repo_root()`` -- they never
+# touch ``ctx.pack_context`` -- whereas ``from_repo`` eagerly resolves
+# ``PackContext.from_config()``, which now hard-fails (WP04, C-A1) when
+# ``mission_type_activations`` is absent from ``_MIGRATED_CHARTER_YAML``
+# (an unrelated key to what these tests exercise). See
+# ``tests/charter/test_pack_manager.py``'s ``ctx`` fixture for the same
+# rationale spelled out in full.
 # ---------------------------------------------------------------------------
 
 
@@ -223,7 +234,7 @@ class TestActivateAgainstMigratedProject:
         self, manager: CharterPackManager, tmp_path: Path
     ) -> None:
         _migrated_project(tmp_path)
-        ctx = ProjectContext.from_repo(tmp_path)
+        ctx = ProjectContext(repo_root=tmp_path)
 
         manager.activate(
             ctx, kind="directive", artifact_id="010-specification-fidelity-requirement"
@@ -242,7 +253,7 @@ class TestActivateAgainstMigratedProject:
         self, manager: CharterPackManager, tmp_path: Path
     ) -> None:
         _migrated_project(tmp_path)
-        ctx = ProjectContext.from_repo(tmp_path)
+        ctx = ProjectContext(repo_root=tmp_path)
 
         manager.activate(
             ctx, kind="directive", artifact_id="010-specification-fidelity-requirement"
@@ -258,7 +269,7 @@ class TestDeactivateAgainstMigratedProject:
         self, manager: CharterPackManager, tmp_path: Path
     ) -> None:
         _migrated_project(tmp_path)
-        ctx = ProjectContext.from_repo(tmp_path)
+        ctx = ProjectContext(repo_root=tmp_path)
 
         result = manager.deactivate(
             ctx, kind="directive", artifact_id="001-architectural-integrity-standard"
@@ -275,7 +286,7 @@ class TestListActivatedAgainstMigratedProject:
         self, manager: CharterPackManager, tmp_path: Path
     ) -> None:
         _migrated_project(tmp_path)
-        ctx = ProjectContext.from_repo(tmp_path)
+        ctx = ProjectContext(repo_root=tmp_path)
 
         result = manager.list_activated(ctx)
 
@@ -287,7 +298,7 @@ class TestMergeDefaultsAgainstMigratedProject:
         self, manager: CharterPackManager, tmp_path: Path
     ) -> None:
         _migrated_project(tmp_path)
-        ctx = ProjectContext.from_repo(tmp_path)
+        ctx = ProjectContext(repo_root=tmp_path)
 
         result = manager.merge_defaults(ctx)
 

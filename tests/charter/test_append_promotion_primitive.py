@@ -199,7 +199,13 @@ def test_promote_into_absent_key_preserves_all_builtins_active(tmp_path: Path) -
     "built-ins" (d1, d2, d3) are dropped — the promoted id (d4) is *added*,
     not substituted.
     """
-    config_path = _write_config(tmp_path, "vcs:\n  type: git\n")
+    # ``mission_type_activations`` is preseeded here purely so the
+    # ``PackContext.from_config`` round-trip below doesn't hard-fail
+    # (WP04, C-A1) -- it is unrelated to the directive-promotion
+    # absent-key behavior this test pins.
+    config_path = _write_config(
+        tmp_path, "vcs:\n  type: git\nmission_type_activations:\n  - software-dev\n"
+    )
     data, yaml = _load(config_path)
     save = _save_with(yaml)
     builtin_directives = ["d1", "d2", "d3"]

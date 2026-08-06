@@ -144,6 +144,7 @@ class TestResolverHardFailPolicies:
 
     def test_known_type_resolves_bundle(self, tmp_path: Path) -> None:
         """A known, activated type resolves governance + action sequence (FR-004)."""
+        _write_config(tmp_path, ["software-dev"])
         bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
         assert bundle.mission_type == "software-dev"
         assert bundle.governance is not None
@@ -152,6 +153,7 @@ class TestResolverHardFailPolicies:
 
     def test_doctrine_slots_and_populated_step_contracts(self, tmp_path: Path) -> None:
         """Doctrine-backed slots expose the activated software-dev artifacts."""
+        _write_config(tmp_path, ["software-dev"])
         bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
         assert isinstance(bundle, ResolvedMissionType)
         # WP10: expected_artifacts is now populated from the doctrine gate tree.
@@ -174,6 +176,7 @@ class TestResolverHardFailPolicies:
 
 class TestResolverDeterminism:
     def test_two_resolutions_are_byte_identical(self, tmp_path: Path) -> None:
+        _write_config(tmp_path, ["software-dev"])
         first = resolve_mission_type_context(tmp_path, mission_type="software-dev")
         second = resolve_mission_type_context(tmp_path, mission_type="software-dev")
         assert first == second
@@ -183,6 +186,7 @@ class TestResolverDeterminism:
         assert list(first.template_set.items()) == list(second.template_set.items())
 
     def test_governance_selections_are_ordered_lists(self, tmp_path: Path) -> None:
+        _write_config(tmp_path, ["software-dev"])
         bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
         assert bundle.governance is not None
         for selection in (
@@ -224,6 +228,7 @@ class TestResolvedTemplateSet:
         ``spec``/``plan`` refs authored on ``research``'s ``scoping``/
         ``methodology`` steps, with per-type-unique ``template_file`` names
         (NFR-006)."""
+        _write_config(tmp_path, ["research"])
         bundle = resolve_mission_type_context(tmp_path, mission_type="research")
         assert dict(bundle.template_set or {}) == {
             "spec": "research-spec-template.md",
@@ -238,6 +243,7 @@ class TestResolvedTemplateSet:
         was removed from the now-deleted
         ``test_non_software_builtin_preserves_explicit_null`` parametrization
         once WP02 authored these refs."""
+        _write_config(tmp_path, ["documentation"])
         bundle = resolve_mission_type_context(tmp_path, mission_type="documentation")
         assert dict(bundle.template_set or {}) == {
             "spec": "documentation-spec-template.md",
@@ -251,6 +257,7 @@ class TestResolvedTemplateSet:
         per-type-unique ``template_file`` names (NFR-006). ``plan`` was removed
         from the now-deleted ``test_non_software_builtin_preserves_explicit_null``
         parametrization once WP04 authored these refs."""
+        _write_config(tmp_path, ["plan"])
         bundle = resolve_mission_type_context(tmp_path, mission_type="plan")
         assert dict(bundle.template_set or {}) == {
             "spec": "plan-spec-skeleton.md",
@@ -276,6 +283,7 @@ class TestResolvedTemplateSet:
         # slot's OWN MissionStepRepository.default() call.
         MissionTypeRepository.default()
 
+        _write_config(tmp_path, ["software-dev"])
         original_step_default = MissionStepRepository.default
         with patch.object(
             MissionStepRepository,
@@ -298,6 +306,7 @@ class TestResolvedTemplateSet:
         }
 
     def test_mapping_rejects_consumer_mutation(self, tmp_path: Path) -> None:
+        _write_config(tmp_path, ["software-dev"])
         bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
         template_set = bundle.template_set
         assert template_set is not None
@@ -314,6 +323,7 @@ class TestResolvedTemplateSet:
     def test_profile_string_override_cannot_author_artifact_mapping(
         self, tmp_path: Path
     ) -> None:
+        _write_config(tmp_path, ["software-dev"])
         _write_profile_template_override(tmp_path, "project-custom")
 
         bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
@@ -354,6 +364,7 @@ class TestResolvedTemplateSet:
     def test_action_sequence_hot_path_does_not_resolve_template_mapping(
         self, tmp_path: Path
     ) -> None:
+        _write_config(tmp_path, ["software-dev"])
         timings_ms: list[float] = []
         for _ in range(20):
             started = time.monotonic_ns()
@@ -412,6 +423,7 @@ class TestGovernanceThunkSeversCoupling:
         wholly separate slot (``_resolve_action_slot``) and MUST also resolve
         cleanly.
         """
+        _write_config(tmp_path, ["software-dev"])
         _write_colliding_override(tmp_path)
 
         bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
@@ -421,6 +433,7 @@ class TestGovernanceThunkSeversCoupling:
 
     def test_colliding_grain_raises_only_on_governance_access(self, tmp_path: Path) -> None:
         """``.governance`` — and only ``.governance`` — surfaces the FR-013 raise."""
+        _write_config(tmp_path, ["software-dev"])
         _write_colliding_override(tmp_path)
 
         bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
@@ -441,6 +454,7 @@ class TestGovernanceThunkSeversCoupling:
         never read the governance grain — a colliding override (which would
         blow up ``.governance``) leaves them untouched (C-001 regression pin).
         """
+        _write_config(tmp_path, ["software-dev"])
         _write_colliding_override(tmp_path)
 
         # existing_mission_types() reads only the activation set (PackContext),

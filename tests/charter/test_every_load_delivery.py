@@ -82,6 +82,12 @@ def project(tmp_path: Path) -> Path:
         ignore=shutil.ignore_patterns("context-state.json"),
     )
     shutil.copy(src / ".kittify" / "config.yaml", dst_kittify / "config.yaml")
+    # The checkout's own charter.yaml now carries the WP04 (C-A1)
+    # ``mission_type_activations`` provisioning key (emitted by the charter
+    # generation path — ``charter.compiler.provision_mission_type_activations``),
+    # so the COPY inherits it and ``PackContext.from_config`` resolves without a
+    # fixture-side append. ``software-dev`` — the grain every test in this
+    # module resolves — is one of the provisioned built-in mission types.
     subprocess.run(["git", "init", "--quiet", str(tmp_path)], check=False, capture_output=True)
     yield tmp_path
     try:

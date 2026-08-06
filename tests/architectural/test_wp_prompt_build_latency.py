@@ -132,6 +132,12 @@ def perf_project(tmp_path: Path) -> tuple[Path, Path, str]:
     charter_dir = repo_root / ".kittify" / "charter"
     charter_dir.mkdir(parents=True)
     (charter_dir / "charter.md").write_text(_CHARTER_MD, encoding="utf-8")
+    # WP04 fail-closed (C-A1): _build_wp_prompt resolves governance via
+    # resolve_mission_type_context for real, so software-dev (this fixture's
+    # WP01 mission type) must be activated for that resolution to succeed.
+    (repo_root / ".kittify" / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
     return repo_root, feature_dir, slug
 
 

@@ -242,15 +242,24 @@ def test_malformed_activation_value_in_charter_yaml_raises(tmp_path: Path) -> No
 # ---------------------------------------------------------------------------
 
 
-def test_no_config_yaml_at_all_still_returns_default_fallback(tmp_path: Path) -> None:
-    """No .kittify/config.yaml whatsoever -> default-pack fallback, exactly
-    as before the relocation (no pointer to resolve, nothing to fail on)."""
-    from doctrine.missions.mission_type_repository import builtin_mission_type_id_set
+def test_no_config_yaml_at_all_returns_empty_mission_types(tmp_path: Path) -> None:
+    """No .kittify/config.yaml whatsoever -> ``activated_mission_types`` is an
+    empty frozenset (construction is total; no raise).
 
+    Historically (pre-WP04) this scenario fell back to the built-in default
+    pack for ``activated_mission_types``; an intermediate WP04 iteration made
+    it a construction ``CharterPackConfigError``. The final WP04
+    re-architecture made construction TOTAL: an absent ``mission_type_
+    activations`` reads as ``frozenset()`` (never the all-four backfill,
+    never a raise), because ``PackContext`` sits on dozens of read / compose
+    hot paths that must not crash. The fail-closed for an empty set moved to
+    the mission-create boundary. The identical scenario is pinned by this
+    WP's own ``tests/charter/test_pack_context.py::
+    test_from_config_no_config_yaml_returns_empty_not_raise``.
+    """
     ctx = PackContext.from_config(tmp_path)
 
-    assert ctx.activated_mission_types == builtin_mission_type_id_set()
-    assert ctx.activated_directives is None
+    assert ctx.activated_mission_types == frozenset()
 
 
 def test_config_yaml_present_without_pointer_uses_legacy_read(tmp_path: Path) -> None:
@@ -260,6 +269,8 @@ def test_config_yaml_present_without_pointer_uses_legacy_read(tmp_path: Path) ->
     content = """\
 vcs:
   type: git
+mission_type_activations:
+  - software-dev
 activated_directives:
   - 099-legacy-only-directive
 """
@@ -342,6 +353,8 @@ def test_from_config_with_inline_charter_mapping_uses_legacy_read(
     content = """\
 vcs:
   type: git
+mission_type_activations:
+  - software-dev
 charter:
   synthesis_inputs:
     url_list:

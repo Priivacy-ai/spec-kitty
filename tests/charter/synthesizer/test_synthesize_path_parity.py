@@ -261,6 +261,16 @@ def _seed_minimal_interview(repo: Path) -> None:
         "  purpose: PROJECT_000-leak guard test fixture.\n",
         encoding="utf-8",
     )
+    # ``charter generate``/``synthesize`` both read ``PackContext.from_config``
+    # (WP04, C-A1: the provisioned charter is the sole activation authority
+    # for mission types) -- provision ``mission_type_activations`` on this
+    # fresh-seed project so the CLI invocations below don't hard-fail on a
+    # genuinely absent key that's unrelated to this test's own subject
+    # (the PROJECT_000 placeholder-leak guard).
+    kittify = repo / ".kittify"
+    (kittify / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
 
 
 def test_no_user_visible_placeholder_in_envelope(tmp_path: Path) -> None:

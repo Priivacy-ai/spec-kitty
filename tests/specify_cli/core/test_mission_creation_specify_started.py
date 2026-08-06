@@ -34,8 +34,16 @@ _CORE_MODULE = "specify_cli.core.mission_creation"
 
 
 def _init_repo(repo: Path) -> None:
-    (repo / ".kittify").mkdir(exist_ok=True)
+    kittify_dir = repo / ".kittify"
+    kittify_dir.mkdir(exist_ok=True)
     (repo / "kitty-specs").mkdir(exist_ok=True)
+    # WP04 fail-closed (C-A1): create_mission_core requires a non-empty
+    # activated mission-type set; software-dev is the only type resolved
+    # for real in this file (the documentation-typed test mocks
+    # resolve_mission_type_context directly).
+    (kittify_dir / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
     subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
     subprocess.run(
         ["git", "config", "user.email", "test@test.com"],

@@ -46,17 +46,27 @@ _GENERIC_AGENT_OWN_DIRECTIVES = frozenset({"DIRECTIVE_028"})
 
 
 def _init_wholly_empty_repo(tmp_path: Path) -> None:
-    """Git-init a repo with NO ``.kittify`` at all.
+    """Git-init a repo with NO charter, no interview transcript, no activations.
 
     This is the maximally-empty charter state (mirrors the "no config at
     all" fixture in ``tests/specify_cli/invocation/test_empty_charter_fallback.py``)
     -- every charter-activatable dimension of the WP02 composite predicate
-    is unconfigured.
+    is unconfigured. ``PackContext.from_config`` (WP04, C-A1) fail-closes when
+    ``mission_type_activations`` is absent from ``.kittify/config.yaml``, so a
+    minimal config carrying ONLY that key is provisioned here; this test's own
+    subject (directive-leak suppression) is unrelated to mission-type
+    activation, and no other activation key is written.
     """
     subprocess.run(
         ["git", "init", "--quiet", str(tmp_path)],
         check=False,
         capture_output=True,
+    )
+    config_dir = tmp_path / ".kittify"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    (config_dir / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n",
+        encoding="utf-8",
     )
 
 

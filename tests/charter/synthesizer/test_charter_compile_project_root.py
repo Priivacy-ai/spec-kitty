@@ -29,6 +29,26 @@ import pytest
 
 pytestmark = [pytest.mark.unit]
 
+
+def _write_min_config(repo_root: Path) -> None:
+    """Write a minimal ``.kittify/config.yaml`` with only
+    ``mission_type_activations`` set.
+
+    ``_default_doctrine_service``/``_build_doctrine_service`` (below) build
+    an activation-aware doctrine service via ``PackContext.from_config``,
+    which now hard-fails (WP04, C-A1) when ``mission_type_activations`` is
+    absent -- unrelated to the project-root candidate-resolution behavior
+    these tests pin. A wholly-missing ``.kittify/config.yaml`` is not itself
+    under test here (unlike ``TestResolveProjectRoot`` above, which calls
+    ``resolve_project_root`` directly and never touches ``PackContext``).
+    """
+    kittify = repo_root / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    (kittify / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
+
+
 class TestResolveProjectRoot:
     """Tests for the shared _doctrine_paths.resolve_project_root() helper."""
 
@@ -105,6 +125,7 @@ class TestDefaultDoctrineService:
         self, tmp_path: Path
     ) -> None:
         """Case R-2.1: No candidate directories → project_root is None (legacy)."""
+        _write_min_config(tmp_path)
         project_root = self._project_root_from_service(tmp_path)
         assert project_root is None
 
@@ -112,6 +133,7 @@ class TestDefaultDoctrineService:
         self, tmp_path: Path
     ) -> None:
         """Case R-2.2: .kittify/doctrine/ present → project_root points there."""
+        _write_min_config(tmp_path)
         kittify_doctrine = tmp_path / ".kittify" / "doctrine"
         kittify_doctrine.mkdir(parents=True)
         project_root = self._project_root_from_service(tmp_path)
@@ -121,6 +143,7 @@ class TestDefaultDoctrineService:
         self, tmp_path: Path
     ) -> None:
         """Case R-2.3: .kittify/doctrine/ present but empty → points there, no impact."""
+        _write_min_config(tmp_path)
         kittify_doctrine = tmp_path / ".kittify" / "doctrine"
         kittify_doctrine.mkdir(parents=True)
         # Leave the directory empty
@@ -138,6 +161,7 @@ class TestDefaultDoctrineService:
         self, tmp_path: Path
     ) -> None:
         """Legacy src/doctrine/ candidate resolves when .kittify/doctrine/ absent."""
+        _write_min_config(tmp_path)
         src_doctrine = tmp_path / "src" / "doctrine"
         src_doctrine.mkdir(parents=True)
         project_root = self._project_root_from_service(tmp_path)
@@ -145,6 +169,7 @@ class TestDefaultDoctrineService:
 
     def test_kittify_doctrine_outranks_src_doctrine(self, tmp_path: Path) -> None:
         """Phase 3 candidate beats legacy src/doctrine/ (priority ordering)."""
+        _write_min_config(tmp_path)
         kittify_doctrine = tmp_path / ".kittify" / "doctrine"
         kittify_doctrine.mkdir(parents=True)
         src_doctrine = tmp_path / "src" / "doctrine"
@@ -184,6 +209,7 @@ class TestContextDoctrineService:
         self, tmp_path: Path
     ) -> None:
         """Both compiler and context resolve the same project_root for the same repo."""
+        _write_min_config(tmp_path)
         kittify_doctrine = tmp_path / ".kittify" / "doctrine"
         kittify_doctrine.mkdir(parents=True)
 

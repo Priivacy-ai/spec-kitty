@@ -15,11 +15,11 @@ authority, per its own docstring — stops filtering by the activation set, this
 suite reds.
 
 Per ``data-model.md`` D4 / spec.md FR-006, ``PackContext.activated_mission_types``
-is a plain ``frozenset[str]``, never ``None`` — the "no selection authored"
-case is already collapsed to ``builtin_mission_type_id_set()`` at
-``PackContext`` construction time.  The gate this suite pins is therefore
-binary (filtered vs. not), not the three-state contract the other 9 kinds
-follow:
+is a plain ``frozenset[str]``, never ``None``. The WP04 re-architecture made
+``PackContext`` construction TOTAL: the "no selection authored" case collapses
+to ``frozenset()`` (empty), NOT the built-in roster and NOT a construction
+raise. The gate this suite pins is therefore binary (filtered vs. not), not the
+three-state contract the other 9 kinds follow:
 
 * T034 — the gate lives entirely in ``charter.mission_type_profiles``, and its
   authoritative implementation is ``existing_mission_types()``'s filtering
@@ -32,8 +32,16 @@ follow:
   by
   ``tests/charter/test_action_sequence_dispatch.py::TestExistingMissionTypes::test_returns_custom_type_when_activated``,
   which predates this WP and must not regress).
-* T035 — bare-project regression: set-equality against
-  ``builtin_mission_type_id_set()``, not a fakeable subset check.
+* T035 — bare-project regression, re-revised by the WP04 re-architecture: a
+  bare project (no ``.kittify/config.yaml`` at all, or one that omits
+  ``mission_type_activations``) now returns an **empty** set on the read /
+  gating path (``existing_mission_types``) WITHOUT raising -- construction is
+  total. The implicit config-absent "all four" backfill stays retired
+  (absent != all-four), and the actionable fail-closed for an empty set moved
+  to the mission-create / require boundary (``create_mission_core``). A typed
+  ``resolve_mission_type_context`` request against the empty set still
+  hard-fails via ``UnknownMissionTypeError`` (the use-boundary contract,
+  FR-003), never a construction ``CharterPackConfigError``.
 * T036 — subset-activation regression: a proper subset of activated types
   narrows the result to exactly that subset.
 
@@ -66,45 +74,50 @@ def _write_config(repo_root: Path, activations: list[str]) -> None:
 
 
 # ---------------------------------------------------------------------------
-# T035 — bare-project regression: set-equality (non-fakeable)
+# T035 — bare-project regression, re-revised by the WP04 re-architecture:
+# construction is TOTAL, so read / gating paths return EMPTY without raising.
+# The all-four builtin backfill stays retired (absent != all-four); the
+# fail-closed for an empty set moved to the mission-create / require boundary
+# (``create_mission_core``), NOT these read paths.
 # ---------------------------------------------------------------------------
 
 
-def test_bare_project_existing_mission_types_equals_builtin_catalog(tmp_path: Path) -> None:
-    """No ``.kittify/config.yaml`` at all → the full built-in catalog, by set-equality.
-
-    Set-equality (not ``<=`` / subset containment) so a silently dropped
-    built-in type would fail this test even though "at least the 4 known
-    ones resolve" would still pass a weaker subset check.
+def test_bare_project_existing_mission_types_returns_empty(tmp_path: Path) -> None:
+    """No ``.kittify/config.yaml`` at all → ``mission_type_activations`` is
+    genuinely absent → ``existing_mission_types()`` returns an EMPTY list
+    (read/gating path is total), NEVER the full built-in catalog and never a
+    raise (the fail-closed moved to the create boundary).
     """
-    result = set(existing_mission_types(tmp_path))
-    assert result == builtin_mission_type_id_set()
+    assert existing_mission_types(tmp_path) == []
 
 
-def test_bare_project_config_with_no_activation_key_equals_builtin_catalog(
+def test_bare_project_config_with_no_activation_key_returns_empty(
     tmp_path: Path,
 ) -> None:
     """A ``config.yaml`` that exists but omits ``mission_type_activations``
-    is the same bare-project default as no file at all."""
+    is the same genuinely-absent-key case as no file at all -- returns empty
+    on this read path, not the builtin-catalog default and not a raise."""
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
     (kittify / "config.yaml").write_text("activated_kinds:\n  - directives\n", encoding="utf-8")
 
-    result = set(existing_mission_types(tmp_path))
-    assert result == builtin_mission_type_id_set()
+    assert existing_mission_types(tmp_path) == []
 
 
-def test_bare_project_resolve_context_registered_ids_equals_builtin_catalog(
+def test_bare_project_resolve_context_hard_fails_on_unknown_type(
     tmp_path: Path,
 ) -> None:
-    """``resolve_mission_type_context`` surfaces the same full catalog through
-    ``UnknownMissionTypeError.registered_ids`` when asked for an unknown type —
-    proving the gate is live on the resolver's own hard-fail path, not just on
-    ``existing_mission_types`` in isolation."""
+    """``resolve_mission_type_context`` reads its registered set through
+    ``existing_mission_types()`` (FR-006/FR-018's single source of truth).
+    For a bare/unprovisioned project that set is empty, so requesting any
+    typed mission still hard-fails via ``UnknownMissionTypeError`` (FR-003) --
+    but this is the *use*-boundary hard-fail on an unregistered type, NOT a
+    construction ``CharterPackConfigError``. The empty ``registered_ids``
+    reported by the error is the fingerprint of the total read path."""
     with pytest.raises(UnknownMissionTypeError) as exc_info:
         resolve_mission_type_context(tmp_path, mission_type="not-a-real-mission-type")
 
-    assert set(exc_info.value.registered_ids) == builtin_mission_type_id_set()
+    assert exc_info.value.registered_ids == []
 
 
 # ---------------------------------------------------------------------------
