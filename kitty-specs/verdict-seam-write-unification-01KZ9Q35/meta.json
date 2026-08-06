@@ -1,0 +1,18 @@
+{
+  "baseline_merge_commit": "63ab0b8eee7b9acbb5365b7c2b63489530df3076",
+  "created_at": "2026-08-05T19:41:04.522065+00:00",
+  "flattened": true,
+  "friendly_name": "Verdict-Seam Write-Side Unification",
+  "mission_id": "01KZ9Q35M9Q2Y6QAP7ZF87PQ9Q",
+  "mission_number": 191,
+  "mission_slug": "verdict-seam-write-unification-01KZ9Q35",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "PR #3211 left the review-cycle verdict seam a dual-store: the read side follows the coordination partition while the write side is still pinned to the primary partition, so ~16 frontmatter readers survive as a fallback and the two ends of a review decision can consult different surfaces. This mission completes the write-side unification, collapses the dual-store to a single event authority, extends single-authority to the dashboard readers, and greens the carry-red gate-artifact and concurrency defects that are symptoms of the split.",
+  "purpose_tldr": "Give a work package's review verdict exactly one authority — the event log — by flipping the review-cycle write seam to the coordination partition, retiring the frontmatter read-path, and binding every reader to the reducer snapshot.",
+  "slug": "verdict-seam-write-unification-01KZ9Q35",
+  "status_phase": "1",
+  "target_branch": "feat/verdict-seam-write-unification",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-05T21:40:28.695201+00:00"
+}
