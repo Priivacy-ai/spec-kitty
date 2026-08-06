@@ -152,6 +152,31 @@ class LocalTrackerService:
 
         return cast(dict[str, Any], self._run_async(_run()))
 
+    def sync_publish(self, **_kwargs: Any) -> dict[str, Any]:
+        """Refuse publish on a local binding, with an error the CLI catches.
+
+        ``TrackerService.sync_publish`` delegates unconditionally to whichever
+        backend is resolved, and ``_check_sync_readiness`` short-circuits for
+        local bindings — so before this method existed the call landed on a
+        missing attribute and surfaced as an uncaught ``AttributeError``
+        traceback (#3168).
+
+        The raised type is ``TrackerServiceError`` and not the sibling
+        ``LocalTrackerServiceError`` because the CLI catches only the former;
+        ``LocalTrackerServiceError`` would reach the operator as a traceback
+        just as the ``AttributeError`` did. Imported inside the function to
+        match this module's established direction — ``service`` imports this
+        module lazily, so a module-level import back would invert that.
+        """
+        from specify_cli.tracker.service import TrackerServiceError
+
+        raise TrackerServiceError(
+            "`tracker sync publish` is not available on a local "
+            f"'{self._config.provider or 'local'}' binding. Local (beads/fp) bindings sync "
+            "directly against the connector; publishing is a hosted-tracker operation. "
+            "Use `spec-kitty tracker sync run` to pull and push against the local connector."
+        )
+
     # ------------------------------------------------------------------
     # mapping operations
     # ------------------------------------------------------------------
