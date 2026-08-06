@@ -170,13 +170,28 @@ def merge_driver_event_log(
 
 
 def _load_json_object(path: Path) -> dict[str, Any]:
-    """Load a JSON object from *path*; empty/missing yields ``{}``."""
+    """Load a JSON object from *path*; empty/missing yields ``{}``.
+
+    The missing and blank tolerances are pinned behaviour and are UNCHANGED
+    (``tests/merge/test_merge_driver_wrappers_2709.py``). A JSON *syntax* error
+    is translated to :class:`EventLogMergeError` naming ``meta.json`` and the
+    path, in the same style as the non-object message below, rather than
+    letting a bare :class:`json.JSONDecodeError` escape (FR-005). Exit-code
+    behaviour is unchanged either way: ``merge_driver_meta``'s handler catches
+    BOTH ``json.JSONDecodeError`` and ``EventLogMergeError``, echoes
+    ``str(exc)`` to stderr and raises ``typer.Exit(1)``.
+    """
     if not path.exists():
         return {}
     text = path.read_text(encoding="utf-8").strip()
     if not text:
         return {}
-    data = json.loads(text)
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise EventLogMergeError(
+            f"{path}: meta.json could not be decoded ({exc})"
+        ) from exc
     if not isinstance(data, dict):
         raise EventLogMergeError(f"{path}: meta.json is not a JSON object")
     return data

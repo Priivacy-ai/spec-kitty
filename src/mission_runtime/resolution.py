@@ -502,20 +502,26 @@ def _mid8_from_primary_meta(repo_root: Path, mission_slug: str) -> str:
     tested primitive (``test_mid8_direct_routing.py``,
     ``test_read_path_resolver_validation.py``); collapsing it is a separate tidy.
     """
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
     from specify_cli.coordination.surface_resolver import resolve_declared_mid8
-    from specify_cli.mission_metadata import load_meta
     from specify_cli.missions._read_path_resolver import (
         _canonicalize_primary_read_handle,
         _compose_primary_feature_dir,
     )
 
-    # FR-006: canonical reader contract (a) — None on a missing file, ValueError on
-    # malformed; the ``except ValueError`` below reproduces the historical
-    # malformed→"" degrade. Defaults are stated explicitly to document the chosen arm.
-    # That ``except`` is BROADER than the reader contract alone: it also swallows
+    # FR-002/#3162: routed onto the ONE public fail-closed reader
+    # (``core.paths.load_meta_fail_closed``) — None on a missing file,
+    # ``MissionMetaReadError`` on malformed. The ``except`` below reproduces the
+    # historical malformed→"" degrade unchanged (NFR-003), which is why it names
+    # ``MissionMetaReadError`` explicitly: that class is a ``RuntimeError``
+    # subclass (``core/paths.py:506``) and is deliberately NOT a ``ValueError``,
+    # so a ``ValueError``-only arm would convert this silent fallback into a crash.
+    # The ``except`` is BROADER than the reader contract alone: it also swallows
     # the path-traversal-guard ``ValueError`` (``assert_safe_path_segment``) raised
     # inside ``_compose_primary_feature_dir`` below, degrading an unsafe segment to
-    # ``""`` the same way a malformed meta.json does. ``MissionSelectorAmbiguous``
+    # ``""`` the same way a malformed meta.json does. That is why the arm is a
+    # TUPLE and must never be narrowed to ``MissionMetaReadError`` alone (SC-007).
+    # ``MissionSelectorAmbiguous``
     # (raised by ``_canonicalize_primary_read_handle``) is NOT a ``ValueError`` and
     # correctly still propagates uncaught.
     # WP05/FR-005: extract to local so the canonicalized handle feeds load_meta.
@@ -528,12 +534,15 @@ def _mid8_from_primary_meta(repo_root: Path, mission_slug: str) -> str:
             repo_root,
             _canonicalize_primary_read_handle(repo_root, mission_slug),
         )
-        meta = load_meta(
-            primary_dir,
-            allow_missing=True,
-            on_malformed="raise",
-        )
-    except ValueError:
+        meta = load_meta_fail_closed(primary_dir)
+    # The TUPLE is mandatory (SC-007). ``ValueError`` is NOT vestigial here: the
+    # path-traversal guard ``assert_safe_path_segment`` (``core/paths.py:40``,
+    # reached via ``_read_path_resolver.py:1307``) raises a real ``ValueError``
+    # from ``_compose_primary_feature_dir`` INSIDE this ``try``, and SC-007
+    # requires that keep degrading to ``""``. Narrowing to
+    # ``MissionMetaReadError`` alone would delete that behaviour while still
+    # passing a ``pytest.raises(ValueError)``-shaped test — the documented cheat.
+    except (ValueError, MissionMetaReadError):
         return ""
     if not meta:
         return ""
@@ -843,7 +852,7 @@ def _resolve_coordination_branch(
     ``finalize-tasks`` uses for its merge-target read), restoring a CWD-invariant
     placement with NO second destination authority.
     """
-    from specify_cli.mission_metadata import load_meta
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
     from specify_cli.missions._read_path_resolver import (
         _canonicalize_primary_read_handle,
         _compose_primary_feature_dir,
@@ -868,13 +877,21 @@ def _resolve_coordination_branch(
         primary_root,
         _canonicalize_primary_read_handle(primary_root, mission_slug, resolver=resolver),
     )
-    # FR-006: canonical reader contract (a) — None on missing, ValueError on
-    # malformed (defaults stated explicitly to document the chosen arm).
+    # FR-002/#3162: routed onto the ONE public fail-closed reader
+    # (``core.paths.load_meta_fail_closed``) — None on missing,
+    # ``MissionMetaReadError`` on malformed. The ``try`` holds ONLY the read, so
+    # the arm below is exact: ``_compose_primary_feature_dir`` sits outside it
+    # (above, :845-848). ``MissionMetaReadError`` is a ``RuntimeError`` subclass
+    # (``core/paths.py:506``), NOT a ``ValueError``, so the arm must name it or
+    # this silent fallback becomes a crash (NFR-003).
     try:
-        meta = load_meta(primary_dir, allow_missing=True, on_malformed="raise")
-    except ValueError:
+        meta = load_meta_fail_closed(primary_dir)
+    except MissionMetaReadError:
         # Malformed meta: treat coordination topology as undeclared. Downstream
         # surface resolution reports the same condition consistently.
+        # Narrow catch is EXACT here: the ``try`` holds only the read, so no
+        # traversal ``ValueError`` can arrive (``_compose_primary_feature_dir``
+        # is above, outside the ``try``).
         return None
     if not meta:
         return None
@@ -1104,7 +1121,7 @@ def _resolve_mission_id(
     regression test in ``tests/mission_runtime/test_builder_fs_free_identity.py``
     pins (T014).
     """
-    from specify_cli.mission_metadata import load_meta
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
     from specify_cli.missions._read_path_resolver import (
         _canonicalize_primary_read_handle,
         _compose_primary_feature_dir,
@@ -1123,11 +1140,20 @@ def _resolve_mission_id(
         primary_root,
         _canonicalize_primary_read_handle(primary_root, mission_slug, resolver=resolver),
     )
-    # FR-006: canonical reader contract (a) — None on missing, ValueError on
-    # malformed; the malformed arm degrades to the ``legacy-`` sentinel below.
+    # FR-002/#3162: routed onto the ONE public fail-closed reader
+    # (``core.paths.load_meta_fail_closed``) — None on missing,
+    # ``MissionMetaReadError`` on malformed; the malformed arm degrades to the
+    # ``legacy-`` sentinel below. The ``try`` holds ONLY the read, so the arm is
+    # exact: ``_compose_primary_feature_dir`` sits outside it (above, :1100-1103).
+    # ``MissionMetaReadError`` is a ``RuntimeError`` subclass (``core/paths.py:506``),
+    # NOT a ``ValueError``, so the arm must name it or this silent fallback
+    # becomes a crash (NFR-003).
     try:
-        meta = load_meta(primary_dir, allow_missing=True, on_malformed="raise")
-    except ValueError:
+        meta = load_meta_fail_closed(primary_dir)
+    # Narrow catch is EXACT here: the ``try`` holds only the read, so no
+    # traversal ``ValueError`` can arrive (``_compose_primary_feature_dir`` is
+    # above, outside the ``try``).
+    except MissionMetaReadError:
         meta = None
     if meta:
         raw_mission_id = meta.get("mission_id")

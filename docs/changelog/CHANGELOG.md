@@ -1323,6 +1323,71 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   automatically on `spec-kitty upgrade`, does nothing on a project that never
   had the entry, and is safe to run more than once. If you deliberately want
   RTK guidance, keep it in your own org doctrine pack.
+- **A corrupt `meta.json` now raises `MissionMetaReadError` — a `RuntimeError`
+  subclass — from 13 read sites that used to raise a bare `ValueError` (mission
+  `meta-fail-closed-3162`; `#3162`).** Those 13 call sites (12 distinct reader
+  functions; `missions/_read_path_resolver.read_primary_meta` holds two of them)
+  read the mission's `meta.json` through `mission_metadata.load_meta` on the
+  signature default `on_malformed="raise"`, so an unparseable file surfaced as a
+  bare `ValueError` with nothing naming the file. They are now routed onto the
+  single fail-closed reader `specify_cli.core.paths.load_meta_fail_closed`
+  (`src/specify_cli/core/paths.py:638`), which returns `None` when the file is
+  **absent** and raises `MissionMetaReadError`
+  (`src/specify_cli/core/paths.py:506`) when it exists but cannot be read. The
+  routed sites are `mission_runtime.resolution`'s `_mid8_from_primary_meta` /
+  `_resolve_coordination_branch` / `_resolve_mission_id`,
+  `runtime.next._internal_runtime.planner._resolve_workflow_for_mission`,
+  `runtime.next.runtime_bridge_io._workflow_runtime_template`,
+  `specify_cli.bulk_edit.gate`'s `_is_bulk_edit_mission` /
+  `ensure_occurrence_classification_ready`,
+  `specify_cli.context.resolver._read_meta_json`,
+  `specify_cli.decisions.service._resolve_mission_id`,
+  `specify_cli.missions._read_path_resolver.read_primary_meta` (×2),
+  `specify_cli.missions._resolve_planning_branch.load_mission_target_branch`,
+  and `specify_cli.upgrade.feature_meta.load_feature_meta`.
+
+  **Why this is breaking, and what to check in your own code.**
+  `MissionMetaReadError`'s MRO is `MissionMetaReadError -> RuntimeError ->
+  Exception` — there is **no `ValueError` and no `OSError` on it**. Any
+  `except (ValueError, OSError)` wrapped around one of these reads therefore
+  stops absorbing corruption and becomes a raising path. Ten such handlers
+  inside this repository were widened as part of the change, in three groups:
+  two file-local ones at the routed sites themselves
+  (`coordination/surface_resolver.py`, `missions/_read_path_resolver.py`); four
+  **stranded** arms several call hops away on the
+  `_find_feature_directory -> resolve_handle_to_read_path -> read_primary_meta`
+  chain, each widened to `(MissionMetaReadError, ValueError,
+  ActionContextError)` so the agent-facing JSON keeps its `error_code` /
+  `mission_flag` / `available_missions` fields
+  (`cli/commands/agent/mission_setup_plan.py`, `mission_record_analysis.py`,
+  `mission_finalize.py`, `mission_check_prerequisites.py`); and four
+  **degrade-site** handlers whose documented "fall back to a default" behaviour
+  had to be preserved (`mission_runtime/resolution.py` ×3,
+  `upgrade/feature_meta.py`). `resolution.py`'s `_mid8_from_primary_meta` keeps
+  `ValueError` in its tuple deliberately — the same `try` also wraps
+  `assert_safe_path_segment`, whose path-traversal `ValueError` must keep
+  degrading. Externally observable behaviour at the degrade sites is unchanged;
+  what changed is the exception type an out-of-tree caller must catch.
+
+  A durable instrument ships with the change for exactly this class:
+  `scripts/sweep_degrade_arms_on_routed_chain_3162.py` propagates the typed
+  error outward from a routed seed and reports the first guarding frame on each
+  path, so a newly-stranded arm is findable rather than latent. It is run by
+  `tests/architectural/test_sweep_degrade_arms_instrument.py` in CI, with
+  synthetic positive and negative controls plus its own recorded
+  known-answer replay (`--self-check`).
+
+  **Gate floors.** Both floors in
+  `tests/architectural/test_inline_meta_read_gate.py` were re-derived on the
+  finished tree; one moved. `ROUTED_LOAD_META_FLOOR` goes **126 → 127** against
+  a live routed census of 130 and `ROUTED_LOAD_META_FLOOR_MARGIN = 4`, giving
+  the two-sided admissible band `[128, 131]` — the middle assertion is strict,
+  so **127 is RED**, and a fold that collapses two routed calls into one reds
+  the gate downward. `INLINE_META_READ_FLOOR` was re-derived and **held at 7**
+  (live 7, `FLOOR_MARGIN = 2`, gap 0) after the inline-read gate's predicate was
+  widened by one call hop. Regenerate neither by hand: run
+  `scripts/verify_meta_routing_manifest_3162.py`, which prints the live counts,
+  the constants it read off the gate, and the band that follows from them.
 
 ## [3.2.5] - 2026-07-08
 

@@ -61,6 +61,14 @@ _REPO_ROOT = _THIS.parents[2]
 SRC_ROOT = _REPO_ROOT / "src"
 ALLOWLIST_PATH = _THIS.parent / "inline_meta_read_allowlist.yaml"
 
+# SC-005 / NFR-004 control fixtures. They live under ``tests/architectural/_fixtures/``
+# and NOT under ``src/`` on purpose: ``scan_inline_meta_reads`` walks ``SRC_ROOT``, so
+# the positive twin's fully-inlined read placed there would raise the live inline census
+# and red ``test_inline_meta_read_floor`` — the floor the control exists to prove.
+FIXTURES_DIR = _THIS.parent / "_fixtures"
+UNREACHABILITY_CONTROL_REL = "tests/architectural/_fixtures/unreachability_control.py"
+UNREACHABILITY_TWIN_REL = "tests/architectural/_fixtures/unreachability_control_twin.py"
+
 # Per contract: the canonical reader's own internals, and the task_utils
 # path-signature adapter, are excluded from the INLINE-READ scan.
 EXCLUDED_REL_PATHS: frozenset[str] = frozenset(
@@ -99,9 +107,25 @@ META_PATH_VAR_NAMES: frozenset[str] = frozenset(
 # canonical parser) directly. Every call site that moved onto ``_require_meta``/
 # ``_load_meta_fail_closed`` still reaches ``load_meta``; it lost census credit
 # only because the scanner matches callee *names*, not the transitive call
-# graph. Adding the two names here is the fix this gate's structure supports —
-# it does no call-graph resolution, so a full transitive walk would be a larger
-# structural change than this landing fold warrants.
+# graph. Adding the two names here is the fix this gate's structure supports.
+#
+# AMENDED by mission ``meta-fail-closed-3162-01KZ7FSQ`` / WP06 (FR-006). This
+# paragraph used to end "it does no call-graph resolution, so a full transitive walk
+# would be a larger structural change than this landing fold warrants", and that
+# became false. Two things are now true, and they are different:
+#
+# * The ROUTED census above still does **no** call-graph resolution at all. It
+#   matches callee names, which is why delegating wrappers must be enrolled in
+#   :data:`ROUTED_CALLEES` by hand.
+# * The INLINE scanner now carries **one** bounded intra-module hop
+#   (:data:`_MAX_PARSE_HELPER_HOPS` == 1): from a ``json.loads`` whose argument is the
+#   unbound parameter of a private, module-level, single-parameter function, to that
+#   function's call sites **in the same file**. It does not recurse, does not cross a
+#   module boundary, and does not build a call graph.
+#
+# A full transitive walk remains **out of scope** — it is a larger structural change
+# than this gate's shape warrants, and the ``git show``/``show_blob``-fed reads it
+# would still not reach need a different detector entirely (FR-007 deferral).
 ROUTED_CALLEES: frozenset[str] = frozenset(
     {
         "load_meta",
@@ -124,6 +148,25 @@ ROUTED_CALLEES: frozenset[str] = frozenset(
 # tolerate legacy/malformed meta.json shapes the canonical reader would reject,
 # plus 2 ``src/charter/`` sites that would otherwise introduce a cross-package
 # dependency on ``specify_cli.mission_metadata`` (Shared Package Boundary ADR).
+#
+# RE-DERIVED and CONFIRMED 7 by mission ``meta-fail-closed-3162-01KZ7FSQ`` / WP06
+# (FR-008), in the same commit as the scanner widening it is coupled to. Measured on
+# this tree over 1 199 ``*.py`` files under ``src/``: live inline == 7. Two changes
+# landed together and neither moved it. (a) The ``read_bytes`` arm of
+# :func:`_extract_read_base` matches 0 additional sites here. (b) The one-hop
+# parse-helper anchor (:data:`_MAX_PARSE_HELPER_HOPS`) was built to reach
+# ``specify_cli.git.ref_advance._meta_change_is_vcs_lock_only``'s delegated parse —
+# but WP05 had already ROUTED that site onto ``core.paths.load_meta_fail_closed``, so
+# the widened scanner finds nothing there to flag and the census holds at 7 rather
+# than rising to 8. Measured directly: the SAME widened predicate over the
+# pre-WP05 measurement baseline ``96494e5ec`` reports 8, naming
+# ``ref_advance.py:247 (_meta_change_is_vcs_lock_only)`` as the 8th. This is the
+# CEILING ratchet's intended reading: the widening proved the shape is now reachable,
+# and the routing means there is nothing left in it. NO allow-list entry was written
+# and ``inline_meta_read_baseline`` stays 7 (FR-007): the remaining bypass shapes are
+# ``git show``/``show_blob``-fed and are invisible to the scanner, so an entry for one
+# would be stale on arrival at ANY baseline and red under
+# :func:`test_allowlist_entries_are_still_live`.
 INLINE_META_READ_FLOOR = 7
 
 # This is a CEILING-type ratchet (fewer inline reads is progress, unlike the
@@ -131,6 +174,13 @@ INLINE_META_READ_FLOOR = 7
 # direction: the floor may not be pinned more than MARGIN calls ABOVE the live
 # count (which would mask a future regression that grows the count back toward
 # it). At INLINE_META_READ_FLOOR == live == 7 today, the gap is 0.
+#
+# RE-DERIVED against the same measured live count by WP06 (FR-008), and left at 2:
+# gap == INLINE_META_READ_FLOOR - live == 7 - 7 == 0, which is admissible under any
+# non-negative margin, so the measurement constrains the margin from below at 0 and
+# does not force a value. 2 is kept as the standing headroom rather than tightened to
+# 0, because a 0 margin would convert every legitimate one-site drain into a required
+# same-commit floor edit. The gap is the number that must stay small, and it is 0.
 FLOOR_MARGIN = 2
 
 # WP16 SC-004-equivalent anti-mass-allow-list guard: the number of call sites
@@ -227,8 +277,53 @@ FLOOR_MARGIN = 2
 # established 3-below-live gap (mechanic 2) against the corrected 131,
 # strictly satisfying the anti-vacuity check (same convention as the two
 # prior entries above).
+# RAISED 126 -> 127 on 2026-08-06 by mission ``meta-fail-closed-3162-01KZ7FSQ`` /
+# WP06 (FR-008), applying the SAME rule as the 2026-08-04 entry above — restore the
+# established 3-below-live gap — to a freshly MEASURED live count, not to a copied
+# number. WP05 spent this mission's single allocated net routed call, routing
+# ``specify_cli.git.ref_advance._meta_change_is_vcs_lock_only`` (``ref_advance.py:260``)
+# onto ``specify_cli.core.paths.load_meta_fail_closed`` (the call at
+# ``ref_advance.py:299``), which took live routed 129 -> 130. Measured on this tree
+# over 1 199 ``*.py`` files under ``src/`` via
+# ``PYTHONPATH=<tree>/src .venv/bin/python scripts/verify_meta_routing_manifest_3162.py``:
+# live == 130. Arithmetic: 130 - 3 = 127. Resulting band ``[FLOOR+1, FLOOR+MARGIN]``
+# == ``[128, 131]``. Three clauses of :func:`test_routed_load_meta_floor` at the new
+# floor: 130 >= 127; 130 > 127 (STRICT — the anti-vacuity clause, and the reason the
+# bound is two-sided rather than a one-way ratchet, so a FOLD that collapses two
+# routed calls into one reds this gate from BELOW); 130 - 127 == 3 <= 4.
+#
+# WHY THIS MOVED AT ALL, since the gate was green without it: at live 130 with the
+# old floor 126 and margin 4, all three clauses still passed (130 >= 126; 130 > 126;
+# 130 - 126 == 4 <= 4) — the gap had merely drifted out to exactly the margin, one
+# routed call away from a false red. A floor left at 126 is a floor that was never
+# re-derived; leaving it there is indistinguishable, from the outside, from skipping
+# the measurement. The recurring failure this gate has logged three times above is
+# precisely a floor that stopped tracking its live count.
+# RE-DERIVED 126 -> 131 on 2026-08-06 when mission ``meta-fail-closed-3162-01KZ7FSQ``
+# rebased onto ``upstream/main`` d0ed802cc. BOTH provenance entries above are retained
+# because both are true of their own tree, and NEITHER floor is correct here:
+#
+#   * PR #3211 measured live 131 on ITS tree and set floor 128.
+#   * WP06 measured live 130 on the mission's pre-rebase tree and set floor 127.
+#
+# The two trees routed LARGELY DISJOINT site sets — upstream's ``resolution.py`` carried
+# 0 ``load_meta_fail_closed(`` calls where the mission's carried 3, yet upstream's total
+# (133) exceeded the mission's (130) — so the merged count is neither number. Measured on
+# the merged tree with the gate's own scanner, the imported ``specify_cli.__file__``
+# printed as the control: live == **134**, which is upstream's 133 plus the mission's
+# single allocated net routed call (WP05's ``ref_advance._meta_change_is_vcs_lock_only``).
+# Arithmetic, same 3-below-live rule as every entry above: 134 - 3 = 131. Band
+# ``[FLOOR+1, FLOOR+MARGIN]`` == ``[132, 135]``. Three clauses at the new floor:
+# 134 >= 131; 134 > 131 (STRICT anti-vacuity, so a FOLD reds this gate from BELOW);
+# 134 - 131 == 3 <= 4.
+#
+# NOTE ON WHY THIS IS A FIX, NOT A BUMP: ``upstream/main`` d0ed802cc was measured RED on
+# this very gate before the rebase — live 133 against floor 128 fails
+# ``(133 - 128) <= 4``. Routing landed upstream without the floor being re-derived. This
+# re-derivation clears that red as a side effect; it is a contract crossing re-pinned with
+# its measurement, not a ceiling raised to make a test pass.
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
-ROUTED_LOAD_META_FLOOR = 128
+ROUTED_LOAD_META_FLOOR = 131
 
 
 # --------------------------------------------------------------------------- #
@@ -514,12 +609,27 @@ def _binding_candidate(node: ast.AST) -> tuple[ast.expr | None, list[ast.expr]]:
     return None, []
 
 
+# The bound-method read calls whose receiver IS the path expression.
+# ``read_bytes`` joined ``read_text``/``open`` in mission
+# ``meta-fail-closed-3162-01KZ7FSQ`` / WP06 (FR-006): ``json.loads`` accepts
+# ``bytes`` as readily as ``str``, so ``json.loads(meta_path.read_bytes())`` was a
+# bypass of exactly the same class as the ``read_text`` form the gate already caught.
+# It adds 0 sites over ``src/`` on the tree where it landed, which is why its
+# falsifiable control is the runtime-generated 1 -> 2 pair in
+# ``test_read_bytes_scan_level_pin_moves_one_to_two`` rather than a live-census move.
+_READ_METHOD_NAMES: frozenset[str] = frozenset({"read_text", "read_bytes", "open"})
+
+
 def _extract_read_base(expr: ast.expr) -> ast.expr | None:
-    """Return the path expression a read call (``.read_text()``/``.open()``/``open()``) reads from."""
+    """Return the path expression a read call reads from.
+
+    Recognises ``X.read_text(...)``, ``X.read_bytes(...)``, ``X.open(...)`` and the
+    builtin ``open(X, ...)``.
+    """
     if not isinstance(expr, ast.Call):
         return None
     func = expr.func
-    if isinstance(func, ast.Attribute) and func.attr in ("read_text", "open"):
+    if isinstance(func, ast.Attribute) and func.attr in _READ_METHOD_NAMES:
         return func.value
     if isinstance(func, ast.Name) and func.id == "open" and expr.args:
         return expr.args[0]
@@ -584,6 +694,100 @@ def is_meta_path_expr(
     return _is_meta_json_join(expr)
 
 
+# --------------------------------------------------------------------------- #
+# WP06 (FR-006) — the private same-module parse-helper anchor hop.
+#
+# EXACTLY ONE HOP, and the bound is enforced in code below, not merely described:
+# from a ``json.loads``/``json.load`` whose sole argument is the UNBOUND parameter of
+# a PRIVATE (``_``-prefixed), MODULE-LEVEL, SINGLE-PARAMETER function in the SAME
+# file, to that function's call sites in that same file — where clauses 2 and 3 are
+# then applied to the passed argument. A call site whose own argument is itself such
+# a parameter is NOT followed further; the hop never recurses and never leaves the
+# module. Research control ``C2b`` measured this shape at 0 sites before the hop
+# existed: splitting a read and its parse across a helper hid the read, because
+# ``json.loads``' argument was a parameter and ``_follow_assignment_chain`` is
+# intra-function.
+#
+# The reported site is the CALL SITE, never the helper's ``json.loads`` line —
+# allow-list keys are ``(file, qualname, token)``, so anchoring on the helper would
+# point every such entry at the wrong function.
+#
+# ATTRIBUTION — which clause actually holds false positives at zero. Measured on the
+# pre-WP05 baseline ``96494e5ec`` (1 199 ``*.py`` files under ``src/``, exclusions
+# applied), because that is the only tree where this hop still has something to accept.
+# Two populations, stated separately because they are not interchangeable and a bare
+# "candidates" count is ambiguous between them:
+#
+#   (a) call sites REACHED BY THIS HOP: 9 candidates (5 helper hops fired)
+#       -> 6 rejected at clause 2, 2 rejected at clause 3, 1 ACCEPTED, namely
+#          ``ref_advance.py:247 (_meta_change_is_vcs_lock_only)``. 9 == 6+2+1.
+#       On branch head the same probe reads 8 -> 6 / 2 / 0: WP05 routed the one.
+#   (b) the WHOLE ``json.loads``/``json.load`` population under the direct predicate:
+#       150 candidates -> 92 at clause 2, 51 at clause 3, 7 accepted. 150 == 92+51+7.
+#
+# **Clause 2 is the load-bearing guard under both populations** (6 of 8 rejections in
+# (a); 92 of 143 in (b)), and 0 false positives were produced over ``src/``. The
+# consequence is the point, not the arithmetic: widening clause 2 further would unlock
+# the bulk of these candidates with proportionally little clause-3 protection behind
+# it, so it is the clause to leave alone.
+#
+# TWO EARLIER FIGURES ARE REFUTED, and the second one was carried in this mission's own
+# WP06 prompt: "31 candidates, 30 rejected at clause 3" reproduces under no definition,
+# and neither does "19 candidates -> 17 at clause 2 -> exactly 1 at clause 3". Under (a)
+# clause 3 rejects **2**, not 1; under (b) it rejects **51**. Any restatement of "clause
+# 3 rejects exactly one" is wrong. Cite population (a) or (b) explicitly or not at all.
+_MAX_PARSE_HELPER_HOPS = 1
+
+
+def _sole_parameter_name(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> str | None:
+    """Return *fn*'s one parameter name when *fn* is private and single-parameter.
+
+    ``None`` for a public name, for any arity other than exactly one positional
+    parameter, and for ``*args``/``**kwargs``/positional-only/keyword-only shapes.
+    """
+    if not fn.name.startswith("_"):
+        return None
+    args = fn.args
+    if args.vararg is not None or args.kwarg is not None:
+        return None
+    if args.posonlyargs or args.kwonlyargs or len(args.args) != 1:
+        return None
+    return args.args[0].arg
+
+
+def _unbound_helper_parameter(
+    arg: ast.expr, fn: ast.FunctionDef | ast.AsyncFunctionDef | None, parents: dict[int, ast.AST]
+) -> str | None:
+    """Return *fn*'s sole parameter name when *arg* is exactly that, still unbound.
+
+    ``None`` unless every bound holds: *fn* is a module-level ``def`` (not nested, not
+    a method), private, single-parameter; *arg* is a bare ``Name`` naming that
+    parameter; and the parameter is never rebound in *fn*'s body (a rebinding means
+    something other than the caller's argument reaches the parse).
+    """
+    if fn is None or not isinstance(arg, ast.Name):
+        return None
+    if not isinstance(parents.get(id(fn)), ast.Module):
+        return None
+    param = _sole_parameter_name(fn)
+    if param is None or arg.id != param:
+        return None
+    if _assigned_value(fn, param) is not None:
+        return None
+    return param
+
+
+def _same_module_call_sites(
+    tree: ast.Module, parents: dict[int, ast.AST], helper_name: str
+) -> list[tuple[ast.Call, ast.FunctionDef | ast.AsyncFunctionDef | None]]:
+    """Return ``(call, enclosing_fn)`` for every same-module call of *helper_name* with args."""
+    return [
+        (node, _enclosing_function(parents, node))
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and node.args and _callee_name(node) == helper_name
+    ]
+
+
 @dataclass(frozen=True)
 class InlineMetaReadSite:
     """One discovered inline ``json.loads``/``json.load`` read of a meta.json path.
@@ -611,6 +815,37 @@ def scan_inline_meta_reads(src_root: Path) -> list[InlineMetaReadSite]:
     return sites
 
 
+def _reads_meta_path(
+    arg: ast.expr, fn: ast.FunctionDef | ast.AsyncFunctionDef | None
+) -> bool:
+    """Clauses 2 and 3 together: *arg* resolves to a read of a meta.json path."""
+    base = _read_source_base(arg, fn)
+    return base is not None and is_meta_path_expr(base, fn)
+
+
+def _site_at(
+    node: ast.Call, rel: str, parents: dict[int, ast.AST], token_map: dict[int, str]
+) -> InlineMetaReadSite:
+    return InlineMetaReadSite(
+        rel_path=rel,
+        key=InlineMetaReadKey(
+            rel, _qualname_from_parents(parents, node), token_map.get(node.lineno, "")
+        ),
+        lineno=node.lineno,
+    )
+
+
+def _iter_json_parse_calls(tree: ast.Module, bindings: _JsonImportBindings) -> list[ast.Call]:
+    """Every ``json.loads``/``json.load`` call in *tree* that has at least one argument."""
+    return [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and node.args
+        and (_is_json_loads_call(node, bindings) or _is_json_load_call(node, bindings))
+    ]
+
+
 def _scan_file_for_inline_meta_reads(path: Path, rel: str) -> list[InlineMetaReadSite]:
     source = path.read_text(encoding="utf-8")
     try:
@@ -621,23 +856,31 @@ def _scan_file_for_inline_meta_reads(path: Path, rel: str) -> list[InlineMetaRea
     bindings = _collect_json_import_bindings(tree)
     token_map = code_tokens_by_line(source)
     found: list[InlineMetaReadSite] = []
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call) or not node.args:
-            continue
-        if not (_is_json_loads_call(node, bindings) or _is_json_load_call(node, bindings)):
-            continue
+    seen: set[tuple[int, int]] = set()
+    for node in _iter_json_parse_calls(tree, bindings):
         fn = _enclosing_function(parents, node)
-        base = _read_source_base(node.args[0], fn)
-        if base is None or not is_meta_path_expr(base, fn):
-            continue
-        qualname = _qualname_from_parents(parents, node)
-        found.append(
-            InlineMetaReadSite(
-                rel_path=rel,
-                key=InlineMetaReadKey(rel, qualname, token_map.get(node.lineno, "")),
-                lineno=node.lineno,
+        if _reads_meta_path(node.args[0], fn):
+            anchors: list[ast.Call] = [node]
+        else:
+            # The ONE hop (:data:`_MAX_PARSE_HELPER_HOPS`), and only when the direct
+            # resolution above already failed: this pass is strictly ADDITIVE, so the
+            # frozen ``(file, qualname, token)`` keys of already-detected sites cannot
+            # drift under it.
+            param = _unbound_helper_parameter(node.args[0], fn, parents)
+            anchors = (
+                []
+                if param is None or fn is None
+                else [
+                    call
+                    for call, call_fn in _same_module_call_sites(tree, parents, fn.name)
+                    if _reads_meta_path(call.args[0], call_fn)
+                ]
             )
-        )
+        for anchor in anchors:
+            if (anchor.lineno, anchor.col_offset) in seen:
+                continue
+            seen.add((anchor.lineno, anchor.col_offset))
+            found.append(_site_at(anchor, rel, parents, token_map))
     return found
 
 
@@ -1233,6 +1476,270 @@ def test_routed_count_floor_blocks_mass_allowlist(tmp_path: Path) -> None:
     )
     # This is exactly the failure shape ROUTED_LOAD_META_FLOOR catches on the real
     # tree: a floor requiring routed growth reds when routing didn't happen.
+
+
+# --- WP06 / FR-006: ``read_bytes`` joins the recognised read calls -----------
+def test_read_source_base_direct_read_bytes() -> None:
+    """FR-006: ``read_bytes`` is a read call, exactly like ``read_text``/``open``.
+
+    Unit-level pin on the resolver itself, beside
+    :func:`test_read_source_base_direct_read_text` and
+    :func:`test_read_source_base_direct_open_call`. Before this WP,
+    ``_extract_read_base`` matched only ``read_text``/``open`` and returned ``None``
+    here, so the call was rejected at clause 2. Observed RED before the widening
+    (``assert None is not None``).
+    """
+    call, fn = _fn_with_call(
+        "def f(mission_dir):\n"
+        "    meta_path = mission_dir / 'meta.json'\n"
+        "    return json.loads(meta_path.read_bytes())\n"
+    )
+    base = _read_source_base(call.args[0], fn)
+    assert base is not None
+    assert is_meta_path_expr(base) is True
+
+
+def test_read_bytes_scan_level_pin_moves_one_to_two(tmp_path: Path) -> None:
+    """Scan-level synthetic pin for the ``read_bytes`` widening: measured **1 -> 2**.
+
+    **No red possible on the live tree — synthetic pin required** (charter ``C-011``
+    ATDD-first discipline, paired with this spec's ``C-008``). Adding ``read_bytes``
+    to :func:`_extract_read_base` yields **0** new sites over ``src/`` on this tree,
+    so no live census moves and no floor can go red. Manufacturing a live red would
+    mean committing a new unrouted inline read under ``src/``, which reds
+    :func:`test_inline_meta_read_floor` against its shrink-only ceiling — a ``C-008``
+    violation dressed up as compliance. The falsifiable control is therefore this
+    runtime-generated pair: one module whose read is ``read_text``-fed (counted before
+    and after) and one whose read is ``read_bytes``-fed (counted only after the
+    widening). Both counts are printed, not merely asserted. Observed RED before the
+    widening at ``1 -> 1``.
+
+    Generated at runtime under ``tmp_path`` on purpose: no third fixture file is
+    committed under ``_fixtures/`` for this.
+    """
+    pkg = tmp_path / "src" / "scratch_pkg"
+    pkg.mkdir(parents=True)
+    (tmp_path / "src" / "__init__.py").write_text("", encoding="utf-8")
+    (pkg / "__init__.py").write_text("", encoding="utf-8")
+    scratch_src = tmp_path / "src"
+
+    (pkg / "text_fed.py").write_text(
+        "import json\n"
+        "def read(mission_dir):\n"
+        "    meta_path = mission_dir / 'meta.json'\n"
+        "    return json.loads(meta_path.read_text(encoding='utf-8'))\n",
+        encoding="utf-8",
+    )
+    before = len(scan_inline_meta_reads(scratch_src))
+    print(f"read_bytes pin: read_text-fed module only -> sites: {before}")
+
+    (pkg / "bytes_fed.py").write_text(
+        "import json\n"
+        "def read(mission_dir):\n"
+        "    meta_path = mission_dir / 'meta.json'\n"
+        "    return json.loads(meta_path.read_bytes())\n",
+        encoding="utf-8",
+    )
+    after = len(scan_inline_meta_reads(scratch_src))
+    print(f"read_bytes pin: + read_bytes-fed module -> sites: {after}")
+
+    assert (before, after) == (1, 2), (
+        f"read_bytes widening pin: expected the measured 1 -> 2, got {before} -> {after}"
+    )
+
+
+# --- WP06 / FR-006: the one-hop private same-module parse-helper anchor ------
+def _scratch_src_with(tmp_path: Path, name: str, source: str) -> Path:
+    """Write ``<tmp_path>/src/scratch_pkg/<name>`` and return the scratch ``src`` root."""
+    pkg = tmp_path / "src" / "scratch_pkg"
+    pkg.mkdir(parents=True, exist_ok=True)
+    (tmp_path / "src" / "__init__.py").write_text("", encoding="utf-8")
+    (pkg / "__init__.py").write_text("", encoding="utf-8")
+    (pkg / name).write_text(source, encoding="utf-8")
+    return tmp_path / "src"
+
+
+_DELEGATED_READ_MODULE = (
+    "import json\n"
+    "def _parse_meta_object(text):\n"
+    "    return json.loads(text)\n"
+    "def caller(worktree, path):\n"
+    "    meta_path = worktree / path\n"
+    "    return _parse_meta_object(meta_path.read_text(encoding='utf-8'))\n"
+)
+
+
+def test_anchor_hop_flags_private_same_module_parse_helper_call_site(tmp_path: Path) -> None:
+    """FR-006 widening: the ``C2b`` shape is reached, and reported at the CALL SITE.
+
+    Research control ``C2b`` (``research/3162-census.md:295``) measured **0** sites for
+    this exact shape: splitting the parse into a helper hid the read, because
+    ``json.loads``' argument is the helper's own unbound parameter and
+    ``_follow_assignment_chain`` is intra-function. The widening takes **one hop** from
+    that unbound parameter to the helper's call sites in the **same module** and applies
+    clause 2 there. The reported site must be the caller's line — allow-list keys are
+    ``(file, qualname, token)``, so anchoring on the helper's ``json.loads`` line would
+    make every such entry point at the wrong function.
+
+    This is the widening's red-first evidence: observed RED before the change,
+    reporting ``[]`` where 1 site is required.
+    """
+    scratch_src = _scratch_src_with(tmp_path, "delegated.py", _DELEGATED_READ_MODULE)
+    sites = scan_inline_meta_reads(scratch_src)
+    print(f"anchor-hop pin: private single-param helper shape -> sites: {len(sites)}")
+    # A content comparison, deliberately NOT ``len(sites) == 1``: the qualname list
+    # pins BOTH that exactly one site is reported AND that it is reported at the CALL
+    # SITE rather than at the helper's ``json.loads`` line, which is the property that
+    # actually matters here. It also carries no line number, so benign edits to the
+    # scratch module above cannot move it (cf. test_ratchet_positional_anchor_ban.py).
+    assert [s.key.enclosing_qualname for s in sites] == ["caller"], (
+        f"expected the C2b shape to be reached at the CALL SITE exactly once, got {sites}"
+    )
+    assert "_parse_meta_object" in sites[0].key.token
+
+
+@pytest.mark.parametrize(
+    ("label", "source"),
+    [
+        (
+            "public helper (no leading underscore)",
+            _DELEGATED_READ_MODULE.replace("_parse_meta_object", "parse_meta_object"),
+        ),
+        (
+            "helper takes more than one parameter",
+            "import json\n"
+            "def _parse_meta_object(text, strict):\n"
+            "    return json.loads(text)\n"
+            "def caller(worktree, path):\n"
+            "    meta_path = worktree / path\n"
+            "    return _parse_meta_object(meta_path.read_text(encoding='utf-8'), True)\n",
+        ),
+        (
+            "call site passes something that is not a read",
+            "import json\n"
+            "def _parse_meta_object(text):\n"
+            "    return json.loads(text)\n"
+            "def caller(result):\n"
+            "    meta_path = result.cwd / 'meta.json'\n"
+            "    return _parse_meta_object(result.stdout)\n",
+        ),
+        (
+            "call site's read is not of a meta.json path (clause 3)",
+            "import json\n"
+            "def _parse_meta_object(text):\n"
+            "    return json.loads(text)\n"
+            "def caller(worktree):\n"
+            "    status_path = worktree / 'status.json'\n"
+            "    return _parse_meta_object(status_path.read_text(encoding='utf-8'))\n",
+        ),
+        (
+            "helper is a class-level staticmethod, not a module-level def",
+            "import json\n"
+            "class Reader:\n"
+            "    @staticmethod\n"
+            "    def _parse_meta_object(text):\n"
+            "        return json.loads(text)\n"
+            "    def caller(self, worktree, path):\n"
+            "        meta_path = worktree / path\n"
+            "        return Reader._parse_meta_object(meta_path.read_text(encoding='utf-8'))\n",
+        ),
+        (
+            "helper is a nested def, not a module-level def",
+            "import json\n"
+            "def outer():\n"
+            "    def _parse_meta_object(text):\n"
+            "        return json.loads(text)\n"
+            "    def caller(worktree, path):\n"
+            "        meta_path = worktree / path\n"
+            "        return _parse_meta_object(meta_path.read_text(encoding='utf-8'))\n"
+            "    return caller\n",
+        ),
+        (
+            "the helper's parameter is rebound before the parse",
+            "import json\n"
+            "def _parse_meta_object(text):\n"
+            "    text = text.strip()\n"
+            "    return json.loads(text)\n"
+            "def caller(worktree, path):\n"
+            "    meta_path = worktree / path\n"
+            "    return _parse_meta_object(meta_path.read_text(encoding='utf-8'))\n",
+        ),
+    ],
+)
+def test_anchor_hop_is_bounded(tmp_path: Path, label: str, source: str) -> None:
+    """The hop is one, private, same-module, single-parameter — and nothing else.
+
+    Each row is a shape the widening must NOT reach. These rows are green before the
+    widening too (an unwidened scanner reports 0 for every shape in this family), so
+    they are stated as **bounds on the new capability**, not as red-first evidence;
+    the red-first evidence for the widening is
+    :func:`test_anchor_hop_flags_private_same_module_parse_helper_call_site`.
+    """
+    scratch_src = _scratch_src_with(tmp_path, "bounded.py", source)
+    sites = scan_inline_meta_reads(scratch_src)
+    assert sites == [], f"anchor hop must not reach: {label} (got {sites})"
+
+
+def test_anchor_hop_does_not_cross_module_boundary(tmp_path: Path) -> None:
+    """A helper imported from another module is out of the hop's reach (bound: same-module)."""
+    scratch_src = _scratch_src_with(
+        tmp_path,
+        "helper.py",
+        "import json\ndef _parse_meta_object(text):\n    return json.loads(text)\n",
+    )
+    (scratch_src / "scratch_pkg" / "importer.py").write_text(
+        "from .helper import _parse_meta_object\n"
+        "def caller(worktree, path):\n"
+        "    meta_path = worktree / path\n"
+        "    return _parse_meta_object(meta_path.read_text(encoding='utf-8'))\n",
+        encoding="utf-8",
+    )
+    sites = scan_inline_meta_reads(scratch_src)
+    assert sites == [], f"the hop is intra-module by construction; got {sites}"
+
+
+# --- WP06 / SC-005 / NFR-004: the control and its positive twin --------------
+def _fixture_site_count(rel_path: str) -> int:
+    """Sites reported for ONE committed fixture file.
+
+    Scanned by **explicit argument** over :data:`FIXTURES_DIR` and then filtered to the
+    fixture's own ``rel_path``: a bare ``len(scan_inline_meta_reads(FIXTURES_DIR))``
+    would fold in the pre-existing ``_fixtures/bad_adapter.py`` and
+    ``_fixtures/org_packs/**``, making both numbers meaningless.
+    """
+    return len([s for s in scan_inline_meta_reads(FIXTURES_DIR) if s.rel_path == rel_path])
+
+
+def test_unreachability_control_is_zero_and_its_twin_is_one() -> None:
+    """SC-005 / NFR-004: the negative control is falsifiable, in ONE run.
+
+    A bare ``sites: 0`` is a vacuous negative — a broken scanner prints ``0`` too,
+    which is what ``architectural-gate-non-vacuity`` forbids. Both numbers are
+    measured and printed here together: the ``git show``-fed control stays
+    unreachable at **0** (post-widening: the anchor hop reaches its delegated call
+    site and rejects it at clause 2), while its twin, differing only in that the read
+    comes from ``meta_path.read_text``, is reported at **1**.
+
+    ``NFR-004``'s denominator, as integers: **1 reached and routed / 4 deferred with a
+    control / 0 allowlisted**.
+    """
+    control = _fixture_site_count(UNREACHABILITY_CONTROL_REL)
+    twin = _fixture_site_count(UNREACHABILITY_TWIN_REL)
+    print(f"{UNREACHABILITY_CONTROL_REL} -> sites: {control}")
+    print(f"{UNREACHABILITY_TWIN_REL} -> sites: {twin}")
+    assert (control, twin) == (0, 1), (
+        f"expected control 0 / twin 1, got {control} / {twin}; a control without a live "
+        "twin is a vacuous negative"
+    )
+
+
+def test_control_fixtures_are_not_under_src() -> None:
+    """Risk 5: a fully-inlined read under ``src/`` would red the floor it proves."""
+    for rel in (UNREACHABILITY_CONTROL_REL, UNREACHABILITY_TWIN_REL):
+        assert (_REPO_ROOT / rel).is_file(), f"missing control fixture {rel}"
+        assert not rel.startswith("src/"), f"{rel} must never live under src/"
+    live = {site.rel_path for site in scan_inline_meta_reads(SRC_ROOT)}
+    assert not any("unreachability_control" in rel for rel in live)
 
 
 # --- timing (fast-tier budget) ----------------------------------------------

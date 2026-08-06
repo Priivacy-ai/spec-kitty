@@ -195,13 +195,6 @@ def scan_load_meta_call_sites(src_root: Path) -> Counter[tuple[str, str]]:
 # purpose — that is the anti-rot mechanic, mirroring the allow-list staleness
 # detection in ``tests/architectural/test_inline_meta_read_gate.py``.
 _ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
-    ("src/mission_runtime/resolution.py", "_mid8_from_primary_meta"): (1, "pending-batch-a"),
-    ("src/mission_runtime/resolution.py", "_resolve_coordination_branch"): (1, "pending-batch-a"),
-    ("src/mission_runtime/resolution.py", "_resolve_mission_id"): (1, "pending-batch-a"),
-    ("src/runtime/next/_internal_runtime/planner.py", "_resolve_workflow_for_mission"): (1, "pending-batch-a"),
-    ("src/runtime/next/runtime_bridge_io.py", "_workflow_runtime_template"): (1, "pending-batch-a"),
-    ("src/specify_cli/bulk_edit/gate.py", "_is_bulk_edit_mission"): (1, "pending-batch-a"),
-    ("src/specify_cli/bulk_edit/gate.py", "ensure_occurrence_classification_ready"): (1, "pending-batch-a"),
     ("src/specify_cli/cli/commands/_coordination_doctor.py", "_apply_coord_staleness_fixes"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/_coordination_doctor.py", "_collect_coordination_findings"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/_coordination_doctor.py", "check_and_warn_coord_staleness"): (1, "silent-by-contract"),
@@ -222,14 +215,12 @@ _ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/specify_cli/cli/commands/mission_type.py", "_read_mission_mid8"): (1, "silent-by-contract"),
     ("src/specify_cli/cli/commands/tracker.py", "_resolve_active_feature_slug"): (1, "silent-by-contract"),
     ("src/specify_cli/context/mission_resolver.py", "_build_index"): (1, "silent-by-contract"),
-    ("src/specify_cli/context/resolver.py", "_read_meta_json"): (1, "pending-batch-a"),
     ("src/specify_cli/coordination/commit_router.py", "_resolve_mid8"): (1, "silent-by-contract"),
     ("src/specify_cli/coordination/legacy_resolution.py", "_load_mission_meta"): (1, "silent-by-contract"),
     ("src/specify_cli/core/paths.py", "load_meta_fail_closed"): (1, "authority"),
     ("src/specify_cli/core/vcs/detection.py", "_get_locked_vcs_from_feature"): (2, "silent-by-contract"),
     ("src/specify_cli/dashboard/scanner.py", "_read_dashboard_feature_meta"): (1, "silent-by-contract"),
     ("src/specify_cli/dashboard/scanner.py", "_read_mission_identity"): (1, "silent-by-contract"),
-    ("src/specify_cli/decisions/service.py", "_resolve_mission_id"): (1, "pending-batch-a"),
     ("src/specify_cli/git/sparse_checkout.py", "_load_managed_lane_policies"): (1, "silent-by-contract"),
     ("src/specify_cli/lanes/recovery.py", "_mission_id_from_meta"): (1, "silent-by-contract"),
     ("src/specify_cli/lanes/worktree_allocator.py", "_read_coordination_branch"): (1, "silent-by-contract"),
@@ -250,13 +241,10 @@ _ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/specify_cli/mission_metadata.py", "load_meta_or_empty"): (1, "silent-by-contract"),
     ("src/specify_cli/mission_metadata.py", "load_meta_strict"): (1, "silent-by-contract"),
     ("src/specify_cli/missions/_read_path_resolver.py", "_declares_coordination_branch"): (1, "silent-by-contract"),
-    ("src/specify_cli/missions/_read_path_resolver.py", "read_primary_meta"): (2, "pending-batch-a"),
-    ("src/specify_cli/missions/_resolve_planning_branch.py", "load_mission_target_branch"): (1, "pending-batch-a"),
     ("src/specify_cli/status/cutover_eligibility.py", "_read_meta"): (1, "silent-by-contract"),
     ("src/specify_cli/status/emit.py", "_load_mission_id"): (1, "silent-by-contract"),
     ("src/specify_cli/status/emit.py", "_read_status_phase"): (1, "silent-by-contract"),
     ("src/specify_cli/task_utils/support.py", "load_meta"): (1, "authority"),
-    ("src/specify_cli/upgrade/feature_meta.py", "load_feature_meta"): (1, "pending-batch-a"),
     ("src/specify_cli/upgrade/migrations/m_zz_runtime_state_backfill.py", "_mission_needs_cutover"): (1, "silent-by-contract"),
 }
 
