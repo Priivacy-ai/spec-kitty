@@ -260,12 +260,16 @@ def get_package_asset_root() -> Path:
 
     Resolution order (DR-1 unified resolver):
 
-    1. ``SPEC_KITTY_PACKS_ROOT`` governs pack-root *location* and wins for it
-       (C-R3): whenever it is set, the assets are ``<built-in-pack-root>/missions``
-       resolved through :func:`get_built_in_pack_root`, ahead of the retained
-       ``SPEC_KITTY_TEMPLATE_ROOT`` branch below.
-    2. ``SPEC_KITTY_TEMPLATE_ROOT`` (CI/testing), when ``PACKS_ROOT`` is not
-       governing -- several accepted legacy shapes, see :func:`_resolve_env_root`.
+    1. ``SPEC_KITTY_PACKS_ROOT`` takes *precedence* over the
+       ``SPEC_KITTY_TEMPLATE_ROOT`` branch whenever it is set: the assets are
+       ``<built-in-pack-root>/missions`` resolved through
+       :func:`get_built_in_pack_root`. Note this is precedence, not a guarantee
+       that the override governs the final path -- a set-but-unresolvable
+       ``PACKS_ROOT`` (its ``/built-in`` child is not a directory) does not fail
+       closed here; :func:`get_built_in_pack_root` falls through to the installed
+       sibling (behaviour-parity with the pre-collapse resolver, DR-1).
+    2. ``SPEC_KITTY_TEMPLATE_ROOT`` (CI/testing), only when ``PACKS_ROOT`` is
+       unset -- several accepted legacy shapes, see :func:`_resolve_env_root`.
     3. Otherwise the same :func:`get_built_in_pack_root` primitive locates the
        installed ``packs/built-in`` sibling and the ``missions`` leaf is joined
        onto it. The primitive's ancestor walk is bounded (see
@@ -274,7 +278,9 @@ def get_package_asset_root() -> Path:
 
     Fail-closed (C-R4 / FR-013): raises rather than returning a nonexistent
     path, and never falls through to a legacy ``specify_cli/missions`` or
-    ``dev_root`` layout (those fallbacks are intentionally gone, DR-2).
+    ``dev_root`` layout (those fallbacks are intentionally gone, DR-2). The one
+    exception is a set-but-unresolvable ``PACKS_ROOT`` override (point 1), which
+    resolves to the installed sibling rather than raising on the override.
 
     Returns:
         Path: Absolute path to the missions directory.
