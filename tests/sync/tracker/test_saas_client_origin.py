@@ -226,11 +226,17 @@ class TestSearchIssues:
         with pytest.raises(SaaSTrackerClientError, match="Invalid query parameters"):
             client.search_issues("jira", "proj-1", query_text="")
 
-    @patch("specify_cli.tracker.saas_client.time.sleep")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_429_retries_then_raises(
-        self, mock_cls: MagicMock, mock_sleep: MagicMock, client: SaaSTrackerClient
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
     ) -> None:
+        """#3187 fold: patches ``client._sleep`` (instance-scoped seam), not
+        the process-wide ``time.sleep`` -- see saas_client.py's ``__init__``
+        and ``TestPolling.test_exponential_backoff_intervals``'s docstring
+        in test_saas_client.py for the full attribution this test used to be
+        a documented victim of (CI job 91126025663, `Called 556 times`)."""
+        mock_sleep = MagicMock()
+        client._sleep = mock_sleep
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)

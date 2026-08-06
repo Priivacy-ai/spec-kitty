@@ -18,6 +18,7 @@ from contextlib import suppress
 import secrets
 import time
 import uuid
+from collections.abc import Callable
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
 from typing import Any, cast
@@ -258,6 +259,17 @@ class SaaSTrackerClient:
         # would silently ignore an env override.
         self._base_url: str = self._sync_config.resolve_runtime_target().resolved_server_url
         self._timeout = timeout
+        # Instance-scoped seam (#3187): retry/poll delays call ``self._sleep``
+        # rather than the bare ``time.sleep``. ``time.sleep`` is a single
+        # process-wide stdlib attribute, so a test that patches it (even via
+        # ``specify_cli.tracker.saas_client.time.sleep``) records a call from
+        # ANY code in the process during the patch window -- another thread's
+        # leaked retry loop, or CPython's own ``subprocess.Popen._wait`` busy
+        # loop, not just this client's own retry logic. Binding the callable
+        # once per instance means only this object's own two call sites can
+        # ever write to it, so a test can patch ``client._sleep`` and see
+        # exactly its own calls, nothing else running in the process.
+        self._sleep: Callable[[float], None] = time.sleep
 
     _STATUS_PATH = "/api/v1/tracker/status/"
     _MAPPINGS_PATH = "/api/v1/tracker/mappings/"
@@ -436,7 +448,7 @@ class SaaSTrackerClient:
             wait_seconds = envelope.get("retry_after_seconds")
             if wait_seconds is None or not isinstance(wait_seconds, (int, float)):
                 wait_seconds = 5
-            time.sleep(float(wait_seconds))
+            self._sleep(float(wait_seconds))
 
             response = self._request(
                 method, path, json=json, headers=headers, params=params
@@ -515,7 +527,7 @@ class SaaSTrackerClient:
             jitter_basis_points = secrets.randbelow(4000)
             jitter_factor = 0.8 + (jitter_basis_points / 10000)
             jittered_delay = delay * jitter_factor
-            time.sleep(jittered_delay)
+            self._sleep(jittered_delay)
             delay = min(delay * 2, cap)
 
     # ----- synchronous endpoints -----
