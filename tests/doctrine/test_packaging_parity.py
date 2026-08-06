@@ -1,9 +1,16 @@
-"""Packaging parity for the relocated built-in doctrine packs (mission
+"""Packaging parity for the built-in doctrine packs (mission
 ``relocate-builtin-doctrine-packs-01KYT87F``, WP05 — FR-007 / NFR-002).
 
 ``packs/built-in/`` must ship **completely** in BOTH the monolith wheel and the
 sdist, and a clean-venv install must be able to ``import doctrine`` and resolve
 the built-in pack root to a real, complete on-disk tree.
+
+The parity contract is **live-tree**: the built artifact's ``packs/built-in/``
+contents must equal the live source tree (the git-tracked ``packs/built-in/``
+inventory hatchling ``force-include``s). This deliberately replaces the earlier
+frozen 469-entry ``content-manifest.json`` snapshot, which was a relocation-era
+change-detector that falsely reddened on every legitimate ``packs/built-in/``
+addition.
 
 Why this test builds real artifacts (not a config assertion): the pre-spec
 adversarial squad proved a build can exit 0 while shipping an *empty or partial*
@@ -34,40 +41,47 @@ pytestmark = [pytest.mark.distribution, pytest.mark.integration]
 
 _THIS = Path(__file__).resolve()
 REPO_ROOT = _THIS.parents[2]
-MANIFEST_JSON = _THIS.parent / "fixtures" / "content-manifest.json"
 
 _PACKS_PREFIX = "packs/built-in/"
-_SRC_DOCTRINE_PREFIX = "src/doctrine/"
 
 
 # --------------------------------------------------------------------------- #
-# Move-set truth: transform the pre-move manifest into the post-move pack paths
+# Expected set: the LIVE source tree, not a frozen inventory
 # --------------------------------------------------------------------------- #
-
-
-def _to_pack_path(src_rel: str) -> str:
-    """Map a pre-move ``src/doctrine/...`` manifest path to its post-move
-    ``packs/built-in/...`` location.
-
-    Two shapes exist in the manifest:
-
-    * ``src/doctrine/<kind>/built-in/<rest>`` -> ``packs/built-in/<kind>/<rest>``
-      (the ``built-in`` segment collapses into the pack root).
-    * ``src/doctrine/<name>.graph.yaml`` -> ``packs/built-in/<name>.graph.yaml``
-      (root DRG fragments).
-    """
-    assert src_rel.startswith(_SRC_DOCTRINE_PREFIX), src_rel
-    tail = src_rel[len(_SRC_DOCTRINE_PREFIX) :]
-    if "/built-in/" in tail:
-        kind, rest = tail.split("/built-in/", 1)
-        return f"{_PACKS_PREFIX}{kind}/{rest}"
-    return f"{_PACKS_PREFIX}{tail}"
 
 
 def _expected_pack_paths() -> set[str]:
-    manifest: list[str] = json.loads(MANIFEST_JSON.read_text(encoding="utf-8"))
-    expected = {_to_pack_path(rel) for rel in manifest}
-    assert len(expected) == len(manifest), "manifest -> pack transform collided"
+    """Derive the expected ``packs/built-in/...`` file set from the **live source
+    tree** — specifically the VCS inventory that hatchling's ``force-include``
+    ships.
+
+    ``pyproject.toml`` uses ``force-include = { "packs" = "packs" }``, so the
+    wheel/sdist auto-ship the ENTIRE tracked ``packs/`` tree; hatchling's
+    VCS-respecting selection rule ships exactly the git-tracked, non-ignored
+    files (e.g. the ``__pycache__/*.pyc`` under ``packs/built-in`` is
+    ``.gitignore``-d and never shipped). ``git ls-files`` reproduces that same
+    rule and already emits repo-root-relative, forward-slash paths carrying the
+    ``packs/built-in/`` prefix.
+
+    Anti-tautology: this expectation comes from the **git index**, an
+    independent source from the built artifact the actual-side reads (the wheel
+    zip / sdist tar). A build that drops, renames, or mangles a shipped file
+    diverges from this set and reds — the two sides never share provenance. This
+    replaces the retired relocation-era frozen ``content-manifest.json`` +
+    move-set transform, which was a change-detector: every legitimate addition
+    under ``packs/built-in/`` (e.g. new doctrine files) read as "extra" and
+    falsely reddened even though nothing had regressed.
+    """
+    out = subprocess.run(
+        ["git", "ls-files", "-z", "--", _PACKS_PREFIX.rstrip("/")],
+        cwd=str(REPO_ROOT),
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    expected = {entry for entry in out.split("\0") if entry}
+    assert expected, f"no tracked files under {_PACKS_PREFIX} — derivation broken"
+    assert all(p.startswith(_PACKS_PREFIX) for p in expected), sorted(expected)[:5]
     return expected
 
 
@@ -172,7 +186,7 @@ def test_clean_venv_install_imports_and_resolves_built_in(
 ) -> None:
     """Install the wheel into a clean venv (declared deps only, no repo ``src/``)
     and prove ``import doctrine`` + ``resolve_pack_root('built-in')`` reach a
-    complete installed tree with 0 missing manifest files."""
+    complete installed tree with 0 missing live-tree files."""
     wheel, _sdist = built_artifacts
     venv_dir = tmp_path / "clean-venv"
     venv.create(venv_dir, with_pip=True, clear=True)
