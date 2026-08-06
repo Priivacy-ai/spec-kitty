@@ -1,0 +1,19 @@
+{
+  "wp_id": "WP04",
+  "captured_at": "2026-08-05T22:33:53Z",
+  "base_branch": "feat/verdict-seam-write-unification",
+  "base_commit": "47a88ede5fbf7f9a911133ff2b2af474c6fd3369",
+  "test_runner": "pytest",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "tests.doctrine.test_hatch_build",
+      "error": "collection failure",
+      "file": "unknown:?"
+    }
+  ],
+  "source_identity": "GateCoverageScopeSource/junit_xml"
+}
