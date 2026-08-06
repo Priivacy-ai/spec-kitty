@@ -327,14 +327,18 @@ test_no_dead_symbols:
 # src-only producer scope, so no property of that schema (including PR #3134's
 # new `structural_targets`) can ever be assessed here. All three deleted rows
 # were `unassigned`, so that count drops 23 -> 20 too.
+# justification: 48 -> 47 (PR #3234): the `toolguide-references` row was deleted
+# from _inert_slots_baseline.yaml because `diagram-daisy.agent.yaml` now authors
+# that key -- a previously-inert schema slot became live. Legitimate shrinkage.
+# The deleted row was `unassigned`, so that count drops 20 -> 19 too.
 test_no_inert_schema_slots:
-  baseline_entries: 48
+  baseline_entries: 47
   # The shrink-only cap on `unassigned` owners. `unassigned` is the one owner the
   # anti-weasel test can never fire for, so this is the gate's only escape hatch;
   # registering it here subjects widening it to the same `# justification:` policy
   # as any other ratchet, instead of leaving it a bare module constant a future PR
   # raises in one line.
-  unassigned_entries: 20
+  unassigned_entries: 19
   # The shrink-only cap on slots suppressed by a CODE producer alone. A single
   # dead line anywhere under src/doctrine (`x = None`, a dict key, a kwarg —
   # three shapes work) used to silence a new inert-slot finding with no baseline

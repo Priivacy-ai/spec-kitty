@@ -431,13 +431,15 @@ _MISSION_OWNER_PREFIX = "mission:"
 _MISSIONS_DIR = "kitty-specs"
 _EVENT_LOG = "status.events.jsonl"
 
-#: Shrink-only cap on ``unassigned`` entries (20 today, down from 23: PR #3134's
+#: Shrink-only cap on ``unassigned`` entries (19 today, down from 23: PR #3134's
 #: `_NON_DOCTRINE_SCHEMAS` fix retired the occurrence-map schema's `from`/
-#: `moves`/`to` baseline rows, all three ``unassigned``). ``unassigned`` is the
-#: one owner the anti-weasel test can never fire for, so an uncapped hatch lets
-#: a new finding satisfy the growth rule without anyone taking responsibility
-#: for it. This number may only ever go DOWN.
-MAX_UNASSIGNED_ENTRIES = 20
+#: `moves`/`to` baseline rows (all three ``unassigned``), and PR #3234 retired the
+#: `toolguide-references` row once `diagram-daisy.agent.yaml` began authoring that
+#: key -- a previously-inert slot became live). ``unassigned`` is the one owner the
+#: anti-weasel test can never fire for, so an uncapped hatch lets a new finding
+#: satisfy the growth rule without anyone taking responsibility for it. This number
+#: may only ever go DOWN.
+MAX_UNASSIGNED_ENTRIES = 19
 
 #: Concrete floors (charter §5, ``architectural-gate-non-vacuity`` failure mode #1).
 #: Every shipped-tree assertion in this gate is an *absence* assertion — ``new ==

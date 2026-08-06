@@ -351,12 +351,6 @@ entries:
     disposition: delete-the-declaration
     provisional: true
     note: No shipped agent profile authors this key.
-  - name: toolguide-references
-    declared_at: src/doctrine/schemas/agent-profile.schema.yaml
-    owner: unassigned
-    disposition: delete-the-declaration
-    provisional: true
-    note: No shipped agent profile authors this key.
   - name: model
     declared_at: src/doctrine/schemas/agent-profile.schema.yaml
     owner: unassigned

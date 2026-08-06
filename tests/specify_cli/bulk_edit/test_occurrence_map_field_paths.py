@@ -463,22 +463,27 @@ class TestB2RealExemptionSet:
         }
 
         # Occurrences (SC-011's own units) — see the docstring.
-        assert len(gov) == 188  # golden-count: cardinality-is-contract
+        assert len(gov) == 213  # golden-count: cardinality-is-contract
         assert len(raw) == 14  # golden-count: cardinality-is-contract
         # Files (the inexpressibility argument's actual unit — plan.md IC-02 /
         # this WP's context section; SC-011's wording conflates the two).
         assert gov_files == {
             f"agent_profiles/{name}.agent.yaml"
             for name in (
+                "analyst-annie",
                 "architect-alphonso",
+                "comms-cleo",
                 "curator-carla",
                 "debugger-debbie",
                 "designer-dagmar",
+                "diagram-daisy",
                 "doctrine-daphne",
                 "frontend-freddy",
                 "generic-agent",
                 "implementer-ivan",
                 "java-jenny",
+                "lexical-larry",
+                "minutes-maker-mahad",
                 "node-norris",
                 "paula-patterns",
                 "planner-priti",
@@ -487,8 +492,10 @@ class TestB2RealExemptionSet:
                 "researcher-robbie",
                 "retrospective-facilitator",
                 "reviewer-renata",
+                "scribe-sally",
+                "synthesizer-sam",
             )
-        }, "the GOVERNANCE file set moved — SC-011's 17 files are the built-in agent profiles"
+        }, "the GOVERNANCE file set moved — the 24 built-in agent profiles (SC-011's original 17 plus the 7 writing/comms profiles re-homed by #3234)"
         assert raw_files == {
             f"styleguides/{name}.styleguide.yaml"
             for name in (
