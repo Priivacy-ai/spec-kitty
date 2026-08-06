@@ -7,6 +7,7 @@ Error codes used:
   USAGE_ERROR                 -- CLI parse/usage error (missing required arg, bad option, etc.)
   POLICY_METADATA_REQUIRED    -- --policy missing on a run-affecting command
   POLICY_VALIDATION_FAILED    -- policy JSON invalid or contains secrets
+  INVALID_MISSION             -- mission selector is rejected by the safe-path guard
   MISSION_NOT_FOUND           -- mission slug does not resolve to a kitty-specs dir
   STATUS_READ_PATH_NOT_FOUND  -- coord topology with a stale/unaddressable primary surface
                                  (fail-closed read-path guard fired; carries coord/primary candidates)
@@ -297,6 +298,9 @@ def _resolve_mission_dir_or_fail(command: str, main_repo_root: Path, mission_slu
       ``coord_candidate`` / ``primary_candidate`` paths — the M2 fidelity fix; the
       external envelope *shape* is unchanged, only the code/data fidelity is raised
       (C-IC02 applied to the external surface).
+    * an unsafe selector rejected by the shared safe-path guard maps to
+      ``INVALID_MISSION`` so machine callers still receive JSON instead of a
+      raw traceback.
     * a genuine absence (no such mission, no coord topology) keeps the historical
       ``MISSION_NOT_FOUND`` envelope.
 
@@ -321,6 +325,10 @@ def _resolve_mission_dir_or_fail(command: str, main_repo_root: Path, mission_slu
                 "primary_candidate": str(exc.primary_candidate),
             },
         )
+    except ValueError as exc:
+        if not str(exc).startswith("Not a safe path segment:"):
+            raise
+        _fail(command, "INVALID_MISSION", str(exc), data={"message": str(exc)})
     if mission_dir is None:
         _fail(command, "MISSION_NOT_FOUND", _MISSION_NOT_FOUND_MESSAGE.format(mission=mission_slug))
     return mission_dir
