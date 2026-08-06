@@ -48,7 +48,7 @@ Expect bookkeeping commits as the mission advances work packages. See [Understan
 
 ## Alternate visual
 
-![When to use Spec-Kitty modes — cyberpunk style](../assets/images/when-to-use-modes-cyberpunk.png)
+![When to use Spec-Kitty modes — illustrated style](../assets/images/when-to-use-modes-corporate-comics.png)
 
 ## Related guides
 
