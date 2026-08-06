@@ -196,7 +196,11 @@ def _collect_finalize_artifacts(
         feature_dir / "status.json",
         feature_dir / TASKS_MD_FILENAME,
         feature_dir / "acceptance-matrix.json",
-        feature_dir / ISSUE_MATRIX_FILENAME,
+        # write-surface-coherence WP08 (#2804 / #2404 T043 / G3): sweep the
+        # terminal ``issue-matrix.json`` — the retired ``issue-matrix.md`` is
+        # never authored by any canonical path any more (WP05), so it is no
+        # longer a finalize-commit candidate.
+        feature_dir / "issue-matrix.json",
         feature_dir / ".kittify" / "dossiers" / mission_slug / "snapshot-latest.json",
     ]
     candidates.extend(sorted(path for path in tasks_dir.iterdir() if path.is_file()))
@@ -1327,6 +1331,7 @@ def _scaffold_acceptance_matrix_if_lane_based(
         return
     try:
         from specify_cli.acceptance.matrix import scaffold_acceptance_matrix
+        from specify_cli.git.protection_policy import ProtectionPolicy
 
         # FR-010 / C8: resolve the matrix's DECLARED HOME through the same surface
         # resolver the accept gate reads from, so the scaffolder's idempotency check
@@ -1334,11 +1339,17 @@ def _scaffold_acceptance_matrix_if_lane_based(
         # primary copy (#2882). A deleted coord branch (fail-loud) falls back to the
         # primary planning dir — the scaffold is a convenience artifact, never a gate.
         home_dir = _resolve_acceptance_matrix_home(repo_root, planning_dir)
+        # write-surface-coherence WP08 (#2804 / #2404 T040/T041): thread
+        # ``repo_root`` so the WRITE (not just the idempotency check) routes
+        # through the coord-aware write-seam — never a stray PRIMARY husk
+        # under coord topology, mirroring the sibling issue-matrix scaffold.
         acceptance_matrix_path = scaffold_acceptance_matrix(
             planning_dir,
             mission_slug,
             requirement_ids=sorted(functional_spec_requirement_ids),
             home_dir=home_dir,
+            repo_root=repo_root,
+            policy=ProtectionPolicy.resolve(repo_root),
         )
     except Exception as acc_matrix_exc:  # noqa: BLE001 — convenience artifact never blocks finalize
         if not json_output:

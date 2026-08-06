@@ -380,7 +380,7 @@ def persist_arbiter_decision(
     wp_id: str,
     review_ref: str | None,
     decision: ArbiterDecision,
-    repo_root: Path | None = None,
+    repo_root: Path,
 ) -> Path:
     """Persist an ArbiterDecision as a durable, event-sourced ``ReviewOverride``.
 
@@ -427,17 +427,22 @@ def persist_arbiter_decision(
     ``_find_review_cycle_artifact`` never actually used its own
     ``review_ref`` parameter either (measured dead even before this WP).
 
-    ``repo_root`` resolves the emitted event's status-lock (optional per
-    ``emit_inner_state_changed``'s own docstring). When the caller does not
-    supply it — as ``_run_arbiter_override`` in ``tasks_move_task.py``
-    (outside this WP's ``owned_files``, a frozen compat symbol per WP06's
-    extraction) currently does not — this falls back to
-    ``feature_dir.parent.parent``, the SINGLE_BRANCH/LANES-topology
-    inference every existing test fixture for this path exercises. A
-    coordination-topology mission needs the real caller-resolved
-    ``main_repo_root`` threaded through once that call site is touched by a
-    WP that owns it — a disclosed limitation of this WP's ownership
-    boundary, not silently papered over.
+    ``repo_root`` is the CALLER-RESOLVED ``main_repo_root`` (FR-016, WP07,
+    arbiter-root-threading) and resolves the emitted event's status-lock
+    (``emit_inner_state_changed``'s own docstring). It is now a REQUIRED
+    parameter — this function never self-infers it. The retired fallback
+    was ``feature_dir.parent.parent``, which happened to coincide with the
+    correct root only for a SINGLE_BRANCH/LANES-topology mission (every
+    fixture the old code exercised): under a coordination topology, callers
+    pass an already-topology-resolved ``feature_dir`` (e.g. the coord-husk
+    mission dir), so ``feature_dir.parent.parent`` yields the COORD
+    WORKTREE root — not the real ``main_repo_root`` this function and its
+    callees need to correctly resolve the coord partition — a wrong-partition
+    bug the self-inference could not detect. Every caller (``_run_arbiter_
+    override`` in ``tasks_move_task.py``, via ``persist_arbiter_override_
+    decision`` in ``tasks_verdict_persistence.py``, both outside this WP's
+    ``owned_files``) now threads its own already-resolved ``main_repo_root``
+    through explicitly instead.
 
     Returns:
         The (possibly not-yet-existing-on-disk) review-cycle artifact path
@@ -448,7 +453,7 @@ def persist_arbiter_decision(
         _resolve_wp_slug,
     )
 
-    main_repo_root = repo_root or feature_dir.parent.parent
+    main_repo_root = repo_root
     mission_slug = feature_dir.name
     # ``str()``/``Path`` coercions below are DELIBERATE (not decorative): both
     # ``_resolve_wp_slug`` and ``_review_cycle_wp_dir`` resolve as ``Any`` at

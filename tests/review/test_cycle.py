@@ -269,6 +269,61 @@ def test_self_referential_feedback_source_is_rejected(tmp_path: Path) -> None:
     assert latest.reviewer_agent == "reviewer-renata"
 
 
+def test_guard_feedback_source_provenance_refuses_by_parse_alone_no_verdict_read(
+    tmp_path: Path,
+) -> None:
+    """T032 (WP06, D-PLAN-5): ``_guard_feedback_source_provenance`` refuses a
+    prior review-cycle artifact purely because it PARSES as one
+    (``ReviewCycleArtifact.from_file`` succeeds) -- it never reads, branches
+    on, or otherwise depends on a ``verdict`` value. This is not merely
+    "unaffected by the field removal" as an accident: ``ReviewCycleArtifact``
+    has no ``verdict`` attribute at all (WP06, FR-003/SC-007), so any
+    verdict-based branching would raise ``AttributeError`` immediately. The
+    absence of that crash, across a fixture where the artifact genuinely has
+    no verdict field to read, is the direct, non-vacuous proof.
+    """
+    from specify_cli.review.artifacts import ReviewCycleArtifact
+    from specify_cli.review.cycle import _guard_feedback_source_provenance
+
+    assert not hasattr(ReviewCycleArtifact, "verdict"), (
+        "this test's premise requires ReviewCycleArtifact to genuinely carry "
+        "no verdict field -- if this fails, the guard could no longer be "
+        "proven verdict-blind by this mechanism"
+    )
+
+    sub_artifact_dir = tmp_path / "tasks" / "WP01-some-title"
+    sub_artifact_dir.mkdir(parents=True)
+    prior_cycle_path = sub_artifact_dir / "review-cycle-1.md"
+    ReviewCycleArtifact(
+        cycle_number=1,
+        wp_id="WP01",
+        mission_slug="verdict-guard-demo",
+        reviewer_agent="reviewer-renata",
+        reviewed_at="2026-08-06T00:00:00+00:00",
+        body="**Issue**: original reviewer feedback.\n",
+    ).write(prior_cycle_path)
+
+    # feedback_source is a DIFFERENT file (not the prior cycle's own path --
+    # exercising the CONTENT-identity leg specifically, not the path leg),
+    # whose content is a byte-copy of the prior cycle's full serialized text.
+    resubmitted = tmp_path / "resubmitted-feedback.md"
+    resubmitted.write_text(prior_cycle_path.read_text(encoding="utf-8"), encoding="utf-8")
+
+    with pytest.raises(ReviewCycleError, match="parses as a review-cycle artifact"):
+        _guard_feedback_source_provenance(
+            feedback_source=resubmitted, sub_artifact_dir=sub_artifact_dir
+        )
+
+    # Non-vacuity control: genuine reviewer PROSE (no frontmatter at all, so
+    # ``from_file`` cannot parse it) is admitted -- proving the guard
+    # actually discriminates on parseability, not a blanket refusal.
+    genuine_feedback = tmp_path / "genuine-feedback.md"
+    genuine_feedback.write_text("**Issue**: a distinct, new finding.\n", encoding="utf-8")
+    _guard_feedback_source_provenance(
+        feedback_source=genuine_feedback, sub_artifact_dir=sub_artifact_dir
+    )  # must not raise
+
+
 @pytest.mark.regression
 def test_duplicate_prose_in_an_ordinary_feedback_file_is_admitted(
     tmp_path: Path,
@@ -536,7 +591,7 @@ def test_unreadable_prior_cycle_does_not_crash_the_provenance_scan(
     )
 
     assert created.artifact_path == wp_dir / "review-cycle-2.md"
-    assert created.artifact.verdict == "rejected"
+    assert created.review_result.verdict == "changes_requested"
 
 
 @pytest.mark.regression
@@ -754,7 +809,6 @@ def test_crash_orphan_between_write_and_commit_permits_a_clean_retry(
         wp_id=WP_ID,
         mission_slug=MISSION_SLUG,
         reviewer_agent="reviewer-renata",
-        verdict="rejected",
         reviewed_at="2026-01-01T00:00:00Z",
         body=feedback_text,
     )
@@ -771,7 +825,7 @@ def test_crash_orphan_between_write_and_commit_permits_a_clean_retry(
         reviewer_agent="reviewer-renata",
     )
 
-    assert retried.artifact.verdict == "rejected"
+    assert retried.review_result.verdict == "changes_requested"
     assert retried.artifact.reviewer_agent == "reviewer-renata"
     # The orphan (cycle 1) still occupies its slot; the retry lands as the
     # NEXT number rather than colliding with or silently overwriting it.
@@ -805,7 +859,7 @@ def test_create_rejected_review_cycle_with_approved_verdict(tmp_path: Path) -> N
         feedback_source=rejection_feedback,
         reviewer_agent="reviewer-renata",
     )
-    assert rejected_cycle.artifact.verdict == "rejected"
+    assert rejected_cycle.review_result.verdict == "changes_requested"
 
     approval_feedback = tmp_path / "approval-feedback.md"
     approval_feedback.write_text(
@@ -821,14 +875,12 @@ def test_create_rejected_review_cycle_with_approved_verdict(tmp_path: Path) -> N
         verdict="approved",
     )
 
-    assert approved_cycle.artifact.verdict == "approved"
     assert approved_cycle.artifact.cycle_number == 2
     assert approved_cycle.artifact.reviewer_agent == "reviewer-renata"
     assert approved_cycle.review_result.verdict == "approved"
 
     latest = ReviewCycleArtifact.latest(tasks_dir / "WP01-core")
     assert latest is not None
-    assert latest.verdict == "approved"
     assert latest.cycle_number == 2
 
 
@@ -952,19 +1004,27 @@ class _FailingCommitRouter:
         )
 
 
-def test_create_rejected_review_cycle_raises_when_commit_fails(tmp_path: Path) -> None:
-    """Cycle 2 fix (#2697) + M2 (adversarial squad, PR #3156): a non-
-    ``"committed"`` ``CommitArtifactResult`` must surface as a hard failure
-    AND roll back the orphaned write -- not merely surface the failure while
-    stranding an uncommitted artifact on disk.
+def test_create_rejected_review_cycle_raises_when_commit_fails(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Cycle 2 fix (#2697) + M2 (adversarial squad, PR #3156) established a
+    non-``"committed"`` ``CommitArtifactResult`` as a hard failure that also
+    rolled back the orphaned write.
 
-    Before the M2 rollback fix, the write and the commit were not atomic: a
-    failed commit left ``review-cycle-1.md`` on disk with no rollback. A
-    rejection retry would then hit the content-identity guard against its
-    own orphan ("duplicates a prior review-cycle artifact") and be refused
-    forever, permanently bricking the WP. Rolling back on failure means the
-    failure state is "no artifact" -- not "uncommitted artifact" -- so an
-    immediate retry with the SAME feedback succeeds cleanly.
+    WP05 (verdict-seam-write-unification-01KZ9Q35, T026/D-PLAN-11) INVERTS
+    this test's premise: with every verdict reader now on the event
+    authority, the per-file ``.md`` commit is demoted to best-effort
+    (``contracts/verdict-durability-write.md`` G1/NFR-004). A non-committed
+    result is now a logged WARNING, not a raised ``ReviewCycleError`` --
+    and (M2's rollback being scoped to genuine infra exceptions only, see
+    ``create_rejected_review_cycle``'s own comment) the written artifact is
+    no longer unlinked on a merely-non-committed result: an uncommitted
+    ``.md`` is tolerated now that it is not the verdict's authority. An
+    immediate retry with the SAME feedback and a working commit router
+    therefore behaves exactly like T043/T045's crash-orphan retry (see
+    ``test_crash_orphan_between_write_and_commit_permits_a_clean_retry``):
+    it succeeds cleanly, allocated at the NEXT cycle number -- the orphan is
+    inert clutter, not a collision.
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -982,8 +1042,8 @@ def test_create_rejected_review_cycle_raises_when_commit_fails(tmp_path: Path) -
 
     router = _FailingCommitRouter()
 
-    with pytest.raises(ReviewCycleError, match="Failed to commit"):
-        create_rejected_review_cycle(
+    with caplog.at_level("WARNING", logger="specify_cli.review.cycle"):
+        created = create_rejected_review_cycle(
             main_repo_root=repo,
             mission_slug="001-mission",
             wp_id="WP01",
@@ -993,22 +1053,28 @@ def test_create_rejected_review_cycle_raises_when_commit_fails(tmp_path: Path) -
             commit_router=router,
         )
 
+    assert created.artifact_path.exists(), (
+        "T026 demote: a best-effort commit failure no longer rolls back the "
+        "already-written artifact -- only a genuine infra exception does"
+    )
+    assert any(
+        "Failed to commit review-cycle" in record.message for record in caplog.records
+    ), (
+        "a best-effort commit failure must still be logged as a WARNING, "
+        f"never silently dropped; records={caplog.records}"
+    )
+
     # The router WAS invoked once, with the written artifact path -- the
     # failure is real, not swallowed.
     artifact_path = tasks_dir / "WP01-core" / "review-cycle-1.md"
     assert router.calls == [artifact_path]
-    # M2: the failed write is rolled back -- no orphaned artifact survives.
-    assert not artifact_path.exists(), (
-        "a failed commit must roll back its write -- an orphaned, "
-        "uncommitted artifact would permanently brick a retry"
-    )
-    assert not list((tasks_dir / "WP01-core").glob("review-cycle-*.md")), (
-        "no review-cycle-*.md should survive a rolled-back commit failure"
-    )
+    assert created.artifact_path == artifact_path
 
     # An immediate retry with the SAME feedback, now with a working commit
-    # router, must succeed and land as cycle 1 again -- proving the orphan's
-    # phantom count did not inflate ``next_cycle_number``.
+    # router, succeeds cleanly and lands at the NEXT cycle number -- the
+    # T026-demoted orphan is inert clutter on disk, not a collision (T045's
+    # narrowed content-identity guard no longer refuses plain reviewer prose
+    # merely because it repeats a prior stored body verbatim).
     from specify_cli.agent_tasks_ports import RealCoordCommitRouter
 
     retried = create_rejected_review_cycle(
@@ -1020,8 +1086,8 @@ def test_create_rejected_review_cycle_raises_when_commit_fails(tmp_path: Path) -
         reviewer_agent="reviewer-renata",
         commit_router=RealCoordCommitRouter(),
     )
-    assert retried.artifact_path == artifact_path
-    assert retried.artifact.cycle_number == 1
+    assert retried.artifact_path == tasks_dir / "WP01-core" / "review-cycle-2.md"
+    assert retried.artifact.cycle_number == 2
 
 
 @dataclass
@@ -1296,12 +1362,20 @@ class _AlwaysContendingCommitRouter:
 
 
 def test_commit_retries_are_bounded_and_report_exhausted_contention(
-    tmp_path: Path,
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """T042: when the probe keeps firing across every bounded retry attempt,
-    the writer raises a message distinguishing "exhausted contention
-    retries" from a plain commit failure -- and the failed write is still
-    rolled back (M2's existing compensator, unaffected by T042's retry loop).
+    the retry loop still bails out at the same bound and still distinguishes
+    "exhausted contention retries" from a plain commit failure in its
+    message.
+
+    WP05 (verdict-seam-write-unification-01KZ9Q35, T026/D-PLAN-11) INVERTS
+    the failure mode this pins: the exhausted-contention outcome is now a
+    logged WARNING (not a raised ``ReviewCycleError``), and -- per M2's
+    rollback being scoped to genuine infra exceptions only -- the write is
+    NO LONGER rolled back on a merely-non-committed result; T042's bounded
+    retry count (``_COMMIT_CONTENTION_MAX_ATTEMPTS == 3``) is unaffected by
+    the demote and is still asserted literally here.
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -1316,7 +1390,7 @@ def test_commit_retries_are_bounded_and_report_exhausted_contention(
     lock_marker.write_text("", encoding="utf-8")
     try:
         router = _AlwaysContendingCommitRouter()
-        with pytest.raises(ReviewCycleError, match="Exhausted contention retries"):
+        with caplog.at_level("WARNING", logger="specify_cli.review.cycle"):
             create_rejected_review_cycle(
                 main_repo_root=repo,
                 mission_slug="001-mission",
@@ -1330,9 +1404,17 @@ def test_commit_retries_are_bounded_and_report_exhausted_contention(
         # as a literal here so this test fails loudly if that bound ever
         # changes without an accompanying review of this expectation.
         assert router.attempts == 3
-        assert not (tasks_dir / "WP01-core" / "review-cycle-1.md").exists(), (
-            "an exhausted-contention commit failure must still roll back "
-            "the write (M2), not merely T042's own new failure path"
+        assert (tasks_dir / "WP01-core" / "review-cycle-1.md").exists(), (
+            "T026 demote: an exhausted-contention commit failure no longer "
+            "rolls back the already-written artifact"
+        )
+        assert any(
+            "Exhausted contention retries" in record.message
+            for record in caplog.records
+        ), (
+            "an exhausted-contention failure must still be distinguished "
+            f"from a plain commit failure in the logged WARNING; "
+            f"records={caplog.records}"
         )
     finally:
         lock_marker.unlink(missing_ok=True)
@@ -1363,7 +1445,6 @@ def test_create_rejected_review_cycle_without_commit_router_is_unchanged(
         reviewer_agent="codex",
     )
 
-    assert created.artifact.verdict == "rejected"
     assert created.review_result.verdict == "changes_requested"
     assert created.artifact_path == tasks_dir / "WP01-core" / "review-cycle-1.md"
     assert created.artifact_path.exists()

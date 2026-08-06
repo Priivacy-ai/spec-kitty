@@ -12,7 +12,6 @@ from typing import cast
 from rich.console import Console
 
 from specify_cli.post_merge.review_artifact_consistency import (
-    REVIEW_ARTIFACT_SCHEMA_INVALID,
     find_rejected_review_artifact_conflicts,
     format_review_artifact_finding,
     review_artifact_finding_diagnostic,
@@ -80,17 +79,10 @@ def check_wp_lanes(
             console.print(
                 f"       violated_invariant: {diagnostic['violated_invariant']}"
             )
-            if "schema_error" in diagnostic:
-                console.print(f"       schema_error: {diagnostic['schema_error']}")
             for line in cast(list[str], diagnostic["remediation"]):
                 console.print(f"       remediation: {line}")
-            finding_type = (
-                "review_artifact_schema_invalid"
-                if diagnostic["diagnostic_code"] == REVIEW_ARTIFACT_SCHEMA_INVALID
-                else "rejected_review_artifact"
-            )
             finding: dict[str, str] = {
-                "type": finding_type,
+                "type": "rejected_review_artifact",
                 "wp_id": conflict.wp_id,
                 "lane": conflict.lane,
                 "artifact_path": (
@@ -111,8 +103,6 @@ def check_wp_lanes(
                 finding["latest_review_cycle_verdict"] = str(
                     diagnostic["latest_review_cycle_verdict"]
                 )
-            if "schema_error" in diagnostic:
-                finding["schema_error"] = str(diagnostic["schema_error"])
             findings.append(
                 finding
             )

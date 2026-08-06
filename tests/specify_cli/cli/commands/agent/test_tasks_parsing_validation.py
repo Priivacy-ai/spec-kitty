@@ -20,20 +20,23 @@ import pytest
 from specify_cli.cli.commands.agent.tasks_parsing_validation import (
     _VALID_VERDICTS,
     _apply_review_status_flags,
+    _apply_wp_review_verdict_flag,
     _check_branch_currency,
     _check_implementation_commit_present,
     _check_kitty_specs_contamination,
     _check_uncommitted_worktree_changes,
     _check_worktree_health,
-    _get_latest_review_cycle_verdict,
     _issue_matrix_approval_blocker,
     _self_review_fallback_option_error,
     _validate_research_artifacts,
     _validate_worktree_state,
 )
-from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.status.models import Lane, ReviewResult, StatusEvent
+from specify_cli.status.reducer import ReviewResultLookup
 
 pytestmark = pytest.mark.fast
+
+_TASKS_PARSING_VALIDATION = "specify_cli.cli.commands.agent.tasks_parsing_validation"
 
 
 # ---------------------------------------------------------------------------
@@ -78,18 +81,6 @@ def _write_malformed_issue_matrix(feature_dir: Path) -> None:
     )
 
 
-def _write_review_cycle(wp_dir: Path, cycle_n: int, verdict: str) -> Path:
-    wp_dir.mkdir(parents=True, exist_ok=True)
-    artifact = wp_dir / f"review-cycle-{cycle_n}.md"
-    artifact.write_text(
-        f"---\n"
-        f"cycle_number: {cycle_n}\n"
-        f"verdict: {verdict}\n"
-        f"wp_id: WP01\n"
-        f"---\n\nReview body.\n",
-        encoding="utf-8",
-    )
-    return artifact
 
 
 def _make_subproc(returncode: int = 0, stdout: str = "") -> MagicMock:
@@ -348,36 +339,145 @@ def test_valid_verdicts_constant() -> None:
     }
 
 
+# ---------------------------------------------------------------------------
+# WP05 (verdict-seam-write-unification-01KZ9Q35, FR-003/FR-004) retired
+# ``_get_latest_review_cycle_verdict`` -- the ``review-cycle-N.md``
+# frontmatter parser ``_apply_review_status_flags`` used to call. The four
+# tests below are REPOINTED, not deleted (a prior mission's NFR-001 node-id
+# floor, ``tests/architectural/mission_exit_baseline.txt``, pins their
+# names): each now exercises the event-sourced successor
+# (``status.event_sourced_review_result``) of what it originally asserted
+# about the retired frontmatter function.
+# ---------------------------------------------------------------------------
+
+
 def test_get_latest_review_cycle_verdict_no_artifacts(tmp_path: Path) -> None:
-    assert _get_latest_review_cycle_verdict(tmp_path) == (None, None)
+    """WP05 repoint: no event at all -> absent (the event-sourced successor
+    of "no review-cycle artifacts exist yet")."""
+    from specify_cli.status import event_sourced_review_result
+
+    lookup = event_sourced_review_result(tmp_path, "WP01")
+
+    assert lookup.slot_present is False
+    assert lookup.result is None
 
 
 def test_get_latest_review_cycle_verdict_picks_highest(tmp_path: Path) -> None:
-    _write_review_cycle(tmp_path, 1, "rejected")
-    cycle2 = _write_review_cycle(tmp_path, 2, "approved")
-    verdict, artifact = _get_latest_review_cycle_verdict(tmp_path)
-    assert verdict == "approved"
-    assert artifact == cycle2
+    """WP05 repoint: the reducer resolves the MOST RECENT
+    ``review_result``-carrying event -- the event-sourced successor of
+    "picks the highest-numbered cycle"."""
+    from specify_cli.status import event_sourced_review_result
+    from specify_cli.status.store import append_event
+
+    append_event(
+        tmp_path,
+        StatusEvent(
+            event_id="01HXYZPICKS0000000000001",
+            mission_slug=tmp_path.name,
+            wp_id="WP01",
+            from_lane=Lane.IN_REVIEW,
+            to_lane=Lane.IN_PROGRESS,
+            at="2026-01-01T00:00:00+00:00",
+            actor="reviewer-renata",
+            force=False,
+            execution_mode="worktree",
+            review_result=ReviewResult(reviewer="reviewer-renata", verdict="changes_requested", reference="x"),
+        ),
+    )
+    append_event(
+        tmp_path,
+        StatusEvent(
+            event_id="01HXYZPICKS0000000000002",
+            mission_slug=tmp_path.name,
+            wp_id="WP01",
+            from_lane=Lane.IN_REVIEW,
+            to_lane=Lane.APPROVED,
+            at="2026-01-02T00:00:00+00:00",
+            actor="reviewer-renata",
+            force=False,
+            execution_mode="worktree",
+            review_result=ReviewResult(reviewer="reviewer-renata", verdict="approved", reference="y"),
+        ),
+    )
+
+    lookup = event_sourced_review_result(tmp_path, "WP01")
+
+    assert lookup.slot_present is True
+    assert lookup.result is not None
+    assert lookup.result.verdict == "approved"
 
 
-def test_get_latest_review_cycle_verdict_unknown_warns(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    _write_review_cycle(tmp_path, 1, "super_approved")
-    with caplog.at_level("WARNING"):
-        verdict, _ = _get_latest_review_cycle_verdict(tmp_path)
-    assert verdict == "super_approved"
-    assert any("unrecognized verdict" in r.message for r in caplog.records)
+def test_get_latest_review_cycle_verdict_unknown_warns(tmp_path: Path) -> None:
+    """WP05 repoint: a damaged ``review_result`` slot is distinguishable
+    (``slot_present=True, result=None``) from a genuinely absent one, rather
+    than silently collapsing -- the event-sourced successor of "an
+    unrecognized verdict value still surfaces, distinctly"."""
+    from specify_cli.status import event_sourced_review_result
+
+    with patch(
+        "specify_cli.status.reducer.wp_snapshot_state",
+        return_value={"lane": "in_progress", "review_result": {"reviewer": "reviewer-renata"}},
+    ):
+        lookup = event_sourced_review_result(tmp_path, "WP01")
+
+    assert lookup == ReviewResultLookup(slot_present=True, result=None)
 
 
 def test_get_latest_review_cycle_verdict_missing_frontmatter(tmp_path: Path) -> None:
-    artifact = tmp_path / "review-cycle-1.md"
-    artifact.write_text("no frontmatter here\n", encoding="utf-8")
-    assert _get_latest_review_cycle_verdict(tmp_path) == (None, artifact)
+    """WP05 repoint: ``_apply_wp_review_verdict_flag`` (this module's own
+    board-flag helper) marks a damaged event-sourced record distinctly
+    (``_damaged_verdict``), never silently as "no verdict" -- the
+    event-sourced successor of "an artifact with no frontmatter returns a
+    distinguishable damaged marker"."""
+    stale_verdicts: list[dict[str, object]] = []
+    wp: dict[str, object] = {"id": "WP01"}
+
+    with patch(
+        f"{_TASKS_PARSING_VALIDATION}.event_sourced_review_result",
+        return_value=ReviewResultLookup(slot_present=True, result=None),
+    ):
+        _apply_wp_review_verdict_flag(
+            wp, wp_id="WP01", feature_dir=tmp_path, stale_verdicts=stale_verdicts
+        )
+
+    assert wp["_damaged_verdict"] is True
+    assert stale_verdicts and stale_verdicts[0]["damaged"] is True
+
+
+def _append_review_result_event(
+    feature_dir: Path,
+    *,
+    wp_id: str,
+    verdict: str,
+    event_id: str = "01HXYZREVIEW00000000000001",
+) -> None:
+    from specify_cli.status.store import append_event
+
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id=event_id,
+            mission_slug=feature_dir.name,
+            wp_id=wp_id,
+            from_lane=Lane.IN_REVIEW,
+            to_lane=Lane.IN_PROGRESS,
+            at="2026-01-01T00:00:00+00:00",
+            actor="reviewer-renata",
+            force=False,
+            execution_mode="worktree",
+            review_result=ReviewResult(
+                reviewer="reviewer-renata", verdict=verdict, reference="review-cycle://demo/WP01/review-cycle-1.md"
+            ),
+        ),
+    )
 
 
 def test_apply_review_status_flags_stale_and_stalled(tmp_path: Path) -> None:
-    # Approved WP whose latest review-cycle verdict is rejected → stale flag.
-    wp_dir = tmp_path / "WP01"
-    _write_review_cycle(wp_dir, 1, "rejected")
+    # WP05 repoint: the board now resolves the event-sourced verdict
+    # (``event_sourced_review_result``), never ``review-cycle-N.md``
+    # frontmatter -- feature_dir replaces the old tasks_dir kwarg.
+    feature_dir = tmp_path
+    _append_review_result_event(feature_dir, wp_id="WP01", verdict="changes_requested")
     approved_wp: dict[str, object] = {"id": "WP01", "lane": Lane.APPROVED, "file": "WP01.md"}
 
     # In-review WP with an old event → stalled flag.
@@ -396,7 +496,7 @@ def test_apply_review_status_flags_stale_and_stalled(tmp_path: Path) -> None:
 
     stale, stalled = _apply_review_status_flags(
         [approved_wp, in_review_wp],
-        tasks_dir=tmp_path,
+        feature_dir=feature_dir,
         events=[old_event],
         stall_threshold_minutes=30,
     )

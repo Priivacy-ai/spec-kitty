@@ -43,9 +43,9 @@ from specify_cli.core.constants import (
     MISSION_TYPE_SOFTWARE_DEV,
 )
 from specify_cli.lanes._git import lane_has_commit_beyond_base
-from specify_cli.status import Lane, StatusEvent
+from specify_cli.status import Lane, StatusEvent, event_sourced_review_result
 from specify_cli.status import is_dossier_snapshot as _is_dossier_snapshot
-from specify_cli.task_utils import extract_scalar, split_frontmatter
+from specify_cli.status.verdict_vocab import is_changes_requested, to_artifact_verdict
 
 logger = logging.getLogger(__name__)
 
@@ -285,73 +285,14 @@ def _self_review_fallback_option_error(
 # ---------------------------------------------------------------------------
 # Review-cycle verdict + status-flag helpers (verbatim move, WP06/T022)
 # ---------------------------------------------------------------------------
-
-
-def _review_cycle_number(path: Path) -> int:
-    """Return the numeric review-cycle suffix for sorting review artifacts."""
-    match = re.search(r"review-cycle-(\d+)\.md", path.name)
-    return int(match.group(1)) if match else 0
-
-
-def _get_latest_review_cycle_verdict(wp_dir: Path) -> tuple[str | None, Path | None]:
-    """Return (verdict_value, artifact_path) for the latest review-cycle-N.md.
-
-    Scans *wp_dir* for ``review-cycle-<N>.md`` files, picks the highest-numbered
-    one, and returns the ``verdict`` frontmatter value together with the artifact
-    path so callers can name the file in error messages.
-
-    Returns (None, None) when no review-cycle artifacts exist -- a legitimate
-    "no verdict recorded yet" (not damage).
-    Returns (None, artifact_path) when the artifact exists but verdict is
-    absent, its frontmatter is missing/malformed, or it could not be decoded
-    (FR-012/T064) -- a damaged/incomplete record. Callers distinguish this
-    from the "no artifact" case via ``artifact is not None``, and must
-    surface it distinctly (see :func:`_apply_review_status_flags`).
-
-    If the verdict is present but not in :data:`_VALID_VERDICTS`, a warning is
-    logged (but the value is still returned — callers decide what to do with it).
-    """
-    cycles = sorted(
-        wp_dir.glob("review-cycle-*.md"),
-        key=_review_cycle_number,
-    )
-    if not cycles:
-        return None, None
-    artifact = cycles[-1]
-    try:
-        text = artifact.read_text(encoding="utf-8")
-        frontmatter_str, _, _ = split_frontmatter(text)
-        if not frontmatter_str:
-            return None, artifact
-        verdict = extract_scalar(frontmatter_str, "verdict")
-        if verdict is not None and verdict not in _VALID_VERDICTS:
-            logger.warning(
-                "Warning: %s has unrecognized verdict '%s' — expected one of %s",
-                artifact.name,
-                verdict,
-                sorted(_VALID_VERDICTS),
-            )
-        return verdict, artifact
-    except (OSError, UnicodeDecodeError):
-        # refuse (FR-012/T064): the artifact EXISTS but cannot be decoded --
-        # a damaged record. Narrowed from a blanket ``except Exception`` (no
-        # longer needed: ``split_frontmatter``/``extract_scalar`` are pure
-        # string operations that never raise, so ``read_text`` is the only
-        # call in this block that can fail). Still returns ``(None,
-        # artifact)``, not ``(None, None)`` -- callers distinguish "no
-        # artifact at all" (``artifact is None``) from "artifact present but
-        # damaged" (``artifact is not None and verdict is None``) via this
-        # tuple shape; see :func:`_apply_review_status_flags`.
-        return None, artifact
-
-
-def _review_artifact_dir_for_wp(tasks_dir: Path, wp: dict[str, object]) -> Path | None:
-    """Return the review-cycle artifact dir for a WP status row."""
-    wp_file = wp.get("file")
-    if isinstance(wp_file, str) and wp_file.endswith(".md"):
-        return tasks_dir / Path(wp_file).stem
-    wp_id = wp.get("id")
-    return tasks_dir / str(wp_id) if wp_id else None
+#
+# WP05 (verdict-seam-write-unification-01KZ9Q35, FR-003) retired
+# ``_get_latest_review_cycle_verdict`` (the frontmatter verdict reader) along
+# with its two now-dead private helpers, ``_review_cycle_number`` (the
+# review-cycle-filename sort key) and ``_review_artifact_dir_for_wp`` (the
+# tasks_dir-anchored artifact-dir resolver) -- neither has any remaining
+# caller anywhere in this repository once the verdict reader they existed to
+# support is gone.
 
 
 def _latest_status_event_time(events: list[StatusEvent], wp_id: str) -> datetime | None:
@@ -370,23 +311,69 @@ def _latest_status_event_time(events: list[StatusEvent], wp_id: str) -> datetime
     return latest
 
 
+def _apply_wp_review_verdict_flag(
+    wp: dict[str, object],
+    *,
+    wp_id: str,
+    feature_dir: Path,
+    stale_verdicts: list[dict[str, object]],
+) -> None:
+    """Annotate a single terminal-lane WP row with its event-sourced verdict
+    (FR-004/T024 -- repointed off ``review-cycle-N.md`` frontmatter onto
+    :func:`~specify_cli.status.event_sourced_review_result`, the WP05 collapse).
+
+    T064/FR-012: a damaged event-log ``review_result`` slot is folded into the
+    SAME ``stale_verdicts`` channel this module already returns (a
+    ``"damaged": True`` entry), rather than a new return slot -- this keeps
+    the 2-tuple return shape callers outside this WP's owned surface
+    (``tasks_status_cmd.py``) already unpack unchanged. **Absent** (no slot at
+    all -- an un-migrated mission, or a WP that never exited ``in_review``) is
+    NOT damage and raises no warning at all (mirrors the retired reader's
+    "no artifact yet" case).
+    """
+    lookup = event_sourced_review_result(feature_dir, wp_id)
+    if not lookup.slot_present:
+        return
+    if lookup.result is None:
+        # refuse (FR-012): the event log recorded a verdict transition for
+        # this WP but the ``review_result`` slot itself is damaged/malformed
+        # -- distinguishable from "no verdict at all" purely by
+        # ``slot_present``.
+        damaged_warning: dict[str, object] = {
+            "wp_id": wp_id,
+            "artifact": None,
+            "verdict": None,
+            "damaged": True,
+        }
+        stale_verdicts.append(damaged_warning)
+        wp["_damaged_verdict"] = True
+        wp["damaged_review_artifact"] = damaged_warning
+        return
+    if is_changes_requested(lookup.result.verdict):
+        stale_warning: dict[str, object] = {
+            "wp_id": wp_id,
+            "artifact": lookup.result.reference,
+            "verdict": to_artifact_verdict(lookup.result.verdict),
+        }
+        stale_verdicts.append(stale_warning)
+        wp["_stale_verdict"] = True
+        wp["stale_review_artifact"] = stale_warning
+
+
 def _apply_review_status_flags(
     work_packages: list[dict[str, object]],
     *,
-    tasks_dir: Path,
+    feature_dir: Path,
     events: list[StatusEvent],
     stall_threshold_minutes: int,
 ) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
     """Annotate status rows with stale verdict, damaged verdict, and
     stalled-review warnings.
 
-    T064/FR-012: a damaged/malformed review-cycle artifact (``artifact is
-    not None and verdict is None`` -- see
-    :func:`_get_latest_review_cycle_verdict`'s docstring) is folded into the
-    SAME ``stale_verdicts`` channel this function already returns (a
-    ``"damaged": True`` entry), rather than a new return slot -- this keeps
-    the 2-tuple return shape callers outside this WP's owned surface
-    (``tasks_status_cmd.py``) already unpack unchanged.
+    ``feature_dir`` is the STATUS_STATE-authoritative mission dir (the event
+    log's home) -- WP05 (verdict-seam-write-unification-01KZ9Q35) repointed
+    this off a ``tasks_dir``-anchored ``review-cycle-N.md`` frontmatter glob
+    (:func:`_apply_wp_review_verdict_flag`).
     """
     stale_verdicts: list[dict[str, object]] = []
     stalled_wps: list[dict[str, object]] = []
@@ -399,31 +386,9 @@ def _apply_review_status_flags(
 
         lane = wp.get("lane")
         if lane in (Lane.APPROVED, Lane.DONE):
-            wp_dir = _review_artifact_dir_for_wp(tasks_dir, wp)
-            if wp_dir is not None:
-                verdict, artifact = _get_latest_review_cycle_verdict(wp_dir)
-                if artifact is not None and verdict is None:
-                    # refuse (FR-012): the artifact exists but no verdict
-                    # could be read from it -- distinguishable from "no
-                    # artifact at all" purely by ``artifact is not None``.
-                    damaged_warning: dict[str, object] = {
-                        "wp_id": wp_id,
-                        "artifact": artifact.name,
-                        "verdict": None,
-                        "damaged": True,
-                    }
-                    stale_verdicts.append(damaged_warning)
-                    wp["_damaged_verdict"] = True
-                    wp["damaged_review_artifact"] = damaged_warning
-                elif verdict == "rejected" and artifact is not None:
-                    stale_warning: dict[str, object] = {
-                        "wp_id": wp_id,
-                        "artifact": artifact.name,
-                        "verdict": verdict,
-                    }
-                    stale_verdicts.append(stale_warning)
-                    wp["_stale_verdict"] = True
-                    wp["stale_review_artifact"] = stale_warning
+            _apply_wp_review_verdict_flag(
+                wp, wp_id=wp_id, feature_dir=feature_dir, stale_verdicts=stale_verdicts
+            )
 
         if lane == Lane.IN_REVIEW:
             last_event_time = _latest_status_event_time(events, wp_id)
@@ -1056,10 +1021,13 @@ __all__ = [
     # (_primary_issue_matrix_satisfies was DELETED — coord-commit-integrity
     # SURFACE A #1c: a PRIMARY fallback for the COORD-partition issue-matrix was
     # the split-brain anti-pattern.)
-    # _review_artifact_dir_for_wp, _review_cycle_number,
+    # (_review_artifact_dir_for_wp, _review_cycle_number,
+    # _get_latest_review_cycle_verdict were DELETED — WP05
+    # verdict-seam-write-unification-01KZ9Q35/FR-003: the frontmatter verdict
+    # reader and its two support helpers, retired in favour of
+    # ``event_sourced_review_result``.)
     # _validate_research_artifacts, _validate_worktree_state:
     # demoted — no cross-module src/ callers (WP01 harden-dead-symbol-gate).
-    "_get_latest_review_cycle_verdict",
     "_issue_matrix_approval_blocker",
     "_self_review_fallback_option_error",
     "_validate_ready_for_review",

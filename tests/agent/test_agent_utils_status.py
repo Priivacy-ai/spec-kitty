@@ -67,9 +67,11 @@ def _event(
     *,
     at: str,
     from_lane: str = "planned",
+    review_result: dict[str, object] | None = None,
+    event_id: str = "01HXYZ0000000000000000TEST",
 ) -> dict:
-    return {
-        "event_id": "01HXYZ0000000000000000TEST",
+    event: dict[str, object] = {
+        "event_id": event_id,
         "at": at,
         "feature_slug": mission_slug,
         "wp_id": wp_id,
@@ -82,6 +84,9 @@ def _event(
         "review_ref": None,
         "execution_mode": "worktree",
     }
+    if review_result is not None:
+        event["review_result"] = review_result
+    return event
 
 
 def _patch_project(monkeypatch: pytest.MonkeyPatch, project: Path) -> None:
@@ -99,7 +104,11 @@ def test_show_kanban_status_reports_rejected_artifact_under_wp_slug_dir(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Approved/done WPs warn on rejected review artifacts in tasks/<WP-slug>/."""
+    """Approved/done WPs warn on an event-sourced ``changes_requested``
+    verdict (WP05, verdict-seam-write-unification-01KZ9Q35: the board now
+    resolves the event authority, never ``review-cycle-N.md`` frontmatter --
+    the on-disk artifact below is written only as realistic surrounding
+    state, never read for its verdict)."""
     mission_slug = "test-stale-verdict"
     _write_project_root(tmp_path)
     feature_dir = tmp_path / "kitty-specs" / mission_slug
@@ -119,10 +128,23 @@ def test_show_kanban_status_reports_rejected_artifact_under_wp_slug_dir(
             _event(
                 mission_slug,
                 "WP01",
+                "in_progress",
+                from_lane="in_review",
+                at="2025-12-31T00:00:00+00:00",
+                event_id="01HXYZ0000000000000000REJ1",
+                review_result={
+                    "reviewer": "reviewer-renata",
+                    "verdict": "changes_requested",
+                    "reference": f"review-cycle://{mission_slug}/{wp_file.stem}/review-cycle-1.md",
+                },
+            ),
+            _event(
+                mission_slug,
+                "WP01",
                 "done",
                 from_lane="approved",
                 at="2026-01-01T00:00:00+00:00",
-            )
+            ),
         ],
     )
     _patch_project(monkeypatch, tmp_path)

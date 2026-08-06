@@ -321,6 +321,38 @@ cross_wp_dependencies:
       finding describes becomes reachable in production the moment this WP
       merges, not at some later WP's merge. The operator should treat closing
       this dependency as time-critical, not routine backlog.
+    wp09_reconciliation_class_downgrade: >-
+      verdict-seam-write-unification-01KZ9Q35 WP09 (FR-014/D-PLAN-6, this
+      shard's own owning mission): the driver WP18 landed above was
+      REFUSE-fail-closed (exit 1, abort the squash) because at the time a
+      review-cycle-*.md render was the AUTHORITATIVE verdict record. This
+      mission's WP05 (verdict-seam-write-unification-01KZ9Q35, a hard
+      dependency of WP09) demoted the .md render to non-authoritative,
+      unread best-effort prose -- status.events.jsonl's review_result event
+      slot is the sole verdict authority now (see
+      kitty-specs/verdict-seam-write-unification-01KZ9Q35/contracts/
+      provenance-backfill.md). With no reader left that trusts this
+      document's cycle_number/verdict fields to decide "which record is
+      latest", the fabrication risk the refuse-fail-closed ruling above
+      exists to prevent no longer applies to a genuine collision. WP09
+      DOWNGRADED merge_driver_review_cycle (src/specify_cli/cli/commands/
+      merge_driver.py) to non-aborting: both divergent renders are still
+      embedded verbatim behind conflict markers (never blended/interleaved/
+      fabricated -- the "never silently drop a side" discipline above is
+      UNCHANGED), but the driver no longer raises typer.Exit(1), so the
+      squash proceeds. tracking_test above (
+      test_review_cycle_tasks_hazard_is_ruled_and_tracked) is unaffected --
+      it only pins driver REGISTRATION in .gitattributes, not the exit-code
+      class -- the new class is pinned by
+      tests/architectural/test_merge_reconciliation_class_guard.py::
+      test_review_cycle_driver_downgraded_to_non_aborting and proven
+      red-first through the real squash-merge path by
+      tests/review/test_review_cycle_merge_driver.py::
+      test_divergent_best_effort_renders_do_not_abort_the_squash (RED
+      against the pre-downgrade driver via git stash, GREEN after). The
+      pre-existing tests/specify_cli/cli/commands/test_review_cycle_merge_
+      driver.py suite (WP18's own) is re-pinned to the new non-aborting
+      contract in the same change, not deleted.
 
   - id: WP04-XWP-04
     title: >-

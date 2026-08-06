@@ -280,6 +280,14 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # sorts alphabetically AFTER the m_unify_charter_activation* folds at the
         # same tied target_version="3.2.6" (see the module docstring).
         "specify_cli.upgrade.migrations.m_zz_runtime_state_backfill",
+        # verdict-seam-write-unification-01KZ9Q35 pre-merge remediation (#3236,
+        # FR-012/SC-008): auto-discovered upgrade migration that backfills each
+        # kitty-specs/ mission's stranded terminal review-cycle .md verdict into
+        # status.events.jsonl. Auto-discovered via pkgutil.iter_modules +
+        # @MigrationRegistry.register; never statically imported by runtime code.
+        # Named m_zz_* (same ordering rationale as the runtime-state sibling
+        # above) at the tied target_version="3.2.6".
+        "specify_cli.upgrade.migrations.m_zz_verdict_provenance_backfill",
         # review-cycle-verdict-seam-rebuild-01KZ2W7W WP18/T079 (T017): installs
         # the review-cycle-*.md fail-closed merge driver for already-init'd
         # clones. Auto-discovered via pkgutil.iter_modules + @MigrationRegistry
@@ -412,6 +420,14 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         #   governance-evidence seam (append-only policy-audit.jsonl);
         #   wiring is design work tracked in a follow-up issue, not deleted.
         "specify_cli.policy.audit",
+        # migration.verdict_provenance_backfill: REMOVED (verdict-seam-write-
+        #   unification-01KZ9Q35 pre-merge remediation, 2026-08-06). The
+        #   eventual-wiring follow-up (#3236) landed: the FR-012/SC-008 backfill
+        #   is now called from `src/` by the auto-discovered upgrade migration
+        #   `upgrade.migrations.m_zz_verdict_provenance_backfill` (and its
+        #   `stranded_verdict_findings` predicate by the `accept` provenance
+        #   diagnostic), so the module has live `src/` callers and is no longer
+        #   an orphan. Shrink 3 -> 2 -- reverses the post-merge green-up bump.
     }
 )
 

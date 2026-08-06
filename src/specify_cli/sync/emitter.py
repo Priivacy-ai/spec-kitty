@@ -53,7 +53,7 @@ from specify_cli.proof.events import (
     build_proof_payload,
     infer_proof_aggregate,
 )
-from specify_cli.status import get_all_lane_values
+from specify_cli.status import get_all_lane_values, verdict_vocab
 from specify_cli.status_lanes import CANONICAL_LANES
 from spec_kitty_events import normalize_event_id as _normalize_event_id
 
@@ -355,6 +355,18 @@ _BASE_PROOF_VALIDATORS: dict[str, Any] = {
     "idempotency_key": _is_hex_digest,
 }
 
+#: Valid ``verdict`` values for a ``ReviewProofRecorded`` proof event: the
+#: two-value event vocabulary plus the two-value emission-scoped artifact
+#: vocabulary -- routed through the canonical bridge (FR-005) instead of
+#: re-inlining the ``rejected``/``changes_requested`` equivalence -- plus the
+#: two proof-event-only extra states (``commented``/``unknown``) this schema
+#: also accepts (outside the artifact<->event bridge's scope).
+_REVIEW_PROOF_VERDICTS: frozenset[str] = (
+    verdict_vocab.event_verdicts()
+    | verdict_vocab.emission_artifact_verdicts()
+    | {"commented", "unknown"}
+)
+
 #: Per-event-type extra validators merged on top of :data:`_BASE_PROOF_VALIDATORS`.
 _PROOF_EVENT_VALIDATORS: dict[str, dict[str, Any]] = {
     "ProofItemRecorded": {
@@ -362,7 +374,7 @@ _PROOF_EVENT_VALIDATORS: dict[str, dict[str, Any]] = {
     },
     "ReviewProofRecorded": {
         "review_kind": lambda v: v in {"code_review", "qa", "mission_review", "security_review", "other"},
-        "verdict": lambda v: v in {"approved", "changes_requested", "commented", "rejected", "unknown"},
+        "verdict": lambda v: v in _REVIEW_PROOF_VERDICTS,
         "review_ref": _is_nullable_string,
     },
     "TestEvidenceCaptured": {

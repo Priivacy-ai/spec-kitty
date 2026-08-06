@@ -747,6 +747,67 @@ def clear_coordination_metadata(feature_dir: Path) -> dict[str, Any]:
     return cleared
 
 
+def flatten_coordination_metadata(feature_dir: Path) -> dict[str, Any]:
+    """Canonically flatten a mission's coordination metadata (#3219 / FR-015 / D-PLAN-17).
+
+    The single, canonical primitive performing all THREE coordination-flatten
+    mutations in one ``load -> mutate -> write_meta(validate=False)``: pop
+    ``coordination_branch``, pop the now-stale ``topology``, and set
+    ``flattened: True`` -- persisted via a SINGLE write. This closes the
+    double-write / mid-flatten-crash window a caller invited by doing the
+    mutations across two separate ``write_meta`` calls (e.g. one call to clear
+    ``coordination_branch`` followed by a second call popping ``topology`` and
+    setting ``flattened``): a crash between the two writes could leave a
+    mission with ``coordination_branch`` gone but a stale ``topology`` still
+    routing it through coordination.
+
+    This is the fourth touch on this mutation set (#2069 -> #2120 -> #2614 ->
+    #3086/#3218) -- every prior touch re-inlined a partial or two-write copy
+    of these three mutations at its own call site instead of converging on one
+    shared primitive.  Every canonical call site (``merge/executor.py``'s
+    post-branch-delete flatten, ``doctor coordination --fix``, and
+    ``mission close --discard``) MUST route through this function; a
+    dedicated architectural guard
+    (``tests/coordination/test_flatten_primitive_single_source.py``) fails
+    the build if a future change re-inlines the three-mutation set anywhere
+    else.
+
+    A no-op (no write, empty snapshot) when ``coordination_branch`` is absent
+    -- a non-coord Mission (``SINGLE_BRANCH``/``LANES``) or an
+    already-flattened one carries no such key, so repeated calls are
+    idempotent and never spuriously stamp ``flattened: True`` onto a mission
+    that was never coordinated.
+
+    Returns a snapshot of the cleared ``coordination_branch``/``topology``
+    values (empty when there was nothing to flatten).
+
+    Raises:
+        FileNotFoundError: If ``meta.json`` does not exist in *feature_dir*.
+    """
+    # Deferred import (LOAD-BEARING -- do NOT hoist to module level): the
+    # ``specify_cli.migration`` package's ``__init__.py`` imports
+    # ``backfill_identity``, which itself imports THIS module
+    # (``specify_cli.mission_metadata``) -- a module-level import here would
+    # re-form that exact cycle (empirically verified: a partially-initialized
+    # ``mission_metadata`` module fails resolving names ``backfill_identity``
+    # needs). Mirrors the established deferred-import pattern this module
+    # already uses for ``core.paths`` in :func:`_load_meta_fail_closed`.
+    from specify_cli.migration.backfill_topology import FLATTENED_KEY, TOPOLOGY_KEY
+
+    meta = _require_meta(feature_dir)
+
+    if "coordination_branch" not in meta:
+        return {}
+
+    cleared: dict[str, Any] = {"coordination_branch": meta.pop("coordination_branch")}
+    if TOPOLOGY_KEY in meta:
+        cleared[TOPOLOGY_KEY] = meta.pop(TOPOLOGY_KEY)
+    meta[FLATTENED_KEY] = True
+
+    write_meta(feature_dir, meta, validate=False)
+    return cleared
+
+
 def get_change_mode(feature_dir: Path) -> str | None:
     """Read ``change_mode`` from meta.json.
 

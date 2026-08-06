@@ -360,6 +360,33 @@ def resolve_review_feedback_context(
     return False, None, None, None
 
 
+def _resolve_review_cycle_sub_artifact_dir(feature_dir: Path, wp_slug: str) -> Path:
+    """Resolve the review-cycle artifact directory for *wp_slug* (T024).
+
+    WP05 (verdict-seam-write-unification-01KZ9Q35): this used to be a RAW
+    ``feature_dir / "tasks" / wp_slug`` join -- one of the three sites WP04's
+    own ``verdict_seam_IC04.yaml`` fragment flagged as unrouted (alongside
+    ``workflow_executor.py::implement_try_render_fix_mode_prompt`` and
+    ``workflow.py::review``). Now routes through
+    :func:`~specify_cli.review.cycle._review_cycle_wp_dir` (the T058 owner
+    function), at its default ``kind`` (``WORK_PACKAGE_TASK``) -- matching the
+    WRITE seam exactly, per that function's own docstring. Degrades to the
+    historical flat join when no workspace root is derivable (a bare test
+    fixture with no git ancestor).
+    """
+    from specify_cli.core.paths import WorkspaceRootNotFound, resolve_canonical_root
+    from specify_cli.review.cycle import _review_cycle_wp_dir
+
+    try:
+        main_repo_root = resolve_canonical_root(feature_dir)
+    except WorkspaceRootNotFound:
+        return feature_dir / "tasks" / wp_slug
+
+    mission_slug = feature_dir.name
+    resolved: Path = _review_cycle_wp_dir(main_repo_root, mission_slug, wp_slug)
+    return resolved
+
+
 def has_prior_rejection(
     feature_dir: Path,
     wp_slug: str,
@@ -381,7 +408,7 @@ def has_prior_rejection(
     Returns:
         True iff both artifact files and a rejection event are present.
     """
-    sub_artifact_dir = feature_dir / "tasks" / wp_slug
+    sub_artifact_dir = _resolve_review_cycle_sub_artifact_dir(feature_dir, wp_slug)
     if not sub_artifact_dir.exists():
         return False
     if not list(sub_artifact_dir.glob("review-cycle-*.md")):

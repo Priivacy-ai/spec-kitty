@@ -272,6 +272,14 @@ def test_no_field_is_dual_homed_static_and_event() -> None:
 #: (``role``, ``agent_profile``, ``model`` authored recommendation) are
 #: deliberately EXCLUDED: they stay frontmatter-canonical (D-09 / C-008); only
 #: the resolved-actual identity is event-sourced (WP10/WP11).
+#: ``verdict`` (WP05, verdict-seam-write-unification-01KZ9Q35, FR-004/T027)
+#: extends this set to the review-cycle-artifact verdict field: an
+#: ``extract_scalar(..., "verdict")`` read is now ALSO an authority bypass,
+#: not just the WP-runtime-state fields below. This mission's own reader
+#: collapse retired every LIVE call of that shape
+#: (``tasks_parsing_validation.py::_get_latest_review_cycle_verdict``,
+#: ``agent_utils/status.py::_get_wp_review_verdict``); adding it here turns
+#: this the enforcing ratchet against reintroduction.
 _DYNAMIC_RUNTIME_FIELDS: frozenset[str] = frozenset(
     {
         "agent",
@@ -286,6 +294,7 @@ _DYNAMIC_RUNTIME_FIELDS: frozenset[str] = frozenset(
         "reviewed_by",
         "approved_by",
         "review_feedback",
+        "verdict",
     }
 )
 
@@ -300,7 +309,21 @@ _FRONTMATTER_READ_CALLS: frozenset[str] = frozenset({"read_wp_frontmatter"})
 #: included (#2816) so the D-09 scanner class — the motivating pre-reroute
 #: bypass — is actually covered: re-pointing a snapshot read there back to
 #: ``read_wp_frontmatter(...).<field>`` must turn this invariant red.
-_READER_AUTHORITY_ROOTS = ("status", "cli", "core", "task_utils", "dashboard")
+#: ``agent_utils``/``review``/``post_merge`` (WP05, T027) extend coverage to
+#: the review-cycle-verdict reader family this mission collapsed
+#: (``agent_utils/status.py::show_kanban_status``,
+#: ``review/artifacts.py``'s retired verdict-parser pair,
+#: ``post_merge/review_artifact_consistency.py``'s merge gate).
+_READER_AUTHORITY_ROOTS = (
+    "status",
+    "cli",
+    "core",
+    "task_utils",
+    "dashboard",
+    "agent_utils",
+    "review",
+    "post_merge",
+)
 
 #: The tolerated set of modules that legitimately read a dynamic runtime field
 #: from frontmatter. Post-cutover (FR-008 / IC-05) this is EMPTY: WP04 deleted
@@ -309,6 +332,94 @@ _READER_AUTHORITY_ROOTS = ("status", "cli", "core", "task_utils", "dashboard")
 #: snapshot. ANY module in the AST-derived set is now a real #2093 bypass — the
 #: derived union MUST equal this empty set.
 _SANCTIONED_READER_MODULES: frozenset[str] = frozenset()
+
+
+# ---------------------------------------------------------------------------
+# Arm 4 (WP05/T027, FR-004) — review-cycle-*.md verdict-frontmatter glob
+# detector.
+#
+# A THIRD, independent detector class from arm 3's two (``extract_scalar``
+# and ``read_wp_frontmatter(...).<field>``): it targets a review-cycle
+# ARTIFACT frontmatter read for the "verdict" field specifically -- a module
+# that BOTH globs ``review-cycle-*.md`` AND reads a "verdict" value is the
+# exact shape the two retired verdict-parser functions
+# (``latest_review_artifact_verdict`` / ``rejected_review_artifact_for_
+# terminal_lane`` in ``review/artifacts.py``, ``_get_latest_review_cycle_
+# verdict`` in ``tasks_parsing_validation.py``, ``_get_wp_review_verdict`` in
+# ``agent_utils/status.py``) used. Neither signal alone is suspicious (a glob
+# for cycle-numbering purposes, or an unrelated ``.verdict`` access, is
+# legitimate) -- only the CO-OCCURRENCE is the bypass, mirroring the WP04
+# vocab bridge guard's own co-occurring-literals idiom
+# (``test_verdict_vocab_single_source.py::_co_occurring_equivalence_modules``).
+# ---------------------------------------------------------------------------
+
+_REVIEW_CYCLE_GLOB_LITERAL = "review-cycle-*.md"
+
+#: Call names whose direct ``(...).verdict`` attribute chain is a review-cycle
+#: verdict read (``ReviewCycleArtifact.from_file(...).verdict`` /
+#: ``ReviewCycleArtifact.latest(...).verdict``). Deliberately does NOT flag
+#: ``.from_file``/``.latest`` accessing any OTHER attribute (``.body``,
+#: ``.cycle_number``) -- those are the KEPT content/cycle-number loader uses
+#: (squad #1: fix-mode prose, arbiter cycle_number), not verdict reads.
+_REVIEW_CYCLE_LOAD_CALLS: frozenset[str] = frozenset({"from_file", "latest"})
+
+
+def _globs_review_cycle_files(tree: ast.AST) -> bool:
+    """True if the module calls ``<expr>.glob("review-cycle-*.md")`` (or
+    ``.rglob``) anywhere -- the review-cycle-artifact-directory scan
+    signature."""
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr in ("glob", "rglob")
+            and node.args
+            and isinstance(node.args[0], ast.Constant)
+            and node.args[0].value == _REVIEW_CYCLE_GLOB_LITERAL
+        ):
+            return True
+    return False
+
+
+def _reads_verdict_field(tree: ast.AST) -> bool:
+    """True if the module reads a "verdict" value via
+    ``extract_scalar(<any>, "verdict")`` or a direct ``.verdict`` attribute
+    chained off a ``from_file(...)``/``latest(...)`` call."""
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and _is_extract_scalar_verdict_call_generic(node):
+            return True
+        if (
+            isinstance(node, ast.Attribute)
+            and node.attr == "verdict"
+            and isinstance(node.value, ast.Call)
+        ):
+            func = node.value.func
+            call_name = (
+                func.attr
+                if isinstance(func, ast.Attribute)
+                else func.id
+                if isinstance(func, ast.Name)
+                else None
+            )
+            if call_name in _REVIEW_CYCLE_LOAD_CALLS:
+                return True
+    return False
+
+
+def _is_extract_scalar_verdict_call_generic(node: ast.Call) -> bool:
+    func = node.func
+    name = func.attr if isinstance(func, ast.Attribute) else func.id if isinstance(func, ast.Name) else None
+    if name != "extract_scalar" or len(node.args) < 2:
+        return False
+    field_arg = node.args[1]
+    return isinstance(field_arg, ast.Constant) and field_arg.value == "verdict"
+
+
+def _reads_review_cycle_verdict_via_glob(tree: ast.AST) -> bool:
+    """Co-occurrence signature (WP05/T027): a module that BOTH globs
+    ``review-cycle-*.md`` AND reads a "verdict" value is a review-cycle
+    verdict-authority bypass."""
+    return _globs_review_cycle_files(tree) and _reads_verdict_field(tree)
 
 
 def _repo_root() -> Path:
@@ -372,16 +483,21 @@ def _reads_dynamic_field_via_attribute_access(tree: ast.AST) -> bool:
 def _derive_reader_authority_modules(root: Path) -> set[str]:
     """AST-derived reader modules — the hardened replacement for the old
     hardcoded tuple. Any module under the reader roots that reads a dynamic
-    runtime field from frontmatter, via EITHER ``extract_scalar`` OR
-    ``read_wp_frontmatter(...).<field>`` attribute access, is a reader-authority
-    site; a NEW one of either class auto-joins."""
+    runtime field from frontmatter, via ``extract_scalar``,
+    ``read_wp_frontmatter(...).<field>`` attribute access, OR the WP05/T027
+    review-cycle-*.md glob+verdict co-occurrence, is a reader-authority
+    site; a NEW one of any class auto-joins."""
     derived: set[str] = set()
     for path in _iter_root_modules(root):
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"))
         except SyntaxError:
             continue
-        if _reads_dynamic_field_via_extract_scalar(tree) or _reads_dynamic_field_via_attribute_access(tree):
+        if (
+            _reads_dynamic_field_via_extract_scalar(tree)
+            or _reads_dynamic_field_via_attribute_access(tree)
+            or _reads_review_cycle_verdict_via_glob(tree)
+        ):
             derived.add(path.relative_to(root).as_posix())
     return derived
 
@@ -515,3 +631,58 @@ def test_detector_flags_dashboard_style_frontmatter_attribute_read() -> None:
     # frontmatter is GREEN — it stays frontmatter-canonical, not event-sourced.
     authored_read = "def f(front):\n    return read_wp_frontmatter(front).agent_profile\n"
     assert _reads_dynamic_field_via_attribute_access(ast.parse(authored_read)) is False
+
+
+def test_detector_flags_review_cycle_glob_verdict_frontmatter_read() -> None:
+    """SC-002/SC-003 non-vacuity for the review-cycle-*.md glob arm (WP05/T027):
+    a synthetic module reproducing the retired verdict-parser shape (glob +
+    ``extract_scalar(..., "verdict")``, or glob + ``.from_file(...).verdict`` /
+    ``.latest(...).verdict``) is flagged RED; a module that globs WITHOUT
+    reading verdict (cycle numbering), or reads an unrelated field, is GREEN."""
+    poison_extract = (
+        "def f(wp_dir):\n"
+        "    cycles = sorted(wp_dir.glob('review-cycle-*.md'))\n"
+        "    return extract_scalar(cycles[-1].read_text(), 'verdict')\n"
+    )
+    assert _reads_review_cycle_verdict_via_glob(ast.parse(poison_extract)) is True
+
+    poison_from_file = (
+        "def f(wp_dir):\n"
+        "    candidates = wp_dir.glob('review-cycle-*.md')\n"
+        "    return ReviewCycleArtifact.from_file(candidates[-1]).verdict\n"
+    )
+    assert _reads_review_cycle_verdict_via_glob(ast.parse(poison_from_file)) is True
+
+    poison_latest = (
+        "def f(wp_dir):\n"
+        "    _ = wp_dir.glob('review-cycle-*.md')\n"
+        "    return ReviewCycleArtifact.latest(wp_dir).verdict\n"
+    )
+    assert _reads_review_cycle_verdict_via_glob(ast.parse(poison_latest)) is True
+
+    # Glob-only control (cycle numbering, existence check): GREEN.
+    glob_only = "def f(wp_dir):\n    return len(list(wp_dir.glob('review-cycle-*.md')))\n"
+    assert _reads_review_cycle_verdict_via_glob(ast.parse(glob_only)) is False
+
+    # verdict-access-only control (no glob at all): GREEN — the co-occurrence
+    # is the bypass signature, not either signal alone.
+    verdict_only_no_glob = "def f(artifact):\n    return artifact.verdict\n"
+    assert _reads_review_cycle_verdict_via_glob(ast.parse(verdict_only_no_glob)) is False
+
+    # squad #1 control: the KEPT content loaders' legitimate attribute access
+    # (``.body``/``.cycle_number``, never ``.verdict``) stays GREEN even when
+    # co-located with a glob in the same function.
+    kept_content_loader = (
+        "def f(wp_dir):\n"
+        "    _ = wp_dir.glob('review-cycle-*.md')\n"
+        "    return ReviewCycleArtifact.latest(wp_dir).cycle_number\n"
+    )
+    assert _reads_review_cycle_verdict_via_glob(ast.parse(kept_content_loader)) is False
+
+
+#: NOTE: the real-tree, post-collapse proof for arm 4 (no module both globs
+#: ``review-cycle-*.md`` and reads "verdict") is NOT a separate test -- arm 4
+#: is folded directly into :func:`_derive_reader_authority_modules` (the
+#: SAME union :func:`test_no_frontmatter_authority_reader_survives` already
+#: asserts is empty), so that existing end-state assertion covers all three
+#: detector classes at once rather than duplicating the real-tree walk here.

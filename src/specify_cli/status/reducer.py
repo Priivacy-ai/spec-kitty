@@ -489,23 +489,23 @@ class ReviewResultLookup:
       ``review_result`` key for this WP at all — no reduced entry exists, or
       the WP has never undergone an outbound-from-``in_review`` transition
       (the only transition class :func:`_wp_state_from_event` writes this slot
-      on). This is the un-migrated / never-reviewed compatibility case: FR-001
-      still requires a reader here, so callers fall back to the pre-existing
-      frontmatter-parsing path (``rejected_review_artifact_for_terminal_lane``
-      / ``latest_review_artifact_verdict``) rather than reporting "no verdict"
-      for a safety gate (SC-012).
+      on). This is the un-migrated / never-reviewed compatibility case.
+      **Post-WP05 (verdict-seam-write-unification-01KZ9Q35, FR-002/FR-003):**
+      the frontmatter-parsing fallback this paragraph used to describe
+      (``rejected_review_artifact_for_terminal_lane`` /
+      ``latest_review_artifact_verdict``) is RETIRED — those two functions no
+      longer exist. Every caller now treats ``slot_present=False`` as "no
+      verdict recorded" directly (G2, contracts/verdict-authority-read.md):
+      a safety-gate consumer reads this as "no approval"/"no block", never a
+      frontmatter resurrection.
     - ``slot_present=True, result=None``: the event log HAS spoken for this
       WP's most recent outbound-from-``in_review`` transition, and its
       authoritative answer is "no verdict was ever recorded" — typically a
-      ``--force`` transition that supplied no ``ReviewResult`` (T028). This is
-      NOT the un-migrated case: falling back to frontmatter here would
-      resurrect a stale artifact and reintroduce the multi-authority bug this
-      mission closes. (An individual gate MAY still choose to defer to its
-      existing frontmatter-only answer when this is the outcome, because the
-      event genuinely has no opinion to contribute either way — see
-      ``post_merge/review_artifact_consistency.py``'s event-sourced gate
-      helper — but that is a call-site choice, not a resurrection of the
-      un-migrated fallback.)
+      ``--force`` transition that supplied no ``ReviewResult`` (T028), or a
+      damaged/malformed slot value (:func:`review_result_from_state`'s own
+      fail-closed catch). Both shapes collapse to this SAME tuple — see
+      ``post_merge/review_artifact_consistency.py``'s
+      ``_event_sourced_gate_verdict`` for one call-site's treatment.
     - ``slot_present=True, result=<ReviewResult>``: the event log's own
       recorded verdict — authoritative per FR-001, regardless of what any
       review-cycle artifact's frontmatter says.
@@ -559,11 +559,18 @@ def event_sourced_review_result(feature_dir: Path, wp_id: str) -> ReviewResultLo
     **Failure polarity (fail-closed, stated for the WP01 reader census):** a
     corrupted/unreadable event log raises :class:`~specify_cli.status.store.
     StoreError` from the underlying ``read_event_stream`` call; this function
-    treats that identically to "no reduced entry" (``slot_present=False``),
-    so the caller's un-migrated-mission fallback path fires rather than an
-    uncaught crash or a verdict fabricated from a damaged log. This governs
-    only the SNAPSHOT read; a caller's own frontmatter-fallback source has its
-    own, separately-declared polarity (see each consumer).
+    treats that identically to "no reduced entry" (``slot_present=False``), so
+    the caller degrades to "no verdict recorded" rather than an uncaught crash
+    or a verdict fabricated from a damaged log. The frontmatter fallback the
+    earlier phrasing named here is RETIRED (FR-003; those two functions no
+    longer exist — see :class:`ReviewResultLookup` above), so there is no
+    un-migrated-mission resurrection path left. "Absent" is then read
+    direction-dependently by the two safety consumers: the approval guard
+    treats it as "no approval" (fail-CLOSED — a WP that cannot be proven
+    approved is refused), while the merge-rejection block gate treats it as
+    "no block" (fail-open, backstopped by that same fail-closed approval guard
+    — see G2/G3, contracts/verdict-authority-read.md). This governs only the
+    SNAPSHOT read.
     """
     try:
         state = wp_snapshot_state(feature_dir, wp_id)

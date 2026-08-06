@@ -105,8 +105,6 @@ def _emit_review_artifact_block(
             console.print(
                 f"    latest_review_cycle_verdict: {diagnostic['latest_review_cycle_verdict']}"
             )
-        if "schema_error" in diagnostic:
-            console.print(f"    schema_error: {diagnostic['schema_error']}")
         remediation = diagnostic.get("remediation", [])
         if not isinstance(remediation, list):
             remediation = [str(remediation)]

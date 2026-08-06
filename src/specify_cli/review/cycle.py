@@ -16,6 +16,7 @@ from specify_cli.agent_tasks_ports import (
 )
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.git.protection_policy import ProtectionPolicy
+import logging
 import re
 import subprocess
 import time
@@ -25,11 +26,13 @@ from pathlib import Path
 from typing import Literal
 
 from specify_cli.review.artifacts import (
-    REVIEW_ARTIFACT_VERDICTS,
     AffectedFile,
     ReviewCycleArtifact,
 )
 from specify_cli.status import ReviewResult, feature_status_lock, git_operation_in_progress
+from specify_cli.status import verdict_vocab
+
+logger = logging.getLogger(__name__)
 
 UTC_SECOND_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 REVIEW_FEEDBACK_SENTINELS = frozenset({"force-override", "action-review-claim"})
@@ -59,22 +62,36 @@ def _review_cycle_wp_dir(
     bookkeeping under a coordination topology, PRIMARY otherwise.** This is
     the ONE owner function every consumer in this mission's scope routes
     through — the READ seam (:func:`resolve_review_cycle_pointer`), the WRITE
-    seam (:func:`create_rejected_review_cycle`), the arbiter
-    (:func:`specify_cli.review.arbiter.persist_arbiter_decision`), and the
-    merge-time gate (:mod:`specify_cli.post_merge.review_artifact_consistency`)
-    all resolve through this single call (FR-007), parametrized by ``kind`` so
-    each consumer states which partition rule it wants rather than
-    re-deriving the directory independently.
+    seam (:func:`create_rejected_review_cycle`), and the arbiter
+    (:func:`specify_cli.review.arbiter.persist_arbiter_decision`) all resolve
+    through this single call (FR-007), parametrized by ``kind`` so each
+    consumer states which partition rule it wants rather than re-deriving the
+    directory independently.
+
+    **FR-011 correction (WP06): the merge-time gate does NOT opt into
+    ``REVIEW_CYCLE`` here.** An earlier revision of this docstring claimed
+    the merge-time gate (:mod:`specify_cli.post_merge.review_artifact_consistency`)
+    was this function's one ``kind=REVIEW_CYCLE`` caller; verified against the
+    live tree, that module never calls ``_review_cycle_wp_dir`` at all -- it
+    resolves its own read directory through a separate helper
+    (``_resolve_partition_read_dir``). No caller in this mission's scope
+    currently passes ``kind=MissionArtifactKind.REVIEW_CYCLE`` to this
+    function; every real call site (the READ seam, the WRITE seam, the
+    arbiter, ``tasks_materialization.py::_persist_review_feedback``,
+    ``workflow_executor.py``, ``workflow_cores.py``,
+    ``tasks_verdict_persistence.py``) relies on the ``WORK_PACKAGE_TASK``
+    default below and passes no ``kind`` argument.
 
     ``kind`` defaults to ``MissionArtifactKind.WORK_PACKAGE_TASK`` (PRIMARY,
-    for every topology) — the WRITE seam, the arbiter, and
-    ``tasks_materialization.py::_persist_review_feedback`` all rely on this
-    default and pass no ``kind`` argument. A caller may instead pass
+    for every topology) — every real caller relies on this default and passes
+    no ``kind`` argument. A caller MAY instead pass
     ``kind=MissionArtifactKind.REVIEW_CYCLE`` to resolve the ADR-designated
     COORD-under-coord-topology home (absorbing
     ``CoordinationBranchDeleted``/``StatusReadPathNotFound`` to the PRIMARY
     home for pre-ADR missions, per the ADR's "exception absorption" migration
-    rule) — currently only the merge-time gate opts into this.
+    rule) — no production caller opts into this branch today (verified above);
+    it remains a designed, reachable code path for a future consumer, not
+    dead code (see ``kind is MissionArtifactKind.REVIEW_CYCLE`` below).
 
     **WP13 finding (disclosed, not silently worked around): the WRITE-side
     default cannot yet change to ``REVIEW_CYCLE``.** Trying
@@ -91,31 +108,46 @@ def _review_cycle_wp_dir(
     already stages that SAME content onto the COORD branch via git plumbing,
     independent of the physical write location. Defaulting to
     ``REVIEW_CYCLE`` would move the physical write into the separate
-    coordination worktree directory instead, breaking that assertion. A
-    second, independent hazard (deduced, not test-reproduced):
-    ``tasks_verdict_persistence.py::resolve_review_verdict_facts`` (outside
-    this WP's ``owned_files``) derives the SAME directory independently via a
-    bare ``wp_path.parent / wp_path.stem`` join that is unconditionally
-    PRIMARY-anchored and never consults this function or any kind-aware
-    resolver — feeding ``_guard_rejected_verdict``'s approval-lane decision.
-    Flipping the WRITE target's default to COORD (once a coord worktree is
-    materialised — the common case once any status event has been emitted)
-    would make that reader blind to a real, current rejection: a fail-open
-    regression on a safety-critical guard, in a file this WP may not edit.
+    coordination worktree directory instead, breaking that assertion.
 
-    Both hazards sit outside this WP's six ``owned_files``, so this WP cannot
-    remediate them and — per this mission's standing gate discipline — does
-    not ship a WRITE-side default flip that would activate them. Opting the
-    MERGE-TIME GATE alone into ``kind=REVIEW_CYCLE`` is independently safe:
-    it never touches ``_review_cycle_wp_dir``'s write-side default, so neither
-    hazard above is reachable through it. A follow-up WP must migrate
-    ``resolve_review_verdict_facts`` and re-verify
-    ``test_analysis_report_rehome.py`` (plus recheck the three already-flagged
-    unrouted sites WP04's own ``verdict_seam_IC04.yaml`` fragment names:
-    ``workflow.py::review``, ``workflow_cores.py::has_prior_rejection``,
-    ``workflow_executor.py::implement_try_render_fix_mode_prompt``) in the
-    SAME change before the WRITE-side default can safely flip. See this WP's
-    final report for the full citations.
+    **Historical second hazard — CLOSED in this mission (WP05).** An earlier
+    draft of this disclosure named a second, reader-side hazard:
+    ``tasks_verdict_persistence.py::resolve_review_verdict_facts`` deriving the
+    verdict-read directory via a bare PRIMARY-anchored ``wp_path`` join that
+    ignored any kind-aware resolver, so flipping the WRITE default to COORD
+    would have left that reader blind to a real, current rejection (a fail-open
+    regression on a safety-critical guard). WP05 (FR-002) migrated that reader
+    onto the coord-aware ``_resolve_verdict_read_feature_dir`` (STATUS_STATE
+    placement), so it now co-resolves with every other verdict consumer and the
+    hazard no longer exists — see
+    ``tests/coordination/test_verdict_dir_co_resolution.py``.
+
+    That leaves the ``test_analysis_report_rehome`` PHYSICAL-write assertion as
+    the sole remaining reason this WP does not ship a WRITE-side default flip.
+    Opting a single consumer such as the merge-time gate into
+    ``kind=REVIEW_CYCLE`` would be independently safe (it never touches
+    ``_review_cycle_wp_dir``'s write-side default) — but per FR-011's
+    correction above, no consumer has actually done so yet. A follow-up WP that
+    flips the write-side default must re-verify ``test_analysis_report_rehome.py``
+    (plus recheck the three already-flagged unrouted sites WP04's own
+    ``verdict_seam_IC04.yaml`` fragment names: ``workflow.py::review``,
+    ``workflow_cores.py::has_prior_rejection``,
+    ``workflow_executor.py::implement_try_render_fix_mode_prompt``) in the SAME
+    change before the WRITE-side default can safely flip. See this WP's final
+    report for the full citations.
+
+    **FR-007 wording reconciliation (WP06).** This mission's census
+    (``tests/architectural/verdict_seam_census.yaml``) marks THIS function
+    ``status: retire`` (source WP08/IC08) — a future WP is expected to retire
+    ``_review_cycle_wp_dir`` itself once the write-side default safely flips
+    (the hazards above are resolved) and every consumer routes through the
+    canonical placement resolver directly. Until then, the COORD→PRIMARY
+    exception-absorption fallback implemented in the ``kind is
+    MissionArtifactKind.REVIEW_CYCLE`` branch below is **relocated** into
+    that eventual canonical placement resolver, not "preserved verbatim" (an
+    earlier spec revision's phrasing, corrected by research.md) — its
+    rationale re-scopes to the surviving write/prose-locate seam once the
+    retired verdict read-path (WP05's collapse) no longer exercises it.
 
     Historically retires the lenient kind-aware ``resolve_planning_read_dir``
     fold (and the kind-blind ``candidate_feature_dir_for_mission`` fold that
@@ -269,7 +301,15 @@ def validate_review_cycle_pointer(pointer: str) -> ReviewCyclePointerParts:
 
 
 def validate_review_artifact(artifact: ReviewCycleArtifact) -> None:
-    """Validate required review artifact fields and rejected-review semantics."""
+    """Validate required review artifact fields.
+
+    FR-003/SC-007 (WP06): this no longer validates a ``verdict`` field --
+    ``ReviewCycleArtifact`` carries no such field (WP05 retired every reader
+    that treated the artifact's frontmatter as verdict authority; the event
+    log, via ``status.event_sourced_review_result``, is now the sole
+    authority). Validating a field the schema no longer has would be dead
+    code, not a defensive check.
+    """
     if artifact.cycle_number < 1:
         raise ReviewCycleError("review artifact cycle_number must be positive")
     _validate_segment("wp_id", artifact.wp_id)
@@ -278,11 +318,6 @@ def validate_review_artifact(artifact: ReviewCycleArtifact) -> None:
         raise ReviewCycleError("review artifact reviewer_agent is required")
     if not str(artifact.reviewed_at).strip():
         raise ReviewCycleError("review artifact reviewed_at is required")
-    if artifact.verdict not in REVIEW_ARTIFACT_VERDICTS:
-        raise ReviewCycleError(
-            "review cycle artifact verdict must be one of "
-            f"{sorted(REVIEW_ARTIFACT_VERDICTS)}, got {artifact.verdict!r}"
-        )
     if not str(artifact.body).strip():
         raise ReviewCycleError("review artifact body is required")
 
@@ -486,63 +521,49 @@ def _commit_review_cycle_artifact(
     artifact_path: Path,
     cycle_number: int,
     verdict: str,
-) -> None:
-    """Commit a written review-cycle artifact via the ``commit_artifact`` port.
+) -> bool:
+    """Best-effort commit of a written review-cycle artifact (D-PLAN-11/T026).
 
     T004/#2697: reuses the SAME ``commit_artifact`` port capability
     ``tasks_mark_status.py``/``tasks_map_requirements.py`` already call — no
     new commit/staging mechanism. ``review-cycle-N.md`` is ADR 2026-08-03-1's
-    ``REVIEW_CYCLE`` kind, so this call now passes ``kind=REVIEW_CYCLE`` — a
-    disclosed cross-WP correction (WP13/T058): WP04's own
-    ``verdict_seam_IC04.yaml`` fragment (WP04-XWP-01) attributed this exact
-    fix to WP10, but WP10's landed prompt never named it, so it stayed stale
-    until this WP's own consolidation pass caught it. This ``kind`` argument
-    is SEPARATE from ``_review_cycle_wp_dir``'s own directory resolution
-    (which deliberately still resolves ``WORK_PACKAGE_TASK`` — see that
-    function's docstring for the disclosed reason the full flip is not yet
-    shipped): the commit router's ``_group_files_by_partition`` re-classifies
-    each committed file by its OWN path-derived kind and overrides whatever
-    kind the caller passes, so this argument was already "NOT a live
-    correctness bug" per WP04's own severity note regardless of its value —
-    verified unchanged by the full ``tests/coordination/
-    test_analysis_report_rehome.py`` + ``tests/architectural/
-    test_write_surface_placement_guard.py`` suites after this edit. Leaving it
-    stale would still contradict this function's own docstring, so it is
-    corrected in the same pass.
+    ``REVIEW_CYCLE`` kind, so this call passes ``kind=REVIEW_CYCLE``. This
+    ``kind`` argument is SEPARATE from ``_review_cycle_wp_dir``'s own
+    directory resolution (which deliberately still resolves
+    ``WORK_PACKAGE_TASK`` — see that function's docstring): the commit
+    router's ``_group_files_by_partition`` re-classifies each committed file
+    by its OWN path-derived kind and overrides whatever kind the caller
+    passes.
 
-    Cycle 2 fix (#2697 durability): unlike the two existing ``commit_artifact``
-    callers (``tasks_mark_status.py``/``tasks_map_requirements.py``), which
-    treat a non-``"committed"`` result as a best-effort warning because the
-    mutation they are committing (subtask status, WP-requirement mapping)
-    already succeeded independently of the commit, this call site has no such
-    fallback: an uncommitted ``review-cycle-N.md`` IS the exact defect this
-    mission exists to close (#2697 — "the writer's output was never
-    git-committed... lands untracked in whatever branch happens to be checked
-    out"). A warn-and-continue here would silently reintroduce that bug with
-    zero signal to the caller, so any non-``"committed"`` status (including
-    ``"unchanged"`` — which should not occur for a freshly written file, but
-    is treated as a failure rather than assumed safe) is raised as a hard
-    ``ReviewCycleError`` carrying the router's diagnostic.
+    **WP05 (verdict-seam-write-unification-01KZ9Q35, T026/D-PLAN-11)
+    DEMOTE**: with every verdict reader now on the event authority
+    (``status.event_sourced_review_result`` — this mission's reader
+    collapse), this per-file ``.md`` commit is no longer the authoritative
+    durable act; ``status.emit.emit_status_transition``'s ``review_result``
+    append is (contracts/verdict-durability-write.md G1/NFR-004). A
+    non-``"committed"`` result — including exhausted contention retries — is
+    now a logged **WARNING**, never a raised ``ReviewCycleError``: this
+    function returns ``False`` instead. The retry loop is KEPT as
+    best-effort-render defense-in-depth (a transient index-lock contention
+    still gets a few bounded retries before giving up), but is no longer
+    *authoritative* machinery — the caller no longer unwinds (unlinks) the
+    just-written artifact on a failed/incomplete commit, since an
+    uncommitted-but-written ``.md`` is tolerated now that it is not the
+    verdict's authority. Returns ``True`` iff the artifact was durably
+    committed.
 
-    T042 (FR-002 mechanism, shared with WP11): an earlier design assumed the
-    commit layer could detect and retry specifically on a git ``index.lock``
-    collision. It cannot, as recorded — ``CommitRouterResult.status`` is a
-    closed four-value ``Literal`` that collapses any git-level failure
-    (including a lock collision) to ``"error"`` with no signal distinguishing
-    "lost a race for the index" from "the commit failed for some other
-    reason." The buildable form uses the EXISTING public probe
+    T042 (FR-002 mechanism, shared with WP11): ``CommitRouterResult.status``
+    is a closed four-value ``Literal`` that collapses any git-level failure
+    (including an ``index.lock`` collision) to ``"error"`` with no signal
+    distinguishing "lost a race for the index" from "the commit failed for
+    some other reason." The buildable form uses the EXISTING public probe
     ``specify_cli.status.views.git_operation_in_progress`` (whose
     ``_GIT_OP_MARKERS`` already include ``"index.lock"``): on a
     ``status == "error"`` result, retry the SAME ``commit_artifact`` call,
     bounded, ONLY when the probe corroborates a git operation is genuinely in
-    progress right now. A non-contention error (probe returns ``False``)
-    raises immediately with zero retries — retrying blindly on every
-    ``"error"`` would silently swallow a genuine, non-transient failure
-    (permission errors, corrupted repo state, disk full) and report it as an
-    exhausted-retry timeout instead of its real cause. This retry loop lives
-    ENTIRELY outside T041's ``feature_status_lock`` scope — it was already
-    outside that lock before this subtask, and stays there (NFR-006 forbids
-    holding an inter-process lock across a ``git`` subprocess invocation).
+    progress right now. This retry loop lives ENTIRELY outside T041's
+    ``feature_status_lock`` scope (NFR-006 forbids holding an inter-process
+    lock across a ``git`` subprocess invocation).
     """
     message = (
         f"chore: Record review-cycle-{cycle_number} ({verdict}) for {wp_id} on "
@@ -561,11 +582,12 @@ def _commit_review_cycle_artifact(
             policy=policy,
         )
         if result.status == "committed":
-            return
+            return True
 
         contending = result.status == "error" and git_operation_in_progress(main_repo_root)
         if not contending or attempt >= _COMMIT_CONTENTION_MAX_ATTEMPTS:
-            raise ReviewCycleError(
+            logger.warning(
+                "%s",
                 _commit_failure_message(
                     wp_id=wp_id,
                     mission_slug=mission_slug,
@@ -573,8 +595,9 @@ def _commit_review_cycle_artifact(
                     artifact_path=artifact_path,
                     result=result,
                     exhausted_contention_retries=contending,
-                )
+                ),
             )
+            return False
         time.sleep(_COMMIT_CONTENTION_RETRY_SLEEP_SECONDS)
         attempt += 1
 
@@ -586,7 +609,6 @@ def _allocate_and_write_review_cycle_locked(
     wp_id: str,
     sub_artifact_dir: Path,
     reviewer_agent: str,
-    verdict: Literal["approved", "rejected"],
     affected_files: list[AffectedFile],
     body: str,
 ) -> tuple[ReviewCycleArtifact, Path, str]:
@@ -598,6 +620,13 @@ def _allocate_and_write_review_cycle_locked(
     past it. The commit call (:func:`_commit_review_cycle_artifact`) is a git
     subprocess invocation and stays OUTSIDE this lock (NFR-006 forbids
     holding an inter-process lock across a ``git`` subprocess).
+
+    FR-003/SC-007 (WP06): no longer takes a ``verdict`` parameter --
+    ``ReviewCycleArtifact`` carries no such field. The caller
+    (:func:`create_rejected_review_cycle`) still threads its own ``verdict``
+    parameter into the event-side :class:`~specify_cli.status.ReviewResult`
+    and the best-effort commit message; neither of those is this function's
+    concern.
 
     This is a DIFFERENT, disjoint critical section from ``_mt_execute``'s own
     ``feature_status_lock`` acquisition over the status-event emit
@@ -625,7 +654,6 @@ def _allocate_and_write_review_cycle_locked(
             wp_id=wp_id,
             mission_slug=mission_slug,
             reviewer_agent=reviewer_agent or "unknown",
-            verdict=verdict,
             reviewed_at=datetime.now(UTC).strftime(UTC_SECOND_TIMESTAMP_FORMAT),
             affected_files=affected_files,
             body=body,
@@ -737,7 +765,6 @@ def create_rejected_review_cycle(
         wp_id=safe_wp_id,
         sub_artifact_dir=sub_artifact_dir,
         reviewer_agent=reviewer_agent,
-        verdict=verdict,
         affected_files=parsed_affected,
         body=resolved_body,
     )
@@ -755,7 +782,10 @@ def create_rejected_review_cycle(
                 verdict=verdict,
             )
         except Exception:
-            # M2 (adversarial squad, PR #3156): a failed commit must not
+            # M2 (adversarial squad, PR #3156): an INFRASTRUCTURE failure in
+            # the commit attempt itself (a raw exception from the router /
+            # mission-resolution layer -- e.g. ``MissionSelectorAmbiguous`` or
+            # an ``OSError`` from the underlying git invocation) must not
             # leave an orphaned, uncommitted artifact on disk. Without this
             # rollback, a rejection retry hits the content-identity guard
             # against its own orphan ("duplicates a prior review-cycle
@@ -771,27 +801,36 @@ def create_rejected_review_cycle(
             # this line, so no racing writer can ever observe or be confused
             # by another writer's own orphan cleanup.
             #
-            # Widened from ``except ReviewCycleError`` (landing-pass fold,
-            # #2697 shape): ``_commit_review_cycle_artifact`` raises
-            # ``ReviewCycleError`` for a non-"committed" ``CommitArtifactResult``,
-            # but the commit_router call can also raise a bare exception the
-            # router/mission-resolution layer surfaces directly (e.g. a
-            # ``MissionSelectorAmbiguous`` or an ``OSError`` from the
-            # underlying git invocation) rather than routing it through
-            # ``ReviewCycleError``. The narrower catch let such a raise escape
-            # this rollback entirely, orphaning an uncommitted verdict
-            # artifact that the working-tree reader would treat as latest —
-            # the same failure-mode ``revert_committed_verdict_write``
-            # (``cli/commands/agent/tasks_verdict_persistence.py``) exists to
-            # prevent for its own, later-phase compensator. Re-raises
-            # unconditionally, matching that function's own convention: a
-            # rollback must never silently swallow the triggering failure.
+            # WP05 (verdict-seam-write-unification-01KZ9Q35, T026/D-PLAN-11)
+            # NARROWED this except's practical scope (not its shape):
+            # ``_commit_review_cycle_artifact`` no longer raises
+            # ``ReviewCycleError`` for a non-``"committed"`` result (that is
+            # now a best-effort WARNING returning ``False`` -- the ``.md``
+            # commit is demoted, no longer the authoritative durable act).
+            # This ``except Exception`` therefore now only ever fires for a
+            # genuine infra exception the router/mission-resolution layer
+            # raises directly (the ``MissionSelectorAmbiguous``/``OSError``
+            # case above), which is a distinct, more severe failure than "the
+            # commit attempt completed but returned a non-committed status" —
+            # out of T026's best-effort-render scope, so still rolled back and
+            # re-raised, matching the pre-existing convention: a rollback must
+            # never silently swallow the triggering failure.
             artifact_path.unlink(missing_ok=True)
             raise
 
     review_result = ReviewResult(
         reviewer=artifact.reviewer_agent,
-        verdict="approved" if verdict == "approved" else "changes_requested",
+        # WP05 (verdict-seam-write-unification-01KZ9Q35, T025): routed through
+        # the canonical artifact<->event verdict bridge (FR-005) instead of
+        # re-inlining the ``rejected``/``changes_requested`` equivalence here
+        # -- ``verdict`` is this function's own ``Literal["approved",
+        # "rejected"]`` parameter, i.e. exactly
+        # :data:`~specify_cli.status.verdict_vocab.EmissionArtifactVerdict`,
+        # so :func:`~specify_cli.status.verdict_vocab.emission_event_verdict`
+        # (the emission-scoped bridge -- this constructs an EMITTED
+        # ``review_result``) is the correct conversion, not the general
+        # four-value :func:`~specify_cli.status.verdict_vocab.to_event_verdict`.
+        verdict=verdict_vocab.emission_event_verdict(verdict),
         reference=pointer,
         feedback_path=str(artifact_path),
     )

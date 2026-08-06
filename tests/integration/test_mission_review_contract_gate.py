@@ -27,7 +27,7 @@ import typer
 
 from specify_cli.cli.commands.review import review_mission
 from specify_cli.review.artifacts import ReviewCycleArtifact
-from specify_cli.status.models import Lane
+from specify_cli.status.models import Lane, ReviewResult
 from tests.reliability.fixtures import (
     WorkPackageSpec,
     append_status_event,
@@ -182,8 +182,23 @@ def test_mission_review_fails_when_done_wp_latest_review_artifact_is_rejected(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A done WP cannot pass mission review with a latest rejected artifact."""
+    """A done WP cannot pass mission review with an event-sourced rejection.
+
+    MED-3 (verdict-seam-write-unification-01KZ9Q35 pre-merge remediation): after
+    WP05's pure-event repoint the review-artifact gate consults ONLY the
+    event-sourced ``review_result`` slot, never the ``.md`` frontmatter. This
+    test therefore seeds a REAL ``changes_requested`` ``review_result`` event so
+    the ``REJECTED_REVIEW_ARTIFACT_CONFLICT`` block path is genuinely exercised
+    (previously it seeded a ``.md``-only rejection the repointed gate no longer
+    reads, so the block was never taken -- a defanged safety test). The reduced
+    snapshot ends lane ``done`` with the rejection carried on the sticky
+    ``review_result`` slot -- exactly the invariant this gate guards.
+    """
     mission = create_mission_fixture(tmp_path)
+    # A ``.kittify/`` marker so ``find_repo_root()`` (via ``review_mission``)
+    # resolves the fixture repo -- without it the walk-up escapes the temp repo
+    # and resolves the wrong root, and the mission never resolves.
+    (mission.repo_root / ".kittify").mkdir(parents=True, exist_ok=True)
     subprocess.run(
         ["git", "init", "-b", "main"],
         cwd=mission.repo_root,
@@ -191,11 +206,23 @@ def test_mission_review_fails_when_done_wp_latest_review_artifact_is_rejected(
         capture_output=True,
     )
     write_work_package(mission, WorkPackageSpec(lane="done"))
+    # A done WP whose latest event-sourced verdict is a rejection (the realistic
+    # "force-done despite changes_requested" shape). ``from_lane=IN_REVIEW``
+    # fires the reducer's review_result-slot rule; ``to_lane=DONE`` lands the WP
+    # in a TERMINAL_REVIEW_LANE, so the gate must block.
     append_status_event(
         mission,
-        from_lane=Lane.APPROVED,
+        from_lane=Lane.IN_REVIEW,
         to_lane=Lane.DONE,
         event_id="01KQKV85DONE00000000001",
+        review_result=ReviewResult(
+            reviewer="reviewer-renata",
+            verdict="changes_requested",
+            reference=(
+                "review-cycle://release-320-workflow-reliability-01KQKV85/"
+                "WP01-regression-harness/review-cycle-1.md"
+            ),
+        ),
     )
     artifact_dir = mission.tasks_dir / "WP01-regression-harness"
     ReviewCycleArtifact(
@@ -203,7 +230,6 @@ def test_mission_review_fails_when_done_wp_latest_review_artifact_is_rejected(
         wp_id="WP01",
         mission_slug=mission.mission_slug,
         reviewer_agent="reviewer-renata",
-        verdict="rejected",
         reviewed_at="2026-05-03T12:00:00+00:00",
         body="# Review\n\nVerdict: rejected\n",
     ).write(artifact_dir / "review-cycle-1.md")

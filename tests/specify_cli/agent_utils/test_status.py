@@ -23,7 +23,6 @@ from rich.console import Console
 from specify_cli.agent_utils.status import (
     _analyze_parallelization,
     _get_last_event_time,
-    _get_wp_review_verdict,
     show_kanban_status,
 )
 from specify_cli.status.models import Lane, StatusEvent
@@ -394,48 +393,19 @@ def _make_status_event(
     )
 
 
-# ---------------------------------------------------------------------------
-# T023 / T024: _get_wp_review_verdict helper
-# ---------------------------------------------------------------------------
-
-def test_get_wp_review_verdict_returns_rejected(tmp_path: Path) -> None:
-    """_get_wp_review_verdict returns 'rejected' when latest review cycle has it."""
-    (tmp_path / "review-cycle-1.md").write_text(
-        "---\nverdict: rejected\n---\n# Review\n", encoding="utf-8"
-    )
-    assert _get_wp_review_verdict(tmp_path) == "rejected"
-
-
-def test_get_wp_review_verdict_returns_approved(tmp_path: Path) -> None:
-    """_get_wp_review_verdict returns 'approved' for an approved verdict."""
-    (tmp_path / "review-cycle-1.md").write_text(
-        "---\nverdict: approved\n---\n# Review\n", encoding="utf-8"
-    )
-    assert _get_wp_review_verdict(tmp_path) == "approved"
-
-
-def test_get_wp_review_verdict_latest_cycle_wins(tmp_path: Path) -> None:
-    """_get_wp_review_verdict returns verdict from the highest-numbered cycle."""
-    (tmp_path / "review-cycle-1.md").write_text(
-        "---\nverdict: rejected\n---\n", encoding="utf-8"
-    )
-    (tmp_path / "review-cycle-2.md").write_text(
-        "---\nverdict: approved\n---\n", encoding="utf-8"
-    )
-    assert _get_wp_review_verdict(tmp_path) == "approved"
-
-
-def test_get_wp_review_verdict_no_files_returns_none(tmp_path: Path) -> None:
-    """_get_wp_review_verdict returns None when no review-cycle files exist."""
-    assert _get_wp_review_verdict(tmp_path) is None
-
-
-def test_get_wp_review_verdict_no_frontmatter_returns_none(tmp_path: Path) -> None:
-    """_get_wp_review_verdict returns None when the review file has no frontmatter."""
-    (tmp_path / "review-cycle-1.md").write_text(
-        "# No frontmatter here\n", encoding="utf-8"
-    )
-    assert _get_wp_review_verdict(tmp_path) is None
+# WP05 (verdict-seam-write-unification-01KZ9Q35, FR-003/FR-004) retired
+# ``_get_wp_review_verdict`` -- the ``review-cycle-N.md`` frontmatter parser
+# ``show_kanban_status``'s stale-verdict loop used to call. The loop now
+# resolves ``status.event_sourced_review_result`` instead (see that
+# function's own module docstring note). The five tests this comment
+# replaces (``test_get_wp_review_verdict_returns_rejected``,
+# ``_returns_approved``, ``_latest_cycle_wins``, ``_no_files_returns_none``,
+# ``_no_frontmatter_returns_none``) directly unit-tested the now-deleted
+# function; testing deleted code is not meaningful, so they are removed
+# rather than adapted. The event-sourced equivalent (stale/damaged-verdict
+# board flags, both directions of disagreement with a stray ``.md``) is
+# covered by ``tests/review/test_verdict_seam_reader_collapse.py``
+# (T021/T022/T029).
 
 
 # ---------------------------------------------------------------------------
@@ -554,7 +524,11 @@ def test_stall_not_detected_below_threshold(monkeypatch: pytest.MonkeyPatch, tmp
 def test_stale_verdict_warning_shown_in_done_lane(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """WP in done lane with review-cycle-1.md verdict=rejected appears in stale_verdicts."""
+    """WP in done lane with an event-sourced ``changes_requested`` verdict
+    appears in ``stale_verdicts`` (WP05, verdict-seam-write-unification-01KZ9Q35:
+    the board now resolves the event authority, not ``review-cycle-N.md``
+    frontmatter -- the on-disk artifact is written here only as realistic
+    surrounding state, never read for its verdict)."""
     mission_slug = "test-stale-verdict"
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
@@ -567,24 +541,36 @@ def test_stale_verdict_warning_shown_in_done_lane(
     _create_meta_json(feature_dir, mission_slug)
     _create_wp_file(tasks_dir, "WP01", "Done Work")
 
-    # Write review-cycle-1.md with rejected verdict in the WP slug directory.
     # Review artifacts live beside the WP markdown file under tasks/<WP-slug>/,
-    # not tasks/<WP_ID>/.
+    # not tasks/<WP_ID>/ -- written here as realistic surrounding state only;
+    # the board no longer reads it for a verdict.
     wp_dir = tasks_dir / "WP01-stub"
     wp_dir.mkdir()
     (wp_dir / "review-cycle-1.md").write_text(
         "---\nverdict: rejected\n---\n# Review\n", encoding="utf-8"
     )
 
-    # Event: WP01 is done
+    # Events: WP01 exits in_review rejected, then is force-moved to done.
     events = [
+        {
+            "event_id": "01AAA000", "at": "2025-12-31T00:00:00+00:00",
+            "feature_slug": mission_slug, "wp_id": "WP01",
+            "from_lane": "in_review", "to_lane": "in_progress",
+            "actor": "reviewer-renata", "force": False, "reason": None,
+            "evidence": None, "review_ref": None, "execution_mode": "worktree",
+            "review_result": {
+                "reviewer": "reviewer-renata",
+                "verdict": "changes_requested",
+                "reference": "review-cycle://test-stale-verdict/WP01-stub/review-cycle-1.md",
+            },
+        },
         {
             "event_id": "01AAA001", "at": "2026-01-01T00:00:00+00:00",
             "feature_slug": mission_slug, "wp_id": "WP01",
             "from_lane": "approved", "to_lane": "done",
             "actor": "test", "force": True, "reason": None,
             "evidence": None, "review_ref": None, "execution_mode": "worktree",
-        }
+        },
     ]
     _create_events_jsonl(feature_dir, events)
 

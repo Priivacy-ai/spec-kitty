@@ -1051,6 +1051,24 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   is the sole authority for what is activated, and an unresolved mission-type
   now fails closed at the create/use boundary instead of resolving implicitly.
   Existing projects need no action.
+- **The event log is now the single authority for a work package's review
+  verdict; the review-cycle `.md` no longer carries one (mission
+  `verdict-seam-write-unification-01KZ9Q35`).** Every verdict reader and merge/
+  review gate resolves the event-sourced `review_result` slot in
+  `status.events.jsonl`; the `review-cycle-N.md` frontmatter `verdict` field is
+  retired, and durability moved to the event log (the `.md` write is now
+  best-effort). To keep existing projects safe across this reader collapse, a
+  new auto-discovered upgrade migration (`verdict_provenance_backfill`) runs on
+  `spec-kitty upgrade` and backfills each mission's stranded terminal `.md`
+  verdict into the event log (FR-012/SC-008); it is idempotent (keyed on a
+  deterministic ULID) so re-running `upgrade` is safe. `spec-kitty accept`
+  carries a non-blocking diagnostic that names any still-stranded WP and points
+  at `upgrade`. Runbook:
+  [`docs/migrations/verdict-provenance-backfill.md`](docs/migrations/verdict-provenance-backfill.md).
+  _No `pyproject.toml`/`__init__.py` version bump accompanies this entry: the
+  mission changed only the `status/__init__.py` facade, not the CLI entry
+  point, so a CHANGELOG entry without a version bump is correct here._
+
 - **Built-in mission data now ships under `packs/built-in/missions/`, alongside
   every other built-in doctrine kind (mission
   `doctrine-consumer-surface-missions-extraction`; `#3091`).** The mission-type

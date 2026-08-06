@@ -88,7 +88,6 @@ def _write_review_cycle_artifact(
         wp_id=wp_id,
         mission_slug=mission_slug,
         reviewer_agent="reviewer-renata",
-        verdict=verdict,
         reviewed_at="2026-02-08T12:00:00+00:00",
         body=f"# Review\n\nVerdict: {verdict}\n",
     )
@@ -1141,12 +1140,17 @@ class TestFindRejectedReviewArtifactConflictsEventSourced:
     def test_forced_null_review_result_defers_to_frontmatter_and_still_refuses(
         self, tmp_path: Path
     ) -> None:
-        """T028's edge case, at the gate: a forced transition with no
-        ReviewResult must still be refused by the gate's existing
-        frontmatter-based check -- the event log has nothing to add, so
-        frontmatter remains the only remaining signal (distinct from the
-        slot-absent/un-migrated case, where a WP with no review_result key at
-        all also defers to the same frontmatter check)."""
+        """T028's edge case, at the gate -- REPOINTED by WP05
+        (verdict-seam-write-unification-01KZ9Q35, T028/FR-013/D-PLAN-8): a
+        forced transition with no ``ReviewResult`` used to defer to the
+        gate's (then-active) frontmatter-based check. That check is now
+        retired outright: the pure-event gate never reads
+        ``review-cycle-N.md`` frontmatter at all, and G2
+        (contracts/verdict-authority-read.md) requires a damaged/absent
+        event slot to read as "no block", never a fabricated rejection
+        sourced from frontmatter. A rejected on-disk artifact is still
+        written here to prove it is genuinely never consulted -- if it
+        were, this test would fail the OTHER way (a spurious finding)."""
         mission = create_mission_fixture(tmp_path, mission_slug="034-verdict-seam")
         write_work_package(mission, WorkPackageSpec(lane="approved"))
         _append_mission_events(
@@ -1164,15 +1168,22 @@ class TestFindRejectedReviewArtifactConflictsEventSourced:
 
         findings = find_rejected_review_artifact_conflicts(mission.mission_dir)
 
-        assert len(findings) == 1
-        assert findings[0].wp_id == "WP01"
-        assert findings[0].verdict == "rejected"
+        assert findings == [], (
+            "G2: a damaged (slot-present, result=None) event-sourced verdict "
+            "must never fall back to reading frontmatter -- fail-closed-safe "
+            "means 'no block', not a fabricated rejection"
+        )
 
     def test_frontmatter_only_case_unchanged_when_no_event_sourced_verdict(
         self, tmp_path: Path
     ) -> None:
-        """Regression: the pre-existing frontmatter-only path (T027's
-        slot-absent case) is unchanged when no review_result was ever emitted."""
+        """REPOINTED by WP05 (verdict-seam-write-unification-01KZ9Q35,
+        T028/FR-013/D-PLAN-8): this pinned the pre-existing
+        frontmatter-only fallback path (T027's slot-absent case). That
+        fallback is now retired -- the pure-event gate never reads
+        ``review-cycle-N.md`` frontmatter, so a WP with no ``review_result``
+        ever emitted produces NO finding, regardless of what a stray
+        on-disk artifact says (G2: absent means 'no block')."""
         mission = create_mission_fixture(tmp_path, mission_slug="034-verdict-seam")
         write_work_package(mission, WorkPackageSpec(lane="approved"))
         append_event(mission.mission_dir, StatusEvent(
@@ -1196,8 +1207,10 @@ class TestFindRejectedReviewArtifactConflictsEventSourced:
 
         findings = find_rejected_review_artifact_conflicts(mission.mission_dir)
 
-        assert len(findings) == 1
-        assert findings[0].verdict == "rejected"
+        assert findings == [], (
+            "G2: an absent event-sourced verdict must never fall back to "
+            "reading frontmatter -- fail-closed-safe means 'no block'"
+        )
 
     def test_arbiter_override_clears_gate_over_changes_requested_review_result(
         self, tmp_path: Path

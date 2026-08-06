@@ -47,6 +47,7 @@ from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status import wp_state_for
 from specify_cli.status import Lane
 from specify_cli.status import ReviewResult
+from specify_cli.status import verdict_vocab
 
 from .envelope import (
     CONTRACT_VERSION,
@@ -1312,7 +1313,7 @@ def _parse_review_result_json(raw: str) -> ReviewResult:
         raise ValueError(
             "--review-result-json requires non-empty reviewer, verdict, and reference strings"
         )
-    if verdict not in {"approved", "changes_requested"}:
+    if verdict not in verdict_vocab.event_verdicts():
         raise ValueError(
             "--review-result-json verdict must be 'approved' or 'changes_requested'"
         )

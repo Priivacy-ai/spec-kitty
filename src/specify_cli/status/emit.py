@@ -10,6 +10,23 @@ this pipeline may mirror the canonical lane into an existing WP
 frontmatter ``lane`` field. That mirror is transitional and never
 authoritative.
 
+**Verdict durability (WP03 / FR-008 / contracts/verdict-durability-write.md,
+mission verdict-seam-write-unification-01KZ9Q35):** for a recorded verdict
+(any outbound-from-``in_review`` transition, which the FSM requires to carry
+a ``ReviewResult``), the ``store.append_event_stream_atomic_verified`` call
+in step 5 below IS the single authoritative durable act (contract G1/NFR-004)
+-- the same append every other transition already goes through, not a
+bespoke second write. It never holds ``feature_status_lock`` across a
+``git`` subprocess (NFR-001/G3: the only subprocess call on this path,
+resolving the lock's own path, happens BEFORE the lock is acquired -- see
+``locking.feature_status_lock``), and the event log itself is
+union-merge-driver protected (``.gitattributes`` -> ``merge=spec-kitty-
+event-log``) so two concurrent distinct verdicts union rather than clobber
+(SC-003). The separate ``review-cycle-N.md`` artifact commit
+(``review/cycle.py::_commit_review_cycle_artifact``) is NOT part of this
+authoritative act -- it stays a hard-error, best-effort-in-name-only render
+until WP05's reader flip demotes it (D-PLAN-11).
+
 Pipeline order (critical -- do not reorder):
     1. resolve_lane_alias(to_lane)
     2. Derive from_lane from last event for this WP (or "genesis" for unseeded WPs)
@@ -747,6 +764,13 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
 
         # Persist the transition and its claim annotation as one unit. A
         # resolved binding must never lag behind the claim it describes.
+        #
+        # WP03/FR-008/contract-G1: when `event.review_result` is set (any
+        # outbound-from-`in_review` transition), THIS call is the single
+        # authoritative durability write for the recorded verdict -- see the
+        # module docstring for the full contract. Reused unconditionally for
+        # every transition (C-001); no second, bespoke persistence path is
+        # added here for verdicts specifically.
         _store.append_event_stream_atomic_verified(
             canonical_feature_dir,
             [event, *([annotation] if annotation is not None else [])],

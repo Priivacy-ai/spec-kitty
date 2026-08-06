@@ -19,11 +19,13 @@ rather than clobbered (#2709 / FR-003 / FR-004 / FR-008):
   algorithm.md``).
 - ``merge-driver-issue-matrix``      — ``issue-matrix.json`` row-aware,
   base-aware (3-way) merge over ``rows``, keyed by canonicalized ``issue_ref``.
-- ``merge-driver-review-cycle``      — ``tasks/<wp>/review-cycle-*.md`` refuse-
-  fail-closed on a genuine two-verdict collision (review-cycle-verdict-seam-
-  rebuild-01KZ2W7W WP18/T077); see that driver's own docstring for why this is
-  the ONE driver in this module that never reconciles by unioning/field-
-  merging — a review verdict document must never be blended.
+- ``merge-driver-review-cycle``      — ``tasks/<wp>/review-cycle-*.md``
+  best-effort, non-aborting reconciliation of a two-verdict collision
+  (originally a refuse-fail-closed driver, review-cycle-verdict-seam-rebuild-
+  01KZ2W7W WP18/T077; DOWNGRADED by verdict-seam-write-unification-01KZ9Q35
+  WP09/FR-014/D-PLAN-6 now that the ``.md`` is non-authoritative, unread
+  prose — see that driver's own docstring for the full history and why a
+  divergent collision no longer aborts the squash).
 
 Git invokes a driver with ``%O %A %B`` = base / ours / theirs and expects the
 merged result written to the ``ours`` (``%A``) path with exit 0. Under the squash
@@ -655,8 +657,9 @@ def merge_driver_acceptance_matrix(
 
 
 # ---------------------------------------------------------------------------
-# review-cycle-*.md (review-cycle-verdict-seam-rebuild-01KZ2W7W WP18/T077):
-# a two-verdict collision must REFUSE, never blend
+# review-cycle-*.md (review-cycle-verdict-seam-rebuild-01KZ2W7W WP18/T077;
+# DOWNGRADED by verdict-seam-write-unification-01KZ9Q35 WP09/FR-014/D-PLAN-6):
+# a two-verdict collision is embedded, best-effort, and NEVER aborts the squash
 # ---------------------------------------------------------------------------
 #
 # T017's discharge (see WP04's ruling, tests/architectural/census/
@@ -670,53 +673,47 @@ def merge_driver_acceptance_matrix(
 # under the SAME ``review-cycle-N.md`` filename is reachable, not
 # hypothetical.
 #
-# THE DESIGN DECISION (T077, weighed against FR-006 / C-002(b)):
+# THE ORIGINAL DESIGN DECISION (T077, weighed against FR-006 / C-002(b)):
 #
 #   (a) REFUSE fail-closed -- embed both raw verdict documents, verbatim and
 #       clearly demarcated (never interleaved/blended), and exit non-zero so
 #       ``git merge --squash -X theirs`` reports the path as an unresolved
 #       conflict (``_merge_branch_into`` then ``git merge --abort``s and
-#       raises -- the target ref is never advanced. See
-#       ``test_review_cycle_merge_driver.py``'s red-first ``_merge_branch_into``
-#       proof).
+#       raises -- the target ref is never advanced).
 #
 #   (b) RENUMBER -- silently reassign the incoming ("theirs") record the next
 #       free cycle number in the reconciled directory and write it out as a
 #       SECOND file, leaving ``ours`` untouched.
 #
-# This driver implements (a), not (b). Reasoning:
+# WP18 implemented (a), not (b), because at the time a ``review-cycle-N.md``
+# was the AUTHORITATIVE verdict record -- a reader could not tell a blended or
+# silently-renumbered document from a genuine one, so any automatic
+# reconciliation risked "inventing" a verdict decision (C-002(b)/FR-006).
 #
-# * A ``review-cycle-N.md`` is a *verdict record* -- FR-001/US2's entire point
-#   is that a reader can trust the recorded verdict is the one a reviewer
-#   actually wrote, unmodified. Renumbering only touches the FILENAME/
-#   ``cycle_number`` field, never the verdict body -- but that field IS part
-#   of the record a reviewer signed off on (it is what
-#   ``latest_review_artifact_verdict`` / ``ReviewCycleArtifact.latest`` use to
-#   decide WHICH record is authoritative-latest). Silently reassigning it
-#   during an unattended squash merge changes which record downstream
-#   consumers treat as "the latest verdict" without any human present to
-#   confirm the reordering is chronologically correct -- this is the
-#   "inventing" failure mode C-002(b)/FR-006 warn about, just at the
-#   metadata layer instead of the body.
-# * The renumbering computation itself would have to trust a directory
-#   listing (``next_cycle_number``-shaped: glob + count/max) at merge time --
-#   but an unreliable directory listing THAT SPANS TWO PARTITIONS is the
-#   ROOT CAUSE of this exact hazard (create-window split). Re-deriving "next
-#   free" via the same class of mechanism that caused the collision, this
-#   time unattended inside a squash-merge subprocess with no operator able to
-#   sanity-check chronology across the split, is not clearly safer than
-#   refusing -- it just moves the same fragile assumption one layer down and
-#   removes the human check.
-# * Refusing loses NOTHING: both verdict documents survive byte-for-byte
-#   (embedded verbatim in the conflict-marked ``ours`` path, AND the
-#   incoming/mission side is untouched on its own branch since the whole
-#   squash aborts) -- satisfying FR-006's "never overwrites" literally, not
-#   just in spirit. A human resolves the actual chronology, which is exactly
-#   the judgment call an automated merge driver should not make silently.
+# THE WP09/FR-014 DOWNGRADE (D-PLAN-6): the review-cycle-verdict-seam-rebuild
+# mission's own WP05 (this mission's dependency) demoted the ``.md`` render to
+# non-authoritative, unread best-effort prose -- ``status.events.jsonl``'s
+# ``review_result`` event slot is now the sole verdict authority (see
+# ``kitty-specs/verdict-seam-write-unification-01KZ9Q35/contracts/
+# provenance-backfill.md``). With no reader left that trusts this document's
+# ``cycle_number``/``verdict`` fields to decide "which record is latest", the
+# fabrication risk (a) was refusing to accept no longer applies: two divergent
+# best-effort renders colliding under one filename are ordinary prose drift,
+# not a decision an automated driver would be wrong to reconcile. Aborting an
+# otherwise-clean squash over unread prose is now pure friction with no
+# safety benefit, so this driver is DOWNGRADED to non-aborting: it still
+# embeds BOTH raw documents verbatim (never blending/interleaving/fabricating
+# a merged verdict -- the same "never silently drop a side" discipline this
+# module's row-matrix field-conflict markers use), but no longer raises
+# ``typer.Exit(1)`` -- the squash proceeds with the conflict-marked prose as
+# the resolved content. Retiring the driver entirely (falling through to
+# plain ``-X theirs``) was considered and rejected only because embedding
+# both sides costs nothing and preserves strictly more information than a
+# bare ``-X theirs`` pick would.
 #
-# Identical content on both sides is NOT this collision -- it is the
+# Identical content on both sides is NOT a collision at all -- it is the
 # trivial, common case (the same verdict was independently recorded/copied
-# onto both partitions) and resolves cleanly with no conflict at all.
+# onto both partitions) and resolves cleanly with no conflict markers.
 
 
 def merge_driver_review_cycle(
@@ -724,25 +721,30 @@ def merge_driver_review_cycle(
     ours_path: str = typer.Argument(..., metavar="OURS"),
     theirs_path: str = typer.Argument(..., metavar="THEIRS"),
 ) -> None:
-    """Resolve a ``review-cycle-N.md`` collision without fabricating a verdict.
+    """Reconcile a ``review-cycle-N.md`` collision, best-effort, non-aborting.
 
     Two distinct verdict documents colliding under the same filename are
     NEVER unioned/field-merged/interleaved into one document -- see the
     module-level design-decision comment immediately above this function for
-    the full reasoning (refuse fail-closed, not renumber).
+    the full reasoning (embed both verbatim, never fabricate a blended
+    verdict). Unlike WP18's original T077 driver, a divergent collision no
+    longer aborts the squash (FR-014/D-PLAN-6): the ``.md`` render is
+    non-authoritative, unread prose now that ``status.events.jsonl``'s
+    ``review_result`` event slot is the sole verdict authority, so refusing
+    the merge over it is no longer justified.
 
     Identical content on both sides (byte-for-byte) is the trivial fast path:
     resolves cleanly, exit 0, never reported as a conflict. Otherwise, both
     raw documents are embedded verbatim inside standard git-style conflict
-    markers (never blended field-by-field -- a whole-document refusal, since
-    a review verdict has no safely mergeable sub-fields the way a JSON matrix
-    row does) and the driver exits non-zero so git reports the path as an
-    unresolved conflict for a human to reconcile.
+    markers (never blended field-by-field -- a review verdict has no safely
+    mergeable sub-fields the way a JSON matrix row does) and the driver
+    exits 0, so ``git merge --squash -X theirs`` treats the path as resolved
+    and the squash proceeds.
     """
     base, ours, theirs = _resolve_merge_driver_paths_or_exit(base_path, ours_path, theirs_path)
     _ = base  # %O ancestor: unused -- an add/add collision has no common base,
-    # and the refuse-vs-fast-path decision is a pure 2-way (ours vs theirs)
-    # content comparison regardless of whether a base exists.
+    # and the fast-path decision is a pure 2-way (ours vs theirs) content
+    # comparison regardless of whether a base exists.
     ours_text = ours.read_text(encoding="utf-8") if ours.exists() else ""
     theirs_text = theirs.read_text(encoding="utf-8") if theirs.exists() else ""
 
@@ -763,10 +765,10 @@ def merge_driver_review_cycle(
     )
     ours.write_text(conflict_document, encoding="utf-8")
     typer.echo(
-        f"refusing to auto-resolve review-cycle verdict collision at {ours.name}: "
-        "two distinct verdict records collided under one filename (T017/T077 "
-        "create-window hazard); conflict markers written, resolve manually -- "
-        "never fabricating a merged verdict",
-        err=True,
+        f"review-cycle verdict collision at {ours.name}: two distinct "
+        "best-effort renders collided under one filename (T017 create-window "
+        "hazard); both embedded verbatim behind conflict markers -- "
+        "non-aborting (FR-014/D-PLAN-6: the .md is non-authoritative, unread "
+        "prose; the squash proceeds)",
+        err=False,
     )
-    raise typer.Exit(1)

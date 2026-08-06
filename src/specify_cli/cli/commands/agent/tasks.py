@@ -192,10 +192,11 @@ from specify_cli.cli.commands.agent.tasks_materialization import (
 from specify_cli.cli.commands.agent.tasks_parsing_validation import (
     _VALID_VERDICTS as _VALID_VERDICTS,
     _apply_review_status_flags as _apply_review_status_flags,
-    # Explicit ``as`` re-export (WP02 mypy campsite fold): ``test_tasks.py``
-    # imports this from ``tasks``; the implicit re-export is an
-    # ``attr-defined`` error under ``mypy --strict``.
-    _get_latest_review_cycle_verdict as _get_latest_review_cycle_verdict,
+    # WP05 (verdict-seam-write-unification-01KZ9Q35, out-of-map): the
+    # ``_get_latest_review_cycle_verdict`` re-export was DELETED here in
+    # lockstep with the underlying frontmatter-verdict-reader function's
+    # retirement in ``tasks_parsing_validation.py`` (FR-003) -- the compat
+    # symbol cannot be kept once its source no longer exists.
     _issue_matrix_approval_blocker as _issue_matrix_approval_blocker,
 )
 
