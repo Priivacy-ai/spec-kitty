@@ -132,3 +132,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-08-02 | [Charter-Wheel Assessment — Extractable in Principle, Cut Over Kernel→Doctrine→Charter as One No-Partial Follow-On](2026-08-02-1-charter-wheel-assessment.md) |
 | 2026-08-04 | [The Egress-Consent Boundary — Consent Is Keyed on the Record Being Sent, Never on Ambient Context](2026-08-04-1-egress-consent-boundary.md) |
 | 2026-08-03 | [Review-Cycle Artifacts Are COORD-Partition Per-WP Bookkeeping](2026-08-03-1-review-cycle-artifacts-are-coord-partition.md) |
+| 2026-08-05 | [Sequence Charter-Activation-Driven Mission-Type Availability Ahead of Mission-Type-as-ArtifactKind; Land It With Mission-Tree Resolution Unification as One Slice](2026-08-05-1-mission-type-availability-before-kind-promotion.md) |

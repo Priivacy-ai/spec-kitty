@@ -1,0 +1,171 @@
+{
+  "event_count": 30,
+  "last_event_id": "01KZBS9ANNESAM3042B4652MSM",
+  "materialized_at": "2026-08-06T14:57:52.309451+00:00",
+  "mission_number": "",
+  "mission_slug": "resolution-activation-foundation-01KZ9FKG",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 5,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KZ9W0D4HCMZEZT86XYB503MN",
+      "last_transition_at": "2026-08-05T21:06:56.785848+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review passed: single-resolver identity verified (runtime.get_package_asset_root IS kernel.paths.get_package_asset_root; one _find_relocated_missions_ancestor; one kernel PACKS_ROOT read). WP tests 72p/1s, arch gates (kernel-no-doctrine, layer-rules, missions-root-authority, built-in-location-authority) + terminology guard green; ruff/mypy(kernel) clean; runtime no-any-return x4 identical on base (pre-existing). Non-tautology confirmed: base ignores PACKS_ROOT. PACKS_ROOT-first + TEMPLATE_ROOT retained + fail-closed verified. DR-2 fallbacks dropped. Deviation#1 (out-of-owned charter test edit) correct+minimal+not masking regression; Deviation#2 (_resolve_env_root src-grandparent guard) parity-preserving, positive branch covered. ACCEPT."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: single-resolver identity verified (runtime.get_package_asset_root IS kernel.paths.get_package_asset_root; one _find_relocated_missions_ancestor; one kernel PACKS_ROOT read). WP tests 72p/1s, arch gates (kernel-no-doctrine, layer-rules, missions-root-authority, built-in-location-authority) + terminology guard green; ruff/mypy(kernel) clean; runtime no-any-return x4 identical on base (pre-existing). Non-tautology confirmed: base ignores PACKS_ROOT. PACKS_ROOT-first + TEMPLATE_ROOT retained + fail-closed verified. DR-2 fallbacks dropped. Deviation#1 (out-of-owned charter test edit) correct+minimal+not masking regression; Deviation#2 (_resolve_env_root src-grandparent guard) parity-preserving, positive branch covered. ACCEPT.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1071628,
+      "shell_pid_created_at": "1785963418.89",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    },
+    "WP02": {
+      "actor": "user",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KZ9YGZN61P1YGP77T8BGS8WN",
+      "last_transition_at": "2026-08-05T21:50:57.190363+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review passed: delegation single-source through kernel primitive, fail-closed preserved, PackRootNotFound translation intact, 13 re-pins preserved genuine coverage (verified non-tautology), ruff/mypy clean, scope fence exact."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: delegation single-source through kernel primitive, fail-closed preserved, PackRootNotFound translation intact, 13 re-pins preserved genuine coverage (verified non-tautology), ruff/mypy clean, scope fence exact.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1193250,
+      "shell_pid_created_at": "1785966317.77",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
+    },
+    "WP03": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KZ9TWS5RNKHXJKZ18H1DRY2A",
+      "last_transition_at": "2026-08-05T20:47:29.464948+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "reviewer-renata APPROVE: 9+593 green; copy-vs-rescan enforced; fail-closed; idempotent; migrations untouched; ruff/mypy clean"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "reviewer-renata APPROVE: 9+593 green; copy-vs-rescan enforced; fail-closed; idempotent; migrations untouched; ruff/mypy clean",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 1021792,
+      "shell_pid_created_at": "1785962155.05",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
+    },
+    "WP04": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KZBQEE3MQTH315E06MBBCQWW",
+      "last_transition_at": "2026-08-06T14:25:42.516874+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "APPROVE (reviewer-renata): construction total (frozenset() on absent, no all-four backfill; explicit [] preserved, C-008); fail-closed correctly at create boundary in create_mission_core before dir creation, not on read/compose hot paths; resolve_mission_type_context keeps UnknownMissionTypeError use-boundary; synthesizer emit sources default.yaml built-in set (not tree-scan), idempotent, preserves authored [], persists via YAML_KEY_MAP (mission-type key present); composition crash gone (bridge_compat 70 passed); scope fence intact (MissionTypeNotAnArtifactKind raised, _MISSION_TYPE_UNIVERSE_EXTENSION intact, missions tree not deleted, availability readers untouched); mypy(charter) + ruff clean; remediation preserved assertions (no green-washing); one baseline red (test_reducer status_phase) confirmed non-WP04. Non-blocking follow-up: stale docstrings in compiler.py/generate.py/emit-test still claim from_config raises on absent key (false post-pivot)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVE (reviewer-renata): construction total (frozenset() on absent, no all-four backfill; explicit [] preserved, C-008); fail-closed correctly at create boundary in create_mission_core before dir creation, not on read/compose hot paths; resolve_mission_type_context keeps UnknownMissionTypeError use-boundary; synthesizer emit sources default.yaml built-in set (not tree-scan), idempotent, preserves authored [], persists via YAML_KEY_MAP (mission-type key present); composition crash gone (bridge_compat 70 passed); scope fence intact (MissionTypeNotAnArtifactKind raised, _MISSION_TYPE_UNIVERSE_EXTENSION intact, missions tree not deleted, availability readers untouched); mypy(charter) + ruff clean; remediation preserved assertions (no green-washing); one baseline red (test_reducer status_phase) confirmed non-WP04. Non-blocking follow-up: stale docstrings in compiler.py/generate.py/emit-test still claim from_config raises on absent key (false post-pivot).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 2330,
+      "shell_pid_created_at": "1785055863.67",
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
+    },
+    "WP05": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KZBS9ANNESAM3042B4652MSM",
+      "last_transition_at": "2026-08-06T14:57:52.309451+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready: 21 AST guards, non-vacuity proofs"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "orchestrator-verified: 53 passed (guards + 3 cited gates, no SPEC_KITTY_HOME); guards non-vacuous (concrete file-set asserts + synthetic catch tests); ruff/mypy clean; test-only. Mission-level adversarial squad provides independent lens over the whole.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 4087412,
+      "shell_pid_created_at": "1786026629.8",
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      }
+    }
+  }
+}
