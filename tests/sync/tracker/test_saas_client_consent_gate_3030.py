@@ -875,29 +875,37 @@ def test_mission_creation_bind_transmits_for_a_consenting_project(
     ``tracker/origin.bind_mission_origin`` → the transport — with no client
     injected, so the production construction site is the one under test.
     """
+    from specify_cli.sync.runtime import reset_runtime
     from specify_cli.tracker.origin_consumer import consume_pending_origin_impl
 
     write_project_config(isolated_machine, sync_enabled=True)
     write_pending_origin(isolated_machine)
     feature_dir = write_feature_dir(isolated_machine)
 
-    attempted, succeeded, error_msg, _meta = consume_pending_origin_impl(
-        isolated_machine, feature_dir, {"mission_id": MISSION_ID, "mission_slug": MISSION_SLUG}
-    )
+    try:
+        attempted, succeeded, error_msg, _meta = consume_pending_origin_impl(
+            isolated_machine, feature_dir, {"mission_id": MISSION_ID, "mission_slug": MISSION_SLUG}
+        )
 
-    assert (attempted, succeeded, error_msg) == (True, True, None)
-    # Same reason as the control above, and it bites harder here: this path reports
-    # its own success through ``succeeded``, so a chain that resolves a lookup and
-    # never reaches the bind POST reports ``True`` with one request recorded and the
-    # slug in that request's URL. Naming the method is what separates "the bind
-    # happened" from "something happened".
-    assert [record["method"] for record in sink] == ["POST"], (
-        f"the non-interactive path must reach the bind POST; recorded {sink!r}"
-    )
-    assert MISSION_SLUG in transmitted_text(sink), (
-        "the control must carry the engagement name for the refusal test below "
-        "to mean anything"
-    )
+        assert (attempted, succeeded, error_msg) == (True, True, None)
+        # Same reason as the control above, and it bites harder here: this path reports
+        # its own success through ``succeeded``, so a chain that resolves a lookup and
+        # never reaches the bind POST reports ``True`` with one request recorded and the
+        # slug in that request's URL. Naming the method is what separates "the bind
+        # happened" from "something happened".
+        assert [record["method"] for record in sink] == ["POST"], (
+            f"the non-interactive path must reach the bind POST; recorded {sink!r}"
+        )
+        assert MISSION_SLUG in transmitted_text(sink), (
+            "the control must carry the engagement name for the refusal test below "
+            "to mean anything"
+        )
+    finally:
+        # #3130 fold: consume_pending_origin_impl's production call chain sets
+        # the sync.runtime._runtime singleton (E26) with no restoring finally
+        # of its own; reset it so this test does not leave it set for the
+        # rest of the worker process.
+        reset_runtime()
 
 
 def test_mission_creation_bind_leaks_nothing_without_consent(

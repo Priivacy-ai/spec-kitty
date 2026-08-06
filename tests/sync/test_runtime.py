@@ -435,10 +435,15 @@ class TestSyncRuntime:
 
             runtime = SyncRuntime()
             runtime.start()
-
-            assert runtime.started is True
-            assert runtime.background_service is mock_service
-            mock_get_service.assert_called_once()
+            try:
+                assert runtime.started is True
+                assert runtime.background_service is mock_service
+                mock_get_service.assert_called_once()
+            finally:
+                # #3130 fold: start() spawns a real spec-kitty-sync-async-loop
+                # thread (this test does not patch _ensure_async_loop, unlike
+                # its authenticated-websocket siblings below); stop() joins it.
+                runtime.stop()
 
     def test_attach_emitter_wires_ws_client(self):
         """attach_emitter wires existing ws_client to emitter."""
@@ -628,9 +633,14 @@ class TestUnauthenticatedBehavior:
 
             runtime = SyncRuntime()
             runtime.start()
-
-            assert runtime.ws_client is None
-            assert runtime.background_service is not None  # Queue still works
+            try:
+                assert runtime.ws_client is None
+                assert runtime.background_service is not None  # Queue still works
+            finally:
+                # #3130 fold: start() spawns a real spec-kitty-sync-async-loop
+                # thread (this test does not patch _ensure_async_loop); stop()
+                # joins it.
+                runtime.stop()
 
     def test_websocket_created_when_authenticated(self, tmp_path, monkeypatch, auto_start_premise):
         """WebSocket client is created when authenticated."""

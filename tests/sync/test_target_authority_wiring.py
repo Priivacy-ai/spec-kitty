@@ -103,16 +103,20 @@ url = "{server_url}"
 # ---------------------------------------------------------------------------
 
 
-def test_readiness_host_config_keys_off_resolved_target(wiring_root: Path) -> None:
+def test_readiness_host_config_keys_off_resolved_target(
+    wiring_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """When env opts in, readiness reports the single resolved target URL.
 
     The D-5 opt-in gate is via ``SPEC_KITTY_SAAS_URL``; once set, the URL is the
     canonical ``resolved_server_url`` so readiness and sync agree (contract §1).
     """
     _write_config(wiring_root, CONFIG_URL)
-    import os
 
-    os.environ["SPEC_KITTY_SAAS_URL"] = CONFIG_URL  # env == config, opted in
+    # #3130 fold: monkeypatch.setenv restores the pre-test value in teardown
+    # (the raw os.environ[...] = ... this replaced left SPEC_KITTY_SAAS_URL
+    # set for the rest of the worker process -- WP04's own E52 row).
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", CONFIG_URL)  # env == config, opted in
 
     probed = readiness._probe_host_config()
     resolved = resolve_sync_target().resolved_server_url
@@ -121,7 +125,9 @@ def test_readiness_host_config_keys_off_resolved_target(wiring_root: Path) -> No
     assert probed == resolved
 
 
-def test_readiness_targets_env_under_whole_process_override(wiring_root: Path) -> None:
+def test_readiness_targets_env_under_whole_process_override(
+    wiring_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """When env overrides config, readiness probes the env (resolved) URL.
 
     This is the readiness SC-008 proof: readiness can never green-light the
@@ -129,9 +135,7 @@ def test_readiness_targets_env_under_whole_process_override(wiring_root: Path) -
     target.
     """
     _write_config(wiring_root, CONFIG_URL)
-    import os
-
-    os.environ["SPEC_KITTY_SAAS_URL"] = ENV_URL
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", ENV_URL)
 
     probed = readiness._probe_host_config()
     target = resolve_sync_target()
@@ -165,7 +169,7 @@ def test_readiness_host_config_absent_when_no_source(wiring_root: Path) -> None:
 
 
 def test_owner_identity_follows_resolved_target_under_split_brain(
-    wiring_root: Path,
+    wiring_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Daemon-owner identity cannot scope one target while posting to another.
 
@@ -175,9 +179,7 @@ def test_owner_identity_follows_resolved_target_under_split_brain(
     """
     _write_config(wiring_root, CONFIG_URL)
     _write_credentials(wiring_root, server_url=CONFIG_URL, user=USER, team=TEAM)
-    import os
-
-    os.environ["SPEC_KITTY_SAAS_URL"] = ENV_URL  # disagrees with config
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", ENV_URL)  # disagrees with config
 
     identity = compute_foreground_identity(allow_network=False)
     target = resolve_sync_target(user_id=USER, team_slug=TEAM)
@@ -191,14 +193,12 @@ def test_owner_identity_follows_resolved_target_under_split_brain(
 
 
 def test_preflight_identity_follows_resolved_target_under_split_brain(
-    wiring_root: Path,
+    wiring_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Preflight foreground identity derives scope from the resolved target."""
     _write_config(wiring_root, CONFIG_URL)
     _write_credentials(wiring_root, server_url=CONFIG_URL, user=USER, team=TEAM)
-    import os
-
-    os.environ["SPEC_KITTY_SAAS_URL"] = ENV_URL
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", ENV_URL)
 
     fg = collect_foreground_identity(repo_root=wiring_root)
     target = resolve_sync_target(user_id=USER, team_slug=TEAM)
@@ -214,14 +214,12 @@ def test_preflight_identity_follows_resolved_target_under_split_brain(
 
 
 def test_stale_active_queue_scope_ignored_by_owner_identity(
-    wiring_root: Path,
+    wiring_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A stale cached scope is a diagnostic only — the derived scope wins."""
     _write_config(wiring_root, CONFIG_URL)
     _write_credentials(wiring_root, server_url=CONFIG_URL, user=USER, team=TEAM)
-    import os
-
-    os.environ["SPEC_KITTY_SAAS_URL"] = ENV_URL
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", ENV_URL)
     write_active_scope("https://stale.example.com|ghost@example.com|old-team")
 
     identity = compute_foreground_identity(allow_network=False)
@@ -241,7 +239,9 @@ def test_stale_active_queue_scope_ignored_by_owner_identity(
 # ---------------------------------------------------------------------------
 
 
-def test_single_resolved_url_across_surfaces(wiring_root: Path) -> None:
+def test_single_resolved_url_across_surfaces(
+    wiring_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Readiness, owner, and preflight all share the one resolved-target URL.
 
     Env and config agree (no override): every surface — including readiness,
@@ -250,9 +250,7 @@ def test_single_resolved_url_across_surfaces(wiring_root: Path) -> None:
     """
     _write_config(wiring_root, CONFIG_URL)
     _write_credentials(wiring_root, server_url=CONFIG_URL, user=USER, team=TEAM)
-    import os
-
-    os.environ["SPEC_KITTY_SAAS_URL"] = CONFIG_URL  # opt readiness in; no override
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", CONFIG_URL)  # opt readiness in; no override
 
     target = resolve_sync_target(user_id=USER, team_slug=TEAM)
     readiness_url = readiness._probe_host_config()

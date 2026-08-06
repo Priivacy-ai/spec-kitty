@@ -418,13 +418,36 @@ class TestBackgroundStopBounded:
         def slow_sync():
             time.sleep(5)  # would hang without the timeout
 
-        with patch.object(svc, "_guarded_final_sync", side_effect=slow_sync):
+        # #3130 fold: stop()'s final-sync thread is a local variable inside
+        # stop() with no seam to reach it, and it deliberately outlives
+        # stop()'s bounded join here (that IS the behaviour under test) --
+        # so the leak guard's post-teardown snapshot can catch it mid-sleep.
+        # Track the thread the same way test_stop_final_sync_thread_is_daemon
+        # (below) already does, and join it after the timing assertion so it
+        # has actually finished before this test hands control back to the
+        # guard.
+        created_threads: list[threading.Thread] = []
+        real_thread = threading.Thread
+
+        class TrackingThread(real_thread):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                created_threads.append(self)
+
+        with (
+            patch("specify_cli.sync.background.threading.Thread", TrackingThread),
+            patch.object(svc, "_guarded_final_sync", side_effect=slow_sync),
+        ):
             t0 = time.monotonic()
             svc.stop()
             elapsed = time.monotonic() - t0
 
         # Must complete in well under 5 s (the slow_sync duration)
         assert elapsed < 2.0
+
+        assert len(created_threads) == 1
+        created_threads[0].join(timeout=10.0)
+        assert not created_threads[0].is_alive()
 
     @patch("specify_cli.sync.background._STOP_SYNC_TIMEOUT_SECONDS", 0.05)
     @patch("specify_cli.sync.background._fetch_access_token_sync", return_value=None)
@@ -435,12 +458,30 @@ class TestBackgroundStopBounded:
         def slow_sync():
             time.sleep(2)
 
-        with patch.object(svc, "_guarded_final_sync", side_effect=slow_sync):
+        # #3130 fold: see test_stop_does_not_hang_when_sync_is_slow above --
+        # same deliberately-outlives-the-join thread, tracked and joined
+        # after the assertion so it does not leak into the next test.
+        created_threads: list[threading.Thread] = []
+        real_thread = threading.Thread
+
+        class TrackingThread(real_thread):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                created_threads.append(self)
+
+        with (
+            patch("specify_cli.sync.background.threading.Thread", TrackingThread),
+            patch.object(svc, "_guarded_final_sync", side_effect=slow_sync),
+        ):
             svc.stop()
 
         captured = capsys.readouterr()
         assert "diagnostic_code=sync.event_loop_unavailable" in captured.err
         assert "fatal=false" in captured.err
+
+        assert len(created_threads) == 1
+        created_threads[0].join(timeout=10.0)
+        assert not created_threads[0].is_alive()
 
     @patch("specify_cli.sync.background._fetch_access_token_sync", return_value=None)
     def test_stop_final_sync_completes_fast(self, _tok, full_queue):
