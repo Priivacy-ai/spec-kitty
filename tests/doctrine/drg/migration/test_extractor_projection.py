@@ -427,8 +427,41 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 #:     ``_PROFILE_RESCUES`` in ``tests/doctrine/drg/test_reachability.py`` are
 #:     UNCHANGED (measured, not assumed). See
 #:     ``docs/plans/doctrine/delivery-reachability-wiring-table.md``.
-_EXPECTED_NODE_COUNT = 311
-_EXPECTED_EDGE_COUNT = 764
+#: (15) Mission rehome-writing-comms-doctrine: the writing/communications doctrine
+#:     set is rehomed into ``packs/built-in`` as 21 new EXTRACTOR-DERIVED artefacts
+#:     (all pure, zero overlay -- ``HAND_AUTHORED_NODES``/``HAND_AUTHORED_EDGES``
+#:     stay 13/128): 7 agent profiles (analyst-annie, comms-cleo, diagram-daisy,
+#:     lexical-larry, minutes-maker-mahad, scribe-sally, synthesizer-sam), 4
+#:     numeric directives (DIRECTIVE_047 audience-oriented-writing / 048
+#:     version-governance / 049 agent-declaration-and-self-introduction / 050
+#:     credential-handling-discipline), 2 styleguides (meeting-minutes-format,
+#:     professional-communications), 2 procedures (glossary-maintenance-workflow,
+#:     meeting-minutes-pipeline), 1 tactic (writing-audience-catalog) and 5 assets
+#:     (asset:writing-audience-{agentic-framework-core-team,automation-agent,
+#:     line-manager,nontech-educator,software-engineer}). Each carries ordinary
+#:     inline references / directive-references the extractor mints as edges, so
+#:     none is an orphan. PURE golden counts move +21 NODES / +42 edges:
+#:     ``_EXPECTED_NODE_COUNT`` 311 -> 332, ``_EXPECTED_EDGE_COUNT`` 764 -> 806.
+#:     Shipped nodes 324 -> 345, shipped edges 892 -> 934 (= pure 332/806 + the
+#:     unchanged overlay 13/128). Pure relation histogram moved on ``requires``
+#:     (272 -> 289), ``suggests`` (339 -> 348) and ``specializes_from`` (0 -> 4);
+#:     ``scope`` 157 / ``instantiates`` 8 UNCHANGED. The authored-edge relation
+#:     histogram pinned by ``tests/architectural/test_no_authored_applies_edge.py``
+#:     is UNCHANGED (overlay untouched). ORPHAN MEMBERSHIP MOVE: exactly one node
+#:     LEAVES the orphan set. ``directive:USE_C4_MODEL_TECHNIQUES`` was a pure
+#:     orphan wired only by the family-C overlay (ledger entry (11) --
+#:     _AWAITING_REFERENCES + _ORPHANS_RESOLVED_BY_OVERLAY). The new
+#:     ``agent_profile:diagram-daisy`` declares a ``directive-references`` entry
+#:     ``code: USE_C4_MODEL_TECHNIQUES`` which ``normalize_directive_id`` resolves
+#:     to ``directive:USE_C4_MODEL_TECHNIQUES``, so the extractor now mints a real
+#:     ``agent_profile:diagram-daisy --requires--> directive:USE_C4_MODEL_TECHNIQUES``
+#:     edge. USE_C4 is therefore no longer a pure orphan: pure orphans 30 -> 29
+#:     (``_AWAITING_REFERENCES`` 11 -> 10, and it leaves _ORPHANS_RESOLVED_BY_OVERLAY
+#:     9 -> 8). Shipped orphans UNCHANGED at 21 (USE_C4 already had shipped edges via
+#:     the overlay, so it was never a shipped orphan). None of the 21 new artefacts
+#:     is an orphan (all edge-incident), so no bucket gains a member.
+_EXPECTED_NODE_COUNT = 332
+_EXPECTED_EDGE_COUNT = 806
 
 # ---------------------------------------------------------------------------
 # Orphan MEMBERSHIP, not an orphan count
@@ -508,13 +541,13 @@ _AWAITING_REFERENCES: frozenset[str] = frozenset(
         # the seven implementer-role profiles). Wired by the overlay -- see
         # _ORPHANS_RESOLVED_BY_OVERLAY.
         "directive:DISCIPLINED_REFACTORING",
-        # Ledger (11) #3063 family-C: the new use-c4-model-techniques hub directive.
-        # It carries no inline references, so a pure ``generate_graph`` mints its
-        # node but no edge; its only edges are the hand-authored family-C
-        # ``suggests`` edges (7 to the architecture-documentation techniques, 1 to
-        # the DDD paradigm, and 1 from architect-alphonso). Wired by the overlay --
-        # see _ORPHANS_RESOLVED_BY_OVERLAY.
-        "directive:USE_C4_MODEL_TECHNIQUES",
+        # Ledger (11) #3063 family-C introduced ``directive:USE_C4_MODEL_TECHNIQUES``
+        # here as a pure orphan wired only by the family-C overlay. Ledger (15)
+        # (rehome-writing-comms-doctrine) RETIRES that status: the new
+        # ``agent_profile:diagram-daisy`` declares a ``directive-references`` entry
+        # for it, so the extractor now mints a real ``requires`` edge into it and it
+        # is no longer a pure orphan -- removed from this set (and from
+        # _ORPHANS_RESOLVED_BY_OVERLAY). See ledger entry (15).
         # Ledger (12) #3063 family-D: the five new TESTING/BDD/MUTATION artefacts.
         # Each carries no inline references, so a pure ``generate_graph`` mints its
         # node but no edge; every one is wired only by the hand-authored family-D
@@ -587,9 +620,12 @@ _ACTIVATED_BUT_ORPHANED: frozenset[str] = frozenset(
 )
 
 #: Every node a PURE ``generate_graph`` run leaves incident to no edge.
-#: 17 + 11 + 1 + 1 = 30 (``_AWAITING_REFERENCES`` grew to 11 with ledger entry (12)'s
-#: five new family-D artefacts, atop entry (11)'s ``directive:USE_C4_MODEL_TECHNIQUES``
-#: and entry (10)'s ``directive:DISCIPLINED_REFACTORING``). The retired
+#: 17 + 10 + 1 + 1 = 29 (``_AWAITING_REFERENCES`` shrank to 10 with ledger entry (15)'s
+#: rehome-writing-comms-doctrine, which gives ``directive:USE_C4_MODEL_TECHNIQUES`` a
+#: real extractor edge via ``agent_profile:diagram-daisy`` -- it had grown to 11 with
+#: ledger entry (12)'s five new family-D artefacts, atop entry (11)'s
+#: ``directive:USE_C4_MODEL_TECHNIQUES`` and entry (10)'s
+#: ``directive:DISCIPLINED_REFACTORING``). The retired
 #: ``_EXPECTED_ORPHAN_COUNT`` pinned 32; the difference is ledger entries (6) and (7)
 #: -- one deletion and eight wirings -- and is now a consequence of the membership
 #: rather than the whole contract.
@@ -600,10 +636,12 @@ _INTENTIONAL_ORPHANS: frozenset[str] = (
     | _ACTIVATED_BUT_ORPHANED
 )
 
-#: The pure-extractor figure (25) and the shipped-graph figure (21) differ by
-#: exactly these four, and by nothing else: the hand-authored overlay
+#: The pure-extractor figure (29) and the shipped-graph figure (21) differ by
+#: exactly these eight, and by nothing else: the hand-authored overlay
 #: (``doctrine.drg.migration.hand_authored_overlay``) carries edges the
 #: extractor has no frontmatter mechanism to mint, and they land on these nodes.
+#: (Ledger entry (15) removed ``directive:USE_C4_MODEL_TECHNIQUES`` from this set --
+#: it gained a real extractor edge, so the overlay no longer resolves it.)
 #: Naming them keeps the two figures related by a stated cause instead of by two
 #: independent magic numbers that could drift apart unnoticed.
 _ORPHANS_RESOLVED_BY_OVERLAY: frozenset[str] = frozenset(
@@ -613,9 +651,11 @@ _ORPHANS_RESOLVED_BY_OVERLAY: frozenset[str] = frozenset(
         # Ledger (10) #3063 family-B: the disciplined-refactoring hub directive.
         # Pure-orphan (no inline refs), wired only by the family-B overlay edges.
         "directive:DISCIPLINED_REFACTORING",
-        # Ledger (11) #3063 family-C: the use-c4-model-techniques hub directive.
-        # Pure-orphan (no inline refs), wired only by the family-C overlay edges.
-        "directive:USE_C4_MODEL_TECHNIQUES",
+        # Ledger (11) #3063 family-C introduced ``directive:USE_C4_MODEL_TECHNIQUES``
+        # here (pure-orphan wired only by the family-C overlay). Ledger (15)
+        # (rehome-writing-comms-doctrine) removes it: agent_profile:diagram-daisy now
+        # references it, so the extractor mints a real edge and it is no longer a
+        # pure orphan for the overlay to resolve.
         # Ledger (12) #3063 family-D: the five new TESTING/BDD/MUTATION artefacts.
         # Pure-orphans (no inline refs), wired only by the family-D overlay edges.
         "directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
@@ -730,7 +770,7 @@ class TestDRGZeroDelta:
         )
 
     def test_shipped_graph_orphans_are_the_pure_set_minus_the_overlay(self) -> None:
-        """The two figures (pure 25, shipped 21) differ by a stated cause.
+        """The two figures (pure 29, shipped 21) differ by a stated cause.
 
         Asserting each against its own constant would let them drift apart while
         both stayed green. Here the shipped set is *derived* from the pure set,

@@ -298,19 +298,32 @@ class TestNoRegressionForExistingKinds:
     def test_builtin_graph_references_the_first_shipped_asset(
         self,
     ) -> None:
-        """The real shipped graph carries exactly one `asset:` node — the first
-        shipped built-in ASSET, the common-docs structural lint — and it is
-        REFERENCED (non-orphan): the four common-docs artifacts that name it in
-        prose point at it with `requires` edges. An un-linked asset that
-        everything references is the un-navigable state the asset kind exists
-        to fix, so the wiring is asserted, not merely the node's presence."""
+        """The real shipped graph carries the built-in ASSET nodes, and the first
+        shipped one — the common-docs structural lint — is REFERENCED (non-orphan):
+        the four common-docs artifacts that name it in prose point at it with
+        `requires` edges. An un-linked asset that everything references is the
+        un-navigable state the asset kind exists to fix, so the wiring is asserted,
+        not merely the node's presence.
+
+        The asset set grew from one to six with mission rehome-writing-comms-doctrine,
+        which shipped the five ``asset:writing-audience-*`` audience descriptors
+        (see the composition ledger in
+        ``tests/doctrine/drg/migration/test_extractor_projection.py`` entry (15));
+        each is edge-incident (non-orphan) by construction — none is a bare node."""
         built_in = _built_in_graph()
         kinds_present = {node.kind for node in built_in.nodes}
         asset_urns = {
             node.urn for node in built_in.nodes if node.kind == NodeKind.ASSET
         }
 
-        assert asset_urns == {"asset:common-docs-structural-lint"}
+        assert asset_urns == {
+            "asset:common-docs-structural-lint",
+            "asset:writing-audience-agentic-framework-core-team",
+            "asset:writing-audience-automation-agent",
+            "asset:writing-audience-line-manager",
+            "asset:writing-audience-nontech-educator",
+            "asset:writing-audience-software-engineer",
+        }
         assert NodeKind.TEMPLATE in kinds_present
         assert NodeKind.DIRECTIVE in kinds_present
 

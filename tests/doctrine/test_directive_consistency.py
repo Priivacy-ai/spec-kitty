@@ -14,6 +14,7 @@ import pytest
 import jsonschema
 from ruamel.yaml import YAML
 
+from doctrine.drg.migration.id_normalizer import normalize_directive_id
 from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT, REPO_ROOT
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
@@ -75,16 +76,51 @@ def _profile_directive_refs() -> dict[str, str]:
     return refs
 
 
+def _directive_index() -> dict[str, tuple[str, str]]:
+    """Map each shipped directive's canonical id -> ``(filename, title)``.
+
+    The canonical id is what :func:`normalize_directive_id` produces from a
+    directive's own ``id`` field — the SAME resolution the DRG extractor's
+    ``artifact_to_urn`` uses when it mints ``agent_profile --requires-->
+    directive`` edges from a profile's ``directive-references``. Numeric
+    directives resolve to ``DIRECTIVE_NNN`` (from either the ``NNN`` a profile
+    cites or the ``DIRECTIVE_NNN`` the file declares); slug-id directives
+    (e.g. ``use-c4-model-techniques`` -> ``USE_C4_MODEL_TECHNIQUES``) resolve to
+    their own upper-cased id.
+
+    Resolving by canonical id — not by a ``{code}-*.directive.yaml`` filename
+    glob — is what lets a *validly referenced* slug-id directive resolve to its
+    real file + title. The old glob silently assumed every directive is
+    ``NNN-slug``, so it could never match a directive whose whole stem is the
+    slug (the first such profile reference, diagram-daisy -> USE_C4_MODEL_TECHNIQUES,
+    is exactly what exposed the gap). The check's strength is unchanged: a
+    referenced code must still resolve to a shipped directive file whose title
+    matches the profile's declared name.
+    """
+    index: dict[str, tuple[str, str]] = {}
+    for path in _multi_glob(_DIRECTIVES_DIRS, "*.directive.yaml"):
+        data = _load_yaml(path)
+        raw_id = str(data.get("id", "")).strip()
+        if not raw_id:
+            continue
+        canonical = normalize_directive_id(raw_id)
+        index[canonical] = (path.name, str(data.get("title", "")).strip())
+    return index
+
+
 def test_all_referenced_directives_have_matching_files_and_titles() -> None:
     refs = _profile_directive_refs()
     assert refs, "No directive references found in shipped profiles"
 
+    index = _directive_index()
     for code, expected_title in refs.items():
-        matches = _multi_glob(_DIRECTIVES_DIRS, f"{code}-*.directive.yaml")
-        assert matches, f"Missing directive file for code {code}"
+        canonical = normalize_directive_id(code)
+        assert canonical in index, (
+            f"Missing directive file for code {code} (resolved to {canonical}); "
+            f"known directive ids: {sorted(index)}"
+        )
 
-        directive = _load_yaml(matches[0])
-        actual_title = str(directive.get("title", "")).strip()
+        _filename, actual_title = index[canonical]
         assert actual_title == expected_title, (
             f"Directive title mismatch for code {code}: "
             f"expected '{expected_title}', got '{actual_title}'"

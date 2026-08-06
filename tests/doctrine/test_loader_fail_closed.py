@@ -70,5 +70,5 @@ def test_load_built_in_graph_fails_closed_when_pack_root_missing(
 def test_load_built_in_graph_loads_full_corpus_when_pack_root_present() -> None:
     """Positive control: the unpatched loader yields the full built-in corpus."""
     graph = load_built_in_graph()
-    assert len(graph.nodes) == 324  # golden-count: cardinality-is-contract
-    assert len(graph.edges) == 892  # golden-count: cardinality-is-contract
+    assert len(graph.nodes) == 345  # golden-count: cardinality-is-contract
+    assert len(graph.edges) == 934  # golden-count: cardinality-is-contract

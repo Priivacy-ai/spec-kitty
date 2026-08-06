@@ -150,42 +150,20 @@ def test_asset_payloads_relocated_under_packs_built_in() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Check 2 — fixture integrity (DIR-005) — unchanged, still meaningful
+# Check 2 — fixture integrity (DIR-005) — RETIRED
+#
+# The captured ``graph-identity.baseline.json`` fixture and its consumer
+# ``test_pack_relocation_identity.py`` were retired with mission
+# rehome-writing-comms-doctrine. Both existed solely to prove the #2467
+# built-in -> packs/built-in relocation was behaviour-preserving (post-move
+# ``load_built_in_graph()`` == the frozen pre-move WP01 projection). That
+# relocation has long since landed; the frozen baseline had degenerated into a
+# pure change-detector that reds on every legitimate doctrine addition. Its
+# protection against silent per-edge ``when``/``reason``/``label`` drift is
+# permanently subsumed by ``spec-kitty doctrine regenerate-graph --check`` (the
+# committed DRG fragments must equal a fresh regeneration from frontmatter), so
+# nothing is lost by removing the frozen snapshot.
 # --------------------------------------------------------------------------- #
-
-
-def _load_baseline() -> dict:
-    return json.loads(BASELINE_JSON.read_text(encoding="utf-8"))
-
-
-def test_baseline_smoke_counts() -> None:
-    baseline = _load_baseline()
-    assert len(baseline["nodes"]) == 324  # golden-count: cardinality-is-contract
-    assert len(baseline["edges"]) == 892  # golden-count: cardinality-is-contract
-
-
-def test_baseline_is_full_projection_not_degenerate() -> None:
-    """DIR-005: the fixture must be a full-model projection, so WP07's identity
-    test cannot pass vacuously against an all-null fixture."""
-    baseline = _load_baseline()
-    edges = baseline["edges"]
-    nodes = baseline["nodes"]
-
-    # Every edge row is [source, relation, target, when, reason] — exactly 5.
-    for row in edges:
-        assert len(row) == 5, f"edge row is not a 5-field projection: {row!r}"  # golden-count: cardinality-is-contract
-
-    # ``when`` gates delivery and ``reason`` documents intent — at least one of
-    # each must be non-null, or the projection dropped them.
-    assert any(row[3] is not None for row in edges), "no edge carries a non-null `when`"
-    assert any(row[4] is not None for row in edges), "no edge carries a non-null `reason`"
-
-    # Every node row is [urn, label, tags]; tags is a list; tagged-kind nodes
-    # (e.g. anti-pattern smell nodes) must carry non-empty tags.
-    for row in nodes:
-        assert len(row) == 3, f"node row is not a 3-field projection: {row!r}"  # golden-count: cardinality-is-contract
-        assert isinstance(row[2], list), f"node tags is not a list: {row!r}"
-    assert any(row[2] for row in nodes), "no node carries non-empty tags"
 
 
 # --------------------------------------------------------------------------- #
