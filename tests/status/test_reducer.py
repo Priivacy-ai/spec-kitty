@@ -1023,25 +1023,52 @@ class TestEventSourcedReviewResultReader:
 
         assert lookup == ReviewResultLookup(slot_present=False, result=None)
 
-    def test_event_sourced_review_result_this_missions_own_meta_json_fixture(self) -> None:
-        """T027 DoD: this mission's OWN, real, un-migrated ``meta.json`` (no
-        ``status_phase`` key) is used as a literal fixture proving the
-        slot-absent path fires for a real, current, un-migrated mission — not
-        only a synthetic one. The reader is never gated on ``status_phase``;
-        this assertion only pins the fixture's relevance to that framing."""
-        repo_root = Path(__file__).resolve().parents[2]
-        feature_dir = repo_root / "kitty-specs" / "review-cycle-verdict-seam-rebuild-01KZ2W7W"
-        meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    def test_event_sourced_review_result_coord_primary_partition_slot_absent(
+        self, tmp_path: Path
+    ) -> None:
+        """T027 DoD (#3220 fold): a coord-topology mission's PRIMARY-partition
+        checkout has no reduced entry for a WP whose lane transitions live on
+        the coordination branch instead -- slot-absent, the un-migrated shape
+        T027 exists to handle. The reader is never gated on ``status_phase``;
+        the synthetic ``meta.json`` below omits it only to preserve that
+        framing, matching :func:`test_event_sourced_review_result_never_reviewed_wp_slot_absent`'s
+        pattern.
+
+        Landing-pass fold, #3220: this test used to read this repository's
+        OWN, live, un-migrated ``kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/meta.json``
+        as a "not only a synthetic one" fixture. That mission was later
+        migrated (it now carries a ``status_phase`` key), so the live
+        precondition silently stopped holding and the test went red for a
+        reason unrelated to the reader it exists to cover. The synthetic
+        fixture here reproduces the same shape deterministically: a WP that
+        was created and moved through a lane transition (so it is not simply
+        absent from history) but has no reduced entry in THIS checkout's own
+        event log, exactly what a coord-topology mission's primary partition
+        looks like for a WP whose authoritative transitions live on the
+        coordination branch.
+        """
+        feature_dir = tmp_path / "kitty-specs" / "069-coord-primary"
+        feature_dir.mkdir(parents=True)
+        meta_path = feature_dir / "meta.json"
+        meta = {"mission_slug": "069-coord-primary", "topology": "coord"}
+        meta_path.write_text(json.dumps(meta), encoding="utf-8")
         assert "status_phase" not in meta
 
-        lookup = event_sourced_review_result(feature_dir, "WP07")
+        append_event(
+            feature_dir,
+            _make_event(
+                event_id="01A", wp_id="WP07",
+                from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED, at="2026-02-08T10:00:00Z",
+            ),
+        )
 
-        # This mission's own kitty-specs checkout is the PRIMARY partition of a
-        # coord-topology mission -- its authoritative status.events.jsonl lives
-        # on the coordination branch, not here, so this checkout's own reduced
-        # snapshot has no entry for WP07 at all. Slot-absent, exactly the
-        # un-migrated shape T027 exists to handle -- and, per module docstring,
-        # NOT gated on the (absent) status_phase key above.
+        lookup = event_sourced_review_result(feature_dir, "WP99")
+
+        # WP99 never appears in this checkout's event log at all -- the
+        # coord-primary shape: its authoritative status.events.jsonl lives on
+        # the coordination branch, not here, so this checkout's own reduced
+        # snapshot has no entry for it. Slot-absent, and NOT gated on the
+        # (absent) status_phase key above.
         assert lookup == ReviewResultLookup(slot_present=False, result=None)
 
     def test_event_sourced_review_result_fails_closed_on_corrupted_event_log(
