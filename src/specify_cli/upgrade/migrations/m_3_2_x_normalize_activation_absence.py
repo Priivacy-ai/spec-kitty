@@ -15,8 +15,12 @@ activated) rather than "everything". It also ensures the ``.kittify/config.yaml`
 Scope (NFR-001 — bounded consumer mutation): the ONLY consumer file this
 migration writes is the charter/config activation surface, and only to normalize
 absence. It never touches ``activated_kinds`` or ``mission_type_activations``
-(coarser gates with their own still-valid built-in-default semantics), never
-removes an explicit ``[]`` or a populated list, and installs nothing.
+(coarser gates whose absence semantics are owned elsewhere — note that
+``mission_type_activations`` no longer carries a built-in default: mission
+resolution-activation-foundation-01KZ9FKG WP04 retired that implicit default and
+made an absent key fail closed, so this migration deliberately leaves that key
+to the create/use boundary rather than normalizing it here), never removes an
+explicit ``[]`` or a populated list, and installs nothing.
 
 Reconciliation of the two prior migrations (WP07/T041)
 ------------------------------------------------------

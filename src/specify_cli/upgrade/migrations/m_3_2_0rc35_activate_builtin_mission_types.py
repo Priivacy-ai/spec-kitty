@@ -27,22 +27,38 @@ from ruamel.yaml import YAML
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
-#: The written set is resolved at ``apply()``-time from the canonical
-#: accessor ``doctrine.missions.mission_type_repository.builtin_mission_type_ids()``
-#: (single source of truth, #2669 IC-1a) rather than a hardcoded literal here.
-#: That accessor is also the source read by ``PackContext.from_config()``'s
-#: default (key: ``mission_type_activations``), so this migration and the
-#: charter runtime can never drift.
+#: The written set is resolved at ``apply()``-time from the filesystem accessor
+#: ``doctrine.missions.mission_type_repository.builtin_mission_type_ids()``
+#: (a disk-scan of the built-in mission-type catalog) rather than a hardcoded
+#: literal here.
+#:
+#: Drift caveat (mission resolution-activation-foundation-01KZ9FKG, WP04):
+#: this accessor USED to be the source read by ``PackContext.from_config()``'s
+#: config-absent default, which is why an earlier revision claimed the two
+#: "can never drift." WP04 RETIRED that implicit backfill -- an absent key now
+#: resolves to ``frozenset()`` (fail-closed), and the authored
+#: ``src/charter/packs/default.yaml`` list is the single authority that
+#: fresh-init / generation / upgrade provisioning seed from. This migration
+#: still seeds from the disk-scan roster, so if a fifth built-in mission type
+#: is ever added under ``mission_types/`` WITHOUT also adding it to
+#: ``default.yaml``, a pre-rc35 project upgraded through this migration and a
+#: freshly-init'd project would disagree on the activated set. Keep the two
+#: rosters in sync, or repoint this migration at ``default.yaml`` (tracked
+#: follow-up) to make the authority uniform.
 
 
 @MigrationRegistry.register
 class ActivateBuiltinMissionTypesMigration(BaseMigration):
     """Add mission_type_activations to .kittify/config.yaml for legacy projects.
 
-    Projects without the ``mission_type_activations`` key are treated as
-    implicitly activating all four built-ins (backward-compat behaviour in
-    ``PackContext.from_config()``).  This migration makes that implicit
-    activation explicit so the config always reflects the effective state.
+    Historically, projects without the ``mission_type_activations`` key were
+    treated as implicitly activating all four built-ins (a backward-compat
+    default in ``PackContext.from_config()``). That implicit default was
+    RETIRED in mission resolution-activation-foundation-01KZ9FKG (WP04): an
+    absent key now fails closed rather than defaulting. This migration makes
+    the activation explicit for legacy (pre-rc35) projects so the config
+    reflects a concrete, non-empty state instead of relying on the removed
+    implicit default.
     """
 
     migration_id = "3.2.0rc35_activate_builtin_mission_types"
