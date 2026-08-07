@@ -71,6 +71,16 @@ from .transitions import (
     resolve_lane_alias,
     validate_transition,
 )
+from .verdict_vocab import (
+    # 2026-08-07 (landing fix, verdict-seam-write-unification #3245): promoted
+    # onto the facade so the four repo-wide callers of the artifact<->event
+    # verdict bridge (agent_utils.status, tasks_parsing_validation,
+    # tasks_verdict_persistence) resolve it WITHOUT a direct
+    # ``specify_cli.status.verdict_vocab`` import
+    # (test_status_module_boundary.py SR-2).
+    is_changes_requested,
+    to_artifact_verdict,
+)
 from .transition_context import (
     TransitionContext,
 )
@@ -439,6 +449,8 @@ __all__ = [
     "reduce",
     "resolve_lane_alias",
     "resolve_snapshot_review",
+    "is_changes_requested",
+    "to_artifact_verdict",
     "validate_derived_views",
     "validate_done_evidence",
     "validate_event_schema",

@@ -82,8 +82,7 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
     override_persist_signal,
 )
 from specify_cli.review.cycle import _review_cycle_wp_dir, create_rejected_review_cycle
-from specify_cli.status import event_sourced_review_result
-from specify_cli.status.verdict_vocab import to_artifact_verdict
+from specify_cli.status import event_sourced_review_result, to_artifact_verdict
 
 if TYPE_CHECKING:
     from specify_cli.agent_tasks_ports import CoordCommitRouter
