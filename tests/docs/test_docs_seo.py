@@ -15,6 +15,10 @@ sys.path.insert(0, str(REPO_ROOT))
 from scripts.docs import seo_postprocess  # noqa: E402
 from scripts.docs._inventory import parse_frontmatter  # noqa: E402
 from scripts.docs._published_pages import resolve_published_pages  # noqa: E402
+from scripts.docs.description_length_check import (  # noqa: E402
+    MAX_DESCRIPTION_LENGTH,
+    MIN_DESCRIPTION_LENGTH,
+)
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -65,7 +69,10 @@ def test_published_pages_have_title_and_description(path: Path) -> None:
     assert metadata.get("title"), f"{path.relative_to(REPO_ROOT)} missing title"
     description = metadata.get("description")
     assert description, f"{path.relative_to(REPO_ROOT)} missing description"
-    assert 50 <= len(description) <= 180, f"{path.relative_to(REPO_ROOT)} description length is off: {len(description)}"
+    assert MIN_DESCRIPTION_LENGTH <= len(description) <= MAX_DESCRIPTION_LENGTH, (
+        f"{path.relative_to(REPO_ROOT)} description length is off: {len(description)} "
+        f"(band {MIN_DESCRIPTION_LENGTH}-{MAX_DESCRIPTION_LENGTH})"
+    )
 
 
 def test_static_seo_files_exist() -> None:
