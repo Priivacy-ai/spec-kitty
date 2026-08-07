@@ -2616,6 +2616,18 @@ pages:
     - {slug: "confirmation-and-what-this-adr-does-not-prove", text: "Confirmation — and what this ADR does **not** prove", level: 3}
     - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/3.x/2026-08-05-1-mission-type-availability-before-kind-promotion.md"
+    title: "ADR: Sequence Charter-Activation-Driven Mission-Type Availability Ahead of Mission-Type-as-ArtifactKind; Land It With Mission-Tree Resolution Unification as One Slice"
+    divio_type: "none"
+    abstract: "The end-state the epic [#2466](https://github.com/Priivacy-ai/spec-kitty/issues/2466) (\"Doctrine/Charter extensibility & pack ecosystem\") calls **fully doctrine-provided, charter-loaded mission types** — a single canonical mission-type source where a type is *offered* iff the charter activation set says so, and `software-dev` is an ordinary peer doctrine type with no filesystem-position-implies-availability logic anywhere — has been **repeatedly deferred across successive missions**. [PR #3204](https://github.com/Priivacy-ai/spec-kitty/pull/3204) (mission `doctrine-consumer-surface-missions-extraction`, closes [#3091](https://github.com/Priivacy-ai/spec-kitty/issues/3091)) is the latest instance: it landed the *physical* relocation of built-in mission data to `packs/built-in/missions/` and deferred everything else by explicit spec constraint (C-002)."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "references", text: "References", level: 2}
+    - {slug: "addendum-2026-08-05-3210-resolver-shape-sharpened-after-the-post-plan-review", text: "Addendum (2026-08-05) — #3210 resolver shape sharpened after the post-plan review", level: 2}
+    - {slug: "addendum-2026-08-07-dr-1-silent-parity-behaviour-superseded-misconfigured-spec-kitty-packs-root-now-warns-loudly", text: "Addendum (2026-08-07) — DR-1 silent-parity behaviour superseded: misconfigured `SPEC_KITTY_PACKS_ROOT` now warns loudly", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x Architectural Decision Records"
     divio_type: "none"
