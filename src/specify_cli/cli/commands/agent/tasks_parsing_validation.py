@@ -43,9 +43,14 @@ from specify_cli.core.constants import (
     MISSION_TYPE_SOFTWARE_DEV,
 )
 from specify_cli.lanes._git import lane_has_commit_beyond_base
-from specify_cli.status import Lane, StatusEvent, event_sourced_review_result
+from specify_cli.status import (
+    Lane,
+    StatusEvent,
+    event_sourced_review_result,
+    is_changes_requested,
+    to_artifact_verdict,
+)
 from specify_cli.status import is_dossier_snapshot as _is_dossier_snapshot
-from specify_cli.status.verdict_vocab import is_changes_requested, to_artifact_verdict
 
 logger = logging.getLogger(__name__)
 

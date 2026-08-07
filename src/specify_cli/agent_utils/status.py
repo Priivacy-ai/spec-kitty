@@ -24,8 +24,7 @@ from specify_cli.core.paths import (
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status import Lane, NON_DISPLAY_LANES, StatusEvent
 from specify_cli.status import PROGRESS_SEMANTICS, compute_done_percentage, compute_weighted_progress
-from specify_cli.status import event_sourced_review_result, wp_state_for
-from specify_cli.status.verdict_vocab import is_changes_requested
+from specify_cli.status import event_sourced_review_result, is_changes_requested, wp_state_for
 from specify_cli.task_utils import extract_scalar, split_frontmatter
 
 console = Console()
