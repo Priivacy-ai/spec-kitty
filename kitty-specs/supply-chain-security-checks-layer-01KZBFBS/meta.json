@@ -14,9 +14,8 @@
   "accepted_by": "zohar",
   "accepted_from_commit": "ba765ca90c587a95668d1a66804ff4e734c4f424",
   "baseline_merge_commit": "0d86a6457fe7a1e944a306fc69d6d6971ab833a5",
-  "coordination_branch": "kitty/mission-supply-chain-security-checks-layer-01KZBFBS",
   "created_at": "2026-08-06T12:04:26.875811+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Supply Chain Security Checks Layer",
   "mission_id": "01KZBFBS3V1JMRXS5VQ2S5WWPY",
   "mission_number": null,
@@ -28,7 +27,6 @@
   "slug": "supply-chain-security-checks-layer-01KZBFBS",
   "status_phase": "1",
   "target_branch": "feat/supply-chain-security-checks-layer",
-  "topology": "coord",
   "vcs": "git",
   "vcs_locked_at": "2026-08-06T14:44:34.051234+00:00"
 }
