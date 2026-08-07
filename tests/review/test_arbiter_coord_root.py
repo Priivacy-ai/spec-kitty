@@ -25,9 +25,23 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
+import pytest
+
 from tests.integration.coord_topology_fixture import (  # noqa: F401 -- pytest fixture re-export
     coord_topology_mission,
 )
+
+# 2026-08-07 (landing fix, verdict-seam-write-unification #3245): this module
+# shipped with no module-level pytestmark, orphaning all 5 of its tests.
+# test_arbiter_override_under_coord_topology_threads_the_resolved_root drives
+# the real git-backed `coord_topology_mission` fixture (a real subprocess-init
+# repo, tests/integration/coord_topology_fixture.py), so this file routes as
+# `git_repo` -- matching the module-level (not per-test) marker granularity
+# every other tests/review/*.py file uses -- into the dedicated
+# `integration-tests-review` job (`-m 'not windows_ci and (git_repo or
+# integration)'`), which also covers this file's other 4 pure-introspection
+# tests.
+pytestmark = [pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------
