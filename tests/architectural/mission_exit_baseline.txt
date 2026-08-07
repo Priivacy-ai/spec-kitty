@@ -33,6 +33,33 @@
 # the delta reflects main's own test additions/relocations (e.g. the #2996
 # reproductions now live in tests/regression/test_issue_2996_*.py). Floor
 # re-anchored to current main per NFR-001's merge-base rule.
+#
+# 2026-08-06 TARGETED RENAME SWAP (PR #3209 landing pass, one line, NOT a
+# regeneration): the single node-id
+#   tests/status/test_reducer.py::TestEventSourcedReviewResultReader::
+#     test_event_sourced_review_result_this_missions_own_meta_json_fixture
+# was replaced by
+#   tests/status/test_reducer.py::TestEventSourcedReviewResultReader::
+#     test_event_sourced_review_result_coord_primary_partition_slot_absent
+# in commit 42f0a1ed5 (a #3220 fold). The old test used this repository's own
+# live kitty-specs/review-cycle-verdict-seam-rebuild-01KZ2W7W/meta.json as its
+# fixture and asserted that file lacked a status_phase key; that mission was
+# later migrated and gained the key, so the live precondition silently stopped
+# holding and the test went red for a reason unrelated to the reader it covers.
+# The replacement builds the same coord-topology primary-partition shape
+# synthetically under tmp_path, so it is true by construction rather than only
+# at the instant it was written. Coverage of the reader is preserved, not
+# reduced: this is a rename, not a deletion, de-parametrization, or exclusion.
+#
+# Verified before committing this swap, against the EXACT affected-suites
+# invocation quoted above (uv run pytest --collect-only -q -p no:cacheprovider):
+# 2890 node-ids collected; the new node-id is present in that live collection by
+# name, and the floor-minus-live difference was EXACTLY the one old node-id
+# above and nothing else. The floor also grew 2886 -> 2890 (growth is permitted).
+# The invocation's own scope is unchanged, so the "regenerate when the
+# invocation legitimately changes scope" path above deliberately does NOT apply
+# and the file was NOT regenerated -- a wholesale regeneration here would have
+# laundered any genuine concurrent selection regression into green.
 tests/integration/test_ac5_hash_guard.py::test_ac5_hash_stable_across_driven_lifecycle_with_proof_of_drive
 tests/integration/test_review_cycle_rejection_only.py::test_review_cycle_counter_advances_only_on_real_rejection
 tests/integration/test_review_cycle_rejection_only.py::test_two_rejections_produce_two_distinct_artifacts
@@ -2561,10 +2588,10 @@ tests/status/test_read_events_tolerates_decision_events.py::test_read_events_wit
 tests/status/test_reconcile.py::test_reconcile_module_does_not_exist
 tests/status/test_reducer.py::TestByteIdenticalOutput::test_byte_identical_across_reduce_calls
 tests/status/test_reducer.py::TestByteIdenticalOutput::test_byte_identical_output
+tests/status/test_reducer.py::TestEventSourcedReviewResultReader::test_event_sourced_review_result_coord_primary_partition_slot_absent
 tests/status/test_reducer.py::TestEventSourcedReviewResultReader::test_event_sourced_review_result_fails_closed_on_corrupted_event_log
 tests/status/test_reducer.py::TestEventSourcedReviewResultReader::test_event_sourced_review_result_migrated_wp
 tests/status/test_reducer.py::TestEventSourcedReviewResultReader::test_event_sourced_review_result_never_reviewed_wp_slot_absent
-tests/status/test_reducer.py::TestEventSourcedReviewResultReader::test_event_sourced_review_result_this_missions_own_meta_json_fixture
 tests/status/test_reducer.py::TestEventSourcedReviewResultReader::test_lookup_from_state_malformed_slot_fails_closed
 tests/status/test_reducer.py::TestEventSourcedReviewResultReader::test_lookup_from_state_slot_absent
 tests/status/test_reducer.py::TestEventSourcedReviewResultReader::test_lookup_from_state_slot_null
