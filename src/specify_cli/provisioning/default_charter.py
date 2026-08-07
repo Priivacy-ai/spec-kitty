@@ -8,6 +8,17 @@ module is the *fresh-init* counterpart: it seeds a brand-new project's
 the config-absent implicit backfill (mission WP04, out of scope here) does
 not leave new projects with zero mission types.
 
+**Seed-read is shared, write is not.** The actual "what is the authored
+``mission_type_activations`` list, or fail closed" question is answered by
+:func:`charter.default_pack.load_default_mission_type_activations` — the
+same helper ``charter.compiler.provision_mission_type_activations`` (the
+``spec-kitty charter generate`` path) consumes, so the two provisioners can
+never seed a divergent set from the same shipped ``default.yaml``. This
+module still owns its own path resolution
+(:func:`specify_cli.charter_pack_registry.resolve_builtin_pack_path`) and
+its own write target (``merge_pack_into_config`` into ``config.yaml``) —
+only the parse-and-validate step is shared.
+
 Design constraints (data-model Seam 2, invariants I-8/I-9/I-10; research
 D-07):
 
@@ -36,8 +47,9 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
+from charter.default_pack import load_default_mission_type_activations
+from charter.pack_context import CharterPackConfigError
 from specify_cli.charter_pack_registry import (
-    load_pack_yaml,
     merge_pack_into_config,
     resolve_builtin_pack_path,
 )
@@ -75,9 +87,22 @@ class DefaultCharterPackMissingError(RuntimeError):
 def _load_default_pack_activations() -> list[Any]:
     """Return the authored ``mission_type_activations`` list from default.yaml.
 
+    Path resolution stays local (``resolve_builtin_pack_path``, the same
+    seam ``spec-kitty charter pack`` and the rc35 migration use); the actual
+    parse-and-validate step delegates to the shared, fail-closed
+    :func:`charter.default_pack.load_default_mission_type_activations` so
+    this provisioner and ``charter.compiler.provision_mission_type_activations``
+    (the ``spec-kitty charter generate`` path) can never read a divergent
+    activation set from the same shipped file (squad-found maintainability
+    defect: the two used to be independent, near-identical readers).
+
     Raises:
         DefaultCharterPackMissingError: the shipped default pack is missing
-            (broken install) or does not declare ``mission_type_activations``.
+            (broken install) or does not declare a non-empty
+            ``mission_type_activations`` list. Kept as this module's own
+            historical exception type (rather than the shared helper's
+            ``CharterPackConfigError``) so existing ``specify_cli`` callers
+            and tests are undisturbed.
     """
     try:
         default_pack_path = resolve_builtin_pack_path(_DEFAULT_PACK_NAME)
@@ -89,16 +114,15 @@ def _load_default_pack_activations() -> list[Any]:
             "spec-kitty and re-run `spec-kitty init`."
         ) from exc
 
-    pack_data = load_pack_yaml(default_pack_path)
-    activations = pack_data.get(_MISSION_TYPE_ACTIVATIONS_KEY)
-    if not isinstance(activations, list):
+    try:
+        return load_default_mission_type_activations(pack_path=default_pack_path)
+    except CharterPackConfigError as exc:
         raise DefaultCharterPackMissingError(
-            f"{default_pack_path} does not declare a "
+            f"{default_pack_path} does not declare a non-empty "
             f"'{_MISSION_TYPE_ACTIVATIONS_KEY}' list. Cannot provision this "
             "project's mission types. This indicates a broken spec-kitty "
             "install — reinstall spec-kitty and re-run `spec-kitty init`."
-        )
-    return activations
+        ) from exc
 
 
 def provision_default_mission_type_activations(project_path: Path) -> bool:

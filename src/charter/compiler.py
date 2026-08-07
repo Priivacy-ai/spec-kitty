@@ -22,10 +22,10 @@ from charter.interview import (
     LocalSupportDeclaration,
     validate_local_support_declarations,
 )
-from charter.default_pack import load_default_pack_activation_ids
+from charter.default_pack import load_default_mission_type_activations
 from charter.kind_vocabulary import ArtifactKind, resolve_artifact_urn
 from charter.language_scope import extract_declared_languages
-from charter.pack_context import CharterPackConfigError, PackContext
+from charter.pack_context import PackContext
 from charter.resolver import DEFAULT_TOOL_REGISTRY
 from charter.schemas import (
     CharterCatalog,
@@ -551,7 +551,10 @@ def provision_mission_type_activations(repo_root: Path) -> bool:
     CharterPackConfigError
         When the shipped default pack declares no ``mission_type_activations``
         set (a broken install) — fail-closed rather than seeding an empty,
-        equally-unusable list.
+        equally-unusable list. Raised by the shared seed-read helper
+        :func:`charter.default_pack.load_default_mission_type_activations`
+        (also consumed by ``spec-kitty init``/``upgrade`` provisioning), so
+        both provisioners fail closed on the identical condition.
     """
     # Lazy import breaks the ``pack_manager`` <-> ``compiler`` cycle (mirrors
     # :func:`_legacy_activation_keys`).
@@ -561,17 +564,7 @@ def provision_mission_type_activations(repo_root: Path) -> bool:
     if _MISSION_TYPE_ACTIVATIONS_KEY in data:
         return False
 
-    builtin = load_default_pack_activation_ids().get(_MISSION_TYPE_ACTIVATIONS_KEY, [])
-    if not builtin:
-        raise CharterPackConfigError(
-            "The shipped default charter pack "
-            "(src/charter/packs/default.yaml) declares no "
-            "'mission_type_activations' set; cannot provision the mission-type "
-            "activation authority. Reinstall spec-kitty or run `spec-kitty "
-            "upgrade` to restore the default charter pack."
-        )
-
-    data[_MISSION_TYPE_ACTIVATIONS_KEY] = list(builtin)
+    data[_MISSION_TYPE_ACTIVATIONS_KEY] = load_default_mission_type_activations()
     save(target_path, data)
     return True
 
