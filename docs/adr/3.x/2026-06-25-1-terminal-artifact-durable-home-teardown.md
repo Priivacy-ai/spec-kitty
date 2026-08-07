@@ -1,5 +1,6 @@
 ---
 title: 'ADR: Terminal-Artifact Durable Home + Topology-Aware Teardown Contract'
+description: 'Terminal artifacts such as `retrospective.yaml` become PRIMARY-partition kinds with a tracked durable home, and worktree teardown is ordered after they persist.'
 status: Proposed
 date: '2026-06-25'
 ---

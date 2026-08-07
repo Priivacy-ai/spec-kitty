@@ -1,5 +1,6 @@
 ---
 title: 'ADR: Sync Daemon Identity Contract and Cleanup Classification'
+description: 'The `--spec-kitty-daemon-root` scope marker becomes the sole kill authority for sync daemons; `owner.json` is health reporting and interpreter identity only stale-version evidence.'
 status: Accepted
 date: '2026-06-30'
 ---

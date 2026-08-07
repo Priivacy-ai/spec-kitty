@@ -1,5 +1,6 @@
 ---
 title: CLI-First Command Interface
+description: Requires every command to be fully drivable by flags and environment, with prompting as an optional layer, so CI and headless containers never stall on input.
 status: Accepted
 date: '2026-01-25'
 ---

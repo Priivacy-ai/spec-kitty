@@ -1,7 +1,42 @@
 name: docs-freshness
 
 on:
+  # --- PR trigger scoping (NFR-007) --------------------------------------
+  # INVARIANT: this list must cover every path the gate steps below *read*,
+  # not merely `docs/**`. A filter narrower than the true input set silently
+  # stops guarding real changes — the same failure shape this gate exists to
+  # catch. Adding a step (or a sub-check) that reads a new path REQUIRES
+  # extending this list. Non-obvious entries: `src/specify_cli/**` because
+  # check_docs_freshness.py's CLI-reference sub-check imports the live Typer
+  # app and walks it (`REF-MISSING`/`REF-EXTRA` are error-severity, so a new
+  # command without a docs entry reds this job); `pyproject.toml`/`uv.lock`
+  # because `uv sync` builds the environment that walk imports; and this file
+  # itself, so a change to the filter re-triggers the workflow.
+  # RESIDUAL GAP: the relative-link and related-edge gates assert that
+  # cross-tree link targets exist, so deleting a file anywhere (`tests/**`,
+  # `kitty-specs/**`, …) that a docs page links to can red the gate. That
+  # input set is unbounded and cannot be expressed as a path filter; the
+  # unfiltered `push: main` run below is its backstop.
+  # SAFE ONLY WHILE `docs-freshness` IS NOT A REQUIRED STATUS CHECK — a
+  # required check that a path filter skips leaves every non-docs PR pending
+  # forever. Verified against live branch protection: required contexts are
+  # ["drift-detector"]. If docs-freshness is ever added there, this filter
+  # becomes a PR-blocking hazard and must be removed.
+  # `push: main` stays UNFILTERED on purpose: these gates are whole-tree
+  # scans, so a full run on every push to main is how a red tree gets
+  # detected at all.
   pull_request:
+    paths:
+      - 'docs/**'
+      - 'scripts/docs/**'
+      - 'packs/built-in/assets/docs_structural_lint.py'
+      - 'packs/built-in/styleguides/common-docs.styleguide.yaml'
+      - 'src/specify_cli/**'
+      - 'CHANGELOG.md'
+      - 'CONTRIBUTING.md'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/docs-freshness.yml'
   push:
     branches: [main]
 

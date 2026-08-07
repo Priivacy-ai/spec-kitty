@@ -1,5 +1,6 @@
 ---
 title: 'PROPOSAL: `spec-kitty review` lightweight vs post-merge mode contract (WP03)'
+description: 'Proposes an explicit signal separating lightweight working-tree review from post-integration mission review, hard-blocking when required gate artifacts are absent.'
 status: Proposed
 date: '2026-05-12'
 ---

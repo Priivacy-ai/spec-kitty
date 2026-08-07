@@ -1,5 +1,6 @@
 ---
 title: Ticket Delivery Is CLI Plumbing; Specification Is LLM Content
+description: 'Creating a mission from a tracker ticket only fetches context and registers a pending origin record, then hands off; the CLI never writes specification prose.'
 status: Accepted
 date: '2026-04-19'
 ---

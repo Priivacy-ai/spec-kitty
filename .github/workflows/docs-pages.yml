@@ -9,6 +9,7 @@ on:
       - '.kittify/glossaries/**'
       - 'scripts/docs/generate_kitty_specs_docs.py'
       - 'scripts/docs/seo_postprocess.py'
+      - 'scripts/docs/seo_verify.py'
       - 'scripts/docs/glossary_linker.py'
       - 'scripts/docs/redirect_stub_generator.py'
       - 'scripts/docs/redirect_map.yaml'
@@ -80,6 +81,19 @@ jobs:
       # is non-vacuous — it refuses to pass against an empty baseline.
       - name: Verify redirect coverage (NFR-002)
         run: python3 scripts/docs/redirect_stub_generator.py coverage --site-dir docs/_site
+
+      # FR-005/FR-008/FR-012 gate: assert the *shipped* HTML carries a
+      # description, a self-referential canonical, and matching Open Graph
+      # values — the render-path defects no source-level check can observe.
+      # Position is load-bearing (C-B9): it runs AFTER redirect-stub generation
+      # and its coverage check, so it sees the stubs and can assert they are
+      # correctly excluded from indexing and from sitemap.xml; and BEFORE
+      # `Setup Pages`/`Upload artifact`, so a metadata regression fails the
+      # build instead of reaching the deployed site. Placing it earlier would
+      # leave stub regressions unobserved. The verifier is strictly read-only —
+      # it never mutates docs/_site.
+      - name: Verify built-output SEO metadata (FR-005, FR-008, FR-012)
+        run: python3 scripts/docs/seo_verify.py --site-dir docs/_site --strict
 
       - name: Setup Pages
         uses: actions/configure-pages@v6

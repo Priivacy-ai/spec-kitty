@@ -1,5 +1,6 @@
 ---
 title: Execution Lanes Own Worktrees and Mission Branches
+description: 'Moves git isolation off work packages and onto execution lanes: one branch and worktree per lane, one integration branch per mission, computed into lanes.json.'
 status: Accepted
 date: '2026-04-03'
 ---

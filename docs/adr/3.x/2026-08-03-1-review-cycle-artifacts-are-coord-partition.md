@@ -1,5 +1,6 @@
 ---
 title: 'ADR: Review-Cycle Artifacts Are COORD-Partition Per-WP Bookkeeping'
+description: 'Review-cycle artifacts get a `REVIEW_CYCLE` kind in the COORD partition — per-work-package lifecycle evidence, not stable planning output — visible to cross-lane reviewers.'
 status: Accepted
 date: '2026-08-03'
 ---

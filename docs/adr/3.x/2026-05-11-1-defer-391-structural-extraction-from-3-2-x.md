@@ -1,6 +1,7 @@
 ---
 title: 'Defer #391 still-open structural extraction sub-tickets from the 3.2.x stabilization
   scope'
+description: 'Keeps three open structural-extraction tickets out of the 3.2.x stabilization scope, since refactors with no release-blocking symptom inflate regression risk.'
 status: Accepted
 date: '2026-05-11'
 ---

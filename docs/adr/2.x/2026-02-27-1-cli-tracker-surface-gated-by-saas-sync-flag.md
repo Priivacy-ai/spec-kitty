@@ -1,5 +1,6 @@
 ---
 title: CLI Tracker Surface Gated by SaaS Sync Flag
+description: Registers tracker commands only when the hosted sync flag is enabled, so a local-only install never discovers a half-working surface it has no way to complete.
 status: Accepted
 date: '2026-02-27'
 ---

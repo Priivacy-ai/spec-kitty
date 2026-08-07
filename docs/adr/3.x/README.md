@@ -1,3 +1,8 @@
+---
+title: '3.x Architectural Decision Records'
+description: 'Index of every Spec Kitty 3.x architectural decision record, with the dated naming convention, the status vocabulary, and how to register a new entry.'
+---
+
 # 3.x ADRs
 
 Architectural Decision Records for the 3.x track (starting 3.0.0, released 2026-03-30).

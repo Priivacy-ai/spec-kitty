@@ -1,5 +1,6 @@
 ---
 title: 'ADR: Coordination-Worktree-Empty Surface Policy — Loud Primary Fallback (amended)'
+description: 'An empty coordination worktree no longer hard-fails: the resolver falls back to the repository-root checkout and emits a loud, operator-visible staleness warning.'
 status: Superseded
 date: '2026-06-19 (original) · **Amended**: 2026-06-21'
 ---

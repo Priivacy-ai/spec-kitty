@@ -1,5 +1,6 @@
 ---
 title: 'ADR 7: Separate Research Deliverables from Planning Artifacts'
+description: Sends evidence logs to the Mission's planning directory and research output to the repository proper, so finished work is no longer stranded in a worktree.
 status: Accepted
 date: '2026-01-25'
 ---

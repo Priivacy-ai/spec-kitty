@@ -4,6 +4,7 @@ description: Step-by-step guide to install Spec Kitty on macOS, Linux, and Windo
 doc_status: active
 updated: '2026-06-14'
 related:
+- docs/api/slash-commands.md
 - docs/guides/install-and-upgrade.md
 - docs/guides/manage-agents.md
 - docs/guides/non-interactive-init.md
@@ -167,6 +168,11 @@ After initialization, you should see the following commands available in your AI
 - `/spec-kitty.plan` - Generate implementation plans  
 - `/spec-kitty.research` - Scaffold mission-specific research artifacts (Phase 0)
 - `/spec-kitty.tasks` - Break down into actionable tasks
+
+Those four cover the start of a mission. For everything your agent can now run —
+including `/spec-kitty.implement`, `/spec-kitty.review`, `/spec-kitty.accept`, and
+`/spec-kitty.merge` — with syntax and prerequisites for each, see the
+[slash command reference](../api/slash-commands.md).
 
 Run `spec-kitty dashboard --open` if you want the live dashboard immediately after setup.
 

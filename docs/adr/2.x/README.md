@@ -1,3 +1,8 @@
+---
+title: 2.x ADRs
+description: Index of the 2.x-era decisions covering event-sourced status, doctrine and glossary governance, tracker connectors, and the canonical runtime next command loop.
+---
+
 # 2.x ADRs
 
 Architectural Decision Records for the 2.x track. **Not the current track —

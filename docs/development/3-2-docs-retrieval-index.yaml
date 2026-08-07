@@ -5,7 +5,7 @@ pages:
   - path: "docs/adr/1.x/2026-01-23-1-record-architecture-decisions.md"
     title: "Record Architecture Decisions"
     divio_type: "none"
-    abstract: "As Spec Kitty grows in complexity, we need a systematic way to document significant architectural decisions. Team members (both human and AI agents) need to understand: - Why certain approaches were chosen - What alternatives were considered - What tradeoffs were accepted - What consequences resulted from decisions"
+    abstract: "Adopts lightweight one-decision-per-file ADRs as the durable home for architectural rationale, so settled choices stop being relitigated in chat history."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -25,7 +25,7 @@ pages:
   - path: "docs/adr/1.x/2026-01-23-2-explicit-base-branch-tracking.md"
     title: "Explicit Base Branch Tracking in Work Package Frontmatter"
     divio_type: "none"
-    abstract: "When implementing work packages in isolated worktrees, agents and users need to know which branch a workspace was created from (the \"base branch\"). This information is critical for: - Understanding dependency relationships - Debugging merge conflicts - Validating workspace state - Recreating workspaces if deleted"
+    abstract: "Stores each work package's base branch in its frontmatter instead of recomputing it from git, making workspace provenance visible, auditable, and recreatable."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -45,7 +45,7 @@ pages:
   - path: "docs/adr/1.x/2026-01-23-3-centralized-workspace-context-storage.md"
     title: "Centralized Workspace Context Storage"
     divio_type: "none"
-    abstract: "> Superseded by `architecture/2.x/adr/2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`. > This ADR was written for the legacy filtered-worktree era. The current > runtime uses mandatory execution lanes, mission/lane branches, and > lane-scoped runtime context instead of per-WP workspace metadata."
+    abstract: "Centralised runtime workspace context in a shared .kittify directory in the main checkout, so agents could read it from anywhere and it outlived the worktree."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -65,7 +65,7 @@ pages:
   - path: "docs/adr/1.x/2026-01-23-4-auto-merge-multi-parent-dependencies.md"
     title: "Auto-Merge Multi-Parent Dependencies"
     divio_type: "none"
-    abstract: "Work packages can depend on multiple other work packages (diamond dependency pattern). For example:"
+    abstract: "Resolves the diamond-dependency ambiguity by combining every declared parent into one temporary commit, so a work package always starts from a deterministic tree."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -85,7 +85,7 @@ pages:
   - path: "docs/adr/1.x/2026-01-23-5-decorator-based-context-validation.md"
     title: "Decorator-Based Context Validation"
     divio_type: "none"
-    abstract: "Certain spec-kitty commands must run in specific locations to work correctly: - `implement` must run from **main repository** (creates worktrees) - `merge` must run from **main repository** (merges multiple worktree branches) - Hypothetical workspace commands must run from **inside worktrees**"
+    abstract: "Guards location-sensitive commands with a declarative decorator, blocking the nested-worktree invocations that used to corrupt workspace state silently."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -106,7 +106,7 @@ pages:
   - path: "docs/adr/1.x/2026-01-23-6-config-driven-agent-management.md"
     title: "ADR 6: Config-Driven Agent Management"
     divio_type: "none"
-    abstract: "Spec-kitty supports 12 AI agents (Claude, Copilot, Gemini, Cursor, Qwen, OpenCode, Windsurf, Codex, Kilocode, Augment, Roo, Amazon Q), each with their own slash command directories (`.claude/commands/`, `.github/prompts/`, etc.). Prior to this decision, there was a fundamental architectural flaw in how agent directories were managed:"
+    abstract: "Makes .kittify/config.yaml the single source of truth for which AI agents a project supports, so upgrades stop resurrecting directories the user deleted."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "the-problem", text: "The Problem", level: 3}
@@ -130,7 +130,7 @@ pages:
   - path: "docs/adr/1.x/2026-01-25-7-research-deliverables-separation.md"
     title: "ADR 7: Separate Research Deliverables from Planning Artifacts"
     divio_type: "none"
-    abstract: "Research missions conflate two distinct types of artifacts:"
+    abstract: "Sends evidence logs to the Mission's planning directory and research output to the repository proper, so finished work is no longer stranded in a worktree."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -153,7 +153,7 @@ pages:
   - path: "docs/adr/1.x/2026-01-25-8-cli-first-command-interface.md"
     title: "CLI-First Command Interface"
     divio_type: "none"
-    abstract: "Spec Kitty commands currently mix interactive prompts with CLI flags. This makes automation fragile and causes failures in non-TTY environments (CI, scripted tests, headless containers). We need a consistent rule that every command can be fully driven by CLI arguments without requiring interactive input, while still allowing interactive UX when available."
+    abstract: "Requires every command to be fully drivable by flags and environment, with prompting as an optional layer, so CI and headless containers never stall on input."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -169,7 +169,7 @@ pages:
   - path: "docs/adr/1.x/2026-01-25-8-deterministic-csv-schema-enforcement.md"
     title: "ADR 8: Deterministic CSV Schema Enforcement for Research Missions"
     divio_type: "none"
-    abstract: "Research missions use two CSV files for planning artifacts: - `evidence-log.csv`: Citations with findings, confidence levels, timestamps - `source-register.csv`: Master list of sources with metadata"
+    abstract: "Pins the evidence-log and source-register column schemas and surfaces mismatches at upgrade time, rather than silently rewriting a researcher's collected data."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "the-problem", text: "The Problem", level: 3}
@@ -197,7 +197,7 @@ pages:
   - path: "docs/adr/1.x/2026-01-26-9-worktree-cleanup-at-merge-not-eager.md"
     title: "Worktree Cleanup at Merge, Not Eager"
     divio_type: "none"
-    abstract: "> Superseded by `../2.x/adr/2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`. > This ADR assumed one worktree per work package. The current execution model > uses one worktree per execution lane and one mission integration branch."
+    abstract: "Rejected eager deletion of a finished dependency's worktree so parallel and diamond-shaped work stayed runnable; cleanup waited for lane consolidation."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -219,7 +219,7 @@ pages:
   - path: "docs/adr/1.x/2026-01-27-10-per-feature-mission-selection.md"
     title: "ADR 10: Per-Feature Mission Selection"
     divio_type: "none"
-    abstract: "Spec-kitty supports multiple \"missions\" (workflows): software-dev, research, and documentation. Prior to this decision, missions were selected at the **project level** during `spec-kitty init`, and all features in a project inherited that mission. This created significant limitations:"
+    abstract: "Moves workflow-type choice from project setup to each Mission's specify step, letting research, documentation, and software-dev work coexist in one repository."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "the-problem", text: "The Problem", level: 3}
@@ -245,7 +245,7 @@ pages:
   - path: "docs/adr/1.x/2026-04-14-1-sparse-checkout-defense-in-depth.md"
     title: "ADR (2026-04-14): Sparse-Checkout Defence in Depth — Four-Layer Hybrid Preflight + Commit-Layer Backstop"
     divio_type: "none"
-    abstract: "Between spec-kitty 0.11.0 and 2.x, the CLI actively managed git sparse-checkout state on user repositories. The sparse-checkout pattern was designed to keep `kitty-specs/` out of execution worktrees so coding agents would not see planning artifacts as part of their working tree. In 3.0 (PR #347) the sparse-checkout policy was removed, but **no migration was shipped to unwind the sparse-checkout state already applied to existing user repositories**."
+    abstract: "Repairs repositories still carrying git state from the retired 0.11-era checkout policy, adding preflight detection at four layers plus a guard against silent file loss."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -263,14 +263,14 @@ pages:
   - path: "docs/adr/1.x/README.md"
     title: "1.x ADRs"
     divio_type: "none"
-    abstract: "Architectural Decision Records for the legacy 1.x track."
+    abstract: "Index of the archived 1.x architectural decisions covering workspace provenance, dependency auto-merge, config-driven agents, and CLI-first command rules."
     anchors:
     - {slug: "naming", text: "Naming", level: 2}
     - {slug: "source-of-truth", text: "Source of Truth", level: 2}
   - path: "docs/adr/2.x/2026-01-27-11-dual-repository-pattern.md"
     title: "Dual-Repository Pattern for Private spec-kitty-events Dependency"
     divio_type: "none"
-    abstract: "Spec Kitty is transitioning from a local-only CLI tool to a distributed SaaS platform on the **2.x branch** (see ADR-12: Two-Branch Strategy). The event sourcing library (`spec-kitty-events`) built in Feature 003 must be shared between: - **spec-kitty CLI (2.x branch)** (public repository, private dependency during dev) - **spec-kitty Django** (future SaaS backend, private)"
+    abstract: "Keeps the shared events library in its own private repository, consumed as a commit-pinned git dependency, so CI stays autonomous and the CLI repo stays public."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -288,7 +288,7 @@ pages:
   - path: "docs/adr/2.x/2026-01-27-12-two-branch-strategy-for-saas-transformation.md"
     title: "Two-Branch Strategy for SaaS Transformation"
     divio_type: "none"
-    abstract: "Spec-kitty 1.x is nearing production readiness as a local-only CLI tool. Meanwhile, the SaaS transformation (Features 001-004+) requires fundamental changes: - Event sourcing with Lamport clocks (replacing YAML activity logs) - Distributed state management with CRDT merge rules - Sync protocol for CLI ↔ Django communication - Private dependency on spec-kitty-events library"
+    abstract: "Ships stable local-only 1.x while 2.x develops event sourcing and sync on greenfield, deferring the state migration until the distributed design proves itself."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -305,7 +305,7 @@ pages:
   - path: "docs/adr/2.x/2026-01-29-13-target-branch-routing-for-status-commits.md"
     title: "Target Branch Routing for Status Commits"
     divio_type: "none"
-    abstract: "> Superseded on 2026-04-05 by > `2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`. > `target_branch` remains the feature's merge destination, but the runtime no > longer models implementation/status ancestry as \"target branch plus one WP > branch\". Mission and lane branches now derive from the target branch instead."
+    abstract: "Replaced status commits hard-wired to main with an explicit target_branch recorded in meta.json, ending the silent divergence between the two release tracks."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -322,7 +322,7 @@ pages:
   - path: "docs/adr/2.x/2026-01-29-14-explicit-metadata-fields-over-implicit-defaults.md"
     title: "Explicit Metadata Fields Over Implicit Defaults"
     divio_type: "none"
-    abstract: "Spec-kitty is a **Specification-Driven Development** tool where \"specification\" means **explicit, visible, and unambiguous**. However, feature metadata was relying on implicit defaults:"
+    abstract: "Requires meta.json to spell out target branch and version control system rather than lean on hidden defaults, so configuration is readable without running code."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -339,7 +339,7 @@ pages:
   - path: "docs/adr/2.x/2026-01-29-15-merge-first-suggestion-for-completed-dependencies.md"
     title: "Merge-First Suggestion for Completed Multi-Parent Dependencies"
     divio_type: "none"
-    abstract: "> Superseded on 2026-04-05 by > `2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`. > The lane-only runtime no longer uses per-WP branch stacking, merge-first > implement guidance, or `--force` escape hatches in `implement`. Dependency > coupling is resolved by lane computation before execution starts."
+    abstract: "Detected that every declared parent was already finished and advised consolidating them first, instead of walking into predictable add/add conflicts."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -356,7 +356,7 @@ pages:
   - path: "docs/adr/2.x/2026-01-29-16-rich-json-outputs-for-agent-commands.md"
     title: "Rich JSON Outputs for Agent Commands"
     divio_type: "none"
-    abstract: "Agents rely on JSON output from spec-kitty commands to determine next actions. However, the outputs were too vague, causing confusion when unrelated files were dirty."
+    abstract: "Expands agent-facing JSON with commit hashes and touched-file lists so an agent can confirm what actually happened instead of inferring it from a dirty tree."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -373,7 +373,7 @@ pages:
   - path: "docs/adr/2.x/2026-01-29-17-auto-create-target-branch-on-first-implement.md"
     title: "Auto-Create Target Branch on First Implement"
     divio_type: "none"
-    abstract: "> Superseded on 2026-04-05 by > `2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`. > The lane-only runtime no longer falls back to `main` or auto-creates an > arbitrary target branch during `implement`. Features are expected to target an > existing planning branch, and runtime-created execution branches are the > mission branch plus its lane branches."
+    abstract: "Broke the bootstrap paradox by creating a missing target branch on the first implement call, which removed the hand-written branch-creation task from WP01."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -391,7 +391,7 @@ pages:
   - path: "docs/adr/2.x/2026-01-30-18-auto-detect-merged-single-parent-dependencies.md"
     title: "Auto-Detect Merged Single-Parent Dependencies"
     divio_type: "none"
-    abstract: "> Superseded on 2026-04-05 by > `2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`. > The lane-only runtime removed per-WP base-branch selection entirely. > Dependent WPs that must share code context are co-located in a single lane, > so `implement` no longer switches between target-branch and per-WP branch > bases."
+    abstract: "Recognised that an integrated dependency already sits in the target branch and branched from there, rather than failing because its worktree had been cleaned up."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -408,7 +408,7 @@ pages:
   - path: "docs/adr/2.x/2026-01-30-19-auto-discover-migrations-from-filesystem.md"
     title: "Auto-Discover Migrations from Filesystem"
     divio_type: "none"
-    abstract: "**The recurring problem:** Every release, we encountered this workflow: 1. Developer creates new migration file: `m_X_Y_Z_name.py` 2. Developer decorates with `@MigrationRegistry.register` 3. **Developer forgets** to add `from . import m_X_Y_Z_name` to `__init__.py` 4. CI test fails: \"Migration registry incomplete! Found N files but only N-1 registered\" 5. Release blocked until manual import added"
+    abstract: "Discovers upgrade migrations by scanning the package at import time, eliminating the forgotten registration line that repeatedly blocked releases at the CI gate."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -425,7 +425,7 @@ pages:
   - path: "docs/adr/2.x/2026-01-31-1-vendor-spec-kitty-events.md"
     title: "Vendor spec-kitty-events Library Instead of External PyPI Dependency"
     divio_type: "none"
-    abstract: "During the 0.13.20 release, PyPI rejected the package upload because `spec-kitty-events` was specified as a direct Git dependency:"
+    abstract: "Vendors the events library into the CLI because PyPI refuses direct git dependencies, trading repository purity for a package that can actually be published."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -442,7 +442,7 @@ pages:
   - path: "docs/adr/2.x/2026-02-09-1-canonical-wp-status-model.md"
     title: "Canonical WP Status Model Using Append-Only JSONL Event Log"
     divio_type: "none"
-    abstract: "Work package and feature status in Spec Kitty is spread across multiple mutable artifacts: `meta.json`, `tasks.md` checkboxes, WP front-matter `lane` fields, `.kittify/` workspace context, and target-repo implementation state. This distributed authority causes observable failure modes:"
+    abstract: "Replaces five mutable status artifacts with one append-only JSONL event log and a derived snapshot, giving work package state a single, replayable authority."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -460,7 +460,7 @@ pages:
   - path: "docs/adr/2.x/2026-02-09-2-wp-lifecycle-state-machine.md"
     title: "WP Lifecycle State Machine"
     divio_type: "none"
-    abstract: "> Superseded by `2026-04-03-2-review-approval-and-integration-completion-are-distinct.md`, > which is itself partially superseded by `2026-04-06-1-wp-state-pattern-for-lane-behavior.md`. > `2026-04-06-1` is the current authority for the full 9-lane state machine. > > This ADR encoded a 7-lane model with `for_review -> done` as reviewer approval. > The current lifecycle separates reviewer approval (`approved`) from integrated > completion (`done`), promotes `in_review` to a first-class 9th lane, and > encapsulates all lane behavior in the `WPState` ABC."
+    abstract: "Introduced a guarded lane transition matrix with claimed, blocked, and canceled states so concurrent agents could not jump straight from planned to done."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -477,7 +477,7 @@ pages:
   - path: "docs/adr/2.x/2026-02-09-3-event-log-merge-semantics.md"
     title: "Event-Log Merge Semantics for Concurrent Agents"
     divio_type: "none"
-    abstract: "Multiple agents — human developers, AI agents (Claude, Codex), and CI systems — may concurrently modify WP status in different git branches. Each branch contains its own copy of the canonical event log (ADR 2026-02-09-1). When branches merge, the event logs must be reconciled into a single consistent state."
+    abstract: "Reconciles divergent status logs by concatenating, deduplicating, and replaying events with rollback-aware precedence, so a reviewer's rejection is never overwritten."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -494,7 +494,7 @@ pages:
   - path: "docs/adr/2.x/2026-02-09-4-cross-repo-evidence-completion.md"
     title: "Cross-Repo Evidence-Based Completion"
     divio_type: "none"
-    abstract: "> Superseded by `2026-04-03-2-review-approval-and-integration-completion-are-distinct.md`. > This ADR attached review approval evidence directly to `done`. The current > lifecycle splits review evidence (`for_review -> approved`) from integration > and acceptance evidence (`approved -> done`)."
+    abstract: "Required structured commit evidence before completion, closing the split-brain gap where the planning repository and the implementation repository disagreed."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -511,7 +511,7 @@ pages:
   - path: "docs/adr/2.x/2026-02-11-1-docker-sandboxed-agent-execution.md"
     title: "Docker-Sandboxed Agent Execution"
     divio_type: "none"
-    abstract: "Spec Kitty's current orchestrator runs AI agents directly on the host system without resource limits. This creates safety risks for autonomous agent execution:"
+    abstract: "Proposes running agents inside containers with memory, CPU, and process limits so a runaway agent cannot take the orchestrator or the host machine down with it."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -528,7 +528,7 @@ pages:
   - path: "docs/adr/2.x/2026-02-11-2-fresh-context-execution-mode.md"
     title: "Fresh Context Execution Mode for Long-Running Work Packages"
     divio_type: "none"
-    abstract: "Spec Kitty's current orchestrator spawns one AI agent per work package (WP) with persistent context throughout the entire implementation. The agent reads the WP prompt, implements all subtasks sequentially, and maintains the same context window from start to finish."
+    abstract: "An opt-in mode that resets an agent's context at every subtask boundary, trading spawn overhead for less hallucination drift on long-running work packages."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -545,7 +545,7 @@ pages:
   - path: "docs/adr/2.x/2026-02-11-3-entire-checkpoint-import-interoperability.md"
     title: "Entire.io Checkpoint Import for Session History Interoperability"
     divio_type: "none"
-    abstract: "Entire.io is a Tier 1 competitive threat building multi-agent orchestration with session capture infrastructure. Their production-ready system (990 commits) stores AI agent session checkpoints in Git using a dedicated branch (`entire/checkpoints/v1`) with JSONL transcript format."
+    abstract: "Argues for a read-only importer for Entire.io session checkpoints, so their capture tooling can coexist with Spec Kitty's own event log rather than displace it."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -562,7 +562,7 @@ pages:
   - path: "docs/adr/2.x/2026-02-11-4-agent-attribution-tracking.md"
     title: "Agent Attribution Tracking for Transparency and Compliance"
     divio_type: "none"
-    abstract: "As AI agents write more code in production systems, enterprises need clear attribution tracking to answer critical questions:"
+    abstract: "Line-level attribution joining git blame to agent execution logs, so regulated teams can say which model or which human authored any particular line of code."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -579,7 +579,7 @@ pages:
   - path: "docs/adr/2.x/2026-02-11-5-task-tracker-agnostic-connector-architecture.md"
     title: "Task-Tracker-Agnostic Connector Architecture"
     divio_type: "none"
-    abstract: "During Feature 014 (Acquisition Strategy & Competitive Analysis), **Jira** appeared frequently in competitive positioning documents as the \"Ideal Task Tracker Profile\" for ICP (Ideal Customer Profile) analysis. This led to potential confusion about Jira's architectural role in Spec Kitty:"
+    abstract: "Treats Jira as one connector behind a shared interface rather than an architectural assumption, keeping Linear, Asana, and GitHub Issues equally first-class."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -596,7 +596,7 @@ pages:
   - path: "docs/adr/2.x/2026-02-11-6-pypi-exact-pinning-for-spec-kitty-events.md"
     title: "PyPI Exact Pinning for `spec-kitty-events` Across Consumer Repos"
     divio_type: "none"
-    abstract: "`spec-kitty-events` is the canonical contract authority for event envelope fields and reducer semantics used by both:"
+    abstract: "Forces the CLI and the hosted backend onto the same exact published version of the events contract, banning git refs and committed path overrides that caused drift."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -613,7 +613,7 @@ pages:
   - path: "docs/adr/2.x/2026-02-17-1-canonical-next-command-runtime-loop.md"
     title: "Canonical `spec-kitty next` Command for Agent Execution Loop"
     divio_type: "none"
-    abstract: "Current agent workflow execution requires selecting command-specific entrypoints (for example `agent workflow implement` and `agent workflow review`). This increases agent-side branching logic and creates inconsistent next-step behavior."
+    abstract: "Collapses per-step agent entrypoints into a single repeatedly-called next command that returns the prompt and context for whatever the Mission needs done next."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -627,7 +627,7 @@ pages:
   - path: "docs/adr/2.x/2026-02-17-2-runtime-owned-mission-discovery-loading.md"
     title: "Runtime-owned Mission Discovery and Loading"
     divio_type: "none"
-    abstract: "Mission discovery and loading behavior is currently split between resolver code and legacy mission listing/loading code paths. This creates precedence inconsistencies and non-deterministic mission selection behavior for custom mission packs."
+    abstract: "Gives the runtime sole ownership of Mission discovery and YAML loading, so the CLI stops keeping a second precedence order that resolved custom packs differently."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -640,7 +640,7 @@ pages:
   - path: "docs/adr/2.x/2026-02-17-3-events-contract-parity-and-vendor-deprecation.md"
     title: "Events Contract Parity and Vendored Module Deprecation"
     divio_type: "none"
-    abstract: "Spec Kitty currently contains a vendored events module while also depending on external `spec-kitty-events`. This creates risk of contract drift and ambiguous authority for envelope/reducer semantics."
+    abstract: "Names the published events package the only contract authority, schedules the vendored copy for removal, and requires CI parity checks across consuming repos."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -653,7 +653,7 @@ pages:
   - path: "docs/adr/2.x/2026-02-21-1-consistent-code-style-enforcement-via-git-hooks.md"
     title: "Consistent Code Style Enforcement via Git Hooks"
     divio_type: "none"
-    abstract: "The spec-kitty codebase had no automated style enforcement at commit time. Formatting inconsistencies and lint violations would only surface during CI (after push), creating slow feedback loops and noisy diffs that mix style fixes with functional changes."
+    abstract: "Runs ruff format, ruff check, and mypy over staged files at commit time, accepting an opinionated formatter in exchange for feedback that beats the CI round trip."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -679,7 +679,7 @@ pages:
   - path: "docs/adr/2.x/2026-02-23-1-doctrine-artifact-governance-model.md"
     title: "Doctrine Artifact Governance Model"
     divio_type: "none"
-    abstract: "2.x introduces a doctrine layer that did not previously have an explicit ADR. We now have:"
+    abstract: "Stores directives, tactics, styleguides, and mission assets as typed schema-validated repository artifacts, and compiles charter bundles from them, not from prose."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -692,7 +692,7 @@ pages:
   - path: "docs/adr/2.x/2026-02-23-2-living-glossary-context-and-curation-model.md"
     title: "Living Glossary Context and Curation Model"
     divio_type: "none"
-    abstract: "Glossary behavior in 2.x now spans three layers:"
+    abstract: "Puts term ownership in domain contexts, curation rules in doctrine, and enforcement in a runtime hook, so terminology drift is caught while the work happens."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -705,7 +705,7 @@ pages:
   - path: "docs/adr/2.x/2026-02-23-3-versioned-1x-2x-docs-site-without-hosted-platform-scope.md"
     title: "Versioned 1.x/2.x Documentation Site Without Hosted-Platform Scope"
     divio_type: "none"
-    abstract: "The docs site historically served one blended track, making 1.x and 2.x behavior difficult to separate. Meanwhile, 2.x introduced doctrine/glossary architecture that lacked a clear documentation path."
+    abstract: "Splits the documentation site into explicit 1.x and 2.x tracks behind a versioned landing page, while deliberately holding hosted-platform guidance out of scope."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -718,7 +718,7 @@ pages:
   - path: "docs/adr/2.x/2026-02-25-1-repurpose-verify-and-doctor-command-taxonomy.md"
     title: "Repurpose `verify` and Move Setup Checks Under `doctor`"
     divio_type: "none"
-    abstract: "In current CLI behavior, `spec-kitty verify-setup` is the setup diagnostics entrypoint and the root command function name (`verify_setup`) maps to `spec-kitty verify-setup`. Current command registration still binds `verify_setup` at top level, and the only existing `doctor` surface is nested under `spec-kitty agent status doctor`."
+    abstract: "Reassigns verify to checking delivered implementation against artifacts and relocates setup diagnostics under doctor setup, matching what users expect each verb to mean."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -735,7 +735,7 @@ pages:
   - path: "docs/adr/2.x/2026-02-25-2-post-merge-audit-artifact-and-event-emission.md"
     title: "Post-Merge Mission Audit Artifact and Event Emission"
     divio_type: "none"
-    abstract: "Current merge flow emits WP lifecycle transitions but does not produce a dedicated post-merge audit lifecycle, and does not persist audit status in feature metadata. At the same time, dossier contracts already exist in `spec-kitty-events` and SaaS dossier projection exists, but current SaaS ingestion is focused on `MissionDossierArtifactIndexed` dispatch and not a post-merge mission-audit lifecycle."
+    abstract: "Emits a canonical audit artifact and lifecycle events once a Mission is integrated, giving a durable, projectable answer to whether delivery matched the spec."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -752,7 +752,7 @@ pages:
   - path: "docs/adr/2.x/2026-02-25-3-mission-audit-primitive-hardening-and-2x-policy.md"
     title: "Mission Audit Primitive Hardening and 2.x-Only Policy"
     divio_type: "none"
-    abstract: "Spec Kitty 2.x treats Mission as the central control entity, but primitive hardening is uneven:"
+    abstract: "Implements auditing as a declarable Mission primitive behind compatibility gates, keeping built-in and custom Missions portable across local and hosted projections."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -770,7 +770,7 @@ pages:
   - path: "docs/adr/2.x/2026-02-27-1-cli-tracker-surface-gated-by-saas-sync-flag.md"
     title: "CLI Tracker Surface Gated by SaaS Sync Flag"
     divio_type: "none"
-    abstract: "SpecKitty already uses `SPEC_KITTY_ENABLE_SAAS_SYNC` as the rollout boundary for SaaS-synced functionality. Introducing tracker commands outside this boundary creates policy drift, user confusion, and inconsistent behavior between installations."
+    abstract: "Registers tracker commands only when the hosted sync flag is enabled, so a local-only install never discovers a half-working surface it has no way to complete."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -787,7 +787,7 @@ pages:
   - path: "docs/adr/2.x/2026-02-27-2-host-owned-tracker-persistence-boundary.md"
     title: "Host-Owned Tracker Persistence Boundary"
     divio_type: "none"
-    abstract: "Tracker integration requires local cache and checkpoint persistence. One proposal added durable SQLite stores directly to `spec-kitty-tracker` core. That approach conflicts with existing SpecKitty architecture where persistence is host-owned and context-specific."
+    abstract: "Keeps SQLite caches and checkpoints in the host CLI and leaves the tracker core protocol-only, matching how the sync queue and status store are already owned."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -804,7 +804,7 @@ pages:
   - path: "docs/adr/2.x/2026-02-27-3-saas-tracker-integration-via-existing-connectors-journey.md"
     title: "SaaS Tracker Integration via Existing Connectors Journey"
     divio_type: "none"
-    abstract: "Tracker integration requires team binding, work-package mapping, sync telemetry, drift reporting, and snapshot ingestion. A separate disconnected SaaS surface would duplicate navigation and break established user flows."
+    abstract: "Folds tracker binding, snapshot ingestion, and drift reporting into the established connectors and dashboard journey instead of building a parallel hosted surface."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -821,7 +821,7 @@ pages:
   - path: "docs/adr/2.x/2026-03-15-1-vertical-slice-test-organisation.md"
     title: "Vertical-Slice Test Organisation"
     divio_type: "none"
-    abstract: "The test suite grew organically alongside the codebase and ended up with two competing top-level organising axes that are never reconciled:"
+    abstract: "Reorganises the suite by system capability instead of by unit-versus-integration, demoting test type to pytest markers and filename suffixes where it belongs."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -837,7 +837,7 @@ pages:
   - path: "docs/adr/2.x/2026-03-20-1-remove-clarify-slash-command.md"
     title: "Remove the Clarify Slash Command"
     divio_type: "none"
-    abstract: "`/spec-kitty.clarify` currently exists as a distinct public workflow step and as a generated prompt file across every supported agent directory. That command adds product surface area, docs, upgrade complexity, and dedicated maintenance code. At the same time, its value is not meaningfully distinct from stronger specification work inside `/spec-kitty.specify` and the direct transition into `/spec-kitty.plan`."
+    abstract: "Deletes the clarify slash command outright and ships a destructive upgrade migration, folding its value back into stronger specification work up front."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -853,7 +853,7 @@ pages:
   - path: "docs/adr/2.x/2026-03-25-1-glossary-type-ownership.md"
     title: "ADR: Glossary Primitive Type Ownership and the Kernel Package"
     divio_type: "none"
-    abstract: "`src/doctrine/missions/primitives.py` and `src/doctrine/missions/glossary_hook.py` imported types from `specify_cli.glossary.*` at module level, violating the stated architectural rule that `doctrine` has no dependency on `specify_cli`."
+    abstract: "Relocates stdlib-only glossary value types into the kernel package so doctrine stops importing from specify_cli and the container dependency direction holds."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "options-considered", text: "Options Considered", level: 2}
@@ -867,7 +867,7 @@ pages:
   - path: "docs/adr/2.x/2026-03-27-1-pytestarch-architectural-dependency-testing.md"
     title: "ADR: Architectural Dependency Testing & Graph Infrastructure"
     divio_type: "none"
-    abstract: "The 2.x architecture defines four peer containers with a strict dependency direction:"
+    abstract: "Adopts PyTestArch so the kernel, doctrine, charter, and specify_cli dependency direction is executable, and a violating import fails a test instead of lingering."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -893,7 +893,7 @@ pages:
   - path: "docs/adr/2.x/README.md"
     title: "2.x ADRs"
     divio_type: "none"
-    abstract: "Architectural Decision Records for the 2.x track. **Not the current track — see [`docs/adr/3.x/`](../3.x/README.md) for current decisions.**"
+    abstract: "Index of the 2.x-era decisions covering event-sourced status, doctrine and glossary governance, tracker connectors, and the canonical runtime next command loop."
     anchors:
     - {slug: "naming", text: "Naming", level: 2}
     - {slug: "source-of-truth", text: "Source of Truth", level: 2}
@@ -901,7 +901,7 @@ pages:
   - path: "docs/adr/3.x/2026-03-09-1-prompts-do-not-discover-context-commands-do.md"
     title: "Prompts Do Not Discover Context, Commands Do"
     divio_type: "none"
-    abstract: "Spec Kitty currently has two overlapping execution models:"
+    abstract: "Command-layer context resolution becomes canonical: prompt templates may no longer infer mission, work package, or base branch from cwd, branch name, or repo scans."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "observed-failures", text: "Observed failures", level: 3}
@@ -930,7 +930,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md"
     title: "Execution Lanes Own Worktrees and Mission Branches"
     divio_type: "none"
-    abstract: "Spec Kitty currently treats `WorkPackage` as both the planning/review unit and the git/worktree execution unit. That coupling is wrong."
+    abstract: "Moves git isolation off work packages and onto execution lanes: one branch and worktree per lane, one integration branch per mission, computed into lanes.json."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -953,7 +953,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-03-2-review-approval-and-integration-completion-are-distinct.md"
     title: "Review Approval and Integration Completion Are Distinct"
     divio_type: "none"
-    abstract: "> **Partial supersession (2026-04-06):** The core decision of this ADR — adding an explicit `approved` lane and separating reviewer approval from integration-complete — remains in force. However, the `in_review` lane promotion section is superseded by `2026-04-06-1-wp-state-pattern-for-lane-behavior.md`, which promotes `in_review` from an alias for `for_review` to a first-class 9th lane with its own concrete `WPState` class and conflict-detection guard. The transition model in the *Decision Outcome* section below reflects the pre-`in_review`-promotion design; see `2026-04-06-1` for the current canonical transition set."
+    abstract: "Splits reviewer sign-off from completion by adding an approved lane, so done means integrated with acceptance evidence recorded, not merely reviewed."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -976,7 +976,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-03-3-feature-acceptance-runs-on-the-integrated-mission-branch.md"
     title: "Feature Acceptance Runs on the Integrated Mission Branch"
     divio_type: "none"
-    abstract: "WP review can prove that a branch diff is coherent. It cannot prove that the integrated feature behaves correctly once multiple lanes are merged together."
+    abstract: "Mission acceptance and QA must run on the integrated mission branch, mapping every critical requirement to an automated test or a manual evidence item."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1001,7 +1001,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-04-1-tracker-binding-context-is-discovered-not-user-supplied.md"
     title: "Tracker Binding Context Is Discovered, Not User-Supplied"
     divio_type: "none"
-    abstract: "Spec Kitty already models tracker routing as:"
+    abstract: "Tracker discovery returns bindable resource descriptors and the hosted service owns resolution, so operators stop hand-typing project slugs at bind time."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1022,7 +1022,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-04-2-mission-type-mission-and-mission-run-terminology-boundary.md"
     title: "Mission Type, Mission, and Mission Run Terminology Boundary"
     divio_type: "none"
-    abstract: "Spec Kitty currently carries multiple conflicting ontologies for the same set of objects."
+    abstract: "Separates three colliding nouns: Mission Type is the reusable blueprint, Mission is the tracked item under kitty-specs, Mission Run is the persisted runtime session."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1047,7 +1047,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-06-1-wp-state-pattern-for-lane-behavior.md"
     title: "WP State Pattern for Lane Behavior"
     divio_type: "none"
-    abstract: "The spec-kitty work-package lifecycle previously used an 8-lane state machine implemented as a flat transition matrix (`ALLOWED_TRANSITIONS` frozenset) and a procedural guard dispatcher (`_run_guard()`). This ADR promotes `in_review` to a first-class 9th lane (see Decision below). Research (mission 065 Finding 3) identified:"
+    abstract: "Replaces the flat transition matrix and procedural guard dispatcher with nine frozen lane-state classes that own their own targets, guards, and display buckets."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1064,7 +1064,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-07-1-global-slash-command-installation.md"
     title: "Global Slash Command Installation"
     divio_type: "none"
-    abstract: "Spec-kitty writes slash command files (e.g., `spec-kitty.plan.md`, `spec-kitty.implement.md`) into each project's agent command directories (`.claude/commands/`, `.gemini/commands/`, etc.) during `spec-kitty init`. This has three consequences:"
+    abstract: "Slash command files install once into machine-level agent directories at CLI startup; init stops writing them and a migration deletes the per-project copies."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1078,7 +1078,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-08-1-global-kittify-machine-level-runtime.md"
     title: "ADR 1 (2026-04-08): Global `~/.kittify/` as Machine-Level Runtime"
     divio_type: "none"
-    abstract: "`spec-kitty init` was originally designed as a per-project installer: it copied mission templates, scripts, and agent command files into the current project directory. Each project therefore contained a full, independent copy of the spec-kitty runtime. This design made sense when spec-kitty was a lightweight scaffolding tool, but it created several structural problems as the tool matured into a multi-agent orchestration platform:"
+    abstract: "Makes ~/.kittify the machine-level runtime that init bootstraps, leaving per-project .kittify directories holding nothing but project-specific state."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1097,7 +1097,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-08-2-package-bundled-templates-sole-source.md"
     title: "ADR 2 (2026-04-08): Package-Bundled Templates as Sole Source"
     divio_type: "none"
-    abstract: "`spec-kitty init` historically supported three distinct template sources:"
+    abstract: "Templates resolve only from the installed package: the GitHub tarball download path and the template-root flag are deleted, leaving one env override for maintainers."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1115,7 +1115,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-08-3-global-skill-installation-per-project-symlinks.md"
     title: "ADR 3 (2026-04-08): Global Skill Installation with Per-Project Symlinks"
     divio_type: "none"
-    abstract: "> **Superseded (2026-07-19):** the per-project **symlink** wiring decided here is > replaced by copy delivery — absolute symlinks dangle in dev-containers and are > unreadable to sandboxed agent harnesses (#2412). The **global canonical > install** half of this decision stands unchanged and is reaffirmed in > [ADR 2026-07-19-1](2026-07-19-1-skill-projection-copies-not-symlinks.md)."
+    abstract: "Skills live canonically under ~/.kittify/agent-skills/<agent>/ and projects reference them by symlink, with a file-copy fallback where symlinks are unavailable."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1134,7 +1134,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-08-4-charter-doctrine-not-init-time.md"
     title: "ADR 4 (2026-04-08): Charter and Doctrine Are Not Init-Time Concerns"
     divio_type: "none"
-    abstract: "`spec-kitty init` accumulated a large body of charter and doctrine logic over time. As of feature 076, the init command contains three major charter/doctrine functions that run during every initialization:"
+    abstract: "Strips the doctrine interview and default application out of init; a charter is authored afterwards via /spec-kitty.charter against an already-created project."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1152,7 +1152,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-08-5-shim-generation-supersedes-script-dispatch.md"
     title: "ADR 5 (2026-04-08): Shim Generation Supersedes Script-Type Dispatch"
     divio_type: "none"
-    abstract: "Early versions of spec-kitty dispatched agent commands via shell scripts. The model worked as follows:"
+    abstract: "Generated shims supersede shell-script dispatch: the bash and powershell script trees and the script-type flag are removed and must not be reintroduced."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "what-replaced-the-script-model", text: "What Replaced the Script Model", level: 3}
@@ -1172,7 +1172,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-08-6-global-agent-commands-supersede-project-copies.md"
     title: "ADR 6 (2026-04-08): Global Agent Commands Supersede Per-Project Copies"
     divio_type: "none"
-    abstract: "When spec-kitty was a per-project tool, `spec-kitty init` wrote slash command files into each project's agent directories:"
+    abstract: "Repairs the command-globalization migration with safety invariants that skip cleanup when the global runtime is absent, plus a second pass for already-migrated projects."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "migration-3-1-2-original-behavior-unsafe", text: "Migration 3.1.2 (Original Behavior — Unsafe)", level: 3}
@@ -1192,7 +1192,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-08-7-preferred-agent-roles-removed-unused.md"
     title: "ADR 7 (2026-04-08): Preferred Agent Roles Removed as Unused Concept"
     divio_type: "none"
-    abstract: "`spec-kitty init` supported a preference system for routing work to specific AI agents:"
+    abstract: "Deletes the never-called preferred implementer and reviewer selection API, and migrates the orphaned selection block out of existing config.yaml files."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "the-audit-finding", text: "The Audit Finding", level: 3}
@@ -1213,7 +1213,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-09-1-mission-identity-uses-ulid-not-sequential-prefix.md"
     title: "ADR 1 (2026-04-09): Mission Identity Uses ULID, Not Sequential Prefix"
     divio_type: "none"
-    abstract: "Mission creation currently allocates the next mission number by scanning local `kitty-specs/` and local `.worktrees/` for directory names that begin with a three-digit prefix, then returning `max(found) + 1`."
+    abstract: "Missions get a creation-time ULID as canonical machine identity; the sequential number becomes display metadata no selector or state file may resolve by."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1231,7 +1231,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-09-2-cli-saas-auth-is-browser-mediated-oauth-not-password.md"
     title: "CLI-to-SaaS Authentication Is Browser-Mediated OAuth, Not Password Login"
     divio_type: "none"
-    abstract: "> Superseded on 2026-04-19 by > `2026-04-19-1-cli-auth-uses-encrypted-file-only-session-storage.md`. > Keep this ADR for historical context only; do not implement from it."
+    abstract: "Replaced CLI password login with browser-mediated OAuth (PKCE plus loopback callback, device flow headless); later superseded on local session persistence."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1252,7 +1252,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-11-1-saas-rollout-and-readiness.md"
     title: "SaaS Rollout Gate and Hosted Readiness Split"
     divio_type: "none"
-    abstract: "Spec Kitty uses `SPEC_KITTY_ENABLE_SAAS_SYNC=1` as the explicit opt-in gate controlling whether the hosted tracker/sync surface is visible at all.  On customer machines where the variable is absent the CLI fails closed — no hosted commands appear, no SaaS network traffic occurs.  On internally designated test machines the variable is set and the full hosted surface becomes available."
+    abstract: "Separates hosted rollout visibility from per-prerequisite readiness diagnostics into one saas package, leaving the old flag modules as thin re-export shims."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1274,7 +1274,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-14-1-bulk-edit-occurrence-classification-guardrail.md"
     title: "ADR 1 (2026-04-14): Bulk-Edit Occurrence Classification Guardrail"
     divio_type: "none"
-    abstract: "When a codebase-wide edit changes a term — a rename, a terminology migration, a package-path move, a feature-label swap — the **same string** appears in semantically different contexts. A token like `constitution` might appear as:"
+    abstract: "Bulk-edit missions must classify every occurrence into eight categories; review blocks when a changed file lands in a do-not-change category with no exception."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1296,7 +1296,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-14-2-agent-skills-renderer-for-codex-and-vibe.md"
     title: "ADR 2 (2026-04-14): Agent Skills Renderer for Codex and Vibe"
     divio_type: "none"
-    abstract: "Spec Kitty supports multiple coding-agent integrations (claude, codex, gemini, cursor, opencode, windsurf, and others). Each agent discovers the `/spec-kitty.*` slash commands by reading a directory of prompt files at a vendor-specific path — e.g. `.claude/commands/`, `.codex/prompts/`, `.gemini/commands/`. That pipeline has worked for a year, but two new pressures made it untenable for the next release:"
+    abstract: "Adds a scoped renderer emitting per-command SKILL.md packages for Codex and Vibe only, installed additively and tracked through an ownership manifest."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -1313,7 +1313,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-15-2-explicit-empty-charter-selections-remain-empty.md"
     title: "ADR 2026-04-15-2: Explicit Empty Charter Selections Remain Empty"
     divio_type: "none"
-    abstract: "`spec-kitty charter generate` compiles a project charter from `.kittify/charter/interview/answers.yaml`."
+    abstract: "An empty paradigm, directive, or tool selection compiles to empty; the charter compiler may never silently expand an explicit empty list into shipped defaults."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -1325,7 +1325,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-17-1-charter-synthesizer-adapter-seam.md"
     title: "Charter Synthesizer — Adapter Seam and Provenance Identity"
     divio_type: "none"
-    abstract: "Phase 3 introduces a Charter Synthesizer that turns interview answers, shipped doctrine, and the shipped Doctrine Reference Graph (DRG) into project-local artifacts. The actual prose generation step is model-driven and therefore non-deterministic in production. The rest of the pipeline — input normalization, target selection, write staging, validation, path-guard enforcement, topic resolution, manifest commit — must be fully deterministic and testable offline."
+    abstract: "Defines the synthesizer adapter as a runtime-checkable protocol with optional batch generation, isolating non-deterministic prose behind a deterministic pipeline."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1347,7 +1347,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-17-2-charter-synthesizer-atomicity.md"
     title: "Charter Synthesizer — Atomicity via Stage + Ordered Promote + Manifest-Last Commit"
     divio_type: "none"
-    abstract: "Phase 3 writes two separate directory trees during synthesis:"
+    abstract: "Synthesis writes into a staging tree, validates, then promotes files in a fixed order with the manifest last, so a crash cannot leave a half-promoted doctrine tree."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1371,7 +1371,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-19-1-cli-auth-uses-encrypted-file-only-session-storage.md"
     title: "CLI Auth Uses Browser-Mediated OAuth With Encrypted File-Only Session Storage"
     divio_type: "none"
-    abstract: "The April 9 auth ADR made the correct high-level product call and the wrong local persistence call."
+    abstract: "Keeps browser-mediated OAuth but drops OS keyring persistence: CLI sessions live in an encrypted file, giving one cross-platform recovery and test surface."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1392,7 +1392,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-19-2-ticket-delivery-is-cli-plumbing-specification-is-llm-content.md"
     title: "Ticket Delivery Is CLI Plumbing; Specification Is LLM Content"
     divio_type: "none"
-    abstract: "The `mission create --from-ticket linear:PRI-42` command must do two distinct things:"
+    abstract: "Creating a mission from a tracker ticket only fetches context and registers a pending origin record, then hands off; the CLI never writes specification prose."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "the-wrong-answer", text: "The wrong answer", level: 3}
@@ -1412,7 +1412,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-19-6-harness-owned-generated-artifact-charter-handoff.md"
     title: "Harness-Owned Generated-Artifact Charter Handoff Contract"
     divio_type: "none"
-    abstract: "Charter synthesis is no longer an internal model call. The host LLM or harness does the reasoning work, reads project evidence, and writes doctrine YAML into the generated-artifact staging area. `spec-kitty` then validates those files, records provenance, emits the project DRG layer, and promotes the results into the live project doctrine tree."
+    abstract: "Fixes the layout and identity rules the harness must satisfy for generated doctrine YAML before it is promoted from the staging tree into the live doctrine tree."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -1428,7 +1428,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-20-1-mutation-testing-as-local-only-quality-gate.md"
     title: "Mutation Testing as a Local-Only Quality Gate"
     divio_type: "none"
-    abstract: "Line and branch coverage measure *whether* tests execute code; they do not measure whether tests would detect real bugs. Several Spec Kitty modules have had high coverage but weak assertions — tests that run the code path and assert only that nothing raised. When we wanted an objective signal of test **effectiveness** (not just reach), we needed a different tool."
+    abstract: "Adopts mutmut as a local-only developer quality gate over the source tree, with the methodology captured as doctrine and CI integration deliberately deferred."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -1441,7 +1441,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-21-1-private-teamspace-and-repository-sharing-boundary.md"
     title: "Private Teamspace and Repository Sharing Boundary"
     divio_type: "none"
-    abstract: "Spec Kitty's collaboration model needs a stronger trust boundary than the current \"team sees whatever has synced\" behavior."
+    abstract: "New checkouts belong to a Private Teamspace by default, and a repository is the unit a user explicitly and non-destructively shares into a team."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1463,7 +1463,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-22-5-glossary-chokepoint-p95-measurement.md"
     title: "Glossary Chokepoint p95 Latency Measurement"
     divio_type: "none"
-    abstract: "`GlossaryChokepoint.run()` is invoked on every agent step to scan request text for semantic conflicts.  It must complete well within the human-perceptible threshold so that the scan never becomes a bottleneck in the agent loop."
+    abstract: "Confirms the 50 ms p95 budget for the glossary chokepoint with measured sub-linear scaling, keeping the per-step semantic scan off the agent loop critical path."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "benchmark-setup", text: "Benchmark Setup", level: 2}
@@ -1478,7 +1478,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-25-1-shared-package-boundary.md"
     title: "ADR: Shared Package Boundary Cutover"
     divio_type: "none"
-    abstract: "The Spec Kitty product surface includes three Python packages: `spec-kitty-cli`, `spec-kitty-events`, `spec-kitty-tracker`, plus the retiring `spec-kitty-runtime`. Pre-cutover, the CLI consumed a hybrid mix:"
+    abstract: "Retires the standalone runtime package by internalizing the surface the CLI needs, with an import-graph test forbidding production imports of the retired package."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -1488,7 +1488,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-26-1-contract-pinning-resolved-version.md"
     title: "ADR: Contract Pinning to the Resolved Package Version"
     divio_type: "none"
-    abstract: "`tests/contract/test_cross_repo_consumers.py`"
+    abstract: "Contract tests must resolve external package versions from the lockfile at runtime instead of embedding literals, with envelope snapshots keyed by that version."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -1504,7 +1504,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-26-2-auth-transport-boundary.md"
     title: "ADR: Centralized Auth Transport Boundary"
     divio_type: "none"
-    abstract: "- `kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/research.md` (D9, D12) - `kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/contracts/tracker-public-imports.md` (\"Auth transport adoption (FR-030)\") - `tests/architectural/test_auth_transport_singleton.py`"
+    abstract: "Makes one module the sole owner of authenticated HTTP: bearer injection, 401 refresh-and-retry-once, and deduplicated failure reporting behind singleton clients."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -1520,7 +1520,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-26-3-e2e-hard-gate.md"
     title: "ADR: Cross-Repo E2E as a Hard Mission-Review Gate"
     divio_type: "none"
-    abstract: "- `architecture/2.x/adr/2026-04-25-1-shared-package-boundary.md` (the shared package boundary that this gate defends downstream of) - `architecture/2.x/adr/2026-04-26-1-contract-pinning-resolved-version.md` (paired with this gate for the in-repo contract layer) - `architecture/2.x/adr/2026-04-26-2-auth-transport-boundary.md` (a downstream consumer of this gate's protection)"
+    abstract: "Cross-repo end-to-end scenarios become a hard pass/fail mission-review gate, escapable only through an explicit operator-authored exception artifact."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -1530,7 +1530,7 @@ pages:
   - path: "docs/adr/3.x/2026-04-27-1-retrospective-gate-shared-module.md"
     title: "ADR: Retrospective Gate as Shared Module"
     divio_type: "none"
-    abstract: "The retrospective learning loop (FR-011 through FR-016) requires a lifecycle gate that decides, for a given mission, whether the transition to `done` is permitted given the mission's current retrospective state and resolved governance mode (`autonomous` vs. `human_in_command`)."
+    abstract: "One shared completion-gate function owns retrospective enforcement, so the runtime hook and status-transition surfaces cannot drift into rival implementations."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -1540,7 +1540,7 @@ pages:
   - path: "docs/adr/3.x/2026-05-01-1-atomic-work-package-start-lifecycle.md"
     title: "Atomic Work Package Start Lifecycle"
     divio_type: "none"
-    abstract: "- `2026-02-09-1-canonical-wp-status-model.md` - `2026-02-09-3-event-log-merge-semantics.md` - `2026-04-06-1-wp-state-pattern-for-lane-behavior.md`"
+    abstract: "Implementation start emits planned, claimed, and in_progress as one atomic event batch, so a crash mid-sequence can no longer strand a work package in claimed."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1560,7 +1560,7 @@ pages:
   - path: "docs/adr/3.x/2026-05-10-1-deterministic-historical-mission-state-repair.md"
     title: "ADR 1 (2026-05-10): Deterministic Historical Mission-State Repair Identity"
     divio_type: "none"
-    abstract: "Historical `kitty-specs/` directories may predate `mission_id`. TeamSpace import requires stable mission identity, but public migration must be safe in distributed Git: two clones of the same historical repository must produce the same repaired artifacts without consulting a server, a clock, or randomness."
+    abstract: "Repairing legacy missions derives absent identifiers from a deterministic ULID seeded by on-disk mission material, and never rewrites an existing valid identity."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -1569,7 +1569,7 @@ pages:
   - path: "docs/adr/3.x/2026-05-11-1-defer-391-structural-extraction-from-3-2-x.md"
     title: "Defer #391 still-open structural extraction sub-tickets from the 3.2.x stabilization scope"
     divio_type: "none"
-    abstract: "- Epic [#822](https://github.com/Priivacy-ai/spec-kitty/issues/822) — 3.2.0 stabilization and release readiness - Epic [#992](https://github.com/Priivacy-ai/spec-kitty/issues/992) — drain the bug queue by repairing domain boundaries - Epic [#391](https://github.com/Priivacy-ai/spec-kitty/issues/391) — Tech/Functional Debt Remediation - Still-open #391 sub-tickets: #612, #613, #614"
+    abstract: "Keeps three open structural-extraction tickets out of the 3.2.x stabilization scope, since refactors with no release-blocking symptom inflate regression risk."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1585,7 +1585,7 @@ pages:
   - path: "docs/adr/3.x/2026-05-12-1-wp03-review-mode-contract-PROPOSED.md"
     title: "PROPOSAL: `spec-kitty review` lightweight vs post-merge mode contract (WP03)"
     divio_type: "none"
-    abstract: "- rev 1 (2026-05-12 AM): initial proposal, three open sub-questions. - rev 2 (2026-05-12 PM): HiC resolved Q1 (hard-block with remediation guidance) and Q3 (keep gate logic *near* review.py but pre-emptively refactor the file for god-class risk — see new WP07 in mission spec). Q2 remains open pending the drift-impact analysis below."
+    abstract: "Proposes an explicit signal separating lightweight working-tree review from post-integration mission review, hard-blocking when required gate artifacts are absent."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1607,7 +1607,7 @@ pages:
   - path: "docs/adr/3.x/2026-05-12-2-wp06-charter-encoding-chokepoint-PROPOSED.md"
     title: "PROPOSAL: Charter-content encoding chokepoint location (WP06)"
     divio_type: "none"
-    abstract: "- rev 1 (2026-05-12 AM): initial proposal, three open sub-questions. - rev 2 (2026-05-12 PM): HiC resolved Q2 (hard-fail with `--unsafe` bypass; add follow-on content-migration WP) and Q3 (dual-storage: per-mission preferred, shared elements centralized). Q1 (charset-normalizer dependency) re-framed with SBOM finding below; still pending HiC."
+    abstract: "Proposes a single charter-content read chokepoint that hard-fails on non-UTF-8 input with an opt-out flag, rather than retrofitting eighteen scattered read sites."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1629,7 +1629,7 @@ pages:
   - path: "docs/adr/3.x/2026-05-14-1-stale-lane-auto-rebase-classifier-policy.md"
     title: "ADR: Stale-Lane Auto-Rebase Classifier Policy"
     divio_type: "none"
-    abstract: "`spec-kitty merge` currently fail-stops on stale lanes — i.e. when a lane branch has not incorporated changes from the mission branch that conflict with files the lane also touched. Pre-mission analysis (`work/findings/771-auto-rebase-stale-lanes.md`) documented a 30-minute rote-merge cost per 10-WP mission, all of which is on additive-only conflict shapes that a machine can resolve safely."
+    abstract: "Auto-rebase may resolve a stale lane only through a closed list of file-and-conflict-shape rules; anything unmatched falls back to manual handling and halts."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -1657,7 +1657,7 @@ pages:
   - path: "docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md"
     title: "ADR: Doctrine Layer Merge Semantics — Field-Level Merge with Collision Warnings"
     divio_type: "none"
-    abstract: "`layered-doctrine-org-layer-01KRNPEE` shipped with a documented contradiction between specification and implementation that no per-WP reviewer flagged:"
+    abstract: "Doctrine layers combine by field-level overlay with explicit collision warnings, preserving partial project overrides instead of replacing whole artifacts."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "what-s-actually-at-stake", text: "What's actually at stake", level: 3}
@@ -1673,7 +1673,7 @@ pages:
   - path: "docs/adr/3.x/2026-05-18-1-monorepo-charter-scope.md"
     title: "ADR-8: Monorepo charter scope via `CharterScope` abstraction"
     divio_type: "none"
-    abstract: "Slice F lifts spec-kitty's governance surface beyond a single repository. Axis 1 (org-tier doctrine, WP04–WP08) lets organisations layer doctrine on top of the shipped catalog. Axis 2 — the subject of this ADR — addresses the operator request from issue #522: monorepos that ship multiple deployable packages each want their **own** charter, scoped by the filesystem location of the mission rather than by the repository root."
+    abstract: "Introduces CharterScope to resolve the nearest enclosing configured scope in a monorepo, while single-project behaviour stays byte-identical to the prior path."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -1691,7 +1691,7 @@ pages:
   - path: "docs/adr/3.x/2026-05-18-2-delete-specify-cli-auth-transport.md"
     title: "ADR 2026-05-18-2 — DELETE specify_cli.auth.transport (deferred to Robert)"
     divio_type: "none"
-    abstract: "`src/specify_cli/auth/transport.py` ships as part of the spec-kitty CLI but has zero non-test callers in the current codebase. Verified at HEAD `6ae8d449`:"
+    abstract: "Deletes the auth transport module: it has zero production callers and its architectural gate passes vacuously, so it mediates nothing that it claims to mediate."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "audit-evidence", text: "Audit Evidence", level: 2}
@@ -1702,7 +1702,7 @@ pages:
   - path: "docs/adr/3.x/2026-05-19-1-retrospective-default-policy-architecture.md"
     title: "Retrospective Default-on Policy Architecture"
     divio_type: "none"
-    abstract: "Through 3.1.x, retrospective learning in Spec Kitty was effectively gated by two environment variables (`SPEC_KITTY_RETROSPECTIVE`, `SPEC_KITTY_MODE`), and the runtime wired `facilitator_callback=None` so even an \"enabled\" strict path failed closed instead of producing useful learning. The user-facing `spec-kitty agent retrospect synthesize` command — a proposal preview/apply tool — became the *de facto* authoring surface because it had a silent fallback that fabricated empty completed records when artifacts looked sufficient. As a result, completed missions rarely produced useful retrospective records, and post-merge documentation (PR #1136) overstated what `summary` and `synthesize` actually capture."
+    abstract: "Retrospective generation becomes a deterministic pure-Python module on by default at mission boundaries, because agent invocation is too slow and irreproducible."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1732,7 +1732,7 @@ pages:
   - path: "docs/adr/3.x/2026-05-24-1-charter-freshness-ux-contract.md"
     title: "ADR: Charter Freshness UX Contract"
     divio_type: "none"
-    abstract: "- [`2026-05-16-1-doctrine-layer-merge-semantics.md`](2026-05-16-1-doctrine-layer-merge-semantics.md) (predecessor — locks the layer-merge semantics this contract reports on) - [`2026-05-24-2-pack-augmentation-vocabulary.md`](2026-05-24-2-pack-augmentation-vocabulary.md) (sibling — `overrides` / `enhances` vocabulary used in the freshness banners) - [`2026-05-24-3-shipped-to-built-in-cutover.md`](2026-05-24-3-shipped-to-built-in-cutover.md) (sibling — the `built-in` label this contract surfaces) **Related issues**: [#1099](https://github.com/Priivacy-ai/spec-kitty/issues/1099), [#1100](https://github.com/Priivacy-ai/spec-kitty/issues/1100), [#1101](https://github.com/Priivacy-ai/spec-kitty/issues/1101), [#1104](https://github.com/Priivacy-ai/spec-kitty/issues/1104)"
+    abstract: "Establishes one freshness vocabulary across the charter command family, anchored by a tri-state graph identity carried on every decay report the lint engine emits."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -1748,7 +1748,7 @@ pages:
   - path: "docs/adr/3.x/2026-05-24-2-pack-augmentation-vocabulary.md"
     title: "ADR: Pack Augmentation Vocabulary — `overrides` and `enhances` as Declarative Fields"
     divio_type: "none"
-    abstract: "- [`2026-05-24-1-charter-freshness-ux-contract.md`](2026-05-24-1-charter-freshness-ux-contract.md) (sibling — surfaces `overrides` / `enhances` in the freshness banners and preflight checks) - [`2026-05-24-3-shipped-to-built-in-cutover.md`](2026-05-24-3-shipped-to-built-in-cutover.md) (sibling — renames the `shipped` layer this vocabulary augments)"
+    abstract: "Adds mutually exclusive overrides and enhances fields to five doctrine artifact kinds, making full replacement versus field-level augmentation a declared intent."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -1766,7 +1766,7 @@ pages:
   - path: "docs/adr/3.x/2026-05-24-3-shipped-to-built-in-cutover.md"
     title: "ADR: `shipped` → `built-in` Vocabulary Cutover for Doctrine Layer Label"
     divio_type: "none"
-    abstract: "- [ADR 2026-05-16-1 — Doctrine Layer Merge Semantics](2026-05-16-1-doctrine-layer-merge-semantics.md) - [ADR 2026-05-24-2 — Pack Augmentation Vocabulary](2026-05-24-2-pack-augmentation-vocabulary.md) **Cross-references**: - [`2026-05-24-1-charter-freshness-ux-contract.md`](2026-05-24-1-charter-freshness-ux-contract.md) (sibling — consumes the renamed `built-in` label in its freshness banners and preflight output)"
+    abstract: "Renames the doctrine layer label from shipped to built-in across identifiers, messages, and CLI JSON output in one breaking cutover with no deprecation window."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -1781,7 +1781,7 @@ pages:
   - path: "docs/adr/3.x/2026-05-28-1-ci-dependency-resolution-and-test-surface-consistency.md"
     title: "ADR 2026-05-28-1: CI Dependency Resolution and Test Surface Consistency"
     divio_type: "none"
-    abstract: "for `feat/pre-doctrine-stabilization-remediation` (GitHub Actions run 26558837157). Root causes identified via full CI run retrospective."
+    abstract: "CI installs from the frozen lockfile so the pipeline environment matches local development, closing four failure modes that were invisible outside CI."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "discovery-process", text: "Discovery Process", level: 3}
@@ -1802,7 +1802,7 @@ pages:
   - path: "docs/adr/3.x/2026-06-02-1-pi-agent-skill-only-support.md"
     title: "Pi agent is skill-only: no prompt templates, invoker deferred"
     divio_type: "none"
-    abstract: "Pi (`pi-coding-agent`) is a terminal coding harness that supports non-interactive automation via `pi -p`, JSON event streaming via `pi --mode json`, and an RPC mode. The design spike (#1050) raised three questions:"
+    abstract: "Pi ships skill-only via `.agents/skills/`; no `.pi/prompts/` templates, and PiInvoker waits for the external orchestrator package."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1818,7 +1818,7 @@ pages:
   - path: "docs/adr/3.x/2026-06-02-2-letta-agent-skill-only-support.md"
     title: "Letta agent is skill-only: no slash-command templates, invoker and session model deferred"
     divio_type: "none"
-    abstract: "Letta Code (`letta`) is a memory-first coding agent supporting headless automation via `letta -p`, `--output-format json`, and `--output-format stream-json`. The design spike (#1054) raised two questions:"
+    abstract: "Letta ships skill-only because its stateless-versus-sticky memory session model is unvalidated; `.letta/commands/` and LettaInvoker are deferred."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1834,7 +1834,7 @@ pages:
   - path: "docs/adr/3.x/2026-06-03-1-execution-state-domain-model.md"
     title: "ADR 2026-06-03-1: Execution-State Domain Model"
     divio_type: "none"
-    abstract: "The spec-kitty runtime has accumulated approximately 40 command surfaces that independently re-derive execution context (workspace path, feature directory, branch name). This independent re-derivation is the root cause documented in issue #1619: the same command produces divergent output depending on whether it is invoked from the main checkout root or from a lane worktree, because each surface reconstructs its own view of \"where we are\" rather than reading from a single resolved context."
+    abstract: "Splits the CLI into four bounded modules — Governance, Mission Management, Execution/Runtime, Shared Kernel — giving execution state one domain owner."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -1851,7 +1851,7 @@ pages:
   - path: "docs/adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md"
     title: "ADR 2026-06-03-2: ExecutionContext Owner and CommitTarget Atomicity"
     divio_type: "none"
-    abstract: "Two related structural decisions are needed before implementation WPs can begin:"
+    abstract: "Names `resolve_action_context` the single canonical ExecutionContext resolver, and adopts CommitTarget as ergonomic hardening rather than a correctness fix."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -1870,7 +1870,7 @@ pages:
   - path: "docs/adr/3.x/2026-06-03-3-effector-actor-model.md"
     title: "ADR 2026-06-03-3: Effector/Actor Model"
     divio_type: "none"
-    abstract: "The spec-kitty codebase uses actor-identity vocabulary in three distinct places:"
+    abstract: "Defines an Effector as an Actor realized inside the Execution domain, but keeps it documentation vocabulary — no code type until a real bug demands one."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -1886,7 +1886,7 @@ pages:
   - path: "docs/adr/3.x/2026-06-05-1-merge-publish-layer-boundary.md"
     title: "ADR: Merge Publish-Layer Boundary"
     divio_type: "none"
-    abstract: "`spec-kitty merge` is a local operation: it sequences WP branches onto a target branch using the local git graph only. No push is implied by the core merge operation unless the caller explicitly requests `--push`."
+    abstract: "Remote-state inspection moves to the publish layer, so local lane consolidation stays network-free and the `git fetch` preflight runs only under `--push`."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -1896,7 +1896,7 @@ pages:
   - path: "docs/adr/3.x/2026-06-06-1-plan-concerns-to-work-package-traceability.md"
     title: "ADR: Plan Concerns To Work Package Traceability"
     divio_type: "none"
-    abstract: "The software-development planning flow used to describe plan-level slices with work-package-shaped language such as \"Parallel Work Analysis\", \"Work Distribution\", and \"Agent assignments\". That made plan sections look executable, even though implementation and review machinery only operates on `WP##` work packages generated later by `/spec-kitty.tasks`."
+    abstract: "Plans carry `IC-##` Implementation Concerns, and `wps.yaml` alone records the many-to-many concern-to-work-package mapping — never work-package prompt frontmatter."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -1906,7 +1906,7 @@ pages:
   - path: "docs/adr/3.x/2026-06-07-1-execution-state-canonical-surface.md"
     title: "ADR 2026-06-07-1: Execution-State Canonical Surface (`mission_runtime`)"
     divio_type: "none"
-    abstract: "ADR [`2026-06-03-1-execution-state-domain-model.md`](2026-06-03-1-execution-state-domain-model.md) ratified the bounded-module decomposition and named **Execution / Runtime** as the owner of workspace resolution, branch state, and CWD-invariant context. It also recorded that the residue surfaces (~40 command surfaces re-deriving execution context) must route through `resolve_action_context` (`core/execution_context.py`)."
+    abstract: "Gives execution state a physical home in a net-new top-level `src/mission_runtime/` package, grown Strangler-Fig style while `core/execution_context.py` becomes a shim."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -1923,7 +1923,7 @@ pages:
   - path: "docs/adr/3.x/2026-06-07-1-session-presence-multi-harness-architecture.md"
     title: "Session Presence: Multi-Harness Architecture for Orientation and Upgrade Checking"
     divio_type: "none"
-    abstract: "`spec-kitty init` deploys command-skill files into 13 slash-command agent directories and 6 skills-based agent roots (19 harnesses total). After init, no harness has any persistent awareness that spec-kitty exists — there is no always-loaded orientation text, no upgrade check, and no routing rule that directs \"hey spec kitty, fix X\" to `spec-kitty dispatch`. Competing tools (e.g. gstack) solve this by injecting a section into their harness's persistent instruction file at install time and registering a session-start hook where the harness supports one."
+    abstract: "Orientation text and upgrade checks reach all 19 harnesses through four pattern-grouped writers, with recorded NullWriter stubs where no instruction surface exists."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1952,7 +1952,7 @@ pages:
   - path: "docs/adr/3.x/2026-06-07-1-wp-lane-fsm-genesis-and-finalize-clobber.md"
     title: "ADR: WP Lane Finite State Machine, the `genesis` lane, and the finalize event-log clobber fix"
     divio_type: "none"
-    abstract: "A newly created coordination-topology mission could not start its implement loop: `spec-kitty agent action implement WP01` failed with *\"WP WP01 has no canonical status\"* even though `finalize-tasks` printed *\"13 WPs seeded\"*. This reproduced the [#1589](https://github.com/Priivacy-ai/spec-kitty/issues/1589) \"status split-brain\": `tasks status` showed 13 planned, `materialize` showed `0 events -> 0 WPs`, and `emit … --to planned` was rejected as `planned -> planned`."
+    abstract: "Adds a non-display `genesis` lane so seeding a work package becomes a real persisted edge, and stops finalize-tasks overwriting the canonical event log with a stale copy."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -1965,7 +1965,7 @@ pages:
   - path: "docs/adr/3.x/2026-06-11-1-op-as-first-class-execution-artifact.md"
     title: "ADR 2026-06-11-1: Op as a First-Class Execution Artifact (Mission ⟷ Op ⟷ ad-hoc)"
     divio_type: "none"
-    abstract: "`spec-kitty dispatch` opens bounded, doctrine-governed agent actions that run immediately — no spec, no plan, no work packages, no lane worktree — yet they still load governance context, route to an agent profile, and produce a durable record. The implementation lives in `src/specify_cli/invocation/` and already emits `OpStartedEvent` / `OpCompletedEvent` (see `src/specify_cli/invocation/__init__.py`), but the **concept** these commands express has never been named or ratified at the architecture level. #1688 (the proposal, now closed/superseded into this ADR) diagnosed the gap precisely: the records were treated as scratch byproducts of \"governance machinery\" rather than as instances of a real unit of work."
+    abstract: "Names the Op — a bounded, doctrine-governed, immediately dispatched action with a durable record — as the one primitive shared by ad-hoc dispatch and lifecycle flows."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -1988,7 +1988,7 @@ pages:
   - path: "docs/adr/3.x/2026-06-15-1-marketplace-descriptor-vs-publish.md"
     title: "ADR 2026-06-15-1: C-006 Amendment — Declarative `marketplace.json` Descriptor vs. Marketplace Publish"
     divio_type: "none"
-    abstract: "The tool-surface-contract mission (`01KV2K2P`) established **C-006 / FR-016**: the plugin-bundle projection and validation path must be *inert and declarative* — it must **never auto-install a bundle** and **never publish it to a marketplace**. The original regression test injected a `marketplace_publish` symbol and asserted the guard fails; reverting it restored green."
+    abstract: "Narrows constraint C-006 to prohibit install and publish actions only, permitting an inert `marketplace.json` descriptor and dropping the bare `marketplace` guard token."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -1996,7 +1996,7 @@ pages:
   - path: "docs/adr/3.x/2026-06-19-1-coord-empty-surface-fallback.md"
     title: "ADR: Coordination-Worktree-Empty Surface Policy — Loud Primary Fallback (amended)"
     divio_type: "none"
-    abstract: "**loud primary fallback** decision in the Amendment section below. **Mission**: `single-mission-surface-resolver-01KVGCE8` (WP06, original) · `mission-surface-resolver-safety-net-01KVN754` (amendment) **Requirement**: FR-006 (`#1716`), bound to FR-001/FR-007 (single resolver) **Module**: `src/specify_cli/coordination/surface_resolver.py` **Tracker**: [#1716](https://github.com/Priivacy-ai/spec-kitty/issues/1716)"
+    abstract: "An empty coordination worktree no longer hard-fails: the resolver falls back to the repository-root checkout and emits a loud, operator-visible staleness warning."
     anchors:
     - {slug: "amendment-2026-06-21-mission-mission-surface-resolver-safety-net-01kvn754", text: "Amendment (2026-06-21 — mission `mission-surface-resolver-safety-net-01KVN754`)", level: 2}
     - {slug: "amended-decision-coord-empty-loud-primary-fallback-not-hard-fail", text: "Amended decision: coord-empty → **loud primary fallback** (not hard-fail)", level: 3}
@@ -2012,7 +2012,7 @@ pages:
   - path: "docs/adr/3.x/2026-06-21-1-protected-branch-config-boundary-resolved-value.md"
     title: "Protected-branch configuration is a standalone boundary-resolved value, not a nested context sub-object"
     divio_type: "none"
-    abstract: "The set of branches Spec Kitty refuses direct commits to (\"protected branches\") is hardcoded to `{main, master}` (`git/commit_helpers.py:420`), decided by **branch name only**, and re-read independently at ~8 callsites that each call `protected_branches(repo_root)` (and re-shell `git remote show origin`). Two consequences:"
+    abstract: "Protected-branch configuration resolves once into a standalone value object with `is_protected(ref)`, because the `safe-commit` deadlock site holds no mission context."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2029,7 +2029,7 @@ pages:
   - path: "docs/adr/3.x/2026-06-22-1-mission-topology-ssot.md"
     title: "ADR: MissionTopology SSOT — Store the Mission Shape, Resolve It Once"
     divio_type: "none"
-    abstract: "`src/runtime/next/runtime_bridge.py`, `src/specify_cli/core/mission_creation.py`, `src/specify_cli/missions/_read_path_resolver.py` **Design driver**: [#2069](https://github.com/Priivacy-ai/spec-kitty/issues/2069) **Predecessor**: [ADR 2026-06-03-2 — ExecutionContext Owner and CommitTarget](2026-06-03-2-executioncontext-owner-and-committarget.md), [ADR 2026-06-19-1 — Coord-Empty Surface Policy](2026-06-19-1-coord-empty-surface-fallback.md)"
+    abstract: "Stores the coordination-by-lanes mission shape as a `MissionTopology` value minted at creation instead of re-inferring it from disk; `flattened` stays a provenance flag."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -2042,7 +2042,7 @@ pages:
   - path: "docs/adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md"
     title: "ADR: Kind- and Topology-Aware Artifact Placement — One Partition, Read/Write Symmetry"
     divio_type: "none"
-    abstract: "A coordination-topology mission keeps two on-disk copies of its feature directory: the **primary checkout** (`kitty-specs/<slug>/`) and the **coordination worktree** (`.worktrees/<slug>-<mid8>-coord/kitty-specs/<slug>/`). Where each mission artifact *lives* — which surface authors and reads it, and which branch its commit lands on — is the central correctness question of the planning lifecycle."
+    abstract: "Artifact placement becomes a frozenset partition over `MissionArtifactKind`: planning and identity kinds sit in the PRIMARY partition, status kinds on the coordination branch."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -2055,7 +2055,7 @@ pages:
   - path: "docs/adr/3.x/2026-06-24-2-write-branch-resolution-primary-anchor.md"
     title: "ADR: Write-Branch Resolution Anchors `meta.json` on the PRIMARY Surface (Write-Surface Twin)"
     divio_type: "none"
-    abstract: "A coordination-topology mission keeps two on-disk copies of its feature directory: the **repository-root checkout** (the `primary` **Sense C** surface — `kitty-specs/<slug>/`) and the **coordination worktree** (`.worktrees/<slug>-<mid8>-coord/kitty-specs/<slug>/`). (The four `primary` senses — PRIMARY partition / Primary Branch / repository-root checkout / Target Ref — are catalogued in `docs/context/orchestration.md`; each use below is qualified to exactly one.)"
+    abstract: "Write-branch resolvers read `meta.json` from the repository-root checkout under every topology, so commits land on the mission Target Ref, not the protected Primary Branch."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -2067,7 +2067,7 @@ pages:
   - path: "docs/adr/3.x/2026-06-25-1-terminal-artifact-durable-home-teardown.md"
     title: "ADR: Terminal-Artifact Durable Home + Topology-Aware Teardown Contract"
     divio_type: "none"
-    abstract: "`src/specify_cli/retrospective/*`, `src/specify_cli/cli/commands/{merge,mission_type}.py` **Tracker**: [#2119](https://github.com/Priivacy-ai/spec-kitty/issues/2119) · **[#2136](https://github.com/Priivacy-ai/spec-kitty/issues/2136)** (handle-canonicalization, folded as FR-011) · parent [#1878](https://github.com/Priivacy-ai/spec-kitty/issues/1878) **Precedents**: [kind-and-topology-aware artifact placement](2026-06-24-1-kind-and-topology-aware-artifact-placement.md) (#2101/#2090); [coord-empty surface fallback](2026-06-19-1-coord-empty-surface-fallback.md) (#1716, the read twin)"
+    abstract: "Terminal artifacts such as `retrospective.yaml` become PRIMARY-partition kinds with a tracked durable home, and worktree teardown is ordered after they persist."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -2079,7 +2079,7 @@ pages:
   - path: "docs/adr/3.x/2026-06-26-1-core-integration-boundary.md"
     title: "ADR: CORE / INTEGRATION Boundary Model"
     divio_type: "none"
-    abstract: "**Filename:** `2026-06-26-1-core-integration-boundary.md`"
+    abstract: "Enforces a one-directional CORE-to-INTEGRATION import rule in place using adapter registries and an AST gate, before any physical extraction to `src/orchestrator/`."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2104,7 +2104,7 @@ pages:
   - path: "docs/adr/3.x/2026-06-26-1-single-authority-seam-and-call-site-gate.md"
     title: "ADR: Single-Authority Seam + Call-Site Gate for Resolution Boundaries (Phase 1)"
     divio_type: "none"
-    abstract: "Logic in this codebase reaches infrastructure / resolution boundaries **directly**: a handle (`mission_id` / `mid8` / `slug`) is composed into a directory, and coordination-vs-primary artifact authority is selected, at the call site. Each boundary today is governed by a **convention every caller must remember** — \"canonicalize the handle before you compose it,\" \"read `meta.json` from the primary anchor,\" \"write status to the coord surface but planning to primary.\" Nothing enforces the convention; correctness is a property of every caller's memory."
+    abstract: "Handle canonicalization and surface-authority choices move behind one sanctioned seam policed by an AST call-site gate; the blind primitive stays blind to avoid recursion."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2121,7 +2121,7 @@ pages:
   - path: "docs/adr/3.x/2026-06-27-1-common-docs-reconciliation.md"
     title: "ADR: Common Docs Consolidation — Reconciliation of Metadata, Structure, Redirects, Glossary Read-Path, ADR Migration, and Curation"
     divio_type: "none"
-    abstract: "Spec Kitty's documentation has accreted into a **multi-root, shadow-tree split-brain** that the standard [Common Docs](https://github.com/velvet-tiger/common-docs) conventions are meant to cure. Four defects, all measured in the research, frame this decision:"
+    abstract: "Folds four documentation roots into one Common Docs tree and makes in-file frontmatter the per-page metadata source, with the page inventory regenerated as a lockfile."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2146,7 +2146,7 @@ pages:
   - path: "docs/adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md"
     title: "ADR: Sync Daemon Identity Contract and Cleanup Classification"
     divio_type: "none"
-    abstract: "On 2026-06-30 a Spec Kitty machine accumulated **18 orphan sync daemons** on ports `9401–9418`, spanning package versions `3.2.2`, `3.2.3`, and `3.2.4`. Each CLI upgrade left the prior-version daemon running because the old reaper skipped any candidate whose executable or interpreter identity differed from the current process — a third identity condition that silently gated cleanup. The result was unbounded orphan accumulation across upgrades."
+    abstract: "The `--spec-kitty-daemon-root` scope marker becomes the sole kill authority for sync daemons; `owner.json` is health reporting and interpreter identity only stale-version evidence."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2166,7 +2166,7 @@ pages:
   - path: "docs/adr/3.x/2026-07-01-1-no-legacy-compat-branches-in-resolvers.md"
     title: "ADR: No Legacy-Compat Branches in Resolvers — Require Canonical Identity, Migrate Legacy"
     divio_type: "none"
-    abstract: "The mission-identity model (083+) mints a canonical ULID `mission_id` for **every** mission at `mission create`; `mission_id` is the sole runtime identity for lookup, locking, and routing. Pre-083 missions are the only artifacts that can lack one, and the sanctioned remedy for them is a one-time migration (`spec-kitty migrate backfill-identity`), audited by `spec-kitty doctor identity`."
+    abstract: "Resolvers never grow a legacy branch to rescue degraded input: make the field nullable or migrate the data, and fix stale fixtures instead of the product."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2177,7 +2177,7 @@ pages:
   - path: "docs/adr/3.x/2026-07-07-1-ignored-surface-backfill-migration-pattern.md"
     title: "ADR: IGNORED-Surface Backfill Migration Pattern"
     divio_type: "none"
-    abstract: "When a new `IGNORED` `StateSurface` is added to `src/specify_cli/state/contract.py`, fresh `spec-kitty init` immediately covers new projects via `GitignoreManager.protect_all_agents()` — which derives its runtime entries from `get_runtime_gitignore_entries()` at module load.  But **existing projects never receive the entry** until they run `spec-kitty upgrade`; those projects continue to commit machine-local artefacts until the next upgrade."
+    abstract: "Every new `GitClass.IGNORED` surface ships a frozen companion gitignore backfill migration in the same pull request, covering entry variants and lane worktrees."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "why-not-a-live-contract-migration", text: "Why not a live-contract migration?", level: 3}
@@ -2188,7 +2188,7 @@ pages:
   - path: "docs/adr/3.x/2026-07-08-1-mission-resolver-port.md"
     title: "ADR: MissionResolver Port — One Walk Trunk, Shell-Side DI, No Shared Container"
     divio_type: "none"
-    abstract: "The Phase 1 gate ([2026-06-26-1](2026-06-26-1-single-authority-seam-and-call-site-gate.md)) closed the #2164 canonicalization-fold and #2160 coord-authority classes with a seam-plus-AST-gate, but deliberately deferred the deeper defect this mission (#2173 Phase 2) closes: `kitty-specs/` is walked from **many** independent call sites (`_build_index` in the canonicalizer, `status/identity_audit.py`, `merge/ordering.py`, `core/paths.py`, a dashboard scanner, a handful of `--all`-mode CLI validators, migration scripts, …), each re-implementing the same `iterdir()` + `meta.json` read, each re-walking on every call with no shared in-memory index, and each free to silently diverge from the others' notion of \"how to find a mission.\" Phase 1's gate fences the canonicalization *fold*; it does not fence *walking* itself, so a new raw `kitty-specs/` enumeration can still be added anywhere in `src/` without tripping anything."
+    abstract: "One `MissionResolver` Protocol in `mission_runtime` with adapters injected shell-side and a token-keyed AST allowlist — no second Protocol and no shared container."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2219,7 +2219,7 @@ pages:
   - path: "docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md"
     title: "ADR: Doctrine → Charter → Core Mission-Type Resolution Unification (governance first)"
     divio_type: "none"
-    abstract: "Spec Kitty resolves per-mission-type behaviour — governance, templates, gates, step contracts — through **two parallel trees and three competing governance surfaces**, with a hardcoded `software-dev` bias woven through the core loop."
+    abstract: "`resolve_mission_type_context` becomes the one charter-mediated mission-type resolver; an unknown type hard-errors instead of defaulting or being inferred from `template_set`."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2240,7 +2240,7 @@ pages:
   - path: "docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md"
     title: "ADR: Doctrine Offers, Charter Activates, Runtime Consumes Only Activated (default-charter provisioning)"
     divio_type: "none"
-    abstract: "[ADR 2026-07-14-2](2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md) (shipped as #883 slice 1) made the doctrine `MissionType` artefact load-bearing for **governance** through one charter-mediated seam. This ADR states the **general governing rule** that seam is an instance of, and closes the places it is not yet true."
+    abstract: "Doctrine packs stay pure catalogues, charter activation becomes one mechanism covering mission types, gates and assets, and the loop consumes only activated artefacts."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "grounded-status-of-the-five-claims", text: "Grounded status of the five claims", level: 3}
@@ -2255,7 +2255,7 @@ pages:
   - path: "docs/adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md"
     title: "WP runtime-state authority — evict runtime-mutable state from tasks/WP##.md into the canonical event log"
     divio_type: "none"
-    abstract: "**Status:** Proposed"
+    abstract: "Runtime-mutable work-package state leaves `tasks/WP##.md` for the append-only event log, carried by an annotation event class so the 9-lane machine gains no self-edges."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "the-load-bearing-gap-runtime-state-mutates-off-the-transition-axis-scope-c1", text: "The load-bearing gap — runtime state mutates OFF the transition axis (scope §C1)", level: 3}
@@ -2274,7 +2274,7 @@ pages:
   - path: "docs/adr/3.x/2026-07-16-2-mission-type-step-authority-and-template-vocabulary.md"
     title: "ADR: Steps are the mission-type building block; \"template\" is a doctrine artefact kind"
     divio_type: "none"
-    abstract: "**Status:** Proposed · **Epic:** #2652 (mission-type unification) · **Builds on:** ADR `2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes` (S0/S4), the merged #2712 (mission_type as a DRG node + mission_type→action edges) and #2689 (`template_set` slot). **Grounding:** design + code + adversarial squad (see `docs/plans/investigations/mission-type-step-model-unification.md`)."
+    abstract: "A step is the mission-type building block — the existing ACTION node enriched, not a new node kind — while `template` narrows to one doctrine artefact kind."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -2291,7 +2291,7 @@ pages:
   - path: "docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md"
     title: "Red main is honest signal; CI status is the release authority"
     divio_type: "none"
-    abstract: "**Status:** Accepted (by consensus) · **Deciders:** Robert Douglass (CEO / product owner), Kent (QA lead), maintainers · **Date:** 2026-07-17 · **Related:** [`docs/development/red-main-and-release-readiness.md`](../../development/red-main-and-release-readiness.md), [`docs/development/testing-flakiness.md`](../../development/testing-flakiness.md), [`docs/development/pr-landing.md`](../../development/pr-landing.md), the charter's red-first / test-remediation standing order."
+    abstract: "A red mainline is honest signal and P0 reproductions may land red-first, but mainline CI status is the release authority: nothing ships on red, with no exceptions."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2302,7 +2302,7 @@ pages:
   - path: "docs/adr/3.x/2026-07-18-1-charter-yaml-authoring-authority-and-extractor-retirement.md"
     title: "ADR: charter.yaml is the authoritative structured source; charter.md is a curated companion; retire the prose→triad extractor"
     divio_type: "none"
-    abstract: "**Status:** Proposed"
+    abstract: "`charter.yaml` becomes the authoritative structured charter owning activation state, `charter.md` becomes a curated companion, and the prose-to-triad extractor retires."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2319,7 +2319,7 @@ pages:
   - path: "docs/adr/3.x/2026-07-19-1-skill-projection-copies-not-symlinks.md"
     title: "Skill projection delivers copies, not symlinks"
     divio_type: "none"
-    abstract: "**Status:** Accepted · **Date:** 2026-07-19 · **Supersedes:** the per-project wiring half of [ADR 2026-04-08-3](2026-04-08-3-global-skill-installation-per-project-symlinks.md) (its global-canonical-install decision stands and is reaffirmed here) · **Related:** [#2412](https://github.com/Priivacy-ai/spec-kitty/issues/2412), [ADR 2026-07-07-1](2026-07-07-1-ignored-surface-backfill-migration-pattern.md) (IGNORED-surface backfill pattern)"
+    abstract: "Skill projection always copies files rather than symlinking a machine-global root, ending cross-project action-at-a-distance; stale symlinks convert on the next upgrade."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2334,7 +2334,7 @@ pages:
   - path: "docs/adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md"
     title: "ADR: Evict runtime-mutable WP state into the event log via a single generic InnerStateChanged annotation event"
     divio_type: "none"
-    abstract: "**Status:** Accepted"
+    abstract: "One generic `InnerStateChanged` event carries a typed `WPInnerStateDelta`, folded per field by the reducer, bypassing transition validation and never touching `force_count`."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2356,7 +2356,7 @@ pages:
   - path: "docs/adr/3.x/2026-07-21-1-glossary-first-order-doctrine-artefact.md"
     title: "ADR: promote the glossary to a first-order doctrine artefact (GLOSSARY_PACK kind), retire the runtime glossary, and deliver terminology enforcement as an executable ASSET gate"
     divio_type: "none"
-    abstract: "**Status:** Accepted"
+    abstract: "The glossary is promoted to a charter-activatable `GLOSSARY_PACK` artefact kind, the runtime glossary retires, and terminology enforcement ships as an executable ASSET gate."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2368,7 +2368,7 @@ pages:
   - path: "docs/adr/3.x/2026-07-21-1-in-tension-with-drg-edge.md"
     title: "in_tension_with and reconciles_tension DRG edges (retiring opposed_by)"
     divio_type: "none"
-    abstract: "**Filename:** `2026-07-21-1-in-tension-with-drg-edge.md`"
+    abstract: "Retires `opposed_by` for symmetric, non-transitive `in_tension_with` plus `reconciles_tension` DRG relations, so tension is one traversable graph edge."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2393,7 +2393,7 @@ pages:
   - path: "docs/adr/3.x/2026-07-22-1-gate-binding-content-vs-relationship.md"
     title: "ADR: gate bindings reuse `mission_step_contract` — the content-vs-relationship principle"
     divio_type: "none"
-    abstract: "**Status:** Accepted"
+    abstract: "Gate bindings reuse `mission_step_contract` instead of earning a kind: promote only distributable content artefacts, attach relationships and configuration to existing ones."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2407,7 +2407,7 @@ pages:
   - path: "docs/adr/3.x/2026-07-23-1-surface-vocabulary-two-domains-and-topology-surface-rename.md"
     title: "`surface` names two unrelated domains — split the vocabulary, rename to `ToolSurfaceKind` and `TopologySurface`"
     divio_type: "none"
-    abstract: "**Status:** Accepted"
+    abstract: "The overloaded word `surface` splits into two named types: `ToolSurfaceKind` for tool-facing artifacts and `TopologySurface` for the physical tree an artifact lives in."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2428,7 +2428,7 @@ pages:
   - path: "docs/adr/3.x/2026-07-23-2-post-consolidation-deferral-and-external-enforcement.md"
     title: "Post-Consolidation Deferral and External Enforcement of Negative Invariants"
     divio_type: "none"
-    abstract: "ADR [2026-04-03-3](./2026-04-03-3-feature-acceptance-runs-on-the-integrated-mission-branch.md) decided that *\"Feature QA and `accept` MUST happen on the mission integration branch\"*, and specified the negative-invariant verifier model down to its result vocabulary."
+    abstract: "Negative invariants are verified externally at a named `post-consolidation` phase on the `CONSOLIDATED` surface, never at a step whose integrated tree does not yet exist."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2445,7 +2445,7 @@ pages:
   - path: "docs/adr/3.x/2026-07-26-1-drg-edges-are-the-canonical-relationship-authority.md"
     title: "ADR: DRG edges are the canonical artefact-relationship authority; inline `references:` blocks are pre-DRG residue to be migrated and retired"
     divio_type: "none"
-    abstract: "**Status:** Accepted"
+    abstract: "DRG edges become the only artefact-relationship vocabulary; 559 inline `references:` entries migrate to `*.graph.yaml` fragments and the field closes to relationship growth."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2465,7 +2465,7 @@ pages:
   - path: "docs/adr/3.x/2026-07-26-2-doctrine-artefact-pack-layout-convention.md"
     title: "ADR: doctrine artefacts live at `<type>/<pack>/[<category>/]<name>` — misplacement is an error, not invisibility"
     divio_type: "none"
-    abstract: "**Status:** Accepted"
+    abstract: "Doctrine artefacts must sit at `<type>/<pack>/[<category>/]<name>`; a file placed directly under `<type>/` is a loud error rather than silently invisible to the loader."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2483,7 +2483,7 @@ pages:
   - path: "docs/adr/3.x/2026-07-26-3-impacts-edge-subsumes-in-tension-with.md"
     title: "ADR: a signed `impacts` edge subsumes `in_tension_with` — one relation, sign carries the direction of effect"
     divio_type: "none"
-    abstract: "**Status:** Accepted"
+    abstract: "A signed `Relation.IMPACTS` edge subsumes `in_tension_with`: one directed relation whose numeric sign carries the direction of effect, with negative values meaning tension."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "measured-ground-verified-in-tree-not-inferred", text: "Measured ground (verified in-tree, not inferred)", level: 3}
@@ -2510,7 +2510,7 @@ pages:
   - path: "docs/adr/3.x/2026-07-28-1-progressive-disclosure-of-doctrine-context.md"
     title: "ADR: doctrine context is delivered as navigable links, not inlined bodies — `when`/`reason` carry the fetch guidance"
     divio_type: "none"
-    abstract: "**Status:** Accepted"
+    abstract: "Doctrine context arrives as navigable links: `requires` edges resolve eagerly and inline, `suggests` edges ship as `when`/`reason` fetch guidance, with an `--include-all` hatch."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "what-the-graph-already-carries", text: "What the graph already carries", level: 3}
@@ -2526,7 +2526,7 @@ pages:
   - path: "docs/adr/3.x/2026-07-29-1-lane-base-recorded-planning-commit.md"
     title: "ADR: Lane Base Merges the Recorded Planning-Artifact Commit (FR-009)"
     divio_type: "none"
-    abstract: "ADR [2026-04-03-1](./2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md) made the execution lane the git branch/worktree unit and required \"every mission gets one integration branch.\" WP04 (#1348) extended lane parenting so a coordination-topology mission's lanes branch from `coordination_branch` (`meta.json`), not the legacy `mission_branch` field, and registered the status-files sparse-checkout exclusion so a lane worktree cannot see `status.events.jsonl` / `status.json`."
+    abstract: "Each lane gains the planning-artifact commit recorded at finalize-tasks as an extra ancestor, leaving its git parentage intact and never reading a live branch tip."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
@@ -2545,7 +2545,7 @@ pages:
   - path: "docs/adr/3.x/2026-07-30-1-consolidated-write-surface-and-consolidate-terminology.md"
     title: "ADR: CONSOLIDATED Write-Surface Wiring and `consolidate` as Canonical Lane-Consolidation Terminology"
     divio_type: "none"
-    abstract: "PR #3076 shipped the write-side placement seam but deferred the CONSOLIDATED half of it. ADR [2026-07-23-1](./2026-07-23-1-surface-vocabulary-two-domains-and-topology-surface-rename.md) declared `TopologySurface.CONSOLIDATED` as a member and gave `translate_surface` a **total** arm for it — every `TopologySurface` member has a translation entry, asserted by `assert_surface_totality`. But `SurfaceLocations.consolidated` (the field that arm reads) has never been populated in production: `translate_surface(CONSOLIDATED, …)` raises `ValueError` rather than resolving anything, because no caller has ever supplied the location. `resolve_placement_only` instead resolves PRIMARY-kind writes to the mission's Target Ref (`target_branch`) unconditionally, regardless of lifecycle phase."
+    abstract: "Wires `TopologySurface.CONSOLIDATED` to the integrated tree with the phase derived internally, and fixes `consolidate` as the canonical word for the lane-consolidation sense."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2561,7 +2561,7 @@ pages:
   - path: "docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md"
     title: "ADR: Charter-Wheel Assessment — Extractable in Principle, Cut Over Kernel→Doctrine→Charter as One No-Partial Follow-On"
     divio_type: "none"
-    abstract: "[#3101](https://github.com/Priivacy-ai/spec-kitty/issues/3101) wants `src/doctrine/` — and, assessed here, `src/charter/` — to ship as installable wheels on the documented dependency chain, shown below, which runs from the dependency-free kernel at the root through doctrine and charter to glossary/runtime and finally `specify_cli`."
+    abstract: "`src/charter` carries zero `specify_cli` import edges and is extractable in principle, but the kernel, doctrine and charter wheels must cut over together, never in stages."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -2582,7 +2582,7 @@ pages:
   - path: "docs/adr/3.x/2026-08-03-1-review-cycle-artifacts-are-coord-partition.md"
     title: "ADR: Review-Cycle Artifacts Are COORD-Partition Per-WP Bookkeeping"
     divio_type: "none"
-    abstract: "**Deciders**: operator (stijn-dejongh), overriding a squad CRITICAL that had recorded the partition as an unresolved contradiction. The adjudication, verbatim: *\"Land them on COORD in case of a coord topology (this is per-wp bookkeeping, and should be traced in the shared Coord branch, which is aggregated into the primary branch on consolidation). In other topologies -> primary. Ensure read and write paths are consistent.\"*"
+    abstract: "Review-cycle artifacts get a `REVIEW_CYCLE` kind in the COORD partition — per-work-package lifecycle evidence, not stable planning output — visible to cross-lane reviewers."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "why-this-became-load-bearing", text: "Why this became load-bearing", level: 3}
@@ -2597,7 +2597,7 @@ pages:
   - path: "docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md"
     title: "ADR: The Egress-Consent Boundary — Consent Is Keyed on the Record Being Sent, Never on Ambient Context"
     divio_type: "none"
-    abstract: "Two SaaS transports put project-identifying text on the wire: the tracker transport (`specify_cli/tracker/saas_client.py`) and the widen-mode SaaS client (`specify_cli/saas_client/client.py`). A mission slug is a [client engagement name](../../context/identity.md#engagement), so *which project consented* is a confidentiality question, not a convenience one."
+    abstract: "Egress consent is keyed on the record being sent, never on ambient context: one refusal presentation where only `None` is permission, with per-transport identifier fragments."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "the-instance-that-forced-it-3111-is-consent-laundering", text: "The instance that forced it: #3111 is consent *laundering*", level: 3}
@@ -2617,9 +2617,9 @@ pages:
     - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/3.x/README.md"
-    title: "3.x ADRs"
+    title: "3.x Architectural Decision Records"
     divio_type: "none"
-    abstract: "Architectural Decision Records for the 3.x track (starting 3.0.0, released 2026-03-30)."
+    abstract: "Index of every Spec Kitty 3.x architectural decision record, with the dated naming convention, the status vocabulary, and how to register a new entry."
     anchors:
     - {slug: "naming", text: "Naming", level: 2}
     - {slug: "source-of-truth", text: "Source of Truth", level: 2}
@@ -9597,7 +9597,7 @@ pages:
   - path: "docs/plans/engineering-notes/drg-completeness-2843-research.md"
     title: "DRG completeness (#2843/#2847) — pre-spec research squad findings"
     divio_type: "none"
-    abstract: "Convergent findings from the 4-lens pre-spec research squad on the"
+    abstract: "Four-lens pre-spec research findings on the #2833 post-landing residue: relation-description parity, the activation-gate latent bug, and the anti-pattern corpus split."
     anchors:
     - {slug: "operator-decision-split", text: "Operator decision — SPLIT", level: 2}
     - {slug: "corrected-ground-truth-measured-not-estimated", text: "Corrected ground truth (measured, not estimated)", level: 2}
@@ -10583,22 +10583,6 @@ pages:
     divio_type: "none"
     abstract: "Tracker for mission-specific spec-kitty next mapping/template gaps accepted temporarily; initiative artifacts rather than ADRs, with their status rules."
     anchors: []
-  - path: "docs/plans/initiatives/next-mission-mappings/issue-documentation-mission-next-mapping.md"
-    title: "Tracking Issue: `documentation` Mission `next` Mapping"
-    divio_type: "none"
-    abstract: "Open tracking issue for the documentation mission's spec-kitty next mapping/template gap, owned by the spec-kitty team."
-    anchors:
-    - {slug: "problem", text: "Problem", level: 2}
-    - {slug: "desired-behavior", text: "Desired Behavior", level: 2}
-    - {slug: "acceptance-criteria", text: "Acceptance Criteria", level: 2}
-  - path: "docs/plans/initiatives/next-mission-mappings/issue-plan-mission-next-mapping.md"
-    title: "Tracking Issue: `plan` Mission `next` Mapping"
-    divio_type: "none"
-    abstract: "Open tracking issue for the plan mission's spec-kitty next mapping/template gap, owned by the spec-kitty team."
-    anchors:
-    - {slug: "problem", text: "Problem", level: 2}
-    - {slug: "desired-behavior", text: "Desired Behavior", level: 2}
-    - {slug: "acceptance-criteria", text: "Acceptance Criteria", level: 2}
   - path: "docs/plans/initiatives/test_improvement/IMPLEMENTATION_COMPLETE.md"
     title: "🎉 Encoding & Plan Validation Test Suite - COMPLETE"
     divio_type: "none"
@@ -10791,7 +10775,7 @@ pages:
   - path: "docs/plans/investigations/2684-task-move-cluster-scoping.md"
     title: "Scoping brief: evict runtime-mutable WP state into the event log (#2684 cluster)"
     divio_type: "none"
-    abstract: "Consolidated scoping and code-grounding brief for a single exhaustive 3.2.6 mission resolving the task-move / WP-metadata-split / task-status cluster anchored on"
+    abstract: "Scoping and code-grounding brief for the #2684 task-move / WP-metadata-split / task-status cluster: authority inventory, migration contract, and a proposed decomposition."
     anchors:
     - {slug: "0-decisions-resolved-hic-2026-07-19", text: "0. Decisions resolved (HiC, 2026-07-19)", level: 2}
     - {slug: "1-the-mission-in-one-paragraph", text: "1. The mission in one paragraph", level: 2}

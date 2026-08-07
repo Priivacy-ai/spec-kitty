@@ -1,5 +1,6 @@
 ---
 title: 'ADR: The Egress-Consent Boundary — Consent Is Keyed on the Record Being Sent, Never on Ambient Context'
+description: 'Egress consent is keyed on the record being sent, never on ambient context: one refusal presentation where only `None` is permission, with per-transport identifier fragments.'
 status: Accepted
 date: '2026-08-04'
 ---

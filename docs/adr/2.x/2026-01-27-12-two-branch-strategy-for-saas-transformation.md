@@ -1,5 +1,6 @@
 ---
 title: Two-Branch Strategy for SaaS Transformation
+description: Ships stable local-only 1.x while 2.x develops event sourcing and sync on greenfield, deferring the state migration until the distributed design proves itself.
 status: Accepted
 date: '2026-01-27'
 ---

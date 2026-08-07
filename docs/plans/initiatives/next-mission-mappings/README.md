@@ -14,7 +14,7 @@ Status rules:
 1. `OPEN`: known gap is accepted short-term, guarded by `xfail(strict=True)` test.
 2. `CLOSED`: full behavior implemented, `xfail` converted to normal passing test.
 
-Open items:
+Open items (the tracked pages live in the canonical tracker directory):
 
-1. `plan` mission: `issue-plan-mission-next-mapping.md`
-2. `documentation` mission: `issue-documentation-mission-next-mapping.md`
+1. `plan` mission: [`issue-plan-mission-next-mapping.md`](../../next-mission-mappings/issue-plan-mission-next-mapping.md)
+2. `documentation` mission: [`issue-documentation-mission-next-mapping.md`](../../next-mission-mappings/issue-documentation-mission-next-mapping.md)
