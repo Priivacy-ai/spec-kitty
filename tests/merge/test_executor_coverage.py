@@ -444,6 +444,94 @@ def test_phase_porcelain_clean_tree_passes(tmp_path: Path) -> None:
     restore_mock.assert_not_called()
 
 
+# --- #2804/FR-009: gate-artifact preservation guard --------------------------
+#
+# 2026-08-07 (landing fix, verdict-seam-write-unification #3245, Fix 7):
+# diff-coverage flagged the divergent-artifact RESTORE branch of
+# ``_restore_regressed_gate_artifacts`` and the ``expected_paths`` fold inside
+# ``_phase_porcelain_invariant`` as new-code-uncovered. Both tests below drive
+# the REAL functions (no mocking of the branch under test) so the fold's
+# actual effect on ``_classify_porcelain_lines``' verdict is proven, not
+# merely exercised.
+
+
+def test_restore_regressed_gate_artifacts_restores_divergent_target_copy(
+    tmp_path: Path,
+) -> None:
+    """#2804: an already-accepted target gate artifact that the squash merge's
+    ``-X theirs`` resolution clobbered is restored verbatim, and the path is
+    recorded on ``run.gate_artifact_restored_paths`` for the caller to fold
+    into the final bookkeeping commit + the porcelain-invariant gate."""
+    run = _make_run(tmp_path)
+    clobbered_path = run.target_feature_dir / "acceptance-matrix.json"
+    clobbered_path.parent.mkdir(parents=True, exist_ok=True)
+    clobbered_path.write_bytes(b'{"clobbered": true}')
+    untouched_path = run.target_feature_dir / "issue-matrix.json"
+    run.pre_target_gate_artifact_snapshots = {
+        clobbered_path: b'{"accepted": true}',
+        # Ordinary, non-divergent leg: target held nothing here pre-merge, so
+        # the squash merge's output is authoritative -- no restore.
+        untouched_path: None,
+    }
+
+    ex._restore_regressed_gate_artifacts(run)
+
+    assert clobbered_path.read_bytes() == b'{"accepted": true}'
+    assert run.gate_artifact_restored_paths == [clobbered_path]
+    assert not untouched_path.exists()
+
+
+def test_restore_regressed_gate_artifacts_noop_when_current_matches_original(
+    tmp_path: Path,
+) -> None:
+    """The ordinary, non-divergent case: the squash merge preserved the
+    pre-merge bytes verbatim, so no restore/record happens."""
+    run = _make_run(tmp_path)
+    matching_path = run.target_feature_dir / "acceptance-matrix.json"
+    matching_path.parent.mkdir(parents=True, exist_ok=True)
+    matching_path.write_bytes(b'{"accepted": true}')
+    run.pre_target_gate_artifact_snapshots = {matching_path: b'{"accepted": true}'}
+
+    ex._restore_regressed_gate_artifacts(run)
+
+    assert matching_path.read_bytes() == b'{"accepted": true}'
+    assert run.gate_artifact_restored_paths == []
+
+
+def test_phase_porcelain_folds_restored_gate_artifact_into_expected_paths(
+    tmp_path: Path,
+) -> None:
+    """#2804/FR-009: a path the restore guard rewrote is an EXPECTED
+    post-merge delta -- the porcelain-invariant gate must not treat it as a
+    violation. Uses the REAL ``_classify_porcelain_lines`` (not mocked) so the
+    ``expected_paths`` fold is what actually suppresses the flag; the
+    restored path is deliberately NOT a real mission-artifact kind, so
+    neither the coord-residue nor the self-bookkeeping legs could
+    accidentally absorb it instead -- isolating the fold under test."""
+    run = _make_run(tmp_path)
+    restored_path = tmp_path / "some" / "random" / "file.json"
+    run.gate_artifact_restored_paths = [restored_path]
+    with patch.object(
+        ex, "_raw_porcelain_status", return_value=(0, " M some/random/file.json")
+    ):
+        ex._phase_porcelain_invariant(run)  # must not raise typer.Exit
+
+
+def test_phase_porcelain_flags_unrestored_unexpected_path(tmp_path: Path) -> None:
+    """Control for the test above: the SAME porcelain line, with
+    ``gate_artifact_restored_paths`` empty, is a genuine violation -- proving
+    the fold (not some other leg) is what suppressed it there."""
+    run = _make_run(tmp_path)
+    with (
+        patch.object(
+            ex, "_raw_porcelain_status", return_value=(0, " M some/random/file.json")
+        ),
+        pytest.raises(typer.Exit) as exc,
+    ):
+        ex._phase_porcelain_invariant(run)
+    assert exc.value.exit_code == 1
+
+
 # --- _phase_commit_and_assert: no-changes + baseline-assert-failure ----------
 
 
