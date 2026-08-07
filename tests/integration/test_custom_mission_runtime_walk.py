@@ -52,6 +52,7 @@ from runtime.next._internal_runtime.schema import (
 )
 from runtime.next.decision import Decision, DecisionKind
 from runtime.next.runtime_bridge import _dispatch_via_composition
+from tests._factories import provision_test_charter
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -339,6 +340,11 @@ def _scaffold_software_dev_project(tmp_path: Path) -> tuple[Path, Path, str]:
     _init_min_repo(repo_root)
 
     (repo_root / ".kittify").mkdir(exist_ok=True)
+    # WP04 fail-closed follow-up: the software-dev dispatch path routes
+    # through resolve_mission_type_context(), which validates against the
+    # project's activated mission types. A bare git-init fixture never ran
+    # `spec-kitty init`, so provision the same default charter surface here.
+    provision_test_charter(repo_root)
 
     feature_dir = repo_root / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)

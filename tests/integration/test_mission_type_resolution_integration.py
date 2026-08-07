@@ -40,6 +40,7 @@ from charter.mission_type_profiles import (
 )
 from charter.resolution import ResolutionTier
 from specify_cli.runtime.resolver import resolve_configured_template
+from tests._factories import provision_test_charter
 
 pytestmark = [pytest.mark.integration]
 
@@ -157,6 +158,11 @@ def _stage_mission(repo_root: Path, mission_type: str) -> Path:
         json.dumps({"mission_type": mission_type, "mission_slug": mission_slug}),
         encoding="utf-8",
     )
+    # WP04 fail-closed follow-up: resolve_mission_type_context() validates
+    # against the project's activated mission types. This helper stages a
+    # bare tmp_path project with no `.kittify/config.yaml` at all (never ran
+    # `spec-kitty init`), so provision the same default charter surface here.
+    provision_test_charter(repo_root)
     return feature_dir
 
 

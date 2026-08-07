@@ -37,6 +37,7 @@ from pathlib import Path
 import pytest
 
 from runtime.next.prompt_builder import _build_wp_prompt
+from tests._factories import provision_test_charter
 from tests.lane_test_utils import write_single_lane_manifest
 
 
@@ -114,6 +115,11 @@ def documentation_mission(tmp_path: Path) -> tuple[Path, Path, str]:
     (feature_dir / "tasks" / "WP01.md").write_text(_WP_FOR_DOCUMENTATION_MISSION, encoding="utf-8")
     write_single_lane_manifest(feature_dir, wp_ids=("WP01",))
     _write_minimal_doc_charter(repo_root)
+    # WP04 fail-closed follow-up: resolve_mission_type_context() validates
+    # against the project's activated mission types. A bare charter.md with
+    # no `.kittify/config.yaml` never ran `spec-kitty init`, so provision the
+    # same default charter surface here.
+    provision_test_charter(repo_root)
 
     # The keystone for live wiring: a meta.json with mission_type=documentation.
     # If the prompt builder reads this and routes through the documentation

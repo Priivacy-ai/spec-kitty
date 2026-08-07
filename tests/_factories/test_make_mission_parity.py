@@ -27,7 +27,7 @@ import pytest
 from mission_runtime import MissionTopology
 import specify_cli.core.mission_creation as mission_creation_module
 from specify_cli.core.mission_creation import MissionCreationError, create_mission_core
-from tests._factories import make_mission
+from tests._factories import make_mission, provision_test_charter
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -88,6 +88,13 @@ def test_make_mission_meta_is_byte_identical_to_direct_core_call(
     factory_repo.mkdir()
     _init_git_repo(direct_repo)
     _init_git_repo(factory_repo)
+    # WP04 fail-closed follow-up: create_mission_core() now hard-requires an
+    # activated mission type. Provision BOTH sides explicitly (rather than
+    # relying on make_mission()'s internal provisioning for factory_repo
+    # alone) so this parity test keeps proving direct_repo and factory_repo
+    # start from an identical charter surface, not an asymmetric one.
+    provision_test_charter(direct_repo)
+    provision_test_charter(factory_repo)
 
     friendly_name = "Parity Mission"
     purpose_tldr = "Deliver parity mission cleanly for the team."
@@ -183,6 +190,7 @@ def test_create_mission_core_worktree_guard_bypass_is_behaviour_preserving(
     repo = tmp_path / "guard-bypass-repo"
     repo.mkdir()
     _init_git_repo(repo)
+    provision_test_charter(repo)
 
     monkeypatch.setattr(mission_creation_module, "is_worktree_context", lambda _p: True)
 
