@@ -74,11 +74,11 @@ or produce.
 
 ### Requirement — `requires`
 
-A directional, hard-dependency edge: resolving or activating the source artifact pulls in the target as a mandatory prerequisite. ``resolve_action_context`` walks ``requires`` edges transitively, with no depth limit, from an action's ``scope``-resolved artifacts; ``charter activate --cascade`` follows the same edge to pull in artifacts that must also be active. It is the second-most-emitted relation in the built-in graph (303 edges) and is the mandatory counterpart to ``suggests``, not a stronger synonym for it.
+A directional, hard-dependency edge: resolving or activating the source artifact pulls in the target as a mandatory prerequisite. ``resolve_action_context`` walks ``requires`` edges transitively, with no depth limit, from an action's ``scope``-resolved artifacts; ``charter activate --cascade`` follows the same edge to pull in artifacts that must also be active. It is the second-most-emitted relation in the built-in graph (320 edges) and is the mandatory counterpart to ``suggests``, not a stronger synonym for it.
 
 ### Suggestion — `suggests`
 
-A directional, soft-recommendation edge: the source artifact points at content that is relevant but not mandatory. ``resolve_action_context`` walks ``suggests`` edges only up to a bounded hop depth -- unlike the unbounded transitive walk used for ``requires`` -- and the charter cascade treats a ``suggests`` target as optional, something an operator may accept or skip. It is the most-emitted relation in the built-in graph (437 edges); the boundedness of the walk, not the edge count, is what distinguishes it from ``requires``.
+A directional, soft-recommendation edge: the source artifact points at content that is relevant but not mandatory. ``resolve_action_context`` walks ``suggests`` edges only up to a bounded hop depth -- unlike the unbounded transitive walk used for ``requires`` -- and the charter cascade treats a ``suggests`` target as optional, something an operator may accept or skip. It is the most-emitted relation in the built-in graph (444 edges); the boundedness of the walk, not the edge count, is what distinguishes it from ``requires``.
 
 ### Application — `applies`
 
@@ -86,7 +86,7 @@ Names the edge from an agent profile to the concrete procedure or tactic that pr
 
 ### Scope — `scope`
 
-Names the edge from a mission-step action node to the directives and tactics that govern performing that action -- the entry point walked at depth 1 by ``resolve_action_context`` before it expands through ``requires``/``suggests``. It is the most heavily emitted action-adjacent relation in the built-in graph (159 edges). Distinct from ``applies``: ``scope`` says an action is governed by an artifact; ``applies`` says a profile executes a workflow artifact. Despite both linking an action-adjacent node to guidance content, they name different edge-roles and are never interchangeable.
+Names the edge from a mission-step action node to the directives and tactics that govern performing that action -- the entry point walked at depth 1 by ``resolve_action_context`` before it expands through ``requires``/``suggests``. It is the most heavily emitted action-adjacent relation in the built-in graph (165 edges). Distinct from ``applies``: ``scope`` says an action is governed by an artifact; ``applies`` says a profile executes a workflow artifact. Despite both linking an action-adjacent node to guidance content, they name different edge-roles and are never interchangeable.
 
 ### Vocabulary — `vocabulary`
 

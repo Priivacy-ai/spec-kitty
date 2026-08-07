@@ -25,7 +25,6 @@
   "purpose_context": "This mission introduces a cross-cutting doctrine layer so Spec Kitty consistently catches install-time and dependency supply-chain risks before implementation and review approvals. It formalizes registry authenticity checks, package freshness visibility, lifecycle-script approval discipline, and Node LTS awareness across software-dev action flow and key agent profiles, with Shai-Hulud-class threats as the motivating scenario.",
   "purpose_tldr": "Add a built-in security checks layer for dependency and install-time supply-chain risks across software-dev workflows.",
   "slug": "supply-chain-security-checks-layer-01KZBFBS",
-  "status_phase": "1",
   "target_branch": "feat/supply-chain-security-checks-layer",
   "topology": "coord",
   "vcs": "git",

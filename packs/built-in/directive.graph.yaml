@@ -89,6 +89,9 @@ nodes:
 - urn: directive:DIRECTIVE_050
   kind: directive
   label: Credential Handling Discipline
+- urn: directive:DIRECTIVE_051
+  kind: directive
+  label: Supply-Chain Install Safety
 - urn: directive:DISCIPLINED_REFACTORING
   kind: directive
   label: Disciplined Refactoring
@@ -386,6 +389,15 @@ edges:
   relation: requires
 - source: directive:DIRECTIVE_050
   target: tactic:secure-design-checklist
+  relation: suggests
+- source: directive:DIRECTIVE_051
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: directive:DIRECTIVE_051
+  target: tactic:dependency-hygiene
+  relation: suggests
+- source: directive:DIRECTIVE_051
+  target: tactic:supply-chain-install-safety
   relation: suggests
 - source: directive:DISCIPLINED_REFACTORING
   target: tactic:refactoring-encapsulate-record

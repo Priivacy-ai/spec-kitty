@@ -25,3 +25,11 @@ These guidelines govern the quality and correctness standards for implementation
 - Phase 0 must fully resolve all `NEEDS CLARIFICATION` items before Phase 1 begins.
 - Phase 1 design artifacts (data-model.md, contracts/, quickstart.md) must derive from confirmed planning answers — not from raw user input.
 - This command ends after Phase 1. Do NOT proceed to task generation.
+
+---
+
+## Supply-Chain Security & Adversarial Evidence
+
+- When the plan touches a dependency (add/upgrade/removal, any ecosystem), reference the `047-supply-chain-install-safety` directive and the `supply-chain-install-safety` tactic; surface registry authenticity, package freshness, lifecycle-script discipline, and Node Active LTS posture in the planning artifacts.
+- This is advisory in v1 (no new fail-closed gate) — but an unexamined default is a governance gap, not a pass.
+- For plan/research artifacts, record adversarial-squad challenge dispositions (`accepted`/`changed`/`deferred_with_rationale`) per `contracts/adversarial-evidence-contract.md`; never drop a contested finding silently.
