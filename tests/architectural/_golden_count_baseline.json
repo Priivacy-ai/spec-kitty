@@ -13,8 +13,8 @@
     "tests/next": 9,
     "tests/retrospective": 23,
     "tests/runtime": 11,
-    "tests/specify_cli": 270,
-    "tests/status": 33,
+    "tests/specify_cli": 269,
+    "tests/status": 35,
     "tests/sync": 49,
     "tests/test_dashboard": 13,
     "tests/unit": 17
