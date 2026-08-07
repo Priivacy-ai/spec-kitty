@@ -11,6 +11,7 @@
   "purpose_context": "Spec Kitty is moving mission types toward being fully doctrine-provided and charter-activated, but that end state keeps being deferred because it rests on two unbuilt foundations. This mission builds them: it collapses the duplicated ways the tool locates built-in mission files into a single resolution door with consistent relocation behavior, and it makes the provisioned default charter the single source of truth for which mission types a project has, with fail-closed provisioning for both new and upgraded projects. It deliberately does not yet change which mission types are offered to users; that follow-on becomes a straightforward wiring step once these foundations exist.",
   "purpose_tldr": "Establish one built-in mission-tree resolution door and one authoritative mission-type activation set, so later work can offer mission types purely from the charter.",
   "slug": "resolution-activation-foundation-01KZ9FKG",
+  "status_phase": "1",
   "target_branch": "feat/resolution-activation-foundation",
   "topology": "coord",
   "vcs": "git",
