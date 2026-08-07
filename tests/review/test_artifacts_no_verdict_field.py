@@ -26,6 +26,14 @@ import pytest
 from specify_cli.review.artifacts import AffectedFile, ReviewCycleArtifact
 from specify_cli.review.cycle import ReviewCycleError, validate_review_artifact
 
+# 2026-08-07 (landing fix, verdict-seam-write-unification #3245): this module
+# shipped with no module-level pytestmark, orphaning all 9 of its tests. Every
+# test here is hermetic (tmp_path fixtures / pure dataclass round-trips, no
+# real git), matching the sibling tests/review/*.py convention (e.g.
+# test_verdict_seam_reader_collapse.py) -- the tests/review/ CI job runs
+# `-m "fast and not windows_ci"`.
+pytestmark = [pytest.mark.fast]
+
 _SAMPLE_KWARGS: dict[str, object] = {
     "cycle_number": 1,
     "wp_id": "WP01",

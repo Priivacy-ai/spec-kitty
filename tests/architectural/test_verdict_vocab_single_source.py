@@ -58,6 +58,15 @@ from specify_cli.status import verdict_vocab
 from specify_cli.status.models import ReviewOverride, WPInnerStateDelta
 from specify_cli.status.reducer import _apply_annotation_delta
 
+# 2026-08-07 (landing fix, verdict-seam-write-unification #3245): this module
+# shipped with no module-level pytestmark, making it invisible to every
+# marker-based CI job (test_pytest_marker_convention.py) and to the
+# arch-adversarial pole's `-m '<shard> and ... and architectural'` selection
+# (test_ci_collection_completeness.py #2957) -- an architectural guard under
+# tests/architectural/ carries the `architectural` marker, matching every
+# sibling file in this directory.
+pytestmark = [pytest.mark.architectural]
+
 #: The bridge itself -- excluded from both the negative and positive scans
 #: (it is the canonical surface, not a sweep site).
 _BRIDGE_RELPATH = "src/specify_cli/status/verdict_vocab.py"

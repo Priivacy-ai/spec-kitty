@@ -26,6 +26,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from specify_cli.migration.verdict_provenance_backfill import (
     BACKFILL_ACTOR,
     ProvenanceFinding,
@@ -38,6 +40,15 @@ from specify_cli.review.artifacts import ReviewCycleArtifact
 from specify_cli.status.models import Lane, ReviewResult, StatusEvent
 from specify_cli.status.reducer import event_sourced_review_result
 from specify_cli.status.store import append_events_atomic_verified, read_events
+
+# 2026-08-07 (landing fix, verdict-seam-write-unification #3245): this module
+# shipped with no module-level pytestmark, orphaning all 15 of its tests (0 CI
+# gates select them). Every test here is hermetic (tmp_path fixtures only, no
+# real git/subprocess), matching the sibling tests/migration/
+# test_backfill_provenance.py's `[pytest.mark.unit, pytest.mark.fast]`
+# convention -- this routes the file into fast-tests-core-misc's
+# "core-misc" shard (tests/migration is not in that shard's --ignore list).
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 MISSION_SLUG = "042-verdict-backfill-demo"
 REJECTED_AT = "2026-01-01T00:00:00+00:00"

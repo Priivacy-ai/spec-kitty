@@ -54,6 +54,18 @@ from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.models import ReviewResult, TransitionRequest
 from specify_cli.status.reducer import event_sourced_review_result, materialize
 
+# 2026-08-07 (landing fix, verdict-seam-write-unification #3245): this module
+# shipped with no module-level pytestmark
+# (test_pytest_marker_convention.py::test_every_test_file_declares_a_
+# pytestmark_marker). Every fixture here is tmp_path-based (no real git repo;
+# the one `subprocess.run` reference is a mocked patch target, not a real
+# invocation), matching the sibling tests/status/test_emit.py convention.
+# `stress` stays as the individual marker on the one genuinely
+# multi-process-heavy test below (see marker_baseline.txt) -- it is not a
+# CI-job-selecting marker on its own, so it composes fine with this module's
+# `fast`.
+pytestmark = [pytest.mark.fast]
+
 from tests.status.conftest import seed_wp_to_planned as _seed_planned
 
 _MISSION_SLUG = "091-verdict-durability"
