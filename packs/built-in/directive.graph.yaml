@@ -77,7 +77,7 @@ nodes:
 - urn: directive:DIRECTIVE_046
   kind: directive
   label: Readable and Consistent Pull Requests
-- urn: directive:DIRECTIVE_051
+- urn: directive:DIRECTIVE_047
   kind: directive
   label: Audience-Oriented Writing
 - urn: directive:DIRECTIVE_048
