@@ -18,10 +18,15 @@ from pathlib import Path, PurePath, PurePosixPath
 from kernel.sibling_paths import SiblingPathNotFound, resolve_installed_sibling
 
 #: Environment variable naming the pack root (default- or operator-supplied).
-#: Read here, at the kernel floor, so built-in-pack-root resolution has exactly
-#: ONE ``SPEC_KITTY_PACKS_ROOT`` read (FR-001/DR-1); every layer above --
-#: the ``get_package_asset_root`` door here and ``doctrine.pack_paths`` -- must
-#: delegate to :func:`get_built_in_pack_root` rather than forking a second read.
+#: Read here, at the kernel floor, so built-in-pack-root *resolution* has exactly
+#: ONE ``SPEC_KITTY_PACKS_ROOT`` read (FR-001/DR-1) -- the resolve in
+#: :func:`get_built_in_pack_root`; every layer above -- the
+#: ``get_package_asset_root`` door here and ``doctrine.pack_paths`` -- must
+#: delegate to it rather than forking a second resolver. (The door also reads
+#: the var once as a *presence gate* to decide ``PACKS_ROOT``-vs-``TEMPLATE_ROOT``
+#: precedence; that read resolves no path, so the single-resolver invariant --
+#: enforced by ``test_packs_root_env_read_lives_only_in_kernel_paths`` at module
+#: granularity -- holds.)
 _PACKS_ROOT_ENV = "SPEC_KITTY_PACKS_ROOT"
 
 #: Environment variable naming a template/asset-copy root (CI/testing). Still
