@@ -1948,10 +1948,33 @@ def _render_tracker_egress(console_out: Any, issues: list[str]) -> None:
     from specify_cli.core.paths import locate_project_root
     from specify_cli.tracker.config import load_tracker_config
 
+    # Each row passes the fragment its **owning transport** passes at that destination --
+    # ``local_service.py`` for ``LOCAL_SUBPROCESS`` and ``tracker/saas_client.py`` for
+    # ``HOSTED_SERVICE`` -- rather than a fragment of ``doctor``'s own. ``doctor`` reports;
+    # it does not transmit, so it has no identifier set to declare. Its contract is that
+    # "the enforced answer and the reported answer cannot disagree" (``egress_verdict.py``
+    # module docstring, the stated reason that module exists), and the refusal text an
+    # operator reads here is rendered from ``identifiers``. Passing anything else -- a
+    # doctor-local fragment, or one transport's fragment for both rows -- would print a
+    # refusal that differs from the one the gate actually raises, which is the exact
+    # divergence the single-function design was built to prevent. Imported locally, as the
+    # two imports above are, so the hosted client and its HTTP stack load only when
+    # ``doctor`` runs.
+    from specify_cli.tracker.local_service import LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS
+    from specify_cli.tracker.saas_client import TRACKER_EGRESS_IDENTIFIER_KINDS
+
     console_out.print(f"\n[bold]{_TRACKER_EGRESS_SECTION_TITLE}[/bold]")
     root = locate_project_root(Path.cwd())  # may be None; that is a rendered case
-    local = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS)
-    hosted = tracker_egress_verdict(root, destination=EgressDestination.HOSTED_SERVICE)
+    local = tracker_egress_verdict(
+        root,
+        destination=EgressDestination.LOCAL_SUBPROCESS,
+        identifiers=LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS,
+    )
+    hosted = tracker_egress_verdict(
+        root,
+        destination=EgressDestination.HOSTED_SERVICE,
+        identifiers=TRACKER_EGRESS_IDENTIFIER_KINDS,
+    )
     # Whether *any* provider is bound -- never which one. Gates the `issues` append
     # only; both rows render regardless. See `_render_tracker_egress_row`.
     #

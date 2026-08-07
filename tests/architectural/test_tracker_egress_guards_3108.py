@@ -93,7 +93,7 @@ Honest limits -- recorded, not papered over
 
 1. **Precondition 1.6(4) -- "the tracker path stays operator-invoked" -- has no executable
    guard, and none is invented here.** If any daemon, sweep, hook or ``next``-loop ever reaches
-   ``LocalTrackerService``, the attribution precondition in ``tracker/egress_consent.py`` is
+   ``LocalTrackerService``, the attribution precondition in ``specify_cli/egress.py`` is
    violated: a valid root for the *wrong project*, which is the cross-project substitution
    ``#3030`` exists to close. That is prose. It is carried as a residual, and a Mission adding an
    automatic caller must re-check it by reading, because nothing here will fire.

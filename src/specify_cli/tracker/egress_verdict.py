@@ -9,8 +9,10 @@ that is the whole point of the module existing.
 
 **Channel 1** (existing, unchanged) -- hosted-sync consent, resolved by
 ``project_egress_refusal`` -> ``resolve_egress_consent`` -> ``permits_egress``
-(``tracker/egress_consent.py``). Absence denies. This module holds the **Mission's only
+(``specify_cli/egress.py``). Absence denies. This module holds the **Mission's only
 module-level import** of ``project_egress_refusal`` -- see "Import-form rules" below.
+Channel 1 is asked with this call site's own ``identifiers`` fragment, which Bundle B made a
+required parameter of ``project_egress_refusal``.
 
 **Channel 2** (new, #3108) -- the project's own committed ``tracker.egress`` key in
 ``.kittify/config.yaml``: ``absent`` / ``refused`` / ``permitted`` / ``fault``. Decoded by
@@ -375,7 +377,7 @@ def _resolve_channel2(root: Path) -> tuple[str, object]:
 def _resolve_channel1(root: Path, identifiers: str) -> tuple[bool, str | None]:
     """The one true Channel-1 derivation (C-004): ``None`` -- and only ``None`` -- permits.
 
-    Delegates entirely to :func:`~specify_cli.tracker.egress_consent.project_egress_refusal`,
+    Delegates entirely to :func:`~specify_cli.egress.project_egress_refusal`,
     which itself performs the guarded ``specify_cli.sync`` import and never raises.
     """
     refusal = project_egress_refusal(root, identifiers)
@@ -650,7 +652,7 @@ def tracker_egress_verdict(
     ``root=None`` is a named exception, specified in full because it is reachable at **both**
     destinations (not only from the hosted client): there is no checkout to read a Channel-2 key
     out of, so this returns text byte-identical to
-    :data:`~specify_cli.tracker.egress_consent.UNDETERMINED_PROJECT_REFUSAL` with no remedies,
+    :data:`~specify_cli.egress.UNDETERMINED_PROJECT_REFUSAL` with no remedies,
     without consulting Channel 2 or the Channel-1 classifier at all.
 
     **Consumption coupling for raise sites (review round 1, MEDIUM-3):** a raise site must
