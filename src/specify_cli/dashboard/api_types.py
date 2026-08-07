@@ -220,6 +220,8 @@ class FeatureItem(TypedDict):
     artifacts: dict[str, ArtifactInfo]
     workflow: WorkflowStatus
     kanban_stats: KanbanStats
+    mission_status: str  # "active" | "planned" | "done" | "draft"
+    next_action: NotRequired[str | None]
     meta: dict[str, Any]
     worktree: WorktreeInfo
     is_legacy: bool  # added by handler, not scanner
