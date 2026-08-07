@@ -1,6 +1,6 @@
 ---
 title: 'Migration: Verdict-Provenance Backfill'
-description: "Upgrade-time backfill (FR-012/SC-008) that reduces each mission's terminal review-cycle .md verdict into the event log, so the event authority is complete after the verdict-reader collapse."
+description: "Upgrade-time backfill (FR-012/SC-008) reducing each mission's terminal review-cycle .md verdict into the event log, completing event authority after the verdict-reader collapse."
 doc_status: active
 updated: '2026-08-06'
 related:

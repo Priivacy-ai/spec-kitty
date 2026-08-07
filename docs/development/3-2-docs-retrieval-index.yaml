@@ -7717,6 +7717,17 @@ pages:
     - {slug: "step-4-sync-filesystem-optional", text: "Step 4: Sync Filesystem (Optional)", level: 3}
     - {slug: "step-5-add-new-agents-later", text: "Step 5: Add New Agents Later", level: 3}
     - {slug: "troubleshooting", text: "Troubleshooting", level: 2}
+  - path: "docs/migrations/verdict-provenance-backfill.md"
+    title: "Migration: Verdict-Provenance Backfill"
+    divio_type: "none"
+    abstract: "Upgrade-time backfill (FR-012/SC-008) reducing each mission's terminal review-cycle .md verdict into the event log, completing event authority after the verdict-reader collapse."
+    anchors:
+    - {slug: "why-this-matters", text: "Why This Matters", level: 2}
+    - {slug: "what-it-does", text: "What It Does", level: 2}
+    - {slug: "when-it-runs", text: "When It Runs", level: 2}
+    - {slug: "idempotency", text: "Idempotency", level: 2}
+    - {slug: "verifying", text: "Verifying", level: 2}
+    - {slug: "rationale-references", text: "Rationale / References", level: 2}
   - path: "docs/operations/identity-boundary-ci-gate.md"
     title: "Identity-Boundary CI Gate"
     divio_type: "none"
