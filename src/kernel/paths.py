@@ -12,6 +12,7 @@ in kernel so that neither package needs to import from the other.
 from __future__ import annotations
 
 import os
+import warnings
 from pathlib import Path, PurePath, PurePosixPath
 
 from kernel.sibling_paths import SiblingPathNotFound, resolve_installed_sibling
@@ -233,6 +234,16 @@ def get_built_in_pack_root() -> Path:
     ``packs/built-in`` sibling (:data:`BUILT_IN_PACK_SIBLING_PATTERN`), covering
     both an editable checkout and an installed wheel in one bounded walk.
 
+    Fail-open-but-loud on a misconfigured override (supersedes DR-1's original
+    silent-parity framing, operator decision 2026-08-07 -- see the ADR
+    addendum on ``docs/adr/3.x/2026-08-05-1-mission-type-availability-before-kind-promotion.md``):
+    when ``SPEC_KITTY_PACKS_ROOT`` is set but ``<value>/built-in`` does not
+    resolve to an existing directory, this emits a :class:`UserWarning` naming
+    the misconfigured path before falling through to the ancestor walk --
+    informing an operator of a broken override beats silently loading whatever
+    doctrine/charter pack the ancestor walk happens to find instead. Resolution
+    still does not raise on the override itself; only the silence is removed.
+
     Callers above this layer -- the :func:`get_package_asset_root` door here,
     and ``doctrine.pack_paths`` (WP02) -- delegate to this one primitive rather
     than forking a second ``SPEC_KITTY_PACKS_ROOT`` read.
@@ -248,6 +259,15 @@ def get_built_in_pack_root() -> Path:
     """
     env_value = os.environ.get(_PACKS_ROOT_ENV)
     env_override = Path(env_value) / _BUILT_IN_DIR_NAME if env_value else None
+    if env_override is not None and not env_override.is_dir():
+        warnings.warn(
+            f"{_PACKS_ROOT_ENV}={env_value!r} does not resolve to a directory "
+            f"(expected {env_override} to exist). Ignoring the override and "
+            "falling back to the installed built-in pack tree -- fix or unset "
+            f"{_PACKS_ROOT_ENV} if this is unexpected.",
+            UserWarning,
+            stacklevel=2,
+        )
     return resolve_installed_sibling(
         anchor_file=Path(__file__),
         env_override=env_override,
@@ -267,7 +287,10 @@ def get_package_asset_root() -> Path:
        that the override governs the final path -- a set-but-unresolvable
        ``PACKS_ROOT`` (its ``/built-in`` child is not a directory) does not fail
        closed here; :func:`get_built_in_pack_root` falls through to the installed
-       sibling (behaviour-parity with the pre-collapse resolver, DR-1).
+       sibling. This no longer happens silently (operator decision 2026-08-07,
+       superseding DR-1's original silent-parity framing): the door inherits a
+       loud :class:`UserWarning` from :func:`get_built_in_pack_root` naming the
+       misconfigured override before falling through.
     2. ``SPEC_KITTY_TEMPLATE_ROOT`` (CI/testing), only when ``PACKS_ROOT`` is
        unset -- several accepted legacy shapes, see :func:`_resolve_env_root`.
     3. Otherwise the same :func:`get_built_in_pack_root` primitive locates the
@@ -280,7 +303,9 @@ def get_package_asset_root() -> Path:
     path, and never falls through to a legacy ``specify_cli/missions`` or
     ``dev_root`` layout (those fallbacks are intentionally gone, DR-2). The one
     exception is a set-but-unresolvable ``PACKS_ROOT`` override (point 1), which
-    resolves to the installed sibling rather than raising on the override.
+    resolves to the installed sibling rather than raising on the override --
+    fail-open, but loudly warned (2026-08-07), not silently, as of the DR-1
+    supersession above.
 
     Returns:
         Path: Absolute path to the missions directory.

@@ -23,6 +23,7 @@ import pytest
 
 import kernel.paths as kernel_paths
 from kernel.paths import (
+    get_built_in_pack_root,
     get_kittify_home,
     get_package_asset_root,
     posix_tree_path,
@@ -435,6 +436,73 @@ class TestGetPackageAssetRootPacksRoot:
         monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(template_root))
 
         assert get_package_asset_root() == packs_missions
+
+
+class TestGetBuiltInPackRootMisconfiguredPacksRootWarning:
+    """A set-but-unresolvable ``SPEC_KITTY_PACKS_ROOT`` now warns loudly (2026-08-07).
+
+    Supersedes DR-1's original silent-parity framing (see the ADR addendum on
+    ``docs/adr/3.x/2026-08-05-1-mission-type-availability-before-kind-promotion.md``):
+    resolution stays fail-open (no raise, still falls back to the installed
+    sibling), but the fallback is no longer silent -- ``get_built_in_pack_root``
+    emits a ``UserWarning`` naming the misconfigured path. The warning must fire
+    ONLY in that set-but-unresolvable case: not when the var is unset, and not
+    when the override resolves cleanly.
+    """
+
+    def test_bogus_packs_root_warns_and_falls_back(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """A nonexistent PACKS_ROOT warns, then still resolves via the ancestor walk."""
+        site, anchor, _repository_anchor = build_post_relocation_wheel_shaped_site_packages(
+            tmp_path
+        )
+        monkeypatch.setattr(kernel_paths, "__file__", str(anchor))
+        bogus_root = tmp_path / "does-not-exist"
+        monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(bogus_root))
+
+        with pytest.warns(UserWarning, match="SPEC_KITTY_PACKS_ROOT"):
+            result = get_built_in_pack_root()
+
+        assert result == site / "packs" / "built-in"
+
+    def test_unset_packs_root_emits_no_warning(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, recwarn: pytest.WarningsRecorder
+    ) -> None:
+        """No env var at all -- the ancestor walk resolves silently, no warning."""
+        site, anchor, _repository_anchor = build_post_relocation_wheel_shaped_site_packages(
+            tmp_path
+        )
+        monkeypatch.setattr(kernel_paths, "__file__", str(anchor))
+        monkeypatch.delenv("SPEC_KITTY_PACKS_ROOT", raising=False)
+
+        result = get_built_in_pack_root()
+
+        assert result == site / "packs" / "built-in"
+        assert len(recwarn.list) == 0, [str(w.message) for w in recwarn.list]
+
+    def test_valid_packs_root_emits_no_warning(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, recwarn: pytest.WarningsRecorder
+    ) -> None:
+        """A PACKS_ROOT whose ``built-in`` child exists wins silently, no warning."""
+        env_root = tmp_path / "env-packs"
+        env_built_in = env_root / "built-in"
+        env_built_in.mkdir(parents=True)
+
+        # Anchor is irrelevant here since the valid override wins outright, but
+        # point it at a real synthetic tree for realism/consistency with the
+        # sibling tests above.
+        site, anchor, _repository_anchor = build_post_relocation_wheel_shaped_site_packages(
+            tmp_path
+        )
+        monkeypatch.setattr(kernel_paths, "__file__", str(anchor))
+        monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(env_root))
+
+        result = get_built_in_pack_root()
+
+        assert result == env_built_in
+        assert result != site / "packs" / "built-in"
+        assert len(recwarn.list) == 0, [str(w.message) for w in recwarn.list]
 
 
 class TestRenderRuntimePath:

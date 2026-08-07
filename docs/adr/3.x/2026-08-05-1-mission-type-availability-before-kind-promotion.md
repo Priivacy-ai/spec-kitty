@@ -183,3 +183,23 @@ constants collapse onto the kernel primitive + the existing `missions` leaf name
 plan, and contracts are revised accordingly; `_find_relocated_missions_ancestor` is **logically**
 duplicated (not byte-identical — the "byte-duplicated" wording earlier in this ADR is loose; the code
 uses a constant in kernel and an inline literal in home.py).
+
+## Addendum (2026-08-07) — DR-1 silent-parity behaviour superseded: misconfigured `SPEC_KITTY_PACKS_ROOT` now warns loudly
+
+The 2026-08-05 addendum above records DR-1 (mission `resolution-activation-foundation-01KZ9FKG`,
+`post-plan-review-findings.md`): unify the built-in pack resolver behind one kernel-floor primitive,
+`kernel.paths.get_built_in_pack_root`. One consequence of that unification, carried over unchanged from
+the pre-collapse resolver for behaviour-parity, was that a **set-but-unresolvable**
+`SPEC_KITTY_PACKS_ROOT` — the value is present, but `<value>/built-in` does not exist as a directory —
+resolved *silently* to the installed/ancestor-walk sibling. The override lost the race, but nothing told
+the operator it had.
+
+**Operator decision (2026-08-07): this silent parity is superseded.** It is cleaner to inform an
+operator of a misconfigured environment than to silently load a possibly-unrelated doctrine/charter pack
+on their machine. Resolution stays **fail-open** — a broken override must not hard-break every command —
+but the fallback is now **loud**: `get_built_in_pack_root` emits a `UserWarning` naming the misconfigured
+`SPEC_KITTY_PACKS_ROOT` value and the `built-in` path it failed to resolve, before falling through to the
+ancestor-walk-resolved installed sibling. This is a narrow amendment to DR-1's fallback framing, not a
+reversal of DR-1 itself: there is still exactly one resolution primitive, and it still does not raise on
+the override — only the silence is removed. See `src/kernel/paths.py::get_built_in_pack_root` and its
+regression coverage in `tests/kernel/test_paths.py`.
