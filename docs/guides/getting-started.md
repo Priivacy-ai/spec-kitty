@@ -5,6 +5,7 @@ doc_status: active
 updated: '2026-06-03'
 type: tutorial
 related:
+- docs/guides/install-spec-kitty.md
 - docs/guides/your-first-mission.md
 ---
 # Getting Started with Spec Kitty
@@ -51,6 +52,11 @@ Expected output (abridged):
 ```
 spec-kitty-cli version 3.1.5
 ```
+
+If this step gives you trouble — a platform not covered above, an
+`externally-managed-environment` error, or a Git credential prompt on Linux —
+the [installation guide](install-spec-kitty.md) has the full per-platform
+instructions and troubleshooting.
 
 ## Step 2: Initialize a Project
 

@@ -1,5 +1,6 @@
 ---
 title: 'ADR 8: Deterministic CSV Schema Enforcement for Research Missions'
+description: Pins the evidence-log and source-register column schemas and surfaces mismatches at upgrade time, rather than silently rewriting a researcher's collected data.
 status: Accepted
 date: '2026-01-25'
 ---

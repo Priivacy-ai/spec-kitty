@@ -1,5 +1,6 @@
 ---
 title: Review Approval and Integration Completion Are Distinct
+description: 'Splits reviewer sign-off from completion by adding an approved lane, so done means integrated with acceptance evidence recorded, not merely reviewed.'
 status: Superseded
 date: '2026-04-03'
 ---

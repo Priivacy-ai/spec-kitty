@@ -3572,18 +3572,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/initiatives/next-mission-mappings/issue-documentation-mission-next-mapping.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/plans/initiatives/next-mission-mappings/issue-plan-mission-next-mapping.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/plans/initiatives/test_improvement/IMPLEMENTATION_COMPLETE.md
   tag: current
   divio_type: none

@@ -1,5 +1,6 @@
 ---
 title: 'ADR 2026-06-07-1: Execution-State Canonical Surface (`mission_runtime`)'
+description: 'Gives execution state a physical home in a net-new top-level `src/mission_runtime/` package, grown Strangler-Fig style while `core/execution_context.py` becomes a shim.'
 status: Accepted
 date: '2026-06-07'
 ---

@@ -1,32 +1,49 @@
-"""``description`` length gate (NFR-003).
+"""``description`` metadata gate for the published documentation tree.
 
-Every published page must carry a ``description`` whose length is **50-180**
-characters (the SEO band the DocFX build publishes into ``<meta name=...>`` and
-the social cards). Today nothing *validates* this: ``seo_postprocess.py``
-**emits** a description into the rendered HTML but never checks its length, and
-the inventory rulers do not look at ``description`` at all. This module is the
-**net-new** gate that closes that hole.
+Every published page must carry a ``description`` that is **unique**, **not
+boilerplate**, and **50-180 characters** long (the SEO band the DocFX build
+publishes into ``<meta name=...>`` and the social cards).
 
-It mirrors the established docs-ruler contract (cf.
-:mod:`scripts.docs.related_validator`): **report-only by default** (exit ``0``,
-C-002) so it can land green against a not-yet-authored tree, with a wired
-``--strict`` flag that flips the exit to non-zero. WP14 turns the default on as
-part of flipping Mission A's rulers to blocking; WP12 authors the per-page
-descriptions that make the strict run green.
+This module is the *source-level* gate: it runs at PR time, needs no .NET, and
+therefore blocks before merge — which the built-output verifier structurally
+cannot do.
+
+Which pages are in scope is **not** this module's decision. It asks
+:func:`scripts.docs._published_pages.resolve_published_pages`, which reads
+``docs/docfx.json`` — the same declaration the build follows. The gate used to
+walk ``docs_root.rglob("*.md")`` itself, and its sibling in
+``tests/docs/test_docs_seo.py`` used a hardcoded glob list; the two answers
+diverged and the SEO gate spent months guarding 16 of 674 pages while reporting
+green. There is now exactly one authority.
 
 A violation is one of:
 
-* ``missing``   — no ``description`` key, or it is blank;
-* ``too_short`` — ``len(description) < 50``;
-* ``too_long``  — ``len(description) > 180``.
+* ``missing``     — no ``description`` key, or it is blank;
+* ``boilerplate`` — the description is a known render-side fallback, i.e. the
+  author wrote nothing and inherited the default (distinct from ``missing``
+  because the two call for different author actions);
+* ``too_short``   — ``len(description) < 50``;
+* ``too_long``    — ``len(description) > 180``;
+* ``duplicate``   — another published page carries the byte-identical
+  description; every such violation names its colliding peers, because a
+  one-sided uniqueness report is not actionable.
 
 Output shape::
 
     { "checked_count": int,
-      "violations": [ {"path": str, "reason": str, "length": int | null} ] }
+      "violations": [ {"path": str, "reason": str,
+                       "length": int | null, "peers": [str]} ] }
 
-where ``checked_count`` is the number of pages examined — so a "0 violations"
-result can never silently mean "0 checked".
+Exit codes:
+
+===  =========================================================================
+0    No violations, or violations under the default report-only mode.
+1    ``--strict`` and at least one violation.
+2    The gate could not establish a trustworthy page set (:class:`CoverageError`)
+     — an empty or collapsed resolution. This is *not* a content violation but a
+     malfunction of the gate itself, so it fails regardless of ``--strict``: a
+     gate that validates zero pages must fail, not pass.
+===  =========================================================================
 
 Depends only on the standard library plus ``ruamel.yaml`` (via
 :func:`scripts.docs._inventory.parse_frontmatter`). No new dependency.
@@ -37,16 +54,26 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final
 
+from scripts.docs import seo_postprocess
 from scripts.docs._inventory import parse_frontmatter
+from scripts.docs._published_pages import (
+    MINIMUM_EXPECTED_PAGES,
+    PublishedPageSet,
+    resolve_published_pages,
+)
 
 __all__ = [
+    "BOILERPLATE_DESCRIPTIONS",
     "DEFAULT_DOCS_ROOT",
+    "EXIT_COVERAGE_FAILURE",
     "MAX_DESCRIPTION_LENGTH",
     "MIN_DESCRIPTION_LENGTH",
+    "CoverageError",
     "LengthReport",
     "LengthViolation",
     "build_parser",
@@ -57,39 +84,97 @@ __all__ = [
 
 DEFAULT_DOCS_ROOT: Final[str] = "docs"
 
-#: Content-invariant doc subtree excluded from the description gate. ADR decision
-#: bodies are byte-identical to their pre-move originals (C-002, enforced by
-#: ``test_adr_content_invariance``) and carry only bare ``status`` frontmatter —
-#: by design they have no ``description``. Holding them to the 50-180 band would
-#: make the gate un-flippable to blocking against a correct tree.
-_EXCLUDE_PREFIXES: Final[tuple[str, ...]] = ("docs/adr/",)
+# Historical note — the retired ``docs/adr/`` exclusion.
+#
+# This module used to hold every ADR body out of the gate:
+#
+#     #: Content-invariant doc subtree excluded from the description gate.
+#     _EXCLUDE_PREFIXES: Final[tuple[str, ...]] = ("docs/adr/",)
+#
+# The stated justification was that ADR bodies are byte-identical to their
+# pre-move originals (C-002, "enforced by ``test_adr_content_invariance``") and
+# carry only bare ``status`` frontmatter, so by design they have no
+# ``description``.
+#
+# That justification expired. The byte-identity content-invariance proof was a
+# transitional gate for the move itself and was retired upstream on 2026-06-29
+# (``ccd278061``); ``tests/docs/test_adr_content_invariance.py`` records this in
+# its own docstring. The census gate that survived it asserts only a canonical
+# ``status`` value and explicitly permits additional frontmatter keys, so
+# nothing forbids an ADR from carrying a ``description`` — and the
+# ``docs-seo-metadata-enforcement`` mission backfilled one onto all 151 of them.
+# The exclusion is therefore gone: ADRs are in scope like every other published
+# page, and the exclusions that remain are the enumerated, reasoned ones the
+# resolver owns (``_published_pages.DEFAULT_EXCLUSIONS``).
+#
+# Scope note (DIRECTIVE_024): only the *description* exemption was retired. The
+# structural-lint frontmatter contract still exempts ADR bodies through its own
+# styleguide config; that exemption is deliberately untouched, because widening
+# it would pull 151 files into a different contract's full field requirements.
 
 #: Inclusive description length band (NFR-003). 50 and 180 are both **valid**;
 #: 49 and 181 are violations. These boundaries are the gate's whole contract.
 MIN_DESCRIPTION_LENGTH: Final[int] = 50
 MAX_DESCRIPTION_LENGTH: Final[int] = 180
 
+#: Exit code for a coverage failure — the gate could not trust its page set.
+EXIT_COVERAGE_FAILURE: Final[int] = 2
+
 _REASON_MISSING: Final[str] = "missing"
+_REASON_BOILERPLATE: Final[str] = "boilerplate"
 _REASON_TOO_SHORT: Final[str] = "too_short"
 _REASON_TOO_LONG: Final[str] = "too_long"
+_REASON_DUPLICATE: Final[str] = "duplicate"
+
+
+def _render_side_fallback() -> str:
+    """Return the description ``seo_postprocess`` substitutes for a page with none.
+
+    Probed from the render side rather than retyped here. A retyped copy would
+    silently disarm the boilerplate check the moment the fallback changed —
+    which is the same drift-between-two-copies failure this gate exists to fix.
+    """
+    return seo_postprocess.extract_description("<html><head></head></html>")
+
+
+#: Descriptions that mean "nobody wrote one". Derived from the render side (see
+#: :func:`_render_side_fallback`), never typed out in this module.
+BOILERPLATE_DESCRIPTIONS: Final[frozenset[str]] = frozenset({_render_side_fallback()})
+
+
+class CoverageError(RuntimeError):
+    """The gate could not establish a trustworthy set of pages to check.
+
+    Raised when the published page set is empty or has collapsed below
+    :data:`scripts.docs._published_pages.MINIMUM_EXPECTED_PAGES`. Distinct from
+    a content violation: nothing is wrong with any page, the *gate* is not in a
+    position to make an assertion — and silently reporting "0 violations" from
+    that position is precisely the defect under repair.
+    """
 
 
 @dataclass(slots=True, frozen=True)
 class LengthViolation:
-    """A page whose ``description`` is missing or out of the 50-180 band."""
+    """A page whose ``description`` fails the metadata contract."""
 
     path: str
     reason: str
     length: int | None
+    peers: tuple[str, ...] = ()
 
     def as_dict(self) -> dict[str, object]:
-        """Serialize to the contract's ``{path, reason, length}`` shape."""
-        return {"path": self.path, "reason": self.reason, "length": self.length}
+        """Serialize to the contract's ``{path, reason, length, peers}`` shape."""
+        return {
+            "path": self.path,
+            "reason": self.reason,
+            "length": self.length,
+            "peers": list(self.peers),
+        }
 
 
 @dataclass(slots=True, frozen=True)
 class LengthReport:
-    """Result of a ``description`` length walk."""
+    """Result of a ``description`` validation pass over the published set."""
 
     checked_count: int = 0
     violations: list[LengthViolation] = field(default_factory=list)
@@ -103,13 +188,20 @@ class LengthReport:
 
 
 def check_description_length(description: str | None) -> str | None:
-    """Return a violation reason for ``description``, or ``None`` when valid.
+    """Return a per-page violation reason for ``description``, or ``None``.
 
     A length of exactly 50 or 180 is **valid** (inclusive band). ``None`` and
-    blank-after-strip descriptions are ``missing``.
+    blank-after-strip descriptions are ``missing``. A known render-side fallback
+    is ``boilerplate`` — checked before the band, since the fallback happens to
+    sit inside it and would otherwise pass unnoticed.
+
+    Uniqueness is deliberately **not** decided here: it is a property of the set,
+    not of a single string. See :func:`validate_descriptions`.
     """
     if description is None or not description.strip():
         return _REASON_MISSING
+    if description in BOILERPLATE_DESCRIPTIONS:
+        return _REASON_BOILERPLATE
     length = len(description)
     if length < MIN_DESCRIPTION_LENGTH:
         return _REASON_TOO_SHORT
@@ -118,40 +210,155 @@ def check_description_length(description: str | None) -> str | None:
     return None
 
 
-def validate_descriptions(*, docs_root: Path, repo_root: Path) -> LengthReport:
-    """Walk ``docs_root`` and validate every page's ``description`` length.
+def validate_descriptions(
+    *,
+    docs_root: Path,
+    repo_root: Path,
+    docfx_config: Path | None = None,
+) -> LengthReport:
+    """Validate every published page's ``description``.
 
     Parameters
     ----------
     docs_root:
-        Directory whose ``*.md`` files are scanned for frontmatter.
+        Documentation tree. The published subset of it is resolved from
+        ``docfx.json``; this function never decides publication for itself.
     repo_root:
         Base against which page paths are rendered repo-relative in the report.
+    docfx_config:
+        Optional explicit ``docfx.json`` path, forwarded to the resolver.
+
+    Raises
+    ------
+    CoverageError
+        The resolved page set is empty or below the non-vacuity floor.
     """
-    checked = 0
+    page_set = _resolve_page_set(docs_root=docs_root, docfx_config=docfx_config)
+    _assert_coverage(page_set, docs_root=docs_root)
+
+    descriptions = _collect_descriptions(
+        sorted(page_set.pages), docs_root=docs_root, repo_root=repo_root
+    )
+    violations = _per_page_violations(descriptions)
+    violations.extend(
+        _duplicate_violations(descriptions, flagged={v.path for v in violations})
+    )
+    violations.sort(key=lambda v: (v.path, v.reason))
+    return LengthReport(checked_count=len(descriptions), violations=violations)
+
+
+def _resolve_page_set(*, docs_root: Path, docfx_config: Path | None) -> PublishedPageSet:
+    """Ask the resolver for the published set, translating its refusals.
+
+    The resolver fails closed — a missing, unparseable, empty, or collapsed
+    declaration raises rather than yielding a partial set. Those refusals are
+    re-raised as :class:`CoverageError` so the CLI can report them as a gate
+    malfunction instead of crashing with a traceback.
+    """
+    try:
+        return resolve_published_pages(docs_root=docs_root, docfx_config=docfx_config)
+    except (FileNotFoundError, ValueError) as exc:
+        raise CoverageError(
+            f"description gate could not resolve its published page set: {exc}"
+        ) from exc
+
+
+def _assert_coverage(page_set: PublishedPageSet, *, docs_root: Path) -> None:
+    """Refuse to validate a vacuous or collapsed page set (FR-003, I-01/I-02).
+
+    The resolver already enforces this floor; asserting it again here is
+    deliberate. This gate's promise is "every published page was checked", and
+    that promise must not become unenforced if the resolver's own floor is ever
+    relaxed. A gate that validates zero pages must fail, not pass — reporting
+    green over an empty set is exactly how the defect under repair stayed
+    invisible.
+    """
+    globs = list(page_set.source_globs)
+    observed = len(page_set.pages)
+    if observed == 0:
+        raise CoverageError(
+            f"description gate resolved no published pages under {docs_root}; "
+            f"source globs were {globs}. A gate that validates zero pages must "
+            "fail, not pass."
+        )
+    if observed < MINIMUM_EXPECTED_PAGES:
+        raise CoverageError(
+            f"description gate resolved {observed} published page(s) under "
+            f"{docs_root}, below the required floor of {MINIMUM_EXPECTED_PAGES}; "
+            f"source globs were {globs}. Either the globs under-collect or the "
+            "tree has collapsed; both must fail loud."
+        )
+
+
+def _collect_descriptions(
+    pages: list[Path], *, docs_root: Path, repo_root: Path
+) -> dict[str, str | None]:
+    """Read every page's ``description``, keyed by repo-relative path.
+
+    Resolver pages are rendered relative to ``docs_root.parent`` (i.e.
+    ``docs/api/slash-commands.md``), so that directory is what turns them back
+    into readable absolute paths.
+    """
+    tree_root = docs_root.parent
+    collected: dict[str, str | None] = {}
+    for page in pages:
+        absolute = tree_root / page
+        collected[_repo_relative(absolute, repo_root)] = _read_description(absolute)
+    return collected
+
+
+def _per_page_violations(descriptions: dict[str, str | None]) -> list[LengthViolation]:
+    """Apply :func:`check_description_length` to every collected page."""
     violations: list[LengthViolation] = []
-
-    if not docs_root.exists() or not docs_root.is_dir():
-        return LengthReport(checked_count=0, violations=[])
-
-    for md_path in sorted(docs_root.rglob("*.md")):
-        if _repo_relative(md_path, repo_root).startswith(_EXCLUDE_PREFIXES):
-            continue  # content-invariant ADR bodies carry no description (C-002)
-        description = _read_description(md_path)
-        checked += 1
+    for path, description in sorted(descriptions.items()):
         reason = check_description_length(description)
         if reason is None:
             continue
         violations.append(
             LengthViolation(
-                path=_repo_relative(md_path, repo_root),
+                path=path,
                 reason=reason,
                 length=None if description is None else len(description),
             )
         )
+    return violations
 
-    violations.sort(key=lambda v: v.path)
-    return LengthReport(checked_count=checked, violations=violations)
+
+def _duplicate_violations(
+    descriptions: dict[str, str | None], *, flagged: set[str]
+) -> list[LengthViolation]:
+    """Flag every page sharing a byte-identical description with another (FR-007).
+
+    Comparison is exact-match on the raw string: normalising case or whitespace
+    is deliberately **not** applied, because two descriptions differing only in
+    case are still duplicates for search purposes and exact matching keeps the
+    rule explainable.
+
+    Pages already carrying a per-page violation are skipped — a page reported as
+    ``missing`` or ``boilerplate`` has a more specific and more actionable
+    reason, and 151 identical ``boilerplate`` reports would bury it.
+    """
+    groups: dict[str, list[str]] = defaultdict(list)
+    for path, description in descriptions.items():
+        if path in flagged or description is None:
+            continue
+        groups[description].append(path)
+
+    violations: list[LengthViolation] = []
+    for description, members in groups.items():
+        if len(members) < 2:
+            continue
+        ordered = sorted(members)
+        violations.extend(
+            LengthViolation(
+                path=path,
+                reason=_REASON_DUPLICATE,
+                length=len(description),
+                peers=tuple(peer for peer in ordered if peer != path),
+            )
+            for path in ordered
+        )
+    return violations
 
 
 def _read_description(md_path: Path) -> str | None:
@@ -173,25 +380,31 @@ def _repo_relative(path: Path, repo_root: Path) -> str:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Build the length-gate CLI parser."""
+    """Build the description-gate CLI parser."""
     parser = argparse.ArgumentParser(
         prog="description_length_check",
         description=(
-            "Validate docs/ frontmatter 'description' length is 50-180 chars. "
-            "Report-only (exit 0) unless --strict is passed."
+            "Validate that every published page carries a unique, non-boilerplate "
+            "'description' of 50-180 chars. Report-only (exit 0) unless --strict."
         ),
     )
     parser.add_argument(
         "--docs-root",
         type=Path,
         default=Path(DEFAULT_DOCS_ROOT),
-        help=f"Docs tree to scan (default: {DEFAULT_DOCS_ROOT}).",
+        help=f"Docs tree whose published subset is checked (default: {DEFAULT_DOCS_ROOT}).",
     )
     parser.add_argument(
         "--repo-root",
         type=Path,
         default=Path.cwd(),
         help="Base for rendering repo-relative page paths (default: cwd).",
+    )
+    parser.add_argument(
+        "--docfx-config",
+        type=Path,
+        default=None,
+        help="Explicit docfx.json declaring the published set (default: <docs-root>/docfx.json).",
     )
     parser.add_argument(
         "--json",
@@ -201,10 +414,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--strict",
         action="store_true",
-        help=(
-            "Exit non-zero when any description is missing/out-of-band. Wired "
-            "but OFF by default (report-only, C-002); WP14 turns it on."
-        ),
+        help="Exit non-zero when any description is missing, boilerplate, out-of-band, or duplicated.",
     )
     return parser
 
@@ -212,7 +422,15 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point. Returns the process exit code."""
     args = build_parser().parse_args(argv)
-    report = validate_descriptions(docs_root=args.docs_root, repo_root=args.repo_root)
+    try:
+        report = validate_descriptions(
+            docs_root=args.docs_root,
+            repo_root=args.repo_root,
+            docfx_config=args.docfx_config,
+        )
+    except CoverageError as exc:
+        sys.stderr.write(f"description_length_check: COVERAGE FAILURE: {exc}\n")
+        return EXIT_COVERAGE_FAILURE
     _emit(report, as_json=args.json)
     if args.strict and report.violations:
         return 1
@@ -230,9 +448,10 @@ def _emit(report: LengthReport, *, as_json: bool) -> None:
         f"{len(report.violations)} violation(s).\n"
     )
     for violation in report.violations:
+        peers = f" also on: {', '.join(violation.peers)}" if violation.peers else ""
         sys.stdout.write(
             f"  {violation.reason.upper()} {violation.path} "
-            f"(length={violation.length})\n"
+            f"(length={violation.length}){peers}\n"
         )
 
 

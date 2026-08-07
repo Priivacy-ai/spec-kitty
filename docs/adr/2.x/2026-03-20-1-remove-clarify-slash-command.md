@@ -1,5 +1,6 @@
 ---
 title: Remove the Clarify Slash Command
+description: Deletes the clarify slash command outright and ships a destructive upgrade migration, folding its value back into stronger specification work up front.
 status: Accepted
 date: '2026-03-20'
 ---

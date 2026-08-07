@@ -1,5 +1,6 @@
 ---
 title: 'ADR 2 (2026-04-14): Agent Skills Renderer for Codex and Vibe'
+description: 'Adds a scoped renderer emitting per-command SKILL.md packages for Codex and Vibe only, installed additively and tracked through an ownership manifest.'
 status: Accepted
 date: '2026-04-14'
 ---

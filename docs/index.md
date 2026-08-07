@@ -24,6 +24,10 @@ related:
 
 New here? [Get started](guides/getting-started.md) walks you through installing Spec Kitty and running your first mission end to end — about 30 minutes, no prior Spec Kitty knowledge required.
 
+Just need the install steps? [Install Spec Kitty](guides/install-spec-kitty.md) covers macOS, Linux, and Windows — the `pipx`, `uv`, and `pip` paths, adding Spec Kitty to a repository you already have, and what to do when your distribution blocks a system-wide `pip install`.
+
+Set up and wondering what to type? The [slash command reference](api/slash-commands.md) covers the `/spec-kitty.*` commands your AI agent gains — specify, plan, tasks, implement, review, accept, merge — with each one's syntax, prerequisites, and the files it writes.
+
 Already using Spec Kitty? Head to [Migrations](migrations/index.md) if you're upgrading, [Guides](guides/index.md) for task-oriented how-tos, or the [API and CLI reference](api/index.md) for exact command behavior.
 
 ## What's new and roadmap

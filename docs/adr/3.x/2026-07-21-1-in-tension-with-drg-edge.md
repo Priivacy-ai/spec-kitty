@@ -1,5 +1,6 @@
 ---
 title: 'in_tension_with and reconciles_tension DRG edges (retiring opposed_by)'
+description: 'Retires `opposed_by` for symmetric, non-transitive `in_tension_with` plus `reconciles_tension` DRG relations, so tension is one traversable graph edge.'
 status: Superseded
 date: '2026-07-21'
 ---

@@ -1,5 +1,6 @@
 ---
 title: 'ADR 2026-05-28-1: CI Dependency Resolution and Test Surface Consistency'
+description: 'CI installs from the frozen lockfile so the pipeline environment matches local development, closing four failure modes that were invisible outside CI.'
 status: Accepted
 date: '2026-05-28'
 ---

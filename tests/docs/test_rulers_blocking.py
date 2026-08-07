@@ -41,6 +41,9 @@ from scripts.docs import check_docs_freshness as orchestrator  # noqa: E402
 from scripts.docs import description_length_check as desc_gate  # noqa: E402
 from scripts.docs import related_validator  # noqa: E402
 from scripts.docs import relative_link_fixer  # noqa: E402
+from scripts.docs._published_pages import (  # noqa: E402
+    MINIMUM_EXPECTED_PAGES as _MINIMUM_EXPECTED_PAGES,
+)
 
 pytestmark = pytest.mark.architectural
 
@@ -196,38 +199,82 @@ def test_r3_lockfile_drift_reds_with_error_severity(
 # --------------------------------------------------------------------------- #
 
 
+def _stage_published_docs(root: Path, pages: dict[str, str]) -> Path:
+    """Stage a ``docs`` tree the description gate will accept as published.
+
+    The gate resolves its page set from ``docfx.json`` and refuses any set below
+    the non-vacuity floor — a gate validating a handful of pages is exactly the
+    silent under-collection it exists to prevent, so there is deliberately no
+    override. Filler pages carry distinct in-band descriptions so the only
+    violation is the seeded one, keeping each RED attributable.
+    """
+    docs = root / "docs"
+    docs.mkdir(parents=True, exist_ok=True)
+    (docs / "docfx.json").write_text(
+        json.dumps({"build": {"content": [{"files": ["**.md"], "exclude": ["**/_*.md"]}]}}),
+        encoding="utf-8",
+    )
+    for index in range(_MINIMUM_EXPECTED_PAGES + 20):
+        _write(
+            docs / "filler" / f"page_{index:05d}.md",
+            f'---\ndescription: "Filler page {index:05d} '
+            f'{"y" * 60}"\n---\n# Filler\n',
+        )
+    for relative, text in pages.items():
+        _write(docs / relative, text)
+    return docs
+
+
 def test_description_gate_reds_on_out_of_band(tmp_path: Path) -> None:
     root = tmp_path / "repo"
-    _write(
-        root / "docs" / "short.md",
-        f'---\ndescription: "{"x" * 49}"\n---\n# Short\n',
+    docs = _stage_published_docs(
+        root, {"short.md": f'---\ndescription: "{"x" * 49}"\n---\n# Short\n'}
     )
-    assert (
-        desc_gate.main(["--docs-root", str(root / "docs"), "--repo-root", str(root), "--strict"])
-        == 1
-    )
+    assert desc_gate.main(["--docs-root", str(docs), "--repo-root", str(root), "--strict"]) == 1
 
 
 def test_description_gate_green_on_in_band(tmp_path: Path) -> None:
     root = tmp_path / "repo"
-    _write(
-        root / "docs" / "ok.md",
-        f'---\ndescription: "{_GOOD_DESC}"\n---\n# OK\n',
+    docs = _stage_published_docs(
+        root, {"ok.md": f'---\ndescription: "{_GOOD_DESC}"\n---\n# OK\n'}
     )
-    assert (
-        desc_gate.main(["--docs-root", str(root / "docs"), "--repo-root", str(root), "--strict"])
-        == 0
-    )
+    assert desc_gate.main(["--docs-root", str(docs), "--repo-root", str(root), "--strict"]) == 0
 
 
-def test_description_gate_excludes_content_invariant_adrs(tmp_path: Path) -> None:
-    """ADR bodies carry no description (C-002) and must not red the gate."""
+def test_description_gate_covers_adrs(tmp_path: Path) -> None:
+    """ADRs are in scope: a bare-``status`` ADR body now reds the gate.
+
+    This assertion is the exact inverse of the one it replaces. The gate used to
+    exclude ``docs/adr/`` wholesale, justified by a byte-identity
+    content-invariance proof (C-002) that was itself retired upstream on
+    2026-06-29 (``ccd278061``). With that rationale expired and descriptions
+    backfilled across the ADR tree, an ADR *without* one is a violation like any
+    other published page.
+    """
     root = tmp_path / "repo"
-    _write(root / "docs" / "adr" / "3.x" / "2026-06-27-1-x.md", _GOOD_ADR)
-    assert (
-        desc_gate.main(["--docs-root", str(root / "docs"), "--repo-root", str(root), "--strict"])
-        == 0
+    docs = _stage_published_docs(root, {"adr/3.x/2026-06-27-1-x.md": _GOOD_ADR})
+    assert desc_gate.main(["--docs-root", str(docs), "--repo-root", str(root), "--strict"]) == 1
+
+
+def test_description_gate_green_when_adrs_are_described(tmp_path: Path) -> None:
+    """The counterpart green: a described ADR does not red the gate."""
+    root = tmp_path / "repo"
+    described = _GOOD_ADR.replace(
+        "status: Accepted", f'status: Accepted\ndescription: "{_GOOD_DESC}"'
     )
+    docs = _stage_published_docs(root, {"adr/3.x/2026-06-27-1-x.md": described})
+    assert desc_gate.main(["--docs-root", str(docs), "--repo-root", str(root), "--strict"]) == 0
+
+
+def test_description_gate_reds_on_an_empty_page_set(tmp_path: Path) -> None:
+    """A gate that resolves no pages fails — it never reports a vacuous green."""
+    root = tmp_path / "repo"
+    docs = root / "docs"
+    docs.mkdir(parents=True)
+    (docs / "docfx.json").write_text(
+        json.dumps({"build": {"content": [{"files": ["nowhere/**.md"]}]}}), encoding="utf-8"
+    )
+    assert desc_gate.main(["--docs-root", str(docs), "--repo-root", str(root)]) != 0
 
 
 def test_body_link_gate_reds_on_dead_link(tmp_path: Path) -> None:

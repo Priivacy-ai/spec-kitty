@@ -1,5 +1,6 @@
 ---
 title: 'ADR: Architectural Dependency Testing & Graph Infrastructure'
+description: Adopts PyTestArch so the kernel, doctrine, charter, and specify_cli dependency direction is executable, and a violating import fails a test instead of lingering.
 status: Accepted
 date: '2026-03-27'
 ---

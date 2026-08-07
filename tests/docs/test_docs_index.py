@@ -295,8 +295,11 @@ def test_resolve_abstract_prefers_frontmatter_then_paragraph_then_empty() -> Non
         docs_index.resolve_abstract({}, "# H\n\nFirst line.\nSecond line.\n\n## More\n")
         == "First line. Second line."
     )
-    # ADR/changelog exemption (description_length_check.py's docs/adr/
-    # carve-out): no description, no leading prose paragraph -> "".
+    # No description and no leading prose paragraph -> "". This used to be
+    # described as the "ADR/changelog exemption", pointing at
+    # description_length_check.py's docs/adr/ carve-out; that carve-out was
+    # retired once ADR descriptions were backfilled, and this assertion is
+    # about resolve_abstract's own fallback, not about any exemption.
     assert docs_index.resolve_abstract({}, "## Only a heading\n") == ""
 
 

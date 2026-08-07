@@ -1,5 +1,6 @@
 ---
 title: 'ADR: DRG edges are the canonical artefact-relationship authority; inline `references:` blocks are pre-DRG residue to be migrated and retired'
+description: 'DRG edges become the only artefact-relationship vocabulary; 559 inline `references:` entries migrate to `*.graph.yaml` fragments and the field closes to relationship growth.'
 status: Accepted
 date: '2026-07-26'
 ---

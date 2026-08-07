@@ -1,3 +1,8 @@
+---
+title: 1.x ADRs
+description: Index of the archived 1.x architectural decisions covering workspace provenance, dependency auto-merge, config-driven agents, and CLI-first command rules.
+---
+
 # 1.x ADRs
 
 Architectural Decision Records for the legacy 1.x track.

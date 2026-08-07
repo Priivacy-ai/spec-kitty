@@ -1,6 +1,6 @@
 ---
 title: 'Scoping brief: evict runtime-mutable WP state into the event log (#2684 cluster)'
-description: Consolidated scoping and code-grounding brief for a single exhaustive 3.2.6 mission resolving the task-move / WP-metadata-split / task-status cluster anchored on #2684 — cluster ticket map, in-flight PR watchlist, field-by-field authority inventory, mechanism map, the pivotal non-transition ADR, the migration contract, acceptance criteria, and a proposed decomposition.
+description: 'Scoping and code-grounding brief for the #2684 task-move / WP-metadata-split / task-status cluster: authority inventory, migration contract, and a proposed decomposition.'
 doc_status: active
 updated: '2026-07-19'
 related:

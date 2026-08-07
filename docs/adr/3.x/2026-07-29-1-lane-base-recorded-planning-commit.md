@@ -1,5 +1,6 @@
 ---
 title: 'ADR: Lane Base Merges the Recorded Planning-Artifact Commit (FR-009)'
+description: 'Each lane gains the planning-artifact commit recorded at finalize-tasks as an extra ancestor, leaving its git parentage intact and never reading a live branch tip.'
 status: Accepted
 date: '2026-07-29'
 ---

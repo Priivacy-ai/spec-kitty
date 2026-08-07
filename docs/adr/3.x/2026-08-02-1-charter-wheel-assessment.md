@@ -1,5 +1,6 @@
 ---
 title: 'ADR: Charter-Wheel Assessment — Extractable in Principle, Cut Over Kernel→Doctrine→Charter as One No-Partial Follow-On'
+description: '`src/charter` carries zero `specify_cli` import edges and is extractable in principle, but the kernel, doctrine and charter wheels must cut over together, never in stages.'
 status: Accepted
 date: '2026-08-02'
 ---

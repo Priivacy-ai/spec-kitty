@@ -1,5 +1,6 @@
 ---
 title: 'ADR: Merge Publish-Layer Boundary'
+description: 'Remote-state inspection moves to the publish layer, so local lane consolidation stays network-free and the `git fetch` preflight runs only under `--push`.'
 status: Accepted
 date: '2026-06-05'
 ---

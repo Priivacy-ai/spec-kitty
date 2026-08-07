@@ -1,6 +1,7 @@
 ---
 title: 'ADR: Common Docs Consolidation — Reconciliation of Metadata, Structure, Redirects,
   Glossary Read-Path, ADR Migration, and Curation'
+description: 'Folds four documentation roots into one Common Docs tree and makes in-file frontmatter the per-page metadata source, with the page inventory regenerated as a lockfile.'
 status: Accepted
 date: '2026-06-27'
 ---

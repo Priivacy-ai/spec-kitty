@@ -1,5 +1,6 @@
 ---
 title: Host-Owned Tracker Persistence Boundary
+description: Keeps SQLite caches and checkpoints in the host CLI and leaves the tracker core protocol-only, matching how the sync queue and status store are already owned.
 status: Accepted
 date: '2026-02-27'
 ---

@@ -1,5 +1,6 @@
 ---
 title: Fresh Context Execution Mode for Long-Running Work Packages
+description: An opt-in mode that resets an agent's context at every subtask boundary, trading spawn overhead for less hallucination drift on long-running work packages.
 status: Proposed
 date: '2026-02-11'
 ---

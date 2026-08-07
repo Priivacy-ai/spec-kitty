@@ -1,5 +1,6 @@
 ---
 title: Dual-Repository Pattern for Private spec-kitty-events Dependency
+description: Keeps the shared events library in its own private repository, consumed as a commit-pinned git dependency, so CI stays autonomous and the CLI repo stays public.
 status: Accepted
 date: '2026-01-27'
 ---
