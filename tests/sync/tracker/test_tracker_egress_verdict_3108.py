@@ -35,7 +35,9 @@ import pytest
 
 from specify_cli.tracker import config as tracker_config
 from specify_cli.tracker.config import _EGRESS_LEGAL_VALUES, EGRESS_ABSENT, TrackerConfigError
-from specify_cli.tracker.egress_consent import UNDETERMINED_PROJECT_REFUSAL, project_egress_refusal
+from specify_cli.egress import UNDETERMINED_PROJECT_REFUSAL, project_egress_refusal
+from specify_cli.tracker.local_service import LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS
+from specify_cli.tracker.saas_client import TRACKER_EGRESS_IDENTIFIER_KINDS
 from specify_cli.tracker.egress_verdict import (
     CHANNEL1_GRANTED,
     CHANNEL1_NO_RECORD,
@@ -72,6 +74,18 @@ from specify_cli.tracker.egress_verdict import (
 pytestmark = [pytest.mark.integration]
 
 DESTINATIONS = [EgressDestination.LOCAL_SUBPROCESS, EgressDestination.HOSTED_SERVICE]
+
+#: The identifier-set fragment each destination's **owning transport** passes, imported from
+#: those transports rather than restated here so a fragment reworded in production cannot
+#: leave this suite asserting the old text. Bundle B made ``identifiers`` a required
+#: parameter of ``project_egress_refusal``, and ``tracker_egress_verdict`` threads it into
+#: Channel 1, so every call below must name one. Tests pass the *owning transport's*
+#: fragment because that is what the enforcing gate passes -- the FR-016 byte-identity pins
+#: in this file are only meaningful if the suite renders the string the gate renders.
+_IDENTIFIERS_FOR = {
+    EgressDestination.LOCAL_SUBPROCESS: LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS,
+    EgressDestination.HOSTED_SERVICE: TRACKER_EGRESS_IDENTIFIER_KINDS,
+}
 
 
 # ---------------------------------------------------------------------------
@@ -432,7 +446,7 @@ class TestJoinTable:
         would refuse (no ``sync.enabled`` record at all -- not consentable)."""
         root = _not_consentable_root(tmp_path)
         _with_tracker_egress(root, "  egress: permitted\n")
-        verdict = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS)
+        verdict = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS, identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS])
         assert verdict.refused is False
         assert verdict.refusing_channels == frozenset()
 
@@ -443,7 +457,7 @@ class TestJoinTable:
         and here Channel 1 has no record, so it refuses."""
         root = _not_consentable_root(tmp_path)
         _with_tracker_egress(root, "  egress: permitted\n")
-        verdict = tracker_egress_verdict(root, destination=EgressDestination.HOSTED_SERVICE)
+        verdict = tracker_egress_verdict(root, destination=EgressDestination.HOSTED_SERVICE, identifiers=_IDENTIFIERS_FOR[EgressDestination.HOSTED_SERVICE])
         assert verdict.refused is True
         assert verdict.channel2_state == "permitted"
         assert CHANNEL_1 in verdict.refusing_channels
@@ -454,7 +468,7 @@ class TestJoinTable:
         permits, but the grant is still recorded as a no-op (SC-014 checkout 6)."""
         root = _recorded_grant_root(tmp_path)
         _with_tracker_egress(root, "  egress: permitted\n")
-        verdict = tracker_egress_verdict(root, destination=EgressDestination.HOSTED_SERVICE)
+        verdict = tracker_egress_verdict(root, destination=EgressDestination.HOSTED_SERVICE, identifiers=_IDENTIFIERS_FOR[EgressDestination.HOSTED_SERVICE])
         assert verdict.refused is False
         assert verdict.channel2_state == "permitted"
 
@@ -462,8 +476,8 @@ class TestJoinTable:
         """SC-014's discriminating scenario: one checkout, two different answers."""
         root = _not_consentable_root(tmp_path)
         _with_tracker_egress(root, "  egress: permitted\n")
-        local = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS)
-        hosted = tracker_egress_verdict(root, destination=EgressDestination.HOSTED_SERVICE)
+        local = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS, identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS])
+        hosted = tracker_egress_verdict(root, destination=EgressDestination.HOSTED_SERVICE, identifiers=_IDENTIFIERS_FOR[EgressDestination.HOSTED_SERVICE])
         assert local.refused is False
         assert hosted.refused is True
 
@@ -471,7 +485,7 @@ class TestJoinTable:
         root = _recorded_grant_root(tmp_path)  # Channel 1 permits
         _with_tracker_egress(root, "  egress: refused\n")
         for destination in DESTINATIONS:
-            verdict = tracker_egress_verdict(root, destination=destination)
+            verdict = tracker_egress_verdict(root, destination=destination, identifiers=_IDENTIFIERS_FOR[destination])
             assert verdict.refused is True
             assert CHANNEL_2 in verdict.refusing_channels
             assert CHANNEL_1 not in verdict.refusing_channels  # channel 1 permits here
@@ -483,21 +497,21 @@ class TestJoinTable:
     def test_both_channels_refuse_names_both(self, tmp_path: Path) -> None:
         root = _recorded_refusal_root(tmp_path)  # Channel 1 refuses
         _with_tracker_egress(root, "  egress: refused\n")  # Channel 2 also refuses
-        verdict = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS)
+        verdict = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS, identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS])
         assert verdict.refused is True
         assert verdict.refusing_channels == frozenset({CHANNEL_1, CHANNEL_2})
 
     def test_absent_defers_to_channel1_no_record(self, tmp_path: Path) -> None:
         root = _no_record_root(tmp_path)
         for destination in DESTINATIONS:
-            verdict = tracker_egress_verdict(root, destination=destination)
+            verdict = tracker_egress_verdict(root, destination=destination, identifiers=_IDENTIFIERS_FOR[destination])
             assert verdict.refused is True
             assert verdict.refusing_channels == frozenset({CHANNEL_1})
 
     def test_absent_defers_to_channel1_granted(self, tmp_path: Path) -> None:
         root = _recorded_grant_root(tmp_path)
         for destination in DESTINATIONS:
-            verdict = tracker_egress_verdict(root, destination=destination)
+            verdict = tracker_egress_verdict(root, destination=destination, identifiers=_IDENTIFIERS_FOR[destination])
             assert verdict.refused is False
             assert verdict.refusing_channels == frozenset()
             # HIGH-2 regression (review round 1): this is the exact fixture the reviewer used
@@ -510,7 +524,7 @@ class TestJoinTable:
         """A Channel-1-first short circuit would refuse a project Channel 2 permits."""
         root = _recorded_refusal_root(tmp_path)  # Channel 1 refuses
         _with_tracker_egress(root, "  egress: permitted\n")  # Channel 2 grants (local only)
-        verdict = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS)
+        verdict = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS, identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS])
         assert verdict.refused is False, "Channel 2's grant must not be short-circuited by Channel 1"
 
 
@@ -593,7 +607,7 @@ class TestChannel1Classifier:
         monkeypatch.setattr("specify_cli.tracker.egress_verdict._classify_channel1", _must_not_be_called)
 
         for destination in DESTINATIONS:
-            verdict = tracker_egress_verdict(root, destination=destination)
+            verdict = tracker_egress_verdict(root, destination=destination, identifiers=_IDENTIFIERS_FOR[destination])
             assert verdict.refused is False
             assert verdict.channel1_state == CHANNEL1_GRANTED
 
@@ -625,7 +639,7 @@ class TestChannel1Classifier:
 
         monkeypatch.setattr("specify_cli.tracker.egress_verdict._classify_channel1", _boom)
 
-        verdict = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS)
+        verdict = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS, identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS])
         assert verdict.refused is True
         no_record_specific = (
             _channel1_decided_message(
@@ -659,7 +673,7 @@ class TestPinnedVocabulary:
         root = tmp_path / "c2-refused"
         _write_config(root, "tracker:\n  egress: refused\n")
         for destination in DESTINATIONS:
-            verdict = tracker_egress_verdict(root, destination=destination)
+            verdict = tracker_egress_verdict(root, destination=destination, identifiers=_IDENTIFIERS_FOR[destination])
             assert "Channel 2" in verdict.message or "tracker.egress" in verdict.message
 
     def test_channel1_refusal_names_channel1(self, tmp_path: Path) -> None:
@@ -673,36 +687,36 @@ class TestPinnedVocabulary:
         below is its hosted half, so the token is still pinned *somewhere* for that path.
         """
         root = _no_record_root(tmp_path)
-        local = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS)
+        local = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS, identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS])
         assert "Channel 1" in local.message
 
-        hosted = tracker_egress_verdict(root, destination=EgressDestination.HOSTED_SERVICE)
+        hosted = tracker_egress_verdict(root, destination=EgressDestination.HOSTED_SERVICE, identifiers=_IDENTIFIERS_FOR[EgressDestination.HOSTED_SERVICE])
         assert "Channel 1" in hosted.message or "has not consented to hosted sync" in hosted.message
 
     def test_hosted_noop_cell_says_noop_or_does_not_apply(self, tmp_path: Path) -> None:
         """Hosted destination, Channel 1 permits, tracker grant recorded -- the no-op cell."""
         root = _recorded_grant_root(tmp_path)
         _with_tracker_egress(root, "  egress: permitted\n")
-        verdict = tracker_egress_verdict(root, destination=EgressDestination.HOSTED_SERVICE)
+        verdict = tracker_egress_verdict(root, destination=EgressDestination.HOSTED_SERVICE, identifiers=_IDENTIFIERS_FOR[EgressDestination.HOSTED_SERVICE])
         assert verdict.refused is False
         assert "no-op" in verdict.message or "does not apply" in verdict.message
 
     def test_no_record_state_says_no_record(self, tmp_path: Path) -> None:
         root = _no_record_root(tmp_path)
-        verdict = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS)
+        verdict = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS, identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS])
         assert verdict.channel1_state == CHANNEL1_NO_RECORD
         assert "no record" in verdict.message
 
     def test_recorded_refusal_state_says_refus_not_no_record(self, tmp_path: Path) -> None:
         root = _recorded_refusal_root(tmp_path)
-        verdict = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS)
+        verdict = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS, identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS])
         assert verdict.channel1_state == CHANNEL1_RECORDED_REFUSAL
         assert "refus" in verdict.message
         assert "no record" not in verdict.message
 
     def test_not_consentable_state_says_not_consentable_or_identity(self, tmp_path: Path) -> None:
         root = _not_consentable_root(tmp_path)
-        verdict = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS)
+        verdict = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS, identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS])
         assert verdict.channel1_state == CHANNEL1_NOT_CONSENTABLE
         assert "not consentable" in verdict.message or "identity" in verdict.message
 
@@ -710,7 +724,7 @@ class TestPinnedVocabulary:
         root = tmp_path / "near-miss-yes"
         _write_config(root, "tracker:\n  egress: yes\n")
         for destination in DESTINATIONS:
-            verdict = tracker_egress_verdict(root, destination=destination)
+            verdict = tracker_egress_verdict(root, destination=destination, identifiers=_IDENTIFIERS_FOR[destination])
             assert "refused" in verdict.message
             assert "permitted" in verdict.message
             assert "yes" in verdict.message
@@ -718,12 +732,16 @@ class TestPinnedVocabulary:
     def test_three_channel1_states_are_distinguishable(self, tmp_path: Path) -> None:
         """A single undifferentiated 'Channel 1 denies' string is explicitly insufficient --
         the three states must remain distinguishable in the composed message."""
-        no_record = tracker_egress_verdict(_no_record_root(tmp_path), destination=EgressDestination.LOCAL_SUBPROCESS)
+        no_record = tracker_egress_verdict(
+            _no_record_root(tmp_path),
+            destination=EgressDestination.LOCAL_SUBPROCESS,
+            identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS],
+        )
         recorded_refusal = tracker_egress_verdict(
-            _recorded_refusal_root(tmp_path), destination=EgressDestination.LOCAL_SUBPROCESS
+            _recorded_refusal_root(tmp_path), destination=EgressDestination.LOCAL_SUBPROCESS, identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS]
         )
         not_consentable = tracker_egress_verdict(
-            _not_consentable_root(tmp_path), destination=EgressDestination.LOCAL_SUBPROCESS
+            _not_consentable_root(tmp_path), destination=EgressDestination.LOCAL_SUBPROCESS, identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS]
         )
         messages = {no_record.message, recorded_refusal.message, not_consentable.message}
         assert len(messages) == 3, "the three Channel-1 states must produce three distinct messages"  # golden-count: cardinality-is-contract
@@ -732,21 +750,21 @@ class TestPinnedVocabulary:
 class TestMessageComposition:
     def test_root_none_byte_identical_to_undetermined_at_both_destinations(self) -> None:
         for destination in DESTINATIONS:
-            verdict = tracker_egress_verdict(None, destination=destination)
+            verdict = tracker_egress_verdict(None, destination=destination, identifiers=_IDENTIFIERS_FOR[destination])
             assert verdict.message == UNDETERMINED_PROJECT_REFUSAL
             assert verdict.refused is True
             assert verdict.remedies == ()
 
     def test_root_none_channel1_state_is_undetermined_and_reachable_only_there(self) -> None:
         for destination in DESTINATIONS:
-            verdict = tracker_egress_verdict(None, destination=destination)
+            verdict = tracker_egress_verdict(None, destination=destination, identifiers=_IDENTIFIERS_FOR[destination])
             assert verdict.channel1_state == CHANNEL1_UNDETERMINED
 
     def test_undetermined_state_not_reachable_with_a_real_root(self, tmp_path: Path) -> None:
         for builder in (_no_record_root, _recorded_refusal_root, _not_consentable_root, _recorded_grant_root):
             root = builder(tmp_path, name=f"undetermined-check-{builder.__name__}")
             for destination in DESTINATIONS:
-                verdict = tracker_egress_verdict(root, destination=destination)
+                verdict = tracker_egress_verdict(root, destination=destination, identifiers=_IDENTIFIERS_FOR[destination])
                 assert verdict.channel1_state != CHANNEL1_UNDETERMINED
 
     NEAR_MISS_FAULTS: list[tuple[str, str, object]] = [
@@ -774,7 +792,7 @@ class TestMessageComposition:
         root = tmp_path / f"fault-{label.replace(' ', '_')}"
         _write_config(root, "tracker:\n" + egress_line)
         for destination in DESTINATIONS:
-            verdict = tracker_egress_verdict(root, destination=destination)
+            verdict = tracker_egress_verdict(root, destination=destination, identifiers=_IDENTIFIERS_FOR[destination])
             assert verdict.refused is True, f"{label} must refuse at {destination}"
             assert verdict.channel2_state == CHANNEL2_FAULT
             assert "refused" in verdict.message
@@ -793,8 +811,10 @@ class TestMessageComposition:
         root = tmp_path / "refused-both"
         _write_config(root, "tracker:\n  egress: refused\n")
         for destination in DESTINATIONS:
-            verdict = tracker_egress_verdict(root, destination=destination)
-            channel1_permits, channel1_refusal_text = _resolve_channel1(root)
+            verdict = tracker_egress_verdict(root, destination=destination, identifiers=_IDENTIFIERS_FOR[destination])
+            channel1_permits, channel1_refusal_text = _resolve_channel1(
+                root, _IDENTIFIERS_FOR[destination]
+            )
             expected = _channel2_decided_message(
                 destination=destination,
                 channel2_state="refused",
@@ -807,12 +827,12 @@ class TestMessageComposition:
     def test_permit_message_matches_composition_helper(self, tmp_path: Path) -> None:
         root = _not_consentable_root(tmp_path)
         _with_tracker_egress(root, "  egress: permitted\n")
-        verdict = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS)
+        verdict = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS, identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS])
         assert verdict.message == _permit_message(EgressDestination.LOCAL_SUBPROCESS)
 
     def test_local_subprocess_message_offers_the_channel2_grant_remedy(self, tmp_path: Path) -> None:
         root = _no_record_root(tmp_path)
-        verdict = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS)
+        verdict = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS, identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS])
         assert verdict.refused is True
         assert any("tracker.egress: 'permitted'" in r or "permitted" in r for r in verdict.remedies)
 
@@ -833,9 +853,9 @@ class TestMessageComposition:
         (pinned below). Neither message asserts an untruth, and they remain plainly distinct.
         """
         root = _no_record_root(tmp_path)
-        verdict = tracker_egress_verdict(root, destination=EgressDestination.HOSTED_SERVICE)
+        verdict = tracker_egress_verdict(root, destination=EgressDestination.HOSTED_SERVICE, identifiers=_IDENTIFIERS_FOR[EgressDestination.HOSTED_SERVICE])
         assert verdict.refused is True
-        assert verdict.message == project_egress_refusal(root), (
+        assert verdict.message == project_egress_refusal(root, TRACKER_EGRESS_IDENTIFIER_KINDS), (
             "FR-016: the hosted Channel-1 refusal must be `project_egress_refusal`'s own string, verbatim"
         )
         # The recomposition and the prospective note are both gone from this cell.
@@ -853,7 +873,7 @@ class TestMessageComposition:
         was stronger than its evidence. This is that evidence.
         """
         root = _no_record_root(tmp_path, name="shipped-bytes")
-        verdict = tracker_egress_verdict(root, destination=EgressDestination.HOSTED_SERVICE)
+        verdict = tracker_egress_verdict(root, destination=EgressDestination.HOSTED_SERVICE, identifiers=_IDENTIFIERS_FOR[EgressDestination.HOSTED_SERVICE])
         assert verdict.message == (
             f"the project at {root} has not consented to hosted sync, so its mission and "
             "engagement identifiers must not be transmitted; record a decision in the "
@@ -867,23 +887,35 @@ class TestMessageComposition:
         leave the operator believing their key did something -- FR-005's named failure."""
         recorded_root = _no_record_root(tmp_path, name="recorded-grant-note")
         _with_tracker_egress(recorded_root, "  egress: permitted\n")
-        recorded_verdict = tracker_egress_verdict(recorded_root, destination=EgressDestination.HOSTED_SERVICE)
+        recorded_verdict = tracker_egress_verdict(
+            recorded_root,
+            destination=EgressDestination.HOSTED_SERVICE,
+            identifiers=_IDENTIFIERS_FOR[EgressDestination.HOSTED_SERVICE],
+        )
         assert "recorded" in recorded_verdict.message
         assert "no-op" in recorded_verdict.message
 
         # ...and the absent cell is still plainly distinct from it, which is what MEDIUM-2 asked
         # for -- now by carrying no note at all rather than by carrying a different one.
         absent_root = _no_record_root(tmp_path, name="absent-grant-note")
-        absent_verdict = tracker_egress_verdict(absent_root, destination=EgressDestination.HOSTED_SERVICE)
+        absent_verdict = tracker_egress_verdict(
+            absent_root,
+            destination=EgressDestination.HOSTED_SERVICE,
+            identifiers=_IDENTIFIERS_FOR[EgressDestination.HOSTED_SERVICE],
+        )
         assert "no-op" not in absent_verdict.message
         assert absent_verdict.message != recorded_verdict.message
 
     def test_recorded_refusal_and_not_consentable_have_distinct_wording(self, tmp_path: Path) -> None:
         refusal_root = _recorded_refusal_root(tmp_path)
         not_consentable_root = _not_consentable_root(tmp_path)
-        refusal_verdict = tracker_egress_verdict(refusal_root, destination=EgressDestination.LOCAL_SUBPROCESS)
+        refusal_verdict = tracker_egress_verdict(
+            refusal_root,
+            destination=EgressDestination.LOCAL_SUBPROCESS,
+            identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS],
+        )
         not_consentable_verdict = tracker_egress_verdict(
-            not_consentable_root, destination=EgressDestination.LOCAL_SUBPROCESS
+            not_consentable_root, destination=EgressDestination.LOCAL_SUBPROCESS, identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS]
         )
         assert refusal_verdict.message != not_consentable_verdict.message
         assert refusal_verdict.channel1_state == CHANNEL1_RECORDED_REFUSAL
@@ -1028,7 +1060,7 @@ class TestNeverRaises:
     ) -> None:
         root = builder(tmp_path)
         try:
-            verdict = tracker_egress_verdict(root, destination=destination)
+            verdict = tracker_egress_verdict(root, destination=destination, identifiers=_IDENTIFIERS_FOR[destination])
         finally:
             _restore_permissions(root)
         assert isinstance(verdict, TrackerEgressVerdict)
@@ -1036,7 +1068,7 @@ class TestNeverRaises:
 
     @pytest.mark.parametrize("destination", DESTINATIONS, ids=["local_subprocess", "hosted_service"])
     def test_root_none_never_raises(self, destination: EgressDestination) -> None:
-        verdict = tracker_egress_verdict(None, destination=destination)
+        verdict = tracker_egress_verdict(None, destination=destination, identifiers=_IDENTIFIERS_FOR[destination])
         assert isinstance(verdict, TrackerEgressVerdict)
         assert verdict.refused is True
 
@@ -1051,7 +1083,7 @@ class TestNeverRaises:
             for destination in DESTINATIONS:
                 root = builder(tmp_path / f"count-{shape_name}-{destination.value}")
                 try:
-                    verdict = tracker_egress_verdict(root, destination=destination)
+                    verdict = tracker_egress_verdict(root, destination=destination, identifiers=_IDENTIFIERS_FOR[destination])
                 except Exception as exc:  # pragma: no cover - the failure this test exists to catch
                     pytest.fail(f"{shape_name}/{destination}: raised {type(exc).__name__}: {exc}")
                 else:
@@ -1060,7 +1092,7 @@ class TestNeverRaises:
                     _restore_permissions(root)
                 ran += 1
         for destination in DESTINATIONS:
-            verdict = tracker_egress_verdict(None, destination=destination)
+            verdict = tracker_egress_verdict(None, destination=destination, identifiers=_IDENTIFIERS_FOR[destination])
             assert isinstance(verdict, TrackerEgressVerdict)
             ran += 1
         print(f"never-raises contract: ran {ran} cases")
@@ -1070,7 +1102,7 @@ class TestNeverRaises:
         root = _shape_unparseable(tmp_path)
         for destination in DESTINATIONS:
             try:
-                tracker_egress_verdict(root, destination=destination)
+                tracker_egress_verdict(root, destination=destination, identifiers=_IDENTIFIERS_FOR[destination])
             except TrackerConfigError:
                 pytest.fail("TrackerConfigError must never propagate out of tracker_egress_verdict")
 
@@ -1142,7 +1174,7 @@ class TestUnreadableSentinelRepr:
         _write_config(root, "tracker:\n  egress: refused\n")
         (root / ".kittify").chmod(0o000)
         try:
-            verdict = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS)
+            verdict = tracker_egress_verdict(root, destination=EgressDestination.LOCAL_SUBPROCESS, identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS])
         finally:
             (root / ".kittify").chmod(0o755)
         assert repr(verdict.channel2_raw) == "<tracker config unreadable>"
@@ -1170,7 +1202,7 @@ class TestExhaustivenessOverLegalValues:
 
         # This module was not updated to know about "draft"; it must still refuse.
         for destination in DESTINATIONS:
-            verdict = tracker_egress_verdict(root, destination=destination)
+            verdict = tracker_egress_verdict(root, destination=destination, identifiers=_IDENTIFIERS_FOR[destination])
             assert verdict.refused is True, "an unmapped-here value must refuse, never silently permit"
             assert verdict.channel2_state == CHANNEL2_FAULT
 

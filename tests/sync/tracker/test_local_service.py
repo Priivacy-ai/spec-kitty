@@ -16,6 +16,7 @@ from specify_cli.tracker.config import (
 from specify_cli.tracker.credentials import TrackerCredentialStore
 from specify_cli.tracker.egress_verdict import EgressDestination, tracker_egress_verdict
 from specify_cli.tracker.local_service import (
+    LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS,
     LocalTrackerEgressRefusedError,
     LocalTrackerService,
     LocalTrackerServiceError,
@@ -302,7 +303,14 @@ class TestRefusalMessageIdentity:
         self, repo: Path, cred_path: Path
     ) -> None:
         svc = _make_service(repo, cred_path=cred_path)
-        expected = tracker_egress_verdict(repo, destination=EgressDestination.LOCAL_SUBPROCESS)
+        expected = tracker_egress_verdict(
+            repo,
+            destination=EgressDestination.LOCAL_SUBPROCESS,
+            # Exactly what `LocalTrackerService` passes: this test compares the raised
+            # message against a re-derived one, so a different fragment here would compare
+            # two strings that were never meant to agree.
+            identifiers=LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS,
+        )
         assert expected.refused, "precondition: nothing consents at either channel"
 
         with pytest.raises(LocalTrackerEgressRefusedError) as exc_info:
@@ -316,7 +324,14 @@ class TestRefusalMessageIdentity:
         remedy lives only in `remedies`, never folded into `message`. Rendering `message`
         alone would silently drop it from what `_run_or_exit` prints."""
         svc = _make_service(repo, cred_path=cred_path)
-        expected = tracker_egress_verdict(repo, destination=EgressDestination.LOCAL_SUBPROCESS)
+        expected = tracker_egress_verdict(
+            repo,
+            destination=EgressDestination.LOCAL_SUBPROCESS,
+            # Exactly what `LocalTrackerService` passes: this test compares the raised
+            # message against a re-derived one, so a different fragment here would compare
+            # two strings that were never meant to agree.
+            identifiers=LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS,
+        )
         assert expected.remedies, "precondition: this verdict has at least one remedy to drop"
 
         with pytest.raises(LocalTrackerEgressRefusedError) as exc_info:
@@ -635,12 +650,37 @@ class TestNoSaaSImports:
     """Verify no SaaS-related imports leak into local_service module."""
 
     def test_no_saas_client_import(self) -> None:
+        """No SaaS module is *imported* here -- asserted over the parsed import statements.
+
+        Previously a substring scan (``"saas_client" not in source``) that banned the token
+        anywhere in the file, prose included. That was both too weak and too strong: it missed
+        ``from specify_cli.tracker import saas_client`` and ``import
+        specify_cli.tracker.saas_client as _c`` (neither contains the banned literal
+        ``from specify_cli.tracker.saas``), while red-ing a docstring that merely *explains*
+        why this module does not import the hosted client -- which is exactly the prose a
+        reader needs to not "tidy" the separation away. Parsing the imports pins the real
+        contract and is indifferent to comments and docstrings.
+        """
+        import ast
+
         import specify_cli.tracker.local_service as mod
+
         source = Path(mod.__file__).read_text(encoding="utf-8")
-        assert "import" not in source or "saas_client" not in source
-        # Check no actual import of SaaS tracker client
-        assert "from specify_cli.tracker.saas" not in source
-        assert "import SaaSTrackerClient" not in source
+        imported: list[str] = []
+        for node in ast.walk(ast.parse(source)):
+            if isinstance(node, ast.Import):
+                imported.extend(a.name for a in node.names)
+            elif isinstance(node, ast.ImportFrom):
+                base = node.module or ""
+                imported.append(base)
+                imported.extend(f"{base}.{a.name}" for a in node.names)
+
+        offenders = [m for m in imported if "saas" in m.lower()]
+        assert not offenders, (
+            "local_service.py imports SaaS infrastructure; this module's contract is that "
+            f"only local connector infrastructure lives here: {offenders}"
+        )
+        assert not any("SaaSTrackerClient" in m for m in imported), imported
 
     def test_no_sync_auth_import(self) -> None:
         import specify_cli.tracker.local_service as mod
