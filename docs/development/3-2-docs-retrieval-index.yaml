@@ -2619,7 +2619,7 @@ pages:
   - path: "docs/adr/3.x/2026-08-05-1-mission-type-availability-before-kind-promotion.md"
     title: "ADR: Sequence Charter-Activation-Driven Mission-Type Availability Ahead of Mission-Type-as-ArtifactKind; Land It With Mission-Tree Resolution Unification as One Slice"
     divio_type: "none"
-    abstract: "The end-state the epic [#2466](https://github.com/Priivacy-ai/spec-kitty/issues/2466) (\"Doctrine/Charter extensibility & pack ecosystem\") calls **fully doctrine-provided, charter-loaded mission types** — a single canonical mission-type source where a type is *offered* iff the charter activation set says so, and `software-dev` is an ordinary peer doctrine type with no filesystem-position-implies-availability logic anywhere — has been **repeatedly deferred across successive missions**. [PR #3204](https://github.com/Priivacy-ai/spec-kitty/pull/3204) (mission `doctrine-consumer-surface-missions-extraction`, closes [#3091](https://github.com/Priivacy-ai/spec-kitty/issues/3091)) is the latest instance: it landed the *physical* relocation of built-in mission data to `packs/built-in/missions/` and deferred everything else by explicit spec constraint (C-002)."
+    abstract: "Sequences charter-activation-driven mission-type availability ahead of mission-type-as-ArtifactKind, landed with mission-tree resolution unification as one slice."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
