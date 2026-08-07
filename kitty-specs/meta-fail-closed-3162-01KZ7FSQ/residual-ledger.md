@@ -609,3 +609,17 @@ the prohibition is on **creating** tracker state, never on reading it.
 
 History was not compacted, nothing was rebased, nothing was pushed, and no PR was opened. The operator
 is landing the PR personally. WP08's `T052` is deliberately left **unmarked**.
+
+### `F22` — the enforced `diff-coverage` gate is structurally blind to every draft-gated integration shard
+
+| # | Finding | Why it cannot be folded | Evidence |
+|---|---|---|---|
+| F22 | **`diff-coverage` (critical-path, ENFORCED) scores a line as uncovered whenever its only test lives in a shard whose job is skipped on a draft PR.** `integration-tests-core-misc` (and its siblings) carry `&& (github.event_name != 'pull_request' \|\| (github.event.pull_request.draft == false && …))`, so on a draft PR the job is skipped and its `coverage-integration-core-misc-*.xml` is never uploaded. `diff-coverage` still `needs:` it, but `needs` on a skipped job is satisfied, and the download step is `continue-on-error: true` — so the gate proceeds against a **silently smaller** coverage set and fails ENFORCED on lines that are, in fact, tested. The failure is indistinguishable from a genuinely untested line, which is the dangerous part: the honest reading of a red here is "write a test", and a contributor who does so at the integration tier will get the identical red again. This is not specific to this mission — it applies to every critical-path line whose coverage comes only from a draft-gated shard. | The fix is a CI-workflow change (e.g. have `diff-coverage` refuse to run — or run advisory — when any `needs:` job it depends on was skipped, rather than silently scoring against a partial set; or exempt draft PRs from the ENFORCED arm). That is a `ci-quality.yml` topology change touching gate semantics for all PRs, not a `meta.json`-read-routing change. It is the same family as `F17`/`C-007`'s CI-topology bucket. **The in-scope half WAS folded** — see the entry below it. | Measured on PR #3247, run `31137786167` (head `8079df492`): job list shows `integration-tests-core-misc (${{ matrix.shard }})` → **skipped**; the gate step printed `Found 23 coverage report(s)` and **none** is `coverage-integration-core-misc-*`; gate output `src/mission_runtime/resolution.py (77.8%): Missing lines 545,1156`. Both lines are in fact covered by `tests/mission_runtime/test_wp04_degrade_site_fallbacks.py` + `test_wp04_sc007_guard_and_handler_contract.py` — measured locally: running just those two files under `--cov=mission_runtime` yields a missing-line list containing `438-483, 547-552` and `1018-1089, 1192-1213`, i.e. **545 and 1156 are hit**. |
+
+**In-scope half, FOLDED (not deferred):** the two arms are now ALSO pinned at the `fast` tier by
+`tests/mission_runtime/test_wp04_degrade_arms_fast_tier.py`, which lands in
+`fast-tests-core-misc (core-misc)` — a shard that runs on draft PRs and does contribute a
+`--cov=mission_runtime` report the gate consumes. Both new tests were proven load-bearing against
+mutants of the arms they cover (narrow the `:545` tuple to `MissionMetaReadError` → 5 failed;
+delete the `:1156` arm → 1 failed), with `src/mission_runtime/resolution.py` restored
+byte-identically afterwards (`sha256 96c6bc32…8e8b61b`, empty `git diff`).
