@@ -13,6 +13,7 @@
   "purpose_tldr": "Make every published docs page carry unique, search-intent-matched metadata, and enforce it with a gate that cannot silently go vacuous when pages move.",
   "slug": "docs-seo-metadata-enforcement-01KZ9PJ2",
   "source_description": "GitHub issue #1652 — SEO audit needed for GitHub Pages docs site (https://github.com/Priivacy-ai/spec-kitty/issues/1652)",
+  "status_phase": "1",
   "target_branch": "feat/docs-seo-metadata-enforcement",
   "topology": "coord",
   "vcs": "git"
