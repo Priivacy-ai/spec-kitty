@@ -1064,7 +1064,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   deterministic ULID) so re-running `upgrade` is safe. `spec-kitty accept`
   carries a non-blocking diagnostic that names any still-stranded WP and points
   at `upgrade`. Runbook:
-  [`docs/migrations/verdict-provenance-backfill.md`](docs/migrations/verdict-provenance-backfill.md).
+  [`docs/migrations/verdict-provenance-backfill.md`](../migrations/verdict-provenance-backfill.md).
   _No `pyproject.toml`/`__init__.py` version bump accompanies this entry: the
   mission changed only the `status/__init__.py` facade, not the CLI entry
   point, so a CHANGELOG entry without a version bump is correct here._
