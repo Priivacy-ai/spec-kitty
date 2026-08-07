@@ -88,6 +88,25 @@ It must say, without softening:
 - **The lane worktrees never existed.** All four WPs ran in the root checkout on the target branch.
   Harmless here because this is genuinely one lane, but the isolation the lane model implies was not
   present, and a mission with real parallel lanes would have had two agents writing one tree.
+- **Hazard H5 — `ROUTED_LOAD_META_FLOOR` collides with PR #3247, and merge order decides who is stale.**
+  Recorded 2026-08-06; NOT resolved here, because the resolution depends on merge order and is the
+  orchestrator's call, not this PR's. Measured facts, all three on `tests/architectural/`
+  `test_inline_meta_read_gate.py`:
+  - `upstream/main`: `ROUTED_LOAD_META_FLOOR = 128`, line 231.
+  - This PR (`pr/batch-drain-retirement-3167`, commit `3b8f951d8`): `= 130`, line 243 as that commit
+    left it, line 245 after this landing pass's two-line comment correction directly above it;
+    re-derived against a live routed census of **133** on this tree.
+  - PR #3247 (`pr/meta-fail-closed-3162`, mission `meta-fail-closed-3162-01KZ7FSQ`): `= 131`, line 326,
+    re-derived against a live census of **134** on its own merged tree.
+
+  Both branches edit the same constant, both derive it from main's `128`, and both rewrote the comment
+  block immediately above it — so the conflict region is the whole block, not one line, and a textual
+  conflict is certain. **#3247 owns this gate**: it is the mission that actually adds routed
+  `load_meta*()` call sites (hence its 134 vs this tree's 133), so `131` is the correct post-merge
+  value and this PR's `130` is the one that goes stale. If #3209 lands second, resolve the conflict in
+  favour of #3247's `131` and its comment block; do not re-derive a third number from a half-merged
+  tree. Verified independently for this landing pass — this PR's `src/` diff contains **zero** added or
+  removed `load_meta` lines, so nothing in #3209 moves the census.
 
 ## Reading order for whoever picks this up
 
