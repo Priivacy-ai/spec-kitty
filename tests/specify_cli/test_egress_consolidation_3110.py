@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import ast
 import builtins
+import importlib
 import sys
 from pathlib import Path
 from typing import Any
@@ -39,7 +40,11 @@ import pytest
 
 from specify_cli import egress
 from specify_cli.saas_client import client as saas_deciding_module
-from specify_cli.tracker import saas_client as tracker_deciding_module
+
+# ``specify_cli.tracker.saas_client`` is the tracker *transport* module. It was also a Channel-1
+# deciding module until #3108's Bundle-C port; it is imported here for its identifier fragment
+# (clause 1 / clause 2), and clause 3 no longer reads it. See :data:`EXPECTED_VERDICT_BINDERS`.
+from specify_cli.tracker import saas_client as tracker_transport_module
 
 #: **Without this line the entire module is selected by ZERO CI gates.**
 #:
@@ -92,60 +97,153 @@ SRC = REPO_ROOT / "src"
 # ---------------------------------------------------------------------------
 
 
-def test_sc004_clause3_both_deciding_modules_bind_the_one_definition_site() -> None:
-    """Both decision points hold the *same object* as ``specify_cli.egress``.
+#: Every module holding a **module-level by-value binding** of ``project_egress_refusal``,
+#: i.e. every module where a stale re-export could hide. Derived by AST over ``src/`` by
+#: :func:`_scan_verdict_binders`; this constant is the pinned expectation that derivation is
+#: checked against, so a *change* in the topology reds and forces a human to look instead of
+#: being absorbed silently.
+#:
+#: RE-PINNED 2026-08-07 (PR #3135 / #3108 Bundle-C port). Previously
+#: ``{specify_cli.saas_client.client, specify_cli.tracker.saas_client}``, hardcoded as two
+#: import aliases at the top of this file. The Bundle-C port routed the tracker transport's
+#: decision point (``tracker/saas_client.py::_request``, now ``:341``) through
+#: ``tracker_egress_verdict(...)`` — the two-channel verdict — instead of calling
+#: ``project_egress_refusal`` directly, so ``specify_cli.tracker.saas_client`` no longer binds
+#: the name at all and the old pin raised ``AttributeError``.
+#:
+#: **The consolidation clause 3 guards did not regress — it tightened.** Verified delegation
+#: chain (not an independent decider): ``tracker/saas_client.py::_request`` ->
+#: ``tracker.egress_verdict.tracker_egress_verdict`` -> ``egress_verdict._resolve_channel1``
+#: (``:383``) -> ``specify_cli.egress.project_egress_refusal``. ``egress_verdict.py:143-153``
+#: states the property in the product itself: *"This module holds the Mission's only
+#: module-level import of ``project_egress_refusal``"*, and ``_resolve_channel1``'s docstring
+#: says it *"delegates entirely"* to it. Under ``egress_verdict.py``'s own design statement —
+#: both the gates that raise and the surface that reports call one function *"so the enforced
+#: answer and the reported answer cannot disagree"* — ``tracker.saas_client`` is no longer a
+#: decider; it is a caller of the one decider. The definition site is **more** singular than
+#: before the port, not less: the tracker side went from one binding per transport client to
+#: one binding for the whole tracker package.
+#:
+#: **Restoring a direct ``project_egress_refusal`` binding in ``tracker/saas_client.py`` would
+#: be the wrong fix.** It would give the hosted tracker path two Channel-1 decisions — one
+#: direct, one through the verdict — which is precisely the "enforced answer and reported
+#: answer disagree" hazard ``egress_verdict.py`` exists to prevent, and it would put a second
+#: composer in front of FR-016's byte-identical hosted refusal string.
+#:
+#: This is a re-pin of the module SET, never a weakening of the assertion: the ``is``
+#: comparison below is unchanged, it is now applied to every derived binder rather than to two
+#: names restated by hand, and a THIRD binder appearing anywhere under ``src/`` reds this too —
+#: which the hardcoded form could not do.
+EXPECTED_VERDICT_BINDERS = frozenset(
+    {
+        "specify_cli.saas_client.client",
+        "specify_cli.tracker.egress_verdict",
+    }
+)
 
-    *Anti-vacuity (R-7)*: the three names below are imported through **three
-    independent module paths** at the top of this file — ``specify_cli.egress``,
-    ``specify_cli.saas_client.client`` and ``specify_cli.tracker.saas_client``.
-    Comparing two imports of one path would compare an object to itself and
-    prove nothing.
 
-    *Why identity and not text*: a surviving re-export renders the **identical
-    correct string**, so a correct consolidation and a stale re-export produce
-    exactly the same text observations. Text cannot separate them; ``is`` can.
-    This is demonstrated in the mission evidence by MUT-2, which rebinds the
-    tracker attribute to a delegating wrapper returning the identical string —
-    every string observation stays green and only these assertions red.
+def _dotted_module_name(path: Path, root: Path) -> str:
+    """The importable dotted name of *path*, a ``.py`` file under *root* (``src/``)."""
+    relative = path.relative_to(root).with_suffix("")
+    parts = list(relative.parts)
+    if parts[-1] == "__init__":
+        parts.pop()
+    return ".".join(parts)
 
-    The attributes are read **at assert time**, not captured at import time, so
-    a plugin that rebinds a deciding module's attribute is detected.
+
+def _scan_verdict_binders(root: Path) -> tuple[frozenset[str], int]:
+    """Modules under *root* with a module-level ``from specify_cli.egress import
+    project_egress_refusal``, plus the number of files scanned.
+
+    **Module level only, and that is the point.** A by-value binding is only observable — and
+    only capable of going stale against a re-export — when it lands as a module *attribute*.
+    A function-local import creates no attribute and rebinds nothing that outlives the call, so
+    it cannot be the partial-consolidation state clause 3 detects. ``import specify_cli.egress``
+    plus attribute access is likewise out of scope: it resolves through the definition module on
+    every call and can never be stale.
+
+    The file count is returned so a caller can prove the scan looked at something. A scan that
+    walks zero files finds zero binders and reads exactly like a clean tree.
     """
-    assert saas_deciding_module.project_egress_refusal is egress.project_egress_refusal, (
-        "specify_cli.saas_client.client.project_egress_refusal is not the object "
-        "defined in specify_cli.egress. The SaaS decision point "
-        "(client.py::_refuse_unless_project_consents) is bound by value at import "
-        "time, so it is still calling whatever object it imported — most likely a "
-        "surviving saas_client/egress_consent.py re-export. Every rendered string "
-        "would still be correct; that is exactly why this is an identity check."
+    binders: set[str] = set()
+    files = sorted(root.rglob("*.py"))
+    for path in files:
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        except (SyntaxError, UnicodeDecodeError):  # pragma: no cover - defensive
+            continue
+        for node in tree.body:  # direct children only == module level
+            if not isinstance(node, ast.ImportFrom):
+                continue
+            if node.module != EGRESS_MODULE_DOTTED_NAME or node.level:
+                continue
+            if any(alias.name == "project_egress_refusal" for alias in node.names):
+                binders.add(_dotted_module_name(path, root))
+    return frozenset(binders), len(files)
+
+
+def test_sc004_clause3_every_deciding_module_binds_the_one_definition_site() -> None:
+    """Every decision point holds the *same object* as ``specify_cli.egress``.
+
+    *Anti-vacuity (R-7)*: the modules compared here are **derived** from an AST scan over
+    ``src/`` and imported through their own dotted paths, never through ``specify_cli.egress``.
+    Comparing two imports of one path would compare an object to itself and prove nothing.
+
+    *Why identity and not text*: a surviving re-export renders the **identical correct
+    string**, so a correct consolidation and a stale re-export produce exactly the same text
+    observations. Text cannot separate them; ``is`` can. This is demonstrated in the mission
+    evidence by MUT-2, which rebinds the tracker attribute to a delegating wrapper returning
+    the identical string — every string observation stays green and only these assertions red.
+
+    The attributes are read **at assert time**, not captured at import time, so a plugin that
+    rebinds a deciding module's attribute is detected.
+    """
+    derived, scanned = _scan_verdict_binders(SRC)
+    assert scanned > 100, (
+        f"scanned only {scanned} files under {SRC} — a scan over (almost) nothing finds no "
+        "binders and reads exactly like a consolidated tree"
     )
-    assert tracker_deciding_module.project_egress_refusal is egress.project_egress_refusal, (
-        "specify_cli.tracker.saas_client.project_egress_refusal is not the object "
-        "defined in specify_cli.egress. The tracker decision point "
-        "(saas_client.py::_request) is bound by value at import time, so it is "
-        "still calling whatever object it imported — most likely a surviving "
-        "tracker/egress_consent.py re-export. Every rendered string would still be "
-        "correct; that is exactly why this is an identity check."
+    assert derived == EXPECTED_VERDICT_BINDERS, (
+        "the set of modules holding a module-level by-value binding of "
+        f"project_egress_refusal changed: derived {sorted(derived)}, pinned "
+        f"{sorted(EXPECTED_VERDICT_BINDERS)}. A NEW name here is a new place a stale "
+        "re-export can hide and must be justified before it is pinned; a name DISAPPEARING "
+        "means a decision point stopped binding the canonical decider — confirm it now "
+        "reaches it through a verified delegation chain (as tracker.saas_client does via "
+        "tracker.egress_verdict) and re-pin with a dated rationale, or restore the binding. "
+        "Do not edit this constant to match without establishing which of the two it is."
     )
+
+    for dotted in sorted(derived):
+        module = importlib.import_module(dotted)
+        assert module.project_egress_refusal is egress.project_egress_refusal, (
+            f"{dotted}.project_egress_refusal is not the object defined in "
+            "specify_cli.egress. That decision point is bound by value at import time, so "
+            "it is still calling whatever object it imported — most likely a surviving "
+            "egress_consent.py re-export. Every rendered string would still be correct; "
+            "that is exactly why this is an identity check."
+        )
 
 
 def test_sc004_clause3_names_are_reachable_and_the_comparison_is_not_self_identity() -> None:
     """Positive control for the assertion above — it must be able to fail.
 
-    Three distinct module objects, three distinct dotted paths. If any of the
-    three were an alias of another, the ``is`` comparisons above would be
-    trivially true and would prove nothing.
+    Distinct module objects, distinct dotted paths, none of them ``specify_cli.egress``
+    itself. If any pinned binder were an alias of the definition module, the ``is``
+    comparisons above would be trivially true and would prove nothing.
     """
-    modules = {
-        egress.__name__,
-        saas_deciding_module.__name__,
-        tracker_deciding_module.__name__,
-    }
-    assert modules == {
-        "specify_cli.egress",
-        "specify_cli.saas_client.client",
-        "specify_cli.tracker.saas_client",
-    }, f"the three names are not three independent module paths: {sorted(modules)}"
+    assert len(EXPECTED_VERDICT_BINDERS) >= 2, (
+        "clause 3 is pinned to fewer than two deciding modules — a single-module comparison "
+        f"is one rename away from being self-identity: {sorted(EXPECTED_VERDICT_BINDERS)}"
+    )
+    assert EGRESS_MODULE_DOTTED_NAME not in EXPECTED_VERDICT_BINDERS, (
+        "the definition module is pinned as one of its own binders — that comparison is "
+        "self-identity and clause 3 would be vacuous"
+    )
+    names = {importlib.import_module(dotted).__name__ for dotted in EXPECTED_VERDICT_BINDERS}
+    assert names == set(EXPECTED_VERDICT_BINDERS), (
+        f"the pinned names are not independent module paths: {sorted(names)}"
+    )
 
     # A deliberately wrong comparison: a different object must NOT satisfy the
     # identity assertion. This is the control that proves `is` here is doing work.
@@ -165,7 +263,7 @@ def test_sc004_clause3_names_are_reachable_and_the_comparison_is_not_self_identi
 #: The per-caller identifier-set fragments, imported from the two transports
 #: rather than restated here — each transport owns its own (Q2).
 SAAS_FRAGMENT = saas_deciding_module.SAAS_EGRESS_IDENTIFIER_KINDS
-TRACKER_FRAGMENT = tracker_deciding_module.TRACKER_EGRESS_IDENTIFIER_KINDS
+TRACKER_FRAGMENT = tracker_transport_module.TRACKER_EGRESS_IDENTIFIER_KINDS
 
 
 def test_sc004_clause1_the_non_fragment_portion_is_byte_identical() -> None:

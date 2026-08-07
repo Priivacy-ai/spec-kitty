@@ -106,3 +106,71 @@ deleted module). `pytest.ini` sets `pythonpath = src`, so the venv interpreter i
 
 This is a workstation-configuration hazard, not a repository defect, but it silently invalidates
 measurements and is worth stating where the next agent will look.
+
+---
+
+## R-6. `tracker bind` cannot be driven end-to-end on the LOCAL path (#3172's class)
+
+Found 2026-08-07 while folding #3174 (the "no over-gating" coverage gap). #3174 asks for the
+ungated commands — `status`, `bind`, `unbind`, `map add`, `map list` — to be executed against a
+`tracker.egress: refused` fixture. Four of the five are covered by
+`TestUS7NoOverGatingUngatedCommandsSurviveRefusal`. **`bind` is not, and cannot be** without
+faking a signal unrelated to this mission.
+
+Measured under the acceptance harness's isolated `HOME`:
+
+    tracker bind --provider beads --workspace acme-ws --credential command=... \
+        --doctrine-mode spec_kitty_authoritative
+    -> exit 1
+    spec-kitty tracker: readiness=missing_auth next=spec-kitty-auth-login
+
+Structural cause: `bind_command` calls `_check_readiness(require_mission_binding=False,
+probe_reachability=False)` **directly** (`cli/commands/tracker.py:585`). Its siblings
+`status` / `map add` / `map list` / `unbind` go through `_check_binding_readiness`, which
+short-circuits on `_is_local_binding()` and therefore never reaches the hosted auth probe.
+`bind` has no such short-circuit — reasonably, since it is the command that *creates* the
+binding `_is_local_binding()` would read, so there is nothing to short-circuit on yet.
+
+The consequence is the same shape #3172 records for the hosted path: a hosted pre-flight
+(`saas.readiness._probe_auth` -> `get_token_manager().is_authenticated`) aborts a **local**
+`beads` invocation before mission code is reached. A CLI-literal acceptance cell for `bind`
+would therefore be satisfied by an `exit 1` that has nothing to do with the egress gate — the
+exact false-green class #3172 is filed about.
+
+**Not fixed here.** #3172 is a separate mission and was explicitly out of scope for this fold.
+Closing it would mean either giving `bind` a provider-aware short-circuit (it can read
+`--provider` before deciding, which `_is_local_binding()` cannot) or making the acceptance
+harness fake `get_token_manager` — the latter is a bigger and less honest patch than the
+coverage it buys.
+
+The gate is genuinely absent from `bind` regardless: `LocalTrackerService.bind` carries no
+`tracker_egress_verdict` call in the re-derived census, and
+`test_ungated_commands_consult_no_verdict_binding_while_sync_pull_consults_one` proves zero
+verdict calls across the four drivable ungated commands. What is missing is only the *executed*
+CLI-literal proof for `bind` specifically.
+
+---
+
+## R-7. `integration-tests-sync` is red on the merge-base, not on this PR
+
+Classified 2026-08-07 while folding #3174/#3110. The job reports **4 errors, 0 failures**, all
+FR-007 leak-guard *teardown* errors:
+
+    tests/sync/test_dual_write_integration.py::TestDualWriteEventAndFrontmatterConsistent::test_dual_write_event_and_frontmatter_consistent
+    tests/sync/test_dual_write_integration.py::TestDualWriteMultipleTransitions::test_dual_write_multiple_transitions
+    tests/sync/test_daemon_self_retirement.py::TestRunSyncDaemonWiring::test_serve_forever_exits_cleanly_when_server_shutdown
+    tests/sync/test_daemon_self_retirement.py::TestRunSyncDaemonWiring::test_sigterm_exits_without_deadlocking_server_shutdown
+
+Leaked symbols are `[E26] specify_cli.sync.runtime._runtime` and
+`[E27] specify_cli.sync.background._service` (plus two live threads), i.e. the sync runtime and
+background-service singletons — nothing in the tracker-egress cone.
+
+**Reproduced byte-identically on pristine main.** The merge-base `709a59534` CI run
+(`31128128294`, job `92707752017`) fails `integration-tests-sync` with the *same four node-ids*
+and the same leak-guard message: `209 passed, 4 errors`. On this PR: `366 passed, 4 errors` —
+the higher pass count is this mission's four new `tests/sync/tracker/` files being selected, not
+new failures.
+
+This PR touches **zero** files under `src/specify_cli/sync/` and no `tests/sync/` file other
+than the four tracker test files. Separate root cause from the #3110 SC-004 crossing folded in
+the same pass; not a PR defect and not this mission's to fix.
