@@ -14,7 +14,7 @@ import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Final
 from urllib.parse import urlparse
 
 import typer
@@ -70,6 +70,17 @@ from specify_cli.sync.feature_flags import (
     SAAS_SYNC_ENV_VAR,
     is_saas_sync_enabled,
     saas_sync_disabled_message,
+)
+from specify_cli.tracker.egress_verdict import (
+    CHANNEL1_GRANTED,
+    CHANNEL1_NOT_CONSENTABLE,
+    CHANNEL1_NO_RECORD,
+    CHANNEL1_RECORDED_REFUSAL,
+    CHANNEL1_UNCLASSIFIED,
+    CHANNEL1_UNDETERMINED,
+    EgressDestination,
+    TrackerEgressVerdict,
+    tracker_egress_verdict,
 )
 
 
@@ -1815,6 +1826,176 @@ def _render_consent_readability(console_out: Any, issues: list[str]) -> None:
         "  [dim]A missing record is not a fault: it means no consent was recorded, "
         "which denies.[/dim]"
     )
+
+
+_TRACKER_EGRESS_SECTION_TITLE = "Tracker egress"
+
+#: Wording for every reachable :attr:`TrackerEgressVerdict.channel1_state` value
+#: (#3108 FR-014). Rendered from the *field*, never parsed out of ``message`` --
+#: at ``HOSTED_SERVICE`` all three refusal states share one message (FR-016's
+#: byte-identity carve-out, ``decisions/DM-FR016-hosted-byte-identity.md``), and
+#: this dict is the only place that distinction still reaches an operator.
+#: Deliberately exhaustive over the closed six-member state set so a state this
+#: build fails to recognise renders its own name rather than nothing (the
+#: ``.get(..., state)`` fallback in :func:`_render_tracker_egress_row`).
+_CHANNEL1_STATE_WORDING: Final[dict[str, str]] = {
+    CHANNEL1_GRANTED: "hosted-sync consent is granted for this project",
+    CHANNEL1_NO_RECORD: "no record of hosted-sync consent exists for this project",
+    CHANNEL1_RECORDED_REFUSAL: "a refusal is recorded for this project",
+    CHANNEL1_NOT_CONSENTABLE: "not consentable, no project identity resolved",
+    CHANNEL1_UNCLASSIFIED: "refuses, but the specific reason could not be classified",
+    CHANNEL1_UNDETERMINED: "undetermined -- this directory is not inside a checkout",
+}
+
+
+def _render_tracker_egress_row(
+    console_out: Any,
+    issues: list[str],
+    verdict: TrackerEgressVerdict,
+    *,
+    binding_present: bool,
+) -> None:
+    """Render one :class:`EgressDestination` row from an already-computed *verdict*.
+
+    ``binding_present`` gates the ``issues`` append **only** -- never what is printed.
+    Both rows always render, including their REFUSED verb, because "tracker egress is
+    fine" and "I never looked" must stay distinguishable. But ``issues`` drives
+    ``doctor``'s problem summary, and a checkout with **no tracker bound at all** has
+    no tracker-egress problem to remediate: absence of both channels refuses a
+    transmission nothing is attempting. Reporting it as an issue told every unbound
+    project that something was wrong with it, and made this renderer's contribution
+    depend on ambient state -- which is how it broke ``test_doctor_healthy``, a
+    heavily-mocked unit test that nonetheless resolves the real checkout.
+
+    This reads whether *any* provider is bound, never *which* one, so it does not
+    reintroduce the provider-conditional reporting the enclosing renderer's docstring
+    forbids: neither destination row is suppressed or altered by it.
+
+    Takes no ``root`` and calls neither :func:`tracker_egress_verdict` nor
+    ``load_tracker_config`` -- the two literal verdict calls live in
+    :func:`_render_tracker_egress` alone, so this helper does not become a sixth
+    enclosing function for WP07's guard G4. Every field printed is read off
+    *verdict* and nothing is re-derived or re-classified locally (FR-003): the
+    enforced answer and the reported answer are the same object.
+
+    ``verdict.message`` is escaped with :func:`rich.markup.escape` before it reaches
+    either ``console_out.print`` here or the ``issues`` entry below (review round 1,
+    HIGH-1). C-020 requires it to embed the operator's own ``tracker.egress`` value
+    **verbatim** (``repr(raw)``, so it can legally contain ``[`` / ``]``), and this
+    is a ``rich`` surface: an unescaped ``'[refused]'`` is read back as a colour tag
+    and silently erased (C-020's "verbatim" becomes a false statement about the
+    operator's own file), and an unescaped ``'[/bold]'`` is an unmatched closing tag
+    that raises ``MarkupError`` out of ``doctor`` entirely -- the exact "reported
+    healthy, discover the refusal only by running the failing command" gap FR-014
+    exists to close, now reachable through the diagnostic itself. The ``issues``
+    entry needs its own escape, not a shared one: it is re-rendered through markup a
+    second time, independently, in ``doctor()``'s own summary loop.
+    """
+    from rich.markup import escape as _escape_markup  # noqa: PLC0415
+
+    verb, colour = ("REFUSED", "red") if verdict.refused else ("permitted", "green")
+    console_out.print(f"  {verdict.destination.value}  [{colour}]{verb}[/{colour}]")
+    if verdict.refusing_channels:
+        channels = ", ".join(sorted(verdict.refusing_channels))
+        console_out.print(f"    refusing channel(s): {channels}")
+    state_wording = _CHANNEL1_STATE_WORDING.get(verdict.channel1_state, verdict.channel1_state)
+    console_out.print(f"    Channel 1: {state_wording}")
+    safe_message = _escape_markup(verdict.message)
+    console_out.print(f"    {safe_message}")
+    for remedy in verdict.remedies:
+        console_out.print(f"    remedy: {remedy}")
+    if verdict.refused and binding_present:
+        issues.append(
+            f"tracker egress to {verdict.destination.value} is refused "
+            f"(Channel 1: {state_wording}): {safe_message}"
+        )
+
+
+def _render_tracker_egress(console_out: Any, issues: list[str]) -> None:
+    """Report the tracker-egress verdict the gates enforce (#3108 FR-014, SC-014).
+
+    One row per :class:`EgressDestination` member -- two rows, always, in every
+    checkout, printed unconditionally including the fully-permitted case.
+    "Tracker egress is fine" and "I never looked" must not render identically --
+    that equivalence is the 2026-07-27 incident's own false-green, and a block
+    that only appears on refusal rebuilds it.
+
+    Deliberately beside :func:`_render_consent_readability`, not inside it and
+    never routed through :func:`_render_consent_fault`: that helper's contract is
+    a *readability* fault over a fixed, pinned kind vocabulary
+    (``CONFIG_FAULT_KINDS``, not extended here), and a tracker-egress verdict is
+    not a readability fault -- forcing it through that renderer discards the
+    refusal text, or announces a correct file as ``UNREADABLE``, or prints
+    ``_CONSENT_FAULT_NOT_ABSENCE`` unconditionally, which is false for most of
+    this verdict's own states.
+
+    Never consults the on-disk tracker provider to decide what to show: ``--provider``
+    overrides it in memory only (``TrackerService._resolve_saas_backend_for_provider``),
+    so a provider-conditional block would misreport one destination while saying
+    nothing about the other. Two written-out calls below, each with a literal
+    :class:`EgressDestination` member -- never a loop over the enum, which would
+    turn the ``destination`` argument into an ``ast.Name`` and red WP07's guard G5.
+
+    Resolves its own root with ``locate_project_root(Path.cwd())``, exactly as the
+    sibling readability block does, so both sections in one ``doctor`` run describe
+    the same checkout -- the signature deliberately takes no ``root`` parameter so
+    ``doctor()`` keeps calling both renderers identically. ``root=None`` is a
+    specified case, not an error path (the verdict function never raises): passed
+    straight through to both calls rather than guarded behind
+    ``if repo_root is not None:``, so a directory that resolves no checkout is never
+    rendered as if its tracker egress were fine.
+    """
+    from specify_cli.core.paths import locate_project_root
+    from specify_cli.tracker.config import load_tracker_config
+
+    # Each row passes the fragment its **owning transport** passes at that destination --
+    # ``local_service.py`` for ``LOCAL_SUBPROCESS`` and ``tracker/saas_client.py`` for
+    # ``HOSTED_SERVICE`` -- rather than a fragment of ``doctor``'s own. ``doctor`` reports;
+    # it does not transmit, so it has no identifier set to declare. Its contract is that
+    # "the enforced answer and the reported answer cannot disagree" (``egress_verdict.py``
+    # module docstring, the stated reason that module exists), and the refusal text an
+    # operator reads here is rendered from ``identifiers``. Passing anything else -- a
+    # doctor-local fragment, or one transport's fragment for both rows -- would print a
+    # refusal that differs from the one the gate actually raises, which is the exact
+    # divergence the single-function design was built to prevent. Imported locally, as the
+    # two imports above are, so the hosted client and its HTTP stack load only when
+    # ``doctor`` runs.
+    from specify_cli.tracker.local_service import LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS
+    from specify_cli.tracker.saas_client import TRACKER_EGRESS_IDENTIFIER_KINDS
+
+    console_out.print(f"\n[bold]{_TRACKER_EGRESS_SECTION_TITLE}[/bold]")
+    root = locate_project_root(Path.cwd())  # may be None; that is a rendered case
+    local = tracker_egress_verdict(
+        root,
+        destination=EgressDestination.LOCAL_SUBPROCESS,
+        identifiers=LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS,
+    )
+    hosted = tracker_egress_verdict(
+        root,
+        destination=EgressDestination.HOSTED_SERVICE,
+        identifiers=TRACKER_EGRESS_IDENTIFIER_KINDS,
+    )
+    # Whether *any* provider is bound -- never which one. Gates the `issues` append
+    # only; both rows render regardless. See `_render_tracker_egress_row`.
+    #
+    # Guarded, and the guard is load-bearing: `load_tracker_config` RAISES on an
+    # unparseable `.kittify/config.yaml`, and `doctor`'s whole job is to be useful on
+    # exactly that checkout. Unguarded, this read aborted the command mid-render --
+    # measured as the `REPAIR THE FILE'S SYNTAX` count dropping 4 -> 2, because every
+    # line after this block stopped printing. `tracker_egress_verdict` is defended
+    # against this internally (NFR-003, "never raises"); a second, direct config read
+    # is not, and reintroduced the same defect one level up. An unreadable config means
+    # no binding is *knowable*, so no issue is claimed -- the sibling readability
+    # renderer already reports the unparseable file as its own issue, and the two rows
+    # below still print their refusal either way.
+    binding_present = False
+    if root is not None:
+        try:
+            binding_present = bool(load_tracker_config(root).provider)
+        except Exception:  # noqa: BLE001 - doctor must render on a broken config, not abort
+            binding_present = False
+    _render_tracker_egress_row(console_out, issues, local, binding_present=binding_present)
+    _render_tracker_egress_row(console_out, issues, hosted, binding_present=binding_present)
 
 
 def _print_identity_backfill_result(result: IdentityBackfillResult | None) -> None:
@@ -5938,6 +6119,11 @@ def doctor() -> None:  # noqa: C901
     # that column comes from a read that can fault, and a fault reads as ABSENCE
     # unless something says otherwise — which is the whole of FR-020.
     _render_consent_readability(console, issues)
+    # --- 3e. Is tracker egress refused, and by which channel? (#3108 FR-014, SC-014) ---
+    # Beside the readability block, not inside it: that section's contract is
+    # readability, not verdict. Two rows, always -- one per EgressDestination --
+    # because the on-disk provider does not determine the destination.
+    _render_tracker_egress(console, issues)
     console.print()
 
     if singleton_report is not None and singleton_report.orphan_count > 0:

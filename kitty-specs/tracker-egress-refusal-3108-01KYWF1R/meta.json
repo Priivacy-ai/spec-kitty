@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-07-31T16:10:22.035012+00:00",
+  "flattened": false,
+  "friendly_name": "tracker egress refusal 3108",
+  "mission_id": "01KYWF1REJRT6N6H1T2JSVVF7Z",
+  "mission_number": null,
+  "mission_slug": "tracker-egress-refusal-3108-01KYWF1R",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances tracker egress refusal 3108 on bundle-c-tracker-refusal-3108 so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "tracker egress refusal 3108",
+  "slug": "tracker-egress-refusal-3108-01KYWF1R",
+  "status_phase": "1",
+  "target_branch": "bundle-c-tracker-refusal-3108",
+  "topology": "lanes"
+}

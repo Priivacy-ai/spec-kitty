@@ -7691,6 +7691,22 @@ pages:
     - {slug: "what-the-repair-canonicalizes", text: "What The Repair Canonicalizes", level: 2}
     - {slug: "cross-repo-rehearsal", text: "Cross-Repo Rehearsal", level: 2}
     - {slug: "release-sequencing", text: "Release Sequencing", level: 2}
+  - path: "docs/migrations/tracker-egress-refusal.md"
+    title: "Migration: Tracker Egress Refusal"
+    divio_type: "none"
+    abstract: "Why every existing beads/fp tracker binding now needs a recorded consent decision, what the two channels are, and how to remediate each refusing state."
+    anchors:
+    - {slug: "what-changed-and-why-it-breaks-you", text: "What Changed and Why It Breaks You", level: 2}
+    - {slug: "the-two-consent-channels-and-what-absence-means-at-each", text: "The Two Consent Channels, and What Absence Means at Each", level: 2}
+    - {slug: "how-to-tell-which-channel-is-refusing-you", text: "How to Tell Which Channel Is Refusing You", level: 2}
+    - {slug: "the-three-channel-1-states-and-their-remedies", text: "The Three Channel-1 States and Their Remedies", level: 2}
+    - {slug: "the-identity-less-checkout", text: "The Identity-less Checkout", level: 2}
+    - {slug: "what-permitted-does-and-does-not-do", text: "What `permitted` Does and Does Not Do", level: 2}
+    - {slug: "the-map-list-split", text: "The `map list` Split", level: 2}
+    - {slug: "a-typo-refuses", text: "A Typo Refuses", level: 2}
+    - {slug: "which-commands-are-gated", text: "Which Commands Are Gated", level: 2}
+    - {slug: "a-recorded-decision-outlives-its-binding", text: "A Recorded Decision Outlives Its Binding", level: 2}
+    - {slug: "related-documentation", text: "Related Documentation", level: 2}
   - path: "docs/migrations/upgrade-to-0-12-0.md"
     title: "Upgrading to Spec Kitty 0.12.0"
     divio_type: "none"
