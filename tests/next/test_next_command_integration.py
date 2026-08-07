@@ -20,6 +20,7 @@ from runtime.next.decision import DecisionKind
 
 import pytest
 
+from tests._factories import provision_test_charter
 from tests.lane_test_utils import write_single_lane_manifest
 
 pytestmark = pytest.mark.git_repo
@@ -79,6 +80,11 @@ def _scaffold_project(
     # .kittify dir (minimal)
     kittify = repo_root / ".kittify"
     kittify.mkdir()
+    # WP04 fail-closed: mission-type resolution requires a provisioned
+    # charter (activated mission types). Seed the default activation set
+    # via the production provisioner, same shared helper used across the
+    # mission-creation test harness.
+    provision_test_charter(repo_root)
 
     # Mint + persist a real project identity, exactly as ``spec-kitty init``
     # does. Post-#2263 the read/sync/status paths resolve identity WITHOUT
