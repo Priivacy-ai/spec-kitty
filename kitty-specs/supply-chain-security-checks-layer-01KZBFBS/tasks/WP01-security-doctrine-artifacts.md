@@ -24,12 +24,12 @@ history:
 agent_profile: doctrine-daphne
 authoritative_surface: packs/built-in/
 create_intent:
-  - packs/built-in/directives/047-supply-chain-install-safety.directive.yaml
+  - packs/built-in/directives/051-supply-chain-install-safety.directive.yaml
   - packs/built-in/tactics/security/supply-chain-install-safety.tactic.yaml
 execution_mode: code_change
 model: ''
 owned_files:
-  - packs/built-in/directives/047-supply-chain-install-safety.directive.yaml
+  - packs/built-in/directives/051-supply-chain-install-safety.directive.yaml
   - packs/built-in/tactics/architecture/dependency-hygiene.tactic.yaml
   - packs/built-in/tactics/security/supply-chain-install-safety.tactic.yaml
 role: implementer
@@ -54,7 +54,7 @@ Author the core doctrine artifacts for the supply-chain security layer so downst
 
 Success means:
 
-- `047-supply-chain-install-safety` exists with the agreed policy pillars:
+- `051-supply-chain-install-safety` exists with the agreed policy pillars:
   - official registry authenticity checks
   - package freshness/last-update visibility
   - deny-by-default lifecycle script approvals
@@ -81,14 +81,14 @@ Success means:
 
 ## Subtasks & Detailed Guidance
 
-### T001 – Author directive `047-supply-chain-install-safety`
+### T001 – Author directive `051-supply-chain-install-safety`
 
 - **Purpose**: Establish policy-level governance for install-time and dependency supply-chain risk handling.
 - **Steps**:
   1. Create the new directive file under `packs/built-in/directives/`.
   2. Encode all required policy areas from spec FR-001 and updated user asks.
   3. Add clear references to related tactics/directives.
-- **Files**: `packs/built-in/directives/047-supply-chain-install-safety.directive.yaml`
+- **Files**: `packs/built-in/directives/051-supply-chain-install-safety.directive.yaml`
 - **Parallel?**: No (foundation for T002/T003).
 
 ### T002 – Extend `dependency-hygiene` for JS/TS

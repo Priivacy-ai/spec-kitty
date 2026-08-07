@@ -32,6 +32,6 @@ These guidelines govern the quality and correctness standards for work package r
 
 ## Supply-Chain Security Evidence
 
-- For any dependency change (add/upgrade/removal), confirm the implementer's evidence covers registry authenticity, package freshness, lifecycle-script disposition, Node Active LTS posture, and incident/IoC posture, per the `047-supply-chain-install-safety` directive and `supply-chain-install-safety` tactic.
+- For any dependency change (add/upgrade/removal), confirm the implementer's evidence covers registry authenticity, package freshness, lifecycle-script disposition, Node Active LTS posture, and incident/IoC posture, per the `051-supply-chain-install-safety` directive and `supply-chain-install-safety` tactic.
 - Confirm every adversarial-squad or reviewer challenge to a supply-chain finding has an explicit, traceable disposition (`accepted`/`changed`/`deferred_with_rationale`) per `contracts/adversarial-evidence-contract.md` — never let a contested finding go unrecorded.
 - This is advisory in v1: it does not add a new fail-closed transition gate, but missing evidence for a dependency change is a governance gap to flag in review feedback.

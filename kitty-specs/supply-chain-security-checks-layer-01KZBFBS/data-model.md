@@ -7,7 +7,7 @@ This mission is doctrine/configuration heavy and does not introduce runtime data
 ### 1) SupplyChainInstallSafetyDirective
 
 - **Kind**: Directive artifact (`packs/built-in/directives/*.directive.yaml`)
-- **Identity**: Directive ID (`047-supply-chain-install-safety`)
+- **Identity**: Directive ID (`051-supply-chain-install-safety`)
 - **Core fields**:
   - policy statements (registry authenticity, package freshness, script discipline, Node LTS posture)
   - action applicability

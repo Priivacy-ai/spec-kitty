@@ -7,7 +7,7 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|----------|
-| T001 | Author `047-supply-chain-install-safety` directive with policy rules and references | WP01 | |
+| T001 | Author `051-supply-chain-install-safety` directive with policy rules and references | WP01 | |
 | T002 | Extend `dependency-hygiene` for JavaScript/TypeScript supply-chain checks | WP01 | [P] |
 | T003 | Add `supply-chain-install-safety` tactic with operational checklist | WP01 | [P] |
 | T004 | Wire security artifacts into software-dev action indexes (`plan`, `implement`, `review`) | WP02 | |

@@ -2,7 +2,7 @@ action: plan
 directives:
   - 003-decision-documentation-requirement
   - 010-specification-fidelity-requirement
-  - 047-supply-chain-install-safety
+  - 051-supply-chain-install-safety
 tactics:
   - requirements-validation-workflow
   - adr-drafting-workflow

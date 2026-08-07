@@ -11,7 +11,7 @@
         "WP01"
       ],
       "write_scope": [
-        "packs/built-in/directives/047-supply-chain-install-safety.directive.yaml",
+        "packs/built-in/directives/051-supply-chain-install-safety.directive.yaml",
         "packs/built-in/tactics/architecture/dependency-hygiene.tactic.yaml",
         "packs/built-in/tactics/security/supply-chain-install-safety.tactic.yaml"
       ],

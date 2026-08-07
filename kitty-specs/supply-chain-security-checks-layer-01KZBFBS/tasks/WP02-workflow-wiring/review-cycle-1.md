@@ -39,7 +39,7 @@ None of these were delivered. Every test file touched by this WP's commit
 `tests/doctrine/fixtures/graph-identity.baseline.json`). These are well-documented
 and legitimate (they correctly re-baseline after the 6 new `scope` edges), but
 they only pin *cardinality*, not *content*. A bug that wired the new tactic to
-the wrong action, or swapped `directive:DIRECTIVE_047` for a different directive,
+the wrong action, or swapped `directive:DIRECTIVE_051` for a different directive,
 while keeping the same total edge count, would sail through this suite unnoticed
 (anti-pattern checklist item #2, synthetic-fixture risk).
 
@@ -57,7 +57,7 @@ is the template to extend/mirror.
 
 1. In `tests/doctrine/missions/test_action_indexes.py`, add assertions (mirroring
    the existing `living-documentation-sync` test) that `plan`, `implement`, and
-   `review` action indexes each include `"047-supply-chain-install-safety"` in
+   `review` action indexes each include `"051-supply-chain-install-safety"` in
    `directives` and `"supply-chain-install-safety"` in `tactics`.
 2. In `tests/doctrine/mission_step_contracts/test_shipped_contracts.py` (or a new
    sibling test module), add:
@@ -78,7 +78,7 @@ is the template to extend/mirror.
 
 | # | Criterion | Result |
 |---|-----------|--------|
-| 1 | plan/implement/review action indexes reference `047-supply-chain-install-safety` + `supply-chain-install-safety` | PASS |
+| 1 | plan/implement/review action indexes reference `051-supply-chain-install-safety` + `supply-chain-install-safety` | PASS |
 | 2 | `action.graph.yaml` has new `scope` edges for the three actions → directive + tactic | PASS (6 new edges confirmed: 2 per action × 3 actions) |
 | 3 | plan/implement/review step-contracts each include an explicit security stage; implement's precedes quality-gate | PASS |
 | 4 | No new fail-closed transition gate handler introduced; review's `in_progress->for_review` gate remains `fail_open: true`; plan/implement have no gate block | PASS |

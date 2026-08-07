@@ -36,5 +36,5 @@ If a file or path is uncertain, verify with `ls` or `test -f` before reading it.
 
 ## Supply-Chain Security Check (dependency changes)
 
-- Any dependency add/upgrade/removal must run the `supply-chain-install-safety` tactic checklist (registry authenticity, package freshness, deny-by-default lifecycle scripts, Node Active LTS awareness) before the quality gate, referencing the `047-supply-chain-install-safety` directive.
+- Any dependency add/upgrade/removal must run the `supply-chain-install-safety` tactic checklist (registry authenticity, package freshness, deny-by-default lifecycle scripts, Node Active LTS awareness) before the quality gate, referencing the `051-supply-chain-install-safety` directive.
 - Record the check results — not just intent — in the commit message or WP notes. An unexamined default is a gap, not a pass. Advisory in v1: no new fail-closed gate is added.

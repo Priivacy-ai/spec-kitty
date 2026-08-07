@@ -12,7 +12,7 @@ directives:
   - 036-black-box-integration-testing
   - 037-living-documentation-sync
   - 046-readable-consistent-prs
-  - 047-supply-chain-install-safety
+  - 051-supply-chain-install-safety
 tactics:
   - acceptance-test-first
   - tdd-red-green-refactor

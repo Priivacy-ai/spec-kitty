@@ -67,7 +67,7 @@ kitty-specs/supply-chain-security-checks-layer-01KZBFBS/
 ```
 packs/built-in/
 ├── directives/
-│   └── 047-supply-chain-install-safety.directive.yaml          # new
+│   └── 051-supply-chain-install-safety.directive.yaml          # new
 ├── tactics/
 │   ├── architecture/dependency-hygiene.tactic.yaml             # extended (JS/TS + checks)
 │   └── security/supply-chain-install-safety.tactic.yaml        # new

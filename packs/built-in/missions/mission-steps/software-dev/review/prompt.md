@@ -174,7 +174,7 @@ For each subtask:
 
 ### 3a. Supply-Chain Security Evidence Check (dependency changes)
 
-If the diff adds, upgrades, or removes a dependency (any ecosystem), verify the implementer's evidence trail against the `supply-chain-install-safety` tactic and the `047-supply-chain-install-safety` directive — this mirrors the `supply_chain_security_review` step already present in the `review` step contract:
+If the diff adds, upgrades, or removes a dependency (any ecosystem), verify the implementer's evidence trail against the `supply-chain-install-safety` tactic and the `051-supply-chain-install-safety` directive — this mirrors the `supply_chain_security_review` step already present in the `review` step contract:
 
 - Registry authenticity, package freshness, lifecycle-script disposition (deny-by-default), Node Active LTS posture, and incident/IoC posture are each documented, not assumed or waved through.
 - Any adversarial-squad or reviewer challenge to a supply-chain finding has an explicit disposition — `accepted`, `changed`, or `deferred_with_rationale` — traceable to an evidence location, per `contracts/adversarial-evidence-contract.md`. Do not approve a WP that silently drops a contested finding.

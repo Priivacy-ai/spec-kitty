@@ -16,7 +16,7 @@ Define the minimum behavior contract for integrating the supply-chain security l
 
 ### Rule 1 — Directive existence and scope
 
-- A directive with ID `047-supply-chain-install-safety` exists in built-in directives.
+- A directive with ID `051-supply-chain-install-safety` exists in built-in directives.
 - It covers, at minimum:
   - official registry authenticity checks
   - package age/recency visibility

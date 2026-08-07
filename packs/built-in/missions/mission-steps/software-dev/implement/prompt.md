@@ -166,7 +166,7 @@ If this WP adds, upgrades, or removes a dependency (any ecosystem — npm/yarn/p
 - **Package freshness**: record first-publish/latest-publish timestamps; flag a suspiciously new version for operator acknowledgment instead of accepting it silently.
 - **Lifecycle-script discipline (deny-by-default)**: never auto-approve `preinstall`/`install`/`postinstall` scripts. If a legitimate native build genuinely needs one, add an explicit, justified allowlist entry — never a blanket script-safety bypass.
 - **Node Active LTS awareness**: check the project's declared/runtime Node version against current Active LTS; disclose any skew with a documented rationale rather than leaving it unacknowledged.
-- **Risk disclosure**: record what was checked and the resulting decision (per the `047-supply-chain-install-safety` directive) in the WP implementation notes or commit message, so a reviewer does not have to re-derive the analysis.
+- **Risk disclosure**: record what was checked and the resulting decision (per the `051-supply-chain-install-safety` directive) in the WP implementation notes or commit message, so a reviewer does not have to re-derive the analysis.
 
 This is advisory in v1 — it does not add a new fail-closed gate — but skipping the checklist for a dependency change is a gap the reviewer will flag, not a neutral outcome.
 
