@@ -36,7 +36,7 @@ import pytest
 
 from tests.architectural.conftest import SourceFile
 
-pytestmark = [pytest.mark.architectural]
+pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SRC = _REPO_ROOT / "src"
