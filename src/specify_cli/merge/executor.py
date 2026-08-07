@@ -167,6 +167,14 @@ def _capture_merge_snapshots(main_repo: Path, *paths: Path) -> dict[Path, bytes 
 # predates that fix, or a topology where the artifacts legitimately live on the
 # PRIMARY partition (``SINGLE_BRANCH`` / ``LANES``) and can still diverge from a
 # stale mission-branch scaffold placeholder (the exact #2804 incident shape).
+# 2026-08-07 (landing fix, verdict-seam-write-unification #3245): registered as
+# a justified-survivor R-014 exemption-registry row (tests/architectural/
+# tool_artifact_enrolment/registry/_GATE_ARTIFACT_FILENAMES.md) rather than
+# routed through the canonical churn owner `is_toolchain_generated_churn` --
+# that owner classifies an already-observed path's dirty-state disposition,
+# not "the basenames for kind X", so it cannot replace this mechanism's
+# unconditional forward-build of candidate snapshot paths. See the row file
+# for the full rationale.
 _GATE_ARTIFACT_FILENAMES: Final[tuple[str, ...]] = ("acceptance-matrix.json", "issue-matrix.json")
 
 
