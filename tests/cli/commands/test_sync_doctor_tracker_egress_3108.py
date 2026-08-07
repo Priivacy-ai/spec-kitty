@@ -49,6 +49,8 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands import sync as sync_module
 from specify_cli.cli.commands.sync import app
+from specify_cli.tracker.local_service import LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS
+from specify_cli.tracker.saas_client import TRACKER_EGRESS_IDENTIFIER_KINDS
 from specify_cli.tracker.egress_verdict import (
     CHANNEL1_GRANTED,
     CHANNEL1_NOT_CONSENTABLE,
@@ -76,6 +78,15 @@ DESTINATIONS: tuple[EgressDestination, ...] = (
     EgressDestination.LOCAL_SUBPROCESS,
     EgressDestination.HOSTED_SERVICE,
 )
+
+#: The identifier-set fragment each destination's **owning transport** passes. This suite
+#: re-derives verdicts to compare against what ``doctor`` printed, so it must pass exactly
+#: what ``doctor`` passes -- a different fragment here would render a different refusal and
+#: the row-matching assertions would compare two strings that were never meant to agree.
+_IDENTIFIERS_FOR = {
+    EgressDestination.LOCAL_SUBPROCESS: LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS,
+    EgressDestination.HOSTED_SERVICE: TRACKER_EGRESS_IDENTIFIER_KINDS,
+}
 
 _SYNC_ENABLED_TRUE = "sync:\n  enabled: true\n"
 _SYNC_ENABLED_FALSE = "sync:\n  enabled: false\n"
@@ -377,7 +388,7 @@ def test_all_seven_checkouts_render_two_verdict_true_rows(tmp_path: Path, monkey
         checkouts_rendered += 1
 
         for destination in DESTINATIONS:
-            verdict = tracker_egress_verdict(repo, destination=destination)
+            verdict = tracker_egress_verdict(repo, destination=destination, identifiers=_IDENTIFIERS_FOR[destination])
             row_text = rows[destination.value]
             _assert_row_matches_verdict(row_text, verdict)
             rows_asserted += 1
@@ -386,7 +397,11 @@ def test_all_seven_checkouts_render_two_verdict_true_rows(tmp_path: Path, monkey
                 discriminating_refused[destination.value] = verdict.refused
 
         if index == 1:  # the tracker-key fault checkout (C-020)
-            fault_verdict = tracker_egress_verdict(repo, destination=EgressDestination.LOCAL_SUBPROCESS)
+            fault_verdict = tracker_egress_verdict(
+                repo,
+                destination=EgressDestination.LOCAL_SUBPROCESS,
+                identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS],
+            )
             flat_row = _flat(rows[EgressDestination.LOCAL_SUBPROCESS.value])
             assert repr("refuse") in flat_row, "the offending raw value must be quoted verbatim"
             assert repr("refused") in flat_row, "the legal value 'refused' must be named"
@@ -436,7 +451,7 @@ def test_root_none_renders_two_undetermined_refused_rows_outside_any_checkout(
     print("root=None case: 1 invocation, 2 rows (excluded from the 7/14 totals above)")
 
     for destination in DESTINATIONS:
-        verdict = tracker_egress_verdict(None, destination=destination)
+        verdict = tracker_egress_verdict(None, destination=destination, identifiers=_IDENTIFIERS_FOR[destination])
         _assert_row_matches_verdict(rows[destination.value], verdict)
         assert verdict.refused is True
         assert verdict.channel1_state == "undetermined"

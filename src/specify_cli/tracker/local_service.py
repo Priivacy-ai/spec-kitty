@@ -40,6 +40,38 @@ if TYPE_CHECKING:
     from specify_cli.tracker.egress_verdict import TrackerEgressVerdict
 
 
+#: This transport's own identifier-set fragment, threaded through
+#: ``tracker_egress_verdict`` into Channel 1 and rendered by the shared refusal template
+#: in ``specify_cli/egress.py``. Bundle B made ``identifiers`` a **required** parameter of
+#: ``project_egress_refusal`` precisely so a transport that never declared what it can put
+#: on the wire cannot render a refusal that quietly names nothing.
+#:
+#: What this path actually transmits: the connector invokes the operator's machine-global
+#: executable (``tracker/factory.py`` -- the ``command`` key, defaulting to ``bd``/``fp``)
+#: with issue fields as ``argv``. ``BeadsConnector.create_issue`` passes ``issue.title``
+#: verbatim as a positional argument -- an issue title is an engagement name -- and the
+#: mission linkage travels with it (``spec_kitty_tracker.mission_sync`` writes
+#: ``mission_id`` into the ``spec_kitty_mission`` custom field and into the rendered
+#: backlink comment). So this path carries **mission and engagement** identifiers, and no
+#: ``decision_id``: naming a decision id here would tell an operator that something was at
+#: stake which this transport cannot transmit (US2-AS2).
+#:
+#: Scope (ruling PB-3): the identifiers **of the project whose consent was refused** -- not
+#: the destination, and not recipient ids. Nobody may "fix" this string by appending where
+#: the data was going; that would *add* an identifier to an operator-facing message.
+#:
+#: Deliberately **not** imported from ``tracker/saas_client.py``, whose
+#: ``TRACKER_EGRESS_IDENTIFIER_KINDS`` happens to hold the same text today. This module's
+#: contract is that no SaaS import lives here (see the module docstring), and a
+#: module-level import for a string constant would execute the hosted client -- and its
+#: transitive HTTP stack -- at local-connector import time. The values coincide because the
+#: two tracker destinations genuinely carry the same identifier kinds, not because one is
+#: derived from the other; each transport owns its own fragment (``egress.py``: "Each
+#: transport passes its own identifier-set fragment as an argument"), so either may change
+#: without the other.
+LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS = "mission and engagement identifiers"
+
+
 class LocalTrackerServiceError(RuntimeError):
     """Raised when a local tracker operation fails."""
 
@@ -180,6 +212,7 @@ class LocalTrackerService:
         verdict = tracker_egress_verdict(
             self._repo_root,
             destination=EgressDestination.LOCAL_SUBPROCESS,
+            identifiers=LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS,
         )
         if verdict.refused:
             raise LocalTrackerEgressRefusedError(verdict)
@@ -202,6 +235,7 @@ class LocalTrackerService:
         verdict = tracker_egress_verdict(
             self._repo_root,
             destination=EgressDestination.LOCAL_SUBPROCESS,
+            identifiers=LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS,
         )
         if verdict.refused:
             raise LocalTrackerEgressRefusedError(verdict)
@@ -219,6 +253,7 @@ class LocalTrackerService:
         verdict = tracker_egress_verdict(
             self._repo_root,
             destination=EgressDestination.LOCAL_SUBPROCESS,
+            identifiers=LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS,
         )
         if verdict.refused:
             raise LocalTrackerEgressRefusedError(verdict)
