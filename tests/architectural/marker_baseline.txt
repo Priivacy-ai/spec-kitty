@@ -147,3 +147,10 @@ tests/regression/test_issue_2782_sync_strict_json_ingress_skip.py::test_mission_
 tests/architectural/test_mission_exit_baseline.py::test_committed_floor_present_in_live_collection
 tests/architectural/test_mission_exit_baseline.py::test_known_baseline_failure_pin[3157]
 tests/architectural/test_mission_exit_baseline.py::test_known_baseline_failure_pin[3160]
+# Deliberate regen (2026-08-07, PR #3245 landing pass): mission
+# verdict-seam-write-unification's new tests/status/test_emit_durability.py
+# drives 2 real OS processes (multiprocessing 'fork') concurrently appending
+# distinct verdicts to the same event log to exercise the real inter-process
+# FileLock serialization boundary (SC-003) -- genuinely @stress (real process
+# spawn/join with a 30s timeout), not a budget-motivated re-mark.
+tests/status/test_emit_durability.py::test_two_concurrent_distinct_verdicts_are_both_durable
