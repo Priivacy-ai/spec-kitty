@@ -19,6 +19,7 @@ from unittest.mock import patch
 import pytest
 
 from specify_cli.mission_metadata import resolve_mission_identity
+from tests._factories import provision_test_charter
 
 
 # ---------------------------------------------------------------------------
@@ -183,6 +184,12 @@ def test_create_mission_core_writes_null_mission_number(tmp_path: Path) -> None:
     """Creating a new mission writes mission_number: null (JSON null)."""
     from specify_cli.core.mission_creation import create_mission_core
 
+    # WP04 fail-closed: create_mission_core requires a provisioned charter.
+    # Seed the default mission_type_activations via the production
+    # provisioner (same shared helper used across the mission-creation
+    # test harness).
+    provision_test_charter(tmp_path)
+
     # create_mission_core needs a real git repo. Stub the git and filesystem
     # operations that are not part of what we're testing.
     with (
@@ -218,6 +225,9 @@ def test_create_mission_core_mission_number_field_is_none_in_result(tmp_path: Pa
     """MissionCreationResult.mission_number is None for new missions."""
     from specify_cli.core.mission_creation import create_mission_core
 
+    # WP04 fail-closed: create_mission_core requires a provisioned charter.
+    provision_test_charter(tmp_path)
+
     with (
         patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False),
         patch("specify_cli.core.mission_creation.locate_project_root", return_value=None),
@@ -240,6 +250,9 @@ def test_create_mission_core_mission_number_field_is_none_in_result(tmp_path: Pa
 def test_new_mission_feature_dir_uses_human_slug_mid8(tmp_path: Path) -> None:
     """The feature directory name uses <human-slug>-<mid8> format."""
     from specify_cli.core.mission_creation import create_mission_core
+
+    # WP04 fail-closed: create_mission_core requires a provisioned charter.
+    provision_test_charter(tmp_path)
 
     with (
         patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False),

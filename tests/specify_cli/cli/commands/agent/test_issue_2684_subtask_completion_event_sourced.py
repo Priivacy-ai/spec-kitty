@@ -87,6 +87,7 @@ from specify_cli.analysis_report import write_analysis_report
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.mission_creation import create_mission_core
 from specify_cli.status.bootstrap import bootstrap_canonical_state
+from tests._factories import provision_test_charter
 from tests.specify_cli.charter_preflight._fixtures import (
     seed_bundle_files,
     seed_charter,
@@ -141,10 +142,11 @@ def _build_single_branch_mission_with_in_progress_wp(
     (repo / ".kittify").mkdir()
     # WP04 (C-A1): the provisioned charter is the sole mission-type activation
     # authority, so `create_mission_core`'s require-boundary fails closed
-    # without a non-empty `mission_type_activations` list.
-    (repo / ".kittify" / "config.yaml").write_text(
-        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
-    )
+    # without a non-empty `mission_type_activations` list. Seed the full
+    # default activation set via the production provisioner (same shared
+    # helper used across the mission-creation test harness) rather than a
+    # partial, hand-rolled `mission_type_activations`-only config.yaml.
+    provision_test_charter(repo)
 
     # Fully-fresh charter so `agent action implement`'s preflight passes.
     charter_path, metadata_path = seed_charter(repo)

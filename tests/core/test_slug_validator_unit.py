@@ -8,6 +8,7 @@ import pytest
 from ulid import ULID
 
 from specify_cli.core.mission_creation import KEBAB_CASE_PATTERN, MissionCreationError
+from tests._factories import provision_test_charter
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -70,6 +71,11 @@ class TestCreateMissionCoreSlugValidation:
              patch("specify_cli.core.mission_creation.get_current_branch", return_value="main"), \
              patch("specify_cli.core.mission_creation.ULID", return_value=ULID.from_str("01KNXQS9ATWWFXS3K5ZJ9E5008")), \
              patch("specify_cli.core.mission_creation._commit_feature_file"):
+            # WP04 fail-closed: create_mission_core requires a provisioned
+            # charter. Seed the default mission_type_activations via the
+            # production provisioner (same shared helper used across the
+            # mission-creation test harness).
+            provision_test_charter(tmp_path)
             # Create the kitty-specs dir so mkdir doesn't fail
             (tmp_path / "kitty-specs").mkdir()
             result = create_mission_core(

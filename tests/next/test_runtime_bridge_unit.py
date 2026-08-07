@@ -16,6 +16,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests._factories import provision_test_charter
 from tests.lane_test_utils import write_single_lane_manifest
 from runtime.next.decision import DecisionKind
 from runtime.next._internal_runtime import DiscoveryContext
@@ -49,6 +50,11 @@ def _scaffold_project(
 
     kittify = repo_root / ".kittify"
     kittify.mkdir()
+    # WP04 fail-closed: mission-type resolution requires a provisioned
+    # charter (activated mission types). Seed the default activation set
+    # via the production provisioner, same shared helper used across the
+    # mission-creation test harness.
+    provision_test_charter(repo_root)
 
     feature_dir = repo_root / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)

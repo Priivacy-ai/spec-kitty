@@ -10,6 +10,7 @@ import pytest
 
 from charter.compiler import compile_charter, write_compiled_charter
 from charter.interview import apply_answer_overrides, default_interview
+from tests._factories import provision_test_charter
 from tests.lane_test_utils import write_single_lane_manifest
 from runtime.next.prompt_builder import (
     _mission_context_header,
@@ -30,6 +31,11 @@ pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 @pytest.fixture
 def feature_dir(tmp_path: Path) -> Path:
+    # WP04 fail-closed: mission-type governance resolution requires a
+    # provisioned charter (activated mission types). Seed the default
+    # activation set via the production provisioner, same shared helper
+    # used across the mission-creation test harness.
+    provision_test_charter(tmp_path)
     fd = tmp_path / "kitty-specs" / "042-test-feature"
     fd.mkdir(parents=True)
     return fd
