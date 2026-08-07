@@ -227,8 +227,20 @@ FLOOR_MARGIN = 2
 # established 3-below-live gap (mechanic 2) against the corrected 131,
 # strictly satisfying the anti-vacuity check (same convention as the two
 # prior entries above).
+#
+# FIXED 2026-08-07 (PR #3248 landing pass, this fold): pre-existing main
+# breakage — the same red reproduces on ``upstream/main`` (live == 133 > 128 +
+# margin(4)); this docs-only PR adds no routed ``load_meta`` call sites in
+# ``src/``, so the growth is genuine census drift accumulated by merges between
+# pins, not a delegation-chain regression. Measured directly via
+# ``PWHEADLESS=1 uv run pytest
+# tests/architectural/test_inline_meta_read_gate.py::test_routed_load_meta_floor``
+# on the rebased tip: live == 133. Floor raised 128 -> 130 to restore the
+# established 3-below-live gap (mechanic 2) against the corrected 133, strictly
+# satisfying the anti-vacuity check (same convention as the three prior entries
+# above).
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
-ROUTED_LOAD_META_FLOOR = 128
+ROUTED_LOAD_META_FLOOR = 130
 
 
 # --------------------------------------------------------------------------- #
