@@ -64,29 +64,29 @@ This ADR records the vocabulary decision. It does not implement the seam.
 
 ## Decision Drivers
 
-* **Single canonical authority** (charter governing principle) — one word must name one
+- **Single canonical authority** (charter governing principle) — one word must name one
   concept, and one operation must have one seam. Both are violated today.
-* **Precedent set by #2653** — `primary` and `merge` were disambiguated by naming every
+- **Precedent set by #2653** — `primary` and `merge` were disambiguated by naming every
   sense explicitly and adding "Do NOT use when" guards, not by leaving context to
   disambiguate. `surface` gets the same treatment or the precedent is arbitrary.
-* **The missing translation seam** — the enum is the vocabulary a future single seam will
+- **The missing translation seam** — the enum is the vocabulary a future single seam will
   speak. Fixing the names before extracting the seam means the seam is born with the right
   vocabulary rather than inheriting a colliding one.
-* **Explicitness over avoidance** — `PLACEMENT` was chosen historically to avoid the
+- **Explicitness over avoidance** — `PLACEMENT` was chosen historically to avoid the
   *word* "coord" while keeping the *concept*. Avoiding the word does not avoid the
   coupling; it only makes the coupling unreadable.
-* **Existing three-sense overload of `merge`** — any new member naming the
+- **Existing three-sense overload of `merge`** — any new member naming the
   post-consolidation state must not re-import that ambiguity.
 
 ## Considered Options
 
-* **Option 1 (chosen)** — Split the vocabulary: rename `SurfaceKind` → `ToolSurfaceKind`
+- **Option 1 (chosen)** — Split the vocabulary: rename `SurfaceKind` → `ToolSurfaceKind`
   and `Surface` → `TopologySurface`, expand the topology members to
   `PRIMARY | COORD | LANE | CONSOLIDATED | TEMP`, and govern both senses in the glossary
   with cross-context "Do NOT use when" guards.
-* **Option 2 (rejected)** — Leave both types named `Surface*` and rely on import path /
+- **Option 2 (rejected)** — Leave both types named `Surface*` and rely on import path /
   module context to disambiguate.
-* **Option 3 (rejected)** — Rename only one side (e.g. only the topology type), leaving
+- **Option 3 (rejected)** — Rename only one side (e.g. only the topology type), leaving
   `SurfaceKind` bare.
 
 ## Decision Outcome
@@ -111,14 +111,14 @@ shared word; only confusion is.
 
 ### The rename decisions
 
-* `SurfaceKind` → **`ToolSurfaceKind`**. The module is already `tool_surface`; the type
+- `SurfaceKind` → **`ToolSurfaceKind`**. The module is already `tool_surface`; the type
   name now matches the bounded context it lives in.
-* `Surface` → **`TopologySurface`**, with the `ArtifactSurface` back-compat alias retired
+- `Surface` → **`TopologySurface`**, with the `ArtifactSurface` back-compat alias retired
   along with the old name. Per ADR
   [2026-07-01-1](2026-07-01-1-no-legacy-compat-branches-in-resolvers.md), a legacy alias
   kept "just in case" is a resolver-shaped fallback in type clothing; require the canonical
   name and migrate.
-* Members expand from `PRIMARY | PLACEMENT` to
+- Members expand from `PRIMARY | PLACEMENT` to
   **`PRIMARY | COORD`** as landed in the rename, expanding to the full
   **`PRIMARY | COORD | LANE | CONSOLIDATED | TEMP`** — the full set of physical trees a
   mission artifact can resolve to, not just the two the current two-way partition needed.
@@ -149,10 +149,10 @@ The standing rule is that behaviour must not branch on topology — a caller mus
 *resolved* path, not re-derive one from `if topology is COORD`. Naming a member `COORD`
 does not violate that rule and must not be read as licence to reintroduce it:
 
-* **Allowed (naming)** — a surface value that *identifies* a real physical tree, so a
+- **Allowed (naming)** — a surface value that *identifies* a real physical tree, so a
   resolver can return "this artifact lives on the COORD surface" instead of returning an
   unlabelled path.
-* **Forbidden (conditioning)** — `if surface is TopologySurface.COORD: <inline path
+- **Forbidden (conditioning)** — `if surface is TopologySurface.COORD: <inline path
   derivation>` at a call site, in place of asking the seam for the resolved directory.
 
 The distinction is the whole point of having a translation seam: the label is the seam's
@@ -162,23 +162,23 @@ The distinction is the whole point of having a translation seam: the label is th
 
 #### Positive
 
-* Two unrelated types stop colliding on one word; a reader who sees `TopologySurface` or
+- Two unrelated types stop colliding on one word; a reader who sees `TopologySurface` or
   `ToolSurfaceKind` knows the domain without opening the import.
-* The expanded member set gives the future translation seam a complete vocabulary — `LANE`,
+- The expanded member set gives the future translation seam a complete vocabulary — `LANE`,
   `CONSOLIDATED`, and `TEMP` are trees that already exist in the system but had no name in
   this type, which is part of why six call paths each invented their own handling.
-* The `surface` glossary treatment now matches the `primary` / `merge` treatment, so the
+- The `surface` glossary treatment now matches the `primary` / `merge` treatment, so the
   disambiguation discipline reads as a rule rather than as three one-off calls.
-* Retiring `ArtifactSurface` removes a legacy alias before it acquires consumers.
+- Retiring `ArtifactSurface` removes a legacy alias before it acquires consumers.
 
 #### Negative
 
-* A broad mechanical rename across `src/` and `tests/`. It is a bulk edit and carries the
+- A broad mechanical rename across `src/` and `tests/`. It is a bulk edit and carries the
   usual occurrence-classification obligation.
-* Dropping the `str` mixin (if the rename does so) breaks any surviving
+- Dropping the `str` mixin (if the rename does so) breaks any surviving
   `== "primary"` / `== "placement"` literal comparison; those comparisons are exactly the
   scattered-translation smell this ADR documents, so they must be converted, not preserved.
-* **Landed state vs end state.** The rename commit ships only `PRIMARY | COORD` (the two members
+- **Landed state vs end state.** The rename commit ships only `PRIMARY | COORD` (the two members
   the old `Surface` carried, `PLACEMENT` renamed to `COORD`). `LANE`, `CONSOLIDATED` and `TEMP`
   are the decided end state but are **not** declared until the surface→filesystem translation seam
   that resolves them lands (mission IC-11) — a member no caller can resolve is a phantom, which the
@@ -187,10 +187,10 @@ The distinction is the whole point of having a translation seam: the label is th
 
 #### Neutral
 
-* This ADR changes vocabulary only. The scattered translation remains scattered; #1834 and
+- This ADR changes vocabulary only. The scattered translation remains scattered; #1834 and
   #2885 remain open. The seam extraction is separate work, and this ADR is deliberately
   the vocabulary prerequisite for it rather than a bundled fix.
-* `MissionArtifactKind` and the `_PRIMARY_ARTIFACT_KINDS` / `_PLACEMENT_ARTIFACT_KINDS`
+- `MissionArtifactKind` and the `_PRIMARY_ARTIFACT_KINDS` / `_PLACEMENT_ARTIFACT_KINDS`
   partition sets are untouched by the vocabulary decision beyond the `PLACEMENT` → `COORD`
   member name.
 
@@ -210,49 +210,49 @@ a resolved path — that would mean the label was read as a branching input, whi
 
 **Pros:**
 
-* Each type name states its bounded context.
-* Consistent with the `primary` (#2653) and `merge` disambiguation precedent.
-* Gives the future translation seam a complete, unambiguous output vocabulary.
+- Each type name states its bounded context.
+- Consistent with the `primary` (#2653) and `merge` disambiguation precedent.
+- Gives the future translation seam a complete, unambiguous output vocabulary.
 
 **Cons:**
 
-* Bulk rename cost across two packages plus tests.
-* Names three members ahead of their consumers.
+- Bulk rename cost across two packages plus tests.
+- Names three members ahead of their consumers.
 
 ### Option 2 — leave both named `Surface*`, disambiguate by import path
 
 **Pros:**
 
-* Zero code churn.
+- Zero code churn.
 
 **Cons:**
 
-* Import-path disambiguation fails exactly where it matters — in prose, in review comments,
+- Import-path disambiguation fails exactly where it matters — in prose, in review comments,
   in agent-authored plans, and in `from ... import Surface` lines read out of context.
-* Repeats the `primary` / `merge` failure the project has already paid to fix twice.
-* Leaves the future seam speaking a colliding vocabulary.
+- Repeats the `primary` / `merge` failure the project has already paid to fix twice.
+- Leaves the future seam speaking a colliding vocabulary.
 
 ### Option 3 — rename only the topology side
 
 **Pros:**
 
-* Smaller diff; fixes the side with the active defects.
+- Smaller diff; fixes the side with the active defects.
 
 **Cons:**
 
-* Leaves a bare `SurfaceKind` that still reads as "the surface type" to anyone who has not
+- Leaves a bare `SurfaceKind` that still reads as "the surface type" to anyone who has not
   met `TopologySurface`, so the collision persists asymmetrically.
-* Half-applied disambiguation is worse than none: it implies the remaining bare name is
+- Half-applied disambiguation is worse than none: it implies the remaining bare name is
   *the* canonical sense.
 
 ## More Information
 
-* Glossary entries: [Topology Surface](../../context/orchestration.md#topology-surface)
+- Glossary entries: [Topology Surface](../../context/orchestration.md#topology-surface)
   and [COORD partition](../../context/orchestration.md#coord-partition) (Orchestration
   context); [Tool Surface](../../context/execution.md#tool-surface) (Execution context).
-* [2026-07-01-1 — No legacy-compat branches in resolvers](2026-07-01-1-no-legacy-compat-branches-in-resolvers.md)
+- [2026-07-01-1 — No legacy-compat branches in resolvers](2026-07-01-1-no-legacy-compat-branches-in-resolvers.md)
   — why `ArtifactSurface` is retired rather than kept as an alias.
-* [2026-06-24-1 — Kind- and topology-aware artifact placement](2026-06-24-1-kind-and-topology-aware-artifact-placement.md)
+- [2026-06-24-1 — Kind- and topology-aware artifact placement](2026-06-24-1-kind-and-topology-aware-artifact-placement.md)
   — the placement model whose labels this ADR renames.
-* [2026-06-26-1 — Single-authority seam + call-site gate](2026-06-26-1-single-authority-seam-and-call-site-gate.md)
+- [2026-06-26-1 — Single-authority seam + call-site gate](2026-06-26-1-single-authority-seam-and-call-site-gate.md)
   — the seam pattern the missing surface→filesystem translation should eventually follow.

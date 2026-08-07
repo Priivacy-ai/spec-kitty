@@ -214,7 +214,7 @@ resolved today.
   other four kinds.** Rejected: out of scope (C-005 excludes `emit.py` placement-routing,
   #3071) and `DECISION_LOG` is intentionally in-mission-only; routing them would be an
   unrequested behavior change smuggled in under "consistency."
-- **Do the full #3080 rename now, alongside the CONSOLIDATED wiring.** Rejected: C-012
+* **Do the full #3080 rename now, alongside the CONSOLIDATED wiring.** Rejected: C-012
   is explicit that this mission lands only the tidy-first foundation; renaming
   `spec-kitty merge` / `MergeState` / `baseline_merge_commit` touches a much larger,
   independently-scoped surface (command help text, CLI flags, serialized state shapes)

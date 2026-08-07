@@ -42,22 +42,22 @@ enforcement test.
 
 ## Decision Drivers
 
-* CORE governance logic (state machine, mission creation, readiness, invocation lifecycle)
+- CORE governance logic (state machine, mission creation, readiness, invocation lifecycle)
   must remain fast and independently testable without importing outbound connectors.
-* INTEGRATION modules (sync, tracker, SaaS, orchestrator client) can legitimately read
+- INTEGRATION modules (sync, tracker, SaaS, orchestrator client) can legitimately read
   CORE state; the reverse dependency is an architectural inversion.
-* The observer/adapter registry pattern (already in use for `status/adapters.py`) is the
+- The observer/adapter registry pattern (already in use for `status/adapters.py`) is the
   proven mechanism for decoupling CORE events from INTEGRATION consumers.
-* Physical extraction to `src/orchestrator/` is a planned future step; the boundary must
+- Physical extraction to `src/orchestrator/` is a planned future step; the boundary must
   be enforced in-place first so that extraction can proceed safely.
 
 ## Considered Options
 
-* **(A) Enforce in-place boundary** — add adapter registries in CORE; move INTEGRATION
+- **(A) Enforce in-place boundary** — add adapter registries in CORE; move INTEGRATION
   logic into INTEGRATION-owned consumers; enforce with an AST-based test.
-* **(B) Defer until physical extraction** — allow the leaks to remain until
+- **(B) Defer until physical extraction** — allow the leaks to remain until
   `src/orchestrator/` is ready.
-* **(C) Silently allowlist all three leaks** — add three blanket exemptions to the test.
+- **(C) Silently allowlist all three leaks** — add three blanket exemptions to the test.
 
 ## Decision Outcome
 
@@ -171,7 +171,7 @@ operate on **orthogonal axes** and land independently:
 
 The two reinforce each other: the `core/adapters.py` and `invocation/adapters.py`
 registries introduced here reuse the established `status/adapters.py` seam, and
-#2173 explicitly *drops* its SaaS port ("already seamed via `fire_saas_fanout`"),
+\#2173 explicitly *drops* its SaaS port ("already seamed via `fire_saas_fanout`"),
 i.e. it leans on the very inversion seam this boundary hardens. Neither blocks the
 other; there is no file-level collision.
 
@@ -188,7 +188,7 @@ count-ratchet in the enforcement test now holds the exemption set at zero.
 
 | Source | Imported | Rationale | Planned resolution |
 |--------|----------|-----------|-------------------|
-| _(none — the single historical exemption was resolved by #2252)_ | | | |
+| *(none — the single historical exemption was resolved by #2252)* | | | |
 
 **Adding new exemptions:** Do NOT add an allowlist entry unless the crossing is a
 deliberate, time-bounded exception with a written follow-up plan. Edit
@@ -233,17 +233,17 @@ The following items are **out of scope** for this mission and are explicitly def
 
 ### Positive
 
-* CORE governance logic is independently testable without importing external connectors.
-* A new `.py` file in any CORE-set directory is automatically covered by the enforcement
+- CORE governance logic is independently testable without importing external connectors.
+- A new `.py` file in any CORE-set directory is automatically covered by the enforcement
   test — no test change required.
-* The adapter-registry pattern is consistent across the codebase
+- The adapter-registry pattern is consistent across the codebase
   (`status/adapters.py`, `core/adapters.py`, `invocation/adapters.py`).
-* Physical extraction to `src/orchestrator/` can proceed safely on top of this enforced
+- Physical extraction to `src/orchestrator/` can proceed safely on top of this enforced
   boundary.
-* The allowlist is empty: #2252 relocated `is_saas_sync_enabled` to
+- The allowlist is empty: #2252 relocated `is_saas_sync_enabled` to
   `core/saas_sync_config.py`, so CORE no longer imports the INTEGRATION set even for the
   feature-flag read. The enforcement ratchet is pinned at `len(ALLOWLIST) == 0`.
-* **Shim-depth trade-off (intentional):** the `tracker`/`sync` `feature_flags` modules
+- **Shim-depth trade-off (intentional):** the `tracker`/`sync` `feature_flags` modules
   re-export through `saas/rollout.py` (retained as a re-export shim) rather than pointing
   directly at `core/saas_sync_config.py`. This keeps a two-hop shim chain
   (`feature_flags` → `saas/rollout.py` → `core/saas_sync_config.py`) but avoids churning
@@ -251,14 +251,14 @@ The following items are **out of scope** for this mission and are explicitly def
 
 ### Negative
 
-* _(Resolved)_ The historical allowlist entry (`readiness/coordinator.py` →
+- *(Resolved)* The historical allowlist entry (`readiness/coordinator.py` →
   `specify_cli.saas.rollout`) that once left a structural coupling in CORE was
   closed by #2252; the allowlist is now empty. See the Positive section for the
   resolved state and the intentional shim-depth trade-off.
 
 ### Neutral
 
-* `coordination/`, `lanes/`, and `runtime/` remain unclassified; their import patterns
+- `coordination/`, `lanes/`, and `runtime/` remain unclassified; their import patterns
   accumulate unchecked until a follow-up mission addresses C-004.
 
 ### Confirmation
