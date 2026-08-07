@@ -204,6 +204,77 @@ def test_repair_canonicalizes_historical_meta_and_status_events(tmp_path: Path) 
     )
 
 
+def test_repair_canonicalizes_legacy_typed_wp_status_changed_row(tmp_path: Path) -> None:
+    """A typed legacy lane transition remains a transition, not a side-log mirror."""
+    repo = tmp_path
+    mission = repo / "kitty-specs" / "001-legacy-wpstatus"
+    mission.mkdir(parents=True)
+    _write_json(
+        mission / "meta.json",
+        {
+            "mission_id": "01KQHRB8GCFJAX7HM4ZY52AQGV",
+            "mission_slug": "001-legacy-wpstatus",
+            "mission_type": "software-dev",
+            "slug": "001-legacy-wpstatus",
+            "target_branch": "main",
+        },
+    )
+    legacy_transition = {
+        "actor": "codex",
+        "at": "2026-01-01T00:00:00+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGW",
+        "event_type": "WPStatusChanged",
+        "from_lane": "planned",
+        "to_lane": "claimed",
+        "wp_id": "WP01",
+    }
+    typed_mirror = {
+        "at": "2026-01-01T00:00:01+00:00",
+        "event_id": "01KQHRB8GCFJAX7HM4ZY52AQGX",
+        "event_type": "DecisionPointOpened",
+        "payload": {"decision_point_id": "DP01"},
+    }
+    (mission / "status.events.jsonl").write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in (legacy_transition, typed_mirror))
+        + "\n",
+        encoding="utf-8",
+    )
+
+    report = repair_repo(repo)
+
+    result = report.missions[0]
+    assert result.quarantined_rows == 1
+    rows = [
+        json.loads(line)
+        for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert len(rows) == 1
+    assert rows[0]["event_id"] == legacy_transition["event_id"]
+    assert rows[0]["wp_id"] == "WP01"
+    assert rows[0]["from_lane"] == "planned"
+    assert rows[0]["to_lane"] == "claimed"
+    assert "event_type" not in rows[0]
+
+    status = _read_json(mission / "status.json")
+    work_packages = cast(dict[str, dict[str, object]], status["work_packages"])
+    assert work_packages["WP01"]["lane"] == "claimed"
+
+    quarantine = (
+        repo
+        / ".kittify"
+        / "migrations"
+        / "mission-state"
+        / "quarantine"
+        / report.run_id
+        / "001-legacy-wpstatus"
+        / "status.events.jsonl"
+    )
+    quarantine_text = quarantine.read_text(encoding="utf-8")
+    assert "DecisionPointOpened" in quarantine_text
+    assert "WPStatusChanged" not in quarantine_text
+
+
 def test_repair_is_idempotent_after_first_canonicalization(tmp_path: Path) -> None:
     repo = tmp_path
     mission = repo / "kitty-specs" / "001-modern"
