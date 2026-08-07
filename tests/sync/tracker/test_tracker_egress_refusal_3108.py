@@ -1761,3 +1761,251 @@ def test_us1_sc4_hosted_drain_unaffected_by_tracker_key(
     # drain path is instrumented above it (a `requests`-based transport), which is precisely why
     # the two coexist.
     assert http_tripwire.attempts == 0
+
+
+# ---------------------------------------------------------------------------
+# #3174 -- NO OVER-GATING. The converse of US4's totality assertions.
+# ---------------------------------------------------------------------------
+#
+# US4 above pins that the three GATED entry points (`sync pull` / `sync push` / `sync run`)
+# refuse. That property is satisfied by a gate that refuses *unconditionally* -- so is every
+# other refusal assertion in this file. What none of them pin is the other half of the
+# specification: `docs/migrations/tracker-egress-refusal.md` promises operators that `status`,
+# `bind`, `unbind`, `map add` and `map list` keep working on a project that records
+# `tracker: {egress: refused}`. Until this section landed, nothing executed that promise --
+# it was asserted only structurally (a call-site census showing 6 `tracker_egress_verdict`
+# call expressions across 5 enclosing functions, none of them an ungated command). A census is
+# re-derived by hand and goes stale; these cells run the commands.
+#
+# Every cell here carries an **in-cell discriminator** (`_assert_gate_is_live`): the same
+# repo root that serves the ungated command must first refuse `tracker sync pull`, naming
+# Channel 2. Without it a cell would stay green on a fixture that was never refusing at all --
+# "the ungated commands work on a project with no gate" is not the claim.
+#
+# Each cell asserts the command **succeeded and returned its expected local-only payload**,
+# never merely "did not print the refusal". A command that exits 1 for an unrelated reason
+# (missing binary, missing auth, absent config) must not be able to satisfy these.
+
+
+#: The exact Channel-2 refusal `_refused_message` composes at ``LOCAL_SUBPROCESS`` for a
+#: committed ``tracker: {egress: refused}``. Quoted, not paraphrased: a cell that asserted
+#: only ``exit_code != 0`` would be satisfied by the un-armed abort (US1 sc3's negative pin).
+_CHANNEL2_REFUSAL_FRAGMENT = (
+    "Channel 2 refused: tracker.egress is recorded as 'refused' in this project's own "
+    ".kittify/config.yaml; refusing tracker egress to local_subprocess"
+)
+
+#: Every module-level binding of ``tracker_egress_verdict`` that exists in the product today.
+#: Re-derived by AST over ``src/`` rather than copied from the mission documents: 6 call
+#: expressions across 5 enclosing functions (``sync._render_tracker_egress`` x2,
+#: ``LocalTrackerService.sync_pull``/``sync_push``/``sync_run``, ``SaaSTrackerClient._request``),
+#: bound in exactly these three modules. Each caller does ``from ... import
+#: tracker_egress_verdict`` at import time, so the *caller's* module attribute is the only
+#: observable seam -- patching the definition module would count nothing.
+_VERDICT_BINDING_TARGETS = (
+    "specify_cli.tracker.local_service.tracker_egress_verdict",
+    "specify_cli.tracker.saas_client.tracker_egress_verdict",
+    "specify_cli.cli.commands.sync.tracker_egress_verdict",
+)
+
+
+def _refusing_project(tmp_path: Path, name: str) -> _LocalFixture:
+    """One ``beads``-bound project that records ``tracker: {egress: refused}``.
+
+    Channel 1 is deliberately left *permitting* (``sync: {enabled: True}`` against a resolvable
+    ``project.uuid``) so the only thing refusing is the project's own tracker key. A fixture
+    that refused on both channels would leave a passing cell ambiguous about which half the
+    ungated commands were surviving.
+    """
+    return _build_local_fixture(
+        tmp_path,
+        name=name,
+        project_uuid=CONSENTING_PROJECT_UUID,
+        sync_block={"enabled": True},
+        tracker_egress="refused",
+        seed=True,
+    )
+
+
+def _assert_gate_is_live(monkeypatch: pytest.MonkeyPatch, fx: _LocalFixture) -> None:
+    """Discriminator: this exact repo root refuses a GATED command, on Channel 2, by name.
+
+    Run first in every cell below. `sync pull` on a refusing fixture mutates nothing (it is
+    refused before `_load_runtime`), so it is safe to run ahead of the ungated command under
+    test and leaves the store and the config untouched -- asserted here via the recorder's
+    zero-argv count.
+    """
+    refused = _invoke(monkeypatch, fx.repo_root, ["tracker", "sync", "pull"])
+    assert refused.exit_code != 0, refused.output
+    assert _CHANNEL2_REFUSAL_FRAGMENT in refused.output, refused.output
+    assert len(fx.captured()) == 0, fx.captured()  # golden-count: cardinality-is-contract
+
+
+def _json_payload(output: str) -> Any:
+    """Parse the JSON object ``_print_json`` echoed, tolerating any preamble the CLI printed.
+
+    ``tracker.py``'s ``_print_json`` is a bare ``typer.echo(json.dumps(...))``, but a future
+    banner or deprecation line ahead of it must not turn a real payload assertion into a
+    ``JSONDecodeError`` that reads as a gate. The brace search is anchored, and the parse
+    failing is itself a legible failure.
+    """
+    start = output.index("{")
+    return json.loads(output[start:])
+
+
+class TestUS7NoOverGatingUngatedCommandsSurviveRefusal:
+    """`#3174`: a project that refuses tracker egress keeps its local-only commands working.
+
+    ``bind`` is **not** covered here, and that is a measured exclusion rather than an omission.
+    ``tracker bind`` calls ``_check_readiness(require_mission_binding=False, ...)`` directly --
+    it has no ``_is_local_binding()`` short-circuit, unlike ``_check_binding_readiness`` which
+    serves ``status``/``map``/``unbind``. Measured under this file's isolated ``HOME``:
+
+        tracker bind --provider beads --workspace acme-ws --credential command=... -> exit 1
+        spec-kitty tracker: readiness=missing_auth next=spec-kitty-auth-login
+
+    That is `#3172`'s class exactly -- a hosted auth pre-flight aborting a *local* invocation
+    before mission code is reached -- and `#3172` is out of scope for this mission. Asserting
+    ``exit_code == 0`` for ``bind`` is unreachable without faking an auth signal orthogonal to
+    the egress gate, and asserting ``exit_code != 0`` would be a false green pointing the wrong
+    way. Recorded as a residual instead. Note the gate is genuinely absent from ``bind`` either
+    way: the binding-counter cell below proves zero verdict calls, and ``LocalTrackerService.bind``
+    carries no verdict call in the census.
+    """
+
+    def test_status_succeeds_and_returns_the_local_payload_under_refusal(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The cell `#3174` names first: `status` on a refusing project reports the real local
+        store, not a refusal and not an empty stub."""
+        fx = _refusing_project(tmp_path, "no-over-gating-status")
+        _assert_gate_is_live(monkeypatch, fx)
+
+        result = _invoke(monkeypatch, fx.repo_root, ["tracker", "status", "--json"])
+
+        assert result.exit_code == 0, result.output
+        payload = _json_payload(result.output)
+        # Payload identity, not merely "it did not refuse": these fields can only come from
+        # this fixture's own committed config and its own seeded sqlite store.
+        assert payload["configured"] is True, payload
+        assert payload["provider"] == "beads", payload
+        assert payload["workspace"] == fx.workspace, payload
+        assert payload["doctrine_mode"] == "spec_kitty_authoritative", payload
+        assert payload["db_path"] == str(fx.db_path), payload
+        assert payload["issue_count"] == 1, payload  # the seeded sentinel, read back through status
+        assert payload["mapping_count"] == 0, payload
+        assert payload["credentials_present"] is True, payload
+        assert _CHANNEL2_REFUSAL_FRAGMENT not in result.output, result.output
+        # `status` constructs no connector and runs no subprocess -- the recorder stays at zero
+        # across the whole cell, refused command included.
+        assert len(fx.captured()) == 0, fx.captured()  # golden-count: cardinality-is-contract
+
+    def test_map_list_succeeds_and_returns_the_local_mapping_set_under_refusal(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """`map list` without ``--provider`` -- the ungated spelling. The ``--provider`` spelling
+        takes the hosted branch (``_check_readiness``) and is a different command shape."""
+        fx = _refusing_project(tmp_path, "no-over-gating-map-list")
+        _assert_gate_is_live(monkeypatch, fx)
+
+        result = _invoke(monkeypatch, fx.repo_root, ["tracker", "map", "list", "--json"])
+
+        assert result.exit_code == 0, result.output
+        payload = _json_payload(result.output)
+        # An empty list is the *correct* answer for a fixture seeded with issues but no
+        # mappings, and it is only meaningful because the roundtrip cell below shows the same
+        # command returning a populated list on the same code path.
+        assert payload == {"mappings": [], "pending_binding_upgrade": None}, payload
+        assert _CHANNEL2_REFUSAL_FRAGMENT not in result.output, result.output
+        assert len(fx.captured()) == 0, fx.captured()  # golden-count: cardinality-is-contract
+
+    def test_map_add_then_map_list_roundtrip_under_refusal(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """`map add` is a *write*, and the write must actually land: read it back through the
+        separate ``map list`` command rather than trusting ``map add``'s own echo."""
+        fx = _refusing_project(tmp_path, "no-over-gating-map-add")
+        _assert_gate_is_live(monkeypatch, fx)
+
+        added = _invoke(
+            monkeypatch,
+            fx.repo_root,
+            ["tracker", "map", "add", "--wp-id", "WP01", "--external-id", "ext-3174"],
+        )
+        assert added.exit_code == 0, added.output
+        assert "Mapping saved: WP01 -> ext-3174" in added.output, added.output
+
+        listed = _invoke(monkeypatch, fx.repo_root, ["tracker", "map", "list", "--json"])
+        assert listed.exit_code == 0, listed.output
+        mappings = _json_payload(listed.output)["mappings"]
+        assert len(mappings) == 1, mappings  # golden-count: cardinality-is-contract
+        assert mappings[0]["wp_id"] == "WP01", mappings
+        assert mappings[0]["external_id"] == "ext-3174", mappings
+        assert mappings[0]["system"] == "beads", mappings
+        assert mappings[0]["workspace"] == fx.workspace, mappings
+        assert _CHANNEL2_REFUSAL_FRAGMENT not in added.output + listed.output
+        assert len(fx.captured()) == 0, fx.captured()  # golden-count: cardinality-is-contract
+
+    def test_unbind_succeeds_and_clears_the_binding_under_refusal(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """`unbind` is destructive, so it runs last within its own cell and its effect is read
+        back from the committed config rather than from ``status``.
+
+        Measured: ``tracker status`` *after* an unbind exits 1 with
+        ``readiness=missing_auth`` -- with no local binding left, ``_is_local_binding()`` is
+        False and ``_check_binding_readiness`` falls through to the full hosted readiness
+        chain. That is correct behaviour for an unbound checkout and is `#3172`'s pre-flight
+        again, not the egress gate; asserting through it would couple this cell to an unrelated
+        signal. ``load_tracker_config`` is the direct, uncoupled observation.
+        """
+        fx = _refusing_project(tmp_path, "no-over-gating-unbind")
+        _assert_gate_is_live(monkeypatch, fx)
+        assert load_tracker_config(fx.repo_root).provider == "beads"  # non-vacuity: bound before
+
+        result = _invoke(monkeypatch, fx.repo_root, ["tracker", "unbind"])
+
+        assert result.exit_code == 0, result.output
+        assert "Tracker binding removed" in result.output, result.output
+        assert _CHANNEL2_REFUSAL_FRAGMENT not in result.output, result.output
+        assert load_tracker_config(fx.repo_root).provider is None
+        assert len(fx.captured()) == 0, fx.captured()  # golden-count: cardinality-is-contract
+
+    def test_ungated_commands_consult_no_verdict_binding_while_sync_pull_consults_one(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The census, executed. Delegating counters (never stubs) on all three module bindings
+        of ``tracker_egress_verdict``; the ungated commands must leave every counter at zero,
+        and the gated one on the same root must move exactly one of them.
+
+        This is the cell that reds on an over-gating regression introduced at *any* existing
+        binding, including one whose refusal a future command swallowed into an exit-0 path --
+        a shape the exit-code cells above would miss.
+        """
+        counters = {
+            target: _install_delegating_counter(monkeypatch, target)
+            for target in _VERDICT_BINDING_TARGETS
+        }
+        fx = _refusing_project(tmp_path, "no-over-gating-counters")
+
+        for args in (
+            ["tracker", "status", "--json"],
+            ["tracker", "map", "list", "--json"],
+            ["tracker", "map", "add", "--wp-id", "WP01", "--external-id", "ext-3174"],
+            ["tracker", "unbind"],
+        ):
+            result = _invoke(monkeypatch, fx.repo_root, args)
+            assert result.exit_code == 0, f"{' '.join(args)}: {result.output}"
+        assert {t: c[0] for t, c in counters.items()} == dict.fromkeys(_VERDICT_BINDING_TARGETS, 0)
+
+        # Non-vacuity for the counters themselves: the same wrappers, the same process, a
+        # command that *is* gated. Re-bind first -- the unbind above cleared the binding.
+        rebound = _refusing_project(tmp_path, "no-over-gating-counters-gated")
+        refused = _invoke(monkeypatch, rebound.repo_root, ["tracker", "sync", "pull"])
+        assert refused.exit_code != 0, refused.output
+        assert _CHANNEL2_REFUSAL_FRAGMENT in refused.output, refused.output
+        assert {t: c[0] for t, c in counters.items()} == {
+            "specify_cli.tracker.local_service.tracker_egress_verdict": 1,
+            "specify_cli.tracker.saas_client.tracker_egress_verdict": 0,
+            "specify_cli.cli.commands.sync.tracker_egress_verdict": 0,
+        }  # golden-count: cardinality-is-contract
