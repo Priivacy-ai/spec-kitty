@@ -31,6 +31,7 @@ from pathlib import Path
 
 import pytest
 
+from tests._factories import provision_test_charter
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -179,6 +180,11 @@ def test_resolve_governance_picks_documentation_profile_for_documentation_missio
     repo_root = tmp_path
     _git_init_minimal(repo_root)
     _write_minimal_charter(repo_root)
+    # WP04 fail-closed follow-up: resolve_mission_type_context()'s action-slot
+    # resolution validates against the project's activated mission types; a
+    # bare charter.md with no `.kittify/config.yaml` never ran
+    # `spec-kitty init`, so provision the same default charter surface here.
+    provision_test_charter(repo_root)
 
     feature_dir = repo_root / "kitty-specs" / "documentation-mission-001"
     feature_dir.mkdir(parents=True)

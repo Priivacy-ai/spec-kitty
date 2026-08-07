@@ -13,6 +13,7 @@ import pytest
 from ulid import ULID
 
 from specify_cli.core.mission_creation import create_mission_core
+from tests._factories import provision_test_charter
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -32,6 +33,10 @@ def _init_git_repo(repo: Path) -> None:
     subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True)
     subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, capture_output=True, check=True)
     subprocess.run(["git", "commit", "-m", "init", "--allow-empty"], cwd=repo, capture_output=True, check=True)
+    # WP04 fail-closed follow-up: create_mission_core() hard-requires an
+    # activated mission type; a bare git-init fixture never ran
+    # `spec-kitty init`, so provision the same default charter surface here.
+    provision_test_charter(repo)
 
 
 def _mission_summary(slug: str) -> dict[str, str]:

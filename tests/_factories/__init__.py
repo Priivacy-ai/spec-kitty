@@ -14,6 +14,19 @@ factory's ``meta.json`` output is byte-identical to a direct
 ``create_mission_core()`` call, after normalizing the auto-minted
 ``{mission_id, created_at}`` fields (and the ``mid8`` embedded in the
 slug-derived fields), minus explicit overrides.
+
+**Charter provisioning (WP04 fail-closed follow-up).** ``create_mission_core()``
+now hard-requires at least one activated mission type
+(``charter.mission_type_profiles.existing_mission_types``) and raises
+``CharterPackConfigError`` when a project's ``.kittify/config.yaml`` has no
+``mission_type_activations`` key -- exactly the state of a bare ``tmp_path``
+git-init test fixture that never ran ``spec-kitty init``/``upgrade``.
+:func:`provision_test_charter` mirrors what those commands do (via the real,
+production ``provision_default_mission_type_activations`` provisioner) so
+test fixtures see the same activated-mission-type surface a real project
+would. ``make_mission()`` calls it automatically; direct
+``create_mission_core()`` callers must call it themselves (see
+``provision_test_charter``'s docstring).
 """
 
 from __future__ import annotations
@@ -23,8 +36,30 @@ from typing import Any
 
 from mission_runtime import MissionTopology
 from specify_cli.core.mission_creation import MissionCreationResult, create_mission_core
+from specify_cli.provisioning.default_charter import (
+    provision_default_mission_type_activations,
+)
 
-__all__ = ["make_mission"]
+__all__ = ["make_mission", "provision_test_charter"]
+
+
+def provision_test_charter(project_path: Path) -> None:
+    """Seed ``project_path``'s ``.kittify/config.yaml`` with activated mission types.
+
+    Thin wrapper over the real, production
+    :func:`specify_cli.provisioning.default_charter.provision_default_mission_type_activations`
+    provisioner -- NOT a second, test-only seeder. Idempotent and additive
+    (a no-op if the key is already present), so it is safe to call
+    unconditionally at the top of a test's git-repo setup.
+
+    Every test that calls ``create_mission_core()`` directly (bypassing
+    ``make_mission()``, which already provisions internally) or resolves a
+    mission-type profile against a bare ``tmp_path`` project MUST call this
+    first -- otherwise ``existing_mission_types()`` returns an empty list and
+    the mission-create / mission-type-resolution boundary fails closed
+    exactly as it does for a real, unprovisioned project.
+    """
+    provision_default_mission_type_activations(project_path)
 
 
 def make_mission(
@@ -67,6 +102,7 @@ def make_mission(
     MissionCreationResult
         The same structured result ``create_mission_core()`` returns.
     """
+    provision_test_charter(repo_root)
     overrides.setdefault("allow_worktree_context", True)
     title = mission_slug.replace("-", " ").strip() or "test mission"
     overrides.setdefault("friendly_name", title.title())

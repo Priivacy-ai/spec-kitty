@@ -24,6 +24,7 @@ import pytest
 
 from specify_cli.core.mission_creation import create_mission_core
 from specify_cli.missions._substantive import is_committed, is_substantive
+from tests._factories import provision_test_charter
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -52,6 +53,10 @@ def _init_git_repo(repo: Path) -> None:
     _git(repo, "config", "user.email", "test@example.com")
     _git(repo, "config", "user.name", "Test")
     _git(repo, "commit", "-m", "init", "--allow-empty")
+    # WP04 fail-closed follow-up: create_mission_core() hard-requires an
+    # activated mission type; a bare git-init fixture never ran
+    # `spec-kitty init`, so provision the same default charter surface here.
+    provision_test_charter(repo)
 
 
 def _summary(slug: str) -> dict[str, str]:
