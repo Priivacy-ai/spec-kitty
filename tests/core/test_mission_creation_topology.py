@@ -18,6 +18,8 @@ import pytest
 
 from specify_cli.core.mission_creation import create_mission_core
 
+from tests._factories import provision_test_charter
+
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _CORE_MODULE = "specify_cli.core.mission_creation"
@@ -25,6 +27,10 @@ _CORE_MODULE = "specify_cli.core.mission_creation"
 
 def _init_git_repo(repo: Path) -> None:
     (repo / ".kittify").mkdir(exist_ok=True)
+    # WP04 fail-closed: create_mission_core requires a provisioned charter.
+    # Seed the default mission_type_activations via the production provisioner
+    # (same shared helper used across the mission-creation test harness).
+    provision_test_charter(repo)
     (repo / "kitty-specs").mkdir(exist_ok=True)
     subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
     subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True)
@@ -120,6 +126,10 @@ def test_coordinationless_create_persists_topology_so_2453_routing_is_not_cwd(
     must read the created mission as modern. This pins the linkage end-to-end.
     """
     from specify_cli.coordination.transaction import _warrants_legacy_warning
+
+    # WP04 fail-closed: seed the default charter before create (this test
+    # scaffolds tmp_path directly rather than through _init_git_repo).
+    provision_test_charter(tmp_path)
 
     with _patched_context(tmp_path), patch("specify_cli.missions._create.ensure_coordination_branch"):
         from mission_runtime import MissionTopology
