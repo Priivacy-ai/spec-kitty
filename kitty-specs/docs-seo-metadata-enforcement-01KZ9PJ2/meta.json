@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "fdeed44bc2e901ad4a98c76003300353d7588fc6",
+  "coordination_branch": "kitty/mission-docs-seo-metadata-enforcement-01KZ9PJ2",
+  "created_at": "2026-08-05T19:31:44.496528+00:00",
+  "flattened": false,
+  "friendly_name": "Docs SEO Metadata Audit and Enforcement",
+  "mission_id": "01KZ9PJ2QG6BWH6MFMMZHVB72C",
+  "mission_number": 191,
+  "mission_slug": "docs-seo-metadata-enforcement-01KZ9PJ2",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Developers searching for how to install Spec Kitty or look up a slash command currently land on results that either do not describe the page or resolve to a redirect stub, so the docs site earns impressions but almost no clicks. The two pages named in the original report were already fixed, but the underlying enforcement gate had quietly stopped covering 98% of the site after an earlier directory reorganisation, and 147 architecture-decision pages ship with no description at all. This mission re-audits the published site on evidence, backfills the missing metadata, and rebuilds the gate so its coverage is derived from the build itself rather than maintained separately and left to rot.",
+  "purpose_tldr": "Make every published docs page carry unique, search-intent-matched metadata, and enforce it with a gate that cannot silently go vacuous when pages move.",
+  "slug": "docs-seo-metadata-enforcement-01KZ9PJ2",
+  "source_description": "GitHub issue #1652 — SEO audit needed for GitHub Pages docs site (https://github.com/Priivacy-ai/spec-kitty/issues/1652)",
+  "target_branch": "feat/docs-seo-metadata-enforcement",
+  "topology": "coord",
+  "vcs": "git"
+}
