@@ -52,26 +52,26 @@ perspective, and it re-imposed cross-package release lockstep. It was rejected.
 
 ## Decision Drivers
 
-* **Claim precision.** An over-broad "charter is decoupled" claim would be load-bearing for
+- **Claim precision.** An over-broad "charter is decoupled" claim would be load-bearing for
   the follow-on and is not what the landed evidence supports. The claim must be no wider
   than its proof.
-* **Transitive closure, not local cleanliness.** Charter imports `doctrine` (109 import
+- **Transitive closure, not local cleanliness.** Charter imports `doctrine` (109 import
   statements) and `kernel` (8). A charter wheel with no doctrine wheel and no kernel wheel
   beneath it is unresolvable at install time, regardless of how clean charter itself is.
-* **No-partial discipline.** The #779 precedent makes a half-executed cutover the specific
+- **No-partial discipline.** The #779 precedent makes a half-executed cutover the specific
   named risk, not a hypothetical one.
-* **Reuse the landed boundary pattern.** This repository already has an enforcement triad
+- **Reuse the landed boundary pattern.** This repository already has an enforcement triad
   that works. Inventing a second, parallel packaging-enforcement idiom would split the
   authority and rot.
-* **C-002 must hold.** The groundwork Mission must not leave the tree in a state where CI
+- **C-002 must hold.** The groundwork Mission must not leave the tree in a state where CI
   builds or installs a nested wheel whose `kernel` dependency is not yet published.
 
 ## Considered Options
 
-* **Option A — Extract the charter wheel now**, on top of the landed WP10/WP12 groundwork.
-* **Option B — Assess and sequence: one atomic kernel→doctrine→charter cutover, deferred**
+- **Option A — Extract the charter wheel now**, on top of the landed WP10/WP12 groundwork.
+- **Option B — Assess and sequence: one atomic kernel→doctrine→charter cutover, deferred**
   as an explicit no-partial follow-on that extends the `2026-04-25-1` pattern.
-* **Option C — Abandon the split**; keep kernel/doctrine/charter permanently in the root
+- **Option C — Abandon the split**; keep kernel/doctrine/charter permanently in the root
   wheel and close #3101.
 
 ## Decision Outcome
@@ -194,30 +194,30 @@ is groundwork only.** Concretely, as of this ADR:
 
 #### Positive
 
-* The follow-on starts from a settled assessment and a forced ordering, not a fresh
+- The follow-on starts from a settled assessment and a forced ordering, not a fresh
   investigation; the remaining unknowns are named (glossary/runtime/re-export edges) rather
   than assumed absent.
-* The one real upward edge out of the charter layer is gone, and re-introducing it at any
+- The one real upward edge out of the charter layer is gone, and re-introducing it at any
   scope now fails CI.
-* The kernel/doctrine manifests are build-verified, so the follow-on inherits two solved
+- The kernel/doctrine manifests are build-verified, so the follow-on inherits two solved
   packaging problems (root-relative `packages`, out-of-tree `packs/`) instead of rediscovering
   them.
-* Enforcement stays in one idiom: three mechanisms, extended, not duplicated.
+- Enforcement stays in one idiom: three mechanisms, extended, not duplicated.
 
 #### Negative
 
-* The charter wheel is not available until the whole chain ships; consumers wanting only the
+- The charter wheel is not available until the whole chain ships; consumers wanting only the
   charter layer keep installing `spec-kitty-cli`.
-* The no-partial rule makes the follow-on a large single reviewed unit, which is harder to
+- The no-partial rule makes the follow-on a large single reviewed unit, which is harder to
   review than three small ones. This cost is accepted: #779 is the evidence that the cheaper
   path is the expensive one.
-* `src/kernel/pyproject.toml` and `src/doctrine/pyproject.toml` are dormant manifests in the
+- `src/kernel/pyproject.toml` and `src/doctrine/pyproject.toml` are dormant manifests in the
   tree until the cutover — a standing "is this live?" question for readers, mitigated by this
   ADR and by the closure test.
 
 #### Neutral
 
-* The three-wheel end state is unchanged from #3101's original intent; this ADR fixes the
+- The three-wheel end state is unchanged from #3101's original intent; this ADR fixes the
   order and the atomicity, not the destination.
 
 ### Confirmation
@@ -236,44 +236,44 @@ decision rather than a footnote.
 
 **Pros:**
 
-* Delivers a visible piece of #3101 immediately.
-* Exercises the packaging path while WP10/WP12 context is fresh.
+- Delivers a visible piece of #3101 immediately.
+- Exercises the packaging path while WP10/WP12 context is fresh.
 
 **Cons:**
 
-* Unresolvable: charter's 109 `doctrine` and 8 `kernel` import statements need both wheels
+- Unresolvable: charter's 109 `doctrine` and 8 `kernel` import statements need both wheels
   published first. Neither is.
-* It is the #779 hybrid by construction — charter external, its dependencies still bundled
+- It is the #779 hybrid by construction — charter external, its dependencies still bundled
   in the root wheel.
-* Violates C-002 (no cutover this Mission) and the C-007 no-partial rule of
+- Violates C-002 (no cutover this Mission) and the C-007 no-partial rule of
   `2026-04-25-1`.
 
 ### Option B — Assess and sequence one atomic cutover (chosen)
 
 **Pros:**
 
-* Matches the real dependency closure; the publish order is derived, not chosen.
-* Reuses a landed, proven enforcement triad instead of inventing one.
-* Keeps the groundwork honest: the manifests exist and build, and nothing pretends the split
+- Matches the real dependency closure; the publish order is derived, not chosen.
+- Reuses a landed, proven enforcement triad instead of inventing one.
+- Keeps the groundwork honest: the manifests exist and build, and nothing pretends the split
   has happened.
-* Names the unproven couplings so the follow-on scopes its own assessment correctly.
+- Names the unproven couplings so the follow-on scopes its own assessment correctly.
 
 **Cons:**
 
-* Defers all user-visible packaging value.
-* Concentrates risk in one large follow-on PR.
+- Defers all user-visible packaging value.
+- Concentrates risk in one large follow-on PR.
 
 ### Option C — Abandon the split
 
 **Pros:**
 
-* Zero further cost; the monorepo wheel works today.
+- Zero further cost; the monorepo wheel works today.
 
 **Cons:**
 
-* Forfeits the independent doctrine/charter distribution that #3022 and #3091 depend on.
-* Wastes the landed WP10/WP12 groundwork.
-* Leaves the layer chain a convention enforced only by tests, never by package boundaries.
+- Forfeits the independent doctrine/charter distribution that #3022 and #3091 depend on.
+- Wastes the landed WP10/WP12 groundwork.
+- Leaves the layer chain a convention enforced only by tests, never by package boundaries.
 
 ## More Information
 

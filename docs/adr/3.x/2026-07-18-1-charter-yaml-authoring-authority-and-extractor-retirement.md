@@ -33,19 +33,19 @@ The proposal was assessed and de-risked. The key findings:
 
 ## Decision Drivers
 
-* **Deterministic-first** — the authoritative "what is active / what governance applies" state should be structured and deterministically read, not scraped from prose.
-* **Single canonical authority** (charter governing principle) — one owning source per surface; eliminate the dual-owned `charter.md`.
-* **Kill the split/drift/stopgap churn** — epic #2519's purpose. Shipping a `charter.yaml` schema we already know we will re-cut for the inversion would recreate exactly that churn.
-* **Cut the schema once** — the bundle-manifest schema/migration is the only expensive-to-reverse artifact; deciding its end-state shape now avoids a second bump on the same brand-new file.
-* **Eliminate the #2772 clobber** at its single write site.
-* **Preserve** the #2732 content-identity machinery and the C-001 layer boundary (`src/charter/` must not import `specify_cli`).
+- **Deterministic-first** — the authoritative "what is active / what governance applies" state should be structured and deterministically read, not scraped from prose.
+- **Single canonical authority** (charter governing principle) — one owning source per surface; eliminate the dual-owned `charter.md`.
+- **Kill the split/drift/stopgap churn** — epic #2519's purpose. Shipping a `charter.yaml` schema we already know we will re-cut for the inversion would recreate exactly that churn.
+- **Cut the schema once** — the bundle-manifest schema/migration is the only expensive-to-reverse artifact; deciding its end-state shape now avoids a second bump on the same brand-new file.
+- **Eliminate the #2772 clobber** at its single write site.
+- **Preserve** the #2732 content-identity machinery and the C-001 layer boundary (`src/charter/` must not import `specify_cli`).
 
 ## Considered Options
 
-* **Option X — ADR now + reshape #2773 to be authoring-ready; stage the deletion.** (chosen)
-* **Option Y — ADR-first, then shape #2773 from the outcome.**
-* **Option Z — keep #2773 bounded (derived-from-prose), do the inversion later as a wholly separate mission.**
-* **Option (b) — charter.md becomes fully generated from rationale fields embedded in charter.yaml.** (rejected)
+- **Option X — ADR now + reshape #2773 to be authoring-ready; stage the deletion.** (chosen)
+- **Option Y — ADR-first, then shape #2773 from the outcome.**
+- **Option Z — keep #2773 bounded (derived-from-prose), do the inversion later as a wholly separate mission.**
+- **Option (b) — charter.md becomes fully generated from rationale fields embedded in charter.yaml.** (rejected)
 
 ## Decision Outcome
 
@@ -65,21 +65,21 @@ This aligns with ADR 2026-07-15-1 ("Doctrine offers, charter activates, runtime 
 
 #### Positive
 
-* One canonical structured authoring source; the dual-owned `charter.md` smell and the #2772 clobber are eliminated.
-* Deterministic-first resolving/governance with no brittle prose scraper.
-* The `charter.yaml` schema is cut once (no second C-004 bump), honoring #2519's anti-churn goal.
-* `charter.md` becomes freely curatable rationale that no tool overwrites.
+- One canonical structured authoring source; the dual-owned `charter.md` smell and the #2772 clobber are eliminated.
+- Deterministic-first resolving/governance with no brittle prose scraper.
+- The `charter.yaml` schema is cut once (no second C-004 bump), honoring #2519's anti-churn goal.
+- `charter.md` becomes freely curatable rationale that no tool overwrites.
 
 #### Negative
 
-* The mission widens materially — it now carries the full inversion (schema design + clobber guard + C-001 flip + extractor retirement + display-consumer re-pointing) **plus relocating the activation state and re-pointing the activation engine (`commit_plan`/`merge_defaults`/`PackContext.from_config`)** in one branch/PR. Expect a large WP count and review surface; the activation-engine change is the biggest new blast radius.
-* `charter.yaml` is **git-tracked** (an authoring surface); its derived `catalog` section produces honest tracked diffs when activation changes — acceptable, and detected by the freshness signal.
-* The governance authoring UX shifts from prose to structured fields — a real change delivered within the mission, needing docs + operator guidance in the same PR.
+- The mission widens materially — it now carries the full inversion (schema design + clobber guard + C-001 flip + extractor retirement + display-consumer re-pointing) **plus relocating the activation state and re-pointing the activation engine (`commit_plan`/`merge_defaults`/`PackContext.from_config`)** in one branch/PR. Expect a large WP count and review surface; the activation-engine change is the biggest new blast radius.
+- `charter.yaml` is **git-tracked** (an authoring surface); its derived `catalog` section produces honest tracked diffs when activation changes — acceptable, and detected by the freshness signal.
+- The governance authoring UX shifts from prose to structured fields — a real change delivered within the mission, needing docs + operator guidance in the same PR.
 
 #### Neutral
 
-* The doctrine language-scoping tier-3 `charter.md` fallback (`language_scope.py:103`) is orthogonal; it is **folded into this mission** as FR-009/IC-08 (migrated off `charter.md` prose to the structured catalog `languages`), so `charter.md` is behaviorally inert by mission end.
-* `#2772` is folded (the guard) / superseded (the derive path stops writing `charter.md` once the extractor retires).
+- The doctrine language-scoping tier-3 `charter.md` fallback (`language_scope.py:103`) is orthogonal; it is **folded into this mission** as FR-009/IC-08 (migrated off `charter.md` prose to the structured catalog `languages`), so `charter.md` is behaviorally inert by mission end.
+- `#2772` is folded (the guard) / superseded (the derive path stops writing `charter.md` once the extractor retires).
 
 #### Amendment (2026-07-19, #2800 landing pass)
 
@@ -87,11 +87,11 @@ The original outcome — the *compiler* (`write_compiled_charter`) never writes 
 
 ### Confirmation
 
-* #2773 ships `charter.yaml` with authorable governance/directive/catalog fields; its migration is a deterministic idempotent yaml→yaml fold (second run reports 0 changes).
-* No `charter generate`/compile path writes `charter.md` without an explicit guard; a regression test pins that curated prose survives a refresh.
-* By mission end (same PR): `extractor.py` `SECTION_MAPPING` is deleted; governance/directive loaders read `charter.yaml`; a grep shows no runtime governance decision reads `charter.md` prose.
-* Activation is relocated: `.kittify/config.yaml` no longer carries `activated_*`; `commit_plan`/`merge_defaults`/`PackContext.from_config` read/write `charter.yaml`; `charter.yaml` overlays `default.yaml` (layer-0); the activation-parity/DRG-filter behavior is preserved (existing activation tests green).
-* Confidence: **high** on the losslessness/determinism facts (traced to `src/` lines); **medium** on authoring-UX ergonomics, which the fast-follow will validate with real operator authoring.
+- #2773 ships `charter.yaml` with authorable governance/directive/catalog fields; its migration is a deterministic idempotent yaml→yaml fold (second run reports 0 changes).
+- No `charter generate`/compile path writes `charter.md` without an explicit guard; a regression test pins that curated prose survives a refresh.
+- By mission end (same PR): `extractor.py` `SECTION_MAPPING` is deleted; governance/directive loaders read `charter.yaml`; a grep shows no runtime governance decision reads `charter.md` prose.
+- Activation is relocated: `.kittify/config.yaml` no longer carries `activated_*`; `commit_plan`/`merge_defaults`/`PackContext.from_config` read/write `charter.yaml`; `charter.yaml` overlays `default.yaml` (layer-0); the activation-parity/DRG-filter behavior is preserved (existing activation tests green).
+- Confidence: **high** on the losslessness/determinism facts (traced to `src/` lines); **medium** on authoring-UX ergonomics, which the fast-follow will validate with real operator authoring.
 
 ## Pros and Cons of the Options
 
@@ -117,6 +117,6 @@ The original outcome — the *compiler* (`write_compiled_charter`) never writes 
 
 ## More Information
 
-* Assessment + dialectic + empirical resolution: `kitty-specs/consolidate-charter-bundle-01KXSYB9/research/charter-authority-inversion-assessment.md`.
-* Mission spec: `kitty-specs/consolidate-charter-bundle-01KXSYB9/spec.md`.
-* Related: ADR 2026-07-15-1 (activation axis); #2772 (charter.md non-destructive refresh); epic #2519.
+- Assessment + dialectic + empirical resolution: `kitty-specs/consolidate-charter-bundle-01KXSYB9/research/charter-authority-inversion-assessment.md`.
+- Mission spec: `kitty-specs/consolidate-charter-bundle-01KXSYB9/spec.md`.
+- Related: ADR 2026-07-15-1 (activation axis); #2772 (charter.md non-destructive refresh); epic #2519.

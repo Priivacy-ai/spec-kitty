@@ -38,17 +38,20 @@ Three forces converged into a naming-and-authority problem:
 **Adopt a single vocabulary and a single authority.**
 
 ### D1 — "template" is a doctrine artefact kind (narrowed, canonical)
+
 A **template** is a doctrine artefact that is an *example/skeleton* — the existing `NodeKind.TEMPLATE`
 population, one artefact kind among directive/tactic/procedure/paradigm/styleguide/toolguide/asset. "Template"
 stops being a mission-type structural term.
 
 ### D2 — a **step** is the mission-type building block, and a step **is the existing `ACTION`/`MissionStep`
+
 enriched — NOT a new node kind.** Action nodes already *are* the steps (one per `action_sequence` entry, with
 `requires` in-edges from the mission type and `scope` out-edges to their governing doctrine). A mission type is
 an ordered set of steps; each step carries: `description`, `recommended_role?`, `recommended_model_tier?`, a
 parameterizable `prompt`, an optional `template` reference, and (later) `substeps`.
 
 ### D3 — one `template:` kind; the **relation** encodes the lifecycle
+
 A step **`instantiates`** a fill-once *skeleton* template (`Relation.INSTANTIATES`, already exists); tactics and
 directives **reference** a read-only *exemplar* template. Same `NodeKind.TEMPLATE`, different relation — so
 there is no "fourth template," and the two lifecycles (mission-emitted output vs referenced doctrine exemplar)
@@ -56,6 +59,7 @@ stay distinguishable. This finishes the `mission_type → step → template` gra
 (#883) and the "unbacked filename string" ADR `2026-07-15-1` flags at Claim 4.
 
 ### D4 — `recommended_role` / `recommended_model_tier` are advisory doctrine **offers**, not routing truth
+
 Routing (which agent, which model) remains a charter/runtime decision (the "doctrine offers / charter activates
 / runtime consumes" spine). Doctrine offers a hint; the runtime/charter retains override authority. The design
 MUST define the override seam and switch consumers to read the step grain — role/model is authored in ≥4 places
@@ -63,10 +67,12 @@ today (WP frontmatter, `MissionStep.agent_profile`, governance-profile, action-i
 only if it becomes the single source, not a fifth parallel authority.
 
 ### D5 — retain the governing-doctrine `scope` edges
+
 The step schema keeps the `scope` (governing directives/tactics/procedures) edge population — the load-bearing
 thing action nodes do today. It is not replaced by `template`/`prompt`.
 
 ### D6 — `MISSION_STEP_CONTRACT` is a step's typed I/O
+
 The declared-but-empty `NodeKind.MISSION_STEP_CONTRACT` becomes a step's input/output signature, modelled as a
 `step → mission_step_contract` edge (so contracts stay independently reusable/activatable).
 
@@ -140,7 +146,7 @@ dropped.
 **Verified (adversarial squad).** Behavior-preserving — proven byte-for-byte at runtime (`stored ==
 project_template_set(steps)` for all four types); no `mission_types/*.yaml` authors `template_set`, so the fallback
 is already dead code. Blast radius ~4-5 code sites + ~6 field-pin test files; the resolver signature and the
-#2689/#2660 fail-closed guards are untouched; the enduring `TestSoftwareDevProjectionParity` guard is retained
+\#2689/#2660 fail-closed guards are untouched; the enduring `TestSoftwareDevProjectionParity` guard is retained
 (only the `MissionTypeRepository`-injection half is disposable). The `ResolvedMissionType.template_set` property is
 **not** renamed (wide, all-green, no correctness benefit).
 

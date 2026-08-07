@@ -242,14 +242,14 @@ apply after the transition fold, so a `claimed` transition carrying an initial
 
 ## Considered Options (Decision 1, the pivotal one)
 
-* **(A) Annotation event class, FSM untouched — CHOSEN.** New non-transition
+- **(A) Annotation event class, FSM untouched — CHOSEN.** New non-transition
   event kind folded by the reducer; transition ledger and 9-lane matrix
   unchanged.
-* **(B) Fold onto existing transitions.** Carry runtime payload on the nearest
+- **(B) Fold onto existing transitions.** Carry runtime payload on the nearest
   lane transition; accept a documented resume-staleness behaviour change.
   *Rejected:* cannot carry resume refresh or mid-`in_progress` marks; lossy by
   construction.
-* **(C) Self-edges in the FSM.** Make `X→X` legal so payload-only self-events
+- **(C) Self-edges in the FSM.** Make `X→X` legal so payload-only self-events
   are "transitions." *Rejected:* redefines the FSM invariant and ripples into
   every transition consumer for no capture benefit over (A).
 
