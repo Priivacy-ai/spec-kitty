@@ -1,7 +1,8 @@
 # Spec Kitty Charter
 
 > Created: 2026-01-27
-> Version: 1.3.0
+> Version: 1.4.0
+> Updated: 2026-08-08 — activated the writing-comms & diagramming doctrine set (see "Writing, Communication & Diagramming Doctrine"; rehome-writing-comms-doctrine / PR #2918)
 > Updated: 2026-07-01 — interactive charter intake (doctrine-catfooding-2196-01KWE16N)
 >
 > **v1.3.0 note:** retains the full v1.1.5 substance; adds the activated catfooding
@@ -102,6 +103,46 @@ directive-reachable, so each resolves in the compiled reference set
 (`references.yaml`). This section states the rules; the referenced artifacts carry
 the detailed procedures, examples, and anti-patterns.
 
+### Reconciling change-scope tensions (small diff ↔ boy-scout ↔ locality)
+
+Three activated rules each bound the size of a change from a *different* angle, and
+by design they are **not fully compatible** — the tension is real and intentionally
+left unresolved at the rule level, then reconciled per-change:
+
+- **`change-apply-smallest-viable-diff`** (tactic) minimizes the *diff itself* — the
+  smallest file set and smallest edit within each file that achieves the stated goal;
+  stop once the goal is met.
+- **`DIRECTIVE_025` Boy Scout Rule** licenses *opportunistic in-place improvement* of
+  areas you already touched — fix the failing test/lint/type error surfaced there by
+  default, and at planning point-cuts fold *domain-matched* debt. This pulls the change
+  *larger*.
+- **`DIRECTIVE_024` Locality of Change** minimizes *blast radius* — keep edits close to
+  the problem, separate opportunistic cleanup from functional work, resist scope creep.
+
+These genuinely pull in different directions, so the default pack does **not** pick a
+silent winner. `RECONCILE_CHANGE_SCOPE_TENSIONS` (directive, advisory — active) is the
+single place to weigh all three on a specific change, with this resolution order:
+
+1. **Smallest-viable-diff picks the file set and edit size first** — the minimal files
+   and minimal edit for the stated goal.
+2. **Boy Scout Rule then governs cleanup strictly *inside* that file set** — fix
+   touched-area breakage and apply proportional tidy-up, **without adding files** to the
+   set chosen in step 1.
+3. **Locality of Change is the brake** — it stops either rule from *growing the file
+   set*. Any extension beyond the touched area must be directly connected to the goal,
+   proportional, and carry a one-line rationale (a tracker reference for anything
+   genuinely broad).
+
+Record what was folded in and what was deferred, and why, in task/review context rather
+than silently picking a side. The reconciler resolves the tension for a given change; it
+does **not** retire, weaken, or supersede any of the three rules — all remain
+independently valid and co-activatable. Note the interaction with Standing Order #2's
+*tidy-first* sequencing: an opening campsite-clean is a **distinct, behavior-preserving
+step that precedes** the functional change (and may legitimately open its own surfaces
+for that purpose); the reconciliation order above governs the *functional* change that
+follows. → `RECONCILE_CHANGE_SCOPE_TENSIONS`, `DIRECTIVE_024`, `DIRECTIVE_025`,
+`change-apply-smallest-viable-diff`.
+
 ## Agent Operating Discipline
 
 How agents and orchestrators should work so quality and context survive long missions.
@@ -153,6 +194,56 @@ context for the detail).
   grant ownership-map leeway (no-overlap is the real guard).
 - **Merge** — PRs only, the operator merges; isolated PR-review agents; post-merge full
   arch-gate sweep with a cross-base pre-existing check; issue-matrix + tracker hygiene.
+
+## Writing, Communication & Diagramming Doctrine
+
+Activated 2026-08-08 from the built-in writing-comms doctrine set ("The Magnificent
+7", rehomed via PR #2918). These rules bind agent-authored prose, documentation, and
+diagrams; the full how-to lives in each referenced artifact. Enforcement levels are
+noted where they bind harder than advisory.
+
+- **Audience-oriented writing.** Any artifact meant for a human reader must name its
+  target persona *before* drafting and calibrate vocabulary, detail, and structure to
+  that reader — not to the author's own familiarity. Prefer persona-specific variants
+  over one artifact that serves everyone and therefore no one. Pick a reader from the
+  shipped persona catalog rather than inventing one ad hoc. → `DIRECTIVE_047`
+  (advisory), `writing-audience-catalog` tactic (+ audience personas:
+  software-engineer, line-manager, nontech-educator, automation-agent,
+  agentic-framework-core-team), `plain-language` + `professional-communications`
+  styleguides.
+- **Documentation structure.** Builds on the already-active common-docs doctrine
+  (`DIRECTIVE_042`, `common-docs` styleguide, `common-docs-*` tactics). One document is
+  exactly one Divio quadrant (Tutorial / How-To / Reference / Explanation), declared in
+  frontmatter; every non-decorative image/diagram carries descriptive alt text; every
+  page carries an `updated: YYYY-MM-DD` freshness date (pages without one are treated
+  as stale); code is the source of truth and docs mirror *shipped* behaviour (a
+  doc/code disagreement is a doc defect). → `divio-type-discipline`,
+  `docs-accessibility`, `docs-freshness-sla`, `publication-authority` styleguides.
+- **Diagramming.** Model and reason about architecture with the C4 model's progressive
+  zoom — System Context → Container → Component → Code — so each diagram serves one
+  audience at one level instead of one all-in-one picture. Draw only the levels that
+  earn their keep. This composes with the already-active Mermaid and PlantUML rendering
+  toolguides and the `architecture-diagram-review-checklist` tactic. → `USE_C4_MODEL_TECHNIQUES`
+  (lenient-adherence), `mermaid-diagramming` + `plantuml-diagramming` toolguides.
+- **Communication governance.** Cite the current canonical version of any versioned
+  artifact (glossary, spec, doctrine, released document), never a cached/stale copy —
+  stale analysis is confidently wrong, not merely lower-quality. A specialist agent
+  opens with a short role/scope declaration so a mismatch can be caught early.
+  Authentication credentials (tokens, keys, passwords, session cookies) must never be
+  logged, echoed, or written into output, errors, or artifacts. → `DIRECTIVE_048`
+  version-governance (**required**), `DIRECTIVE_049` agent self-introduction (advisory),
+  `DIRECTIVE_050` credential-handling (**required**).
+- **Supporting workflows.** Run continuous term capture/triage against the living
+  glossary so terminology drift is caught early rather than in a big periodic cleanup;
+  every factual claim in a research output is traceable to a named source (an unsourced
+  claim is a hypothesis and must be labelled one). → `glossary-maintenance-workflow`
+  procedure, `research-citation-discipline` styleguide.
+- **Charter-blessed profiles.** The writing-comms specialist profiles are activated for
+  governed delegation: `comms-cleo` (professional communications), `diagram-daisy`
+  (diagramming), `analyst-annie` (analysis), `lexical-larry` (glossary/terminology),
+  `minutes-maker-mahad` (meeting minutes), `scribe-sally` (documentation), and
+  `synthesizer-sam` (synthesis). The meeting-minutes format styleguide and pipeline
+  procedure were intentionally left un-activated.
 
 ## Technical Standards
 
