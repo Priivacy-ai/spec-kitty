@@ -44,7 +44,7 @@ pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 # tests/specify_cli/test_specify_topology_flag.py). Cross-test-module reuse of
 # private helpers is an established pattern in this suite (e.g.
 # tests/merge/test_executor_coord_reconcile.py imports from
-# tests/regression/test_issue_2367_bake_strand.py).
+# tests/merge/test_issue_2367_bake_strand.py).
 from tests.specify_cli.test_specify_topology_flag import (
     _claim_allocation_patched,
     _git,
@@ -108,8 +108,8 @@ def _write_wp01_with_subtask(feature_dir: Path) -> None:
         # alongside the event-sourced claim; retired by WP04/WP05) -- NOT a
         # static assignment field. A born-reconciled WP carries it EMPTY (the
         # real claim lives solely in the event log); see
-        # tests/regression/test_claim_event_source.py's ``_write_wp_file`` for
-        # the same convention.
+        # tests/specify_cli/cli/commands/agent/test_claim_event_source.py's
+        # ``_write_wp_file`` for the same convention.
         'agent: ""\n'
         "owned_files:\n"
         "  - src/a/**\n"
