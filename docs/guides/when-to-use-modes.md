@@ -1,5 +1,5 @@
 ---
-title: When to use Spec-Kitty modes
+title: When to use Spec Kitty modes
 description: 'Choose the lightest Spec Kitty path for your work: no Spec Kitty, ad-hoc specialist session, adversarial squad review, or full mission pipeline.'
 doc_status: active
 updated: '2026-08-06'
@@ -8,11 +8,11 @@ related:
 - docs/guides/missions-overview.md
 - docs/guides/multi-agent-workflow.md
 ---
-# When to use Spec-Kitty modes
+# When to use Spec Kitty modes
 
 Choose the lightest path that still fits the work. Spec Kitty offers several entry points: skip it entirely for trivial edits, dispatch a specialist for a short task, run a bounded adversarial review at an SDD checkpoint, or drive a full mission when acceptance criteria and structured review matter.
 
-![When to use Spec-Kitty modes](../assets/images/when-to-use-modes-corporate-memphis.png)
+![When to use Spec Kitty modes](../assets/images/when-to-use-modes-corporate-memphis.png)
 
 ## No Spec Kitty
 
@@ -40,7 +40,7 @@ Run adversarial review when an artifact is ready for challenge but you are not s
 
 ## Full mission
 
-**When:** Multi-step feature/bug with acceptance + structured review.
+**When:** Multi-step change (new capability or a bug fix) with acceptance + structured review.
 
 **Why:** Spec->Plan->Tasks->Implement->Review. Parallel agents are a mission capability, not a separate mode.
 
@@ -48,7 +48,7 @@ Expect bookkeeping commits as the mission advances work packages. See [Understan
 
 ## Alternate visual
 
-![When to use Spec-Kitty modes - illustrated style](../assets/images/when-to-use-modes-corporate-comics.png)
+![When to use Spec Kitty modes - illustrated style](../assets/images/when-to-use-modes-corporate-comics.png)
 
 ## Related guides
 
