@@ -387,6 +387,14 @@ def test_two_rejections_produce_two_distinct_artifacts(
 # looks it up by exact name at this exact path -- an absence the earlier
 # relocation fold did not reconcile against.
 #
+# 2026-08 regression-suite exit-rule fold (tests/regression/README.md):
+# ``tests/regression/test_issue_2996_approval_after_rejection_writes_no_verdict.py``
+# was confirmed a behaviorally-equivalent duplicate of THIS test (same
+# lifecycle, same assertions; the only difference was cosmetic fixture
+# plumbing for the ``.worktrees/<slug>-lane-a`` husk) and deleted rather than
+# relocated -- this restored copy is the one and only permanent home the
+# flagship gate above requires.
+#
 # WP16 itself already filed the one open naming question here as a cross-WP
 # finding it explicitly did not fix: this test's OWN NAME ("writes NO
 # verdict artifact") contradicts its own body, which proves the opposite --
