@@ -1,4 +1,10 @@
-"""Regression coverage for the #1860 class (FR-006, WP04).
+"""Permanent guard for the #1860 class (FR-006, WP04).
+
+**Landing note (2026-08, `tests/regression/` campsite clean).** The #1860
+class is fixed; this is a permanent regression guard, not a red-first
+reproduction, so it carries no `regression` marker and lives with its sibling
+branch-naming/lane tests here rather than in `tests/regression/`. The issue
+number is kept as history.
 
 #1860 class: branch-identity consumers used legacy ``\\d{3}-``-only regexes or
 hand-rolled ``f"kitty/mission-{slug}"`` composes, so every *mid8-era* mission

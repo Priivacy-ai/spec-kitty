@@ -1,4 +1,14 @@
-"""Regression repro for issue #1684.
+"""Permanent guard for issue #1684.
+
+**Landing note (2026-08, `tests/regression/` campsite clean).** #1684 is
+fixed; this is a permanent regression guard, not a red-first reproduction, so
+it carries no `regression` marker. Relocated to `tests/lanes/` (its direct
+functional home — these are unit-level tests of
+``specify_cli.lanes.worktree_allocator.allocate_lane_worktree`` against real
+git repos, matching the style of the sibling
+``tests/lanes/test_worktree_allocator.py`` /
+``test_worktree_allocator_atomicity.py``, not the CLI/orchestrator-driven
+tests in `tests/agent/`). The issue number is kept as history.
 
 Bug: when a WP declares a dependency on a WP that lives on a *sibling*
 lane, claiming the dependent WP creates the lane worktree from the bare
