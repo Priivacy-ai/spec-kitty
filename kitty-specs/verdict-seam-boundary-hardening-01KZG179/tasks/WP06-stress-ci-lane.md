@@ -7,6 +7,9 @@ requirement_refs:
 planning_base_branch: hardening/verdict-seam-facade-followup
 merge_target_branch: hardening/verdict-seam-facade-followup
 branch_strategy: Planning artifacts for this mission were generated on hardening/verdict-seam-facade-followup. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into hardening/verdict-seam-facade-followup unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-verdict-seam-boundary-hardening-01KZG179
+base_commit: 4d48fcf66ca7e71cc466a8dd812f324361ec6721
+created_at: '2026-08-08T11:28:46.805588+00:00'
 subtasks:
 - T023
 - T024

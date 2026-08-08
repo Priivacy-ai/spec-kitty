@@ -12,5 +12,7 @@
   "purpose_tldr": "Finish the single-authority verdict boundary from PR #3245 and clear five tracked debt/bug follow-ons.",
   "slug": "verdict-seam-boundary-hardening-01KZG179",
   "target_branch": "hardening/verdict-seam-facade-followup",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-08T10:50:26.907969+00:00"
 }
