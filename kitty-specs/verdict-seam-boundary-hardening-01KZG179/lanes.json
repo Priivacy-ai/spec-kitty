@@ -45,7 +45,6 @@
         "WP04"
       ],
       "write_scope": [
-        "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py",
         "src/specify_cli/review/arbiter.py",
         "src/specify_cli/review/artifacts.py",
         "tests/review/test_arbiter.py",
@@ -120,8 +119,8 @@
       "parallel_group": 1
     }
   ],
-  "computed_at": "2026-08-08T09:59:11.918148+00:00",
+  "computed_at": "2026-08-08T10:52:12.703170+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
-  "planning_commit_sha": "4a49a89915edfe4b0fda61bb20de61adef10c7fa"
+  "planning_commit_sha": "6cfed78087cda8d8f56423758b4706e9543d5a59"
 }
