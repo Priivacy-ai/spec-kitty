@@ -36,7 +36,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   `minutes-maker-mahad`, `scribe-sally`, `synthesizer-sam`). It also activates
   `RECONCILE_CHANGE_SCOPE_TENSIONS` to bridge the smallest-viable-diff / Boy Scout /
   locality-of-change tension, explained in a new `charter.md` section.
-  **Scope:** this changes Spec Kitty's *own* project governance only. The doctrine
+  **Scope:** this changes Spec Kitty's _own_ project governance only. The doctrine
   artifacts already ship in `packs/built-in`; projects created or upgraded by the
   CLI are unaffected and keep their own charter activations.
 - **A new "When to use Spec Kitty modes" guide helps you pick the lightest path
@@ -340,6 +340,19 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **SaaS tracker retry/poll tests no longer flake on CI, and a new gate keeps
+  the whole bug class out (mission `sync-sleep-count-3136`; `#3136`).** These
+  tests asserted on `time.sleep` call counts and failed non-deterministically
+  with errors like `Expected 'sleep' to be called once. Called 179 times.` on
+  test nodes a change never touched — because patching the shared stdlib
+  `time.sleep` recorded sleeps from anything else running in the same test
+  worker. Building on `#3187` (which gave `SaaSTrackerClient` its own
+  `self._sleep` seam), the client now also binds `self._monotonic` /
+  `self._randbelow`, so its retry/poll timing and jitter are fully isolated from
+  process-global state. A new architectural gate
+  (`tests/architectural/test_shared_module_object_patches.py`) refuses any future
+  test that patches a shared module object read by a count/equality assertion, so
+  this class of flake fails review instead of shipping.
 - **Restored green CI on two suites that regressed after the single-`PACKS_ROOT`
   / charter-activation unification (mission `resolution-activation-foundation`).**
   `tests/review/test_pre_review_gate_integration.py` and
