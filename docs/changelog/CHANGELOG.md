@@ -34,18 +34,18 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   `apply` output now names that exact next command, and `--compile` does both at
   once (inheriting `generate`'s git-worktree requirement). `charter context
   --include section:terminology-canon` / `section:code-review-checklist` also no
-  longer dead-end when the section is unauthored — they resolve to an honest
+  longer dead-end when the section is unauthored - they resolve to an honest
   placeholder pointing you at the file to edit (`#3095`, `#3094`, `#2552`).
 - **Empty/unconfigured charter now dispatches to a warned generic agent instead
   of silently applying every built-in doctrine artefact (mission
   `charter-delivery-finish-context-degod`; `#3064`).** Previously, running a
   dispatch in a repository with no charter activated silently fell back to
-  "all built-ins" — the entire shipped doctrine catalogue was applied in both
+  "all built-ins" - the entire shipped doctrine catalogue was applied in both
   routing and the governance context injected into the prompt. Now, when
   nothing is activated (a composite check across every charter-activatable
   dimension), auto-routing resolves to a **generic agent using no charter
-  doctrine** — verified across both routing **and** the governance block, so no
-  directive canon leaks into the prompt — and the user gets a **clear warning**
+  doctrine** - verified across both routing **and** the governance block, so no
+  directive canon leaks into the prompt - and the user gets a **clear warning**
   to activate a charter first. The `software-dev` mission type stays
   always-available, and explicitly passing `--profile <name>` still resolves the
   specialist even under an empty charter (only the no-hint auto-route path
@@ -57,14 +57,14 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   `spec-kitty charter pack path minimal` to resolve the file, or
   `spec-kitty charter pack apply minimal` to merge its small, curated
   activation set into `.kittify/config.yaml` instead of authoring one from
-  scratch — it is additive by default and never silently overwrites an
+  scratch - it is additive by default and never silently overwrites an
   existing activation (`--force` to overwrite explicitly).
-- **Profile-channel `suggests`-edge delivery is now live — the inert `#3063`
+- **Profile-channel `suggests`-edge delivery is now live - the inert `#3063`
   doctrine topology actually delivers (mission `doctrine-delivery-activation`,
   fast-follow to `doctrine-delivery-reachability`).** The profile-channel
   reachability walk now follows `suggests` edges (in addition to `requires` /
   `specializes_from`) and surfaces each edge's `when` clause as the delivered
-  doctrine's applicability condition — as `when`-labelled links, not eager
+  doctrine's applicability condition - as `when`-labelled links, not eager
   bodies (respecting the context-bloat budget). Architect and implementer
   profiles now receive their linked paradigms, tactics, techniques, and
   canvases: e.g. `architect-alphonso` reaches `domain-driven-design`, the C4
@@ -75,14 +75,14 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   each tactic's attested `problem`/`when`). The reachability pins, the delivery
   wiring table, and the forward-API dead-symbol allowlist are reconciled to the
   now-live topology, each moved count carrying a composition-ledger entry. (#3063)
-- **The `asset` doctrine kind is now reachable end to end — resolve, deliver,
+- **The `asset` doctrine kind is now reachable end to end - resolve, deliver,
   and author it (mission `doctrine-delivery-reachability`).** Previously a
   shipped asset (executable logic or any blob a pack hands to a downstream repo)
   had no operator surface and no followable how-to, so the documented remedy
   "ship it as an asset" was not actually followable (#3037). Now:
   - **`spec-kitty doctrine asset list`** enumerates every resolvable asset with
     its source tier (built-in / org / project), and **`spec-kitty doctrine asset
-    path <id>`** resolves one identifier to a filesystem path — exit `0` on
+    path <id>`** resolves one identifier to a filesystem path - exit `0` on
     success, non-zero with the id named on an unknown id or a containment
     refusal. Nothing is installed into the consumer repo; assets resolve from
     packaged data plus the project/org overlays (no auto-install). The one
@@ -94,7 +94,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   - **The action doctrine bundle now delivers every resolved kind**, including
     procedures and assets. The delivery gate is a total function over kinds:
     activation-gated kinds deliver `activated ∩ reachable`, while assets are
-    **delivered-but-not-activation-gated** (`gate = ALL`) — a reachable source
+    **delivered-but-not-activation-gated** (`gate = ALL`) - a reachable source
     pulls them in without an activation list. This closes the defect where
     `asset_ids = []` was the silently-conforming outcome forever.
   - **Docs**: [Create a doctrine artifact](../doctrine/create-a-doctrine-artifact.md)
@@ -103,7 +103,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
     the shipped built-in asset and the three delivery categories.
 - **New checks that catch a change which looks like it worked and did nothing
   (mission `doctrine-silence-guards`).** Four additions, all aimed at the same
-  failure mode — a declaration that loads, validates, reports success, and then
+  failure mode - a declaration that loads, validates, reports success, and then
   has no effect:
   - A **zero-producer lint** fails the build when a schema field is declared but
     no code path ever writes it. Three such fields had shipped in this
@@ -138,22 +138,22 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
     `spec-kitty` invocation renders the same ordered help.
 - **`spec-kitty sync import-history` materializes existing local mission history
   into the SaaS projection (#2262).** A first sync registers a remote
-  project/build but leaves it with zero materialized missions — the SaaS
+  project/build but leaves it with zero materialized missions - the SaaS
   materializer refuses to fabricate a work package from a status event with no
   prior create. The new command synthesizes the missing
-  `MissionCreated → WPCreated[] → WPStatusChanged[]` prefix (INV-3) from local
+  `MissionCreated -> WPCreated[] -> WPStatusChanged[]` prefix (INV-3) from local
   history so historical work populates the projection. `--dry-run` (default)
   runs the whole read-only pipeline and previews the stream; `--apply` attaches
   a sha256 provenance manifest, runs the offline envelope contract gate, then
-  server-preflights the entire stream before uploading anything (fail-closed —
+  server-preflights the entire stream before uploading anything (fail-closed -
   a rejection leaves the projection untouched) and uploads in chunks.
   Deterministic event ids make re-runs idempotent (the server dedups on
-  `event_id`). Buildable slices Y1–Y5 ship here; Y6/Y7/Y8 remain gated.
-- **Doctrine packs can now ship supporting files to consumer repos — the first
+  `event_id`). Buildable slices Y1-Y5 ship here; Y6/Y7/Y8 remain gated.
+- **Doctrine packs can now ship supporting files to consumer repos - the first
   is a docs structural-lint that keeps a project's documentation organized
-  (#2302, #2864–#2867).** A doctrine pack can now carry an arbitrary
+  (#2302, #2864-#2867).** A doctrine pack can now carry an arbitrary
   addressable file (a script, a blob, a `.docx`) that travels with the pack and
-  resolves in a consumer repo with no access to our source tree — the new
+  resolves in a consumer repo with no access to our source tree - the new
   built-in `asset` doctrine kind, shipping its first member. That inaugural
   asset, `common-docs-structural-lint`, checks that docs land in the right
   section, that redirect stubs and frontmatter follow the house contract, and
@@ -165,17 +165,17 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   zero dead links; the common-docs styleguide gains a machine-parseable
   `structural_lint_config` block (with a `redirect_stub_description_prefix`
   exemption key) as the lint's single source of truth; and the docs
-  reference-rewrite helper no longer doubles a destination path (`…/x.md/x.md`)
+  reference-rewrite helper no longer doubles a destination path (`.../x.md/x.md`)
   on a file-level move. No CLI product code (`src/specify_cli`) changed.
 - **Fork packaging hooks (entry-point plugins + `DistributionProfile`).**
   Renamed / private-index forks can customize CLI package identity, upgrade
   providers (including built-in PEP 503 `SimpleIndexProvider`), remediation
   index URLs, data-freshness TTL, and the public-PyPI notifier via
   `spec_kitty.cli_package`, `spec_kitty.upgrade_provider`, and
-  `spec_kitty.distribution_profile` — without overlaying `src/specify_cli/**`.
+  `spec_kitty.distribution_profile` - without overlaying `src/specify_cli/**`.
   Stock public-PyPI / `spec-kitty-cli` installs with no hooks are unchanged.
   Packager guide: [`docs/guides/fork-packaging-hooks.md`](../guides/fork-packaging-hooks.md).
-- **Doctrine-controlled transition gates — the `for_review` pre-review gate is now
+- **Doctrine-controlled transition gates - the `for_review` pre-review gate is now
   declared by the repo's active doctrine, not hardcoded to Spec Kitty's own repo
   shape (#2595, #2596, #2598; epic #2535 half A).** Scope resolution moves behind a
   layout-agnostic `ScopeSource` port (`GateCoverageScopeSource` preserves the
@@ -189,38 +189,38 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   preserved). A new built-in `mission_step_contract.graph.yaml` DRG fragment makes
   the gate fire on the source repo. Behaviour parity is enforced by a golden
   captured from the pre-refactor base. **Closes the pre-review facet of #2534** (the
-  always-on `tests.architectural._gate_coverage` consumer-repo import is removed —
+  always-on `tests.architectural._gate_coverage` consumer-repo import is removed -
   a consumer never reaches it, even under erroneous activation) **and #2330** (the
   pytest-layout papercut). Half B (executable gate assets, #2599) is out of scope.
 
 - **The pre-review test gate now works correctly for projects that use a custom
   test command, not just pytest (#2873, follow-up to #2535 half A).** When a work
   package moves to `for_review`, Spec Kitty runs the project's tests and flags any
-  failure the change _newly_ introduced — comparing against a baseline captured
+  failure the change _newly_ introduced - comparing against a baseline captured
   before the work started. Previously the baseline side and the review side could
   run those tests two different ways, so a project configured with its own
   `review.test_command` (anything other than pytest) got unreliable results: it
-  could be wrongly blocked on failures that were already there, or — worse — a
+  could be wrongly blocked on failures that were already there, or - worse - a
   genuinely new test failure could slip through unflagged on a clean baseline. Now
   both sides run and interpret the tests through one shared path, so the
   comparison is apples-to-apples and a new failure is reliably caught. When the
   two sides genuinely _can't_ be compared (for example, the test command was
   changed in between), the gate now says so with a clear, non-blocking warning
-  (shown as `SOURCE_MISMATCH`) instead of guessing — it never silently passes and
+  (shown as `SOURCE_MISMATCH`) instead of guessing - it never silently passes and
   never hard-blocks on that case. The captured baseline is now always saved, so
   review no longer gets stuck on an uncommitted baseline file. Internally, ~450
   lines of dead, duplicated test-scoping code left over from an earlier design
   were removed.
 
 - **WP runtime-state evicted into the append-only event log (#2684, #2093).**
-  Runtime-mutable work-package state — `shell_pid`, subtask completion,
+  Runtime-mutable work-package state - `shell_pid`, subtask completion,
   `## Activity Log` notes, `tracker_refs`, `agent`/`assignee`, and review-cycle
-  fields — is folded through a single off-axis `InnerStateChanged` event and read
+  fields - is folded through a single off-axis `InnerStateChanged` event and read
   from the reduced status snapshot, so `tasks/WP##.md` stops mutating on runtime
   events (byte-stable dossier content hash, AC-5). **Shipped as dual-write behind
   the phase-1 flag** (`_phase1_dual_write_enabled`, default off): the event log is
   the authority at `status_phase: 1`, while legacy frontmatter remains the default,
-  sanctioned migration-window fallback. The corpus `backfill → verify → cutover`,
+  sanctioned migration-window fallback. The corpus `backfill -> verify -> cutover`,
   the unconditional flag flip, and the legacy-fallback deletion are deferred to
   follow-up #2816.
 
@@ -233,8 +233,8 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   sole content-hash input), and `config.yaml` gains a one-line `charter:`
   pointer. A deterministic, idempotent, fail-loud `upgrade` migration performs
   the fold, sequenced strictly after the `3.2.6` activation-seed migrations
-  (verbatim activation copy; the seeds' post-state — `config` carries
-  `activated_*` — is the fold's pre-state).
+  (verbatim activation copy; the seeds' post-state - `config` carries
+  `activated_*` - is the fold's pre-state).
 
 - **`charter activate`/`deactivate --resynthesize` opt-in eager refresh (FR-007, #2761).**
   Since the config↔derived freshness seam (#2759) made `charter activate`/`deactivate`
@@ -242,17 +242,17 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   `stale` until the operator reconciles it. The new `--resynthesize`/`--no-resynthesize`
   flag (default **off**) gives operators an escape hatch: passing it re-runs the existing
   `charter generate` + `charter synthesize` pipeline right after the config write, so the
-  derived bundle/DRG — and the freshness signal — are fresh immediately, without building
+  derived bundle/DRG - and the freshness signal - are fresh immediately, without building
   a second reconciliation pipeline. The default (no-flag) path is unchanged: a fast,
   config-only write that spawns **zero** synthesis calls, locked in by a call-count spy
   regression test (NFR-001); the `spec-kitty upgrade` migration and `org_charter`
   `promote_activations` paths are untouched and remain synthesis-free (NFR-003).
 - **Development-assist test cleanup is now a standing wrap-up procedure (#2557).**
   A new built-in `development-assist-test-cleanup` procedure codifies a proactive,
-  judge-the-test pass at mission close (identify → judge → execute → scope-the-residue)
+  judge-the-test pass at mission close (identify -> judge -> execute -> scope-the-residue)
   that retires or splits the scaffolding tests a mission wrote to drive its own
-  slices — characterization/parity oracles, before/after timing gates, per-WP
-  shape / `__module__` / delegate assertions — before they land as permanent suite
+  slices - characterization/parity oracles, before/after timing gates, per-WP
+  shape / `__module__` / delegate assertions - before they land as permanent suite
   bloat. It applies `DIRECTIVE_041`'s keep-vs-delete axis and its
   duplicate-test-knowledge-has-one-source rule as the _proactive_ companion to that
   _reactive_ failing-test rubric, and is scoped distinct from `DIRECTIVE_025`
@@ -264,9 +264,9 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   ratchet allow-lists (#2546, #2547, #2072, #2548, #2077).** The `tests/architectural/`
   ratchet allow-lists are re-keyed off _position_ anchors (line numbers, `module::Name`)
   onto **content descriptors**, and the 394-entry dead-symbol allow-list onto a
-  **relocation-tolerant `SymbolKey`** — content-only by default, escalating a
+  **relocation-tolerant `SymbolKey`** - content-only by default, escalating a
   byte-identical same-name collision to a `module_path` tier (or fail-closing) via a
-  **live, gate-time collision classifier** — so a behaviour-preserving relocation no
+  **live, gate-time collision classifier** - so a behaviour-preserving relocation no
   longer forces a hand-edit **without re-blinding the T004 no-false-negative
   invariant**. Adds a standing int-to-line-sink meta-guard, a tier-specific
   dangling-entry ratchet, and the full production-path bite battery. The relocation
@@ -279,9 +279,9 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   and reference arbitrary addressable files (image, `.docx`, blob) via a sidecar
   `*.asset.yaml` manifest (`id`/`mime`/`path`, no blob schema). A single canonical
   `_NON_AUGMENTATION_ELIGIBLE_KINDS` set makes both kinds node-declarable but not
-  augmentation-eligible or charter-activatable — closing the silent-leak defect
+  augmentation-eligible or charter-activatable - closing the silent-leak defect
   class by construction. Safety is enforced from day one: **global URN-uniqueness**
-  for `asset:`/`template:` (a single post-merge scan → `duplicate_asset_id` /
+  for `asset:`/`template:` (a single post-merge scan -> `duplicate_asset_id` /
   `duplicate_template_id`), **path-containment** (`asset_path_escape`), and **mime
   validation** (`asset_mime_invalid`). A new totality guard asserts every
   `ArtifactKind`/`NodeKind`-keyed mapping table stays exhaustive. The 9 existing
@@ -294,7 +294,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 - **Dashboard WP cards show subtask progress (#2504).** Cards (and the WP
   detail view) previously showed a bare frontmatter count (`4 subtasks`);
   they now show `2/4 subtasks` (with a ✓ at n/n), counted from the canonical
-  checkbox rows in the WP body — the same rows the lane-transition guard
+  checkbox rows in the WP body - the same rows the lane-transition guard
   blocks on, via a new shared single definition
   (`core/subtask_rows.py`, now consumed by both the guard and the dashboard
   so the two can't drift). WPs that don't track completion via checkboxes
@@ -306,23 +306,23 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   shipped active in the default charter pack but had no inbound edge from
   anything, which meant no cascade, no traversal, and no way for an agent to
   arrive at it except by naming it directly. The authored edges are:
-  `DIRECTIVE_035` → occurrence-classification-workflow, `DIRECTIVE_003` →
-  decision-marker-capture, `DIRECTIVE_030` → no-parallel-duplicate-test-runs,
-  `DIRECTIVE_030` → red-main-release-discipline, `python-conventions` →
-  python-review-checks, `atomic-design-review-checklist` → atomic-design, and
-  `structured-prompt-driven-development` → reasons-canvas-writing. **This
+  `DIRECTIVE_035` -> occurrence-classification-workflow, `DIRECTIVE_003` ->
+  decision-marker-capture, `DIRECTIVE_030` -> no-parallel-duplicate-test-runs,
+  `DIRECTIVE_030` -> red-main-release-discipline, `python-conventions` ->
+  python-review-checks, `atomic-design-review-checklist` -> atomic-design, and
+  `structured-prompt-driven-development` -> reasons-canvas-writing. **This
   changes what a cascade brings in for your project:** activating one of the
   seven source artefacts with `--cascade` now also activates the target that
   was previously stranded. If you have been relying on a cascade to produce a
-  specific, narrow set, re-check it after upgrading — the sets are now larger
+  specific, narrow set, re-check it after upgrading - the sets are now larger
   by design, because the targets were always meant to travel with their
   sources.
 
 ### 🐛 Fixed
 
 - **Commands run on a merged coordination mission no longer crash (`#3086`).**
-  Once a coordination mission was merged, later commands against it — creating a
-  retrospective, resuming implementation, or checking its status — failed
+  Once a coordination mission was merged, later commands against it - creating a
+  retrospective, resuming implementation, or checking its status - failed
   outright, and this hit every merged coordination mission. Merging now
   finalizes the mission cleanly, so it stays usable afterward.
 - **`decision widen` no longer lets one mission's decision travel under
@@ -330,7 +330,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   `#3111`).** Previously, ownership was resolved from whatever the decision
   ledger it was handed reported rather than from the mission you actually
   named, so a decision owned by mission A could be widened under a request
-  naming mission B and have the egress consent gate treat it as consented —
+  naming mission B and have the egress consent gate treat it as consented -
   laundering A's identifying text out under B's team/token. Widening now
   refuses whenever the acting mission and the decision's recorded owner
   disagree. The governing rule: identity is a detector, never an actuator.
@@ -343,7 +343,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   "no missions found" (`#3177`).** An unreadable mission directory was
   silently dropped instead of being recorded, so the CLI told you to `git
   pull` for what was actually an `EACCES`. It now reports the directory as
-  unreadable; unaffected on the CLI's supported 3.11–3.13 interpreters.
+  unreadable; unaffected on the CLI's supported 3.11-3.13 interpreters.
 - **Internal: a stale docstring in the saas-client/egress invocation adapters
   no longer claims re-registration only replaces a factory or resolver "when
   the qualified name matches" (`#3109`).** Both always replaced
@@ -366,12 +366,12 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   as having no charter (mission `doctrine-charter-split-unification`;
   `#3150`).** Before this fix, a project with a compiled
   `.kittify/charter/charter.yaml` but no display-only `charter.md` companion
-  showed "no charter" in the dashboard sidebar and its API — both the artifact
+  showed "no charter" in the dashboard sidebar and its API - both the artifact
   scanner and the charter API endpoint still keyed presence on the legacy
   `charter.md` file. Presence resolution now prefers `charter.yaml` (the read
   authority) and falls back to `charter.md` when `charter.yaml` has not been
   compiled yet, across the dashboard, analysis-report, and
-  retrospective-policy surfaces — so a `charter.md`-only project that never
+  retrospective-policy surfaces - so a `charter.md`-only project that never
   ran `charter sync`/compile still reports a charter, and a compiled project
   still survives `charter.md` deletion; the prose body the Charter page
   displays still comes from `charter.md` when one exists. Two exceptions are
@@ -396,14 +396,14 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   `src/specify_cli/cli/commands/charter/**` previously wouldn't trigger the
   workflow named for it; the docs-parity gate had pointed at a reference file
   that no longer existed, so it never actually ran.
-- **Approving a work package after a rejection now actually sticks — no
+- **Approving a work package after a rejection now actually sticks - no
   override flag required (mission `review-verdict-write-integrity`; `#3044`,
   `#2275`, `#2996`, `#990`, `#2697`, `#2646`).** Before this fix,
   `move-task --to approved` on a previously-rejected WP advanced the lane but
-  wrote no record of the approval — the stale `rejected` verdict stayed
+  wrote no record of the approval - the stale `rejected` verdict stayed
   authoritative, so `move-task --to done` and `spec-kitty merge` kept blocking
   on it, forcing `--skip-review-artifact-check` (an arbiter-override flag) on
-  every ordinary reject → fix → approve cycle. Separately, the rejection
+  every ordinary reject -> fix -> approve cycle. Separately, the rejection
   writer accepted any file as "feedback" without checking it wasn't itself a
   prior cycle's own review artifact (by path or by a renamed copy), so a
   mistaken re-submission (a reviewer accidentally re-pasting the same feedback
@@ -415,7 +415,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   the override flag still works for actual arbiter decisions but is no longer
   _needed_ for an ordinary approval; a rejection's feedback source is refused
   if it's the same or a duplicate of a prior cycle's own artifact (a check
-  that a deliberate one-character edit still defeats — it targets accidental
+  that a deliberate one-character edit still defeats - it targets accidental
   duplication, not a determined actor); and both `move-task` write paths now
   commit their review-cycle artifact when auto-commit is resolved on
   (`--auto-commit`, or `auto_commit: true`/default in `.kittify/config.yaml`),
@@ -426,7 +426,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   `agent tasks status`'s stale-verdict display (`#2646`) is confirmed to close
   as a side effect of the durable writer, with no separate code change needed.
 - **A work package's current verdict now has a single authority that wins on
-  disagreement — the status event log, not a review artifact's frontmatter
+  disagreement - the status event log, not a review artifact's frontmatter
   (mission `review-cycle-verdict-seam-rebuild-01KZ2W7W`; ADR
   `2026-08-03-1`).** Before this fix, "is this WP approved?" had no single
   answer: some readers (the kanban board, `move-task`'s review-readiness
@@ -436,18 +436,18 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   any such disagreement; frontmatter reads remain in place as a fallback for
   the case where the event log carries no opinion (for example, legacy
   coord-topology missions that predate this seam), and no new
-  frontmatter-reading path was added — the merge gate still drives its
+  frontmatter-reading path was added - the merge gate still drives its
   readiness loop off a frontmatter reader for that no-opinion case, by design.
   The review-cycle artifact remains authoritative for _what the reviewer
-  said_ — the reviewer's prose, affected files, reproduction command — never
+  said_ - the reviewer's prose, affected files, reproduction command - never
   for _which verdict is current_ once the event log has an opinion to give.
 - **An arbiter's override decision now durably persists and clears the merge
-  gate on its own — no separate flag or manual step required afterward
+  gate on its own - no separate flag or manual step required afterward
   (mission `review-cycle-verdict-seam-rebuild-01KZ2W7W`; ADR
   `2026-08-03-1`).** Before this fix, the arbiter override writer never
   git-committed its output under any topology, so an override could be
   present in a working tree and still vanish from a fresh clone or a
-  branch switch — the exact gap that made `--skip-review-artifact-check`
+  branch switch - the exact gap that made `--skip-review-artifact-check`
   feel unreliable even when it had "worked." Now the override is committed
   through the same seam every other verdict-relevant write uses, so it
   survives a fresh clone and the merge gate accepts it without repeating the
@@ -456,7 +456,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   into, a genuine reviewer approval (mission
   `review-cycle-verdict-seam-rebuild-01KZ2W7W`; ADR `2026-08-03-1`).** Before
   this fix, nothing distinguished a knowingly-overridden standing rejection
-  from an approval a reviewer actually performed — both could present the
+  from an approval a reviewer actually performed - both could present the
   same way to a consumer reading only the latest verdict. Now the override is
   recorded and read back as its own first-class outcome (a stated actor and
   reason, event-sourced on the same partition as the record it annotates),
@@ -464,8 +464,8 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 - **Applying a charter pack no longer leaves your project worse off than doing
   nothing (mission `charter-pack-usage-journey`; `#3104`, `#3105`).** Before
   this fix, `spec-kitty charter pack apply <pack>` on an unconfigured project
-  disabled the safe generic-agent dispatch fallback — so the next unmatched
-  `spec-kitty dispatch` hard-failed with `ROUTER_NO_MATCH` — and `charter
+  disabled the safe generic-agent dispatch fallback - so the next unmatched
+  `spec-kitty dispatch` hard-failed with `ROUTER_NO_MATCH` - and `charter
   context` / `charter status` still reported the charter as "not found" because
   they gated on the display-only `charter.md` that `apply` never writes. Now:
   applying a pack **without** compiling keeps the warned generic-agent net
@@ -479,13 +479,13 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   built-in directives. The documented `spec-kitty analyze` surface and the CLI
   are now guarded to stay in agreement (`#3096`). **Deliberate behaviour
   change:** the dispatch net now keys purely on whether a compiled bundle or a
-  routable profile/org pack exists, not on every activated doctrine dimension —
+  routable profile/org pack exists, not on every activated doctrine dimension -
   so a project that has activated only glossary packs, directives, or other
   non-routing doctrine (no bundle, no routable profile) now falls back to the
   generic-agent net too. This narrows the broader composite-dimension check the
   `#3064` fix introduced above; it is a tested, recorded change, not a silent
   regression.
-- **Contract note — `charter context --json` (`project_charter.present`).** The
+- **Contract note - `charter context --json` (`project_charter.present`).** The
   read authority for the JSON charter-presence surface moved from the
   display-only `charter.md` to the compiled `charter.yaml`: a project that has a
   `charter.md` but never compiled now reports `project_charter.present: false`
@@ -500,7 +500,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 - **A non-terminating test now fails loudly instead of hanging the CI job
   (mission `verification-trust-3115`; `#3115`, `#3113`).** `pytest.ini`
   registered a `timeout` marker but set no timeout, so a test that never
-  returned stalled its whole shard rather than failing — a mechanism reporting
+  returned stalled its whole shard rather than failing - a mechanism reporting
   nothing where it should report a failure. The fast-test CI jobs now carry a
   default per-test timeout (`--timeout` with the signal method), and a new
   architectural gate (`test_ci_fast_jobs_have_timeout.py`) keeps the flag from
@@ -508,14 +508,14 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   build and the `-n0` real-port orphan-sweep, where a signal mid-teardown is
   unsafe). Also hardens the terminal-render width fold, the egress-consent
   boundary, and the `tests/sync` leak-guard so each is provable rather than
-  asserted. **No product code (`src/specify_cli`) changed** — this is a
+  asserted. **No product code (`src/specify_cli`) changed** - this is a
   test-trust and CI change; Windows and local runs still get no per-test
   timeout (tracked by `#3143`). (`#3130`, `#3136` referenced.)
 - **Fixed: `sync` could deliver one project's events to another project's
   workspace, including projects that never opted in (#3030).** A machine
   keeps one shared local event journal across every Spec Kitty checkout on
   it. Sync's consent check only asked "is sync enabled for _this_ checkout?"
-  — once yes, it delivered the _entire_ journal, so a single opted-in
+  - once yes, it delivered the _entire_ journal, so a single opted-in
   project could ship another, unrelated project's events and metadata to the
   hosted server. Every path that reads from the journal for delivery is now
   gated per-project, consent is checked before events leave the machine
@@ -526,9 +526,9 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 - **Generated agent guidance reads grammatically again (mission
   `charter-delivery-finish-context-degod`; `#3082`).** The "verbatim-or-fetch"
   disclosure lines every agent receives in charter context were frequently
-  ungrammatical — e.g. `When you designing or reviewing significant code
+  ungrammatical - e.g. `When you designing or reviewing significant code
   changes, run this command`. The authored `when` clause is now normalized into
-  the closed contract lead-in set (`When you are about to …`) for every clause
+  the closed contract lead-in set (`When you are about to ...`) for every clause
   shape, and the prompt-governance contract is asserted **per stanza** so a
   regression can't hide behind another matching line. (A second, independent
   render surface in `section_bodies.py` is tracked separately as `#3093`.)
@@ -559,12 +559,12 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   checkout for a deleted coord branch:
   - Every fail-loud-appropriate caller (72 sites, per a per-site classification
     ledger) now reads via `PlacementSeam.read_dir(<kind>)` with the correct
-    artifact kind. Coord-partition reads — a lane-based merge's event log, the
-    decision-log companion read, the doctrine synthesizer — now fail loud instead
+    artifact kind. Coord-partition reads - a lane-based merge's event log, the
+    decision-log companion read, the doctrine synthesizer - now fail loud instead
     of treating a deleted coordination branch as healthy.
   - 16 diagnostic/audit/SaaS-facing readers (dashboard scan, dossier API,
     retrospective summary, status aggregation, and friends) stay **lenient by
-    design** and are recorded as justified allow-list entries — reporting surfaces
+    design** and are recorded as justified allow-list entries - reporting surfaces
     must not start raising.
   - A new whole-tree AST gate reds on any future direct kind-blind read in a
     non-sanctioned module, reusing the same scanner as the write-side gate. The
@@ -585,24 +585,24 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
     anchored on the main repo, so this is observationally a no-op for them.
   - **`spec-kitty accept` no longer rewinds finished work packages to
     `claimed` (#3013, #2985).** The birth-cutover seed anchored its
-    `planned → claimed` carrier on a work package's _earliest_ transition,
+    `planned -> claimed` carrier on a work package's _earliest_ transition,
     which for a force-jumped or pruned WP is its **terminal** one. The seed
     then collided on timestamp, and because the reducer sorts by
-    `(at, event_id)` the hash-derived seed id outranked the real ULID — folding
+    `(at, event_id)` the hash-derived seed id outranked the real ULID - folding
     a `done` WP back to `claimed`, so a second `accept` on an unchanged tree
     did not converge. (This corrects the mechanism recorded on #2985: it is the
     sort key, not append order.) `accept` is also now event-count neutral on
     missions whose runtime state is already canonical. **Already-corrupted logs
-    do not self-heal** — they still need the #3003 corpus regenerate, which
+    do not self-heal** - they still need the #3003 corpus regenerate, which
     this unblocks.
   - **`doctor mission-state --fix` no longer destroys `review_result`, log
     order, or dropped duplicates (#3003).** `_build_canonical_row` is a closed
-    allowlist that omitted `review_result` — a first-class `StatusEvent` field
+    allowlist that omitted `review_result` - a first-class `StatusEvent` field
     _and_ a hard FSM guard, since every transition out of `in_review` is
     rejected without it. Repairing a corpus therefore converted valid history
     into events the reducer could no longer validate: 268 transitions across 44
     missions, with none failing beforehand. The loss was worst-shaped, because
-    `DoneEvidence.review` mirrors the payload only on approval — so the
+    `DoneEvidence.review` mirrors the payload only on approval - so the
     `changes_requested` rows were the irrecoverable ones. The allowlist is now
     gated against `StatusEvent.__dataclass_fields__` so a newly added model
     field cannot be dropped the same way. Two further fixes: rows now sort on
@@ -611,14 +611,14 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
     the head of an append-only log), and a dropped duplicate `event_id` row is
     quarantined rather than only hashed.
   - The classification ledger is now the _mechanical_ authority for the
-    stay-lenient allow-list — the gate parses it, so the doc and the gate cannot
+    stay-lenient allow-list - the gate parses it, so the doc and the gate cannot
     drift apart silently. The gate additionally resolves import aliases, and its
     coverage bounds (including the unpoliced `primary_feature_dir_for_mission`)
     are stated explicitly rather than implied.
 - **Almost the entire test suite was being skipped on pushes to `main` (#2957).**
   CI decides which test jobs to start by looking at which paths a change
   touched. That is a sensible optimisation for a pull request, but it was
-  applied to pushes to the protected branch as well — so a merge whose diff
+  applied to pushes to the protected branch as well - so a merge whose diff
   happened to match none of the path filters started **10 of 50** test jobs and
   left **31,547 of 33,822** test cases (93.3%) running nowhere. This was not
   theoretical: four test files that pin frozen contracts were failing on `main`
@@ -628,7 +628,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   uncollected; pull requests are unchanged. A new check
   (`tests/architectural/test_ci_collection_completeness.py`) fails if any
   collected test is left with no job that would run it on a push to `main`. It
-  has no baseline and no allowlist — the only way to satisfy it is to make a job
+  has no baseline and no allowlist - the only way to satisfy it is to make a job
   actually run the test.
 
 - **Doctrine packs could declare things that quietly had no effect (mission
@@ -639,7 +639,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   declaration was accepted, validated, reported as loaded, and then dropped. Every
   case below now either works or fails with a message naming what was wrong.
   - **Five of the sixteen artifact kinds were missing from the doctrine-graph
-    extractor** — `anti_pattern`, `asset`, `glossary`, `glossary_pack` and
+    extractor** - `anti_pattern`, `asset`, `glossary`, `glossary_pack` and
     `glossary_scope` were dropped whenever the graph was rebuilt. All sixteen are
     handled, and the mapping is now checked for completeness instead of being
     maintained by hand.
@@ -666,7 +666,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
     traverses, and it was the procedure's only inbound edge, so the profile's own
     operating procedure was unreachable. The edge is retyped to `requires`, and
     authoring an `applies` edge into the shipped tree is now rejected.
-  - **Error messages sent operators to files that do not exist** — an inline
+  - **Error messages sent operators to files that do not exist** - an inline
     reference rejection pointed at `src/doctrine/graph.yaml`, split into per-kind
     fragments long ago, and two operator-facing skill documents told authors to
     read a `src/doctrine/<kind>/shipped/` layer that has never existed on disk.
@@ -676,7 +676,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
     ran on settings nobody had checked. The generator now emits the real
     ten-key contract.
   - **The documented example for declaring agent-profile lineage used a syntax
-    that exists nowhere in the vocabulary** (`urn:profile:…`). Anyone who copied
+    that exists nowhere in the vocabulary** (`urn:profile:...`). Anyone who copied
     it got a declaration that merged without complaint and produced no edge. The
     example is corrected in `AGENTS.md` / `CLAUDE.md` and in
     [the org-pack authoring guide](../guides/create-an-org-doctrine-pack.md), and
@@ -684,14 +684,14 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 - **`spec-kitty agent tasks mark-status` could not find subtask ids written the
   way the shipped template tells you to write them (#2962).** The command
-  resolved a subtask id by matching a row shape in `tasks.md` — a checkbox, a
+  resolved a subtask id by matching a row shape in `tasks.md` - a checkbox, a
   pipe-table row, or an inline `Subtasks: T001, T002` list. The shipped
   `software-dev` template instructs authors that subtask rows are reference
   rows and explicitly _not_ checkboxes, so a `tasks.md` that follows the
   template matched none of those shapes and every id came back `NOT_FOUND`.
   That blocked the review workflow on every work package of every mission using
   that template. The command now falls back to the authored `subtasks:` roster
-  in work-package frontmatter — the same list the lane-transition guard already
+  in work-package frontmatter - the same list the lane-transition guard already
   treats as canonical, so the two surfaces agree on what a work package's
   subtasks are. The fallback runs last, so every row shape that worked before
   resolves exactly as before.
@@ -702,7 +702,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   - The sole `status_phase` writer (`_flip_phase`) resolves its write target
     through the placement port and **fails closed** with a typed
     `PlacementMismatchError` (writing nothing) if the resolved PRIMARY home
-    disagrees with the caller's directory — coincidental correctness becomes an
+    disagrees with the caller's directory - coincidental correctness becomes an
     enforced invariant.
   - The two-target legacy cutover reads `tasks/` frontmatter from the PRIMARY leg
     while the status event write stays on COORD.
@@ -722,7 +722,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   left a `status.json` snapshot on disk as a side effect. On a mission with no
   status events yet, that snapshot had no matching `status.events.jsonl` (the
   append-only event log that is the real source of truth), and the merge could
-  commit the orphaned snapshot on its own — the invalid "snapshot without its
+  commit the orphaned snapshot on its own - the invalid "snapshot without its
   event log" state the status doctor flags. The check now reads status without
   writing anything; a gate reads, it does not persist. Includes the regression
   test and a de-mocked planning-only merge test that exposed the shape.
@@ -734,12 +734,12 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   no non-interactive gate anywhere in the call graph, so an open-but-silent
   stdin pipe made them wait forever. The interviews now honor the contract: they
   still open every Decision Moment and write the decision index, but take
-  defaults and record each question as deferred instead of prompting — no prompt
+  defaults and record each question as deferred instead of prompting - no prompt
   is ever emitted non-interactively. A single authority, `core/env.is_interactive()`
   (precedence `SPEC_KITTY_FORCE_INTERACTIVE` > `SPEC_KITTY_NON_INTERACTIVE` > a
   real TTY), now backs that decision, and #2912 routed the four other divergent
-  prompt-gates — `init`, the `merge` hollow-review confirm, the `intake`
-  candidate picker, and `doctor` — through it too, so every prompt obeys the
+  prompt-gates - `init`, the `merge` hollow-review confirm, the `intake`
+  candidate picker, and `doctor` - through it too, so every prompt obeys the
   same rule (with `doctor` keeping its CI-environment veto layered on top). Also
   fixes the garbled interview hint menu where Rich was eating `[enter]`/`[text]`/`[d]`
   as style tags.
@@ -749,22 +749,22 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   #2912; landed by #2910).** `acceptance-matrix.json` and `issue-matrix.md` are filled on the
   target at accept time while the mission branch keeps empty scaffolds; the
   squash integration ran `git merge --squash -X theirs`, so the empty scaffold
-  won the add/add conflict and the merged history kept blank gate artifacts —
+  won the add/add conflict and the merged history kept blank gate artifacts -
   losing the audit trail exactly when a reviewer needs it. Two new custom merge
   drivers (`merge-driver-acceptance-matrix` / `merge-driver-issue-matrix`) now
-  keep whichever side actually carries evidence — scored, not fixed-side, so it
+  keep whichever side actually carries evidence - scored, not fixed-side, so it
   is correct whether the fill happened on the target or in a lane, with ties
   going to the target where accept ran. The scorers were then hardened (#2912) to
   read the scaffold marker from the field the scaffolder actually writes, and to
   resolve verdict/title columns by canonical header rather than fixed position,
   so a reordered or minimal matrix scores correctly. Seeded into `.gitattributes`,
-  the `init` seed, and an upgrade migration for already-initialized repos —
+  the `init` seed, and an upgrade migration for already-initialized repos -
   following the same pattern as the #2709 meta/traces drivers.
 
 - **Lifecycle gates no longer emit a confident-but-wrong verdict when run from
   the wrong worktree, and a misclassified lock write no longer blocks a claim or
   merge (#1834, #2885, #2882, #2795).** Every lifecycle gate now receives an
-  explicit execution context — which tree, which ref, which phase — and refuses,
+  explicit execution context - which tree, which ref, which phase - and refuses,
   recording a clear cannot-evaluate diagnostic instead of a pass/fail, when that
   context is missing or inconsistent, rather than silently inheriting the
   caller's working directory and judging a fact about one worktree against
@@ -780,7 +780,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 - **Windows backslash in git tree-path misreported committed specs as uncommitted (#2836).**
   `_git_commit_check_context` built the git tree path with `str(Path(...))`, which
-  renders using the OS-native separator — a backslash (`\`) on Windows. Git's
+  renders using the OS-native separator - a backslash (`\`) on Windows. Git's
   `HEAD:<path>` object syntax and `ls-files` pathspec require forward slashes, so
   both subprocess checks failed and `is_committed()` reported genuinely-committed
   spec files as uncommitted, blocking the setup-plan workflow (e.g.
@@ -792,17 +792,17 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 - **Posix path-separator normalization consolidated into one kernel seam.**
   The `str(x).replace("\\", "/")` idiom behind #2836 was scattered across ~17
   sites in `charter`, `mission_runtime`, and `specify_cli` (review, upgrade +
-  migrations, merge, git, skills, status, paths, bulk_edit) — each an independent
+  migrations, merge, git, skills, status, paths, bulk_edit) - each an independent
   chance to reintroduce the Windows backslash defect. All now route through the
   behaviour-agnostic `kernel.paths.to_posix(path: Path | str)` seam (kernel being
   the zero-dependency root every layer can import downward), leaving the seam
   definition as the only `replace("\\", "/")` in `src/`.
 
 - **`merge`'s hollow-review warning no longer flags a WP with a genuinely independent reviewer.**
-  `force_count >= 2` alone can't distinguish "the reviewer used `--force` to bypass an unrelated gate false-positive" from "no independent review happened" — both increment the same counter. When the event log positively confirms a different actor logged the approving transition than the one that most recently implemented the WP, the warning no longer fires; absence of that evidence still warns as before (fail-safe default, never suppressed on uncertain data).
+  `force_count >= 2` alone can't distinguish "the reviewer used `--force` to bypass an unrelated gate false-positive" from "no independent review happened" - both increment the same counter. When the event log positively confirms a different actor logged the approving transition than the one that most recently implemented the WP, the warning no longer fires; absence of that evidence still warns as before (fail-safe default, never suppressed on uncertain data).
 
 - **Honest force-provenance on evidence-gated backward edges (#2684, #2736, #2810).**
-  Persisted `StatusEvent.force` is now truthful — falsy on the evidence-gated
+  Persisted `StatusEvent.force` is now truthful - falsy on the evidence-gated
   review-rejection edges (`build_transition_plan` asks the FSM instead of
   auto-promoting `force`) and truthful on genuine guard-bypasses (leaving a
   terminal `done`). Fixes the false-force stamp found during #2736 / PR #2810.
@@ -826,7 +826,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 - **Fresh-project `charter synthesize` no longer crashes after the `charter.yaml` inversion (#2800, #2773).**
   Post-#2773, `charter generate` stopped writing `charter.md`, but the fresh-project
-  synthesize intercept still gated on `charter.md` being present — so on a real fresh
+  synthesize intercept still gated on `charter.md` being present - so on a real fresh
   project the intercept never fired and `charter synthesize` fell through to the production
   adapter, exiting 1 with `'str' object has no attribute 'get'`. The intercept now gates on
   the authoritative `charter.yaml` (what `generate` writes), restoring the fresh-project seed
@@ -848,14 +848,14 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   mechanical `mypy --strict` errors in the agent test package. Fixtures re-pointed onto
   `charter.yaml`, gates re-based, and tests whose premise encoded a retired flow removed
   outright per the standing-order §4 remediation framework (now amended to codify
-  _superseded-design → remove_). The legacy-topology bootstrap CWD gap a strict-xfail guards
+  _superseded-design -> remove_). The legacy-topology bootstrap CWD gap a strict-xfail guards
   is now tracked in #2802.
-- **Sync batch-400 poison isolation — one invalid event no longer strands its whole batch (#2736; closes #2755).**
+- **Sync batch-400 poison isolation - one invalid event no longer strands its whole batch (#2736; closes #2755).**
   A whole-batch HTTP 400 with no per-event `details` made the CLI fan the batch-level error onto **every**
   event as `rejected` (non-terminal), so the culprit re-poisoned every subsequent drain and the innocents
-  never delivered — the upstream cause of the `wp_status_event_without_create` projection anomaly. The
-  receiver now recursively **bisects** a poison batch (`delivery/receivers.py`): split → re-POST both halves
-  → recurse to singletons, isolating the culprit (kept `rejected`/retryable, never force-parked) and
+  never delivered - the upstream cause of the `wp_status_event_without_create` projection anomaly. The
+  receiver now recursively **bisects** a poison batch (`delivery/receivers.py`): split -> re-POST both halves
+  -> recurse to singletons, isolating the culprit (kept `rejected`/retryable, never force-parked) and
   delivering every innocent, with create-before-status ordering preserved by sequential left-before-right
   recursion (and a split-point clamp so a same-`wp_id` create+status pair still terminates). The live
   offline-queue path (`sync/batch.py` `_parse_error_response` no-`details` branch) now dispositions a
@@ -867,11 +867,11 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 - **Mission squash merge no longer clobbers target-newer acceptance provenance or traces (#2709).**
   The supported squash merge ran `git merge --squash -X theirs` on every conflicting file,
   silently reverting target-newer `meta.json` acceptance/VCS fields (and `traces/*.md`
-  sections) to the older mission-branch copies, and the coord→target projection
+  sections) to the older mission-branch copies, and the coord->target projection
   blind-overwrote the durable event log and `status.json`. Merges now reconcile **per
   artifact class**: planning artifacts stay mission-authoritative (`-X theirs` intent from
   #1732 preserved), while `meta.json` acceptance/VCS keys field-merge target-authoritative
-  with `acceptance_history` unioned and `traces/*.md` do a line-level union — via new
+  with `acceptance_history` unioned and `traces/*.md` do a line-level union - via new
   `spec-kitty merge-driver-meta` / `merge-driver-traces` git drivers whose activation is
   scoped to the ephemeral squash merge (they no longer leak into a later `auto_rebase`). The
   projection unions the event log via `merge_event_payloads` and rematerializes `status.json`
@@ -880,13 +880,13 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   projection path + driver-registry completeness sourced from the canonical artifact-kind
   registry).
 - **Merge rollback and `--resume` stay coherent after a failed target advance (#2711).**
-  When target advancement failed after `approved → done` events were committed to the
-  coordination branch, rollback reverted only working-tree bytes — leaving a committed `done`
-  opposed to a reverted working `approved` — and `spec-kitty merge --resume` re-emitted a
+  When target advancement failed after `approved -> done` events were committed to the
+  coordination branch, rollback reverted only working-tree bytes - leaving a committed `done`
+  opposed to a reverted working `approved` - and `spec-kitty merge --resume` re-emitted a
   fresh `done` (non-idempotent). Rollback now reverts the coordination `done` commit
   (coord-worktree `git revert`, sourced from the canonical write-target ref; never a raw
   `update-ref`), and `--resume` derives progress from the durable committed event log with
-  `MergeState.completed_wps` demoted to an advisory hint — so committed and working status
+  `MergeState.completed_wps` demoted to an advisory hint - so committed and working status
   stay coherent and resume is `event_id`-stable. INV-5 (#1827) merge-phase ordering is
   preserved. Ships with a red-first reproduction and a resume non-reemission property guard.
   Tracked follow-ups: **#2786** (write a durable reconcile marker when the rollback revert
@@ -897,8 +897,8 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   (#2367 Mechanism B).** When the rollback's coord-`done` `git revert` itself _failed_ (#2786),
   or when a merge aborted mid-way through `_record_merged_wps_done_for_merge` before any revert
   ran (#2367-B), rollback restored only working-tree bytes and left a committed `done` opposed to
-  a reverted working `approved` — a silently-stranded split-brain. Rollback now **marks-not-raises**:
-  a durable `MergeState.pending_coord_reconcile` marker records the stranded WP(s) — derived from
+  a reverted working `approved` - a silently-stranded split-brain. Rollback now **marks-not-raises**:
+  a durable `MergeState.pending_coord_reconcile` marker records the stranded WP(s) - derived from
   the **committed** coordination ref (the reliable authority; a working-tree diff is empty at the
   revert-failure point) over _this merge's own_ pre-target `done` write-set, so a legitimately
   pre-existing-`done` WP is never re-stranded. `spec-kitty merge --resume` heals via a strand-gated,
@@ -908,18 +908,18 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   rollback sites (incl. the previously-unenumerated coord-reachable site) strands without marking.
   INV-5 (#1827) ordering preserved; happy-path merge byte-identical. Ships red-first repros for both
   mechanisms. Deferred with follow-ups: **#2797** (unify the two `git revert` transport legs into
-  one shared helper). (**#2795**, #2367 Mechanism A — claim-time VCS-lock resync, was deferred here
+  one shared helper). (**#2795**, #2367 Mechanism A - claim-time VCS-lock resync, was deferred here
   and has since landed in #2906, above.)
 - **`--json` output is now plain regardless of terminal colour; CLI tests are colour-deterministic (#2632).**
   Under a colour-forcing harness (e.g. `FORCE_COLOR=3`) Rich syntax-highlighted `--json`
-  output — splicing ANSI escapes into the payload so `json.loads` and `| jq` choked — and
+  output - splicing ANSI escapes into the payload so `json.loads` and `| jq` choked - and
   split literal substrings in styled human output, red-ing ~81 pre-existing tests. All CLI
   output now routes through a single canonical `CliConsole` seam
   (`specify_cli.cli.console`) whose machine-output methods (`emit_json`/`print_json`) are
   plain by construction, so `--json` is safe under any colour environment. Test determinism
   comes from toggling colour on that one shared object (`set_plain`), never from mutating
   `os.environ`. The whole CLI layer (~77 ad-hoc `Console()` constructions) was moved onto the
-  seam — no shim — and an architectural guard forbids a raw `Console()` under
+  seam - no shim - and an architectural guard forbids a raw `Console()` under
   `src/specify_cli/cli/`. Deferred non-CLI consoles (including an active `retrospective/cli.py`
   `--json` corruption vector) are tracked in #2634. ADR: `2026-07-14-1-canonical-cli-console-seam`.
 - **Implement-loop friction quick-wins II (#2570, #2493, #2555, #2566, #2589, #2533, #2580).**
@@ -944,7 +944,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   output contract (#2605), and worktree-aware `doctor tool-surfaces --fix` (#2613).
 - **Implement-loop friction quick-wins (#2581, #2573, #2549, #2577).** Four independent
   loop-friction fixes: `mission create` / `spec-kitty specify` now derive the create-time
-  topology from context — a non-primary feature branch without `--pr-bound` defaults to
+  topology from context - a non-primary feature branch without `--pr-bound` defaults to
   `single_branch` instead of minting a coordination branch the operator must manually flatten
   (primary branch, `--pr-bound`, and explicit `--topology` still default to `coord`);
   `move-task --to for_review` gains a `--skip-pre-review-gate` flag, honors the
@@ -954,7 +954,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   (`commit_hashes`) for the two-branch coord-topology commit set instead of a single
   `commit_hash` that omitted the coordination-branch commit (#2549 facet B; facet A deferred);
   and `charter synthesize` no longer fails closed on an empty/first-run config demanding a
-  companion tactic for every built-in directive — first-run parity restored (#2526 regression).
+  companion tactic for every built-in directive - first-run parity restored (#2526 regression).
 
 - **Coord-shadows follow-ups: canonical-source consolidation + gate/liveness robustness
   (#2574, #2575, #2576, #2567, #2568).** The triplicated subtask-gate-dir resolver is unified
@@ -993,8 +993,8 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 - **orchestrator-api `transition` no longer lets WPs into `for_review` with
   unchecked subtasks (#2510).** The command trusted a caller-asserted
   `--subtasks-complete`; left unset, emit-time inference read `tasks.md` off
-  the STATUS feature dir — the coordination worktree husk mid-mission, where
-  the PRIMARY-partition `tasks.md` never exists — and **failed open**,
+  the STATUS feature dir - the coordination worktree husk mid-mission, where
+  the PRIMARY-partition `tasks.md` never exists - and **failed open**,
   silently bypassing the subtask guard native `move-task` enforces (field
   evidence: four WPs reached `done` with 0/16 rows ticked, `force=false`).
   Mirroring the command's own commit-gate precedent, the API now derives the
@@ -1007,7 +1007,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   coordination missions (#2502).** #2431 re-anchored the mission _list_ and
   _kanban_ to read planning artifacts primary-first, but the viewer endpoint
   family (`/api/research`, contracts/checklists listings, the spec/plan file
-  server) still resolved the feature dir through the coord-first resolver —
+  server) still resolved the feature dir through the coord-first resolver -
   landing on the status-only coord husk, so clicking spec/plan/research on a
   running mission showed nothing while the board showed the work. A new
   `resolve_feature_planning_dir()` composes the coord-first resolver with the
@@ -1015,14 +1015,14 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   `handle_kanban`'s split reads are made explicit (legacy-format check =
   planning surface; weighted-progress read stays on the coord-first status
   surface). Finished missions were unaffected (their coord worktrees are
-  gone), which is why the gap only showed mid-run — the same "broken precisely
+  gone), which is why the gap only showed mid-run - the same "broken precisely
   while running" shape as #2430.
 
 - **Agent context payloads no longer lose their `Profile-Cited Directives`
   and `Tactics` anchors when the token budget trims a section (mission
   `charter-sole-door-bypass-closure`).** When the token-budget algorithm
   substituted a section for a shorter fetch-command stanza, it deleted the
-  section's own header line along with its body — so a governance payload
+  section's own header line along with its body - so a governance payload
   that ran over budget could silently lose the
   `Profile-Cited Directives (<profile>):` and `Tactics:` anchors an agent
   reading the payload needs to find the section it wants. The budget
@@ -1036,12 +1036,12 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   command rendered a status board with no human-in-charge marker and no
   indication anything was wrong. It now surfaces the underlying
   `CharterPackConfigError` as a structured error instead of degrading
-  silently — you'll notice this as a new, explicit failure where the
+  silently - you'll notice this as a new, explicit failure where the
   command previously ran quietly with missing markers.
 - **Bump `cryptography` floor to `>=50.0.0`, fixing CVE-2026-69247 (`#3181`).**
   `cryptography` is the dependency behind AES-256-GCM + scrypt KDF encrypted
   auth session storage; the previously locked `49.0.0` was affected. There is
-  no user-facing behavior change — encrypted session storage keeps working
+  no user-facing behavior change - encrypted session storage keeps working
   exactly as before, just on a patched dependency version. Run
   `spec-kitty auth status` after upgrading if you want to confirm your stored
   session is still recognized; _no re-login is required_.
@@ -1051,8 +1051,8 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 - **Doctrine-pack resolution and charter activation now run through a single
   authority (mission `resolution-activation-foundation`; `#2657`, `#3210`).**
   One kernel primitive resolves the packs root and honours
-  `SPEC_KITTY_PACKS_ROOT` for every reader — the duplicate runtime `home.py`
-  resolver is collapsed onto it — so resolution can no longer diverge between
+  `SPEC_KITTY_PACKS_ROOT` for every reader - the duplicate runtime `home.py`
+  resolver is collapsed onto it - so resolution can no longer diverge between
   call sites. Fresh `spec-kitty init` provisions the default charter by
   deterministic copy instead of re-scanning, so a freshly initialised project
   and a migrated one start from an identical charter. The provisioned charter
@@ -1065,8 +1065,8 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   profiles, step prompts, step contracts, and per-type content that previously
   lived embedded in the `doctrine` Python package at `src/doctrine/missions/`
   now resolve from the shippable `packs/built-in/missions/` location; the 11
-  `.py` logic modules stay in place as an ordinary package. Every reader —
-  across kernel, doctrine, charter, `specify_cli`, and the upgrade migrations —
+  `.py` logic modules stay in place as an ordinary package. Every reader -
+  across kernel, doctrine, charter, `specify_cli`, and the upgrade migrations -
   was repointed in one atomic change, and mission-asset resolution now targets
   the pack location explicitly so it can no longer silently fall back to the
   (now data-less) package directory in a built/wheel layout. No user action is
@@ -1078,11 +1078,11 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   name or mission-type vocabulary; `doctrine/pack_paths.py` and
   `MissionTemplateRepository.default_missions_root()` converge onto that one
   primitive, guarded by a kernel-scoped architectural test that fails on any
-  reintroduced `kernel → doctrine` edge.
+  reintroduced `kernel -> doctrine` edge.
 - **Retrospective policy set in `charter.yaml` now takes precedence over
   `charter.md` frontmatter (mission `doctrine-charter-split-unification`).**
   If both files configure retrospective behaviour and they disagree, the
-  compiled `charter.yaml` value now wins — matching how every other
+  compiled `charter.yaml` value now wins - matching how every other
   charter-governed decision already resolves. Projects that configure
   retrospective policy only via `charter.md` frontmatter (no `charter.yaml`
   retrospective block) are unaffected and keep resolving from the markdown as
@@ -1092,17 +1092,17 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   only `src/doctrine/**` / `src/charter/**` (or touches neither) now runs the
   DRG-freshness, charter-context-resolution, and architectural/adversarial
   checks for that layer in an isolated workflow instead of paying for the full
-  suite — faster, more targeted feedback for doctrine/charter work, no change
-  for unrelated PRs. The `charter pack apply` → `charter generate` two-step and
+  suite - faster, more targeted feedback for doctrine/charter work, no change
+  for unrelated PRs. The `charter pack apply` -> `charter generate` two-step and
   the empty-charter dispatch-safety-net behaviour are also now documented in
   the charter journey guides (`#3107`).
-- **The `charter/context.py` god-module was decomposed 3243 → 570 lines (mission
+- **The `charter/context.py` god-module was decomposed 3243 -> 570 lines (mission
   `charter-delivery-finish-context-degod`; `#2532`).** The charter-context
-  engine — previously a single 3243-line module — is now a thin orchestration
+  engine - previously a single 3243-line module - is now a thin orchestration
   surface delegating to 16 focused sibling modules under `src/charter/`
   (catalog diagnosis, token budget, artifact bodies, selection rendering,
   activation, bootstrap text, compact governance, JSON builder, profile
-  resolution, doctrine-service builder, …), and a long-standing internal import
+  resolution, doctrine-service builder, ...), and a long-standing internal import
   cycle is dissolved. This is a pure maintainability change: a byte-for-byte
   parity fixture over the three public entry points (`build_charter_context` /
   `_include` / `_json`) is green before and after, and a completion gate asserts
@@ -1117,32 +1117,32 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   Canonical Kind Vocabulary table: charter-activatable tokens now list `procedure` (not
   `template`) and add `glossary-pack`; `template`, `asset`, and `anti_pattern` remain
   `ArtifactKind` members but are **not** charter-activatable (excluded via
-  `_NON_AUGMENTATION_ELIGIBLE_KINDS` — this is a governance clarification, not a kind
+  `_NON_AUGMENTATION_ELIGIBLE_KINDS` - this is a governance clarification, not a kind
   rename). Retires the Contextive generated-file staleness test.
 - **The docs anti-sprawl structure ratchet (R1) is retired (#2851 follow-up).** The per-PR
   blocking `anti_sprawl_ratchet.py --strict` step is removed from `docs-freshness.yml`, and
   the script plus its orphaned `doctrine.directives.common_docs` constant (its only consumer)
   and self-test are deleted. `DIRECTIVE_042`'s single-root / 13-section / no-shadow-tree policy
-  is unchanged — it remains a red-line integrity rule — but is now maintained by periodic bulk
+  is unchanged - it remains a red-line integrity rule - but is now maintained by periodic bulk
   curation rather than a per-PR CI gate, matching the operator's bulk-remediation ops intent and
   trimming a blocking CI step. The other docs rulers (R2 related-edge validator, R3 lockfile
   freshness, description-length and body-link gates) are unaffected and stay blocking.
 - **Runtime-state corpus cutover completed; the phase-1 dual-write flag is deleted (#2816, #2848).**
-  Completes the #2684 / #2093 eviction. WP runtime state — lane, claim, `agent`/`assignee`,
+  Completes the #2684 / #2093 eviction. WP runtime state - lane, claim, `agent`/`assignee`,
   `shell_pid`, subtask completion, `tracker_refs`, review-cycle fields, and resolved
-  role/profile/model bindings — is now **unconditionally** reconstructed from the append-only
+  role/profile/model bindings - is now **unconditionally** reconstructed from the append-only
   event log through a single reader (`reconstruct_wp_view`); the `_phase1_dual_write_enabled`
   flag and the legacy frontmatter-runtime fallback are removed, so `tasks/WP##.md` frontmatter
-  is no longer a runtime authority. The existing corpus was migrated (per-mission `backfill →
-  verify → status_phase` flip). Adds **`spec-kitty migrate backfill-runtime-state`**, which
+  is no longer a runtime authority. The existing corpus was migrated (per-mission `backfill ->
+  verify -> status_phase` flip). Adds **`spec-kitty migrate backfill-runtime-state`**, which
   seeds a mission's legacy runtime as events, verifies the reduced snapshot against the old
-  reader by count + value (fail-closed — never flips a mission that fails verify; per-mission
+  reader by count + value (fail-closed - never flips a mission that fails verify; per-mission
   best-effort), and flips `meta.json` `status_phase` to snapshot-authority only for verified
-  missions; the same seed→verify→flip path ships as an auto-discovered upgrade migration for
+  missions; the same seed->verify->flip path ships as an auto-discovered upgrade migration for
   consumer repos.
 - **Skill projection delivers copies, never absolute symlinks (#2412, ADR 2026-07-19-1).**
   Projected skill files under `.claude/skills/`, `.agents/skills/`, etc. used to be
-  absolute symlinks into the user-global canonical root — which dangle when the repo
+  absolute symlinks into the user-global canonical root - which dangle when the repo
   is mounted into a dev-container or synced to a remote box, are unreadable to agent
   harnesses sandboxed to the repo root, and all break at once if the global root
   moves. `_project_skill_file` now always delivers a real copy (the pre-existing
@@ -1164,17 +1164,17 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 - **Internal: the coord-authority trio is decomposed into ports + pure cores
   (#2464, #2465).** The three coord-authority god-modules are restructured
   behaviour-preservingly into the shipped Typer-shell + request-dataclass + pure-cores
-  (ports injected) + executor pattern — following `MissionResolver` (#2494) and
-  `tasks.py` (#2308): `workflow.py` → `workflow_cores.py` + `workflow_executor.py`,
-  `implement.py` → `implement_cores.py` (a `GitPort` injected and two `# noqa: C901`
-  suppressions removed), and `acceptance/` → `summary_core.py` + `gates_core.py`. The
+  (ports injected) + executor pattern - following `MissionResolver` (#2494) and
+  `tasks.py` (#2308): `workflow.py` -> `workflow_cores.py` + `workflow_executor.py`,
+  `implement.py` -> `implement_cores.py` (a `GitPort` injected and two `# noqa: C901`
+  suppressions removed), and `acceptance/` -> `summary_core.py` + `gates_core.py`. The
   trio's leaf resolvers now consume the kind-aware placement seam, preserving all three
   (lenient) read contracts (#2465). No user-facing behaviour change; pinned by
   seam-only + cores-no-I/O architectural tests and a characterization safety net over
   implement / review / accept / next.
 - **Read-side placement seam closure: the last unpoliced primitive is gone
   (#2886, #3014; closes the read-side placement-seam migration opened by
-  #2922/#2921).** The #2922 migration above left one gap on purpose — its own
+  #2922/#2921).** The #2922 migration above left one gap on purpose - its own
   gate coverage bounds named `primary_feature_dir_for_mission` as unpoliced,
   because the wrapper itself, and the ~34 call sites still composing a
   mission's primary directory by calling it directly, hadn't been routed
@@ -1182,14 +1182,14 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   `placement_seam(root, slug).read_dir(<kind>)` for the artifact kind it
   actually wants, instead of asking a topology-blind wrapper to guess a path
   from a slug. The terminal `KITTY_SPECS_DIR` assembler survives as the
-  seam's own module-private leaf — the one place still allowed to compose a
+  seam's own module-private leaf - the one place still allowed to compose a
   path, because something has to. One behavioural nuance was accepted rather
   than papered over: on a backfilled mission where the old blind composition
   returned a directory that does not exist, the seam now recovers the real
   bare-`<slug>` directory instead of repeating the miss (identity-confirmed,
   not just path-shaped). A new architecture reference,
   [`docs/architecture/artifact-placement-seam.md`](../architecture/artifact-placement-seam.md),
-  documents the L0–L4 read-placement layering end to end; `branch-target-routing.md`
+  documents the L0-L4 read-placement layering end to end; `branch-target-routing.md`
   is narrowed to the branch-target sense now that placement has its own home.
   Governed by ADR
   [2026-06-24-1](../adr/3.x/2026-06-24-1-kind-and-topology-aware-artifact-placement.md)
@@ -1198,20 +1198,20 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   no new architectural decision was needed.
 - **Activating a subset of directives, tactics, styleguides, toolguides,
   mission-step contracts, or glossary packs now actually narrows what your
-  project sees — it didn't before (mission `charter-sole-door-bypass-closure`).**
+  project sees - it didn't before (mission `charter-sole-door-bypass-closure`).**
   If your `charter.yaml`/pack config selects only some of a pack's
   directives (or tactics, styleguides, toolguides, mission-step contracts,
   glossary packs), the runtime, CLI, and rendered context now consistently
   show only the selected set for those 6 kinds. Previously this filtering
-  only worked for `paradigm`, `procedure`, and `agent_profile` — the other 6
+  only worked for `paradigm`, `procedure`, and `agent_profile` - the other 6
   kinds fell through unfiltered, so a deactivated pack could still show up.
   Mission-type selection was already honoured before this mission; it is
   now covered by regression tests confirming that. **If you haven't
-  configured any activation selection, nothing changes** — a
+  configured any activation selection, nothing changes** - a
   bare/unconfigured project's result set is unaffected. One deliberate
   exception: `.kittify/profiles` (a local-override directory outside the
   doctrine activation model) is explicitly still unfiltered by this
-  change — a scope call, not a missed site; that area is slated for
+  change - a scope call, not a missed site; that area is slated for
   separate future rework.
 
   Under the hood, this closes every **enumerated direct-construction and
@@ -1219,34 +1219,34 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   extends activation gating from 3 kinds to all 9 charter-activatable kinds
   plus the `mission-type` token. It does **not** close the full ~20-door
   list: `doctrine.template_catalog.resolve_template_by_id` (5 importers),
-  `specify_cli/runtime/resolver.py`'s tier-1–4 reimplementation,
+  `specify_cli/runtime/resolver.py`'s tier-1-4 reimplementation,
   `runtime/home.py`'s `importlib.resources` root lookup, three
   root-relative missions-root duplicates, and one escalated
   `AgentProfileRepository` site (`tool_surface/profiles/projection.py`)
-  remain — each named in the mission spec and tracked as its own follow-on
+  remain - each named in the mission spec and tracked as its own follow-on
   (#3176 for the last). This mission also promotes
   `MissionTemplateRepository.default_missions_root()` as the single shared
   missions-root authority and retargets two duplicate hardcoded path
   constructions onto it, but that consolidation does **not** claim
-  convergence with `doctrine.pack_paths.built_in_dir` — full convergence
+  convergence with `doctrine.pack_paths.built_in_dir` - full convergence
   remains `#3091`'s to deliver.
 
   **One more consumer-visible narrowing, for projects that declare
   languages.** If your project's compiled `charter.yaml` records a
   `catalog.languages` answer (i.e. you already went through the charter
   interview or `charter sync`), language-scoped agent profiles now filter
-  consistently through the factory — previously, one of the two
+  consistently through the factory - previously, one of the two
   divergent builder paths this mission unifies did not apply that filter
   at all, so a language-scoped profile could show up even for a language
   your project doesn't use. Measured on this repository's own root
   (`catalog.languages: [python]`): the built-in agent-profile catalog
-  narrows from 18 profiles to 15 — `frontend-freddy`, `java-jenny`, and
+  narrows from 18 profiles to 15 - `frontend-freddy`, `java-jenny`, and
   `node-norris` no longer resolve, because they're scoped to languages
   this project doesn't declare. `python-pedro` still resolves. This is
   intended, not a regression (FR-008's "fuller behaviour on each axis"):
   if you relied on an off-language profile resolving anyway, activate it
   explicitly rather than depending on the prior inconsistency. Projects
-  with no compiled `languages` answer are unaffected — see above.
+  with no compiled `languages` answer are unaffected - see above.
 
 ### 💥 Breaking Changes
 
@@ -1264,7 +1264,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   `built_in_graph_source()` yields the `packs/built-in/` directory. Doctrine
   `.py` code, `schemas/`, `templates/`, `skills/`, and the `missions/` tree do
   **not** move and remain under `src/doctrine/`. There is **no compatibility
-  shim** — repoint any reference to the new path (drop the inner `built-in/`).
+  shim** - repoint any reference to the new path (drop the inner `built-in/`).
   The wheel/sdist ship `packs/` as a site-packages sibling of `doctrine`.
   Follow-ons are tracked: Phase 1b relocates `missions/` (#3091); Phase 2
   converges the built-in loader/schema onto the org-pack contract. See
@@ -1275,7 +1275,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   and it guessed a mission's primary directory by path composition, with no
   artifact-kind awareness and no way to fail loud when the guess was wrong. The
   invariant "reads go through the seam" is now structural rather than
-  counted — there is no bypass left to police, so the gate that used to name it
+  counted - there is no bypass left to police, so the gate that used to name it
   as an accepted gap has nothing left to accept. If you imported this function
   directly (an internal API, but importable), replace the call with
   `placement_seam(root, slug).read_dir(<kind>)` for the artifact kind you
@@ -1288,15 +1288,15 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   so a typo or a key retired in an earlier release produced an artifact that
   looked complete and behaved differently from how it read. Those keys are now
   rejected outright. Silently dropping them is the defect being closed, so this
-  is deliberate — but **if you maintain an org pack, check it before you
+  is deliberate - but **if you maintain an org pack, check it before you
   upgrade**: run `spec-kitty doctor doctrine --json` and read the
   `skipped_profiles` list. A pack containing an invalid profile is reported
   unhealthy rather than crashing the command or passing as healthy. The
   blast-radius check for this change covered this repository only; packs outside
   it were not surveyed.
 - **Cross-pack references in an org pack must now be written in full.** An edge
-  endpoint in a pack's `drg/` fragment is either `<kind>:<id>` — for example
-  `styleguide:acme-sty-001` — or a bare id declared in that same fragment's own
+  endpoint in a pack's `drg/` fragment is either `<kind>:<id>` - for example
+  `styleguide:acme-sty-001` - or a bare id declared in that same fragment's own
   `nodes:` block. A bare id no longer resolves against a _different_ pack in the
   same merge. That old behaviour made the resulting graph depend on the order
   packs happen to be listed in `organisation_packs:`: the same two packs in two
@@ -1306,7 +1306,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   or silently re-pointed at an invented node. See
   [the org-pack authoring guide](../guides/create-an-org-doctrine-pack.md).
 - **A push to a protected branch now starts 49 of 50 test jobs instead of about
-  10.** Pull requests are unaffected — path filtering still narrows a PR to the
+  10.** Pull requests are unaffected - path filtering still narrows a PR to the
   suites its diff touches. This is a deliberate trade of CI minutes for
   coverage: filtering is a pull-request optimisation, and the protected branch
   is precisely where the frozen contracts have to actually run. See the #2957
@@ -1314,11 +1314,11 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 - **`spec-kitty doctor doctrine` now fails when an org pack declares an edge
   endpoint that resolves to nothing.** The dangling endpoints are listed in the
   report and the command exits non-zero. `charter status` reports the same
-  problems in its `errors` array but deliberately keeps exit code 0 — it is a
+  problems in its `errors` array but deliberately keeps exit code 0 - it is a
   reporting surface, not a gate, and scripts that treat its exit code as a pass
   or fail signal are unaffected.
 - **The `rtk-search-tooling` toolguide is removed, including from the default
-  charter pack — an upgrade migration cleans up projects that already have it
+  charter pack - an upgrade migration cleans up projects that already have it
   activated.** RTK is fiddly to set up correctly and can materially change how
   a project's tests execute, so shipping it as an artefact every new project
   activates by default was a liability rather than a service. The toolguide,
@@ -1329,7 +1329,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   there. The 3.2.0rc35 default-pack migration copied the pack's
   `activated_toolguides` list verbatim into each project's
   `.kittify/config.yaml`, and by design only ever writes keys that are
-  _absent_ — so no later upgrade would have taken a retired member back out.
+  _absent_ - so no later upgrade would have taken a retired member back out.
   Charter compilation is deliberately fail-closed and refuses to quietly skip a
   reference it cannot resolve, so a project left holding the stale entry would
   hard-fail on the next compile with `UnknownArtifactIdError: No toolguide
