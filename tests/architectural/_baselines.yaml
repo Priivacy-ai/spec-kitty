@@ -488,3 +488,139 @@ test_verdict_seam_census:
   # post_merge/review_artifact_consistency.py::find_rejected_review_artifact_conflicts
   # and cli/commands/agent/workflow_cores.py::resolve_review_feedback_pointer.
   reader_count: 18
+
+test_shared_module_object_patches:
+  # justification: pre-existing `main` reach-through debt, recorded as a frozen
+  # shrink-only baseline during the #3252 landing (dated 2026-08-08). #3252's
+  # own fix targeted a module-local alias idiom (`saas_client._sleep` etc.)
+  # that `main`'s #3187 had already superseded with an instance-scoped seam
+  # (`self._sleep`); a follow-on product commit extended that instance seam to
+  # `saas_client`'s `self._monotonic`/`self._randbelow` too, so every
+  # `saas_client` reach-through this gate's predicate would otherwise catch is
+  # now closed and correctly absent below. The 11 rows here are unrelated debt
+  # (git_metadata.subprocess.run, body_transport.requests.post,
+  # batch.time.sleep, asyncio.run_coroutine_threadsafe) that the gate's own
+  # predicate (mechanism half: reach-through/foreign; read half: a
+  # count-or-equality assertion) surfaces elsewhere in `tests/sync/`, measured
+  # directly from the gate's own `[WP05 gate] flagged: ...` output on this
+  # tree — not introduced by this PR. The per-target breakdown is deliberately
+  # NOT restated here: it would be unasserted prose about the rows directly
+  # below it, and would rot silently if the composition changed while the
+  # total did not. The `rows:` list IS the breakdown, and
+  # `test_the_baseline_equals_the_gate_flagged_set` compares it to the gate's
+  # flagged set by frozenset equality -- so a row with no corresponding flagged
+  # site fails too, which matters because the shrink-only rule would otherwise
+  # freeze such a row in forever. Growth means a NEW assertion was written
+  # against a shared module object: fix it, do not record it.
+  flagged_sites: 11
+  rows:
+    - site: "tests/sync/test_body_transport.py:262"
+      module_path: "specify_cli.sync.body_transport.requests"
+      resolved_module: "requests"
+      attr_path: "post"
+      verdict: "reach_through"
+      assertion_form: "assert_called_once"
+      binds: "mock_post"
+      node_id: "TestPushContent::test_successful_upload"
+      owner: "unassigned"
+      disposition: "assert-on-an-owned-observable"
+    - site: "tests/sync/test_body_transport.py:288"
+      module_path: "specify_cli.sync.body_transport.requests"
+      resolved_module: "requests"
+      attr_path: "post"
+      verdict: "reach_through"
+      assertion_form: "len_call_args_list"
+      binds: "mock_post"
+      node_id: "TestPushContent::test_sends_correct_payload"
+      owner: "unassigned"
+      disposition: "assert-on-an-owned-observable"
+    - site: "tests/sync/test_final_sync_diagnostics.py:303"
+      module_path: "specify_cli.sync.batch.time"
+      resolved_module: "time"
+      attr_path: "sleep"
+      verdict: "reach_through"
+      assertion_form: "whole_list_equality"
+      binds: "sleeps"
+      node_id: "test_final_sync_auth_refresh_lock_retries_then_emits_once"
+      owner: "unassigned"
+      disposition: "assert-on-an-owned-observable"
+    - site: "tests/sync/test_git_metadata.py:209"
+      module_path: "specify_cli.sync.git_metadata.subprocess"
+      resolved_module: "subprocess"
+      attr_path: "run"
+      verdict: "reach_through"
+      assertion_form: "call_count"
+      binds: "mock_run"
+      node_id: "TestTTLCache::test_cache_hit_within_ttl"
+      owner: "unassigned"
+      disposition: "assert-on-an-owned-observable"
+    - site: "tests/sync/test_git_metadata.py:231"
+      module_path: "specify_cli.sync.git_metadata.subprocess"
+      resolved_module: "subprocess"
+      attr_path: "run"
+      verdict: "reach_through"
+      assertion_form: "call_count"
+      binds: "mock_run"
+      node_id: "TestTTLCache::test_cache_miss_after_ttl"
+      owner: "unassigned"
+      disposition: "assert-on-an-owned-observable"
+    - site: "tests/sync/test_git_metadata.py:265"
+      module_path: "specify_cli.sync.git_metadata.subprocess"
+      resolved_module: "subprocess"
+      attr_path: "run"
+      verdict: "reach_through"
+      assertion_form: "call_count"
+      binds: "mock_run"
+      node_id: "TestTTLCache::test_cache_boundary_exact_ttl"
+      owner: "unassigned"
+      disposition: "assert-on-an-owned-observable"
+    - site: "tests/sync/test_git_metadata.py:392"
+      module_path: "specify_cli.sync.git_metadata.subprocess"
+      resolved_module: "subprocess"
+      attr_path: "run"
+      verdict: "reach_through"
+      assertion_form: "call_args_read"
+      binds: "mock_run"
+      node_id: "TestDeriveRepoSlug::test_cwd_passed_to_subprocess"
+      owner: "unassigned"
+      disposition: "assert-on-an-owned-observable"
+    - site: "tests/sync/test_git_metadata.py:458"
+      module_path: "specify_cli.sync.git_metadata.subprocess"
+      resolved_module: "subprocess"
+      attr_path: "run"
+      verdict: "reach_through"
+      assertion_form: "call_count"
+      binds: "mock_run"
+      node_id: "TestRepoSlugPrecedence::test_override_takes_precedence"
+      owner: "unassigned"
+      disposition: "assert-on-an-owned-observable"
+    - site: "tests/sync/test_git_metadata.py:510"
+      module_path: "specify_cli.sync.git_metadata.subprocess"
+      resolved_module: "subprocess"
+      attr_path: "run"
+      verdict: "reach_through"
+      assertion_form: "call_count"
+      binds: "mock_run"
+      node_id: "TestRepoSlugPrecedence::test_repo_slug_resolved_once"
+      owner: "unassigned"
+      disposition: "assert-on-an-owned-observable"
+    - site: "tests/sync/test_runtime.py:672"
+      module_path: "asyncio"
+      resolved_module: "asyncio"
+      attr_path: "run_coroutine_threadsafe"
+      verdict: "foreign"
+      assertion_form: "assert_called_once_with"
+      binds: "mock_run_coroutine_threadsafe"
+      node_id: "TestUnauthenticatedBehavior::test_websocket_created_when_authenticated"
+      owner: "unassigned"
+      disposition: "assert-on-an-owned-observable"
+    - site: "tests/sync/test_runtime.py:710"
+      module_path: "asyncio"
+      resolved_module: "asyncio"
+      attr_path: "run_coroutine_threadsafe"
+      verdict: "foreign"
+      assertion_form: "assert_called_once_with"
+      binds: "mock_run_coroutine_threadsafe"
+      node_id: "TestUnauthenticatedBehavior::test_websocket_connect_scheduled_on_daemon_loop"
+      owner: "unassigned"
+      disposition: "assert-on-an-owned-observable"
