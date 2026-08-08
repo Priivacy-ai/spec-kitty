@@ -791,8 +791,33 @@ def _restore_staged_patch(
         )
 
 
-def _run_commit_capture_sha(repo_path: Path, commit_message: str) -> str | None:
-    """Run ``git commit`` and return the new commit SHA, or ``None`` on failure."""
+_EMPTY_CHANGESET_MARKERS = (
+    "nothing to commit",
+    "nothing added to commit",
+    "no changes added to commit",
+)
+
+
+def _commit_output_is_empty_changeset(output: str) -> bool:
+    """True iff git's own output says the commit was a genuine empty changeset.
+
+    Distinguishes a benign no-op (staged content already matches HEAD) from a
+    real failure (a rejecting pre-commit hook, a lock error, etc.). Without this
+    distinction every non-zero ``git commit`` exit looked identical to callers
+    and a real failure was silently reported as "unchanged".
+    """
+    low = output.lower()
+    return any(marker in low for marker in _EMPTY_CHANGESET_MARKERS)
+
+
+def _run_commit_capture_sha(repo_path: Path, commit_message: str) -> tuple[str | None, str]:
+    """Run ``git commit``.
+
+    Returns ``(new SHA, "")`` on success, or ``(None, combined_output)`` on
+    failure — where ``combined_output`` carries git's stdout+stderr so the
+    caller can tell an empty changeset apart from a genuine commit failure
+    (e.g. a failing pre-commit hook) instead of collapsing both to ``None``.
+    """
     commit_result = subprocess.run(
         ["git", "-c", "commit.gpgsign=false", "commit", "-m", commit_message],
         cwd=repo_path,
@@ -803,9 +828,10 @@ def _run_commit_capture_sha(repo_path: Path, commit_message: str) -> str | None:
         check=False,
     )
     if commit_result.returncode != 0:
-        return None
+        combined = f"{commit_result.stdout}\n{commit_result.stderr}".strip()
+        return None, combined
     sha = _run_git_text(repo_path, ["rev-parse", "HEAD"])
-    return sha
+    return sha, ""
 
 
 def _derive_mission_id(paths: list[str]) -> str:
@@ -1069,12 +1095,22 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
         except SafeCommitBackstopError as exc:
             backstop_error = exc
         else:
-            new_sha = _run_commit_capture_sha(worktree_root, message)
+            new_sha, commit_output = _run_commit_capture_sha(worktree_root, message)
             commit_created = new_sha is not None
             if not commit_created:
+                if _commit_output_is_empty_changeset(commit_output):
+                    # Benign no-op: staged content already matches HEAD. The
+                    # commit router maps this distinct message to "unchanged".
+                    raise RuntimeError(
+                        f"safe_commit: nothing to commit for "
+                        f"destination_ref={destination_ref!r} (empty changeset)"
+                    )
+                # Genuine failure (rejecting pre-commit hook, lock, etc.) — carry
+                # git's own output so it is NOT mistaken for an empty changeset.
+                detail = f": {commit_output}" if commit_output else ""
                 raise RuntimeError(
                     f"safe_commit: git commit failed in {worktree_root} for "
-                    f"destination_ref={destination_ref!r}"
+                    f"destination_ref={destination_ref!r}{detail}"
                 )
     finally:
         recovery_messages: list[str] = []
