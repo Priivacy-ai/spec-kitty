@@ -83,6 +83,7 @@ from specify_cli.status.store import append_event
 from specify_cli.status.reducer import materialize
 from specify_cli.status.store import read_events
 from specify_cli.workspace.context import ResolvedWorkspace
+from tests._factories import provision_test_charter
 from tests.mocked_env import setup_mocked_env
 from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
     FakeFsReader,
@@ -216,6 +217,12 @@ def _build_wp_file(
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True, exist_ok=True)
     (tmp_path / ".kittify").mkdir(exist_ok=True)
+    # Post `resolution-activation-foundation`: the pre-review gate resolves its
+    # owning `mission_step_contract:software-dev/review` via charter activation.
+    # A bare project has no activations, so the gate degrades to `no_coverage`
+    # (never blocks). Seed the default activations via the production provisioner
+    # so the gate has real coverage to enforce.
+    provision_test_charter(tmp_path)
     wp_file = tasks_dir / f"{wp_id}-test.md"
     wp_file.write_text(
         f"---\n"
@@ -255,7 +262,13 @@ def _write_config_yaml(main_repo_root: Path, *, block: bool = False, test_comman
         lines.append("  fail_on_pre_review_regression: true")
     if test_command:
         lines.append(f'  pre_review_test_command: "{test_command}"')
-    (main_repo_root / ".kittify" / "config.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    # Append (don't clobber): `_build_wp_file` may have already provisioned the
+    # default `mission_type_activations` the gate needs to resolve its contract.
+    (main_repo_root / ".kittify").mkdir(exist_ok=True)
+    config_path = main_repo_root / ".kittify" / "config.yaml"
+    existing = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
+    prefix = existing if existing.endswith("\n") or not existing else existing + "\n"
+    config_path.write_text(prefix + "\n".join(lines) + "\n", encoding="utf-8")
 
 
 def _seed_baseline(

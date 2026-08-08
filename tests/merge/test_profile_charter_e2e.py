@@ -130,6 +130,20 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(
             "description": "Software development mission.",
         },
     )
+    # Post `resolution-activation-foundation` (unified single-PACKS_ROOT read):
+    # ``MissionTemplateRepository.default_missions_root()`` now resolves the
+    # ``missions`` leaf from ``SPEC_KITTY_PACKS_ROOT`` (``packs/built-in/missions``),
+    # not the patched ``resolve_doctrine_root``. ``default_interview`` below reads
+    # it before the ``resolve_doctrine_root`` patch is even applied, so mirror the
+    # mission template under the packs root or it fails closed with
+    # ``MissionsRootNotFound``.
+    _write_yaml(
+        packs_root / "built-in" / "missions" / "software-dev" / "mission.yaml",
+        {
+            "name": "software-dev",
+            "description": "Software development mission.",
+        },
+    )
     # Post-WP03: the DRG graph is the sole authority for transitive
     # reference chains. Materialize a synthetic graph.yaml that mirrors the
     # pre-WP02 inline topology (REVIEW_FIRST -> review-tactic; review-tactic
