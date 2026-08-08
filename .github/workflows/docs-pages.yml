@@ -92,6 +92,14 @@ jobs:
       # build instead of reaching the deployed site. Placing it earlier would
       # leave stub regressions unobserved. The verifier is strictly read-only —
       # it never mutates docs/_site.
+      # Deploy-side trigger note (FR-007): this workflow — and therefore this
+      # seo_verify gate — runs push-only on `main`/`2.x` (see the `on:` block
+      # above: `push: [main, 2.x]` + `workflow_dispatch`, no `pull_request`
+      # trigger). So a rendered-HTML SEO regression is caught at deploy time on
+      # the target branches, NOT on the originating PR. This is the deploy-side
+      # analogue of the docs-freshness PR-scoping gap; recorded here
+      # deliberately and left verification-free (no pre-merge gate exists for
+      # the DocFX render output).
       - name: Verify built-output SEO metadata (FR-005, FR-008, FR-012)
         run: python3 scripts/docs/seo_verify.py --site-dir docs/_site --strict
 
