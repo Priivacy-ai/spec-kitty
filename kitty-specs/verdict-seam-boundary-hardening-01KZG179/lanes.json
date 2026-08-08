@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "mission_slug": "verdict-seam-boundary-hardening-01KZG179",
+  "mission_id": "01KZG1798AXDCWBP0FJ2E0ZJ15",
+  "mission_branch": "kitty/mission-verdict-seam-boundary-hardening-01KZG179",
+  "target_branch": "hardening/verdict-seam-facade-followup",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/status/__init__.py",
+        "tests/specify_cli/coordination/test_status_facade_adoption_wp02.py",
+        "tests/status/test_reducer.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/architectural/test_verdict_seam_census.py",
+        "tests/architectural/verdict_seam_census.yaml"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py",
+        "src/specify_cli/review/arbiter.py",
+        "src/specify_cli/review/artifacts.py",
+        "tests/review/test_arbiter.py",
+        "tests/review/test_artifacts_no_verdict_field.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/accept.py",
+        "tests/specify_cli/cli/commands/test_accept_stranded_verdict_note.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-quality.yml",
+        "pytest.ini",
+        "tests/status/test_emit_durability.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "src/specify_cli/coordination/status_service.py",
+        "src/specify_cli/merge/done_bookkeeping.py",
+        "src/specify_cli/migration/verdict_provenance_backfill.py",
+        "src/specify_cli/orchestrator_api/commands.py",
+        "src/specify_cli/post_merge/review_artifact_consistency.py",
+        "src/specify_cli/proof/events.py",
+        "src/specify_cli/retrospective/generator.py",
+        "src/specify_cli/review/cycle.py",
+        "src/specify_cli/status/reducer.py",
+        "src/specify_cli/sync/emitter.py",
+        "tests/architectural/test_status_module_boundary.py",
+        "tests/post_merge/test_review_artifact_consistency.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-08-08T09:59:11.918148+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "4a49a89915edfe4b0fda61bb20de61adef10c7fa"
+}
