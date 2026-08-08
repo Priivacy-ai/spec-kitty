@@ -14,7 +14,7 @@ isolation harness from that file read-only (``_worktree_src``,
 ``_scaffold_minimal_kittify_repo``) rather than duplicating it — the same
 established pattern already used elsewhere in this suite for cross-file
 harness reuse (see e.g. ``tests/merge/test_executor_coord_reconcile.py``
-importing from ``tests/regression/test_issue_2367_bake_strand.py``).
+importing from ``tests/merge/test_issue_2367_bake_strand.py``).
 
 Symptom: ``spec-kitty agent mission create --json`` must stay strict JSON on
 stdout even when the sync layer skips direct ingress and reports the skip

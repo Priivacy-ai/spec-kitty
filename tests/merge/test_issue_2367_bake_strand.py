@@ -1,4 +1,15 @@
-"""Scope: #2367 Mechanism B — the merge coord write-set is not atomic (regression guard; #2367-B FIXED).
+"""Scope: #2367 Mechanism B — the merge coord write-set is not atomic (permanent guard; #2367-B FIXED).
+
+**Landing note (2026-08, `tests/regression/` campsite clean).** Relocated
+from `tests/regression/` to `tests/merge/` — its functional home alongside
+the other merge-executor / coordination-rollback tests — now that Mechanism B
+is fixed and this is a green permanent guard, not a red-first reproduction
+(no `regression` marker). Issue **#2367 itself remains OPEN** as of this
+relocation: Mechanism A of #2367 was split out and closed separately as
+#2795, and Mechanism B (this module's scope) is fixed, but the parent issue
+may still track a remainder. This module is the Mechanism-B green guard, not
+that possible remainder's repro — do not treat it as proof #2367 is fully
+closed.
 
 This module reproduces **#2367 Mechanism B** and now guards its fix. It began as
 an INTENTIONAL, issue-pinned red-first P0 reproduction (per ADR
