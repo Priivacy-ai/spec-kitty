@@ -34,7 +34,9 @@ is enforced by this suite, not aspirational — the runnable proof is
 uv run playwright install chromium
 
 # Run the suite headless, matching CI exactly.
-PWHEADLESS=1 uv run pytest tests/ui/ -q
+# NOT a bare `uv run` -- that re-syncs the environment and drops the extras,
+# destroying a hand-built .venv. Use the venv's own interpreter:
+PWHEADLESS=1 .venv/bin/python -m pytest tests/ui/ -q
 ```
 
 No real `~/.spec-kitty`, no network access, and no git repository are
@@ -106,7 +108,7 @@ tool for a hermetic, parallel-safe test.
 [`.github/workflows/ui-e2e.yml`](../../.github/workflows/ui-e2e.yml) runs
 this suite headless in its own scoped job: install (frozen), cache +
 install the Chromium binary, then
-`PWHEADLESS=1 uv run pytest tests/ui/ -q`. It is deliberately its own
+`PWHEADLESS=1 .venv/bin/python -m pytest tests/ui/ -q`. It is deliberately its own
 workflow file rather than a job inside `ci-quality.yml` so it stays bounded —
 one test, one browser install, not a dependency every unrelated CI shard has
 to wait on (NFR-001).
