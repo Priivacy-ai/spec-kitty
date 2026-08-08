@@ -7,6 +7,7 @@
 
 ## Revision History
 
+- **2026-08-08 r3 (fold #3264):** Folded issue #3264 into scope at the post-plan point-cut (DIRECTIVE_025 domain-matched debt): `scripts/docs/related_validator.py` has no non-vacuity floor — a zero-file walk returns `checked_count=0` and passes vacuously. Added FR-008 (mirroring the sibling `relative_link_fixer.py` `min_files` floor → `RuntimeError`), SC-007, a US2 scenario, and moved #3264 from C-005 OUT to IN. Lands in Lane A (IC-02), no new coupling.
 - **2026-08-08 r2 (post-spec squad fold):** Re-seamed FR-003 from per-*content-entry* to **per-include-glob, pre-exclusion** non-vacuity — a confirmed critical finding (two independent lenses, executed evidence): `docfx.json` declares only 2 content entries, so a per-entry guard stays green when a real subtree glob like `guides/` is dropped. Reframed FR-005 from an unobservable "required-check tripwire" to an assertion on the workflow's in-repo **safety structure**. Pinned committed negative tests per gate (was "throwaway"). Added reverse-direction drift scenario; defined "documented"; tightened FR-004, C-006, NFR-004, SC-002/003/004; corrected FR-007.
 
 ## Overview
@@ -48,6 +49,7 @@ A maintainer (or an incidental refactor) deletes or empties a declared documenta
 2. **Given** one declared include glob resolves to zero pages while the aggregate union stays ≥500 (e.g. `guides/**.md` emptied → 599), **When** the resolver runs, **Then** it fails loud naming the empty glob.
 3. **Given** a fully-excluded tree (`archive/**`, stripped by `DEFAULT_EXCLUSIONS`) whose raw glob still matches ≥1 file pre-exclusion, **When** the resolver runs, **Then** it does **not** false-fail (the per-glob check is evaluated pre-exclusion).
 4. **Given** the per-glob guard lives in the shared resolver, **When** `description_length_check.py` runs, **Then** it inherits the guard (proven by FR-004's test through that entry point).
+5. **Given** `related_validator.py` is asked to validate a docs tree that resolves to zero markdown files, **When** it runs, **Then** it fails loud (`RuntimeError`, mirroring `relative_link_fixer.py`'s `min_files` floor) instead of returning `checked_count=0` and passing vacuously (FR-008).
 
 ---
 
@@ -88,6 +90,7 @@ A maintainer relies on `docs-freshness.yml` catching broken cross-tree links. It
 | FR-005 | docs-freshness safety-structure test | As a maintainer, I want a test asserting the workflow retains its `paths:` filter (still excluding `tests/**`/`kitty-specs/**`), its unfiltered `push:main` backstop, and its documented invariant, so a repo-side erosion of the safety structure is caught. | Medium | Open |
 | FR-006 | Consolidate/relocate the docs-freshness invariant note | As a maintainer, I want the existing in-file invariant comment cross-referenced to FR-005's test (reusing the "Required-check contract" idiom), so prose and test co-evolve — not a re-addition of already-present content. | Medium | Open |
 | FR-007 | Note docs-pages seo_verify PR-time gap | As a maintainer, I want it documented that `docs-pages.yml`'s `seo_verify` runs push-only (`main`/`2.x`) with no `pull_request` trigger — a deploy-side analogue of the item-3 gap — recorded as an intentionally verification-free note. | Low | Open |
+| FR-008 | related_validator non-vacuity floor (folds #3264) | As a maintainer, I want `related_validator.py` to fail loud when it walks zero markdown files, so a related-edge validator that validates nothing cannot pass vacuously — mirroring the `min_files` floor already in its sibling `relative_link_fixer.py`. | Medium | Open |
 
 ### Non-Functional Requirements
 
@@ -106,7 +109,7 @@ A maintainer relies on `docs-freshness.yml` catching broken cross-tree links. It
 | C-002 | Preserve floor; guard pre-exclusion | `MINIMUM_EXPECTED_PAGES = 500` MUST be preserved as a floor; the per-glob non-vacuity check is additive and evaluated **before** `_apply_exclusions`, so excluded-by-design trees (`archive/**`) do not false-fail. Do not replace the floor with an exact-count census. | Technical | High | Open |
 | C-003 | docs-freshness stays non-required | The `paths:`-filter approach is safe only while docs-freshness is a non-required check (**operator-confirmed this session, 2026-08-08**; note this is an operator assertion, not an API read — the token cannot read live branch protection). Making it required requires revisiting the filter; this mission encodes the safety structure rather than widening the filter. | Technical | High | Open |
 | C-004 | Terminology canon | New doc prose MUST use `<mission>` (never `<feature>`) placeholders. | Technical | Medium | Open |
-| C-005 | Scope boundary | OUT of scope, tracked separately: `related_validator.py` missing non-vacuity floor (#3264); the two no-backstop CI workflows (#3265); the whole-file `<feature>`→`<mission>` sweep; a `relative_link_fixer.py` `Resolver` refactor. Also OUT: re-structuring `docfx.json` into per-subtree content entries (the per-glob guard makes that unnecessary). | Process | High | Open |
+| C-005 | Scope boundary | IN scope (folded 2026-08-08): `related_validator.py` non-vacuity floor (#3264 — domain-matched, FR-008). OUT of scope, tracked separately: the two no-backstop CI workflows (#3265, non-docs CI); the whole-file `<feature>`→`<mission>` sweep; a `relative_link_fixer.py` `Resolver` refactor; re-structuring `docfx.json` into per-subtree content entries (the per-glob guard makes that unnecessary). | Process | High | Open |
 | C-006 | ATDD / red-first (per artifact) | Each change lands test-first with a demonstrable RED. FR-002's backfill test goes genuinely RED on the base branch (doc is 12/15 today). For new-gate FRs (001/003/005) where test and gate are introduced together, the PR MUST carry captured evidence of the negative test failing before the gate exists (e.g. a test-only first commit or a recorded failing run), since importing not-yet-existing gate code errors rather than cleanly failing. | Process | High | Open |
 
 ### Key Entities
@@ -127,6 +130,7 @@ A maintainer relies on `docs-freshness.yml` catching broken cross-tree links. It
 - **SC-004**: A fixture with two declared globs — one ≥500 pages, one **zero** pages — fails the per-glob guard while an equivalent per-content-entry check would pass, demonstrating the seam is at the right granularity.
 - **SC-005**: A repo-side change that removes the `docs-freshness.yml` `push:main` backstop, widens the paths filter to include the excluded trees, or deletes the documented invariant, fails the FR-005 structure test. (The test does not and cannot observe a live GitHub branch-protection change.)
 - **SC-006**: 100% of the mission's new gates ship a committed negative test that fails on its regression fixture (non-vacuous).
+- **SC-007**: `related_validator.py` invoked on a zero-markdown-file tree fails loud (previously returned `checked_count=0` and passed), closing #3264.
 
 ## Assumptions
 

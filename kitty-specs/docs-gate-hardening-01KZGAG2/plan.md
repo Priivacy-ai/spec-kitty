@@ -55,6 +55,7 @@ kitty-specs/docs-gate-hardening-01KZGAG2/
 scripts/docs/
 ├── _published_pages.py            # MODIFY: add per-include-glob pre-exclusion non-vacuity; extract _vacuity_error() (tidy-first)
 ├── check_slash_command_freshness.py  # NEW: bidirectional heading-set vs CONSUMER_SKILLS gate (new heading extractor)
+├── related_validator.py           # MODIFY (FR-008, folds #3264): add min_files non-vacuity floor to validate_related -> RuntimeError
 └── description_length_check.py    # UNCHANGED code; exercised by FR-004 propagation test
 
 docs/
@@ -69,6 +70,7 @@ tests/docs/
 ├── test_check_slash_command_freshness.py  # NEW: bidirectional + missing/extra negative tests
 ├── test_published_pages.py        # MODIFY: per-glob empty→raises negative test; archive pre-exclusion pass
 ├── test_description_length_check_propagation.py  # NEW: empty-glob fixture through description_length_check entry point
+├── test_related_validator.py      # MODIFY (FR-008): add zero-file negative test asserting RuntimeError
 └── test_docs_freshness_invariant.py  # NEW: workflow safety-structure assertions
 ```
 
@@ -97,11 +99,11 @@ tests/docs/
 - **Sequencing/depends-on**: Lane B, steps B0→B1 (see IC-map intro). Blocks IC-03.
 - **Risks**: the existing `_HEADING_RE` will NOT match the slash+dot form (confirmed) — author a **new** extractor, e.g. `^##\s+/spec-kitty\.([a-z0-9-]+)\s*$` (reuse shape/test-harness only). Backfill prose must match existing per-section style and use `<mission>` (C-004), and must land **before** the CI step is wired (else CI reds on 12/15). Tidy-first PYTHONPATH hoist: hoist **only** `PYTHONPATH: .` to job-level `env:`; leave `SPEC_KITTY_ENABLE_SAAS_SYNC` / `NO_UPGRADE_CHECK` on their single step (job-level `env` applies to every step). NFR-004 is "no subprocess/network" — importing `CONSUMER_SKILLS` does transitively init the `specify_cli` package (~140ms), which is fine.
 
-### IC-02 — Per-include-glob publication non-vacuity
+### IC-02 — Docs-gate non-vacuity (publication resolver + related_validator)
 
-- **Purpose**: Make the published-page resolver fail loud when any declared docfx include glob resolves (pre-exclusion) to zero pages, closing the silent-under-collection band the aggregate floor left open.
-- **Relevant requirements**: FR-003, FR-004; NFR-001/003; C-002; SC-003, SC-004.
-- **Affected surfaces**: `scripts/docs/_published_pages.py` (per-glob guard between the collect loop and `_assert_non_vacuous`; extract `_vacuity_error()` builder — tidy-first, becomes 3rd shared message), `tests/docs/test_published_pages.py` (negative test), `tests/docs/test_description_length_check_propagation.py` (new, FR-004).
+- **Purpose**: Make the published-page resolver fail loud when any declared docfx include glob resolves (pre-exclusion) to zero pages, closing the silent-under-collection band the aggregate floor left open. Also add a non-vacuity floor to `related_validator.py` (FR-008, folds #3264) — the same missing-floor defect class on a sibling docs gate that today returns `checked_count=0` and passes vacuously.
+- **Relevant requirements**: FR-003, FR-004, FR-008; NFR-001/003; C-002; SC-003, SC-004, SC-007.
+- **Affected surfaces**: `scripts/docs/_published_pages.py` (per-glob guard between the collect loop and `_assert_non_vacuous`; extract `_vacuity_error()` builder — tidy-first, becomes 3rd shared message), `tests/docs/test_published_pages.py` (negative test), `tests/docs/test_description_length_check_propagation.py` (new, FR-004); `scripts/docs/related_validator.py` (add a `min_files` non-vacuity floor to `validate_related` → `RuntimeError`, mirroring `relative_link_fixer.py:471,527`), `tests/docs/test_related_validator.py` (add a zero-file negative test).
 - **Sequencing/depends-on**: none (Lane A — independent; no workflow edit).
 - **Risks**: **granularity + exclusion landmine** (post-spec HIGH): guard must be per-*include-glob*, not per-content-entry, evaluated **pre-exclusion** (archive = 14 raw / 0 post-exclusion, confirmed) so the excluded tree does not false-fail. **Seam pin (post-plan, 2-lens):** per-glob counts do NOT survive `_collect_entry_pages` (it OR-collapses via `_matches_any` and the union flattens into `candidates`). Add an **additive** helper (e.g. `_assert_each_glob_nonvacuous(entries, config_path=...)`) inserted after the collect loop and before `_apply_exclusions`, iterating `(entry, include_pattern)` pairs (index-parallel `entry.includes`/`entry.globs`, both md-filtered — confirmed 19==19) with a second raw `rglob` pass; threshold `>= 1`; **do not** change `_collect_entry_pages`' union semantics or the `PublishedPageSet` return type. **Must raise `ValueError`** (so `description_length_check._resolve_page_set` re-wraps as `CoverageError` — FR-004). Preserve the 500 floor (C-002, additive). `_vacuity_error()` extraction must reproduce the load-bearing substrings (`violates I-01`, `violates I-02`, `expected at least`) verbatim. Guard is green on the current tree (all 19 globs ≥1; min=1 for integrations/security/core-concepts/updates) — will not red main.
 

@@ -15,6 +15,7 @@ Run the gates and verify the red-first evidence locally (clone-local venv).
 .venv/bin/pytest tests/docs/test_check_slash_command_freshness.py \
                  tests/docs/test_published_pages.py \
                  tests/docs/test_description_length_check_propagation.py \
+                 tests/docs/test_related_validator.py \
                  tests/docs/test_docs_freshness_invariant.py -q
 ```
 

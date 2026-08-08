@@ -23,6 +23,13 @@ No HTTP/API surface — the "contracts" here are each gate's input → exit/mess
 
 - **Contract**: the empty-glob fixture, driven through `description_length_check.py`'s resolver entry point, surfaces as a `CoverageError` (exit 2) — because `_resolve_page_set` catches `(FileNotFoundError, ValueError)` and re-wraps. This proves the shared-resolver consumer inherits GATE-2's failure path (not just the happy path), and is why GATE-2 must raise `ValueError`, not a bespoke type.
 
+## GATE-4 — `scripts/docs/related_validator.py` non-vacuity floor (FR-008, folds #3264)
+
+- **Input**: `related_validator.validate_related(docs_root=..., repo_root=...)` walks `docs_root.rglob("*.md")`.
+- **Success**: `checked_count >= min_files` (default 1).
+- **Failure (raise)**: a zero-file walk raises `RuntimeError` ("...expected at least {min_files}... non-vacuity guard"), mirroring `relative_link_fixer.py:527`. (`RuntimeError`, not `ValueError` — parity with its sibling gate; related_validator has no `CoverageError`-wrapping consumer.)
+- **Negative test** (`tests/docs/test_related_validator.py`): invoke against an empty/no-markdown tree → asserts `RuntimeError`; a populated tree passes.
+
 ## GATE-3 — docs-freshness safety-structure test (FR-005)
 
 - **Input**: `.github/workflows/docs-freshness.yml` (repo-readable; may parse with `ruamel.yaml`, already a project dep, rather than regex).
