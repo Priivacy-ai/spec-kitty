@@ -328,12 +328,16 @@ jobs:
               - 'tests/contract/**'
               - 'tests/init/**'
               - 'tests/integration/**'
-              # The `misc` shard owns tests/regression + tests/regressions (see
-              # its run list below), but neither directory was claimed by this
-              # filter — so a PR touching only an issue-pinned reproduction did
-              # not activate `core_misc`, the shard never ran, and the pin was
-              # structurally uncollectable on that PR.
-              - 'tests/regression/**'
+              # The `misc` shard owns tests/regressions (plural) -- ordinary
+              # issue-fix guard tests with no dedicated CI home -- so it must be
+              # claimed by this filter. It does NOT own tests/regression
+              # (singular): that directory holds only `@pytest.mark.regression`
+              # red-first P0 reproductions, whose sole routed home is the
+              # always-on `regression tests (blocking)` job (`-m regression`,
+              # path-independent). The earlier "pin was structurally
+              # uncollectable" concern that put tests/regression here is moot --
+              # the dedicated job runs on every push/PR regardless of this
+              # filter -- so tests/regression is intentionally absent below.
               - 'tests/regressions/**'
               - 'tests/dossier/**'
               - 'tests/git_ops/**'
@@ -1934,7 +1938,6 @@ jobs:
               tests/packaging
               tests/policy
               tests/readiness
-              tests/regression
               tests/regressions
               tests/research
               tests/retrospective
@@ -1958,15 +1961,17 @@ jobs:
       # is covered there (mission ci-topology-shrink FR-005/FR-013).
       #
       # `and not regression` (landing fold: make ``@pytest.mark.regression``
-      # mean exactly one thing): the ``misc`` shard's own path list below
-      # includes ``tests/regression`` + ``tests/regressions`` (its sole
-      # owner), and this job's marker already selects ``git_repo or
-      # integration or architectural`` with no regression exclusion — so
-      # every issue-pinned, intentionally-red P0 reproduction living there
-      # would be collected here too, silently doubling as a "blocking"
+      # mean exactly one thing): the ``misc`` shard owns ``tests/regressions``
+      # (plural -- ordinary issue-fix guards) in its path list below, NOT
+      # ``tests/regression`` (singular), which was removed from this shard: the
+      # red-first P0 reproductions there have exactly one routed home, the
+      # always-on ``regression tests (blocking)`` job (`-m regression`,
+      # path-independent). The ``and not regression`` filter is retained as a
+      # belt-and-suspenders guard so that even if a ``@pytest.mark.regression``
+      # test is ever authored under one of this shard's OWN paths, it is never
+      # collected here -- it would otherwise silently double as a "blocking"
       # signal in a job this repo does not treat as release-gating the way
-      # ``regression tests (blocking)`` is. The dedicated regression job
-      # (`-m regression`) is this marker's ONE routed CI home.
+      # ``regression tests (blocking)`` is.
       - name: "Run integration tests — core misc"
         run: |
           uv run python -m pytest \
