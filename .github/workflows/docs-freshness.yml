@@ -25,6 +25,14 @@ on:
   # `push: main` stays UNFILTERED on purpose: these gates are whole-tree
   # scans, so a full run on every push to main is how a red tree gets
   # detected at all.
+  # Invariant contract (FR-006, mirrors the "Required-check contract" idiom in
+  # .github/workflows/ui-e2e.yml): the structural shape asserted above — the PR
+  # `paths:` allowlist excluding `tests/**` / `kitty-specs/**`, and the
+  # unfiltered `push: main` backstop — is pinned by
+  # tests/docs/test_docs_freshness_invariant.py so this comment and the trigger
+  # block co-evolve. That test parses THIS file statically; it does NOT and
+  # cannot observe the live GitHub required-status-check setting (the
+  # "not required" fact above is operator-confirmed, unobservable in CI).
   pull_request:
     paths:
       - 'docs/**'
@@ -44,6 +52,15 @@ jobs:
   docs-freshness:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
+    # PYTHONPATH is hoisted job-level (B0): every gate step here runs
+    # `uv run python scripts/docs/...`, and those scripts import the repo as a
+    # top-level package. A job-level env applies to every step, so the single
+    # declaration below replaces the per-step `PYTHONPATH: .` the four gate
+    # steps used to carry. Step-scoped envs that are NOT universal
+    # (SPEC_KITTY_ENABLE_SAAS_SYNC / SPEC_KITTY_NO_UPGRADE_CHECK on the freshness
+    # step) intentionally stay per-step. Behaviour-preserving.
+    env:
+      PYTHONPATH: .
     steps:
       - uses: actions/checkout@v6
       - name: Install uv
@@ -58,16 +75,10 @@ jobs:
       # single-root/13-section policy of DIRECTIVE_042 is now maintained by
       # periodic bulk curation rather than a per-PR blocking gate.)
       - name: Related-edge validator (R2, --strict)
-        env:
-          PYTHONPATH: .
         run: uv run python scripts/docs/related_validator.py --strict --repo-root .
       - name: Description-length gate (NFR-003, --strict)
-        env:
-          PYTHONPATH: .
         run: uv run python scripts/docs/description_length_check.py --strict --repo-root .
       - name: Relative body-link gate (WP18, --check)
-        env:
-          PYTHONPATH: .
         run: uv run python scripts/docs/relative_link_fixer.py --check --repo-root .
       # Structural docs lint (FR-008): index completeness, point-in-time
       # placement, shadow-tree basenames, frontmatter contract. Now shipped as
@@ -85,11 +96,18 @@ jobs:
         run: uv run python scripts/docs/sync_changelog.py --check
       - name: Check CONTRIBUTING sync (canonical → root)
         run: uv run python scripts/docs/sync_contributing.py --check
+      # Slash-command reference freshness (FR-001): assert every command the
+      # command-skills manifest ships has a row in docs/api/slash-commands.md,
+      # and no stale row survives. Non-zero exit reds the job — the same
+      # doc-drift shape the sibling sync checks above guard for prose docs.
+      # Relies on the job-level PYTHONPATH (B0). Ordered after WP02 backfilled
+      # the doc to the full command set, so it stays green on a fresh tree.
+      - name: Check slash-command reference freshness (FR-001)
+        run: uv run python scripts/docs/check_slash_command_freshness.py
       - name: Docs freshness (R3 lockfile drift default-on + sub-checks)
         env:
           SPEC_KITTY_ENABLE_SAAS_SYNC: "1"
           SPEC_KITTY_NO_UPGRADE_CHECK: "1"
-          PYTHONPATH: .
         run: uv run python scripts/docs/check_docs_freshness.py --ci --report freshness.json --link-check none
       - name: Upload freshness report
         if: always()

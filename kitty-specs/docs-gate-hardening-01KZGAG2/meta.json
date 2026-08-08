@@ -4,7 +4,7 @@
   "flattened": false,
   "friendly_name": "Docs Quality Gate Hardening",
   "mission_id": "01KZGAG27GFM73YGYXXK8ZJ39F",
-  "mission_number": null,
+  "mission_number": 192,
   "mission_slug": "docs-gate-hardening-01KZGAG2",
   "mission_type": "software-dev",
   "pr_bound": true,

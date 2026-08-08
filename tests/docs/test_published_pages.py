@@ -250,12 +250,48 @@ def test_live_tree_count_is_realistic() -> None:
     assert resolved.source_globs, "source_globs must be retained for diagnostics"
 
 
+def test_dropped_glob_raises_even_when_aggregate_clears_floor(
+    synthetic_docs: Path, tmp_path: Path
+) -> None:
+    """A single dropped subtree reds the gate even though the union clears the floor.
+
+    ``context/**.md`` alone resolves at or above the non-vacuity floor, so both the
+    aggregate check (I-02) and any *per-entry* check pass — the two globs share one
+    ``build.content`` entry. The empty ``nowhere/**.md`` glob is invisible to them;
+    only the per-*glob* pre-exclusion guard catches that a declared subtree collapsed
+    to zero (SC-003/SC-004).
+    """
+    dropped = _write_config(
+        tmp_path, ["context/**.md", "nowhere/**.md"], exclude=["**/_*.md"], name="dropped.json"
+    )
+
+    # The populated glob alone clears the aggregate floor, so an aggregate-only
+    # (or single-entry) check would report this configuration green.
+    aggregate_only = resolve_published_pages(
+        docs_root=synthetic_docs,
+        docfx_config=_write_config(
+            tmp_path, ["context/**.md"], exclude=["**/_*.md"], name="aggregate_only.json"
+        ),
+    )
+    assert len(aggregate_only.pages) >= MINIMUM_EXPECTED_PAGES
+
+    with pytest.raises(ValueError, match=r"nowhere/\*\*\.md"):
+        resolve_published_pages(docs_root=synthetic_docs, docfx_config=dropped)
+
+
 def test_would_have_caught_the_original_regression(tmp_path: Path) -> None:
     """The regression proof: the retired pre-move glob list is refused, not reported green.
 
-    This is the test that matters. The retired list resolves 16 pages against
-    the live tree — which is exactly what the old gate did while reporting green
-    over the whole tree. Here it must raise.
+    This is the test that matters. The retired list resolves 16 pages against the
+    live tree — which is exactly what the old gate did while reporting green over
+    the whole tree. Here it must raise.
+
+    The per-glob pre-exclusion guard (FR-003) now refuses the list *even more*
+    loudly than the aggregate floor did: the retired globs point at subtrees that
+    the ``how-to/`` → ``guides/`` and ``reference/slash-commands`` → ``api/`` moves
+    deleted, so the guard trips on the first dropped subtree (``tutorials/*.md``)
+    and names it — the aggregate floor never gets a chance to run. Naming the
+    specific vanished glob is a stronger diagnosis than "the union collapsed".
     """
     config = _write_config(tmp_path, RETIRED_PRE_MOVE_GLOBS, exclude=["**/_*.md"], name="retired.json")
 
@@ -263,5 +299,5 @@ def test_would_have_caught_the_original_regression(tmp_path: Path) -> None:
         resolve_published_pages(docs_root=LIVE_DOCS_ROOT, docfx_config=config)
 
     message = str(excinfo.value)
-    assert str(MINIMUM_EXPECTED_PAGES) in message, message
-    assert "how-to/*.md" in message, "the failure must name the globs that produced the collapsed set"
+    assert "violates I-01" in message, message
+    assert "tutorials/*.md" in message, "the failure must name the dropped glob (a vanished pre-move subtree)"
