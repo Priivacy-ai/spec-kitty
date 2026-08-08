@@ -480,6 +480,82 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 #: action/template nodes. Adding a shipped artifact bumps both the inventory and the
 #: graph in lockstep (no false red); a loader/extractor that drops or mis-mints one
 #: reds. See ``tests/doctrine/_builtin_inventory.py`` for the anti-tautology contract.
+#: (16) supply-chain-security-checks-layer-01KZBFBS WP01 (T001/T002/T003): ONE
+#:     new ``directive`` node (``directive:DIRECTIVE_051``, 051-supply-chain-
+#:     install-safety -- renumbered from the mission's original 047 claim
+#:     after ``rehome-writing-comms-doctrine`` independently minted the real
+#:     ``DIRECTIVE_047`` (audience-oriented-writing) first; entry (15) landed
+#:     first, so this mission's directive takes the next free numeric slot)
+#:     and ONE new ``tactic`` node (``tactic:supply-chain-install-safety``),
+#:     both extractor-minted from their own files -- no ``HAND_AUTHORED_NODES``
+#:     change. Applied atop entry (15)'s 332/806, PURE golden counts move +2
+#:     NODES / +8 edges: pure nodes 332 -> 334 (tracked live by
+#:     ``_EXPECTED_NODE_COUNT``), pure edges 806 -> 814. The eight new edges
+#:     are all inline ``references`` on the two new files plus the
+#:     ``references`` addition to the existing ``tactic:dependency-hygiene``
+#:     (extended for JS/TS applicability, not a new node): +1 ``requires`` and
+#:     +7 ``suggests``, matching the moved ``RELATION_DESCRIPTIONS`` shipped
+#:     counts (``requires`` 303 -> 304, ``suggests`` 437 -> 444, mirrored in
+#:     ``docs/architecture/doctrine-relationships.md``; ``scope`` 159
+#:     UNCHANGED at this step). ``HAND_AUTHORED_NODES``/``HAND_AUTHORED_EDGES``
+#:     are UNCHANGED at 13/128 (this WP touches no overlay content), so
+#:     shipped counts move by exactly the PURE delta: shipped nodes 345 ->
+#:     347, shipped edges 934 -> 942. Neither new node is orphaned:
+#:     ``directive:DIRECTIVE_051`` gets inbound ``suggests`` from both
+#:     ``tactic:dependency-hygiene`` and ``tactic:supply-chain-install-
+#:     safety``, and ``tactic:supply-chain-install-safety`` gets inbound
+#:     ``suggests`` from both ``tactic:dependency-hygiene`` and
+#:     ``directive:DIRECTIVE_051``. Orphan sets are otherwise UNCHANGED.
+#: (17) supply-chain-security-checks-layer-01KZBFBS WP02 (T004/T005): ZERO new
+#:     nodes. Six new ``scope`` edges, all extractor-derived from the
+#:     ``directives:``/``tactics:`` lists in
+#:     ``packs/built-in/missions/software-dev/actions/{plan,implement,
+#:     review}/index.yaml`` -- each of the three actions gains one
+#:     ``action:software-dev/<action> --scope--> directive:DIRECTIVE_051`` edge
+#:     and one ``action:software-dev/<action> --scope--> tactic:supply-chain-
+#:     install-safety`` edge (no ``HAND_AUTHORED_EDGES`` change; these mirror
+#:     the pre-existing pattern of every other directive/tactic already listed
+#:     in those same three index.yaml files). Applied atop entry (16)'s
+#:     334/814, PURE golden counts move +0 NODES / +6 edges: pure nodes
+#:     UNCHANGED at 334, pure edges 814 -> 820. The moved
+#:     ``RELATION_DESCRIPTIONS`` count is ``scope`` 159 -> 165 (mirrored in
+#:     ``docs/architecture/doctrine-relationships.md``; ``requires``/
+#:     ``suggests`` UNCHANGED at this step). ``HAND_AUTHORED_NODES``/
+#:     ``HAND_AUTHORED_EDGES`` are UNCHANGED at 13/128 (this WP touches no
+#:     overlay content), so shipped counts move by exactly the PURE delta:
+#:     shipped nodes UNCHANGED at 347, shipped edges 942 -> 948. No node is
+#:     added, so no new orphan is possible; every action node already had
+#:     outbound edges, so orphan sets are UNCHANGED.
+#: (18) supply-chain-security-checks-layer-01KZBFBS WP03 (T009-T012): binds the
+#:     WP01 directive/tactic layer to the 7 targeted agent profiles
+#:     (``reviewer-renata``, ``implementer-ivan``, ``node-norris``,
+#:     ``frontend-freddy``, ``python-pedro``, ``java-jenny``,
+#:     ``architect-alphonso``). Every new edge is an inline-``references``
+#:     ``requires`` edge minted from each profile's own
+#:     ``context-sources.directives`` (all 7 add ``"051"``) and/or
+#:     ``tactic-references`` (``reviewer-renata`` and 5 implementation/support
+#:     profiles add ``supply-chain-install-safety`` and/or
+#:     ``dependency-hygiene``, per-profile applicability) -- no new node, no
+#:     overlay content. Applied atop entry (17)'s 334/820, PURE golden counts
+#:     move +0 NODES / +16 edges: pure nodes UNCHANGED at 334, pure edges 820
+#:     -> 836. ``HAND_AUTHORED_NODES``/``HAND_AUTHORED_EDGES`` are UNCHANGED
+#:     at 13/128 (this WP touches no overlay content), so shipped counts move
+#:     by exactly the PURE delta: shipped nodes UNCHANGED at 347, shipped
+#:     edges 948 -> 964. All 16 edges are ``requires`` (``RELATION_
+#:     DESCRIPTIONS`` / ``docs/architecture/doctrine-relationships.md`` moved
+#:     304 -> 320, both updated; ``suggests`` 444 / ``scope`` 165 UNCHANGED).
+#:     No node is newly orphaned -- every target (``directive:DIRECTIVE_051``,
+#:     ``tactic:dependency-hygiene``, ``tactic:supply-chain-install-safety``)
+#:     already had inbound edges from WP01. The per-channel reachability move
+#:     (``tactic:dependency-hygiene`` and ``tactic:secure-design-checklist``
+#:     leave ``_PROFILE_UNREACHABLE``; ``_PROFILE_RESCUES`` UNCHANGED) is
+#:     ledgered in ``tests/doctrine/drg/test_reachability.py``.
+#: Node count DERIVED from the ``packs/built-in`` inventory (#3234), not frozen: a
+#: fresh ``generate_graph`` (pure, no overlay) must produce exactly one node per
+#: shipped source file across the file-backed kinds, plus the structurally-derived
+#: action/template nodes. Adding a shipped artifact bumps both the inventory and the
+#: graph in lockstep (no false red); a loader/extractor that drops or mis-mints one
+#: reds. See ``tests/doctrine/_builtin_inventory.py`` for the anti-tautology contract.
 _EXPECTED_NODE_COUNT = pure_builtin_node_count()
 #: No frozen ``_EXPECTED_EDGE_COUNT``: edge totals come from frontmatter refs and
 #: cannot be independently derived from the filesystem. EXACT edge integrity is

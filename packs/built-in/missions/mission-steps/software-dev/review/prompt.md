@@ -172,6 +172,14 @@ For each subtask:
 2. Check that tests exist and pass (for code_change subtasks)
 3. Verify any files modified outside `owned_files` are small, justified, and carry a one-line rationale (do not reject a well-justified, rationale-logged crossing)
 
+### 3a. Supply-Chain Security Evidence Check (dependency changes)
+
+If the diff adds, upgrades, or removes a dependency (any ecosystem), verify the implementer's evidence trail against the `supply-chain-install-safety` tactic and the `051-supply-chain-install-safety` directive — this mirrors the `supply_chain_security_review` step already present in the `review` step contract:
+
+- Registry authenticity, package freshness, lifecycle-script disposition (deny-by-default), Node Active LTS posture, and incident/IoC posture are each documented, not assumed or waved through.
+- Any adversarial-squad or reviewer challenge to a supply-chain finding has an explicit disposition — `accepted`, `changed`, or `deferred_with_rationale` — traceable to an evidence location, per `contracts/adversarial-evidence-contract.md`. Do not approve a WP that silently drops a contested finding.
+- This check is advisory in v1 (it does not add a new fail-closed transition gate — the `in_progress->for_review` gate above is unchanged), but missing or unexamined evidence for a dependency change is a review gap to call out, not something to wave through because the mission is otherwise advisory.
+
 ### 4. Check Quality
 
 - All tests pass

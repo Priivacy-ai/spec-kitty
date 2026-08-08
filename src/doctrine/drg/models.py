@@ -159,7 +159,7 @@ RELATION_DESCRIPTIONS: dict[Relation, str] = {
         "with no depth limit, from an action's ``scope``-resolved artifacts; "
         "``charter activate --cascade`` follows the same edge to pull in "
         "artifacts that must also be active. It is the second-most-emitted "
-        "relation in the built-in graph (303 edges) and is the mandatory "
+        "relation in the built-in graph (320 edges) and is the mandatory "
         "counterpart to ``suggests``, not a stronger synonym for it."
     ),
     Relation.SUGGESTS: (
@@ -169,7 +169,7 @@ RELATION_DESCRIPTIONS: dict[Relation, str] = {
         "unlike the unbounded transitive walk used for ``requires`` -- and "
         "the charter cascade treats a ``suggests`` target as optional, "
         "something an operator may accept or skip. It is the most-emitted "
-        "relation in the built-in graph (437 edges); the boundedness of the "
+        "relation in the built-in graph (444 edges); the boundedness of the "
         "walk, not the edge count, is what distinguishes it from ``requires``."
     ),
     Relation.APPLIES: (
@@ -197,7 +197,7 @@ RELATION_DESCRIPTIONS: dict[Relation, str] = {
         "and tactics that govern performing that action -- the entry point "
         "walked at depth 1 by ``resolve_action_context`` before it expands "
         "through ``requires``/``suggests``. It is the most heavily emitted "
-        "action-adjacent relation in the built-in graph (159 edges). "
+        "action-adjacent relation in the built-in graph (165 edges). "
         "Distinct from ``applies``: ``scope`` says an action is governed by "
         "an artifact; ``applies`` says a profile executes a workflow "
         "artifact. Despite both linking an action-adjacent node to guidance "

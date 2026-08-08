@@ -329,6 +329,9 @@ nodes:
 - urn: tactic:strategic-domain-classification
   kind: tactic
   label: Strategic Domain Classification
+- urn: tactic:supply-chain-install-safety
+  kind: tactic
+  label: Supply-Chain Install Safety Checklist
 - urn: tactic:tdd-red-green-refactor
   kind: tactic
   label: Test Driven Development (TDD)
@@ -748,9 +751,17 @@ edges:
   relation: suggests
   when: Dependency decisions affect the architectural integrity of the system; treat supply-chain choices as first-class architectural decisions
 - source: tactic:dependency-hygiene
+  target: directive:DIRECTIVE_051
+  relation: suggests
+  when: JS/TS dependency additions or upgrades require the full registry/freshness/script/Node-LTS/incident posture defined by this directive
+- source: tactic:dependency-hygiene
   target: tactic:secure-design-checklist
   relation: suggests
   when: Dependency hygiene is a prerequisite for the Least Common Mechanism principle in the secure design checklist
+- source: tactic:dependency-hygiene
+  target: tactic:supply-chain-install-safety
+  relation: suggests
+  when: Use this tactic's concrete checklist to execute and record evidence for the JS/TS supply-chain checks introduced here
 - source: tactic:development-bdd
   target: procedure:example-mapping-workshop
   relation: suggests
@@ -1183,6 +1194,18 @@ edges:
   target: tactic:context-mapping-classification
   relation: suggests
   when: Understanding relationships between contexts informs classification decisions.
+- source: tactic:supply-chain-install-safety
+  target: directive:DIRECTIVE_051
+  relation: suggests
+  when: This checklist operationalizes the policy pillars defined by the supply-chain-install-safety directive
+- source: tactic:supply-chain-install-safety
+  target: procedure:adversarial-squad-deployment
+  relation: suggests
+  when: Use adversarial-squad challenge passes at plan/research and review point-cuts for security-impacting dependency decisions, and disposition every contested finding explicitly
+- source: tactic:supply-chain-install-safety
+  target: tactic:secure-design-checklist
+  relation: suggests
+  when: Supply-chain install safety is a specialization of Fail-Safe Defaults (deny by default) applied to dependency lifecycle scripts
 - source: tactic:terminology-extraction-mapping
   target: paradigm:brownfield-onboarding
   relation: suggests

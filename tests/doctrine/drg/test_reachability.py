@@ -414,6 +414,24 @@ _ACTION_UNREACHABLE_D2: frozenset[str] = frozenset(
 #: table: every member that entered or left this set must trace to a ledger row
 #: naming the responsible edge/WP. A pin change with no matching ledger row is a
 #: hard reject regardless of whether this test is green.
+#:
+#: WP03 reconciliation (mission ``supply-chain-security-checks-layer-01KZBFBS``,
+#: T009-T012): 60 -> 58. ``tactic:dependency-hygiene`` and
+#: ``tactic:secure-design-checklist`` leave this set. Six of the seven profiles
+#: bound in WP03 (``architect-alphonso``, ``frontend-freddy``,
+#: ``implementer-ivan``, ``java-jenny``, ``node-norris``, ``python-pedro``) now
+#: carry a direct ``agent_profile --requires--> tactic:dependency-hygiene`` edge
+#: (from each profile's ``tactic-references``), so the profile channel reaches
+#: it directly for the first time. That in turn makes
+#: ``tactic:dependency-hygiene --suggests--> tactic:secure-design-checklist``
+#: (a pre-existing edge, unchanged by this WP) walkable, so
+#: ``secure-design-checklist`` is reached transitively. Neither member moves
+#: into ``_PROFILE_RESCUES`` (unchanged at 30): both were already
+#: action-channel-reachable at d=2, so they were never action-d2-unreachable
+#: candidates for rescue. ``directive:DIRECTIVE_051`` and
+#: ``tactic:supply-chain-install-safety`` (also newly profile-required by this
+#: WP) are absent from both this set and the activation store — they are not
+#: yet charter-activated, so they are outside this pin's scope entirely.
 _PROFILE_UNREACHABLE: frozenset[str] = frozenset(
     {
         "directive:DIRECTIVE_029",
@@ -450,7 +468,6 @@ _PROFILE_UNREACHABLE: frozenset[str] = frozenset(
         "tactic:compositional-stream-boundaries",
         "tactic:cross-cutting-state-via-store",
         "tactic:deepening-opportunity-assessment",
-        "tactic:dependency-hygiene",
         "tactic:documentation-curation-audit",
         "tactic:easy-to-change",
         "tactic:focused-function-complexity-check",

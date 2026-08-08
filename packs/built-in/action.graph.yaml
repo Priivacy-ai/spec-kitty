@@ -338,6 +338,9 @@ edges:
   target: directive:DIRECTIVE_046
   relation: scope
 - source: action:software-dev/implement
+  target: directive:DIRECTIVE_051
+  relation: scope
+- source: action:software-dev/implement
   target: paradigm:execution-lanes
   relation: scope
 - source: action:software-dev/implement
@@ -401,6 +404,9 @@ edges:
   target: tactic:stopping-conditions
   relation: scope
 - source: action:software-dev/implement
+  target: tactic:supply-chain-install-safety
+  relation: scope
+- source: action:software-dev/implement
   target: tactic:tdd-red-green-refactor
   relation: scope
 - source: action:software-dev/implement
@@ -419,6 +425,9 @@ edges:
   target: directive:DIRECTIVE_010
   relation: scope
 - source: action:software-dev/plan
+  target: directive:DIRECTIVE_051
+  relation: scope
+- source: action:software-dev/plan
   target: procedure:domain-aware-decision-interview
   relation: scope
 - source: action:software-dev/plan
@@ -432,6 +441,9 @@ edges:
   relation: scope
 - source: action:software-dev/plan
   target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:software-dev/plan
+  target: tactic:supply-chain-install-safety
   relation: scope
 - source: action:software-dev/plan
   target: template:software-dev/plan-template.md
@@ -500,6 +512,9 @@ edges:
   target: directive:DIRECTIVE_046
   relation: scope
 - source: action:software-dev/review
+  target: directive:DIRECTIVE_051
+  relation: scope
+- source: action:software-dev/review
   target: paradigm:execution-lanes
   relation: scope
 - source: action:software-dev/review
@@ -549,6 +564,9 @@ edges:
   relation: scope
 - source: action:software-dev/review
   target: tactic:stopping-conditions
+  relation: scope
+- source: action:software-dev/review
+  target: tactic:supply-chain-install-safety
   relation: scope
 - source: action:software-dev/review
   target: tactic:usage-examples-sync
