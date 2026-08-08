@@ -463,7 +463,7 @@ class TestB2RealExemptionSet:
         }
 
         # Occurrences (SC-011's own units) — see the docstring.
-        assert len(gov) == 213  # golden-count: cardinality-is-contract
+        assert len(gov) == 224  # golden-count: cardinality-is-contract
         assert len(raw) == 14  # golden-count: cardinality-is-contract
         # Files (the inexpressibility argument's actual unit — plan.md IC-02 /
         # this WP's context section; SC-011's wording conflates the two).
