@@ -3,7 +3,7 @@
 **Mission Branch**: `verdict-seam-boundary-hardening-01KZG179`
 **Created**: 2026-08-08
 **Status**: Draft
-**Input**: Follow-on hardening mission for the verdict-seam write-unification landed in PR #3245 (mission `verdict-seam-write-unification-01KZ9Q35`). Scope rationale: close the leftover work and clean up the adjacent functional/technical debt. Resolves #3254, #3236, #3244, #3255, #3256.
+**Input**: Follow-on hardening mission for the verdict-seam write-unification landed in PR #3245 (mission `verdict-seam-write-unification-01KZ9Q35`). Scope rationale: close the leftover work and clean up the adjacent functional/technical debt. Resolves #3254, #3236, #3244, #3255, #3256, and the two folded #3211 follow-ups #3217 and #3216 (operator-adjudicated during pre-planning). #3243 considered and left separate.
 
 ## Context *(informative)*
 
@@ -46,6 +46,7 @@ The verdict-seam census stops wholesale-excluding `verdict_provenance_backfill.p
 1. **Given** the census exclusion machinery, **When** function-level exclusion is added, **Then** `verdict_provenance_backfill.py` is removed from module-level exclusion and only its write-side helpers are excluded by name.
 2. **Given** `_legacy_frontmatter_verdict`, **When** the census classifies the module, **Then** it appears as a reader row.
 3. **Given** the three tests that assert the module is wholesale-excluded / contributes zero rows, **When** the narrowing lands, **Then** they are updated to assert the new function-level shape and pass.
+4. **(#3217, folded)** **Given** the census's AST classifier misses helper-constructed records (`migration/backfill_runtime_state.py::_review_from_frontmatter`), **When** the classifier is extended to recognize helper-constructed reader shapes, **Then** that escapee surfaces as a classified row — so #3236 and #3217 together leave the census fully hardened, not half.
 
 ---
 
@@ -62,6 +63,7 @@ An arbiter override on a work package whose latest `review-cycle-N.md` was left 
 1. **Given** a `review-cycle-N.md` whose body begins with git conflict markers (no valid YAML frontmatter), **When** an arbiter override runs on that WP, **Then** the override completes without raising and the decision is durably recorded.
 2. **Given** the fix, **When** the arbiter resolves the latest cycle number, **Then** it derives the number from the filename without parsing the file body.
 3. **Given** the second `.latest` consumer that needs the full parsed body, **When** the fix lands, **Then** `.latest`/`from_file` parse behavior is unchanged.
+4. **(#3216, folded)** **Given** a hand-rolled glob+frontmatter review-cycle verdict reader in `cli/commands/agent/tasks_parsing_validation.py` that duplicates the canonical `ReviewCycleArtifact` reader, **When** it is collapsed onto the canonical `.latest`/`latest_review_artifact_verdict` surface, **Then** its failure polarity is preserved and a focused test pins it (single-reader-authority, on-theme with the façade consolidation).
 
 ---
 
@@ -121,6 +123,8 @@ The `@stress`-marked concurrency durability test no longer rides the fast xdist 
 | FR-010 | Add filename-only `ReviewCycleArtifact.latest_cycle_number()` and use it on the arbiter path; leave `.latest`/`from_file` untouched | As a maintainer, I want the arbiter to resolve the cycle number without parsing a possibly-damaged body. | High | Open |
 | FR-011 | Surface the SC-008 stranded-verdict advisory in the `accept --json` payload via a uniform top-level `advisories` array injected at the CLI emit layer | As an automation author, I want the backfill advisory in the machine-readable output. | Medium | Open |
 | FR-012 | Add a dedicated stress CI lane selecting `-m stress -n0` (POSIX-only) and right-size the mis-pooled durability test out of the fast pool; correct the `pytest.ini` stress-marker wording | As a maintainer, I want heavyweight stress tests isolated in their own serial lane. | Medium | Open |
+| FR-013 | (#3217, folded) Extend the verdict-seam census classifier to recognize helper-constructed reader records so `_review_from_frontmatter` surfaces; coordinate with FR-007 so #3236+#3217 fully harden the census | As a maintainer, I want the census to catch helper-constructed readers, not just direct ones. | High | Open |
+| FR-014 | (#3216, folded) Collapse the hand-rolled review-cycle verdict reader in `tasks_parsing_validation.py` onto the canonical `ReviewCycleArtifact` reader, preserving failure polarity | As a maintainer, I want one canonical review-cycle verdict reader, not a hand-rolled duplicate. | Medium | Open |
 
 ### Non-Functional Requirements
 
