@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "mission_slug": "docs-gate-hardening-01KZGAG2",
+  "mission_id": "01KZGAG27GFM73YGYXXK8ZJ39F",
+  "mission_branch": "kitty/mission-docs-gate-hardening-01KZGAG2",
+  "target_branch": "docs/3253-docs-gaps",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "scripts/docs/_published_pages.py",
+        "scripts/docs/related_validator.py",
+        "tests/docs/test_description_length_check_propagation.py",
+        "tests/docs/test_published_pages.py",
+        "tests/docs/test_related_validator.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/api/slash-commands.md",
+        "scripts/docs/check_slash_command_freshness.py",
+        "tests/docs/test_check_slash_command_freshness.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        ".github/workflows/docs-freshness.yml",
+        ".github/workflows/docs-pages.yml",
+        "tests/docs/test_docs_freshness_invariant.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-08-08T10:49:16.704180+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "f3c2e493405d8a4570ce9ad4ada54a7185fb5e14"
+}
