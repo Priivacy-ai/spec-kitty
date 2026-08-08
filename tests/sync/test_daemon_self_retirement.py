@@ -202,6 +202,7 @@ class TestStartSelfCheckTick:
             assert all(p == 9400 for p in calls)
         finally:
             tick.cancel()
+            tick.join(timeout=2.0)
 
         # After cancellation the chain must stop firing.
         observed_after_cancel = len(calls)
@@ -221,6 +222,7 @@ class TestStartSelfCheckTick:
             assert tick.daemon is True
         finally:
             tick.cancel()
+            tick.join(timeout=2.0)
 
     def test_uses_daemon_tick_seconds_constant_when_not_overridden(
         self, monkeypatch: pytest.MonkeyPatch
