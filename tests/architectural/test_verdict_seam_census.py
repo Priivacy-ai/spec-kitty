@@ -281,36 +281,29 @@ _EXCLUDED_MODULE_REASONS: dict[str, str] = {
         "from the reducer's own dict-shaped snapshot value -- event-authority "
         "rehydration, not a review-cycle-artifact reader/writer."
     ),
-    # T004 forward-declared exclusions: authored HERE, by WP01, so neither
-    # WP02 nor WP04 ever needs to edit this census test -- no concurrent-edit
-    # race on the exclusion list between dependency-unordered lanes (paula F2).
+    # T004 forward-declared exclusion: authored HERE, by WP01, so WP04 never
+    # needs to edit this census test -- no concurrent-edit race on the
+    # exclusion list between dependency-unordered lanes (paula F2).
     # POST-MERGE UPDATE (verdict-seam-write-unification-01KZ9Q35
-    # consolidation): both modules NOW EXIST on disk (WP02 landed
-    # `verdict_provenance_backfill.py`, WP04 landed `verdict_vocab.py`), so
-    # these are no longer vacuous forward guards -- the exclusions were
-    # re-verified against the REAL modules per the trip-wire in
-    # `test_forward_declared_backfill_and_vocab_modules_are_excluded` below:
-    # `verdict_vocab.py` is a pure string->string vocabulary map (no artifact
-    # verdict I/O), correctly excluded; `verdict_provenance_backfill.py` is a
-    # one-time migration whose disclosed reader blind spot is tracked in #3236
-    # (see its exclusion reason below).
-    "src/specify_cli/migration/verdict_provenance_backfill.py": (
-        "WP02's provenance-backfill migration (FR-012/SC-008) reduces a "
-        "terminal `.md` verdict into `status.events.jsonl` via a hand-"
-        "constructed `review_result` event (`append_events_atomic_verified`, "
-        "NOT `emit_status_transition` -- D-PLAN-10). This is a ONE-TIME "
-        "migration recovering PRE-schema-change data, out of scope of the "
-        "LIVE verdict seam this census tracks, so the whole module is "
-        "excluded. DISCLOSED BLIND SPOT (#3236, sibling of #3217): WP06's "
-        "`_legacy_frontmatter_verdict` GENUINELY matches this census's reader "
-        "predicate (`read_text` + `yaml.load` + a manual `\\n---` frontmatter "
-        "delimiter -- its whole job is recovering a historical `verdict:` key "
-        "from raw `.md` frontmatter). The module-level exclusion suppresses "
-        "that reader row silently; this is NOT a claim the function is not a "
-        "reader -- it is, and #3236 tracks narrowing this to a function-level "
-        "exclusion so a FUTURE live reader moved into this module cannot hide "
-        "behind the wholesale skip."
-    ),
+    # consolidation): the module NOW EXISTS on disk (WP04 landed
+    # `verdict_vocab.py`), so this is no longer a vacuous forward guard -- the
+    # exclusion was re-verified against the REAL module per the trip-wire in
+    # `test_forward_declared_vocab_module_is_excluded` below: `verdict_vocab.py`
+    # is a pure string->string vocabulary map (no artifact verdict I/O),
+    # correctly excluded.
+    #
+    # WP03 (verdict-seam-boundary-hardening-01KZG179, #3236) UPDATE:
+    # `migration/verdict_provenance_backfill.py` USED to carry a sibling entry
+    # here, wholesale-excluding the whole module. That module-level exclusion
+    # is now RETIRED in favour of the function-level mechanism above
+    # (`_EXCLUDED_FUNCTIONS`): only `_backfill_event_for_wp` (the genuine
+    # write-side helper) is excluded by name now, so the module's disclosed
+    # #3236 reader blind spot -- `_legacy_frontmatter_verdict`, and its
+    # same-module one-hop callers `terminal_review_artifact`/
+    # `stranded_verdict_findings`/`backfill_verdict_provenance` -- surfaces as
+    # real, classified reader (and resolver) rows in the fixture instead of
+    # being silently suppressed. See `test_backfill_module_write_helper_is_
+    # function_excluded_while_readers_surface` below for the live proof.
     "src/specify_cli/status/verdict_vocab.py": (
         "WP04's pure vocabulary-mapping surface bridges lane-transition verbs "
         "to `{approved, rejected}` `review_result` strings (D-PLAN-14: "
@@ -318,6 +311,44 @@ _EXCLUDED_MODULE_REASONS: dict[str, str] = {
         "-- those never synthesize a `review_result` event). It maps strings "
         "to strings; it never reads, writes, or resolves a review-cycle "
         "verdict record."
+    ),
+}
+
+
+# ---------------------------------------------------------------------------
+# T011 (#3236 narrowing) -- function-level exclusion, the FUNCTION-scoped
+# companion to `_EXCLUDED_MODULE_REASONS`. A module-level exclusion is
+# all-or-nothing: it cannot express "this module's write-side migration
+# mechanic is out of scope, but its genuine reader/resolver chain is not" --
+# exactly the shape `verdict_provenance_backfill.py` needed (see its former
+# module-level entry's own disclosed-blind-spot note, now retired in favour
+# of this mechanism). Keyed on the SAME `(relpath, qualname)` identity a
+# derived census pair uses, so a single function -- not a whole file --
+# drops out of `_classify_module`'s base classification, and therefore out of
+# the same-module one-hop closure's `base_by_name`/`call_names` too (an
+# excluded function can no longer promote a caller into writer/resolver/
+# reader by transitive closure, either).
+# ---------------------------------------------------------------------------
+
+_EXCLUDED_FUNCTIONS: dict[tuple[str, str], str] = {
+    (
+        "src/specify_cli/migration/verdict_provenance_backfill.py",
+        "_backfill_event_for_wp",
+    ): (
+        "#3236 narrowing: the ONE write-side helper in this one-time "
+        "provenance migration that hand-constructs the historical "
+        "`ReviewResult`/`StatusEvent` (D-PLAN-10 -- deliberately NOT via "
+        "`emit_status_transition`; see the module's own docstring). Excluding "
+        "this ONE function -- not the whole module, as the prior "
+        "`_EXCLUDED_MODULE_REASONS` entry did -- removes the writer signal "
+        "from this migration, INCLUDING its transitive promotion into "
+        "`backfill_verdict_provenance` via the same-module one-hop closure "
+        "(that caller's own body contains no writer-shaped call itself; its "
+        "writer status came entirely from calling this now-excluded helper). "
+        "The module's genuine READ chain -- `_legacy_frontmatter_verdict` -> "
+        "`terminal_review_artifact` -> `stranded_verdict_findings`/"
+        "`backfill_verdict_provenance` -- is left fully classifiable, closing "
+        "the #3236 blind spot the prior wholesale module exclusion caused."
     ),
 }
 
@@ -637,6 +668,55 @@ def _contains_manual_frontmatter_delimiter(node: ast.AST) -> bool:
     return False
 
 
+# ---------------------------------------------------------------------------
+# T013 (#3217) -- the HELPER-CONSTRUCTED reader shape: a function that
+# reconstructs a persisted verdict-override record from an ALREADY-PARSED
+# frontmatter mapping's fields, rather than parsing raw text itself. The
+# direct-parse shape above (``read_text`` + ``yaml.load`` + a frontmatter
+# delimiter, all in ONE function body) is blind to this factoring --
+# ``migration/backfill_runtime_state.py::_review_from_frontmatter`` never
+# calls ``read_text``/``yaml.load`` itself; its caller (``read_legacy_runtime``)
+# does the parse and hands this helper the resulting dict, which decodes the
+# override-quartet fields back into a typed ``ReviewOverride``. That is
+# exactly as much "reading a persisted verdict-override" as the direct shape,
+# just split across a call boundary the direct-parse predicate cannot see.
+# ---------------------------------------------------------------------------
+
+#: The canonical frontmatter key PREFIX the write-side override quartet uses
+#: (``review_artifact_override_at/_actor/_wp_id/_reason`` --
+#: ``migration/backfill_runtime_state.py::_REVIEW_OVERRIDE_KEYS``,
+#: ``review/artifacts.py``'s own ``to_dict``/``from_dict`` round-trip). A
+#: ``.get(...)`` call keyed on this marker is evidence the value came from an
+#: ALREADY-PARSED frontmatter mapping, not an unrelated dict -- e.g. the
+#: external ``--review-result-json`` ingress's ``reviewer``/``verdict``/
+#: ``reference`` keys (``orchestrator_api/commands.py::
+#: _parse_review_result_json``), which never spell this marker.
+_FRONTMATTER_OVERRIDE_KEY_MARKER = "review_artifact_override"
+
+
+def _contains_frontmatter_override_get_call(node: ast.AST) -> bool:
+    for call in _iter_calls(node):
+        if _call_name(call) != "get" or not call.args:
+            continue
+        text = _joined_string_literal(call.args[0])
+        if text and _FRONTMATTER_OVERRIDE_KEY_MARKER in text:
+            return True
+    return False
+
+
+def _classify_helper_constructed_reader(node: ast.AST) -> bool:
+    """True for a function that constructs ``ReviewResult``/``ReviewOverride``
+    (reuses the writer predicate's own :func:`_contains_ctor`) AND extracts
+    >=1 of its field values via a ``.get(...)`` call keyed on the canonical
+    override-quartet frontmatter marker. Requiring BOTH keeps the predicate
+    tight: a record built from a differently-shaped dict (no override-quartet
+    key at all) stays writer-only, never promoted to reader by this branch --
+    see the negative-control non-vacuity test below."""
+    if not _contains_ctor(node, _RECORD_CTOR_NAMES):
+        return False
+    return _contains_frontmatter_override_get_call(node)
+
+
 def _classify_reader(node: ast.AST) -> bool:
     """A verdict READER: parses a review-cycle artifact's persisted content --
     canonically via ``ReviewCycleArtifact.from_file``, or either hand-rolled
@@ -649,11 +729,16 @@ def _classify_reader(node: ast.AST) -> bool:
     prior cycle's ``.body``, and the arbiter override reader reads the whole
     frontmatter mapping to splice in ``arbiter_override`` -- both are readers
     of the same persisted record this census tracks, not a narrower field
-    read."""
+    read. T013 (#3217) adds a THIRD shape: a helper-constructed reader (see
+    :func:`_classify_helper_constructed_reader`) that reconstructs the same
+    persisted record from an already-parsed frontmatter mapping, never
+    calling ``read_text``/``yaml.load`` itself."""
     calls = list(_iter_calls(node))
     if any(_is_review_cycle_artifact_from_file_call(call) for call in calls):
         return True
     if any(_is_extract_scalar_verdict_call(call) for call in calls):
+        return True
+    if _classify_helper_constructed_reader(node):
         return True
     has_read_text = any(_call_name(call) == "read_text" for call in calls)
     if not has_read_text:
@@ -737,6 +822,13 @@ def _classify_module(path: Path, root: Path) -> list[_ClassifiedFunction]:
 
     for func_node, enclosing_class in _iter_functions(tree):
         qualname = f"{enclosing_class}.{func_node.name}" if enclosing_class else func_node.name
+        if (relpath, qualname) in _EXCLUDED_FUNCTIONS:
+            # T011: dropped BEFORE classification, base_by_name, and
+            # call_names -- so this function contributes no row of its own
+            # AND cannot promote a same-module caller via the one-hop closure
+            # either (a caller's `call_names` lookup of this name resolves to
+            # `base_by_name.get(...) is None`, which the closure loop skips).
+            continue
         classified = _ClassifiedFunction(
             module=relpath,
             qualname=qualname,
@@ -1086,6 +1178,15 @@ def test_exclusion_reasons_are_named_and_non_empty() -> None:
         assert reason.strip(), f"{relpath} exclusion has no recorded reason"
 
 
+def test_excluded_function_reasons_are_named_and_non_empty() -> None:
+    """T011: the function-level companion to
+    ``test_exclusion_reasons_are_named_and_non_empty`` -- each
+    ``_EXCLUDED_FUNCTIONS`` entry carries a recorded reason, never a silent
+    absence."""
+    for (relpath, qualname), reason in _EXCLUDED_FUNCTIONS.items():
+        assert reason.strip(), f"{relpath}::{qualname} exclusion has no recorded reason"
+
+
 def test_wp_inner_state_delta_from_dict_is_the_verified_from_dict_gap() -> None:
     """T002/T005 real-data test (D-PLAN-14, NFR-002): the VERIFIED live
     ``.from_dict`` gap site is ``status/models.py::WPInnerStateDelta.from_dict``
@@ -1240,6 +1341,62 @@ def test_new_reader_shape_reds(tmp_path: Path) -> None:
     )
     derived_readers = {(c.module, c.qualname) for c in _classify_all(tmp_path) if c.is_reader}
     assert (relpath, "read_review_cycle_verdict") in derived_readers
+
+
+def test_helper_constructed_reader_shape_reds(tmp_path: Path) -> None:
+    """T013 (#3217) two-way teeth, POSITIVE half: a NEW function that
+    reconstructs a ``ReviewOverride`` from an override-quartet frontmatter
+    dict via ``.get(...)`` calls -- never calling ``read_text``/``yaml.load``
+    itself -- is still detected as a reader. Reproduces the live
+    ``migration/backfill_runtime_state.py::_review_from_frontmatter`` shape
+    exactly. Fails if :func:`_classify_helper_constructed_reader`'s branch is
+    removed or neutered -- the exact regression this teeth exists to catch (a
+    fixture-presence assert alone would not fail on that regression)."""
+    relpath = "src/specify_cli/review/synthetic_helper_constructed_reader.py"
+    _write_module(
+        tmp_path,
+        relpath,
+        "from specify_cli.status.models import ReviewOverride\n\n\n"
+        "def rebuild_review_override_from_frontmatter(frontmatter: dict, wp_id: str):\n"
+        "    at = frontmatter.get('review_artifact_override_at')\n"
+        "    actor = frontmatter.get('review_artifact_override_actor')\n"
+        "    reason = frontmatter.get('review_artifact_override_reason')\n"
+        "    if not (at and actor and reason):\n"
+        "        return None\n"
+        "    return ReviewOverride(at=str(at), actor=str(actor), wp_id=wp_id, reason=str(reason))\n",
+    )
+    derived_readers = {(c.module, c.qualname) for c in _classify_all(tmp_path) if c.is_reader}
+    assert (relpath, "rebuild_review_override_from_frontmatter") in derived_readers
+
+
+def test_helper_constructed_record_from_unrelated_keys_is_not_a_reader(tmp_path: Path) -> None:
+    """T013 (#3217) two-way teeth, NEGATIVE half: a function that ALSO
+    constructs a ``ReviewResult`` via ``.get(...)`` calls, but keyed on
+    UNRELATED dict fields (the external-ingress shape:
+    ``reviewer``/``verdict``/``reference``, never the override-quartet
+    marker -- the real ``orchestrator_api/commands.py::
+    _parse_review_result_json`` shape), must NOT be classified as a reader --
+    guards the over-match risk the module docstring's risk section names.
+    Stays a writer (unaffected by this predicate); this test pins only the
+    reader-negative half."""
+    relpath = "src/specify_cli/review/synthetic_unrelated_dict_ctor.py"
+    _write_module(
+        tmp_path,
+        relpath,
+        "from specify_cli.status.models import ReviewResult\n\n\n"
+        "def build_review_result_from_payload(payload: dict) -> ReviewResult:\n"
+        "    reviewer = payload.get('reviewer')\n"
+        "    verdict = payload.get('verdict')\n"
+        "    reference = payload.get('reference')\n"
+        "    return ReviewResult(reviewer=reviewer, verdict=verdict, reference=reference)\n",
+    )
+    classified = {(c.module, c.qualname): c for c in _classify_all(tmp_path)}
+    key = (relpath, "build_review_result_from_payload")
+    assert classified[key].is_writer, "sanity: the record-ctor call still makes this a writer"
+    assert not classified[key].is_reader, (
+        "a record built from a dict with no override-quartet marker key must "
+        "not be promoted to reader"
+    )
 
 
 def test_display_only_review_cycle_mention_is_not_a_writer(tmp_path: Path) -> None:
@@ -1418,53 +1575,136 @@ def test_exclusion_mechanism_removes_a_synthetic_pre_review_gate_lookalike(tmp_p
     assert "src/specify_cli/review/pre_review_gate.py" not in candidate_relpaths
 
 
-def test_forward_declared_backfill_and_vocab_modules_are_excluded() -> None:
-    """WP01 forward-declared ``migration/verdict_provenance_backfill.py`` and
-    ``status/verdict_vocab.py`` as ``_EXCLUDED_MODULE_REASONS`` entries BEFORE
-    WP02/WP04 created them -- and asserted they were still absent, a designed
-    trip-wire so that when the modules landed a reviewer would be forced to
-    re-verify the exclusions against the REAL code rather than trusting a
-    vacuous forward guard.
+def test_function_exclusion_removes_a_synthetic_lookalike_at_the_excluded_qualname(tmp_path: Path) -> None:
+    """T011 forward-guard proof (function-level companion to
+    ``test_exclusion_mechanism_removes_a_synthetic_pre_review_gate_lookalike``
+    above): a synthetic module at the EXACT excluded relpath, containing a
+    function with the EXACT excluded name and an unmistakable writer shape
+    (constructs ``ReviewResult`` directly), is still removed by
+    ``_classify_module`` -- proving the mechanism keys on ``(relpath,
+    qualname)`` identity, not merely "the real file happens to already work
+    out this way."""
+    relpath = "src/specify_cli/migration/verdict_provenance_backfill.py"
+    _write_module(
+        tmp_path,
+        relpath,
+        "from specify_cli.status.models import ReviewResult\n\n\n"
+        "def _backfill_event_for_wp(reviewer: str, verdict: str, reference: str) -> ReviewResult:\n"
+        "    return ReviewResult(reviewer=reviewer, verdict=verdict, reference=reference)\n",
+    )
+    classified = {c.qualname for c in _classify_module(tmp_path / relpath, tmp_path)}
+    assert "_backfill_event_for_wp" not in classified
+
+
+def test_function_exclusion_is_scoped_to_the_named_module_not_the_bare_name(tmp_path: Path) -> None:
+    """T011 precision proof: a function with the SAME bare name as an
+    excluded ``(relpath, qualname)`` pair, but living in a DIFFERENT module,
+    is NOT excluded -- the mechanism keys on the full pair, never a bare-name
+    allowlist that could accidentally swallow an unrelated function sharing
+    the name."""
+    relpath = "src/specify_cli/review/synthetic_same_name_writer.py"
+    _write_module(
+        tmp_path,
+        relpath,
+        "from specify_cli.status.models import ReviewResult\n\n\n"
+        "def _backfill_event_for_wp(reviewer: str, verdict: str, reference: str) -> ReviewResult:\n"
+        "    return ReviewResult(reviewer=reviewer, verdict=verdict, reference=reference)\n",
+    )
+    classified = {c.qualname for c in _classify_module(tmp_path / relpath, tmp_path)}
+    assert "_backfill_event_for_wp" in classified
+
+
+def test_forward_declared_vocab_module_is_excluded() -> None:
+    """WP01 forward-declared ``status/verdict_vocab.py`` as an
+    ``_EXCLUDED_MODULE_REASONS`` entry BEFORE WP04 created it -- and asserted
+    it was still absent, a designed trip-wire so that when the module landed
+    a reviewer would be forced to re-verify the exclusion against the REAL
+    code rather than trusting a vacuous forward guard.
 
     Post-merge (verdict-seam-write-unification-01KZ9Q35 consolidation) that
-    trip-wire has fired: both modules now EXIST (WP02/WP04 landed). The
-    exclusions were re-verified against the live code and HOLD:
+    trip-wire has fired: the module now EXISTS (WP04 landed). The exclusion
+    was re-verified against the live code and HOLDS: ``verdict_vocab.py`` is a
+    pure vocabulary map (string -> string, no ``read_text``/``write_text``/
+    ``from_file``/YAML load/record ctor), so it never reads, writes, or
+    resolves a review-cycle verdict record -- correctly excluded, and it
+    contributes zero derived rows.
 
-    * ``status/verdict_vocab.py`` is a pure vocabulary map (string -> string,
-      no ``read_text``/``write_text``/``from_file``/YAML load/record ctor), so
-      it never reads, writes, or resolves a review-cycle verdict record --
-      correctly excluded, and it contributes zero derived rows.
-    * ``migration/verdict_provenance_backfill.py`` is a one-time provenance
-      migration, out of the LIVE verdict seam; its exclusion reason discloses
-      the ``_legacy_frontmatter_verdict`` reader blind spot (#3236) honestly
-      rather than pretending the function is not a reader.
-
-    This replaces the now-false ``assert not exists`` with the assertion that
-    matches the modules' actual, intended end state -- membership in the
-    exclusion dict with a recorded reason -- while preserving the original
-    non-vacuity intent (the exclusions must be real, reasoned, and consistent
-    with what the derivation actually does)."""
+    (WP01 originally forward-declared a SIBLING entry here for
+    ``migration/verdict_provenance_backfill.py`` too; WP03 (#3236) retired
+    that module-level entry in favour of the function-level mechanism -- see
+    ``test_backfill_module_write_helper_is_function_excluded_while_readers_
+    surface`` below, which is this test's replacement for that module.)"""
     root = _repo_root()
     derived = _derive_census(root)
-    for relpath in (
-        "src/specify_cli/migration/verdict_provenance_backfill.py",
-        "src/specify_cli/status/verdict_vocab.py",
-    ):
-        assert relpath in _EXCLUDED_MODULE_REASONS
-        assert _EXCLUDED_MODULE_REASONS[relpath].strip(), (
-            f"{relpath} exclusion must carry a recorded reason"
+    relpath = "src/specify_cli/status/verdict_vocab.py"
+    assert relpath in _EXCLUDED_MODULE_REASONS
+    assert _EXCLUDED_MODULE_REASONS[relpath].strip(), f"{relpath} exclusion must carry a recorded reason"
+    assert (root / relpath).exists(), (
+        f"{relpath} must exist now that WP04 has landed -- if it does not, the "
+        "module set has drifted and this exclusion is stale again"
+    )
+    # Non-vacuity: an excluded module never contributes a derived row in any
+    # category (the wholesale skip is what actually suppresses it).
+    for category, pairs in derived.items():
+        assert relpath not in {module for module, _ in pairs}, (
+            f"{relpath} is excluded yet appears in the derived {category} set "
+            "-- the exclusion stopped taking effect"
         )
-        assert (root / relpath).exists(), (
-            f"{relpath} must exist now that WP02/WP04 have landed -- if it does "
-            "not, the module set has drifted and this exclusion is stale again"
+
+
+def test_backfill_module_write_helper_is_function_excluded_while_readers_surface() -> None:
+    """T014 flip (#3236): ``migration/verdict_provenance_backfill.py`` is NO
+    LONGER a module-level exclusion -- it must now surface its genuine
+    reader/resolver chain while ONLY its disclosed write-side helper
+    (``_backfill_event_for_wp``) stays suppressed, via the T011 function-level
+    mechanism.
+
+    This replaces the old wholesale-exclusion assertion (module absent from
+    every derived category) with the function-level shape:
+
+    * the module is NOT in ``_EXCLUDED_MODULE_REASONS`` any more (T012);
+    * ``_backfill_event_for_wp`` IS in ``_EXCLUDED_FUNCTIONS`` with a recorded
+      reason, and contributes zero rows in every category (T011's own
+      non-vacuity proof lives in ``test_function_exclusion_removes_a_
+      synthetic_lookalike_at_the_excluded_qualname`` below -- this test only
+      checks the REAL module's outcome);
+    * the #3236 disclosed reader, ``_legacy_frontmatter_verdict``, and its
+      same-module one-hop callers DO appear in the derived reader set --
+      the exact row this WP exists to stop masking;
+    * ``backfill_verdict_provenance`` -- writer-only before this WP purely
+      via one-hop closure through the now-excluded write helper -- no longer
+      carries a writer row, proving the exclusion's closure-blocking effect
+      (not just the excluded function's own row) actually took hold."""
+    root = _repo_root()
+    relpath = "src/specify_cli/migration/verdict_provenance_backfill.py"
+    assert relpath not in _EXCLUDED_MODULE_REASONS, (
+        f"{relpath} must no longer be module-excluded -- T012 narrows this to "
+        "a function-level exclusion"
+    )
+    excluded_key = (relpath, "_backfill_event_for_wp")
+    assert excluded_key in _EXCLUDED_FUNCTIONS
+    assert _EXCLUDED_FUNCTIONS[excluded_key].strip(), "the function exclusion must carry a recorded reason"
+
+    derived = _derive_census(root)
+    for category, pairs in derived.items():
+        assert (relpath, "_backfill_event_for_wp") not in pairs, (
+            f"_backfill_event_for_wp is function-excluded yet appears in the "
+            f"derived {category} set -- the exclusion stopped taking effect"
         )
-        # Non-vacuity: an excluded module never contributes a derived row in
-        # any category (the wholesale skip is what actually suppresses it).
-        for category, pairs in derived.items():
-            assert relpath not in {module for module, _ in pairs}, (
-                f"{relpath} is excluded yet appears in the derived {category} "
-                "set -- the exclusion stopped taking effect"
-            )
+    assert (relpath, "_legacy_frontmatter_verdict") in derived["reader"], (
+        "the #3236 disclosed reader must surface now that the module is no "
+        "longer wholesale-excluded"
+    )
+    assert (relpath, "terminal_review_artifact") in derived["reader"]
+    assert (relpath, "stranded_verdict_findings") in derived["reader"]
+    assert (relpath, "backfill_verdict_provenance") in derived["reader"]
+    assert (relpath, "_review_cycle_candidate_dirs") in derived["resolver"]
+    assert (relpath, "terminal_review_artifact") in derived["resolver"]
+    assert (relpath, "backfill_verdict_provenance") not in derived["writer"], (
+        "backfill_verdict_provenance's ONLY writer signal came from calling "
+        "the now-excluded _backfill_event_for_wp via the same-module one-hop "
+        "closure -- it must not carry a writer row post-exclusion"
+    )
 
 
 def test_malformed_retire_row_with_no_retiring_fr_is_a_hard_failure() -> None:

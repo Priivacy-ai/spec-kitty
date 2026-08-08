@@ -29,8 +29,12 @@ from specify_cli.review.artifacts import (
     AffectedFile,
     ReviewCycleArtifact,
 )
-from specify_cli.status import ReviewResult, feature_status_lock, git_operation_in_progress
-from specify_cli.status import verdict_vocab
+from specify_cli.status import (
+    ReviewResult,
+    emission_event_verdict,
+    feature_status_lock,
+    git_operation_in_progress,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -830,7 +834,7 @@ def create_rejected_review_cycle(
         # (the emission-scoped bridge -- this constructs an EMITTED
         # ``review_result``) is the correct conversion, not the general
         # four-value :func:`~specify_cli.status.verdict_vocab.to_event_verdict`.
-        verdict=verdict_vocab.emission_event_verdict(verdict),
+        verdict=emission_event_verdict(verdict),
         reference=pointer,
         feedback_path=str(artifact_path),
     )

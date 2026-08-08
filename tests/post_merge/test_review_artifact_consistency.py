@@ -10,6 +10,7 @@ import typer
 
 from specify_cli.cli.commands.merge import _enforce_review_artifact_consistency
 from specify_cli.post_merge.review_artifact_consistency import (
+    _event_sourced_gate_verdict,
     find_rejected_review_artifact_conflicts,
     format_review_artifact_conflict,
     review_artifact_conflict_diagnostic,
@@ -549,3 +550,48 @@ def test_terminal_wp_no_artifact_no_event_opinion_is_not_blocked(
         "no on-disk artifact and no event-sourced opinion must not block merge, "
         f"got: {findings}"
     )
+
+
+# ---------------------------------------------------------------------------
+# WP02 (verdict-seam-boundary-hardening-01KZG179, T008/T010, NFR-001):
+# _event_sourced_gate_verdict now delegates to the facade's
+# review_result_from_state instead of re-inlining a ReviewResult.from_dict
+# decode. These 5 tests exercise the retired decode's exact case matrix
+# DIRECTLY against the function (not only indirectly through
+# find_rejected_review_artifact_conflicts above) to prove behavior parity
+# with the dedup.
+# ---------------------------------------------------------------------------
+
+
+def test_event_sourced_gate_verdict_absent_slot_returns_none() -> None:
+    """Case 1/5: no ``review_result`` key in the reduced state at all."""
+    assert _event_sourced_gate_verdict({}) is None
+
+
+def test_event_sourced_gate_verdict_raw_none_returns_none() -> None:
+    """Case 2/5: the slot is present but explicitly ``None`` (a ``--force``
+    exit from ``in_review`` that supplied no ``ReviewResult``)."""
+    assert _event_sourced_gate_verdict({"review_result": None}) is None
+
+
+def test_event_sourced_gate_verdict_non_mapping_returns_none() -> None:
+    """Case 3/5: the slot is present but not a ``Mapping`` (damaged data)."""
+    assert _event_sourced_gate_verdict({"review_result": "not-a-mapping"}) is None
+
+
+def test_event_sourced_gate_verdict_from_dict_raises_returns_none() -> None:
+    """Case 4/5: the slot is a ``Mapping`` missing required ``ReviewResult``
+    fields, so the delegated decode fails closed (never a crash)."""
+    assert _event_sourced_gate_verdict({"review_result": {"reviewer": "renata"}}) is None
+
+
+def test_event_sourced_gate_verdict_valid_slot_returns_verdict_string() -> None:
+    """Case 5/5: a valid slot yields the recorded verdict as ``str``."""
+    state = {
+        "review_result": {
+            "reviewer": "reviewer-renata",
+            "verdict": "changes_requested",
+            "reference": "feedback://mission/WP01/1",
+        }
+    }
+    assert _event_sourced_gate_verdict(state) == "changes_requested"

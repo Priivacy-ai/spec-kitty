@@ -1,0 +1,149 @@
+{
+  "rows": {
+    "#3209": {
+      "evidence_ref": "PR #3209 (batch-drain retirement) merged 2026-08-08; rebased into this mission's base \u2014 not this mission's work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#3211": {
+      "evidence_ref": "Predecessor verdict-seam rebuild; merged 2026-08-05",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#3216": {
+      "evidence_ref": "Closed as resolved-by-#3245/WP05; target reader _get_latest_review_cycle_verdict already retired (FR-003)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#3217": {
+      "evidence_ref": "Helper-construction classifier WP03",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP03"
+    },
+    "#3235": {
+      "evidence_ref": "Follow-up: #3235 \u2014 separate open P0 (concurrent review-cycle data-loss); WP06 only relocates the shared stress test, does not fix #3235",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3236": {
+      "evidence_ref": "Census fn-level exclusion WP03",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP03"
+    },
+    "#3243": {
+      "evidence_ref": "Follow-up: #3243 \u2014 review-cycle numbering off-by-one; considered in pre-planning, left separate as its own open issue",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3244": {
+      "evidence_ref": "Arbiter red-first + latest_cycle_number WP04",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP04"
+    },
+    "#3245": {
+      "evidence_ref": "PR #3245 merged 2026-08-08; this mission is its follow-on",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#3254": {
+      "evidence_ref": "Facade exports WP01 + consumer migration/dedup/guard WP02",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP02"
+    },
+    "#3255": {
+      "evidence_ref": "accept --json advisories WP05",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP05"
+    },
+    "#3256": {
+      "evidence_ref": "Dedicated stress CI lane WP06",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP06"
+    }
+  },
+  "schema_version": 1
+}

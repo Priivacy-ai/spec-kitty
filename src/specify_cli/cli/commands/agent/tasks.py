@@ -393,6 +393,10 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     # re-export so ``@patch("...agent.tasks._binding_role_for_lane")`` keeps
     # intercepting).
     _binding_role_for_lane as _binding_role_for_lane,
+    # WP02 (verdict-seam-boundary-hardening-01KZG179, T007): campsite
+    # extraction out of the cc=14 ``_mt_emit_runtime_state`` -- a genuine
+    # native def, so it joins the family surface like every other one.
+    _build_claim_review_override as _build_claim_review_override,
     # WP09 (FR-008, IC-07): the six family stragglers that stayed behind at
     # WP05 — the arbiter override pair, the #2155 mixed-bundle partition, the
     # coord event-path probe, the event-field shaper and the reviewer detector

@@ -11,8 +11,8 @@ from typing import Any
 from mission_runtime import MissionArtifactKind
 from specify_cli.review.artifacts import TERMINAL_REVIEW_LANES
 from specify_cli.status import materialize_snapshot
-from specify_cli.status import ReviewOverride, ReviewResult
-from specify_cli.status import verdict_vocab
+from specify_cli.status import ReviewOverride
+from specify_cli.status import is_changes_requested, review_result_from_state
 
 REJECTED_REVIEW_ARTIFACT_CONFLICT = "REJECTED_REVIEW_ARTIFACT_CONFLICT"
 REJECTED_REVIEW_ARTIFACT_INVARIANT = (
@@ -146,25 +146,17 @@ def _event_sourced_gate_verdict(state: Mapping[str, Any]) -> str | None:
     :class:`~specify_cli.status.reducer.ReviewResultLookup` cases are the
     same thing (they are not — see that class's own docstring).
 
-    Decodes the ``review_result`` slot locally (mirrors
-    :func:`_snapshot_review_override`'s existing convention in this module)
-    rather than importing ``specify_cli.status.reducer``'s
-    ``review_result_from_state`` directly: this package must import only
-    through the ``specify_cli.status`` public facade
-    (``tests/architectural/test_status_module_boundary.py``'s SR-2 repo-wide
-    AST gate), and ``review_result_from_state`` is not on that facade's
-    ``__all__`` (``status/__init__.py`` is outside this WP's owned-files
-    surface — see this WP's Activity Log for the escalation note).
+    Delegates to :func:`~specify_cli.status.reducer.review_result_from_state`
+    (re-exported on the ``specify_cli.status`` facade per WP01,
+    verdict-seam-boundary-hardening-01KZG179) rather than re-inlining the
+    ``ReviewResult.from_dict`` decode: the three-way
+    :class:`~specify_cli.status.reducer.ReviewResultLookup` outcome collapses
+    to this function's two-way contract by treating ``result is None`` (either
+    ``slot_present=False`` or a present-but-unrecorded/malformed slot) as "no
+    verdict".
     """
-    if "review_result" not in state:
-        return None
-    raw = state["review_result"]
-    if not isinstance(raw, Mapping):
-        return None
-    try:
-        return str(ReviewResult.from_dict(dict(raw)).verdict)
-    except (KeyError, TypeError, ValueError):
-        return None
+    lookup = review_result_from_state(state)
+    return str(lookup.result.verdict) if lookup.result is not None else None
 
 
 def _terminal_event_conflict(
@@ -206,7 +198,7 @@ def _terminal_event_conflict(
         return None
     if snapshot_override is not None and snapshot_override.complete:
         return None
-    if event_verdict is None or not verdict_vocab.is_changes_requested(event_verdict):
+    if event_verdict is None or not is_changes_requested(event_verdict):
         return None
     return RejectedReviewArtifactFinding(
         wp_id=wp_id,

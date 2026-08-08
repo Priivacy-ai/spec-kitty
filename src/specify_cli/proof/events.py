@@ -14,7 +14,7 @@ from typing import Any, ClassVar, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from specify_cli.status import verdict_vocab
+from specify_cli.status import EventVerdict, event_verdicts
 
 PROOF_SCHEMA_VERSION: Final[Literal["1.0.0"]] = "1.0.0"
 MAX_PROOF_SUMMARY_BYTES = 4096
@@ -169,7 +169,7 @@ class ReviewProofRecordedPayload(BaseProofPayload):
     #: Event vocabulary (``approved``/``changes_requested``) routed through
     #: the canonical bridge (FR-005) instead of re-inlining the equivalence,
     #: plus two proof-event-only extra states outside the bridge's scope.
-    verdict: verdict_vocab.EventVerdict | Literal["commented", "rejected", "unknown"]
+    verdict: EventVerdict | Literal["commented", "rejected", "unknown"]
     review_ref: str | None = Field(default=None, min_length=1)
 
     @field_validator("verdict")
@@ -179,9 +179,10 @@ class ReviewProofRecordedPayload(BaseProofPayload):
         values are exactly the canonical bridge's, by calling it rather than
         trusting the annotation above to stay in sync by eye. Never rejects
         anything the ``Literal`` annotation already accepts -- this module's
-        verdict-mapping path genuinely routes through ``status.verdict_vocab``
-        rather than merely avoiding the inline literal spelling."""
-        if value in verdict_vocab.event_verdicts() or value in {
+        verdict-mapping path genuinely routes through the ``status`` facade's
+        ``event_verdicts`` bridge rather than merely avoiding the inline
+        literal spelling."""
+        if value in event_verdicts() or value in {
             "commented",
             "rejected",
             "unknown",

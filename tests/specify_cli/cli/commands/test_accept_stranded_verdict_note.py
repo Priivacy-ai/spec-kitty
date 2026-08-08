@@ -11,12 +11,15 @@ fixture shape.
 
 from __future__ import annotations
 
+import contextlib
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
+import typer
 
-from specify_cli.cli.commands.accept import _stranded_verdict_provenance_note
+from specify_cli.cli.commands.accept import _stranded_verdict_provenance_note, accept
 from specify_cli.migration.verdict_provenance_backfill import backfill_verdict_provenance
 from specify_cli.review.artifacts import ReviewCycleArtifact
 
@@ -82,3 +85,69 @@ def test_note_none_and_never_raises_on_unreadable_dir(tmp_path: Path) -> None:
     """The diagnostic must never abort accept: a non-existent dir degrades to
     ``None``, not an exception."""
     assert _stranded_verdict_provenance_note(tmp_path / "does-not-exist") is None
+
+
+# ── T020/#3255: accept --json surfaces the advisory (top-level advisories[]) ──
+
+
+def _run_accept_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    slug: str,
+) -> dict[str, Any]:
+    """Drive the real ``accept(json_output=True)`` command and parse its payload.
+
+    ``mode="checklist"`` is the cheapest real emit site to exercise end-to-end
+    (no git repo, no commit machinery) while still going through the actual
+    ``accept()`` CLI entry point rather than calling ``_with_advisories``
+    directly -- this is the seam T022 targets. ``SPECIFY_REPO_ROOT`` makes
+    ``find_repo_root()`` resolve *tmp_path* authoritatively even though it has
+    no ``.kittify/`` marker (matches the existing readiness-path test
+    convention in ``test_accept_readiness_no_write.py``).
+    """
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
+    with contextlib.suppress(typer.Exit):
+        accept(
+            mission=slug,
+            mode="checklist",
+            actor="tester",
+            test=[],
+            json_output=True,
+            lenient=False,
+            no_commit=False,
+            diagnose=False,
+            allow_fail=False,
+        )
+    payload: dict[str, Any] = json.loads(capsys.readouterr().out)
+    return payload
+
+
+def test_accept_json_advisories_carries_stranded_note(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Stranded mission: ``accept --json`` carries the SC-008 advisory in
+    the top-level ``advisories`` array (#3255) -- it was previously only
+    ever printed to the human console, never emitted in JSON."""
+    feature_dir = _write_stranded_mission(tmp_path)
+    slug = feature_dir.name
+
+    payload = _run_accept_json(tmp_path, monkeypatch, capsys, slug)
+
+    assert "advisories" in payload
+    assert any("WP01" in note and "spec-kitty upgrade" in note for note in payload["advisories"])
+
+
+def test_accept_json_advisories_empty_when_converged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Converged mission (post-backfill): ``advisories`` is present but
+    empty -- the key must always exist so JSON consumers never need a
+    conditional presence check."""
+    feature_dir = _write_stranded_mission(tmp_path)
+    backfill_verdict_provenance(feature_dir)
+    slug = feature_dir.name
+
+    payload = _run_accept_json(tmp_path, monkeypatch, capsys, slug)
+
+    assert payload["advisories"] == []

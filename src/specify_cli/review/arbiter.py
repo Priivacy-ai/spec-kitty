@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from specify_cli.core.time_utils import now_utc_iso
-from specify_cli.review.artifacts import ReviewCycleArtifact
+from specify_cli.review.artifacts import ReviewCycleArtifact, _review_cycle_filename
 from specify_cli.review.cycle import _review_cycle_wp_dir
 
 if TYPE_CHECKING:
@@ -463,9 +463,21 @@ def persist_arbiter_decision(
     # ``-> Path`` return stays real, not a laundered ``Any``.
     wp_slug: str = str(_resolve_wp_slug(main_repo_root, mission_slug, wp_id))
     wp_subdir: Path = Path(_review_cycle_wp_dir(main_repo_root, mission_slug, wp_slug))
-    latest = ReviewCycleArtifact.latest(wp_subdir) if wp_subdir.exists() else None
-    cycle_number = latest.cycle_number if latest is not None else 0
-    artifact_path: Path = wp_subdir / f"review-cycle-{cycle_number}.md"
+    # Filename-only resolution (#3244, T017): a damaged review-cycle artifact
+    # left by a prior fail-open merge-driver downgrade (git conflict markers,
+    # no valid YAML frontmatter) must not crash override persistence.
+    # ``latest_cycle_number`` derives the number from filenames alone -- it
+    # never parses a candidate's body -- unlike ``.latest(...).cycle_number``,
+    # which fully parses the highest-numbered file's frontmatter via
+    # ``from_file`` and would raise on such a file. ``.latest``/``from_file``
+    # themselves are left untouched (C-004): a second consumer
+    # (``cli/commands/agent/workflow_executor.py:1134``) needs the full
+    # parsed body and is out of this WP's scope -- flagged as a same-shape
+    # follow-up, not fixed here.
+    cycle_number = (
+        ReviewCycleArtifact.latest_cycle_number(wp_subdir) if wp_subdir.exists() else 0
+    )
+    artifact_path: Path = wp_subdir / _review_cycle_filename(cycle_number)
 
     reason = f"[{decision.category}] {decision.explanation}"
     _persist_review_artifact_override(

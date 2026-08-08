@@ -156,6 +156,9 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2); grown to 75 via WP09, +1 
     # #2639: +complete-deferred-readiness + pre-review-dirty-paths;
     # coord-commit-integrity #2861: +_binding_role_for_lane role-map dedup)
     "_binding_role_for_lane",
+    # WP02 (verdict-seam-boundary-hardening-01KZG179, T007): campsite
+    # extraction out of the cc=14 ``_mt_emit_runtime_state`` (78 -> 79).
+    "_build_claim_review_override",
     "_default_move_task_ports",
     "_MoveTaskState",
     "_MoveTaskArgs",
@@ -508,5 +511,9 @@ def test_guard_covers_full_142_symbol_surface() -> None:
     ``_mt_resolve_reviewer_identity`` — the shared --reviewer/--agent/actor
     resolution the rejected review-cycle artifact and the structured
     ReviewResult derivation both call — a native move-task seam def
-    (tasks_move_task 77 -> 78): 159 -> 160."""
-    assert len(SYMBOL_TO_MODULE) == 160  # golden-count: cardinality-is-contract
+    (tasks_move_task 77 -> 78): 159 -> 160. WP02
+    (verdict-seam-boundary-hardening-01KZG179, T007) extracted
+    ``_build_claim_review_override`` out of the cc=14
+    ``_mt_emit_runtime_state`` campsite fix — a native move-task seam def
+    (tasks_move_task 78 -> 79): 160 -> 161."""
+    assert len(SYMBOL_TO_MODULE) == 161  # golden-count: cardinality-is-contract

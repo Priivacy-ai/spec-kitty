@@ -26,6 +26,17 @@ TERMINAL_REVIEW_LANES = frozenset({"approved", "done"})
 
 _REVIEW_CYCLE_NUMBER_RE = re.compile(r"review-cycle-(\d+)\.md$")
 
+# Campsite (S1192): the ``review-cycle-*.md`` glob and the ``review-cycle-
+# {n}.md`` filename shape were duplicated as literals throughout this module
+# (~16 occurrences pre-hoist). Both are now sourced from here so every glob
+# and every filename build go through a single spelling.
+_REVIEW_CYCLE_GLOB = "review-cycle-*.md"
+
+
+def _review_cycle_filename(cycle_number: int) -> str:
+    """Build the on-disk filename for *cycle_number* (``review-cycle-{n}.md``)."""
+    return f"review-cycle-{cycle_number}.md"
+
 
 def _parse_review_cycle_candidates(sub_artifact_dir: Path) -> tuple[list[int], list[str]]:
     """Parse ``review-cycle-*.md`` siblings into cycle numbers, for T032/T033.
@@ -44,7 +55,7 @@ def _parse_review_cycle_candidates(sub_artifact_dir: Path) -> tuple[list[int], l
     """
     parsed_numbers: list[int] = []
     unparseable_names: list[str] = []
-    for candidate in sub_artifact_dir.glob("review-cycle-*.md"):
+    for candidate in sub_artifact_dir.glob(_REVIEW_CYCLE_GLOB):
         match = _REVIEW_CYCLE_NUMBER_RE.search(candidate.name)
         if match is None:
             unparseable_names.append(candidate.name)
@@ -322,12 +333,31 @@ class ReviewCycleArtifact:
 
         Returns None if no review-cycle-*.md files exist.
         """
-        candidates = list(sub_artifact_dir.glob("review-cycle-*.md"))
+        candidates = list(sub_artifact_dir.glob(_REVIEW_CYCLE_GLOB))
         if not candidates:
             return None
 
         candidates.sort(key=_cycle_number_or_zero)
         return ReviewCycleArtifact.from_file(candidates[-1])
+
+    @staticmethod
+    def latest_cycle_number(sub_artifact_dir: Path) -> int:
+        """Return the highest review-cycle number present, by FILENAME only.
+
+        Unlike :meth:`latest`, this never parses a candidate's body/
+        frontmatter — it reuses the same tolerant :func:`_cycle_number_or_zero`
+        sort key :meth:`latest` sorts with, so an unparseable or otherwise
+        damaged sibling (e.g. a merge-conflict-marked file with no valid YAML
+        frontmatter at all -- #3244) sorts as ``0`` rather than raising.
+        Callers that only need the NUMBER (not the parsed artifact) -- e.g.
+        :func:`specify_cli.review.arbiter.persist_arbiter_decision` -- should
+        prefer this over ``latest(...).cycle_number`` so a damaged artifact
+        cannot crash resolution.
+
+        Returns 0 if no review-cycle-*.md files exist.
+        """
+        candidates = list(sub_artifact_dir.glob(_REVIEW_CYCLE_GLOB))
+        return max((_cycle_number_or_zero(p) for p in candidates), default=0)
 
     @staticmethod
     def next_cycle_number(sub_artifact_dir: Path) -> int:
@@ -361,7 +391,7 @@ class ReviewCycleArtifact:
         if not parsed_numbers:
             return 1
         next_number = max(parsed_numbers) + 1
-        collision_path = sub_artifact_dir / f"review-cycle-{next_number}.md"
+        collision_path = sub_artifact_dir / _review_cycle_filename(next_number)
         if collision_path.exists():
             raise ValueError(
                 f"Cannot allocate cycle number {next_number} in "
