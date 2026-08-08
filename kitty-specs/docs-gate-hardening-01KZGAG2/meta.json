@@ -7,6 +7,7 @@
   "mission_number": null,
   "mission_slug": "docs-gate-hardening-01KZGAG2",
   "mission_type": "software-dev",
+  "pr_bound": true,
   "purpose_context": "Issue #3253 catalogued three ways the docs pipeline can pass green while wrong: the slash-command reference can drift from the command registry, the published-page collector can silently under-count when a content subtree resolves empty, and a PR-time link gate can be skipped for deletions outside its paths filter. This mission closes those gaps so contributors and CI catch the problems at PR time rather than post-merge.",
   "purpose_tldr": "Make three docs quality gates fail loud instead of shipping silent drift or gaps.",
   "slug": "docs-gate-hardening-01KZGAG2",
