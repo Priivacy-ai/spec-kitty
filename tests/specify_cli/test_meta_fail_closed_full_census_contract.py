@@ -238,6 +238,17 @@ _ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/specify_cli/migration/backfill_runtime_state.py", "_mission_id"): (1, "silent-by-contract"),
     ("src/specify_cli/migration/backfill_runtime_state.py", "_synthesize_claim_anchor"): (1, "silent-by-contract"),
     ("src/specify_cli/migration/runtime_state_cutover.py", "stamp_accept_cutover"): (1, "silent-by-contract"),
+    # PR #3209 landing pass (2026-08-08): mission 191
+    # (verdict-seam-write-unification-01KZ9Q35) added this backfill reader but
+    # did not join it here, so the census gate was latently red on main the
+    # moment that mission landed (verified: the file is absent at bccb4b4b5,
+    # the last green run of this shard). `_resolve_mission_id` reads with
+    # `on_malformed="none"` and returns None on a missing/malformed meta.json
+    # (pre-mission_id-era mission or a bare fixture) -- the backfilled event's
+    # mission_id field is optional per StatusEvent -- so this read is
+    # deliberately silent, not fail-closed; a silent-by-contract row is the
+    # correct accounting, never a reroute through load_meta_fail_closed.
+    ("src/specify_cli/migration/verdict_provenance_backfill.py", "_resolve_mission_id"): (1, "silent-by-contract"),
     # NOTE (landing-fold, PR #3155): the 11 mutation helpers formerly ledgered
     # here as "authority" (clear_coordination_metadata, clear_merge_metadata,
     # get_change_mode, record_acceptance, resolve_mission_identity,
