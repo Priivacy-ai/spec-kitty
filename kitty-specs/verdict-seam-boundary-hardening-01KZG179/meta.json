@@ -14,9 +14,8 @@
   "accepted_by": "stijn",
   "accepted_from_commit": "38eafbc609cbb362635bbcd743050949b9fad9e6",
   "baseline_merge_commit": "7fd2da0a292e350128b19328d4948cf1f524e6c2",
-  "coordination_branch": "kitty/mission-verdict-seam-boundary-hardening-01KZG179",
   "created_at": "2026-08-08T06:33:31.659531+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Verdict-Seam Boundary Hardening",
   "mission_id": "01KZG1798AXDCWBP0FJ2E0ZJ15",
   "mission_number": null,
@@ -28,7 +27,6 @@
   "slug": "verdict-seam-boundary-hardening-01KZG179",
   "status_phase": "1",
   "target_branch": "hardening/verdict-seam-facade-followup",
-  "topology": "coord",
   "vcs": "git",
   "vcs_locked_at": "2026-08-08T10:50:26.907969+00:00"
 }
