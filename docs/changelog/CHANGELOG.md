@@ -353,6 +353,19 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   still carried unresolved merge-conflict markers used to raise instead of
   resolving the latest cycle; the cycle number is now read from the filename
   alone, so the override applies cleanly.
+- **SaaS tracker retry/poll tests no longer flake on CI, and a new gate keeps
+  the whole bug class out (mission `sync-sleep-count-3136`; `#3136`).** These
+  tests asserted on `time.sleep` call counts and failed non-deterministically
+  with errors like `Expected 'sleep' to be called once. Called 179 times.` on
+  test nodes a change never touched — because patching the shared stdlib
+  `time.sleep` recorded sleeps from anything else running in the same test
+  worker. Building on `#3187` (which gave `SaaSTrackerClient` its own
+  `self._sleep` seam), the client now also binds `self._monotonic` /
+  `self._randbelow`, so its retry/poll timing and jitter are fully isolated from
+  process-global state. A new architectural gate
+  (`tests/architectural/test_shared_module_object_patches.py`) refuses any future
+  test that patches a shared module object read by a count/equality assertion, so
+  this class of flake fails review instead of shipping.
 - **Restored green CI on two suites that regressed after the single-`PACKS_ROOT`
   / charter-activation unification (mission `resolution-activation-foundation`).**
   `tests/review/test_pre_review_gate_integration.py` and
