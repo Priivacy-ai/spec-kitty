@@ -8,7 +8,7 @@ has been re-inlined at its own call site FOUR times across the project's
 history (#2069 -> #2120 -> #2614 -> #3086/#3218) instead of converging on one
 shared primitive, each touch risking a partial (1-of-3 or 2-of-3) copy that
 silently drifts from the canonical shape (see
-``tests/regression/test_mission_close_discard_pops_topology.py`` for exactly
+``tests/specify_cli/cli/commands/test_mission_close_discard_pops_topology.py`` for exactly
 that kind of drift: the ``mission close --discard`` path only ever cleared
 ``coordination_branch``).
 
