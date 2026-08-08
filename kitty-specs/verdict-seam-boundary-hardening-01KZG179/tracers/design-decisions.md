@@ -33,4 +33,12 @@
 
 ## Implementation phase
 
-_(append as decisions are made/revised)_
+- **Pre-merge squad earned its keep — 3 aggregate-only census-fixture staleness defects** that NO per-lane run could see (the full `tests/architectural/` suite isn't run per-lane; each lane's isolated fixture was internally consistent). All in the `[writer]` category of `verdict_seam_census.yaml`, all because lane-b mutated census-scope source while lane-c froze the expected-set against the base:
+  1. **Growth:** WP02 extracted `_build_claim_review_override` (carries the `ReviewOverride` ctor) → new direct writer, no fixture row → add row.
+  2. **Shrinkage:** WP02's FR-004 dedup made `_event_sourced_gate_verdict` delegate to `review_result_from_state` (no ctor) → no longer a writer → retire row.
+  3. **Cascade shrinkage (squads missed this one; only the post-merge census run caught it):** `_mt_persist_wp_file` was a writer only via the ONE-HOP closure through `_mt_emit_runtime_state`. The extract demoted `_mt_emit_runtime_state` to a closure-writer, pushing `_mt_persist_wp_file` to TWO hops from the ctor, past the one-hop horizon → retire row. **Lesson for future extracts in census-scope code:** moving a record ctor into a new helper doesn't just add a row and keep the direct caller's row — it silently demotes every caller that was writer-*via-closure*-through the now-demoted function. Check the closure chain, not just the direct caller.
+- Two independent pre-merge lenses (architecture-scout + aggregate-adjudicator) both caught #1 and #2; only running the actual census on the consolidated tree caught #3 — a reminder that a live gate run beats static reasoning for closure-sensitive invariants.
+- **The `status/__init__.py` "double edit" (WP01 ∩ WP02) was a non-issue:** lane-b descends from lane-a (WP02 depends on WP01), so it's a clean stack (b ⊇ a), not a 3-way conflict. The merge subsumed lane-a.
+
+## Implementation phase (append as decisions are made/revised)
+
