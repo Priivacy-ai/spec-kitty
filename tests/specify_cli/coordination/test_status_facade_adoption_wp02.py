@@ -361,3 +361,65 @@ def test_distinct_missions_do_not_contend(coord_repo: tuple[Path, str]) -> None:
     assert path_a != path_b
     assert path_a.exists()
     assert path_b.exists()
+
+
+# ---------------------------------------------------------------------------
+# WP01 (verdict-seam-boundary-hardening-01KZG179, FR-001/FR-006) — the full
+# verdict_vocab bridge + review_result_from_state must be promoted onto the
+# status facade so WP02's consumer migration can resolve every symbol WITHOUT
+# a direct ``specify_cli.status.verdict_vocab`` / ``.reducer`` import.
+# ---------------------------------------------------------------------------
+
+# The 8 verdict_vocab functions, the EventVerdict type alias, and the 3
+# constants (T001) plus review_result_from_state (T002). The 2 functions
+# already promoted before this WP (is_changes_requested, to_artifact_verdict)
+# are included so the assertion covers the FULL intended facade surface.
+_WP01_PROMOTED_VERDICT_VOCAB_SYMBOLS = (
+    "artifact_verdicts",
+    "event_verdicts",
+    "emission_artifact_verdicts",
+    "to_event_verdict",
+    "to_artifact_verdict",
+    "emission_event_verdict",
+    "is_changes_requested",
+    "is_approved",
+    "EventVerdict",
+    "APPROVED",
+    "REJECTED",
+    "CHANGES_REQUESTED",
+)
+_WP01_PROMOTED_REDUCER_SYMBOL = "review_result_from_state"
+
+
+def test_wp01_verdict_vocab_symbols_are_importable_and_exported() -> None:
+    """Every verdict_vocab symbol WP02 needs is importable from the facade
+    and listed in ``__all__`` — not reachable only via the submodule object
+    (the bypass WP02's dedup closes)."""
+    import specify_cli.status as status_facade
+
+    for name in _WP01_PROMOTED_VERDICT_VOCAB_SYMBOLS:
+        assert hasattr(status_facade, name), (
+            f"{name!r} must be importable from specify_cli.status "
+            "(WP01 facade promotion)."
+        )
+        assert name in status_facade.__all__, (
+            f"{name!r} must be listed in specify_cli.status.__all__ "
+            "(WP01 facade promotion)."
+        )
+
+
+def test_wp01_review_result_from_state_is_importable_and_exported() -> None:
+    """``review_result_from_state`` sits beside its sibling
+    ``event_sourced_review_result`` on the facade (C-002) so
+    ``post_merge/review_artifact_consistency.py`` need not re-implement the
+    snapshot-state decode locally."""
+    import specify_cli.status as status_facade
+
+    assert hasattr(status_facade, _WP01_PROMOTED_REDUCER_SYMBOL), (
+        f"{_WP01_PROMOTED_REDUCER_SYMBOL!r} must be importable from "
+        "specify_cli.status (WP01 facade promotion)."
+    )
+    assert _WP01_PROMOTED_REDUCER_SYMBOL in status_facade.__all__, (
+        f"{_WP01_PROMOTED_REDUCER_SYMBOL!r} must be listed in "
+        "specify_cli.status.__all__ (WP01 facade promotion)."
+    )

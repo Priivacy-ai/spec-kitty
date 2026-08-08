@@ -368,6 +368,66 @@ def test_persist_decision_emits_override_without_a_pre_existing_artifact(tmp_pat
     assert "CI server was down" in override.get("reason", "")
 
 
+def test_persist_decision_survives_conflict_marked_review_cycle_artifact(
+    tmp_path: Path,
+) -> None:
+    """T015 (#3244, RED-FIRST): a prior fail-open merge-driver downgrade can
+    leave a ``review-cycle-N.md`` body starting with unresolved git conflict
+    markers and no valid YAML frontmatter at all. ``persist_arbiter_decision``
+    must not crash resolving the cycle number for such a WP -- it only needs
+    the FILENAME to derive ``cycle_number`` (T016's ``latest_cycle_number``),
+    never the damaged body. Mirrors
+    ``test_persist_decision_resolves_via_slug_and_emits_override`` above, but
+    the on-disk artifact is unparseable.
+
+    Before the fix, ``ReviewCycleArtifact.latest()`` (which fully parses the
+    body via ``from_file``) blows up with:
+        ValueError: Review artifact file has no YAML frontmatter: ...
+    """
+    feature_dir = tmp_path / "kitty-specs" / "066-test"
+    _make_wp_with_slug(feature_dir, "WP01", "WP01-real-slug")
+    wp_subdir = feature_dir / "tasks" / "WP01-real-slug"
+    wp_subdir.mkdir(parents=True, exist_ok=True)
+    artifact = wp_subdir / "review-cycle-1.md"
+    artifact.write_text(
+        "<<<<<<< ours\n"
+        "cycle_number: 1\n"
+        "mission_slug: 066-test\n"
+        "=======\n"
+        "cycle_number: 1\n"
+        "mission_slug: 066-test-renamed\n"
+        ">>>>>>> theirs\n",
+        encoding="utf-8",
+    )
+
+    checklist = _make_checklist(is_pre_existing=True)
+    decision = ArbiterDecision(
+        arbiter="robert",
+        category=ArbiterCategory.PRE_EXISTING_FAILURE,
+        explanation="Test was pre-existing",
+        checklist=checklist,
+        decided_at="2026-04-06T14:00:00+00:00",
+    )
+
+    result_path = persist_arbiter_decision(
+        feature_dir=feature_dir,
+        wp_id="WP01",
+        review_ref="review-cycle://066-test/WP01/001",
+        decision=decision,
+        repo_root=tmp_path,
+    )
+
+    assert result_path.parent == wp_subdir
+
+    from specify_cli.status import materialize
+
+    override = materialize(feature_dir).work_packages.get("WP01", {}).get("review") or {}
+    assert override.get("actor") == "robert"
+    assert override.get("wp_id") == "WP01"
+    assert "pre_existing_failure" in override.get("reason", "")
+    assert "Test was pre-existing" in override.get("reason", "")
+
+
 # ---------------------------------------------------------------------------
 # T14: parse_category_from_note
 # ---------------------------------------------------------------------------

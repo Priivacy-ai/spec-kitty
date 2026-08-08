@@ -105,7 +105,12 @@ def _resolve_snapshot_done_evidence(
     or a slot carrying an empty ``actor`` — yields ``None`` (treated as absent),
     so the caller falls through to the lane-approved evidence.
     """
-    from specify_cli.status import DoneEvidence, ReviewApproval, resolve_event_stream_review
+    from specify_cli.status import (
+        APPROVED,
+        DoneEvidence,
+        ReviewApproval,
+        resolve_event_stream_review,
+    )
 
     override = resolve_event_stream_review(event_stream, wp_id)
     if override is None:
@@ -116,7 +121,7 @@ def _resolve_snapshot_done_evidence(
     return DoneEvidence(
         review=ReviewApproval(
             reviewer=reviewer,
-            verdict="approved",
+            verdict=APPROVED,
             reference=f"snapshot-review:{wp_id}",
         )
     )
@@ -151,11 +156,11 @@ def _resolve_lane_with_planned_fallback(
         return coord_lane, False
 
     from specify_cli.status import CanonicalStatusNotFoundError
-    from specify_cli.status import lane_reader as _lane_reader
+    from specify_cli.status import get_wp_lane as _get_wp_lane
     from specify_cli.status import resolve_lane_alias as _resolve_lane_alias
 
     try:
-        primary_raw = _lane_reader.get_wp_lane(primary_feature_dir, wp_id)
+        primary_raw = _get_wp_lane(primary_feature_dir, wp_id)
     except CanonicalStatusNotFoundError:
         primary_raw = _Lane.UNINITIALIZED
 
@@ -279,6 +284,7 @@ def _mark_wp_merged_done(
         read_current_wp_state_transactional,
     )
     from specify_cli.status import (
+        APPROVED,
         DoneEvidence,
         ReviewApproval,
         TransitionError,
@@ -329,7 +335,7 @@ def _mark_wp_merged_done(
             evidence = DoneEvidence(
                 review=ReviewApproval(
                     reviewer=reviewer or "unknown",
-                    verdict="approved",
+                    verdict=APPROVED,
                     reference=f"lane-approved:{wp_id}",
                 )
             )

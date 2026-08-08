@@ -329,7 +329,7 @@ def _next_proposal_id(counter: list[int]) -> str:
 def _has_review_feedback(event: dict[str, Any]) -> bool:
     """Return True when a lane event carries documented review feedback."""
     # Lazy import (cycle-breaker; see module note above _LOGGER).
-    from specify_cli.status import verdict_vocab
+    from specify_cli.status import is_changes_requested
 
     if event.get("review_ref"):
         return True
@@ -337,7 +337,7 @@ def _has_review_feedback(event: dict[str, Any]) -> bool:
     if isinstance(evidence, dict):
         review = evidence.get("review")
         if isinstance(review, dict):
-            return bool(review.get("reference")) and verdict_vocab.is_changes_requested(
+            return bool(review.get("reference")) and is_changes_requested(
                 review.get("verdict")
             )
     return isinstance(evidence, str) and bool(evidence.strip())

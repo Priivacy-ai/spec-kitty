@@ -137,17 +137,19 @@ from specify_cli.review.verdict_aggregation import (
     aggregate_verdicts,
 )
 from specify_cli.status import (
+    APPROVED,
     EVENTS_FILENAME,
     EventPersistenceError,
     Lane,
+    REJECTED,
     ReviewOverride,
     ReviewResult,
     ResolvedBinding,
     StatusEvent,
     TransitionRequest,
     WPInnerStateDelta,
+    emission_event_verdict,
     resolve_lane_alias,
-    verdict_vocab,
 )
 from specify_cli.task_utils import (
     WorkPackage,
@@ -1834,12 +1836,12 @@ def _mt_plan_review_result(st: _MoveTaskState) -> ReviewResult | None:
         # the event-vocabulary literal -- this hop is an approval outcome
         # (the emission-scoped "approved" artifact verdict), so its event
         # verdict is derived the same way any other approval is.
-        verdict = verdict_vocab.emission_event_verdict(verdict_vocab.APPROVED)
+        verdict = emission_event_verdict(APPROVED)
         reference = (st.approval_ref or f"approval:{st.task_id}").strip() or (
             f"approval:{st.task_id}"
         )
     else:
-        verdict = verdict_vocab.emission_event_verdict(verdict_vocab.REJECTED)
+        verdict = emission_event_verdict(REJECTED)
         reference = (
             st.review_feedback_pointer or st.note_text or f"review:{st.task_id}"
         ).strip() or f"review:{st.task_id}"
@@ -2092,6 +2094,56 @@ def _mt_reassignment_binding_fields(st: _MoveTaskState) -> dict[str, Any]:
     return binding_fields
 
 
+def _build_claim_review_override(
+    st: _MoveTaskState, ports: TasksPorts, existing_fields: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Compute the rollback-to-``planned`` off-axis field additions.
+
+    Campsite extraction (WP02, verdict-seam-boundary-hardening-01KZG179,
+    T007/NFR-004): pulled out of :func:`_mt_emit_runtime_state` (cc=14, close
+    to the 15 ceiling) so that function keeps headroom. Pure with respect to
+    ``existing_fields`` — reads it to decide the claim-release defaults but
+    never mutates it; the caller merges the returned dict via
+    ``fields.update(...)``.
+
+    - The ``subtasks`` reset (if any) re-blocks the review gate off the
+      snapshot (#2513, via the log — not the checkbox).
+    - ``#2512``: a rollback to ``planned`` RELEASES the prior claim so the
+      rolled-back WP exposes no live claim marker. Field repro: an agent
+      process was killed (macOS idle-sleep) leaving ``agent``/``shell_pid``
+      behind; the rollback reset the lane but not the claim, so the next
+      resume failed ``LANE_ALLOCATION_FAILED``. With the god-write cut the
+      claim now lives in the reduced snapshot (the claim transition's
+      ``policy_metadata``), and it was released in NEITHER surface — so the
+      release is emitted here off-axis as an ``InnerStateChanged`` clearing
+      both slots (empty ``agent`` / zero ``shell_pid`` fold to a falsy,
+      released snapshot slot). Skipped when the SAME move re-plants a fresh
+      claim (an explicit ``--agent``/``--shell-pid`` override already set the
+      field in ``existing_fields``).
+    - The ``review`` runtime slot records durable evidence that a REJECTED
+      review was superseded by an approval override
+      (``_persist_review_artifact_override``). A rollback to ``planned`` --
+      whether via a fresh rejection (the common case) or any other route
+      back to ``planned`` -- means that prior "superseded by approval" note
+      no longer describes the WP's state, so it is released here alongside
+      the claim triple: an all-empty ``ReviewOverride`` sentinel, which
+      ``_apply_annotation_delta`` (reducer) folds to a cleared (``None``)
+      snapshot slot rather than persisting an empty override. Without this a
+      reader of ``status.json`` could see a withdrawn "approved" verdict on a
+      WP that is actually back in ``planned`` awaiting rework.
+    """
+    additions: dict[str, Any] = {}
+    reset = _mt_rollback_subtasks_reset(st, ports)
+    if reset:
+        additions["subtasks"] = reset
+    if "agent" not in existing_fields:
+        additions["agent"] = ""
+    if "shell_pid" not in existing_fields:
+        additions["shell_pid"] = 0
+    additions["review"] = ReviewOverride(at="", actor="", wp_id="", reason="")
+    return additions
+
+
 def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
     """Emit the move-task runtime-state deltas as off-axis ``InnerStateChanged``.
 
@@ -2137,39 +2189,7 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
     if st.tracker_ref_values:
         fields["tracker_refs"] = list(st.tracker_ref_values)
     if st.target_lane == Lane.PLANNED:
-        reset = _mt_rollback_subtasks_reset(st, ports)
-        if reset:
-            fields["subtasks"] = reset
-        # #2512: a rollback to ``planned`` RELEASES the prior claim so the
-        # rolled-back WP exposes no live claim marker. Field repro: an agent
-        # process was killed (macOS idle-sleep) leaving ``agent``/``shell_pid``
-        # behind; the rollback reset the lane but not the claim, so the next
-        # resume failed ``LANE_ALLOCATION_FAILED``. With the god-write cut the
-        # claim now lives in the reduced snapshot (the claim transition's
-        # ``policy_metadata``), and it was released in NEITHER surface — so the
-        # release is emitted here off-axis as an ``InnerStateChanged`` clearing
-        # both slots (empty ``agent`` / zero ``shell_pid`` fold to a falsy,
-        # released snapshot slot). Event-only: the WP file stays byte-stable
-        # (AC-5) -- runtime state lives solely in the event log. Skipped when
-        # the SAME move re-plants a fresh claim
-        # (an explicit ``--agent``/``--shell-pid`` override already set the
-        # field above).
-        if "agent" not in fields:
-            fields["agent"] = ""
-        if "shell_pid" not in fields:
-            fields["shell_pid"] = 0
-        # The ``review`` runtime slot records durable evidence that a REJECTED
-        # review was superseded by an approval override
-        # (``_persist_review_artifact_override``). A rollback to ``planned`` --
-        # whether via a fresh rejection (the common case) or any other route
-        # back to ``planned`` -- means that prior "superseded by approval" note
-        # no longer describes the WP's state, so it is released here alongside
-        # the claim triple: an all-empty ``ReviewOverride`` sentinel, which
-        # ``_apply_annotation_delta`` (reducer) folds to a cleared (``None``)
-        # snapshot slot rather than persisting an empty override. Without this
-        # a reader of ``status.json`` could see a withdrawn "approved" verdict
-        # on a WP that is actually back in ``planned`` awaiting rework.
-        fields["review"] = ReviewOverride(at="", actor="", wp_id="", reason="")
+        fields.update(_build_claim_review_override(st, ports, fields))
 
     delta = WPInnerStateDelta(**fields)
     if delta.is_empty():

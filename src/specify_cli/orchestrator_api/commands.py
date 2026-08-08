@@ -47,7 +47,7 @@ from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status import wp_state_for
 from specify_cli.status import Lane
 from specify_cli.status import ReviewResult
-from specify_cli.status import verdict_vocab
+from specify_cli.status import event_verdicts
 
 from .envelope import (
     CONTRACT_VERSION,
@@ -1313,7 +1313,7 @@ def _parse_review_result_json(raw: str) -> ReviewResult:
         raise ValueError(
             "--review-result-json requires non-empty reviewer, verdict, and reference strings"
         )
-    if verdict not in verdict_vocab.event_verdicts():
+    if verdict not in event_verdicts():
         raise ValueError(
             "--review-result-json verdict must be 'approved' or 'changes_requested'"
         )
@@ -1555,9 +1555,9 @@ def append_history(
         _fail_wp_not_found(cmd, wp, mission)
         return
 
-    from specify_cli.status import emit as status_emit
     from specify_cli.status import WPInnerStateDelta
     from specify_cli.status import StoreError
+    from specify_cli.status import emit_inner_state_changed
 
     timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     # Byte-identical to the historical rendered Activity Log line (FR-007
@@ -1566,7 +1566,7 @@ def append_history(
     entry_text = f"- [{timestamp}] {actor}: {note}"
 
     try:
-        status_emit.emit_inner_state_changed(
+        emit_inner_state_changed(
             mission_dir,
             wp,
             WPInnerStateDelta(note=entry_text),

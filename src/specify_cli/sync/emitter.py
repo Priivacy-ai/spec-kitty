@@ -53,7 +53,11 @@ from specify_cli.proof.events import (
     build_proof_payload,
     infer_proof_aggregate,
 )
-from specify_cli.status import get_all_lane_values, verdict_vocab
+from specify_cli.status import (
+    emission_artifact_verdicts,
+    event_verdicts,
+    get_all_lane_values,
+)
 from specify_cli.status_lanes import CANONICAL_LANES
 from spec_kitty_events import normalize_event_id as _normalize_event_id
 
@@ -362,9 +366,7 @@ _BASE_PROOF_VALIDATORS: dict[str, Any] = {
 #: two proof-event-only extra states (``commented``/``unknown``) this schema
 #: also accepts (outside the artifact<->event bridge's scope).
 _REVIEW_PROOF_VERDICTS: frozenset[str] = (
-    verdict_vocab.event_verdicts()
-    | verdict_vocab.emission_artifact_verdicts()
-    | {"commented", "unknown"}
+    event_verdicts() | emission_artifact_verdicts() | {"commented", "unknown"}
 )
 
 #: Per-event-type extra validators merged on top of :data:`_BASE_PROOF_VALIDATORS`.

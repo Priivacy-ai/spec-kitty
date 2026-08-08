@@ -63,7 +63,7 @@ def test_planned_fallback_returns_coord_lane_when_not_planned() -> None:
 
 
 def test_planned_fallback_reads_primary_and_forces_done() -> None:
-    with patch("specify_cli.status.lane_reader.get_wp_lane", return_value="approved"):
+    with patch("specify_cli.status.get_wp_lane", return_value="approved"):
         lane, force = db._resolve_lane_with_planned_fallback(
             coord_lane=Lane.PLANNED, primary_feature_dir=Path("/r"), wp_id="WP01"
         )
@@ -72,7 +72,7 @@ def test_planned_fallback_reads_primary_and_forces_done() -> None:
 
 
 def test_planned_fallback_unparseable_primary_keeps_planned() -> None:
-    with patch("specify_cli.status.lane_reader.get_wp_lane", return_value="uninitialized"):
+    with patch("specify_cli.status.get_wp_lane", return_value="uninitialized"):
         lane, force = db._resolve_lane_with_planned_fallback(
             coord_lane=Lane.PLANNED, primary_feature_dir=Path("/r"), wp_id="WP01"
         )
@@ -310,7 +310,7 @@ def test_planned_fallback_status_not_found_keeps_planned() -> None:
     from specify_cli.status import CanonicalStatusNotFoundError
 
     with patch(
-        "specify_cli.status.lane_reader.get_wp_lane",
+        "specify_cli.status.get_wp_lane",
         side_effect=CanonicalStatusNotFoundError("no log"),
     ):
         lane, force = db._resolve_lane_with_planned_fallback(

@@ -54,16 +54,54 @@ from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.models import ReviewResult, TransitionRequest
 from specify_cli.status.reducer import event_sourced_review_result, materialize
 
-# 2026-08-07 (landing fix, verdict-seam-write-unification #3245): this module
-# shipped with no module-level pytestmark
-# (test_pytest_marker_convention.py::test_every_test_file_declares_a_
-# pytestmark_marker). Every fixture here is tmp_path-based (no real git repo;
-# the one `subprocess.run` reference is a mocked patch target, not a real
-# invocation), matching the sibling tests/status/test_emit.py convention.
-# `stress` stays as the individual marker on the one genuinely
-# multi-process-heavy test below (see marker_baseline.txt) -- it is not a
-# CI-job-selecting marker on its own, so it composes fine with this module's
-# `fast`.
+# 2026-08-08 (WP06, #3256, mission verdict-seam-boundary-hardening-01KZG179):
+# WHY this module-level mark is STILL `fast`, not `stress` -- read before
+# "fixing" it back to what an earlier plan assumed. This module has SIX
+# tests, not one: the T013/T014/T015 classes below are genuinely fast,
+# hermetic, sub-second, pure-logic checks that correctly belong in the
+# `fast-tests-status` CI job. Only the standalone
+# `test_two_concurrent_distinct_verdicts_are_both_durable` (two real forked
+# OS processes, internal 30s waits each) does not: it inflates a job whose
+# whole purpose is a quick feedback loop (and several other jobs `need:` it,
+# so its wall-clock gates them too) with 30-90s of real subprocess spawn/join
+# overhead. A module-level mark is all-or-nothing -- pytest markers
+# accumulate, they cannot be "cancelled" for one test inside a module that
+# sets a blanket mark -- so flipping this line to `stress` would sweep the
+# other five tests out of `fast-tests-status` right alongside the one that
+# actually needs to move. `fast-tests-status` (see
+# `.github/workflows/ci-quality.yml`) already runs its own selector serially
+# (no `-n auto`), so the fix is not about worker-contention isolation the way
+# `timing-nfr-serial` is for wall-clock-sensitive assertions -- it is about
+# not blocking a "fast" job's SLA (and its dependents) on a test that is
+# structurally a multi-process stress scenario, not a unit check.
+#
+# The actual fix lives at the CI-job boundary instead, mirroring the
+# established `and not timing` precedent
+# (`.github/workflows/ci-quality.yml`, arch-adversarial pole /
+# `fast-tests-charter`): `fast-tests-status`'s own selector gained an
+# `or stress` arm inside its negation
+# (`fast and not windows_ci and not (git_repo or integration or stress)`), so
+# the durability test -- which legitimately carries both `fast` (module-wide,
+# still accurate for 5/6 tests) and its own individual `@pytest.mark.stress`
+# -- is excluded from that job by the selector, not by stripping its `fast`
+# tag. It is picked up instead by the dedicated serial `-m stress` CI job
+# (`stress-tests-serial`) added alongside this change. `stress` remains the
+# individual marker on the one test that needs it (see marker_baseline.txt);
+# every fixture in this file stays tmp_path-based (no real git repo; the one
+# `subprocess.run` reference is a mocked patch target, not a real invocation)
+# -- only the CI-lane routing changed, not the hermetic fixture design.
+#
+# #3235 coordination pointer: #3235 is a SEPARATE, still-open P0
+# (concurrent review-cycle commit data-loss; its own red-first repro lives at
+# tests/integration/test_review_durability_matrix.py::
+# test_sc004_two_concurrent_processes_never_clobber_a_verdict_over_50_iterations).
+# It is in the same "two real concurrent OS processes racing a durability
+# write" test family as this module's test, but WP06 does NOT touch #3235's
+# repro or fix its bug -- this pointer exists so that if a FUTURE change
+# relocates or renames this file (e.g. to tests/stress/), the mover checks
+# whether #3235's issue text or any other doc references this file's old
+# path/name and updates it, rather than silently stranding the cross-
+# reference.
 pytestmark = [pytest.mark.fast]
 
 from tests.status.conftest import seed_wp_to_planned as _seed_planned

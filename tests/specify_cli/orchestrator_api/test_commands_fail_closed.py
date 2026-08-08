@@ -130,7 +130,12 @@ def test_append_history_surfaces_structured_error_code_on_emit_failure(
     with (
         patch.object(orch, "_get_main_repo_root", return_value=repo_root),
         patch(
-            "specify_cli.status.emit.emit_inner_state_changed",
+            # WP02 (verdict-seam-boundary-hardening-01KZG179, T006): the
+            # command now resolves this via ``from specify_cli.status import
+            # emit_inner_state_changed`` (the facade symbol), not the
+            # ``status.emit`` submodule object, so the mock target moves to
+            # the facade's own already-bound attribute.
+            "specify_cli.status.emit_inner_state_changed",
             side_effect=ValueError("boom"),
         ),
     ):

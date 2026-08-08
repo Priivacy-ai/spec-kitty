@@ -39,6 +39,7 @@ from .reducer import (
     materialize_snapshot,
     materialize_to_json,
     reduce,
+    review_result_from_state,
     wp_snapshot_state,
 )
 from .store import (
@@ -50,6 +51,12 @@ from .store import (
     append_annotations_atomic_verified,
     append_event,
     append_event_verified,
+    # WP02 (verdict-seam-boundary-hardening-01KZG179, FR-004/T006): promoted
+    # so coordination/status_service.py's mixed transition/annotation atomic
+    # write resolves WITHOUT a direct ``specify_cli.status.store`` import
+    # (test_status_module_boundary.py SR-2), matching the sibling
+    # append_*_atomic_verified exports above.
+    append_event_stream_atomic_verified,
     append_events_atomic_verified,
     append_primary_checkout_event_verified,
     append_primary_checkout_events_atomic_verified,
@@ -80,6 +87,22 @@ from .verdict_vocab import (
     # (test_status_module_boundary.py SR-2).
     is_changes_requested,
     to_artifact_verdict,
+    # WP01 (verdict-seam-boundary-hardening-01KZG179, FR-001/FR-006): promoted
+    # the REST of the verdict_vocab public surface onto the facade -- WP02's
+    # consumer migration needs EventVerdict (proof/events.py) and the three
+    # constants (tasks_move_task.py, verdict_provenance_backfill.py) resolvable
+    # WITHOUT a direct ``specify_cli.status.verdict_vocab`` import, same as the
+    # two symbols promoted above.
+    APPROVED,
+    CHANGES_REQUESTED,
+    EventVerdict,
+    REJECTED,
+    artifact_verdicts,
+    emission_artifact_verdicts,
+    emission_event_verdict,
+    event_verdicts,
+    is_approved,
+    to_event_verdict,
 )
 from .transition_context import (
     TransitionContext,
@@ -291,6 +314,13 @@ __all__ = [
     # without it the reader collapse cannot happen through the facade at all.
     "ReviewResultLookup",
     "event_sourced_review_result",
+    # WP01 (verdict-seam-boundary-hardening-01KZG179, FR-006): promoted beside
+    # its sibling ``event_sourced_review_result`` above -- the
+    # snapshot-in-hand variant of the same read seam
+    # (contracts/verdict-authority-read.md) so
+    # ``post_merge/review_artifact_consistency.py`` can resolve it through
+    # the facade instead of re-implementing the decode locally (C-002).
+    "review_result_from_state",
     "AgentAssignment",
     "actor_identity_str",
     "ALLOWED_TRANSITIONS",
@@ -426,6 +456,9 @@ __all__ = [
     "summarize",
     "uninitialized_status_error",
     "append_event_verified",
+    # WP02 (verdict-seam-boundary-hardening-01KZG179, FR-004/T006): see the
+    # matching provenance comment on the ``.store`` import block above.
+    "append_event_stream_atomic_verified",
     "append_events_atomic_verified",
     "append_primary_checkout_event_verified",
     "append_primary_checkout_events_atomic_verified",
@@ -449,6 +482,20 @@ __all__ = [
     "reduce",
     "resolve_lane_alias",
     "resolve_snapshot_review",
+    # WP01 (verdict-seam-boundary-hardening-01KZG179, FR-001/FR-006): promoted
+    # the REST of the verdict_vocab public surface onto the facade -- mirrors
+    # the comment on the ``is_changes_requested``/``to_artifact_verdict``
+    # import above (test_status_module_boundary.py SR-2).
+    "APPROVED",
+    "CHANGES_REQUESTED",
+    "EventVerdict",
+    "REJECTED",
+    "artifact_verdicts",
+    "emission_artifact_verdicts",
+    "emission_event_verdict",
+    "event_verdicts",
+    "is_approved",
+    "to_event_verdict",
     "is_changes_requested",
     "to_artifact_verdict",
     "validate_derived_views",

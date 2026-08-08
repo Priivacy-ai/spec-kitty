@@ -220,14 +220,72 @@ def scan_for_bypass_imports(
             node_lineno = getattr(node, "lineno", None)
             if node_lineno in type_checking_linenos:
                 continue
-            if isinstance(node, ast.ImportFrom) and node.module:
-                if _is_bypass_import(node.module):
-                    violations.append(f"{py_file}:{node_lineno}: {node.module}")
-            elif isinstance(node, ast.Import):
-                for alias in node.names:
-                    if _is_bypass_import(alias.name):
-                        violations.append(f"{py_file}:{node_lineno}: {alias.name}")
+            violations.extend(_bypass_violations_for_node(node, py_file, node_lineno))
     return violations
+
+
+def _bypass_violations_for_node(
+    node: ast.Import | ast.ImportFrom, py_file: pathlib.Path, node_lineno: int | None
+) -> list[str]:
+    """Return the (zero or more) bypass-violation strings a single import
+    node produces. Extracted (WP02, T009/NFR-004) so the caller's per-file /
+    per-node walk stays under the complexity ceiling once the alias-name
+    widening below is added alongside the pre-existing ``node.module`` check.
+    """
+    if isinstance(node, ast.ImportFrom) and node.module:
+        return _bypass_violations_for_import_from(node, py_file, node_lineno)
+    if isinstance(node, ast.Import):
+        return [
+            f"{py_file}:{node_lineno}: {alias.name}"
+            for alias in node.names
+            if _is_bypass_import(alias.name)
+        ]
+    return []
+
+
+def _bypass_violations_for_import_from(
+    node: ast.ImportFrom, py_file: pathlib.Path, node_lineno: int | None
+) -> list[str]:
+    """The ``ImportFrom``-specific half of :func:`_bypass_violations_for_node`.
+
+    Two independent bypass shapes:
+    1. ``from specify_cli.status.<submodule> import X`` -- the dotted-path
+       form; ``node.module`` itself names the submodule.
+    2. ``from specify_cli.status import <submodule>`` (WP02, T009) -- the
+       SAME bypass, handing the caller a raw submodule object instead of a
+       curated facade symbol. ``node.module`` can't see this shape (its
+       module IS the facade, ``"specify_cli.status"``); only the per-alias
+       name distinguishes a submodule handle from a legitimate facade symbol.
+    """
+    assert node.module is not None
+    if _is_bypass_import(node.module):
+        return [f"{py_file}:{node_lineno}: {node.module}"]
+    if node.module != "specify_cli.status":
+        return []
+    return [
+        f"{py_file}:{node_lineno}: {node.module}.{alias.name}"
+        for alias in node.names
+        if _is_status_submodule_name(alias.name)
+    ]
+
+
+def _is_status_submodule_name(name: str) -> bool:
+    """Return True if ``name`` names an actual ``specify_cli.status`` submodule.
+
+    ``name`` is the bare alias from ``from specify_cli.status import <name>``.
+    Resolved against the real submodule files on disk (``status/<name>.py``)
+    rather than any string-shape heuristic on ``name`` itself: a bare
+    ``name.startswith("specify_cli.status")`` (or an equivalent check against
+    a reconstructed ``f"{node.module}.{alias.name}"``) would be vacuously
+    true for every facade-symbol import too -- ``node.module`` is ALWAYS
+    ``"specify_cli.status"`` at this call site -- and would flag 100+
+    legitimate ``from specify_cli.status import <symbol>`` sites (C-003).
+    ``__init__`` is excluded explicitly: it is the package's own module file,
+    never a submodule alias a caller would import by that name.
+    """
+    if name == "__init__":
+        return False
+    return (_SRC / "specify_cli" / "status" / f"{name}.py").is_file()
 
 
 def _collect_type_checking_linenos(tree: ast.AST) -> set[int]:
@@ -357,6 +415,64 @@ def test_ast_scan_catches_injected_violation(tmp_path: pathlib.Path) -> None:
     )
     assert "status.emit" in violations[0], (
         f"Expected 'status.emit' in violation string, got: {violations[0]}"
+    )
+
+
+def test_ast_scan_catches_submodule_object_import(tmp_path: pathlib.Path) -> None:
+    """Two-way teeth (WP02, T009, NFR-002), flagged half.
+
+    A fabricated ``from specify_cli.status import verdict_vocab`` -- the
+    exact bypass shape WP02 migrated away from at all 8 verdict_vocab call
+    sites -- must be caught. Proves the alias-name widening (not just the
+    pre-existing ``node.module`` dotted-path check) has teeth on its own.
+    """
+    bad_file = tmp_path / "bad_submodule_alias_import.py"
+    bad_file.write_text(
+        textwrap.dedent(
+            """
+            # Synthetic SR-2 violator -- submodule-object-via-facade shape.
+            from specify_cli.status import verdict_vocab  # noqa: F401
+            """
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    violations = scan_for_bypass_imports([bad_file], exempt_files=set())
+    assert len(violations) == 1, (
+        f"Expected exactly 1 violation, got {len(violations)}: {violations}"
+    )
+    assert "specify_cli.status.verdict_vocab" in violations[0], (
+        f"Expected 'specify_cli.status.verdict_vocab' in violation string, "
+        f"got: {violations[0]}"
+    )
+
+
+def test_ast_scan_does_not_flag_facade_symbol_import(tmp_path: pathlib.Path) -> None:
+    """Two-way teeth (WP02, T009, NFR-002), unflagged half.
+
+    A fabricated ``from specify_cli.status import is_approved`` -- a curated
+    facade **symbol**, not a submodule object -- must NOT be flagged. Guards
+    against the C-003 trap: a bare ``startswith("specify_cli.status")`` shape
+    check on the imported name (or on a reconstructed ``module.alias`` string)
+    would be vacuously true for this import too, since ``node.module`` is
+    always ``"specify_cli.status"`` at this call site -- that shape would
+    flag every one of the 100+ legitimate facade-symbol imports across the
+    repo, not just the ~12 real submodule-object bypasses.
+    """
+    good_file = tmp_path / "good_facade_symbol_import.py"
+    good_file.write_text(
+        textwrap.dedent(
+            """
+            # A legitimate facade-symbol import -- must never be flagged.
+            from specify_cli.status import is_approved  # noqa: F401
+            """
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    violations = scan_for_bypass_imports([good_file], exempt_files=set())
+    assert not violations, (
+        f"Facade-symbol import must not be flagged as a bypass, got: {violations}"
     )
 
 
