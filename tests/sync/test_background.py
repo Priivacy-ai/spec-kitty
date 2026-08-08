@@ -137,6 +137,10 @@ class TestStartStop:
             def cancel(self):
                 intervals.append(-1.0)
 
+            def join(self, timeout=None):
+                del timeout
+                return None
+
         monkeypatch.setattr("specify_cli.sync.background.threading.Timer", FakeTimer)
 
         service.start()
@@ -166,6 +170,10 @@ class TestStartStop:
 
             def cancel(self):
                 intervals.append(-1.0)
+
+            def join(self, timeout=None):
+                del timeout
+                return None
 
         monkeypatch.setattr("specify_cli.sync.background.threading.Timer", FakeTimer)
 

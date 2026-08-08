@@ -48,6 +48,10 @@ logger = logging.getLogger(__name__)
 # Maximum seconds the stop() best-effort sync may run before being
 # abandoned.  Events stay in the durable queue for the daemon to drain.
 _STOP_SYNC_TIMEOUT_SECONDS = 5
+# Maximum seconds stop() waits for the cancelled timer's daemon thread to
+# actually exit.  Bounded so shutdown can never hang; the thread is a
+# daemon and the process will not be blocked by it regardless.
+_TIMER_JOIN_TIMEOUT_SECONDS = 5.0
 _UNAUTHENTICATED_SYNC_ERROR = (
     "Not authenticated: no valid access token. Run `spec-kitty auth login`."
 )
@@ -417,14 +421,24 @@ class BackgroundSyncService:
         indefinitely (see #598).
         """
         acquired = self._lock.acquire(timeout=5.0)
+        timer_to_join: threading.Timer | None = None
         try:
             self._running = False
             if self._timer is not None:
-                self._timer.cancel()
+                timer_to_join = self._timer
+                timer_to_join.cancel()
                 self._timer = None
         finally:
             if acquired:
                 self._lock.release()
+
+        # Join OUTSIDE the lock: the timer callback (_on_timer ->
+        # _perform_sync) acquires self._lock, so joining while holding it
+        # risks deadlock. self._running is already False by this point, so
+        # _on_timer/_schedule_next_sync will not reschedule and the thread
+        # exits promptly once any in-flight callback finishes.
+        if timer_to_join is not None:
+            timer_to_join.join(timeout=_TIMER_JOIN_TIMEOUT_SECONDS)
 
         if not acquired:
             # Timer thread is stuck holding the lock; skip the final sync
