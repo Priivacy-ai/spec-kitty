@@ -287,7 +287,8 @@ def append_event_log(
     event: StatusEvent | InnerStateChanged,
 ) -> None:
     """Append one event using an explicit mutating contract."""
-    from specify_cli.status import store as _store
+    from specify_cli.status import append_annotations_atomic_verified as _append_annotations_atomic_verified
+    from specify_cli.status import append_event_verified as _append_event_verified
 
     if not isinstance(contract, EventLogWriteContract):
         raise StatusContractError("append_event_log requires EventLogWriteContract")
@@ -295,9 +296,9 @@ def append_event_log(
     from specify_cli.status import InnerStateChanged  # noqa: PLC0415
 
     if isinstance(event, InnerStateChanged):
-        _store.append_annotations_atomic_verified(contract.feature_dir, [event])
+        _append_annotations_atomic_verified(contract.feature_dir, [event])
     else:
-        _store.append_event_verified(contract.feature_dir, event)
+        _append_event_verified(contract.feature_dir, event)
 
 
 def append_event_stream_log(
@@ -305,12 +306,12 @@ def append_event_stream_log(
     events: list[StatusEvent | InnerStateChanged],
 ) -> None:
     """Atomically append one mixed transition/annotation durability unit."""
-    from specify_cli.status import store as _store
+    from specify_cli.status import append_event_stream_atomic_verified as _append_event_stream_atomic_verified
 
     if not isinstance(contract, EventLogWriteContract):
         raise StatusContractError("append_event_stream_log requires EventLogWriteContract")
     _validate_write_contract(contract)
-    _store.append_event_stream_atomic_verified(contract.feature_dir, events)
+    _append_event_stream_atomic_verified(contract.feature_dir, events)
 
 
 def _validate_write_contract(contract: EventLogWriteContract) -> None:

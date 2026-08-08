@@ -526,6 +526,13 @@ def review_result_from_state(state: Mapping[str, Any]) -> ReviewResultLookup:
     pay a second reduce for the same fact. Use
     :func:`event_sourced_review_result` when no snapshot is in hand yet.
 
+    **WP02 (verdict-seam-boundary-hardening-01KZG179, FR-004):** this function
+    is now re-exported on the ``specify_cli.status`` facade, so
+    ``post_merge/review_artifact_consistency.py``'s
+    ``_event_sourced_gate_verdict`` calls it DIRECTLY rather than re-inlining
+    an equivalent ``ReviewResult.from_dict`` decode — the former "not on the
+    facade's ``__all__``" justification for that duplication no longer holds.
+
     Fails closed on a malformed slot value (present but not a mapping, or
     missing required ``ReviewResult`` fields): treated as ``slot_present=True,
     result=None`` — "no verdict", never a crash and never a fabricated

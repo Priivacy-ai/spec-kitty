@@ -46,9 +46,8 @@ def _safe_emit_error_logged(message: str) -> None:
         from specify_cli.sync.events import emit_error_logged
 
         emit_error_logged(error_type="runtime", error_message=message)
-    except Exception:
-        # Non-blocking: never fail the command on emission errors
-        pass
+    except Exception as exc:  # noqa: BLE001 — non-blocking: never fail the command on emission errors
+        logger.debug("emit_error_logged failed for %r: %s", message, exc)
 
 
 def _stranded_verdict_provenance_note(feature_dir: Path) -> str | None:
@@ -551,6 +550,25 @@ def _summary_payload(summary: AcceptanceSummary) -> dict[str, object]:
     return payload
 
 
+def _with_advisories(payload: dict[str, object], notes: list[str | None]) -> dict[str, object]:
+    """Inject a top-level ``advisories`` array into a non-error JSON payload.
+
+    #3255: ``accept --json`` dropped the SC-008 stranded-verdict backfill
+    advisory (``_stranded_verdict_provenance_note``) because it was only
+    ever rendered inside the ``if not json_output`` console branch, so JSON
+    automation never saw the "run ``spec-kitty upgrade``" hint. This is a
+    CLI-layer-only concern (C-005): it must never be threaded into
+    ``AcceptanceSummary``/``AcceptanceResult`` — the domain model stays
+    unaware of migration-provenance advisories. ``notes`` is filtered for
+    ``None`` entries so callers can pass the raw (possibly-``None``) result
+    of an advisory lookup without a conditional at every call site; the
+    array is present (``[]``) even when nothing is stranded, so JSON
+    consumers can rely on the key always existing.
+    """
+    payload["advisories"] = [note for note in notes if note is not None]
+    return payload
+
+
 def _report_encoding_repair(repo_root: Path, repaired: list[Path]) -> None:
     """Surface which acceptance artifacts the encoding repair rewrote.
 
@@ -670,9 +688,14 @@ def accept(
     resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)
     mission_slug = resolved.mission_slug
 
+    # T020 (#3255): computed unconditionally so the SC-008 advisory reaches
+    # BOTH the human console (non-JSON branch below) and every non-error
+    # `--json` payload via `_with_advisories` — it was previously gated
+    # behind `if not json_output`, so JSON automation never saw it.
+    provenance_note = _stranded_verdict_provenance_note(resolved.feature_dir)
+
     if not json_output:
         tracker.complete("detect", mission_slug)
-        provenance_note = _stranded_verdict_provenance_note(resolved.feature_dir)
         if provenance_note is not None:
             console.print(f"[yellow]⚠ {provenance_note}[/yellow]")
 
@@ -748,7 +771,7 @@ def accept(
         if json_output:
             payload = _summary_payload(summary)
             payload["diagnose"] = True
-            print(json.dumps(payload, indent=2))
+            print(json.dumps(_with_advisories(payload, [provenance_note]), indent=2))
         else:
             tracker.start("guide")
             tracker.complete("guide", "diagnostics ready")
@@ -760,7 +783,7 @@ def accept(
         if json_output:
             print(
                 json.dumps(
-                    _summary_payload(summary),
+                    _with_advisories(_summary_payload(summary), [provenance_note]),
                     indent=2,
                 )
             )
@@ -770,7 +793,7 @@ def accept(
 
     if not summary.ok:
         if json_output:
-            print(json.dumps(summary.to_dict(), indent=2))
+            print(json.dumps(_with_advisories(summary.to_dict(), [provenance_note]), indent=2))
         else:
             _print_acceptance_summary(summary)
         if not allow_fail:
@@ -876,7 +899,7 @@ def accept(
     assert result is not None  # guaranteed: _accept_exc is None means perform_acceptance succeeded
 
     if json_output:
-        print(json.dumps(result.to_dict(), indent=2))
+        print(json.dumps(_with_advisories(result.to_dict(), [provenance_note]), indent=2))
         return
 
     tracker.start("guide")

@@ -1,20 +1,200 @@
 {
-  "event_count": 0,
-  "last_event_id": null,
-  "materialized_at": "",
-  "mission_number": "",
-  "mission_slug": "",
+  "event_count": 42,
+  "last_event_id": "01KZGQK3EZJWFB9YN7NMSSXHQZ",
+  "materialized_at": "2026-08-08T13:04:27.615624+00:00",
+  "mission_number": "192",
+  "mission_slug": "verdict-seam-boundary-hardening-01KZG179",
   "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 6,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
-  "work_packages": {}
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZGQJY9DSJC2BDTPBRYYXTA5",
+      "last_transition_at": "2026-08-08T13:04:22.317715+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Facade exports + reducer test rename; gates green (ruff/mypy/pytest all clean on touched files, no pre-existing failures observed)",
+        "Review passed: full verdict bridge promoted onto status facade (13 symbols incl. review_result_from_state, importable + in __all__ verified at runtime); FR-006 pure rename (word-diff: only 2 def names changed); scope confined to 3 owned files, reducer.py untouched; ruff/mypy clean, 52 tests pass."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: full verdict bridge promoted onto status facade (13 symbols incl. review_result_from_state, importable + in __all__ verified at runtime); FR-006 pure rename (word-diff: only 2 def names changed); scope confined to 3 owned files, reducer.py untouched; ruff/mypy clean, 52 tests pass.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3789036,
+      "shell_pid_created_at": "1786187617.57",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZGQK3EZJWFB9YN7NMSSXHQZ",
+      "last_transition_at": "2026-08-08T13:04:27.615624+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "12-site migration + dedup + submodule-name-targeted guard widen; teeth two-way; gates green"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review PASSED (reviewer-renata). Core: 12-site migration complete (grep shows only 2 documented residuals: status/aggregate.py boundary-owner + coordination/status_transition.py C-004); retrospective/generator.py import stayed function-scoped. T008 dedup delegates to review_result_from_state with exact 5-case parity (T010 tests non-vacuous, call production directly); false docstring deleted, reducer docstring reconciled. T009 guard widened via real submodule-file check (_is_status_submodule_name), two-way teeth load-bearing, real-tree scan 0 violations. T007 _build_claim_review_override extracted (cc<=10), focused unit tests present. Gates: ruff 0; mypy 4 no-any-return all PRE-EXISTING and outside WP02 hunks; pytest 1296 passed. OUT-OF-MAP validated: (1) status/__init__.py additive-only append_event_stream_atomic_verified (symbol exists store.py:469, no WP01 export changed) -- SHARED with lane-a WP01, merge overlap expected/union-resolvable; (2) 4 collateral test mock-repointings to facade attrs, not masking regressions; (3) compat golden 160->161 = exactly the new native def, plus tasks.py family re-export; (4) done_bookkeeping:335 verdict=APPROVED same pattern as :121, APPROVED=='approved' behavior-identical.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3987843,
+      "shell_pid_created_at": "1786191105.21",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZGQJZCTRNCTYGWGZMAZ07A9",
+      "last_transition_at": "2026-08-08T13:04:23.450689+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Census fully hardened: fn-level exclusion + helper-construction classifier + two-way teeth",
+        "Review passed: #3236 fn-level exclusion narrows verdict_provenance_backfill.py to _backfill_event_for_wp only; _legacy_frontmatter_verdict + one-hop reader/resolver chain surface as fixture rows; all 9 module fns classify sensibly (verified via green fixture parity). #3217 helper-construction classifier surfaces _review_from_frontmatter, keyed tightly on review_artifact_override marker (no over-match of --review-result-json ingress). Two-way NFR-004 teeth PROVEN load-bearing by neutering: positive teeth fails when T013 branch removed; T011 exclusion teeth + fixture parity fail when exclusion removed (backfill_verdict_provenance writer signal confirmed to come only via one-hop closure). T014 3 wholesale tests reshaped to fn-level + fixture reconciled. Scope confined to 2 owned files; census NOT merged with test_2093. 35/35 pass, ruff+mypy clean, zero new suppressions. #3236/#3217 in-mission."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: #3236 fn-level exclusion narrows verdict_provenance_backfill.py to _backfill_event_for_wp only; _legacy_frontmatter_verdict + one-hop reader/resolver chain surface as fixture rows; all 9 module fns classify sensibly (verified via green fixture parity). #3217 helper-construction classifier surfaces _review_from_frontmatter, keyed tightly on review_artifact_override marker (no over-match of --review-result-json ingress). Two-way NFR-004 teeth PROVEN load-bearing by neutering: positive teeth fails when T013 branch removed; T011 exclusion teeth + fixture parity fail when exclusion removed (backfill_verdict_provenance writer signal confirmed to come only via one-hop closure). T014 3 wholesale tests reshaped to fn-level + fixture reconciled. Scope confined to 2 owned files; census NOT merged with test_2093. 35/35 pass, ruff+mypy clean, zero new suppressions. #3236/#3217 in-mission.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3865335,
+      "shell_pid_created_at": "1786188981.56",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZGQK0D3F45174VPVR6RHWWV",
+      "last_transition_at": "2026-08-08T13:04:24.483671+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Red-first arbiter crash fix; latest_cycle_number filename-only; .latest/from_file untouched",
+        "Review passed: red-first proven (pre-fix .latest() raises 'no YAML frontmatter' on conflict-marked artifact; post-fix latest_cycle_number returns cleanly, override durably recorded via materialize). Fix filename-only, reuses _cycle_number_or_zero; .latest/from_file parse-behavior preserved (only campsite-mandated glob-literal->constant swap, from_file byte-unchanged). S1192 hoist done, deliberately-separate helpers kept apart. workflow_executor:1134 twin flagged not changed. Census +0 (census 521 passed). Scope = 4 owned files. ruff/mypy clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: red-first proven (pre-fix .latest() raises 'no YAML frontmatter' on conflict-marked artifact; post-fix latest_cycle_number returns cleanly, override durably recorded via materialize). Fix filename-only, reuses _cycle_number_or_zero; .latest/from_file parse-behavior preserved (only campsite-mandated glob-literal->constant swap, from_file byte-unchanged). S1192 hoist done, deliberately-separate helpers kept apart. workflow_executor:1134 twin flagged not changed. Census +0 (census 521 passed). Scope = 4 owned files. ruff/mypy clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3852547,
+      "shell_pid_created_at": "1786188782.4",
+      "subtasks": {
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZGQK1DEBWR4FAH589ZWVRA2",
+      "last_transition_at": "2026-08-08T13:04:25.518690+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "advisories[] at 4 non-error emit sites; S110 campsite; polarity tests. Work committed 70f624bd7; targeted+24 regression tests green. Pre-review gate skipped (300s infra timeout, not a real failure) via SPEC_KITTY_SYNC_DISABLE — reviewer runs full gates.",
+        "Review passed: provenance_note lifted out of if-not-json (human console.print stays in non-JSON branch); _with_advisories wraps exactly the 4 non-error emit sites (774 diagnose/785 checklist/796 not-ok/902 success), all 8 error json.dumps sites untouched; C-005 respected (acceptance/__init__.py domain model untouched); T021 S110 fixed (logger.debug + noqa BLE001 rationale); T022 tests drive real accept(json_output=True) — stranded carries SC-008 advisory, converged yields []. Independent gates GREEN: ruff 0, mypy 0, pytest 6/6 WP + 30/30 adjacent accept sweep."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: provenance_note lifted out of if-not-json (human console.print stays in non-JSON branch); _with_advisories wraps exactly the 4 non-error emit sites (774 diagnose/785 checklist/796 not-ok/902 success), all 8 error json.dumps sites untouched; C-005 respected (acceptance/__init__.py domain model untouched); T021 S110 fixed (logger.debug + noqa BLE001 rationale); T022 tests drive real accept(json_output=True) — stranded carries SC-008 advisory, converged yields []. Independent gates GREEN: ruff 0, mypy 0, pytest 6/6 WP + 30/30 adjacent accept sweep.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3943124,
+      "shell_pid_created_at": "1786190308.85",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZGQK2DRSW8T0XC18M1J7BX7",
+      "last_transition_at": "2026-08-08T13:04:26.552525+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "stress lane job + marker right-size + pytest.ini fix; collect-only proofs attached; premise correction: file has 6 tests not 1, fix applied at CI-selector boundary instead of blanket module-mark flip to avoid sweeping 5 legit fast tests into the stress lane",
+        "Review passed. DEVIATION APPROVED: T024's literal instruction (flip module pytestmark fast->stress) rested on a wrong premise (it claimed the durability test was the SOLE test). File actually has 6 tests: 5 hermetic sub-second tests (T013/T014/T015) that correctly belong in fast-tests-status + 1 heavy @stress test (2 forked processes). Blanket-flipping would have swept the 5 fast tests out of the fast pool (collateral). Implementer instead excluded ONLY the heavy test via selector negation ('or stress', mirroring the existing 'and not timing' precedent), kept module mark fast, added dedicated stress-tests-serial job, and updated unit-contract-residual negation for marker-completeness. Correctly achieves #3256's goal without collateral. VERIFIED: (1) 6 tests, only test_two_concurrent_distinct_verdicts_are_both_durable carries @stress; (2) collect-only -m stress collects durability + tests/stress/test_concurrent_emits.py; fast selector over tests/status/ collects the OTHER 5 but NOT the stress one; (3) stress-tests-serial mirrors timing-nfr-serial (-n0, -m 'stress and not windows_ci', POSIX Linux, in quality-gate.needs); (4) pytest.ini:47 wording now accurate + #3256/#3235 pointers present; (5) arch suites green (test_marker_job_completeness/test_workflow_coherence/test_pytest_marker_convention: 30 passed); (6) scope = only 3 owned files; (7) YAML parses, 58 jobs; ruff clean. Anti-pattern checklist: no production code, no dead code, no frozen-surface breach, stayed in owned_files (did NOT re-home to tests/stress/)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed. DEVIATION APPROVED: T024's literal instruction (flip module pytestmark fast->stress) rested on a wrong premise (it claimed the durability test was the SOLE test). File actually has 6 tests: 5 hermetic sub-second tests (T013/T014/T015) that correctly belong in fast-tests-status + 1 heavy @stress test (2 forked processes). Blanket-flipping would have swept the 5 fast tests out of the fast pool (collateral). Implementer instead excluded ONLY the heavy test via selector negation ('or stress', mirroring the existing 'and not timing' precedent), kept module mark fast, added dedicated stress-tests-serial job, and updated unit-contract-residual negation for marker-completeness. Correctly achieves #3256's goal without collateral. VERIFIED: (1) 6 tests, only test_two_concurrent_distinct_verdicts_are_both_durable carries @stress; (2) collect-only -m stress collects durability + tests/stress/test_concurrent_emits.py; fast selector over tests/status/ collects the OTHER 5 but NOT the stress one; (3) stress-tests-serial mirrors timing-nfr-serial (-n0, -m 'stress and not windows_ci', POSIX Linux, in quality-gate.needs); (4) pytest.ini:47 wording now accurate + #3256/#3235 pointers present; (5) arch suites green (test_marker_job_completeness/test_workflow_coherence/test_pytest_marker_convention: 30 passed); (6) scope = only 3 owned files; (7) YAML parses, 58 jobs; ruff clean. Anti-pattern checklist: no production code, no dead code, no frozen-surface breach, stayed in owned_files (did NOT re-home to tests/stress/).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3967487,
+      "shell_pid_created_at": "1786190753.85",
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      }
+    }
+  }
 }

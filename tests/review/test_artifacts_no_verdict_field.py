@@ -200,3 +200,32 @@ def test_validate_review_artifact_still_refuses_missing_body() -> None:
     )
     with pytest.raises(ReviewCycleError, match="body"):
         validate_review_artifact(artifact)
+
+
+def test_latest_cycle_number_ignores_conflict_marked_sibling_by_filename(
+    tmp_path: Path,
+) -> None:
+    """T018 (#3244): a directory with both a valid ``review-cycle-N.md`` and
+    a conflict-marked (no valid YAML frontmatter) sibling -- ``.latest()``
+    would raise parsing the damaged file's body. ``latest_cycle_number``
+    must not: it resolves the highest number purely from FILENAMES and
+    returns it without raising, even though the highest-numbered file on
+    disk is the damaged one.
+    """
+    _sample_artifact().write(tmp_path / "review-cycle-1.md")
+    (tmp_path / "review-cycle-2.md").write_text(
+        "<<<<<<< ours\nverdict: rejected\n=======\nverdict: approved\n>>>>>>> theirs\n",
+        encoding="utf-8",
+    )
+
+    assert ReviewCycleArtifact.latest_cycle_number(tmp_path) == 2
+
+    with pytest.raises(ValueError, match="YAML frontmatter"):
+        ReviewCycleArtifact.latest(tmp_path)
+
+
+def test_latest_cycle_number_returns_zero_when_no_artifacts_exist(
+    tmp_path: Path,
+) -> None:
+    """Non-vacuity: an empty directory returns 0, not a raise."""
+    assert ReviewCycleArtifact.latest_cycle_number(tmp_path) == 0

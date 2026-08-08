@@ -30,9 +30,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from specify_cli.status import Lane
+from specify_cli.status import Lane, ReviewOverride
 from specify_cli.cli.commands.agent.tasks_move_task import (
     _MoveTaskArgs,
+    _build_claim_review_override,
     _do_move_task,
     _mt_emit_runtime_state,
     _mt_rollback_subtasks_reset,
@@ -112,6 +113,70 @@ def test_rollback_subtask_reset_uses_authored_frontmatter_roster(tmp_path: Path)
         "T001": Lane.PLANNED,
         "T002": Lane.PLANNED,
     }
+
+
+# --------------------------------------------------------------------------- #
+# T007 (WP02, verdict-seam-boundary-hardening-01KZG179) — cc=14->11 campsite
+# extraction out of ``_mt_emit_runtime_state``. Exercises the helper's output
+# DIRECTLY (NFR-004): a skipped extract would otherwise pass silently once
+# the same-WP migration branch alone lands the parent at ~cc14, still under
+# the 15 ceiling.
+# --------------------------------------------------------------------------- #
+
+
+def test_build_claim_review_override_defaults_release_and_resets_subtasks(
+    tmp_path: Path,
+) -> None:
+    """No pre-existing claim fields: the release defaults (empty ``agent``,
+    zero ``shell_pid``) apply, the authored subtask roster resets to
+    ``planned``, and the ``review`` slot is an all-empty release sentinel."""
+    feature_dir = tmp_path / "kitty-specs" / "demo"
+    (feature_dir / "tasks").mkdir(parents=True)
+    (feature_dir / "tasks.md").write_text("# Tasks\n\nNo checkbox rows.\n", encoding="utf-8")
+    (feature_dir / "tasks" / "WP01-core.md").write_text(
+        "---\nwork_package_id: WP01\ndependencies: []\nsubtasks:\n  - T001\n---\n",
+        encoding="utf-8",
+    )
+    st = SimpleNamespace(main_repo_root=tmp_path, mission_slug="demo", task_id="WP01")
+    ports = SimpleNamespace(
+        fs=SimpleNamespace(planning_read_dir=lambda _handle, *, kind: feature_dir)
+    )
+
+    additions = _build_claim_review_override(st, ports, {})
+
+    assert additions["subtasks"] == {"T001": Lane.PLANNED}
+    assert additions["agent"] == ""
+    assert additions["shell_pid"] == 0
+    assert additions["review"] == ReviewOverride(at="", actor="", wp_id="", reason="")
+    assert additions["review"].complete is False
+
+
+def test_build_claim_review_override_skips_defaults_when_already_set(
+    tmp_path: Path,
+) -> None:
+    """#2512: an explicit ``--agent``/``--shell-pid`` override on the SAME move
+    already replanted a fresh claim in ``existing_fields`` — the helper must
+    not clobber it with the release defaults. The ``review`` release sentinel
+    still applies unconditionally (independent of the claim triple)."""
+    feature_dir = tmp_path / "kitty-specs" / "demo"
+    (feature_dir / "tasks").mkdir(parents=True)
+    (feature_dir / "tasks.md").write_text("# Tasks\n\nNo checkbox rows.\n", encoding="utf-8")
+    (feature_dir / "tasks" / "WP01-core.md").write_text(
+        "---\nwork_package_id: WP01\ndependencies: []\nsubtasks: []\n---\n",
+        encoding="utf-8",
+    )
+    st = SimpleNamespace(main_repo_root=tmp_path, mission_slug="demo", task_id="WP01")
+    ports = SimpleNamespace(
+        fs=SimpleNamespace(planning_read_dir=lambda _handle, *, kind: feature_dir)
+    )
+    existing_fields = {"agent": "fresh-claimer", "shell_pid": 4242}
+
+    additions = _build_claim_review_override(st, ports, existing_fields)
+
+    assert "agent" not in additions
+    assert "shell_pid" not in additions
+    assert "subtasks" not in additions, "an empty authored roster resets nothing"
+    assert additions["review"] == ReviewOverride(at="", actor="", wp_id="", reason="")
 
 
 def test_runtime_state_persistence_error_propagates(

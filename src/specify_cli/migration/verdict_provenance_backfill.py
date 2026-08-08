@@ -68,12 +68,15 @@ from specify_cli.migration.mission_state import deterministic_ulid
 from specify_cli.mission_metadata import load_meta
 from specify_cli.review.artifacts import ReviewCycleArtifact
 from specify_cli.status import (
+    APPROVED,
+    CHANGES_REQUESTED,
     Lane,
     ReviewResult,
     StatusEvent,
     append_events_atomic_verified,
+    emission_event_verdict,
     event_sourced_review_result,
-    verdict_vocab,
+    is_changes_requested,
 )
 
 #: Actor identity stamped on every backfilled event, matching the
@@ -97,8 +100,8 @@ BACKFILL_ACTOR = "migration:verdict_provenance_backfill"
 #: ``APPROVED`` (mirrors that same flow's ``target_lane in (APPROVED, DONE)``
 #: branch). Keyed on the bridge's own named constants, not raw literals.
 _TO_LANE_BY_BRIDGED_VERDICT: dict[str, Lane] = {
-    verdict_vocab.CHANGES_REQUESTED: Lane.IN_PROGRESS,
-    verdict_vocab.APPROVED: Lane.APPROVED,
+    CHANGES_REQUESTED: Lane.IN_PROGRESS,
+    APPROVED: Lane.APPROVED,
 }
 
 _WP_DIR_PREFIX_RE = re.compile(r"^(WP\d+)")
@@ -356,13 +359,13 @@ def _backfill_event_for_wp(
     :func:`terminal_review_artifact` via :func:`_legacy_frontmatter_verdict`
     -- ``ReviewCycleArtifact`` itself no longer carries this field.
     """
-    bridged_verdict = verdict_vocab.emission_event_verdict(legacy_verdict)
+    bridged_verdict = emission_event_verdict(legacy_verdict)
     reference = f"review-cycle://{feature_dir.name}/{path.parent.name}/{path.name}"
     review_result = ReviewResult(
         reviewer=artifact.reviewer_agent,
         verdict=bridged_verdict,
         reference=reference,
-        feedback_path=str(path) if verdict_vocab.is_changes_requested(bridged_verdict) else None,
+        feedback_path=str(path) if is_changes_requested(bridged_verdict) else None,
     )
     event_id = str(
         deterministic_ulid(

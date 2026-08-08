@@ -1373,12 +1373,23 @@ jobs:
       # registry tests need a loadfile audit first (see T022 guidance).
       # NEEDS CI CONFIRMATION: collection-count gate verified locally only.
       # See mission test-suite-acceleration.
+      #
+      # `or stress` added to the negation (2026-08-08, WP06/#3256, mission
+      # verdict-seam-boundary-hardening-01KZG179): mirrors the `and not
+      # timing` precedent used by the arch-adversarial pole / fast-tests-
+      # charter above. tests/status/test_emit_durability.py's module-level
+      # `fast` mark stays accurate for its 5 hermetic tests (a per-test
+      # override is not possible for a module-wide mark), but the module's
+      # sixth test (2 real forked OS processes, `@pytest.mark.stress`) does
+      # not belong in this job's SLA -- excluding it here, not by stripping
+      # its `fast` tag, is what moves it into the dedicated serial
+      # `stress-tests-serial` job instead.
       - name: "[ENFORCED] Run fast status tests with coverage"
         run: |
           uv run python -m pytest \
             -v \
             tests/status/ tests/specify_cli/status/ \
-            -m "fast and not windows_ci and not (git_repo or integration)" \
+            -m "fast and not windows_ci and not (git_repo or integration or stress)" \
             --timeout=240 --timeout-method=signal \
             --cov=src/specify_cli/status \
             --cov-report=term-missing \
@@ -2199,6 +2210,61 @@ jobs:
             -q --tb=short
 
   # ---------------------------------------------------------------------------
+  # stress-tests-serial: issue #3256 (mission
+  # verdict-seam-boundary-hardening-01KZG179).
+  # ``tests/status/test_emit_durability.py::test_two_concurrent_distinct_
+  # verdicts_are_both_durable`` carries ``@pytest.mark.stress`` (two real
+  # forked OS processes, internal 30s waits) but no CI job ever selected
+  # ``-m stress`` -- it rode the ``fast-tests-status`` job instead, because
+  # that job's own selector positively matched ``fast`` (the test's
+  # module-level mark, still accurate for its 5 hermetic siblings) without
+  # excluding ``stress``. Fixed alongside this job: ``fast-tests-status``'s
+  # selector gained an ``or stress`` arm in its negation (see that job,
+  # above) -- the module mark itself stays ``fast`` because a module-wide
+  # mark cannot be selectively withheld from one test without also stripping
+  # it from the other five. This job is the dedicated home for the whole
+  # ``stress`` family: the pre-existing ``tests/stress/test_concurrent_
+  # emits.py`` plus the durability test above. Mirrors ``timing-nfr-serial``
+  # immediately above: a dedicated serial (``-n0``) run so concurrent CI load
+  # can never corrupt a multi-process, timing-sensitive assertion. A generous
+  # ``--timeout`` guards against a hung fork leaving the job open
+  # indefinitely -- well above the durability test's own internal 30s waits
+  # and the concurrent-emits suite's nominal runtime.
+  #
+  # POSIX-only (fork): ``multiprocessing.get_context("fork")`` is POSIX-only,
+  # so this job only ever needs to run on a Linux runner. ``-m "stress and
+  # not windows_ci"`` mirrors the same narrowing ``timing-nfr-serial`` and the
+  # arch-adversarial pole apply, so a future ``windows_ci``-marked stress test
+  # (none exist today) is excluded here by construction rather than by
+  # runner-OS luck.
+  #
+  # ALWAYS-ON by construction: ``if: always()``, no dorny filter-group
+  # ``if:`` gate, no ``needs`` edge -- mirrors ``timing-nfr-serial`` above,
+  # not the OS-matrixed ``restart-daemon-nfr-timing`` job below. Emits no
+  # coverage XML (a pure NFR gate), so it is absent from any
+  # ``--cov``-consumer's ``needs:`` by construction -- it IS added to
+  # ``quality-gate.needs`` below so a red stress gate still blocks merge.
+  # ---------------------------------------------------------------------------
+  stress-tests-serial:
+    name: Stress NFR gate (serial, -m stress)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ (always()) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          python-version: '3.12'
+      - run: uv sync --frozen --all-extras
+      - name: "Run stress-marked NFR gates (serial, -m stress)"
+        run: |
+          uv run python -m pytest \
+            tests/ \
+            -m "stress and not windows_ci" \
+            -n0 \
+            --timeout=240 --timeout-method=signal \
+            -q --tb=short
+
+  # ---------------------------------------------------------------------------
   # fast-tests-charter: charter package, depends on doctrine.
   # ---------------------------------------------------------------------------
   fast-tests-charter:
@@ -2901,7 +2967,7 @@ jobs:
           # marker negation alone does not cover it; the ignore is the structural
           # guard (mirrors slow-tests). See tests/_real_port_suites.py.
           uv run python -m pytest tests/ \
-            -m "(unit or contract) and not (fast or integration or git_repo or slow or e2e or architectural or distribution or windows_ci or quarantine or regression or timing or docs_scoped or arch_shard_1 or arch_shard_2 or arch_shard_3 or next_shard_1 or next_shard_2 or next_shard_3)" \
+            -m "(unit or contract) and not (fast or integration or git_repo or slow or e2e or architectural or distribution or windows_ci or quarantine or regression or timing or stress or docs_scoped or arch_shard_1 or arch_shard_2 or arch_shard_3 or next_shard_1 or next_shard_2 or next_shard_3)" \
             -q --tb=short \
             --ignore=tests/sync/test_orphan_sweep.py \
             --ignore=tests/sync/test_daemon_orphan_classification.py \
@@ -4176,6 +4242,7 @@ jobs:
       - integration-tests-core-misc
       - arch-adversarial
       - timing-nfr-serial
+      - stress-tests-serial
       - e2e-cross-cutting
       - restart-daemon-nfr-timing
       - regression-tests
