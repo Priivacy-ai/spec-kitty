@@ -19,9 +19,20 @@ assertions below were updated to require that the real, accepted evidence
 is never silently discarded (the #2804 invariant), matching the new
 driver's behavior verified against this exact fixture.
 
-RED-FIRST P0 reproduction, intentionally FAILING until the product defect is
-fixed. Tracking issue: https://github.com/Priivacy-ai/spec-kitty/issues/2804.
-Do NOT xfail/skip/quarantine to green; fix the product.
+Permanent guard: this exact scenario is fixed and this module is stably
+green. Formerly a red-first ``@pytest.mark.regression`` reproduction under
+``tests/regression/``; relocated here (2026-08 landing fold: make
+``@pytest.mark.regression`` mean exactly one thing) once the defect stopped
+reproducing.
+
+Tracking issue: https://github.com/Priivacy-ai/spec-kitty/issues/2804 --
+**#2804 itself remained OPEN at relocation time.** Only the specific
+divergence this fixture reproduces (the mission->target squash merge's
+``-X theirs`` conflict resolution silently discarding an already-accepted
+``acceptance-matrix.json``/``issue-matrix.json`` fill) is confirmed fixed by
+this test going green; broader scope the issue may still cover is
+unverified by this module and must not be inferred as closed from this
+relocation alone.
 
 Root-cause mechanism (confirmed by replaying the real incident's git history --
 mission ``charter-deadcode-noop-campsite-01KXW0NY``, reflog entries
@@ -86,7 +97,7 @@ from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.merge.config import MergeStrategy
 
-pytestmark = [pytest.mark.regression, pytest.mark.git_repo, pytest.mark.non_sandbox]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
 MID8 = "01KXW0NY"
 MISSION_ID = f"01KXW0NY0000000000000000{MID8[-2:]}"
@@ -418,16 +429,16 @@ def _merge_external_mocks() -> ExitStack:
 
 
 def test_merge_resets_filled_gate_artifacts_to_placeholder(tmp_path: Path) -> None:
-    """RED-FIRST P0 reproduction of #2804.
+    """Permanent guard for #2804's squash-merge clobber, now fixed.
 
-    Intentionally FAILS until the product bug is fixed: ``spec-kitty merge``
-    must NEVER clobber an already-filled, already-accepted ``acceptance-
-    matrix.json`` / ``issue-matrix.json`` back to the empty scaffold placeholder.
-    Do NOT xfail/skip/quarantine to green -- fix the product (preserve the
-    filled coord gate artifacts through the mission->target squash merge,
-    e.g. by projecting them like ``_project_status_bookkeeping_to_target``
-    already does for ``status.events.jsonl``/``status.json``, or by excluding
-    them from the ``-X theirs`` add/add resolution). Tracking issue: #2804.
+    ``spec-kitty merge`` must NEVER clobber an already-filled,
+    already-accepted ``acceptance-matrix.json`` / ``issue-matrix.json`` back
+    to the empty scaffold placeholder. Un-marked from
+    ``@pytest.mark.regression`` and relocated out of ``tests/regression/``
+    in the 2026-08 landing fold once this scenario went stably green (the
+    filled coord gate artifacts survive the mission->target squash merge).
+    #2804 tracking issue: #2804 -- the issue itself was still OPEN at
+    relocation time; only this exact scenario is confirmed fixed here.
     """
     repo = tmp_path / "repo"
     _init_git_repo(repo)
