@@ -911,7 +911,11 @@ def _any_path_absent(paths: tuple[Path, ...]) -> bool:
 
 
 def _is_empty_changeset_error(exc: RuntimeError) -> bool:
-    return str(exc).startswith("safe_commit: git commit failed")
+    # Match ONLY the genuine empty-changeset signal safe_commit now raises with a
+    # distinct message. A generic "safe_commit: git commit failed …" (a rejecting
+    # pre-commit hook, a lock error, etc.) must fall through to a real error,
+    # never be silently reported as "unchanged".
+    return "safe_commit: nothing to commit" in str(exc)
 
 
 def _try_advance_ref(
