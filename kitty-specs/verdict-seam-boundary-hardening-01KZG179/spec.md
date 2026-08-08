@@ -3,11 +3,11 @@
 **Mission Branch**: `verdict-seam-boundary-hardening-01KZG179`
 **Created**: 2026-08-08
 **Status**: Draft
-**Input**: Follow-on hardening mission for the verdict-seam write-unification landed in PR #3245 (mission `verdict-seam-write-unification-01KZ9Q35`). Scope rationale: close the leftover work and clean up the adjacent functional/technical debt. Resolves #3254, #3236, #3244, #3255, #3256, and the two folded #3211 follow-ups #3217 and #3216 (operator-adjudicated during pre-planning). #3243 considered and left separate.
+**Input**: Follow-on hardening mission for the verdict-seam write-unification landed in PR #3245 (mission `verdict-seam-write-unification-01KZ9Q35`). Scope rationale: close the leftover work and clean up the adjacent functional/technical debt. Resolves #3254, #3236, #3244, #3255, #3256, and the folded #3211 follow-up #3217 (operator-adjudicated during pre-planning). #3216 was also folded during pre-planning, but the post-tasks adversarial squad verified its target reader (`_get_latest_review_cycle_verdict`) was **already retired by the prior mission's WP05** (#3245, FR-003) — so #3216 is closed as already-resolved and descoped from this mission. #3243 considered and left separate.
 
 ## Context *(informative)*
 
-PR #3245 unified the **verdict authority model** — the append-only event log is now the sole authority for review-result verdicts, and read semantics are settled. What it did **not** finish is the *write-side boundary* around that authority: the `specify_cli.status` façade only partially exports the verdict bridge, so consumers still reach into `status.<submodule>` objects; two architectural guards (the module-boundary guard and the verdict-seam census) pass vacuously against exactly those shapes; a fail-open change to the review-cycle merge driver (FR-014) left a latent arbiter-override crash reachable; the `accept --json` surface drops an operator advisory; and a heavyweight `@stress` durability test rides the fast test pool because no CI lane selects it.
+PR #3245 unified the **verdict authority model** — the append-only event log is now the sole authority for review-result verdicts, and read semantics are settled. What it did **not** finish is the *write-side boundary* around that authority: the `specify_cli.status` façade only partially exports the verdict bridge, so consumers still reach into `status.<submodule>` objects; two architectural guards (the module-boundary guard and the verdict-seam census) pass vacuously against exactly those shapes; the prior mission's fail-open change to the review-cycle merge driver left a latent arbiter-override crash reachable; the `accept --json` surface drops an operator advisory; and a heavyweight `@stress` durability test rides the fast test pool because no CI lane selects it.
 
 This is a **brownfield / campsite** mission: it finishes the boundary and cleans the debt it touches, **without** altering the verdict authority model or read semantics (explicit non-goal, consistent with epic #3044's closed shape).
 
@@ -52,9 +52,9 @@ The verdict-seam census stops wholesale-excluding `verdict_provenance_backfill.p
 
 ### User Story 3 - Arbiter override survives a conflict-marked review-cycle artifact (Priority: P1)
 
-An arbiter override on a work package whose latest `review-cycle-N.md` was left conflict-marked by the fail-open merge driver (FR-014) completes without crashing and durably records the override.
+An arbiter override on a work package whose latest `review-cycle-N.md` was left conflict-marked by the fail-open merge driver completes without crashing and durably records the override.
 
-**Why this priority**: This is a real latent crash on a lifecycle-critical path (the override path), reachable in production since the FR-014 downgrade. Red-first is mandatory.
+**Why this priority**: This is a real latent crash on a lifecycle-critical path (the override path), reachable in production since the prior mission's merge-driver downgrade. Red-first is mandatory.
 
 **Independent Test**: A red-first regression drives the public `persist_arbiter_decision` entry against a conflict-marked latest artifact and asserts no crash + override recorded; it is RED before the fix and GREEN after.
 
@@ -63,7 +63,6 @@ An arbiter override on a work package whose latest `review-cycle-N.md` was left 
 1. **Given** a `review-cycle-N.md` whose body begins with git conflict markers (no valid YAML frontmatter), **When** an arbiter override runs on that WP, **Then** the override completes without raising and the decision is durably recorded.
 2. **Given** the fix, **When** the arbiter resolves the latest cycle number, **Then** it derives the number from the filename without parsing the file body.
 3. **Given** the second `.latest` consumer that needs the full parsed body, **When** the fix lands, **Then** `.latest`/`from_file` parse behavior is unchanged.
-4. **(#3216, folded)** **Given** a hand-rolled glob+frontmatter review-cycle verdict reader in `cli/commands/agent/tasks_parsing_validation.py` that duplicates the canonical `ReviewCycleArtifact` reader, **When** it is collapsed onto the canonical `.latest`/`latest_review_artifact_verdict` surface, **Then** its failure polarity is preserved and a focused test pins it (single-reader-authority, on-theme with the façade consolidation).
 
 ---
 
@@ -124,7 +123,6 @@ The `@stress`-marked concurrency durability test no longer rides the fast xdist 
 | FR-011 | Surface the SC-008 stranded-verdict advisory in the `accept --json` payload via a uniform top-level `advisories` array injected at the CLI emit layer | As an automation author, I want the backfill advisory in the machine-readable output. | Medium | Open |
 | FR-012 | Add a dedicated stress CI lane selecting `-m stress -n0` (POSIX-only) and right-size the mis-pooled durability test out of the fast pool; correct the `pytest.ini` stress-marker wording | As a maintainer, I want heavyweight stress tests isolated in their own serial lane. | Medium | Open |
 | FR-013 | (#3217, folded) Extend the verdict-seam census classifier to recognize helper-constructed reader records so `_review_from_frontmatter` surfaces; coordinate with FR-007 so #3236+#3217 fully harden the census | As a maintainer, I want the census to catch helper-constructed readers, not just direct ones. | High | Open |
-| FR-014 | (#3216, folded) Collapse the hand-rolled review-cycle verdict reader in `tasks_parsing_validation.py` onto the canonical `ReviewCycleArtifact` reader, preserving failure polarity | As a maintainer, I want one canonical review-cycle verdict reader, not a hand-rolled duplicate. | Medium | Open |
 
 ### Non-Functional Requirements
 

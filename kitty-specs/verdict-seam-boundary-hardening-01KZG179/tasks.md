@@ -27,7 +27,6 @@ Subtask completion is event-sourced — record with `spec-kitty agent tasks mark
 | T016 | Add `ReviewCycleArtifact.latest_cycle_number()` (filename-only) + hoist review-cycle glob/filename constants (S1192) | WP04 | |
 | T017 | Swap `arbiter.py:466-467` to `latest_cycle_number`; leave `.latest`/`from_file` intact (C-004) | WP04 | |
 | T018 | Direct micro-test for `latest_cycle_number` (mixed valid + conflict-marked siblings) | WP04 | [P] |
-| T019 | (#3216) Collapse hand-rolled reader in `tasks_parsing_validation.py` onto canonical reader, preserve failure polarity + test | WP04 | |
 | T020 | Lift `provenance_note` out of the JSON gate; shared helper injects `advisories[]` at 4 emit sites (#3255) | WP05 | |
 | T021 | Campsite: `_safe_emit_error_logged` S110 fix (debug-log + rationale) | WP05 | [P] |
 | T022 | Test: stranded fixture → advisory in JSON; converged → empty `advisories` | WP05 | |
@@ -53,9 +52,10 @@ Subtask completion is event-sourced — record with `spec-kitty agent tasks mark
 **Goal**: Narrow the wholesale module exclusion to function level and teach the classifier to see helper-constructed readers, so #3236+#3217 leave the census fully hardened. **Priority**: P1. **Independent test**: `_legacy_frontmatter_verdict` and `_review_from_frontmatter` appear as reader rows; write-side helpers excluded by name; non-vacuity teeth green.
 **Subtasks**: T011, T012, T013, T014. **Dependencies**: none. **Prompt**: `tasks/WP03-census-completeness.md` (~300 lines).
 
-### WP04 — Arbiter resilience + reader dedup (IC-03) · parallel · RED-FIRST
-**Goal**: Red-first fix for the conflict-marked-artifact arbiter crash via a filename-only cycle-number resolver, plus collapsing a hand-rolled duplicate reader. **Priority**: P1. **Independent test**: the red-first regression is RED pre-fix, GREEN post-fix; `.latest`/`from_file` behavior unchanged.
-**Subtasks**: T015, T016, T017, T018, T019. **Dependencies**: none. **Prompt**: `tasks/WP04-arbiter-resilience-reader-dedup.md` (~380 lines).
+### WP04 — Arbiter resilience (IC-03) · parallel · RED-FIRST
+**Goal**: Red-first fix for the conflict-marked-artifact arbiter crash via a filename-only cycle-number resolver. **Priority**: P1. **Independent test**: the red-first regression is RED pre-fix, GREEN post-fix; `.latest`/`from_file` behavior unchanged.
+**Subtasks**: T015, T016, T017, T018. **Dependencies**: none. **Prompt**: `tasks/WP04-arbiter-resilience-reader-dedup.md` (~320 lines).
+**Note**: #3216 (originally folded here as T019) was descoped — the post-tasks squad found its target reader already retired by the prior mission's WP05 (#3245); #3216 closed as already-resolved.
 
 ### WP05 — `accept --json` advisories (IC-04) · parallel
 **Goal**: Surface the SC-008 advisory in a uniform top-level `advisories` array at the CLI emit layer. **Priority**: P2. **Independent test**: stranded fixture → advisory present in JSON; converged → empty array.

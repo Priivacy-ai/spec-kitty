@@ -46,7 +46,8 @@ Load `python-pedro` and behave per its guidance before parsing the rest of this 
 ### T020 — Lift the advisory out of the gate; inject `advisories[]` at the emit layer
 In `cli/commands/accept.py`:
 - Compute `provenance_note = _stranded_verdict_provenance_note(resolved.feature_dir)` **unconditionally** (lift it out of the `if not json_output:` block ~L673-677; keep the human-facing `console.print` inside the non-JSON branch).
-- Add a small CLI-layer helper, e.g. `_with_advisories(payload: dict, notes: list[str]) -> dict`, and wrap each `json.dumps(...)` at the **four** non-error emit sites (~L751 diagnose, L763 checklist, L773 not-ok, L879 success) so every emitted payload carries a top-level `"advisories": [...]` (empty list in the converged/steady state).
+- Add a small CLI-layer helper, e.g. `_with_advisories(payload: dict, notes: list[str]) -> dict`, and wrap each `json.dumps(...)` at the **four non-error** emit sites (~L751 diagnose, L763 checklist, L773 not-ok, L879 success) so every emitted payload carries a top-level `"advisories": [...]` (empty list in the converged/steady state).
+- **Do NOT touch the ~8 ERROR `json.dumps` sites** (`accept.py` ~L644, 663, 712, 721, 738, 824, 861, 868) — a skim for `json.dumps` hits ~12 sites; only the four non-error result payloads carry `advisories[]`. Error payloads stay as-is.
 - **C-005:** keep this entirely in the CLI layer — do **not** thread the advisory into `AcceptanceSummary`/`AcceptanceResult` (the acceptance domain model).
 
 ### T021 — Campsite: fix the effect-free except (S110)

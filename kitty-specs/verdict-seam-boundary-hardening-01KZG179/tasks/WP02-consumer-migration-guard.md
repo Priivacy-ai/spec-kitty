@@ -75,6 +75,7 @@ Operator decision: fully close the boundary (no exemption ledger). Migrate to fa
 
 ### T007 — Campsite (same WP as the edit)
 - `tasks_move_task.py::_mt_emit_runtime_state` is **cc=13** and constructs `ReviewOverride(...)` (~L2172). **Extract a helper** (e.g. `_build_claim_review_override`) *before* adding the migration change so the function does not cross the 15 ceiling.
+  - **Objective gate (NFR-004 — do not skip):** record the cc before/after the extract (e.g. `ruff check --select C901 <file>` or a cognitive-complexity read) in the WP notes, and add a **focused unit test for `_build_claim_review_override`** exercising its output directly (adding the migration branch alone lands the function at ~cc14 — still under the ceiling, so a skipped extract would pass silently; this gate is what catches that).
 - `merge/done_bookkeeping.py:119` hard-codes `verdict="approved"` in a `ReviewApproval` construction → route through the façade `APPROVED` constant.
 
 ### T008 — Retire the duplicated decode (merge-blocking path)
