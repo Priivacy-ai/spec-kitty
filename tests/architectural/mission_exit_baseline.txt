@@ -6,7 +6,7 @@
 #
 #   PWHEADLESS=1 uv run pytest \
 #     tests/review/ tests/status/ \
-#     tests/regression/test_2646_stale_verdict_closes_via_fr001.py \
+#     tests/integration/test_2646_stale_verdict_closes_via_fr001.py \
 #     tests/integration/test_review_cycle_rejection_only.py \
 #     tests/integration/test_ac5_hash_guard.py \
 #     tests/integration/test_wp_file_hash_stability.py \
@@ -60,6 +60,20 @@
 # invocation legitimately changes scope" path above deliberately does NOT apply
 # and the file was NOT regenerated -- a wholesale regeneration here would have
 # laundered any genuine concurrent selection regression into green.
+#
+# 2026-08-06 TARGETED PATH UPDATE (PR #3209 landing pass, regression-suite
+# exit-rule fold, NOT a regeneration): the two
+# tests/regression/test_2646_stale_verdict_closes_via_fr001.py node-ids below
+# were replaced by their tests/integration/ equivalents after that file was
+# relocated out of tests/regression/ (per tests/regression/README.md's exit
+# rule -- #2646 is closed and the suite has been stably green throughout).
+# Same file content, same two tests, only the directory prefix changed; the
+# invocation comment above and test_mission_exit_baseline.py's own
+# _AFFECTED_SUITE_PATHS were updated in lockstep so the live --collect-only
+# still finds both node-ids under their new path. The collected SET is
+# unchanged, so this is a path update, not a set regeneration.
+tests/integration/test_2646_stale_verdict_closes_via_fr001.py::test_2646_coord_topology_approved_wp_has_no_stale_verdict_warning
+tests/integration/test_2646_stale_verdict_closes_via_fr001.py::test_2646_flat_topology_approved_wp_has_no_stale_verdict_warning
 tests/integration/test_ac5_hash_guard.py::test_ac5_hash_stable_across_driven_lifecycle_with_proof_of_drive
 tests/integration/test_review_cycle_rejection_only.py::test_review_cycle_counter_advances_only_on_real_rejection
 tests/integration/test_review_cycle_rejection_only.py::test_two_rejections_produce_two_distinct_artifacts
@@ -78,8 +92,6 @@ tests/post_merge/test_review_artifact_consistency.py::test_merge_review_artifact
 tests/post_merge/test_review_artifact_consistency.py::test_merge_review_artifact_consistency_gate_blocks_malformed_artifact
 tests/post_merge/test_review_artifact_consistency.py::test_shipped_writer_approval_after_rejection_clears_merge_gate
 tests/post_merge/test_review_artifact_consistency.py::test_shipped_writer_genuine_rejection_still_blocks_merge_gate
-tests/regression/test_2646_stale_verdict_closes_via_fr001.py::test_2646_coord_topology_approved_wp_has_no_stale_verdict_warning
-tests/regression/test_2646_stale_verdict_closes_via_fr001.py::test_2646_flat_topology_approved_wp_has_no_stale_verdict_warning
 tests/review/test_arbiter.py::test_arbiter_category_enum_values
 tests/review/test_arbiter.py::test_checklist_to_dict_round_trip
 tests/review/test_arbiter.py::test_create_arbiter_decision_custom_empty_explanation_uses_fallback

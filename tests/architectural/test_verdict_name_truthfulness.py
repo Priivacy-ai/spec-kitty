@@ -75,7 +75,11 @@ _MISSION_BASE_REF = "pr/review-verdict-write-integrity-01KZ1CGF"
 _AFFECTED_SUITE_PATHS: tuple[str, ...] = (
     "tests/review",
     "tests/status",
-    "tests/regression/test_2646_stale_verdict_closes_via_fr001.py",
+    # Relocated out of tests/regression/ in the 2026-08 landing fold once
+    # #2646 closed and this suite went permanently green (same file, same
+    # tests) -- kept in lockstep with mission_exit_baseline.txt's own
+    # targeted path update.
+    "tests/integration/test_2646_stale_verdict_closes_via_fr001.py",
     "tests/integration/test_review_cycle_rejection_only.py",
     "tests/integration/test_ac5_hash_guard.py",
     "tests/integration/test_wp_file_hash_stability.py",

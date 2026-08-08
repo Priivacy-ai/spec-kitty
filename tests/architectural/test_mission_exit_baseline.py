@@ -42,10 +42,17 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 # The EXACT path list from quickstart.md's "Before anything: the baseline"
 # section / research/baseline-8466727eb.md's "Invocation" section -- never a
 # paraphrase, narrower, or wider substitute.
+#
+# 2026-08-06 landing-fold path update: the third entry below moved from
+# tests/regression/test_2646_stale_verdict_closes_via_fr001.py to
+# tests/integration/test_2646_stale_verdict_closes_via_fr001.py once #2646
+# closed and this file exited tests/regression/'s red-first-only suite
+# (same file, same two tests -- see mission_exit_baseline.txt's matching
+# note). The collected node-id SET is unchanged; only the path prefix is.
 _AFFECTED_SUITE_PATHS: tuple[str, ...] = (
     "tests/review/",
     "tests/status/",
-    "tests/regression/test_2646_stale_verdict_closes_via_fr001.py",
+    "tests/integration/test_2646_stale_verdict_closes_via_fr001.py",
     "tests/integration/test_review_cycle_rejection_only.py",
     "tests/integration/test_ac5_hash_guard.py",
     "tests/integration/test_wp_file_hash_stability.py",
