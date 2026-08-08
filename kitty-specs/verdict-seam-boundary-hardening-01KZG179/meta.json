@@ -1,6 +1,8 @@
 {
+  "accept_commit": "05dfb4ec28b200e8f75bf5b61f3f0c98235db236",
   "acceptance_history": [
     {
+      "accept_commit": "05dfb4ec28b200e8f75bf5b61f3f0c98235db236",
       "acceptance_mode": "pr",
       "accepted_at": "2026-08-08T12:28:03.043857+00:00",
       "accepted_by": "stijn",
