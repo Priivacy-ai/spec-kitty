@@ -102,11 +102,6 @@ class TrackerEgressRefusedError(SaaSTrackerClientError):
         )
 
 
-def _poll_jitter_multiplier() -> float:
-    """Return a cryptographically strong jitter multiplier in [0.8, 1.2]."""
-    return 0.8 + (secrets.randbelow(4001) / 10000.0)
-
-
 def _run_in_fresh_loop(coro: Any) -> Any:
     """Run ``coro`` on a fresh asyncio loop and return its result.
 
@@ -270,6 +265,13 @@ class SaaSTrackerClient:
         # ever write to it, so a test can patch ``client._sleep`` and see
         # exactly its own calls, nothing else running in the process.
         self._sleep: Callable[[float], None] = time.sleep
+        # Same instance-scoped seam, extended to the other two process-wide
+        # stdlib callees this client relies on for poll timing/jitter (landing
+        # extension of #3187): binding once per instance means a test can
+        # patch ``client._monotonic`` / ``client._randbelow`` and see exactly
+        # this object's own calls, nothing else running in the process.
+        self._monotonic: Callable[[], float] = time.monotonic
+        self._randbelow: Callable[[int], int] = secrets.randbelow
 
     _STATUS_PATH = "/api/v1/tracker/status/"
     _MAPPINGS_PATH = "/api/v1/tracker/mappings/"
@@ -490,10 +492,10 @@ class SaaSTrackerClient:
         delay = 1.0
         cap = 30.0
         total_timeout = 300.0
-        start = time.monotonic()
+        start = self._monotonic()
 
         while True:
-            elapsed = time.monotonic() - start
+            elapsed = self._monotonic() - start
             if elapsed >= total_timeout:
                 raise SaaSTrackerClientError(
                     f"Operation {operation_id} timed out after 5 minutes"
@@ -524,7 +526,7 @@ class SaaSTrackerClient:
                 raise SaaSTrackerClientError(error_msg)
 
             # pending / running -- sleep with jitter then retry
-            jitter_basis_points = secrets.randbelow(4000)
+            jitter_basis_points = self._randbelow(4000)
             jitter_factor = 0.8 + (jitter_basis_points / 10000)
             jittered_delay = delay * jitter_factor
             self._sleep(jittered_delay)
