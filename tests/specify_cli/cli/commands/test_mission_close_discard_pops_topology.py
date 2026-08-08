@@ -1,5 +1,18 @@
-"""Regression: ``mission close --discard`` must pop ``topology``, not just
-``coordination_branch`` (#3219 / FR-015 / SC-009).
+"""Permanent guard: ``mission close --discard`` must pop ``topology``, not
+just ``coordination_branch`` (#3219 / FR-015 / SC-009) -- the discard-pops-
+topology bug is fixed.
+
+Formerly a red-first ``@pytest.mark.regression`` reproduction under
+``tests/regression/``; relocated here (next to
+``test_mission_type_force_delete_branch.py``, its functional home -- both
+are direct, no-git unit tests of ``specify_cli.cli.commands.mission_type``
+helpers) and un-marked (2026-08 landing fold: make
+``@pytest.mark.regression`` mean exactly one thing) once
+``_flatten_discarded_mission`` converged onto the canonical
+``flatten_coordination_metadata`` primitive and this suite went stably
+green. Note: #3219 itself remained OPEN at relocation time for the broader
+primitive-extraction refactor it also tracks -- only this specific
+discard-pops-topology defect is confirmed fixed here.
 
 Before verdict-seam-write-unification-01KZ9Q35 WP10, ``_flatten_discarded_mission``
 called only ``clear_coordination_metadata`` -- ONE of the canonical THREE
@@ -10,10 +23,10 @@ coordination mission therefore kept a stale ``topology: "coord"`` value in
 Mission and hit ``CoordinationBranchDeleted`` (the #1848 data-loss hard-fail) --
 on a mission the operator had already discarded.
 
-This is a red-first reproduction of that latent bug (T049): it fails against the
-partial (1-of-3) flatten and passes once ``_flatten_discarded_mission`` converges
-onto the canonical ``flatten_coordination_metadata`` primitive (T051), which
-performs all three mutations atomically.
+``_flatten_discarded_mission`` now converges onto the canonical
+``flatten_coordination_metadata`` primitive (T051), which performs all three
+mutations (clear ``coordination_branch``, pop ``topology``, record
+``flattened=True``) atomically.
 """
 
 from __future__ import annotations
@@ -25,7 +38,7 @@ import pytest
 
 from specify_cli.cli.commands.mission_type import _flatten_discarded_mission
 
-pytestmark = pytest.mark.regression
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # Production-shaped identity (26-char ULID / mid8 convention), matching the
 # real mission-identity model rather than a placeholder short string.
@@ -44,7 +57,7 @@ def _write_meta(feature_dir: Path, fields: dict[str, object]) -> None:
 def test_discard_flatten_pops_topology_not_just_coordination_branch(
     tmp_path: Path,
 ) -> None:
-    """The latent bug (#3219): a discarded coord mission must have BOTH
+    """Permanent guard for #3219: a discarded coord mission must have BOTH
     ``coordination_branch`` cleared AND ``topology`` popped, plus
     ``flattened=True`` recorded -- not just the former.
     """
