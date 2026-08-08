@@ -1164,7 +1164,7 @@ class TestFindRejectedReviewArtifactConflictsEventSourced:
         assert findings[0].wp_id == "WP01"
         assert findings[0].verdict == "changes_requested"
 
-    def test_forced_null_review_result_defers_to_frontmatter_and_still_refuses(
+    def test_forced_null_review_result_yields_no_findings(
         self, tmp_path: Path
     ) -> None:
         """T028's edge case, at the gate -- REPOINTED by WP05
@@ -1201,7 +1201,7 @@ class TestFindRejectedReviewArtifactConflictsEventSourced:
             "means 'no block', not a fabricated rejection"
         )
 
-    def test_frontmatter_only_case_unchanged_when_no_event_sourced_verdict(
+    def test_absent_event_sourced_verdict_yields_no_findings(
         self, tmp_path: Path
     ) -> None:
         """REPOINTED by WP05 (verdict-seam-write-unification-01KZ9Q35,

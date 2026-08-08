@@ -100,7 +100,11 @@ def test_done_bookkeeping_planned_fallback_keeps_force_done_false_for_unseeded_w
     pre-WP05 raw string, so this test exercises the actual current
     contract.
     """
-    with patch("specify_cli.status.lane_reader.get_wp_lane", return_value=Lane.UNINITIALIZED):
+    # WP02 (verdict-seam-boundary-hardening-01KZG179, T006): the call site now
+    # resolves this via ``from specify_cli.status import get_wp_lane`` (the
+    # facade symbol), not the ``status.lane_reader`` submodule object, so the
+    # mock target moves to the facade's own already-bound attribute.
+    with patch("specify_cli.status.get_wp_lane", return_value=Lane.UNINITIALIZED):
         lane, force_done = db._resolve_lane_with_planned_fallback(
             coord_lane=Lane.PLANNED,
             primary_feature_dir=Path("/nonexistent/primary"),

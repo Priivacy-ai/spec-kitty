@@ -158,6 +158,16 @@
   status: active
   source: landing/pr-3211
 - category: writer
+  # WP02 (verdict-seam-boundary-hardening-01KZG179, FR-002/T007 cc-degod):
+  # extracted from ``_mt_emit_runtime_state`` and carries the ``ReviewOverride``
+  # ctor, so it is now the direct writer; ``_mt_emit_runtime_state`` keeps its
+  # row via the same-module one-hop closure. Disclosed rather than left
+  # unaccounted.
+  module: src/specify_cli/cli/commands/agent/tasks_move_task.py
+  function: _build_claim_review_override
+  status: active
+  source: WP02/verdict-seam-boundary-hardening-01KZG179
+- category: writer
   module: src/specify_cli/cli/commands/agent/tasks_move_task.py
   function: _mt_emit_transitions
   status: active
@@ -172,16 +182,16 @@
   function: _mt_hop_review_result
   status: active
   source: WP01/IC01
-- category: writer
-  # PR #3211 landing pass (2026-08-05, F1): thin forwarder onto
-  # ``_mt_emit_runtime_state`` (the real event-log write) post-cutover -- the
-  # WP file no longer carries runtime state (IC-04 flip complete). Never
-  # classified before this landing pass; disclosed here rather than left
-  # unaccounted.
-  module: src/specify_cli/cli/commands/agent/tasks_move_task.py
-  function: _mt_persist_wp_file
-  status: active
-  source: landing/pr-3211
+# NOTE (verdict-seam-boundary-hardening-01KZG179, FR-002/T007): the former
+# ``_mt_persist_wp_file`` writer row (landing/pr-3211) was RETIRED here. That
+# row was earned only via the same-module ONE-HOP closure through
+# ``_mt_emit_runtime_state`` (then a direct writer). WP02's cc-degod extract
+# moved the ``ReviewOverride`` ctor out of ``_mt_emit_runtime_state`` into the
+# new ``_build_claim_review_override`` (see its row above), so
+# ``_mt_emit_runtime_state`` is now itself only a closure-writer and
+# ``_mt_persist_wp_file`` sits TWO hops from the ctor -- past the one-hop
+# horizon. The write is still fully represented by the ``_build_claim_review_override``
+# and ``_mt_emit_runtime_state`` rows; this forwarder is correctly no longer classified.
 - category: writer
   module: src/specify_cli/cli/commands/agent/tasks_move_task.py
   function: _mt_plan_review_result
@@ -269,31 +279,31 @@
   function: transition
   status: active
   source: WP01/IC01
-# WP01 (verdict-seam-write-unification-01KZ9Q35, T002/T003/T005, FR-010/G2):
-# these three `post_merge/review_artifact_consistency.py` rows are newly
-# swept in by T003's broadened `.from_dict` factory predicate.
-# `_snapshot_review_override` and `_event_sourced_gate_verdict` reconstruct
-# `ReviewOverride`/`ReviewResult` via `.from_dict` from an ALREADY-REDUCED
-# event snapshot -- the same event-authority-deserializer shape as
+# WP01 (verdict-seam-write-unification-01KZ9Q35, T002/T003/T005, FR-010/G2)
+# swept these `post_merge/review_artifact_consistency.py` rows in via T003's
+# broadened `.from_dict` factory predicate. `_snapshot_review_override`
+# reconstructs `ReviewOverride` via `.from_dict` from an ALREADY-REDUCED event
+# snapshot -- the same event-authority-deserializer shape as
 # `status/reducer.py`/`status/wp_review.py` (G2), which stay module-excluded
 # instead. This module cannot receive the same module-level exclusion: it
 # already carries other genuine resolver/reader rows for this exact file
 # (see below), so wholesale exclusion would silently drop those into
-# "shrinkage". Both are disclosed here as honest new writer rows rather than
-# left unaccounted or force-fitted into an exclusion that would break G3.
+# "shrinkage". Disclosed here as an honest writer row rather than left
+# unaccounted or force-fitted into an exclusion that would break G3.
 # `find_rejected_review_artifact_conflicts` (already an active reader/
 # resolver row below) additionally becomes writer-classified via the
-# same-module one-hop closure, because its own body calls both functions
-# directly (line ~446-447) -- an added ROLE on an existing function, not a
-# new function.
+# same-module one-hop closure, because its own body calls
+# `_snapshot_review_override` directly -- an added ROLE on an existing
+# function, not a new function.
+#
+# NOTE (verdict-seam-boundary-hardening-01KZG179, FR-004): the sibling
+# `_event_sourced_gate_verdict` writer row was RETIRED here. That WP's dedup
+# replaced its inline `ReviewResult.from_dict(...)` decode with a delegation to
+# the reducer-owned `review_result_from_state` (module-excluded), so the
+# function no longer constructs a record and is correctly no longer a writer.
 - category: writer
   module: src/specify_cli/post_merge/review_artifact_consistency.py
   function: _snapshot_review_override
-  status: active
-  source: WP01/verdict-seam-write-unification-01KZ9Q35
-- category: writer
-  module: src/specify_cli/post_merge/review_artifact_consistency.py
-  function: _event_sourced_gate_verdict
   status: active
   source: WP01/verdict-seam-write-unification-01KZ9Q35
 - category: writer
@@ -473,6 +483,24 @@
   function: resolve_review_cycle_pointer
   status: active
   source: WP01/IC01
+# WP03 (verdict-seam-boundary-hardening-01KZG179, T012, #3236): the module-level
+# exclusion of `migration/verdict_provenance_backfill.py` is retired in favour
+# of a function-level exclusion naming ONLY its write-side helper
+# (`_backfill_event_for_wp`). These 2 rows are the module's genuine resolver
+# chain -- `_review_cycle_candidate_dirs` derives the tasks/<wp_id> candidate
+# directories per the artifact-anchored resolver shape (F1), and
+# `terminal_review_artifact` inherits resolver status via the same-module
+# one-hop closure through it. See the corresponding 4 reader rows below.
+- category: resolver
+  module: src/specify_cli/migration/verdict_provenance_backfill.py
+  function: _review_cycle_candidate_dirs
+  status: active
+  source: WP03/verdict-seam-boundary-hardening-01KZG179
+- category: resolver
+  module: src/specify_cli/migration/verdict_provenance_backfill.py
+  function: terminal_review_artifact
+  status: active
+  source: WP03/verdict-seam-boundary-hardening-01KZG179
 - category: reader
   module: src/specify_cli/agent_utils/status.py
   function: _get_wp_review_verdict
@@ -577,6 +605,61 @@
   function: validate_review_artifact_file
   status: active
   source: WP01/IC01
+# WP03 (verdict-seam-boundary-hardening-01KZG179, T012/T013, #3236/#3217): the
+# module-level exclusion of `migration/verdict_provenance_backfill.py` is
+# retired -- see the sibling resolver rows above. These 4 rows are the
+# module's genuine reader chain: `_legacy_frontmatter_verdict` is the
+# #3236-disclosed direct reader (`read_text` + `yaml.load` + a manual
+# `\n---` frontmatter delimiter); `terminal_review_artifact`,
+# `stranded_verdict_findings`, and `backfill_verdict_provenance` all inherit
+# reader status via the same-module one-hop closure through it.
+# `backfill_verdict_provenance` no longer carries a writer row (its ONLY
+# writer signal came from the now function-excluded `_backfill_event_for_wp`
+# -- see `_EXCLUDED_FUNCTIONS` in the test module).
+- category: reader
+  module: src/specify_cli/migration/verdict_provenance_backfill.py
+  function: _legacy_frontmatter_verdict
+  status: active
+  source: WP03/verdict-seam-boundary-hardening-01KZG179
+- category: reader
+  module: src/specify_cli/migration/verdict_provenance_backfill.py
+  function: terminal_review_artifact
+  status: active
+  source: WP03/verdict-seam-boundary-hardening-01KZG179
+- category: reader
+  module: src/specify_cli/migration/verdict_provenance_backfill.py
+  function: stranded_verdict_findings
+  status: active
+  source: WP03/verdict-seam-boundary-hardening-01KZG179
+- category: reader
+  module: src/specify_cli/migration/verdict_provenance_backfill.py
+  function: backfill_verdict_provenance
+  status: active
+  source: WP03/verdict-seam-boundary-hardening-01KZG179
+# WP03 (verdict-seam-boundary-hardening-01KZG179, T013, #3217): the
+# helper-constructed reader shape surfaces `_review_from_frontmatter` as a
+# reader too -- it was already an `active` WRITER row above (direct
+# `ReviewOverride(...)` construction), and now ALSO reads the
+# override-quartet frontmatter fields it decodes into that record, via the
+# new `.get("review_artifact_override_*")`-keyed predicate
+# (`_classify_helper_constructed_reader`). Not a duplicate of the writer row
+# -- a function can genuinely be both, per this census's own "not a tidy
+# partition" design (module docstring).
+- category: reader
+  module: src/specify_cli/migration/backfill_runtime_state.py
+  function: _review_from_frontmatter
+  status: active
+  source: WP03/verdict-seam-boundary-hardening-01KZG179
+# WP03 (verdict-seam-boundary-hardening-01KZG179, T013): `read_legacy_runtime`
+# inherits reader status via the same-module one-hop closure through
+# `_review_from_frontmatter` (called directly, same file) -- it was already
+# an `active` WRITER row above; this is the same "genuinely both" shape as
+# `_review_from_frontmatter` itself, one hop further out.
+- category: reader
+  module: src/specify_cli/migration/backfill_runtime_state.py
+  function: read_legacy_runtime
+  status: active
+  source: WP03/verdict-seam-boundary-hardening-01KZG179
 # ---------------------------------------------------------------------------
 # Retire rows folded from verdict_seam_IC08.yaml (WP08, IC-07, FR-008). Full
 # attribution reasoning, the deadlock this fragment's WP-claim rule resolves,
@@ -649,3 +732,15 @@
 # #3236 and disclosed in this module's `_EXCLUDED_MODULE_REASONS` reason. The
 # exclusion is KEPT (documented) rather than pretending the function is not a
 # reader; #3236 tracks narrowing it to a function-level exclusion.
+#
+# WP03 (verdict-seam-boundary-hardening-01KZG179) CLOSES #3236's tracked
+# narrowing: the module-level exclusion above is retired in favour of a
+# function-level exclusion naming ONLY `_backfill_event_for_wp` (see
+# `_EXCLUDED_FUNCTIONS` in the test module). 6 of this history note's original
+# 8 rows are therefore reintroduced ABOVE, in their normal category sections
+# (2 resolver + 4 reader) -- the 2 writer rows (`_backfill_event_for_wp`,
+# `backfill_verdict_provenance`) are NOT reintroduced: the write-side helper
+# stays function-excluded (a genuine one-time-migration mechanic, out of
+# scope of the LIVE verdict seam), and `backfill_verdict_provenance`'s own
+# writer status came ENTIRELY from calling that now-excluded helper via the
+# same-module one-hop closure, so it has no writer signal left of its own.
