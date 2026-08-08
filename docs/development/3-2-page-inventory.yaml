@@ -2336,6 +2336,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/guides/when-to-use-modes.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/guides/worktrees-with-mcp-agents.md
   tag: current
   divio_type: how-to

@@ -7423,6 +7423,17 @@ pages:
     - {slug: "json-schema", text: "JSON Schema", level: 2}
     - {slug: "backward-compatibility", text: "Backward Compatibility", level: 2}
     - {slug: "see-also", text: "See Also", level: 2}
+  - path: "docs/guides/when-to-use-modes.md"
+    title: "When to use Spec-Kitty modes"
+    divio_type: "none"
+    abstract: "Choose the lightest Spec Kitty path for your work: no Spec Kitty, ad-hoc specialist session, adversarial squad review, or full mission pipeline."
+    anchors:
+    - {slug: "no-spec-kitty", text: "No Spec Kitty", level: 2}
+    - {slug: "ad-hoc-specialist-session", text: "Ad-hoc specialist session", level: 2}
+    - {slug: "adversarial-squad", text: "Adversarial squad", level: 2}
+    - {slug: "full-mission", text: "Full mission", level: 2}
+    - {slug: "alternate-visual", text: "Alternate visual", level: 2}
+    - {slug: "related-guides", text: "Related guides", level: 2}
   - path: "docs/guides/worktrees-with-mcp-agents.md"
     title: "How to Keep MCP Agents in the Worktree"
     divio_type: "how-to"
