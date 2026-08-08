@@ -166,33 +166,32 @@ WP_ID = "WP03"
 WP_SLUG = "WP03-ledger-grammar"
 
 
-@pytest.mark.regression
 def test_self_referential_feedback_source_is_rejected(tmp_path: Path) -> None:
-    """Pin #2996(b): handing ``create_rejected_review_cycle`` the WP's OWN
-    prior ``review-cycle-N.md`` as ``feedback_source`` must be refused, not
-    silently duplicated into a new cycle.
+    """Permanent guard for #2996(b) -- fixed: handing
+    ``create_rejected_review_cycle`` the WP's OWN prior ``review-cycle-N.md``
+    as ``feedback_source`` is refused, not silently duplicated into a new
+    cycle.
 
-    Root cause (traced against ``main`` @ upstream/main):
-    ``create_rejected_review_cycle``
-    (``src/specify_cli/review/cycle.py:277-346``) validates ``feedback_source``
-    only for existence / is-a-file / non-empty content
-    (lines 288-295) and computes the next cycle number purely from
+    History (issue #2996(b)): ``create_rejected_review_cycle``
+    (``src/specify_cli/review/cycle.py:277-346``) used to validate
+    ``feedback_source`` only for existence / is-a-file / non-empty content
+    and computed the next cycle number purely from
     ``len(sub_artifact_dir.glob("review-cycle-*.md")) + 1``
     (``ReviewCycleArtifact.next_cycle_number``,
-    ``src/specify_cli/review/artifacts.py:288-295``) -- it never inspects
-    *what* ``feedback_source`` points at. Passing the WP's own
+    ``src/specify_cli/review/artifacts.py:288-295``) -- it never inspected
+    *what* ``feedback_source`` pointed at. Passing the WP's own
     ``review-cycle-1.md`` (the ``--review-feedback-file`` shape from the
-    ticket) is accepted: its full text -- frontmatter delimiters and all --
-    is read as plain body content and written out as ``review-cycle-2.md``,
-    fabricating a duplicate cycle that outranks the real reviewer's original
+    ticket) was accepted: its full text -- frontmatter delimiters and all --
+    was read as plain body content and written out as ``review-cycle-2.md``,
+    fabricating a duplicate cycle that outranked the real reviewer's original
     verdict (``ReviewCycleArtifact.latest`` always returns the
     highest-numbered file).
 
-    This test asserts the artifact-first, guard-second contract that would
-    need to hold once #2996(b) is fixed. It is expected to fail (red) at the
-    ``pytest.raises`` line TODAY, before the guard exists -- ``DID NOT RAISE``
-    is the correct failure signature for a regression test pinning a missing
-    guard, not a defect in the test itself.
+    This test asserts the artifact-first, guard-second contract that now
+    holds since #2996(b) was fixed: this suite was extracted out of
+    ``tests/regression/`` (2026-08 landing fold) once the guard landed and
+    the reproduction turned green, per the regression-suite exit rule
+    (``tests/regression/README.md``).
     """
     from specify_cli.review.artifacts import ReviewCycleArtifact
 
@@ -324,14 +323,17 @@ def test_guard_feedback_source_provenance_refuses_by_parse_alone_no_verdict_read
     )  # must not raise
 
 
-@pytest.mark.regression
 def test_duplicate_prose_in_an_ordinary_feedback_file_is_admitted(
     tmp_path: Path,
 ) -> None:
-    """T045 (FR-004/SC-001/US1 AC5): an ORDINARY feedback file (never a
-    review-cycle artifact) whose prose happens to duplicate a prior cycle's
-    body verbatim must be ADMITTED and recorded as a genuine new cycle -- not
-    refused.
+    """Permanent guard, T045 (FR-004/SC-001/US1 AC5): an ORDINARY feedback
+    file (never a review-cycle artifact) whose prose happens to duplicate a
+    prior cycle's body verbatim must be ADMITTED and recorded as a genuine
+    new cycle -- not refused. (Un-marked from ``@pytest.mark.regression`` in
+    the 2026-08 landing fold: this test was never a red-first #2996
+    reproduction -- it landed already green alongside the T045 rewrite -- so
+    it belongs in this file's permanent suite per the regression-suite exit
+    rule, ``tests/regression/README.md``.)
 
     HISTORY -- read before touching this test again: this test was
     previously named ``test_new_cycle_body_never_duplicates_a_prior_cycle_file``
@@ -430,13 +432,12 @@ def test_duplicate_prose_in_an_ordinary_feedback_file_is_admitted(
     assert latest.reviewer_agent == "reviewer-second-opinion"
 
 
-@pytest.mark.regression
 def test_a_byte_copy_of_a_stored_artifact_under_a_new_name_is_still_rejected(
     tmp_path: Path,
 ) -> None:
-    """#990/#2996(b), carried forward by T045's narrowed content leg: a
-    BYTE-COPY of a stored ``review-cycle-N.md`` artifact, saved under a
-    DIFFERENT name/path that does not itself match the
+    """Permanent guard for #990/#2996(b), carried forward by T045's narrowed
+    content leg: a BYTE-COPY of a stored ``review-cycle-N.md`` artifact,
+    saved under a DIFFERENT name/path that does not itself match the
     ``review-cycle-N.md`` shape (so the PATH leg does not fire), must still
     be refused -- because its content PARSES as a ``ReviewCycleArtifact``
     (it genuinely IS a verdict record, just relocated/renamed).
@@ -447,7 +448,10 @@ def test_a_byte_copy_of_a_stored_artifact_under_a_new_name_is_still_rejected(
     ordinary reviewer PROSE that merely repeats earlier words is admitted
     (that test), but an actual copy of the artifact FILE itself -- frontmatter
     and all -- is not "prose"; it parses as a verdict record and stays
-    refused, regardless of where it is saved.
+    refused, regardless of where it is saved. Un-marked from
+    ``@pytest.mark.regression`` in the 2026-08 landing fold (never a
+    red-first reproduction; #990/#2996(b) is fixed) per
+    ``tests/regression/README.md``'s exit rule.
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -490,11 +494,11 @@ def test_a_byte_copy_of_a_stored_artifact_under_a_new_name_is_still_rejected(
     assert not (wp_dir / "review-cycle-2.md").exists()
 
 
-@pytest.mark.regression
 def test_hand_edited_own_path_feedback_source_is_still_rejected(tmp_path: Path) -> None:
-    """T006 step 2: a feedback file at a ``review-cycle-N.md``-shaped path
-    inside the WP's OWN directory is refused even when its content has been
-    hand-edited to no longer duplicate any existing cycle's body.
+    """Permanent guard, T006 step 2 (#2996(b)): a feedback file at a
+    ``review-cycle-N.md``-shaped path inside the WP's OWN directory is
+    refused even when its content has been hand-edited to no longer
+    duplicate any existing cycle's body.
 
     Both ``test_self_referential_feedback_source_is_rejected`` (exact-path,
     exact-content) and ``test_new_cycle_body_never_duplicates_a_prior_cycle_file``
@@ -502,7 +506,10 @@ def test_hand_edited_own_path_feedback_source_is_still_rejected(tmp_path: Path) 
     implements ONE of the two checks. This is the case that forces genuine
     path-based detection to exist alongside content-based detection: the path
     is the WP's own review-cycle home, but the content is deliberately
-    different from every existing cycle's body.
+    different from every existing cycle's body. Un-marked from
+    ``@pytest.mark.regression`` in the 2026-08 landing fold (never a
+    red-first reproduction; #2996(b) is fixed) per
+    ``tests/regression/README.md``'s exit rule.
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -546,12 +553,12 @@ def test_hand_edited_own_path_feedback_source_is_still_rejected(tmp_path: Path) 
     assert not (wp_dir / "review-cycle-2.md").exists()
 
 
-@pytest.mark.regression
 def test_unreadable_prior_cycle_does_not_crash_the_provenance_scan(
     tmp_path: Path,
 ) -> None:
-    """M3 (adversarial squad, PR #3156): a prior ``review-cycle-N.md`` that is
-    not valid UTF-8 must be SKIPPED by the provenance scan, not crash it.
+    """Permanent guard, M3 (adversarial squad, PR #3156): a prior
+    ``review-cycle-N.md`` that is not valid UTF-8 must be SKIPPED by the
+    provenance scan, not crash it.
 
     ``_guard_feedback_source_provenance`` best-effort-falls-back on
     ``ValueError`` from ``ReviewCycleArtifact.from_file`` by re-reading the
@@ -560,7 +567,10 @@ def test_unreadable_prior_cycle_does_not_crash_the_provenance_scan(
     time, this time uncaught. One non-UTF-8 or unreadable prior artifact in a
     WP dir then bricks EVERY subsequent review-cycle write for that WP. An
     unparseable/unreadable prior artifact cannot be the duplicate being
-    searched for, so it must simply be skipped.
+    searched for, so it must simply be skipped. Un-marked from
+    ``@pytest.mark.regression`` in the 2026-08 landing fold (never a
+    red-first reproduction; the crash is fixed) per
+    ``tests/regression/README.md``'s exit rule.
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -594,12 +604,12 @@ def test_unreadable_prior_cycle_does_not_crash_the_provenance_scan(
     assert created.review_result.verdict == "changes_requested"
 
 
-@pytest.mark.regression
 def test_frontmatter_shaped_feedback_prose_resubmitted_verbatim_is_admitted(
     tmp_path: Path,
 ) -> None:
-    """M4 lineage (adversarial squad, PR #3156), reassessed under T045's
-    operator ruling: a feedback file that merely OPENS with a ``---``
+    """Permanent guard. M4 lineage (adversarial squad, PR #3156), reassessed
+    under T045's operator ruling: a feedback file that merely OPENS with a
+    ``---``
     frontmatter-shaped block of plain prose (not valid YAML frontmatter --
     ``"Blocking issues"`` is a bare scalar, not a mapping, so it does NOT
     parse as a ``ReviewCycleArtifact``) is an ORDINARY feedback file, never a
@@ -623,7 +633,9 @@ def test_frontmatter_shaped_feedback_prose_resubmitted_verbatim_is_admitted(
     name preserves (frontmatter-stripping must run symmetrically on both
     sides of a comparison) is now moot: T045 retired the body-equality
     comparison entirely in favor of the self-contained parse-check, so there
-    is no longer an asymmetric-stripping bug to guard against.
+    is no longer an asymmetric-stripping bug to guard against. Un-marked
+    from ``@pytest.mark.regression`` in the 2026-08 landing fold (never a
+    red-first reproduction) per ``tests/regression/README.md``'s exit rule.
     """
     repo = tmp_path / "repo"
     repo.mkdir()
