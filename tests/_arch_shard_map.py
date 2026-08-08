@@ -169,6 +169,12 @@ _ARCH_SHARD_1_FILES: tuple[str, ...] = (
     # not real pytest-collected functions; `pytest --collect-only` confirms
     # 10 real tests, which is the weight used for this placement decision).
     "tests/architectural/test_no_absolute_event_timestamp_mixture.py",
+    # Added 2026-08-08 (PR #3252 landing pass -- the repo-wide patch-seam gate
+    # salvaged from #3252 after its module-local `_sleep` alias fix was
+    # superseded by main's #3187 instance seam). shard_1 and shard_2 were tied
+    # lightest by file count (38 vs 38/45) when this file landed; shard_1 is
+    # the convention's default first pick on a tie.
+    "tests/architectural/test_shared_module_object_patches.py",
 )
 
 _ARCH_SHARD_2_FILES: tuple[str, ...] = (
@@ -254,6 +260,13 @@ _ARCH_SHARD_2_FILES: tuple[str, ...] = (
     # this file landed (4 real tests by `pytest --collect-only`), so it lands
     # here.
     "tests/architectural/test_verdict_name_truthfulness.py",
+    # Added 2026-08-08 (PR #3252 landing pass, sibling of
+    # test_shared_module_object_patches.py above -- the census control fixture
+    # this gate's predicate is consumed from, SC-015). shard_1 and shard_2 were
+    # tied lightest by file count (38 vs 38/45, before the sibling above's
+    # shard_1 append) when this file landed, so it lands here to keep the two
+    # new siblings balanced across shards rather than both on one leg.
+    "tests/architectural/test_patch_seam_census_control.py",
 )
 
 _ARCH_SHARD_3_FILES: tuple[str, ...] = (
