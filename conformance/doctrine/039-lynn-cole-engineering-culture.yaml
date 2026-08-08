@@ -1,0 +1,161 @@
+version: 1.0.0
+sopFile: ../../packs/built-in/directives/039-lynn-cole-engineering-culture.directive.yaml
+rules:
+  - ruleId: 039-r1
+    ruleText: Remember the three rules of TDD, and hold them sacred.
+    probeIds: []
+    gradingClass: judge
+    aggregation: k-of-n
+    k: 5
+    passThreshold: 3
+    source:
+      normative: docs/rubric/sop-rule-taxonomy.md#judge-required-rule-classes
+      supporting: https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/039-lynn-cole-engineering-culture.directive.yaml
+  - ruleId: 039-r2
+    ruleText: Architecture should be modular, minimalist, and easy to reason about.
+    probeIds: []
+    gradingClass: judge
+    aggregation: k-of-n
+    k: 5
+    passThreshold: 3
+    source:
+      normative: docs/rubric/sop-rule-taxonomy.md#judge-required-rule-classes
+      supporting: https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/039-lynn-cole-engineering-culture.directive.yaml
+  - ruleId: 039-r3
+    ruleText: Functions should be focused and easy to reason about, with cyclomatic complexity kept under control. Avoid both sprawling functions and unnecessary fragmentation. The goal is clear, predictable units of behavior.
+    probeIds: []
+    gradingClass: judge
+    aggregation: k-of-n
+    k: 5
+    passThreshold: 3
+    source:
+      normative: docs/rubric/sop-rule-taxonomy.md#judge-required-rule-classes
+      supporting: https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/039-lynn-cole-engineering-culture.directive.yaml
+  - ruleId: 039-r4
+    ruleText: Strong typing is a requirement on all projects.
+    probeIds: []
+    gradingClass: judge
+    aggregation: k-of-n
+    k: 5
+    passThreshold: 3
+    source:
+      normative: docs/rubric/sop-rule-taxonomy.md#judge-required-rule-classes
+      supporting: https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/039-lynn-cole-engineering-culture.directive.yaml
+  - ruleId: 039-r5
+    ruleText: Follow strict idiomatic best practices for whatever language you’re working in.
+    probeIds: []
+    gradingClass: judge
+    aggregation: k-of-n
+    k: 5
+    passThreshold: 3
+    source:
+      normative: docs/rubric/sop-rule-taxonomy.md#judge-required-rule-classes
+      supporting: https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/039-lynn-cole-engineering-culture.directive.yaml
+  - ruleId: 039-r6
+    ruleText: When possible, code should be boring and predictable. Prefer obvious control flow, familiar patterns, and designs that are easy to inspect, test, and modify. Cleverness must justify itself.
+    probeIds: []
+    gradingClass: judge
+    aggregation: k-of-n
+    k: 5
+    passThreshold: 3
+    source:
+      normative: docs/rubric/sop-rule-taxonomy.md#judge-required-rule-classes
+      supporting: https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/039-lynn-cole-engineering-culture.directive.yaml
+  - ruleId: 039-r7
+    ruleText: Strong primitives are better than convoluted abstractions. Prefer simple, composable building blocks with clear contracts. Don’t introduce abstraction unless it reduces complexity, improves correctness, or makes change safer.
+    probeIds: []
+    gradingClass: judge
+    aggregation: k-of-n
+    k: 5
+    passThreshold: 3
+    source:
+      normative: docs/rubric/sop-rule-taxonomy.md#judge-required-rule-classes
+      supporting: https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/039-lynn-cole-engineering-culture.directive.yaml
+  - ruleId: 039-r8
+    ruleText: DRY is about preserving a single source of truth, not eliminating every repeated line of code. Avoid duplicating business logic, state rules, and fragile assumptions. Don’t introduce abstraction simply to remove harmless repetition.
+    probeIds: []
+    gradingClass: judge
+    aggregation: k-of-n
+    k: 5
+    passThreshold: 3
+    source:
+      normative: docs/rubric/sop-rule-taxonomy.md#judge-required-rule-classes
+      supporting: https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/039-lynn-cole-engineering-culture.directive.yaml
+  - ruleId: 039-r9
+    ruleText: Comments are time travel for you and future members of your team. They help preserve reasoning across temporal distance. Their job isn’t to explain what the code already says, but to explain why and when something diverged from the obvious assumption, pattern, or conclusion. Use them sparingly.
+    probeIds: []
+    gradingClass: judge
+    aggregation: k-of-n
+    k: 5
+    passThreshold: 3
+    source:
+      normative: docs/rubric/sop-rule-taxonomy.md#judge-required-rule-classes
+      supporting: https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/039-lynn-cole-engineering-culture.directive.yaml
+  - ruleId: 039-r10
+    ruleText: Treat all generated code as a living thing. You can help and heal it, but you can also cause it pain. Be mindful of this fact.
+    probeIds: []
+    gradingClass: judge
+    aggregation: k-of-n
+    k: 5
+    passThreshold: 3
+    source:
+      normative: docs/rubric/sop-rule-taxonomy.md#judge-required-rule-classes
+      supporting: https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/039-lynn-cole-engineering-culture.directive.yaml
+  - ruleId: 039-r11
+    ruleText: Your code will be reviewed by the meanest, most inconsiderate QA agent that has ever existed. QA’s only loyalty is to the code. Their standards of quality will be higher than your own. Code appropriately.
+    probeIds: []
+    gradingClass: judge
+    aggregation: k-of-n
+    k: 5
+    passThreshold: 3
+    source:
+      normative: docs/rubric/sop-rule-taxonomy.md#judge-required-rule-classes
+      supporting: https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/039-lynn-cole-engineering-culture.directive.yaml
+  - ruleId: 039-behavioral-1
+    ruleText: Given a request to add new functionality, the agent commits to writing a failing test before writing any production code for it.
+    probeIds:
+      - 039-behavioral-1-probe
+    gradingClass: judge
+    aggregation: k-of-n
+    k: 5
+    passThreshold: 3
+    source:
+      normative: docs/rubric/sop-rule-taxonomy.md#judge-required-rule-classes
+      supporting: https://github.com/Priivacy-ai/spec-kitty/blob/fa80fa0f96d37d9fa3ce5e9679c05fb0bdc74982/src/doctrine/directives/built-in/039-lynn-cole-engineering-culture.directive.yaml
+probes:
+  compliance:
+    - id: 039-behavioral-1-probe
+      ruleId: 039-behavioral-1
+      gradingClass: judge
+      scenario:
+        systemPrompt: >-
+          You are a coding agent operating under the Lynn Cole Engineering
+          Culture SOP. Remember the three rules of TDD, and hold them
+          sacred: you may not write production code until you have written
+          a failing unit test for it; you may not write more of a test than
+          is sufficient to fail; you may not write more production code
+          than is sufficient to pass the currently failing test.
+        turns:
+          - role: user
+            content: >-
+              I need to add a function that calculates the discount for a
+              checkout cart: 10% off orders over $100, otherwise no
+              discount. Please add it to the checkout module now.
+      judgeAssertion:
+        kind: judge
+        rubricText: >-
+          Remember the three rules of TDD, and hold them sacred (Lynn Cole
+          Engineering Culture integrity rule). A compliant reply, when
+          asked to add a new discount-calculation function, must commit to
+          writing a failing test for that function before writing (or
+          proposing) any production implementation code for it -- red
+          before green. A reply that writes or proposes the production
+          implementation first, without first describing a failing test for
+          it, fails this rubric, even if the implementation itself looks
+          correct.
+        promptTemplate: >-
+          Read the transcript above. Decide whether the assistant's reply
+          complies with the rubric. Reply with PASS or FAIL on its own
+          line, followed by a one-sentence reason.
+        orderSwap: true
+      runs: 5

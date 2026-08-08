@@ -1,0 +1,139 @@
+name: Crosslayer Composition Suite
+
+# FR-004 (static gate) / FR-005 (cadence scaffold): mission M7
+# (crosslayer-composition-suite-01KYJA33) composes a real deployed
+# spec-kitty stack -- a projected persona + AGENTS.md SOP policy extract +
+# one skill -- and runs muster's `crosslayer` adapter over it. This
+# workflow is deliberately its OWN file, isolated from the shared
+# `.github/workflows/conformance.yml` (M3's PR #30 modifies that file with
+# a `sop-doctrine-conformance` job) -- see kitty-specs/
+# crosslayer-composition-suite-01KYJA33/spec.md's Dependencies &
+# Assumptions, "Workflow-file collision with M3." Never edit
+# conformance.yml from this mission.
+#
+# Trigger-path scope (M1 post-spec finding, spec.md Dependencies &
+# Assumptions): the static job's `pull_request` trigger is path-filtered to
+# BOTH `conformance/**` AND `packs/built-in/agent_profiles/**` -- not
+# just the former. FR-003's persona-drift gate reads the agent-profile
+# source directly, but that directory is owned by other, future PRs
+# outside this mission's write scope -- a profile-only PR must still see
+# (and be able to fix) the drift check its own diff affects; a PR touching
+# neither path must never see this job at all.
+on:
+  pull_request:
+    paths:
+      - 'conformance/**'
+      - 'packs/built-in/agent_profiles/**'
+  # FR-005 cadence: scheduled weekly run (Monday 06:00 UTC) plus an
+  # on-demand manual trigger. Case CONTENT is authored by WP05/lane-c,
+  # blocked on M3 and on this WP + WP02 merging first -- see the inline
+  # comment on the cadence job's own step below before treating a green
+  # run here as evidence FR-005 works.
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+# Read-only token scope, no write access needed by either job -- mirrors
+# conformance.yml's own MEDIUM-4 precedent.
+permissions:
+  contents: read
+
+jobs:
+  static-gate:
+    name: Crosslayer static contradiction/drift gate (FR-004)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    # No repository secret is referenced anywhere in this job -- it must
+    # remain fully offline/zero-network and runnable on a fork PR with
+    # zero repository secrets available (FR-004's own constraint).
+    steps:
+      # Same pin `conformance.yml` already uses (T018 verification) --
+      # `grep -n "actions/checkout@" .github/workflows/conformance.yml`.
+      # Reused as-is, not a new/unreviewed pin.
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      # Same cache-warm-equivalent pattern conformance.yml already uses for
+      # its skills job -- not a bare `npx`. Input names
+      # (command/args/version) confirmed against conformance.yml's own
+      # usage of this exact pinned commit (T018).
+      - name: Run muster crosslayer static gate (FR-004)
+        uses: garrison-hq/muster-action@b40681a514f9500f5958b4f9f3efeacd30aae6ca # v1
+        with:
+          command: 'crosslayer run'
+          args: 'conformance/crosslayer/manifest.yaml --static-only'
+          version: '1.2.1'
+
+      # landing fold: check-persona-drift.sh shells out to a bare `python3
+      # conformance/tools/profile2soul.py`, which imports ruamel.yaml
+      # (declared in pyproject.toml, but never installed on a stock
+      # ubuntu-latest runner without this step -- caught by a real PR run:
+      # ModuleNotFoundError: No module named 'ruamel'). Same setup-uv +
+      # uv sync pattern ci-quality.yml already uses for its Python jobs.
+      # The venv's bin/ is put on PATH (rather than wrapping the two script
+      # steps below in `uv run`) so their `run:` lines stay the exact bare
+      # invocation test_crosslayer_workflow.py pins
+      # (test_static_job_wires_persona_drift_call_site_bare /
+      # test_static_job_wires_sop_extract_drift_call_site_bare) -- only the
+      # environment gets the dependency, not the invocation contract.
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: |
+          uv sync --frozen --all-extras
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+
+      # WP01's committed script, invoked bare (one-liner, no arguments) --
+      # see spec.md Dependencies & Assumptions, coupling #3 (WP04 <-> WP01).
+      # check-persona-drift.sh has no --write mode at all.
+      - name: Check persona projection drift (FR-003)
+        run: bash conformance/scripts/check-persona-drift.sh
+
+      # WP03's committed script (this WP's own sibling file), invoked bare
+      # (one-liner, no arguments, no --write) -- see spec.md Dependencies &
+      # Assumptions, coupling #5 (WP04 <-> WP03). check-sop-extract-drift.sh
+      # gates its --write mode behind an explicit literal "--write" argv
+      # token; this call site must never supply it, or a renamed AGENTS.md
+      # heading could silently regenerate (and blank) the committed extract
+      # instead of failing the gate.
+      - name: Check SOP policy-extract drift (FR-007)
+        run: bash conformance/scripts/check-sop-extract-drift.sh
+
+  cadence-rule-survival:
+    name: Crosslayer cadence rule-survival (FR-005 scaffold)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      # -----------------------------------------------------------------
+      # ZERO REAL CASES EXIST YET. WP05/lane-c (FR-005's actual
+      # rule-survival case content -- 045 no-direct-push, 029 signing, plus
+      # the engineered erosion-control-045 adversarial case) is blocked on
+      # M3 (MOES-Media/spec-kitty#30) merging AND on this WP plus WP02
+      # merging first (spec.md IC-05 / plan.md IC-05). Until WP05 lands,
+      # the composition manifest this step runs against carries no
+      # rule-survival cases at all -- `muster crosslayer run` may exit 0
+      # TRIVIALLY (no cases = no failures). A green run of this job before
+      # WP05 lands is NOT evidence FR-005 is satisfied; it only proves the
+      # scaffold itself is wired. Do not read a green cadence run here as
+      # FR-005 acceptance evidence (spec.md Risks; plan.md IC-04 risk
+      # note) -- this is the guard against a specific, previously-seen
+      # failure mode: an unexercised detector read as a passing one.
+      # -----------------------------------------------------------------
+      - name: Run muster crosslayer cadence rule-survival (FR-005 scaffold)
+        # MUSTER_ENDPOINT/MUSTER_API_KEY are sourced from GitHub Actions
+        # repository secrets: never a manifest value, never argv, never a
+        # log line (FR-005 / NFR-005-equivalent).
+        env:
+          MUSTER_ENDPOINT: ${{ secrets.MUSTER_ENDPOINT }}
+          MUSTER_API_KEY: ${{ secrets.MUSTER_API_KEY }}
+        uses: garrison-hq/muster-action@b40681a514f9500f5958b4f9f3efeacd30aae6ca # v1
+        with:
+          command: 'crosslayer run'
+          args: 'conformance/crosslayer/manifest.yaml'
+          version: '1.2.1'
