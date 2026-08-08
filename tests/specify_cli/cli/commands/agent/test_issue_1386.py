@@ -1,4 +1,11 @@
-"""Regression coverage for issue #1386 protected-branch status writes."""
+"""Permanent guard for issue #1386 protected-branch status writes.
+
+Landing note (2026-08, `tests/regression/` campsite clean): #1386 is fixed;
+this is a permanent regression guard, not a red-first reproduction, so it
+carries no `regression` marker and lives with its sibling tasks-CLI tests
+here rather than in `tests/regression/`. The issue number is kept as
+history.
+"""
 
 from __future__ import annotations
 

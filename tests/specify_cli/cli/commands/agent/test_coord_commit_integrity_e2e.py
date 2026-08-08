@@ -1,6 +1,12 @@
 """Coord-commit integrity — misroute guard (T003), porcelain root (T004), and
 the real-repo e2e (T005) for coord-commit-integrity WP01 (FR-002, NFR-001).
 
+**Landing note (2026-08, `tests/regression/` campsite clean).** These
+invariants are already fixed and green; this is a permanent regression guard,
+not a red-first reproduction, so it carries no `regression` marker and lives
+with its sibling coord-commit / workflow tests here rather than in
+`tests/regression/`. FR-002/NFR-001 kept as history below.
+
 Scope (WP01-owned invariants only — paula): the misroute-to-legacy fail-loud
 guard, the legacy porcelain pre-check running in the resolved worktree root, a
 status event committing to the coord worktree (not the target branch), the

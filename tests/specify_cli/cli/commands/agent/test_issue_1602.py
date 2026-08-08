@@ -1,4 +1,10 @@
-"""Regression for issue #1602 — coordination commit clobbers the canonical log.
+"""Permanent guard for issue #1602 — coordination commit clobbers the canonical log.
+
+**Landing note (2026-08, `tests/regression/` campsite clean).** #1602 is
+fixed; this is a permanent regression guard, not a red-first reproduction, so
+it carries no `regression` marker and lives with its sibling coordination-commit
+tests here rather than in `tests/regression/`. The issue number is kept as
+history.
 
 On lane-based missions the canonical lane transitions live ONLY on the
 coordination branch (the emit pipeline appends them straight to the coord

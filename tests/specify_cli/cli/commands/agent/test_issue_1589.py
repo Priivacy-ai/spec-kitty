@@ -1,4 +1,9 @@
-"""Regression/acceptance coverage for upstream issue #1589 (facet 1).
+"""Permanent guard/acceptance coverage for upstream issue #1589 (facet 1).
+
+**Landing note (2026-08, `tests/regression/` campsite clean).** #1589 is
+fixed; this is a permanent regression guard, not a red-first reproduction, so
+it carries no `regression` marker and lives with its sibling tasks-CLI tests
+here rather than in `tests/regression/`. The issue number is kept as history.
 
 Replicates the real failure: a circular WP dependency aborts ``finalize-tasks``
 before canonical status is bootstrapped, so the documented loop command

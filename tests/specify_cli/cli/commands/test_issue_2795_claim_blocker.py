@@ -1,4 +1,12 @@
-"""Regression: claim-time consolidation blocker (#2795, WP01).
+"""Permanent guard: claim-time consolidation blocker (#2795, WP01, CLOSED).
+
+**Landing note (2026-08, `tests/regression/` campsite clean).** #2795 is
+fixed; this is a permanent regression guard, not a red-first reproduction, so
+it carries no `regression` marker and lives with its sibling claim/VCS-lock
+tests here rather than in `tests/regression/`. (#2795 is also the
+Mechanism-A issue split out and closed separately from #2367, referenced by
+`tests/merge/test_issue_2367_bake_strand.py`.) The issue number is kept as
+history below.
 
 The *reported* cause — a dirty coordination-worktree ``meta.json`` — is
 **refuted**. The real mechanism, reproduced here through the pre-existing

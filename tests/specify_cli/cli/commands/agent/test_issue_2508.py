@@ -1,4 +1,10 @@
-"""Regression test for #2508 (coord-authority-trio-degod-01KX7094, WP02/T006).
+"""Permanent guard for #2508 (coord-authority-trio-degod-01KX7094, WP02/T006).
+
+**Landing note (2026-08, `tests/regression/` campsite clean).** #2508 is
+fixed; this is a permanent regression guard, not a red-first reproduction, so
+it carries no `regression` marker and lives with its sibling workflow/commit
+tests here rather than in `tests/regression/`. The issue number and the
+original ownership rationale are kept as history below.
 
 ``_load_coord_branch_meta`` (``workflow.py:276``) reads ``meta.json`` off
 whatever ``feature_dir`` its caller passes it. ``_commit_workflow_change``
@@ -30,14 +36,15 @@ while reporting a "[refused]" commit receipt to the operator -- through
 the REAL ``agent action implement`` command entry point, not a synthetic
 unit call into ``_commit_workflow_change``.
 
-Ownership note (DIRECTIVE_024 leeway, no-overlap guard): WP02's
+Ownership note (DIRECTIVE_024 leeway, no-overlap guard, historical): WP02's
 ``owned_files`` lists ``tests/specify_cli/cli/commands/agent/
-test_workflow_cores.py`` for pure-core unit tests. This is a full
-CLI-entry-point regression repro (git subprocess + CliRunner over the real
-Typer app), which belongs with the project's other numbered-issue
-regression repros (``tests/regression/test_issue_1348.py``). No other WP
-in this mission owns ``tests/regression/`` (confirmed via the mission's
-``tasks/WP0{1,3,4,5}-*.md`` ownership maps) -- there is no overlap.
+test_workflow_cores.py`` for pure-core unit tests. This was originally
+authored as a full CLI-entry-point regression repro (git subprocess +
+CliRunner over the real Typer app), landed alongside the project's other
+numbered-issue regression repros (``tests/regression/test_issue_1348.py``,
+itself since relocated to this same directory). No other WP in this mission
+owned ``tests/regression/`` (confirmed via the mission's
+``tasks/WP0{1,3,4,5}-*.md`` ownership maps) -- there was no overlap.
 
 Marker: integration + git_repo (CliRunner over a real git repository, one
 real ``git worktree add`` for the coordination worktree).

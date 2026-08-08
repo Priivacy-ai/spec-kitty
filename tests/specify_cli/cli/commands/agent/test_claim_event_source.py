@@ -3,6 +3,18 @@
 ``spec-kitty agent action implement`` / ``mark-status`` entry points
 (DIRECTIVE_041).
 
+**Landing note (2026-08, `tests/regression/` campsite clean).** This is a
+permanent guard, not a red-first reproduction, so it carries no `regression`
+marker and lives with the sibling claim/event-sourcing coverage here rather
+than in `tests/regression/`. It partially overlaps
+``test_implement_runtime_frontmatter_claim.py`` (frontmatter-diff /
+byte-stability angle) and ``test_issue_2684_subtask_completion_event_sourced.py``
+(``move-task`` gate-reads-the-log angle) but adds a real angle neither
+covers: assertions on the CLAIM EVENT'S OWN payload (``policy_metadata``
+carries ``shell_pid``/``agent``; the reduced snapshot exposes them) and on
+idempotent re-completion of an already-``done`` subtask in the snapshot —
+verified during this relocation, not assumed.
+
 **Scope note (live-evidence finding, recorded per DIRECTIVE_041/failing-test
 discipline — this is NOT a fabricated red).** WP04's own subtasks (T014/T015:
 event-source the claim; T016: event-source subtask completion; T018: dual-write

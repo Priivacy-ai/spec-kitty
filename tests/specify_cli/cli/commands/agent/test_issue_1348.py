@@ -1,4 +1,10 @@
-"""Regression tests for issue #1348 (T042, SC-05, SC-06, SC-11).
+"""Permanent guard for issue #1348 (T042, SC-05, SC-06, SC-11).
+
+**Landing note (2026-08, `tests/regression/` campsite clean).** #1348 is
+fixed; this is a permanent regression guard, not a red-first reproduction, so
+it carries no `regression` marker and lives with its sibling
+workflow/bookkeeping tests here rather than in `tests/regression/`. The issue
+number and both symptoms are kept as history below.
 
 Issue #1348 had two symptoms:
 
@@ -198,7 +204,7 @@ def _run_driver(
     # Ensure the subprocess can import specify_cli from the editable
     # source tree.  pytest.ini sets ``pythonpath = src`` so the parent
     # process sees it, but child interpreters need it explicitly.
-    src_path = str(Path(__file__).resolve().parents[2] / "src")
+    src_path = str(Path(__file__).resolve().parents[5] / "src")
     existing = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = (
         f"{src_path}{os.pathsep}{existing}" if existing else src_path
@@ -465,7 +471,7 @@ def test_issue_1348_legacy_mission_regression(
     legacy_mid8 = "01J6LEGAC"
     legacy_mid = "01J6LEGAC00000000000000000"
 
-    src_path = str(Path(__file__).resolve().parents[2] / "src")
+    src_path = str(Path(__file__).resolve().parents[5] / "src")
     legacy_env = os.environ.copy()
     existing = legacy_env.get("PYTHONPATH", "")
     legacy_env["PYTHONPATH"] = (
