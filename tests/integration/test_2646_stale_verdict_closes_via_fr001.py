@@ -1,4 +1,9 @@
-"""Regression (#2646 / FR-003): verify #2646 closes via WP01's writer alone.
+"""Permanent guard (#2646 / FR-003): verify #2646 closes via WP01's writer alone.
+
+Formerly ``@pytest.mark.regression`` under ``tests/regression/``; relocated
+here and un-marked (2026-08 landing fold: make ``@pytest.mark.regression``
+mean exactly one thing) once this verify-first suite proved the fix and
+stayed green. #2646 is closed.
 
 GitHub issue #2646 reports that an approved WP can still display a stale
 ``rejected`` warning in ``agent tasks status`` for ``lanes_with_coord``
@@ -57,12 +62,12 @@ from tests.integration.coord_topology_fixture import (
 )
 
 # ``coord_topology_mission`` / ``flat_topology_mission`` are consumed as pytest
-# fixtures (parameter name injection) via ``tests/regression/conftest.py``'s
+# fixtures (parameter name injection) via ``tests/integration/conftest.py``'s
 # re-export -- importing the fixture functions directly into this module too
 # would shadow the same-named test parameters (ruff F811), the same reason
 # ``tests/acceptance/conftest.py`` exists.
 
-pytestmark = [pytest.mark.regression, pytest.mark.integration, pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 # ``coord_topology_fixture`` writes the WP01 task file as ``tasks/WP01.md``
 # (no per-WP kebab suffix), so its stem -- and therefore the

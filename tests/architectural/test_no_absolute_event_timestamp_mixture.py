@@ -72,7 +72,9 @@ forever and must never be flagged:
 
 * ``_event(...)``'s own default-only usage, when no call in the same test
   reaches one of the five now()-producing entry points above.
-* ``tests/regression/test_2646_stale_verdict_closes_via_fr001.py`` --
+* ``tests/integration/test_2646_stale_verdict_closes_via_fr001.py`` (moved
+  out of ``tests/regression/`` in the 2026-08 landing fold once #2646 closed
+  and this suite went permanently green -- same file, same tests) --
   verified directly (T007/T008): PASSES today (confirmed: 2 passed, not a
   baseline failure), and every ``StatusEvent``/``append_event`` call in that
   module supplies an explicit hard-coded literal (``at="2026-08-02T12:00:00
@@ -442,7 +444,7 @@ def test_real_2646_fixture_is_not_flagged() -> None:
     passed, confirmed, not a baseline failure) and its event log is entirely
     hard-coded literals -- it must never be classified as a mixture."""
     root = _repo_root()
-    path = root / "tests/regression/test_2646_stale_verdict_closes_via_fr001.py"
+    path = root / "tests/integration/test_2646_stale_verdict_closes_via_fr001.py"
     assert path.exists(), "test_2646_stale_verdict_closes_via_fr001.py must exist for this proof"
     tree = ast.parse(path.read_text(encoding="utf-8"))
     local_helpers = _local_helper_defs(tree)
