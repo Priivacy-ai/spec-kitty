@@ -13,12 +13,27 @@ finding). This file is the check that keeps it that way:
   not a same-line grep, so splitting the two literals across lines/functions
   cannot dodge it (squad #5's evasion concern).
 - **Positive check** (:func:`test_swept_module_imports_and_calls_verdict_vocab`):
-  each of the 5 WP04-owned sweep sites must import the bridge module AND call
-  one of its attributes somewhere in its own AST. This defeats the
-  complementary evasion -- a module that simply stops spelling the literals
-  (e.g. by hardcoding an equivalent behaviour some other way) without ever
-  routing through the canonical surface would pass the negative check alone
-  but fails this one.
+  each of the 5 WP04-owned sweep sites must genuinely route through the
+  bridge somewhere in its own AST. This defeats the complementary evasion --
+  a module that simply stops spelling the literals (e.g. by hardcoding an
+  equivalent behaviour some other way) without ever routing through the
+  canonical surface would pass the negative check alone but fails this one.
+
+  Two import shapes count as "routing through the bridge", and
+  ``verdict-seam-boundary-hardening-01KZG179`` (FR-002/FR-005) retired the
+  first in favour of the second repo-wide:
+
+  1. **Module-object shape** (pre-FR-005): ``from specify_cli.status import
+     verdict_vocab`` + an attribute-call (``verdict_vocab.<fn>(...)``).
+  2. **Façade-symbol shape** (post-FR-005, the ONLY shape live in the tree
+     today): ``from specify_cli.status import <fn>`` (the bridge's public
+     functions, promoted onto ``status.__all__``) + a bare-name call
+     (``<fn>(...)``). ``test_status_module_boundary.py``'s
+     ``test_ast_scan_catches_submodule_object_import`` now actively
+     *forbids* shape 1 tree-wide, so shape 2 is the only one any real sweep
+     site can legally use -- but both are accepted here since this file's
+     concern is genuine routing through the bridge, not the import shape
+     (that is ``test_status_module_boundary.py``'s job).
 
   Review cycle 1 (reviewer-renata) rejected an earlier version of this file
   that ALSO listed ``status/models.py`` and ``status/reducer.py`` here: at
@@ -101,6 +116,29 @@ _SWEPT_MODULES: tuple[str, ...] = (
 #: literals", upgraded here to an AST scan for non-line-adjacency).
 _EQUIVALENCE_LITERALS: frozenset[str] = frozenset({"rejected", "changes_requested"})
 
+#: The bridge's public, CALLABLE functions (excludes the ``EventVerdict`` /
+#: ``ArtifactVerdict`` / ``EmissionArtifactVerdict`` type aliases and the
+#: ``APPROVED`` / ``REJECTED`` / ``ARBITER_OVERRIDE`` /
+#: ``APPROVED_AFTER_ORCHESTRATOR_FIX`` / ``CHANGES_REQUESTED`` string
+#: constants, none of which are ever *called*). A module that imports one of
+#: these directly from the ``specify_cli.status`` façade (FR-001/FR-006
+#: promoted them onto ``status.__all__``) and invokes it by its bare name is
+#: routing through the canonical bridge just as genuinely as the retired
+#: ``verdict_vocab.<fn>(...)`` module-object shape -- see
+#: :func:`_bound_facade_symbol_names`.
+_VERDICT_VOCAB_CALLABLE_SYMBOLS: frozenset[str] = frozenset(
+    {
+        "artifact_verdicts",
+        "event_verdicts",
+        "emission_artifact_verdicts",
+        "to_event_verdict",
+        "to_artifact_verdict",
+        "emission_event_verdict",
+        "is_changes_requested",
+        "is_approved",
+    }
+)
+
 
 def _repo_root() -> Path:
     here = Path(__file__).resolve()
@@ -154,13 +192,16 @@ def _co_occurring_equivalence_modules(root: Path) -> dict[str, set[str]]:
 def _bound_verdict_vocab_names(tree: ast.Module) -> set[str]:
     """Local names this module's OWN import statements bind to the
     ``specify_cli.status.verdict_vocab`` module object (handles ``import ...
-    as`` aliasing, though every real sweep site here uses the plain name).
-    Deliberately excludes ``from specify_cli.status.verdict_vocab import X``
-    -- that binds a FUNCTION/attribute, not the module object, so a later
-    bare call to ``X(...)`` would not show up as a
-    ``verdict_vocab.<attr>(...)`` attribute-call shape; requiring the
-    module-object-call shape keeps the check simple and uniform across all 7
-    sites (which all import the module, not individual names)."""
+    as`` aliasing). This is the PRE-FR-005 shape: ``test_status_module_
+    boundary.py``'s ``test_ast_scan_catches_submodule_object_import`` now
+    forbids it tree-wide (verdict-seam-boundary-hardening-01KZG179), so no
+    real sweep site uses it any more -- kept here so a module that DID still
+    use it would be recognized as genuinely routing through the bridge
+    rather than silently falling through to "no evidence found". Deliberately
+    excludes ``from specify_cli.status.verdict_vocab import X`` -- that binds
+    a FUNCTION/attribute, not the module object, so a later bare call to
+    ``X(...)`` would not show up as a ``verdict_vocab.<attr>(...)``
+    attribute-call shape."""
     names: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.module == "specify_cli.status":
@@ -174,28 +215,58 @@ def _bound_verdict_vocab_names(tree: ast.Module) -> set[str]:
     return names
 
 
+def _bound_facade_symbol_names(tree: ast.Module) -> set[str]:
+    """Local names this module's OWN import statements bind to one of the
+    bridge's public CALLABLE functions imported DIRECTLY from the
+    ``specify_cli.status`` façade (handles ``as`` aliasing). This is the
+    POST-FR-005 shape (verdict-seam-boundary-hardening-01KZG179,
+    FR-001/FR-002/FR-006): every real sweep site imports ``<fn>`` rather
+    than the ``verdict_vocab`` module object, because the module-object
+    shape is the exact bypass ``test_status_module_boundary.py`` now
+    forbids tree-wide."""
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module == "specify_cli.status":
+            for alias in node.names:
+                if alias.name in _VERDICT_VOCAB_CALLABLE_SYMBOLS:
+                    names.add(alias.asname or alias.name)
+    return names
+
+
 def _imports_and_calls_verdict_vocab(path: Path) -> bool:
-    """True iff *path* both imports the bridge module object AND calls one of
-    its attributes (``verdict_vocab.<fn>(...)``) somewhere in its own AST.
+    """True iff *path* genuinely routes through the bridge somewhere in its
+    own AST, via EITHER of the two import shapes below.
 
     This is the anti-evasion half of the guard: the negative check alone can
     be satisfied by a module that just stops spelling the two literals
     together (e.g. by re-deriving the same behaviour some other way without
     ever consulting the canonical bridge). Requiring an actual import + a
-    CALL through the bound name means a module that maps verdicts must ROUTE
+    CALL through a bound name means a module that maps verdicts must ROUTE
     through the canonical surface, not merely avoid a particular spelling.
+
+    - **Module-object shape** (pre-FR-005): imports the ``verdict_vocab``
+      module object and attribute-calls it (``verdict_vocab.<fn>(...)``).
+    - **Façade-symbol shape** (post-FR-005, the live shape): imports one of
+      the bridge's public functions directly from ``specify_cli.status`` and
+      bare-name-calls it (``<fn>(...)``).
     """
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    bound_names = _bound_verdict_vocab_names(tree)
-    if not bound_names:
+    module_bound_names = _bound_verdict_vocab_names(tree)
+    facade_bound_names = _bound_facade_symbol_names(tree)
+    if not module_bound_names and not facade_bound_names:
         return False
-    return any(
-        isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Attribute)
-        and isinstance(node.func.value, ast.Name)
-        and node.func.value.id in bound_names
-        for node in ast.walk(tree)
-    )
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        if (
+            isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id in module_bound_names
+        ):
+            return True
+        if isinstance(node.func, ast.Name) and node.func.id in facade_bound_names:
+            return True
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -337,9 +408,12 @@ def test_synthetic_module_importing_but_never_calling_reds_positive_check(
 def test_synthetic_module_importing_and_calling_the_bridge_greens_positive_check(
     tmp_path: Path,
 ) -> None:
-    """Sanity: the positive check DOES accept the real adopted shape (import
-    + a call through the bound name) -- proves the check is satisfiable, not
-    just a permanent red."""
+    """Sanity: the positive check DOES accept the module-object shape
+    (import + a call through the bound name) -- proves the check is
+    satisfiable via that shape, not just a permanent red. This shape is
+    retired repo-wide (see ``test_status_module_boundary.py``'s
+    ``test_ast_scan_catches_submodule_object_import``); it is exercised here
+    only to prove this file's OWN detection logic still recognizes it."""
     relpath = "src/specify_cli/synthetic_real_sweep.py"
     _write_module(
         tmp_path,
@@ -347,6 +421,67 @@ def test_synthetic_module_importing_and_calling_the_bridge_greens_positive_check
         "from specify_cli.status import verdict_vocab\n\n\n"
         "def f(v: str) -> str:\n"
         "    return verdict_vocab.to_event_verdict(v)\n",
+    )
+    assert _imports_and_calls_verdict_vocab(tmp_path / relpath)
+
+
+# ---------------------------------------------------------------------------
+# T017b -- façade-symbol shape (post-FR-005, the shape every live sweep site
+# actually uses) and its own anti-evasion proofs.
+# ---------------------------------------------------------------------------
+
+
+def test_synthetic_module_with_fake_facade_symbol_reds_positive_check(
+    tmp_path: Path,
+) -> None:
+    """A module that defines and calls a LOCALLY-NAMED function that shares a
+    name with one of the bridge's public functions, without ever importing
+    it from ``specify_cli.status``, does NOT satisfy the positive check --
+    the bound-name resolution requires an actual façade import, so a module
+    cannot fake compliance with a same-named local callable."""
+    relpath = "src/specify_cli/synthetic_fake_facade_call.py"
+    _write_module(
+        tmp_path,
+        relpath,
+        "def to_event_verdict(v: str) -> str:\n"
+        "    return v\n\n\n"
+        "to_event_verdict('rejected')\n",
+    )
+    assert not _imports_and_calls_verdict_vocab(tmp_path / relpath)
+
+
+def test_synthetic_module_importing_facade_symbol_but_never_calling_reds_positive_check(
+    tmp_path: Path,
+) -> None:
+    """A module that imports a bridge function from the façade but never
+    calls it (e.g. only re-exports or mentions it in a docstring) does not
+    satisfy the positive check -- import alone is not adoption, in the
+    façade-symbol shape just as in the module-object shape."""
+    relpath = "src/specify_cli/synthetic_facade_import_only.py"
+    _write_module(
+        tmp_path,
+        relpath,
+        "from specify_cli.status import to_event_verdict\n\n\n"
+        "_NOTE = 'see to_event_verdict for details'\n",
+    )
+    assert not _imports_and_calls_verdict_vocab(tmp_path / relpath)
+
+
+def test_synthetic_module_importing_and_calling_facade_symbol_greens_positive_check(
+    tmp_path: Path,
+) -> None:
+    """Sanity: the positive check DOES accept the façade-symbol shape
+    (direct import from ``specify_cli.status`` + a bare-name call) -- this is
+    the shape all 5 real sweep sites use post-FR-005/FR-006, so this proves
+    the check is satisfiable by the shape actually live in the tree, not
+    only by the retired module-object shape."""
+    relpath = "src/specify_cli/synthetic_facade_real_sweep.py"
+    _write_module(
+        tmp_path,
+        relpath,
+        "from specify_cli.status import to_event_verdict\n\n\n"
+        "def f(v: str) -> str:\n"
+        "    return to_event_verdict(v)\n",
     )
     assert _imports_and_calls_verdict_vocab(tmp_path / relpath)
 
