@@ -1,4 +1,9 @@
-"""Regression (WP01 / FR-007 / NFR-003): the corpus front-load is idempotent.
+"""Permanent guard (WP01 / FR-007 / NFR-003): the corpus front-load is idempotent.
+
+**Landing note (2026-08, `tests/regression/` campsite clean).** This is a
+permanent regression guard, not a red-first reproduction, so it carries no
+`regression` marker and lives with its sibling migration-cutover tests here
+rather than in `tests/regression/`. FR-007/NFR-003 kept as history below.
 
 Mission #2892-family ``coord-write-placement-closure`` WP01 runs the canonical
 ``spec-kitty migrate backfill-runtime-state`` cutover

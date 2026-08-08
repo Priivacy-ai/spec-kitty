@@ -4,6 +4,18 @@ claim-liveness off the reduced snapshot, driven through the real
 the frontmatter write-retirement + reader-scope proof this WP's Definition of
 Done requires.
 
+**Landing note (2026-08, `tests/regression/` campsite clean).** This is a
+permanent guard, not a red-first reproduction, so it carries no `regression`
+marker and lives with its direct sibling
+``tests/specify_cli/core/test_stale_detection_snapshot_liveness.py`` here
+rather than in `tests/regression/`. It partially overlaps that sibling (both
+cover live/dead snapshot-PID staleness flips) but adds a real angle the
+sibling does not: this file seeds the claim through the real
+``implement`` CLI entry point (verified during this relocation — the
+sibling's ``_claim`` helper writes the event directly, never invoking a CLI
+command), so it also exercises the frontmatter write-retirement and
+liveness-reader-scope invariants the CLI path can uniquely disturb.
+
 **Scope note (live-evidence finding, recorded per DIRECTIVE_041/failing-test
 discipline — this is NOT a fabricated red).** WP05 was planned against IC-07's
 description of the codebase where ``stale_detection.py``'s
@@ -40,8 +52,10 @@ them):
   documents "the WP file is NOT mutated for the claim... this function writes
   0 runtime bytes to the WP file", confirmed by the pre-existing
   ``tests/specify_cli/cli/commands/test_implement_runtime_frontmatter_claim.py``
-  and by WP04's own ``tests/regression/test_claim_event_source.py`` (this
-  mission, already merged). ``frontmatter.py`` itself never contained the
+  and by WP04's own
+  ``tests/specify_cli/cli/commands/agent/test_claim_event_source.py`` (this
+  mission, already merged; relocated out of ``tests/regression/`` in the
+  2026-08 landing fold). ``frontmatter.py`` itself never contained the
   write function (the god-write lived in ``tasks_move_task.py``'s deleted
   ``_mt_dual_write_wp_file``) — it only carries the ``shell_pid``/
   ``SHELL_PID_BASELINE_FIELD`` field-order position and the
