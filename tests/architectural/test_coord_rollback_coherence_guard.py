@@ -62,7 +62,9 @@ from specify_cli.merge import executor as ex
 from specify_cli.merge.state import load_state
 
 # --- Reused bake-strand (#2367-B / WP01) harness ----------------------------
-from tests.regression.test_issue_2367_bake_strand import (
+# (relocated from tests/regression/ in the 2026-08 landing fold; see
+# tests/merge/test_issue_2367_bake_strand.py's module docstring)
+from tests.merge.test_issue_2367_bake_strand import (
     COHERENT_WP,
     COORD_BRANCH,
     MISSION_ID,

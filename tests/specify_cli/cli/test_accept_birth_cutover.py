@@ -43,7 +43,7 @@ from specify_cli.migration.runtime_state_cutover import (
 # Cross-test-module reuse of private helpers is an established pattern in this
 # suite (e.g. ``tests/migration/test_birth_cutover.py``'s own docstring notes
 # ``tests/merge/test_executor_coord_reconcile.py`` importing from
-# ``tests/regression/test_issue_2367_bake_strand.py``). Reused here rather than
+# ``tests/merge/test_issue_2367_bake_strand.py``). Reused here rather than
 # re-deriving the exact real event-sourced claim/subtask-completion/approval
 # sequence the guard predicate (``_mission_carries_event_log_runtime``)
 # actually requires.

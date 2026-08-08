@@ -1,4 +1,10 @@
-"""Scope: #2786 — a FAILED coord ``done`` revert during rollback is swallowed (regression guard; #2786 FIXED).
+"""Scope: #2786 — a FAILED coord ``done`` revert during rollback is swallowed (permanent guard; #2786 FIXED).
+
+**Landing note (2026-08, `tests/regression/` campsite clean).** Relocated
+from `tests/regression/` to `tests/merge/` — its functional home alongside
+the other merge-executor / coordination-rollback tests — now that #2786 is
+fixed and this is a green permanent guard, not a red-first reproduction (no
+`regression` marker). The issue number is kept as history.
 
 This module reproduces **#2786** and now guards its fix. It began as an
 INTENTIONAL, issue-pinned red-first P0 reproduction (per ADR

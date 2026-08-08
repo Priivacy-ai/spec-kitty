@@ -41,7 +41,10 @@ from specify_cli.merge.state import MergeState, load_state
 from specify_cli.status import Lane
 
 # --- Reused bake-strand (#2367-B) harness -----------------------------------
-from tests.regression.test_issue_2367_bake_strand import (
+# (relocated from tests/regression/ in the 2026-08 landing fold, once the
+# defect closed and this became a permanent guard living with its siblings
+# in tests/merge/)
+from tests.merge.test_issue_2367_bake_strand import (
     COHERENT_WP,
     COORD_BRANCH,
     MISSION_ID,
@@ -57,7 +60,8 @@ from tests.regression.test_issue_2367_bake_strand import (
 )
 
 # --- Reused revert-failure (#2786) harness ----------------------------------
-from tests.regression.test_issue_2786_revert_failure_split_brain import (
+# (relocated from tests/regression/ in the same landing fold)
+from tests.merge.test_issue_2786_revert_failure_split_brain import (
     _reduce_coord_lanes,
     _run_merge_with_target_and_revert_failing,
 )
