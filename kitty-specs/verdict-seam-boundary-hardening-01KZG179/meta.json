@@ -25,6 +25,7 @@
   "purpose_context": "PR #3245 unified the verdict authority model but left the write-side facade incomplete, two architectural guards partly vacuous, one latent arbiter crash, a JSON advisory gap, and a mis-pooled stress test. This brownfield hardening mission closes that leftover work and cleans the adjacent functional and technical debt without changing the (already-unified) verdict authority or read semantics.",
   "purpose_tldr": "Finish the single-authority verdict boundary from PR #3245 and clear five tracked debt/bug follow-ons.",
   "slug": "verdict-seam-boundary-hardening-01KZG179",
+  "status_phase": "1",
   "target_branch": "hardening/verdict-seam-facade-followup",
   "topology": "coord",
   "vcs": "git",
