@@ -24,7 +24,7 @@ Use your editor and agent directly. Reserve Spec Kitty for work that benefits fr
 
 ## Ad-hoc specialist session
 
-**When:** Short task needing a specialist profile; no full Spec→Review.
+**When:** Short task needing a specialist profile; no full Spec->Review.
 
 **Why:** Use `spec-kitty dispatch`; lighter than a mission.
 
@@ -36,19 +36,19 @@ See [Start an ad-hoc specialist session](adhoc-specialist-session.md) for exampl
 
 **Why:** Catch fakeability and scope issues without replacing the mission pipeline.
 
-Run adversarial review when an artifact is ready for challenge but you are not starting a new mission. It complements, not replaces, Spec→Plan→Tasks→Implement→Review.
+Run adversarial review when an artifact is ready for challenge but you are not starting a new mission. It complements, not replaces, Spec->Plan->Tasks->Implement->Review.
 
 ## Full mission
 
 **When:** Multi-step feature/bug with acceptance + structured review.
 
-**Why:** Spec→Plan→Tasks→Implement→Review. Parallel agents are a mission capability, not a separate mode.
+**Why:** Spec->Plan->Tasks->Implement->Review. Parallel agents are a mission capability, not a separate mode.
 
 Expect bookkeeping commits as the mission advances work packages. See [Understanding Spec Kitty Missions](missions-overview.md) and [Multi-agent workflow](multi-agent-workflow.md) for mission setup and parallel work.
 
 ## Alternate visual
 
-![When to use Spec-Kitty modes — illustrated style](../assets/images/when-to-use-modes-corporate-comics.png)
+![When to use Spec-Kitty modes - illustrated style](../assets/images/when-to-use-modes-corporate-comics.png)
 
 ## Related guides
 

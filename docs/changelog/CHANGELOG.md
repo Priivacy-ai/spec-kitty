@@ -22,10 +22,10 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 - **A new "When to use Spec-Kitty modes" guide helps you pick the lightest path
   for the work at hand (`#3238`).**
   [`docs/guides/when-to-use-modes.md`](../guides/when-to-use-modes.md) lays out
-  four entry points — skip Spec Kitty for a trivial edit, dispatch an ad-hoc
+  four entry points - skip Spec Kitty for a trivial edit, dispatch an ad-hoc
   specialist for a short task, run a bounded adversarial squad at an SDD
   checkpoint, or drive a full mission when acceptance criteria and structured
-  review matter — with an illustrated overview, so you match effort to the
+  review matter - with an illustrated overview, so you match effort to the
   change instead of paying full-mission overhead on every edit.
 - **`spec-kitty charter pack apply --compile` now applies a pack and compiles
   its bundle in one step (mission `charter-pack-usage-journey`; `#3105`).**
