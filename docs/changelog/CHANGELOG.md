@@ -19,7 +19,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
 
-- **A new "When to use Spec-Kitty modes" guide helps you pick the lightest path
+- **A new "When to use Spec Kitty modes" guide helps you pick the lightest path
   for the work at hand (`#3238`).**
   [`docs/guides/when-to-use-modes.md`](../guides/when-to-use-modes.md) lays out
   four entry points - skip Spec Kitty for a trivial edit, dispatch an ad-hoc

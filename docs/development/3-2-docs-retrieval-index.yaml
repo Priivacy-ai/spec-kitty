@@ -7424,7 +7424,7 @@ pages:
     - {slug: "backward-compatibility", text: "Backward Compatibility", level: 2}
     - {slug: "see-also", text: "See Also", level: 2}
   - path: "docs/guides/when-to-use-modes.md"
-    title: "When to use Spec-Kitty modes"
+    title: "When to use Spec Kitty modes"
     divio_type: "none"
     abstract: "Choose the lightest Spec Kitty path for your work: no Spec Kitty, ad-hoc specialist session, adversarial squad review, or full mission pipeline."
     anchors:
