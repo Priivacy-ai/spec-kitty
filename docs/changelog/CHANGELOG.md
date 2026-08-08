@@ -19,6 +19,13 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
 
+- **`spec-kitty accept --json` now surfaces stranded-verdict advisories in a
+  top-level `advisories` array (mission `verdict-seam-boundary-hardening`;
+  `#3255`).** When a mission carries a review verdict that no longer has a home
+  (an SC-008 "stranded verdict"), `accept --json` reports it as a structured,
+  non-error advisory alongside the normal payload instead of staying silent — so
+  operators and automation can see and act on it without scraping human-readable
+  output.
 - **Spec Kitty's own charter now activates the writing-comms & diagramming
   doctrine set - this repository only; no downstream impact (builds on `#2918` /
   `#3225`).**
@@ -340,6 +347,12 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **`spec-kitty` no longer crashes when an arbiter override lands on a
+  conflict-marked review-cycle file (mission `verdict-seam-boundary-hardening`;
+  `#3244`).** An arbiter override written against a `review-cycle-N.md` that
+  still carried unresolved merge-conflict markers used to raise instead of
+  resolving the latest cycle; the cycle number is now read from the filename
+  alone, so the override applies cleanly.
 - **Restored green CI on two suites that regressed after the single-`PACKS_ROOT`
   / charter-activation unification (mission `resolution-activation-foundation`).**
   `tests/review/test_pre_review_gate_integration.py` and
