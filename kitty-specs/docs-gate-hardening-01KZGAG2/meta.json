@@ -1,8 +1,7 @@
 {
   "baseline_merge_commit": "465420fc1d380b1cde9d15b1aba4fb38f2a2ffcf",
-  "coordination_branch": "kitty/mission-docs-gate-hardening-01KZGAG2",
   "created_at": "2026-08-08T09:15:36.561122+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Docs Quality Gate Hardening",
   "mission_id": "01KZGAG27GFM73YGYXXK8ZJ39F",
   "mission_number": 192,
@@ -13,6 +12,5 @@
   "purpose_tldr": "Make three docs quality gates fail loud instead of shipping silent drift or gaps.",
   "slug": "docs-gate-hardening-01KZGAG2",
   "status_phase": "1",
-  "target_branch": "docs/3253-docs-gaps",
-  "topology": "coord"
+  "target_branch": "docs/3253-docs-gaps"
 }
