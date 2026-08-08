@@ -1,5 +1,11 @@
 """Write-side check: #2404 / #2804 (FR-009 / SC-005, write-surface-coherence WP08).
 
+Permanent guard — #2404 is fixed. Formerly a red-first
+``@pytest.mark.regression`` reproduction under ``tests/regression/``;
+relocated here and un-marked (2026-08 landing fold: make
+``@pytest.mark.regression`` mean exactly one thing) once the write-surface
+fix landed and this suite started passing.
+
 The finalize-time scaffolder (``acceptance/matrix.py::scaffold_acceptance_matrix``,
 called from ``mission_finalize.py::_scaffold_acceptance_matrix_if_lane_based``)
 used to author ``acceptance-matrix.json`` with a bare, unrouted disk write
@@ -10,7 +16,7 @@ path authors a PRIMARY-partition ``acceptance-matrix.json`` under a coordination
 topology.
 
 T042 (SC-005 / G1): this is the durable, WRITE-SIDE regression guard — not a
-merge-outcome assertion (that is ``tests/regression/
+merge-outcome assertion (that is ``tests/merge/
 test_issue_2804_merge_resets_gate_artifacts.py``, a defense-in-depth net for a
 divergence that predates the write-surface fix, per D-PLAN-7). Two legs:
 
@@ -34,7 +40,7 @@ from pathlib import Path
 import pytest
 from ulid import ULID
 
-pytestmark = [pytest.mark.regression, pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _MATRIX_MODULE = Path("src/specify_cli/acceptance/matrix.py")
 _GATES_CORE_MODULE = Path("src/specify_cli/acceptance/gates_core.py")
