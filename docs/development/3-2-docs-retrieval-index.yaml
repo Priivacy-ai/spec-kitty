@@ -4733,7 +4733,7 @@ pages:
     - {slug: "changed-27", text: "Changed", level: 3}
     - {slug: "removed-3", text: "Removed", level: 3}
     - {slug: "fixed-36", text: "Fixed", level: 3}
-    - {slug: "added-documentation-mission-composition-rewrite-502-461-phase-6-wp6-4", text: "Added — Documentation mission composition rewrite (#502, #461, Phase 6 WP6.4)", level: 3}
+    - {slug: "added-documentation-mission-composition-rewrite-502-461-phase-6-wp6-4", text: "Added - Documentation mission composition rewrite (#502, #461, Phase 6 WP6.4)", level: 3}
     - {slug: "added-21", text: "Added", level: 3}
     - {slug: "changed-28", text: "Changed", level: 3}
     - {slug: "deferred-3", text: "Deferred", level: 3}
@@ -4773,7 +4773,7 @@ pages:
     - {slug: "fixed-45", text: "Fixed", level: 3}
     - {slug: "docs-4", text: "Docs", level: 3}
     - {slug: "3-1-2-2026-04-15", text: "[3.1.2] - 2026-04-15", level: 2}
-    - {slug: "fixed-ci-recovery-release-readiness", text: "Fixed — CI recovery & release readiness", level: 3}
+    - {slug: "fixed-ci-recovery-release-readiness", text: "Fixed - CI recovery & release readiness", level: 3}
     - {slug: "added-25", text: "Added", level: 3}
     - {slug: "changed-34", text: "Changed", level: 3}
     - {slug: "unchanged-explicitly", text: "Unchanged (explicitly)", level: 3}
