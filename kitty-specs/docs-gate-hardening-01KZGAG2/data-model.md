@@ -22,11 +22,11 @@ This mission has no persistent datastore; the "data" are the authorities and str
 | Rule | Source FR | Statement |
 |------|-----------|-----------|
 | R-1 | FR-001/SC-002 | `documented_heading_set == CONSUMER_SKILLS` (both directions); else gate exits non-zero naming the symmetric difference. |
-| R-2 | FR-003/SC-003 | For each declared include glob `g`: `count(raw_matches(g)) >= 1` (pre-exclusion); else raise loud naming `g`. |
+| R-2 | FR-003/SC-003 | For each declared include glob `g` (iterated per `(entry, pattern)`, md-filtered): `count(raw_matches(g)) >= 1` (pre-exclusion); else **raise `ValueError`** naming `g` and its content entry. |
 | R-3 | FR-003/C-002 | Aggregate floor `len(page_set) >= 500` preserved (additive to R-2). |
-| R-4 | FR-003 | R-2 evaluated pre-exclusion so a fully-excluded tree (`archive`) does not false-fail. |
-| R-5 | FR-004 | R-2 failure path is reachable through `description_length_check.py`'s resolver entry point (shared resolver). |
-| R-6 | FR-005/SC-005 | docs-freshness workflow retains {paths-filter-excludes-tests/kitty-specs, unfiltered push:main backstop, invariant comment}; else structure test fails. |
+| R-4 | FR-003 | R-2 evaluated pre-exclusion (before `_apply_exclusions`) so a fully-excluded tree (`archive`: 14 raw / 0 post-exclusion) does not false-fail. |
+| R-5 | FR-004 | R-2 raises `ValueError` so `description_length_check._resolve_page_set` (catches `(FileNotFoundError, ValueError)`) re-wraps it as `CoverageError`; the failure path is reachable through that entry point. |
+| R-6 | FR-005/SC-005 | The docs-freshness `paths:` **allowlist** is present AND does **not** contain `tests/**` or `kitty-specs/**` (absence-from-allowlist, not an explicit exclusion), AND an unfiltered `push:main` backstop is present, AND the invariant comment is present; else the structure test fails. |
 
 ## Non-entities (explicitly out)
 

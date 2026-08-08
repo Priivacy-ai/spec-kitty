@@ -80,28 +80,35 @@ tests/docs/
 
 ## Implementation Concern Map
 
-> Concerns, not work packages. `/spec-kitty.tasks` translates these into WPs. The three concerns are independent (no cross-dependencies) and can be sequenced in parallel lanes; each carries its own ATDD test.
+> Concerns, not work packages. `/spec-kitty.tasks` translates these into WPs, each carrying its own ATDD test.
+>
+> **Lane / sequencing shape (revised after post-plan squad — 3-lens confirmed).** The concerns are **not** all independent: IC-01 and IC-03 both write `.github/workflows/docs-freshness.yml`, so they cannot be independent parallel lanes. Correct shape:
+> - **Lane A (independent — IC-02):** touches only `scripts/docs/_published_pages.py` + its tests; `depends-on: none`.
+> - **Lane B (serialized — the `docs-freshness.yml` owner):** **B0** PYTHONPATH tidy (behavior-preserving, first) → **B1** IC-01 (backfill `slash-commands.md` **before** wiring the CI step, or CI reds) → **B2** IC-03 (FR-005 structure test + FR-006 comment + FR-007 note). IC-03 `depends-on` IC-01.
+> - Lanes A and B run in parallel; the only write collision is contained inside serialized Lane B.
+>
+> **Implement-time tracker gate (DIR-012):** the first implement WP must assign #3253 to the HiC before coding.
 
 ### IC-01 — Slash-command reference gate + backfill
 
 - **Purpose**: Make `docs/api/slash-commands.md` fail CI when its `## /spec-kitty.<name>` heading set diverges (either direction) from `CONSUMER_SKILLS`, and backfill the three missing sections.
 - **Relevant requirements**: FR-001, FR-002; NFR-001/002/004; C-001, C-004; SC-001, SC-002.
 - **Affected surfaces**: `scripts/docs/check_slash_command_freshness.py` (new), `docs/api/slash-commands.md`, `.github/workflows/docs-freshness.yml` (new step + PYTHONPATH hoist), `tests/docs/test_check_slash_command_freshness.py` (new).
-- **Sequencing/depends-on**: none.
-- **Risks**: the existing `_HEADING_RE` will NOT match the slash+dot heading form — a **new** extractor is required (reuse shape/test-harness only). Backfill prose must match existing per-section style and use `<mission>` (C-004). Wiring the CI step is where the tidy-first `PYTHONPATH` hoist lands (must not change behavior of existing steps).
+- **Sequencing/depends-on**: Lane B, steps B0→B1 (see IC-map intro). Blocks IC-03.
+- **Risks**: the existing `_HEADING_RE` will NOT match the slash+dot form (confirmed) — author a **new** extractor, e.g. `^##\s+/spec-kitty\.([a-z0-9-]+)\s*$` (reuse shape/test-harness only). Backfill prose must match existing per-section style and use `<mission>` (C-004), and must land **before** the CI step is wired (else CI reds on 12/15). Tidy-first PYTHONPATH hoist: hoist **only** `PYTHONPATH: .` to job-level `env:`; leave `SPEC_KITTY_ENABLE_SAAS_SYNC` / `NO_UPGRADE_CHECK` on their single step (job-level `env` applies to every step). NFR-004 is "no subprocess/network" — importing `CONSUMER_SKILLS` does transitively init the `specify_cli` package (~140ms), which is fine.
 
 ### IC-02 — Per-include-glob publication non-vacuity
 
 - **Purpose**: Make the published-page resolver fail loud when any declared docfx include glob resolves (pre-exclusion) to zero pages, closing the silent-under-collection band the aggregate floor left open.
 - **Relevant requirements**: FR-003, FR-004; NFR-001/003; C-002; SC-003, SC-004.
 - **Affected surfaces**: `scripts/docs/_published_pages.py` (per-glob guard between the collect loop and `_assert_non_vacuous`; extract `_vacuity_error()` builder — tidy-first, becomes 3rd shared message), `tests/docs/test_published_pages.py` (negative test), `tests/docs/test_description_length_check_propagation.py` (new, FR-004).
-- **Sequencing/depends-on**: none.
-- **Risks**: **granularity + exclusion landmine** (post-spec HIGH): guard must be per-*include-glob*, not per-content-entry, and evaluated **pre-exclusion** so the fully-excluded `archive` tree (0 post-exclusion) does not false-fail. `_collect_entry_pages` currently OR-collapses globs — the fix must track matches per compiled include pattern. Preserve the 500 floor (C-002).
+- **Sequencing/depends-on**: none (Lane A — independent; no workflow edit).
+- **Risks**: **granularity + exclusion landmine** (post-spec HIGH): guard must be per-*include-glob*, not per-content-entry, evaluated **pre-exclusion** (archive = 14 raw / 0 post-exclusion, confirmed) so the excluded tree does not false-fail. **Seam pin (post-plan, 2-lens):** per-glob counts do NOT survive `_collect_entry_pages` (it OR-collapses via `_matches_any` and the union flattens into `candidates`). Add an **additive** helper (e.g. `_assert_each_glob_nonvacuous(entries, config_path=...)`) inserted after the collect loop and before `_apply_exclusions`, iterating `(entry, include_pattern)` pairs (index-parallel `entry.includes`/`entry.globs`, both md-filtered — confirmed 19==19) with a second raw `rglob` pass; threshold `>= 1`; **do not** change `_collect_entry_pages`' union semantics or the `PublishedPageSet` return type. **Must raise `ValueError`** (so `description_length_check._resolve_page_set` re-wraps as `CoverageError` — FR-004). Preserve the 500 floor (C-002, additive). `_vacuity_error()` extraction must reproduce the load-bearing substrings (`violates I-01`, `violates I-02`, `expected at least`) verbatim. Guard is green on the current tree (all 19 globs ≥1; min=1 for integrations/security/core-concepts/updates) — will not red main.
 
 ### IC-03 — docs-freshness safety-structure test + notes
 
 - **Purpose**: Encode the repo-readable safety structure that keeps the docs-freshness `paths:` gap harmless, and record the deploy-side analogue note.
 - **Relevant requirements**: FR-005, FR-006, FR-007; NFR-001; C-003; SC-005.
 - **Affected surfaces**: `tests/docs/test_docs_freshness_invariant.py` (new), `.github/workflows/docs-freshness.yml` (cross-ref invariant comment, reuse the "Required-check contract" idiom), `.github/workflows/docs-pages.yml` (FR-007 comment note).
-- **Sequencing/depends-on**: none.
-- **Risks**: must assert **repo-readable** properties (paths filter still excludes `tests/**`/`kitty-specs/**`; unfiltered `push:main` backstop present; invariant comment present) — NOT the live GitHub required-check setting (unobservable). Do not hardcode `required == {drift-detector}` (conflicts with `ui-e2e.yml`'s contract comment).
+- **Sequencing/depends-on**: Lane B step B2 — `depends-on` IC-01 (shares `docs-freshness.yml`).
+- **Risks**: must assert **repo-readable** properties — NOT the live GitHub required-check setting (unobservable). **Wording pin (post-plan):** the `paths:` filter is a positive **allowlist** with no `!tests/**` pattern, so the test asserts *"allowlist present AND does not contain `tests/**` or `kitty-specs/**`"* (absence-from-allowlist), not an explicit exclusion. Do not hardcode `required == {drift-detector}` (conflicts with `ui-e2e.yml`'s contract comment). Structural YAML parsing may use `ruamel.yaml` (already a project dep) rather than regex — "stdlib only" is not a hard constraint here.
