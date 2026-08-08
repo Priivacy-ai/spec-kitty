@@ -5,11 +5,11 @@
 
 ## Summary
 
-Finish the single-authority *write* boundary opened by PR #3245 and clear seven tracked debt/bug follow-ons, **without** touching the verdict authority model or read semantics (already unified — C-001). The work is grounded by a 3-lens research squad + a 2-lens pre-planning squad against `upstream/main` tip `3ac01d247`. Five surfaces:
+Finish the single-authority *write* boundary opened by PR #3245 and clear six tracked debt/bug follow-ons, **without** touching the verdict authority model or read semantics (already unified — C-001). The work is grounded by a 3-lens research squad + a 2-lens pre-planning squad against `upstream/main` tip `3ac01d247`. (A seventh, #3216, was folded during pre-planning then descoped by the post-tasks squad — its target reader was already retired by the prior mission's WP05; closed as already-resolved.) Five surfaces:
 
 1. **Status façade completeness + guard non-vacuity** (#3254) — promote the full verdict bridge onto `status.__all__`, migrate every submodule-object consumer (8 verdict_vocab + 4 collateral) to façade symbols, retire the duplicated merge-blocking decode, and widen the boundary guard so the bypass it should forbid is actually caught.
 2. **Verdict-seam census completeness** (#3236 + folded #3217) — narrow the wholesale module exclusion to function level *and* teach the classifier to see helper-constructed readers, so the census is fully (not half) hardened.
-3. **Arbiter override resilience + canonical review-cycle reader** (#3244 + folded #3216) — red-first fix for the conflict-marked-artifact crash via a filename-only cycle-number resolver, plus collapsing a hand-rolled duplicate reader onto the canonical one.
+3. **Arbiter override resilience** (#3244) — red-first fix for the conflict-marked-artifact crash via a filename-only cycle-number resolver.
 4. **`accept --json` advisory parity** (#3255) — surface the SC-008 advisory in a structured JSON field.
 5. **Stress CI lane isolation** (#3256) — a dedicated `-m stress -n0` lane so the heavyweight durability test stops riding the fast pool.
 
@@ -43,7 +43,7 @@ Finish the single-authority *write* boundary opened by PR #3245 and clear seven 
 |----|---------|--------|------------------|--------------|
 | **IC-01** | Status façade = sole import surface, actively enforced | #3254 (+ FR-006 rename) | `status/__init__.py`, `status/reducer.py`, 8 verdict_vocab consumers, 4 collateral consumers, `post_merge/review_artifact_consistency.py`, `tests/architectural/test_status_module_boundary.py` | Internal hard ordering (export → migrate/dedup → widen guard) |
 | **IC-02** | Verdict-seam census sees every reader (direct + helper-constructed) | #3236 + #3217 | `tests/architectural/test_verdict_seam_census.py`, `migration/verdict_provenance_backfill.py`, `migration/backfill_runtime_state.py` | Independent code surface from IC-01 → parallel lane |
-| **IC-03** | Arbiter override survives damaged artifacts; one canonical review-cycle reader | #3244 + #3216 | `review/artifacts.py`, `review/arbiter.py`, `cli/commands/agent/tasks_parsing_validation.py` | Independent → parallel lane; red-first |
+| **IC-03** | Arbiter override survives damaged artifacts | #3244 | `review/artifacts.py`, `review/arbiter.py` | Independent → parallel lane; red-first |
 | **IC-04** | `accept --json` advisory parity | #3255 | `cli/commands/accept.py` | Independent → parallel lane |
 | **IC-05** | Stress CI lane isolation | #3256 | `.github/workflows/ci-quality.yml`, `pytest.ini`, `tests/status/test_emit_durability.py` | Independent (CI infra) → parallel lane |
 
@@ -73,11 +73,10 @@ Finish the single-authority *write* boundary opened by PR #3245 and clear seven 
 - Flip the 3 tests asserting wholesale exclusion / zero rows (~L1075, L1421, L1461-1465) to the new function-level shape; confirm the module's other 8 functions classify as non-readers (or reconcile new rows). Non-vacuity teeth test retained.
 - **Census guard:** do NOT merge this file with `test_2093_authority_invariant.py` (explicit warning L55-59).
 
-### WP04 — Arbiter resilience + reader dedup (IC-03) · parallel · RED-FIRST
+### WP04 — Arbiter resilience (IC-03) · parallel · RED-FIRST
 - **Red-first (C-006):** regression driving public `persist_arbiter_decision` against a conflict-marked latest `review-cycle-N.md` (no valid frontmatter) → asserts no crash + override recorded. RED before fix (mirror `test_arbiter.py::test_persist_decision_resolves_via_slug_and_emits_override`).
 - Add `ReviewCycleArtifact.latest_cycle_number()` (filename-only, reuse `_cycle_number_or_zero`) to `review/artifacts.py`; swap it into `arbiter.py:466-467`. **Leave `.latest`/`from_file` untouched** (C-004 — `workflow_executor.py:1134` needs the full body; flag that identical-shape site as a follow-up, not in-scope).
 - **Campsite (S1192):** hoist the `review-cycle-*.md` glob + `review-cycle-{n}.md` filename builder to shared constants (16 occurrences in `artifacts.py`; `arbiter.py:468` shares) — add `latest_cycle_number` as a *third* helper, do not merge the existing deliberately-separate helpers.
-- **#3216 (folded):** collapse the hand-rolled glob+frontmatter reader in `tasks_parsing_validation.py` onto the canonical `ReviewCycleArtifact` reader, **preserving failure polarity**; focused polarity test.
 - **Census check:** `latest_cycle_number` must trip neither WRITER nor READER census predicates (pure cycle-number loader) — verify.
 - **Direct micro-test** for `latest_cycle_number` (mixed valid + conflict-marked siblings → highest by filename, no raise).
 
@@ -97,7 +96,7 @@ Finish the single-authority *write* boundary opened by PR #3245 and clear seven 
 ```
 WP01 (façade exports) ──▶ WP02 (migrate + dedup + guard widen)
 WP03 (census)          ── parallel
-WP04 (arbiter + #3216) ── parallel   (red-first)
+WP04 (arbiter #3244)   ── parallel   (red-first)
 WP05 (accept --json)   ── parallel
 WP06 (stress CI lane)  ── parallel
 ```
@@ -120,6 +119,7 @@ Only WP01→WP02 is a hard edge (C-002 export-before-dedup). Everything else is 
 
 - No change to the verdict authority model or read semantics (C-001; consistent with epic #3044's closed shape).
 - Not touching `workflow_executor.py:1134`'s `.latest` full-body consumer (flagged as a same-shape follow-up).
+- #3216 (dedup a hand-rolled review-cycle reader) was folded then **descoped** — the post-tasks squad found its target already retired by the prior mission's WP05; closed as already-resolved. WP04 no longer touches `tasks_parsing_validation.py`.
 - #3243 (review-cycle numbering off-by-one) considered and left separate.
 - #3235 (P0 concurrency data-loss) is a real durability fix — separate; WP06 only relocates the test.
 
