@@ -35,6 +35,6 @@
 
 ## Notes
 
-- Validation passed on first iteration; no spec updates required.
+- Validation passed on first iteration; **revised r2 after the post-spec adversarial squad** folded a confirmed critical re-seam (FR-003 per-content-entry → per-include-glob, pre-exclusion), an FR-005 reframe (assert in-repo safety structure, not the unobservable required-check setting), committed-negative-test-per-gate (NFR-001), bidirectional drift (FR-001), and several MEDIUM/LOW tightenings. Re-validated: all items still pass.
 - Item priorities: FR-001/002/003 = P1 (MUST), FR-004/005/006 = P2 (SHOULD), FR-007 = P3 (COULD), matching the confirmed MoSCoW scope.
 - Out-of-scope follow-ups filed: #3264 (related_validator floor), #3265 (CI no-backstop). Cross-link #3147 (inverse of item 3) noted for plan.
