@@ -312,6 +312,17 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **Restored green CI on two suites that regressed after the single-`PACKS_ROOT`
+  / charter-activation unification (mission `resolution-activation-foundation`).**
+  `tests/review/test_pre_review_gate_integration.py` and
+  `tests/merge/test_profile_charter_e2e.py` still built bare fixtures that never
+  provisioned the default charter / mission-type activations, so once resolution
+  moved to a single fail-closed `SPEC_KITTY_PACKS_ROOT` read the pre-review gate
+  degraded to `no_coverage` (never blocking) and mission-template resolution
+  raised `MissionsRootNotFound`. The fixtures now seed the default activations
+  via the production provisioner and mirror the built-in `missions` leaf under
+  the packs root. Test-harness only — no product behaviour changed; the
+  fail-closed resolution the sibling mission introduced is intentional.
 - **Commands run on a merged coordination mission no longer crash (`#3086`).**
   Once a coordination mission was merged, later commands against it — creating a
   retrospective, resuming implementation, or checking its status — failed
