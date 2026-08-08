@@ -1,5 +1,11 @@
 """#2861 causation repro — the PERSISTED proof that the "commit refused" block is closed.
 
+**Landing note (2026-08, `tests/regression/` campsite clean).** #2861 is fixed;
+this is a permanent regression guard, not a red-first reproduction, so it
+carries no `regression` marker and lives with its sibling
+`agent action review` / coordination-commit tests here rather than in
+`tests/regression/`. The issue number is kept as history below.
+
 coord-commit-integrity WP01 / T001 (NFR-002, red-first). FLIPPED by WP04 / T015.
 
 Purpose
