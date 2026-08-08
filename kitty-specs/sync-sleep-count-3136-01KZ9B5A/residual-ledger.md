@@ -1956,3 +1956,35 @@ in the both-patched window) — re-derived by construction, and stated in the co
 
 **Why WP07 cannot fold it**: `tasks/WP07-…md` is a planning artifact owned by the planning lane; WP07
 edits its own notes, not its own prompt.
+
+---
+
+## Landing addendum (2026-08-08) — maintainer PR-landing pass on #3252
+
+Recorded by the maintainer during the #3252 landing pass, not by a mission WP. Kept outside the
+`RL-040`…`RL-049` block (which is full) because it documents a landing-time adjudication, not an
+in-mission finding.
+
+**LA-01 — the mission's product half was superseded by #3187 before landing.** The same root-cause
+flake was fixed independently on `upstream/main` (commit `958baf531`, issue #3187) with an
+**instance `self._sleep` seam**, not the module-local `_sleep` alias R-1 prescribed. Per operator
+adjudication the module-local alias, its ATDD guard (`test_sleep_attribution_guard_3136.py`), and the
+alias ADR (`docs/adr/3.x/2026-08-06-1-module-local-stdlib-alias-seam.md`) were **dropped** — landing
+them would have reverted #3187. See the LANDING RESCOPE banner in `spec.md`.
+
+**LA-02 — RL-046 resolved (gate-owner ruling).** The reverse-containment arm
+`test_no_unregistered_baseline_keys_are_added` in `tests/architectural/test_ratchet_baselines.py`
+tripped on `main`'s `test_verdict_seam_census` key. Resolution: that key is a self-contained in-file
+census (compared against `census/verdict_seam_IC01.yaml`), read by no `test_ratchet_baselines.py`
+comparison, so it was added to the CLOSED `_GRANDFATHERED_UNREGISTERED_KEYS` set with a dated
+rationale — the correct bin for a key no comparison reads. Registering it in a comparison list (the
+arm's default suggestion) would have reproduced the "required, never read" defect this mission warned
+about.
+
+**LA-03 — the durable gate landed; the pre-existing reach-through debt is recorded, not fixed.** The
+salvaged `test_shared_module_object_patches.py` gate flags ~11 pre-existing reach-through patch sites
+on `main` (`git_metadata.subprocess.run`, `body_transport.requests.post`, `batch.time.sleep`,
+`asyncio.run_coroutine_threadsafe`). These are recorded as the frozen shrink-only baseline (known
+debt, owner `unassigned`), not fixed in this PR. The `saas_client` reach-throughs #3187 left open
+(`monotonic`/`randbelow`) WERE closed here by extending #3187's instance seam, so `saas_client` no
+longer appears in the flagged set.

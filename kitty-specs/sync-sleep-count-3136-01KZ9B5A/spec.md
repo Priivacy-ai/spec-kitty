@@ -6,6 +6,17 @@
 **Input**: Upstream issue [`Priivacy-ai/spec-kitty#3136`](https://github.com/Priivacy-ai/spec-kitty/issues/3136) plus its two comments (2026-08-01 close-of-mission corrections; 2026-08-05 PR #3209 blocking evidence). Base `upstream/main` @ `98198e980` (verified: `git rev-parse upstream/main` = `98198e980045752a1f5ce0ba75796d3e5dddadf1` — **criteria pin the SHA, not the moving ref**). Predecessor record: `kitty-specs/verification-trust-3115-01KYVYWM/notes/sleep-count-attribution.md`.
 **Revision R2** (2026-08-05): revised against [`analysis-report.md`](analysis-report.md) — the post-spec adversarial squad's findings and the operator's two rulings (**R-1** product-side module-local alias; **R-2** mechanism-keyed predicate over `tests/sync/`). That report is the authoritative directive for this revision. Its measured corrections supersede the R1 text wherever they disagree; every superseded claim is retained with its correction rather than deleted.
 
+> **⚠ LANDING RESCOPE (2026-08-08) — the product half of this mission was superseded before it landed.**
+>
+> While this mission (issue **#3136**) was in flight, the same root-cause flake was tracked independently as **#3187** and fixed on `upstream/main` by commit `958baf531` — using an **instance-scoped `self._sleep` seam**, NOT the module-local `_sleep` alias this mission's R-1 prescribed. The two efforts never saw each other (the "neither party saw the other" pattern this mission itself flagged in `residual-ledger.md` RL-046). Landing the module-local alias would have *reverted* #3187.
+>
+> **What this PR (#3252) therefore ships, per operator adjudication during the landing pass:**
+> 1. **Not** the module-local alias, the ATDD guard coupled to it, or the ADR adjudicating it — all dropped as superseded by #3187.
+> 2. **The durable, idiom-independent repo-wide patch-seam gate** (`tests/architectural/test_shared_module_object_patches.py` + census + control fixtures) — trimmed of the arms that self-verified the module-local idiom, its baseline regenerated against `main`, and its frozen baseline recording the pre-existing reach-through debt `main` still carries.
+> 3. **An extension of #3187's instance seam** (`self._monotonic` / `self._randbelow`) that closes the `saas_client` reach-throughs #3187 left open, so the salvaged gate lands with `saas_client` fully clean.
+>
+> The R-1 / module-local-alias text below is retained as the mission's historical record; it is **not** what shipped. The canonical fix idiom on `main` is #3187's instance seam.
+
 ---
 
 ## Problem
