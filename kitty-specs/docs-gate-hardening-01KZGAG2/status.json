@@ -2,7 +2,7 @@
   "event_count": 21,
   "last_event_id": "01KZGSQY3EJWEXY5Z6FESC3TCA",
   "materialized_at": "2026-08-08T13:42:03.118778+00:00",
-  "mission_number": "192",
+  "mission_number": "",
   "mission_slug": "docs-gate-hardening-01KZGAG2",
   "mission_type": "software-dev",
   "summary": {
@@ -20,94 +20,47 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KZGSQV1KMH9A0B6X81X4GW67",
       "last_transition_at": "2026-08-08T13:41:59.987556+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "WP01 done (code+tests only; touched scripts/docs/ and tests/docs/, 0 kitty-specs files). Per-glob pre-exclusion non-vacuity guard added to _published_pages.resolve_published_pages: _assert_each_glob_nonvacuous(entries) wired AFTER the collect loop and BEFORE _apply_exclusions; 500 aggregate floor (_assert_non_vacuous) and PublishedPageSet return type preserved. T001 extracted _vacuity_error (reproduces 'violates I-01' / 'collapsed (violates I-02)' / 'expected at least' verbatim; all 3 raise sites route through it). T002 _assert_each_glob_nonvacuous + _count_raw_matches iterate zip(entry.includes, entry.globs, strict=True), count RAW matches ignoring entry exclude + DEFAULT_EXCLUSIONS, raise ValueError naming glob+entry (archive/**.md = 14 raw -> passes, 0 post-exclusion). related_validator.validate_related gained min_files=1 floor raising RuntimeError (mirrors relative_link_fixer). ATDD red-first: 4 negatives shown RED (DID NOT RAISE) then GREEN. Targeted suite 21 passed; live tree resolves 675 pages; ruff exit 0 (diff-scoped All checks passed); mypy exit 0 via --explicit-package-bases (bare invocation hits pre-existing scripts/ namespace quirk). Existing test_would_have_caught_the_original_regression updated: guard now refuses retired globs at first dropped subtree (tutorials/*.md, 'violates I-01') before the aggregate floor. FORCE USED: lane branch carries 29 chain-b-consent-bypass-3167 kitty-specs planning artifacts (tree f2845032, byte-identical to authoritative docs/3253-docs-gaps), pre-existing pollution from planning-history commit 620561f6d, not WP01 — flagged for orchestrator.",
-        "Independent review PASS (reviewer-renata): 6/6 criteria verified, 21 targeted tests, negatives non-vacuous, no dead code. Issue-matrix filled. --force clears pre-existing chain-b lane kitty-specs (operator-authorized)."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Independent review PASS (reviewer-renata): 6/6 criteria verified, 21 targeted tests, negatives non-vacuous, no dead code. Issue-matrix filled. --force clears pre-existing chain-b lane kitty-specs (operator-authorized).",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 3832025,
-      "shell_pid_created_at": "1786188471.34",
-      "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done",
-        "T006": "done",
-        "T007": "done"
-      }
+      "shell_pid": 3757428,
+      "shell_pid_created_at": "1786187078.58"
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KZGSQWNG945RE44ASYG7V2R8",
       "last_transition_at": "2026-08-08T13:42:01.648477+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Impl complete + green (14 passed, ruff/mypy 0, terminology 10, doc 15/15). --force: lane carries only pre-existing upstream kitty-specs (chain-b), zero delta vs base; operator-authorized.",
-        "Review PASS (reviewer-renata); operator-authorized force"
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review PASS (reviewer-renata); operator-authorized force",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 3850395,
-      "shell_pid_created_at": "1786188769.91",
-      "subtasks": {
-        "T008": "done",
-        "T009": "done",
-        "T010": "done"
-      }
+      "shell_pid": 3765971,
+      "shell_pid_created_at": "1786187261.26"
     },
     "WP03": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KZGSQY3EJWEXY5Z6FESC3TCA",
       "last_transition_at": "2026-08-08T13:42:03.118778+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Impl complete + green (5 tests, ruff/mypy 0, slash-gate CI step exit 0). --force for pre-existing chain-b lane kitty-specs (operator-authorized)."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review PASS (reviewer-renata); operator-authorized force",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 4062723,
-      "shell_pid_created_at": "1786196095.64",
-      "subtasks": {
-        "T011": "done",
-        "T012": "done",
-        "T013": "done",
-        "T014": "done",
-        "T015": "done"
-      }
+      "shell_pid": 4051365,
+      "shell_pid_created_at": "1786195371.46"
     }
   }
 }
