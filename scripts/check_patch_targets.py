@@ -24,7 +24,10 @@ import importlib
 import importlib.util
 import re
 import sys
+from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
+from types import ModuleType
 
 # Matches @patch("...") and patch("...") or patch('...')
 # Only captures dotted module paths (at least one dot required so plain
@@ -104,6 +107,134 @@ def _mock_importer(dotted: str) -> tuple[object | None, str | None]:
             # an even shorter import; the failure is real.
             return None, f"no attribute {components[split]!r} in {dotted!r}"
     return None, f"cannot import any prefix of {dotted!r}"
+
+
+class PatchTargetOutcome(StrEnum):
+    """The shared verdict vocabulary for a ``patch()`` target string.
+
+    This module owns these names. The census (``scripts/patch_seam_census.py``)
+    and the mechanism-keyed gate consume them; neither redefines them, so there
+    is exactly one resolver and one vocabulary behind every count.
+
+    ``unittest.mock._get_target`` splits a target on the **last** dot and
+    imports the left half. So for ``patch("a.b.c.attr")`` the object that
+    actually gets mutated is ``a.b.c`` — and whether that is the *right* thing
+    to mutate depends entirely on what ``a.b.c`` resolves to:
+
+    * ``OWN_MODULE`` — a module whose ``__name__`` equals the dotted path, root
+      first-party. ``patch("specify_cli.sync.client.WebSocketClient")``: the
+      correct idiom, patching a symbol where it is defined.
+    * ``REACH_THROUGH`` — a module whose ``__name__`` **differs** from the
+      dotted path, i.e. the penultimate segment is a module *imported into*
+      another module. ``patch("specify_cli.tracker.saas_client.time.sleep")``
+      resolves to the stdlib ``time`` module, so the patch mutates a
+      process-wide shared object. This is the defect class.
+    * ``FOREIGN`` — a module, ``__name__`` equals the path, root not
+      first-party. ``patch("subprocess.run")``.
+    * ``NOT_A_MODULE`` — resolved, but the penultimate segment is a class or
+      other object, e.g. ``patch("...runtime.SyncRuntime.start")``.
+    * ``UNRESOLVABLE`` — nothing importable, or the target has no dot.
+    """
+
+    OWN_MODULE = "own_module"
+    REACH_THROUGH = "reach_through"
+    FOREIGN = "foreign"
+    NOT_A_MODULE = "not_a_module"
+    UNRESOLVABLE = "unresolvable"
+
+
+@dataclass(frozen=True, slots=True)
+class PatchTargetVerdict:
+    """A resolved ``patch()`` target, carrying everything a caller needs.
+
+    The resolved module name, dotted path and attribute travel on the verdict so
+    no caller has to re-derive them — re-deriving is how a second, subtly
+    different resolver gets born.
+    """
+
+    outcome: PatchTargetOutcome
+    target: str
+    module_path: str
+    attr: str
+    resolved_module_name: str | None = None
+    error: str | None = None
+
+    @property
+    def is_module(self) -> bool:
+        """True when the penultimate segment resolved to a module."""
+        return self.outcome in {
+            PatchTargetOutcome.OWN_MODULE,
+            PatchTargetOutcome.REACH_THROUGH,
+            PatchTargetOutcome.FOREIGN,
+        }
+
+
+def resolve_patch_target(target: str, *, first_party_roots: frozenset[str]) -> PatchTargetVerdict:
+    """Classify a ``patch()`` target string by what its penultimate segment is.
+
+    Splits on the last dot exactly as ``unittest.mock._get_target`` does, then
+    resolves the module half via :func:`_mock_importer` — the same progressive
+    import-then-``getattr`` walk the CLI validator uses.
+
+    Note this deliberately does **not** consult ``_SKIP_MODULE_PREFIXES``: that
+    short-circuit is a validation optimisation for stdlib targets, but the
+    census must still classify ``subprocess.run`` as ``FOREIGN`` rather than
+    skip it.
+    """
+    module_path, _, attr = target.rpartition(".")
+    if not module_path:
+        return PatchTargetVerdict(
+            outcome=PatchTargetOutcome.UNRESOLVABLE,
+            target=target,
+            module_path="",
+            attr=target,
+            error=f"cannot split into module + attr: {target!r}",
+        )
+
+    obj, err = _mock_importer(module_path)
+    if err is not None:
+        return PatchTargetVerdict(
+            outcome=PatchTargetOutcome.UNRESOLVABLE,
+            target=target,
+            module_path=module_path,
+            attr=attr,
+            error=err,
+        )
+
+    if not isinstance(obj, ModuleType):
+        return PatchTargetVerdict(
+            outcome=PatchTargetOutcome.NOT_A_MODULE,
+            target=target,
+            module_path=module_path,
+            attr=attr,
+        )
+
+    resolved_name = obj.__name__
+    outcome = _classify_module(resolved_name, module_path, first_party_roots)
+    return PatchTargetVerdict(
+        outcome=outcome,
+        target=target,
+        module_path=module_path,
+        attr=attr,
+        resolved_module_name=resolved_name,
+    )
+
+
+def _classify_module(
+    resolved_name: str, module_path: str, first_party_roots: frozenset[str]
+) -> PatchTargetOutcome:
+    """Map a resolved module onto the own/reach-through/foreign trichotomy.
+
+    Kept separate from :func:`resolve_patch_target` so the resolution step and
+    the classification step stay independently readable — the narrowed
+    discriminator lives here and nowhere else.
+    """
+    if resolved_name != module_path:
+        return PatchTargetOutcome.REACH_THROUGH
+    root = module_path.split(".")[0]
+    if root in first_party_roots:
+        return PatchTargetOutcome.OWN_MODULE
+    return PatchTargetOutcome.FOREIGN
 
 
 def validate(target: str) -> str | None:

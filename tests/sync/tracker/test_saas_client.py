@@ -30,14 +30,14 @@ pytestmark = pytest.mark.fast
 
 
 def _advancing_clock(step: float = 1.0) -> Iterator[float]:
-    """An unbounded, monotonically increasing clock for ``time.monotonic`` mocks.
+    """An unbounded, monotonically increasing clock for ``client._monotonic`` mocks.
 
     The polling tests used to hand ``mock_monotonic.side_effect`` an exact list
     sized to the number of clock reads ``_poll_operation`` made — ``[0.0, 1.0,
     3.0]`` and friends. That coupled each test to the *total* number of
     ``time.monotonic()`` calls anywhere in the process, because
-    ``@patch("...saas_client.time.monotonic")`` patches the attribute on the
-    shared :mod:`time` module rather than a module-local alias.
+    ``@patch("...saas_client.time.monotonic")`` used to patch the attribute on
+    the shared :mod:`time` module rather than a module-local alias.
 
     #3030 FR-029 made that coupling bite: ``_request`` now resolves per-project
     consent, and the consent chain reads the clock too
@@ -46,11 +46,18 @@ def _advancing_clock(step: float = 1.0) -> Iterator[float]:
     consent could not be determined. The tests were red for a fixture reason
     dressed up as a confidentiality verdict.
 
-    None of these tests assert on clock *values* or on how often the clock is
-    read; they assert on poll results and on ``sleep`` delays, which are driven by
-    the backoff schedule and ``secrets.randbelow``. So an unbounded advancing
-    clock preserves every assertion while removing a brittleness that would have
-    caught the next person to add any clock read on this path.
+    **Landing extension of #3187 (this seam):** ``SaaSTrackerClient.__init__``
+    now binds ``self._monotonic = time.monotonic`` once per instance (mirroring
+    the existing ``self._sleep`` seam), and tests assign
+    ``client._monotonic = MagicMock(side_effect=...)`` directly instead of
+    patching the shared stdlib attribute. That closes the process-wide
+    reach-through entirely — a test's mock can now only ever see this client
+    instance's own clock reads. The unbounded generator is kept anyway: none of
+    these tests assert on clock *values* or on how often the clock is read;
+    they assert on poll results and on ``sleep`` delays, which are driven by
+    the backoff schedule and ``secrets.randbelow``. An unbounded advancing
+    clock preserves every assertion while removing a brittleness that would
+    have caught the next person to add any clock read on this path.
 
     ``test_timeout_after_5_minutes`` deliberately keeps its exact ``[0.0,
     301.0]``: there the second value *is* the assertion, and it never reaches
@@ -382,12 +389,10 @@ class TestPush:
         _, kwargs = mock_http.request.call_args
         assert kwargs["headers"]["Idempotency-Key"] == "my-key-123"
 
-    @patch("specify_cli.tracker.saas_client.time.monotonic")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_push_202_polls_until_completed(
         self,
         mock_cls: MagicMock,
-        mock_monotonic: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
         mock_sleep = MagicMock()
@@ -404,17 +409,15 @@ class TestPush:
             _make_response(200, {"status": "pending"}),
             _make_response(200, {"status": "completed", "result": {"pushed": 2}}),
         ]
-        mock_monotonic.side_effect = _advancing_clock()
+        client._monotonic = MagicMock(side_effect=_advancing_clock())
 
         result = client.push("jira", "proj-1", [{"title": "X"}])
         assert result == {"pushed": 2}
 
-    @patch("specify_cli.tracker.saas_client.time.monotonic")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_push_202_polls_failed_raises(
         self,
         mock_cls: MagicMock,
-        mock_monotonic: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
         mock_sleep = MagicMock()
@@ -427,7 +430,7 @@ class TestPush:
             _make_response(202, {"operation_id": "op-2"}),
             _make_response(200, {"status": "failed", "error": "Provider rejected"}),
         ]
-        mock_monotonic.side_effect = _advancing_clock()
+        client._monotonic = MagicMock(side_effect=_advancing_clock())
 
         with pytest.raises(SaaSTrackerClientError, match="Provider rejected"):
             client.push("jira", "proj-1", [{"title": "Y"}])
@@ -464,12 +467,10 @@ class TestRun:
         idem_key = kwargs["headers"]["Idempotency-Key"]
         uuid.UUID(idem_key)  # validates UUID format
 
-    @patch("specify_cli.tracker.saas_client.time.monotonic")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_run_202_polls_until_completed(
         self,
         mock_cls: MagicMock,
-        mock_monotonic: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
         mock_sleep = MagicMock()
@@ -483,7 +484,7 @@ class TestRun:
             _make_response(200, {"status": "running"}),
             _make_response(200, {"status": "completed", "result": {"synced": 10}}),
         ]
-        mock_monotonic.side_effect = _advancing_clock()
+        client._monotonic = MagicMock(side_effect=_advancing_clock())
 
         result = client.run("jira", "proj-1")
         assert result == {"synced": 10}
@@ -495,17 +496,10 @@ class TestRun:
 
 
 class TestPolling:
-    @patch(
-        "specify_cli.tracker.saas_client.secrets.randbelow",
-        side_effect=[1000, 2000, 3000],  # basis points → jitter factors 0.9, 1.0, 1.1
-    )
-    @patch("specify_cli.tracker.saas_client.time.monotonic")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_exponential_backoff_intervals(
         self,
         mock_cls: MagicMock,
-        mock_monotonic: MagicMock,
-        mock_randbelow: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
         """#3115 (WP06, FR-005, round 2): the real site, on the real evidence.
@@ -770,12 +764,24 @@ class TestPolling:
         to ``subprocess.Popen._wait``, leaked threads from other tests, or
         anything else sharing the process, by construction rather than by
         continued forensic exclusion.
+
+        **Landing extension of #3187 (this test):** this test's own
+        ``@patch("...saas_client.time.monotonic")`` and
+        ``@patch("...saas_client.secrets.randbelow")`` decorators were the
+        last two process-wide reach-throughs against this client and are now
+        retired the same way -- ``client._monotonic`` and
+        ``client._randbelow`` are assigned directly below, mirroring
+        ``client._sleep`` above.
         """
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
         mock_sleep = MagicMock()
         client._sleep = mock_sleep
+        mock_randbelow = MagicMock(
+            side_effect=[1000, 2000, 3000]  # basis points → jitter factors 0.9, 1.0, 1.1
+        )
+        client._randbelow = mock_randbelow
 
         # pending, pending, pending, completed
         mock_http.request.side_effect = [
@@ -785,7 +791,7 @@ class TestPolling:
             _make_response(200, {"status": "completed", "result": {"done": True}}),
         ]
         # Provide enough time values: start, check1, check2, check3, check4
-        mock_monotonic.side_effect = _advancing_clock()
+        client._monotonic = MagicMock(side_effect=_advancing_clock())
 
         result = client._poll_operation("op-backoff")
         assert result == {"done": True}
@@ -799,12 +805,10 @@ class TestPolling:
         assert delays == [0.9, 2.0, 4.4]
         assert mock_randbelow.call_count == 3
 
-    @patch("specify_cli.tracker.saas_client.time.monotonic")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_timeout_after_5_minutes(
         self,
         mock_cls: MagicMock,
-        mock_monotonic: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
         mock_sleep = MagicMock()
@@ -814,17 +818,15 @@ class TestPolling:
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
 
         # monotonic returns 301 on first check, exceeding 300 timeout
-        mock_monotonic.side_effect = [0.0, 301.0]
+        client._monotonic = MagicMock(side_effect=[0.0, 301.0])
 
         with pytest.raises(SaaSTrackerClientError, match="timed out after 5 minutes"):
             client._poll_operation("op-timeout")
 
-    @patch("specify_cli.tracker.saas_client.time.monotonic")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_pending_then_running_then_completed(
         self,
         mock_cls: MagicMock,
-        mock_monotonic: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
         mock_sleep = MagicMock()
@@ -838,7 +840,7 @@ class TestPolling:
             _make_response(200, {"status": "running"}),
             _make_response(200, {"status": "completed", "result": {"items": 5}}),
         ]
-        mock_monotonic.side_effect = _advancing_clock()
+        client._monotonic = MagicMock(side_effect=_advancing_clock())
 
         result = client._poll_operation("op-progress")
         assert result == {"items": 5}
@@ -1097,12 +1099,10 @@ class TestAsyncErrorEnvelopeParsing:
     """Fix 1 (FR-017/NFR-002): Failed async operations must parse the error
     envelope dict, not dump it as a raw string."""
 
-    @patch("specify_cli.tracker.saas_client.time.monotonic")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_failed_operation_parses_error_envelope_dict(
         self,
         mock_cls: MagicMock,
-        mock_monotonic: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
         """When the 'error' field is an ErrorEnvelope dict, the raised exception
@@ -1124,7 +1124,7 @@ class TestAsyncErrorEnvelopeParsing:
             _make_response(202, {"operation_id": "op-err-envelope"}),
             _make_response(200, {"status": "failed", "error": error_envelope}),
         ]
-        mock_monotonic.side_effect = _advancing_clock()
+        client._monotonic = MagicMock(side_effect=_advancing_clock())
 
         with pytest.raises(SaaSTrackerClientError) as exc_info:
             client.push("jira", "proj-1", [{"title": "Bug"}])
@@ -1138,12 +1138,10 @@ class TestAsyncErrorEnvelopeParsing:
         assert "{'error_code'" not in error_text
         assert "provider_auth_expired" not in error_text
 
-    @patch("specify_cli.tracker.saas_client.time.monotonic")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_failed_operation_with_string_error_still_works(
         self,
         mock_cls: MagicMock,
-        mock_monotonic: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
         """When the 'error' field is a plain string, it should still work."""
@@ -1157,17 +1155,15 @@ class TestAsyncErrorEnvelopeParsing:
             _make_response(202, {"operation_id": "op-str-err"}),
             _make_response(200, {"status": "failed", "error": "Something went wrong"}),
         ]
-        mock_monotonic.side_effect = _advancing_clock()
+        client._monotonic = MagicMock(side_effect=_advancing_clock())
 
         with pytest.raises(SaaSTrackerClientError, match="Something went wrong"):
             client.push("jira", "proj-1", [{"title": "Bug"}])
 
-    @patch("specify_cli.tracker.saas_client.time.monotonic")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_failed_operation_with_no_error_field(
         self,
         mock_cls: MagicMock,
-        mock_monotonic: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
         """When the 'error' field is missing, a fallback message is used."""
@@ -1181,7 +1177,7 @@ class TestAsyncErrorEnvelopeParsing:
             _make_response(202, {"operation_id": "op-no-err"}),
             _make_response(200, {"status": "failed"}),
         ]
-        mock_monotonic.side_effect = _advancing_clock()
+        client._monotonic = MagicMock(side_effect=_advancing_clock())
 
         with pytest.raises(SaaSTrackerClientError, match="Operation failed"):
             client.push("jira", "proj-1", [{"title": "Bug"}])

@@ -228,6 +228,79 @@ dependence methodology in [Method](#method) required.
    depends on the entry: `depends` / `does not depend` / `undetermined`, with
    the evidence, established per the corrected methodology in
    [Method](#method) (process-path tracing, not import-graph disjointness).
+   **This column is stamped — read the stamp directly below before relying on
+   any value in it.**
+
+> **⚠ Verdict-column stamp (`#3136`) — unverified, and falsified in the direction
+> that matters.** This stamp is deliberately a blockquote inside the Legend
+> section and **not** its own heading: `docs/development/3-2-docs-retrieval-index.yaml`
+> indexes this page by its body headings (`scripts/docs/docs_index.py:184-196`
+> builds each row's `anchors` from `scan_headings(body)`), and
+> `check_docs_freshness.py`'s `_check_docs_index_drift` (`:767-813`) reds
+> `DOCS-INDEX-DRIFT` at `severity="error"` on any new heading until that generated
+> index is regenerated — a file this work package does not own. A heading here
+> would trade a documentation note for a red gate.
+>
+> **Scope: the `Dependence` column only.** The `#`, `Module : symbol`,
+> `Reset seam` and `Caller` fields of every row are **untouched by this stamp and
+> remain load-bearing**. `tests/sync/_leak_guard.py` resolves **29** distinct
+> row-ids from this page at runtime, by row-id, via `_WatchedGlobal.inventory_id`
+> (`:47`); all 29 still resolve to exactly one row each. No row-id, row order,
+> table header or column count was changed.
+>
+> **What is stamped, and why.** All **53** `Dependence` verdicts (`E1`–`E53`,
+> contiguous) were derived against a single reference node,
+> `test_429_respects_retry_after` — Legend item 4 above, defined by
+> [Method](#method) §4 — **at a time when that node had never exhibited the
+> failure**. That premise no longer holds:
+>
+> - The node is a confirmed victim on PR #3209's `fast-tests-sync` shard. PR #3209
+>   is pinned by **head SHA `5e98c2bb7`**
+>   (`5e98c2bb752f9ef6484eafc6411afedfd395f957`), never by branch name — the branch
+>   moved twice (`96494e5ec` → `783c137d7` → `5e98c2bb7`), so the name is not a
+>   reproducible handle. `[UNVERIFIED]`: that SHA was confirmed `2026-08-05` and has
+>   not been re-verified since.
+> - Independently of PR #3209, **three** census nodes failed **simultaneously** on
+>   pristine `main` at `98198e980` — job `92278529393`, `3 failed, 2113 passed,
+>   11 skipped, 2 warnings in 100.79s`. The failure is topology-and-timing
+>   dependent, not composition dependent, so no shard composition confines it.
+>
+> The column is therefore **falsified**, not merely **unverified**. Each verdict
+> reasons from the outcome of a node that was taken to be stable; that node's
+> outcome is not stable. A stamp reading only "unverified" would understate it.
+> Treat every `Dependence` value here as **unverified input** and re-derive it
+> against the failing nodes before relying on it.
+>
+> **Rows this mission (`#3136`) re-derived: none. The depended-on set is empty —
+> zero rows.** Stated as a number so it cannot be read as coverage. This is a
+> derivation, not an assumption:
+>
+> - `#3136`'s fix is a module-local alias seam in
+>   `src/specify_cli/tracker/saas_client.py` plus the retargeting of that module's
+>   patch sites. Its correctness is expressed entirely by a static mechanism
+>   predicate over patch targets. It never reads this page.
+> - Measured: the fix's own surfaces cite **0** row-ids from this inventory. The one
+>   genuine citation inside a file the fix touches
+>   (`tests/sync/tracker/test_saas_client.py:723`, naming `E24`/`E25`) sits in a
+>   **docstring** — documentary corroboration of a past leak observation, not
+>   something the fix's behaviour rests on.
+> - `E15` — **not depended on**, but invalidated in the *opposite* direction: the fix
+>   changes the surface this row's surrounding prose measured. See the correction
+>   under [`saas_client.py` — measured negative](#saas_clientpy--measured-negative).
+> - `E22` — this page's only `depends` row. It is a **shared precondition** of the
+>   reference node (it is what lets the `client` fixture construct at all, and what
+>   supplies a consenting `project_root`), not something the fix's correctness rests
+>   on. The three attributes it rebinds on the `saas_client` module object
+>   (`_fetch_access_token_sync`, `_current_team_slug_sync`, `_force_refresh_sync`)
+>   are **disjoint** from the names the alias seam adds, so the seam neither relies
+>   on it nor disturbs it. Dependence, not adjacency, is the test — and this is
+>   adjacency.
+>
+> **Name collision — two different `WP06`s.** `E22`'s own text warns that "WP06
+> inherits only limb 1 if this row is read carelessly; both limbs are load-bearing",
+> and the `saas_client.py` section below likewise names a "WP06". Both mean
+> **`#3115`'s WP06** — a different work package from the **`#3136` WP06** that wrote
+> this stamp. Do not conflate them.
 
 ## Thread-spawning seams — test cone (worker-process threads)
 
@@ -290,6 +363,42 @@ verification and a citation):
 36 _SESSION_EXPIRED_MESSAGE
 39 _UNAUTHENTICATED_CATEGORY
 ```
+
+> **⚠ Correction (`#3136`) — the enumeration above is short by one, and was
+> already short at the time it was written.** Re-running this section's own stated
+> method (an `ast` walk of the module's `tree.body`, collecting every
+> `Assign`/`AnnAssign` bound to a `Name`) against `98198e980` — the baseline
+> commit, *before* any `#3136` change — yields **three** module-level names, not
+> two:
+>
+> ```
+> 36 _SESSION_EXPIRED_MESSAGE
+> 39 _UNAUTHENTICATED_CATEGORY
+> 51 TRACKER_EGRESS_IDENTIFIER_KINDS
+> ```
+>
+> `TRACKER_EGRESS_IDENTIFIER_KINDS` (`:51`) is missing from the list above and
+> from the "exactly two names" claim, and the "**Independently confirmed by
+> review**" line below repeats the same count — two parties agreed on a number the
+> method they both cite does not produce. This is a measured falsehood, not a
+> disagreement about scope.
+>
+> **What survives.** The *conclusion* holds: the third name is a frozen `str`
+> literal, not a retry/backoff value, so "no leaked module-global retry/backoff
+> value exists in `saas_client.py`" is still true. Only the **count** and the
+> **enumeration** were wrong, and with them the claim that this is an *exhaustive*
+> surface measurement.
+>
+> **What `#3136` changes.** `#3136`'s `FR-010` alias seam adds **three further**
+> module-level assignments to this same module — `_sleep`, `_monotonic`,
+> `_randbelow`, bound by assignment so that patch decorators can retarget onto
+> them. Once that lands the surface is **six** names, three of them deliberately
+> rebindable. `E15`'s `not reachable` classification rests on the enumeration
+> above, so the row is **invalidated by `#3136`'s own fix and must be re-derived,
+> not merely stamped**. `E15`'s `Dependence` verdict is separately covered by the
+> verdict-column stamp, which is the blockquote inside
+> [Legend — the four mandatory values](#legend--the-four-mandatory-values);
+> this correction is about the row's *premise*, which is a different defect.
 
 | # | Module : symbol | Reset seam | Caller | Dependence |
 |---|---|---|---|---|
