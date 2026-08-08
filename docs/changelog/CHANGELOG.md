@@ -19,6 +19,26 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
 
+- **Spec Kitty's own charter now activates the writing-comms & diagramming
+  doctrine set - this repository only; no downstream impact (builds on `#2918` /
+  `#3225`).**
+  Spec Kitty now dogfoods "The Magnificent 7" writing-comms doctrine in its own
+  `.kittify/charter/`: audience-oriented writing (`DIRECTIVE_047` +
+  `writing-audience-catalog` + the `plain-language` and
+  `professional-communications` styleguides), the documentation-structure
+  styleguides (`divio-type-discipline`, `docs-accessibility`, `docs-freshness-sla`,
+  `publication-authority`), C4 diagramming (`USE_C4_MODEL_TECHNIQUES`, alongside the
+  already-active Mermaid/PlantUML toolguides), the communication-governance
+  directives (`048` version-governance, `049` agent self-introduction, `050`
+  credential-handling), the `glossary-maintenance-workflow` procedure and
+  `research-citation-discipline` styleguide, and the seven writing-comms agent
+  profiles (`comms-cleo`, `diagram-daisy`, `analyst-annie`, `lexical-larry`,
+  `minutes-maker-mahad`, `scribe-sally`, `synthesizer-sam`). It also activates
+  `RECONCILE_CHANGE_SCOPE_TENSIONS` to bridge the smallest-viable-diff / Boy Scout /
+  locality-of-change tension, explained in a new `charter.md` section.
+  **Scope:** this changes Spec Kitty's *own* project governance only. The doctrine
+  artifacts already ship in `packs/built-in`; projects created or upgraded by the
+  CLI are unaffected and keep their own charter activations.
 - **A new "When to use Spec Kitty modes" guide helps you pick the lightest path
   for the work at hand (`#3238`).**
   [`docs/guides/when-to-use-modes.md`](../guides/when-to-use-modes.md) lays out
