@@ -5,10 +5,10 @@
       "repo": "Priivacy-ai/spec-kitty",
       "title": "Explicit per-project opt-in and per-project ledger",
       "scope": "primary",
-      "fr": "FR-001,FR-002,FR-003,FR-004,FR-005,FR-006,FR-007,FR-008,FR-009,FR-010,FR-011,FR-012,FR-013,FR-014,FR-015,FR-016,FR-017,FR-018,FR-019,FR-020,FR-021,FR-022,FR-023,FR-024,FR-025,FR-026,FR-027,FR-028,FR-029,FR-030,FR-031,FR-032",
+      "fr": "FR-001,FR-002,FR-003,FR-004,FR-005,FR-006,FR-007,FR-008,FR-009,FR-010,FR-011,FR-012,FR-013,FR-014,FR-015,FR-016,FR-017,FR-018,FR-019,FR-020,FR-021,FR-022,FR-023,FR-024,FR-025,FR-026,FR-027,FR-028,FR-029,FR-030,FR-031,FR-032,FR-033,FR-034",
       "nfr": "NFR-001,NFR-002,NFR-003,NFR-004,NFR-005,NFR-006,NFR-007",
       "sc": "SC-001,SC-002,SC-003,SC-004,SC-005,SC-006,SC-007,SC-008,SC-009,SC-010,SC-011,SC-012,SC-013,SC-014",
-      "wp": null,
+      "wp": "WP01,WP02,WP03,WP04,WP05,WP06,WP07,WP08,WP09,WP10,WP11",
       "source_file": "spec.md",
       "evidence_ref": "Mission per-project-sync-consent-ledgers-01KZKMQZ; implementation evidence pending.",
       "verdict": "in-mission"
@@ -20,7 +20,7 @@
       "fr": "FR-004,FR-009,FR-016,FR-019,FR-020",
       "nfr": "NFR-003,NFR-004,NFR-007",
       "sc": "SC-006,SC-008",
-      "wp": null,
+      "wp": "WP05,WP11",
       "source_file": "research.md",
       "evidence_ref": "Companion SaaS mission project-sync-admission-boundary-01KZKMQ7. Historical 1,322-event disposition remains a Human-in-Charge gate.",
       "verdict": "in-mission"
@@ -32,7 +32,7 @@
       "fr": "FR-006,FR-018",
       "nfr": "NFR-004",
       "sc": "SC-007",
-      "wp": null,
+      "wp": "WP01,WP03,WP04,WP06,WP07,WP08,WP09,WP10,WP11",
       "source_file": "research.md",
       "evidence_ref": "Shared-store and capture-coupling decisions are superseded; default denial, consent-bearing batches, final recheck, SQL project predicates, purge, and terminal parking remain defense in depth.",
       "verdict": "in-mission"
@@ -44,7 +44,7 @@
       "fr": "FR-010",
       "nfr": null,
       "sc": null,
-      "wp": null,
+      "wp": "WP05,WP07",
       "source_file": "spec.md",
       "evidence_ref": "Channel 2 may narrow tracker egress but never grants hosted sync; rebase against final consent API.",
       "verdict": "deferred-with-followup"
@@ -56,7 +56,7 @@
       "fr": "FR-010",
       "nfr": null,
       "sc": null,
-      "wp": null,
+      "wp": "WP05,WP07",
       "source_file": "spec.md",
       "evidence_ref": "PR #3135 must consume the final canonical consent seam if it lands after this mission; it is not shipped authority during planning.",
       "verdict": "deferred-with-followup"
@@ -68,21 +68,33 @@
       "fr": "FR-003,FR-005",
       "nfr": "NFR-004",
       "sc": "SC-002,SC-005",
-      "wp": null,
+      "wp": "WP01,WP03",
       "source_file": "spec.md",
       "evidence_ref": "Default-on remains rejected; env/login/URL/target/store presence cannot grant.",
       "verdict": "verified-already-fixed"
     },
     "Priivacy-ai/spec-kitty-saas#584": {
       "repo": "Priivacy-ai/spec-kitty-saas",
-      "title": "Project purge tombstone precedence",
+      "title": "Project anti-rematerialization precedence",
       "scope": "cross-repository-adjacent",
       "fr": "FR-009,FR-016",
       "nfr": null,
       "sc": null,
-      "wp": null,
+      "wp": "WP05,WP11",
       "source_file": "research.md",
-      "evidence_ref": "Server tombstone outranks admission; SaaS mission owns verification.",
+      "evidence_ref": "Reviewed SaaS WP02 recorded-UUID anti-rematerialization authority outranks admission; full purge remains separately owned by #584/#609.",
+      "verdict": "deferred-with-followup"
+    },
+    "Priivacy-ai/spec-kitty-saas#609": {
+      "repo": "Priivacy-ai/spec-kitty-saas",
+      "title": "Separate residue-safe destructive purge implementation",
+      "scope": "related-not-absorbed",
+      "fr": null,
+      "nfr": null,
+      "sc": null,
+      "wp": "WP11",
+      "source_file": "research.md",
+      "evidence_ref": "PR #609 full purge/ArtifactContent/erasure work is not a core-prevention prerequisite and receives no credit here; WP11 references the reviewed SaaS WP02 anti-rematerialization commit instead.",
       "verdict": "deferred-with-followup"
     }
   }
