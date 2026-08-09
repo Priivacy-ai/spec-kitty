@@ -26,7 +26,7 @@ import pytest
 from doctrine.artifact_kinds import ArtifactKind
 from doctrine.missions.step_contracts import MissionStepContract, MissionStepContractRepository
 
-pytestmark = [pytest.mark.architectural, pytest.mark.fast]
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
 _SECURITY_STAGE_IDS = {
     "plan": "supply_chain_security_check",
