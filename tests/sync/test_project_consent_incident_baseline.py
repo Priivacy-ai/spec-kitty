@@ -192,6 +192,13 @@ def _expression_names(node: ast.AST) -> frozenset[str]:
     return frozenset(child.id for child in ast.walk(node) if isinstance(child, ast.Name))
 
 
+def _transmitted_expression(call: ast.Call) -> ast.expr | None:
+    for keyword in call.keywords:
+        if keyword.arg in {"json", "data", "content", "body", "payload", "event"}:
+            return keyword.value
+    return call.args[-1] if call.args else None
+
+
 def _guarded_transport_is_coherent(tree: ast.Module) -> bool:
     """Require the eligibility result to dominate a sink carrying the checked data."""
     sink_names = {"post", "send", "deliver"}
@@ -238,7 +245,8 @@ def _guarded_transport_is_coherent(tree: ast.Module) -> bool:
             for call in (node for node in ast.walk(statement) if isinstance(node, ast.Call)):
                 if _call_tail(call) not in sink_names:
                     continue
-                payload_names = frozenset(name for argument in (*call.args, *(kw.value for kw in call.keywords)) for name in _expression_names(argument))
+                transmitted = _transmitted_expression(call)
+                payload_names = _expression_names(transmitted) if transmitted is not None else frozenset()
                 if not current & payload_names:
                     return False
         return True
@@ -253,12 +261,25 @@ def _canonical_resolver_is_coherent(tree: ast.Module) -> bool:
             return [*path_components(node.left), *path_components(node.right)]
         return [node]
 
+    def direct_uuid_component(node: ast.expr) -> bool:
+        if isinstance(node, ast.Name):
+            return node.id in {"project_uuid", "uuid"}
+        if isinstance(node, ast.Attribute):
+            return node.attr in {"project_uuid", "uuid"}
+        if isinstance(node, ast.Call) and _call_tail(node) in {
+            "UUID",
+            "normalize_project_uuid",
+            "str",
+        }:
+            return len(node.args) == 1 and direct_uuid_component(node.args[0])
+        return False
+
     for node in ast.walk(tree):
         if not isinstance(node, ast.Return) or node.value is None:
             continue
         components = path_components(node.value)
         rendered = [ast.unparse(component).strip("'\"") for component in components]
-        uuid_positions = [index for index, component in enumerate(components) if _expression_names(component) & {"project_uuid", "uuid"}]
+        uuid_positions = [index for index, component in enumerate(components) if direct_uuid_component(component)]
         for uuid_index in uuid_positions:
             prefix = rendered[:uuid_index]
             suffix = rendered[uuid_index + 1 :]
@@ -267,7 +288,23 @@ def _canonical_resolver_is_coherent(tree: ast.Module) -> bool:
     return False
 
 
+def _stable_identity(node: ast.expr) -> str | None:
+    if isinstance(node, ast.Constant):
+        return ast.dump(node, include_attributes=False)
+    if isinstance(node, ast.Attribute) and node.attr in {"project_uuid", "uuid"}:
+        return ast.dump(node, include_attributes=False)
+    if (
+        isinstance(node, ast.Call)
+        and _call_tail(node) in {"UUID", "normalize_project_uuid", "str"}
+        and len(node.args) == 1
+        and _stable_identity(node.args[0]) is not None
+    ):
+        return ast.dump(node, include_attributes=False)
+    return None
+
+
 def _attempt_context_is_coherent(tree: ast.Module) -> bool:
+
     contexts: dict[str, str] = {}
     assignments: Counter[str] = Counter()
     for node in ast.walk(tree):
@@ -284,7 +321,9 @@ def _attempt_context_is_coherent(tree: ast.Module) -> bool:
             node.value.args[0] if node.value.args else None,
         )
         if project_value is not None:
-            contexts[target.id] = ast.dump(project_value, include_attributes=False)
+            stable = _stable_identity(project_value)
+            if stable is not None:
+                contexts[target.id] = stable
     attempts = [node for node in ast.walk(tree) if isinstance(node, ast.Call) and _call_tail(node) == "DeliveryAttempt"]
     if not attempts:
         return False
@@ -294,7 +333,7 @@ def _attempt_context_is_coherent(tree: ast.Module) -> bool:
         if not isinstance(context_node, ast.Name) or assignments[context_node.id] != 1:
             return False
         expected = contexts.get(context_node.id)
-        paired = [ast.dump(values[field], include_attributes=False) for field in ("journal_uuid", "target_uuid", "ledger_uuid") if field in values]
+        paired = [_stable_identity(values[field]) for field in ("journal_uuid", "target_uuid", "ledger_uuid") if field in values]
         if expected is None or len(paired) != 3 or any(value != expected for value in paired):
             return False
     return True
@@ -514,6 +553,26 @@ def test_mutation_runner_accepts_clean_and_rejects_synthetic_mutants(
             "decoy = ProjectSyncContext(project_uuid=a.uuid)\n"
             "context = ProjectSyncContext(project_uuid=b.uuid)\n"
             "attempt = DeliveryAttempt(context=context, journal_uuid=a.uuid, target_uuid=a.uuid, ledger_uuid=a.uuid)\n",
+        ),
+        MutationSpecimen(
+            "uuid tuple decoy",
+            MutantKind.SHARED_JOURNAL_RESOLVER,
+            "def path(root, project_uuid):\n    return root / 'projects' / (audit(project_uuid), 'shared')[1] / 'sync' / 'sync.db'\n",
+        ),
+        MutationSpecimen(
+            "foreign body audit header",
+            MutantKind.MISSING_FINAL_TRANSPORT_GATE,
+            "def send(client, body, foreign):\n"
+            "    if final_transport_eligible(body):\n"
+            "        client.post('/events', json=foreign, headers={'X-Audit': str(body)})\n",
+        ),
+        MutationSpecimen(
+            "rebound project identity",
+            MutantKind.CROSS_PAIR_CONTEXT,
+            "project = a.uuid\n"
+            "context = ProjectSyncContext(project_uuid=project)\n"
+            "project = b.uuid\n"
+            "attempt = DeliveryAttempt(context=context, journal_uuid=project, target_uuid=project, ledger_uuid=project)\n",
         ),
     ],
     ids=lambda specimen: specimen.name,
