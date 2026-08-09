@@ -21,7 +21,7 @@ import shutil
 from dataclasses import replace
 from kernel.clock import now_utc_stamp
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
 if TYPE_CHECKING:
@@ -506,7 +506,7 @@ def _build_source(pack: OrgPackConfig) -> OrgDoctrineSource:
     if pack.source_type == "git":
         from .sources.git_source import GitSource
 
-        return GitSource(url=pack.url, ref=pack.ref)
+        return cast(OrgDoctrineSource, GitSource(url=pack.url, ref=pack.ref))
     if pack.source_type in {"https", "artifactory"}:
         from .sources.https_source import HttpsBundleSource
 
@@ -516,7 +516,7 @@ def _build_source(pack: OrgPackConfig) -> OrgDoctrineSource:
     if pack.source_type == "api":
         from .sources.api_source import ApiSource
 
-        return ApiSource(url=pack.url, ref=pack.ref)
+        return cast(OrgDoctrineSource, ApiSource(url=pack.url, ref=pack.ref))
 
     raise ValueError(
         f"Unknown source_type: {pack.source_type!r} for pack '{pack.name}'"
