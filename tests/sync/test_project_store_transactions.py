@@ -101,15 +101,17 @@ def test_query_results_cannot_reach_connection_transaction_controls(
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
     store = ProjectSyncStore(PROJECT_UUID)
 
-    with pytest.raises(RuntimeError, match="business failure"):
-        with store.unit_of_work() as unit:
-            result = unit.execute(
-                "INSERT INTO capture_sequences (project_uuid, next_sequence) VALUES (?, 1)",
-                (PROJECT_UUID,),
-            )
-            with pytest.raises(AttributeError):
-                result.connection.commit()  # type: ignore[attr-defined]
-            raise RuntimeError("business failure")
+    with (
+        pytest.raises(RuntimeError, match="business failure"),
+        store.unit_of_work() as unit,
+    ):
+        result = unit.execute(
+            "INSERT INTO capture_sequences (project_uuid, next_sequence) VALUES (?, 1)",
+            (PROJECT_UUID,),
+        )
+        with pytest.raises(AttributeError):
+            result.connection.commit()  # type: ignore[attr-defined]
+        raise RuntimeError("business failure")
 
     assert _counts_for_query(store, "SELECT COUNT(*) FROM capture_sequences") == 0
 
@@ -125,6 +127,9 @@ def test_query_results_cannot_reach_connection_transaction_controls(
         "RELEASE hidden",
         "/* disguised */ COMMIT",
         "-- disguised\nROLLBACK",
+        "; COMMIT",
+        ";;;ROLLBACK",
+        "\ufeffCOMMIT",
     ),
 )
 def test_sql_transaction_control_escape_is_rejected_and_business_work_rolls_back(
@@ -135,15 +140,17 @@ def test_sql_transaction_control_escape_is_rejected_and_business_work_rolls_back
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
     store = ProjectSyncStore(PROJECT_UUID)
 
-    with pytest.raises(RuntimeError, match="business failure"):
-        with store.unit_of_work() as unit:
-            unit.execute(
-                "INSERT INTO capture_sequences (project_uuid, next_sequence) VALUES (?, 1)",
-                (PROJECT_UUID,),
-            )
-            with pytest.raises(ProjectStoreError, match="transaction control"):
-                unit.execute(transaction_statement)
-            raise RuntimeError("business failure")
+    with (
+        pytest.raises(RuntimeError, match="business failure"),
+        store.unit_of_work() as unit,
+    ):
+        unit.execute(
+            "INSERT INTO capture_sequences (project_uuid, next_sequence) VALUES (?, 1)",
+            (PROJECT_UUID,),
+        )
+        with pytest.raises(ProjectStoreError, match="transaction control"):
+            unit.execute(transaction_statement)
+        raise RuntimeError("business failure")
 
     assert _counts_for_query(store, "SELECT COUNT(*) FROM capture_sequences") == 0
 
@@ -191,17 +198,19 @@ def test_failing_savepoint_rolls_back_inner_work_without_ending_outer_transactio
             "'pending')",
             (PROJECT_UUID,),
         )
-        with pytest.raises(RuntimeError, match="inner failure"):
-            with unit.savepoint("expected_failure"):
-                unit.execute(
-                    "INSERT INTO admission_operations "
-                    "(operation_key, project_uuid, action, target_identity, "
-                    "account_identity, private_teamspace_id, state) "
-                    "VALUES ('inner', ?, 'admit', 'target', 'account', 'teamspace', "
-                    "'pending')",
-                    (PROJECT_UUID,),
-                )
-                raise RuntimeError("inner failure")
+        with (
+            pytest.raises(RuntimeError, match="inner failure"),
+            unit.savepoint("expected_failure"),
+        ):
+            unit.execute(
+                "INSERT INTO admission_operations "
+                "(operation_key, project_uuid, action, target_identity, "
+                "account_identity, private_teamspace_id, state) "
+                "VALUES ('inner', ?, 'admit', 'target', 'account', 'teamspace', "
+                "'pending')",
+                (PROJECT_UUID,),
+            )
+            raise RuntimeError("inner failure")
         unit.execute(
             "INSERT INTO admission_operations "
             "(operation_key, project_uuid, action, target_identity, account_identity, "

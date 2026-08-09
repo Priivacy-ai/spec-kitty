@@ -9,10 +9,13 @@ from contextlib import contextmanager, suppress
 from contextvars import ContextVar
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Final, TypeAlias
+from typing import Final, TypeAlias, cast
 from uuid import UUID
 
-from specify_cli.sync.layout_generation import LayoutGenerationAuthority
+from specify_cli.sync.layout_generation import (
+    LayoutGenerationAuthority,
+    _new_layout_generation_authority,
+)
 from specify_cli.sync.project_context import (
     AdmissionState,
     ConsentState,
@@ -20,6 +23,7 @@ from specify_cli.sync.project_context import (
     TargetAudience,
     VerifiedProjectStoreIdentity,
     _new_project_sync_context,
+    _new_verified_project_store_identity,
 )
 from specify_cli.sync.project_identity import (
     CanonicalProjectUUID,
@@ -47,10 +51,62 @@ class ProjectStoreLockedError(ProjectStoreError):
     """The store's outer write transaction could not be acquired."""
 
 
+class ProjectTransactionControlError(ProjectStoreError):
+    """Business SQL attempted to escape the store-owned transaction boundary."""
+
+
 SQLiteScalar: TypeAlias = str | int | float | bytes | None
 SQLiteParameters: TypeAlias = Sequence[SQLiteScalar] | Mapping[str, SQLiteScalar]
+SQLiteRow: TypeAlias = tuple[SQLiteScalar, ...] | sqlite3.Row
 
 _SAVEPOINT_NAME = re.compile(r"[A-Za-z][A-Za-z0-9_]*", flags=re.ASCII)
+_LEADING_SQL_TRIVIA = re.compile(
+    r"(?:\s+|\ufeff|;+|--[^\r\n]*(?:\r?\n|$)|/\*.*?\*/)*",
+    flags=re.ASCII | re.DOTALL,
+)
+_SQL_KEYWORD = re.compile(r"[A-Za-z]+", flags=re.ASCII)
+_TRANSACTION_CONTROL_KEYWORDS: Final[frozenset[str]] = frozenset({"BEGIN", "COMMIT", "END", "RELEASE", "ROLLBACK", "SAVEPOINT"})
+
+
+class ProjectQueryResult:
+    """Opaque fetch-only result that does not expose its SQLite cursor or connection."""
+
+    __slots__ = ("__cursor",)
+
+    def __init__(self, cursor: sqlite3.Cursor) -> None:
+        self.__cursor = cursor
+
+    def fetchone(self) -> SQLiteRow | None:
+        """Fetch the next row without exposing cursor transaction controls."""
+        return cast("SQLiteRow | None", self.__cursor.fetchone())
+
+    def fetchmany(self, size: int | None = None) -> list[SQLiteRow]:
+        """Fetch a bounded row batch without exposing cursor transaction controls."""
+        if size is None:
+            return cast("list[SQLiteRow]", self.__cursor.fetchmany())
+        return cast("list[SQLiteRow]", self.__cursor.fetchmany(size))
+
+    def fetchall(self) -> list[SQLiteRow]:
+        """Fetch all remaining rows without exposing cursor transaction controls."""
+        return cast("list[SQLiteRow]", self.__cursor.fetchall())
+
+    def __iter__(self) -> Iterator[SQLiteRow]:
+        return (cast("SQLiteRow", row) for row in self.__cursor)
+
+
+def _reject_transaction_control(statement: str) -> None:
+    trivia = _LEADING_SQL_TRIVIA.match(statement)
+    remainder = statement[trivia.end() :] if trivia is not None else statement
+    keyword_match = _SQL_KEYWORD.match(remainder)
+    keyword = keyword_match.group(0).upper() if keyword_match is not None else ""
+    if keyword in _TRANSACTION_CONTROL_KEYWORDS:
+        raise ProjectTransactionControlError(f"SQL transaction control {keyword} is owned by ProjectSyncStore")
+
+
+def _stored_positive_int(value: object, field: str) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+        raise ProjectStoreCorruptError(f"persisted {field} must be a positive integer")
+    return value
 
 
 class ProjectUnitOfWork:
@@ -88,19 +144,21 @@ class ProjectUnitOfWork:
         self,
         statement: str,
         parameters: SQLiteParameters = (),
-    ) -> sqlite3.Cursor:
+    ) -> ProjectQueryResult:
         """Execute SQL inside the store-owned outer transaction."""
         self._require_active()
-        return self._execute(statement, parameters)
+        _reject_transaction_control(statement)
+        return ProjectQueryResult(self._execute(statement, parameters))
 
     def executemany(
         self,
         statement: str,
         parameters: Iterable[SQLiteParameters],
-    ) -> sqlite3.Cursor:
+    ) -> ProjectQueryResult:
         """Execute a parameterized SQL batch inside the outer transaction."""
         self._require_active()
-        return self._executemany(statement, parameters)
+        _reject_transaction_control(statement)
+        return ProjectQueryResult(self._executemany(statement, parameters))
 
     @contextmanager
     def savepoint(self, name: str) -> Iterator[None]:
@@ -306,6 +364,7 @@ _SCHEMA_STATEMENTS: Final[tuple[str, ...]] = (
     CREATE TABLE delivery_results (
         result_id TEXT PRIMARY KEY,
         project_uuid TEXT NOT NULL,
+        epoch_id INTEGER NOT NULL,
         attempt_id TEXT NOT NULL,
         target_generation INTEGER,
         admission_generation TEXT,
@@ -313,6 +372,8 @@ _SCHEMA_STATEMENTS: Final[tuple[str, ...]] = (
         terminal_refusal_category TEXT,
         recorded_at TEXT NOT NULL,
         UNIQUE (project_uuid, result_id),
+        FOREIGN KEY (project_uuid, epoch_id)
+            REFERENCES consent_epochs(project_uuid, epoch_id),
         FOREIGN KEY (project_uuid, attempt_id)
             REFERENCES delivery_attempts(project_uuid, attempt_id)
     )
@@ -322,6 +383,7 @@ _SCHEMA_STATEMENTS: Final[tuple[str, ...]] = (
         migration_id TEXT PRIMARY KEY,
         project_uuid TEXT NOT NULL,
         protocol_version INTEGER NOT NULL CHECK (protocol_version > 0),
+        source_paths TEXT NOT NULL,
         source_fingerprints_json TEXT NOT NULL,
         partition_json TEXT NOT NULL,
         quarantine_json TEXT NOT NULL,
@@ -352,6 +414,8 @@ _SCHEMA_STATEMENTS: Final[tuple[str, ...]] = (
 class ProjectSyncStore:
     """Canonical path, connection, transaction, and context owner for one UUID."""
 
+    _active_unit: ContextVar[ProjectUnitOfWork | None]
+    _paths: ProjectStorePaths
     schema_version: Final[int] = 1
     layout_version: Final[int] = 1
     __slots__ = ("_active_unit", "_paths")
@@ -385,46 +449,27 @@ class ProjectSyncStore:
 
     @staticmethod
     def _metadata_table_exists(connection: sqlite3.Connection) -> bool:
-        row = connection.execute(
-            "SELECT 1 FROM sqlite_master "
-            "WHERE type = 'table' AND name = 'project_store_metadata'"
-        ).fetchone()
+        row = connection.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'project_store_metadata'").fetchone()
         return row is not None
 
     def _verify_owner(self, connection: sqlite3.Connection) -> None:
-        row = connection.execute(
-            "SELECT project_uuid, schema_version, layout_version "
-            "FROM project_store_metadata WHERE singleton = 1"
-        ).fetchone()
+        row = connection.execute("SELECT project_uuid, schema_version, layout_version FROM project_store_metadata WHERE singleton = 1").fetchone()
         if row is None:
-            raise ProjectStoreCorruptError(
-                "project store metadata is missing its singleton owner row"
-            )
+            raise ProjectStoreCorruptError("project store metadata is missing its singleton owner row")
         owner, schema_version, layout_version = row
         if owner != self.project_uuid.storage_token:
-            raise ProjectStoreOwnerMismatchError(
-                f"project store owner {owner!r} does not match "
-                f"{self.project_uuid.storage_token!r}"
-            )
+            raise ProjectStoreOwnerMismatchError(f"project store owner {owner!r} does not match {self.project_uuid.storage_token!r}")
         if schema_version != self.schema_version:
-            raise ProjectStoreVersionError(
-                f"project store schema {schema_version!r} is incompatible with "
-                f"{self.schema_version}"
-            )
+            raise ProjectStoreVersionError(f"project store schema {schema_version!r} is incompatible with {self.schema_version}")
         if layout_version != self.layout_version:
-            raise ProjectStoreVersionError(
-                f"project store layout {layout_version!r} is incompatible with "
-                f"{self.layout_version}"
-            )
+            raise ProjectStoreVersionError(f"project store layout {layout_version!r} is incompatible with {self.layout_version}")
 
     @staticmethod
     def _translate_open_error(error: sqlite3.DatabaseError) -> ProjectStoreError:
         message = str(error).lower()
         if "locked" in message or "busy" in message:
             return ProjectStoreLockedError("project sync store is locked")
-        return ProjectStoreCorruptError(
-            "project sync store could not be verified as SQLite"
-        )
+        return ProjectStoreCorruptError("project sync store could not be verified as SQLite")
 
     @contextmanager
     def unit_of_work(
@@ -457,15 +502,11 @@ class ProjectSyncStore:
             initialized = not self._metadata_table_exists(connection)
             if initialized:
                 if database_existed:
-                    raise ProjectStoreCorruptError(
-                        "existing sync.db is not an initialized project store"
-                    )
+                    raise ProjectStoreCorruptError("existing sync.db is not an initialized project store")
                 for statement in _SCHEMA_STATEMENTS:
                     connection.execute(statement)
                 connection.execute(
-                    "INSERT INTO project_store_metadata "
-                    "(singleton, project_uuid, schema_version, layout_version, created_at) "
-                    "VALUES (1, ?, ?, ?, ?)",
+                    "INSERT INTO project_store_metadata (singleton, project_uuid, schema_version, layout_version, created_at) VALUES (1, ?, ?, ?, ?)",
                     (
                         self.project_uuid.storage_token,
                         self.schema_version,
@@ -501,38 +542,81 @@ class ProjectSyncStore:
             if connection is not None:
                 connection.close()
 
-    def _verified_identity(self) -> VerifiedProjectStoreIdentity:
-        with self.unit_of_work():
-            return VerifiedProjectStoreIdentity(
-                project_uuid=self.project_uuid,
-                database_path=self.database_path,
-                schema_version=self.schema_version,
-                layout_version=self.layout_version,
-            )
-
-    def layout_generation(self) -> LayoutGenerationAuthority:
-        """Return the sole current-writer placement authority for this store."""
-        return LayoutGenerationAuthority(
-            self.project_uuid,
-            self._paths.runtime_root,
+    def _verified_identity(
+        self,
+        unit: ProjectUnitOfWork,
+    ) -> VerifiedProjectStoreIdentity:
+        if self._active_unit.get() is not unit:
+            raise ProjectStoreError("verified store identity requires the active store unit of work")
+        return _new_verified_project_store_identity(
+            project_uuid=self.project_uuid,
+            database_path=self.database_path,
+            schema_version=self.schema_version,
+            layout_version=self.layout_version,
         )
 
-    def create_context(
+    def layout_generation(
         self,
         *,
-        consent_state: ConsentState | None = None,
-        consent_generation: int | None = None,
-        epoch_id: int | None = None,
-        target_audience: TargetAudience | None = None,
-        admission_state: AdmissionState | None = None,
-        admission_generation: str | None = None,
-        binding_audience: str | None = None,
-        kill_switch_allows: bool = False,
-        transport_lease_identity: str | None = None,
-    ) -> ProjectSyncContext:
-        """Create a coherent immutable context from a freshly verified owner."""
+        lock_timeout_seconds: float = 10.0,
+    ) -> LayoutGenerationAuthority:
+        """Return the sole current-writer placement authority for this store."""
+        return _new_layout_generation_authority(
+            project_uuid=self.project_uuid,
+            runtime_root=self._paths.runtime_root,
+            lock_timeout_seconds=lock_timeout_seconds,
+        )
+
+    def create_context(self) -> ProjectSyncContext:
+        """Load a coherent immutable authority snapshot from the verified store."""
+        consent_state: ConsentState | None = None
+        consent_generation: int | None = None
+        epoch_id: int | None = None
+        target_audience: TargetAudience | None = None
+        admission_state: AdmissionState | None = None
+        admission_generation: str | None = None
+        binding_audience: str | None = None
+
+        with self.unit_of_work() as unit:
+            consent_row = unit.execute(
+                "SELECT state, generation FROM project_consent_decisions WHERE project_uuid = ?",
+                (self.project_uuid.storage_token,),
+            ).fetchone()
+            if consent_row is not None:
+                consent_state = ConsentState(str(consent_row[0]))
+                consent_generation = _stored_positive_int(consent_row[1], "consent generation")
+
+            if consent_state is ConsentState.GRANTED:
+                epoch_row = unit.execute(
+                    "SELECT epoch_id FROM consent_epochs WHERE project_uuid = ? AND state = 'eligible' AND consent_generation = ? ORDER BY epoch_id DESC LIMIT 1",
+                    (self.project_uuid.storage_token, consent_generation),
+                ).fetchone()
+                if epoch_row is not None:
+                    epoch_id = _stored_positive_int(epoch_row[0], "epoch identity")
+
+            admission_row = unit.execute(
+                "SELECT target_identity, account_identity, private_teamspace_id, "
+                "configuration_generation, admission_state, admission_generation, "
+                "binding_audience FROM project_target_admissions "
+                "WHERE project_uuid = ?",
+                (self.project_uuid.storage_token,),
+            ).fetchone()
+            if admission_row is not None:
+                target_audience = TargetAudience(
+                    project_uuid=self.project_uuid,
+                    target_identity=str(admission_row[0]),
+                    account_identity=str(admission_row[1]),
+                    private_teamspace_id=str(admission_row[2]),
+                    configuration_generation=_stored_positive_int(admission_row[3], "target configuration generation"),
+                )
+                admission_state = AdmissionState(str(admission_row[4]))
+                admission_generation = str(admission_row[5]) if admission_row[5] is not None else None
+                binding_audience = str(admission_row[6]) if admission_row[6] is not None else None
+
+            store_identity = self._verified_identity(unit)
+
         return _new_project_sync_context(
-            store_identity=self._verified_identity(),
+            store_identity=store_identity,
             consent_state=consent_state,
             consent_generation=consent_generation,
             epoch_id=epoch_id,
@@ -540,8 +624,8 @@ class ProjectSyncStore:
             admission_state=admission_state,
             admission_generation=admission_generation,
             binding_audience=binding_audience,
-            kill_switch_allows=kill_switch_allows,
-            transport_lease_identity=transport_lease_identity,
+            kill_switch_allows=False,
+            transport_lease_identity=None,
         )
 
 
@@ -550,6 +634,7 @@ __all__ = [
     "ProjectStoreError",
     "ProjectStoreLockedError",
     "ProjectStoreOwnerMismatchError",
+    "ProjectTransactionControlError",
     "ProjectStoreVersionError",
     "ProjectSyncStore",
     "ProjectUnitOfWork",

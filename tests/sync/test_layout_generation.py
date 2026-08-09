@@ -189,9 +189,7 @@ def test_writer_first_holds_layout_lock_until_legacy_insert_finishes(
     cutover_thread.start()
     assert cutover_attempting.wait(timeout=5)
 
-    expected_lock_path = (
-        tmp_path / "runtime" / "projects" / ".layout-generation.lock"
-    )
+    expected_lock_path = tmp_path / "runtime" / "projects" / ".layout-generation.lock"
     try:
         with pytest.raises(Timeout), FileLock(str(expected_lock_path), timeout=0):
             pytest.fail("writer callback must retain the machine layout lock")
@@ -253,9 +251,11 @@ def test_layout_lock_contention_fails_closed_without_mutation(
     before = authority.record_path.read_bytes()
     contending = store.layout_generation(lock_timeout_seconds=0)
 
-    with FileLock(str(authority.lock_path), timeout=0):
-        with pytest.raises(LayoutAuthorityLockedError):
-            contending.read_state()
+    with (
+        FileLock(str(authority.lock_path), timeout=0),
+        pytest.raises(LayoutAuthorityLockedError),
+    ):
+        contending.read_state()
 
     assert authority.record_path.read_bytes() == before
 

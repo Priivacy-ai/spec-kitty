@@ -2140,10 +2140,7 @@ _CANONICAL_PROJECT_STORE_LAYOUT_COUNTS: Counter[str] = Counter(
 
 
 def _is_canonical_project_store_layout_write(site: _LayoutWriteSite) -> bool:
-    return (
-        site.relpath == "specify_cli/sync/project_store.py"
-        and site.qualname == "ProjectSyncStore.unit_of_work"
-    )
+    return site.relpath == "specify_cli/sync/project_store.py" and site.qualname == "ProjectSyncStore.unit_of_work"
 
 
 def _qualified_functions(path: Path) -> frozenset[str]:
@@ -2387,17 +2384,9 @@ def test_source_discovered_sender_census_is_counted_and_shrink_only() -> None:
 
 def test_source_discovered_layout_writer_census_is_counted_and_shrink_only() -> None:
     sites = _scan_layout_writers()
-    canonical = Counter(
-        site.key for site in sites if _is_canonical_project_store_layout_write(site)
-    )
-    assert canonical == _CANONICAL_PROJECT_STORE_LAYOUT_COUNTS, (
-        "the exact ProjectSyncStore unit of work is the sole new schema/layout writer"
-    )
-    observed = Counter(
-        site.key
-        for site in sites
-        if not _is_canonical_project_store_layout_write(site)
-    )
+    canonical = Counter(site.key for site in sites if _is_canonical_project_store_layout_write(site))
+    assert canonical == _CANONICAL_PROJECT_STORE_LAYOUT_COUNTS, "the exact ProjectSyncStore unit of work is the sole new schema/layout writer"
+    observed = Counter(site.key for site in sites if not _is_canonical_project_store_layout_write(site))
     growth = observed - _KNOWN_LAYOUT_WRITE_COUNTS
     assert not growth, "new current layout writers:\n" + "\n".join(f"{key} (+{count})" for key, count in sorted(growth.items()))
     assert all(site.owner_wp.startswith("WP") for site in sites)

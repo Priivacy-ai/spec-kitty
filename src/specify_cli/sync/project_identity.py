@@ -14,6 +14,7 @@ package would copy the chain and they would silently diverge. This module is tha
 home; ``delivery/targets.py`` already precedents importing from
 ``specify_cli.sync.*``.
 """
+
 from __future__ import annotations
 
 import re
@@ -135,12 +136,7 @@ class ProjectStorePaths:
     @property
     def sync_directory(self) -> Path:
         """Directory containing this project's complete sync aggregate."""
-        return (
-            self.runtime_root
-            / "projects"
-            / self.project_uuid.storage_token
-            / "sync"
-        )
+        return self.runtime_root / "projects" / self.project_uuid.storage_token / "sync"
 
     @property
     def database(self) -> Path:
@@ -318,9 +314,7 @@ def backfill_journal_identity(journal: Any) -> IdentityBackfillResult:
         if isinstance(envelope, dict):
             raw_repo = envelope.get("repo_slug")
             repo_slug = str(raw_repo).strip() or None if raw_repo else None
-        entries.append(
-            (event_id, project_uuid, resolve_event_project_slug(envelope), repo_slug)
-        )
+        entries.append((event_id, project_uuid, resolve_event_project_slug(envelope), repo_slug))
 
     updated = journal.set_project_identity(entries)
     return IdentityBackfillResult(updated=updated, unresolved=unresolved)

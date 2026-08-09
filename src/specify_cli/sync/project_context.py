@@ -25,7 +25,7 @@ class AdmissionState(StrEnum):
     REVOCATION_PENDING = "revocation_pending"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class VerifiedProjectStoreIdentity:
     """Store owner and version tuple verified during the current open."""
 
@@ -33,6 +33,9 @@ class VerifiedProjectStoreIdentity:
     database_path: Path
     schema_version: int
     layout_version: int
+
+    def __init__(self, *_args: object, **_kwargs: object) -> None:
+        raise TypeError("verified store identities are created by ProjectSyncStore")
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,7 +67,7 @@ class TargetAudience:
             raise ValueError("target configuration generation must be positive")
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class ProjectCaptureCapability:
     """Narrow authority to capture locally for this verified project store."""
 
@@ -72,13 +75,19 @@ class ProjectCaptureCapability:
     store_identity: VerifiedProjectStoreIdentity
     epoch_id: int | None
 
+    def __init__(self, *_args: object, **_kwargs: object) -> None:
+        raise TypeError("capture capabilities are derived from ProjectSyncContext")
 
-@dataclass(frozen=True, slots=True)
+
+@dataclass(frozen=True, slots=True, init=False)
 class ProjectStoreMaintenanceCapability:
     """Narrow authority for project-scoped store maintenance."""
 
     project_uuid: CanonicalProjectUUID
     store_identity: VerifiedProjectStoreIdentity
+
+    def __init__(self, *_args: object, **_kwargs: object) -> None:
+        raise TypeError("maintenance capabilities are derived from ProjectSyncContext")
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -97,6 +106,9 @@ class ProjectSyncContext:
     kill_switch_allows: bool
     transport_lease_identity: str | None
 
+    def __init__(self, *_args: object, **_kwargs: object) -> None:
+        raise TypeError("sync contexts are created by ProjectSyncStore")
+
     @property
     def egress_eligible(self) -> bool:
         """Evaluate current authority without mutating any decision."""
@@ -114,18 +126,60 @@ class ProjectSyncContext:
 
     def capture_capability(self) -> ProjectCaptureCapability:
         """Derive capture authority without introducing a loose UUID/path pair."""
-        return ProjectCaptureCapability(
-            self.project_uuid,
-            self.store_identity,
-            self.epoch_id,
+        return _new_capture_capability(
+            store_identity=self.store_identity,
+            epoch_id=self.epoch_id,
         )
 
     def maintenance_capability(self) -> ProjectStoreMaintenanceCapability:
         """Derive maintenance authority for this already-verified store."""
-        return ProjectStoreMaintenanceCapability(
-            self.project_uuid,
-            self.store_identity,
+        return _new_maintenance_capability(
+            store_identity=self.store_identity,
         )
+
+
+def _new_verified_project_store_identity(
+    *,
+    project_uuid: CanonicalProjectUUID,
+    database_path: Path,
+    schema_version: int,
+    layout_version: int,
+) -> VerifiedProjectStoreIdentity:
+    """Construct identity only from the store's verified, active unit of work."""
+    identity = object.__new__(VerifiedProjectStoreIdentity)
+    values = {
+        "project_uuid": project_uuid,
+        "database_path": database_path,
+        "schema_version": schema_version,
+        "layout_version": layout_version,
+    }
+    for name, value in values.items():
+        object.__setattr__(identity, name, value)
+    return identity
+
+
+def _new_capture_capability(
+    *,
+    store_identity: VerifiedProjectStoreIdentity,
+    epoch_id: int | None,
+) -> ProjectCaptureCapability:
+    """Derive capture authority from one non-forgeable store identity."""
+    capability = object.__new__(ProjectCaptureCapability)
+    object.__setattr__(capability, "project_uuid", store_identity.project_uuid)
+    object.__setattr__(capability, "store_identity", store_identity)
+    object.__setattr__(capability, "epoch_id", epoch_id)
+    return capability
+
+
+def _new_maintenance_capability(
+    *,
+    store_identity: VerifiedProjectStoreIdentity,
+) -> ProjectStoreMaintenanceCapability:
+    """Derive maintenance authority from one non-forgeable store identity."""
+    capability = object.__new__(ProjectStoreMaintenanceCapability)
+    object.__setattr__(capability, "project_uuid", store_identity.project_uuid)
+    object.__setattr__(capability, "store_identity", store_identity)
+    return capability
 
 
 def _new_project_sync_context(
@@ -157,12 +211,8 @@ def _new_project_sync_context(
     else:
         if target_audience is None:
             raise ValueError("admission state requires an exact target audience")
-        if admission_state is AdmissionState.ADMITTED and (
-            admission_generation is None or binding_audience is None
-        ):
-            raise ValueError(
-                "admitted authority requires admission generation and binding audience"
-            )
+        if admission_state is AdmissionState.ADMITTED and (admission_generation is None or binding_audience is None):
+            raise ValueError("admitted authority requires admission generation and binding audience")
     if transport_lease_identity is not None and not transport_lease_identity.strip():
         raise ValueError("transport lease identity must be non-empty")
     lease_authority_complete = (

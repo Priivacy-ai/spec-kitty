@@ -769,10 +769,7 @@ _CANONICAL_STORE_SITE_COUNTS: Counter[str] = Counter(
 
 
 def _is_canonical_project_store_site(site: StoreSite) -> bool:
-    return (
-        site.relpath == "specify_cli/sync/project_store.py"
-        and site.qualname == "ProjectSyncStore.unit_of_work"
-    )
+    return site.relpath == "specify_cli/sync/project_store.py" and site.qualname == "ProjectSyncStore.unit_of_work"
 
 
 def final_project_store_violations(
@@ -790,15 +787,9 @@ def final_project_store_violations(
 
 def test_current_store_census_cannot_grow_and_every_site_has_evidence() -> None:
     sites = scan_store_sites()
-    canonical = Counter(
-        site.key for site in sites if _is_canonical_project_store_site(site)
-    )
-    assert canonical == _CANONICAL_STORE_SITE_COUNTS, (
-        "the canonical store must own one connection, one bootstrap commit, and one outer commit"
-    )
-    observed = Counter(
-        site.key for site in sites if not _is_canonical_project_store_site(site)
-    )
+    canonical = Counter(site.key for site in sites if _is_canonical_project_store_site(site))
+    assert canonical == _CANONICAL_STORE_SITE_COUNTS, "the canonical store must own one connection, one bootstrap commit, and one outer commit"
+    observed = Counter(site.key for site in sites if not _is_canonical_project_store_site(site))
     growth = observed - _KNOWN_SITE_COUNTS
     assert not growth, "new direct store ownership sites:\n" + "\n".join(f"{key} (+{count})" for key, count in sorted(growth.items()))
     assert set(observed) >= _KNOWN_LIVE_FLOOR
