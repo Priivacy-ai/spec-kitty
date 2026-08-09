@@ -1,7 +1,7 @@
 {
-  "event_count": 19,
-  "last_event_id": "01KZM04Y6N05XR06KDA87R9WB9",
-  "materialized_at": "2026-08-09T19:31:43.957552+00:00",
+  "event_count": 20,
+  "last_event_id": "01KZM0ADD2RXPFJJD4APV481M9",
+  "materialized_at": "2026-08-09T19:34:43.362766+00:00",
   "mission_number": "",
   "mission_slug": "per-project-sync-consent-ledgers-01KZKMQZ",
   "mission_type": "software-dev",
@@ -11,24 +11,25 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 10
   },
   "work_packages": {
     "WP01": {
-      "actor": "user",
-      "agent": "",
+      "actor": "codex-core-wp01-review",
+      "agent": "codex-core-wp01-review",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "for_review",
-      "last_event_id": "01KZM04Y6N05XR06KDA87R9WB9",
-      "last_transition_at": "2026-08-09T19:31:43.957552+00:00",
+      "lane": "in_review",
+      "last_event_id": "01KZM0ADD2RXPFJJD4APV481M9",
+      "last_transition_at": "2026-08-09T19:34:43.362766+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "WP01 evidence package complete: ADR accepted; shrink-only store and consent-writer censuses; named sender/layout inventories; reusable A/B incident harness. Red evidence commit 355437de9 failed only on absent ADR; green commit 730873bed. Verification: 337 passed, 2 expected xfailed; ruff clean."
+        "WP01 evidence package complete: ADR accepted; shrink-only store and consent-writer censuses; named sender/layout inventories; reusable A/B incident harness. Red evidence commit 355437de9 failed only on absent ADR; green commit 730873bed. Verification: 337 passed, 2 expected xfailed; ruff clean.",
+        "Cycle-2 reroll closes all six review findings. Exact behavioral gate: PWHEADLESS=1 .venv/bin/python -m pytest -q tests/architectural/test_project_store_boundary.py tests/architectural/test_sync_writer_census.py tests/architectural/test_egress_consent_boundary.py tests/architectural/test_unfiltered_journal_read_boundary.py tests/sync/test_project_consent_incident_baseline.py tests/delivery/test_consented_batch_3030.py tests/delivery/test_dispatch_project_consent_3030.py tests/delivery/test_dispatch_window_consent_3030.py tests/specify_cli/invocation/test_propagator_consent_gate_3030.py tests/specify_cli/saas_client/test_client_consent_gate_3030.py tests/specify_cli/sync/test_local_commit_consent_gate_3030.py tests/sync/test_body_drain_consent_3030.py tests/sync/test_body_upload_consent_3030.py tests/sync/test_consent_fault_vocabulary_3030.py tests/sync/test_consent_field_fault_3030.py tests/sync/test_consent_read_fault_3030.py tests/sync/test_consent_resolver_3030.py tests/sync/test_consent_write_refusal_3030.py tests/sync/test_daemon_publish_consent_3030.py tests/sync/test_history_import_consent_3030.py tests/sync/test_ws_publish_consent_3030.py tests/sync/tracker/test_saas_client_consent_gate_3030.py -W error => 337 passed, 2 xfailed. Strict mypy exact four-file command => Success: no issues found in 4 source files. Ruff check exact four Python files => All checks passed. Targeted four-file warning-strict suite => 49 passed, 2 xfailed. Commits: 2e98d36e8 and 47bf72ba9."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -38,8 +39,8 @@
         "reviewer": "user",
         "verdict": "changes_requested"
       },
-      "role": "implementer",
-      "shell_pid": 0,
+      "role": "reviewer",
+      "shell_pid": 1091,
       "shell_pid_created_at": "1786272735.189561",
       "subtasks": {
         "T001": "done",
