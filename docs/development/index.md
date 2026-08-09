@@ -32,6 +32,7 @@ Runbooks scoped to maintainers (and agents acting in a maintainer capacity), not
 - [Known current friction points](known-friction-points.md) — the fast-drifting list of current repo/tooling gotchas an agent hits mid-mission.
 - [Isolated dev environments (Shadow Clones)](isolated_dev_environments.md) — run several standalone checkouts on one machine without cross-mission pollution: clone-local `.venv` plus a clone-local `SPEC_KITTY_HOME` state root, machine-global CLI left intact.
 - [Managing the issue tracker](manage-issue-tracker.md) — epics vs. meta-trackers, native sub-issue parenting, and triage conventions.
+- [Read-side placement-seam classification ledger](read-side-seam-classification.md) — per-site verdicts (migrate-fail-loud / stay-lenient / sanction-infra) for every production call site that bypasses `PlacementSeam.read_dir(kind)`.
 
 ## Testing the Spec Kitty codebase
 
@@ -41,6 +42,7 @@ Runbooks scoped to maintainers (and agents acting in a maintainer capacity), not
 - [Write time-dependent tests](write-time-dependent-tests.md) — inject stable clocks; avoid wall-clock reads in assertions.
 - [Contract pinning workflow](contract-pinning.md) — pinning the `spec-kitty-events` envelope contract in tests.
 - [Coverage signals](coverage-signals.md) — reconciling the internal diff-coverage gate with SonarCloud coverage / new_coverage.
+- [`tests/sync/` process-global and thread-seam inventory (#3115)](process-global-inventory-3115.md) — a narrowed inventory of process-global mutable state and thread-spawning seams in the `tests/sync/` cone, with reset-seam and dependence classification.
 
 ## Release and CI policy
 
@@ -48,6 +50,7 @@ Runbooks scoped to maintainers (and agents acting in a maintainer capacity), not
 - [UI end-to-end tests (Playwright)](ui-e2e.md) — the dashboard browser-regression suite.
 - [Quality & tech-debt standing orders](quality-and-tech-debt-standing-orders.md) — the eight standing practices for spec-driven missions.
 - [Terminology guard exemption policy](terminology-exemptions.md) — surfaces exempted from the terminology drift guards.
+- [Cut-over guard: fail-closed pre-merge gate](cutover-guard.md) — what `spec-kitty cutover-guard` checks, how it is wired into CI so it cannot be silently skipped, and how to register it as a required status check.
 
 ## Non-page artifacts
 
