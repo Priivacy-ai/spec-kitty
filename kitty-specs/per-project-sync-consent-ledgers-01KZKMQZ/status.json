@@ -56,7 +56,7 @@
     },
     "WP02": {
       "actor": "user",
-      "agent": "codex-reviewer",
+      "agent": "",
       "agent_profile": "architect-alphonso",
       "agent_profile_version": "1.0",
       "force_count": 0,
@@ -65,6 +65,7 @@
       "last_transition_at": "2026-08-09T23:06:34.376299+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260809-175108-qc7maU/spec-kitty/kitty-specs/per-project-sync-consent-ledgers-01KZKMQZ/tasks/WP02-project-sync-store-aggregate/review-cycle-1.md",
         "reference": "review-cycle://per-project-sync-consent-ledgers-01KZKMQZ/WP02-project-sync-store-aggregate/review-cycle-1.md",
@@ -72,14 +73,14 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 1091,
+      "shell_pid": 0,
       "shell_pid_created_at": "1786272735.189561",
       "subtasks": {
-        "T006": "done",
-        "T007": "done",
-        "T008": "done",
-        "T009": "done",
-        "T010": "done"
+        "T006": "planned",
+        "T007": "planned",
+        "T008": "planned",
+        "T009": "planned",
+        "T010": "planned"
       }
     },
     "WP03": {
