@@ -1553,6 +1553,20 @@ class _SinkFunctionAnalyzer:
                 return argument
         return None
 
+    @staticmethod
+    def _resolve_alias(
+        expression: ast.expr,
+        state: _SinkFlowState,
+    ) -> ast.expr:
+        resolved = expression
+        seen: set[str] = set()
+        while isinstance(resolved, ast.Name) and resolved.id in state.aliases:
+            if resolved.id in seen:
+                break
+            seen.add(resolved.id)
+            resolved = state.aliases[resolved.id]
+        return resolved
+
     def _apply_binding(
         self,
         item: ast.Assign | ast.AnnAssign,
@@ -1564,13 +1578,14 @@ class _SinkFunctionAnalyzer:
             if not isinstance(target, ast.Name):
                 continue
             name = target.id
+            alias = self._resolve_alias(value, state) if isinstance(value, (ast.Name, ast.Attribute)) else None
             state.versions[name] += 1
             state.aliases.pop(name, None)
             state.contexts.pop(name, None)
             state.attempts.pop(name, None)
             state.eligible.pop(name, None)
-            if isinstance(value, (ast.Name, ast.Attribute)):
-                state.aliases[name] = value
+            if alias is not None:
+                state.aliases[name] = alias
             if not isinstance(value, ast.Call):
                 continue
             tail = _attr_tail(value.func)
@@ -1660,12 +1675,13 @@ class _SinkFunctionAnalyzer:
         resolved = call
         callee = ast.unparse(call.func)
         if isinstance(call.func, ast.Name) and call.func.id in state.aliases:
+            alias = self._resolve_alias(call.func, state)
             resolved = ast.Call(
-                func=state.aliases[call.func.id],
+                func=alias,
                 args=call.args,
                 keywords=call.keywords,
             )
-            callee = ast.unparse(state.aliases[call.func.id])
+            callee = ast.unparse(alias)
         kind = _classify(resolved)
         if kind is None:
             return
@@ -1812,7 +1828,8 @@ def _new_sender_violations(
     return tuple(violations)
 
 
-_WRITE_SQL = frozenset({"INSERT", "UPDATE", "DELETE", "REPLACE", "CREATE", "DROP", "ALTER"})
+_KNOWN_NON_MUTATING_SQL = frozenset({"SELECT", "PRAGMA", "EXPLAIN", "BEGIN", "COMMIT", "ROLLBACK", "SAVEPOINT", "RELEASE"})
+_UNRESOLVED_SQL = "UNRESOLVED"
 
 
 @dataclass(frozen=True, order=True)
@@ -1834,6 +1851,20 @@ def _constant_strings(path: Path) -> dict[str, str]:
     values: dict[str, str] = {}
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            returns = [child.value for child in ast.walk(node) if isinstance(child, ast.Return) and child.value is not None]
+            rendered_returns = [_sql_text(value, values) for value in returns]
+            if (
+                rendered_returns
+                and all(rendered is not None for rendered in rendered_returns)
+                and all(
+                    re.search(r"\bSELECT\b", rendered.upper()) is not None and _write_operation(rendered) is None
+                    for rendered in rendered_returns
+                    if rendered is not None
+                )
+            ):
+                values[node.name] = "SELECT"
+            continue
         if not isinstance(node, (ast.Assign, ast.AnnAssign)):
             continue
         targets = node.targets if isinstance(node, ast.Assign) else [node.target]
@@ -1841,9 +1872,10 @@ def _constant_strings(path: Path) -> dict[str, str]:
         if value is None:
             continue
         rendered = _sql_text(value, values)
-        if rendered is not None:
-            for target in targets:
-                if isinstance(target, ast.Name):
+        for target in targets:
+            if isinstance(target, ast.Name):
+                values.pop(target.id, None)
+                if rendered is not None:
                     values[target.id] = rendered
     return values
 
@@ -1869,6 +1901,10 @@ def _sql_text(node: ast.expr, bindings: dict[str, str]) -> str | None:
         return node.value
     if isinstance(node, ast.Name):
         return bindings.get(node.id)
+    if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Dict):
+        choices = [_sql_text(value, bindings) for value in node.value.values]
+        if choices and all(choice is not None and re.search(r"\bSELECT\b", choice.upper()) is not None and _write_operation(choice) is None for choice in choices):
+            return "SELECT"
     if isinstance(node, ast.JoinedStr):
         return ast.unparse(node)
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
@@ -1884,6 +1920,8 @@ def _sql_text(node: ast.expr, bindings: dict[str, str]) -> str | None:
         return None if any(piece is None for piece in pieces) else separator.join(piece for piece in pieces if piece is not None)
     if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "format":
         return _sql_text(node.func.value, bindings)
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+        return bindings.get(node.func.id)
     return None
 
 
@@ -1895,6 +1933,16 @@ def _write_operation(text: str | None) -> str | None:
     if match is not None:
         return match.group(1)
     return None
+
+
+def _layout_operation(text: str | None) -> str | None:
+    write = _write_operation(text)
+    if write is not None:
+        return write
+    if text is None:
+        return _UNRESOLVED_SQL
+    words = {match.group(0) for match in re.finditer(r"\b[A-Z]+\b", text.upper())}
+    return None if words & _KNOWN_NON_MUTATING_SQL else _UNRESOLVED_SQL
 
 
 def _writer_owner(relpath: str) -> str:
@@ -1911,10 +1959,12 @@ class _LayoutWriteVisitor(ast.NodeVisitor):
     def __init__(self, path: Path, source_root: Path) -> None:
         self.path = path
         self.source_root = source_root
-        self.bindings = _imported_string_bindings(path, source_root)
+        self.module_bindings = _imported_string_bindings(path, source_root)
+        self.bindings = self.module_bindings.copy()
         self.classes: list[str] = []
         self.functions: list[str] = []
         self.sites: list[_LayoutWriteSite] = []
+        self.function_depth = 0
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
         self.classes.append(node.name)
@@ -1922,28 +1972,49 @@ class _LayoutWriteVisitor(ast.NodeVisitor):
         self.classes.pop()
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
+        saved = self.bindings
+        self.bindings = self.module_bindings.copy() if self.function_depth == 0 else self.bindings.copy()
         self.functions.append(node.name)
-        self.generic_visit(node)
+        self.function_depth += 1
+        for statement in node.body:
+            self.visit(statement)
+        self.function_depth -= 1
         self.functions.pop()
+        self.bindings = saved
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:  # noqa: N802
+        saved = self.bindings
+        self.bindings = self.module_bindings.copy() if self.function_depth == 0 else self.bindings.copy()
         self.functions.append(node.name)
-        self.generic_visit(node)
+        self.function_depth += 1
+        for statement in node.body:
+            self.visit(statement)
+        self.function_depth -= 1
         self.functions.pop()
+        self.bindings = saved
 
     def visit_Assign(self, node: ast.Assign) -> None:  # noqa: N802
         value = _sql_text(node.value, self.bindings)
-        if value is not None:
-            for target in node.targets:
-                if isinstance(target, ast.Name):
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                self.bindings.pop(target.id, None)
+                if value is not None:
                     self.bindings[target.id] = value
+        self.generic_visit(node)
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:  # noqa: N802
+        value = _sql_text(node.value, self.bindings) if node.value is not None else None
+        if isinstance(node.target, ast.Name):
+            self.bindings.pop(node.target.id, None)
+            if value is not None:
+                self.bindings[node.target.id] = value
         self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> None:  # noqa: N802
         func = node.func
         if isinstance(func, ast.Attribute) and func.attr in {"execute", "executemany", "executescript"} and node.args:
             rendered = _sql_text(node.args[0], self.bindings)
-            operation = _write_operation(rendered)
+            operation = _layout_operation(rendered)
             if operation is not None:
                 relpath = self.path.relative_to(self.source_root).as_posix()
                 self.sites.append(
@@ -2135,6 +2206,10 @@ _DURABLE_RESULT_AUTHORITIES: dict[_SymbolRef, tuple[str, str]] = {
 }
 
 
+def _reads_name(node: ast.AST, name: str) -> bool:
+    return any(isinstance(item, ast.Name) and item.id == name for item in ast.walk(node))
+
+
 def _durable_result_write(
     row: _ProjectSyncSender,
     path: Path,
@@ -2147,21 +2222,37 @@ def _durable_result_write(
     if requirement is None or node is None:
         return False
     table, identity = requirement
-    identity_is_used = any(isinstance(item, ast.Name) and item.id == identity for item in ast.walk(node))
     dml = {"DELETE", "INSERT", "REPLACE", "UPDATE"}
-    return identity_is_used and any(
-        site.qualname == row.result_write.qualname and site.operation in dml and table in site.statement.lower()
+    authority_lines = {
+        site.lineno
         for site in _scan_layout_writers((path,), source_root=source_root)
+        if site.qualname == row.result_write.qualname and site.operation in dml and table in site.statement.lower()
+    }
+    return any(
+        isinstance(item, ast.Call)
+        and item.lineno in authority_lines
+        and isinstance(item.func, ast.Attribute)
+        and item.func.attr in {"execute", "executemany", "executescript"}
+        and any(
+            _reads_name(argument, identity)
+            for argument in (
+                *item.args[1:],
+                *(keyword.value for keyword in item.keywords),
+            )
+        )
+        for item in ast.walk(node)
     )
 
 
 def _durable_file_result_write(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    state_mutation = any(
+    records_ack_identity = any(
         isinstance(item, (ast.Assign, ast.AnnAssign))
+        and item.value is not None
         and any(
-            isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id == "state"
+            isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id == "state" and target.attr == "last_saas_confirmed_hash"
             for target in (item.targets if isinstance(item, ast.Assign) else [item.target])
         )
+        and _reads_name(item.value, "git_hash")
         for item in ast.walk(node)
     )
     saves_state = any(
@@ -2170,30 +2261,56 @@ def _durable_file_result_write(node: ast.FunctionDef | ast.AsyncFunctionDef) -> 
         and any(isinstance(argument, ast.Name) and argument.id == "state" for argument in item.args)
         for item in ast.walk(node)
     )
-    uses_identity = any(isinstance(item, ast.Name) and item.id == "git_hash" for item in ast.walk(node))
-    return state_mutation and saves_state and uses_identity
+    return records_ack_identity and saves_state
 
 
 def _in_memory_result_write(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
-    result_read = any(isinstance(item, ast.Name) and item.id == "result" for item in ast.walk(node))
-    report_mutation = any(
-        (
+    result_fields = frozenset({"outcome", "event_id", "error"})
+    report_fields = frozenset({"success", "duplicate", "pending", "rejected", "rejected_samples"})
+
+    def reads_result_member(item: ast.AST, fields: frozenset[str]) -> bool:
+        return any(
+            isinstance(child, ast.Attribute) and isinstance(child.value, ast.Name) and child.value.id == "result" and child.attr in fields
+            for child in ast.walk(item)
+        )
+
+    def records_documented_member(item: ast.AST) -> bool:
+        if (
             isinstance(item, ast.AugAssign)
             and isinstance(item.target, ast.Attribute)
             and isinstance(item.target.value, ast.Name)
             and item.target.value.id == "report"
-        )
-        or (
+            and item.target.attr in report_fields
+        ):
+            return True
+        return (
             isinstance(item, ast.Call)
             and isinstance(item.func, ast.Attribute)
             and item.func.attr == "append"
             and isinstance(item.func.value, ast.Attribute)
             and isinstance(item.func.value.value, ast.Name)
             and item.func.value.value.id == "report"
+            and item.func.value.attr in report_fields
+            and any(reads_result_member(argument, result_fields) for argument in item.args)
         )
-        for item in ast.walk(node)
-    )
-    return result_read and report_mutation
+
+    def guarded_record(statements: list[ast.stmt], outcome_guard: bool = False) -> bool:
+        for statement in statements:
+            if isinstance(statement, ast.If):
+                guarded = outcome_guard or reads_result_member(
+                    statement.test,
+                    frozenset({"outcome"}),
+                )
+                if guarded_record(statement.body, guarded) or guarded_record(
+                    statement.orelse,
+                    guarded,
+                ):
+                    return True
+            elif outcome_guard and any(records_documented_member(item) for item in ast.walk(statement)):
+                return True
+        return False
+
+    return guarded_record(node.body)
 
 
 def _has_semantic_result_write(
@@ -2330,15 +2447,49 @@ def test_new_sender_and_layout_writer_mutants_flow_through_real_collectors(
     assert [site.operation for site in writer_sites] == ["INSERT"]
 
 
+def test_sender_aliases_resolve_transitively(tmp_path: Path) -> None:
+    source = tmp_path / "specify_cli" / "sync" / "alias_chain.py"
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        "def alias_chain(client, payload):\n    wire = client.post\n    send = wire\n    send('/events', json=payload)\n",
+        encoding="utf-8",
+    )
+    sites = _scan_project_sinks(source_root=tmp_path)
+    assert [(site.qualname, site.callee) for site in sites] == [("alias_chain", "client.post")]
+
+
+def test_layout_census_surfaces_unresolved_sql_without_stale_bindings(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "specify_cli" / "sync" / "unresolved_writer.py"
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        "def unresolved_write(conn, payload, operation):\n"
+        "    sql = f'{operation} INTO event_outbox VALUES (?)'\n"
+        "    conn.execute(sql, (payload,))\n"
+        "def stale_insert(conn, payload):\n"
+        "    sql = 'INSERT INTO event_outbox VALUES (?)'\n"
+        "    sql = build_query()\n"
+        "    conn.execute(sql, (payload,))\n",
+        encoding="utf-8",
+    )
+    sites = _scan_layout_writers(source_root=tmp_path)
+    assert [(site.qualname, site.operation) for site in sites] == [
+        ("stale_insert", "UNRESOLVED"),
+        ("unresolved_write", "UNRESOLVED"),
+    ]
+
+
 def test_result_matrix_rejects_a_named_function_without_a_result_write(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     sync_root = tmp_path / "specify_cli" / "sync"
     sync_root.mkdir(parents=True)
     specimens = {
-        "durable.py": "def record(conn, payload):\n    conn.execute('CREATE TEMP TABLE unrelated(x)')\n",
-        "memory.py": "def record(payload):\n    scratch = payload\n    return scratch\n",
-        "file.py": "def record(payload, stream):\n    json.dump(payload, stream)\n",
+        "durable.py": ("def record(conn, event_id):\n    audit(event_id)\n    conn.execute('INSERT INTO delivery_ledger(other) VALUES (?)', ('constant',))\n"),
+        "memory.py": ("def record(report, result):\n    audit(result)\n    report.debug.append('unrelated')\n"),
+        "file.py": ("def record(state, git_hash):\n    audit(git_hash)\n    state.unrelated = True\n    save_sync_state(state)\n"),
     }
     states = {
         "durable.py": _ResultState.DURABLE,
@@ -2349,6 +2500,12 @@ def test_result_matrix_rejects_a_named_function_without_a_result_write(
         path = sync_root / filename
         path.write_text(source, encoding="utf-8")
         symbol = _SymbolRef(f"specify_cli/sync/{filename}", "record")
+        if filename == "durable.py":
+            monkeypatch.setitem(
+                _DURABLE_RESULT_AUTHORITIES,
+                symbol,
+                ("delivery_ledger", "event_id"),
+            )
         row = _ProjectSyncSender(
             filename,
             symbol,

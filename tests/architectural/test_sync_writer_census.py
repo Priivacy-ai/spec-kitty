@@ -370,10 +370,12 @@ def _import_bindings(path: Path, source_root: Path) -> _ImportBindings:
     modules: dict[str, str] = {}
     symbols: dict[str, str] = {}
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    for node in ast.walk(tree):
+    for node in tree.body:
         if isinstance(node, ast.Import):
             for alias in node.names:
                 bound = alias.asname or alias.name.split(".")[0]
+                modules.pop(bound, None)
+                symbols.pop(bound, None)
                 modules[bound] = alias.name if alias.asname else bound
         elif isinstance(node, ast.ImportFrom):
             if node.level:
@@ -382,7 +384,97 @@ def _import_bindings(path: Path, source_root: Path) -> _ImportBindings:
             else:
                 imported_module = node.module or ""
             for alias in node.names:
-                symbols[alias.asname or alias.name] = f"{imported_module}.{alias.name}"
+                bound = alias.asname or alias.name
+                modules.pop(bound, None)
+                symbols[bound] = f"{imported_module}.{alias.name}"
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    modules.pop(target.id, None)
+                    symbols.pop(target.id, None)
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            modules.pop(node.target.id, None)
+            symbols.pop(node.target.id, None)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            modules.pop(node.name, None)
+            symbols.pop(node.name, None)
+    return _ImportBindings(modules, symbols)
+
+
+def _relative_import_module(record: _FunctionRecord, node: ast.ImportFrom) -> str:
+    if not node.level:
+        return node.module or ""
+    package = record.module.split(".")[:-1]
+    prefix = package[: len(package) - node.level + 1]
+    return ".".join((*prefix, *((node.module or "").split("."))))
+
+
+def _local_names(record: _FunctionRecord) -> set[str]:
+    node = record.node
+    names = {
+        argument.arg
+        for argument in (
+            *node.args.posonlyargs,
+            *node.args.args,
+            *node.args.kwonlyargs,
+        )
+    }
+    if node.args.vararg is not None:
+        names.add(node.args.vararg.arg)
+    if node.args.kwarg is not None:
+        names.add(node.args.kwarg.arg)
+    for item in ast.walk(node):
+        if isinstance(item, (ast.Assign, ast.AnnAssign)):
+            targets = item.targets if isinstance(item, ast.Assign) else [item.target]
+            names.update(target.id for target in targets if isinstance(target, ast.Name))
+        elif isinstance(item, ast.Import):
+            names.update(alias.asname or alias.name.split(".")[0] for alias in item.names)
+        elif isinstance(item, ast.ImportFrom):
+            names.update(alias.asname or alias.name for alias in item.names)
+    return names
+
+
+def _bindings_before_call(
+    record: _FunctionRecord,
+    call: ast.Call,
+    module_bindings: _ImportBindings,
+) -> _ImportBindings:
+    modules = module_bindings.modules.copy()
+    symbols = module_bindings.symbols.copy()
+    for name in _local_names(record):
+        modules.pop(name, None)
+        symbols.pop(name, None)
+    preceding = sorted(
+        (
+            item
+            for item in ast.walk(record.node)
+            if isinstance(item, (ast.Import, ast.ImportFrom, ast.Assign, ast.AnnAssign)) and getattr(item, "lineno", 0) < call.lineno
+        ),
+        key=lambda item: (item.lineno, item.col_offset),
+    )
+    for item in preceding:
+        if isinstance(item, ast.Import):
+            for alias in item.names:
+                bound = alias.asname or alias.name.split(".")[0]
+                modules.pop(bound, None)
+                symbols.pop(bound, None)
+                modules[bound] = alias.name if alias.asname else bound
+        elif isinstance(item, ast.ImportFrom):
+            imported_module = _relative_import_module(record, item)
+            for alias in item.names:
+                bound = alias.asname or alias.name
+                modules.pop(bound, None)
+                symbols[bound] = f"{imported_module}.{alias.name}"
+        else:
+            targets = item.targets if isinstance(item, ast.Assign) else [item.target]
+            alias_symbol = symbols.get(item.value.id) if item.value is not None and isinstance(item.value, ast.Name) else None
+            for target in targets:
+                if not isinstance(target, ast.Name):
+                    continue
+                modules.pop(target.id, None)
+                symbols.pop(target.id, None)
+                if alias_symbol is not None:
+                    symbols[target.id] = alias_symbol
     return _ImportBindings(modules, symbols)
 
 
@@ -403,12 +495,18 @@ def _is_returned(function: ast.FunctionDef | ast.AsyncFunctionDef, call: ast.Cal
 def _receiver_types(
     record: _FunctionRecord,
     bindings: _ImportBindings,
+    *,
+    before_lineno: int,
 ) -> dict[str, str]:
     receiver_types: dict[str, str] = {}
     for assignment in ast.walk(record.node):
-        if not isinstance(assignment, ast.Assign) or not isinstance(
-            assignment.value,
-            ast.Call,
+        if (
+            not isinstance(assignment, ast.Assign)
+            or not isinstance(
+                assignment.value,
+                ast.Call,
+            )
+            or assignment.lineno >= before_lineno
         ):
             continue
         constructor = assignment.value.func
@@ -439,7 +537,8 @@ def _call_targets(
     by_symbol: dict[str, _FunctionRecord],
     bindings: _ImportBindings,
 ) -> list[_FunctionRecord]:
-    receiver_types = _receiver_types(record, bindings)
+    bindings = _bindings_before_call(record, call, bindings)
+    receiver_types = _receiver_types(record, bindings, before_lineno=call.lineno)
 
     func = call.func
     if isinstance(func, ast.Name):
@@ -718,6 +817,8 @@ def test_differently_named_grant_and_persistence_mutants_use_real_collector(
     source = sync_root / "previously_unseen.py"
     noise = sync_root / "same_name_noise.py"
     caller = sync_root / "caller.py"
+    rebound = sync_root / "rebound_import.py"
+    writer = sync_root / "writer.py"
     sync_root.mkdir(parents=True)
     source.write_text(
         "def decide_anything():\n"
@@ -741,6 +842,19 @@ def test_differently_named_grant_and_persistence_mutants_use_real_collector(
         "from specify_cli.sync.previously_unseen import remember_anything\ndef external_entry(record, answer):\n    remember_anything(record, answer)\n",
         encoding="utf-8",
     )
+    writer.write_text(
+        "def persist(record, answer):\n    setattr(record, 'granted', answer)\n",
+        encoding="utf-8",
+    )
+    rebound.write_text(
+        "from specify_cli.sync.writer import persist\n"
+        "def safe(record, answer):\n"
+        "    return answer\n"
+        "persist = safe\n"
+        "def rebound_entry(record, answer):\n"
+        "    return persist(record, answer)\n",
+        encoding="utf-8",
+    )
     sites = scan_grant_paths(source_root=tmp_path)
     identities = {(site.qualname, site.kind) for site in sites}
     assert ("decide_anything", GrantKind.DECISION_RETURN) in identities
@@ -748,6 +862,7 @@ def test_differently_named_grant_and_persistence_mutants_use_real_collector(
     assert any(site.evidence == "setattr:granted" for site in sites)
     assert ("renamed_entry", GrantKind.CALL_PATH) in identities
     assert ("external_entry", GrantKind.CALL_PATH) in identities
+    assert ("rebound_entry", GrantKind.CALL_PATH) not in identities
     assert not any(site.relpath.endswith("same_name_noise.py") for site in sites), "unrelated enabled fields and same-named functions are not grant authority"
     assert final_grant_writer_violations(sites)
 

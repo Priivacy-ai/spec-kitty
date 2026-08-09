@@ -84,41 +84,159 @@ def _connection_is_read_only(node: ast.Call) -> bool:
     return uri_true and ("mode=ro" in target or "immutable=1" in target)
 
 
+def _target_names(targets: list[ast.expr]) -> set[str]:
+    return {target.id for target in targets if isinstance(target, ast.Name)}
+
+
+def _function_local_names(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> set[str]:
+    names = {
+        argument.arg
+        for argument in (
+            *node.args.posonlyargs,
+            *node.args.args,
+            *node.args.kwonlyargs,
+        )
+    }
+    if node.args.vararg is not None:
+        names.add(node.args.vararg.arg)
+    if node.args.kwarg is not None:
+        names.add(node.args.kwarg.arg)
+
+    class LocalBindings(ast.NodeVisitor):
+        def visit_FunctionDef(self, child: ast.FunctionDef) -> None:  # noqa: N802
+            names.add(child.name)
+
+        def visit_AsyncFunctionDef(  # noqa: N802
+            self, child: ast.AsyncFunctionDef
+        ) -> None:
+            names.add(child.name)
+
+        def visit_ClassDef(self, child: ast.ClassDef) -> None:  # noqa: N802
+            names.add(child.name)
+
+        def visit_Import(self, child: ast.Import) -> None:  # noqa: N802
+            names.update(alias.asname or alias.name.split(".")[0] for alias in child.names)
+
+        def visit_ImportFrom(self, child: ast.ImportFrom) -> None:  # noqa: N802
+            names.update(alias.asname or alias.name for alias in child.names)
+
+        def visit_Assign(self, child: ast.Assign) -> None:  # noqa: N802
+            names.update(_target_names(child.targets))
+            self.generic_visit(child.value)
+
+        def visit_AnnAssign(self, child: ast.AnnAssign) -> None:  # noqa: N802
+            names.update(_target_names([child.target]))
+            if child.value is not None:
+                self.generic_visit(child.value)
+
+    visitor = LocalBindings()
+    for statement in node.body:
+        visitor.visit(statement)
+    return names
+
+
+def _update_store_binding(
+    modules: set[str],
+    constructors: set[str],
+    targets: list[ast.expr],
+    value: ast.expr,
+) -> None:
+    names = _target_names(targets)
+    module_alias = isinstance(value, ast.Name) and value.id in modules
+    constructor_alias = (
+        isinstance(value, ast.Name)
+        and value.id in constructors
+        or isinstance(value, ast.Attribute)
+        and isinstance(value.value, ast.Name)
+        and value.value.id in modules
+        and value.attr in {"connect", "Connection"}
+    )
+    modules.difference_update(names)
+    constructors.difference_update(names)
+    if module_alias:
+        modules.update(names)
+    if constructor_alias:
+        constructors.update(names)
+
+
+def _final_module_store_bindings(tree: ast.Module) -> tuple[set[str], set[str]]:
+    modules: set[str] = set()
+    constructors: set[str] = set()
+    for statement in tree.body:
+        if isinstance(statement, ast.Import):
+            bound = {alias.asname or alias.name.split(".")[0] for alias in statement.names}
+            modules.difference_update(bound)
+            constructors.difference_update(bound)
+            modules.update(alias.asname or alias.name for alias in statement.names if alias.name == "sqlite3")
+        elif isinstance(statement, ast.ImportFrom):
+            bound = {alias.asname or alias.name for alias in statement.names}
+            modules.difference_update(bound)
+            constructors.difference_update(bound)
+            if statement.module == "sqlite3":
+                constructors.update(alias.asname or alias.name for alias in statement.names if alias.name in {"connect", "Connection"})
+        elif isinstance(statement, ast.Assign):
+            _update_store_binding(
+                modules,
+                constructors,
+                statement.targets,
+                statement.value,
+            )
+        elif isinstance(statement, ast.AnnAssign) and statement.value is not None:
+            _update_store_binding(
+                modules,
+                constructors,
+                [statement.target],
+                statement.value,
+            )
+        elif isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            modules.discard(statement.name)
+            constructors.discard(statement.name)
+    return modules, constructors
+
+
 class _StoreVisitor(ast.NodeVisitor):
-    def __init__(self, path: Path, source_root: Path) -> None:
+    def __init__(
+        self,
+        path: Path,
+        source_root: Path,
+        module_bindings: tuple[set[str], set[str]],
+    ) -> None:
         self.path = path
         self.source_root = source_root
         self.scope: list[str] = []
         self.sites: list[StoreSite] = []
-        self.sqlite_modules: set[str] = {"sqlite3"}
+        self.module_sqlite_modules, self.module_sqlite_constructors = (binding.copy() for binding in module_bindings)
+        self.sqlite_modules: set[str] = set()
         self.sqlite_constructors: set[str] = set()
-
-    def _is_constructor(self, value: ast.expr) -> bool:
-        if isinstance(value, ast.Name):
-            return value.id in self.sqlite_constructors
-        return (
-            isinstance(value, ast.Attribute)
-            and isinstance(value.value, ast.Name)
-            and value.value.id in self.sqlite_modules
-            and value.attr in {"connect", "Connection"}
-        )
+        self.function_depth = 0
 
     def _bind_assignment(self, targets: list[ast.expr], value: ast.expr) -> None:
-        names = {target.id for target in targets if isinstance(target, ast.Name)}
-        module_alias = isinstance(value, ast.Name) and value.id in self.sqlite_modules
-        constructor_alias = self._is_constructor(value)
-        self.sqlite_modules.difference_update(names)
-        self.sqlite_constructors.difference_update(names)
-        if module_alias:
-            self.sqlite_modules.update(names)
-        if constructor_alias:
-            self.sqlite_constructors.update(names)
+        _update_store_binding(
+            self.sqlite_modules,
+            self.sqlite_constructors,
+            targets,
+            value,
+        )
 
-    def _visit_nested_scope(self, node: ast.AST, name: str) -> None:
+    def _visit_function_scope(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+    ) -> None:
         saved_modules = self.sqlite_modules.copy()
         saved_constructors = self.sqlite_constructors.copy()
-        self.scope.append(name)
-        self.generic_visit(node)
+        if self.function_depth == 0:
+            self.sqlite_modules = self.module_sqlite_modules.copy()
+            self.sqlite_constructors = self.module_sqlite_constructors.copy()
+        locals_ = _function_local_names(node)
+        self.sqlite_modules.difference_update(locals_)
+        self.sqlite_constructors.difference_update(locals_)
+        self.scope.append(node.name)
+        self.function_depth += 1
+        for statement in node.body:
+            self.visit(statement)
+        self.function_depth -= 1
         self.scope.pop()
         self.sqlite_modules = saved_modules
         self.sqlite_constructors = saved_constructors
@@ -146,17 +264,21 @@ class _StoreVisitor(ast.NodeVisitor):
         )
 
     def visit_Import(self, node: ast.Import) -> None:  # noqa: N802
+        bound = {alias.asname or alias.name.split(".")[0] for alias in node.names}
+        self.sqlite_modules.difference_update(bound)
+        self.sqlite_constructors.difference_update(bound)
         for alias in node.names:
             if alias.name == "sqlite3":
                 self.sqlite_modules.add(alias.asname or alias.name)
-        self.generic_visit(node)
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:  # noqa: N802
+        bound = {alias.asname or alias.name for alias in node.names}
+        self.sqlite_modules.difference_update(bound)
+        self.sqlite_constructors.difference_update(bound)
         if node.module == "sqlite3":
             for alias in node.names:
                 if alias.name in {"connect", "Connection"}:
                     self.sqlite_constructors.add(alias.asname or alias.name)
-        self.generic_visit(node)
 
     def visit_Assign(self, node: ast.Assign) -> None:  # noqa: N802
         self._bind_assignment(node.targets, node.value)
@@ -168,13 +290,16 @@ class _StoreVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
-        self._visit_nested_scope(node, node.name)
+        self.scope.append(node.name)
+        for statement in node.body:
+            self.visit(statement)
+        self.scope.pop()
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
-        self._visit_nested_scope(node, node.name)
+        self._visit_function_scope(node)
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:  # noqa: N802
-        self._visit_nested_scope(node, node.name)
+        self._visit_function_scope(node)
 
     def visit_Call(self, node: ast.Call) -> None:  # noqa: N802
         func = node.func
@@ -222,8 +347,13 @@ def scan_store_sites(
         roots = _SYNC_ROOTS if source_root == _SRC else (source_root,)
     found: list[StoreSite] = []
     for path in _paths_from_roots(roots):
-        visitor = _StoreVisitor(path, source_root)
-        visitor.visit(ast.parse(path.read_text(encoding="utf-8"), filename=str(path)))
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        visitor = _StoreVisitor(
+            path,
+            source_root,
+            _final_module_store_bindings(tree),
+        )
+        visitor.visit(tree)
         found.extend(visitor.sites)
     return tuple(sorted(found))
 
@@ -276,6 +406,8 @@ def _module_aliases(
         if isinstance(statement, ast.Import):
             for alias in statement.names:
                 bound = alias.asname or alias.name.split(".")[0]
+                modules.pop(bound, None)
+                symbols.pop(bound, None)
                 modules[bound] = alias.name if alias.asname else bound
         elif isinstance(statement, ast.ImportFrom):
             if statement.level:
@@ -284,7 +416,20 @@ def _module_aliases(
             else:
                 imported_module = statement.module or ""
             for alias in statement.names:
-                symbols[alias.asname or alias.name] = f"{imported_module}.{alias.name}"
+                bound = alias.asname or alias.name
+                modules.pop(bound, None)
+                symbols[bound] = f"{imported_module}.{alias.name}"
+        elif isinstance(statement, ast.Assign):
+            for name in _target_names(statement.targets):
+                modules.pop(name, None)
+                symbols.pop(name, None)
+        elif isinstance(statement, ast.AnnAssign):
+            for name in _target_names([statement.target]):
+                modules.pop(name, None)
+                symbols.pop(name, None)
+        elif isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            modules.pop(statement.name, None)
+            symbols.pop(statement.name, None)
     return modules, symbols
 
 
@@ -302,33 +447,116 @@ def _resolved_symbol(
     return f"{module}.{raw}"
 
 
+class _QualifiedCallVisitor(ast.NodeVisitor):
+    def __init__(
+        self,
+        tree: ast.Module,
+        module: str,
+        symbols: dict[str, str],
+        counts: Counter[str],
+    ) -> None:
+        self.module = module
+        self.symbol_index = symbols
+        self.counts = counts
+        self.module_bindings, self.symbol_bindings = _module_aliases(tree, module)
+        self.modules = self.module_bindings.copy()
+        self.symbols = self.symbol_bindings.copy()
+        self.local_classes = {statement.name for statement in tree.body if isinstance(statement, ast.ClassDef)}
+        self.function_depth = 0
+
+    def _imported_module(self, node: ast.ImportFrom) -> str:
+        if not node.level:
+            return node.module or ""
+        package = self.module.split(".")[:-1]
+        prefix = package[: len(package) - node.level + 1]
+        return ".".join((*prefix, *((node.module or "").split("."))))
+
+    def visit_Import(self, node: ast.Import) -> None:  # noqa: N802
+        for alias in node.names:
+            bound = alias.asname or alias.name.split(".")[0]
+            self.modules.pop(bound, None)
+            self.symbols.pop(bound, None)
+            self.modules[bound] = alias.name if alias.asname else bound
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:  # noqa: N802
+        imported_module = self._imported_module(node)
+        for alias in node.names:
+            bound = alias.asname or alias.name
+            self.modules.pop(bound, None)
+            self.symbols[bound] = f"{imported_module}.{alias.name}"
+
+    def _discard_targets(self, targets: list[ast.expr]) -> None:
+        for name in _target_names(targets):
+            self.modules.pop(name, None)
+            self.symbols.pop(name, None)
+
+    def visit_Assign(self, node: ast.Assign) -> None:  # noqa: N802
+        self.visit(node.value)
+        self._discard_targets(node.targets)
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:  # noqa: N802
+        if node.value is not None:
+            self.visit(node.value)
+        self._discard_targets([node.target])
+
+    def _visit_function(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+    ) -> None:
+        saved_modules = self.modules
+        saved_symbols = self.symbols
+        if self.function_depth == 0:
+            self.modules = self.module_bindings.copy()
+            self.symbols = self.symbol_bindings.copy()
+        else:
+            self.modules = self.modules.copy()
+            self.symbols = self.symbols.copy()
+        for name in _function_local_names(node):
+            self.modules.pop(name, None)
+            self.symbols.pop(name, None)
+        self.function_depth += 1
+        for statement in node.body:
+            self.visit(statement)
+        self.function_depth -= 1
+        self.modules = saved_modules
+        self.symbols = saved_symbols
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
+        self._visit_function(node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:  # noqa: N802
+        self._visit_function(node)
+
+    def visit_Call(self, node: ast.Call) -> None:  # noqa: N802
+        raw = _dotted_name(node.func)
+        if raw is not None:
+            parts = raw.split(".")
+            resolved = _resolved_symbol(
+                raw,
+                self.module,
+                self.modules,
+                self.symbols,
+            )
+            target = self.symbol_index.get(resolved)
+            if target:
+                self.counts[target] += 1
+            constructor = f"{resolved}.__init__"
+            if parts[-1] in self.local_classes:
+                constructor = f"{self.module}.{parts[-1]}.__init__"
+            constructor_target = self.symbol_index.get(constructor)
+            if constructor_target:
+                self.counts[constructor_target] += 1
+        self.generic_visit(node)
+
+
 @cache
 def _qualified_call_counts(source_root: Path = _SRC) -> Counter[str]:
-    """Resolve only module/class-qualified source edges, never tail-name guesses."""
+    """Resolve qualified edges with runtime-global and local-import bindings."""
     trees, symbols = _symbol_index(tuple(sorted(source_root.rglob("*.py"))), source_root)
-
     counts: Counter[str] = Counter()
     for path, tree in trees.items():
         module = _module_name(path, source_root)
-        module_aliases, symbol_aliases = _module_aliases(tree, module)
-        local_classes = {statement.name for statement in tree.body if isinstance(statement, ast.ClassDef)}
-        for item in ast.walk(tree):
-            if not isinstance(item, ast.Call):
-                continue
-            raw = _dotted_name(item.func)
-            if raw is None:
-                continue
-            parts = raw.split(".")
-            resolved = _resolved_symbol(raw, module, module_aliases, symbol_aliases)
-            target = symbols.get(resolved)
-            if target:
-                counts[target] += 1
-            constructor = f"{resolved}.__init__"
-            if parts[-1] in local_classes:
-                constructor = f"{module}.{parts[-1]}.__init__"
-            constructor_target = symbols.get(constructor)
-            if constructor_target:
-                counts[constructor_target] += 1
+        _QualifiedCallVisitor(tree, module, symbols, counts).visit(tree)
     return counts
 
 
@@ -516,9 +744,12 @@ _KNOWN_LIVE_FLOOR = frozenset(
         "specify_cli/sync/queue.py::OfflineQueue._init_db::sqlite_connect",
         "specify_cli/sync/queue.py::OfflineQueue.append::commit",
         "specify_cli/sync/queue.py::OfflineQueue.queue_event::sqlite_connect",
+        "specify_cli/sync/queue.py::detect_legacy_rows_for_scope::sqlite_connect",
         "specify_cli/delivery/dispatcher.py::_record::transaction_context",
     }
 )
+
+_KNOWN_DEAD_FLOOR = frozenset({"specify_cli/sync/queue.py::_queue_db_has_content::sqlite_connect"})
 
 
 def final_project_store_violations(
@@ -547,7 +778,13 @@ def test_current_store_census_cannot_grow_and_every_site_has_evidence() -> None:
         _KNOWN_LIVE_FLOOR,
         SiteCategory.LIVE_PAYLOAD_CONTROL,
     )
-    assert SiteCategory.DEAD_CODE in {item.category for item in dispositions}
+    detect_symbol = "specify_cli/sync/queue.py::detect_legacy_rows_for_scope"
+    assert _qualified_call_counts()[detect_symbol] == 3
+    dead_evidence = {
+        site.key: disposition.reachability for site, disposition in zip(sites, dispositions, strict=True) if disposition.category is SiteCategory.DEAD_CODE
+    }
+    assert set(dead_evidence) == _KNOWN_DEAD_FLOOR
+    assert all(evidence.startswith("0 qualified") for evidence in dead_evidence.values())
     shrink = _KNOWN_SITE_COUNTS - observed
     if shrink:
         warnings.warn(
@@ -576,7 +813,7 @@ def test_alias_and_duplicate_mutations_flow_through_real_collector(tmp_path: Pat
     assert observed["specify_cli/sync/mutant.py::write::commit"] == 1
 
 
-def test_constructor_alias_rebinding_is_order_and_scope_sensitive(tmp_path: Path) -> None:
+def test_constructor_alias_rebinding_uses_runtime_global_binding(tmp_path: Path) -> None:
     source = tmp_path / "specify_cli" / "sync" / "rebound.py"
     source.parent.mkdir(parents=True)
     source.write_text(
@@ -592,7 +829,62 @@ def test_constructor_alias_rebinding_is_order_and_scope_sensitive(tmp_path: Path
         encoding="utf-8",
     )
     sites = scan_store_sites(source_root=tmp_path)
-    assert [site.qualname for site in sites] == ["before_rebind"]
+    assert sites == ()
+
+
+def test_local_import_reachability_and_python_binding_controls(tmp_path: Path) -> None:
+    sync_root = tmp_path / "specify_cli" / "sync"
+    cli_root = tmp_path / "specify_cli" / "cli"
+    queue = sync_root / "queue.py"
+    callers = (
+        sync_root / "preflight.py",
+        sync_root / "background.py",
+        cli_root / "status.py",
+    )
+    binding_controls = sync_root / "binding_controls.py"
+    cli_root.mkdir(parents=True)
+    sync_root.mkdir(parents=True, exist_ok=True)
+    queue.write_text(
+        "import sqlite3\ndef detect_legacy_rows_for_scope(scope):\n    return sqlite3.connect(scope)\n",
+        encoding="utf-8",
+    )
+    callers[0].write_text(
+        "def preflight(scope):\n    from specify_cli.sync.queue import detect_legacy_rows_for_scope\n    return detect_legacy_rows_for_scope(scope)\n",
+        encoding="utf-8",
+    )
+    callers[1].write_text(
+        "def background(scope):\n    from .queue import detect_legacy_rows_for_scope\n    return detect_legacy_rows_for_scope(scope)\n",
+        encoding="utf-8",
+    )
+    callers[2].write_text(
+        "def status(scope):\n    from specify_cli.sync.queue import detect_legacy_rows_for_scope\n    return detect_legacy_rows_for_scope(scope)\n",
+        encoding="utf-8",
+    )
+    binding_controls.write_text(
+        "import sqlite3\n"
+        "def safe(path):\n"
+        "    return path\n"
+        "open_sync = sqlite3.connect\n"
+        "def runtime_safe(path):\n"
+        "    return open_sync(path)\n"
+        "open_sync = safe\n"
+        "def parameter_safe(sqlite3, path):\n"
+        "    return sqlite3.connect(path)\n"
+        "def local_owner(path):\n"
+        "    import sqlite3 as local_sqlite\n"
+        "    return local_sqlite.connect(path)\n",
+        encoding="utf-8",
+    )
+
+    symbol = "specify_cli/sync/queue.py::detect_legacy_rows_for_scope"
+    assert _qualified_call_counts(tmp_path)[symbol] == 3
+    disposition = classify_store_site(
+        next(site for site in scan_store_sites(source_root=tmp_path) if site.qualname == "detect_legacy_rows_for_scope"),
+        source_root=tmp_path,
+    )
+    assert disposition.category is SiteCategory.LIVE_PAYLOAD_CONTROL
+    control_sites = [site.qualname for site in scan_store_sites(source_root=tmp_path) if site.relpath.endswith("binding_controls.py")]
+    assert control_sites == ["local_owner"]
 
 
 def test_reachability_is_qualified_not_a_common_tail_name(tmp_path: Path) -> None:
