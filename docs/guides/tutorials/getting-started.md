@@ -77,7 +77,8 @@ OK Initialized Spec Kitty project
 OK Created .kittify/ scaffold
 ```
 
-Tip: Use `spec-kitty init . --ai claude` to initialize the current folder.
+>[!TIP]
+>Use `spec-kitty init . --ai claude` to initialize the current folder.
 
 ## Step 3: Create Your First Specification
 
