@@ -12,11 +12,11 @@
   <text x="480" y="72" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="bold" fill="#1F2A33">PLANNING PHASE</text>
   <text x="480" y="96" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">in the repository root checkout</text>
   <text x="120" y="130" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">/spec-kitty.specify</text>
-  <text x="340" y="130" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">’ Creates spec.md</text>
+  <text x="340" y="130" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">-&gt; Creates spec.md</text>
   <text x="120" y="155" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">/spec-kitty.plan</text>
-  <text x="340" y="155" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">’ Creates plan.md</text>
+  <text x="340" y="155" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">-&gt; Creates plan.md</text>
   <text x="120" y="180" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">/spec-kitty.tasks</text>
-  <text x="340" y="180" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">’ Creates tasks/WP01.md, etc.</text>
+  <text x="340" y="180" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">-&gt; Creates tasks/WP01.md, etc.</text>
 
   <!-- Arrow 1 -->
   <line x1="480" y1="260" x2="480" y2="290" stroke="#0F766E" stroke-width="3" marker-end="url(#arrowhead)"/>
@@ -27,9 +27,9 @@
   <text x="480" y="332" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="bold" fill="#1F2A33">IMPLEMENTATION PHASE</text>
   <text x="480" y="356" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">in separate worktrees</text>
   <text x="120" y="390" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">spec-kitty next --agent &lt;agent&gt; --mission &lt;slug&gt;</text>
-  <text x="120" y="415" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">’ Agent A: spec-kitty agent action implement WP01 --agent A</text>
-  <text x="120" y="440" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">’ Agent B: spec-kitty agent action implement WP02 --agent B</text>
-  <text x="120" y="465" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">’ Agent C: spec-kitty agent action implement WP03 --agent C</text>
+  <text x="120" y="415" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">-&gt; Agent A: spec-kitty agent action implement WP01 --agent A</text>
+  <text x="120" y="440" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">-&gt; Agent B: spec-kitty agent action implement WP02 --agent B</text>
+  <text x="120" y="465" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">-&gt; Agent C: spec-kitty agent action implement WP03 --agent C</text>
 
   <!-- Arrow 2 -->
   <line x1="480" y1="480" x2="480" y2="510" stroke="#0F766E" stroke-width="3" marker-end="url(#arrowhead)"/>
@@ -39,9 +39,9 @@
   <rect x="80" y="520" width="800" height="8" rx="4" fill="#0F766E"/>
   <text x="480" y="552" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="bold" fill="#1F2A33">REVIEW PHASE</text>
   <text x="120" y="590" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">/spec-kitty.review</text>
-  <text x="340" y="590" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">’ Check implementation vs spec</text>
+  <text x="340" y="590" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">-&gt; Check implementation vs spec</text>
   <text x="120" y="615" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">/spec-kitty.accept</text>
-  <text x="340" y="615" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">’ Validate readiness before merge</text>
+  <text x="340" y="615" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">-&gt; Validate readiness before merge</text>
   <text x="120" y="660" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">/spec-kitty.merge</text>
-  <text x="340" y="660" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">’ Land accepted mission</text>
+  <text x="340" y="660" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">-&gt; Land accepted mission</text>
 </svg>
