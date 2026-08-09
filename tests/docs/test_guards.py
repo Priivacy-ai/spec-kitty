@@ -15,6 +15,8 @@ import pytest
 
 from scripts.docs._guards import assert_examined_floor
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 def test_below_floor_raises_with_expected_substrings() -> None:
     """A count under the minimum raises, and the message carries the shape
