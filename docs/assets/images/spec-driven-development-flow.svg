@@ -1,47 +1,189 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 720" role="img" aria-label="Spec Kitty workflow: planning, implementation, and review phases">
-  <rect width="960" height="720" fill="#F7F4EF"/>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 780" role="img" aria-labelledby="sdf-title sdf-desc" font-family="Inter, 'Segoe UI', Arial, sans-serif">
+  <title id="sdf-title">Spec Kitty workflow: planning, implementation, and review phases</title>
+  <desc id="sdf-desc">Three-phase workflow. Lane 1, planning, runs in the repository root checkout: spec-kitty.specify creates spec.md, spec-kitty.plan creates plan.md, spec-kitty.tasks creates the tasks folder. Lane 2, implementation, runs in separate worktrees: spec-kitty next dispatches parallel agents A, B, and C, each implementing one work package. Lane 3, review, runs spec-kitty.review to check the implementation against the spec, spec-kitty.accept to validate readiness, and spec-kitty.merge to land the accepted mission.</desc>
+
+  <style>
+    .bg { fill: #ffffff; }
+    .text-primary { fill: #0f172a; }
+    .text-secondary { fill: #475569; }
+    .text-muted { fill: #64748b; }
+    .text-invert { fill: #ffffff; }
+    .lane-bg { fill: #f8fafc; stroke: #e2e8f0; stroke-width: 1; }
+    .lane-label { fill: #64748b; }
+    .node-plan { fill: #ccfbf1; stroke: #0d9488; stroke-width: 1.5; }
+    .node-trigger { fill: #e0e7ff; stroke: #6366f1; stroke-width: 1.5; }
+    .node-agent-a { fill: #ccfbf1; stroke: #0d9488; stroke-width: 1.5; }
+    .node-agent-b { fill: #e0e7ff; stroke: #6366f1; stroke-width: 1.5; }
+    .node-agent-c { fill: #fce7f3; stroke: #db2777; stroke-width: 1.5; }
+    .node-review { fill: #fef3c7; stroke: #d97706; stroke-width: 1.5; }
+    .badge-a { fill: #0d9488; }
+    .badge-b { fill: #6366f1; }
+    .badge-c { fill: #db2777; }
+    .line { stroke: #475569; stroke-width: 1.5; fill: none; }
+    .line-fan { stroke: #6366f1; stroke-width: 1.5; fill: none; }
+    .arrow { fill: #475569; }
+    .arrow-fan { fill: #6366f1; }
+
+    .kicker { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+    .h1 { font-size: 24px; font-weight: 800; }
+    .lane-title { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+    .node-title { font-weight: 700; font-size: 13px; }
+    .body { font-size: 12px; }
+    .mono { font-family: 'Cascadia Code', Consolas, ui-monospace, monospace; font-size: 12px; }
+
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #0b1220; }
+      .text-primary { fill: #f1f5f9; }
+      .text-secondary { fill: #cbd5e1; }
+      .text-muted { fill: #94a3b8; }
+      .lane-bg { fill: #111827; stroke: #1f2937; }
+      .lane-label { fill: #94a3b8; }
+      .node-plan { fill: #134e4a; stroke: #2dd4bf; }
+      .node-trigger { fill: #1e1b4b; stroke: #a5b4fc; }
+      .node-agent-a { fill: #134e4a; stroke: #2dd4bf; }
+      .node-agent-b { fill: #1e1b4b; stroke: #a5b4fc; }
+      .node-agent-c { fill: #831843; stroke: #f472b6; }
+      .node-review { fill: #78350f; stroke: #fbbf24; }
+      .badge-a { fill: #2dd4bf; }
+      .badge-b { fill: #a5b4fc; }
+      .badge-c { fill: #f472b6; }
+      .line { stroke: #94a3b8; }
+      .line-fan { stroke: #a5b4fc; }
+      .arrow { fill: #94a3b8; }
+      .arrow-fan { fill: #a5b4fc; }
+    }
+  </style>
+
   <defs>
-    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="#0F766E"/>
-    </marker>
+    <marker id="sdf-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrow"/></marker>
+    <marker id="sdf-arr-fan" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrow-fan"/></marker>
   </defs>
 
-  <!-- Box 1: PLANNING PHASE -->
-  <rect x="80" y="40" width="800" height="180" rx="12" fill="#FFFFFF" stroke="#1F2A33" stroke-width="2"/>
-  <rect x="80" y="40" width="800" height="8" rx="4" fill="#0F766E"/>
-  <text x="480" y="72" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="bold" fill="#1F2A33">PLANNING PHASE</text>
-  <text x="480" y="96" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">in the repository root checkout</text>
-  <text x="120" y="130" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">/spec-kitty.specify</text>
-  <text x="340" y="130" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">-&gt; Creates spec.md</text>
-  <text x="120" y="155" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">/spec-kitty.plan</text>
-  <text x="340" y="155" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">-&gt; Creates plan.md</text>
-  <text x="120" y="180" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">/spec-kitty.tasks</text>
-  <text x="340" y="180" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">-&gt; Creates tasks/WP01.md, etc.</text>
+  <rect width="1200" height="780" class="bg"/>
 
-  <!-- Arrow 1 -->
-  <line x1="480" y1="260" x2="480" y2="290" stroke="#0F766E" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <!-- Title -->
+  <g transform="translate(60 50)">
+    <text class="kicker text-muted">SPEC KITTY &#8226; WORKFLOW</text>
+    <text y="28" class="h1 text-primary">Planning &#8594; Implementation &#8594; Review</text>
+    <text y="50" class="body text-secondary">Plan once in the root checkout, fan work out to parallel agent worktrees, then review and land the mission.</text>
+  </g>
 
-  <!-- Box 2: IMPLEMENTATION PHASE -->
-  <rect x="80" y="300" width="800" height="180" rx="12" fill="#FFFFFF" stroke="#1F2A33" stroke-width="2"/>
-  <rect x="80" y="300" width="800" height="8" rx="4" fill="#0F766E"/>
-  <text x="480" y="332" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="bold" fill="#1F2A33">IMPLEMENTATION PHASE</text>
-  <text x="480" y="356" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">in separate worktrees</text>
-  <text x="120" y="390" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">spec-kitty next --agent &lt;agent&gt; --mission &lt;slug&gt;</text>
-  <text x="120" y="415" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">-&gt; Agent A: spec-kitty agent action implement WP01 --agent A</text>
-  <text x="120" y="440" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">-&gt; Agent B: spec-kitty agent action implement WP02 --agent B</text>
-  <text x="120" y="465" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">-&gt; Agent C: spec-kitty agent action implement WP03 --agent C</text>
+  <!-- Lane backgrounds -->
+  <rect x="60" y="110" width="1080" height="160" rx="10" class="lane-bg"/>
+  <rect x="60" y="290" width="1080" height="240" rx="10" class="lane-bg"/>
+  <rect x="60" y="550" width="1080" height="150" rx="10" class="lane-bg"/>
+  <text x="78" y="132" class="lane-title lane-label">LANE 1 &#8212; PLANNING PHASE</text>
+  <text x="78" y="150" class="body text-muted">in the repository root checkout</text>
+  <text x="78" y="312" class="lane-title lane-label">LANE 2 &#8212; IMPLEMENTATION PHASE</text>
+  <text x="78" y="330" class="body text-muted">in separate worktrees, one per agent</text>
+  <text x="78" y="572" class="lane-title lane-label">LANE 3 &#8212; REVIEW PHASE</text>
 
-  <!-- Arrow 2 -->
-  <line x1="480" y1="480" x2="480" y2="510" stroke="#0F766E" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <!-- LANE 1: planning steps -->
+  <g>
+    <g transform="translate(90 195)">
+      <rect width="300" height="64" rx="10" class="node-plan"/>
+      <text x="16" y="26" class="node-title text-primary mono">/spec-kitty.specify</text>
+      <text x="16" y="46" class="body text-secondary">&#8594; Creates spec.md</text>
+    </g>
+    <g transform="translate(450 195)">
+      <rect width="300" height="64" rx="10" class="node-plan"/>
+      <text x="16" y="26" class="node-title text-primary mono">/spec-kitty.plan</text>
+      <text x="16" y="46" class="body text-secondary">&#8594; Creates plan.md</text>
+    </g>
+    <g transform="translate(810 195)">
+      <rect width="300" height="64" rx="10" class="node-plan"/>
+      <text x="16" y="26" class="node-title text-primary mono">/spec-kitty.tasks</text>
+      <text x="16" y="46" class="body text-secondary">&#8594; Creates tasks/WP01.md, etc.</text>
+    </g>
+    <path d="M 390 227 L 450 227" class="line" marker-end="url(#sdf-arr)"/>
+    <path d="M 750 227 L 810 227" class="line" marker-end="url(#sdf-arr)"/>
+  </g>
 
-  <!-- Box 3: REVIEW PHASE -->
-  <rect x="80" y="520" width="800" height="180" rx="12" fill="#FFFFFF" stroke="#1F2A33" stroke-width="2"/>
-  <rect x="80" y="520" width="800" height="8" rx="4" fill="#0F766E"/>
-  <text x="480" y="552" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="bold" fill="#1F2A33">REVIEW PHASE</text>
-  <text x="120" y="590" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">/spec-kitty.review</text>
-  <text x="340" y="590" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">-&gt; Check implementation vs spec</text>
-  <text x="120" y="615" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">/spec-kitty.accept</text>
-  <text x="340" y="615" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">-&gt; Validate readiness before merge</text>
-  <text x="120" y="660" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">/spec-kitty.merge</text>
-  <text x="340" y="660" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" fill="#334155">-&gt; Land accepted mission</text>
+  <!-- Lane 1 -> Lane 2 -->
+  <line x1="600" y1="270" x2="600" y2="290" class="line" stroke-width="2" marker-end="url(#sdf-arr)"/>
+
+  <!-- LANE 2: implementation -->
+  <g>
+    <g transform="translate(90 350)">
+      <rect width="1020" height="54" rx="10" class="node-trigger"/>
+      <text x="16" y="22" class="body text-muted">TRIGGER &#8226; run once in the repo root</text>
+      <text x="16" y="42" class="node-title text-primary mono">spec-kitty next --agent &lt;agent&gt; --mission &lt;slug&gt;</text>
+    </g>
+
+    <!-- Fan-out from trigger to 3 parallel agents -->
+    <path d="M 250 404 L 250 415 L 250 415 L 250 430" class="line-fan" marker-end="url(#sdf-arr-fan)"/>
+    <path d="M 600 404 L 600 430" class="line-fan" marker-end="url(#sdf-arr-fan)"/>
+    <path d="M 950 404 L 950 415 L 950 415 L 950 430" class="line-fan" marker-end="url(#sdf-arr-fan)"/>
+
+    <g transform="translate(90 430)">
+      <rect width="320" height="64" rx="10" class="node-agent-a"/>
+      <circle cx="26" cy="20" r="12" class="badge-a"/>
+      <text x="26" y="24" text-anchor="middle" class="text-invert node-title">A</text>
+      <text x="48" y="24" class="node-title text-primary">Agent A</text>
+      <text x="16" y="48" class="mono text-secondary" font-size="11">agent action implement WP01 --agent A</text>
+    </g>
+    <g transform="translate(440 430)">
+      <rect width="320" height="64" rx="10" class="node-agent-b"/>
+      <circle cx="26" cy="20" r="12" class="badge-b"/>
+      <text x="26" y="24" text-anchor="middle" class="text-invert node-title">B</text>
+      <text x="48" y="24" class="node-title text-primary">Agent B</text>
+      <text x="16" y="48" class="mono text-secondary" font-size="11">agent action implement WP02 --agent B</text>
+    </g>
+    <g transform="translate(790 430)">
+      <rect width="320" height="64" rx="10" class="node-agent-c"/>
+      <circle cx="26" cy="20" r="12" class="badge-c"/>
+      <text x="26" y="24" text-anchor="middle" class="text-invert node-title">C</text>
+      <text x="48" y="24" class="node-title text-primary">Agent C</text>
+      <text x="16" y="48" class="mono text-secondary" font-size="11">agent action implement WP03 --agent C</text>
+    </g>
+  </g>
+
+  <!-- Lane 2 -> Lane 3 -->
+  <line x1="600" y1="530" x2="600" y2="550" class="line" stroke-width="2" marker-end="url(#sdf-arr)"/>
+
+  <!-- LANE 3: review steps -->
+  <g>
+    <g transform="translate(90 610)">
+      <rect width="300" height="64" rx="10" class="node-review"/>
+      <text x="16" y="26" class="node-title text-primary mono">/spec-kitty.review</text>
+      <text x="16" y="46" class="body text-secondary">&#8594; Check implementation vs spec</text>
+    </g>
+    <g transform="translate(450 610)">
+      <rect width="300" height="64" rx="10" class="node-review"/>
+      <text x="16" y="26" class="node-title text-primary mono">/spec-kitty.accept</text>
+      <text x="16" y="46" class="body text-secondary">&#8594; Validate readiness before merge</text>
+    </g>
+    <g transform="translate(810 610)">
+      <rect width="300" height="64" rx="10" class="node-review"/>
+      <text x="16" y="26" class="node-title text-primary mono">/spec-kitty.merge</text>
+      <text x="16" y="46" class="body text-secondary">&#8594; Land accepted mission</text>
+    </g>
+    <path d="M 390 642 L 450 642" class="line" marker-end="url(#sdf-arr)"/>
+    <path d="M 750 642 L 810 642" class="line" marker-end="url(#sdf-arr)"/>
+  </g>
+
+  <!-- Legend -->
+  <g transform="translate(60 730)" font-size="11">
+    <g transform="translate(0 -4)">
+      <rect width="12" height="12" rx="3" class="node-plan"/>
+      <text x="18" y="10" class="text-secondary">planning step</text>
+    </g>
+    <g transform="translate(150 -4)">
+      <rect width="12" height="12" rx="3" class="node-trigger"/>
+      <text x="18" y="10" class="text-secondary">trigger command</text>
+    </g>
+    <g transform="translate(320 -4)">
+      <rect width="12" height="12" rx="3" class="node-agent-a"/>
+      <text x="18" y="10" class="text-secondary">parallel agent worktree</text>
+    </g>
+    <g transform="translate(540 -4)">
+      <rect width="12" height="12" rx="3" class="node-review"/>
+      <text x="18" y="10" class="text-secondary">review step</text>
+    </g>
+    <g transform="translate(680 -4)">
+      <line x1="0" y1="6" x2="24" y2="6" class="line-fan"/>
+      <text x="30" y="10" class="text-secondary">fan-out to agents</text>
+    </g>
+  </g>
 </svg>
