@@ -38,4 +38,5 @@
 - Physical store boundaries, sender names, and the canonical SaaS refusal are observable acceptance surfaces required to prove the privacy property; the specification does not choose internal modules or algorithms.
 - Pre-spec adversarial review required one canonical consent authority, deny-only global control, exclusive migration cutover, revocation-race evidence, and a separate SaaS write-time boundary; all are explicit.
 - Post-spec adversarial review required one-database transactional coherence, capture epochs, exact-target admission, truthful in-flight settlement, narrowing-only daemon hints, retired legacy writers, old-daemon cutover protocol, split six-project proof, and reproducible benchmarks; all are explicit.
-- Validation iteration 2: all items pass.
+- Post-plan adversarial review required a connection-owning unit of work, durable admission operations, explicit history disclosure capability, migration-generation writer participation, crash-aware transport attempts, stable admission audience, and monotonic capture sequence; all are explicit.
+- Validation iteration 3: all items pass.

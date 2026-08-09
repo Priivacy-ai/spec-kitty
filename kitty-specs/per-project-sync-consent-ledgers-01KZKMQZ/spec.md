@@ -170,6 +170,13 @@ As a user of hosted sync, I want the CLI to establish and use the SaaS project's
 | FR-023 | Legacy writer retirement | Checkout-only/default inheritance, consent-index backfill, and every other legacy grant writer/flag shall be removed or fail non-zero with migration guidance and shall create no grant. | High | Open |
 | FR-024 | Old-process cutover safety | Migration shall quiesce recognized daemons through a protocol/restart handshake; post-cutover writes to legacy stores are diagnosed as non-deliverable residue and never read live. | High | Open |
 | FR-025 | Truthful in-flight outcomes | A genuine result from a transport started before opt-out shall be recorded under its original generation before opt-out returns; it is never discarded or used to revive later eligibility. | High | Open |
+| FR-026 | Connection-owned unit of work | One ProjectSyncStore unit-of-work shall own live SQLite connections and transaction boundaries; component-local live connections/commits shall be prohibited so control, epoch, journal, outbox, attempt, and result changes can be atomic. | High | Open |
+| FR-027 | Durable admission operations | Admit/revoke/readmit shall persist an operation record before network I/O containing immutable key, action, expected generation, exact target/account/Private-Teamspace tuple, request state, and original server result so uncertain retries reuse the same key. | High | Open |
+| FR-028 | Explicit history disclosure capability | A history action shall bind an immutable preview cohort/hash/count, source epochs, confirmation identity, current consent/target/admission generations, idempotency key, and terminal results; ordinary selection cannot mint or consume it. | High | Open |
+| FR-029 | Migration-generation writer barrier | Every in-version legacy writer shall participate in the machine cutover lock/layout generation and retry or redirect safely; recognized old daemons shall quiesce, and unrecognized old binaries may create only diagnosed non-deliverable residue. | High | Open |
+| FR-030 | Crash-aware transport attempts | Each transport shall persist its attempt before network I/O, use bounded timeout/idempotency or status reconciliation for uncertain outcomes, and recover after process death without inventing success or silently resending disclosed data. | High | Open |
+| FR-031 | Stable admission audience | The client shall normalize server origin and persist a stable account/Private-Teamspace binding or opaque server audience returned by authenticated metadata; a generation is reusable only when that audience and project UUID match exactly. | High | Open |
+| FR-032 | Monotonic capture sequence | Each local capture shall receive a monotonic store-local sequence in the same transaction as epoch assignment; opt-in records an inclusive tail and ordinary eligibility begins strictly after that tail. | High | Open |
 
 ### Non-Functional Requirements
 
@@ -180,7 +187,7 @@ As a user of hosted sync, I want the CLI to establish and use the SaaS project's
 | NFR-003 | Revocation race proof | Per sender, real transport/ledger tests shall cover pause-before-start and start-before-opt-out: opt-out cancels the former, waits for truthful bounded settlement of the latter, and permits zero post-return write/success. | Concurrency | High | Open |
 | NFR-004 | Mutation strength | Mutants that restore a shared store, grant from environment or repo defaults, remove the final consent check, or cross-pair project context shall each make named acceptance tests fail. | Test integrity | High | Open |
 | NFR-005 | Cross-platform identity | Project store resolution shall produce deterministic ASCII-safe paths and pass the identity matrix on Linux, macOS, and Windows, including accented and non-ASCII display names. | Portability | High | Open |
-| NFR-006 | Performance | On the documented local SSD profile, 200 warm scans of 100 projects (80 valid deny hints, 20 candidates requiring authority reads) shall complete within 500 ms p95; 30 cold scans shall complete within 1 s p95, and no denied payload table may open. | Performance | Medium | Open |
+| NFR-006 | Performance | On the documented local SSD profile, 200 warm scans of 100 projects (80 valid deny hints, 20 authority reads) shall complete within 500 ms p95; 30 fresh-process scans shall complete within 1 s p95; raw randomized samples shall be retained and no denied payload table may open. | Performance | Medium | Open |
 | NFR-007 | Credential and payload safety | Diagnostics, migration reports, logs, fixtures, and errors shall expose zero access tokens and zero raw event bodies outside their owning project store. | Security | High | Open |
 
 ### Constraints
@@ -209,6 +216,9 @@ As a user of hosted sync, I want the CLI to establish and use the SaaS project's
 - **Discovery index**: Optional non-authoritative metadata used to find project stores; it can never grant consent or supply the decision itself.
 - **Consent epoch**: A capture interval whose rows share an eligibility generation; denied and revoked periods are sealed and never automatically redrained.
 - **Deny-only hint**: Non-authoritative discovery metadata that may suppress work only; it can never assert a grant.
+- **Admission operation**: Durable admit/revoke/readmit request identity and original server result for uncertain retry.
+- **History disclosure action**: Immutable previewed and explicitly confirmed sealed-row cohort; ordinary selection cannot create it.
+- **Delivery attempt**: Durable pre-I/O record carrying native idempotency, authority generations, bounded deadline, and reconciliation state.
 
 ## Success Criteria *(mandatory)*
 
@@ -224,6 +234,10 @@ As a user of hosted sync, I want the CLI to establish and use the SaaS project's
 - **SC-008**: Core #3262 has implementation, contract, test, and review evidence, while SaaS #585 remains explicitly gated on the Human-in-Charge's historical-event disposition.
 - **SC-009**: Initial opt-in, opt-out, target change, and re-opt-in demonstrate zero automatic eligibility for pre-consent, revoked-period, old-target, purged, or terminal rows.
 - **SC-010**: The legacy grant-writer inventory contains zero callable path that can create a grant outside the project-store command; every removed or blocked flag has an executable negative test.
+- **SC-011**: Connection instrumentation finds zero component-local live `sqlite3.connect()` calls, and transaction fault tests prove control/epoch/journal/outbox/attempt/result changes cannot partially commit.
+- **SC-012**: Killing each sender before send, during response, and before result commit converges through the persisted attempt/idempotency protocol without false success or duplicate disclosure.
+- **SC-013**: Capture-versus-opt-in in both transaction orderings proves rows at or below the recorded tail remain sealed and rows strictly after it enter only the new eligible epoch.
+- **SC-014**: Foreground legacy writers paused before insert or completing before cutover are redirected or migrated exactly once; an unrecognized old binary's late write is diagnosed and never delivered.
 
 ## Dependencies and assumptions
 
