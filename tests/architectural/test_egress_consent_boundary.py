@@ -1338,3 +1338,187 @@ class TestFR015StructuralTighteningMeasurement:
             "through _find_sinks) is now funded, and this module's 'matcher left alone' decision "
             "(limit 8, TestGuardBites' two xfail cases) is stale — revisit WP10 T031/T032."
         )
+
+
+# ---------------------------------------------------------------------------
+# Per-project store mission: named sender and local-writer hand-off (WP01)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class _SymbolRef:
+    relpath: str
+    qualname: str
+
+
+@dataclass(frozen=True)
+class _ProjectSyncSender:
+    surface: str
+    request_start: _SymbolRef
+    result_write: _SymbolRef
+    later_owner: str
+
+
+_PROJECT_SYNC_SENDER_MATRIX = (
+    _ProjectSyncSender(
+        "direct dispatcher",
+        _SymbolRef("specify_cli/delivery/dispatcher.py", "dispatch"),
+        _SymbolRef("specify_cli/delivery/dispatcher.py", "_record"),
+        "WP07",
+    ),
+    _ProjectSyncSender(
+        "emitter websocket",
+        _SymbolRef("specify_cli/sync/emitter.py", "EventEmitter._route_event"),
+        _SymbolRef("specify_cli/sync/emitter.py", "EventEmitter._queue_if_async_send_failed"),
+        "WP04",
+    ),
+    _ProjectSyncSender(
+        "daemon publish",
+        _SymbolRef("specify_cli/sync/runtime.py", "SyncRuntime.publish_event"),
+        _SymbolRef("specify_cli/sync/runtime.py", "_report_publish_refusal"),
+        "WP04",
+    ),
+    _ProjectSyncSender(
+        "event relay",
+        _SymbolRef("specify_cli/sync/events.py", "_publish_event_via_sync_daemon"),
+        _SymbolRef("specify_cli/sync/emitter.py", "EventEmitter._route_event"),
+        "WP04",
+    ),
+    _ProjectSyncSender(
+        "body drain",
+        _SymbolRef("specify_cli/sync/background.py", "BackgroundSyncService._drain_body_queue"),
+        _SymbolRef("specify_cli/sync/background.py", "BackgroundSyncService._handle_body_outcome"),
+        "WP04",
+    ),
+    _ProjectSyncSender(
+        "final and exit sync",
+        _SymbolRef("specify_cli/cli/commands/sync.py", "_run_event_sync_dispatch"),
+        _SymbolRef("specify_cli/cli/commands/sync.py", "_maybe_write_dispatch_report"),
+        "WP07",
+    ),
+    _ProjectSyncSender(
+        "reconnect local commit",
+        _SymbolRef("specify_cli/sync/local_commit.py", "flush_pending_local_commits"),
+        _SymbolRef("specify_cli/sync/local_commit.py", "record_local_commit_ack"),
+        "WP04",
+    ),
+    _ProjectSyncSender(
+        "history import",
+        _SymbolRef("specify_cli/sync/history_import/upload.py", "upload_envelopes"),
+        _SymbolRef("specify_cli/sync/history_import/upload.py", "_tally"),
+        "WP07",
+    ),
+    _ProjectSyncSender(
+        "tracker hosted channel",
+        _SymbolRef("specify_cli/tracker/saas_client.py", "SaaSTrackerClient._request"),
+        _SymbolRef("specify_cli/tracker/saas_client.py", "SaaSTrackerClient._request_with_retry"),
+        "WP08-channel-2-only",
+    ),
+    _ProjectSyncSender(
+        "generic SaaS client",
+        _SymbolRef("specify_cli/saas_client/client.py", "SaasClient._post"),
+        _SymbolRef("specify_cli/saas_client/client.py", "SaasClient._refuse_unless_project_consents"),
+        "WP08",
+    ),
+)
+
+_SENDER_CONTRACT = frozenset(
+    {
+        "direct dispatcher",
+        "emitter websocket",
+        "daemon publish",
+        "event relay",
+        "body drain",
+        "final and exit sync",
+        "reconnect local commit",
+        "history import",
+        "tracker hosted channel",
+        "generic SaaS client",
+    }
+)
+
+_CURRENT_LAYOUT_WRITERS = frozenset(
+    {
+        _SymbolRef("specify_cli/event_journal/journal.py", "EventJournal.append"),
+        _SymbolRef("specify_cli/event_journal/journal.py", "JournalTransaction.commit"),
+        _SymbolRef("specify_cli/event_journal/coalesce.py", "_collapse_into"),
+        _SymbolRef("specify_cli/delivery/ledger.py", "SqliteDeliveryLedger._record"),
+        _SymbolRef("specify_cli/delivery/targets.py", "SqliteDeliveryTargetRegistry._insert"),
+        _SymbolRef("specify_cli/delivery/retention.py", "_purge_journal_rows"),
+        _SymbolRef("specify_cli/delivery/retention.py", "_purge_ledger_rows"),
+        _SymbolRef("specify_cli/sync/queue.py", "OfflineQueue.queue_event"),
+        _SymbolRef("specify_cli/sync/queue.py", "OfflineQueue.process_batch_results"),
+        _SymbolRef("specify_cli/sync/body_queue.py", "OfflineBodyUploadQueue.enqueue"),
+        _SymbolRef("specify_cli/sync/body_queue.py", "OfflineBodyUploadQueue.mark_uploaded"),
+        _SymbolRef("specify_cli/sync/migrate_journal.py", "_import_source"),
+    }
+)
+
+
+def _qualified_functions(path: Path) -> frozenset[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    found: set[str] = set()
+
+    class Visitor(ast.NodeVisitor):
+        def __init__(self) -> None:
+            self.classes: list[str] = []
+
+        def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
+            self.classes.append(node.name)
+            self.generic_visit(node)
+            self.classes.pop()
+
+        def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
+            found.add(".".join((*self.classes, node.name)))
+            self.generic_visit(node)
+
+        visit_AsyncFunctionDef = visit_FunctionDef
+
+    Visitor().visit(tree)
+    return frozenset(found)
+
+
+def _attempt_context_violations(source: str) -> tuple[str, ...]:
+    """Reject a new sender that transmits without a canonical final attempt gate."""
+    tree = ast.parse(source)
+    calls = {
+        node.func.attr if isinstance(node.func, ast.Attribute) else node.func.id
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, (ast.Attribute, ast.Name))
+    }
+    transmits = bool(calls & {"post", "request", "send", "send_event", "deliver"})
+    has_context = bool(calls & {"ProjectSyncContext", "DeliveryAttempt"})
+    has_final_gate = "final_transport_eligible" in calls
+    return ("sender-without-canonical-attempt",) if transmits and not (has_context and has_final_gate) else ()
+
+
+def test_project_sync_sender_matrix_is_complete_and_names_live_sites() -> None:
+    assert {row.surface for row in _PROJECT_SYNC_SENDER_MATRIX} == _SENDER_CONTRACT
+    assert len(_PROJECT_SYNC_SENDER_MATRIX) == len(_SENDER_CONTRACT)
+    for row in _PROJECT_SYNC_SENDER_MATRIX:
+        for ref in (row.request_start, row.result_write):
+            path = _SRC / ref.relpath
+            assert path.is_file(), f"sender census file disappeared: {ref.relpath}"
+            assert ref.qualname in _qualified_functions(path), f"sender census symbol disappeared: {ref.relpath}::{ref.qualname}"
+        assert row.later_owner.startswith("WP")
+
+
+def test_current_layout_writer_inventory_names_live_symbols_for_wp04() -> None:
+    for ref in _CURRENT_LAYOUT_WRITERS:
+        assert ref.qualname in _qualified_functions(_SRC / ref.relpath), f"layout writer census symbol disappeared: {ref.relpath}::{ref.qualname}"
+
+
+def test_new_sender_requires_canonical_attempt_context_and_final_recheck() -> None:
+    clean = """
+def transmit(client, payload):
+    context = ProjectSyncContext(payload['project_uuid'])
+    attempt = DeliveryAttempt(context)
+    if final_transport_eligible(attempt):
+        client.post('/events', json=payload)
+"""
+    mutant = """
+def transmit(client, payload):
+    client.post('/events', json=payload)
+"""
+    assert _attempt_context_violations(clean) == ()
+    assert _attempt_context_violations(mutant) == ("sender-without-canonical-attempt",)
