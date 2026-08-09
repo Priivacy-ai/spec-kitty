@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import multiprocessing
+import os
 import sqlite3
 import threading
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from specify_cli.sync.project_store import (
+    ProjectStoreError,
     ProjectStoreLockedError,
     ProjectStoreVersionError,
     ProjectSyncStore,
@@ -28,27 +32,26 @@ def _aggregate_mutations(unit: ProjectUnitOfWork, fail_after: int) -> None:
             (PROJECT_UUID,),
         ),
         (
-            "INSERT INTO consent_epochs "
-            "(epoch_id, project_uuid, opened_at_tail, state, consent_generation, reason) "
-            "VALUES (1, ?, 0, 'eligible', 1, 'opt_in')",
+            "INSERT INTO consent_epochs (epoch_id, project_uuid, opened_at_tail, state, consent_generation, reason) VALUES (1, ?, 0, 'eligible', 1, 'opt_in')",
             (PROJECT_UUID,),
         ),
         (
-            "INSERT INTO journal_entries "
-            "(entry_id, project_uuid, epoch_id, capture_sequence, payload_json) "
-            "VALUES ('event-1', ?, 1, 1, '{}')",
+            "INSERT INTO journal_entries (entry_id, project_uuid, epoch_id, capture_sequence, payload_json) VALUES ('event-1', ?, 1, 1, '{}')",
             (PROJECT_UUID,),
         ),
         (
-            "INSERT INTO outbox_tasks "
-            "(task_id, project_uuid, epoch_id, journal_entry_id, task_kind, state) "
-            "VALUES ('task-1', ?, 1, 'event-1', 'event', 'pending')",
+            "INSERT INTO outbox_tasks (task_id, project_uuid, epoch_id, journal_entry_id, task_kind, state) VALUES ('task-1', ?, 1, 'event-1', 'event', 'pending')",
             (PROJECT_UUID,),
         ),
         (
-            "INSERT INTO delivery_attempts "
-            "(attempt_id, project_uuid, epoch_id, outbox_task_id, state) "
-            "VALUES ('attempt-1', ?, 1, 'task-1', 'pending')",
+            "INSERT INTO delivery_attempts (attempt_id, project_uuid, epoch_id, outbox_task_id, state) VALUES ('attempt-1', ?, 1, 'task-1', 'pending')",
+            (PROJECT_UUID,),
+        ),
+        (
+            "INSERT INTO delivery_results "
+            "(result_id, project_uuid, epoch_id, attempt_id, outcome, recorded_at) "
+            "VALUES ('result-1', ?, 1, 'attempt-1', 'delivered', "
+            "'2026-08-10T00:00:01Z')",
             (PROJECT_UUID,),
         ),
     )
@@ -68,11 +71,12 @@ def _counts(store: ProjectSyncStore) -> tuple[int, ...]:
                 "journal_entries",
                 "outbox_tasks",
                 "delivery_attempts",
+                "delivery_results",
             )
         )
 
 
-@pytest.mark.parametrize("fail_after", range(1, 6))
+@pytest.mark.parametrize("fail_after", range(1, 7))
 def test_fault_between_any_bundle_mutation_rolls_back_the_outer_transaction(
     fail_after: int,
     tmp_path: Path,
@@ -87,7 +91,61 @@ def test_fault_between_any_bundle_mutation_rolls_back_the_outer_transaction(
     ):
         _aggregate_mutations(unit, fail_after)
 
-    assert _counts(store) == (0, 0, 0, 0, 0)
+    assert _counts(store) == (0, 0, 0, 0, 0, 0)
+
+
+def test_query_results_cannot_reach_connection_transaction_controls(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store = ProjectSyncStore(PROJECT_UUID)
+
+    with pytest.raises(RuntimeError, match="business failure"):
+        with store.unit_of_work() as unit:
+            result = unit.execute(
+                "INSERT INTO capture_sequences (project_uuid, next_sequence) VALUES (?, 1)",
+                (PROJECT_UUID,),
+            )
+            with pytest.raises(AttributeError):
+                result.connection.commit()  # type: ignore[attr-defined]
+            raise RuntimeError("business failure")
+
+    assert _counts_for_query(store, "SELECT COUNT(*) FROM capture_sequences") == 0
+
+
+@pytest.mark.parametrize(
+    "transaction_statement",
+    (
+        "BEGIN",
+        "COMMIT",
+        "END",
+        "ROLLBACK",
+        "SAVEPOINT hidden",
+        "RELEASE hidden",
+        "/* disguised */ COMMIT",
+        "-- disguised\nROLLBACK",
+    ),
+)
+def test_sql_transaction_control_escape_is_rejected_and_business_work_rolls_back(
+    transaction_statement: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store = ProjectSyncStore(PROJECT_UUID)
+
+    with pytest.raises(RuntimeError, match="business failure"):
+        with store.unit_of_work() as unit:
+            unit.execute(
+                "INSERT INTO capture_sequences (project_uuid, next_sequence) VALUES (?, 1)",
+                (PROJECT_UUID,),
+            )
+            with pytest.raises(ProjectStoreError, match="transaction control"):
+                unit.execute(transaction_statement)
+            raise RuntimeError("business failure")
+
+    assert _counts_for_query(store, "SELECT COUNT(*) FROM capture_sequences") == 0
 
 
 def test_nested_business_operations_reuse_one_connection_and_cannot_commit(
@@ -108,10 +166,54 @@ def test_nested_business_operations_reuse_one_connection_and_cannot_commit(
                 (PROJECT_UUID,),
             )
 
-    assert _counts_for_query(
-        store,
-        "SELECT COUNT(*) FROM capture_sequences",
-    ) == 1
+    assert (
+        _counts_for_query(
+            store,
+            "SELECT COUNT(*) FROM capture_sequences",
+        )
+        == 1
+    )
+
+
+def test_failing_savepoint_rolls_back_inner_work_without_ending_outer_transaction(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store = ProjectSyncStore(PROJECT_UUID)
+
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO admission_operations "
+            "(operation_key, project_uuid, action, target_identity, account_identity, "
+            "private_teamspace_id, state) "
+            "VALUES ('outer-before', ?, 'admit', 'target', 'account', 'teamspace', "
+            "'pending')",
+            (PROJECT_UUID,),
+        )
+        with pytest.raises(RuntimeError, match="inner failure"):
+            with unit.savepoint("expected_failure"):
+                unit.execute(
+                    "INSERT INTO admission_operations "
+                    "(operation_key, project_uuid, action, target_identity, "
+                    "account_identity, private_teamspace_id, state) "
+                    "VALUES ('inner', ?, 'admit', 'target', 'account', 'teamspace', "
+                    "'pending')",
+                    (PROJECT_UUID,),
+                )
+                raise RuntimeError("inner failure")
+        unit.execute(
+            "INSERT INTO admission_operations "
+            "(operation_key, project_uuid, action, target_identity, account_identity, "
+            "private_teamspace_id, state) "
+            "VALUES ('outer-after', ?, 'admit', 'target', 'account', 'teamspace', "
+            "'pending')",
+            (PROJECT_UUID,),
+        )
+
+    with store.unit_of_work() as unit:
+        keys = tuple(str(row[0]) for row in unit.execute("SELECT operation_key FROM admission_operations ORDER BY operation_key").fetchall())
+    assert keys == ("outer-after", "outer-before")
 
 
 def _counts_for_query(store: ProjectSyncStore, statement: str) -> int:
@@ -144,9 +246,7 @@ def test_incompatible_schema_is_preserved_and_refused(
     with store.unit_of_work():
         pass
     with sqlite3.connect(store.database_path) as connection:
-        connection.execute(
-            "UPDATE project_store_metadata SET schema_version = 999"
-        )
+        connection.execute("UPDATE project_store_metadata SET schema_version = 999")
     before = store.database_path.read_bytes()
 
     with pytest.raises(ProjectStoreVersionError), store.unit_of_work():
@@ -198,8 +298,7 @@ def test_two_store_instances_serialize_shared_uuid_writes(
         try:
             with first.unit_of_work() as unit:
                 unit.execute(
-                    "INSERT INTO capture_sequences "
-                    "(project_uuid, next_sequence) VALUES (?, 1)",
+                    "INSERT INTO capture_sequences (project_uuid, next_sequence) VALUES (?, 1)",
                     (PROJECT_UUID,),
                 )
                 first_entered.set()
@@ -214,8 +313,7 @@ def test_two_store_instances_serialize_shared_uuid_writes(
             with second.unit_of_work() as unit:
                 second_entered.set()
                 unit.execute(
-                    "UPDATE capture_sequences SET next_sequence = next_sequence + 1 "
-                    "WHERE project_uuid = ?",
+                    "UPDATE capture_sequences SET next_sequence = next_sequence + 1 WHERE project_uuid = ?",
                     (PROJECT_UUID,),
                 )
         except BaseException as exc:  # pragma: no cover - asserted below
@@ -243,10 +341,95 @@ def test_two_store_instances_serialize_shared_uuid_writes(
     assert not second_thread.is_alive()
     assert failures == []
 
-    assert _counts_for_query(
-        first,
-        "SELECT next_sequence FROM capture_sequences",
-    ) == 2
+    assert (
+        _counts_for_query(
+            first,
+            "SELECT next_sequence FROM capture_sequences",
+        )
+        == 2
+    )
+
+
+def _first_process_writer(
+    runtime_root: str,
+    entered: Any,
+    release: Any,
+) -> None:
+    os.environ["SPEC_KITTY_HOME"] = runtime_root
+    store = ProjectSyncStore(PROJECT_UUID)
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO capture_sequences (project_uuid, next_sequence) VALUES (?, 1)",
+            (PROJECT_UUID,),
+        )
+        entered.set()
+        if not release.wait(timeout=10):
+            raise RuntimeError("first writer release timed out")
+
+
+def _second_process_writer(
+    runtime_root: str,
+    attempting: Any,
+    entered: Any,
+) -> None:
+    os.environ["SPEC_KITTY_HOME"] = runtime_root
+    store = ProjectSyncStore(PROJECT_UUID)
+    attempting.set()
+    with store.unit_of_work() as unit:
+        entered.set()
+        unit.execute(
+            "UPDATE capture_sequences SET next_sequence = next_sequence + 1 WHERE project_uuid = ?",
+            (PROJECT_UUID,),
+        )
+
+
+def test_independent_processes_serialize_shared_uuid_writes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = tmp_path / "runtime"
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime))
+    store = ProjectSyncStore(PROJECT_UUID)
+    context = multiprocessing.get_context("spawn")
+    first_entered = context.Event()
+    release_first = context.Event()
+    second_attempting = context.Event()
+    second_entered = context.Event()
+
+    first = context.Process(
+        target=_first_process_writer,
+        args=(str(runtime), first_entered, release_first),
+    )
+    second = context.Process(
+        target=_second_process_writer,
+        args=(str(runtime), second_attempting, second_entered),
+    )
+    first.start()
+    assert first_entered.wait(timeout=10)
+    second.start()
+    assert second_attempting.wait(timeout=10)
+
+    probe = sqlite3.connect(store.database_path, timeout=0)
+    try:
+        with pytest.raises(sqlite3.OperationalError, match="locked"):
+            probe.execute("BEGIN IMMEDIATE")
+    finally:
+        probe.close()
+    assert not second_entered.is_set()
+
+    release_first.set()
+    assert second_entered.wait(timeout=10)
+    first.join(timeout=10)
+    second.join(timeout=10)
+    assert first.exitcode == 0
+    assert second.exitcode == 0
+    assert (
+        _counts_for_query(
+            store,
+            "SELECT next_sequence FROM capture_sequences",
+        )
+        == 2
+    )
 
 
 def test_unit_of_work_accepts_only_store_derived_connection_lifecycle() -> None:

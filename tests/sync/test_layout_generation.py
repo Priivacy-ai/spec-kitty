@@ -7,9 +7,13 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
+from filelock import FileLock, Timeout
 
 from specify_cli.sync.layout_generation import (
+    LayoutAuthorityCorruptError,
+    LayoutAuthorityLockedError,
     LayoutDestination,
+    LayoutGenerationAuthority,
     LayoutMode,
     LayoutTestHooks,
     LayoutVerificationError,
@@ -24,6 +28,20 @@ PROJECT_UUID = "aaaaaaaa-0000-0000-0000-000000000001"
 def _store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSyncStore:
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
     return ProjectSyncStore(PROJECT_UUID)
+
+
+def test_layout_authority_can_only_be_constructed_by_project_store(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+    with pytest.raises(TypeError):
+        LayoutGenerationAuthority(store.project_uuid, tmp_path / "foreign-runtime")
+
+    authority = store.layout_generation()
+    assert authority.record_path == (tmp_path / "runtime" / "projects" / ".layout-generation.json")
+    assert authority.lock_path == (tmp_path / "runtime" / "projects" / ".layout-generation.lock")
+    assert authority.marker_path == (tmp_path / "runtime" / "projects" / ".layout-generation.initialized")
 
 
 def test_cutover_requires_exact_verification_and_project_only_has_no_legacy_path(
@@ -128,6 +146,118 @@ def test_writer_racing_generation_advance_is_redirected_without_loss_or_double_w
     assert len(inserted) == 2
     assert all(permit.destination is LayoutDestination.PROJECT_STORE for permit in inserted)
     assert sorted(permit.redirect_count for permit in inserted) == [0, 1]
+
+
+def test_writer_first_holds_layout_lock_until_legacy_insert_finishes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+    authority = store.layout_generation()
+    permit = authority.issue_write_permit()
+    writer_entered = threading.Event()
+    release_writer = threading.Event()
+    cutover_attempting = threading.Event()
+    cutover_done = threading.Event()
+    inserts = []
+    failures: list[BaseException] = []
+
+    def writer_callback(candidate: object) -> None:
+        inserts.append(candidate)
+        writer_entered.set()
+        assert release_writer.wait(timeout=5), "test coordination timed out"
+
+    def writer() -> None:
+        try:
+            authority.execute_write(permit, writer_callback)
+        except BaseException as exc:  # pragma: no cover - asserted below
+            failures.append(exc)
+
+    def cutover() -> None:
+        try:
+            cutover_attempting.set()
+            authority.begin_cutover("migration-1")
+            authority.publish_project_only("migration-1", verify_exact=lambda: True)
+            cutover_done.set()
+        except BaseException as exc:  # pragma: no cover - asserted below
+            failures.append(exc)
+
+    writer_thread = threading.Thread(target=writer)
+    cutover_thread = threading.Thread(target=cutover)
+    writer_thread.start()
+    assert writer_entered.wait(timeout=5)
+    cutover_thread.start()
+    assert cutover_attempting.wait(timeout=5)
+
+    expected_lock_path = (
+        tmp_path / "runtime" / "projects" / ".layout-generation.lock"
+    )
+    try:
+        with pytest.raises(Timeout), FileLock(str(expected_lock_path), timeout=0):
+            pytest.fail("writer callback must retain the machine layout lock")
+        assert not cutover_done.is_set()
+    finally:
+        release_writer.set()
+        writer_thread.join(timeout=5)
+        cutover_thread.join(timeout=5)
+    assert not writer_thread.is_alive()
+    assert not cutover_thread.is_alive()
+    assert failures == []
+    assert len(inserts) == 1
+    assert inserts[0].destination is LayoutDestination.LEGACY
+    assert authority.read_state().mode is LayoutMode.PROJECT_ONLY
+
+
+def test_published_record_loss_fails_closed_without_legacy_reset(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+    authority = store.layout_generation()
+    authority.issue_write_permit()
+    authority.begin_cutover("migration-1")
+    authority.publish_project_only("migration-1", verify_exact=lambda: True)
+    assert authority.marker_path.is_file()
+    authority.record_path.unlink()
+
+    with pytest.raises(LayoutAuthorityCorruptError, match="missing"):
+        authority.issue_write_permit()
+
+    assert not authority.record_path.exists()
+    assert authority.marker_path.is_file()
+
+
+def test_malformed_layout_record_is_preserved_and_refused(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+    authority = store.layout_generation()
+    authority.issue_write_permit()
+    evidence = b"{not-json\x00incident-evidence"
+    authority.record_path.write_bytes(evidence)
+
+    with pytest.raises(LayoutAuthorityCorruptError):
+        authority.read_state()
+
+    assert authority.record_path.read_bytes() == evidence
+
+
+def test_layout_lock_contention_fails_closed_without_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+    authority = store.layout_generation()
+    authority.issue_write_permit()
+    before = authority.record_path.read_bytes()
+    contending = store.layout_generation(lock_timeout_seconds=0)
+
+    with FileLock(str(authority.lock_path), timeout=0):
+        with pytest.raises(LayoutAuthorityLockedError):
+            contending.read_state()
+
+    assert authority.record_path.read_bytes() == before
 
 
 def test_layout_authority_is_machine_shared_but_project_permits_are_not(

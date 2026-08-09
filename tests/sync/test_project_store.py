@@ -24,6 +24,214 @@ PROJECT_B = "aaaaaaaa-0000-0000-0000-000000000002"
 CANONICAL_A = "aaaaaaaa-0000-0000-0000-000000000001"
 
 
+EXPECTED_AGGREGATE_COLUMNS = {
+    "project_store_metadata": (
+        "singleton",
+        "project_uuid",
+        "schema_version",
+        "layout_version",
+        "created_at",
+    ),
+    "project_consent_decisions": (
+        "project_uuid",
+        "state",
+        "generation",
+        "action",
+        "actor",
+        "decided_at",
+        "decision_schema_version",
+    ),
+    "capture_sequences": ("project_uuid", "next_sequence"),
+    "consent_epochs": (
+        "epoch_id",
+        "project_uuid",
+        "opened_at_tail",
+        "state",
+        "consent_generation",
+        "sealed_at_tail",
+        "sealed_at",
+        "reason",
+    ),
+    "journal_entries": (
+        "entry_id",
+        "project_uuid",
+        "epoch_id",
+        "capture_sequence",
+        "payload_json",
+        "created_at",
+    ),
+    "outbox_tasks": (
+        "task_id",
+        "project_uuid",
+        "epoch_id",
+        "journal_entry_id",
+        "task_kind",
+        "state",
+        "idempotency_identity",
+        "created_at",
+    ),
+    "body_upload_tasks": (
+        "body_task_id",
+        "project_uuid",
+        "epoch_id",
+        "capture_sequence",
+        "content_hash",
+        "body_reference",
+        "state",
+        "created_at",
+    ),
+    "project_target_admissions": (
+        "project_uuid",
+        "target_identity",
+        "account_identity",
+        "private_teamspace_id",
+        "configuration_generation",
+        "admission_state",
+        "admission_generation",
+        "binding_audience",
+        "last_error_category",
+    ),
+    "admission_operations": (
+        "operation_key",
+        "project_uuid",
+        "action",
+        "expected_generation",
+        "target_identity",
+        "account_identity",
+        "private_teamspace_id",
+        "state",
+        "result_state",
+        "result_generation",
+        "binding_audience",
+        "attempts",
+        "created_at",
+        "updated_at",
+    ),
+    "history_disclosure_actions": (
+        "action_id",
+        "project_uuid",
+        "idempotency_key",
+        "source_epoch_ids_json",
+        "row_ids_json",
+        "preview_count",
+        "preview_hash",
+        "confirmed_by",
+        "confirmed_at",
+        "consent_generation",
+        "target_generation",
+        "admission_generation",
+        "binding_audience",
+        "state",
+        "result_ids_json",
+    ),
+    "delivery_attempts": (
+        "attempt_id",
+        "project_uuid",
+        "epoch_id",
+        "outbox_task_id",
+        "consent_generation",
+        "target_generation",
+        "admission_generation",
+        "binding_audience",
+        "payload_hash",
+        "payload_reference",
+        "state",
+        "deadline_at",
+        "reconciliation_policy",
+        "created_at",
+    ),
+    "delivery_results": (
+        "result_id",
+        "project_uuid",
+        "epoch_id",
+        "attempt_id",
+        "target_generation",
+        "admission_generation",
+        "outcome",
+        "terminal_refusal_category",
+        "recorded_at",
+    ),
+    "migration_manifests": (
+        "migration_id",
+        "project_uuid",
+        "protocol_version",
+        "source_paths",
+        "source_fingerprints_json",
+        "partition_json",
+        "quarantine_json",
+        "phase",
+        "cutover_version",
+        "started_at",
+        "completed_at",
+    ),
+    "migration_cutover_state": (
+        "singleton",
+        "project_uuid",
+        "migration_id",
+        "phase",
+        "cutover_version",
+        "updated_at",
+    ),
+}
+
+
+EXPECTED_AGGREGATE_FOREIGN_KEYS = {
+    "project_store_metadata": set(),
+    "project_consent_decisions": {
+        ("project_store_metadata", "project_uuid", "project_uuid"),
+    },
+    "capture_sequences": {
+        ("project_store_metadata", "project_uuid", "project_uuid"),
+    },
+    "consent_epochs": {
+        ("project_store_metadata", "project_uuid", "project_uuid"),
+    },
+    "journal_entries": {
+        ("consent_epochs", "project_uuid", "project_uuid"),
+        ("consent_epochs", "epoch_id", "epoch_id"),
+    },
+    "outbox_tasks": {
+        ("consent_epochs", "project_uuid", "project_uuid"),
+        ("consent_epochs", "epoch_id", "epoch_id"),
+        ("journal_entries", "project_uuid", "project_uuid"),
+        ("journal_entries", "journal_entry_id", "entry_id"),
+    },
+    "body_upload_tasks": {
+        ("consent_epochs", "project_uuid", "project_uuid"),
+        ("consent_epochs", "epoch_id", "epoch_id"),
+    },
+    "project_target_admissions": {
+        ("project_store_metadata", "project_uuid", "project_uuid"),
+    },
+    "admission_operations": {
+        ("project_store_metadata", "project_uuid", "project_uuid"),
+    },
+    "history_disclosure_actions": {
+        ("project_store_metadata", "project_uuid", "project_uuid"),
+    },
+    "delivery_attempts": {
+        ("consent_epochs", "project_uuid", "project_uuid"),
+        ("consent_epochs", "epoch_id", "epoch_id"),
+        ("outbox_tasks", "project_uuid", "project_uuid"),
+        ("outbox_tasks", "outbox_task_id", "task_id"),
+    },
+    "delivery_results": {
+        ("consent_epochs", "project_uuid", "project_uuid"),
+        ("consent_epochs", "epoch_id", "epoch_id"),
+        ("delivery_attempts", "project_uuid", "project_uuid"),
+        ("delivery_attempts", "attempt_id", "attempt_id"),
+    },
+    "migration_manifests": {
+        ("project_store_metadata", "project_uuid", "project_uuid"),
+    },
+    "migration_cutover_state": {
+        ("project_store_metadata", "project_uuid", "project_uuid"),
+        ("migration_manifests", "project_uuid", "project_uuid"),
+        ("migration_manifests", "migration_id", "migration_id"),
+    },
+}
+
+
 def test_project_uuid_is_canonicalized_once_before_any_path_exists(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -97,9 +305,7 @@ def test_opening_project_a_never_opens_or_creates_project_b(
     monkeypatch.setattr(project_store_module.sqlite3, "connect", tracked_connect)
 
     with store_a.unit_of_work() as unit:
-        row = unit.execute(
-            "SELECT project_uuid, schema_version, layout_version FROM project_store_metadata"
-        ).fetchone()
+        row = unit.execute("SELECT project_uuid, schema_version, layout_version FROM project_store_metadata").fetchone()
 
     assert tuple(row) == (CANONICAL_A, store_a.schema_version, store_a.layout_version)
     assert store_a.database_path.is_file()
@@ -116,33 +322,23 @@ def test_store_schema_contains_the_whole_transactional_aggregate(
     store = ProjectSyncStore(PROJECT_A)
 
     with store.unit_of_work() as unit:
-        tables = {
-            str(row[0])
-            for row in unit.execute(
-                "SELECT name FROM sqlite_master WHERE type = 'table'"
-            ).fetchall()
-        }
+        tables = {str(row[0]) for row in unit.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()}
 
-    assert {
-        "project_store_metadata",
-        "project_consent_decisions",
-        "consent_epochs",
-        "capture_sequences",
-        "journal_entries",
-        "delivery_attempts",
-        "delivery_results",
-        "outbox_tasks",
-        "body_upload_tasks",
-        "project_target_admissions",
-        "admission_operations",
-        "history_disclosure_actions",
-        "migration_manifests",
-        "migration_cutover_state",
-    } <= tables
+    assert set(EXPECTED_AGGREGATE_COLUMNS) <= tables
+
+    with store.unit_of_work() as unit:
+        for table, expected_columns in EXPECTED_AGGREGATE_COLUMNS.items():
+            columns = tuple(str(row[1]) for row in unit.execute(f'PRAGMA table_info("{table}")').fetchall())
+            assert columns == expected_columns, table
+            foreign_keys = {(str(row[2]), str(row[3]), str(row[4])) for row in unit.execute(f'PRAGMA foreign_key_list("{table}")').fetchall()}
+            assert foreign_keys == EXPECTED_AGGREGATE_FOREIGN_KEYS[table], table
 
     surfaces = {surface.name: surface for surface in STATE_SURFACES}
     assert surfaces["project_sync_store"].owner_module == "sync/project_store"
     assert surfaces["project_sync_egress_lock"].owner_module == "sync/project_store"
+    assert surfaces["project_sync_layout_generation"].owner_module == ("sync/layout_generation")
+    assert surfaces["project_sync_layout_generation_lock"].owner_module == ("sync/layout_generation")
+    assert surfaces["project_sync_layout_generation_marker"].owner_module == ("sync/layout_generation")
 
 
 def test_owner_tamper_fails_closed_without_rewriting_evidence(
@@ -201,7 +397,5 @@ def test_runtime_override_is_identical_on_every_supported_platform(
 
     store = ProjectSyncStore(PROJECT_A)
 
-    assert store.database_path == (
-        runtime / "projects" / CANONICAL_A / "sync" / "sync.db"
-    )
+    assert store.database_path == (runtime / "projects" / CANONICAL_A / "sync" / "sync.db")
     assert store.project_uuid.storage_token.isascii()
