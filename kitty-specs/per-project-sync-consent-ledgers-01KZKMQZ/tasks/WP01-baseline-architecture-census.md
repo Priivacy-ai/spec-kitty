@@ -149,3 +149,7 @@ Run the new architectural census and evidence-harness self-tests directly. Also 
 ## Risks and reviewer guidance
 
 The main review risk is a pretty census over dead or mocked call sites. Reviewers must independently trace at least one offender in each category from a public entry point, run the positive controls and synthetic mutation self-tests, and reject broad path allowlists. Reject any intentionally red WP01 test. Confirm the ADR does not weaken retained #3030 controls or absorb #3108.
+
+## Activity Log
+
+- 2026-08-09T19:34:08Z – unknown – shell_pid=0 – Post-transition gate follow-up: the two documentation failures were caused by the ADR description at 189 characters. Commit 0e0731135 shortens it within the 50-180 policy; exact rerun PWHEADLESS=1 .venv/bin/python -m pytest -q tests/docs/test_description_length_gate.py::test_live_tree_is_clean tests/docs/test_docs_seo.py::test_published_pages_have_title_and_description -W error --tb=short => 677 passed in 32.35s. The named lifecycle test passed in the focused rerun; its residual async-loop leak is the already-filed #3130/#3237 pin and is outside WP01. Correction to the prior transition note: the exact local-commit test path was tests/specify_cli/sync/test_local_commit_consent_3030.py (without _gate). Working tree clean.
