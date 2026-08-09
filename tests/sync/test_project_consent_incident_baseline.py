@@ -288,23 +288,33 @@ def _canonical_resolver_is_coherent(tree: ast.Module) -> bool:
     return False
 
 
-def _stable_identity(node: ast.expr) -> str | None:
+def _stable_identity(
+    node: ast.expr,
+    mutated_attributes: frozenset[str] = frozenset(),
+) -> str | None:
     if isinstance(node, ast.Constant):
         return ast.dump(node, include_attributes=False)
     if isinstance(node, ast.Attribute) and node.attr in {"project_uuid", "uuid"}:
-        return ast.dump(node, include_attributes=False)
+        rendered = ast.dump(node, include_attributes=False)
+        return None if ast.unparse(node) in mutated_attributes else rendered
     if (
         isinstance(node, ast.Call)
         and _call_tail(node) in {"UUID", "normalize_project_uuid", "str"}
         and len(node.args) == 1
-        and _stable_identity(node.args[0]) is not None
+        and _stable_identity(node.args[0], mutated_attributes) is not None
     ):
         return ast.dump(node, include_attributes=False)
     return None
 
 
 def _attempt_context_is_coherent(tree: ast.Module) -> bool:
-
+    mutated_attributes = frozenset(
+        ast.unparse(target)
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign))
+        for target in (node.targets if isinstance(node, ast.Assign) else [node.target])
+        if isinstance(target, ast.Attribute) and target.attr in {"project_uuid", "uuid"}
+    )
     contexts: dict[str, str] = {}
     assignments: Counter[str] = Counter()
     for node in ast.walk(tree):
@@ -321,7 +331,7 @@ def _attempt_context_is_coherent(tree: ast.Module) -> bool:
             node.value.args[0] if node.value.args else None,
         )
         if project_value is not None:
-            stable = _stable_identity(project_value)
+            stable = _stable_identity(project_value, mutated_attributes)
             if stable is not None:
                 contexts[target.id] = stable
     attempts = [node for node in ast.walk(tree) if isinstance(node, ast.Call) and _call_tail(node) == "DeliveryAttempt"]
@@ -333,7 +343,7 @@ def _attempt_context_is_coherent(tree: ast.Module) -> bool:
         if not isinstance(context_node, ast.Name) or assignments[context_node.id] != 1:
             return False
         expected = contexts.get(context_node.id)
-        paired = [_stable_identity(values[field]) for field in ("journal_uuid", "target_uuid", "ledger_uuid") if field in values]
+        paired = [_stable_identity(values[field], mutated_attributes) for field in ("journal_uuid", "target_uuid", "ledger_uuid") if field in values]
         if expected is None or len(paired) != 3 or any(value != expected for value in paired):
             return False
     return True
@@ -573,6 +583,13 @@ def test_mutation_runner_accepts_clean_and_rejects_synthetic_mutants(
             "context = ProjectSyncContext(project_uuid=project)\n"
             "project = b.uuid\n"
             "attempt = DeliveryAttempt(context=context, journal_uuid=project, target_uuid=project, ledger_uuid=project)\n",
+        ),
+        MutationSpecimen(
+            "rebound attribute identity",
+            MutantKind.CROSS_PAIR_CONTEXT,
+            "context = ProjectSyncContext(project_uuid=a.uuid)\n"
+            "a.uuid = b.uuid\n"
+            "attempt = DeliveryAttempt(context=context, journal_uuid=a.uuid, target_uuid=a.uuid, ledger_uuid=a.uuid)\n",
         ),
     ],
     ids=lambda specimen: specimen.name,
