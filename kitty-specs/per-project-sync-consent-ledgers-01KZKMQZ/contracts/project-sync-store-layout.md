@@ -2,7 +2,9 @@
 
 ## Authority
 
-This mission-local contract defines the internal project storage boundary. It does not replace the CLI↔SaaS API contract in `../spec-kitty-saas/contracts/cli-saas-current-api.yaml`.
+This mission-local contract defines the internal project storage boundary. It
+does not replace `contracts/cli-saas-current-api.yaml` in the explicitly attested
+SaaS candidate checkout.
 
 ## Canonical resolver
 
@@ -18,6 +20,7 @@ Rules:
 5. A component opened through context A must assert its on-disk owner UUID is A before reading or mutating.
 6. Consent, epochs, journal, delivery, outbox/body, target/admission, and cutover metadata share this one SQLite transaction boundary.
 7. `ProjectSyncStore.unit_of_work()` exclusively owns live SQLite connections and outer transactions. Component repositories accept that unit; no live journal/ledger/queue/control adapter may call `sqlite3.connect()` or `commit()` itself. Nested work uses explicit savepoints.
+8. `ProjectSyncStore.layout_generation()` is the only current-version writer authority. It returns a generation-bound write permit under the machine layout lock immediately before insert; stale permits retry/redirect exactly once and `project_only` permits can never name a legacy destination.
 
 ## Live component contract
 
@@ -46,7 +49,7 @@ eligible = kill_switch_allows
            and context.admission_generation == current_admission_generation
 ```
 
-Selection and final transport both enforce eligibility. Every Event, LocalCommit, body, and history/preflight item carries source UUID, current admission generation, and binding audience. Before network I/O, a durable attempt records native idempotency/correlation, generations, payload hash/reference, deadline, and recovery mode. The final check, transport start, and genuine result record occur under a bounded lease. Opt-out cancels unstarted attempts, waits for started settlement/reconciliation, and then returns. A killed sender resumes the same identity or parks unknown; it never silently invents success or sends under a fresh identity.
+Selection and final transport both enforce eligibility. Every Event, LocalCommit, body, and history/preflight item carries source UUID, current admission generation, and binding audience. Before network I/O, a durable attempt records native idempotency/correlation, generations, payload hash/reference, deadline, and recovery mode. The final check, transport start, and genuine result record occur under a bounded lease. Opt-out cancels unstarted attempts and, while holding that barrier, discovers every orphaned old-generation attempt left after process death. It reconciles with the original identity or freezes the attempt as `terminal_unknown` before returning. No later automatic recovery may promote that state to success or resend.
 
 ## Capture epoch contract
 
@@ -58,4 +61,8 @@ A fresh deny/revoke hint at `<runtime-root>/projects/.deny-hints/<uuid>.json` ma
 
 ## Legacy rule
 
-Legacy state is migration/diagnostic input only. All current-version legacy writers acquire the machine layout lock and check layout generation before insert, redirecting/retrying after cutover. Migration quiesces recognized daemons, obtains a strictly read-only logical SQLite snapshot with explicit WAL/SHM treatment, copies/verifies, and atomically publishes project-only cutover. No live fallback delivers legacy state; only unrecognized old binaries can create late residue, which is diagnosed and non-deliverable.
+Legacy state is migration/diagnostic input only. Before migration implementation, ProjectSyncStore publishes the one layout-generation/write-permit API. Every current-version journal, delivery, event-outbox, body/offline, foreground, background, daemon, and CLI writer uses it immediately before insert, redirecting/retrying after cutover. Migration consumes this authority, quiesces recognized daemons, obtains a strictly read-only logical SQLite snapshot with explicit WAL/SHM treatment, copies/verifies, and atomically publishes project-only cutover. No live fallback delivers legacy state; only unrecognized old binaries can create late residue, which is diagnosed and non-deliverable.
+
+## Candidate contract input
+
+Core contract consumers take an explicit SaaS candidate checkout path, expected commit, and expected SHA-256 digest. They read `contracts/cli-saas-current-api.yaml` from that checkout and fail if the checkout commit or digest differs. Relative ambient sibling lookup, branch name, and version string are forbidden as proof inputs.

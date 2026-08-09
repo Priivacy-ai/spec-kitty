@@ -40,7 +40,7 @@
 
 ## Decision 6 — Opt-out waits for truthful in-flight settlement
 
-**Decision**: Every sender first commits a durable attempt with its transport-native idempotency identity, audience/generations, payload hash/reference, deadline, and reconciliation policy, then obtains a project-scoped cross-process transport/result lease and validates context before transport start. Opt-out cancels work not started, waits for started transport plus its genuine bounded result record, seals/advances, and returns only when no later write/success can begin. A hard kill leaves an `in_flight`/`unknown` attempt; recovery reuses the same idempotency identity or reconciles status, and parks for explicit action if safe reconciliation is impossible. Remote revoke remains separately truthful.
+**Decision**: Every sender first commits a durable attempt with its transport-native idempotency identity, audience/generations, payload hash/reference, deadline, and reconciliation policy, then obtains a project-scoped cross-process transport/result lease and validates context before transport start. Opt-out cancels work not started, waits for started transport plus its genuine bounded result record, and inspects durable old-generation attempts whose process lease disappeared. Each orphan is reconciled with its original identity or irrevocably parked `terminal_unknown` before opt-out seals/advances and returns; a later recovery cannot promote that terminal state to success or resend. Remote revoke remains separately truthful.
 
 **Rationale**: Discarding a genuine result lies about what crossed the boundary. An unlocked recheck or in-process mutex cannot establish the required happens-before relation across CLI and daemon processes.
 
@@ -52,7 +52,7 @@
 
 ## Decision 8 — Migration is copy, verify, atomically cut over
 
-**Decision**: Under one machine layout lock, quiesce recognized daemons through a versioned handshake. Every current-version legacy writer also acquires the lock and checks layout generation immediately before insert, retrying/redirecting to the project store when cutover wins. Snapshot legacy SQLite through a strictly read-only/immutable connection or backup API with explicit WAL/SHM treatment; inventory exact logical IDs/status/attempt/target/timestamp/hash state; copy into staged project stores; verify; and atomically record cutover. Live code never dual-reads. Unrecognized old binaries may create diagnosed non-deliverable residue only.
+**Decision**: ProjectSyncStore owns one machine layout-generation authority and writer API before migration work begins. Every current-version foreground/background journal, delivery, event-outbox, and body/offline writer calls that API immediately before insert; it either commits against the inventoried legacy generation or retries/redirects exactly once to the UUID-owned store when cutover wins. Under the same machine lock, migration quiesces recognized daemons through a versioned handshake, snapshots legacy SQLite through a strictly read-only/immutable connection or backup API with explicit WAL/SHM treatment, inventories exact logical IDs/status/attempt/target/timestamp/hash state, copies into staged project stores, verifies, and atomically records cutover. Live code never dual-reads. Unrecognized old binaries may create diagnosed non-deliverable residue only.
 
 **Rationale**: Crash-safe copy preserves the only source evidence. Exact verification prevents status drift. A daemon protocol closes the old-writer window; unrecognized or post-cutover legacy writes become diagnosed non-deliverable residue.
 
@@ -76,11 +76,17 @@
 
 **Rationale**: A threshold without fixture, warm/cold definition, sample count, and open instrumentation is not repeatable evidence.
 
-## Decision 12 — SaaS contract is upstream authority
+## Decision 12 — SaaS contract is upstream, pinned authority
 
-**Decision**: Implement admission only against `../spec-kitty-saas/contracts/cli-saas-current-api.yaml` after the companion mission publishes the stable shape. Use local/test SaaS or a dynamically discovered Upsun branch environment for mutation; `app.spec-kitty.ai` is production and read-only absent separate authorization.
+**Decision**: After SaaS WP04 publishes the generated shape, core receives an explicit SaaS candidate checkout path and commit, reads `contracts/cli-saas-current-api.yaml` from that checkout, verifies the expected SHA-256 digest, and records path/ref/digest in its compatibility evidence. Ambient `../spec-kitty-saas` resolution, package version strings, and branch names are not authority. Use local/test SaaS or a dynamically discovered Upsun branch environment for mutation; `app.spec-kitty.ai` is production and read-only absent separate authorization.
 
 **Rationale**: Core cannot safely invent a server protocol, and production is not an acceptable candidate-branch test target.
+
+## Decision 13 — Cross-repository evidence has one owner per claim
+
+**Decision**: Core owns conforming-client request bytes, per-project local store/open isolation, stale-generation terminal parking, the project-discovery benchmark, and core mutation results. SaaS owns bypass/legacy refusal, zero server-side effects, admission overhead, tombstone precedence, and any authorized Upsun canary. A schema-versioned manifest binds exact core/SaaS/tombstone commits, the canonical contract digest, raw artifact checksums, CI/run coordinates, and retention metadata. Neither repository recreates the other's proof.
+
+**Rationale**: Duplicated harnesses drift and can appear mutually confirming while exercising different commits. An immutable manifest makes the coordinated proof auditable without creating a second contract or touching production.
 
 ## Supply-chain disposition
 
@@ -102,8 +108,11 @@ The pre-spec and post-spec squad findings are incorporated:
 - **Accepted**: the daemon cache is a narrowing-only deny hint and never a grant.
 - **Accepted**: migration quiesces recognized old daemons, copies/verifies without source mutation, survives hard kills, and never dual-reads.
 - **Accepted**: all current-version legacy writers participate in layout generation; source verification is a read-only logical snapshot with WAL/SHM semantics.
+- **Accepted**: the layout-generation authority and writer API land with ProjectSyncStore before payload writers migrate; migration consumes that authority rather than introducing it late.
 - **Accepted**: old post-cutover writes are non-deliverable residue.
 - **Accepted**: the six-project evidence splits conforming-client omission, bypass refusal, and stale-generation parking.
+- **Accepted**: core and SaaS own non-overlapping evidence sets tied by exact candidate commits and one contract digest.
+- **Accepted**: kill-during-response followed immediately by opt-out is a required ordering; orphan attempts settle or become irrevocably terminal before acknowledgement.
 - **Accepted**: benchmarks specify fixtures, repetitions, warm/cold treatment, hardware/runtime record, and store-open evidence.
 - **Accepted**: deny hints have a physical atomic location, TTL, post-commit writer, and no grant representation.
 - **Accepted**: #3030 is partially superseded while its egress defenses remain.

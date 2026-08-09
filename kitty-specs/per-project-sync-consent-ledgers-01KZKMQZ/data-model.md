@@ -14,7 +14,20 @@ One directory aggregate for one canonical project UUID:
 
 `sync.db` is the single transactionally coherent database for consent, capture epochs/sequences, journal, delivery attempts/results, body/offline tasks, target/admission operations, history disclosure actions, and migration/cutover state. The UUID is parsed once and rendered in lowercase hyphenated ASCII; display names, slugs, paths, remotes, users, and teams do not affect the path.
 
-The database stores an immutable owner UUID and schema/layout version. Every open verifies the owner before reading or mutating. `ProjectSyncStore.unit_of_work()` owns the SQLite connection and outer transaction; journal, epoch, ledger, outbox, admission-operation, attempt, and migration repositories receive that unit of work and never call `sqlite3.connect()` or commit on live paths. Nested operations reuse the outer unit and use savepoints only when explicitly requested. `egress.lock` is the cross-process transport/result barrier. Reports contain only counts, IDs, hashes, phases, and reason codes—never credentials or raw bodies.
+The database stores an immutable owner UUID and schema/layout version. Every open verifies the owner before reading or mutating. `ProjectSyncStore.unit_of_work()` owns the SQLite connection and outer transaction; journal, epoch, ledger, outbox, admission-operation, attempt, and migration repositories receive that unit of work and never call `sqlite3.connect()` or commit on live paths. Nested operations reuse the outer unit and use savepoints only when explicitly requested. `egress.lock` is the cross-process transport/result barrier. The sibling machine layout authority described below decides whether a current-version writer may use a legacy source or must redirect; no component privately infers layout. Reports contain only counts, IDs, hashes, phases, and reason codes—never credentials or raw bodies.
+
+## LayoutGenerationAuthority
+
+One machine-local authority, reached only through the ProjectSyncStore API, coordinates all current-version writers with legacy cutover.
+
+| Field | Rules |
+|---|---|
+| `generation` | Monotonic machine layout generation. |
+| `mode` | `legacy`, `cutover_pending`, or `project_only`. |
+| `migration_id` | Nullable owner of an active cutover. |
+| `updated_at` | UTC audit timestamp. |
+
+The authority is read and advanced under one machine layout lock. Every current-version journal, delivery, event-outbox, body/offline, foreground, background, daemon, and CLI writer obtains a `LayoutWritePermit` immediately before insert. A permit binds generation, destination kind, and canonical project UUID. If cutover changes the generation before insert, the writer discards the permit and retries through the authority; it never writes both layouts. `project_only` permits cannot name a legacy destination. Migration may advance the authority only after its staged stores verify exactly. Unrecognized old binaries do not possess this API; their late legacy rows are diagnosed residue and never enter live delivery.
 
 ## ProjectConsentDecision
 
@@ -108,7 +121,7 @@ Ordinary selection has no API that can create or consume this capability. Confir
 - Before network I/O, `DeliveryAttempt` records the transport-native idempotency identity, target/binding/consent/admission generations, payload hash/reference, state, bounded deadline, and reconciliation policy in the store transaction.
 - Results record the attempt ID, target binding generation, server admission generation, timestamps, and terminal refusal category.
 - Event, LocalCommit, body, and history/preflight adapters serialize the same source UUID and per-write admission generation.
-- A result for a transport started before opt-out is recorded under its original consent/admission generations while the transport/result lease is held. Process death releases the OS lock but leaves a durable `in_flight`/`unknown` attempt. Recovery reuses Event ID, admission operation key, body content hash, LocalCommit git hash, or history action/event identity for idempotent status/retry; if a transport cannot reconcile safely, it parks `unknown` for explicit operator action rather than silently resending.
+- A result for a transport started before opt-out is recorded under its original consent/admission generations while the transport/result lease is held. Process death releases the OS lock but leaves a durable `in_flight`/`unknown` attempt. Opt-out holding the barrier must discover those orphaned old-generation states and either reconcile them with Event ID, admission operation key, body content hash, LocalCommit git hash, or history action/event identity, or transition them irrevocably to `terminal_unknown` before acknowledgement. A later worker cannot promote `terminal_unknown` to success or silently resend; only an explicit operator workflow may append a separately attributed disposition.
 - `project_not_admitted` is terminal for the correlated row; it never retries as transient.
 
 ## ProjectSyncContext
@@ -152,6 +165,10 @@ Hints live outside payload stores at `<runtime-root>/projects/.deny-hints/<canon
 
 Migration opens legacy SQLite sources strictly read-only/immutable or snapshots them through the SQLite backup API after WAL checkpoint semantics are recorded; it never runs constructors/schema migrations against a source. The logical committed snapshot, including main/WAL/SHM treatment, is the preservation authority rather than byte-for-byte inode identity. Staged databases are published only after exact verification. Every current-version legacy writer acquires the machine layout lock, checks layout generation before insert, and retries/redirects to the project store if cutover won. A recognized daemon acknowledges quiesce and restarts on the new layout. An unrecognized old binary may write only residue after cutover; it is diagnosed and never delivered.
 
+## AcceptanceEvidenceManifest
+
+A schema-versioned, immutable manifest emitted by the coordinated acceptance runner. It records exact core, SaaS, and tombstone commits; the selected SaaS checkout/ref; canonical contract SHA-256 digest; client-byte, terminal-parking, server-refusal, mutation, benchmark, and optional hosted-canary artifact references; a SHA-256 checksum and byte count for every referenced artifact; producing command/run identity; created timestamp; and retention location/expiry. Core-originated artifacts and SaaS-originated artifacts have distinct owners. The manifest contains no credentials, raw event bodies, or historical incident data.
+
 ## LegacyQuarantine
 
 Non-deliverable copy/reference for rows with missing, malformed, nil, blank, conflicting, or unsafe identity. It has no target, consent, history-action, or sender API. Diagnostics and explicit purge inspect counts/IDs, not bodies by default.
@@ -169,3 +186,6 @@ Non-deliverable copy/reference for rows with missing, malformed, nil, blank, con
 9. Only `ProjectSyncStore.unit_of_work()` opens live `sync.db`; component-local commits/connections are forbidden by architecture tests.
 10. Admission control operations and transport attempts survive process death with their original idempotency/audience identity.
 11. Ordinary selection cannot send sealed epochs; only a confirmed immutable HistoryDisclosureAction can do so.
+12. Every current-version writer receives its destination from LayoutGenerationAuthority immediately before insert and writes exactly one layout generation.
+13. Opt-out does not acknowledge while an orphaned old-generation attempt remains promotable to success.
+14. Coordinated acceptance evidence is bound to exact candidate commits and one canonical contract digest by a checksum manifest with explicit retention.

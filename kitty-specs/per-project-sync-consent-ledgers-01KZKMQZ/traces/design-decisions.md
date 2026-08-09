@@ -18,6 +18,40 @@
 **Reason**: Quiescing only the daemon leaves a capture-loss window, while opening sources through normal constructors mutates evidence.  
 **Status**: accepted.
 
+## D-012 — Layout authority precedes writer conversion
+
+**Decision**: WP02 owns the sole layout-generation authority and write-permit API;
+WP04 converts every current journal/ledger/outbox/body/background writer to take a
+permit immediately before insert. WP10 may advance the generation and validate
+both orderings but may not edit those writers or create a second authority.
+**Reason**: Migration cannot close the snapshot/cutover race if current writers
+are added opportunistically inside the migration package, and parallel progress
+does not imply source-level disjointness.
+**Status**: accepted.
+
+## D-013 — Orphan settlement is irreversible
+
+**Decision**: If a worker dies or response uncertainty exceeds the bounded lease
+deadline, immediate opt-out records `terminal_unknown`, seals old authority, and
+returns. Late recovery may attach diagnostic remote evidence but cannot promote
+success, rewrite the terminal result, or resend.
+**Reason**: OS lock release does not prove whether disclosure occurred, while
+waiting forever makes opt-out unusable; terminal uncertainty preserves truthful
+evidence and the no-post-return guarantee.
+**Status**: accepted.
+
+## D-014 — Pinned candidates and non-overlapping evidence
+
+**Decision**: Cross-repository work requires an explicit SaaS checkout, exact
+commit, and canonical contract SHA-256. Core owns conforming request bytes, local
+isolation, stale client parking, and core performance; SaaS owns bypass refusal,
+zero hosted side effects, tombstone, hosted performance, and authorized Upsun
+evidence. WP11 emits a checksummed schema-versioned manifest with retention and
+issue-to-WP mappings that references, rather than regenerates, SaaS artifacts.
+**Reason**: Ambient sibling paths and floating refs make evidence unreproducible;
+duplicated ownership lets omission and refusal be falsely claimed by one proof.
+**Status**: accepted.
+
 ## D-002 — One project consent authority
 
 **Decision**: A versioned project-control row is the only grant; every legacy/path/repo/index/config source is non-granting migration input.  

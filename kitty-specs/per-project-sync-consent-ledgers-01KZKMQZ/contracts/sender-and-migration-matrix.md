@@ -26,7 +26,7 @@ No row may substitute current working directory, active target, login, global en
 
 ### Crash orderings
 
-For each transport family, kill the sender after the durable attempt but before send, during response uncertainty, and after remote acceptance but before local result commit. Recovery uses the same Event ID, admission operation key, content hash, git hash, or history action/event identity and records duplicate/success truthfully. A non-reconcilable transport parks `unknown` for operator action and never silently resends.
+For each transport family, kill the sender after the durable attempt but before send, during response uncertainty, and after remote acceptance but before local result commit. Recovery uses the same Event ID, admission operation key, content hash, git hash, or history action/event identity and records duplicate/success truthfully. Add the compound ordering `kill during response -> immediate opt-out -> late recovery`: opt-out must reconcile or irrevocably freeze the orphan as `terminal_unknown` before acknowledgement, and the late recovery must be unable to record success or resend. A non-reconcilable transport never silently retries.
 
 ## Migration data classes
 
@@ -42,7 +42,7 @@ For each transport family, kill the sender after the durable attempt but before 
 
 ## Fault injection phases
 
-Run migration in a subprocess and hard-kill before/after daemon/current-writer quiesce, read-only logical snapshot, each table copy, verification, staged publication, cutover marker, redirect, and restart. Verify exact committed IDs/statuses/attempts/targets/timestamps/hashes and explicit main/WAL/SHM treatment; do not instantiate schema-migrating source constructors. Pause a current writer before insert and let another insert before cutover: both redirect/migrate exactly once. An unrecognized old-binary post-cutover write is non-deliverable residue. No rerun duplicates or redelivers.
+Run migration in a subprocess and hard-kill before/after daemon/current-writer quiesce, read-only logical snapshot, each table copy, verification, staged publication, cutover marker, redirect, and restart. Verify exact committed IDs/statuses/attempts/targets/timestamps/hashes and explicit main/WAL/SHM treatment; do not instantiate schema-migrating source constructors. For every current-version journal, delivery, event-outbox, body/offline, foreground, background, daemon, and CLI writer, pause before its layout permit/insert and exercise both orderings: the write is included in the legacy snapshot or redirected once to the project store, never both. An unrecognized old-binary post-cutover write is non-deliverable residue. No rerun duplicates or redelivers.
 
 ## Six-project acceptance
 
@@ -53,4 +53,4 @@ Run migration in a subprocess and hard-kill before/after daemon/current-writer q
 - E: identity-less legacy rows in quarantine.
 - F: valid UUID admitted to a different target/account/team; bypass client attempts the wrong binding.
 
-The real CLI scenario captures exact HTTP/WebSocket bytes and proves B–F are absent. Separate bypass/legacy tests send B–F and prove correlated server refusal with zero durable/readable/broadcast effects. A real stale-generation race returns `project_not_admitted` to the CLI and proves terminal parking. Event ID sets and a unique foreign marker make negative evidence non-vacuous; selection counts alone are insufficient.
+The core-owned real CLI scenario captures exact HTTP/WebSocket bytes and proves B–F are absent, then records stale-generation terminal parking. The separately owned SaaS evidence submits B–F through bypass/legacy adapters and proves correlated refusal with zero durable/readable/broadcast effects. Event ID sets and a unique foreign marker make negative evidence non-vacuous; selection counts alone are insufficient. A shared checksum manifest binds the exact core/SaaS/tombstone commits and canonical contract digest while preserving these non-overlapping proof owners.
