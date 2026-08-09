@@ -2,7 +2,7 @@
 title: 'Your First Mission: Complete Workflow'
 description: Walk through a complete Spec Kitty 3.2 mission from specification through plan, tasks, implementation, review, and merge.
 doc_status: active
-updated: '2026-07-21'
+updated: '2026-08-09'
 audience: docs/context/audience/external/project-owner.md
 type: tutorial
 related:
@@ -19,6 +19,8 @@ Except for the one-time CLI install, everything below happens inside your AI age
 
 **Time**: ~2 hours
 **Prerequisites**: Completed [Getting Started](getting-started.md)
+
+![Your first Spec Kitty mission - Mission Kitty briefing](../assets/images/your-first-mission-mission-kitty.png)
 
 > **Note**: This tutorial uses git for version control. Spec Kitty abstracts the VCS operations into simple commands.
 
