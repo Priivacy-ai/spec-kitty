@@ -46,7 +46,7 @@
       "sc": null,
       "wp": "WP05,WP07",
       "source_file": "spec.md",
-      "evidence_ref": "Channel 2 may narrow tracker egress but never grants hosted sync; rebase against final consent API.",
+      "evidence_ref": "Channel 2 may narrow tracker egress but never grants hosted sync; rebase against final consent API. Follow-up: Priivacy-ai/spec-kitty#3108.",
       "verdict": "deferred-with-followup"
     },
     "Priivacy-ai/spec-kitty#3135": {
