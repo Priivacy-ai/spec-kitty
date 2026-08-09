@@ -347,6 +347,16 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **A spec commit that genuinely FAILS is no longer silently reported as
+  "unchanged" (`#3269`).** When a `git commit` failed for a real reason — a
+  rejecting pre-commit hook, a lock error — `safe_commit` collapsed every
+  non-zero exit onto the same "nothing to commit" path, so `spec-commit` printed
+  _"Spec artifact(s) unchanged, no commit needed"_ and the spec silently never
+  landed. Emptiness is now decided by the **staged tree** (`git diff --cached`),
+  not by matching git's output text: a genuine no-op is still reported as
+  unchanged, while a real failure surfaces as an error carrying git's own
+  diagnostic — even when a failing hook prints its own "nothing to
+  commit"-shaped message.
 - **`spec-kitty` no longer crashes when an arbiter override lands on a
   conflict-marked review-cycle file (mission `verdict-seam-boundary-hardening`;
   `#3244`).** An arbiter override written against a `review-cycle-N.md` that
