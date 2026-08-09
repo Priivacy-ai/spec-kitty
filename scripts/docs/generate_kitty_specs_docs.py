@@ -91,7 +91,14 @@ def parse_task_titles(tasks_md: str) -> dict[str, str]:
     return titles
 
 
-def parse_frontmatter(markdown: str) -> tuple[dict[str, Any], str]:
+def _parse_frontmatter_and_body(markdown: str) -> tuple[dict[str, Any], str]:
+    """Split a WP prompt's leading ``---`` frontmatter from its body.
+
+    Local body-splitting variant that returns ``(frontmatter, body)`` — distinct
+    from the canonical :func:`scripts.docs._inventory.parse_frontmatter`, which
+    returns only the parsed mapping. Kept private to this generator so the shared
+    name no longer collides across two different signatures.
+    """
     lines = markdown.splitlines()
     if not lines or lines[0].strip() != "---":
         return {}, markdown
@@ -406,7 +413,7 @@ def active_agents(mission: Mission) -> list[str]:
         prompt_file = prompt_file_for_wp(mission, wp_id)
         if prompt_file is None:
             continue
-        frontmatter, _ = parse_frontmatter(read_text(prompt_file))
+        frontmatter, _ = _parse_frontmatter_and_body(read_text(prompt_file))
         agent = str(frontmatter.get("agent") or "")
         if agent:
             agents.add(agent)
@@ -478,7 +485,7 @@ def lanes(mission: Mission) -> dict[str, list[dict[str, Any]]]:
             column_lane = "planned"
         prompt_file = prompt_file_for_wp(mission, wp_id)
         prompt_markdown = read_text(prompt_file) if prompt_file else ""
-        frontmatter, prompt_body = parse_frontmatter(prompt_markdown)
+        frontmatter, prompt_body = _parse_frontmatter_and_body(prompt_markdown)
         subtasks = frontmatter.get("subtasks")
         if not isinstance(subtasks, list):
             subtasks = []
