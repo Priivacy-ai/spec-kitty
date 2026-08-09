@@ -34,7 +34,10 @@ def _setup_kittify(repo: Path) -> None:
     """Create minimal .kittify structure required by create()."""
     kittify = repo / ".kittify"
     kittify.mkdir(exist_ok=True)
-    (kittify / "config.yaml").write_text("agents:\n  available:\n    - claude\n", encoding="utf-8")
+    (kittify / "config.yaml").write_text(
+        "agents:\n  available:\n    - claude\nmission_type_activations:\n  - software-dev\n",
+        encoding="utf-8",
+    )
     (kittify / "charter.md").write_text("# Charter\n", encoding="utf-8")
     # Create kitty-specs dir
     (repo / "kitty-specs").mkdir(exist_ok=True)

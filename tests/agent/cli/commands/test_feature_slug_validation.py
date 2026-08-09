@@ -79,7 +79,9 @@ def test_valid_kebab_case_slugs_accepted(tmp_path, monkeypatch):
     subprocess.run(["git", "checkout", "-b", "main"], cwd=tmp_path, check=True, capture_output=True)
     kittify_dir = tmp_path / ".kittify"
     kittify_dir.mkdir()
-    (kittify_dir / "config.yaml").write_text("agents:\n  available: []\n")
+    (kittify_dir / "config.yaml").write_text(
+        "agents:\n  available: []\nmission_type_activations:\n  - software-dev\n"
+    )
     (kittify_dir / "metadata.yaml").write_text("project_name: test\n")
     (tmp_path / "kitty-specs").mkdir()
     subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)

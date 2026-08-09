@@ -333,6 +333,16 @@ class TestBuildWpPromptForwardsAgentProfile:
         from tests.lane_test_utils import write_single_lane_manifest
 
         write_single_lane_manifest(feature_dir, wp_ids=("WP01",))
+        # write_single_lane_manifest stages a meta.json (mission_type=software-dev
+        # by convention), which routes _build_wp_prompt through
+        # resolve_mission_type_context()'s registration gate (WP04 fail-closed —
+        # see charter.mission_type_profiles._resolve_governance_slot). Activate
+        # software-dev so the gate resolves instead of hard-failing.
+        kittify = tmp_path / ".kittify"
+        kittify.mkdir(exist_ok=True)
+        (kittify / "config.yaml").write_text(
+            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+        )
         return feature_dir
 
     def test_implement_forwards_agent_profile_from_wp_frontmatter(
