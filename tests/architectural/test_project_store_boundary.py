@@ -606,6 +606,12 @@ def classify_store_site(
         return SiteDisposition(SiteCategory.LEGACY_READ_ONLY, "WP10", reachability)
     if site.relpath == "specify_cli/sync/migrate_journal.py" or (site.relpath == "specify_cli/sync/queue.py" and "_migrate_" in site.qualname):
         return SiteDisposition(SiteCategory.LEGACY_MIGRATION, "WP10", reachability)
+    if _is_canonical_project_store_site(site):
+        return SiteDisposition(
+            SiteCategory.LIVE_PAYLOAD_CONTROL,
+            "WP02",
+            "ProjectSyncStore public unit-of-work entry",
+        )
     control = _live_control(site)
     if control is not None:
         return SiteDisposition(
@@ -754,6 +760,17 @@ _KNOWN_LIVE_FLOOR = frozenset(
 
 _KNOWN_DEAD_FLOOR = frozenset({"specify_cli/sync/queue.py::_queue_db_has_content::sqlite_connect"})
 
+_CANONICAL_STORE_SITE_COUNTS: Counter[str] = Counter(
+    {
+        "specify_cli/sync/project_store.py::ProjectSyncStore.unit_of_work::sqlite_connect": 1,
+        "specify_cli/sync/project_store.py::ProjectSyncStore.unit_of_work::commit": 2,
+    }
+)
+
+
+def _is_canonical_project_store_site(site: StoreSite) -> bool:
+    return site.relpath == "specify_cli/sync/project_store.py" and site.qualname == "ProjectSyncStore.unit_of_work"
+
 
 def final_project_store_violations(
     sites: tuple[StoreSite, ...],
@@ -761,7 +778,7 @@ def final_project_store_violations(
     """Allow only the exact live unit-of-work and per-site read-only migration."""
     violations: list[StoreSite] = []
     for site in sites:
-        exact_uow = site.relpath == "specify_cli/sync/project_store.py" and site.qualname == "ProjectSyncStore.unit_of_work"
+        exact_uow = _is_canonical_project_store_site(site)
         exact_read_only_migration = site.relpath == "specify_cli/sync/project_store_migration.py" and site.kind is SiteKind.SQLITE_CONNECT and site.read_only
         if not (exact_uow or exact_read_only_migration):
             violations.append(site)
@@ -770,7 +787,9 @@ def final_project_store_violations(
 
 def test_current_store_census_cannot_grow_and_every_site_has_evidence() -> None:
     sites = scan_store_sites()
-    observed = Counter(site.key for site in sites)
+    canonical = Counter(site.key for site in sites if _is_canonical_project_store_site(site))
+    assert canonical == _CANONICAL_STORE_SITE_COUNTS, "the canonical store must own one connection, one bootstrap commit, and one outer commit"
+    observed = Counter(site.key for site in sites if not _is_canonical_project_store_site(site))
     growth = observed - _KNOWN_SITE_COUNTS
     assert not growth, "new direct store ownership sites:\n" + "\n".join(f"{key} (+{count})" for key, count in sorted(growth.items()))
     assert set(observed) >= _KNOWN_LIVE_FLOOR

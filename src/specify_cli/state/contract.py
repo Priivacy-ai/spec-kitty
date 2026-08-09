@@ -347,10 +347,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.IGNORED,
         owner_module="invocation/writer",
         creation_trigger="profile-invocation start (index append)",
-        notes=(
-            "Machine-local reverse-scan performance cache; never commit. "
-            "Durable records live in kitty-ops/<op_id>.jsonl."
-        ),
+        notes=("Machine-local reverse-scan performance cache; never commit. Durable records live in kitty-ops/<op_id>.jsonl."),
     ),
     StateSurface(
         name="shared_skills_projection",
@@ -436,8 +433,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         authority=AuthorityClass.AUTHORITATIVE,
         git_class=GitClass.TRACKED,
         owner_module="charter compiler / activation engine / migration",
-        creation_trigger="charter generate, charter activate/deactivate, or the "
-        "consolidate_charter_bundle_fold upgrade migration",
+        creation_trigger="charter generate, charter activate/deactivate, or the consolidate_charter_bundle_fold upgrade migration",
         notes=(
             "consolidate-charter-bundle (WP07): retires the four legacy "
             "IGNORED/DERIVED bundle surfaces this replaces (charter_governance, "
@@ -671,6 +667,70 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         owner_module="tracker/store",
         creation_trigger="tracker sync or cache init",
     ),
+    StateSurface(
+        name="project_sync_store",
+        path_pattern="~/.spec-kitty/projects/<canonical-uuid>/sync/sync.db",
+        root=StateRoot.GLOBAL_SYNC,
+        format=StateFormat.SQLITE,
+        authority=AuthorityClass.AUTHORITATIVE,
+        git_class=GitClass.OUTSIDE_REPO,
+        owner_module="sync/project_store",
+        creation_trigger="first ProjectSyncStore unit of work",
+        notes="One transactionally coherent hosted-sync aggregate per canonical UUID.",
+    ),
+    StateSurface(
+        name="project_sync_egress_lock",
+        path_pattern="~/.spec-kitty/projects/<canonical-uuid>/sync/egress.lock",
+        root=StateRoot.GLOBAL_SYNC,
+        format=StateFormat.LOCKFILE,
+        authority=AuthorityClass.LOCAL_RUNTIME,
+        git_class=GitClass.OUTSIDE_REPO,
+        owner_module="sync/project_store",
+        creation_trigger="project transport/result barrier acquisition",
+    ),
+    StateSurface(
+        name="project_sync_layout_generation",
+        path_pattern="~/.spec-kitty/projects/.layout-generation.json",
+        root=StateRoot.GLOBAL_SYNC,
+        format=StateFormat.JSON,
+        authority=AuthorityClass.AUTHORITATIVE,
+        git_class=GitClass.OUTSIDE_REPO,
+        owner_module="sync/layout_generation",
+        creation_trigger="first machine layout authority read",
+        notes="Machine-wide current-writer generation and cutover mode.",
+    ),
+    StateSurface(
+        name="project_sync_layout_generation_lock",
+        path_pattern="~/.spec-kitty/projects/.layout-generation.lock",
+        root=StateRoot.GLOBAL_SYNC,
+        format=StateFormat.LOCKFILE,
+        authority=AuthorityClass.LOCAL_RUNTIME,
+        git_class=GitClass.OUTSIDE_REPO,
+        owner_module="sync/layout_generation",
+        creation_trigger="machine layout authority acquisition",
+    ),
+    StateSurface(
+        name="project_sync_layout_generation_marker",
+        path_pattern="~/.spec-kitty/projects/.layout-generation.initialized",
+        root=StateRoot.GLOBAL_SYNC,
+        format=StateFormat.TEXT,
+        authority=AuthorityClass.AUTHORITATIVE,
+        git_class=GitClass.OUTSIDE_REPO,
+        owner_module="sync/layout_generation",
+        creation_trigger="first verified machine layout authority initialization",
+        notes="Fail-closed evidence that a missing layout record is data loss.",
+    ),
+    StateSurface(
+        name="project_sync_migration_reports",
+        path_pattern=("~/.spec-kitty/projects/<canonical-uuid>/sync/migration/reports/"),
+        root=StateRoot.GLOBAL_SYNC,
+        format=StateFormat.DIRECTORY,
+        authority=AuthorityClass.LOCAL_RUNTIME,
+        git_class=GitClass.OUTSIDE_REPO,
+        owner_module="sync/project_store_migration",
+        creation_trigger="project-store migration preview or verification",
+        notes="Non-sensitive counts, IDs, hashes, phases, and reason codes only.",
+    ),
     # -----------------------------------------------------------------------
     # Section F -- Global Runtime (~/.kittify/)
     # -----------------------------------------------------------------------
@@ -801,11 +861,7 @@ def _fully_ignored_top_dirs() -> set[str]:
         if len(parts) >= 3:  # noqa: PLR2004
             top_dir = "/".join(parts[:2])
             top_dir_git_classes.setdefault(top_dir, []).append(s.git_class)
-    return {
-        d + "/"
-        for d, classes in top_dir_git_classes.items()
-        if all(gc == GitClass.IGNORED for gc in classes)
-    }
+    return {d + "/" for d, classes in top_dir_git_classes.items() if all(gc == GitClass.IGNORED for gc in classes)}
 
 
 def _collapse_placeholder_pattern(pattern: str) -> str | None:
@@ -824,14 +880,7 @@ def _collapse_placeholder_pattern(pattern: str) -> str | None:
 
 def _remove_subsumed(entries: set[str]) -> set[str]:
     """Remove entries that are subsumed by a parent directory entry."""
-    return {
-        entry
-        for entry in entries
-        if not any(
-            other != entry and other.endswith("/") and entry.startswith(other)
-            for other in entries
-        )
-    }
+    return {entry for entry in entries if not any(other != entry and other.endswith("/") and entry.startswith(other) for other in entries)}
 
 
 def get_runtime_gitignore_entries() -> list[str]:
