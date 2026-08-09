@@ -1572,6 +1572,7 @@ class _SinkFunctionAnalyzer:
         item: ast.Assign | ast.AnnAssign,
         state: _SinkFlowState,
     ) -> None:
+        # TODO(#3280): Resolve tuple and other non-name assignment targets; current alias evidence is name-target only.
         targets = item.targets if isinstance(item, ast.Assign) else [item.target]
         value = item.value
         for target in targets:
@@ -1703,6 +1704,7 @@ class _SinkFunctionAnalyzer:
     ) -> None:
         for statement in statements:
             if isinstance(statement, ast.If):
+                # TODO(#3280): Join post-branch alias states; this bounded pass only follows each branch independently.
                 attempt, inverted = self._guarded_attempt(statement.test, state)
                 terminal_guard = bool(statement.body) and isinstance(
                     statement.body[-1],
@@ -1994,6 +1996,7 @@ class _LayoutWriteVisitor(ast.NodeVisitor):
         self.bindings = saved
 
     def visit_Assign(self, node: ast.Assign) -> None:  # noqa: N802
+        # TODO(#3280): Track tuple/alternate SQL targets rather than only direct name assignments.
         value = _sql_text(node.value, self.bindings)
         for target in node.targets:
             if isinstance(target, ast.Name):
@@ -2011,6 +2014,7 @@ class _LayoutWriteVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> None:  # noqa: N802
+        # TODO(#3280): Merge conditional SQL binding states before execute-family calls; traversal is currently linear.
         func = node.func
         if isinstance(func, ast.Attribute) and func.attr in {"execute", "executemany", "executescript"} and node.args:
             rendered = _sql_text(node.args[0], self.bindings)
@@ -2215,6 +2219,7 @@ def _durable_result_write(
     path: Path,
     source_root: Path,
 ) -> bool:
+    # TODO(#3280): Prove identity-to-column value flow; table, operation, and bound-argument evidence is intentionally narrower.
     if row.result_write is None:
         return False
     requirement = _DURABLE_RESULT_AUTHORITIES.get(row.result_write)
@@ -2245,6 +2250,7 @@ def _durable_result_write(
 
 
 def _durable_file_result_write(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    # TODO(#3280): Prove mutation-before-save ordering across paths; this predicate only relates the named field, identity, and save.
     records_ack_identity = any(
         isinstance(item, (ast.Assign, ast.AnnAssign))
         and item.value is not None
@@ -2265,6 +2271,7 @@ def _durable_file_result_write(node: ast.FunctionDef | ast.AsyncFunctionDef) -> 
 
 
 def _in_memory_result_write(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    # TODO(#3280): Add reachability/path proof for result-guarded report mutations; syntactic guards may be unreachable.
     result_fields = frozenset({"outcome", "event_id", "error"})
     report_fields = frozenset({"success", "duplicate", "pending", "rejected", "rejected_samples"})
 

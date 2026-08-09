@@ -308,6 +308,7 @@ def _stable_identity(
 
 
 def _attempt_context_is_coherent(tree: ast.Module) -> bool:
+    # TODO(#3280): Track setattr/__dict__/tuple mutations and their ordering; direct attribute mutation is only bounded evidence.
     mutated_attributes = frozenset(
         ast.unparse(target)
         for node in ast.walk(tree)

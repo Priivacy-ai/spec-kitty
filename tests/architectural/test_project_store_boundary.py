@@ -234,6 +234,7 @@ class _StoreVisitor(ast.NodeVisitor):
         self.sqlite_constructors.difference_update(locals_)
         self.scope.append(node.name)
         self.function_depth += 1
+        # TODO(#3280): Merge branch/path binding states; this loop is intentionally linear evidence, not complete Python flow analysis.
         for statement in node.body:
             self.visit(statement)
         self.function_depth -= 1
@@ -281,10 +282,12 @@ class _StoreVisitor(ast.NodeVisitor):
                     self.sqlite_constructors.add(alias.asname or alias.name)
 
     def visit_Assign(self, node: ast.Assign) -> None:  # noqa: N802
+        # TODO(#3280): Model tuple/alternate targets and branch-state joins instead of only direct name bindings.
         self._bind_assignment(node.targets, node.value)
         self.generic_visit(node)
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:  # noqa: N802
+        # TODO(#3280): Model alternate annotated targets and branch-state joins beyond direct names.
         if node.value is not None:
             self._bind_assignment([node.target], node.value)
         self.generic_visit(node)

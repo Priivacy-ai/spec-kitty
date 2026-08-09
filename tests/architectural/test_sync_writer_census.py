@@ -365,6 +365,7 @@ def _functions(paths: tuple[Path, ...], source_root: Path) -> list[_FunctionReco
 
 
 def _import_bindings(path: Path, source_root: Path) -> _ImportBindings:
+    # TODO(#3280): Propagate module assignment aliases; this pass currently invalidates rebound imports without following aliases.
     module = _module_name(path, source_root)
     package = module.split(".")[:-1]
     modules: dict[str, str] = {}
@@ -444,6 +445,7 @@ def _bindings_before_call(
     for name in _local_names(record):
         modules.pop(name, None)
         symbols.pop(name, None)
+    # TODO(#3280): Replace line-ordered binding collection with branch/path state merging for conditional rebindings.
     preceding = sorted(
         (
             item
