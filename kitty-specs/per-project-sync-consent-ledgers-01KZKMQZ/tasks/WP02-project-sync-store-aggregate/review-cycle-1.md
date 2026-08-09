@@ -1,3 +1,13 @@
+---
+affected_files: []
+cycle_number: 1
+mission_slug: per-project-sync-consent-ledgers-01KZKMQZ
+reproduction_command:
+reviewed_at: '2026-08-09T23:06:34Z'
+reviewer_agent: user
+wp_id: WP02
+---
+
 # WP02 Review Cycle 1 — Changes Requested
 
 ## 1. The unit-of-work port leaks transaction ownership
