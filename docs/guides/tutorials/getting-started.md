@@ -2,7 +2,7 @@
 title: Getting Started with Spec Kitty
 description: Install Spec Kitty 3.2, initialize a project, and create your first mission with a guided beginner workflow.
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-08-09'
 audience: docs/context/audience/external/project-owner.md
 type: tutorial
 related:
@@ -17,6 +17,8 @@ In this tutorial, you'll install Spec Kitty and create your first mission specif
 
 **Time**: ~30 minutes
 **Prerequisites**: Python 3.11+, Git, an AI coding agent (Claude Code, Cursor, Gemini CLI, etc.)
+
+![Getting started with Spec Kitty - Mission Kitty hero](../assets/images/getting-started-mission-kitty.png)
 
 ## Step 1: Install Spec Kitty
 
