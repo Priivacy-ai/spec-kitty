@@ -3264,6 +3264,9 @@ pages:
     - {slug: "spec-kitty-specify", text: "/spec-kitty.specify", level: 2}
     - {slug: "spec-kitty-plan", text: "/spec-kitty.plan", level: 2}
     - {slug: "spec-kitty-tasks", text: "/spec-kitty.tasks", level: 2}
+    - {slug: "spec-kitty-tasks-outline", text: "/spec-kitty.tasks-outline", level: 2}
+    - {slug: "spec-kitty-tasks-packages", text: "/spec-kitty.tasks-packages", level: 2}
+    - {slug: "spec-kitty-tasks-finalize", text: "/spec-kitty.tasks-finalize", level: 2}
     - {slug: "spec-kitty-implement", text: "/spec-kitty.implement", level: 2}
     - {slug: "spec-kitty-review", text: "/spec-kitty.review", level: 2}
     - {slug: "spec-kitty-accept", text: "/spec-kitty.accept", level: 2}
