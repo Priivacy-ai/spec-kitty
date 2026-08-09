@@ -208,7 +208,7 @@ class LocalTrackerService:
 
     def map_list(self) -> list[dict[str, Any]]:
         _, _, store = self._load_runtime()
-        return store.list_mappings()
+        return cast(list[dict[str, Any]], store.list_mappings())
 
     # ------------------------------------------------------------------
     # private helpers
@@ -231,12 +231,15 @@ class LocalTrackerService:
         server_url = str(credentials.get("server_url") or credentials.get("base_url") or "")
         username = str(credentials.get("username") or credentials.get("email") or "")
         team_slug = str(credentials.get("team_slug") or "")
-        return default_tracker_db_path(
-            provider=str(config.provider),
-            workspace=str(config.workspace),
-            server_url=server_url,
-            username=username,
-            team_slug=team_slug,
+        return cast(
+            Path,
+            default_tracker_db_path(
+                provider=str(config.provider),
+                workspace=str(config.workspace),
+                server_url=server_url,
+                username=username,
+                team_slug=team_slug,
+            ),
         )
 
     def _build_engine(self, config: TrackerProjectConfig, credentials: dict[str, Any], store: TrackerSqliteStore) -> Any:
