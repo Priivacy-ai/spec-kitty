@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+import threading
 from pathlib import Path
 
 import pytest
@@ -80,9 +81,11 @@ def test_fault_between_any_bundle_mutation_rolls_back_the_outer_transaction(
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / f"runtime-{fail_after}"))
     store = ProjectSyncStore(PROJECT_UUID)
 
-    with pytest.raises(RuntimeError, match="fault after mutation"):
-        with store.unit_of_work() as unit:
-            _aggregate_mutations(unit, fail_after)
+    with (
+        pytest.raises(RuntimeError, match="fault after mutation"),
+        store.unit_of_work() as unit,
+    ):
+        _aggregate_mutations(unit, fail_after)
 
     assert _counts(store) == (0, 0, 0, 0, 0)
 
@@ -94,17 +97,16 @@ def test_nested_business_operations_reuse_one_connection_and_cannot_commit(
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
     store = ProjectSyncStore(PROJECT_UUID)
 
-    with store.unit_of_work() as outer:
-        with store.unit_of_work() as inner:
-            assert inner is outer
-            assert inner.connection_identity == outer.connection_identity
-            assert not hasattr(inner, "commit")
-            assert not hasattr(inner, "rollback")
-            with inner.savepoint("intentional_probe"):
-                inner.execute(
-                    "INSERT INTO capture_sequences (project_uuid, next_sequence) VALUES (?, 1)",
-                    (PROJECT_UUID,),
-                )
+    with store.unit_of_work() as outer, store.unit_of_work() as inner:
+        assert inner is outer
+        assert inner.connection_identity == outer.connection_identity
+        assert not hasattr(inner, "commit")
+        assert not hasattr(inner, "rollback")
+        with inner.savepoint("intentional_probe"):
+            inner.execute(
+                "INSERT INTO capture_sequences (project_uuid, next_sequence) VALUES (?, 1)",
+                (PROJECT_UUID,),
+            )
 
     assert _counts_for_query(
         store,
@@ -124,12 +126,11 @@ def test_foreign_project_rows_are_rejected_by_schema_ownership(
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
     store = ProjectSyncStore(PROJECT_UUID)
 
-    with pytest.raises(sqlite3.IntegrityError):
-        with store.unit_of_work() as unit:
-            unit.execute(
-                "INSERT INTO capture_sequences (project_uuid, next_sequence) VALUES (?, 1)",
-                ("bbbbbbbb-0000-0000-0000-000000000002",),
-            )
+    with pytest.raises(sqlite3.IntegrityError), store.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO capture_sequences (project_uuid, next_sequence) VALUES (?, 1)",
+            ("bbbbbbbb-0000-0000-0000-000000000002",),
+        )
 
     assert _counts_for_query(store, "SELECT COUNT(*) FROM capture_sequences") == 0
 
@@ -148,9 +149,8 @@ def test_incompatible_schema_is_preserved_and_refused(
         )
     before = store.database_path.read_bytes()
 
-    with pytest.raises(ProjectStoreVersionError):
-        with store.unit_of_work():
-            pytest.fail("incompatible stores must never expose a unit of work")
+    with pytest.raises(ProjectStoreVersionError), store.unit_of_work():
+        pytest.fail("incompatible stores must never expose a unit of work")
 
     assert store.database_path.read_bytes() == before
 
@@ -165,14 +165,18 @@ def test_locked_store_fails_closed_without_mutation(
         pass
 
     blocker = sqlite3.connect(store.database_path)
+    before = store.database_path.read_bytes()
     blocker.execute("BEGIN EXCLUSIVE")
     try:
-        with pytest.raises(ProjectStoreLockedError):
-            with store.unit_of_work(lock_timeout_seconds=0.01):
-                pytest.fail("locked stores must never expose a unit of work")
+        with (
+            pytest.raises(ProjectStoreLockedError),
+            store.unit_of_work(lock_timeout_seconds=0.01),
+        ):
+            pytest.fail("locked stores must never expose a unit of work")
     finally:
         blocker.rollback()
         blocker.close()
+    assert store.database_path.read_bytes() == before
 
 
 def test_two_store_instances_serialize_shared_uuid_writes(
@@ -184,16 +188,60 @@ def test_two_store_instances_serialize_shared_uuid_writes(
     second = ProjectSyncStore(PROJECT_UUID)
     assert first.database_path == second.database_path
 
-    with first.unit_of_work() as unit:
-        unit.execute(
-            "INSERT INTO capture_sequences (project_uuid, next_sequence) VALUES (?, 1)",
-            (PROJECT_UUID,),
-        )
-    with second.unit_of_work() as unit:
-        unit.execute(
-            "UPDATE capture_sequences SET next_sequence = next_sequence + 1 WHERE project_uuid = ?",
-            (PROJECT_UUID,),
-        )
+    first_entered = threading.Event()
+    release_first = threading.Event()
+    second_attempting = threading.Event()
+    second_entered = threading.Event()
+    failures: list[BaseException] = []
+
+    def first_writer() -> None:
+        try:
+            with first.unit_of_work() as unit:
+                unit.execute(
+                    "INSERT INTO capture_sequences "
+                    "(project_uuid, next_sequence) VALUES (?, 1)",
+                    (PROJECT_UUID,),
+                )
+                first_entered.set()
+                assert release_first.wait(timeout=5)
+        except BaseException as exc:  # pragma: no cover - asserted below
+            failures.append(exc)
+
+    def second_writer() -> None:
+        try:
+            assert first_entered.wait(timeout=5)
+            second_attempting.set()
+            with second.unit_of_work() as unit:
+                second_entered.set()
+                unit.execute(
+                    "UPDATE capture_sequences SET next_sequence = next_sequence + 1 "
+                    "WHERE project_uuid = ?",
+                    (PROJECT_UUID,),
+                )
+        except BaseException as exc:  # pragma: no cover - asserted below
+            failures.append(exc)
+
+    first_thread = threading.Thread(target=first_writer)
+    second_thread = threading.Thread(target=second_writer)
+    first_thread.start()
+    assert first_entered.wait(timeout=5)
+    second_thread.start()
+    assert second_attempting.wait(timeout=5)
+
+    probe = sqlite3.connect(first.database_path, timeout=0)
+    try:
+        with pytest.raises(sqlite3.OperationalError, match="locked"):
+            probe.execute("BEGIN IMMEDIATE")
+    finally:
+        probe.close()
+    assert not second_entered.is_set()
+
+    release_first.set()
+    first_thread.join(timeout=5)
+    second_thread.join(timeout=5)
+    assert not first_thread.is_alive()
+    assert not second_thread.is_alive()
+    assert failures == []
 
     assert _counts_for_query(
         first,

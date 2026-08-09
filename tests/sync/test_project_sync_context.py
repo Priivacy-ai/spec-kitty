@@ -66,6 +66,8 @@ def test_context_rejects_cross_project_and_partial_authority_pairs(
             admission_state=AdmissionState.ADMITTED,
             admission_generation="server-generation-1",
         )
+    with pytest.raises(ValueError, match="transport lease"):
+        store.create_context(transport_lease_identity="lease-without-authority")
 
 
 def test_eligibility_is_pure_and_context_is_frozen(
@@ -116,4 +118,3 @@ def test_capture_and_maintenance_capabilities_cannot_carry_loose_paths(
     assert maintenance.store_identity is context.store_identity
     assert not hasattr(capture, "database_path")
     assert not hasattr(maintenance, "database_path")
-

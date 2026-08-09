@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -78,6 +79,12 @@ def test_stale_permit_never_reaches_insert_and_redirects_exactly_once(
     assert refreshed.redirect_count == 1
     assert refreshed.generation == authority.read_state().generation
 
+    already_redirected = replace(stale, redirect_count=1)
+    unexpected_inserts = []
+    with pytest.raises(StaleLayoutWritePermitError):
+        authority.execute_write(already_redirected, unexpected_inserts.append)
+    assert unexpected_inserts == []
+
 
 def test_writer_racing_generation_advance_is_redirected_without_loss_or_double_write(
     tmp_path: Path,
@@ -141,4 +148,3 @@ def test_layout_authority_is_machine_shared_but_project_permits_are_not(
     assert permit_b.destination is LayoutDestination.PROJECT_STORE
     with pytest.raises(ValueError, match="project UUID"):
         authority_a.revalidate(permit_b)
-

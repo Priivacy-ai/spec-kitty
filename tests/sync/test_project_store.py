@@ -8,7 +8,9 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.paths import windows_paths
 from specify_cli.state.contract import STATE_SURFACES
+from specify_cli.sync import project_store as project_store_module
 from specify_cli.sync.project_identity import CanonicalProjectUUID
 from specify_cli.sync.project_store import (
     ProjectStoreCorruptError,
@@ -43,7 +45,14 @@ def test_project_uuid_is_canonicalized_once_before_any_path_exists(
     assert stores[0].project_uuid.storage_token.isascii()
     assert not runtime.exists(), "path resolution is pure and must not create state"
 
-    for invalid in (None, "", " ", "00000000-0000-0000-0000-000000000000", "not-a-uuid"):
+    for invalid in (
+        None,
+        "",
+        " ",
+        "00000000-0000-0000-0000-000000000000",
+        "not-a-uuid",
+        "urn:uuid:aaaaaaaa-0000-0000-0000-000000000001",
+    ):
         with pytest.raises((TypeError, ValueError)):
             ProjectSyncStore(invalid)  # type: ignore[arg-type]
     assert not runtime.exists(), "invalid identities must fail before filesystem creation"
@@ -78,6 +87,14 @@ def test_opening_project_a_never_opens_or_creates_project_b(
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
     store_a = ProjectSyncStore(PROJECT_A)
     store_b = ProjectSyncStore(PROJECT_B)
+    opened: list[Path] = []
+    real_connect = project_store_module.sqlite3.connect
+
+    def tracked_connect(database: str | Path, **kwargs: object) -> sqlite3.Connection:
+        opened.append(Path(database))
+        return real_connect(database, **kwargs)
+
+    monkeypatch.setattr(project_store_module.sqlite3, "connect", tracked_connect)
 
     with store_a.unit_of_work() as unit:
         row = unit.execute(
@@ -86,6 +103,7 @@ def test_opening_project_a_never_opens_or_creates_project_b(
 
     assert tuple(row) == (CANONICAL_A, store_a.schema_version, store_a.layout_version)
     assert store_a.database_path.is_file()
+    assert opened == [store_a.database_path]
     assert not store_b.database_path.exists()
     assert not store_b.database_path.parent.exists()
 
@@ -143,9 +161,8 @@ def test_owner_tamper_fails_closed_without_rewriting_evidence(
         )
     before = store.database_path.read_bytes()
 
-    with pytest.raises(ProjectStoreOwnerMismatchError):
-        with store.unit_of_work():
-            pytest.fail("owner-mismatched stores must never expose a unit of work")
+    with pytest.raises(ProjectStoreOwnerMismatchError), store.unit_of_work():
+        pytest.fail("owner-mismatched stores must never expose a unit of work")
 
     assert store.database_path.read_bytes() == before
 
@@ -160,9 +177,8 @@ def test_corrupt_store_is_preserved_and_refused(
     evidence = b"not a sqlite database\x00incident-evidence"
     store.database_path.write_bytes(evidence)
 
-    with pytest.raises(ProjectStoreCorruptError):
-        with store.unit_of_work():
-            pytest.fail("corrupt stores must never expose a unit of work")
+    with pytest.raises(ProjectStoreCorruptError), store.unit_of_work():
+        pytest.fail("corrupt stores must never expose a unit of work")
 
     assert store.database_path.read_bytes() == evidence
 
@@ -172,3 +188,20 @@ def test_canonical_uuid_value_rejects_loose_identity_objects() -> None:
     with pytest.raises(TypeError):
         CanonicalProjectUUID.parse(object())
 
+
+@pytest.mark.parametrize("platform", ["linux", "darwin", "win32"])
+def test_runtime_override_is_identical_on_every_supported_platform(
+    platform: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = tmp_path / "Café-東京" / "runtime"
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime))
+    monkeypatch.setattr(windows_paths, "_current_platform", lambda: platform)
+
+    store = ProjectSyncStore(PROJECT_A)
+
+    assert store.database_path == (
+        runtime / "projects" / CANONICAL_A / "sync" / "sync.db"
+    )
+    assert store.project_uuid.storage_token.isascii()

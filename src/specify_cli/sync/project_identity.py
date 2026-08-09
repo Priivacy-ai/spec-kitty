@@ -16,8 +16,13 @@ home; ``delivery/targets.py`` already precedents importing from
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
+from uuid import UUID
+
+from specify_cli.paths import get_runtime_root
 
 from specify_cli.identity.project import (  # noqa: F401
     ProjectIdentity,
@@ -31,11 +36,24 @@ from specify_cli.identity.project import (  # noqa: F401
     load_identity,
 )
 
+_UUID_TEXT = re.compile(
+    r"(?:"
+    r"[0-9A-Fa-f]{32}"
+    r"|[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-"
+    r"[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"
+    r"|\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-"
+    r"[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\}"
+    r")",
+    flags=re.ASCII,
+)
+
 # ``ensure_identity`` remains importable for explicit legacy callers of this shim,
 # but is intentionally omitted from ``__all__`` so wildcard imports do not promote
 # a write-boundary helper as part of the trimmed public surface.
 __all__ = [
+    "CanonicalProjectUUID",
     "ProjectIdentity",
+    "ProjectStorePaths",
     "atomic_write_config",
     "derive_project_slug",
     "generate_build_id",
@@ -45,6 +63,99 @@ __all__ = [
     "load_identity",
     "resolve_event_project_uuid",
 ]
+
+
+@dataclass(frozen=True, order=True, slots=True)
+class CanonicalProjectUUID:
+    """Strict UUID value used for project-owned runtime state.
+
+    UUID spelling is normalized once to lowercase, hyphenated ASCII.  Nil,
+    missing, malformed, and loose identity objects are rejected before callers
+    can derive or create a filesystem location.
+    """
+
+    _value: UUID
+
+    @classmethod
+    def parse(
+        cls,
+        value: CanonicalProjectUUID | UUID | str,
+    ) -> CanonicalProjectUUID:
+        """Return *value* as one non-nil canonical project UUID."""
+        if isinstance(value, cls):
+            return value
+        if isinstance(value, UUID):
+            parsed = value
+        elif isinstance(value, str):
+            text = value.strip()
+            if not text:
+                raise ValueError("project UUID is required")
+            if _UUID_TEXT.fullmatch(text) is None:
+                raise ValueError(f"malformed project UUID: {value!r}")
+            try:
+                parsed = UUID(text)
+            except ValueError as exc:
+                raise ValueError(f"malformed project UUID: {value!r}") from exc
+        else:
+            raise TypeError("project UUID must be a UUID string or UUID value")
+        if parsed.int == 0:
+            raise ValueError("nil project UUID cannot own a sync store")
+        return cls(parsed)
+
+    @property
+    def storage_token(self) -> str:
+        """Lowercase hyphenated ASCII token used in storage paths."""
+        token = str(self._value)
+        if not token.isascii():  # Defensive: UUID.__str__ is ASCII by contract.
+            raise ValueError("canonical UUID storage token must be ASCII")
+        return token
+
+    def __str__(self) -> str:
+        return self.storage_token
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectStorePaths:
+    """All durable paths derived from one canonical UUID and runtime root."""
+
+    project_uuid: CanonicalProjectUUID
+    runtime_root: Path
+
+    @classmethod
+    def for_project(
+        cls,
+        project_uuid: CanonicalProjectUUID | UUID | str,
+    ) -> ProjectStorePaths:
+        """Resolve paths without performing filesystem I/O."""
+        return cls(
+            project_uuid=CanonicalProjectUUID.parse(project_uuid),
+            runtime_root=get_runtime_root().base,
+        )
+
+    @property
+    def sync_directory(self) -> Path:
+        """Directory containing this project's complete sync aggregate."""
+        return (
+            self.runtime_root
+            / "projects"
+            / self.project_uuid.storage_token
+            / "sync"
+        )
+
+    @property
+    def database(self) -> Path:
+        """Canonical live SQLite database path for this project."""
+        return self.sync_directory / "sync.db"
+
+    @property
+    def egress_lock(self) -> Path:
+        """Sibling transport/result lock derived from the project store."""
+        return self.sync_directory / "egress.lock"
+
+    @property
+    def migration_reports(self) -> Path:
+        """Derived non-sensitive migration-report directory."""
+        return self.sync_directory / "migration" / "reports"
 
 
 # --- canonical event-identity resolution (#3030 T011) ---------------------

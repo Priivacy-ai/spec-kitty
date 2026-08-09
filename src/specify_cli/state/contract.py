@@ -671,6 +671,40 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         owner_module="tracker/store",
         creation_trigger="tracker sync or cache init",
     ),
+    StateSurface(
+        name="project_sync_store",
+        path_pattern="~/.spec-kitty/projects/<canonical-uuid>/sync/sync.db",
+        root=StateRoot.GLOBAL_SYNC,
+        format=StateFormat.SQLITE,
+        authority=AuthorityClass.AUTHORITATIVE,
+        git_class=GitClass.OUTSIDE_REPO,
+        owner_module="sync/project_store",
+        creation_trigger="first ProjectSyncStore unit of work",
+        notes="One transactionally coherent hosted-sync aggregate per canonical UUID.",
+    ),
+    StateSurface(
+        name="project_sync_egress_lock",
+        path_pattern="~/.spec-kitty/projects/<canonical-uuid>/sync/egress.lock",
+        root=StateRoot.GLOBAL_SYNC,
+        format=StateFormat.LOCKFILE,
+        authority=AuthorityClass.LOCAL_RUNTIME,
+        git_class=GitClass.OUTSIDE_REPO,
+        owner_module="sync/project_store",
+        creation_trigger="project transport/result barrier acquisition",
+    ),
+    StateSurface(
+        name="project_sync_migration_reports",
+        path_pattern=(
+            "~/.spec-kitty/projects/<canonical-uuid>/sync/migration/reports/"
+        ),
+        root=StateRoot.GLOBAL_SYNC,
+        format=StateFormat.DIRECTORY,
+        authority=AuthorityClass.LOCAL_RUNTIME,
+        git_class=GitClass.OUTSIDE_REPO,
+        owner_module="sync/project_store_migration",
+        creation_trigger="project-store migration preview or verification",
+        notes="Non-sensitive counts, IDs, hashes, phases, and reason codes only.",
+    ),
     # -----------------------------------------------------------------------
     # Section F -- Global Runtime (~/.kittify/)
     # -----------------------------------------------------------------------
