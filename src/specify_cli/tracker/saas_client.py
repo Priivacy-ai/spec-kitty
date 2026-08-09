@@ -155,8 +155,8 @@ def _current_team_slug_sync() -> str | None:
         return None
     for team in session.teams:
         if team.id == session.default_team_id:
-            return team.id
-    return session.teams[0].id
+            return cast(str, team.id)
+    return cast(str, session.teams[0].id)
 
 
 # ---------------------------------------------------------------------------
