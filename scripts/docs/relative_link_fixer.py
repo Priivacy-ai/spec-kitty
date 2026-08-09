@@ -72,6 +72,9 @@ _REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from scripts.docs._guards import (  # noqa: E402  (sys.path bootstrap above)
+    assert_examined_floor,
+)
 from scripts.docs.bulk_ref_rewrite import (  # noqa: E402  (sys.path bootstrap above)
     DEFAULT_OCCURRENCE_MAP,
     SKIP_MOVE_FROMS,
@@ -524,18 +527,21 @@ def check_dead_body_links(
             # the repo root and resolve on disk are intentional and accepted.
             if _escapes_repo_root(current) or not (repo_root / current).exists():
                 dead.append(Unresolvable(file=rel, link=parsed.path, line=line_num))
-    if files_visited < min_files:
-        raise RuntimeError(
-            f"check_dead_body_links: only {files_visited} doc file(s) found under"
-            f" {DOCS_ROOT}/ — expected at least {min_files}"
-            " (FR-004 non-vacuity guard)"
-        )
-    if links_examined < min_links:
-        raise RuntimeError(
-            f"check_dead_body_links: only {links_examined} bare-relative inline"
-            f" link(s) examined — expected at least {min_links}"
-            " (FR-004 non-vacuity guard, possible misconfiguration)"
-        )
+    assert_examined_floor(
+        files_visited,
+        min_files,
+        gate="check_dead_body_links",
+        noun=f"doc file(s) found under {DOCS_ROOT}/",
+        fr_id="FR-004",
+    )
+    assert_examined_floor(
+        links_examined,
+        min_links,
+        gate="check_dead_body_links",
+        noun="bare-relative inline link(s) examined",
+        fr_id="FR-004",
+        extra="possible misconfiguration",
+    )
     return sorted(dead, key=lambda u: (u.file, u.line, u.link))
 
 
