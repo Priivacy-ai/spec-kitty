@@ -25,7 +25,7 @@ context-sources:
     - "041"
     - "043"
     - "044"
-    - "047"
+    - "051"
   additional:
     - architecture-decision-records
     - design-pattern-catalog
@@ -143,7 +143,7 @@ directive-references:
   - code: "044"
     name: Canonical Sources and Unification
     rationale: System designs must converge on single canonical surfaces; parallel copies or parity fixes to non-canonical surfaces are architectural violations that must be consolidated
-  - code: "047"
+  - code: "051"
     name: Supply-Chain Install Safety
     rationale: >-
       Dependency provenance, lifecycle-script execution, and Node runtime

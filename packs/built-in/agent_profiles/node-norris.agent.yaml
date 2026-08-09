@@ -28,7 +28,7 @@ context-sources:
     - "025"
     - "030"
     - "034"
-    - "047"
+    - "051"
   additional:
     - coding-standards
     - test-strategy
@@ -214,7 +214,7 @@ directive-references:
   - code: "034"
     name: Test-First Development
     rationale: Write failing integration tests before implementing endpoints
-  - code: "047"
+  - code: "051"
     name: Supply-Chain Install Safety
     rationale: >-
       npm/yarn/pnpm dependency changes require registry authenticity, package

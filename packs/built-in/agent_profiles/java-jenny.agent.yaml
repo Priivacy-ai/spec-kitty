@@ -28,7 +28,7 @@ context-sources:
     - "025"
     - "030"
     - "034"
-    - "047"
+    - "051"
   tactics:
     - dependency-hygiene
   additional:
@@ -188,7 +188,7 @@ directive-references:
   - code: "034"
     name: Test-First Development
     rationale: Tests define the contract before production code — ATDD/TDD red-green-refactor is the default implementation rhythm
-  - code: "047"
+  - code: "051"
     name: Supply-Chain Install Safety
     rationale: >-
       Maven/Gradle dependency additions and upgrades require official-registry

@@ -31,7 +31,7 @@ context-sources:
     - "043"
     - "044"
     - "045"
-    - "047"
+    - "051"
   tactics:
     - test-scaffolding-as-design-smell
     - dependency-hygiene
@@ -185,7 +185,7 @@ directive-references:
   - code: "045"
     name: PRs-Only and Read-Intent Before High-Risk Operations
     rationale: Never push directly to origin/main or run `gh pr merge` without explicit operator instruction; read mission context before any high-risk git operation (merge, rebase, deletion, force)
-  - code: "047"
+  - code: "051"
     name: Supply-Chain Install Safety
     rationale: >-
       pip/uv dependency additions and upgrades require official-registry
