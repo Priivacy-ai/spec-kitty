@@ -110,6 +110,9 @@ Every mission type — Software Dev, Deep Research, Documentation, and Plan — 
 - **"Unknown mission"**: Use `spec-kitty mission list` to list available missions.
 - **Missing `/spec-kitty.research`**: Your agent's command files are stale or weren't generated for this project. Run `spec-kitty upgrade` to regenerate them, then check `ls .claude/commands/` (or the equivalent directory for your agent) for `spec-kitty.research.md`.
 
+>[!TIP]
+>If `/spec-kitty.research` is missing, agent command files are likely stale. Run `spec-kitty upgrade`, then check the agent commands directory for `spec-kitty.research.md`.
+
 ## What's Next?
 
 Explore the full workflow in [Your First Mission](your-first-mission.md) or dive deeper into specific missions.

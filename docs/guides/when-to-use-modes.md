@@ -14,6 +14,9 @@ related:
 
 Choose the lightest path that still fits the work. Spec Kitty offers several entry points: skip it entirely for trivial edits, dispatch a specialist for a short task, run a bounded adversarial review at an SDD checkpoint, or drive a full mission when acceptance criteria and structured review matter.
 
+>[!TIP]
+>Start with the lightest path that still fits: skip Spec Kitty for trivial edits, use an ad-hoc specialist for a short task, run an adversarial squad at an SDD checkpoint, and reserve a full mission when acceptance criteria and structured review matter.
+
 ![When to use Spec Kitty modes](../assets/images/when-to-use-modes-corporate-memphis.png)
 
 ## No Spec Kitty
@@ -47,6 +50,10 @@ Run adversarial review when an artifact is ready for challenge but you are not s
 **Why:** Spec->Plan->Tasks->Implement->Review. Parallel agents are a mission capability, not a separate mode.
 
 Expect bookkeeping commits as the mission advances work packages. See [Understanding Spec Kitty Missions](tutorials/missions-overview.md) and [Multi-agent workflow](tutorials/multi-agent-workflow.md) for mission setup and parallel work.
+
+## Compare the four paths
+
+![Compare Spec Kitty paths - No Spec Kitty, Ad-hoc, Adversarial, Full mission](../assets/images/when-to-use-modes-four-paths.png)
 
 ## Alternate visual
 

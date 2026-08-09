@@ -22,7 +22,8 @@ Except for the one-time CLI install, everything below happens inside your AI age
 
 ![Your first Spec Kitty mission - Mission Kitty briefing](../assets/images/your-first-mission-mission-kitty.png)
 
-> **Note**: This tutorial uses git for version control. Spec Kitty abstracts the VCS operations into simple commands.
+>[!NOTE]
+>This tutorial uses git for version control. Spec Kitty abstracts the VCS operations into simple commands.
 
 ## Overview
 
