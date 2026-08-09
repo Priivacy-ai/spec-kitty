@@ -9,7 +9,7 @@
 
 Hosted sync consent belongs to one immutable project identity, not to a login, service URL, checkout path, repository slug, remote URL, active target, or machine-wide switch. Each canonical `project_uuid` owns a physically isolated sync store containing its consent decision, event journal, delivery results and retries, body/offline queue, target binding, and migration/cutover metadata. No live operation for one project may open or mutate another project's store.
 
-Local project-isolated capture is allowed without hosted consent so that offline durability is not coupled to commercial-service use. Hosted egress remains default-denied and requires all of: the global kill switch permits egress, the current project has an explicit local grant, its target is ready, and the SaaS admission generation is current. This deliberately supersedes the shared-store capture restriction recorded by predecessor mission #3030 while preserving #3030's consent-bearing batches, final transmit checks, SQL identity checks, and terminal refusal handling as defense in depth.
+Local project-isolated capture is allowed without hosted consent so that offline durability is not coupled to commercial-service use. Each captured row belongs to a consent epoch. Opt-in starts a fresh eligible epoch at the current capture tail; older pre-consent or revoked-period rows remain sealed and are never automatically redrained. A separate explicit, previewed history action is required to include them. Hosted egress remains default-denied and requires the global kill switch, a current local grant, a ready exact target/account/Private-Teamspace binding, and that binding's current SaaS admission generation. This deliberately supersedes the shared-store capture restriction recorded by predecessor mission #3030 while preserving #3030's consent-bearing batches, final transmit checks, SQL identity checks, and terminal refusal handling as defense in depth.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -45,6 +45,8 @@ As a project owner, I want one clear project-scoped opt-in action, so that neith
 3. **Given** an explicitly consented project, **When** the global kill switch is disabled, **Then** no egress occurs but the project decision remains recorded.
 4. **Given** a fresh clone or re-initialized project with the same remote and a new UUID, **When** it starts, **Then** it is denied and receives a separate store.
 5. **Given** only a legacy granting record, **When** the new resolver evaluates consent, **Then** it requires explicit re-consent and never promotes that record automatically.
+6. **Given** rows captured before opt-in, **When** the user opts in, **Then** the command previews that excluded cohort, starts eligibility at the current capture tail, and sends no older row without a separate explicit history action.
+7. **Given** a legacy grant-writing option such as checkout-only/default inheritance or consent-index backfill, **When** it is invoked, **Then** it returns non-zero migration guidance and creates no grant.
 
 ---
 
@@ -54,7 +56,7 @@ As a project owner, I want opt-out to be an immediate local barrier with visible
 
 **Why this priority**: Revocable consent requires a precise concurrency boundary across interactive, daemon, WebSocket, body, history, and tracker-hosted senders.
 
-**Independent Test**: Pause each sender after selection but before transport, run opt-out, then release it. After opt-out returns, none begins a network write or records success for that project; another consented project continues. If SaaS is unreachable, the CLI reports remote revocation pending and retries only the revocation control action, never event delivery.
+**Independent Test**: Exercise two orderings per sender with real transport and ledger seams. Work paused before transport is canceled by opt-out. Work already past the transport-start barrier must settle its bounded result/ledger lease before opt-out returns. After return, no network write or success record can begin or appear; another project continues. If SaaS is unreachable, only the revocation control action is retried.
 
 **Acceptance Scenarios**:
 
@@ -62,7 +64,9 @@ As a project owner, I want opt-out to be an immediate local barrier with visible
 2. **Given** an active daemon outside every checkout, **When** project A opts out, **Then** the daemon stops opening or draining A while continuing consented project B.
 3. **Given** SaaS is reachable, **When** opt-out requests remote revocation, **Then** the CLI records the acknowledged server generation and reports complete revocation.
 4. **Given** SaaS is unreachable, **When** opt-out completes locally, **Then** local egress is stopped, remote revocation is visibly pending, and no claim of server-side completion is made.
-5. **Given** the user later opts in again, **When** a new generation is admitted, **Then** stale batches and purged/terminal rows are not silently resurrected.
+5. **Given** a transport began before opt-out, **When** its acknowledgement arrives, **Then** opt-out waits for the truthful result to be recorded under the old generation before returning; genuine success is never discarded and cannot create later eligibility.
+6. **Given** the user later opts in again, **When** a new consent epoch and target-scoped admission are established, **Then** stale, sealed, purged, and terminal rows are not silently resurrected.
+7. **Given** pending locally captured rows, **When** opt-out completes, **Then** it seals rather than deletes them; explicit purge remains separate.
 
 ---
 
@@ -82,6 +86,7 @@ As an existing user, I want legacy shared state partitioned safely into project-
 4. **Given** an interruption or rerun, **When** migration resumes, **Then** it neither duplicates nor redelivers rows and reports verifiable before/after identities, counts, and hashes.
 5. **Given** cutover is complete, **When** any live capture or delivery path runs, **Then** it cannot open the shared legacy journal, ledger, or offline queue; those remain diagnostic/purge-only.
 6. **Given** project A invokes opt-in, **When** migration is still needed, **Then** A's action cannot inspect, assign, delete, acknowledge, or migrate B's rows as a side effect.
+7. **Given** a recognized daemon is running, **When** cutover begins, **Then** migration quiesces it through a protocol/restart handshake; any later old-style write becomes diagnosed non-deliverable residue and is never dual-read.
 
 ---
 
@@ -97,8 +102,9 @@ As a maintainer, I want all hosted senders to carry one immutable project sync c
 
 1. **Given** direct dispatch, emitter WebSocket, daemon publish, event relay, body drain, final sync, reconnect flush, history import, tracker-hosted, and generic SaaS paths, **When** they attempt egress, **Then** each requires a matching immutable project context and current consent generation.
 2. **Given** a journal from A and delivery ledger or target from B, **When** a caller tries to construct a live delivery operation, **Then** it fails before selection or network I/O.
-3. **Given** the global daemon runs outside a checkout, **When** it enumerates project stores, **Then** its discovery index is non-authoritative and it re-reads each project's own consent before every drain tick.
+3. **Given** the global daemon runs outside a checkout, **When** it enumerates projects, **Then** a narrowing-only cached denial may skip payload state, but every missing, stale, unknown, pending, or possibly granted entry opens and re-reads project-owned authority before eligibility; no cache entry grants.
 4. **Given** target configuration changes, **When** a project next drains, **Then** target readiness is evaluated separately from consent and historical rows are not automatically redrained.
+5. **Given** local consent for target/account/Private-Teamspace X, **When** any of those target attributes change to Y, **Then** local consent remains recorded but Y is ineligible until it has its own current SaaS admission.
 
 ---
 
@@ -108,7 +114,7 @@ As a user of hosted sync, I want the CLI to establish and use the SaaS project's
 
 **Why this priority**: Core recurrence prevention must compose with the independent SaaS pre-write boundary.
 
-**Independent Test**: Run a real CLI-built mixed-project batch against the SaaS contract. Only locally consented, remotely admitted A is sent and persisted; unadmitted B is refused as `project_not_admitted` and parked terminally without retry.
+**Independent Test**: Run a conforming real CLI with six local projects and prove only admitted A appears in request bytes. Separately use a bypass/legacy client to prove SaaS refuses B–F, and force a stale-generation race so the real CLI receives `project_not_admitted` and parks the affected row.
 
 **Acceptance Scenarios**:
 
@@ -116,6 +122,7 @@ As a user of hosted sync, I want the CLI to establish and use the SaaS project's
 2. **Given** admission is pending or refused, **When** delivery runs, **Then** no event egress occurs and diagnostics name the required operator action.
 3. **Given** SaaS returns `project_not_admitted`, **When** the delivery result is recorded, **Then** the event is parked terminally and not retried as transient.
 4. **Given** tracker-specific Channel 2 permission is granted, **When** hosted-service consent is absent, **Then** tracker permission cannot grant or substitute for project sync consent.
+5. **Given** a LocalCommit, body upload, event, or history/preflight write, **When** the client sends it, **Then** it carries the same source UUID and target-scoped admission generation required by the canonical contract.
 
 ### Edge Cases
 
@@ -124,9 +131,11 @@ As a user of hosted sync, I want the CLI to establish and use the SaaS project's
 - Storage tokens are deterministic ASCII on Linux, macOS, and Windows even when display names contain accented Latin or other non-ASCII characters.
 - Corrupt, locked, partially migrated, or schema-incompatible stores fail closed and preserve source evidence.
 - Concurrent worktrees sharing a UUID serialize migrations and consent-generation updates without losing locally captured events.
-- An event may be captured locally before opt-in, but it cannot be selected or transmitted until current local consent, target readiness, kill-switch permission, and server admission all agree.
+- An event captured before opt-in belongs to a sealed epoch and cannot enter ordinary delivery; only a separate explicit, previewed history action can include it.
 - Disabling the kill switch never deletes the local grant or queue; enabling it never grants a project.
 - Changing active target never makes another project's store eligible and never triggers implicit historical redelivery.
+- Changing server URL, authenticated account, or canonical Private Teamspace invalidates only the target-scoped SaaS admission binding; it does not silently change project-wide local consent.
+- A stale deny-only hint may delay liveness and must be diagnosable, but a cached or stale grant can never bypass opening project-owned authority.
 - Re-opt-in behavior preserves terminal refusals, purges, and explicit user choices; it does not manufacture a retry backlog.
 - Unknown legacy rows remain local and non-deliverable until a separate explicit Human-in-Charge disposition.
 
@@ -137,36 +146,41 @@ As a user of hosted sync, I want the CLI to establish and use the SaaS project's
 | ID | Title | User Story | Priority | Status |
 |----|-------|------------|----------|--------|
 | FR-001 | Canonical project identity | All sync storage, consent, routing, and delivery authority shall be keyed by one canonical immutable `project_uuid`. | High | Open |
-| FR-002 | ProjectSyncStore boundary | Each project shall own physically separate consent, journal, delivery, body/offline, target, and migration state; no live project operation may open another project's store. | High | Open |
+| FR-002 | ProjectSyncStore boundary | Each project shall own one physically separate, transactionally coherent sync store containing consent, journal, delivery, body/offline, target/admission, epoch, and migration state; no live project operation may open another project's store. | High | Open |
 | FR-003 | One consent authority | One versioned project-owned decision shall be the only local grant authority; path, slug, remote, login, URL, environment, target, store presence, and machine indexes shall never grant. | High | Open |
 | FR-004 | Explicit offline-capable opt-in | The named opt-in action shall record an attributable project grant even when offline or while the global kill switch is disabled, then report remote admission as active, pending, or refused. | High | Open |
 | FR-005 | Deny-only kill switch | `SPEC_KITTY_ENABLE_SAAS_SYNC` shall only suppress egress; no value shall create, copy, revive, or delete a project grant. | High | Open |
 | FR-006 | Capture/egress separation | Project-isolated local capture may occur without hosted consent, while selection and every final transport require current project consent and matching project context. | High | Open |
-| FR-007 | Separate target binding | Project target configuration shall be stored and evaluated separately from consent and shall never grant consent or select another project's data. | High | Open |
-| FR-008 | Local opt-out barrier | Opt-out shall change the project generation so that, after the command returns, no new HTTP, WebSocket, body, history, tracker-hosted, daemon, relay, reconnect, or final-sync write can begin for that project. | High | Open |
+| FR-007 | Separate target-scoped admission | Project-wide local consent shall be separate from a SaaS admission keyed by immutable resolved target identity, authenticated account/canonical Private Teamspace, and project UUID; target changes invalidate eligibility without granting or redraining. | High | Open |
+| FR-008 | Local opt-out barrier | Opt-out shall serialize with each project transport/result lease, wait for already-started bounded outcomes to be recorded, advance/seal the consent epoch, and return only when no later network write or success record can begin or appear. | High | Open |
 | FR-009 | Remote revocation truth | Opt-out shall attempt or queue SaaS revocation and distinguish acknowledged server revocation from locally complete but remotely pending state. | High | Open |
 | FR-010 | Sender-context integrity | Every live sender shall consume one immutable project context whose UUID, store, consent generation, target, and server admission agree; mismatches fail before network I/O. | High | Open |
-| FR-011 | Daemon isolation | Background discovery may enumerate project stores but shall re-read project-owned consent per tick and never use current working directory or a machine index as granting authority. | High | Open |
-| FR-012 | Legacy partition migration | A previewable, idempotent, crash-safe migration shall partition identifiable shared journal, delivery, and offline/body state by canonical UUID while preserving event identities and delivery status. | High | Open |
+| FR-011 | Daemon isolation | Background discovery may use only a narrowing deny-only hint: denied/revoked may skip payload-store open, while missing/stale/unknown/pending/possibly granted must re-read project-owned authority; no hint, cwd, or machine index can grant. | High | Open |
+| FR-012 | Legacy partition migration | A previewable, copy-only, idempotent migration shall partition identifiable shared journal, delivery, and offline/body state by canonical UUID, preserve exact identities/status, verify durably, and atomically activate a project-store-only cutover marker. | High | Open |
 | FR-013 | Legacy quarantine | Missing, malformed, conflicting, and identity-less legacy rows shall remain in a named non-deliverable local quarantine with diagnostics and no synthetic project assignment. | High | Open |
 | FR-014 | No legacy grant promotion | New-format refusals may be derived from legacy refusals, but every legacy grant lacking current explicit provenance shall require re-consent. | High | Open |
 | FR-015 | Exclusive live cutover | After migration, live capture and delivery shall read only project stores; shared stores shall be diagnostic/purge-only with no dual-read delivery fallback. | High | Open |
-| FR-016 | Stable SaaS refusal | The CLI shall consume the canonical SaaS `project_not_admitted` terminal refusal and park affected events without transient retry. | High | Open |
+| FR-016 | Stable SaaS refusal | The CLI shall consume correlated canonical SaaS `project_not_admitted` refusals for event, LocalCommit, body, and history/preflight writes and park affected work without transient retry. | High | Open |
 | FR-017 | Structural diagnostics | Diagnostics shall report store identity, local decision, kill-switch state, target readiness, server-admission state, pending revocation, migration/quarantine state, and the blocking reason without secrets or payloads. | Medium | Open |
 | FR-018 | Predecessor preservation | Consent-bearing batches, final transmit rechecks, project SQL identity predicates, purge, and terminal-refusal controls from #3030 shall remain as independent defense in depth. | High | Open |
-| FR-019 | Cross-repository proof | The final acceptance gate shall run a real six-project CLI↔SaaS scenario with one admitted project and prove exact sent identities plus absence of foreign markers and hosted rows. | High | Open |
+| FR-019 | Cross-repository proof split | A conforming six-project CLI run shall prove only A appears in request bytes; separate bypass/legacy server tests shall refuse B–F; a real stale-generation race shall prove CLI terminal parking. | High | Open |
 | FR-020 | Incident evidence separation | Core #3262 closure evidence shall not claim SaaS #585 is closed; historical disposition remains a separate Human-in-Charge gate. | High | Open |
+| FR-021 | Consent epochs | Every captured row shall carry an epoch; opt-in starts eligibility at the current tail, opt-out seals the epoch without deleting rows, and re-opt-in never auto-eligibilizes older epochs. | High | Open |
+| FR-022 | Explicit history action | Pre-consent, revoked-period, and other sealed rows may egress only through a separate previewed explicit history action under current consent, target, and admission. | High | Open |
+| FR-023 | Legacy writer retirement | Checkout-only/default inheritance, consent-index backfill, and every other legacy grant writer/flag shall be removed or fail non-zero with migration guidance and shall create no grant. | High | Open |
+| FR-024 | Old-process cutover safety | Migration shall quiesce recognized daemons through a protocol/restart handshake; post-cutover writes to legacy stores are diagnosed as non-deliverable residue and never read live. | High | Open |
+| FR-025 | Truthful in-flight outcomes | A genuine result from a transport started before opt-out shall be recorded under its original generation before opt-out returns; it is never discarded or used to revive later eligibility. | High | Open |
 
 ### Non-Functional Requirements
 
 | ID | Title | Requirement | Category | Priority | Status |
 |----|-------|-------------|----------|----------|--------|
 | NFR-001 | Physical isolation proof | Store-open instrumentation shall observe zero cross-project file opens, locks, reads, writes, acknowledgements, schema operations, or deletes across the required A/B matrix. | Privacy | High | Open |
-| NFR-002 | Migration fidelity | For identifiable legacy data, before/after event-ID sets, delivery states, attempts, and content hashes shall match exactly; rerunning after every injected phase failure shall add zero duplicates and zero redeliveries. | Reliability | High | Open |
-| NFR-003 | Revocation race proof | At least one barrier-controlled test per live sender class shall prove zero network writes beginning after opt-out returns, while an unreleased positive control delivers successfully. | Concurrency | High | Open |
+| NFR-002 | Migration fidelity | For identifiable data, before/after IDs, targets, delivery states, attempts, timestamps, and content hashes shall match exactly; subprocess termination before/after every durable phase shall add zero duplicates/redeliveries and leave sources unchanged. | Reliability | High | Open |
+| NFR-003 | Revocation race proof | Per sender, real transport/ledger tests shall cover pause-before-start and start-before-opt-out: opt-out cancels the former, waits for truthful bounded settlement of the latter, and permits zero post-return write/success. | Concurrency | High | Open |
 | NFR-004 | Mutation strength | Mutants that restore a shared store, grant from environment or repo defaults, remove the final consent check, or cross-pair project context shall each make named acceptance tests fail. | Test integrity | High | Open |
 | NFR-005 | Cross-platform identity | Project store resolution shall produce deterministic ASCII-safe paths and pass the identity matrix on Linux, macOS, and Windows, including accented and non-ASCII display names. | Portability | High | Open |
-| NFR-006 | Performance | With 100 discovered project stores, a daemon eligibility scan shall complete within 500 ms p95 without opening stores for projects known locally to be denied or revoked. | Performance | Medium | Open |
+| NFR-006 | Performance | On the documented local SSD profile, 200 warm scans of 100 projects (80 valid deny hints, 20 candidates requiring authority reads) shall complete within 500 ms p95; 30 cold scans shall complete within 1 s p95, and no denied payload table may open. | Performance | Medium | Open |
 | NFR-007 | Credential and payload safety | Diagnostics, migration reports, logs, fixtures, and errors shall expose zero access tokens and zero raw event bodies outside their owning project store. | Security | High | Open |
 
 ### Constraints
@@ -181,16 +195,20 @@ As a user of hosted sync, I want the CLI to establish and use the SaaS project's
 | C-006 | Historical events excluded | This mission shall not inspect, delete, move, reassign, or decide the disposition of the 1,322 historical SaaS events. | Operational | High | Open |
 | C-007 | No production mutation | Implementation, testing, review, and retrospective shall use local/test environments and shall not alter production configuration, data, consent, or admission state. | Safety | High | Open |
 | C-008 | No silent compatibility fallback | Old shared stores and legacy consent records may support diagnosis, explicit migration, or purge only; they shall never silently re-enter live delivery. | Architecture | High | Open |
+| C-009 | No automatic opt-out purge | Opt-out seals eligibility but does not delete captured events or bodies; deletion requires the existing explicit purge workflow. | Data lifecycle | High | Open |
+| C-010 | Admission target identity | An opaque server generation is valid only for the exact resolved server, authenticated account/canonical Private Teamspace, and project UUID that produced it. | Security | High | Open |
 
 ### Key Entities
 
-- **Project sync store**: The complete local hosted-sync boundary for one canonical UUID, holding consent, target, journal, delivery, body/offline, and migration state.
-- **Project sync context**: An immutable operation-scoped binding of project UUID, store identity, local consent generation, target binding, and SaaS admission generation.
+- **Project sync store**: One transactionally coherent physical hosted-sync boundary for one canonical UUID, holding consent/epochs, target/admission, journal, delivery, body/offline, and migration state.
+- **Project sync context**: An immutable operation-scoped binding of project UUID, store identity, consent epoch/generation, exact target/account/Private-Teamspace binding, and SaaS admission generation.
 - **Project consent decision**: A versioned, attributable local grant or refusal written only by an explicit project action.
 - **Target binding**: The hosted destination for a project; necessary for delivery but never a consent source.
 - **SaaS admission**: The independent server authorization for `(team, project_uuid)`, represented locally by an opaque current generation and state.
 - **Legacy quarantine**: A non-deliverable store for rows that cannot be attributed safely during migration.
 - **Discovery index**: Optional non-authoritative metadata used to find project stores; it can never grant consent or supply the decision itself.
+- **Consent epoch**: A capture interval whose rows share an eligibility generation; denied and revoked periods are sealed and never automatically redrained.
+- **Deny-only hint**: Non-authoritative discovery metadata that may suppress work only; it can never assert a grant.
 
 ## Success Criteria *(mandatory)*
 
@@ -199,16 +217,19 @@ As a user of hosted sync, I want the CLI to establish and use the SaaS project's
 - **SC-001**: For two projects on one machine, every capture, delivery, acknowledgement, migration, diagnostic, purge, and opt-out test observes zero access to the other project's sync stores.
 - **SC-002**: Every combination of login, host configuration, target, repo/path legacy records, old UUID cache, daemon state, and global environment setting leaves an unconsented project denied; only the explicit new opt-in creates a grant.
 - **SC-003**: Mixed-store migration preserves 100% of attributable event identities and delivery states, quarantines 100% of unknown identities, and remains idempotent after injected interruption at every phase.
-- **SC-004**: After opt-out returns, barrier-controlled coverage across all live sender classes observes zero new network writes or success acknowledgements for that project while another project continues.
+- **SC-004**: Across all sender classes, pre-start work is canceled, already-started work settles truthfully before opt-out returns, and zero new network writes or success records occur afterward while another project continues.
 - **SC-005**: The global flag suppresses 100% of hosted egress when disabled and grants zero projects when enabled.
-- **SC-006**: A six-project cross-repository test sends and persists only the one locally consented and remotely admitted project, with exact request-body identity evidence and no foreign marker leakage.
+- **SC-006**: A conforming six-project run sends and persists only A; bypass/legacy server tests refuse B–F; a real stale-generation race returns `project_not_admitted` to the CLI and parks it, with exact request identities and no foreign marker leakage.
 - **SC-007**: Each required shared-store, implicit-grant, missing-final-gate, and cross-context mutant causes a named test to fail.
 - **SC-008**: Core #3262 has implementation, contract, test, and review evidence, while SaaS #585 remains explicitly gated on the Human-in-Charge's historical-event disposition.
+- **SC-009**: Initial opt-in, opt-out, target change, and re-opt-in demonstrate zero automatic eligibility for pre-consent, revoked-period, old-target, purged, or terminal rows.
+- **SC-010**: The legacy grant-writer inventory contains zero callable path that can create a grant outside the project-store command; every removed or blocked flag has an executable negative test.
 
 ## Dependencies and assumptions
 
 - Every participating repository has a canonical immutable `project_uuid`; two worktrees with that same UUID represent one logical project and share one machine-local project store.
 - The companion SaaS mission `project-sync-admission-boundary-01KZKMQ7` publishes the authoritative admission and `project_not_admitted` contract before core compatibility work is finalized.
+- SaaS admission is bound to the exact resolved server, authenticated account/canonical Private Teamspace, and source UUID; local consent remains project-wide when target attributes change.
 - Predecessor #3030 remains the defense-in-depth baseline except where this mission explicitly supersedes its shared-store and capture-coupling decisions.
 - The global environment setting remains available for emergency deny-only control, but users can record project consent while it is disabled.
 - Cross-repository acceptance may add or update the end-to-end-testing repository if the existing harness cannot prove the six-project matrix.
@@ -222,4 +243,5 @@ As a user of hosted sync, I want the CLI to establish and use the SaaS project's
 - General tracker connector redesign or completion of core #3108/PR #3135.
 - Restoring retired shared-queue senders or shared-store delivery compatibility.
 - Automatically redraining historical rows when a target changes or a project opts in again.
+- Silently deleting locally captured rows during opt-out; explicit purge remains separate.
 - Production deployment or production data/configuration mutation.
