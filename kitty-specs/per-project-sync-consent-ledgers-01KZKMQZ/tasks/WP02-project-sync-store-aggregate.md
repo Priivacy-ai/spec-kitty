@@ -30,6 +30,7 @@ history:
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/sync/project_store.py
 create_intent:
+- tests/architectural/test_project_store_boundary.py
 - src/specify_cli/sync/project_store.py
 - src/specify_cli/sync/layout_generation.py
 - src/specify_cli/sync/project_context.py
@@ -39,6 +40,8 @@ create_intent:
 - tests/sync/test_layout_generation.py
 execution_mode: code_change
 owned_files:
+- tests/architectural/test_project_store_boundary.py
+- tests/architectural/test_egress_consent_boundary.py
 - src/specify_cli/sync/project_store.py
 - src/specify_cli/sync/layout_generation.py
 - src/specify_cli/sync/project_context.py
