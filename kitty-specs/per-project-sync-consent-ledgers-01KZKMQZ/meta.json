@@ -12,5 +12,7 @@
   "purpose_tldr": "Make hosted sync an explicit, revocable decision with physically isolated state for each project.",
   "slug": "per-project-sync-consent-ledgers-01KZKMQZ",
   "target_branch": "feat/per-project-sync-consent",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-09T18:08:17.018894+00:00"
 }
