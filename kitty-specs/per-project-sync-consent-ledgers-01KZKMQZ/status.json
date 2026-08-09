@@ -1,7 +1,7 @@
 {
-  "event_count": 33,
-  "last_event_id": "01KZM5SX5S9K2056T1XFCHJ8PS",
-  "materialized_at": "2026-08-09T21:10:33.872624+00:00",
+  "event_count": 35,
+  "last_event_id": "01KZM7BWR6VDYXS7B2C5DXXBHG",
+  "materialized_at": "2026-08-09T21:37:51.878295+00:00",
   "mission_number": "",
   "mission_slug": "per-project-sync-consent-ledgers-01KZKMQZ",
   "mission_type": "software-dev",
@@ -12,26 +12,27 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
-    "in_review": 0,
+    "in_progress": 0,
+    "in_review": 1,
     "planned": 10
   },
   "work_packages": {
     "WP01": {
-      "actor": "codex",
-      "agent": "",
-      "agent_profile": "architect-alphonso",
-      "agent_profile_version": "1.0",
+      "actor": "codex-reviewer",
+      "agent": "codex-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "in_progress",
-      "last_event_id": "01KZM5SX5S9K2056T1XFCHJ8PS",
-      "last_transition_at": "2026-08-09T21:10:33.872624+00:00",
+      "lane": "in_review",
+      "last_event_id": "01KZM7BWR6VDYXS7B2C5DXXBHG",
+      "last_transition_at": "2026-08-09T21:37:51.878295+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "WP01 evidence package complete: ADR accepted; shrink-only store and consent-writer censuses; named sender/layout inventories; reusable A/B incident harness. Red evidence commit 355437de9 failed only on absent ADR; green commit 730873bed. Verification: 337 passed, 2 expected xfailed; ruff clean.",
         "Cycle-2 reroll closes all six review findings. Exact behavioral gate: PWHEADLESS=1 .venv/bin/python -m pytest -q tests/architectural/test_project_store_boundary.py tests/architectural/test_sync_writer_census.py tests/architectural/test_egress_consent_boundary.py tests/architectural/test_unfiltered_journal_read_boundary.py tests/sync/test_project_consent_incident_baseline.py tests/delivery/test_consented_batch_3030.py tests/delivery/test_dispatch_project_consent_3030.py tests/delivery/test_dispatch_window_consent_3030.py tests/specify_cli/invocation/test_propagator_consent_gate_3030.py tests/specify_cli/saas_client/test_client_consent_gate_3030.py tests/specify_cli/sync/test_local_commit_consent_gate_3030.py tests/sync/test_body_drain_consent_3030.py tests/sync/test_body_upload_consent_3030.py tests/sync/test_consent_fault_vocabulary_3030.py tests/sync/test_consent_field_fault_3030.py tests/sync/test_consent_read_fault_3030.py tests/sync/test_consent_resolver_3030.py tests/sync/test_consent_write_refusal_3030.py tests/sync/test_daemon_publish_consent_3030.py tests/sync/test_history_import_consent_3030.py tests/sync/test_ws_publish_consent_3030.py tests/sync/tracker/test_saas_client_consent_gate_3030.py -W error => 337 passed, 2 xfailed. Strict mypy exact four-file command => Success: no issues found in 4 source files. Ruff check exact four Python files => All checks passed. Targeted four-file warning-strict suite => 49 passed, 2 xfailed. Commits: 2e98d36e8 and 47bf72ba9.",
         "Cycle-3 reroll closes every executable cycle-2 non-vacuity finding using the default collectors. Commits 33b856e63 and 5e81849a0. Warning-strict focused four-file suite: 54 passed, 2 xfailed in 41.66s. Warning-strict full WP01/#3030 suite (same 22 paths recorded in cycle 2, including tests/specify_cli/sync/test_local_commit_consent_3030.py): 342 passed, 2 xfailed in 59.44s; the increase from 337 is five cycle-3 bite tests. Strict mypy exact four files: Success, no issues. Ruff format/check exact four files: unchanged/all checks passed. Documentation metadata plus isolated lifecycle: 678 passed in 33.66s; lifecycle residual remains accepted #3130/#3237 pin. git diff --check clean. No source, deploy, push, or external mutation.",
-        "Cycle-4 reroll closes the value-flow masks in commits 97599b69e and b9ff3e4d6. Exact focused gate: 58 passed, 2 xfailed. Full 22-surface consent regression: 346 passed, 2 xfailed under -W error. Docs/lifecycle controls: 678 passed under -W error; accepted #3130/#3237 lifecycle pin only. Ruff format/check, strict mypy (4 changed files), and git diff --check all clean."
+        "Cycle-4 reroll closes the value-flow masks in commits 97599b69e and b9ff3e4d6. Exact focused gate: 58 passed, 2 xfailed. Full 22-surface consent regression: 346 passed, 2 xfailed under -W error. Docs/lifecycle controls: 678 passed under -W error; accepted #3130/#3237 lifecycle pin only. Ruff format/check, strict mypy (4 changed files), and git diff --check all clean.",
+        "Cycle-5 reroll closes local-import/runtime binding, grant rebind, transitive sender alias, unresolved SQL, relational result-write, and mutable-attribute identity gaps in ce54b7081 and 04676fe6a. Red-first replay reproduced all exact blockers. Final focused: 62 passed, 2 xfailed. Full 22-surface WP01/#3030 matrix: 350 passed, 2 xfailed under -W error. Docs/lifecycle: 678 passed under -W error; accepted #3130/#3237 pin only. Ruff format/check, strict mypy over four owned files, git diff --check, and final 7-test store replay all clean."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -41,15 +42,15 @@
         "reviewer": "user",
         "verdict": "changes_requested"
       },
-      "role": "implementer",
-      "shell_pid": 0,
+      "role": "reviewer",
+      "shell_pid": 1091,
       "shell_pid_created_at": "1786272735.189561",
       "subtasks": {
-        "T001": "planned",
-        "T002": "planned",
-        "T003": "planned",
-        "T004": "planned",
-        "T005": "planned"
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
       }
     },
     "WP02": {
