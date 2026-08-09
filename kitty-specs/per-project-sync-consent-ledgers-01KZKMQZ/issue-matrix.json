@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "rows": {
+    "Priivacy-ai/spec-kitty#3262": {
+      "repo": "Priivacy-ai/spec-kitty",
+      "title": "Explicit per-project opt-in and per-project ledger",
+      "scope": "primary",
+      "fr": "FR-001,FR-002,FR-003,FR-004,FR-005,FR-006,FR-007,FR-008,FR-009,FR-010,FR-011,FR-012,FR-013,FR-014,FR-015,FR-016,FR-017,FR-018,FR-019,FR-020,FR-021,FR-022,FR-023,FR-024,FR-025,FR-026,FR-027,FR-028,FR-029,FR-030,FR-031,FR-032",
+      "nfr": "NFR-001,NFR-002,NFR-003,NFR-004,NFR-005,NFR-006,NFR-007",
+      "sc": "SC-001,SC-002,SC-003,SC-004,SC-005,SC-006,SC-007,SC-008,SC-009,SC-010,SC-011,SC-012,SC-013,SC-014",
+      "wp": null,
+      "source_file": "spec.md",
+      "evidence_ref": "Mission per-project-sync-consent-ledgers-01KZKMQZ; implementation evidence pending.",
+      "verdict": "in-mission"
+    },
+    "Priivacy-ai/spec-kitty-saas#585": {
+      "repo": "Priivacy-ai/spec-kitty-saas",
+      "title": "Consent incident and historical hosted contamination",
+      "scope": "companion-dependency",
+      "fr": "FR-004,FR-009,FR-016,FR-019,FR-020",
+      "nfr": "NFR-003,NFR-004,NFR-007",
+      "sc": "SC-006,SC-008",
+      "wp": null,
+      "source_file": "research.md",
+      "evidence_ref": "Companion SaaS mission project-sync-admission-boundary-01KZKMQ7. Historical 1,322-event disposition remains a Human-in-Charge gate.",
+      "verdict": "in-mission"
+    },
+    "Priivacy-ai/spec-kitty#3030": {
+      "repo": "Priivacy-ai/spec-kitty",
+      "title": "Predecessor project consent and filtered shared journal containment",
+      "scope": "predecessor-partially-superseded",
+      "fr": "FR-006,FR-018",
+      "nfr": "NFR-004",
+      "sc": "SC-007",
+      "wp": null,
+      "source_file": "research.md",
+      "evidence_ref": "Shared-store and capture-coupling decisions are superseded; default denial, consent-bearing batches, final recheck, SQL project predicates, purge, and terminal parking remain defense in depth.",
+      "verdict": "in-mission"
+    },
+    "Priivacy-ai/spec-kitty#3108": {
+      "repo": "Priivacy-ai/spec-kitty",
+      "title": "Tracker Channel 2 destination consent",
+      "scope": "related-not-absorbed",
+      "fr": "FR-010",
+      "nfr": null,
+      "sc": null,
+      "wp": null,
+      "source_file": "spec.md",
+      "evidence_ref": "Channel 2 may narrow tracker egress but never grants hosted sync; rebase against final consent API.",
+      "verdict": "deferred-with-followup"
+    },
+    "Priivacy-ai/spec-kitty#3135": {
+      "repo": "Priivacy-ai/spec-kitty",
+      "title": "Open PR implementing tracker egress verdict",
+      "scope": "pull-request-dependency",
+      "fr": "FR-010",
+      "nfr": null,
+      "sc": null,
+      "wp": null,
+      "source_file": "spec.md",
+      "evidence_ref": "PR #3135 must consume the final canonical consent seam if it lands after this mission; it is not shipped authority during planning.",
+      "verdict": "deferred-with-followup"
+    },
+    "Priivacy-ai/spec-kitty#1065": {
+      "repo": "Priivacy-ai/spec-kitty",
+      "title": "Rejected default-on sync direction",
+      "scope": "rejected-direction-guard",
+      "fr": "FR-003,FR-005",
+      "nfr": "NFR-004",
+      "sc": "SC-002,SC-005",
+      "wp": null,
+      "source_file": "spec.md",
+      "evidence_ref": "Default-on remains rejected; env/login/URL/target/store presence cannot grant.",
+      "verdict": "verified-already-fixed"
+    },
+    "Priivacy-ai/spec-kitty-saas#584": {
+      "repo": "Priivacy-ai/spec-kitty-saas",
+      "title": "Project purge tombstone precedence",
+      "scope": "cross-repository-adjacent",
+      "fr": "FR-009,FR-016",
+      "nfr": null,
+      "sc": null,
+      "wp": null,
+      "source_file": "research.md",
+      "evidence_ref": "Server tombstone outranks admission; SaaS mission owns verification.",
+      "verdict": "deferred-with-followup"
+    }
+  }
+}
