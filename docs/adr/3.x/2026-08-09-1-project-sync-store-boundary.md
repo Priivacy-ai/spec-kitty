@@ -44,13 +44,18 @@ attempt.
 
 ## Decision Outcome
 
-### 1. one UUID owns one `sync.db`
+### 1. One UUID owns one `sync.db`
 
 Each canonical project UUID owns exactly one hosted-sync SQLite database:
 
 ```text
-<runtime-root>/projects/<project-uuid>/sync.db
+<runtime-root>/projects/<lowercase-hyphenated-uuid>/sync/sync.db
 ```
+
+The database has a sibling `egress.lock` at
+`<runtime-root>/projects/<lowercase-hyphenated-uuid>/sync/egress.lock`. The lock
+serializes the final transport/cutover boundary for that same UUID; it is not a
+machine-global substitute for project ownership.
 
 The database holds that project's journal, delivery results, targets, body-upload
 work, refusal/parking state, consent decision, and migration provenance. A project
@@ -61,11 +66,11 @@ address the same project store.
 
 ### 2. `ProjectSyncStore` is the unit-of-work boundary
 
-`ProjectSyncStore` owns every live connection to a project's `sync.db`, the outer
-transaction, schema/version checks, and repository objects used inside that
-transaction. Journal, ledger, target, body-queue, and outbox components receive a
-store-owned connection or cursor. They do not open the live database and do not
-commit it.
+`ProjectSyncStore.unit_of_work()` owns every live connection to a project's
+`sync.db`, the outer transaction, schema/version checks, and repository objects
+used inside that transaction. Journal, ledger, target, body-queue, and outbox
+components receive a store-owned connection or cursor. They do not open the live
+database and do not commit it.
 
 One project-store action owns a hosted-sync attempt from request start through
 result write. The attempt carries one immutable project UUID and a target snapshot.
@@ -144,12 +149,15 @@ This keeps forensic history available without reopening the shared-store boundar
 
 ## Supersession and Relationship to #3030
 
-This ADR supersedes #3030's shared-live-store assumption, not its consent policy.
-In particular, #3030 allowed unconditional local capture because capture was not
-egress and could support later opt-in. That principle remains: local capture does
-not require hosted consent. Its storage changes from a machine-global live journal
-or outbox to the owning UUID's project store. The shared files cease being live
-capture destinations.
+This ADR **supersedes #3030's final consent-gated capture decision** and its
+shared-live-store assumption, while preserving its egress policy. #3030's final
+FR-002, amended NFR-005, and C-006 required an unconsented project never to reach
+the shared journal. This mission deliberately changes that collection decision:
+local capture may occur without hosted consent only inside the owning UUID's
+store, where capture sequence and epoch assignment are atomic. Pre-consent rows
+remain in sealed epochs and cannot become ordinary delivery candidates after a
+later opt-in; only an explicit preview/confirm history capability can select
+them. Shared journals and outboxes cease being live capture destinations.
 
 The egress-consent ADR remains authoritative for the sender-side question. This
 ADR makes the at-rest and transaction boundary match it: the record, consent
@@ -226,10 +234,9 @@ capability instead.
 This decision does not combine unrelated remediation merely because it touches a
 nearby transport:
 
-* #3108 remains separate work.
-* #3135 remains separate work.
+* #3108/PR #3135 remains separate work.
 * The historical **1,322 SaaS events** incident classification and downstream
-  handling remain **Human-in-Control (HiC)**. This ADR supplies local isolation
+  handling remain **Human-in-Charge (HiC)** controlled. This ADR supplies local isolation
   and evidence mechanics; it does not decide notification, deletion, or any
   server-side legal/operational action.
 

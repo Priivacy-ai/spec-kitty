@@ -8,17 +8,24 @@ the shared-store implementation; this module does not change production paths.
 from __future__ import annotations
 
 import ast
+import gzip
+import json
 import multiprocessing
 import sqlite3
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, cast
 
 import pytest
+
+from specify_cli.delivery.consent_gate import consented_batch, resolve_consent_answer
+from specify_cli.delivery.ledger import SqliteDeliveryLedger
+from specify_cli.delivery.receivers import OutboundEvent, TeamspaceReceiver
+from specify_cli.event_journal import Event, EventJournal, resolve_journal_path
 
 pytestmark = [pytest.mark.fast]
 
@@ -34,7 +41,11 @@ class IncidentProject:
 
     def planned_store_path(self, state_root: Path) -> Path:
         """The canonical path shape that WP02 will implement."""
-        return state_root / "projects" / self.uuid / "sync.db"
+        return state_root / "projects" / self.uuid / "sync" / "sync.db"
+
+    def planned_egress_lock_path(self, state_root: Path) -> Path:
+        """The store sibling serialized around final transport/cutover."""
+        return state_root / "projects" / self.uuid / "sync" / "egress.lock"
 
 
 @dataclass(frozen=True)
@@ -55,7 +66,7 @@ class SqliteOpenSpy:
 
     def __init__(self) -> None:
         self.targets: list[str] = []
-        self._real_connect = sqlite3.connect
+        self._real_connect = cast(Callable[..., sqlite3.Connection], sqlite3.connect)
 
     def connect(self, database: Any, *args: Any, **kwargs: Any) -> sqlite3.Connection:
         self.targets.append(str(database))
@@ -67,15 +78,34 @@ class SqliteOpenSpy:
         yield self
 
 
+@dataclass(frozen=True)
+class _TransportResponse:
+    event_ids: tuple[str, ...]
+    status_code: int = 200
+
+    def json(self) -> Mapping[str, object]:
+        return {"results": [{"event_id": event_id, "status": "success"} for event_id in self.event_ids]}
+
+
 @dataclass
 class ExactByteTransportSpy:
     """Capture the byte sequence handed to an injected HTTP/WS transport."""
 
     bodies: list[bytes] = field(default_factory=list)
+    event_ids: tuple[str, ...] = ()
 
-    def __call__(self, _url: str, *, data: bytes, **_kwargs: Any) -> object:
+    def __call__(
+        self,
+        _url: str,
+        *,
+        data: bytes,
+        headers: Mapping[str, str],
+        timeout: float,
+    ) -> _TransportResponse:
+        assert headers["Content-Encoding"] == "gzip"
+        assert timeout > 0
         self.bodies.append(bytes(data))
-        return type("Response", (), {"status_code": 200, "json": lambda _self: {}})()
+        return _TransportResponse(self.event_ids)
 
     async def send(self, data: bytes | str) -> None:
         self.bodies.append(data.encode() if isinstance(data, str) else bytes(data))
@@ -95,6 +125,16 @@ class DifferentialCounter:
 
     def delta(self, before: dict[str, int], project_uuid: str) -> int:
         return self.counts[project_uuid] - before.get(project_uuid, 0)
+
+    def observe_ledger(
+        self,
+        ledger: SqliteDeliveryLedger,
+        project_pairs: Mapping[str, Sequence[tuple[str, str]]],
+    ) -> None:
+        """Replace counts from the production ledger's public result-read seam."""
+        self.counts.clear()
+        for project_uuid, pairs in project_pairs.items():
+            self.counts[project_uuid] = sum(ledger.get(event_id, target_id) is not None for event_id, target_id in pairs)
 
 
 class CrossProcessBarrier:
@@ -117,7 +157,11 @@ class CrossProcessBarrier:
         self.released.set()
 
 
-def _barrier_worker(barrier: CrossProcessBarrier, result: Any) -> None:
+class _PutQueue(Protocol):
+    def put(self, value: str) -> None: ...
+
+
+def _barrier_worker(barrier: CrossProcessBarrier, result: _PutQueue) -> None:
     barrier.worker_pause()
     result.put("released")
 
@@ -158,7 +202,9 @@ def mutation_violations(specimen: MutationSpecimen) -> tuple[str, ...]:
     if specimen.kind is MutantKind.ENVIRONMENT_AS_GRANT:
         environment = "getenv" in text or "environ" in text
         grants = any(
-            isinstance(node, ast.Return) and any(isinstance(value, ast.Constant) and value.value is True for value in ast.walk(node.value))
+            isinstance(node, ast.Return)
+            and node.value is not None
+            and any(isinstance(value, ast.Constant) and value.value is True for value in ast.walk(node.value))
             for node in ast.walk(tree)
         )
         return (specimen.kind.value,) if environment and grants else ()
@@ -187,35 +233,84 @@ def test_same_slug_projects_resolve_to_distinct_uuid_store_paths(tmp_path: Path)
     state_root = tmp_path / "state"
     assert pair.a.slug == pair.b.slug
     assert pair.a.uuid != pair.b.uuid
-    assert pair.a.planned_store_path(state_root) != pair.b.planned_store_path(state_root)
+    assert pair.a.planned_store_path(state_root) == (state_root / "projects" / UUID_A / "sync" / "sync.db")
+    assert pair.b.planned_store_path(state_root) == (state_root / "projects" / UUID_B / "sync" / "sync.db")
+    assert pair.a.planned_egress_lock_path(state_root) == (pair.a.planned_store_path(state_root).with_name("egress.lock"))
+    assert pair.b.planned_egress_lock_path(state_root) == (pair.b.planned_store_path(state_root).with_name("egress.lock"))
 
 
-def test_store_open_and_exact_byte_spies_have_same_path_positive_controls(
+def test_spies_and_counter_observe_current_production_write_paths(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    db = tmp_path / "same.db"
+    runtime_home = tmp_path / "runtime"
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime_home))
+    journal_path = resolve_journal_path(user_id="operator", team_slug="team")
+    event = Event(
+        event_id="event-a-current-write",
+        event_type="WPStatusChanged",
+        payload=json.dumps(
+            {
+                "event_id": "event-a-current-write",
+                "project_uuid": UUID_A,
+                "payload": {"wp_id": "WP01"},
+            }
+        ).encode(),
+        occurred_at="2026-08-09T12:00:00+00:00",
+        created_at="2026-08-09T12:00:01+00:00",
+        project_uuid=UUID_A,
+        project_slug="same-slug",
+    )
     open_spy = SqliteOpenSpy()
     with open_spy.installed(monkeypatch):
-        sqlite3.connect(db).close()
-        sqlite3.connect(db).close()
-    assert open_spy.targets == [str(db), str(db)]
+        journal = EventJournal(journal_path)
+        journal.append(event)
+    assert journal.count() == 1
+    assert open_spy.targets
+    assert set(open_spy.targets) == {str(journal_path)}
 
-    body = b'{"project_uuid":"same-project","event_id":"01"}'
-    byte_spy = ExactByteTransportSpy()
-    byte_spy("https://example.invalid/events", data=body)
-    byte_spy("https://example.invalid/events", data=body)
-    assert byte_spy.bodies == [body, body]
+    wire_payload = {
+        "event_id": event.event_id,
+        "event_type": event.event_type,
+        "project_uuid": UUID_A,
+    }
+    outbound = OutboundEvent(event_id=event.event_id, payload=wire_payload)
+    answer = resolve_consent_answer(
+        [UUID_A],
+        consent_predicate=lambda candidates: frozenset(str(candidate) for candidate in candidates if candidate),
+    )
+    batch = consented_batch(
+        [outbound],
+        answer=answer,
+        event_projects={event.event_id: UUID_A},
+    )
+    byte_spy = ExactByteTransportSpy(event_ids=(event.event_id,))
+    receiver = TeamspaceReceiver(
+        resolved_server_url="https://app.spec-kitty.ai",
+        auth_token="test-token",
+        poster=byte_spy,
+    )
+    results = receiver.deliver(batch)
+    assert [result.event_id for result in results] == [event.event_id]
+    assert len(byte_spy.bodies) == 1
+    assert gzip.decompress(byte_spy.bodies[0]) == json.dumps({"events": [wire_payload]}).encode()
 
-
-def test_differential_counter_exposes_other_project_changes() -> None:
+    ledger = SqliteDeliveryLedger(str(tmp_path / "result-ledger.db"))
+    target_id = "target-a"
+    ledger.record_success("event-a-before", target_id)
+    ledger.record_success("event-b-before", target_id)
     counter = DifferentialCounter()
-    counter.increment(UUID_A, 2)
-    counter.increment(UUID_B, 3)
+    pairs = {
+        UUID_A: (("event-a-before", target_id), ("event-a-after", target_id)),
+        UUID_B: (("event-b-before", target_id), ("event-b-after", target_id)),
+    }
+    counter.observe_ledger(ledger, pairs)
     before = counter.snapshot()
-    counter.increment(UUID_A)
+    ledger.record_success("event-a-after", target_id)
+    counter.observe_ledger(ledger, pairs)
     assert counter.delta(before, UUID_A) == 1
     assert counter.delta(before, UUID_B) == 0
+    ledger.close()
 
 
 def test_cross_process_barrier_releases_only_after_controller_signal() -> None:
