@@ -109,7 +109,7 @@ edges:
   target: directive:DIRECTIVE_044
   relation: requires
 - source: agent_profile:architect-alphonso
-  target: directive:DIRECTIVE_047
+  target: directive:DIRECTIVE_051
   relation: requires
 - source: agent_profile:architect-alphonso
   target: directive:USE_C4_MODEL_TECHNIQUES
@@ -239,7 +239,7 @@ edges:
   when: when keeping the tests they write a clear scaffold rather than friction
   reason: 'An implementer-role profile should reach the tests-as-scaffold hub when writing tests. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
 - source: agent_profile:frontend-freddy
-  target: directive:DIRECTIVE_047
+  target: directive:DIRECTIVE_051
   relation: requires
 - source: agent_profile:frontend-freddy
   target: directive:DISCIPLINED_REFACTORING
@@ -323,7 +323,7 @@ edges:
   target: directive:DIRECTIVE_045
   relation: requires
 - source: agent_profile:implementer-ivan
-  target: directive:DIRECTIVE_047
+  target: directive:DIRECTIVE_051
   relation: requires
 - source: agent_profile:implementer-ivan
   target: directive:DISCIPLINED_REFACTORING
@@ -377,7 +377,7 @@ edges:
   when: when keeping the tests they write a clear scaffold rather than friction
   reason: 'An implementer-role profile should reach the tests-as-scaffold hub when writing tests. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
 - source: agent_profile:java-jenny
-  target: directive:DIRECTIVE_047
+  target: directive:DIRECTIVE_051
   relation: requires
 - source: agent_profile:java-jenny
   target: directive:DISCIPLINED_REFACTORING
@@ -464,7 +464,7 @@ edges:
   when: when keeping the tests they write a clear scaffold rather than friction
   reason: 'An implementer-role profile should reach the tests-as-scaffold hub when writing tests. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
 - source: agent_profile:node-norris
-  target: directive:DIRECTIVE_047
+  target: directive:DIRECTIVE_051
   relation: requires
 - source: agent_profile:node-norris
   target: directive:DISCIPLINED_REFACTORING
@@ -574,7 +574,7 @@ edges:
   target: directive:DIRECTIVE_045
   relation: requires
 - source: agent_profile:python-pedro
-  target: directive:DIRECTIVE_047
+  target: directive:DIRECTIVE_051
   relation: requires
 - source: agent_profile:python-pedro
   target: directive:DISCIPLINED_REFACTORING
@@ -712,7 +712,7 @@ edges:
   when: when assessing whether the tests under review are a clear scaffold rather than friction
   reason: 'The reviewer profile should reach the tests-as-scaffold hub when assessing the tests under review. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
 - source: agent_profile:reviewer-renata
-  target: directive:DIRECTIVE_047
+  target: directive:DIRECTIVE_051
   relation: requires
 - source: agent_profile:reviewer-renata
   target: directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY

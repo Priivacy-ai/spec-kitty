@@ -5,7 +5,7 @@ profiles (``reviewer-renata``, ``implementer-ivan``, ``node-norris``,
 ``frontend-freddy``, ``python-pedro``, ``java-jenny``, ``architect-alphonso``)
 resolve -- through :meth:`AgentProfileRepository.resolve_profile`, the same
 inheritance-aware resolution path production code uses, not a raw YAML read --
-with a substantive reference to directive ``047`` (Supply-Chain Install
+with a substantive reference to directive ``051`` (Supply-Chain Install
 Safety) and to a tactic that actually carries supply-chain content
 (``dependency-hygiene``, extended by WP01, or the new
 ``supply-chain-install-safety`` tactic). It also proves ``reviewer-renata``
@@ -21,6 +21,7 @@ import pytest
 
 from doctrine.agent_profiles.profile import AgentProfile
 from doctrine.agent_profiles.repository import AgentProfileRepository
+from doctrine.directives.repository import DirectiveRepository
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -33,7 +34,8 @@ _TARGETED_PROFILES = (
     "java-jenny",
     "architect-alphonso",
 )
-_DIRECTIVE_CODE = "047"
+_DIRECTIVE_CODE = "051"
+_SUPPLY_CHAIN_DIRECTIVE_TITLE = "Supply-Chain Install Safety"
 _SUPPLY_CHAIN_TACTIC_IDS = frozenset({"dependency-hygiene", "supply-chain-install-safety"})
 _SUPPLY_CHAIN_KEYWORDS = ("supply-chain", "lifecycle-script")
 _DISPOSITION_TERMS = ("accepted", "changed", "deferred_with_rationale")
@@ -44,11 +46,16 @@ def repo() -> AgentProfileRepository:
     return AgentProfileRepository()
 
 
+@pytest.fixture(scope="module")
+def directive_repo() -> DirectiveRepository:
+    return DirectiveRepository()
+
+
 class TestTargetedProfilesReferenceSupplyChainDirective:
-    """Every targeted profile resolves with a substantive directive-047 reference."""
+    """Every targeted profile resolves with a substantive directive-051 reference."""
 
     @pytest.mark.parametrize("profile_id", _TARGETED_PROFILES)
-    def test_resolves_and_references_directive_047(
+    def test_resolves_and_references_directive_051(
         self, repo: AgentProfileRepository, profile_id: str
     ) -> None:
         profile = repo.resolve_profile(profile_id)
@@ -59,7 +66,35 @@ class TestTargetedProfilesReferenceSupplyChainDirective:
         )
 
         matching = next(ref for ref in profile.directive_references if ref.code == _DIRECTIVE_CODE)
-        assert matching.rationale.strip(), f"{profile_id}: directive 047 rationale is empty"
+        assert matching.rationale.strip(), f"{profile_id}: directive 051 rationale is empty"
+
+    @pytest.mark.parametrize("profile_id", _TARGETED_PROFILES)
+    def test_directive_051_resolves_to_supply_chain_title(
+        self,
+        repo: AgentProfileRepository,
+        directive_repo: DirectiveRepository,
+        profile_id: str,
+    ) -> None:
+        """Guard against a repeat of the 047/051 code-vs-directive mismatch:
+
+        resolve the bound code through the real ``DirectiveRepository`` and
+        assert the resolved directive's title is actually "Supply-Chain
+        Install Safety" -- not merely that some code string matches. A future
+        renumber that updates the code but points at the wrong directive
+        would still fail this test.
+        """
+        profile = repo.resolve_profile(profile_id)
+        matching = next(ref for ref in profile.directive_references if ref.code == _DIRECTIVE_CODE)
+
+        directive = directive_repo.get(matching.code)
+        assert directive is not None, (
+            f"{profile_id}: directive code '{matching.code}' did not resolve "
+            "to a known directive via DirectiveRepository"
+        )
+        assert directive.title == _SUPPLY_CHAIN_DIRECTIVE_TITLE, (
+            f"{profile_id}: directive code '{matching.code}' resolved to "
+            f"'{directive.title}', expected '{_SUPPLY_CHAIN_DIRECTIVE_TITLE}'"
+        )
 
 
 class TestTargetedProfilesReferenceSupplyChainTactic:
