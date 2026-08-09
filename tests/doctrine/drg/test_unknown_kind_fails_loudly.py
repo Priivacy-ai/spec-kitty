@@ -121,12 +121,27 @@ pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 #:           (overlay unchanged) -> 345/934. USE_C4_MODEL_TECHNIQUES leaves the pure
 #:           orphan set (agent_profile:diagram-daisy now references it). Full delta
 #:           is projection-ledger entry (15).
-#: Net: 345/934 = pure 332/806 plus the hand-authored overlay's 13 nodes / 128
+#:   (16)    supply-chain-security-checks-layer-01KZBFBS WP01 (T001/T002/T003):
+#:           +2 nodes (1 directive: DIRECTIVE_051, renumbered from this
+#:           mission's original 047 claim after entry (15) took the real
+#:           DIRECTIVE_047 first; 1 tactic) / +8 pure-extractor edges (no
+#:           overlay change), applied atop entry (15)'s 345/934 -> 347/942.
+#:           Full delta is projection-ledger entry (16).
+#:   (17)    supply-chain-security-checks-layer-01KZBFBS WP02 (T004/T005): +0
+#:           nodes / +6 pure-extractor ``scope`` edges (no overlay change) ->
+#:           347/948. Full delta is projection-ledger entry (17).
+#:   (18)    supply-chain-security-checks-layer-01KZBFBS WP03 (T009-T012): +0
+#:           nodes / +16 pure-extractor edges (no overlay change), applied atop
+#:           WP02's 347/948 -> 347/964. Full delta is projection-ledger entry (18).
+#: Net: 347/964 = pure 334/836 plus the hand-authored overlay's 13 nodes / 128
 #: edges. (WP09 and families A–D were ledgered in the projection module but this
 #: shipped-graph mirror was left stale at 310/781 through those changes; corrected
 #: with family D, whose full delta is projection-ledger entry (12); family E adds
 #: +9 edges, projection-ledger entry (13); WP02 adds +7 nodes / +10 edges,
-#: projection-ledger entry (14); entry (15) adds +21 nodes / +42 edges.)
+#: projection-ledger entry (14); entry (15) adds +21 nodes / +42 edges; this
+#: mission's WP01 above adds +2 nodes / +8 edges, projection-ledger entry (16);
+#: this mission's WP02 adds +0 nodes / +6 edges, projection-ledger entry (17);
+#: this mission's WP03 adds +0 nodes / +16 edges, projection-ledger entry (18).)
 _EXPECTED_NODE_COUNT = shipped_builtin_node_count()
 
 # Relocated built-in pack root (mission relocate-builtin-doctrine-packs-01KYT87F):

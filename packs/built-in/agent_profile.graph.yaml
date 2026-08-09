@@ -109,6 +109,9 @@ edges:
   target: directive:DIRECTIVE_044
   relation: requires
 - source: agent_profile:architect-alphonso
+  target: directive:DIRECTIVE_051
+  relation: requires
+- source: agent_profile:architect-alphonso
   target: directive:USE_C4_MODEL_TECHNIQUES
   relation: suggests
   when: documenting or reviewing system architecture
@@ -128,6 +131,10 @@ edges:
   relation: suggests
   when: capturing the change-intent, decision boundaries and safeguards of a mission or a significant architectural change as a REASONS Canvas -- recording architectural decisions with rationale rather than mirroring code
   reason: "The architect should reach the REASONS Canvas writing styleguide when documenting the intent behind a significant architectural change: alphonso's attested scope is architectural decisions documented with rationale (DIRECTIVE_003, ADR/design outputs), and the styleguide's own purpose is to capture intent -- Safeguard (must) / Norm (should) / Approach (may) -- for a mission or change, not to mirror code. Composition-only under today's traversal (the profile channel walks requires/specializes_from only), authored per the #3063 family-E operator ruling (canvas WRITING only; the reasons-canvas fill/review tactics and the SPDD paradigm stay in the deferred set, untouched)."
+- source: agent_profile:architect-alphonso
+  target: tactic:dependency-hygiene
+  relation: requires
+  reason: Dependency-tree decisions (registry restriction, transitive-CVE exclusion, JS/TS supply-chain posture) are first-class architectural choices; review designs for a documented dependency-hygiene stance before treating a component boundary as settled.
 - source: agent_profile:architect-alphonso
   target: tactic:development-bdd
   relation: requires
@@ -232,6 +239,9 @@ edges:
   when: when keeping the tests they write a clear scaffold rather than friction
   reason: 'An implementer-role profile should reach the tests-as-scaffold hub when writing tests. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
 - source: agent_profile:frontend-freddy
+  target: directive:DIRECTIVE_051
+  relation: requires
+- source: agent_profile:frontend-freddy
   target: directive:DISCIPLINED_REFACTORING
   relation: suggests
   when: when tidying code, encountering long classes/methods, or discovering convoluted logic
@@ -249,6 +259,14 @@ edges:
   target: tactic:bug-fixing-checklist
   relation: requires
   reason: Reproduce browser defects with a failing test before fixing production code
+- source: agent_profile:frontend-freddy
+  target: tactic:dependency-hygiene
+  relation: requires
+  reason: JS/TS steps cover registry authenticity, package freshness, deny-by-default lifecycle-script handling, lockfile-driven reproducible installs, and Node runtime baseline checks for every npm/yarn/pnpm dependency change (build tooling, component libraries, bundlers).
+- source: agent_profile:frontend-freddy
+  target: tactic:supply-chain-install-safety
+  relation: requires
+  reason: Run the full registry/freshness/lifecycle-script/Node-LTS/incident-IoC checklist before accepting a new or changed npm dependency, and record the evidence rather than an aspirational statement of intent.
 - source: agent_profile:generic-agent
   target: directive:DIRECTIVE_028
   relation: requires
@@ -305,6 +323,9 @@ edges:
   target: directive:DIRECTIVE_045
   relation: requires
 - source: agent_profile:implementer-ivan
+  target: directive:DIRECTIVE_051
+  relation: requires
+- source: agent_profile:implementer-ivan
   target: directive:DISCIPLINED_REFACTORING
   relation: suggests
   when: when tidying code, encountering long classes/methods, or discovering convoluted logic
@@ -318,6 +339,10 @@ edges:
   target: tactic:bug-fixing-checklist
   relation: requires
   reason: Enforce test-first defect resolution — write a failing reproduction test before modifying production code. All specialist profiles (java-jenny, python-pedro, frontend-freddy, node-norris) inherit this discipline via union merge.
+- source: agent_profile:implementer-ivan
+  target: tactic:dependency-hygiene
+  relation: requires
+  reason: Pin and audit dependencies, restrict resolution to approved registries, and regenerate the SBOM after any change; for JavaScript/TypeScript work this now also covers registry authenticity, package freshness, deny-by-default lifecycle-script handling, lockfile-driven installs, and Node runtime baseline checks per the supply-chain-install-safety directive/tactic.
 - source: agent_profile:java-jenny
   target: agent_profile:implementer-ivan
   relation: specializes_from
@@ -352,6 +377,9 @@ edges:
   when: when keeping the tests they write a clear scaffold rather than friction
   reason: 'An implementer-role profile should reach the tests-as-scaffold hub when writing tests. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
 - source: agent_profile:java-jenny
+  target: directive:DIRECTIVE_051
+  relation: requires
+- source: agent_profile:java-jenny
   target: directive:DISCIPLINED_REFACTORING
   relation: suggests
   when: when tidying code, encountering long classes/methods, or discovering convoluted logic
@@ -365,6 +393,10 @@ edges:
   target: tactic:behavior-driven-development
   relation: requires
   reason: BDD scenarios define acceptance criteria for Java features. Wire Gherkin scenarios via Cucumber-JVM as acceptance tests before implementing production code.
+- source: agent_profile:java-jenny
+  target: tactic:dependency-hygiene
+  relation: requires
+  reason: Pin direct dependency versions in the Maven properties block, restrict resolution to Maven Central, exclude vulnerable transitives with a documented reason, and regenerate the SBOM after any dependency change.
 - source: agent_profile:lexical-larry
   target: directive:DIRECTIVE_003
   relation: requires
@@ -432,6 +464,9 @@ edges:
   when: when keeping the tests they write a clear scaffold rather than friction
   reason: 'An implementer-role profile should reach the tests-as-scaffold hub when writing tests. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
 - source: agent_profile:node-norris
+  target: directive:DIRECTIVE_051
+  relation: requires
+- source: agent_profile:node-norris
   target: directive:DISCIPLINED_REFACTORING
   relation: suggests
   when: when tidying code, encountering long classes/methods, or discovering convoluted logic
@@ -449,6 +484,14 @@ edges:
   target: tactic:bug-fixing-checklist
   relation: requires
   reason: Reproduce server-side defects with a failing integration test before fixing production code
+- source: agent_profile:node-norris
+  target: tactic:dependency-hygiene
+  relation: requires
+  reason: JS/TS steps cover registry authenticity, package freshness, deny-by-default lifecycle-script handling, lockfile-driven reproducible installs, and Node runtime baseline checks for every npm/yarn/pnpm dependency change.
+- source: agent_profile:node-norris
+  target: tactic:supply-chain-install-safety
+  relation: requires
+  reason: Run the full registry/freshness/lifecycle-script/Node-LTS/incident-IoC checklist before accepting a new or changed npm dependency, and record the evidence rather than an aspirational statement of intent.
 - source: agent_profile:paula-patterns
   target: directive:DIRECTIVE_001
   relation: requires
@@ -531,6 +574,9 @@ edges:
   target: directive:DIRECTIVE_045
   relation: requires
 - source: agent_profile:python-pedro
+  target: directive:DIRECTIVE_051
+  relation: requires
+- source: agent_profile:python-pedro
   target: directive:DISCIPLINED_REFACTORING
   relation: suggests
   when: when tidying code, encountering long classes/methods, or discovering convoluted logic
@@ -544,6 +590,10 @@ edges:
   target: tactic:delete-the-assertion-not-the-test
   relation: requires
   reason: When a touched test is friction (green for the wrong reason or false-red on a correct change), replace its assertion with a contract-pinned, red-first one and keep the setup/edge-cases — mine the non-obvious regressions first. Delete a whole test only when it is provably zero-coverage or superseded; never delete to dodge a red.
+- source: agent_profile:python-pedro
+  target: tactic:dependency-hygiene
+  relation: requires
+  reason: Pin direct dependency versions in pyproject.toml/uv.lock, restrict resolution to PyPI, audit license compliance, and regenerate the SBOM after any dependency change — the pip/uv checks this tactic already covers for Python.
 - source: agent_profile:python-pedro
   target: tactic:test-scaffolding-as-design-smell
   relation: requires
@@ -662,6 +712,9 @@ edges:
   when: when assessing whether the tests under review are a clear scaffold rather than friction
   reason: 'The reviewer profile should reach the tests-as-scaffold hub when assessing the tests under review. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
 - source: agent_profile:reviewer-renata
+  target: directive:DIRECTIVE_051
+  relation: requires
+- source: agent_profile:reviewer-renata
   target: directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY
   relation: suggests
   when: when assessing whether the tests under review actually constrain behaviour
@@ -682,6 +735,10 @@ edges:
   target: tactic:reverse-speccing
   relation: requires
   reason: Validate that tests serve as executable specifications by reconstructing system understanding from test code alone
+- source: agent_profile:reviewer-renata
+  target: tactic:supply-chain-install-safety
+  relation: requires
+  reason: Require the registry/freshness/lifecycle-script/Node-LTS/incident-IoC checklist as review evidence for any dependency-touching change, and disposition every adversarial-squad or reviewer challenge to a supply-chain finding explicitly — accepted, changed, or deferred_with_rationale, each traceable to an evidence_location — per the adversarial-evidence-contract; a contested finding may never be dropped silently.
 - source: agent_profile:reviewer-renata
   target: tactic:test-readability-clarity-check
   relation: requires

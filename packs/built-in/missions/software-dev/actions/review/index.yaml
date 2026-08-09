@@ -4,11 +4,13 @@ directives:
   - 037-living-documentation-sync
   - 030-test-and-typecheck-quality-gate
   - 046-readable-consistent-prs
+  - 051-supply-chain-install-safety
 tactics:
   - usage-examples-sync
   - review-intent-and-risk-first
   - quality-gate-verification
   - stopping-conditions
+  - supply-chain-install-safety
 styleguides: []
 toolguides: []
 procedures:

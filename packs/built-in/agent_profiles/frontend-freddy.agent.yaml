@@ -30,6 +30,7 @@ context-sources:
     - "025"
     - "030"
     - "034"
+    - "047"
   additional:
     - coding-standards
     - accessibility-guidelines
@@ -175,6 +176,14 @@ self-review-protocol:
       gate: zero WCAG 2.1 AA violations in implemented components
     - name: bundle-budget
       gate: no new bundle size regressions (compare against baseline if tracked)
+    - name: supply-chain-install-safety
+      command: "npm view <package> dist.tarball && npm view <package>@<version> time && node --version"
+      gate: >-
+        registry authenticity confirmed, package freshness recorded, no
+        automatic lifecycle-script approval (preinstall/install/postinstall
+        deny-by-default unless explicitly allowlisted with justification), and
+        Node Active LTS skew disclosed with rationale if present — per the
+        supply-chain-install-safety directive/tactic
     - name: locality-review
       gate: only files directly related to the task objective are modified
 
@@ -183,6 +192,17 @@ tactic-references:
     rationale: BDD scenarios define acceptance criteria for browser components; wire Cucumber-JS/Playwright e2e scenarios as acceptance tests before implementation
   - id: bug-fixing-checklist
     rationale: Reproduce browser defects with a failing test before fixing production code
+  - id: dependency-hygiene
+    rationale: >
+      JS/TS steps cover registry authenticity, package freshness, deny-by-default
+      lifecycle-script handling, lockfile-driven reproducible installs, and Node
+      runtime baseline checks for every npm/yarn/pnpm dependency change (build
+      tooling, component libraries, bundlers).
+  - id: supply-chain-install-safety
+    rationale: >
+      Run the full registry/freshness/lifecycle-script/Node-LTS/incident-IoC
+      checklist before accepting a new or changed npm dependency, and record the
+      evidence rather than an aspirational statement of intent.
 
 directive-references:
   - code: "010"
@@ -200,3 +220,10 @@ directive-references:
   - code: "034"
     name: Test-First Development
     rationale: Write accessibility tests and component tests before implementing the component
+  - code: "047"
+    name: Supply-Chain Install Safety
+    rationale: >-
+      npm/yarn/pnpm dependency changes (component libraries, build tooling)
+      require registry authenticity, package freshness, deny-by-default
+      lifecycle-script handling, and Node Active LTS skew disclosure before they
+      are accepted

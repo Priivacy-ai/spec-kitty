@@ -31,8 +31,10 @@ context-sources:
     - "043"
     - "044"
     - "045"
+    - "047"
   tactics:
     - test-scaffolding-as-design-smell
+    - dependency-hygiene
   additional:
     - coding-standards
     - test-strategy
@@ -183,6 +185,13 @@ directive-references:
   - code: "045"
     name: PRs-Only and Read-Intent Before High-Risk Operations
     rationale: Never push directly to origin/main or run `gh pr merge` without explicit operator instruction; read mission context before any high-risk git operation (merge, rebase, deletion, force)
+  - code: "047"
+    name: Supply-Chain Install Safety
+    rationale: >-
+      pip/uv dependency additions and upgrades require official-registry
+      (PyPI) resolution, package freshness visibility, and license/CVE audit
+      before acceptance — apply alongside the dependency-hygiene checklist,
+      never as a silently-skipped default
 
 tactic-references:
   - id: test-scaffolding-as-design-smell
@@ -196,3 +205,8 @@ tactic-references:
       correct change), replace its assertion with a contract-pinned, red-first one and
       keep the setup/edge-cases — mine the non-obvious regressions first. Delete a whole
       test only when it is provably zero-coverage or superseded; never delete to dodge a red.
+  - id: dependency-hygiene
+    rationale: >
+      Pin direct dependency versions in pyproject.toml/uv.lock, restrict resolution
+      to PyPI, audit license compliance, and regenerate the SBOM after any
+      dependency change — the pip/uv checks this tactic already covers for Python.

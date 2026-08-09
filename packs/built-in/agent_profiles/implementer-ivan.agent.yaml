@@ -22,6 +22,7 @@ context-sources:
     - "043"
     - "044"
     - "045"
+    - "047"
   additional:
     - coding-standards
     - test-strategy
@@ -133,6 +134,13 @@ directive-references:
   - code: "045"
     name: PRs-Only and Read-Intent Before High-Risk Operations
     rationale: All changes to origin/main go through pull requests; every high-risk git operation (merge, rebase, deletion) requires reading the mission spec before execution; never push directly without explicit operator instruction
+  - code: "047"
+    name: Supply-Chain Install Safety
+    rationale: >-
+      Every dependency addition or upgrade requires registry authenticity,
+      package freshness, deny-by-default lifecycle-script handling, and Node
+      Active LTS disclosure before it is accepted — never a silently-applied
+      default
 
 tactic-references:
   - id: bug-fixing-checklist
@@ -140,3 +148,10 @@ tactic-references:
       Enforce test-first defect resolution — write a failing reproduction test before
       modifying production code. All specialist profiles (java-jenny, python-pedro,
       frontend-freddy, node-norris) inherit this discipline via union merge.
+  - id: dependency-hygiene
+    rationale: >
+      Pin and audit dependencies, restrict resolution to approved registries, and
+      regenerate the SBOM after any change; for JavaScript/TypeScript work this now
+      also covers registry authenticity, package freshness, deny-by-default
+      lifecycle-script handling, lockfile-driven installs, and Node runtime baseline
+      checks per the supply-chain-install-safety directive/tactic.

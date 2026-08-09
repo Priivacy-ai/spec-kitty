@@ -451,6 +451,7 @@ class TestShippedProfilesContextSources:
                     "language-driven-design",
                     "reverse-speccing",
                     "test-scaffolding-as-design-smell",
+                    "supply-chain-install-safety",
                 ],
             ),
         ],

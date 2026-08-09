@@ -408,6 +408,7 @@
   "src/doctrine/tactics/built-in/reviewer-implementer-role-separation.tactic.yaml",
   "src/doctrine/tactics/built-in/secure-design-checklist.tactic.yaml",
   "src/doctrine/tactics/built-in/secure-regex-catastrophic-backtracking.tactic.yaml",
+  "src/doctrine/tactics/built-in/security/supply-chain-install-safety.tactic.yaml",
   "src/doctrine/tactics/built-in/semantic-compression/semantic-compression-abstraction-extraction.tactic.yaml",
   "src/doctrine/tactics/built-in/semantic-compression/semantic-compression-behavioral-boundary-mapping.tactic.yaml",
   "src/doctrine/tactics/built-in/semantic-compression/semantic-compression-dead-weight-elimination.tactic.yaml",
