@@ -263,6 +263,9 @@ class TestCreateFeatureCommand:
         # Create necessary directories
         (tmp_path / ".kittify" / "templates").mkdir(parents=True)
         (tmp_path / ".kittify" / "templates" / "spec-template.md").write_text("# Spec Template")
+        (tmp_path / ".kittify" / "config.yaml").write_text(
+            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+        )
         (tmp_path / "kitty-specs").mkdir(exist_ok=True)
 
         # Execute
@@ -331,6 +334,9 @@ class TestCreateFeatureCommand:
         # Create necessary directories
         (tmp_path / ".kittify" / "templates").mkdir(parents=True)
         (tmp_path / ".kittify" / "templates" / "spec-template.md").write_text("# Spec Template")
+        (tmp_path / ".kittify" / "config.yaml").write_text(
+            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+        )
         (tmp_path / "kitty-specs").mkdir(exist_ok=True)
 
         # Execute
@@ -470,6 +476,9 @@ class TestCreateFeatureCommand:
         # Create necessary directories
         (tmp_path / ".kittify" / "templates").mkdir(parents=True)
         (tmp_path / ".kittify" / "templates" / "spec-template.md").write_text("# Spec Template")
+        (tmp_path / ".kittify" / "config.yaml").write_text(
+            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+        )
         (tmp_path / "kitty-specs").mkdir(exist_ok=True)
 
         # Execute
@@ -501,6 +510,9 @@ class TestCreateFeatureCommand:
         # Create necessary directories
         (tmp_path / ".kittify" / "templates").mkdir(parents=True)
         (tmp_path / ".kittify" / "templates" / "spec-template.md").write_text("# Spec Template")
+        (tmp_path / ".kittify" / "config.yaml").write_text(
+            "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+        )
         (tmp_path / "kitty-specs").mkdir(exist_ok=True)
 
         # Execute

@@ -260,6 +260,9 @@ def test_dossier_sync_fires_during_mission_creation(tmp_path: Path) -> None:
     # Set up minimal git repo
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
+    (kittify / "config.yaml").write_text(
+        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+    )
     (tmp_path / "kitty-specs").mkdir()
     subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True, check=True)
     subprocess.run(
