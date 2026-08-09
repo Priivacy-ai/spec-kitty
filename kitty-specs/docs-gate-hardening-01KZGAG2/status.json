@@ -1,0 +1,66 @@
+{
+  "event_count": 21,
+  "last_event_id": "01KZGSQY3EJWEXY5Z6FESC3TCA",
+  "materialized_at": "2026-08-08T13:42:03.118778+00:00",
+  "mission_number": "",
+  "mission_slug": "docs-gate-hardening-01KZGAG2",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KZGSQV1KMH9A0B6X81X4GW67",
+      "last_transition_at": "2026-08-08T13:41:59.987556+00:00",
+      "review_result": {
+        "reference": "Independent review PASS (reviewer-renata): 6/6 criteria verified, 21 targeted tests, negatives non-vacuous, no dead code. Issue-matrix filled. --force clears pre-existing chain-b lane kitty-specs (operator-authorized).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 3757428,
+      "shell_pid_created_at": "1786187078.58"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KZGSQWNG945RE44ASYG7V2R8",
+      "last_transition_at": "2026-08-08T13:42:01.648477+00:00",
+      "review_result": {
+        "reference": "Review PASS (reviewer-renata); operator-authorized force",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 3765971,
+      "shell_pid_created_at": "1786187261.26"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KZGSQY3EJWEXY5Z6FESC3TCA",
+      "last_transition_at": "2026-08-08T13:42:03.118778+00:00",
+      "review_result": {
+        "reference": "Review PASS (reviewer-renata); operator-authorized force",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 4051365,
+      "shell_pid_created_at": "1786195371.46"
+    }
+  }
+}
