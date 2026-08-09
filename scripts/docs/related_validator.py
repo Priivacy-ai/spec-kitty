@@ -72,7 +72,7 @@ class RelatedReport:
         }
 
 
-def validate_related(*, docs_root: Path, repo_root: Path) -> RelatedReport:
+def validate_related(*, docs_root: Path, repo_root: Path, min_files: int = 1) -> RelatedReport:
     """Walk ``docs_root`` and resolve every ``related:`` edge against ``repo_root``.
 
     Parameters
@@ -81,28 +81,44 @@ def validate_related(*, docs_root: Path, repo_root: Path) -> RelatedReport:
         Directory whose ``*.md`` files are scanned for frontmatter.
     repo_root:
         Base against which each repo-relative ``related:`` entry is resolved.
+    min_files:
+        Non-vacuity floor (#3264 / FR-008). The walk must examine at least this
+        many ``related:`` edges; a scope-narrowing regression — a missing docs
+        tree, an empty tree, or a frontmatter-parse breakage that stops matching
+        edges — raises :class:`RuntimeError` rather than reporting "0 dangling"
+        over 0 checked. Mirrors the sibling floor in
+        :func:`scripts.docs.relative_link_fixer.check_dead_body_links`.
 
     Returns
     -------
     RelatedReport
         ``checked_count`` (total edges examined) and the dangling edges, in
         deterministic ``(from, to)`` order.
+
+    Raises
+    ------
+    RuntimeError
+        Fewer than ``min_files`` ``related:`` edges were examined (non-vacuity guard).
     """
     checked_count = 0
     dangling: list[DanglingEdge] = []
 
-    if not docs_root.exists() or not docs_root.is_dir():
-        return RelatedReport(checked_count=0, dangling_edges=[])
+    if docs_root.exists() and docs_root.is_dir():
+        for md_path in sorted(docs_root.rglob("*.md")):
+            related = _read_related(md_path)
+            if not related:
+                continue
+            from_rel = _repo_relative(md_path, repo_root)
+            for entry in related:
+                checked_count += 1
+                if not _resolves(entry, repo_root):
+                    dangling.append(DanglingEdge(from_path=from_rel, to_path=entry))
 
-    for md_path in sorted(docs_root.rglob("*.md")):
-        related = _read_related(md_path)
-        if not related:
-            continue
-        from_rel = _repo_relative(md_path, repo_root)
-        for entry in related:
-            checked_count += 1
-            if not _resolves(entry, repo_root):
-                dangling.append(DanglingEdge(from_path=from_rel, to_path=entry))
+    if checked_count < min_files:
+        raise RuntimeError(
+            f"related_validator: only {checked_count} related edge(s) examined under "
+            f"{docs_root} — expected at least {min_files} (FR-008 non-vacuity guard)"
+        )
 
     dangling.sort(key=lambda edge: (edge.from_path, edge.to_path))
     return RelatedReport(checked_count=checked_count, dangling_edges=dangling)

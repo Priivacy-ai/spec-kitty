@@ -105,3 +105,33 @@ def test_strict_flag_stays_green_on_clean_tree(tmp_path: Path) -> None:
     )
 
     assert exit_code == 0
+
+
+def test_zero_edge_walk_raises(tmp_path: Path) -> None:
+    """A walk that examines no ``related:`` edges reds instead of passing vacuously.
+
+    Mirrors ``relative_link_fixer.check_dead_body_links``' floor (#3264 / FR-008):
+    a scope-narrowing regression that walks an empty or markdown-free tree must go
+    RED, not report "0 dangling" over 0 checked.
+    """
+    empty_tree = tmp_path / "docs"
+    empty_tree.mkdir()
+
+    with pytest.raises(RuntimeError, match="expected at least"):
+        validate_related(docs_root=empty_tree, repo_root=tmp_path)
+
+
+def test_missing_docs_root_raises(tmp_path: Path) -> None:
+    """A non-existent docs tree trips the same non-vacuity floor rather than returning empty."""
+    with pytest.raises(RuntimeError, match="expected at least"):
+        validate_related(docs_root=tmp_path / "absent", repo_root=tmp_path)
+
+
+def test_populated_tree_still_returns_report(tmp_path: Path) -> None:
+    """A tree with at least one ``related:`` edge still returns a report — the floor is non-vacuity only."""
+    repo = _stage_repo(tmp_path, dangling=False)
+
+    report = validate_related(docs_root=repo / "docs", repo_root=repo)
+
+    assert report.checked_count > 0
+    assert report.dangling_edges == []

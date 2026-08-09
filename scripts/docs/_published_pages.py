@@ -182,6 +182,13 @@ def resolve_published_pages(
     for entry in entries:
         candidates |= _collect_entry_pages(entry)
 
+    # Per-glob pre-exclusion guard (FR-003): every declared include glob must match
+    # at least one file *before* any exclusion is applied. The aggregate floor below
+    # only sees the union, so a dropped subtree hides behind the other globs; this
+    # guard restores per-glob attribution the union collapses. Raw counts here — a
+    # glob whose matches are all later excluded (e.g. ``archive/**``) is legitimate.
+    _assert_each_glob_nonvacuous(entries, config_path=config_path)
+
     source_globs = _dedupe(glob for entry in entries for glob in entry.globs)
     kept = _apply_exclusions(candidates, DEFAULT_EXCLUSIONS)
     _assert_non_vacuous(kept, config_path=config_path, source_globs=source_globs)
@@ -257,6 +264,63 @@ def _apply_exclusions(pages: set[Path], exclusions: tuple[Exclusion, ...]) -> se
     return {page for page in pages if not _matches_any(page.as_posix(), patterns)}
 
 
+def _vacuity_error(
+    *,
+    config_path: Path,
+    source_globs: tuple[str, ...],
+    detail: str,
+) -> ValueError:
+    """Build the canonical non-vacuity :class:`ValueError` shared by every raise site.
+
+    ``detail`` carries the load-bearing rationale substrings the gate's tests assert
+    on verbatim (``violates I-01``, ``collapsed (violates I-02)``, ``expected at
+    least``); the surrounding sentence and the ``globs were`` provenance are constant
+    so a third raise site (the per-glob guard) cannot drift the message shape.
+    """
+    return ValueError(
+        f"Published page set resolved from {config_path} {detail}; "
+        f"globs were {list(source_globs)}"
+    )
+
+
+def _assert_each_glob_nonvacuous(
+    entries: tuple[_ContentEntry, ...],
+    *,
+    config_path: Path,
+) -> None:
+    """Raise unless every declared include glob matches at least one file (I-01, FR-003).
+
+    Operates on the in-scope ``entries`` — NOT the deduped/union ``candidates`` — so a
+    dropped subtree is attributed to the specific glob and content entry that produced
+    it. Each glob is counted with a **raw** pass that ignores both the entry-level
+    ``exclude`` and :data:`DEFAULT_EXCLUSIONS`, because a glob whose matches are wholly
+    excluded downstream (e.g. ``archive/**``) is legitimate and must not false-fail.
+    """
+    for entry in entries:
+        for include, human_glob in zip(entry.includes, entry.globs, strict=True):
+            if _count_raw_matches(entry, include) < 1:
+                raise _vacuity_error(
+                    config_path=config_path,
+                    source_globs=(human_glob,),
+                    detail=(
+                        f"declared glob {human_glob!r} in content entry rooted at "
+                        f"{entry.rel_prefix.rstrip('/') or _CURRENT_DIR!r} is empty "
+                        "(violates I-01): it matched no files pre-exclusion"
+                    ),
+                )
+
+
+def _count_raw_matches(entry: _ContentEntry, include: re.Pattern[str]) -> int:
+    """Count files under ``entry.base`` matching ``include``, ignoring every exclusion."""
+    if not entry.base.is_dir():
+        return 0
+    count = 0
+    for path in entry.base.rglob(f"*{_MARKDOWN_SUFFIX}"):
+        if path.is_file() and include.match(path.relative_to(entry.base).as_posix()):
+            count += 1
+    return count
+
+
 def _assert_non_vacuous(
     pages: set[Path],
     *,
@@ -266,15 +330,19 @@ def _assert_non_vacuous(
     """Raise unless the resolved set is non-empty (I-01) and above the floor (I-02)."""
     observed = len(pages)
     if observed == 0:
-        raise ValueError(
-            f"Published page set resolved from {config_path} is empty (violates I-01); "
-            f"globs were {list(source_globs)}"
+        raise _vacuity_error(
+            config_path=config_path,
+            source_globs=source_globs,
+            detail="is empty (violates I-01)",
         )
     if observed < MINIMUM_EXPECTED_PAGES:
-        raise ValueError(
-            f"Published page set resolved from {config_path} collapsed (violates I-02): "
-            f"observed {observed} page(s), expected at least {MINIMUM_EXPECTED_PAGES}; "
-            f"globs were {list(source_globs)}"
+        raise _vacuity_error(
+            config_path=config_path,
+            source_globs=source_globs,
+            detail=(
+                f"collapsed (violates I-02): observed {observed} page(s), "
+                f"expected at least {MINIMUM_EXPECTED_PAGES}"
+            ),
         )
 
 
