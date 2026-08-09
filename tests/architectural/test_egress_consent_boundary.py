@@ -182,6 +182,9 @@ which belongs to a closed mission and is not edited by this change (C-010).
 from __future__ import annotations
 
 import ast
+import re
+import warnings
+from collections import Counter
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -1345,79 +1348,100 @@ class TestFR015StructuralTighteningMeasurement:
 # ---------------------------------------------------------------------------
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, order=True)
 class _SymbolRef:
     relpath: str
     qualname: str
+
+
+class _ResultState(StrEnum):
+    DURABLE = "durable-result-write"
+    DURABLE_FALLBACK = "durable-fallback-not-success"
+    DURABLE_FILE = "durable-file-result"
+    IN_MEMORY = "in-memory-result-only"
+    MISSING = "no-durable-result-write"
 
 
 @dataclass(frozen=True)
 class _ProjectSyncSender:
     surface: str
     request_start: _SymbolRef
-    result_write: _SymbolRef
+    result_write: _SymbolRef | None
+    result_state: _ResultState
     later_owner: str
+    channel_2_narrowing_only: bool = False
 
 
 _PROJECT_SYNC_SENDER_MATRIX = (
     _ProjectSyncSender(
         "direct dispatcher",
-        _SymbolRef("specify_cli/delivery/dispatcher.py", "dispatch"),
-        _SymbolRef("specify_cli/delivery/dispatcher.py", "_record"),
+        _SymbolRef("specify_cli/delivery/dispatcher.py", "_post"),
+        _SymbolRef("specify_cli/delivery/ledger.py", "SqliteDeliveryLedger._record"),
+        _ResultState.DURABLE,
         "WP07",
     ),
     _ProjectSyncSender(
         "emitter websocket",
         _SymbolRef("specify_cli/sync/emitter.py", "EventEmitter._route_event"),
-        _SymbolRef("specify_cli/sync/emitter.py", "EventEmitter._queue_if_async_send_failed"),
+        _SymbolRef("specify_cli/sync/queue.py", "OfflineQueue.queue_event"),
+        _ResultState.DURABLE_FALLBACK,
         "WP04",
     ),
     _ProjectSyncSender(
         "daemon publish",
         _SymbolRef("specify_cli/sync/runtime.py", "SyncRuntime.publish_event"),
-        _SymbolRef("specify_cli/sync/runtime.py", "_report_publish_refusal"),
-        "WP04",
+        None,
+        _ResultState.MISSING,
+        "WP07",
     ),
     _ProjectSyncSender(
         "event relay",
         _SymbolRef("specify_cli/sync/events.py", "_publish_event_via_sync_daemon"),
-        _SymbolRef("specify_cli/sync/emitter.py", "EventEmitter._route_event"),
-        "WP04",
+        None,
+        _ResultState.MISSING,
+        "WP07",
     ),
     _ProjectSyncSender(
         "body drain",
-        _SymbolRef("specify_cli/sync/background.py", "BackgroundSyncService._drain_body_queue"),
-        _SymbolRef("specify_cli/sync/background.py", "BackgroundSyncService._handle_body_outcome"),
+        _SymbolRef("specify_cli/sync/body_transport.py", "push_content"),
+        _SymbolRef("specify_cli/sync/body_queue.py", "OfflineBodyUploadQueue.mark_uploaded"),
+        _ResultState.DURABLE,
         "WP04",
     ),
     _ProjectSyncSender(
         "final and exit sync",
-        _SymbolRef("specify_cli/cli/commands/sync.py", "_run_event_sync_dispatch"),
-        _SymbolRef("specify_cli/cli/commands/sync.py", "_maybe_write_dispatch_report"),
+        _SymbolRef("specify_cli/delivery/dispatcher.py", "_post"),
+        _SymbolRef("specify_cli/delivery/ledger.py", "SqliteDeliveryLedger._record"),
+        _ResultState.DURABLE,
         "WP07",
     ),
     _ProjectSyncSender(
         "reconnect local commit",
-        _SymbolRef("specify_cli/sync/local_commit.py", "flush_pending_local_commits"),
+        _SymbolRef("specify_cli/sync/local_commit.py", "_send_event"),
         _SymbolRef("specify_cli/sync/local_commit.py", "record_local_commit_ack"),
-        "WP04",
+        _ResultState.DURABLE_FILE,
+        "WP07",
     ),
     _ProjectSyncSender(
         "history import",
-        _SymbolRef("specify_cli/sync/history_import/upload.py", "upload_envelopes"),
+        _SymbolRef("specify_cli/sync/history_import/upload.py", "_deliver_chunks"),
         _SymbolRef("specify_cli/sync/history_import/upload.py", "_tally"),
+        _ResultState.IN_MEMORY,
         "WP07",
     ),
     _ProjectSyncSender(
         "tracker hosted channel",
-        _SymbolRef("specify_cli/tracker/saas_client.py", "SaaSTrackerClient._request"),
         _SymbolRef("specify_cli/tracker/saas_client.py", "SaaSTrackerClient._request_with_retry"),
-        "WP08-channel-2-only",
+        None,
+        _ResultState.MISSING,
+        "WP08",
+        channel_2_narrowing_only=True,
     ),
     _ProjectSyncSender(
         "generic SaaS client",
         _SymbolRef("specify_cli/saas_client/client.py", "SaasClient._post"),
-        _SymbolRef("specify_cli/saas_client/client.py", "SaasClient._refuse_unless_project_consents"),
+        None,
+        _ResultState.MISSING,
         "WP08",
     ),
 )
@@ -1437,21 +1461,351 @@ _SENDER_CONTRACT = frozenset(
     }
 )
 
-_CURRENT_LAYOUT_WRITERS = frozenset(
-    {
-        _SymbolRef("specify_cli/event_journal/journal.py", "EventJournal.append"),
-        _SymbolRef("specify_cli/event_journal/journal.py", "JournalTransaction.commit"),
-        _SymbolRef("specify_cli/event_journal/coalesce.py", "_collapse_into"),
-        _SymbolRef("specify_cli/delivery/ledger.py", "SqliteDeliveryLedger._record"),
-        _SymbolRef("specify_cli/delivery/targets.py", "SqliteDeliveryTargetRegistry._insert"),
-        _SymbolRef("specify_cli/delivery/retention.py", "_purge_journal_rows"),
-        _SymbolRef("specify_cli/delivery/retention.py", "_purge_ledger_rows"),
-        _SymbolRef("specify_cli/sync/queue.py", "OfflineQueue.queue_event"),
-        _SymbolRef("specify_cli/sync/queue.py", "OfflineQueue.process_batch_results"),
-        _SymbolRef("specify_cli/sync/body_queue.py", "OfflineBodyUploadQueue.enqueue"),
-        _SymbolRef("specify_cli/sync/body_queue.py", "OfflineBodyUploadQueue.mark_uploaded"),
-        _SymbolRef("specify_cli/sync/migrate_journal.py", "_import_source"),
-    }
+_PROJECT_SENDER_FILES = tuple(_SRC / relpath for relpath in {row.request_start.relpath for row in _PROJECT_SYNC_SENDER_MATRIX})
+
+
+@dataclass(frozen=True, order=True)
+class _ProjectSinkSite:
+    relpath: str
+    qualname: str
+    kind: SinkKind
+    callee: str
+    lineno: int
+    canonical_attempt: bool
+
+    @property
+    def key(self) -> str:
+        return f"{self.relpath}::{self.qualname}::{self.kind.value}::{self.callee}"
+
+
+class _ProjectSinkVisitor(ast.NodeVisitor):
+    def __init__(self, path: Path, source_root: Path) -> None:
+        self.path = path
+        self.source_root = source_root
+        self.classes: list[str] = []
+        self.sites: list[_ProjectSinkSite] = []
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
+        self.classes.append(node.name)
+        self.generic_visit(node)
+        self.classes.pop()
+
+    def _visit_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+        qualname = ".".join((*self.classes, node.name))
+        calls = [item for item in ast.walk(node) if isinstance(item, ast.Call)]
+        names = {item.func.id if isinstance(item.func, ast.Name) else item.func.attr for item in calls if isinstance(item.func, (ast.Name, ast.Attribute))}
+        canonical = {
+            "ProjectSyncContext",
+            "DeliveryAttempt",
+            "final_transport_eligible",
+        } <= names
+        for call in calls:
+            kind = _classify(call)
+            if kind is None:
+                continue
+            self.sites.append(
+                _ProjectSinkSite(
+                    self.path.relative_to(self.source_root).as_posix(),
+                    qualname,
+                    kind,
+                    ast.unparse(call.func),
+                    call.lineno,
+                    canonical,
+                )
+            )
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
+        self._visit_function(node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:  # noqa: N802
+        self._visit_function(node)
+
+
+def _scan_project_sinks(
+    paths: tuple[Path, ...] = _PROJECT_SENDER_FILES,
+    *,
+    source_root: Path = _SRC,
+) -> tuple[_ProjectSinkSite, ...]:
+    sites: list[_ProjectSinkSite] = []
+    for path in sorted(paths):
+        visitor = _ProjectSinkVisitor(path, source_root)
+        visitor.visit(ast.parse(path.read_text(encoding="utf-8"), filename=str(path)))
+        sites.extend(visitor.sites)
+    return tuple(sorted(sites))
+
+
+_KNOWN_PROJECT_SINK_COUNTS: Counter[str] = Counter(
+    line.strip()
+    for line in """
+specify_cli/delivery/dispatcher.py::_post::receiver-deliver::receiver.deliver
+specify_cli/saas_client/client.py::SaasClient._post::http-verb::self._http.post
+specify_cli/sync/body_transport.py::push_content::http-verb::requests.post
+specify_cli/sync/body_transport.py::push_content::transport-call::request_with_stdlib_fallback_sync
+specify_cli/sync/body_transport.py::push_content::transport-call::request_with_stdlib_fallback_sync
+specify_cli/sync/emitter.py::EventEmitter._route_event::send-event::self.ws_client.send_event
+specify_cli/sync/emitter.py::EventEmitter._route_event::send-event::self.ws_client.send_event
+specify_cli/sync/events.py::_publish_event_via_sync_daemon::urlopen::urllib.request.urlopen
+specify_cli/sync/events.py::_request_dashboard_sync::urlopen::urllib.request.urlopen
+specify_cli/sync/history_import/upload.py::_deliver_chunks::receiver-deliver::receiver.deliver
+specify_cli/sync/history_import/upload.py::run_server_preflight::transport-call::poster
+specify_cli/sync/local_commit.py::_send_event::send-event::client.send_event
+specify_cli/sync/local_commit.py::_send_event::send-event::client.send_event
+specify_cli/sync/local_commit.py::_send_event::send-event::client.send_event
+specify_cli/sync/runtime.py::SyncRuntime.publish_event::send-event::self.ws_client.send_event
+specify_cli/tracker/saas_client.py::SaaSTrackerClient._request::http-verb::client.request
+specify_cli/tracker/saas_client.py::SaaSTrackerClient._request_with_retry::transport-call::self._request
+specify_cli/tracker/saas_client.py::SaaSTrackerClient._request_with_retry::transport-call::self._request
+specify_cli/tracker/saas_client.py::SaaSTrackerClient._request_with_retry::transport-call::self._request
+specify_cli/tracker/saas_client.py::SaaSTrackerClient.bind_confirm::transport-call::self._request_with_retry
+specify_cli/tracker/saas_client.py::SaaSTrackerClient.bind_mission_origin::transport-call::self._request_with_retry
+specify_cli/tracker/saas_client.py::SaaSTrackerClient.push::transport-call::self._request_with_retry
+specify_cli/tracker/saas_client.py::SaaSTrackerClient.run::transport-call::self._request_with_retry
+""".splitlines()
+    if line.strip()
+)
+
+
+def _new_sender_violations(
+    sites: tuple[_ProjectSinkSite, ...],
+    baseline: Counter[str],
+) -> tuple[_ProjectSinkSite, ...]:
+    seen: Counter[str] = Counter()
+    violations: list[_ProjectSinkSite] = []
+    for site in sites:
+        seen[site.key] += 1
+        if seen[site.key] > baseline[site.key] and not site.canonical_attempt:
+            violations.append(site)
+    return tuple(violations)
+
+
+_WRITE_SQL = frozenset({"INSERT", "UPDATE", "DELETE", "REPLACE", "CREATE", "DROP", "ALTER"})
+
+
+@dataclass(frozen=True, order=True)
+class _LayoutWriteSite:
+    relpath: str
+    qualname: str
+    operation: str
+    callee: str
+    owner_wp: str
+    lineno: int
+
+    @property
+    def key(self) -> str:
+        return f"{self.relpath}::{self.qualname}::{self.operation}::{self.callee}"
+
+
+def _constant_strings(path: Path) -> dict[str, str]:
+    values: dict[str, str] = {}
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    for node in tree.body:
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        value = node.value
+        if value is None:
+            continue
+        rendered = _sql_text(value, values)
+        if rendered is not None:
+            for target in targets:
+                if isinstance(target, ast.Name):
+                    values[target.id] = rendered
+    return values
+
+
+def _imported_string_bindings(path: Path, source_root: Path) -> dict[str, str]:
+    bindings = _constant_strings(path)
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    for node in tree.body:
+        if not isinstance(node, ast.ImportFrom) or node.level != 1 or node.module is None:
+            continue
+        imported_path = path.parent / f"{node.module.replace('.', '/')}.py"
+        if not imported_path.is_file() or source_root not in imported_path.parents:
+            continue
+        exported = _constant_strings(imported_path)
+        for alias in node.names:
+            if alias.name in exported:
+                bindings[alias.asname or alias.name] = exported[alias.name]
+    return bindings
+
+
+def _sql_text(node: ast.expr, bindings: dict[str, str]) -> str | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.Name):
+        return bindings.get(node.id)
+    if isinstance(node, ast.JoinedStr):
+        return ast.unparse(node)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left = _sql_text(node.left, bindings)
+        right = _sql_text(node.right, bindings)
+        return None if left is None or right is None else left + right
+    return None
+
+
+def _write_operation(text: str | None) -> str | None:
+    if text is None:
+        return None
+    upper = text.upper()
+    match = re.search(r"\b(ALTER|CREATE|DELETE|DROP|INSERT|REPLACE|UPDATE)\b", upper)
+    if match is not None:
+        return match.group(1)
+    return None
+
+
+def _writer_owner(relpath: str) -> str:
+    if "migrate" in relpath or relpath.startswith("specify_cli/cli/"):
+        return "WP10"
+    if relpath.startswith("specify_cli/delivery/targets.py"):
+        return "WP05"
+    if relpath.startswith("specify_cli/delivery/dispatcher.py"):
+        return "WP07"
+    return "WP04"
+
+
+class _LayoutWriteVisitor(ast.NodeVisitor):
+    def __init__(self, path: Path, source_root: Path) -> None:
+        self.path = path
+        self.source_root = source_root
+        self.bindings = _imported_string_bindings(path, source_root)
+        self.classes: list[str] = []
+        self.functions: list[str] = []
+        self.sites: list[_LayoutWriteSite] = []
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
+        self.classes.append(node.name)
+        self.generic_visit(node)
+        self.classes.pop()
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
+        self.functions.append(node.name)
+        self.generic_visit(node)
+        self.functions.pop()
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:  # noqa: N802
+        self.functions.append(node.name)
+        self.generic_visit(node)
+        self.functions.pop()
+
+    def visit_Assign(self, node: ast.Assign) -> None:  # noqa: N802
+        value = _sql_text(node.value, self.bindings)
+        if value is not None:
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    self.bindings[target.id] = value
+        self.generic_visit(node)
+
+    def visit_Call(self, node: ast.Call) -> None:  # noqa: N802
+        func = node.func
+        if isinstance(func, ast.Attribute) and func.attr in {"execute", "executemany", "executescript"} and node.args:
+            operation = _write_operation(_sql_text(node.args[0], self.bindings))
+            if operation is not None:
+                relpath = self.path.relative_to(self.source_root).as_posix()
+                self.sites.append(
+                    _LayoutWriteSite(
+                        relpath,
+                        ".".join((*self.classes, *self.functions)) or "<module>",
+                        operation,
+                        func.attr,
+                        _writer_owner(relpath),
+                        node.lineno,
+                    )
+                )
+        self.generic_visit(node)
+
+
+_LAYOUT_ROOTS = (
+    _SRC / "specify_cli" / "event_journal",
+    _SRC / "specify_cli" / "delivery",
+    _SRC / "specify_cli" / "sync",
+    _SRC / "specify_cli" / "cli" / "commands" / "sync.py",
+)
+
+
+def _layout_paths(roots: tuple[Path, ...]) -> tuple[Path, ...]:
+    paths: list[Path] = []
+    for root in roots:
+        paths.extend(root.rglob("*.py") if root.is_dir() else [root])
+    return tuple(sorted(set(paths)))
+
+
+def _scan_layout_writers(
+    roots: tuple[Path, ...] = _LAYOUT_ROOTS,
+    *,
+    source_root: Path = _SRC,
+) -> tuple[_LayoutWriteSite, ...]:
+    sites: list[_LayoutWriteSite] = []
+    for path in _layout_paths(roots):
+        visitor = _LayoutWriteVisitor(path, source_root)
+        visitor.visit(ast.parse(path.read_text(encoding="utf-8"), filename=str(path)))
+        sites.extend(visitor.sites)
+    return tuple(sorted(sites))
+
+
+_KNOWN_LAYOUT_WRITE_COUNTS: Counter[str] = Counter(
+    line.strip()
+    for line in """
+specify_cli/delivery/ledger.py::SqliteDeliveryLedger._record::INSERT::execute
+specify_cli/delivery/ledger.py::init_ledger::CREATE::executescript
+specify_cli/delivery/retention.py::_purge_all_body_rows::DELETE::execute
+specify_cli/delivery/retention.py::_purge_journal_rows::DELETE::executemany
+specify_cli/delivery/retention.py::_purge_ledger_rows::DELETE::execute
+specify_cli/delivery/targets.py::SqliteDeliveryTargetRegistry.__init__::CREATE::executescript
+specify_cli/delivery/targets.py::SqliteDeliveryTargetRegistry._insert::INSERT::execute
+specify_cli/delivery/targets.py::SqliteDeliveryTargetRegistry._update_provenance::UPDATE::execute
+specify_cli/event_journal/coalesce.py::_collapse_into::UPDATE::execute
+specify_cli/event_journal/coalesce.py::_connect::CREATE::execute
+specify_cli/event_journal/coalesce.py::_record_supersede::INSERT::execute
+specify_cli/event_journal/journal.py::EventJournal._ensure_schema::CREATE::execute
+specify_cli/event_journal/journal.py::EventJournal._ensure_schema::CREATE::execute
+specify_cli/event_journal/journal.py::EventJournal._ensure_schema::CREATE::execute
+specify_cli/event_journal/journal.py::EventJournal._ensure_schema::CREATE::execute
+specify_cli/event_journal/journal.py::EventJournal._migrate_add_identity_columns::ALTER::execute
+specify_cli/event_journal/journal.py::EventJournal.append::INSERT::execute
+specify_cli/event_journal/journal.py::EventJournal.mark_archived::UPDATE::execute
+specify_cli/event_journal/journal.py::EventJournal.set_project_identity::UPDATE::executemany
+specify_cli/event_journal/journal.py::JournalTransaction.append::INSERT::execute
+specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.enqueue::INSERT::execute
+specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.mark_already_exists::DELETE::execute
+specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.mark_failed_permanent::DELETE::execute
+specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.mark_failed_retryable::UPDATE::execute
+specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.mark_uploaded::DELETE::execute
+specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.record_permanent_failure::INSERT::execute
+specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.remove_project_tasks::DELETE::execute
+specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.remove_stale::DELETE::execute
+specify_cli/sync/migrate_journal.py::MigrationAudit.__init__::CREATE::executescript
+specify_cli/sync/migrate_journal.py::MigrationAudit.clear_conflict::DELETE::execute
+specify_cli/sync/migrate_journal.py::MigrationAudit.quarantine_conflict::INSERT::execute
+specify_cli/sync/migrate_journal.py::MigrationAudit.record_conflict::INSERT::execute
+specify_cli/sync/migrate_journal.py::MigrationAudit.record_provenance::INSERT::execute
+specify_cli/sync/queue.py::OfflineQueue._init_db::CREATE::execute
+specify_cli/sync/queue.py::OfflineQueue._init_db::CREATE::execute
+specify_cli/sync/queue.py::OfflineQueue._init_db::CREATE::execute
+specify_cli/sync/queue.py::OfflineQueue._init_db::CREATE::execute
+specify_cli/sync/queue.py::OfflineQueue._migrate_add_coalesce_key::ALTER::execute
+specify_cli/sync/queue.py::OfflineQueue._try_coalesce::UPDATE::execute
+specify_cli/sync/queue.py::OfflineQueue.append::INSERT::execute
+specify_cli/sync/queue.py::OfflineQueue.append::UPDATE::execute
+specify_cli/sync/queue.py::OfflineQueue.clear::DELETE::execute
+specify_cli/sync/queue.py::OfflineQueue.increment_retry::UPDATE::execute
+specify_cli/sync/queue.py::OfflineQueue.mark_synced::DELETE::execute
+specify_cli/sync/queue.py::OfflineQueue.process_batch_results::DELETE::execute
+specify_cli/sync/queue.py::OfflineQueue.process_batch_results::UPDATE::execute
+specify_cli/sync/queue.py::OfflineQueue.queue_event::DELETE::execute
+specify_cli/sync/queue.py::OfflineQueue.queue_event::INSERT::execute
+specify_cli/sync/queue.py::OfflineQueue.queue_event::UPDATE::execute
+specify_cli/sync/queue.py::OfflineQueue.remove_events::DELETE::execute
+specify_cli/sync/queue.py::_migrate_body_queue_column_rename::ALTER::execute
+specify_cli/sync/queue.py::_migrate_body_queue_column_rename::ALTER::execute
+specify_cli/sync/queue.py::_migrate_one_table::DELETE::execute
+specify_cli/sync/queue.py::_migrate_one_table::INSERT::execute
+specify_cli/sync/queue.py::_scoped_dst_schema::CREATE::execute
+specify_cli/sync/queue.py::_scoped_dst_schema::CREATE::execute
+specify_cli/sync/queue.py::_scoped_dst_schema::CREATE::execute
+specify_cli/sync/queue.py::_scoped_dst_schema::CREATE::execute
+specify_cli/sync/queue.py::ensure_body_queue_schema::CREATE::executescript
+""".splitlines()
+    if line.strip()
 )
 
 
@@ -1472,53 +1826,81 @@ def _qualified_functions(path: Path) -> frozenset[str]:
             found.add(".".join((*self.classes, node.name)))
             self.generic_visit(node)
 
-        visit_AsyncFunctionDef = visit_FunctionDef
+        def visit_AsyncFunctionDef(  # noqa: N802
+            self, node: ast.AsyncFunctionDef
+        ) -> None:
+            found.add(".".join((*self.classes, node.name)))
+            self.generic_visit(node)
 
     Visitor().visit(tree)
     return frozenset(found)
 
 
-def _attempt_context_violations(source: str) -> tuple[str, ...]:
-    """Reject a new sender that transmits without a canonical final attempt gate."""
-    tree = ast.parse(source)
-    calls = {
-        node.func.attr if isinstance(node.func, ast.Attribute) else node.func.id
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Call) and isinstance(node.func, (ast.Attribute, ast.Name))
-    }
-    transmits = bool(calls & {"post", "request", "send", "send_event", "deliver"})
-    has_context = bool(calls & {"ProjectSyncContext", "DeliveryAttempt"})
-    has_final_gate = "final_transport_eligible" in calls
-    return ("sender-without-canonical-attempt",) if transmits and not (has_context and has_final_gate) else ()
-
-
-def test_project_sync_sender_matrix_is_complete_and_names_live_sites() -> None:
+def test_project_sync_sender_matrix_maps_actual_request_and_result_sites() -> None:
     assert {row.surface for row in _PROJECT_SYNC_SENDER_MATRIX} == _SENDER_CONTRACT
-    assert len(_PROJECT_SYNC_SENDER_MATRIX) == len(_SENDER_CONTRACT)
+    sink_symbols = {_SymbolRef(site.relpath, site.qualname) for site in _scan_project_sinks()}
     for row in _PROJECT_SYNC_SENDER_MATRIX:
-        for ref in (row.request_start, row.result_write):
-            path = _SRC / ref.relpath
-            assert path.is_file(), f"sender census file disappeared: {ref.relpath}"
-            assert ref.qualname in _qualified_functions(path), f"sender census symbol disappeared: {ref.relpath}::{ref.qualname}"
-        assert row.later_owner.startswith("WP")
+        assert row.request_start in sink_symbols, f"request start is not a discovered sink: {row.request_start}"
+        if row.result_write is None:
+            assert row.result_state is _ResultState.MISSING
+        else:
+            assert row.result_write.qualname in _qualified_functions(_SRC / row.result_write.relpath)
+            assert row.result_state is not _ResultState.MISSING
+        if row.surface == "tracker hosted channel":
+            assert row.channel_2_narrowing_only
+        else:
+            assert not row.channel_2_narrowing_only
 
 
-def test_current_layout_writer_inventory_names_live_symbols_for_wp04() -> None:
-    for ref in _CURRENT_LAYOUT_WRITERS:
-        assert ref.qualname in _qualified_functions(_SRC / ref.relpath), f"layout writer census symbol disappeared: {ref.relpath}::{ref.qualname}"
+def test_source_discovered_sender_census_is_counted_and_shrink_only() -> None:
+    sites = _scan_project_sinks()
+    observed = Counter(site.key for site in sites)
+    growth = observed - _KNOWN_PROJECT_SINK_COUNTS
+    assert not growth, "new project sender sites:\n" + "\n".join(f"{key} (+{count})" for key, count in sorted(growth.items()))
+    shrink = _KNOWN_PROJECT_SINK_COUNTS - observed
+    if shrink:
+        warnings.warn(
+            "project sender census shrank: " + ", ".join(f"{key} (-{count})" for key, count in sorted(shrink.items())),
+            stacklevel=1,
+        )
 
 
-def test_new_sender_requires_canonical_attempt_context_and_final_recheck() -> None:
-    clean = """
-def transmit(client, payload):
-    context = ProjectSyncContext(payload['project_uuid'])
-    attempt = DeliveryAttempt(context)
-    if final_transport_eligible(attempt):
-        client.post('/events', json=payload)
-"""
-    mutant = """
-def transmit(client, payload):
-    client.post('/events', json=payload)
-"""
-    assert _attempt_context_violations(clean) == ()
-    assert _attempt_context_violations(mutant) == ("sender-without-canonical-attempt",)
+def test_source_discovered_layout_writer_census_is_counted_and_shrink_only() -> None:
+    sites = _scan_layout_writers()
+    observed = Counter(site.key for site in sites)
+    growth = observed - _KNOWN_LAYOUT_WRITE_COUNTS
+    assert not growth, "new current layout writers:\n" + "\n".join(f"{key} (+{count})" for key, count in sorted(growth.items()))
+    assert all(site.owner_wp.startswith("WP") for site in sites)
+    shrink = _KNOWN_LAYOUT_WRITE_COUNTS - observed
+    if shrink:
+        warnings.warn(
+            "layout-writer census shrank: " + ", ".join(f"{key} (-{count})" for key, count in sorted(shrink.items())),
+            stacklevel=1,
+        )
+
+
+def test_new_sender_and_layout_writer_mutants_flow_through_real_collectors(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "specify_cli" / "sync" / "new_sender.py"
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        "def bypass(client, payload, conn):\n    conn.execute('INSERT INTO event_outbox VALUES (?)', (payload,))\n    client.post('/events', json=payload)\n",
+        encoding="utf-8",
+    )
+    sink_sites = _scan_project_sinks((source,), source_root=tmp_path)
+    assert _new_sender_violations(sink_sites, Counter()) == sink_sites
+    writer_sites = _scan_layout_writers((source,), source_root=tmp_path)
+    assert [site.operation for site in writer_sites] == ["INSERT"]
+
+    clean = tmp_path / "specify_cli" / "sync" / "wrapped_sender.py"
+    clean.write_text(
+        "def send(client, payload):\n"
+        "    context = ProjectSyncContext(payload['project_uuid'])\n"
+        "    attempt = DeliveryAttempt(context)\n"
+        "    if final_transport_eligible(attempt):\n"
+        "        client.post('/events', json=payload)\n",
+        encoding="utf-8",
+    )
+    clean_sites = _scan_project_sinks((clean,), source_root=tmp_path)
+    assert _new_sender_violations(clean_sites, Counter()) == ()
