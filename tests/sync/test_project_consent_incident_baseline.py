@@ -180,16 +180,124 @@ class MutationSpecimen:
     source: str
 
 
-def _call_names(tree: ast.AST) -> set[str]:
-    names: set[str] = set()
+def _call_tail(call: ast.Call) -> str | None:
+    if isinstance(call.func, ast.Name):
+        return call.func.id
+    if isinstance(call.func, ast.Attribute):
+        return call.func.attr
+    return None
+
+
+def _expression_names(node: ast.AST) -> frozenset[str]:
+    return frozenset(child.id for child in ast.walk(node) if isinstance(child, ast.Name))
+
+
+def _guarded_transport_is_coherent(tree: ast.Module) -> bool:
+    """Require the eligibility result to dominate a sink carrying the checked data."""
+    sink_names = {"post", "send", "deliver"}
+
+    def check_block(statements: list[ast.stmt], eligible: frozenset[str]) -> bool:
+        current = eligible
+        for statement in statements:
+            if isinstance(statement, ast.If):
+                if isinstance(statement.test, ast.UnaryOp) and isinstance(
+                    statement.test.op,
+                    ast.Not,
+                ):
+                    inverted = True
+                    candidate = statement.test.operand
+                else:
+                    inverted = False
+                    candidate = statement.test
+                if isinstance(candidate, ast.Call) and _call_tail(candidate) == "final_transport_eligible":
+                    checked = frozenset(
+                        name
+                        for argument in (
+                            *candidate.args,
+                            *(keyword.value for keyword in candidate.keywords),
+                        )
+                        for name in _expression_names(argument)
+                    )
+                    if (
+                        inverted
+                        and statement.body
+                        and isinstance(
+                            statement.body[-1],
+                            (ast.Return, ast.Raise),
+                        )
+                    ):
+                        if not check_block(statement.body, current):
+                            return False
+                        current |= checked
+                    elif not inverted:
+                        if not check_block(statement.body, current | checked):
+                            return False
+                    if not check_block(statement.orelse, current):
+                        return False
+                    continue
+            for call in (node for node in ast.walk(statement) if isinstance(node, ast.Call)):
+                if _call_tail(call) not in sink_names:
+                    continue
+                payload_names = frozenset(name for argument in (*call.args, *(kw.value for kw in call.keywords)) for name in _expression_names(argument))
+                if not current & payload_names:
+                    return False
+        return True
+
+    functions = [node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))]
+    return all(check_block(function.body, frozenset()) for function in functions)
+
+
+def _canonical_resolver_is_coherent(tree: ast.Module) -> bool:
+    def path_components(node: ast.expr) -> list[ast.expr]:
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+            return [*path_components(node.left), *path_components(node.right)]
+        return [node]
+
     for node in ast.walk(tree):
-        if not isinstance(node, ast.Call):
+        if not isinstance(node, ast.Return) or node.value is None:
             continue
-        if isinstance(node.func, ast.Name):
-            names.add(node.func.id)
-        elif isinstance(node.func, ast.Attribute):
-            names.add(node.func.attr)
-    return names
+        components = path_components(node.value)
+        rendered = [ast.unparse(component).strip("'\"") for component in components]
+        uuid_positions = [index for index, component in enumerate(components) if _expression_names(component) & {"project_uuid", "uuid"}]
+        for uuid_index in uuid_positions:
+            prefix = rendered[:uuid_index]
+            suffix = rendered[uuid_index + 1 :]
+            if "projects" in prefix and len(suffix) >= 2 and suffix[0] == "sync" and suffix[1] == "sync.db":
+                return True
+    return False
+
+
+def _attempt_context_is_coherent(tree: ast.Module) -> bool:
+    contexts: dict[str, str] = {}
+    assignments: Counter[str] = Counter()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign) or len(node.targets) != 1:
+            continue
+        target = node.targets[0]
+        if not isinstance(target, ast.Name):
+            continue
+        assignments[target.id] += 1
+        if not isinstance(node.value, ast.Call) or _call_tail(node.value) != "ProjectSyncContext":
+            continue
+        project_value = next(
+            (keyword.value for keyword in node.value.keywords if keyword.arg == "project_uuid"),
+            node.value.args[0] if node.value.args else None,
+        )
+        if project_value is not None:
+            contexts[target.id] = ast.dump(project_value, include_attributes=False)
+    attempts = [node for node in ast.walk(tree) if isinstance(node, ast.Call) and _call_tail(node) == "DeliveryAttempt"]
+    if not attempts:
+        return False
+    for attempt in attempts:
+        values = {keyword.arg: keyword.value for keyword in attempt.keywords if keyword.arg in {"context", "journal_uuid", "target_uuid", "ledger_uuid"}}
+        context_node = values.get("context")
+        if not isinstance(context_node, ast.Name) or assignments[context_node.id] != 1:
+            return False
+        expected = contexts.get(context_node.id)
+        paired = [ast.dump(values[field], include_attributes=False) for field in ("journal_uuid", "target_uuid", "ledger_uuid") if field in values]
+        if expected is None or len(paired) != 3 or any(value != expected for value in paired):
+            return False
+    return True
 
 
 def mutation_violations(specimen: MutationSpecimen) -> tuple[str, ...]:
@@ -197,8 +305,7 @@ def mutation_violations(specimen: MutationSpecimen) -> tuple[str, ...]:
     tree = ast.parse(specimen.source)
     text = ast.unparse(tree)
     if specimen.kind is MutantKind.SHARED_JOURNAL_RESOLVER:
-        uses_uuid = any(isinstance(node, ast.Name) and node.id in {"project_uuid", "uuid"} for node in ast.walk(tree))
-        return () if uses_uuid and "sync.db" in text else (specimen.kind.value,)
+        return () if _canonical_resolver_is_coherent(tree) else (specimen.kind.value,)
     if specimen.kind is MutantKind.ENVIRONMENT_AS_GRANT:
         environment = "getenv" in text or "environ" in text
         grants = any(
@@ -209,18 +316,10 @@ def mutation_violations(specimen: MutationSpecimen) -> tuple[str, ...]:
         )
         return (specimen.kind.value,) if environment and grants else ()
     if specimen.kind is MutantKind.MISSING_FINAL_TRANSPORT_GATE:
-        calls = _call_names(tree)
-        transmits = bool(calls & {"post", "send", "deliver"})
-        final_gate = "final_transport_eligible" in calls
-        return (specimen.kind.value,) if transmits and not final_gate else ()
+        transmits = any(isinstance(node, ast.Call) and _call_tail(node) in {"post", "send", "deliver"} for node in ast.walk(tree))
+        return (specimen.kind.value,) if transmits and not _guarded_transport_is_coherent(tree) else ()
     if specimen.kind is MutantKind.CROSS_PAIR_CONTEXT:
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.Call):
-                continue
-            values = {kw.arg: ast.unparse(kw.value) for kw in node.keywords if kw.arg in {"journal_uuid", "target_uuid", "ledger_uuid"}}
-            if len(set(values.values())) > 1:
-                return (specimen.kind.value,)
-        return ()
+        return () if _attempt_context_is_coherent(tree) else (specimen.kind.value,)
     raise AssertionError(f"unhandled mutant kind: {specimen.kind}")
 
 
@@ -339,7 +438,7 @@ def test_cross_process_barrier_releases_only_after_controller_signal() -> None:
             MutationSpecimen(
                 "uuid store",
                 MutantKind.SHARED_JOURNAL_RESOLVER,
-                "def path(root, project_uuid): return root / project_uuid / 'sync.db'",
+                "def path(root, project_uuid): return root / 'projects' / project_uuid / 'sync' / 'sync.db'",
             ),
             MutationSpecimen(
                 "shared journal",
@@ -375,12 +474,14 @@ def test_cross_process_barrier_releases_only_after_controller_signal() -> None:
             MutationSpecimen(
                 "coherent attempt",
                 MutantKind.CROSS_PAIR_CONTEXT,
-                "attempt = DeliveryAttempt(journal_uuid=a.uuid, target_uuid=a.uuid, ledger_uuid=a.uuid)",
+                "context = ProjectSyncContext(project_uuid=a.uuid)\n"
+                "attempt = DeliveryAttempt(context=context, journal_uuid=a.uuid, target_uuid=a.uuid, ledger_uuid=a.uuid)",
             ),
             MutationSpecimen(
                 "cross-paired attempt",
                 MutantKind.CROSS_PAIR_CONTEXT,
-                "attempt = DeliveryAttempt(journal_uuid=a.uuid, target_uuid=b.uuid, ledger_uuid=a.uuid)",
+                "context = ProjectSyncContext(project_uuid=a.uuid)\n"
+                "attempt = DeliveryAttempt(context=context, journal_uuid=a.uuid, target_uuid=b.uuid, ledger_uuid=a.uuid)",
             ),
         ),
     ],
@@ -391,6 +492,35 @@ def test_mutation_runner_accepts_clean_and_rejects_synthetic_mutants(
     mutant: MutationSpecimen,
 ) -> None:
     assert mutation_violations(clean) == ()
+    assert mutation_violations(mutant) == (mutant.kind.value,)
+
+
+@pytest.mark.parametrize(
+    "mutant",
+    [
+        MutationSpecimen(
+            "uuid decoy",
+            MutantKind.SHARED_JOURNAL_RESOLVER,
+            "def path(root, project_uuid):\n    audit(project_uuid)\n    return root / 'sync.db'\n",
+        ),
+        MutationSpecimen(
+            "ignored final result",
+            MutantKind.MISSING_FINAL_TRANSPORT_GATE,
+            "def send(client, body):\n    final_transport_eligible(body)\n    client.post(body)\n",
+        ),
+        MutationSpecimen(
+            "unrelated coherent decoy",
+            MutantKind.CROSS_PAIR_CONTEXT,
+            "decoy = ProjectSyncContext(project_uuid=a.uuid)\n"
+            "context = ProjectSyncContext(project_uuid=b.uuid)\n"
+            "attempt = DeliveryAttempt(context=context, journal_uuid=a.uuid, target_uuid=a.uuid, ledger_uuid=a.uuid)\n",
+        ),
+    ],
+    ids=lambda specimen: specimen.name,
+)
+def test_mutation_runner_rejects_incidental_boundary_vocabulary(
+    mutant: MutationSpecimen,
+) -> None:
     assert mutation_violations(mutant) == (mutant.kind.value,)
 
 
