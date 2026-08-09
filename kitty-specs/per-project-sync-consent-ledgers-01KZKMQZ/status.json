@@ -1,7 +1,7 @@
 {
-  "event_count": 10,
-  "last_event_id": "01KZKV25GVNBXQ3MS7CATHCBV7",
-  "materialized_at": "2026-08-09T18:02:50.267255+00:00",
+  "event_count": 11,
+  "last_event_id": "01KZKV261HP4M4CRSMMX2APCA2",
+  "materialized_at": "2026-08-09T18:02:50.802016+00:00",
   "mission_number": "",
   "mission_slug": "per-project-sync-consent-ledgers-01KZKMQZ",
   "mission_type": "software-dev",
@@ -14,7 +14,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 10
+    "planned": 11
   },
   "work_packages": {
     "WP01": {
@@ -86,6 +86,13 @@
       "lane": "planned",
       "last_event_id": "01KZKV25GVNBXQ3MS7CATHCBV7",
       "last_transition_at": "2026-08-09T18:02:50.267255+00:00"
+    },
+    "WP11": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01KZKV261HP4M4CRSMMX2APCA2",
+      "last_transition_at": "2026-08-09T18:02:50.802016+00:00"
     }
   }
 }
