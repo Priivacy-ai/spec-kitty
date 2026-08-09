@@ -14,6 +14,7 @@ import warnings
 from collections import Counter
 from dataclasses import dataclass
 from enum import StrEnum
+from functools import cache
 from pathlib import Path
 
 import pytest
@@ -92,6 +93,23 @@ class _StoreVisitor(ast.NodeVisitor):
         self.sqlite_modules: set[str] = {"sqlite3"}
         self.sqlite_constructors: set[str] = set()
 
+    def _is_constructor(self, value: ast.expr) -> bool:
+        if isinstance(value, ast.Name):
+            return value.id in self.sqlite_constructors
+        return (
+            isinstance(value, ast.Attribute)
+            and isinstance(value.value, ast.Name)
+            and value.value.id in self.sqlite_modules
+            and value.attr in {"connect", "Connection"}
+        )
+
+    def _bind_assignment(self, targets: list[ast.expr], value: ast.expr) -> None:
+        names = {target.id for target in targets if isinstance(target, ast.Name)}
+        if isinstance(value, ast.Name) and value.id in self.sqlite_modules:
+            self.sqlite_modules.update(names)
+        if self._is_constructor(value):
+            self.sqlite_constructors.update(names)
+
     def _qualname(self) -> str:
         return ".".join(self.scope) or "<module>"
 
@@ -128,8 +146,12 @@ class _StoreVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Assign(self, node: ast.Assign) -> None:  # noqa: N802
-        if isinstance(node.value, ast.Name) and node.value.id in self.sqlite_modules:
-            self.sqlite_modules.update(target.id for target in node.targets if isinstance(target, ast.Name))
+        self._bind_assignment(node.targets, node.value)
+        self.generic_visit(node)
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:  # noqa: N802
+        if node.value is not None:
+            self._bind_assignment([node.target], node.value)
         self.generic_visit(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
@@ -184,11 +206,13 @@ def _paths_from_roots(roots: tuple[Path, ...]) -> tuple[Path, ...]:
 
 
 def scan_store_sites(
-    roots: tuple[Path, ...] = _SYNC_ROOTS,
+    roots: tuple[Path, ...] | None = None,
     *,
     source_root: Path = _SRC,
 ) -> tuple[StoreSite, ...]:
     """Discover direct SQLite opens, component commits, and owned tx contexts."""
+    if roots is None:
+        roots = _SYNC_ROOTS if source_root == _SRC else (source_root,)
     found: list[StoreSite] = []
     for path in _paths_from_roots(roots):
         visitor = _StoreVisitor(path, source_root)
@@ -197,27 +221,108 @@ def scan_store_sites(
     return tuple(sorted(found))
 
 
-def _source_call_counts(source_root: Path = _SRC) -> Counter[str]:
-    """Approximate source reachability by callable/class tail, excluding tests."""
-    counts: Counter[str] = Counter()
-    for path in source_root.rglob("*.py"):
+def _module_name(path: Path, source_root: Path) -> str:
+    parts = list(path.relative_to(source_root).with_suffix("").parts)
+    if parts[-1] == "__init__":
+        parts.pop()
+    return ".".join(parts)
+
+
+def _dotted_name(node: ast.expr) -> str | None:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        prefix = _dotted_name(node.value)
+        return f"{prefix}.{node.attr}" if prefix else None
+    return None
+
+
+def _symbol_index(
+    paths: tuple[Path, ...],
+    source_root: Path,
+) -> tuple[dict[Path, ast.Module], dict[str, str]]:
+    symbols: dict[str, str] = {}
+    trees: dict[Path, ast.Module] = {}
+    for path in paths:
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.Call):
+        trees[path] = tree
+        module = _module_name(path, source_root)
+        relpath = path.relative_to(source_root).as_posix()
+        for statement in tree.body:
+            if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                symbols[f"{module}.{statement.name}"] = f"{relpath}::{statement.name}"
+            elif isinstance(statement, ast.ClassDef):
+                for child in statement.body:
+                    if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        symbols[f"{module}.{statement.name}.{child.name}"] = f"{relpath}::{statement.name}.{child.name}"
+    return trees, symbols
+
+
+def _module_aliases(
+    tree: ast.Module,
+    module: str,
+) -> tuple[dict[str, str], dict[str, str]]:
+    modules: dict[str, str] = {}
+    symbols: dict[str, str] = {}
+    package = module.split(".")[:-1]
+    for statement in tree.body:
+        if isinstance(statement, ast.Import):
+            for alias in statement.names:
+                bound = alias.asname or alias.name.split(".")[0]
+                modules[bound] = alias.name if alias.asname else bound
+        elif isinstance(statement, ast.ImportFrom):
+            if statement.level:
+                prefix = package[: len(package) - statement.level + 1]
+                imported_module = ".".join((*prefix, *(statement.module or "").split(".")))
+            else:
+                imported_module = statement.module or ""
+            for alias in statement.names:
+                symbols[alias.asname or alias.name] = f"{imported_module}.{alias.name}"
+    return modules, symbols
+
+
+def _resolved_symbol(
+    raw: str,
+    module: str,
+    module_aliases: dict[str, str],
+    symbol_aliases: dict[str, str],
+) -> str:
+    parts = raw.split(".")
+    if parts[0] in symbol_aliases:
+        return ".".join((symbol_aliases[parts[0]], *parts[1:]))
+    if parts[0] in module_aliases:
+        return ".".join((module_aliases[parts[0]], *parts[1:]))
+    return f"{module}.{raw}"
+
+
+@cache
+def _qualified_call_counts(source_root: Path = _SRC) -> Counter[str]:
+    """Resolve only module/class-qualified source edges, never tail-name guesses."""
+    trees, symbols = _symbol_index(tuple(sorted(source_root.rglob("*.py"))), source_root)
+
+    counts: Counter[str] = Counter()
+    for path, tree in trees.items():
+        module = _module_name(path, source_root)
+        module_aliases, symbol_aliases = _module_aliases(tree, module)
+        local_classes = {statement.name for statement in tree.body if isinstance(statement, ast.ClassDef)}
+        for item in ast.walk(tree):
+            if not isinstance(item, ast.Call):
                 continue
-            if isinstance(node.func, ast.Name):
-                counts[node.func.id] += 1
-            elif isinstance(node.func, ast.Attribute):
-                counts[node.func.attr] += 1
+            raw = _dotted_name(item.func)
+            if raw is None:
+                continue
+            parts = raw.split(".")
+            resolved = _resolved_symbol(raw, module, module_aliases, symbol_aliases)
+            target = symbols.get(resolved)
+            if target:
+                counts[target] += 1
+            constructor = f"{resolved}.__init__"
+            if parts[-1] in local_classes:
+                constructor = f"{module}.{parts[-1]}.__init__"
+            constructor_target = symbols.get(constructor)
+            if constructor_target:
+                counts[constructor_target] += 1
     return counts
-
-
-_SOURCE_CALL_COUNTS = _source_call_counts()
-
-
-def _reference_name(site: StoreSite) -> str:
-    parts = site.qualname.split(".")
-    return parts[-2] if parts[-1] == "__init__" and len(parts) > 1 else parts[-1]
 
 
 def _owner_for(site: StoreSite) -> str:
@@ -230,16 +335,20 @@ def _owner_for(site: StoreSite) -> str:
     return "WP04"
 
 
-def classify_store_site(site: StoreSite) -> SiteDisposition:
+def classify_store_site(
+    site: StoreSite,
+    *,
+    source_root: Path = _SRC,
+) -> SiteDisposition:
     """Classify a discovered site with measured source reachability and owner."""
-    reference = _reference_name(site)
-    references = _SOURCE_CALL_COUNTS[reference]
+    symbol = f"{site.relpath}::{site.qualname}"
+    references = _qualified_call_counts(source_root)[symbol]
     decorated_command = site.relpath.startswith("specify_cli/cli/") and site.qualname in {
         "status",
         "purge",
         "migrate",
     }
-    reachability = "Typer command entry point" if decorated_command else f"{references} source call(s) to {reference}"
+    reachability = "Typer command entry point" if decorated_command else f"{references} qualified source call(s) to {symbol}"
     if site.kind is SiteKind.SQLITE_CONNECT and site.read_only:
         return SiteDisposition(SiteCategory.LEGACY_READ_ONLY, "WP10", reachability)
     if site.relpath == "specify_cli/sync/migrate_journal.py" or (site.relpath == "specify_cli/sync/queue.py" and "_migrate_" in site.qualname):
@@ -410,13 +519,40 @@ def test_alias_and_duplicate_mutations_flow_through_real_collector(tmp_path: Pat
     source = tmp_path / "specify_cli" / "sync" / "mutant.py"
     source.parent.mkdir(parents=True)
     source.write_text(
-        "import sqlite3 as _db\ndef write(path):\n    one = _db.connect(path)\n    two = _db.connect(path)\n    one.commit()\n    return two\n",
+        "import sqlite3\n"
+        "open_sync = sqlite3.connect\n"
+        "open_again = open_sync\n"
+        "def write(path):\n"
+        "    one = open_sync(path)\n"
+        "    two = open_again(path)\n"
+        "    one.commit()\n"
+        "    return two\n",
         encoding="utf-8",
     )
-    sites = scan_store_sites((source,), source_root=tmp_path)
+    sites = scan_store_sites(source_root=tmp_path)
     observed = Counter(site.key for site in sites)
     assert observed["specify_cli/sync/mutant.py::write::sqlite_connect"] == 2
     assert observed["specify_cli/sync/mutant.py::write::commit"] == 1
+
+
+def test_reachability_is_qualified_not_a_common_tail_name(tmp_path: Path) -> None:
+    source = tmp_path / "specify_cli" / "sync" / "mutant.py"
+    caller = tmp_path / "specify_cli" / "sync" / "caller.py"
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        "import sqlite3\ndef append(path):\n    return sqlite3.connect(path)\ndef live(path):\n    return sqlite3.connect(path)\n",
+        encoding="utf-8",
+    )
+    caller.write_text(
+        "from .mutant import live\ndef entry(path):\n    return live(path)\n",
+        encoding="utf-8",
+    )
+    sites = scan_store_sites(source_root=tmp_path)
+    dispositions = {site.qualname: classify_store_site(site, source_root=tmp_path) for site in sites}
+    assert dispositions["append"].category is SiteCategory.DEAD_CODE
+    assert dispositions["append"].reachability.startswith("0 qualified")
+    assert dispositions["live"].category is SiteCategory.LIVE_PAYLOAD_CONTROL
+    assert dispositions["live"].reachability.startswith("1 qualified")
 
 
 def test_final_boundary_is_exact_and_read_only_is_validated_per_site(

@@ -1461,7 +1461,12 @@ _SENDER_CONTRACT = frozenset(
     }
 )
 
-_PROJECT_SENDER_FILES = tuple(_SRC / relpath for relpath in {row.request_start.relpath for row in _PROJECT_SYNC_SENDER_MATRIX})
+_PROJECT_SENDER_ROOTS = (
+    _SRC / "specify_cli" / "delivery",
+    _SRC / "specify_cli" / "sync",
+    _SRC / "specify_cli" / "tracker",
+    _SRC / "specify_cli" / "saas_client",
+)
 
 
 @dataclass(frozen=True, order=True)
@@ -1478,6 +1483,122 @@ class _ProjectSinkSite:
         return f"{self.relpath}::{self.qualname}::{self.kind.value}::{self.callee}"
 
 
+class _SinkFunctionAnalyzer:
+    def __init__(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+        relpath: str,
+        qualname: str,
+    ) -> None:
+        self.node = node
+        self.relpath = relpath
+        self.qualname = qualname
+        self.aliases: dict[str, ast.expr] = {}
+        self.assignments: Counter[str] = Counter()
+        self.contexts: set[str] = set()
+        self.attempts: dict[str, str] = {}
+        self.sites: list[_ProjectSinkSite] = []
+
+    @staticmethod
+    def _argument_names(call: ast.Call) -> set[str]:
+        return {child.id for argument in (*call.args, *(kw.value for kw in call.keywords)) for child in ast.walk(argument) if isinstance(child, ast.Name)}
+
+    def _collect_binding(self, item: ast.Assign | ast.AnnAssign) -> None:
+        targets = item.targets if isinstance(item, ast.Assign) else [item.target]
+        value = item.value
+        for target in targets:
+            if not isinstance(target, ast.Name):
+                continue
+            self.assignments[target.id] += 1
+            if isinstance(value, (ast.Name, ast.Attribute)):
+                self.aliases[target.id] = value
+            if not isinstance(value, ast.Call):
+                continue
+            tail = _attr_tail(value.func)
+            if tail == "ProjectSyncContext" and value.args:
+                self.contexts.add(target.id)
+            elif tail == "DeliveryAttempt":
+                context = next(
+                    (name for name in self._argument_names(value) if name in self.contexts),
+                    None,
+                )
+                if context:
+                    self.attempts[target.id] = context
+
+    def _collect_bindings(self) -> None:
+        for item in ast.walk(self.node):
+            if isinstance(item, (ast.Assign, ast.AnnAssign)):
+                self._collect_binding(item)
+
+    def _guarded_attempt(self, test: ast.expr) -> tuple[str | None, bool]:
+        inverted = isinstance(test, ast.UnaryOp) and isinstance(test.op, ast.Not)
+        candidate = test.operand if isinstance(test, ast.UnaryOp) and inverted else test
+        if not isinstance(candidate, ast.Call) or _attr_tail(candidate.func) != "final_transport_eligible":
+            return None, inverted
+        attempt = next(
+            (name for name in self._argument_names(candidate) if name in self.attempts),
+            None,
+        )
+        return attempt, inverted
+
+    def _inspect_call(self, call: ast.Call, eligible: frozenset[str]) -> None:
+        resolved = call
+        callee = ast.unparse(call.func)
+        if isinstance(call.func, ast.Name) and call.func.id in self.aliases:
+            resolved = ast.Call(
+                func=self.aliases[call.func.id],
+                args=call.args,
+                keywords=call.keywords,
+            )
+            callee = ast.unparse(self.aliases[call.func.id])
+        kind = _classify(resolved)
+        if kind is None:
+            return
+        data_names = self._argument_names(call)
+        coherent = any(self.assignments[attempt] == 1 and self.assignments[self.attempts[attempt]] == 1 for attempt in eligible & data_names)
+        self.sites.append(
+            _ProjectSinkSite(
+                self.relpath,
+                self.qualname,
+                kind,
+                callee,
+                call.lineno,
+                coherent,
+            )
+        )
+
+    def _inspect_block(
+        self,
+        statements: list[ast.stmt],
+        eligible: frozenset[str],
+    ) -> None:
+        current = eligible
+        for statement in statements:
+            if isinstance(statement, ast.If):
+                attempt, inverted = self._guarded_attempt(statement.test)
+                terminal_guard = bool(statement.body) and isinstance(
+                    statement.body[-1],
+                    (ast.Return, ast.Raise),
+                )
+                if attempt and not inverted:
+                    self._inspect_block(statement.body, current | {attempt})
+                else:
+                    self._inspect_block(statement.body, current)
+                self._inspect_block(statement.orelse, current)
+                if attempt and inverted and terminal_guard:
+                    current = current | {attempt}
+                continue
+            if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                continue
+            for call in (child for child in ast.walk(statement) if isinstance(child, ast.Call)):
+                self._inspect_call(call, current)
+
+    def run(self) -> list[_ProjectSinkSite]:
+        self._collect_bindings()
+        self._inspect_block(self.node.body, frozenset())
+        return self.sites
+
+
 class _ProjectSinkVisitor(ast.NodeVisitor):
     def __init__(self, path: Path, source_root: Path) -> None:
         self.path = path
@@ -1492,27 +1613,12 @@ class _ProjectSinkVisitor(ast.NodeVisitor):
 
     def _visit_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         qualname = ".".join((*self.classes, node.name))
-        calls = [item for item in ast.walk(node) if isinstance(item, ast.Call)]
-        names = {item.func.id if isinstance(item.func, ast.Name) else item.func.attr for item in calls if isinstance(item.func, (ast.Name, ast.Attribute))}
-        canonical = {
-            "ProjectSyncContext",
-            "DeliveryAttempt",
-            "final_transport_eligible",
-        } <= names
-        for call in calls:
-            kind = _classify(call)
-            if kind is None:
-                continue
-            self.sites.append(
-                _ProjectSinkSite(
-                    self.path.relative_to(self.source_root).as_posix(),
-                    qualname,
-                    kind,
-                    ast.unparse(call.func),
-                    call.lineno,
-                    canonical,
-                )
-            )
+        analyzer = _SinkFunctionAnalyzer(
+            node,
+            self.path.relative_to(self.source_root).as_posix(),
+            qualname,
+        )
+        self.sites.extend(analyzer.run())
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
         self._visit_function(node)
@@ -1522,10 +1628,13 @@ class _ProjectSinkVisitor(ast.NodeVisitor):
 
 
 def _scan_project_sinks(
-    paths: tuple[Path, ...] = _PROJECT_SENDER_FILES,
+    paths: tuple[Path, ...] | None = None,
     *,
     source_root: Path = _SRC,
 ) -> tuple[_ProjectSinkSite, ...]:
+    if paths is None:
+        roots = _PROJECT_SENDER_ROOTS if source_root == _SRC else (source_root,)
+        paths = _layout_paths(roots)
     sites: list[_ProjectSinkSite] = []
     for path in sorted(paths):
         visitor = _ProjectSinkVisitor(path, source_root)
@@ -1538,9 +1647,15 @@ _KNOWN_PROJECT_SINK_COUNTS: Counter[str] = Counter(
     line.strip()
     for line in """
 specify_cli/delivery/dispatcher.py::_post::receiver-deliver::receiver.deliver
+specify_cli/delivery/receivers.py::_HttpReceiver._attempt_batch_send::transport-call::self._poster
+specify_cli/delivery/receivers.py::default_http_poster::http-verb::requests.post
 specify_cli/saas_client/client.py::SaasClient._post::http-verb::self._http.post
 specify_cli/sync/body_transport.py::push_content::http-verb::requests.post
 specify_cli/sync/body_transport.py::push_content::transport-call::request_with_stdlib_fallback_sync
+specify_cli/sync/client.py::WebSocketClient._handle_ping::websocket-send::self.ws.send
+specify_cli/sync/client.py::WebSocketClient.send_event::websocket-send::self.ws.send
+specify_cli/sync/daemon.py::_fetch_health_payload::urlopen::urllib.request.urlopen
+specify_cli/sync/daemon.py::_stop_daemon_by_http::urlopen::urllib.request.urlopen
 specify_cli/sync/body_transport.py::push_content::transport-call::request_with_stdlib_fallback_sync
 specify_cli/sync/emitter.py::EventEmitter._route_event::send-event::self.ws_client.send_event
 specify_cli/sync/emitter.py::EventEmitter._route_event::send-event::self.ws_client.send_event
@@ -1551,7 +1666,11 @@ specify_cli/sync/history_import/upload.py::run_server_preflight::transport-call:
 specify_cli/sync/local_commit.py::_send_event::send-event::client.send_event
 specify_cli/sync/local_commit.py::_send_event::send-event::client.send_event
 specify_cli/sync/local_commit.py::_send_event::send-event::client.send_event
+specify_cli/sync/orphan_sweep.py::_http_shutdown_no_token::urlopen::urllib.request.urlopen
 specify_cli/sync/runtime.py::SyncRuntime.publish_event::send-event::self.ws_client.send_event
+specify_cli/sync/sharing_client.py::delete_private_project::http-verb::client.post
+specify_cli/sync/sharing_client.py::leave_repository_share::http-verb::client.post
+specify_cli/sync/sharing_client.py::request_repository_share::http-verb::client.post
 specify_cli/tracker/saas_client.py::SaaSTrackerClient._request::http-verb::client.request
 specify_cli/tracker/saas_client.py::SaaSTrackerClient._request_with_retry::transport-call::self._request
 specify_cli/tracker/saas_client.py::SaaSTrackerClient._request_with_retry::transport-call::self._request
@@ -1640,6 +1759,15 @@ def _sql_text(node: ast.expr, bindings: dict[str, str]) -> str | None:
         left = _sql_text(node.left, bindings)
         right = _sql_text(node.right, bindings)
         return None if left is None or right is None else left + right
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "join" and len(node.args) == 1:
+        separator = _sql_text(node.func.value, bindings)
+        values = node.args[0]
+        if separator is None or not isinstance(values, (ast.List, ast.Tuple)):
+            return None
+        pieces = [_sql_text(item, bindings) for item in values.elts]
+        return None if any(piece is None for piece in pieces) else separator.join(piece for piece in pieces if piece is not None)
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "format":
+        return _sql_text(node.func.value, bindings)
     return None
 
 
@@ -1698,7 +1826,10 @@ class _LayoutWriteVisitor(ast.NodeVisitor):
     def visit_Call(self, node: ast.Call) -> None:  # noqa: N802
         func = node.func
         if isinstance(func, ast.Attribute) and func.attr in {"execute", "executemany", "executescript"} and node.args:
-            operation = _write_operation(_sql_text(node.args[0], self.bindings))
+            rendered = _sql_text(node.args[0], self.bindings)
+            operation = _write_operation(rendered)
+            if operation is None and rendered is None:
+                operation = "DYNAMIC"
             if operation is not None:
                 relpath = self.path.relative_to(self.source_root).as_posix()
                 self.sites.append(
@@ -1730,10 +1861,12 @@ def _layout_paths(roots: tuple[Path, ...]) -> tuple[Path, ...]:
 
 
 def _scan_layout_writers(
-    roots: tuple[Path, ...] = _LAYOUT_ROOTS,
+    roots: tuple[Path, ...] | None = None,
     *,
     source_root: Path = _SRC,
 ) -> tuple[_LayoutWriteSite, ...]:
+    if roots is None:
+        roots = _LAYOUT_ROOTS if source_root == _SRC else (source_root,)
     sites: list[_LayoutWriteSite] = []
     for path in _layout_paths(roots):
         visitor = _LayoutWriteVisitor(path, source_root)
@@ -1765,6 +1898,8 @@ specify_cli/event_journal/journal.py::EventJournal.append::INSERT::execute
 specify_cli/event_journal/journal.py::EventJournal.mark_archived::UPDATE::execute
 specify_cli/event_journal/journal.py::EventJournal.set_project_identity::UPDATE::executemany
 specify_cli/event_journal/journal.py::JournalTransaction.append::INSERT::execute
+specify_cli/event_journal/journal.py::EventJournal.read_by_ids::DYNAMIC::execute
+specify_cli/event_journal/journal.py::EventJournal.read_identity_projection::DYNAMIC::execute
 specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.enqueue::INSERT::execute
 specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.mark_already_exists::DELETE::execute
 specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.mark_failed_permanent::DELETE::execute
@@ -1804,6 +1939,7 @@ specify_cli/sync/queue.py::_scoped_dst_schema::CREATE::execute
 specify_cli/sync/queue.py::_scoped_dst_schema::CREATE::execute
 specify_cli/sync/queue.py::_scoped_dst_schema::CREATE::execute
 specify_cli/sync/queue.py::ensure_body_queue_schema::CREATE::executescript
+specify_cli/sync/queue.py::_table_row_count::DYNAMIC::execute
 """.splitlines()
     if line.strip()
 )
@@ -1836,6 +1972,72 @@ def _qualified_functions(path: Path) -> frozenset[str]:
     return frozenset(found)
 
 
+def _qualified_function_node(
+    path: Path,
+    qualname: str,
+) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    found: ast.FunctionDef | ast.AsyncFunctionDef | None = None
+
+    class Visitor(ast.NodeVisitor):
+        def __init__(self) -> None:
+            self.classes: list[str] = []
+
+        def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
+            self.classes.append(node.name)
+            self.generic_visit(node)
+            self.classes.pop()
+
+        def _visit(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+            nonlocal found
+            if ".".join((*self.classes, node.name)) == qualname:
+                found = node
+                return
+            self.generic_visit(node)
+
+        def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
+            self._visit(node)
+
+        def visit_AsyncFunctionDef(  # noqa: N802
+            self, node: ast.AsyncFunctionDef
+        ) -> None:
+            self._visit(node)
+
+    Visitor().visit(tree)
+    return found
+
+
+def _has_semantic_result_write(
+    row: _ProjectSyncSender,
+    *,
+    source_root: Path = _SRC,
+) -> bool:
+    """Prove the named result site mutates durable or explicit result state."""
+    if row.result_write is None:
+        return row.result_state is _ResultState.MISSING
+    path = source_root / row.result_write.relpath
+    if row.result_state in {_ResultState.DURABLE, _ResultState.DURABLE_FALLBACK}:
+        return any(site.qualname == row.result_write.qualname and site.operation != "DYNAMIC" for site in _scan_layout_writers((path,), source_root=source_root))
+    node = _qualified_function_node(path, row.result_write.qualname)
+    if node is None:
+        return False
+    if row.result_state is _ResultState.DURABLE_FILE:
+        durable_calls = {
+            "save_sync_state",
+            "write_text",
+            "write_bytes",
+            "dump",
+        }
+        return any(isinstance(item, ast.Call) and _attr_tail(item.func) in durable_calls for item in ast.walk(node))
+    if row.result_state is _ResultState.IN_MEMORY:
+        return any(
+            isinstance(item, (ast.Assign, ast.AugAssign))
+            or (isinstance(item, ast.Call) and isinstance(item.func, ast.Attribute) and item.func.attr in {"append", "add", "update"})
+            for item in ast.walk(node)
+        )
+    return False
+
+
 def test_project_sync_sender_matrix_maps_actual_request_and_result_sites() -> None:
     assert {row.surface for row in _PROJECT_SYNC_SENDER_MATRIX} == _SENDER_CONTRACT
     sink_symbols = {_SymbolRef(site.relpath, site.qualname) for site in _scan_project_sinks()}
@@ -1846,6 +2048,7 @@ def test_project_sync_sender_matrix_maps_actual_request_and_result_sites() -> No
         else:
             assert row.result_write.qualname in _qualified_functions(_SRC / row.result_write.relpath)
             assert row.result_state is not _ResultState.MISSING
+            assert _has_semantic_result_write(row), f"named result site does not perform a {row.result_state.value}: {row.result_write}"
         if row.surface == "tracker hosted channel":
             assert row.channel_2_narrowing_only
         else:
@@ -1882,25 +2085,67 @@ def test_source_discovered_layout_writer_census_is_counted_and_shrink_only() -> 
 def test_new_sender_and_layout_writer_mutants_flow_through_real_collectors(
     tmp_path: Path,
 ) -> None:
-    source = tmp_path / "specify_cli" / "sync" / "new_sender.py"
-    source.parent.mkdir(parents=True)
+    sync_root = tmp_path / "specify_cli" / "sync"
+    source = sync_root / "previously_unseen_sender.py"
+    alias_source = sync_root / "aliased_transport.py"
+    dynamic_writer = sync_root / "dynamic_writer.py"
+    clean = sync_root / "wrapped_sender.py"
+    sync_root.mkdir(parents=True)
     source.write_text(
-        "def bypass(client, payload, conn):\n    conn.execute('INSERT INTO event_outbox VALUES (?)', (payload,))\n    client.post('/events', json=payload)\n",
+        "def bypass(client, payload):\n"
+        "    context = ProjectSyncContext(payload['project_uuid'])\n"
+        "    attempt = DeliveryAttempt(context, payload)\n"
+        "    final_transport_eligible(attempt)\n"
+        "    wire = client.post\n"
+        "    wire('/events', json=payload)\n"
+        "def exact_reviewer_bypass(client, payload):\n"
+        "    ProjectSyncContext(payload['project_uuid'])\n"
+        "    DeliveryAttempt(payload)\n"
+        "    final_transport_eligible(payload)\n"
+        "    client.post('/events', json=payload)\n",
         encoding="utf-8",
     )
-    sink_sites = _scan_project_sinks((source,), source_root=tmp_path)
-    assert _new_sender_violations(sink_sites, Counter()) == sink_sites
-    writer_sites = _scan_layout_writers((source,), source_root=tmp_path)
-    assert [site.operation for site in writer_sites] == ["INSERT"]
-
-    clean = tmp_path / "specify_cli" / "sync" / "wrapped_sender.py"
+    alias_source.write_text(
+        "import httpx as wire\ndef send(payload):\n    wire.post('/events', json=payload)\n",
+        encoding="utf-8",
+    )
+    dynamic_writer.write_text(
+        "def write(conn, payload):\n"
+        "    sql = ''.join(('INS', 'ERT INTO event_outbox VALUES (?)'))\n"
+        "    conn.execute(sql, (payload,))\n"
+        "    conn.execute(build_sql(), (payload,))\n",
+        encoding="utf-8",
+    )
     clean.write_text(
         "def send(client, payload):\n"
         "    context = ProjectSyncContext(payload['project_uuid'])\n"
-        "    attempt = DeliveryAttempt(context)\n"
+        "    attempt = DeliveryAttempt(context, payload)\n"
         "    if final_transport_eligible(attempt):\n"
-        "        client.post('/events', json=payload)\n",
+        "        client.post('/events', json=attempt)\n",
         encoding="utf-8",
     )
-    clean_sites = _scan_project_sinks((clean,), source_root=tmp_path)
-    assert _new_sender_violations(clean_sites, Counter()) == ()
+    sink_sites = _scan_project_sinks(source_root=tmp_path)
+    violations = _new_sender_violations(sink_sites, Counter())
+    assert {site.relpath for site in violations} == {
+        "specify_cli/sync/aliased_transport.py",
+        "specify_cli/sync/previously_unseen_sender.py",
+    }
+    assert all(site.canonical_attempt for site in sink_sites if site.relpath == "specify_cli/sync/wrapped_sender.py")
+    writer_sites = _scan_layout_writers(source_root=tmp_path)
+    assert [site.operation for site in writer_sites] == ["DYNAMIC", "INSERT"]
+
+
+def test_result_matrix_rejects_a_named_function_without_a_result_write(
+    tmp_path: Path,
+) -> None:
+    result = tmp_path / "specify_cli" / "sync" / "result.py"
+    result.parent.mkdir(parents=True)
+    result.write_text("def record(payload):\n    return payload\n", encoding="utf-8")
+    row = _ProjectSyncSender(
+        "mutant",
+        _SymbolRef("specify_cli/sync/result.py", "record"),
+        _SymbolRef("specify_cli/sync/result.py", "record"),
+        _ResultState.DURABLE,
+        "WP04",
+    )
+    assert not _has_semantic_result_write(row, source_root=tmp_path)

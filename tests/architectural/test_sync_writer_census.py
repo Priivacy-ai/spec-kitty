@@ -24,13 +24,19 @@ pytestmark = [pytest.mark.architectural]
 
 _ROOT = Path(__file__).resolve().parents[2]
 _SRC = _ROOT / "src"
-_CONSENT_FILES = (
-    _SRC / "specify_cli" / "sync" / "config.py",
-    _SRC / "specify_cli" / "sync" / "consent.py",
-    _SRC / "specify_cli" / "sync" / "routing.py",
+_CONSENT_ROOTS = (
+    _SRC / "specify_cli" / "sync",
     _SRC / "specify_cli" / "cli" / "commands" / "sync.py",
 )
 _GRANT_FIELDS = frozenset({"enabled", "granted", "effective_sync_enabled"})
+_CONSENT_TOKENS = (
+    "consent",
+    "checkout_sync",
+    "project_sync",
+    "repository_sync",
+    "sync_enabled",
+    "routing",
+)
 
 
 class GrantKind(StrEnum):
@@ -62,6 +68,7 @@ class GrantSite:
 @dataclass(frozen=True)
 class _FunctionRecord:
     relpath: str
+    module: str
     qualname: str
     short_name: str
     node: ast.FunctionDef | ast.AsyncFunctionDef
@@ -75,9 +82,16 @@ class _CallEdge:
     returned: bool
 
 
+@dataclass(frozen=True)
+class _ImportBindings:
+    modules: dict[str, str]
+    symbols: dict[str, str]
+
+
 class _FunctionCollector(ast.NodeVisitor):
-    def __init__(self, relpath: str, records: list[_FunctionRecord]) -> None:
+    def __init__(self, relpath: str, module: str, records: list[_FunctionRecord]) -> None:
         self.relpath = relpath
+        self.module = module
         self.records = records
         self.classes: list[str] = []
 
@@ -90,6 +104,7 @@ class _FunctionCollector(ast.NodeVisitor):
         self.records.append(
             _FunctionRecord(
                 self.relpath,
+                self.module,
                 ".".join((*self.classes, node.name)),
                 node.name,
                 node,
@@ -123,80 +138,189 @@ def _call_tail(func: ast.expr) -> str | None:
     return None
 
 
+def _domain_field(field: str, *context: str) -> bool:
+    if field in {"granted", "effective_sync_enabled"}:
+        return True
+    joined = "_".join(context).lower()
+    return any(token in joined for token in _CONSENT_TOKENS)
+
+
+def _target_field(target: ast.expr) -> tuple[str | None, str]:
+    if isinstance(target, ast.Subscript):
+        return _subscript_key(target), ast.unparse(target.value)
+    if isinstance(target, ast.Attribute):
+        return target.attr, ast.unparse(target.value)
+    return None, ""
+
+
+def _grant_site(
+    record: _FunctionRecord,
+    node: ast.AST,
+    kind: GrantKind,
+    value: ast.expr,
+    evidence: str,
+) -> GrantSite:
+    return GrantSite(
+        record.relpath,
+        record.qualname,
+        kind,
+        _expr_effect(value),
+        evidence,
+        "WP03" if record.relpath.endswith("routing.py") else "WP02",
+        getattr(node, "lineno", 0),
+    )
+
+
+def _keyword_sites(record: _FunctionRecord, node: ast.Call) -> list[GrantSite]:
+    callee = _call_tail(node.func) or ast.unparse(node.func)
+    return [
+        _grant_site(
+            record,
+            node,
+            GrantKind.DECISION_RETURN,
+            keyword.value,
+            f"keyword:{callee}.{keyword.arg}",
+        )
+        for keyword in node.keywords
+        if keyword.arg in _GRANT_FIELDS and _domain_field(keyword.arg, callee, record.qualname)
+    ]
+
+
+def _mapping_sites(record: _FunctionRecord, node: ast.Dict) -> list[GrantSite]:
+    sites: list[GrantSite] = []
+    for key, value in zip(node.keys, node.values, strict=True):
+        if not (
+            isinstance(key, ast.Constant)
+            and isinstance(key.value, str)
+            and key.value in _GRANT_FIELDS
+            and value is not None
+            and _domain_field(key.value, record.qualname)
+        ):
+            continue
+        sites.append(
+            _grant_site(
+                record,
+                node,
+                GrantKind.PERSISTENCE,
+                value,
+                f"mapping:{key.value}",
+            )
+        )
+    return sites
+
+
+def _assignment_sites(
+    record: _FunctionRecord,
+    node: ast.Assign | ast.AnnAssign,
+) -> list[GrantSite]:
+    if isinstance(node, ast.Assign):
+        targets, value = node.targets, node.value
+    elif node.value is not None:
+        targets, value = [node.target], node.value
+    else:
+        return []
+    sites: list[GrantSite] = []
+    for target in targets:
+        field, base = _target_field(target)
+        if field not in _GRANT_FIELDS or not _domain_field(
+            field,
+            base,
+            record.qualname,
+        ):
+            continue
+        prefix = "attribute" if isinstance(target, ast.Attribute) else "subscript"
+        sites.append(
+            _grant_site(
+                record,
+                node,
+                GrantKind.PERSISTENCE,
+                value,
+                f"{prefix}:{field}",
+            )
+        )
+    return sites
+
+
+def _update_sites(record: _FunctionRecord, node: ast.Call) -> list[GrantSite]:
+    if not isinstance(node.func, ast.Attribute) or node.func.attr not in {
+        "update",
+        "setdefault",
+    }:
+        return []
+    base = ast.unparse(node.func.value)
+    sites = [
+        _grant_site(
+            record,
+            node,
+            GrantKind.PERSISTENCE,
+            keyword.value,
+            f"update:{keyword.arg}",
+        )
+        for keyword in node.keywords
+        if keyword.arg in _GRANT_FIELDS and _domain_field(keyword.arg, base, record.qualname)
+    ]
+    for mapping in (arg for arg in node.args if isinstance(arg, ast.Dict)):
+        for site in _mapping_sites(record, mapping):
+            sites.append(
+                _grant_site(
+                    record,
+                    node,
+                    GrantKind.PERSISTENCE,
+                    next(
+                        value
+                        for key, value in zip(
+                            mapping.keys,
+                            mapping.values,
+                            strict=True,
+                        )
+                        if isinstance(key, ast.Constant) and key.value == site.evidence.removeprefix("mapping:") and value is not None
+                    ),
+                    site.evidence.replace("mapping:", "update:"),
+                )
+            )
+    return sites
+
+
+def _return_sites(record: _FunctionRecord, node: ast.Return) -> list[GrantSite]:
+    if node.value is None:
+        return []
+    names = {item.id for item in ast.walk(node.value) if isinstance(item, ast.Name)} | {
+        item.attr for item in ast.walk(node.value) if isinstance(item, ast.Attribute)
+    }
+    if not names & _GRANT_FIELDS:
+        return []
+    return [
+        _grant_site(
+            record,
+            node,
+            GrantKind.DECISION_RETURN,
+            node.value,
+            "return:grant-field",
+        )
+    ]
+
+
 def _semantic_sites(record: _FunctionRecord) -> list[GrantSite]:
     """Discover grant/refusal shapes without relying on the function's name."""
     sites: list[GrantSite] = []
-    owner = "WP03" if record.relpath.endswith("routing.py") else "WP02"
     for node in ast.walk(record.node):
         if isinstance(node, ast.Call):
-            callee = _call_tail(node.func) or ast.unparse(node.func)
-            for keyword in node.keywords:
-                if keyword.arg not in _GRANT_FIELDS:
-                    continue
-                sites.append(
-                    GrantSite(
-                        record.relpath,
-                        record.qualname,
-                        GrantKind.DECISION_RETURN,
-                        _expr_effect(keyword.value),
-                        f"keyword:{callee}.{keyword.arg}",
-                        owner,
-                        node.lineno,
-                    )
-                )
-        if isinstance(node, ast.Dict):
-            for key, value in zip(node.keys, node.values, strict=True):
-                if isinstance(key, ast.Constant) and isinstance(key.value, str) and key.value in _GRANT_FIELDS and value is not None:
-                    sites.append(
-                        GrantSite(
-                            record.relpath,
-                            record.qualname,
-                            GrantKind.PERSISTENCE,
-                            _expr_effect(value),
-                            f"mapping:{key.value}",
-                            owner,
-                            node.lineno,
-                        )
-                    )
-        if isinstance(node, (ast.Assign, ast.AnnAssign)):
-            if isinstance(node, ast.Assign):
-                targets = node.targets
-                value = node.value
-            else:
-                targets = [node.target]
-                if node.value is None:
-                    continue
-                value = node.value
-            for target in targets:
-                if isinstance(target, ast.Subscript) and _subscript_key(target) in _GRANT_FIELDS:
-                    sites.append(
-                        GrantSite(
-                            record.relpath,
-                            record.qualname,
-                            GrantKind.PERSISTENCE,
-                            _expr_effect(value),
-                            f"subscript:{_subscript_key(target)}",
-                            owner,
-                            node.lineno,
-                        )
-                    )
-        if isinstance(node, ast.Return) and node.value is not None:
-            names = {item.id for item in ast.walk(node.value) if isinstance(item, ast.Name)} | {
-                item.attr for item in ast.walk(node.value) if isinstance(item, ast.Attribute)
-            }
-            if names & _GRANT_FIELDS:
-                sites.append(
-                    GrantSite(
-                        record.relpath,
-                        record.qualname,
-                        GrantKind.DECISION_RETURN,
-                        _expr_effect(node.value),
-                        "return:grant-field",
-                        owner,
-                        node.lineno,
-                    )
-                )
+            sites.extend(_keyword_sites(record, node))
+            sites.extend(_update_sites(record, node))
+        elif isinstance(node, ast.Dict):
+            sites.extend(_mapping_sites(record, node))
+        elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+            sites.extend(_assignment_sites(record, node))
+        elif isinstance(node, ast.Return):
+            sites.extend(_return_sites(record, node))
     return sites
+
+
+def _module_name(path: Path, source_root: Path) -> str:
+    parts = list(path.relative_to(source_root).with_suffix("").parts)
+    if parts[-1] == "__init__":
+        parts.pop()
+    return ".".join(parts)
 
 
 def _functions(paths: tuple[Path, ...], source_root: Path) -> list[_FunctionRecord]:
@@ -204,8 +328,30 @@ def _functions(paths: tuple[Path, ...], source_root: Path) -> list[_FunctionReco
     for path in paths:
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         relpath = path.relative_to(source_root).as_posix()
-        _FunctionCollector(relpath, records).visit(tree)
+        _FunctionCollector(relpath, _module_name(path, source_root), records).visit(tree)
     return records
+
+
+def _import_bindings(path: Path, source_root: Path) -> _ImportBindings:
+    module = _module_name(path, source_root)
+    package = module.split(".")[:-1]
+    modules: dict[str, str] = {}
+    symbols: dict[str, str] = {}
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                bound = alias.asname or alias.name.split(".")[0]
+                modules[bound] = alias.name if alias.asname else bound
+        elif isinstance(node, ast.ImportFrom):
+            if node.level:
+                prefix = package[: len(package) - node.level + 1]
+                imported_module = ".".join((*prefix, *(node.module or "").split(".")))
+            else:
+                imported_module = node.module or ""
+            for alias in node.names:
+                symbols[alias.asname or alias.name] = f"{imported_module}.{alias.name}"
+    return _ImportBindings(modules, symbols)
 
 
 def _is_returned(function: ast.FunctionDef | ast.AsyncFunctionDef, call: ast.Call) -> bool:
@@ -222,28 +368,80 @@ def _is_returned(function: ast.FunctionDef | ast.AsyncFunctionDef, call: ast.Cal
     return False
 
 
+def _receiver_types(
+    record: _FunctionRecord,
+    bindings: _ImportBindings,
+) -> dict[str, str]:
+    receiver_types: dict[str, str] = {}
+    for assignment in ast.walk(record.node):
+        if not isinstance(assignment, ast.Assign) or not isinstance(
+            assignment.value,
+            ast.Call,
+        ):
+            continue
+        constructor = assignment.value.func
+        if isinstance(constructor, ast.Name):
+            constructor_symbol = bindings.symbols.get(
+                constructor.id,
+                f"{record.module}.{constructor.id}",
+            )
+        elif isinstance(constructor, ast.Attribute) and isinstance(
+            constructor.value,
+            ast.Name,
+        ):
+            root = constructor.value.id
+            prefix = bindings.modules.get(root, bindings.symbols.get(root))
+            constructor_symbol = f"{prefix}.{constructor.attr}" if prefix else f"{record.module}.{root}.{constructor.attr}"
+        else:
+            continue
+        for target_node in assignment.targets:
+            if isinstance(target_node, ast.Name):
+                receiver_types[target_node.id] = constructor_symbol
+    return receiver_types
+
+
 def _call_targets(
     record: _FunctionRecord,
     call: ast.Call,
     *,
-    by_short: dict[str, list[_FunctionRecord]],
-    by_qualname: dict[str, list[_FunctionRecord]],
+    by_symbol: dict[str, _FunctionRecord],
+    bindings: _ImportBindings,
 ) -> list[_FunctionRecord]:
+    receiver_types = _receiver_types(record, bindings)
+
     func = call.func
     if isinstance(func, ast.Name):
-        return by_short.get(func.id, [])
+        symbol = bindings.symbols.get(func.id, f"{record.module}.{func.id}")
+        target = by_symbol.get(symbol)
+        return [target] if target else []
     if not isinstance(func, ast.Attribute):
         return []
-    if isinstance(func.value, ast.Name) and func.value.id == "self" and "." in record.qualname:
+    if isinstance(func.value, ast.Name) and func.value.id in {"self", "cls"} and "." in record.qualname:
         owner = record.qualname.rsplit(".", 1)[0]
-        return by_qualname.get(f"{owner}.{func.attr}", [])
+        target = by_symbol.get(f"{record.module}.{owner}.{func.attr}")
+        return [target] if target else []
+    if isinstance(func.value, ast.Name):
+        root = func.value.id
+        if root in receiver_types:
+            symbol = f"{receiver_types[root]}.{func.attr}"
+        elif root in bindings.modules:
+            symbol = f"{bindings.modules[root]}.{func.attr}"
+        elif root in bindings.symbols:
+            symbol = f"{bindings.symbols[root]}.{func.attr}"
+        else:
+            symbol = f"{record.module}.{root}.{func.attr}"
+        target = by_symbol.get(symbol)
+        return [target] if target else []
     if isinstance(func.value, ast.Call):
         constructor_owner = _call_tail(func.value.func)
         if constructor_owner is not None:
-            qualified = by_qualname.get(f"{constructor_owner}.{func.attr}")
-            if qualified:
-                return qualified
-    return by_short.get(func.attr, [])
+            owner_symbol = bindings.symbols.get(
+                constructor_owner,
+                f"{record.module}.{constructor_owner}",
+            )
+            target = by_symbol.get(f"{owner_symbol}.{func.attr}")
+            return [target] if target else []
+    return []
 
 
 def _edge_effect(
@@ -266,23 +464,34 @@ def _edge_effect(
     return fallback
 
 
-def scan_grant_paths(
-    paths: tuple[Path, ...] = _CONSENT_FILES,
-    *,
-    source_root: Path = _SRC,
-) -> tuple[GrantSite, ...]:
-    """Discover direct semantic sites, then every transitive source caller."""
-    records = _functions(paths, source_root)
-    by_short: dict[str, list[_FunctionRecord]] = defaultdict(list)
-    by_qualname: dict[str, list[_FunctionRecord]] = defaultdict(list)
+def _grant_paths(paths: tuple[Path, ...] | None, source_root: Path) -> tuple[Path, ...]:
+    if paths is None:
+        discovered: list[Path] = []
+        for root in _CONSENT_ROOTS if source_root == _SRC else (source_root,):
+            discovered.extend(root.rglob("*.py") if root.is_dir() else [root])
+        return tuple(sorted(set(discovered)))
+    return paths
+
+
+def _grant_index(
+    records: list[_FunctionRecord],
+) -> tuple[dict[str, _FunctionRecord], dict[str, _FunctionRecord], list[GrantSite]]:
+    by_symbol: dict[str, _FunctionRecord] = {}
     by_identity: dict[str, _FunctionRecord] = {}
     direct: list[GrantSite] = []
     for record in records:
         identity = f"{record.relpath}::{record.qualname}"
         by_identity[identity] = record
-        by_short[record.short_name].append(record)
-        by_qualname[record.qualname].append(record)
+        by_symbol[f"{record.module}.{record.qualname}"] = record
         direct.extend(_semantic_sites(record))
+    return by_symbol, by_identity, direct
+
+
+def _grant_edges(
+    records: list[_FunctionRecord],
+    by_symbol: dict[str, _FunctionRecord],
+    bindings_by_relpath: dict[str, _ImportBindings],
+) -> list[_CallEdge]:
     edges: list[_CallEdge] = []
     for record in records:
         caller_id = f"{record.relpath}::{record.qualname}"
@@ -291,8 +500,8 @@ def scan_grant_paths(
                 for callee in _call_targets(
                     record,
                     node,
-                    by_short=by_short,
-                    by_qualname=by_qualname,
+                    by_symbol=by_symbol,
+                    bindings=bindings_by_relpath[record.relpath],
                 ):
                     edges.append(
                         _CallEdge(
@@ -302,7 +511,14 @@ def scan_grant_paths(
                             _is_returned(record.node, node),
                         )
                     )
+    return edges
 
+
+def _grant_capabilities(
+    direct: list[GrantSite],
+    edges: list[_CallEdge],
+    by_identity: dict[str, _FunctionRecord],
+) -> dict[str, dict[GrantKind, GrantEffect]]:
     capabilities: dict[str, dict[GrantKind, GrantEffect]] = defaultdict(dict)
     for site in direct:
         identity = f"{site.relpath}::{site.qualname}"
@@ -323,7 +539,14 @@ def scan_grant_paths(
                 if old != new:
                     capabilities[edge.caller][kind] = new
                     changed = True
+    return capabilities
 
+
+def _grant_call_sites(
+    edges: list[_CallEdge],
+    by_identity: dict[str, _FunctionRecord],
+    capabilities: dict[str, dict[GrantKind, GrantEffect]],
+) -> list[GrantSite]:
     call_sites: list[GrantSite] = []
     for edge in edges:
         caller_record = by_identity[edge.caller]
@@ -342,6 +565,22 @@ def scan_grant_paths(
                     edge.node.lineno,
                 )
             )
+    return call_sites
+
+
+def scan_grant_paths(
+    paths: tuple[Path, ...] | None = None,
+    *,
+    source_root: Path = _SRC,
+) -> tuple[GrantSite, ...]:
+    """Discover direct semantic sites, then every transitive source caller."""
+    paths = _grant_paths(paths, source_root)
+    records = _functions(paths, source_root)
+    by_symbol, by_identity, direct = _grant_index(records)
+    bindings_by_relpath = {path.relative_to(source_root).as_posix(): _import_bindings(path, source_root) for path in paths}
+    edges = _grant_edges(records, by_symbol, bindings_by_relpath)
+    capabilities = _grant_capabilities(direct, edges, by_identity)
+    call_sites = _grant_call_sites(edges, by_identity, capabilities)
     return tuple(sorted({*direct, *call_sites}))
 
 
@@ -355,6 +594,8 @@ specify_cli/cli/commands/sync.py::_run_consent_index_backfill::call-path::may-gr
 specify_cli/cli/commands/sync.py::migrate::call-path::may-grant::calls:_run_consent_index_backfill:persistence
 specify_cli/cli/commands/sync.py::opt_in::call-path::may-grant::calls:enable_checkout_sync:persistence
 specify_cli/cli/commands/sync.py::opt_out::call-path::refusal-only::calls:disable_checkout_sync:persistence
+specify_cli/sync/background.py::_consenting_body_project_uuids::call-path::may-grant::calls:consented_project_uuids:decision-return
+specify_cli/sync/body_upload.py::project_consents_to_hosted_sync::decision-return::may-grant::return:grant-field
 specify_cli/sync/config.py::SyncConfig.get_checkout_sync_enabled::decision-return::may-grant::return:grant-field
 specify_cli/sync/config.py::SyncConfig.get_project_consent::call-path::may-grant::calls:_project_consent_entry:decision-return
 specify_cli/sync/config.py::SyncConfig.get_repository_sync_enabled::decision-return::may-grant::return:grant-field
@@ -385,6 +626,7 @@ specify_cli/sync/consent.py::get_project_consent::call-path::may-grant::calls:ge
 specify_cli/sync/consent.py::resolve_project_consent::decision-return::refusal-only::keyword:ConsentDecision.granted
 specify_cli/sync/consent.py::resolve_project_consent::decision-return::refusal-only::keyword:ConsentDecision.granted
 specify_cli/sync/consent.py::set_project_consent::call-path::may-grant::calls:set_project_consent:persistence
+specify_cli/sync/local_commit.py::_frame_project_consents::decision-return::may-grant::return:grant-field
 specify_cli/sync/routing.py::_build_checkout_sync_routing::call-path::refusal-only::calls:_deny_routing_for_project_local_fault:decision-return
 specify_cli/sync/routing.py::_build_checkout_sync_routing::decision-return::may-grant::keyword:CheckoutSyncRouting.effective_sync_enabled
 specify_cli/sync/routing.py::_build_checkout_sync_routing::decision-return::may-grant::return:grant-field
@@ -401,6 +643,7 @@ specify_cli/sync/routing.py::read_local_sync_enabled::call-path::may-grant::call
 specify_cli/sync/routing.py::resolve_checkout_sync_routing::call-path::may-grant::calls:_build_checkout_sync_routing:decision-return
 specify_cli/sync/routing.py::resolve_checkout_sync_routing_readonly::call-path::may-grant::calls:_build_checkout_sync_routing:decision-return
 specify_cli/sync/routing.py::write_local_sync_enabled::call-path::may-grant::calls:set_checkout_sync_enabled:persistence
+specify_cli/sync/runtime.py::event_project_consents_to_publish::decision-return::may-grant::return:grant-field
 """.splitlines()
     if line.strip()
 )
@@ -439,22 +682,36 @@ def test_source_discovered_grant_census_cannot_grow() -> None:
 def test_differently_named_grant_and_persistence_mutants_use_real_collector(
     tmp_path: Path,
 ) -> None:
-    source = tmp_path / "specify_cli" / "sync" / "mutant.py"
-    source.parent.mkdir(parents=True)
+    sync_root = tmp_path / "specify_cli" / "sync"
+    source = sync_root / "previously_unseen.py"
+    noise = sync_root / "same_name_noise.py"
+    caller = sync_root / "caller.py"
+    sync_root.mkdir(parents=True)
     source.write_text(
         "def decide_anything():\n"
         "    return ConsentDecision(granted=True)\n"
         "def remember_anything(record, answer):\n"
-        "    record['enabled'] = bool(answer)\n"
+        "    record.granted = answer\n"
+        "    record.update({'granted': answer})\n"
         "def renamed_entry(record):\n"
         "    remember_anything(record, decide_anything())\n",
         encoding="utf-8",
     )
-    sites = scan_grant_paths((source,), source_root=tmp_path)
+    noise.write_text(
+        "def remember_anything(widget):\n    return widget.configure(enabled=True)\ndef set_widget_mode(widget):\n    return widget.configure(enabled=True)\n",
+        encoding="utf-8",
+    )
+    caller.write_text(
+        "from specify_cli.sync.previously_unseen import remember_anything\ndef external_entry(record, answer):\n    remember_anything(record, answer)\n",
+        encoding="utf-8",
+    )
+    sites = scan_grant_paths(source_root=tmp_path)
     identities = {(site.qualname, site.kind) for site in sites}
     assert ("decide_anything", GrantKind.DECISION_RETURN) in identities
     assert ("remember_anything", GrantKind.PERSISTENCE) in identities
     assert ("renamed_entry", GrantKind.CALL_PATH) in identities
+    assert ("external_entry", GrantKind.CALL_PATH) in identities
+    assert not any(site.relpath.endswith("same_name_noise.py") for site in sites), "unrelated enabled fields and same-named functions are not grant authority"
     assert final_grant_writer_violations(sites)
 
 
