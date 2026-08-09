@@ -224,7 +224,7 @@ def test_gate_execution_context_is_immutable() -> None:
     """GEC-1 shape: the value object a gate is handed is frozen — no in-place patch."""
     ctx = _plain_context(surface=Path("/p"), surface_kind=TopologySurface.PRIMARY)
     with pytest.raises((AttributeError, TypeError)):
-        ctx.surface = Path("/elsewhere")  # type: ignore[misc]
+        ctx.surface = Path("/elsewhere")
 
 
 # ===========================================================================
