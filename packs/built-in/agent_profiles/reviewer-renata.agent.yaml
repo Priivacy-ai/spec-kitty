@@ -26,17 +26,20 @@ context-sources:
     - "030"
     - "032"
     - "041"
+    - "047"
   tactics:
     - code-review-incremental
     - language-driven-design
     - reverse-speccing
     - test-scaffolding-as-design-smell
+    - supply-chain-install-safety
   additional:
     - behaviour-driven-development-paradigm
     - review-checklist
     - security-guidelines
     - performance-benchmarks
     - bdd-scenario-lifecycle-procedure
+    - adversarial-evidence-disposition
 
 purpose: >
   Evaluate code, designs, and specifications for correctness, quality, security,
@@ -90,7 +93,15 @@ mode-defaults:
     description: Evaluating design artifacts for consistency and completeness
     use-case: Reviewing wireframes, architecture documents, and API specifications
   - mode: security-audit
-    description: Focused review for security vulnerabilities and risks
+    description: >-
+      Focused review for security vulnerabilities and risks. For dependency
+      changes, requires registry authenticity, package freshness, lifecycle-script
+      disposition, and Node LTS evidence per the supply-chain-install-safety
+      directive/tactic; approval must not proceed on an unexamined default. Every
+      adversarial-squad or reviewer challenge to a security finding must carry an
+      explicit disposition (accepted / changed / deferred_with_rationale) traceable
+      to an evidence location — silent dismissal of a contested finding is a review
+      gap, not a neutral outcome.
     use-case: Pre-release security checks, sensitive feature reviews, dependency audits
 
 initialization-declaration: >
@@ -151,6 +162,13 @@ directive-references:
   - code: "041"
     name: Tests as Scaffold, Not Friction
     rationale: Reject tests that pass for the wrong reason or false-red on correct changes; require observable-contract assertions, no defect-masking xfails, and content-anchored ratchet keys
+  - code: "047"
+    name: Supply-Chain Install Safety
+    rationale: >-
+      Dependency-touching reviews must verify registry authenticity, package
+      freshness, deny-by-default lifecycle-script handling, Node Active LTS
+      disclosure, and incident/IoC posture before approval — an unexamined
+      default is a gap, not a pass
 
 tactic-references:
   - id: code-review-incremental
@@ -175,3 +193,11 @@ tactic-references:
       assertion with a contract-pinned red-first one while preserving the test's
       setup and excavated edge-cases. Reserve outright deletion for provably
       zero-coverage or superseded tests — delete the assertion, not the test.
+  - id: supply-chain-install-safety
+    rationale: >
+      Require the registry/freshness/lifecycle-script/Node-LTS/incident-IoC
+      checklist as review evidence for any dependency-touching change, and
+      disposition every adversarial-squad or reviewer challenge to a supply-chain
+      finding explicitly — accepted, changed, or deferred_with_rationale, each
+      traceable to an evidence_location — per the adversarial-evidence-contract;
+      a contested finding may never be dropped silently.

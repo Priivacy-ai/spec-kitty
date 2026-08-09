@@ -168,7 +168,7 @@ def test_sdist_ships_built_in_packs_at_exact_parity(
 #
 # Scope guard: this WP depends only on WP03. The loader repoint that makes
 # ``load_built_in_graph()`` read the relocated fragments is WP04, and the
-# full-graph (324/892) proof from a clean install lives in WP07. Here we assert
+# full-graph (326/922) proof from a clean install lives in WP07. Here we assert
 # ONLY packaging truth: ``import doctrine`` succeeds and
 # ``resolve_pack_root("built-in")`` yields a complete, real on-disk tree.
 # --------------------------------------------------------------------------- #

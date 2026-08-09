@@ -28,6 +28,9 @@ context-sources:
     - "025"
     - "030"
     - "034"
+    - "047"
+  tactics:
+    - dependency-hygiene
   additional:
     - coding-standards
     - test-strategy
@@ -185,8 +188,20 @@ directive-references:
   - code: "034"
     name: Test-First Development
     rationale: Tests define the contract before production code — ATDD/TDD red-green-refactor is the default implementation rhythm
+  - code: "047"
+    name: Supply-Chain Install Safety
+    rationale: >-
+      Maven/Gradle dependency additions and upgrades require official-registry
+      (Maven Central) resolution, transitive-CVE exclusion, and version-pin
+      discipline before acceptance — apply alongside the dependency-hygiene
+      checklist, never as a silently-skipped default
 tactic-references:
   - id: behavior-driven-development
     rationale: >
       BDD scenarios define acceptance criteria for Java features. Wire Gherkin
       scenarios via Cucumber-JVM as acceptance tests before implementing production code.
+  - id: dependency-hygiene
+    rationale: >
+      Pin direct dependency versions in the Maven properties block, restrict
+      resolution to Maven Central, exclude vulnerable transitives with a
+      documented reason, and regenerate the SBOM after any dependency change.
