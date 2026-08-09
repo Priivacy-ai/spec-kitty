@@ -30,6 +30,7 @@ history:
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/sync/project_store.py
 create_intent:
+- tests/architectural/test_project_store_boundary.py
 - src/specify_cli/sync/project_store.py
 - src/specify_cli/sync/layout_generation.py
 - src/specify_cli/sync/project_context.py
@@ -39,6 +40,8 @@ create_intent:
 - tests/sync/test_layout_generation.py
 execution_mode: code_change
 owned_files:
+- tests/architectural/test_project_store_boundary.py
+- tests/architectural/test_egress_consent_boundary.py
 - src/specify_cli/sync/project_store.py
 - src/specify_cli/sync/layout_generation.py
 - src/specify_cli/sync/project_context.py
@@ -159,3 +162,7 @@ Commit a failing public store/isolation/layout-permit test before implementation
 ## Risks and reviewer guidance
 
 Reviewers must look past the filename: physical separation is insufficient if repositories can still connect, commit, or choose a layout privately. Inject a component-local connection and a generation-bypassing writer and confirm the architecture gates fail. Inspect rollback behavior with real SQLite, verify path behavior on platform-specific separators, and reject any fallback to shared journal/queue or store-presence-as-consent logic.
+
+## Activity Log
+
+- 2026-08-09T22:11:30Z – codex – shell_pid=1091 – Planning ownership correction: allocator omitted approved WP01 dependency and the exact canonical connection census entry. Merged lane-a without conflict at 50b6b0742 before red-first work; arbiter authorized a minimal test_project_store_boundary.py baseline/floor correction that preserves all non-vacuity and TODO(#3280) controls.
