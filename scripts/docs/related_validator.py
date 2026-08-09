@@ -31,6 +31,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final
 
+from scripts.docs._guards import assert_examined_floor
 from scripts.docs._inventory import parse_frontmatter
 
 __all__ = [
@@ -114,11 +115,13 @@ def validate_related(*, docs_root: Path, repo_root: Path, min_files: int = 1) ->
                 if not _resolves(entry, repo_root):
                     dangling.append(DanglingEdge(from_path=from_rel, to_path=entry))
 
-    if checked_count < min_files:
-        raise RuntimeError(
-            f"related_validator: only {checked_count} related edge(s) examined under "
-            f"{docs_root} — expected at least {min_files} (FR-008 non-vacuity guard)"
-        )
+    assert_examined_floor(
+        checked_count,
+        min_files,
+        gate="related_validator",
+        noun=f"related edge(s) examined under {docs_root}",
+        fr_id="FR-008",
+    )
 
     dangling.sort(key=lambda edge: (edge.from_path, edge.to_path))
     return RelatedReport(checked_count=checked_count, dangling_edges=dangling)
