@@ -801,13 +801,47 @@ _EMPTY_CHANGESET_MARKERS = (
 def _commit_output_is_empty_changeset(output: str) -> bool:
     """True iff git's own output says the commit was a genuine empty changeset.
 
-    Distinguishes a benign no-op (staged content already matches HEAD) from a
-    real failure (a rejecting pre-commit hook, a lock error, etc.). Without this
-    distinction every non-zero ``git commit`` exit looked identical to callers
-    and a real failure was silently reported as "unchanged".
+    Secondary signal only — see :func:`_staged_tree_is_empty` for the
+    authoritative check. Output-text matching alone is unsound: a failing
+    pre-commit hook can print one of these markers to its own stdout/stderr
+    while rejecting a real staged change, which would misclassify a genuine
+    failure as a benign no-op (audit finding, PR #3269). Kept as a fallback
+    for callers that only have the combined text and no repo to probe.
     """
     low = output.lower()
     return any(marker in low for marker in _EMPTY_CHANGESET_MARKERS)
+
+
+def _staged_tree_is_empty(repo_path: Path) -> bool:
+    """True iff the index matches HEAD, i.e. there is genuinely nothing staged.
+
+    This is the AUTHORITY for the empty-vs-failure decision after a failed
+    ``git commit`` (audit BLOCK_MATERIAL, PR #3269): git's own combined
+    stdout+stderr text is not a reliable signal, because a pre-commit hook
+    that REJECTS a real staged change can still print a "nothing to commit"
+    -shaped message on its own account. A hook failure always leaves the
+    rejected files staged, so the index still differs from HEAD regardless of
+    what strings the hook printed -- while a true no-op leaves the index
+    identical to HEAD. Keying off staged state instead of output text makes
+    the distinction structural rather than textual.
+
+    Runs ``git diff --cached --quiet`` in ``repo_path``: exit code 0 means the
+    staged tree matches HEAD (nothing to commit); exit code 1 means staged
+    content differs from HEAD (a real, non-empty change is sitting in the
+    index). Any other exit code is treated as "not empty" (fail closed --
+    do not mask a genuine failure as a benign no-op just because the probe
+    itself misbehaved).
+    """
+    result = subprocess.run(
+        ["git", "diff", "--cached", "--quiet"],
+        cwd=repo_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    return result.returncode == 0
 
 
 def _run_commit_capture_sha(repo_path: Path, commit_message: str) -> tuple[str | None, str]:
@@ -1098,7 +1132,15 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
             new_sha, commit_output = _run_commit_capture_sha(worktree_root, message)
             commit_created = new_sha is not None
             if not commit_created:
-                if _commit_output_is_empty_changeset(commit_output):
+                # AUTHORITY: staged state, not git's output text (audit
+                # BLOCK_MATERIAL, PR #3269). A rejecting pre-commit hook can
+                # print a "nothing to commit"-shaped message on its own
+                # account while leaving a real staged change in the index --
+                # `_commit_output_is_empty_changeset` alone would misclassify
+                # that as a benign no-op. `_staged_tree_is_empty` cannot be
+                # fooled by hook output: it is only True when the index
+                # genuinely matches HEAD.
+                if _staged_tree_is_empty(worktree_root):
                     # Benign no-op: staged content already matches HEAD. The
                     # commit router maps this distinct message to "unchanged".
                     raise RuntimeError(

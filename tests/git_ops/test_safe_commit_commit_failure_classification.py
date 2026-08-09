@@ -105,6 +105,48 @@ def test_genuine_empty_changeset_is_still_classified_as_empty(repo: Path) -> Non
     )
 
 
+def test_hook_failure_that_prints_nothing_to_commit_is_not_classified_as_empty(repo: Path) -> None:
+    """Adversarial case (audit BLOCK_MATERIAL): a pre-commit hook that FAILS
+    while also printing a "nothing to commit" marker in its own stdout/stderr
+    must still surface as a real failure, not as a benign empty changeset.
+
+    Output-string matching alone cannot distinguish this from a genuine no-op,
+    since git's own output and the hook's output are combined. The staged tree
+    is the authority: a real (rejected) staged change differs from HEAD, so
+    the classification must key off that, not off what strings appear in the
+    combined output.
+    """
+    hook = repo / ".git" / "hooks" / "pre-commit"
+    hook.write_text("#!/bin/sh\necho 'nothing to commit, working tree clean'\nexit 1\n")
+    hook.chmod(0o755)
+
+    spec = _new_spec(repo)
+
+    with pytest.raises(RuntimeError) as excinfo:
+        safe_commit(
+            repo_root=repo,
+            worktree_root=repo,
+            destination_ref=_UNPROTECTED_BRANCH,
+            message="Add spec",
+            paths=(spec,),
+        )
+
+    # The load-bearing assertion: a real staged change rejected by a failing
+    # hook must NEVER classify as an empty changeset, even though the hook's
+    # own output contains the "nothing to commit" marker.
+    assert not _is_empty_changeset_error(excinfo.value), (
+        "hook failure that prints a 'nothing to commit' marker was "
+        "misclassified as an empty changeset -> would surface as "
+        f"'unchanged, no commit needed'. message={excinfo.value!r}"
+    )
+    # The commit genuinely did not land.
+    head_files = subprocess.run(
+        ["git", "ls-files", "kitty-specs/demo-mission/spec.md"],
+        cwd=repo, capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    assert head_files == "", "hook aborted the commit, so the spec must not be tracked"
+
+
 def test_fresh_untracked_file_commits_cleanly(repo: Path) -> None:
     """Control: with no broken hook, a brand-new untracked spec commits (guards the
     first-spec-of-a-fresh-mission path that originally looked broken)."""
