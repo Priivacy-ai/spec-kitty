@@ -43,7 +43,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   `minutes-maker-mahad`, `scribe-sally`, `synthesizer-sam`). It also activates
   `RECONCILE_CHANGE_SCOPE_TENSIONS` to bridge the smallest-viable-diff / Boy Scout /
   locality-of-change tension, explained in a new `charter.md` section.
-  **Scope:** this changes Spec Kitty's *own* project governance only. The doctrine
+  **Scope:** this changes Spec Kitty's _own_ project governance only. The doctrine
   artifacts already ship in `packs/built-in`; projects created or upgraded by the
   CLI are unaffected and keep their own charter activations.
 - **A new "When to use Spec Kitty modes" guide helps you pick the lightest path
