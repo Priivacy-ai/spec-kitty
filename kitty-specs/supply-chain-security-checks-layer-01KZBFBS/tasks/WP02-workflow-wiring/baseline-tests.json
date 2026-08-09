@@ -1,0 +1,19 @@
+{
+  "wp_id": "WP02",
+  "captured_at": "2026-08-06T20:32:58Z",
+  "base_branch": "feat/supply-chain-security-checks-layer",
+  "base_commit": "99c9432d11539b3fa56d37d035bbd2fe1345dabc",
+  "test_runner": "pytest",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "tests.doctrine.test_hatch_build",
+      "error": "collection failure",
+      "file": "unknown:?"
+    }
+  ],
+  "source_identity": "GateCoverageScopeSource/junit_xml"
+}

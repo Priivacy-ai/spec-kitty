@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-08-06T13:38:06.347077Z",
+      "decision_id": "01KZBMQ8WBDZMQS9CFKTGARRJA",
+      "final_answer": "Plan/research plus review-facing artifacts",
+      "input_key": "adversarial_evidence_source",
+      "mission_id": "01KZBFBS3V1JMRXS5VQ2S5WWPY",
+      "mission_slug": "supply-chain-security-checks-layer-01KZBFBS",
+      "opened_by": "cli",
+      "options": [
+        "Plan and research artifacts only",
+        "Plan/research plus review-facing artifacts",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Where should adversarial-squad evidence be mandatory in v1 plan outputs?",
+      "rationale": null,
+      "resolved_at": "2026-08-06T13:41:39.325138Z",
+      "resolved_by": null,
+      "slot_key": "plan.architecture.adversarial-evidence-source",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KZBFBS3V1JMRXS5VQ2S5WWPY",
+  "version": 1
+}

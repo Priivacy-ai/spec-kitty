@@ -1,0 +1,32 @@
+{
+  "accept_commit": "5d55cc7a712f236665ccf16bfd98392651e4c0e2",
+  "acceptance_history": [
+    {
+      "accept_commit": "5d55cc7a712f236665ccf16bfd98392651e4c0e2",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-08-07T06:53:31.447982+00:00",
+      "accepted_by": "zohar",
+      "accepted_from_commit": "ba765ca90c587a95668d1a66804ff4e734c4f424"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-08-07T06:53:31.447982+00:00",
+  "accepted_by": "zohar",
+  "accepted_from_commit": "ba765ca90c587a95668d1a66804ff4e734c4f424",
+  "baseline_merge_commit": "0d86a6457fe7a1e944a306fc69d6d6971ab833a5",
+  "created_at": "2026-08-06T12:04:26.875811+00:00",
+  "flattened": true,
+  "friendly_name": "Supply Chain Security Checks Layer",
+  "mission_id": "01KZBFBS3V1JMRXS5VQ2S5WWPY",
+  "mission_number": null,
+  "mission_slug": "supply-chain-security-checks-layer-01KZBFBS",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "This mission introduces a cross-cutting doctrine layer so Spec Kitty consistently catches install-time and dependency supply-chain risks before implementation and review approvals. It formalizes registry authenticity checks, package freshness visibility, lifecycle-script approval discipline, and Node LTS awareness across software-dev action flow and key agent profiles, with Shai-Hulud-class threats as the motivating scenario.",
+  "purpose_tldr": "Add a built-in security checks layer for dependency and install-time supply-chain risks across software-dev workflows.",
+  "slug": "supply-chain-security-checks-layer-01KZBFBS",
+  "status_phase": "1",
+  "target_branch": "feat/supply-chain-security-checks-layer",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-06T14:44:34.051234+00:00"
+}
