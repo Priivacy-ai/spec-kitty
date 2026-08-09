@@ -185,7 +185,7 @@ import ast
 import re
 import warnings
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 
@@ -1483,6 +1483,39 @@ class _ProjectSinkSite:
         return f"{self.relpath}::{self.qualname}::{self.kind.value}::{self.callee}"
 
 
+@dataclass(frozen=True)
+class _ContextBinding:
+    version: int
+    dependency_versions: tuple[tuple[str, int], ...]
+
+
+@dataclass(frozen=True)
+class _AttemptBinding:
+    version: int
+    context_name: str
+    context_version: int
+    body_dump: str | None
+    body_dependency_versions: tuple[tuple[str, int], ...]
+
+
+@dataclass
+class _SinkFlowState:
+    aliases: dict[str, ast.expr] = field(default_factory=dict)
+    versions: Counter[str] = field(default_factory=Counter)
+    contexts: dict[str, _ContextBinding] = field(default_factory=dict)
+    attempts: dict[str, _AttemptBinding] = field(default_factory=dict)
+    eligible: dict[str, int] = field(default_factory=dict)
+
+    def branch(self) -> _SinkFlowState:
+        return _SinkFlowState(
+            self.aliases.copy(),
+            self.versions.copy(),
+            self.contexts.copy(),
+            self.attempts.copy(),
+            self.eligible.copy(),
+        )
+
+
 class _SinkFunctionAnalyzer:
     def __init__(
         self,
@@ -1493,69 +1526,149 @@ class _SinkFunctionAnalyzer:
         self.node = node
         self.relpath = relpath
         self.qualname = qualname
-        self.aliases: dict[str, ast.expr] = {}
-        self.assignments: Counter[str] = Counter()
-        self.contexts: set[str] = set()
-        self.attempts: dict[str, str] = {}
         self.sites: list[_ProjectSinkSite] = []
 
     @staticmethod
     def _argument_names(call: ast.Call) -> set[str]:
         return {child.id for argument in (*call.args, *(kw.value for kw in call.keywords)) for child in ast.walk(argument) if isinstance(child, ast.Name)}
 
-    def _collect_binding(self, item: ast.Assign | ast.AnnAssign) -> None:
+    @staticmethod
+    def _dependency_versions(
+        expression: ast.expr,
+        state: _SinkFlowState,
+    ) -> tuple[tuple[str, int], ...]:
+        return tuple(sorted((name, state.versions[name]) for name in _SinkFunctionAnalyzer._names(expression)))
+
+    @staticmethod
+    def _names(expression: ast.AST) -> set[str]:
+        return {child.id for child in ast.walk(expression) if isinstance(child, ast.Name)}
+
+    @staticmethod
+    def _delivery_body(call: ast.Call, context_name: str) -> ast.expr | None:
+        for keyword in call.keywords:
+            if keyword.arg in {"body", "event", "payload"}:
+                return keyword.value
+        for argument in call.args:
+            if not (isinstance(argument, ast.Name) and argument.id == context_name):
+                return argument
+        return None
+
+    def _apply_binding(
+        self,
+        item: ast.Assign | ast.AnnAssign,
+        state: _SinkFlowState,
+    ) -> None:
         targets = item.targets if isinstance(item, ast.Assign) else [item.target]
         value = item.value
         for target in targets:
             if not isinstance(target, ast.Name):
                 continue
-            self.assignments[target.id] += 1
+            name = target.id
+            state.versions[name] += 1
+            state.aliases.pop(name, None)
+            state.contexts.pop(name, None)
+            state.attempts.pop(name, None)
+            state.eligible.pop(name, None)
             if isinstance(value, (ast.Name, ast.Attribute)):
-                self.aliases[target.id] = value
+                state.aliases[name] = value
             if not isinstance(value, ast.Call):
                 continue
             tail = _attr_tail(value.func)
-            if tail == "ProjectSyncContext" and value.args:
-                self.contexts.add(target.id)
+            if tail == "ProjectSyncContext" and (value.args or any(keyword.arg == "project_uuid" for keyword in value.keywords)):
+                project = next(
+                    (keyword.value for keyword in value.keywords if keyword.arg == "project_uuid"),
+                    value.args[0] if value.args else value,
+                )
+                state.contexts[name] = _ContextBinding(
+                    state.versions[name],
+                    self._dependency_versions(project, state),
+                )
             elif tail == "DeliveryAttempt":
                 context = next(
-                    (name for name in self._argument_names(value) if name in self.contexts),
+                    (candidate for candidate in self._argument_names(value) if candidate in state.contexts),
                     None,
                 )
-                if context:
-                    self.attempts[target.id] = context
+                if context is None:
+                    continue
+                context_binding = state.contexts[context]
+                if any(state.versions[dependency] != version for dependency, version in context_binding.dependency_versions):
+                    continue
+                body = self._delivery_body(value, context)
+                state.attempts[name] = _AttemptBinding(
+                    state.versions[name],
+                    context,
+                    context_binding.version,
+                    ast.dump(body, include_attributes=False) if body else None,
+                    self._dependency_versions(body, state) if body else (),
+                )
 
-    def _collect_bindings(self) -> None:
-        for item in ast.walk(self.node):
-            if isinstance(item, (ast.Assign, ast.AnnAssign)):
-                self._collect_binding(item)
-
-    def _guarded_attempt(self, test: ast.expr) -> tuple[str | None, bool]:
+    def _guarded_attempt(
+        self,
+        test: ast.expr,
+        state: _SinkFlowState,
+    ) -> tuple[str | None, bool]:
         inverted = isinstance(test, ast.UnaryOp) and isinstance(test.op, ast.Not)
         candidate = test.operand if isinstance(test, ast.UnaryOp) and inverted else test
         if not isinstance(candidate, ast.Call) or _attr_tail(candidate.func) != "final_transport_eligible":
             return None, inverted
         attempt = next(
-            (name for name in self._argument_names(candidate) if name in self.attempts),
+            (name for name in self._argument_names(candidate) if name in state.attempts and state.attempts[name].version == state.versions[name]),
             None,
         )
         return attempt, inverted
 
-    def _inspect_call(self, call: ast.Call, eligible: frozenset[str]) -> None:
+    @staticmethod
+    def _transmitted_body(call: ast.Call) -> ast.expr | None:
+        for keyword in call.keywords:
+            if keyword.arg in {"json", "data", "content", "body", "payload", "event"}:
+                return keyword.value
+        return call.args[-1] if call.args else None
+
+    def _coherent_attempt(
+        self,
+        call: ast.Call,
+        state: _SinkFlowState,
+    ) -> bool:
+        body = self._transmitted_body(call)
+        if body is None:
+            return False
+        body_dump = ast.dump(body, include_attributes=False)
+        body_names = self._names(body)
+        for name, eligible_version in state.eligible.items():
+            attempt = state.attempts.get(name)
+            if attempt is None or attempt.version != eligible_version:
+                continue
+            context = state.contexts.get(attempt.context_name)
+            stable = (
+                state.versions[name] == attempt.version
+                and context is not None
+                and context.version == attempt.context_version
+                and all(
+                    state.versions[dependency] == version
+                    for dependency, version in (
+                        *context.dependency_versions,
+                        *attempt.body_dependency_versions,
+                    )
+                )
+            )
+            related = name in body_names or (attempt.body_dump is not None and attempt.body_dump == body_dump)
+            if stable and related:
+                return True
+        return False
+
+    def _inspect_call(self, call: ast.Call, state: _SinkFlowState) -> None:
         resolved = call
         callee = ast.unparse(call.func)
-        if isinstance(call.func, ast.Name) and call.func.id in self.aliases:
+        if isinstance(call.func, ast.Name) and call.func.id in state.aliases:
             resolved = ast.Call(
-                func=self.aliases[call.func.id],
+                func=state.aliases[call.func.id],
                 args=call.args,
                 keywords=call.keywords,
             )
-            callee = ast.unparse(self.aliases[call.func.id])
+            callee = ast.unparse(state.aliases[call.func.id])
         kind = _classify(resolved)
         if kind is None:
             return
-        data_names = self._argument_names(call)
-        coherent = any(self.assignments[attempt] == 1 and self.assignments[self.attempts[attempt]] == 1 for attempt in eligible & data_names)
         self.sites.append(
             _ProjectSinkSite(
                 self.relpath,
@@ -1563,39 +1676,41 @@ class _SinkFunctionAnalyzer:
                 kind,
                 callee,
                 call.lineno,
-                coherent,
+                self._coherent_attempt(call, state),
             )
         )
 
     def _inspect_block(
         self,
         statements: list[ast.stmt],
-        eligible: frozenset[str],
+        state: _SinkFlowState,
     ) -> None:
-        current = eligible
         for statement in statements:
             if isinstance(statement, ast.If):
-                attempt, inverted = self._guarded_attempt(statement.test)
+                attempt, inverted = self._guarded_attempt(statement.test, state)
                 terminal_guard = bool(statement.body) and isinstance(
                     statement.body[-1],
                     (ast.Return, ast.Raise),
                 )
                 if attempt and not inverted:
-                    self._inspect_block(statement.body, current | {attempt})
+                    body_state = state.branch()
+                    body_state.eligible[attempt] = body_state.versions[attempt]
+                    self._inspect_block(statement.body, body_state)
                 else:
-                    self._inspect_block(statement.body, current)
-                self._inspect_block(statement.orelse, current)
+                    self._inspect_block(statement.body, state.branch())
+                self._inspect_block(statement.orelse, state.branch())
                 if attempt and inverted and terminal_guard:
-                    current = current | {attempt}
+                    state.eligible[attempt] = state.versions[attempt]
                 continue
             if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 continue
             for call in (child for child in ast.walk(statement) if isinstance(child, ast.Call)):
-                self._inspect_call(call, current)
+                self._inspect_call(call, state)
+            if isinstance(statement, (ast.Assign, ast.AnnAssign)):
+                self._apply_binding(statement, state)
 
     def run(self) -> list[_ProjectSinkSite]:
-        self._collect_bindings()
-        self._inspect_block(self.node.body, frozenset())
+        self._inspect_block(self.node.body, _SinkFlowState())
         return self.sites
 
 
@@ -1706,6 +1821,7 @@ class _LayoutWriteSite:
     qualname: str
     operation: str
     callee: str
+    statement: str
     owner_wp: str
     lineno: int
 
@@ -1828,8 +1944,6 @@ class _LayoutWriteVisitor(ast.NodeVisitor):
         if isinstance(func, ast.Attribute) and func.attr in {"execute", "executemany", "executescript"} and node.args:
             rendered = _sql_text(node.args[0], self.bindings)
             operation = _write_operation(rendered)
-            if operation is None and rendered is None:
-                operation = "DYNAMIC"
             if operation is not None:
                 relpath = self.path.relative_to(self.source_root).as_posix()
                 self.sites.append(
@@ -1838,6 +1952,7 @@ class _LayoutWriteVisitor(ast.NodeVisitor):
                         ".".join((*self.classes, *self.functions)) or "<module>",
                         operation,
                         func.attr,
+                        rendered or "",
                         _writer_owner(relpath),
                         node.lineno,
                     )
@@ -1898,8 +2013,6 @@ specify_cli/event_journal/journal.py::EventJournal.append::INSERT::execute
 specify_cli/event_journal/journal.py::EventJournal.mark_archived::UPDATE::execute
 specify_cli/event_journal/journal.py::EventJournal.set_project_identity::UPDATE::executemany
 specify_cli/event_journal/journal.py::JournalTransaction.append::INSERT::execute
-specify_cli/event_journal/journal.py::EventJournal.read_by_ids::DYNAMIC::execute
-specify_cli/event_journal/journal.py::EventJournal.read_identity_projection::DYNAMIC::execute
 specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.enqueue::INSERT::execute
 specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.mark_already_exists::DELETE::execute
 specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.mark_failed_permanent::DELETE::execute
@@ -1939,7 +2052,6 @@ specify_cli/sync/queue.py::_scoped_dst_schema::CREATE::execute
 specify_cli/sync/queue.py::_scoped_dst_schema::CREATE::execute
 specify_cli/sync/queue.py::_scoped_dst_schema::CREATE::execute
 specify_cli/sync/queue.py::ensure_body_queue_schema::CREATE::executescript
-specify_cli/sync/queue.py::_table_row_count::DYNAMIC::execute
 """.splitlines()
     if line.strip()
 )
@@ -2007,6 +2119,83 @@ def _qualified_function_node(
     return found
 
 
+_DURABLE_RESULT_AUTHORITIES: dict[_SymbolRef, tuple[str, str]] = {
+    _SymbolRef(
+        "specify_cli/delivery/ledger.py",
+        "SqliteDeliveryLedger._record",
+    ): ("delivery_ledger", "event_id"),
+    _SymbolRef(
+        "specify_cli/sync/body_queue.py",
+        "OfflineBodyUploadQueue.mark_uploaded",
+    ): ("body_upload_queue", "row_id"),
+    _SymbolRef(
+        "specify_cli/sync/queue.py",
+        "OfflineQueue.queue_event",
+    ): ("queue", "event"),
+}
+
+
+def _durable_result_write(
+    row: _ProjectSyncSender,
+    path: Path,
+    source_root: Path,
+) -> bool:
+    if row.result_write is None:
+        return False
+    requirement = _DURABLE_RESULT_AUTHORITIES.get(row.result_write)
+    node = _qualified_function_node(path, row.result_write.qualname)
+    if requirement is None or node is None:
+        return False
+    table, identity = requirement
+    identity_is_used = any(isinstance(item, ast.Name) and item.id == identity for item in ast.walk(node))
+    dml = {"DELETE", "INSERT", "REPLACE", "UPDATE"}
+    return identity_is_used and any(
+        site.qualname == row.result_write.qualname and site.operation in dml and table in site.statement.lower()
+        for site in _scan_layout_writers((path,), source_root=source_root)
+    )
+
+
+def _durable_file_result_write(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    state_mutation = any(
+        isinstance(item, (ast.Assign, ast.AnnAssign))
+        and any(
+            isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id == "state"
+            for target in (item.targets if isinstance(item, ast.Assign) else [item.target])
+        )
+        for item in ast.walk(node)
+    )
+    saves_state = any(
+        isinstance(item, ast.Call)
+        and _attr_tail(item.func) == "save_sync_state"
+        and any(isinstance(argument, ast.Name) and argument.id == "state" for argument in item.args)
+        for item in ast.walk(node)
+    )
+    uses_identity = any(isinstance(item, ast.Name) and item.id == "git_hash" for item in ast.walk(node))
+    return state_mutation and saves_state and uses_identity
+
+
+def _in_memory_result_write(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    result_read = any(isinstance(item, ast.Name) and item.id == "result" for item in ast.walk(node))
+    report_mutation = any(
+        (
+            isinstance(item, ast.AugAssign)
+            and isinstance(item.target, ast.Attribute)
+            and isinstance(item.target.value, ast.Name)
+            and item.target.value.id == "report"
+        )
+        or (
+            isinstance(item, ast.Call)
+            and isinstance(item.func, ast.Attribute)
+            and item.func.attr == "append"
+            and isinstance(item.func.value, ast.Attribute)
+            and isinstance(item.func.value.value, ast.Name)
+            and item.func.value.value.id == "report"
+        )
+        for item in ast.walk(node)
+    )
+    return result_read and report_mutation
+
+
 def _has_semantic_result_write(
     row: _ProjectSyncSender,
     *,
@@ -2017,24 +2206,14 @@ def _has_semantic_result_write(
         return row.result_state is _ResultState.MISSING
     path = source_root / row.result_write.relpath
     if row.result_state in {_ResultState.DURABLE, _ResultState.DURABLE_FALLBACK}:
-        return any(site.qualname == row.result_write.qualname and site.operation != "DYNAMIC" for site in _scan_layout_writers((path,), source_root=source_root))
+        return _durable_result_write(row, path, source_root)
     node = _qualified_function_node(path, row.result_write.qualname)
     if node is None:
         return False
     if row.result_state is _ResultState.DURABLE_FILE:
-        durable_calls = {
-            "save_sync_state",
-            "write_text",
-            "write_bytes",
-            "dump",
-        }
-        return any(isinstance(item, ast.Call) and _attr_tail(item.func) in durable_calls for item in ast.walk(node))
+        return _durable_file_result_write(node)
     if row.result_state is _ResultState.IN_MEMORY:
-        return any(
-            isinstance(item, (ast.Assign, ast.AugAssign))
-            or (isinstance(item, ast.Call) and isinstance(item.func, ast.Attribute) and item.func.attr in {"append", "add", "update"})
-            for item in ast.walk(node)
-        )
+        return _in_memory_result_write(node)
     return False
 
 
@@ -2098,11 +2277,25 @@ def test_new_sender_and_layout_writer_mutants_flow_through_real_collectors(
         "    final_transport_eligible(attempt)\n"
         "    wire = client.post\n"
         "    wire('/events', json=payload)\n"
+        "    wire = safe\n"
+        "    wire(payload)\n"
         "def exact_reviewer_bypass(client, payload):\n"
         "    ProjectSyncContext(payload['project_uuid'])\n"
         "    DeliveryAttempt(payload)\n"
         "    final_transport_eligible(payload)\n"
-        "    client.post('/events', json=payload)\n",
+        "    client.post('/events', json=payload)\n"
+        "def audit_header_decoy(client, payload, foreign_payload):\n"
+        "    context = ProjectSyncContext(payload['project_uuid'])\n"
+        "    attempt = DeliveryAttempt(context, payload)\n"
+        "    if final_transport_eligible(attempt):\n"
+        "        client.post('/events', json=foreign_payload, headers={'X-Audit': str(attempt)})\n"
+        "def rebound_project(client, payload, a, b):\n"
+        "    project = a.uuid\n"
+        "    context = ProjectSyncContext(project)\n"
+        "    project = b.uuid\n"
+        "    attempt = DeliveryAttempt(context, payload)\n"
+        "    if final_transport_eligible(attempt):\n"
+        "        client.post('/events', json=attempt)\n",
         encoding="utf-8",
     )
     alias_source.write_text(
@@ -2113,7 +2306,8 @@ def test_new_sender_and_layout_writer_mutants_flow_through_real_collectors(
         "def write(conn, payload):\n"
         "    sql = ''.join(('INS', 'ERT INTO event_outbox VALUES (?)'))\n"
         "    conn.execute(sql, (payload,))\n"
-        "    conn.execute(build_sql(), (payload,))\n",
+        "    select_sql = ''.join(('SEL', 'ECT * FROM event_outbox'))\n"
+        "    conn.execute(select_sql)\n",
         encoding="utf-8",
     )
     clean.write_text(
@@ -2130,22 +2324,36 @@ def test_new_sender_and_layout_writer_mutants_flow_through_real_collectors(
         "specify_cli/sync/aliased_transport.py",
         "specify_cli/sync/previously_unseen_sender.py",
     }
+    assert all(not site.canonical_attempt for site in sink_sites if site.relpath == "specify_cli/sync/previously_unseen_sender.py")
     assert all(site.canonical_attempt for site in sink_sites if site.relpath == "specify_cli/sync/wrapped_sender.py")
     writer_sites = _scan_layout_writers(source_root=tmp_path)
-    assert [site.operation for site in writer_sites] == ["DYNAMIC", "INSERT"]
+    assert [site.operation for site in writer_sites] == ["INSERT"]
 
 
 def test_result_matrix_rejects_a_named_function_without_a_result_write(
     tmp_path: Path,
 ) -> None:
-    result = tmp_path / "specify_cli" / "sync" / "result.py"
-    result.parent.mkdir(parents=True)
-    result.write_text("def record(payload):\n    return payload\n", encoding="utf-8")
-    row = _ProjectSyncSender(
-        "mutant",
-        _SymbolRef("specify_cli/sync/result.py", "record"),
-        _SymbolRef("specify_cli/sync/result.py", "record"),
-        _ResultState.DURABLE,
-        "WP04",
-    )
-    assert not _has_semantic_result_write(row, source_root=tmp_path)
+    sync_root = tmp_path / "specify_cli" / "sync"
+    sync_root.mkdir(parents=True)
+    specimens = {
+        "durable.py": "def record(conn, payload):\n    conn.execute('CREATE TEMP TABLE unrelated(x)')\n",
+        "memory.py": "def record(payload):\n    scratch = payload\n    return scratch\n",
+        "file.py": "def record(payload, stream):\n    json.dump(payload, stream)\n",
+    }
+    states = {
+        "durable.py": _ResultState.DURABLE,
+        "memory.py": _ResultState.IN_MEMORY,
+        "file.py": _ResultState.DURABLE_FILE,
+    }
+    for filename, source in specimens.items():
+        path = sync_root / filename
+        path.write_text(source, encoding="utf-8")
+        symbol = _SymbolRef(f"specify_cli/sync/{filename}", "record")
+        row = _ProjectSyncSender(
+            filename,
+            symbol,
+            symbol,
+            states[filename],
+            "WP04",
+        )
+        assert not _has_semantic_result_write(row, source_root=tmp_path)

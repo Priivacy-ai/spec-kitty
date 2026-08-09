@@ -29,13 +29,19 @@ _CONSENT_ROOTS = (
     _SRC / "specify_cli" / "cli" / "commands" / "sync.py",
 )
 _GRANT_FIELDS = frozenset({"enabled", "granted", "effective_sync_enabled"})
-_CONSENT_TOKENS = (
-    "consent",
-    "checkout_sync",
-    "project_sync",
-    "repository_sync",
-    "sync_enabled",
-    "routing",
+_ENABLED_MODELS = frozenset(
+    {
+        "CheckoutSyncRouting",
+        "ProjectConsentRead",
+        "UnresolvedConsentEntry",
+    }
+)
+_ENABLED_WRITERS = frozenset(
+    {
+        "SyncConfig.set_checkout_sync_enabled",
+        "SyncConfig.set_project_consent_bulk",
+        "SyncConfig.set_repository_sync_enabled",
+    }
 )
 
 
@@ -141,8 +147,7 @@ def _call_tail(func: ast.expr) -> str | None:
 def _domain_field(field: str, *context: str) -> bool:
     if field in {"granted", "effective_sync_enabled"}:
         return True
-    joined = "_".join(context).lower()
-    return any(token in joined for token in _CONSENT_TOKENS)
+    return any(value in _ENABLED_MODELS or value in _ENABLED_WRITERS for value in context)
 
 
 def _target_field(target: ast.expr) -> tuple[str | None, str]:
@@ -281,6 +286,32 @@ def _update_sites(record: _FunctionRecord, node: ast.Call) -> list[GrantSite]:
     return sites
 
 
+def _setattr_sites(record: _FunctionRecord, node: ast.Call) -> list[GrantSite]:
+    if _call_tail(node.func) != "setattr" or len(node.args) < 3:
+        return []
+    receiver, field_node, value = node.args[:3]
+    if not (
+        isinstance(field_node, ast.Constant)
+        and isinstance(field_node.value, str)
+        and field_node.value in _GRANT_FIELDS
+        and _domain_field(
+            field_node.value,
+            ast.unparse(receiver),
+            record.qualname,
+        )
+    ):
+        return []
+    return [
+        _grant_site(
+            record,
+            node,
+            GrantKind.PERSISTENCE,
+            value,
+            f"setattr:{field_node.value}",
+        )
+    ]
+
+
 def _return_sites(record: _FunctionRecord, node: ast.Return) -> list[GrantSite]:
     if node.value is None:
         return []
@@ -307,6 +338,7 @@ def _semantic_sites(record: _FunctionRecord) -> list[GrantSite]:
         if isinstance(node, ast.Call):
             sites.extend(_keyword_sites(record, node))
             sites.extend(_update_sites(record, node))
+            sites.extend(_setattr_sites(record, node))
         elif isinstance(node, ast.Dict):
             sites.extend(_mapping_sites(record, node))
         elif isinstance(node, (ast.Assign, ast.AnnAssign)):
@@ -693,12 +725,16 @@ def test_differently_named_grant_and_persistence_mutants_use_real_collector(
         "def remember_anything(record, answer):\n"
         "    record.granted = answer\n"
         "    record.update({'granted': answer})\n"
+        "    setattr(record, 'granted', answer)\n"
         "def renamed_entry(record):\n"
         "    remember_anything(record, decide_anything())\n",
         encoding="utf-8",
     )
     noise.write_text(
-        "def remember_anything(widget):\n    return widget.configure(enabled=True)\ndef set_widget_mode(widget):\n    return widget.configure(enabled=True)\n",
+        "def remember_anything(widget):\n"
+        "    return widget.configure(enabled=True)\n"
+        "def configure_project_sync_widget(widget):\n"
+        "    return widget.configure(enabled=True)\n",
         encoding="utf-8",
     )
     caller.write_text(
@@ -709,6 +745,7 @@ def test_differently_named_grant_and_persistence_mutants_use_real_collector(
     identities = {(site.qualname, site.kind) for site in sites}
     assert ("decide_anything", GrantKind.DECISION_RETURN) in identities
     assert ("remember_anything", GrantKind.PERSISTENCE) in identities
+    assert any(site.evidence == "setattr:granted" for site in sites)
     assert ("renamed_entry", GrantKind.CALL_PATH) in identities
     assert ("external_entry", GrantKind.CALL_PATH) in identities
     assert not any(site.relpath.endswith("same_name_noise.py") for site in sites), "unrelated enabled fields and same-named functions are not grant authority"

@@ -105,10 +105,23 @@ class _StoreVisitor(ast.NodeVisitor):
 
     def _bind_assignment(self, targets: list[ast.expr], value: ast.expr) -> None:
         names = {target.id for target in targets if isinstance(target, ast.Name)}
-        if isinstance(value, ast.Name) and value.id in self.sqlite_modules:
+        module_alias = isinstance(value, ast.Name) and value.id in self.sqlite_modules
+        constructor_alias = self._is_constructor(value)
+        self.sqlite_modules.difference_update(names)
+        self.sqlite_constructors.difference_update(names)
+        if module_alias:
             self.sqlite_modules.update(names)
-        if self._is_constructor(value):
+        if constructor_alias:
             self.sqlite_constructors.update(names)
+
+    def _visit_nested_scope(self, node: ast.AST, name: str) -> None:
+        saved_modules = self.sqlite_modules.copy()
+        saved_constructors = self.sqlite_constructors.copy()
+        self.scope.append(name)
+        self.generic_visit(node)
+        self.scope.pop()
+        self.sqlite_modules = saved_modules
+        self.sqlite_constructors = saved_constructors
 
     def _qualname(self) -> str:
         return ".".join(self.scope) or "<module>"
@@ -155,19 +168,13 @@ class _StoreVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
-        self.scope.append(node.name)
-        self.generic_visit(node)
-        self.scope.pop()
+        self._visit_nested_scope(node, node.name)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
-        self.scope.append(node.name)
-        self.generic_visit(node)
-        self.scope.pop()
+        self._visit_nested_scope(node, node.name)
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:  # noqa: N802
-        self.scope.append(node.name)
-        self.generic_visit(node)
-        self.scope.pop()
+        self._visit_nested_scope(node, node.name)
 
     def visit_Call(self, node: ast.Call) -> None:  # noqa: N802
         func = node.func
@@ -335,6 +342,21 @@ def _owner_for(site: StoreSite) -> str:
     return "WP04"
 
 
+_LIVE_CLASS_CONTROLS: dict[tuple[str, str], str] = {
+    ("specify_cli/event_journal/journal.py", "EventJournal"): ("EventJournal constructor/append public entry; exercised by WP01 live control"),
+    ("specify_cli/event_journal/journal.py", "JournalTransaction"): ("EventJournal.transaction public entry"),
+    ("specify_cli/delivery/ledger.py", "SqliteDeliveryLedger"): ("record_success/transaction public entries; exercised by WP01 live control"),
+    ("specify_cli/delivery/targets.py", "SqliteDeliveryTargetRegistry"): ("delivery target registry constructor/register public entries"),
+    ("specify_cli/sync/queue.py", "OfflineQueue"): ("offline event queue constructor/queue_event public entries"),
+    ("specify_cli/sync/body_queue.py", "OfflineBodyUploadQueue"): ("offline body queue constructor/enqueue/result public entries"),
+}
+
+
+def _live_control(site: StoreSite) -> str | None:
+    class_name = site.qualname.split(".", 1)[0]
+    return _LIVE_CLASS_CONTROLS.get((site.relpath, class_name))
+
+
 def classify_store_site(
     site: StoreSite,
     *,
@@ -353,6 +375,13 @@ def classify_store_site(
         return SiteDisposition(SiteCategory.LEGACY_READ_ONLY, "WP10", reachability)
     if site.relpath == "specify_cli/sync/migrate_journal.py" or (site.relpath == "specify_cli/sync/queue.py" and "_migrate_" in site.qualname):
         return SiteDisposition(SiteCategory.LEGACY_MIGRATION, "WP10", reachability)
+    control = _live_control(site)
+    if control is not None:
+        return SiteDisposition(
+            SiteCategory.LIVE_PAYLOAD_CONTROL,
+            _owner_for(site),
+            control,
+        )
     if references == 0 and not decorated_command:
         return SiteDisposition(SiteCategory.DEAD_CODE, "WP10", reachability)
     if site.relpath.startswith("specify_cli/"):
@@ -477,8 +506,15 @@ _KNOWN_LIVE_FLOOR = frozenset(
         "specify_cli/event_journal/journal.py::EventJournal._connect::sqlite_connect",
         "specify_cli/event_journal/journal.py::EventJournal.append::commit",
         "specify_cli/delivery/ledger.py::SqliteDeliveryLedger.__init__::sqlite_connect",
+        "specify_cli/delivery/ledger.py::SqliteDeliveryLedger._record::commit",
+        "specify_cli/delivery/ledger.py::SqliteDeliveryLedger.transaction::commit",
         "specify_cli/delivery/targets.py::SqliteDeliveryTargetRegistry.__init__::sqlite_connect",
+        "specify_cli/delivery/targets.py::SqliteDeliveryTargetRegistry._insert::commit",
         "specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.__init__::sqlite_connect",
+        "specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.enqueue::commit",
+        "specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.mark_uploaded::commit",
+        "specify_cli/sync/queue.py::OfflineQueue._init_db::sqlite_connect",
+        "specify_cli/sync/queue.py::OfflineQueue.append::commit",
         "specify_cli/sync/queue.py::OfflineQueue.queue_event::sqlite_connect",
         "specify_cli/delivery/dispatcher.py::_record::transaction_context",
     }
@@ -506,6 +542,11 @@ def test_current_store_census_cannot_grow_and_every_site_has_evidence() -> None:
     assert set(observed) >= _KNOWN_LIVE_FLOOR
     dispositions = [classify_store_site(site) for site in sites]
     assert all(item.owner_wp and item.reachability for item in dispositions)
+    by_key = {site.key: classify_store_site(site).category for site in sites if site.key in _KNOWN_LIVE_FLOOR}
+    assert by_key == dict.fromkeys(
+        _KNOWN_LIVE_FLOOR,
+        SiteCategory.LIVE_PAYLOAD_CONTROL,
+    )
     assert SiteCategory.DEAD_CODE in {item.category for item in dispositions}
     shrink = _KNOWN_SITE_COUNTS - observed
     if shrink:
@@ -533,6 +574,25 @@ def test_alias_and_duplicate_mutations_flow_through_real_collector(tmp_path: Pat
     observed = Counter(site.key for site in sites)
     assert observed["specify_cli/sync/mutant.py::write::sqlite_connect"] == 2
     assert observed["specify_cli/sync/mutant.py::write::commit"] == 1
+
+
+def test_constructor_alias_rebinding_is_order_and_scope_sensitive(tmp_path: Path) -> None:
+    source = tmp_path / "specify_cli" / "sync" / "rebound.py"
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        "import sqlite3\n"
+        "def safe(path):\n"
+        "    return path\n"
+        "open_sync = sqlite3.connect\n"
+        "def before_rebind(path):\n"
+        "    return open_sync(path)\n"
+        "open_sync = safe\n"
+        "def inspect(path):\n"
+        "    return open_sync(path)\n",
+        encoding="utf-8",
+    )
+    sites = scan_store_sites(source_root=tmp_path)
+    assert [site.qualname for site in sites] == ["before_rebind"]
 
 
 def test_reachability_is_qualified_not_a_common_tail_name(tmp_path: Path) -> None:
