@@ -14,9 +14,6 @@ related:
 
 Choose the lightest path that still fits the work. Spec Kitty offers several entry points: skip it entirely for trivial edits, dispatch a specialist for a short task, run a bounded adversarial review at an SDD checkpoint, or drive a full mission when acceptance criteria and structured review matter.
 
->[!TIP]
->Start with the lightest path that still fits: skip Spec Kitty for trivial edits, use an ad-hoc specialist for a short task, run an adversarial squad at an SDD checkpoint, and reserve a full mission when acceptance criteria and structured review matter.
-
 ![When to use Spec Kitty modes](../assets/images/when-to-use-modes-corporate-memphis.png)
 
 ## No Spec Kitty
