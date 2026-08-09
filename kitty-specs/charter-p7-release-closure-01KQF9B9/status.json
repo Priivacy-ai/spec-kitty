@@ -24,6 +24,7 @@
       "lane": "done",
       "last_event_id": "01KQFDYEWY8WPKKV2HZMWZZSAM",
       "last_transition_at": "2026-04-30T14:51:04.990997+00:00",
+      "review_result": null,
       "shell_pid": 56248
     },
     "WP02": {
@@ -33,6 +34,7 @@
       "lane": "done",
       "last_event_id": "01KQFE532KQ1W9VQWXBRDWT1EP",
       "last_transition_at": "2026-04-30T14:54:42.259051+00:00",
+      "review_result": null,
       "shell_pid": 63309
     }
   }

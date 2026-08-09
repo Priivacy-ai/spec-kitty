@@ -25,6 +25,7 @@
       "lane": "approved",
       "last_event_id": "01KTBXS66NKG4APWH7VGYADSMZ",
       "last_transition_at": "2026-06-05T12:57:57.206017+00:00",
+      "review_result": null,
       "subtasks": {
         "T001": "done",
         "T002": "done",
@@ -45,6 +46,7 @@
       "lane": "approved",
       "last_event_id": "01KTBXTMJMQZMJ8SMGPB93QWPD",
       "last_transition_at": "2026-06-05T12:58:44.692191+00:00",
+      "review_result": null,
       "subtasks": {
         "T007": "done",
         "T008": "done",
@@ -62,6 +64,7 @@
       "lane": "approved",
       "last_event_id": "01KTBXT87C7RFAMMYZQYME8WKN",
       "last_transition_at": "2026-06-05T12:58:32.044650+00:00",
+      "review_result": null,
       "subtasks": {
         "T011": "done",
         "T012": "done",
@@ -81,6 +84,7 @@
       "lane": "approved",
       "last_event_id": "01KTBXTTX65J9AN1S09217QM9X",
       "last_transition_at": "2026-06-05T12:58:51.174490+00:00",
+      "review_result": null,
       "subtasks": {
         "T015": "done",
         "T016": "done",
@@ -103,6 +107,7 @@
       "lane": "approved",
       "last_event_id": "01KTBXTED7EVHGQKXA2BEQGFNM",
       "last_transition_at": "2026-06-05T12:58:38.375613+00:00",
+      "review_result": null,
       "subtasks": {
         "T023": "done",
         "T024": "done",
@@ -121,6 +126,7 @@
       "lane": "approved",
       "last_event_id": "01KTBXV15G8ZS33TKAJ29296AS",
       "last_transition_at": "2026-06-05T12:58:57.584184+00:00",
+      "review_result": null,
       "subtasks": {
         "T027": "done",
         "T028": "done",

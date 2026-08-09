@@ -24,6 +24,7 @@
       "lane": "done",
       "last_event_id": "01KRYG9MZ52V6634NSG1XDWZBN",
       "last_transition_at": "2026-05-18T21:36:27.109238+00:00",
+      "review_result": null,
       "shell_pid": 2216643,
       "subtasks": {
         "T001": "done",
@@ -42,6 +43,7 @@
       "lane": "done",
       "last_event_id": "01KRYG9N0V7ZT2MHDJ896YE9G0",
       "last_transition_at": "2026-05-18T21:36:27.163911+00:00",
+      "review_result": null,
       "shell_pid": 2249698,
       "subtasks": {
         "T008": "done",
@@ -58,6 +60,7 @@
       "lane": "done",
       "last_event_id": "01KRYG9N1R74VR70NDPMQA77D5",
       "last_transition_at": "2026-05-18T21:36:27.192151+00:00",
+      "review_result": null,
       "shell_pid": 2321454,
       "subtasks": {
         "T013": "done",
@@ -73,6 +76,7 @@
       "lane": "done",
       "last_event_id": "01KRYG9N2SAP676GMWPCHPA180",
       "last_transition_at": "2026-05-18T21:36:27.225061+00:00",
+      "review_result": null,
       "shell_pid": 2355543,
       "subtasks": {
         "T017": "done",
@@ -89,6 +93,7 @@
       "lane": "done",
       "last_event_id": "01KRYG9N3NEQCJEMP48Y79YYGY",
       "last_transition_at": "2026-05-18T21:36:27.253412+00:00",
+      "review_result": null,
       "shell_pid": 2462999,
       "subtasks": {
         "T022": "done",
@@ -105,6 +110,7 @@
       "lane": "done",
       "last_event_id": "01KRYG9N4A5JS6VZ5MV8GEWVJ4",
       "last_transition_at": "2026-05-18T21:36:27.274308+00:00",
+      "review_result": null,
       "shell_pid": 2492821,
       "subtasks": {
         "T027": "done",
@@ -123,6 +129,7 @@
       "lane": "done",
       "last_event_id": "01KRYG9N57W9NXHF3MQZVGJVBH",
       "last_transition_at": "2026-05-18T21:36:27.303381+00:00",
+      "review_result": null,
       "shell_pid": 2556394,
       "subtasks": {
         "T034": "done",
@@ -139,6 +146,7 @@
       "lane": "done",
       "last_event_id": "01KRYG9N5YGVVFFVHHWJ3RAEJ3",
       "last_transition_at": "2026-05-18T21:36:27.326979+00:00",
+      "review_result": null,
       "shell_pid": 2704897,
       "subtasks": {
         "T039": "done",
@@ -155,6 +163,7 @@
       "lane": "done",
       "last_event_id": "01KRYG9N6VEX19RWTXSV1D2EAY",
       "last_transition_at": "2026-05-18T21:36:27.355691+00:00",
+      "review_result": null,
       "shell_pid": 2771878,
       "subtasks": {
         "T044": "done",
@@ -172,6 +181,7 @@
       "lane": "done",
       "last_event_id": "01KRYG9N7G14H6ZKM9P4Y92YZX",
       "last_transition_at": "2026-05-18T21:36:27.376036+00:00",
+      "review_result": null,
       "shell_pid": 2855827,
       "subtasks": {
         "T050": "done",
@@ -189,6 +199,7 @@
       "lane": "done",
       "last_event_id": "01KRYG9N8BX98148GG6102RKPG",
       "last_transition_at": "2026-05-18T21:36:27.403898+00:00",
+      "review_result": null,
       "shell_pid": 2921415,
       "subtasks": {
         "T056": "done",
@@ -205,6 +216,7 @@
       "lane": "done",
       "last_event_id": "01KRYG9N95FVQMKAH4VYQKCX5V",
       "last_transition_at": "2026-05-18T21:36:27.429817+00:00",
+      "review_result": null,
       "shell_pid": 3001484
     }
   }

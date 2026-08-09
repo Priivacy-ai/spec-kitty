@@ -33,6 +33,11 @@
         "APPROVE (opus/reviewer-renata): all 7 criteria cited — packaging split holds (no scripts import in index_model, no src->scripts), C-001 byte-untouched, slugify imported not forked, byte-stability cross-PYTHONHASHSEED subprocess, 24/24 green, ruff+src-mypy clean"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVE (opus/reviewer-renata): all 7 criteria cited — packaging split holds (no scripts import in index_model, no src->scripts), C-001 byte-untouched, slugify imported not forked, byte-stability cross-PYTHONHASHSEED subprocess, 24/24 green, ruff+src-mypy clean",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 3114019,
       "shell_pid_created_at": "1784733059.49",
@@ -61,6 +66,11 @@
         "APPROVE (opus/reviewer-renata): additive DOCS-INDEX-DRIFT ruler, C-001 byte-honored + snapshot-pinned, genuine mutate->detect->regenerate test (severity==error), CI via aggregate --ci, 51 tests green, ruff clean"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVE (opus/reviewer-renata): additive DOCS-INDEX-DRIFT ruler, C-001 byte-honored + snapshot-pinned, genuine mutate->detect->regenerate test (severity==error), CI via aggregate --ci, 51 tests green, ruff clean",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 3224609,
       "shell_pid_created_at": "1784734522.68",
@@ -87,6 +97,11 @@
         "APPROVE (opus/reviewer-renata): all 7 criteria; src->src import honored, FR-003 discriminating anchor test, no-markup-leak + structural NFR-002 spy tests, DivioType literal-tuple concurred (values match committed index; consolidation deferred), 14 green"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVE (opus/reviewer-renata): all 7 criteria; src->src import honored, FR-003 discriminating anchor test, no-markup-leak + structural NFR-002 spy tests, DivioType literal-tuple concurred (values match committed index; consolidation deferred), 14 green",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 3224609,
       "shell_pid_created_at": "1784734522.68",

@@ -33,6 +33,7 @@
       "lane": "approved",
       "last_event_id": "01KQ6PJV87PTKDERA774X6PKD9",
       "last_transition_at": "2026-04-27T05:28:51.719211+00:00",
+      "review_result": null,
       "shell_pid": 40980
     },
     "WP03": {

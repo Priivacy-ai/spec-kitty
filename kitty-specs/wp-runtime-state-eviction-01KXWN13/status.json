@@ -24,6 +24,11 @@
       "lane": "done",
       "last_event_id": "01KXXK2PRB80P0HR0H7CYXTQ8P",
       "last_transition_at": "2026-07-19T16:24:19.979589+00:00",
+      "review_result": {
+        "reference": "Review passed: typed InnerStateChanged/WPInnerStateDelta/ReviewOverride foundation; event-kind-partition reducer fold with per-field slot preservation + claim policy_metadata fold; annotations reach reduce() live via read_event_stream in materialize_snapshot (production path); annotate() FSM-free and transitions.py byte-unchanged (C-004); pinned shared symbols intact; flag-gated _infer_subtasks_complete. Suite 1117 passed/4 skipped, ruff clean, zero new mypy errors, scope within owned_files.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2374828,
       "shell_pid_created_at": "1784456746.12"
     },
@@ -34,6 +39,11 @@
       "lane": "done",
       "last_event_id": "01KXXK2QK0KVPWZ3P9DBC7FZHH",
       "last_transition_at": "2026-07-19T16:24:20.832720+00:00",
+      "review_result": {
+        "reference": "Review passed: ask-the-FSM force fix is edge-agnostic (no hard-coded edge list; validate_transition query on 3 plan-reachable edges), optional review_result seam added (default None). _guard_subtasks re-sourced to WP01 snapshot subtasks slot, flag-gated behind _phase1_dual_write_enabled with legacy fallback, refusal branch intact. Tests re-pointed not deleted; genuine-force positive controls kept; dropped fixture force cross-check is genuinely superseded (approved->planned force=False now asserted directly in 3 places; Mission-1 fixture is a stale immutable snapshot). Regression reads persisted status.events.jsonl via real move-task. approved->in_progress plan-layer force-free proof honest; CLI-layer truthfully force per WP02/WP06 split. Scope clean (4 owned files only). 76 passed, ruff+mypy green.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2548429,
       "shell_pid_created_at": "1784460091.24"
     },
@@ -44,6 +54,11 @@
       "lane": "done",
       "last_event_id": "01KXXK2R9ZAX819F2178YTQ63E",
       "last_transition_at": "2026-07-19T16:24:21.567202+00:00",
+      "review_result": {
+        "reference": "Review passed: T010 history moved STATIC->MUTABLE (+RETIRED_FIELDS marker, new evicted keys enumerated), strip removes history/progress (tested). T011 deterministic namespaced ULIDs (byte-identical, idempotent run#2=0), subtask at clamped to claimed, canonicalize_feature_dir never Path.cwd; reuses sanctioned wp_state.annotate() seam with caller-minted event_id (annotate docstring parameterizes event_id; emit_inner_state_changed is just annotate+random-ULID) -- ownership-respecting, not a fork; seeds proven reducible by real materialize_snapshot. T012 fail-closed verify on UN-stripped frontmatter, non-vacuous ordering guard raises MigrationOrderingError on strip-then-verify (tested), count-match/value-mismatch aborts (T001 flip), corrupt-seed + unreadable-log abort. T013 zero-reader proof non-vacuous vs stub; history writer seams (frontmatter.py/wp_metadata.py) excluded belong to WP07/T028; no out-of-scope deletes. Scope clean: only owned_files touched, sole deletion is STATIC_FIELDS history line; no edits to workflow_cores/merge.done_bookkeeping/frontmatter.py. 65 pytest passed, ruff clean, WP03 files mypy-clean (3 pre-existing mypy errors in untouched rewrite_shims.py/normalize_mission_lifecycle.py). Note: backfill engine not yet CLI/runner-wired, but those files are outside owned_files -- downstream WP concern, not a defect.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2517029,
       "shell_pid_created_at": "1784459594.4"
     },
@@ -54,6 +69,11 @@
       "lane": "done",
       "last_event_id": "01KXXK2S11TM8Z9343ESR86RNB",
       "last_transition_at": "2026-07-19T16:24:22.305262+00:00",
+      "review_result": {
+        "reference": "Cycle2 review passed: _check_unchecked_subtasks flag aligned to WP01/WP02 (ON->snapshot, OFF->legacy) at tasks_shared.py:503; red test runs status_phase=1 (flag ON) green with genuinely-incomplete control still refusing; T017 fixtures realigned; T015 untouched; 8/8 tests pass. Supersedes cycle-1 flag-inversion rejection.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2819582,
       "shell_pid_created_at": "1784463844.46"
     },
@@ -64,6 +84,11 @@
       "lane": "done",
       "last_event_id": "01KXXK2SR1T65K3WH542C221CA",
       "last_transition_at": "2026-07-19T16:24:23.041241+00:00",
+      "review_result": {
+        "reference": "Review passed: T018-T021 verified. Snapshot-first readers (stale_detection claim-liveness, WorkPackage.{shell_pid,agent,assignee}, WPMetadata runtime fields) flag-gated behind _phase1_dual_write_enabled; flag-off/feature_dir-omitted paths proven byte-identical (2 zero-regression tests). T021 two-sided liveness pins snapshot as decision source (dead-side flip driven by InnerStateChanged annotation alone, args unchanged) + baseline-mismatch + resume-refresh. SC-004 activity fold adds event-sourced rows without content loss; existing callers unchanged. Readers reached by production (check_doing_wps_for_staleness passes feature_dir; properties/read_wp_frontmatter live). Scope confined to owned_files + 1 new test. 31 tests green; mypy 5 errors all pre-existing (verified vs base, zero new). Out-of-map cli/commands/agent/tasks.py and deferred flag-teardown accepted per WP prompt.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2682167,
       "shell_pid_created_at": "1784461922.96"
     },
@@ -74,6 +99,11 @@
       "lane": "done",
       "last_event_id": "01KXXK2WK89H9RYV9576FQQMC0",
       "last_transition_at": "2026-07-19T16:24:25.960096+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata anti-laziness). FLAG DIRECTION CORRECT (not inverted): _mt_persist_wp_file emits always, then 'if _phase1_dual_write_enabled (status_phase==1) -> return' = event-only/byte-stable; else dual-writes legacy god-write. Consistent with WP01 read side (ON->snapshot). POSITIVE CONTROL REPRODUCED: fixture status_phase=0 makes byte-stability assertion FAIL (claim rewrites WP01.md hash); flag ON stable — WP04 inversion avoided. TRIAGE HONEST: 36 failed/1457 passed + 1 collection error as reported; all (a) deleted-symbol->WP10 (compat_surface x13, uncheck_rollback x6, uncheck_robust x10, seam-warning x1, +collection-error degod importing _mt_uncheck_rollback_subtasks) or (b) intended pre-WP06 evictions (clears_claim x2 #2512, tracker_ref_frontmatter FR-006, backward_emit force x2 SC-007, orchestration reimplementable x1); no mislabeled breakage. SC-008/#2647: sole emit rides st.feature_dir; 2 surviving Path.cwd() are :223 warning + :330 feedback (T024-permitted non-emit); foreign-cwd arm green. SC-007: both in_review edges force-falsy via REAL move-task path; build_transition_plan signature/review_result untouched (provenance WP02 2ae3720fc). #2513 re-block via snapshot subtasks-reset delta. COORD: shared tasks.py edited out-of-map (6 dead re-exports of deleted symbols removed; minimal; needed for importability). ruff+mypy clean; hash test 4/4. WP10-TRACKED: #2512 claim-release expressed in neither frontmatter (clear deleted) nor snapshot (reducer never clears shell_pid/agent on ->planned) — relies on 'planned==unclaimed'; WP10 confirm no allocator/liveness consumer reads residual snapshot shell_pid as a live claim.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2906270,
       "shell_pid_created_at": "1784466863.05"
     },
@@ -84,6 +114,11 @@
       "lane": "done",
       "last_event_id": "01KXXK2TEMTTG47Z97M198TABN",
       "last_transition_at": "2026-07-19T16:24:23.764099+00:00",
+      "review_result": {
+        "reference": "Review passed: claim triple rides policy_metadata on both planned->claimed (implement.py + workflow_executor _implement_start_claim) and for_review->in_review; flag semantics CONSISTENT with WP01 read side (flag OFF=dual-write+read legacy, flag ON=event-only+read snapshot) via _shell_pid_dual_write_active=not _phase1_dual_write_enabled; review-claim emit_inner_state_changed annotation genuinely reduces to snapshot shell_pid slot (live, not dead); write_shell_pid_claim_to_file + add_history_entry deleted+struck from __all__ with zero live callers, write_shell_pid_claim correctly KEPT (tasks_move_task.py _mt_persist_wp_file WP06 caller); tracker_refs struck from WP_FIELD_ORDER; T029a resume refresh fires on real IN_PROGRESS resume path without touching WP file. 22 owned tests pass, ruff clean, owned files mypy-clean, changes confined to owned_files.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2792311,
       "shell_pid_created_at": "1784463133.39"
     },
@@ -94,6 +129,11 @@
       "lane": "done",
       "last_event_id": "01KXXK2V5C3C1MKJE5780H36CN",
       "last_transition_at": "2026-07-19T16:24:24.492450+00:00",
+      "review_result": {
+        "reference": "Review passed: T030 tracker_refs union emit + --replace via WP01 tracker_refs_replace channel (never degraded to union, both paths asserted); T031 append_history emits note InnerStateChanged via coord-aware STATUS seam (_resolve_mission_dir_or_fail), no WP-file write, structured HISTORY_COMMIT_FAILED envelope preserved, no Path.cwd() destination; T032 SC-008 uses real git worktree, non-vacuous (independent emit-neutralization mutation goes red; honest two-sided proof isolates WP01 canonicalize defense-in-depth). Out-of-map test edits (test_orchestrator_append_history_coord, test_orchestrator_commands_integration, test_commands_fail_closed) legitimately re-pin WP08's own source (orchestrator_api/commands.py) contract and are owned by no other WP. Tests green (7+70), ruff clean, no new --feature flag. Non-blocking follow-up: _resolve_history_commit_args now a new orphan (production caller removed), track for removal before WP10 test_no_dead_symbols runs.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2711717,
       "shell_pid_created_at": "1784462120.46"
     },
@@ -104,6 +144,11 @@
       "lane": "done",
       "last_event_id": "01KXXK2VWAG6J4DSTPQTH4VAYF",
       "last_transition_at": "2026-07-19T16:24:25.226024+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata): both-halves invariant satisfied. Write half (T033) is a single topology-resolved InnerStateChanged review emit (feature_dir=parents[2], repo_root passed, never Path.cwd()); _persist_review_artifact_override_in_coord DELETED with call site+import removed. Read half (T034): zero live frontmatter override writers remain (only WP03 strip/backfill tooling + FR-005 round-trip fallback reader); all three read legs resolve from the review snapshot slot snapshot-first with flagged frontmatter fallback: artifacts.py (has_override=snapshot_complete or frontmatter), review_artifact_consistency.py (_snapshot_review_override -> rejected_review_artifact_for_terminal_lane), and _lane_gate.py:54 unchanged via find_rejected_review_artifact_conflicts which materializes the snapshot per-WP. T035 regression is three-sided and non-vacuous (positive asserts artifact carries NO override frontmatter so recognition must be snapshot-sourced; genuine-absent blocks; incomplete/blank-reason blocks via all-four complete predicate). 39+74 tests green, ruff+mypy clean. MERGE-COORDINATION NOTE FOR WP06: WP09 edited _mt_fire_override_persist (tasks_move_task.py ~L574-595, removed dead coord call+import); WP06 T022 cuts _mt_persist_wp_file (~L1751) - distinct functions ~1150 lines apart, and WP06 task has zero mention of _mt_fire_override_persist/override_persist. Only textual overlap is the tasks_materialization import block at file top (routine 3-way merge, no semantic collision). Deleted WP07 test_approve_over_rejected_coord_artifact.py is legitimate: its subject is the FR-008 coord frontmatter mirror FR-009 evicts (imports the now-deleted _persist_review_artifact_override_in_coord); coverage migrated to T035.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2715927,
       "shell_pid_created_at": "1784462196.63"
     },
@@ -114,6 +159,11 @@
       "lane": "done",
       "last_event_id": "01KXXK2XA1E4HCK9SPYG873D1K",
       "last_transition_at": "2026-07-19T16:24:26.689657+00:00",
+      "review_result": {
+        "reference": "Review passed: three new tests BITE (independently mutated) — AC-5 hash guard fails red on both halves (revert writer-cut god-write leak; neuter subtask emit -> 'persisted NO event'); render-parity positive test fails when a snapshot entry is dropped; #2093 arm-1 fails when agent is re-read from frontmatter, and the tolerated migration gate set is non-empty {_phase1_dual_write_enabled} (correct dual-write end-state, NOT a false unconditional-cutover claim). Re-scope HONEST: T037 fallback-deletion deferral recorded in BOTH tasks.md and WP10 banner and is contract-consistent (migration.md makes fallback teardown the FINAL step gated on the un-wired backfill CLI); T036 reframed (flag = sanctioned safety net); nothing silently dropped beyond the documented cutover. Suite reconciliation honest: deleted tests asserted now-gone _mt_uncheck_rollback_subtasks; backward_emit re-point flips force True->False (evidence-gated, stronger not weaker); degod collection error fixed. #2512 NO regression: WP06 test_wp_file_hash_stability.py green (7 passed isolated), release is event-only+byte-stable at flag ON with proof-of-drive positive control + replant override. Full WP10 surface: 1527 passed / 2 xfailed.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3276369,
       "shell_pid_created_at": "1784475556.5"
     }

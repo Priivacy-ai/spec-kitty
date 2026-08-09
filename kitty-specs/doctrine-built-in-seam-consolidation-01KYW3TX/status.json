@@ -19,83 +19,251 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
-      "agent": "claude-sonnet",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 6,
       "lane": "done",
       "last_event_id": "01KYWYV4D8ZGSK1YR74RCWD4NN",
       "last_transition_at": "2026-07-31T20:46:22.120541+00:00",
-      "shell_pid": 3817477,
-      "shell_pid_created_at": "1785519412.09"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP01 complete: two authorities + 9 repo defaults + 2 DRG callers; graph identity verified; ruff/mypy clean",
+        "Fixed test_context_parity.py stale patch target + completed comprehensive reader-idiom audit (1 stale reader found, fixed; no others)",
+        "Re-review approve after cycle-1 fix (0c6d7e1e9); tests green; reader-idiom audit clean; issue-matrix triaged.",
+        "reviewer-renata re-review APPROVED; cycle-1 rejection fixed in 0c6d7e1e9; reader-idiom audit clean; supersedes cycle-1 rejected artifact."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": {
+        "actor": "reviewer-renata",
+        "at": "2026-07-31T20:44:58Z",
+        "reason": "Re-review APPROVED; cycle-1 rejection fixed in 0c6d7e1e9; reader-idiom audit clean; supersedes cycle-1 rejected artifact.",
+        "wp_id": "WP01"
+      },
+      "review_result": {
+        "reference": "reviewer-renata re-review APPROVED; cycle-1 rejection fixed in 0c6d7e1e9; reader-idiom audit clean; supersedes cycle-1 rejected artifact.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 0,
+      "shell_pid_created_at": "1785517007.63",
+      "subtasks": {
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned"
+      }
     },
     "WP02": {
       "actor": "merge",
-      "agent": "claude-sonnet",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KYWYV61ACB15WJQW93YR1RAE",
       "last_transition_at": "2026-07-31T20:46:23.786961+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP02 complete: charter joins routed (incl. variable-indirected catalog.py + compiler:873), dual-reads removed, operator strings repointed, reader-idiom audit clean",
+        "T005: all charter-layer variable-indirected joins routed through built_in_dir(ArtifactKind.X); residual-join hunt found ZERO resolve_pack_root/'built-in' filesystem joins in owned src outside legit source_layer markers and the org-pack legacy nested layout (kind_vocabulary.py:183). ArtifactKind members (not strings) confirmed. T006: nested built-in/_proposed dual-reads removed in catalog._resolve_scan_roots, compiler._index_yaml_assets, kind_vocabulary._scan_roots. T007: built_in_root=None kwargs stripped (compiler _default_doctrine_service + doctrine_service_builder x2); bootstrap_text root call -> built_in_root(). T008: resolver.py:187,250 operator strings repointed to packs/built-in/<kind>/. No over-reach: resolve_doctrine_root() live for template sets; org_roots legacy nested layout untouched. ruff clean; 2 mypy no-any-return reds (resolver.py:451, bootstrap_text.py:287) INDEPENDENTLY confirmed pre-existing on parent 90968d9b via throwaway worktree, WP02 edits nowhere near those lines. Reader-idiom audit: 5 reported fixes verified correct+minimal; test_catalog flat-only rewrite STRENGTHENS (asserts nested dirs NOT traversed even with include_proposed=True); cross-lane WP06-owned test_context_parity/test_context edits minimal campsite fixes preserving original assertions. NO 6th stale reader found (own grep of tests/charter, tests/doctrine, src/charter). Fixed+relocation tests: 77 passed. Lane clean, intact."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "T005: all charter-layer variable-indirected joins routed through built_in_dir(ArtifactKind.X); residual-join hunt found ZERO resolve_pack_root/'built-in' filesystem joins in owned src outside legit source_layer markers and the org-pack legacy nested layout (kind_vocabulary.py:183). ArtifactKind members (not strings) confirmed. T006: nested built-in/_proposed dual-reads removed in catalog._resolve_scan_roots, compiler._index_yaml_assets, kind_vocabulary._scan_roots. T007: built_in_root=None kwargs stripped (compiler _default_doctrine_service + doctrine_service_builder x2); bootstrap_text root call -> built_in_root(). T008: resolver.py:187,250 operator strings repointed to packs/built-in/<kind>/. No over-reach: resolve_doctrine_root() live for template sets; org_roots legacy nested layout untouched. ruff clean; 2 mypy no-any-return reds (resolver.py:451, bootstrap_text.py:287) INDEPENDENTLY confirmed pre-existing on parent 90968d9b via throwaway worktree, WP02 edits nowhere near those lines. Reader-idiom audit: 5 reported fixes verified correct+minimal; test_catalog flat-only rewrite STRENGTHENS (asserts nested dirs NOT traversed even with include_proposed=True); cross-lane WP06-owned test_context_parity/test_context edits minimal campsite fixes preserving original assertions. NO 6th stale reader found (own grep of tests/charter, tests/doctrine, src/charter). Fixed+relocation tests: 77 passed. Lane clean, intact.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "implementer",
       "shell_pid": 3832525,
-      "shell_pid_created_at": "1785520599.5"
+      "shell_pid_created_at": "1785520599.5",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
-      "agent": "claude-sonnet",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KYWYV6RTX86YDZ0Y2APSRC1F",
       "last_transition_at": "2026-07-31T20:46:24.538089+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP03 complete: CWD-walk retired (NFR-001 delta documented), joins routed, None kwargs stripped, SOURCE SKILL.md examples updated, reader-idiom audit clean",
+        "APPROVED. T009: CWD-walk retired->built_in_root() (C1.6); NFR-001 delta documented in commit/docstring/test comments; in-checkout unchanged (regenerate-graph --check=fresh); direct _doctrine_root() consumer test_regen_roundtrip passes. T010: pack_validator+claude.py route via built_in_dir(ArtifactKind); from_plural verified for all 10 registry plurals, carve-out mission_step_contracts caught via BuiltInContentDirNotAvailable, no uncaught KeyError; zero residual path joins. T011: 3 kwargs stripped (genuine no-op, DoctrineService default=None); _doctrine_asset docstring reworded. T012: only 2 SOURCE SKILL.md edited, no generated agent copies. ruff clean; mypy sole error (generate.py:270 typer untyped-decorator) confirmed pre-existing+untouched. Reader-idiom audit: only test_doctrine_regenerate_graph needed campsite fix (chdir->SPEC_KITTY_PACKS_ROOT, assertions preserved); other built_in_root= tests use DoctrineService param (WP04 scope), unaffected. 34 passed/5 skipped. git status clean; stash intact."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVED. T009: CWD-walk retired->built_in_root() (C1.6); NFR-001 delta documented in commit/docstring/test comments; in-checkout unchanged (regenerate-graph --check=fresh); direct _doctrine_root() consumer test_regen_roundtrip passes. T010: pack_validator+claude.py route via built_in_dir(ArtifactKind); from_plural verified for all 10 registry plurals, carve-out mission_step_contracts caught via BuiltInContentDirNotAvailable, no uncaught KeyError; zero residual path joins. T011: 3 kwargs stripped (genuine no-op, DoctrineService default=None); _doctrine_asset docstring reworded. T012: only 2 SOURCE SKILL.md edited, no generated agent copies. ruff clean; mypy sole error (generate.py:270 typer untyped-decorator) confirmed pre-existing+untouched. Reader-idiom audit: only test_doctrine_regenerate_graph needed campsite fix (chdir->SPEC_KITTY_PACKS_ROOT, assertions preserved); other built_in_root= tests use DoctrineService param (WP04 scope), unaffected. 34 passed/5 skipped. git status clean; stash intact.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "implementer",
       "shell_pid": 3840877,
-      "shell_pid_created_at": "1785521030.33"
+      "shell_pid_created_at": "1785521030.33",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
-      "agent": "claude-sonnet",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KYWYV89JVFAA22Q87RXM2S69",
       "last_transition_at": "2026-07-31T20:46:26.098714+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP04 keystone: param+_built_in_dir dropped; joins-only ratchet (both limbs + bite test) + positive coverage via resolve_pack_root + #3091 derived complement + anti-vacuity; ~14 legacy param tests are EXPECTED enabler-reds for WP07",
+        "APPROVED (keystone). T013: built_in_root param + nested _built_in_dir removed; every property omits built_in_dir=; SPEC_KITTY_PACKS_ROOT override (in resolve_pack_root) preserved; no-explicit-root loads 29 directives. T014 ratchet: both join limbs (direct + variable-indirected) load-bearing and verified live — negative bite test genuinely bites (direct/indirected/filesystem all flagged; bare root call + markers permitted); independently confirmed kind_vocabulary.py:183 trips WITHOUT allowlist (allowlist load-bearing, exact match), pack_paths.py:166 authority exempted, deep /-chains caught. Narrow known gap: double-var-indirection (y=r; x=y/..) untracked, backstopped by the filesystem-join limb. kind_vocabulary.py:183 exemption LEGITIMATE — confirmed _scan_roots resolves built-in via built_in_dir() at line 177 and the org_roots loop join at 183 is the org-tier legacy nested-pack convention, not a built-in-location reconstruction; (file,lineno) allowlist fails SAFE (line shift trips the real join, no silent pass) with cited precedent test_protection_resolver_call_sites.py. T015: per-kind coverage via resolve_pack_root(...) not .exists(); derived complement raises BuiltInContentDirNotAvailable; #3091 marker present. T016: agent_profiles anti-vacuity non-empty. 16/16 arch-gate tests pass. ruff clean; mypy clean on both owned files (2 residual errors are pre-existing tests/architectural/conftest.py, untouched). 16 enabler-reds confirmed (spot-checked test_service.py, test_answers_inert_and_org_union.py, test_org_pack_artifact_lifecycle.py — all param-drop TypeError only, WP07-owned, unedited here). Dead-symbol red (resolve_pack_root in __all__ unimported) is a REAL merged-tree gate failure but NOT WP04's cause (service.py never imported resolve_pack_root) nor WP04's fix (pack_paths.py __all__ curation, WP01 territory) — orchestrator to resolve at merge: preferred remove from __all__ per C1.6 intent, or add to _SYMBOL_ALLOWLIST."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVED (keystone). T013: built_in_root param + nested _built_in_dir removed; every property omits built_in_dir=; SPEC_KITTY_PACKS_ROOT override (in resolve_pack_root) preserved; no-explicit-root loads 29 directives. T014 ratchet: both join limbs (direct + variable-indirected) load-bearing and verified live — negative bite test genuinely bites (direct/indirected/filesystem all flagged; bare root call + markers permitted); independently confirmed kind_vocabulary.py:183 trips WITHOUT allowlist (allowlist load-bearing, exact match), pack_paths.py:166 authority exempted, deep /-chains caught. Narrow known gap: double-var-indirection (y=r; x=y/..) untracked, backstopped by the filesystem-join limb. kind_vocabulary.py:183 exemption LEGITIMATE — confirmed _scan_roots resolves built-in via built_in_dir() at line 177 and the org_roots loop join at 183 is the org-tier legacy nested-pack convention, not a built-in-location reconstruction; (file,lineno) allowlist fails SAFE (line shift trips the real join, no silent pass) with cited precedent test_protection_resolver_call_sites.py. T015: per-kind coverage via resolve_pack_root(...) not .exists(); derived complement raises BuiltInContentDirNotAvailable; #3091 marker present. T016: agent_profiles anti-vacuity non-empty. 16/16 arch-gate tests pass. ruff clean; mypy clean on both owned files (2 residual errors are pre-existing tests/architectural/conftest.py, untouched). 16 enabler-reds confirmed (spot-checked test_service.py, test_answers_inert_and_org_union.py, test_org_pack_artifact_lifecycle.py — all param-drop TypeError only, WP07-owned, unedited here). Dead-symbol red (resolve_pack_root in __all__ unimported) is a REAL merged-tree gate failure but NOT WP04's cause (service.py never imported resolve_pack_root) nor WP04's fix (pack_paths.py __all__ curation, WP01 territory) — orchestrator to resolve at merge: preferred remove from __all__ per C1.6 intent, or add to _SYMBOL_ALLOWLIST.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "implementer",
       "shell_pid": 3933840,
-      "shell_pid_created_at": "1785523430.35"
+      "shell_pid_created_at": "1785523430.35",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
-      "agent": "claude-sonnet",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KYWYV7HB35D4JEQ6PNHPNHG8",
       "last_transition_at": "2026-07-31T20:46:25.323362+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP05 complete: activation vocab unified onto YAML_KEY_MAP, live glossary-pack drift fixed + e2e-proven, set-equality guard added, pack_manager:658 routed, reader-idiom audit clean",
+        "T017 live drift fix verified: migration ACTIVATION_KEYS was a 10-key literal missing activated_glossary_packs; now derived from pack_manager.ACTIVATION_YAML_KEYS (11 keys). E2E T032 tests pass on BOTH compose path and pre-existing-charter relocation path; by inspection they fail if the key is dropped. Single authority ACTIVATION_YAML_KEYS=('activated_kinds',*YAML_KEY_MAP.values()); charter_yaml_io._ACTIVATION_KEYS and migration ACTIVATION_KEYS both derive via lazy function-scoped import (no literals). Cheap-import CONFIRMED: importing migration loads zero charter.* modules. Circular-import safe both orders (11 keys). T019 set-equality + glossary-pack membership guards green. T020: only the :695 join routed through built_in_dir(kind); 5 bare 'built-in' markers untouched; verified built_in_dir never raises BuiltInContentDirNotAvailable here (all layered charter kinds have content dirs; mission-step-contract is non-layered, mission-type resolves kind=None). ruff clean; mypy only the pre-existing BaseMigration-is-Any red (parent line 314). 27 targeted tests + shim consumers green. Dead-symbol red (pack_paths::BuiltInContentDirNotAvailable) is a WP01/lane-isolation artifact resolving via WP03's importer at merge; NOT WP05's defect. Out-of-scope duplicates compiler._LEGACY_ACTIVATION_KEYS (also missing activated_glossary_packs) and m_3_2_x._PER_ARTIFACT_ACTIVATION_KEYS correctly left untouched (outside owned_files) - flagged for operator follow-up."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "T017 live drift fix verified: migration ACTIVATION_KEYS was a 10-key literal missing activated_glossary_packs; now derived from pack_manager.ACTIVATION_YAML_KEYS (11 keys). E2E T032 tests pass on BOTH compose path and pre-existing-charter relocation path; by inspection they fail if the key is dropped. Single authority ACTIVATION_YAML_KEYS=('activated_kinds',*YAML_KEY_MAP.values()); charter_yaml_io._ACTIVATION_KEYS and migration ACTIVATION_KEYS both derive via lazy function-scoped import (no literals). Cheap-import CONFIRMED: importing migration loads zero charter.* modules. Circular-import safe both orders (11 keys). T019 set-equality + glossary-pack membership guards green. T020: only the :695 join routed through built_in_dir(kind); 5 bare 'built-in' markers untouched; verified built_in_dir never raises BuiltInContentDirNotAvailable here (all layered charter kinds have content dirs; mission-step-contract is non-layered, mission-type resolves kind=None). ruff clean; mypy only the pre-existing BaseMigration-is-Any red (parent line 314). 27 targeted tests + shim consumers green. Dead-symbol red (pack_paths::BuiltInContentDirNotAvailable) is a WP01/lane-isolation artifact resolving via WP03's importer at merge; NOT WP05's defect. Out-of-scope duplicates compiler._LEGACY_ACTIVATION_KEYS (also missing activated_glossary_packs) and m_3_2_x._PER_ARTIFACT_ACTIVATION_KEYS correctly left untouched (outside owned_files) - flagged for operator follow-up.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "implementer",
       "shell_pid": 3842946,
-      "shell_pid_created_at": "1785521052.66"
+      "shell_pid_created_at": "1785521052.66",
+      "subtasks": {
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T032": "done"
+      }
     },
     "WP06": {
       "actor": "merge",
-      "agent": "claude-sonnet",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KYWYV9RA39D80KH97X3EJKMQ",
       "last_transition_at": "2026-07-31T20:46:27.594255+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP06 complete: DELETE-set (test-only) re-exports removed + test imports repointed to leaf modules; RETAIN-set (production cycle-breakers) + public __all__ preserved; inherited WP01/WP02 campsite fixes in test_context_parity/test_context untouched",
+        "APPROVED (reviewer-renata). Census safe: all 41 DELETE-set privates have ZERO surviving charter.context importers (attribute/patch-string form 0 hits; from-import form 0 hits across every .py in src/ + tests/). __all__ byte-identical to base (sha256 match); 5-item public surface unchanged (FR-011). RETAIN-set resolves via charter.context (smoke ok); RETAIN patch target patch('charter.context._build_doctrine_service') left in place, none repointed to leaf. Campsite fixes preserved: test_context_parity.py still patches built_in_dir (not resolve_pack_root); test_context.py StubDoctrineService keeps built_in_root: Path|None=None. Multi-line import splits correct; 187 owned charter/context tests green; ruff clean. PROVENANCE VERDICT on test_registry_builtin_activation_parity::test_excluded_builtin_absent_from_routing_and_context: PRE-EXISTING PRE-MISSION, NOT a blocker. It fails IDENTICALLY on feat/relocate-builtin-doctrine-packs (2d3b0a9a7), which carries zero mission WP src/ code (differs from mission merge-base only by tracer JSONs) — same assertion (line 141) and same reviewer-renata scope_filtered catalog-miss warnings. One of the mission's out-of-scope reds; WP06's only touch of that file is the mechanical _reset_agent_profile_cache import repoint."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVED (reviewer-renata). Census safe: all 41 DELETE-set privates have ZERO surviving charter.context importers (attribute/patch-string form 0 hits; from-import form 0 hits across every .py in src/ + tests/). __all__ byte-identical to base (sha256 match); 5-item public surface unchanged (FR-011). RETAIN-set resolves via charter.context (smoke ok); RETAIN patch target patch('charter.context._build_doctrine_service') left in place, none repointed to leaf. Campsite fixes preserved: test_context_parity.py still patches built_in_dir (not resolve_pack_root); test_context.py StubDoctrineService keeps built_in_root: Path|None=None. Multi-line import splits correct; 187 owned charter/context tests green; ruff clean. PROVENANCE VERDICT on test_registry_builtin_activation_parity::test_excluded_builtin_absent_from_routing_and_context: PRE-EXISTING PRE-MISSION, NOT a blocker. It fails IDENTICALLY on feat/relocate-builtin-doctrine-packs (2d3b0a9a7), which carries zero mission WP src/ code (differs from mission merge-base only by tracer JSONs) — same assertion (line 141) and same reviewer-renata scope_filtered catalog-miss warnings. One of the mission's out-of-scope reds; WP06's only touch of that file is the mechanical _reset_agent_profile_cache import repoint.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "implementer",
       "shell_pid": 3993668,
-      "shell_pid_created_at": "1785527718.55"
+      "shell_pid_created_at": "1785527718.55",
+      "subtasks": {
+        "T021": "done",
+        "T022": "done",
+        "T023": "done"
+      }
     },
     "WP07": {
       "actor": "merge",
-      "agent": "claude-sonnet",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KYWYV918M60XM3SGVJ1D06W5",
       "last_transition_at": "2026-07-31T20:46:26.856576+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP07 complete: all 16 built_in_root= callers migrated (Repository built_in_dir= leaf param preserved per occurrence_map), org-pack collision asserts DoctrineLayerCollisionWarning, glossary-gate + profile-inheritance fixtures fixed, zero built_in_root= remain",
+        "APPROVED (reviewer-renata, adversarial). Leaf-param untouched: zero built_in_dir= changes in diff; the 7 GlossaryPackRepository(built_in_dir=) direct-repo tests + occurrence_map guard docstrings intact. Every DoctrineService(built_in_root=) caller migrated to SPEC_KITTY_PACKS_ROOT-flat or kwarg removal; zero live built_in_root= callers remain (only comments/docstrings). Collision test non-vacuous: real python-conventions.styleguide.yaml ships, org overrides it, pytest.warns+assert both load-bearing. Glossary gate loads packs/built-in/glossary_packs/. Profile-inheritance fixture repointed to real content (18 profiles / 4 real specialization pairs vs 0 before = false-green fixed); _render_profile_sections import repointed to charter.context_renderers.profile_sections. 167 tests green (90+77). ruff clean; 3 mypy [type-arg] errors are on unchanged helper signatures = pre-existing."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVED (reviewer-renata, adversarial). Leaf-param untouched: zero built_in_dir= changes in diff; the 7 GlossaryPackRepository(built_in_dir=) direct-repo tests + occurrence_map guard docstrings intact. Every DoctrineService(built_in_root=) caller migrated to SPEC_KITTY_PACKS_ROOT-flat or kwarg removal; zero live built_in_root= callers remain (only comments/docstrings). Collision test non-vacuous: real python-conventions.styleguide.yaml ships, org overrides it, pytest.warns+assert both load-bearing. Glossary gate loads packs/built-in/glossary_packs/. Profile-inheritance fixture repointed to real content (18 profiles / 4 real specialization pairs vs 0 before = false-green fixed); _render_profile_sections import repointed to charter.context_renderers.profile_sections. 167 tests green (90+77). ruff clean; 3 mypy [type-arg] errors are on unchanged helper signatures = pre-existing.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "implementer",
       "shell_pid": 3969266,
-      "shell_pid_created_at": "1785525942.11"
+      "shell_pid_created_at": "1785525942.11",
+      "subtasks": {
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done"
+      }
     },
     "WP08": {
       "actor": "merge",
-      "agent": "claude-sonnet",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KYWYV5A4EPAM0KNBC7ZRWEE8",
       "last_transition_at": "2026-07-31T20:46:23.044179+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP08 complete: verified provenance fields descriptive (T029 evidence), swept N YAMLs per occurrence_map, no dead path remains, graph identity unchanged",
+        "APPROVED. T029/NFR-001 graph identity: reviewer-run 'doctrine regenerate-graph --check --json' = {status: fresh} post-sweep; _resolve_path_ref uses dual-home regex (?:src/doctrine/<kind>/built-in|packs/built-in/<kind>) resolving both prefixes to identical (kind,stem) — provably prefix-invariant, so the sweep is graph-neutral. T030: exactly 18 files, all under packs/built-in/, only path VALUES rewritten (keys/structure/quoting intact), inner built-in dropped per flatten shape. No over/under-sweep: out-of-scope src/doctrine/missions/documentation, agent_profiles/_proposed, src/doctrine/drg, and bare src/doctrine/ all correctly preserved. Dead-path grep across the 18 files = ZERO surviving <kind>/built-in. No occurrence_map exception file touched. Cited tests green (56 passed)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVED. T029/NFR-001 graph identity: reviewer-run 'doctrine regenerate-graph --check --json' = {status: fresh} post-sweep; _resolve_path_ref uses dual-home regex (?:src/doctrine/<kind>/built-in|packs/built-in/<kind>) resolving both prefixes to identical (kind,stem) — provably prefix-invariant, so the sweep is graph-neutral. T030: exactly 18 files, all under packs/built-in/, only path VALUES rewritten (keys/structure/quoting intact), inner built-in dropped per flatten shape. No over/under-sweep: out-of-scope src/doctrine/missions/documentation, agent_profiles/_proposed, src/doctrine/drg, and bare src/doctrine/ all correctly preserved. Dead-path grep across the 18 files = ZERO surviving <kind>/built-in. No occurrence_map exception file touched. Cited tests green (56 passed).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "implementer",
       "shell_pid": 3905508,
-      "shell_pid_created_at": "1785522605.97"
+      "shell_pid_created_at": "1785522605.97",
+      "subtasks": {
+        "T029": "done",
+        "T030": "done",
+        "T031": "done"
+      }
     }
   }
 }

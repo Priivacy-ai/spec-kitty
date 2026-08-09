@@ -24,6 +24,7 @@
       "lane": "done",
       "last_event_id": "01KWVJKB9J46224V57B3V9D74A",
       "last_transition_at": "2026-07-06T11:21:46.035002+00:00",
+      "review_result": null,
       "shell_pid": 2370219,
       "subtasks": {
         "T001": "planned",

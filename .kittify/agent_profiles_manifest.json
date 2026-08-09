@@ -1,14 +1,36 @@
 {
   "entries": [
     {
+      "file_hash": "2bb724b25978b91ed47ba99b11393eb0ec936a7158770157d8172ec23d12df1e",
+      "format": "claude-agent",
+      "output_path": ".claude/agents/analyst-annie.md",
+      "profile_urn": "agent_profile:analyst-annie",
+      "projection_version": 1,
+      "source_hash": "8ed372b0e8c6e02cac1cb6c2c675a918d82d29d3861aa737cada054036658b51",
+      "source_layer": "builtin",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/analyst-annie.agent.yaml",
+      "tool_key": "claude"
+    },
+    {
       "file_hash": "3ed76a94a690c494d80082b11fb4089ef531f9bf45036abb7fa21a525096d21e",
       "format": "claude-agent",
       "output_path": ".claude/agents/architect-alphonso.md",
       "profile_urn": "agent_profile:architect-alphonso",
       "projection_version": 1,
-      "source_hash": "b72c3652d738616f1abe683c415542a2a813b95787fe4f610885d7237b706f02",
+      "source_hash": "091d6223b873fdd15233b3970053f88bb7cd61ada223e2ab7532ef188eda2844",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/architect-alphonso.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/architect-alphonso.agent.yaml",
+      "tool_key": "claude"
+    },
+    {
+      "file_hash": "2fbb9bc01033cbe4bdac1d9fb5f030b71217815dd81e91b959735508add82eee",
+      "format": "claude-agent",
+      "output_path": ".claude/agents/comms-cleo.md",
+      "profile_urn": "agent_profile:comms-cleo",
+      "projection_version": 1,
+      "source_hash": "027b1640fcede2c102b163f05958b913532260405af15623b6cd17d5cc483d87",
+      "source_layer": "builtin",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/comms-cleo.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -19,7 +41,7 @@
       "projection_version": 1,
       "source_hash": "cc6b08c3391abe890ff2dc35b4d7faa3e6cb6566cacedfab2eb570fa9248cb0a",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/curator-carla.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/curator-carla.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -30,7 +52,7 @@
       "projection_version": 1,
       "source_hash": "2aa4396ee2d102e49d4a0f076ed7d1a7a8e3d2da8c9d1dc6cc32843db780e7ac",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/debugger-debbie.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/debugger-debbie.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -41,18 +63,29 @@
       "projection_version": 1,
       "source_hash": "1428bfeabd57c8cd636d72d587b11799b84a0f4d325aea24880f6d8e4083f6c7",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/designer-dagmar.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/designer-dagmar.agent.yaml",
       "tool_key": "claude"
     },
     {
-      "file_hash": "097fb87e2464b80f2e3f4ae449d18794c6ffc13d91587bb72f94a9fe34bc356c",
+      "file_hash": "c8b1dfd6dd660c80ed481d4ef395cd20640fdad9bc1bc8d564ea72fab81b1fe3",
+      "format": "claude-agent",
+      "output_path": ".claude/agents/diagram-daisy.md",
+      "profile_urn": "agent_profile:diagram-daisy",
+      "projection_version": 1,
+      "source_hash": "c5d3a2f12e1563ab00a8ddd4e09580d32b27b37f5f58e3e6dc8f20dc9cee853a",
+      "source_layer": "builtin",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/diagram-daisy.agent.yaml",
+      "tool_key": "claude"
+    },
+    {
+      "file_hash": "6afad45926c785ed3241b6e2ac4214bf7d0667ac31fb5fafed648cdf9f032296",
       "format": "claude-agent",
       "output_path": ".claude/agents/doctrine-daphne.md",
       "profile_urn": "agent_profile:doctrine-daphne",
       "projection_version": 1,
-      "source_hash": "e020d03f500b0501eb754fd66069ec76a49bc4324bf5c0c337ca261775ad7b36",
+      "source_hash": "0c62322ff4fcda250fc74b2a54830e90033d378b4107d28fee91a90bf2b984a5",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/doctrine-daphne.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/doctrine-daphne.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -61,9 +94,9 @@
       "output_path": ".claude/agents/frontend-freddy.md",
       "profile_urn": "agent_profile:frontend-freddy",
       "projection_version": 1,
-      "source_hash": "34ac5858ed5ec97689ccc122141cbd5012a17d9bec689c5b1da6d7b6446306e7",
+      "source_hash": "18bbb8b92ed33fed4568a7c4a10643656ae51e0658e8f7a502a20f6288e4869f",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/frontend-freddy.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/frontend-freddy.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -74,7 +107,7 @@
       "projection_version": 1,
       "source_hash": "0e01f1d14aa139e2611966b14d8087d0bb87cbcd1cdc969287e453e2c871a449",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/generic-agent.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/generic-agent.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -83,9 +116,9 @@
       "output_path": ".claude/agents/implementer-ivan.md",
       "profile_urn": "agent_profile:implementer-ivan",
       "projection_version": 1,
-      "source_hash": "5878a5a84f9f306a91d0895498984fb3523f1f12ba05cf7bb57576093f5722e5",
+      "source_hash": "7ba48415be7adf3ea2afddeb7f8afd86b7ef5cc24bd43007f25410f928cab635",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/implementer-ivan.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/implementer-ivan.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -94,9 +127,31 @@
       "output_path": ".claude/agents/java-jenny.md",
       "profile_urn": "agent_profile:java-jenny",
       "projection_version": 1,
-      "source_hash": "eb2f00630f317db097e62665d7204e876a5cf6a5481cf35f762501e866066937",
+      "source_hash": "9835a284bf8a64c1b568eb13a39b345d95307ffaf3061d01e0243c1f7065c433",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/java-jenny.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/java-jenny.agent.yaml",
+      "tool_key": "claude"
+    },
+    {
+      "file_hash": "7872a9792d2189d3bbd586d0d1a53c321c2f07e8187de83bb4f5f5a6e6923b72",
+      "format": "claude-agent",
+      "output_path": ".claude/agents/lexical-larry.md",
+      "profile_urn": "agent_profile:lexical-larry",
+      "projection_version": 1,
+      "source_hash": "d8b4d31d54e0c113150bf38ef3bbde76243d159f2da7b9b8b981e04b014e3c02",
+      "source_layer": "builtin",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/lexical-larry.agent.yaml",
+      "tool_key": "claude"
+    },
+    {
+      "file_hash": "925323a4d7d49c43b42843c79be98b16f0068ca6ad024d3ab191cc6795f4ea2c",
+      "format": "claude-agent",
+      "output_path": ".claude/agents/minutes-maker-mahad.md",
+      "profile_urn": "agent_profile:minutes-maker-mahad",
+      "projection_version": 1,
+      "source_hash": "21fde99793ee8903ac7489c4185b41189cd48e8280a353d55f248041179b6b98",
+      "source_layer": "builtin",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/minutes-maker-mahad.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -105,9 +160,9 @@
       "output_path": ".claude/agents/node-norris.md",
       "profile_urn": "agent_profile:node-norris",
       "projection_version": 1,
-      "source_hash": "f34314aa278528c127e19a44ec49daae17850366cf2e980d62bf751088e7ea4b",
+      "source_hash": "5d4b5509b57b1a7fa328105921d05b02977a37b508ba1a8cb3b3c3ba33d170b5",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/node-norris.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/node-norris.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -118,7 +173,7 @@
       "projection_version": 1,
       "source_hash": "9e9a7e204fe7f3c66a120e2c36d9e9cf519e489f88982cce1c65114fde527899",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/paula-patterns.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/paula-patterns.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -129,7 +184,7 @@
       "projection_version": 1,
       "source_hash": "a75a69594825554fc286c1c7a6d7a70707ba6a0724686cf6f3546a33b92a4a87",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/planner-priti.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/planner-priti.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -138,9 +193,9 @@
       "output_path": ".claude/agents/python-pedro.md",
       "profile_urn": "agent_profile:python-pedro",
       "projection_version": 1,
-      "source_hash": "41eb7c5fdfa1831426b6c511049b20f1bc504a36407e7ab308eb2e7f4b479e1e",
+      "source_hash": "3bda1107743f47513ffe9820ba84727c42b83613bcfac1ca02dc70ad5092acb6",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/python-pedro.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/python-pedro.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -151,7 +206,7 @@
       "projection_version": 1,
       "source_hash": "495904c9937c2977f2696a6c0e5ce38903a6b3eb85600953882c81caaea7d098",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/randy-reducer.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/randy-reducer.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -162,7 +217,7 @@
       "projection_version": 1,
       "source_hash": "35db0efc2dcf050a4fe337f474998150c4ab47dc2a28b8a1e4cbaab6c64cff5d",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/researcher-robbie.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/researcher-robbie.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -173,7 +228,7 @@
       "projection_version": 1,
       "source_hash": "de4e2d2c641e773180e84ea3bc60beb937e66aadcef6012db392289a088275c4",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/retrospective-facilitator.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/retrospective-facilitator.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -182,10 +237,43 @@
       "output_path": ".claude/agents/reviewer-renata.md",
       "profile_urn": "agent_profile:reviewer-renata",
       "projection_version": 1,
-      "source_hash": "60a0e3ffda3219a3bb253ba5205dade96da4151c9e6b81edcbb9dc57708e0081",
+      "source_hash": "6f0a40e7d0584f951e18e5f040043b05c84c20c1aa61313f99dd9eca7caa54bf",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/reviewer-renata.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/reviewer-renata.agent.yaml",
       "tool_key": "claude"
+    },
+    {
+      "file_hash": "6a591ac83639e2007b7fa29b4057c6fc56256af2016e41292c49fc22f3391de6",
+      "format": "claude-agent",
+      "output_path": ".claude/agents/scribe-sally.md",
+      "profile_urn": "agent_profile:scribe-sally",
+      "projection_version": 1,
+      "source_hash": "a7de3f3d8b49e5bd2d749469132221c0b5f14fb4d148f803e21bc107779eeed8",
+      "source_layer": "builtin",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/scribe-sally.agent.yaml",
+      "tool_key": "claude"
+    },
+    {
+      "file_hash": "0a0520baff00bd5523ca3db4e5f8d41763d01e05ca23f25711451f2bde9ce12d",
+      "format": "claude-agent",
+      "output_path": ".claude/agents/synthesizer-sam.md",
+      "profile_urn": "agent_profile:synthesizer-sam",
+      "projection_version": 1,
+      "source_hash": "0bac561a014f11420b669d252b3996579a925421f625f345dbbbbd885e547264",
+      "source_layer": "builtin",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/synthesizer-sam.agent.yaml",
+      "tool_key": "claude"
+    },
+    {
+      "file_hash": "e35310f1b68840363ebfd71c46beef6e6aa88e844c8b855d056e5f7396f517f5",
+      "format": "codex-agent",
+      "output_path": ".codex/agents/analyst-annie.toml",
+      "profile_urn": "agent_profile:analyst-annie",
+      "projection_version": 1,
+      "source_hash": "8ed372b0e8c6e02cac1cb6c2c675a918d82d29d3861aa737cada054036658b51",
+      "source_layer": "builtin",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/analyst-annie.agent.yaml",
+      "tool_key": "codex"
     },
     {
       "file_hash": "4cd7213bc6a9819bdf79eecf1f6edec8d2270adb015354a876e78b2fbafb1c53",
@@ -193,9 +281,20 @@
       "output_path": ".codex/agents/architect-alphonso.toml",
       "profile_urn": "agent_profile:architect-alphonso",
       "projection_version": 1,
-      "source_hash": "b72c3652d738616f1abe683c415542a2a813b95787fe4f610885d7237b706f02",
+      "source_hash": "091d6223b873fdd15233b3970053f88bb7cd61ada223e2ab7532ef188eda2844",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/architect-alphonso.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/architect-alphonso.agent.yaml",
+      "tool_key": "codex"
+    },
+    {
+      "file_hash": "04a387b2cdd6a90271f39f6016d696bb45384031fa00ac1818b24aa8f8c110f3",
+      "format": "codex-agent",
+      "output_path": ".codex/agents/comms-cleo.toml",
+      "profile_urn": "agent_profile:comms-cleo",
+      "projection_version": 1,
+      "source_hash": "027b1640fcede2c102b163f05958b913532260405af15623b6cd17d5cc483d87",
+      "source_layer": "builtin",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/comms-cleo.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -206,7 +305,7 @@
       "projection_version": 1,
       "source_hash": "cc6b08c3391abe890ff2dc35b4d7faa3e6cb6566cacedfab2eb570fa9248cb0a",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/curator-carla.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/curator-carla.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -217,7 +316,7 @@
       "projection_version": 1,
       "source_hash": "2aa4396ee2d102e49d4a0f076ed7d1a7a8e3d2da8c9d1dc6cc32843db780e7ac",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/debugger-debbie.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/debugger-debbie.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -228,7 +327,18 @@
       "projection_version": 1,
       "source_hash": "1428bfeabd57c8cd636d72d587b11799b84a0f4d325aea24880f6d8e4083f6c7",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/designer-dagmar.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/designer-dagmar.agent.yaml",
+      "tool_key": "codex"
+    },
+    {
+      "file_hash": "1ca1c1a53bf18371ea2523a2a514579b9c6df57c83c5f6db4c1e501366309b5b",
+      "format": "codex-agent",
+      "output_path": ".codex/agents/diagram-daisy.toml",
+      "profile_urn": "agent_profile:diagram-daisy",
+      "projection_version": 1,
+      "source_hash": "c5d3a2f12e1563ab00a8ddd4e09580d32b27b37f5f58e3e6dc8f20dc9cee853a",
+      "source_layer": "builtin",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/diagram-daisy.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -237,9 +347,9 @@
       "output_path": ".codex/agents/doctrine-daphne.toml",
       "profile_urn": "agent_profile:doctrine-daphne",
       "projection_version": 1,
-      "source_hash": "e020d03f500b0501eb754fd66069ec76a49bc4324bf5c0c337ca261775ad7b36",
+      "source_hash": "0c62322ff4fcda250fc74b2a54830e90033d378b4107d28fee91a90bf2b984a5",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/doctrine-daphne.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/doctrine-daphne.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -248,9 +358,9 @@
       "output_path": ".codex/agents/frontend-freddy.toml",
       "profile_urn": "agent_profile:frontend-freddy",
       "projection_version": 1,
-      "source_hash": "34ac5858ed5ec97689ccc122141cbd5012a17d9bec689c5b1da6d7b6446306e7",
+      "source_hash": "18bbb8b92ed33fed4568a7c4a10643656ae51e0658e8f7a502a20f6288e4869f",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/frontend-freddy.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/frontend-freddy.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -261,7 +371,7 @@
       "projection_version": 1,
       "source_hash": "0e01f1d14aa139e2611966b14d8087d0bb87cbcd1cdc969287e453e2c871a449",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/generic-agent.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/generic-agent.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -270,9 +380,9 @@
       "output_path": ".codex/agents/implementer-ivan.toml",
       "profile_urn": "agent_profile:implementer-ivan",
       "projection_version": 1,
-      "source_hash": "5878a5a84f9f306a91d0895498984fb3523f1f12ba05cf7bb57576093f5722e5",
+      "source_hash": "7ba48415be7adf3ea2afddeb7f8afd86b7ef5cc24bd43007f25410f928cab635",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/implementer-ivan.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/implementer-ivan.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -281,9 +391,31 @@
       "output_path": ".codex/agents/java-jenny.toml",
       "profile_urn": "agent_profile:java-jenny",
       "projection_version": 1,
-      "source_hash": "eb2f00630f317db097e62665d7204e876a5cf6a5481cf35f762501e866066937",
+      "source_hash": "9835a284bf8a64c1b568eb13a39b345d95307ffaf3061d01e0243c1f7065c433",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/java-jenny.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/java-jenny.agent.yaml",
+      "tool_key": "codex"
+    },
+    {
+      "file_hash": "e07f934dc252ae5cf04371734d064323b0b3c6807b666b165b0923647dc0195f",
+      "format": "codex-agent",
+      "output_path": ".codex/agents/lexical-larry.toml",
+      "profile_urn": "agent_profile:lexical-larry",
+      "projection_version": 1,
+      "source_hash": "d8b4d31d54e0c113150bf38ef3bbde76243d159f2da7b9b8b981e04b014e3c02",
+      "source_layer": "builtin",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/lexical-larry.agent.yaml",
+      "tool_key": "codex"
+    },
+    {
+      "file_hash": "fa5f7f6becdcc656d3a91c0cb6bdbcaf86cca6168c00e977de3f84b9497ae256",
+      "format": "codex-agent",
+      "output_path": ".codex/agents/minutes-maker-mahad.toml",
+      "profile_urn": "agent_profile:minutes-maker-mahad",
+      "projection_version": 1,
+      "source_hash": "21fde99793ee8903ac7489c4185b41189cd48e8280a353d55f248041179b6b98",
+      "source_layer": "builtin",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/minutes-maker-mahad.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -292,9 +424,9 @@
       "output_path": ".codex/agents/node-norris.toml",
       "profile_urn": "agent_profile:node-norris",
       "projection_version": 1,
-      "source_hash": "f34314aa278528c127e19a44ec49daae17850366cf2e980d62bf751088e7ea4b",
+      "source_hash": "5d4b5509b57b1a7fa328105921d05b02977a37b508ba1a8cb3b3c3ba33d170b5",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/node-norris.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/node-norris.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -305,7 +437,7 @@
       "projection_version": 1,
       "source_hash": "9e9a7e204fe7f3c66a120e2c36d9e9cf519e489f88982cce1c65114fde527899",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/paula-patterns.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/paula-patterns.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -316,7 +448,7 @@
       "projection_version": 1,
       "source_hash": "a75a69594825554fc286c1c7a6d7a70707ba6a0724686cf6f3546a33b92a4a87",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/planner-priti.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/planner-priti.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -325,9 +457,9 @@
       "output_path": ".codex/agents/python-pedro.toml",
       "profile_urn": "agent_profile:python-pedro",
       "projection_version": 1,
-      "source_hash": "41eb7c5fdfa1831426b6c511049b20f1bc504a36407e7ab308eb2e7f4b479e1e",
+      "source_hash": "3bda1107743f47513ffe9820ba84727c42b83613bcfac1ca02dc70ad5092acb6",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/python-pedro.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/python-pedro.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -338,7 +470,7 @@
       "projection_version": 1,
       "source_hash": "495904c9937c2977f2696a6c0e5ce38903a6b3eb85600953882c81caaea7d098",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/randy-reducer.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/randy-reducer.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -349,7 +481,7 @@
       "projection_version": 1,
       "source_hash": "35db0efc2dcf050a4fe337f474998150c4ab47dc2a28b8a1e4cbaab6c64cff5d",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/researcher-robbie.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/researcher-robbie.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -360,7 +492,7 @@
       "projection_version": 1,
       "source_hash": "de4e2d2c641e773180e84ea3bc60beb937e66aadcef6012db392289a088275c4",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/retrospective-facilitator.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/retrospective-facilitator.agent.yaml",
       "tool_key": "codex"
     },
     {
@@ -369,9 +501,31 @@
       "output_path": ".codex/agents/reviewer-renata.toml",
       "profile_urn": "agent_profile:reviewer-renata",
       "projection_version": 1,
-      "source_hash": "60a0e3ffda3219a3bb253ba5205dade96da4151c9e6b81edcbb9dc57708e0081",
+      "source_hash": "6f0a40e7d0584f951e18e5f040043b05c84c20c1aa61313f99dd9eca7caa54bf",
       "source_layer": "builtin",
-      "source_path": "packs/built-in/agent_profiles/reviewer-renata.agent.yaml",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/reviewer-renata.agent.yaml",
+      "tool_key": "codex"
+    },
+    {
+      "file_hash": "6d79b9d25d021cb2e0a7c9be83394e7bdbfb9a09360407ef9174a75fdeaf2b84",
+      "format": "codex-agent",
+      "output_path": ".codex/agents/scribe-sally.toml",
+      "profile_urn": "agent_profile:scribe-sally",
+      "projection_version": 1,
+      "source_hash": "a7de3f3d8b49e5bd2d749469132221c0b5f14fb4d148f803e21bc107779eeed8",
+      "source_layer": "builtin",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/scribe-sally.agent.yaml",
+      "tool_key": "codex"
+    },
+    {
+      "file_hash": "72a7c6bb0303deb468ec23abc6c4f38fc07176f5a31ed768bd9bc5aa1458e381",
+      "format": "codex-agent",
+      "output_path": ".codex/agents/synthesizer-sam.toml",
+      "profile_urn": "agent_profile:synthesizer-sam",
+      "projection_version": 1,
+      "source_hash": "0bac561a014f11420b669d252b3996579a925421f625f345dbbbbd885e547264",
+      "source_layer": "builtin",
+      "source_path": "/opt/homebrew/lib/python3.11/site-packages/packs/built-in/agent_profiles/synthesizer-sam.agent.yaml",
       "tool_key": "codex"
     }
   ],

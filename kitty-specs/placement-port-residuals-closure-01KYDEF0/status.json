@@ -31,6 +31,11 @@
         "FR-001 fail-closed verified (raise before any write; nothing written on mismatch; repo_root from resolve_canonical_root(feature_dir) not cwd; degrade catches only resolver-infra raises, a genuine mismatch still raises). FR-002 verified (event write stays COORD/status_dir; only tasks read moved to PRIMARY; read_dir default keeps 3 single-leg callers byte-unchanged). Red-first genuine: all 4 named tests RED on base (FR-002 shows seeded_count=0 silent-loss), GREEN on branch, not skipped. Out-of-scope test_birth_cutover.py re-pin is a legitimate stale-test re-pin (old fixture encoded the fixed COORD-read bug); no WP owns that file. ruff+mypy --strict clean. #2917 corpus test red identically on base (not a regression)."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "FR-001 fail-closed verified (raise before any write; nothing written on mismatch; repo_root from resolve_canonical_root(feature_dir) not cwd; degrade catches only resolver-infra raises, a genuine mismatch still raises). FR-002 verified (event write stays COORD/status_dir; only tasks read moved to PRIMARY; read_dir default keeps 3 single-leg callers byte-unchanged). Red-first genuine: all 4 named tests RED on base (FR-002 shows seeded_count=0 silent-loss), GREEN on branch, not skipped. Out-of-scope test_birth_cutover.py re-pin is a legitimate stale-test re-pin (old fixture encoded the fixed COORD-read bug); no WP owns that file. ruff+mypy --strict clean. #2917 corpus test red identically on base (not a regression).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "shell_pid": 757232,
       "shell_pid_created_at": "1785101086.24",
@@ -57,6 +62,11 @@
         "Verified no-op: FR-011 already satisfied on rebased base. Empty executor.py diff; status.events.jsonl routes into committed set on both paths; 2 FR-011 tests passed 0 skipped."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Verified no-op: FR-011 already satisfied on rebased base. Empty executor.py diff; status.events.jsonl routes into committed set on both paths; 2 FR-011 tests passed 0 skipped.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "shell_pid": 796185,
       "shell_pid_created_at": "1785101966.85",
@@ -81,6 +91,11 @@
         "Review passed: FR-003/004 prefix-drop + lockstep verified; FR-008/012 already-satisfied confirmed; 55 gate tests green; ruff/mypy clean"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: FR-003/004 prefix-drop + lockstep verified; FR-008/012 already-satisfied confirmed; 55 gate tests green; ruff/mypy clean",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "shell_pid": 865520,
       "shell_pid_created_at": "1785104488.57",
@@ -109,6 +124,11 @@
         "Cycle-2 rejection (resolve-first regression) VERIFIED FIXED in ac1111138 -> APPROVE. Helper resolves FIRST (_mission_meta_exists->resolve_placement_only), raises only when resolution genuinely fails AND degrade_ref is None; callers pure passthroughs; decision_log fail-OPEN, bookkeeping fail-CLOSED (not flattened). 18 tests green incl 3 retrospective_triggering + birth_cutover coord-seed + new TestBookkeepingCommitResolvesFirstOnBranchNone (asserts resolve_placement_only consulted). MR-1 __all__==_PUBLIC_SURFACE (7/7); 1 _mission_meta_exists def in src/ (SC-004); ruff+mypy --strict clean; layer-rules 17/17. ORCHESTRATOR: 2 non-owned collateral edits ALREADY COMMITTED (ac1111138), required for aggregate-green: test_birth_cutover.py (spy repoint; base reds AttributeError) + test_no_write_side_rederivation.py [WP03-owned] (4 stale allow-list descriptors removed; base reds at collection). Both merge CLEANLY with WP03 disjoint-region change (merge-tree: no conflict, no clobber). Normal lane merge carries both; no manual reconciliation needed."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "review-cycle-3 approved: resolve-first fix verified, retrospective path green, MR-1/SC-004 hold, collateral justified",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 963914,
       "shell_pid_created_at": "1785126467.17",
@@ -133,6 +153,11 @@
         "Approved: helper adopted from mission_runtime package (degrade_ref=coord_branch or get_feature_target_branch, STATUS_STATE, .ref); genuine red-first behavior-change fix (bootstrap-window coord_branch now honored); STATUS_STATE->COORD preserved for bootstrapped case; ruff clean; 4 mypy errors pre-existing outside WP05 diff."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Approved: helper adopted from mission_runtime package (degrade_ref=coord_branch or get_feature_target_branch, STATUS_STATE, .ref); genuine red-first behavior-change fix (bootstrap-window coord_branch now honored); STATUS_STATE->COORD preserved for bootstrapped case; ruff clean; 4 mypy errors pre-existing outside WP05 diff.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "shell_pid": 918109,
       "shell_pid_created_at": "1785106974.78",
@@ -153,6 +178,11 @@
       "last_transition_at": "2026-07-27T04:37:34.939306+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP06:20260726",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "shell_pid": 708591,
       "shell_pid_created_at": "1785099855.53",
@@ -173,6 +203,11 @@
       "last_transition_at": "2026-07-27T04:37:35.723347+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP07:20260726",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "shell_pid": 710816,
       "shell_pid_created_at": "1785099872.06",

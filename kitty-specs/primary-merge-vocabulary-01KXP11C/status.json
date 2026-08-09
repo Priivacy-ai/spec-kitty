@@ -24,6 +24,11 @@
       "lane": "done",
       "last_event_id": "01KXP905FEYE5V0596FNQ38K87",
       "last_transition_at": "2026-07-16T20:13:29.966250+00:00",
+      "review_result": {
+        "reference": "APPROVED: 7 sense entries (primary A/B/C/D + merge 1/2/3) in per-term table format with Do-NOT-use-when + resolving cross-links; scope=2 owned docs only, no code/serialized-key touched; Primary Branch extended not duplicated (D1); Sense-C prose-only w/ explicit Track-2 (#2730) disclaimer; append-only (C-006). Gates green in lane worktree: anti-sprawl --strict 0, description-length 0/459, terminology 3 passed.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1113770,
       "shell_pid_created_at": "1784229532.93",
       "subtasks": {
@@ -40,6 +45,11 @@
       "lane": "done",
       "last_event_id": "01KXP90FPDKC73E954HQKZKHMS",
       "last_transition_at": "2026-07-16T20:13:40.429405+00:00",
+      "review_result": {
+        "reference": "APPROVED (T009 honestly unchecked — deferred per C-006, NOT marked done). FR-003: all 4 owned surfaces name the specific sense; zero flag/enum/command renames (added flag tokens == removed byte-exact; MergeStrategy + golden one-liner 'Merge a lane-based feature into its target branch.' untouched). FR-011: footgun still named (partition-vs-branch + consolidate-vs-publish) in AGENTS.md Terminology Canon; no-direct-push + coord/primary routing intact. Exempt identifiers byte-exact. Gates green: ruff clean, test_merge_cli_golden + test_no_legacy_terminology (12) + test_mission_accept_merge (9) pass. T009 deferral ACCEPTED: mission-steps prompts unowned + contended by in-flight mission-step-authority-01KXNZMT; forced past subtask gate to preserve honest unchecked state (not falsely marked done). Mission-close follow-up required.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1187852,
       "shell_pid_created_at": "1784230860.93",
       "subtasks": {
@@ -57,6 +67,11 @@
       "lane": "done",
       "last_event_id": "01KXP90MRK0JVPARXXQS9DD8CX",
       "last_transition_at": "2026-07-16T20:13:45.619654+00:00",
+      "review_result": {
+        "reference": "FR-005: glossary/README.md has 0 glossary/contexts refs, all backtick paths repoint to live docs/context/*.md (spot-checked 7 targets exist). FR-006: both prose files git-mv'd (R077/R079, --follow shows history continuity), glossary/ now holds only README.md, valid frontmatter with descriptions 146/153 chars (<=180), both linked in docs/context/index.md. T012: src/doctrine/README.md inline-ref repointed. Gates clean: relative_link_fixer --check (0 dead), anti_sprawl_ratchet --strict (0), description_length_check --strict (0/461). Scope clean: only 5 owned/create-intent paths, no code. Orphaned refs at docs/plans/initiatives/2026-04-*/README.md:77,90 are in a historical draft plan (not owned), task-scoped as lower-priority note.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1158279,
       "shell_pid_created_at": "1784230336.27",
       "subtasks": {
@@ -72,6 +87,11 @@
       "lane": "done",
       "last_event_id": "01KXP90ANMY9K9MWSQE59Z77Y5",
       "last_transition_at": "2026-07-16T20:13:35.284226+00:00",
+      "review_result": {
+        "reference": "cycle-2: str-wrap fix verified (line 214 only); mypy no-any-return 2->1 (residual line 337 pre-existing/unowned); ruff clean; 602 tests green; approved",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1204296,
       "shell_pid_created_at": "1784231120.45",
       "subtasks": {
@@ -88,6 +108,11 @@
       "lane": "done",
       "last_event_id": "01KXP90SRB3467X3VPQ99MFBVJ",
       "last_transition_at": "2026-07-16T20:13:50.731410+00:00",
+      "review_result": {
+        "reference": "APPROVED. FR-008 internal renames complete & coherent. Zero-residual: git grep old names (merge_lane_to_mission/merge_mission_to_target/_primary_ref_for/_resolve_primary_target_branch) over src+tests EMPTY. Blast radius closed in one commit: executor.py imports+calls (consolidate 271/299, integrate 470/482), orchestrator_api, implement/implement_cores cross-module, commit_router, arch fixture, 13 merge test importers, 2 precondition pins, 8 monkeypatch sites (patch.object/setattr byte-exact to new def). Exempt-integrity intact: is_primary_artifact_kind NOT in diff & still in mission_runtime.__all__; resolve_primary_branch/resolve_merge_target_branch/merge_target_branch/MergeStrategy/merge cmd unaltered. Docstrings clarified (FR-003) cross-referencing the two senses. mypy --strict 6 modules: 0 issues; ruff clean. Targeted suite 955 passed/1 skip; sole failure test_profile_charter_e2e transitive-references is PRE-EXISTING on WP04 base (charter profile compile, unrelated to renames) - surface to operator, not a WP05 blocker.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1270649,
       "shell_pid_created_at": "1784232286.01",
       "subtasks": {
@@ -104,6 +129,11 @@
       "lane": "done",
       "last_event_id": "01KXP90YV41NP0G00NZERZ512D",
       "last_transition_at": "2026-07-16T20:13:55.940878+00:00",
+      "review_result": {
+        "reference": "Verification-wrap decisions confirmed: FR-011/NFR-003/SC-006 disclosure present+honest; alias-ban correctly deferred to Track2 (#2730) per 60-residual evidence; post-merge accept checklist authored. Aggregate SC verification runs at accept.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1294336,
       "shell_pid_created_at": "1784232726.58",
       "subtasks": {

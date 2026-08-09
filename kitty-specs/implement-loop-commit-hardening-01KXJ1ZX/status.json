@@ -24,6 +24,11 @@
       "lane": "done",
       "last_event_id": "01KXK4G1SR21QTRCCKRET024FX",
       "last_transition_at": "2026-07-15T14:57:04.312766+00:00",
+      "review_result": {
+        "reference": "Review PASS (reviewer-renata): narrow-triple fail-close correct (raise only in former-767 arm; 755/790 untouched; not on bare None); Option B byte-identical 485-char message; RED-first confirmed; raise on live path re-raised at implement(); ruff+mypy clean; mission_runtime untouched. COLLATERAL test_implement.py re-pins (main->mission/slug) LEGIT stale-placeholder repair (790 arm still stages on coord worktree; intent preserved), flagged as shared/unowned across lane-a.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2516512,
       "shell_pid_created_at": "1784116308.22",
       "subtasks": {
@@ -44,6 +49,11 @@
       "lane": "done",
       "last_event_id": "01KXK4G2M6J11P78DTSEE54EQ4",
       "last_transition_at": "2026-07-15T14:57:05.158667+00:00",
+      "review_result": {
+        "reference": "Review passed: C-006 5-tuple preserved (return coord_branch,mission_id,mid8,effective_mission_id,effective_mid8 unchanged; consumer[0] + in-module 5-unpack both satisfied). Behavior-preserving extraction into 4 module-private helpers (_load_primary_anchored_mission_meta/_load_fallback_mission_meta/_extract_mission_identifiers_from_meta/_compute_effective_bookkeeping_ids); ambiguous-handle raise still propagates (canonicalize outside try). T006 characterization (cascade primary-first, ambiguous RAISE, legacy-<slug> fallback, mid8 precedence) + T007 positional contract test both concrete & durable. 29 tests green (incl WP01), ruff + mypy --strict clean. No net-new public symbol (C-008/NFR-004). Scope: implement.py + new test file only.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2614085,
       "shell_pid_created_at": "1784120783.06",
       "subtasks": {
@@ -63,6 +73,11 @@
       "lane": "done",
       "last_event_id": "01KXK4G3AWCN064M00J17PCYPH",
       "last_transition_at": "2026-07-15T14:57:05.884973+00:00",
+      "review_result": {
+        "reference": "Review passed: behavior-preserving degod. Dual-exception arms PRESERVED (typer.Exit re-raised verbatim via bare raise + exit_code-0 payload suppression via getattr guard; bare Exception wrapped in fresh typer.Exit(1) from exc; arms NOT merged). console._file=None + console.quiet save/restore both in finally. last-20-non-blank-lines summary preserved. _run_recover_mode 4 branches byte-for-byte faithful incl. (TaskCliError,typer.Exit)+raise-from-None error arm and json-omits-contexts_recreated asymmetry. T010/T011 are real characterization tests (invoke production, not synthetic). 45 tests green (incl WP01/WP02). ruff+mypy --strict clean. All 10 helpers _-prefixed (no net-new public symbol, C-008/NFR-004); Callable[...,Any] is annotation-only. Frozen WP01/WP02 surfaces untouched. Scope = implement.py + new test only.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2677586,
       "shell_pid_created_at": "1784122054.95",
       "subtasks": {
@@ -83,6 +98,11 @@
       "lane": "done",
       "last_event_id": "01KXK4G41KSH8ED4DZDYSFSKGS",
       "last_transition_at": "2026-07-15T14:57:06.611828+00:00",
+      "review_result": {
+        "reference": "Review passed: char gate (FR-006) pins all 3 sites + frames disagreement set as non-coord-under-coord-caller (parametrized meta+unrecognized, RISK-4 addressed) + INV-7 flat/legacy None reaches 755 success via real git repo; AST xfail guard proves no cross-lane xfail, cli-side contract asserted GREEN; _primary_ref_for is single ref source for both read (resolve_precondition_ref, _files_changed_vs_precondition_ref) and write (755+790 arms), no independent HEAD literal survives outside helper; C-009 preserved (empty->HEAD not main, detached-HEAD regression proves write targets named branch); commit_router UNTOUCHED; WP01/02/03 surfaces unchanged; C-008 private (not in __all__); 98 tests green, ruff+mypy --strict clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2753343,
       "shell_pid_created_at": "1784123679.2",
       "subtasks": {
@@ -106,6 +126,11 @@
       "lane": "done",
       "last_event_id": "01KXK4G4RE5Y0HY43J9G143E1D",
       "last_transition_at": "2026-07-15T14:57:07.342543+00:00",
+      "review_result": {
+        "reference": "Review passed: classifier-only swap correct — line 462 is_coordination_artifact_residue_path is the SOLE membership authority; kind classifier (kind_for_mission_file) now only feeds _representative_kind_for_bucket for ref resolution, never the split; kind=None→PRIMARY unconditionally (C-007). ABSOLUTE BUCKETS / NO REF INVERSION (RISK-4): primary_kind is always a primary-partition kind and coord_kind always a coord kind (caller's kind when it matches, else the expect_primary-cross-checked representative or a partition-correct fallback), so primary_files→primary ref and coord_files→coord ref for BOTH caller polarities — verified by TestCallerIsPrimaryBucketsStayAbsolute + end-to-end TestCommitForMissionEndToEndPrimaryCallerRefsNotInverted (status.events.jsonl→COORD ref under a PRIMARY caller). Zero-resolve single-partition fast path byte-preserved (calls==[] assertion). CROSS-WP FLIP LEGITIMATE: WP05 flipped only TestDisagreementSet...'s one method that WP04 pinned as the pre-fix #2533-class hole ('COORD today'→'PRIMARY now'); the path genuinely routes PRIMARY post-swap, the flip is documented with rationale in the class docstring, and NO other WP04 gate assertion weakened — INV-7 narrow-triple, cli-side kind=None→PRIMARY, _primary_ref_for shared-expression, and the AST no-xfail guard all intact. Adversarial stub test proves kind_for_mission_file's return can't override membership. Scope clean: only commit_router.py + new structural test + the permitted WP04 characterization edit; mission_runtime/transaction.py untouched; _representative_kind_for_bucket module-private, no new public symbol/partition_of (C-008). Gates: ruff clean, mypy --strict commit_router.py clean (11 pre-existing errors in other coordination modules, none in commit_router.py), 321 passed.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2807328,
       "shell_pid_created_at": "1784125350.25",
       "subtasks": {
@@ -125,6 +150,11 @@
       "lane": "done",
       "last_event_id": "01KXK4G5F24PH1QX4Z23W5FJHE",
       "last_transition_at": "2026-07-15T14:57:08.066206+00:00",
+      "review_result": {
+        "reference": "Cycle-2 approved: #2453 fix code-quality confirmed cycle-1; C-004 authorization discoverable on the mission branch (946360a99); lane-c correctly code-only.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2807328,
       "shell_pid_created_at": "1784125350.25",
       "subtasks": {
@@ -145,6 +175,11 @@
       "lane": "done",
       "last_event_id": "01KXK4G65NAPZ28XY2746KEQSE",
       "last_transition_at": "2026-07-15T14:57:08.789566+00:00",
+      "review_result": {
+        "reference": "Review passed: _do_move_task now 2 params (args:_MoveTaskArgs frozen dataclass + kw-only ports) — well under the ≤13 hard gate; all 3 call sites (move_task Typer wrapper + 2 test _run_move helpers + escape-hatch assertions) correctly converted, behavior-preserving. #2576/#2513 dual-handler INTACT: split into _mt_attempt_uncheck_write (RECORDS st.rollback_uncheck_error + logging.error, never re-raises) and _mt_commit_uncheck_tasks_md (swallows commit failure as warning) — two legs stay distinct, no logging.exception merge; both pinned by TestUncheckRollbackDualHandler. _mt_commit_wp_file degrade-never-crash placement-ref branch preserved + pinned; #2604 folded via _mt_wp_commit_message/_mt_report_commit_outcome extraction. C-008/NFR-004 clean: all 5 re-exported symbols are _-prefixed via the established as-form seam-bridge, NONE added to __all__ (test-patch support, not public API widening). C-006: WP02 5-tuple consumed as-is at :1384/1392, untouched by this commit. Scope clean (only tasks_move_task.py + tasks.py re-export + new degod test + mechanical call-site test updates; WP06 transaction.py & WP01-05 untouched). Gates: 248 move-task tests + 318 compat/arch (no_write_side_rederivation, untrusted_path_containment) green; ruff + mypy --strict clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2862378,
       "shell_pid_created_at": "1784126900.2",
       "subtasks": {

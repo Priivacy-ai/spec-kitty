@@ -2,7 +2,7 @@
   "event_count": 61,
   "last_event_id": "01KYV3GT5JQ4QRR7M5KEEYH20G",
   "materialized_at": "2026-07-31T03:29:37.970231+00:00",
-  "mission_number": "",
+  "mission_number": "187",
   "mission_slug": "relocate-builtin-doctrine-packs-01KYT87F",
   "mission_type": "software-dev",
   "summary": {
@@ -20,82 +20,235 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYV3GM2YMSQZK7E95E0F0HC7",
       "last_transition_at": "2026-07-31T03:29:31.742380+00:00",
-      "shell_pid": 2617117,
-      "shell_pid_created_at": "1785444418.26"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Baseline 324/892 captured (full projection incl. when/reason); manifest exact (276 paths, 14 fragments, 2 payloads); preflight completeness+integrity green (8 tests); sweep found 5 unclassified moving-tree readers, classified REPOINT in occurrence_map on coord branch, folded into lane",
+        "Review passed: baseline is an exact full-projection of live load_built_in_graph() (324/892; 5-field edges, 308 non-null when / 154 reason; 13 tagged nodes); fixture-integrity + completeness sweeps mutation-verified non-vacuous; manifest exact 276-path set (14 fragments + 2 .py payloads, all exist); 6 extra readers (service.py:41, catalog.py, pack_validator:794, claude.py:426, compiler:1154, kind_vocabulary:167) classified REPOINT; scope clean (3 owned files; occurrence_map net-diff empty, landed on coord); 8/8 green, ruff clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: baseline is an exact full-projection of live load_built_in_graph() (324/892; 5-field edges, 308 non-null when / 154 reason; 13 tagged nodes); fixture-integrity + completeness sweeps mutation-verified non-vacuous; manifest exact 276-path set (14 fragments + 2 .py payloads, all exist); 6 extra readers (service.py:41, catalog.py, pack_validator:794, claude.py:426, compiler:1154, kind_vocabulary:167) classified REPOINT; scope clean (3 owned files; occurrence_map net-diff empty, landed on coord); 8/8 green, ruff clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2649304,
+      "shell_pid_created_at": "1785445834.17",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYV3GN2K9B7VXNH3QEKG8WMV",
       "last_transition_at": "2026-07-31T03:29:32.756014+00:00",
-      "shell_pid": 2668675,
-      "shell_pid_created_at": "1785446532.4"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "resolve_pack_root: 4-step order, .resolve() walk-up, fail-closed, layer-clean; two-layout+symlink+env+fail-closed matrix green",
+        "Review passed: resolve_pack_root correct (env -> editable[.resolve() before .parents] -> installed[files(doctrine).parent/packs/built-in] -> PackRootNotFound); fail-closed asserted, never returns src/doctrine path; C-004 pure (stdlib-only, AST test + test_layer_rules green); 13 resolver tests pass non-vacuously (env-precedence asserts != editable, symlink test exercises .resolve()); ruff+mypy --strict clean; scope = 2 owned files only. Installed-branch tested via faithful filesystem simulation (stubs only the files() importlib boundary, runs real _resolve_built_in) - a real wheel is impossible at WP02 since the packs/ sibling tree does not exist until later relocation WPs."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: resolve_pack_root correct (env -> editable[.resolve() before .parents] -> installed[files(doctrine).parent/packs/built-in] -> PackRootNotFound); fail-closed asserted, never returns src/doctrine path; C-004 pure (stdlib-only, AST test + test_layer_rules green); 13 resolver tests pass non-vacuously (env-precedence asserts != editable, symlink test exercises .resolve()); ruff+mypy --strict clean; scope = 2 owned files only. Installed-branch tested via faithful filesystem simulation (stubs only the files() importlib boundary, runs real _resolve_built_in) - a real wheel is impossible at WP02 since the packs/ sibling tree does not exist until later relocation WPs.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2681787,
+      "shell_pid_created_at": "1785447091.43",
+      "subtasks": {
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYV3GNXJWTWRQGBBM5B9BSZS",
       "last_transition_at": "2026-07-31T03:29:33.618098+00:00",
-      "shell_pid": 2687972,
-      "shell_pid_created_at": "1785447395.25"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Relocated 276 paths to packs/built-in (flattened); all git renames; no dual-home; gitignore clean",
+        "Review passed: pure git mv, history preserved (WP03 commit = 276 R100 renames). Set-equality computed: packs/built-in (276) == content-manifest.json expected-dest set (276), exact match, 0 in-either-not-other. Flatten correct (0 inner built-in/ survivors). No dual-home (0 leftover src/doctrine/*/built-in/*, 0 src/doctrine/*.graph.yaml). Deferred scope untouched (missions/+schemas/ empty diff; all 10 sibling repository.py retained). Zero Modified files -> no code repointed (WP04 scope). 5 additions in base..HEAD are dependency-lane artifacts (WP01/WP02), out of WP03 scope. gitignore clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: pure git mv, history preserved (WP03 commit = 276 R100 renames). Set-equality computed: packs/built-in (276) == content-manifest.json expected-dest set (276), exact match, 0 in-either-not-other. Flatten correct (0 inner built-in/ survivors). No dual-home (0 leftover src/doctrine/*/built-in/*, 0 src/doctrine/*.graph.yaml). Deferred scope untouched (missions/+schemas/ empty diff; all 10 sibling repository.py retained). Zero Modified files -> no code repointed (WP04 scope). 5 additions in base..HEAD are dependency-lane artifacts (WP01/WP02), out of WP03 scope. gitignore clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2698785,
+      "shell_pid_created_at": "1785447775.57",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYV3GPS9APCEZGB0YKMN0627",
       "last_transition_at": "2026-07-31T03:29:34.505972+00:00",
-      "shell_pid": 2704276,
-      "shell_pid_created_at": "1785447927.42"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Seams repointed; graph loads 324/892 from packs/built-in; 0 per-kind anchors; catalog non-empty; fail-closed loader test green; central service.py seam NOT repointed (contract-locked by DoctrineService fixture tests) - repos edited independently; +4 out-of-map readers repointed; net +128 tests fixed, 0 behavioral regressions",
+        "Review passed: graph 324/892 from packs/built-in; anchor grep 0; built_in_graph_source() fail-closed (no __file__ fallback, test asserts pytest.raises(PackRootNotFound), 4 passed); catalog non-empty (dir 29/tac 122/par 13/prof 18); 9 repos on resolve_pack_root, dead Traversable dance removed; no new function-local doctrine import (tasks_status_cmd uses no-arg AgentProfileRepository, arch boundary tests 18 passed); ruff+mypy --strict clean. 2 asset/service move-reds deferred to WP09. NOTE: additional ~52 move-induced drg reds (test_graph_sharding_equality/test_sharding_silent_degrade via un-repointed migration extractor) are WP06-owned (WP06-regeneration-surface owns extractor.py+commands/doctrine.py, still planned) — green on mission base, not WP04's surface."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: graph 324/892 from packs/built-in; anchor grep 0; built_in_graph_source() fail-closed (no __file__ fallback, test asserts pytest.raises(PackRootNotFound), 4 passed); catalog non-empty (dir 29/tac 122/par 13/prof 18); 9 repos on resolve_pack_root, dead Traversable dance removed; no new function-local doctrine import (tasks_status_cmd uses no-arg AgentProfileRepository, arch boundary tests 18 passed); ruff+mypy --strict clean. 2 asset/service move-reds deferred to WP09. NOTE: additional ~52 move-induced drg reds (test_graph_sharding_equality/test_sharding_silent_degrade via un-repointed migration extractor) are WP06-owned (WP06-regeneration-surface owns extractor.py+commands/doctrine.py, still planned) — green on mission base, not WP04's surface.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2786986,
+      "shell_pid_created_at": "1785450972.56",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYV3GQKXZS8GHAQ6P745NBSA",
       "last_transition_at": "2026-07-31T03:29:35.357555+00:00",
-      "shell_pid": 2709367,
-      "shell_pid_created_at": "1785448051.63"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Wheel+sdist ship packs/built-in at exact path-set parity (276); clean-venv import resolves; CI clean-install asserts doctor fields",
+        "Review passed: pyproject adds wheel force-include={packs=packs} + sdist include packs/**, existing src/doctrine/** artifact globs preserved (physical move handles dual-home per T013). Parity test builds REAL wheel+sdist and asserts exact set-equality (==, not >=) vs 276-path manifest in EACH artifact; clean-venv installs the wheel and asserts import doctrine + resolve_pack_root('built-in') with 0 missing files, correctly NOT asserting load_built_in_graph (WP04/WP07 scope). Observed: wheel=276, sdist=276, wheel==sdist, all 3 tests pass in ~54s. CI clean-install-verification adds doctor doctrine --json step asserting specific fields (invalid_profiles==[], top+profile_health org_drg.errors==[], glossary_packs.invalid_packs==[]) — verified against real JSON schema — not soft healthy. YAML parses, ruff 0. Scope: only 3 owned files on WP05 commit."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: pyproject adds wheel force-include={packs=packs} + sdist include packs/**, existing src/doctrine/** artifact globs preserved (physical move handles dual-home per T013). Parity test builds REAL wheel+sdist and asserts exact set-equality (==, not >=) vs 276-path manifest in EACH artifact; clean-venv installs the wheel and asserts import doctrine + resolve_pack_root('built-in') with 0 missing files, correctly NOT asserting load_built_in_graph (WP04/WP07 scope). Observed: wheel=276, sdist=276, wheel==sdist, all 3 tests pass in ~54s. CI clean-install-verification adds doctor doctrine --json step asserting specific fields (invalid_profiles==[], top+profile_health org_drg.errors==[], glossary_packs.invalid_packs==[]) — verified against real JSON schema — not soft healthy. YAML parses, ruff 0. Scope: only 3 owned files on WP05 commit.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2738422,
+      "shell_pid_created_at": "1785448859.37",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
     },
     "WP06": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYV3GREH8T186V479K1JKS35",
       "last_transition_at": "2026-07-31T03:29:36.209277+00:00",
-      "shell_pid": 2802233,
-      "shell_pid_created_at": "1785451763.13"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Extractor+_doctrine_root repointed to packs/built-in; regenerate-graph round-trips byte-identical; 37/52 drg reds cleared; residual 15 are non-owned src/doctrine fragment-path literals (WP08 sweep) + artifact-body catalog seam; loader 324/892 intact",
+        "Review passed: owned tests 128 green; regenerate-graph --check fresh (exit 0, zero diff); new test_regen_roundtrip.py is a real full-projection round-trip incl. when/reason + non-vacuity + perturbation guards; 324/892 intact; test diffs are path-literal only, no assertion weakened; dual-home pattern load-bearing (62 legacy references: strings in moved styleguides/toolguides); ruff+mypy+terminology clean. 15 residual tests/doctrine/drg reds are all non-WP06-owned (WP07 integration / WP08 reference-sweep), pre-existing, no new regression."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: owned tests 128 green; regenerate-graph --check fresh (exit 0, zero diff); new test_regen_roundtrip.py is a real full-projection round-trip incl. when/reason + non-vacuity + perturbation guards; 324/892 intact; test diffs are path-literal only, no assertion weakened; dual-home pattern load-bearing (62 legacy references: strings in moved styleguides/toolguides); ruff+mypy+terminology clean. 15 residual tests/doctrine/drg reds are all non-WP06-owned (WP07 integration / WP08 reference-sweep), pre-existing, no new regression.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2861789,
+      "shell_pid_created_at": "1785454745.36",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
     },
     "WP07": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYV3GS9TGQD31EXWEZPY3Z17",
       "last_transition_at": "2026-07-31T03:29:37.082185+00:00",
-      "shell_pid": 2870751,
-      "shell_pid_created_at": "1785455169.49"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Full-projection identity + 3-part guard + overlay + full-doctor green; asset-flatten & DoctrineService body-catalog seams closed (built_in_root=None); tests/doctrine+tests/charter green modulo WP08 test-literal reads",
+        "Review passed: T019 identity green (full projection incl. when/reason; baseline has 308 non-null when + 154 non-null reason so non-vacuous, loads live graph). T020 guard green (3 parts + per-kind exists/non-empty loud loop + list_all). T021 overlay green (real load_built_in_graph + merge_three_layers; precedence, path-independent built-in provenance, additive edges). T022 doctor gate 4 passed incl clean-venv wheel 324/892 + full health + catalog non-empty. B1 asset tests green; B2 production genuinely passes built_in_root=None (context.py + doctrine_service_factory.py) and contract-test assertion reflects real wiring (not weakened); asset test strengthened. Regression honesty: sweep 40 failed/2491 passed, all 40 in files WP07 did not touch, sampled failures are hardcoded old src/doctrine/*/built-in test-literal reads (WP08 sweep). Sanity 324/892 confirmed. 2 pre-existing mypy errors not blocking."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: T019 identity green (full projection incl. when/reason; baseline has 308 non-null when + 154 non-null reason so non-vacuous, loads live graph). T020 guard green (3 parts + per-kind exists/non-empty loud loop + list_all). T021 overlay green (real load_built_in_graph + merge_three_layers; precedence, path-independent built-in provenance, additive edges). T022 doctor gate 4 passed incl clean-venv wheel 324/892 + full health + catalog non-empty. B1 asset tests green; B2 production genuinely passes built_in_root=None (context.py + doctrine_service_factory.py) and contract-test assertion reflects real wiring (not weakened); asset test strengthened. Regression honesty: sweep 40 failed/2491 passed, all 40 in files WP07 did not touch, sampled failures are hardcoded old src/doctrine/*/built-in test-literal reads (WP08 sweep). Sanity 324/892 confirmed. 2 pre-existing mypy errors not blocking.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2971912,
+      "shell_pid_created_at": "1785458352.75",
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
     },
     "WP08": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYV3GT5JQ4QRR7M5KEEYH20G",
       "last_transition_at": "2026-07-31T03:29:37.970231+00:00",
-      "shell_pid": 3040016,
-      "shell_pid_created_at": "1785467593.88"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Breaking tests + 5 test-literal reds + migration_hint repointed to packs/built-in (flattened); live-doc sweep + Gate D guard; migration note + CHANGELOG; contract JSON reverted (another mission's archived artifact); graph 324/892 + regen round-trip intact",
+        "Cycle-2: migration note excluded from Gate D guard (rationale = docs/adr parity); guard + all owned tests green; regex unweakened, table intact"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Cycle-2 review passed: prior rejection (review-cycle-2.md, migration-note guard red) resolved by commit 0971deaa9 which adds ONLY a :(exclude)docs/migrations/relocate-builtin-doctrine-packs.md entry (docs/adr parity) + docstring; regex _MOVED_BUILTIN_DOC_RE and migration table unweakened. Guard green incl test_no_live_doc_names_a_pre_move_builtin_path (20 passed); owned set 139 passed; graph 324/892; ruff clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3048841,
+      "shell_pid_created_at": "1785468074.42",
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done"
+      }
     }
   }
 }

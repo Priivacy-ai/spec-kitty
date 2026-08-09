@@ -34,6 +34,11 @@
         "Cycle 3 review: cycle 2's discarded-CommitArtifactResult gap is genuinely fixed. _commit_review_cycle_artifact now captures commit_router.commit_artifact()'s result and raises ReviewCycleError (with the router's diagnostic) on any non-'committed' status; rationale for raise-not-warn (vs the two best-effort callers in tasks_mark_status.py/tasks_map_requirements.py, whose own mutation already succeeded independently of the commit) is sound and documented inline. New test test_create_rejected_review_cycle_raises_when_commit_fails genuinely exercises the failure path via a stub router returning status='error', asserting both the raise and that the artifact remains untracked in git. Spot-checked all 8 collateral fixture fixes -- all legitimate, same idiom, no scope creep. Prior cycles' fixes (guard relaxation, provenance guard) remain intact. Required test list: 128 passed. mypy --strict: 1 pre-existing no-any-return at tasks_move_task.py:1933, confirmed present on mission base branch, unrelated. ruff clean on diff-scoped files. Broad scoped regression: 4267 passed, 11 failed, all attributed to pre-existing baseline-red/CI-env/test-order issues confirmed via base-branch reruns, none are regressions. Approving."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Cycle 3 review: cycle 2's discarded-CommitArtifactResult gap is genuinely fixed. _commit_review_cycle_artifact now captures commit_router.commit_artifact()'s result and raises ReviewCycleError (with the router's diagnostic) on any non-'committed' status; rationale for raise-not-warn (vs the two best-effort callers in tasks_mark_status.py/tasks_map_requirements.py, whose own mutation already succeeded independently of the commit) is sound and documented inline. New test test_create_rejected_review_cycle_raises_when_commit_fails genuinely exercises the failure path via a stub router returning status='error', asserting both the raise and that the artifact remains untracked in git. Spot-checked all 8 collateral fixture fixes -- all legitimate, same idiom, no scope creep. Prior cycles' fixes (guard relaxation, provenance guard) remain intact. Required test list: 128 passed. mypy --strict: 1 pre-existing no-any-return at tasks_move_task.py:1933, confirmed present on mission base branch, unrelated. ruff clean on diff-scoped files. Broad scoped regression: 4267 passed, 11 failed, all attributed to pre-existing baseline-red/CI-env/test-order issues confirmed via base-branch reruns, none are regressions. Approving.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 1811984,
       "shell_pid_created_at": "1785707138.61",
@@ -62,6 +67,11 @@
         "Verify-first gate satisfied: T009 PASSED (coord + flat topology, real WP01 writer, no mocks), status.py zero diff confirmed via git diff --stat, antecedent Activity Log PASS entry (20:49:00Z) predates subtask done-marks (20:54:40Z), T010 correctly closed as designed no-op. 2/2 targeted tests + full scoped regression (1570 passed, 3 pre-existing unrelated failures) pass. Lint clean, conftest.py is a minimal fixture re-export that doesn't touch shared coord_topology_fixture.py."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Verify-first gate satisfied: T009 PASSED (coord + flat topology, real WP01 writer, no mocks), status.py zero diff confirmed via git diff --stat, antecedent Activity Log PASS entry (20:49:00Z) predates subtask done-marks (20:54:40Z), T010 correctly closed as designed no-op. 2/2 targeted tests + full scoped regression (1570 passed, 3 pre-existing unrelated failures) pass. Lint clean, conftest.py is a minimal fixture re-export that doesn't touch shared coord_topology_fixture.py.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 1669985,
       "shell_pid_created_at": "1785704205.88",

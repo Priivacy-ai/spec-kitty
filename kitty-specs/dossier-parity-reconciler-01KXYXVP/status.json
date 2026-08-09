@@ -24,6 +24,11 @@
       "lane": "done",
       "last_event_id": "01KXZ80AP5292EZCNAJRDP8KF1",
       "last_transition_at": "2026-07-20T07:49:16.613849+00:00",
+      "review_result": {
+        "reference": "Review passed: canonical compute_dossier_snapshot_hash is byte-identical to server apps/dossier/materialize.py::_compute_snapshot_hash (sorted path-TAB-content_hash lines -> sha256 -> sha256: prefix). Independently reproduced golden dfa28d..c610 and empty-sentinel e3b0c4..b855; suite adds a 25-iter randomized server-shape cross-check and None-handling. WP content_hash routed through the normalized WPMetadata static projection (14 authored fields) not raw bytes; churn-immunity proven over 7 runtime fields with complementary content-change counter-tests (AS-4). Old Hasher concat/bare-hex form removed from hasher.py (C-001 on WP01 surface); snapshot.py::compute_parity_hash_from_dossier call-site migration is explicitly WP02 per T003 and out of WP01 owned_files. Determinism: 100-run + 20-shuffle order-independence with a real not-incidental guard (NFR-001). ruff+mypy clean on changed files; 42 tests green. compute_dossier_snapshot_hash exported via dossier/__init__ as the foundation contract for WP02/WP03.",
+        "reviewer": "lynncoleart",
+        "verdict": "approved"
+      },
       "shell_pid": 2818835,
       "subtasks": {
         "T001": "done",
@@ -43,6 +48,11 @@
       "lane": "done",
       "last_event_id": "01KXZ80BJ6SFQG4K025SSPTJHZ",
       "last_transition_at": "2026-07-20T07:49:17.510831+00:00",
+      "review_result": {
+        "reference": "Review passed: producer delegates to WP01 canonical compute_dossier_snapshot_hash (concat/bare-hex removed); emitter validates snapshot_hash/drift hashes via new _is_canonical_snapshot_hash (sha256:-prefix + transitional bare-hex, rejects malformed); snapshot_hash field name/envelope unchanged; _is_sha256_hex correctly retained for proof per-file sha; RED-first test_snapshot_emit.py exercises real paths; 66 affected tests pass; out-of-map models.py validator relaxation + 3 assertion updates justified; pre-existing sync-env red + ruff-format drift not penalized (cat-2/3).",
+        "reviewer": "lynncoleart",
+        "verdict": "approved"
+      },
       "shell_pid": 2902046,
       "subtasks": {
         "T006": "done",
@@ -61,6 +71,11 @@
       "lane": "done",
       "last_event_id": "01KXZ80CD74PE2082BR1E0PZ9B",
       "last_transition_at": "2026-07-20T07:49:18.375446+00:00",
+      "review_result": {
+        "reference": "Review passed: DossierReconciler pure rebuild+compare returns PARITY/named-DIVERGENCE/ERROR, fail-closed (C-005) with PARITY-only truthiness and no else:proceed; reuses WP01 compute_dossier_snapshot_hash (C-001, not re-implemented); AS-2/AS-3(NFR-004 named artifacts)/AS-4 covered; 16 tests pass, ruff+mypy --strict clean; scope limited to owned files (init/hasher/indexer deltas are WP01 dependency merge).",
+        "reviewer": "lynncoleart",
+        "verdict": "approved"
+      },
       "shell_pid": 2873249,
       "subtasks": {
         "T010": "done",
@@ -80,6 +95,11 @@
       "lane": "done",
       "last_event_id": "01KXZ80D72N4Y44J6DAZ97CR6D",
       "last_transition_at": "2026-07-20T07:49:19.202197+00:00",
+      "review_result": {
+        "reference": "Review passed: reconcile CLI (--mission/--json, exit 0 parity / 1 divergence-named / 2 error) + stable reconcile_mission_dossier() API re-exporting WP03 result types; wraps DossierReconciler + WP01 hash (C-001, no re-impl); fail-closed on missing root/dir/snapshot; command genuinely registered (verified in live spec-kitty --help, not shadowed by next/doctor fast-path); NFR-002 timing test real; 10/10 tests pass; ruff+mypy clean; scope clean (3 owned files).",
+        "reviewer": "lynncoleart",
+        "verdict": "approved"
+      },
       "shell_pid": 2934716,
       "subtasks": {
         "T015": "planned",
@@ -98,6 +118,11 @@
       "lane": "done",
       "last_event_id": "01KXZ80E1E80SC9VZB20CD3K9M",
       "last_transition_at": "2026-07-20T07:49:20.046132+00:00",
+      "review_result": {
+        "reference": "Review passed: recomputes recorded snapshot hashes from source via live Indexer.index_feature->compute_snapshot (canonical WP01/WP02 def, C-001 no re-impl), NOT a string-transform; runtime-churn-immunity + zero-false-divergence proven on fixtures; idempotent; read-only over source (#2263); 'migrate rebaseline-dossier-hashes' registered + invocable; 11/11 tests pass; owned files ruff/format/mypy clean.",
+        "reviewer": "lynncoleart",
+        "verdict": "approved"
+      },
       "shell_pid": 2957090,
       "subtasks": {
         "T019": "planned",

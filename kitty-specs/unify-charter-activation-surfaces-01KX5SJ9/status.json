@@ -24,6 +24,11 @@
       "lane": "done",
       "last_event_id": "01KX6NRXFNT5Z31ZYP3W4C5J71",
       "last_transition_at": "2026-07-10T18:48:52.981301+00:00",
+      "review_result": {
+        "reference": "PASS. resolve_artifact_urn reused as-is (stem->canonical, raises UnknownArtifactIdError) — no duplicate resolver. In-file _scan_roots/_iter_artifact_paths fix: recursive rglob for built-in dirs vs non-recursive glob for layer/project, mirroring BaseDoctrineRepository (base.py:169 rglob built-in / base.py:146 glob project); old non-recursive glob silently missed nested tactics (built-in/analysis, built-in/architecture) — genuine C-006 silent-drop bug, within owned file. T003 fixture real: parametrized over all 25 actual activated_directives from .kittify/config.yaml (count pinned ==25), asserts urn startswith directive:DIRECTIVE_ AND resolve_config_id round-trip; +5-kind spot-check. T004 non-vacuity: 3 malformed stems assert pytest.raises(UnknownArtifactIdError). 35 tests pass; ruff clean; mypy clean; layer rule intact. Scope limited to owned kind_vocabulary.py + new test. Filled mission issue-matrix rows unknown->in-mission (accurate: multi-WP mission in progress). Restored a charter-test-leaked synthesis-manifest.yaml (test-isolation bug, unrelated to WP01).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3456697,
       "subtasks": {
         "T001": "done",
@@ -39,6 +44,11 @@
       "lane": "done",
       "last_event_id": "01KX6NRY3MWPP958HJ1RKGDHY5",
       "last_transition_at": "2026-07-10T18:48:53.620310+00:00",
+      "review_result": {
+        "reference": "PASS. Both derivation paths switched to config.activated_* via WP01 resolve_artifact_urn: compiler.py compile_charter/_build_references_from_service (references.yaml) + _synthesis.py interview_snapshot/drg_snapshot + generate.py passes PackContext.from_config explicitly. interview.selected_* inert on activation path (only retained in _user_profile_reference, correct-by-design: that doc renders answers.yaml as the interview record). LAND-BLOCKER 1 (T026 direct roots) CLOSED: _direct_root_urns unions styleguides/toolguides/tactics/procedures/agent_profiles into _resolve_transitive_reference_graph start_urns; tests prove real #2524 danglers aggregate-design-rules + contextive resolve with NO directive edge, plus additive-union test. LAND-BLOCKER 2 (silent-drop seam) CLOSED: config stems route through raising resolve_artifact_urn, bypassing lenient _sanitize_catalog_selection (now only used for available_tools); 3 tests prove unresolvable config stem RAISES UnknownArtifactIdError. Gates: 13/13 new tests pass, ruff clean, mypy clean (generate.py:204 untyped-decorator pre-existing typer limitation), layer_rules 16/16, charter imports no specify_cli, C901 complexity <=15. _render_kind_references collapse + agent_profile branch + ConfigActivatedRoots justified by T026, tested; WP02 commit touches only its 4 files. The 6 charter-suite failures (test_compiler.py x4, test_generator.py x1, test_charter_context_spdd_reasons.py x1) are genuinely STALE-BY-DESIGN answers-sourced assertions (spot-checked 3) that FR-001/FR-002 intentionally retired; NOT owned by WP02; re-pin assigned to WP03. 1472 passed full-suite.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3536553,
       "subtasks": {
         "T005": "done",
@@ -56,6 +66,11 @@
       "lane": "done",
       "last_event_id": "01KX6NRZPBQNHAAKJZ0SY2HMR8",
       "last_transition_at": "2026-07-10T18:48:55.243283+00:00",
+      "review_result": {
+        "reference": "PASS. references.yaml is a clean SUPERSET (1097 additions, only generated_at timestamp changed, ZERO content removals) and byte-identical to an independent canonical re-derivation via compile_charter+_write_references_yaml — canonically produced, not hand-crafted. Baseline shrunk to frozenset(); 4/4 test_charter_references_resolve pass non-vacuously (the 3 real danglers domain-driven-design/aggregate-design-rules/contextive now resolve). New test_activate_resolves_no_answers_edit drives the actual charter activate/deactivate CLI + compile_charter (config.yaml-only mutation, target absent-before proves observability) and SPDD-no-flip asserts is_spdd_reasons_active stays True post config-sourced compile. T028 per-file verdicts all sound: DELETE preserves_explicit_empty_selections (retired answers-empty path; replaced by STRONGER config-wins tests test_compiled_paradigms_come_from_config_not_interview + test_no_pack_context_defaults_to_all_builtins_active — both verified present); DELETE unknown_directive_in_diagnostics (interview path retired; replaced by STRONGER fail-closed test_unresolvable_config_directive_stem_raises); DELETE lynn_cole_verbatim (verified genuinely dead-effect — compile_charter reads config_roots for activation and discards the alias's interview mutation; flagged as follow-up gap in commit+in-file NOTE); RE-PIN missing_shipped_graph STRENGTHENED (keeps original transitive-tactic-does-not-resolve assertion AND adds direct-config-activated-tactic-surfaces); RE-PIN build_charter_draft_defaults (source flip interview-default->config absent-key all-builtins; assertion strengthened to exact catalog equality); RE-PIN spdd round-trip (source interview->PackContext, full is_spdd_reasons_active endpoint preserved). No assertions weakened to pass. Scope clean: references.yaml + 5 test files, ZERO src/ changes. Gates: test_charter_references_resolve 4 passed; T028+new charter tests 74 passed; ruff clean. Pre-existing charter.compiler::ConfigActivatedRoots dead-symbol failure confirmed WP02-origin (commit 79c7921e7), WP03 touches no src/ — genuinely pre-existing, WP05-assigned, not a WP03 blocker. Carry-forward (non-blocking): Lynn Cole alias is now dead code and untested post-deletion; the flagged follow-up should become a tracked ticket.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3656705,
       "subtasks": {
         "T010": "done",
@@ -73,6 +88,11 @@
       "lane": "done",
       "last_event_id": "01KX6NS0Y7KQ8V7W2CX1PH0S1A",
       "last_transition_at": "2026-07-10T18:48:56.519561+00:00",
+      "review_result": {
+        "reference": "PASS: org-union writes via WP06 promote_activations ONLY (org_charter.py:361-373), invoked live from apply_org_charter_to_interview (:848) with merged_policy. CRITICAL default_ids VERIFIED non-vacuous: _load_default_pack_ids reads real src/charter/packs/default.yaml and returns all 8 activated_<kind> sets (directives=19,tactics=97,paradigms=8,styleguides=8,toolguides=10,procedures=13,agent_profiles=16,mission_step_contracts=17) — keys align with f'activated_{kind}'; absent-key test asserts issubset+len==builtins+1 through PackContext.from_config (no silent built-in drop). SC-004 answers-inert test has a real non-vacuous CONTROL proving config.activated_* edits DO change the compiled set. Skip-empty-kinds guard (:356) correct — unmandated kinds stay absent='all built-ins'. Ledger C (governance.yaml) + spdd_reasons/activation.py + resolver.py untouched (resolver latent flagged not fixed per T016). Scope = owned org_charter.py + create-intent test only. Local loader duplication documented with TODO follow-up (acceptable). Gates: 13 passed, ruff+mypy clean, C901<=15, layer-rules 16 passed.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3721769,
       "subtasks": {
         "T014": "planned",
@@ -87,6 +107,11 @@
       "lane": "done",
       "last_event_id": "01KX6NS1HXMFGK0E0DP72N22DB",
       "last_transition_at": "2026-07-10T18:48:57.149826+00:00",
+      "review_result": {
+        "reference": "verified: guard non-vacuity (planted config<->derived divergences BITE with RED+GREEN pairs, consistency_check T017 fwd-all-kinds+reverse-paradigms fail-closed / T018 KIND-only, no punted ID map) + layer rule (no specify_cli/freshness import, AST+grep) + ConfigActivatedRoots removed from compiler __all__ (only test imports it; documented) + FULL tests/architectural green (846 passed/4 skipped/0 failed) + ruff/mypy clean + terminology green",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3753422,
       "subtasks": {
         "T017": "planned",
@@ -102,6 +127,11 @@
       "lane": "done",
       "last_event_id": "01KX6NRYQ3E6KWT45XKB3T06YF",
       "last_transition_at": "2026-07-10T18:48:54.243499+00:00",
+      "review_result": {
+        "reference": "All 3 squad traps verified closed against real diff (commit d14cde3be), not the summary. C-002: promote_activations builds pure _plan_promotion then calls commit_plan once per yaml_key (activation_engine.py:465-471); no direct save/_save_config, plan_activation absent-key branch not reused; test_promote_arbitrary_kinds_writes_via_commit_plan_only counts exactly one write/key. Absent-key LAND-BLOCKER: _plan_promotion:435 unions caller default_ids THEN appends; test_promote_into_absent_key_preserves_all_builtins_active is NON-VACUOUS - asserts through REAL PackContext.from_config (frozenset d1,d2,d3,d4), and since _read_list_key returns the literal present-key set, a bare [d4] write would resolve to frozenset(d4) and fail. default_ids caller-supplied (correct C-008, keeps built-in discovery out of the charter layer); docstring documents a key absent from default_ids writes a bare set, so WP04/WP07 MUST pass the real built-in set or the guard is inert - that caller obligation is documented, out of WP06 scope. Cycle guard: module imports only stdlib (zero charter-internal), yaml_key as data; AST test guards specify_cli AND charter AND pack_manager roots (stronger than claimed). Scope: WP06 commit touches only the 2 owned files (other lane files are merged-in WP01 dep). Idempotency+dedup genuinely tested. Gates green: 8/8 promotion tests, 16/16 layer_rules, ruff+mypy clean, C901<=15. No production caller yet - intended foundation primitive for dependents WP04/WP07, not dead code.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3497995,
       "subtasks": {
         "T021": "done",
@@ -115,6 +145,11 @@
       "lane": "done",
       "last_event_id": "01KX6NS0AET095YVXSHKBNV9M9",
       "last_transition_at": "2026-07-10T18:48:55.886633+00:00",
+      "review_result": {
+        "reference": "Verified. CRITICAL default_ids check PASS: BOTH call sites pass default_ids=load_default_pack_ids() (migration m_unify_charter_activation.py:311/323; interview.py:~419) and default.yaml uses activated_<kind> keys that match the promotion keys, so absent-key built-in preservation is NON-INERT. Non-vacuous absent-key tests at BOTH sites: migration test_apply_absent_key_preserves_real_builtins_not_bare_list (omits key, asserts real builtins subset + PackContext three-state) and interview test_interview_promotes_selections_preserving_builtins_on_absent_key (live CLI, absent config). Migration registered via @MigrationRegistry.register + migration_id, auto-discovered (sibling of m_3_2_0rc35). T025 fixture synthetic (answers-only DIRECTIVE_010 + domain-driven-design paradigm, real ids), 0-drop + promotion asserted. Interview wiring invoked live after write_interview_answers, best-effort. 21 tests pass; ruff clean; mypy clean on both WP07 files under authoritative full-package run (single-file BaseMigration/Any errors are isolation artifacts, also present on sibling + base). Deferred deselect note present (spec FR-007 + tasks.md:140). Scope clean (4 files). No layer/terminology violations.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3611945,
       "subtasks": {
         "T023": "done",
