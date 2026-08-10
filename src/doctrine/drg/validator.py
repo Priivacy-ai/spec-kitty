@@ -59,9 +59,21 @@ def validate_profile_edges(graph: DRGGraph) -> list[str]:
     Returns a list of human-readable error messages (empty means valid).
     """
     errors: list[str] = []
-    kind_by_urn = {n.urn: n.kind for n in graph.nodes}
+    errors.extend(_validate_profile_edge_endpoints(graph))
+    errors.extend(_validate_lineage_acyclicity(graph))
+    return errors
 
-    # -- 1. Endpoint-kind integrity (symmetric: inspect both endpoints) ------
+
+def _validate_profile_edge_endpoints(graph: DRGGraph) -> list[str]:
+    """Check both endpoints of every profile edge resolve to agent_profile nodes.
+
+    Extracted from :func:`validate_profile_edges` (phase 1 of 2) to keep its
+    cognitive complexity within the ruff C901 limit (15). Each endpoint is
+    inspected independently, so a profile-edge whose *target* is a tactic is
+    just as invalid as one whose *source* is.
+    """
+    errors: list[str] = []
+    kind_by_urn = {n.urn: n.kind for n in graph.nodes}
     for edge in graph.edges:
         if edge.relation not in _PROFILE_EDGE_RELATIONS:
             continue
@@ -75,8 +87,16 @@ def validate_profile_edges(graph: DRGGraph) -> list[str]:
                     f"edge ({edge.source} --{edge.relation.value}--> {edge.target}) "
                     f"has {endpoint_name} {urn!r} of kind {kind.value!r}"
                 )
+    return errors
 
-    # -- 2. Lineage acyclicity (specializes_from must be a DAG) --------------
+
+def _validate_lineage_acyclicity(graph: DRGGraph) -> list[str]:
+    """Check the ``specializes_from`` subgraph is a DAG (DFS-based).
+
+    Extracted from :func:`validate_profile_edges` (phase 2 of 2) to keep its
+    cognitive complexity within the ruff C901 limit (15).
+    """
+    errors: list[str] = []
     lineage_adj: dict[str, list[str]] = defaultdict(list)
     for edge in graph.edges:
         if edge.relation == Relation.SPECIALIZES_FROM:

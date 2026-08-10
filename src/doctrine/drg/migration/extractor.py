@@ -36,6 +36,10 @@ from doctrine.template_catalog import template_id_for, template_urn
 
 SPECIFICATION_BY_EXAMPLE = "paradigm:specification-by-example"
 
+#: Lineage target shared by the four built-in Python/JS/Node/frontend
+#: implementer profiles (S1192: this URN is otherwise duplicated 4x below).
+_AGENT_PROFILE_IMPLEMENTER_IVAN = "agent_profile:implementer-ivan"
+
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -264,22 +268,22 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
     # profile model), so these edges are the single source of lineage truth.
     (
         "agent_profile:python-pedro",
-        "agent_profile:implementer-ivan",
+        _AGENT_PROFILE_IMPLEMENTER_IVAN,
         Relation.SPECIALIZES_FROM,
     ),
     (
         "agent_profile:java-jenny",
-        "agent_profile:implementer-ivan",
+        _AGENT_PROFILE_IMPLEMENTER_IVAN,
         Relation.SPECIALIZES_FROM,
     ),
     (
         "agent_profile:node-norris",
-        "agent_profile:implementer-ivan",
+        _AGENT_PROFILE_IMPLEMENTER_IVAN,
         Relation.SPECIALIZES_FROM,
     ),
     (
         "agent_profile:frontend-freddy",
-        "agent_profile:implementer-ivan",
+        _AGENT_PROFILE_IMPLEMENTER_IVAN,
         Relation.SPECIALIZES_FROM,
     ),
     (
@@ -956,18 +960,32 @@ def _discover_built_in_artifact_nodes(
         built_in_dir = packs_root / subdir
         if not built_in_dir.is_dir():
             continue
-        glob_pattern = "*.agent.yaml" if kind == "agent_profile" else f"*.{kind}.yaml"
-        id_key = "profile-id" if kind == "agent_profile" else "id"
-        for path in sorted(built_in_dir.rglob(glob_pattern)):
-            data = _load_yaml(path)
-            if data is None:
-                continue
-            artifact_id: str = data.get(id_key, "")
-            label: str = data.get("name", data.get("title", ""))
-            if not artifact_id:
-                continue
-            urn = artifact_to_urn(kind, artifact_id)
-            _ensure_node(nodes_by_urn, urn, node_kind, label or None)
+        _discover_built_in_nodes_in_dir(built_in_dir, kind, node_kind, nodes_by_urn)
+
+
+def _discover_built_in_nodes_in_dir(
+    built_in_dir: Path,
+    kind: str,
+    node_kind: NodeKind,
+    nodes_by_urn: dict[str, DRGNode],
+) -> None:
+    """Register one node per artifact YAML found under *built_in_dir*.
+
+    Extracted from :func:`_discover_built_in_artifact_nodes` to keep its
+    cognitive complexity within the ruff C901 limit (15).
+    """
+    glob_pattern = "*.agent.yaml" if kind == "agent_profile" else f"*.{kind}.yaml"
+    id_key = "profile-id" if kind == "agent_profile" else "id"
+    for path in sorted(built_in_dir.rglob(glob_pattern)):
+        data = _load_yaml(path)
+        if data is None:
+            continue
+        artifact_id: str = data.get(id_key, "")
+        label: str = data.get("name", data.get("title", ""))
+        if not artifact_id:
+            continue
+        urn = artifact_to_urn(kind, artifact_id)
+        _ensure_node(nodes_by_urn, urn, node_kind, label or None)
 
 
 def _iter_mission_type_data(

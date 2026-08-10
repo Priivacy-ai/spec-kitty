@@ -15,6 +15,7 @@ import hashlib
 from collections.abc import Callable
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 from ruamel.yaml import YAML
 
@@ -221,6 +222,35 @@ def _compute_v2_synthesis_manifest_hash(manifest_data: dict[str, object]) -> str
     return hashlib.sha256(canonical_yaml(fields_for_hash)).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
 
+def _dump_yaml_safe(
+    yaml_rt: YAML,
+    path: Path,
+    data: dict[str, Any],
+    errors: list[str],
+    *,
+    what: str,
+) -> None:
+    """Write *data* to *path* via a ``BytesIO`` round-trip, recording failures.
+
+    Collapses the ``io.BytesIO -> yaml.dump -> write_bytes`` block that was
+    previously repeated 4x across :func:`migrate_v1_to_v2`'s three phases and
+    :func:`repair_v2_synthesis_manifest_defaults` into one S1192-clean
+    helper. Any failure is appended to *errors* as ``"Failed to write
+    {what}: {exc}"`` rather than raised, matching the original per-site
+    ``except Exception`` guards (each migration phase/site must keep
+    reporting partial progress via ``MigrationResult.errors`` instead of
+    aborting the whole migration on one bad write).
+    """
+    try:
+        import io as _io
+
+        buf = _io.BytesIO()
+        yaml_rt.dump(data, buf)
+        path.write_bytes(buf.getvalue())
+    except Exception as exc:  # noqa: BLE001 - migration writers report failures via `errors`, never raise past their MigrationResult contract
+        errors.append(f"Failed to write {what}: {exc}")
+
+
 def repair_v2_synthesis_manifest_defaults(
     bundle_root: Path,
     dry_run: bool = False,
@@ -278,16 +308,14 @@ def repair_v2_synthesis_manifest_defaults(
     changes_made = [str(manifest_path)]
 
     if not dry_run:
-        try:
-            import io as _io
-
-            buf = _io.BytesIO()
-            _yaml.dump(manifest_data, buf)
-            manifest_path.write_bytes(buf.getvalue())
-        except Exception as exc:  # noqa: BLE001
+        write_errors: list[str] = []
+        _dump_yaml_safe(
+            _yaml, manifest_path, manifest_data, write_errors, what="synthesis-manifest.yaml"
+        )
+        if write_errors:
             return MigrationResult(
                 changes_made=[],
-                errors=[f"Failed to write synthesis-manifest.yaml: {exc}"],
+                errors=write_errors,
                 from_version=2,
                 to_version=2,
             )
@@ -344,135 +372,20 @@ def migrate_v1_to_v2(bundle_root: Path, dry_run: bool = False) -> MigrationResul
     changes_made: list[str] = []
     errors: list[str] = []
 
-    # -------------------------------------------------------------------------
-    # 1. Migrate provenance sidecars
-    # -------------------------------------------------------------------------
-    provenance_dir = bundle_root / "provenance"
-    if provenance_dir.exists():
-        for sidecar_path in sorted(provenance_dir.glob("*.yaml")):
-            try:
-                data = _yaml.load(sidecar_path)
-            except Exception as exc:  # noqa: BLE001
-                errors.append(f"Failed to load sidecar {sidecar_path.name}: {exc}")
-                continue
+    # Three independent sequential phases (each an (changes, errors) pair,
+    # merged below) — extracted to keep this orchestrator's cognitive
+    # complexity within the ruff C901 limit (15).
+    sidecar_changes, sidecar_errors = _migrate_provenance_sidecars(bundle_root, dry_run, _yaml)
+    changes_made.extend(sidecar_changes)
+    errors.extend(sidecar_errors)
 
-            if not isinstance(data, dict):
-                errors.append(
-                    f"Sidecar {sidecar_path.name} is not a YAML mapping; skipping."
-                )
-                continue
+    manifest_changes, manifest_errors = _migrate_synthesis_manifest(bundle_root, dry_run, _yaml)
+    changes_made.extend(manifest_changes)
+    errors.extend(manifest_errors)
 
-            if data.get("schema_version") == "2":
-                continue  # Already migrated — skip (idempotent).
-
-            # Add missing v2 fields using sentinel values where needed.
-            data.setdefault("synthesizer_version", PRE_PHASE7_MIGRATION_SENTINEL)
-            data.setdefault("synthesis_run_id", PRE_PHASE7_MIGRATION_SENTINEL)
-
-            if "produced_at" not in data:
-                try:
-                    mtime = sidecar_path.stat().st_mtime
-                    data["produced_at"] = from_epoch(mtime).isoformat()
-                except OSError:
-                    data["produced_at"] = PRE_PHASE7_MIGRATION_SENTINEL
-
-            if "source_input_ids" not in data:
-                data["source_input_ids"] = list(data.get("source_urns", []))
-
-            if data.get("corpus_snapshot_id") is None:
-                data["corpus_snapshot_id"] = "(none)"
-
-            data["schema_version"] = "2"
-
-            changes_made.append(str(sidecar_path))
-            if not dry_run:
-                try:
-                    import io as _io
-
-                    buf = _io.BytesIO()
-                    _yaml.dump(data, buf)
-                    sidecar_path.write_bytes(buf.getvalue())
-                except Exception as exc:  # noqa: BLE001
-                    errors.append(
-                        f"Failed to write sidecar {sidecar_path.name}: {exc}"
-                    )
-
-    # -------------------------------------------------------------------------
-    # 2. Migrate synthesis-manifest.yaml
-    # -------------------------------------------------------------------------
-    manifest_path = bundle_root / "synthesis-manifest.yaml"
-    if manifest_path.exists():
-        try:
-            manifest_data = _yaml.load(manifest_path)
-        except Exception as exc:  # noqa: BLE001
-            errors.append(f"Failed to load synthesis-manifest.yaml: {exc}")
-            manifest_data = None
-
-        if isinstance(manifest_data, dict) and manifest_data.get("schema_version") != "2":
-            manifest_data.setdefault("synthesizer_version", PRE_PHASE7_MIGRATION_SENTINEL)
-            manifest_data.setdefault("mission_id", None)
-            manifest_data.setdefault("built_in_only", False)
-            manifest_hash = _compute_v2_synthesis_manifest_hash(manifest_data)
-
-            manifest_data["schema_version"] = "2"
-            manifest_data["manifest_hash"] = manifest_hash
-            manifest_data.setdefault("built_in_only", False)
-
-            changes_made.append(str(manifest_path))
-            if not dry_run:
-                try:
-                    import io as _io
-
-                    buf = _io.BytesIO()
-                    _yaml.dump(manifest_data, buf)
-                    manifest_path.write_bytes(buf.getvalue())
-                except Exception as exc:  # noqa: BLE001
-                    errors.append(f"Failed to write synthesis-manifest.yaml: {exc}")
-
-    # -------------------------------------------------------------------------
-    # 3. Update charter.yaml's metadata section — stamp bundle_schema_version: 2
-    #
-    # consolidate-charter-bundle (WP07 / T030): re-pointed from the retired
-    # <bundle_root>/metadata.yaml (folded into charter.yaml, then deleted)
-    # onto <bundle_root>/charter.yaml's metadata: section -- the SAME
-    # file/section get_bundle_schema_version() now reads (this function is
-    # its counterpart writer). This module must not import charter.*
-    # (dependency direction: charter -> doctrine, never reversed), so the
-    # write is a plain round-trip YAML dict-walk via the same `_yaml`
-    # instance already used above, touching only the metadata.
-    # bundle_schema_version key -- every other top-level section
-    # (governance/directives/catalog/activation) loaded from disk is
-    # re-dumped unchanged. Guarded on existence: a project that has not
-    # run the WP07 fold migration yet has no charter.yaml, and this step
-    # correctly no-ops rather than fabricating one.
-    # -------------------------------------------------------------------------
-    charter_yaml_path = bundle_root / "charter.yaml"
-    if charter_yaml_path.exists():
-        try:
-            charter_yaml_data = _yaml.load(charter_yaml_path)
-        except Exception as exc:  # noqa: BLE001
-            errors.append(f"Failed to load charter.yaml: {exc}")
-            charter_yaml_data = None
-
-        if isinstance(charter_yaml_data, dict):
-            metadata_section = charter_yaml_data.get("metadata")
-            if not isinstance(metadata_section, dict):
-                metadata_section = {}
-                charter_yaml_data["metadata"] = metadata_section
-
-            if metadata_section.get("bundle_schema_version") != 2:
-                metadata_section["bundle_schema_version"] = 2
-
-                changes_made.append(str(charter_yaml_path))
-                if not dry_run:
-                    try:
-                        import io as _io
-
-                        buf = _io.BytesIO()
-                        _yaml.dump(charter_yaml_data, buf)
-                        charter_yaml_path.write_bytes(buf.getvalue())
-                    except Exception as exc:  # noqa: BLE001
-                        errors.append(f"Failed to write charter.yaml: {exc}")
+    charter_changes, charter_errors = _stamp_charter_bundle_version(bundle_root, dry_run, _yaml)
+    changes_made.extend(charter_changes)
+    errors.extend(charter_errors)
 
     return MigrationResult(
         changes_made=changes_made,
@@ -480,6 +393,169 @@ def migrate_v1_to_v2(bundle_root: Path, dry_run: bool = False) -> MigrationResul
         from_version=1,
         to_version=2,
     )
+
+
+def _apply_v2_sidecar_defaults(data: dict[str, Any], sidecar_path: Path) -> None:
+    """Mutate *data* in place with v2 provenance-sidecar field defaults.
+
+    Extracted from :func:`_migrate_provenance_sidecars` (itself extracted
+    from :func:`migrate_v1_to_v2`, phase 1 of 3) to keep cognitive
+    complexity within the ruff C901 limit (15). See that function's
+    docstring for the sentinel-value semantics.
+    """
+    data.setdefault("synthesizer_version", PRE_PHASE7_MIGRATION_SENTINEL)
+    data.setdefault("synthesis_run_id", PRE_PHASE7_MIGRATION_SENTINEL)
+
+    if "produced_at" not in data:
+        try:
+            mtime = sidecar_path.stat().st_mtime
+            data["produced_at"] = from_epoch(mtime).isoformat()
+        except OSError:
+            data["produced_at"] = PRE_PHASE7_MIGRATION_SENTINEL
+
+    if "source_input_ids" not in data:
+        data["source_input_ids"] = list(data.get("source_urns", []))
+
+    if data.get("corpus_snapshot_id") is None:
+        data["corpus_snapshot_id"] = "(none)"
+
+    data["schema_version"] = "2"
+
+
+def _migrate_provenance_sidecars(
+    bundle_root: Path, dry_run: bool, yaml_rt: YAML
+) -> tuple[list[str], list[str]]:
+    """Migrate every v1 provenance sidecar under ``<bundle_root>/provenance`` to v2.
+
+    Extracted from :func:`migrate_v1_to_v2` (phase 1 of 3) to keep its
+    cognitive complexity within the ruff C901 limit (15); see that
+    function's docstring for the sentinel-value semantics. Returns
+    ``(changes_made, errors)`` for the caller to merge.
+    """
+    changes_made: list[str] = []
+    errors: list[str] = []
+    provenance_dir = bundle_root / "provenance"
+    if not provenance_dir.exists():
+        return changes_made, errors
+
+    for sidecar_path in sorted(provenance_dir.glob("*.yaml")):
+        try:
+            data = yaml_rt.load(sidecar_path)
+        except Exception as exc:  # noqa: BLE001 - per-sidecar load failure must not abort sibling sidecars; reported via `errors`
+            errors.append(f"Failed to load sidecar {sidecar_path.name}: {exc}")
+            continue
+
+        if not isinstance(data, dict):
+            errors.append(
+                f"Sidecar {sidecar_path.name} is not a YAML mapping; skipping."
+            )
+            continue
+
+        if data.get("schema_version") == "2":
+            continue  # Already migrated — skip (idempotent).
+
+        _apply_v2_sidecar_defaults(data, sidecar_path)
+        changes_made.append(str(sidecar_path))
+        if not dry_run:
+            _dump_yaml_safe(
+                yaml_rt, sidecar_path, data, errors, what=f"sidecar {sidecar_path.name}"
+            )
+
+    return changes_made, errors
+
+
+def _migrate_synthesis_manifest(
+    bundle_root: Path, dry_run: bool, yaml_rt: YAML
+) -> tuple[list[str], list[str]]:
+    """Migrate ``<bundle_root>/synthesis-manifest.yaml`` to v2 field defaults.
+
+    Extracted from :func:`migrate_v1_to_v2` (phase 2 of 3) to keep its
+    cognitive complexity within the ruff C901 limit (15). Returns
+    ``(changes_made, errors)`` for the caller to merge.
+    """
+    changes_made: list[str] = []
+    errors: list[str] = []
+    manifest_path = bundle_root / "synthesis-manifest.yaml"
+    if not manifest_path.exists():
+        return changes_made, errors
+
+    try:
+        manifest_data = yaml_rt.load(manifest_path)
+    except Exception as exc:  # noqa: BLE001 - load failure must still let phases 1/3 run; reported via `errors`
+        errors.append(f"Failed to load synthesis-manifest.yaml: {exc}")
+        return changes_made, errors
+
+    if not isinstance(manifest_data, dict) or manifest_data.get("schema_version") == "2":
+        return changes_made, errors
+
+    manifest_data.setdefault("synthesizer_version", PRE_PHASE7_MIGRATION_SENTINEL)
+    manifest_data.setdefault("mission_id", None)
+    manifest_data.setdefault("built_in_only", False)
+    manifest_data["schema_version"] = "2"
+    manifest_data["manifest_hash"] = _compute_v2_synthesis_manifest_hash(manifest_data)
+
+    changes_made.append(str(manifest_path))
+    if not dry_run:
+        _dump_yaml_safe(
+            yaml_rt, manifest_path, manifest_data, errors, what="synthesis-manifest.yaml"
+        )
+
+    return changes_made, errors
+
+
+def _stamp_charter_bundle_version(
+    bundle_root: Path, dry_run: bool, yaml_rt: YAML
+) -> tuple[list[str], list[str]]:
+    """Stamp ``bundle_schema_version: 2`` into ``charter.yaml``'s ``metadata:`` section.
+
+    Extracted from :func:`migrate_v1_to_v2` (phase 3 of 3) to keep its
+    cognitive complexity within the ruff C901 limit (15).
+
+    consolidate-charter-bundle (WP07 / T030): re-pointed from the retired
+    ``<bundle_root>/metadata.yaml`` (folded into charter.yaml, then deleted)
+    onto ``<bundle_root>/charter.yaml``'s ``metadata:`` section -- the SAME
+    file/section :func:`get_bundle_schema_version` reads (this function is
+    its counterpart writer). This module must not import ``charter.*``
+    (dependency direction: charter -> doctrine, never reversed), so the
+    write is a plain round-trip YAML dict-walk, touching only the
+    ``metadata.bundle_schema_version`` key -- every other top-level section
+    (governance/directives/catalog/activation) loaded from disk is
+    re-dumped unchanged. Guarded on existence: a project that has not run
+    the WP07 fold migration yet has no charter.yaml, and this step
+    correctly no-ops rather than fabricating one. Returns
+    ``(changes_made, errors)`` for the caller to merge.
+    """
+    changes_made: list[str] = []
+    errors: list[str] = []
+    charter_yaml_path = bundle_root / "charter.yaml"
+    if not charter_yaml_path.exists():
+        return changes_made, errors
+
+    try:
+        charter_yaml_data = yaml_rt.load(charter_yaml_path)
+    except Exception as exc:  # noqa: BLE001 - load failure must still let phases 1/2 have run; reported via `errors`
+        errors.append(f"Failed to load charter.yaml: {exc}")
+        return changes_made, errors
+
+    if not isinstance(charter_yaml_data, dict):
+        return changes_made, errors
+
+    metadata_section = charter_yaml_data.get("metadata")
+    if not isinstance(metadata_section, dict):
+        metadata_section = {}
+        charter_yaml_data["metadata"] = metadata_section
+
+    if metadata_section.get("bundle_schema_version") == 2:
+        return changes_made, errors
+
+    metadata_section["bundle_schema_version"] = 2
+    changes_made.append(str(charter_yaml_path))
+    if not dry_run:
+        _dump_yaml_safe(
+            yaml_rt, charter_yaml_path, charter_yaml_data, errors, what="charter.yaml"
+        )
+
+    return changes_made, errors
 
 
 _register_migration(1, migrate_v1_to_v2)

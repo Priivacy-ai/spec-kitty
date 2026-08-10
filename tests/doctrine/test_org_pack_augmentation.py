@@ -38,6 +38,7 @@ from doctrine.drg.org_pack_loader import (
     TopologyMergeError,
     _MISSION_TYPE_UNIVERSE_EXTENSION,
     _ORG_DRG_CANONICAL_KINDS,
+    _merge_action_sequence_step,
     augmentation_plural_kinds,
     load_org_pack,
     merge_topology_artifact,
@@ -564,3 +565,44 @@ def test_enhances_rejects_stripping_step_io() -> None:
 def test_merge_rejects_non_augmentation_relation() -> None:
     with pytest.raises(ValueError, match="ENHANCES / OVERRIDES"):
         merge_topology_artifact({"id": "s"}, {"id": "s"}, mode=Relation.REQUIRES)
+
+
+# ---------------------------------------------------------------------------
+# WP03 T011 — _merge_action_sequence_step (extracted from
+# _merge_action_sequence to keep its cognitive complexity within the ruff
+# C901 limit)
+# ---------------------------------------------------------------------------
+
+
+def test_merge_action_sequence_step_new_overlay_step_passes_through() -> None:
+    """A step id with no base counterpart is deep-copied unchanged."""
+    base_by_id: dict[str, object] = {}
+    step = {"id": "brand-new", "title": "New Step"}
+    merged = _merge_action_sequence_step(step, base_by_id, "steps")
+    assert merged == step
+    assert merged is not step  # deep-copied
+
+
+def test_merge_action_sequence_step_non_mapping_step_passes_through() -> None:
+    """A non-mapping overlay entry (e.g. a bare string) is copied verbatim."""
+    step = "not-a-mapping"
+    merged = _merge_action_sequence_step(step, {"a": {"id": "a"}}, "steps")
+    assert merged == "not-a-mapping"
+
+
+def test_merge_action_sequence_step_merges_matching_base_step() -> None:
+    """A step sharing an id with a base step is field-merged (base fields survive)."""
+    base_by_id = {"a": {"id": "a", "inputs": ["x"], "outputs": ["y"]}}
+    step = {"id": "a", "title": "Refined"}
+    merged = _merge_action_sequence_step(step, base_by_id, "steps")
+    assert merged["title"] == "Refined"
+    assert merged["inputs"] == ["x"]
+    assert merged["outputs"] == ["y"]
+
+
+def test_merge_action_sequence_step_raises_on_io_stripping() -> None:
+    """Deliberately restating an I/O field empty raises TopologyMergeError."""
+    base_by_id = {"a": {"id": "a", "inputs": ["x"]}}
+    step = {"id": "a", "inputs": []}
+    with pytest.raises(TopologyMergeError, match="strips"):
+        _merge_action_sequence_step(step, base_by_id, "steps")
