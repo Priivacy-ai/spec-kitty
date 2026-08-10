@@ -257,6 +257,13 @@ test_no_dead_symbols:
   # Honest live count (not the naive 215-2=213 the 2-drop alone would give,
   # since drift + the auto-exempt migration both shrank this category):
   # ``len(_CATEGORY_B_GRANDFATHERED_LEGACY)`` = 193 (194 -2 stale -19 FR-010 auto-exempt, then -1 WorkPackageState pruned at the upstream/main reconciliation).
+  # 193->195 (kernel-clock-single-door PR #3305): +2, kernel.clock::FrozenClock
+  # / kernel.clock::SystemClock. Genuine public injectable-clock API (the
+  # Clock protocol's sole real implementation + deterministic test double);
+  # production code reads only the DEFAULT_CLOCK singleton, never these names
+  # directly, so there is no non-test src/ caller to wire by design (same
+  # "decomposed-module public API consumed by tests/wrapper" shape as the
+  # _auth_doctor family already in this category). Tracker: PR #3305.
   # test-suite-friction-remediation-01KXDKBX WP05 (T020, #2559/#2293): audited
   # all 193 entries against the WP01-wired gate (dynamic-access detector now
   # folded into ``_imports_by_target``) -- zero are dangling (every SymbolKey
@@ -272,7 +279,7 @@ test_no_dead_symbols:
   # mission's net allowlist shrinkage instead lands via Category C
   # (``_CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE`` 4->0, FR-002): the
   # aggregate ``_SYMBOL_ALLOWLIST`` still strictly decreases (317->313).
-  category_b_grandfathered_legacy: 193
+  category_b_grandfathered_legacy: 195
   # 6->4->1 (org-doctrine close-out WP04, then doctrine-tension-edges-01KY1WPC):
   # removed the now-wired charter.invocation_context::{OperationalContext,
   # build_operational_context} (WP14 added live src/ callers), then pruned
