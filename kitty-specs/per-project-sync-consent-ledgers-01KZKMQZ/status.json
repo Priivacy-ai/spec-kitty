@@ -52,7 +52,10 @@
         "T003": "done",
         "T004": "done",
         "T005": "done"
-      }
+      },
+      "tracker_refs": [
+        "Priivacy-ai/spec-kitty#3262"
+      ]
     },
     "WP02": {
       "actor": "user",
@@ -84,7 +87,10 @@
         "T008": "done",
         "T009": "done",
         "T010": "done"
-      }
+      },
+      "tracker_refs": [
+        "Priivacy-ai/spec-kitty#3262"
+      ]
     },
     "WP03": {
       "actor": "user",
@@ -115,7 +121,10 @@
         "T013": "done",
         "T014": "done",
         "T015": "done"
-      }
+      },
+      "tracker_refs": [
+        "Priivacy-ai/spec-kitty#3262"
+      ]
     },
     "WP04": {
       "actor": "user",
@@ -150,7 +159,10 @@
         "T018": "done",
         "T019": "done",
         "T020": "done"
-      }
+      },
+      "tracker_refs": [
+        "Priivacy-ai/spec-kitty#3262"
+      ]
     },
     "WP05": {
       "actor": "user",
@@ -179,7 +191,11 @@
         "T023": "done",
         "T024": "done",
         "T025": "done"
-      }
+      },
+      "tracker_refs": [
+        "Priivacy-ai/spec-kitty#3262",
+        "Priivacy-ai/spec-kitty-saas#585"
+      ]
     },
     "WP06": {
       "actor": "codex",
@@ -204,42 +220,70 @@
         "T028": "done",
         "T029": "done",
         "T030": "done"
-      }
+      },
+      "tracker_refs": [
+        "Priivacy-ai/spec-kitty#3262",
+        "Priivacy-ai/spec-kitty-saas#585"
+      ]
     },
     "WP07": {
       "actor": "finalize-tasks",
       "force_count": 0,
       "lane": "planned",
       "last_event_id": "01KZKV23ZFNWT8VJJ0DN7FJBPN",
-      "last_transition_at": "2026-08-09T18:02:48.687785+00:00"
+      "last_transition_at": "2026-08-09T18:02:48.687785+00:00",
+      "tracker_refs": [
+        "Priivacy-ai/spec-kitty#3262",
+        "Priivacy-ai/spec-kitty#3030",
+        "Priivacy-ai/spec-kitty#3108",
+        "Priivacy-ai/spec-kitty#3135"
+      ]
     },
     "WP08": {
       "actor": "finalize-tasks",
       "force_count": 0,
       "lane": "planned",
       "last_event_id": "01KZKV24FVXBPP4SQMWFBX1YGC",
-      "last_transition_at": "2026-08-09T18:02:49.211315+00:00"
+      "last_transition_at": "2026-08-09T18:02:49.211315+00:00",
+      "tracker_refs": [
+        "Priivacy-ai/spec-kitty#3262",
+        "Priivacy-ai/spec-kitty#3030"
+      ]
     },
     "WP09": {
       "actor": "finalize-tasks",
       "force_count": 0,
       "lane": "planned",
       "last_event_id": "01KZKV250A7FJV592309RTZYMV",
-      "last_transition_at": "2026-08-09T18:02:49.738367+00:00"
+      "last_transition_at": "2026-08-09T18:02:49.738367+00:00",
+      "tracker_refs": [
+        "Priivacy-ai/spec-kitty#3262",
+        "Priivacy-ai/spec-kitty#3030"
+      ]
     },
     "WP10": {
       "actor": "finalize-tasks",
       "force_count": 0,
       "lane": "planned",
       "last_event_id": "01KZKV25GVNBXQ3MS7CATHCBV7",
-      "last_transition_at": "2026-08-09T18:02:50.267255+00:00"
+      "last_transition_at": "2026-08-09T18:02:50.267255+00:00",
+      "tracker_refs": [
+        "Priivacy-ai/spec-kitty#3262",
+        "Priivacy-ai/spec-kitty#3030"
+      ]
     },
     "WP11": {
       "actor": "finalize-tasks",
       "force_count": 0,
       "lane": "planned",
       "last_event_id": "01KZKV261HP4M4CRSMMX2APCA2",
-      "last_transition_at": "2026-08-09T18:02:50.802016+00:00"
+      "last_transition_at": "2026-08-09T18:02:50.802016+00:00",
+      "tracker_refs": [
+        "Priivacy-ai/spec-kitty#3262",
+        "Priivacy-ai/spec-kitty-saas#585",
+        "Priivacy-ai/spec-kitty-saas#584",
+        "Priivacy-ai/spec-kitty-saas#609"
+      ]
     }
   }
 }
