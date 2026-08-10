@@ -129,7 +129,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Implementation bea905e79; 251 owned/authorized tests passed with 2 expected architecture xfails; 16 independent incident controls passed; Ruff, strict mypy, compileall, and diff checks passed.",
-        "Cycle 2 closes forged/stale history authority, physical body purge, status queue ownership/UoW validation, deterministic clock evidence, and Ruff format debt. Gates: 254 passed/2 xfailed baseline; 23 extended controls; 65 normal pytest; Ruff and strict mypy green."
+        "Cycle 2 closes forged/stale history authority, physical body purge, status queue ownership/UoW validation, deterministic clock evidence, and Ruff format debt. Gates: 254 passed/2 xfailed baseline; 23 extended controls; 65 normal pytest; Ruff and strict mypy green.",
+        "Cycle 3 binds status context and every repository to the exact verified UoW store capability, makes direct UoW construction fail closed, and restores the real A/B incident spy without compatibility constructors. Gates: 256 passed/2 xfailed baseline; 24 extended controls; 67 normal pytest; 48 passed/2 xfailed architecture; Ruff and strict mypy green."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -140,8 +141,8 @@
         "verdict": "changes_requested"
       },
       "role": "implementer",
-      "shell_pid": 0,
-      "shell_pid_created_at": "1786272735.189561",
+      "shell_pid": 53232,
+      "shell_pid_created_at": "1786333691.546148",
       "subtasks": {
         "T016": "done",
         "T017": "done",
