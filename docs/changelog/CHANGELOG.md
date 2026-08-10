@@ -402,6 +402,22 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   unresolvable base ref — a shallow clone or unfetched base errors rather than
   passing trivially), while the unfiltered whole-tree scan is retained as the
   non-blocking `push: main` backstop so genuine repo-wide rot is still surfaced.
+- **The `charter` and `sync` modules are cleared of their Sonar maintainability
+  backlog, including a super-linear-backtracking regex (mission
+  `charter-sync-sonar-remediation`; `#3232`-adjacent).** 80 SonarCloud findings
+  across the two modules — 27 over-complex functions, 15 duplicate literals, 20
+  malformed suppression comments, unused parameters, too-many-parameter
+  signatures, and one ReDoS-class regex flagged `BLOCKER` — were resolved with
+  **behavior-preserving** refactors and **no new suppressions**. Over-complex
+  functions were brought to the ≤15 cognitive-complexity ceiling via tested
+  helper extraction (each helper carries a focused test); duplicate literals
+  became named constants; the `token_budget` heading regex was rewritten to
+  remove its `.`/`\s` ambiguity (proven match-equivalent by a characterization
+  test); and one 15-parameter status-event emitter was slimmed without touching
+  any of its ~100 call sites (its `**kwargs` forwarding chain is preserved). Two
+  findings are Sonar false-positives (a Pydantic `PrivateAttr` and an
+  already-single-return method) with no clean code fix; they remain for a
+  SonarCloud UI won't-fix. No runtime behavior changes.
 - **Restored an honest red CI gate: `main`'s two standing reds now go green for
   the right reason, and `move-task`'s pre-review gate stops crying wolf
   (test-layer only; epic `#3260` — "a red gate must mean a real regression").**
