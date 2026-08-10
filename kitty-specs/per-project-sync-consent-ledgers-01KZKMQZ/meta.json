@@ -11,6 +11,7 @@
   "purpose_context": "Close the CLI half of the consent incident by replacing path-, repository-, and machine-global grants with one versioned consent authority keyed by canonical project UUID; isolate journal, delivery, body, offline, and migration state per project; treat the global environment flag only as a deny-only kill switch; and consume the SaaS project-admission contract. Ambiguous legacy grants require re-consent, refusals may migrate safely, and the historical 1,322-event disposition remains a separate Human-in-Charge decision.",
   "purpose_tldr": "Make hosted sync an explicit, revocable decision with physically isolated state for each project.",
   "slug": "per-project-sync-consent-ledgers-01KZKMQZ",
+  "status_phase": "1",
   "target_branch": "feat/per-project-sync-consent",
   "topology": "coord",
   "vcs": "git",
