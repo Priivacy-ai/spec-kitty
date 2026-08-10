@@ -152,6 +152,25 @@ def test_a_project_config_that_cannot_be_opened_is_unreadable(tmp_path: Path) ->
         config.chmod(0o600)
 
 
+@pytest.mark.skipif(os.geteuid() == 0, reason="root reads a chmod 000 directory regardless")
+def test_a_project_config_in_an_unreadable_directory_is_unreadable(tmp_path: Path) -> None:
+    """An unreadable ``.kittify`` *directory* is a carried fault, not a raised traceback.
+
+    #3291: the existence probe (``config_path.is_file()``) sat outside the try/except,
+    so an unreadable enclosing directory raised ``PermissionError`` (EACCES) straight
+    out of a function whose contract is "never raises" -- the verdict still refused
+    correctly, but a full traceback printed to stderr. It now carries the same
+    ``unreadable`` fault as an unopenable file (same operator remedy: chmod).
+    """
+    root = _checkout(tmp_path, f"project:\n  uuid: {PROJECT}\n")
+    kitdir = root / ".kittify"
+    kitdir.chmod(0o000)
+    try:
+        assert _local_kind(root) == "unreadable"
+    finally:
+        kitdir.chmod(0o755)
+
+
 def test_a_readable_project_config_reports_no_fault(tmp_path: Path) -> None:
     """The positive control. Without it every assertion above is satisfiable by a
     producer that reports a fault for absolutely everything."""
