@@ -7,7 +7,7 @@ type: reference
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/api/agent-subcommands.md
-- docs/api/agent-profiles/index.md
+- docs/api/agent_profiles/index.md
 - docs/api/batch-api-contract.md
 - docs/api/charter-commands.md
 - docs/api/cli-commands.md
@@ -53,5 +53,5 @@ conceptual background see [Explanation](../architecture/index.md).
 
 - [Skills](skills/index.md) — the operator-facing skill catalog: what each skill does and when
   to invoke it.
-- [Agent profiles](agent-profiles/index.md) — the built-in agent profile roster: identity,
+- [Agent profiles](agent_profiles/index.md) — the built-in agent profile roster: identity,
   roles, and routing for each shipped profile.

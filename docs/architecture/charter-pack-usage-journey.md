@@ -164,5 +164,5 @@ If `charter status` still reports the charter as missing after `apply`, that is 
 - [Charter CLI Reference](../api/charter-commands.md) — narrative command reference; see the
   generated [CLI Command Reference](../api/cli-commands.md#spec-kitty-charter-pack) for the full,
   `--help`-verified `charter pack` flag surface
-- [Generic Agent — Agent Profile](../api/agent-profiles/generic-agent.md) — the profile the
+- [Generic Agent — Agent Profile](../api/agent_profiles/generic-agent.md) — the profile the
   dispatch safety net falls back to

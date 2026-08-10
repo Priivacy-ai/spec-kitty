@@ -4,7 +4,7 @@ description: Architecture-scout reviewer for recurring boundary leaks, ownership
 doc_status: active
 updated: '2026-07-21'
 related:
-  - docs/api/agent-profiles/index.md
+  - docs/api/agent_profiles/index.md
   - docs/doctrine/index.md
 ---
 

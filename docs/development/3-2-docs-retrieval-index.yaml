@@ -2730,7 +2730,7 @@ pages:
     - {slug: "scan-behaviour-notes", text: "Scan Behaviour Notes", level: 2}
     - {slug: "multiple-files-from-the-same-harness-directory", text: "Multiple files from the same harness directory", level: 3}
     - {slug: "how-to-update", text: "How to Update", level: 2}
-  - path: "docs/api/agent-profiles/architect-alphonso.md"
+  - path: "docs/api/agent_profiles/architect-alphonso.md"
     title: "Architect Alphonso — Agent Profile"
     divio_type: "none"
     abstract: "System architecture and technical design specialist"
@@ -2740,7 +2740,7 @@ pages:
     - {slug: "when-to-reach-for-it", text: "When to reach for it", level: 2}
     - {slug: "how-to-load-it-from-your-harness", text: "How to load it from your harness", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/api/agent-profiles/curator-carla.md"
+  - path: "docs/api/agent_profiles/curator-carla.md"
     title: "Curator Carla — Agent Profile"
     divio_type: "none"
     abstract: "Knowledge base and doctrine maintenance specialist"
@@ -2750,7 +2750,7 @@ pages:
     - {slug: "when-to-reach-for-it", text: "When to reach for it", level: 2}
     - {slug: "how-to-load-it-from-your-harness", text: "How to load it from your harness", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/api/agent-profiles/debugger-debbie.md"
+  - path: "docs/api/agent_profiles/debugger-debbie.md"
     title: "Debugger Debbie — Agent Profile"
     divio_type: "none"
     abstract: "Recurring-bug structural-root-cause investigator using five-paradigm parallel debugging"
@@ -2760,7 +2760,7 @@ pages:
     - {slug: "when-to-reach-for-it", text: "When to reach for it", level: 2}
     - {slug: "how-to-load-it-from-your-harness", text: "How to load it from your harness", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/api/agent-profiles/designer-dagmar.md"
+  - path: "docs/api/agent_profiles/designer-dagmar.md"
     title: "Designer Dagmar — Agent Profile"
     divio_type: "none"
     abstract: "UX/UI and interaction design specialist for accessible, consistent design specifications"
@@ -2770,7 +2770,7 @@ pages:
     - {slug: "when-to-reach-for-it", text: "When to reach for it", level: 2}
     - {slug: "how-to-load-it-from-your-harness", text: "How to load it from your harness", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/api/agent-profiles/doctrine-daphne.md"
+  - path: "docs/api/agent_profiles/doctrine-daphne.md"
     title: "Doctrine Daphne — Agent Profile"
     divio_type: "none"
     abstract: "External-agent onboarding and doctrine artifact curation specialist"
@@ -2780,7 +2780,7 @@ pages:
     - {slug: "when-to-reach-for-it", text: "When to reach for it", level: 2}
     - {slug: "how-to-load-it-from-your-harness", text: "How to load it from your harness", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/api/agent-profiles/frontend-freddy.md"
+  - path: "docs/api/agent_profiles/frontend-freddy.md"
     title: "Frontend Freddy — Agent Profile"
     divio_type: "none"
     abstract: "Browser-side implementer for HTML/CSS/JavaScript/TypeScript with component frameworks, accessibility, and frontend testing"
@@ -2790,7 +2790,7 @@ pages:
     - {slug: "when-to-reach-for-it", text: "When to reach for it", level: 2}
     - {slug: "how-to-load-it-from-your-harness", text: "How to load it from your harness", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/api/agent-profiles/generic-agent.md"
+  - path: "docs/api/agent_profiles/generic-agent.md"
     title: "Generic Agent — Agent Profile"
     divio_type: "none"
     abstract: "General-purpose task execution profile. Used as the default when no specialist profile is assigned to a work package."
@@ -2800,7 +2800,7 @@ pages:
     - {slug: "when-to-reach-for-it", text: "When to reach for it", level: 2}
     - {slug: "how-to-load-it-from-your-harness", text: "How to load it from your harness", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/api/agent-profiles/human-in-charge.md"
+  - path: "docs/api/agent_profiles/human-in-charge.md"
     title: "Human in Charge — Agent Profile"
     divio_type: "none"
     abstract: "Workflow sentinel indicating this work package requires direct human execution"
@@ -2809,7 +2809,7 @@ pages:
     - {slug: "why-routing-priority-is-100", text: "Why routing-priority is 100", level: 2}
     - {slug: "what-it-does-not-do", text: "What it does NOT do", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/api/agent-profiles/implementer-ivan.md"
+  - path: "docs/api/agent_profiles/implementer-ivan.md"
     title: "Implementer Ivan — Agent Profile"
     divio_type: "none"
     abstract: "General-purpose software implementation specialist"
@@ -2819,12 +2819,12 @@ pages:
     - {slug: "when-to-reach-for-it", text: "When to reach for it", level: 2}
     - {slug: "how-to-load-it-from-your-harness", text: "How to load it from your harness", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/api/agent-profiles/index.md"
+  - path: "docs/api/agent_profiles/index.md"
     title: "Agent Profiles"
     divio_type: "reference"
     abstract: "Catalog of the 18 built-in agent profiles Spec Kitty ships, with identity, routing, and role for each."
     anchors: []
-  - path: "docs/api/agent-profiles/java-jenny.md"
+  - path: "docs/api/agent_profiles/java-jenny.md"
     title: "Java Jenny — Agent Profile"
     divio_type: "none"
     abstract: "Java-specialist implementer applying ATDD/TDD discipline, Maven build tooling, and idiomatic Java style enforcement"
@@ -2834,7 +2834,7 @@ pages:
     - {slug: "when-to-reach-for-it", text: "When to reach for it", level: 2}
     - {slug: "how-to-load-it-from-your-harness", text: "How to load it from your harness", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/api/agent-profiles/node-norris.md"
+  - path: "docs/api/agent_profiles/node-norris.md"
     title: "Node Norris — Agent Profile"
     divio_type: "none"
     abstract: "Server-side Node.js implementer for HTTP APIs, event-loop discipline, streaming, and npm ecosystem"
@@ -2844,7 +2844,7 @@ pages:
     - {slug: "when-to-reach-for-it", text: "When to reach for it", level: 2}
     - {slug: "how-to-load-it-from-your-harness", text: "How to load it from your harness", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/api/agent-profiles/paula-patterns.md"
+  - path: "docs/api/agent_profiles/paula-patterns.md"
     title: "Paula Patterns — Agent Profile"
     divio_type: "none"
     abstract: "Architecture-scout reviewer for recurring boundary leaks, ownership confusion, and whack-a-field fixes"
@@ -2854,7 +2854,7 @@ pages:
     - {slug: "when-to-reach-for-it", text: "When to reach for it", level: 2}
     - {slug: "how-to-load-it-from-your-harness", text: "How to load it from your harness", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/api/agent-profiles/planner-priti.md"
+  - path: "docs/api/agent_profiles/planner-priti.md"
     title: "Planner Priti — Agent Profile"
     divio_type: "none"
     abstract: "Work decomposition and delivery sequencing specialist"
@@ -2864,7 +2864,7 @@ pages:
     - {slug: "when-to-reach-for-it", text: "When to reach for it", level: 2}
     - {slug: "how-to-load-it-from-your-harness", text: "How to load it from your harness", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/api/agent-profiles/python-pedro.md"
+  - path: "docs/api/agent_profiles/python-pedro.md"
     title: "Python Pedro — Agent Profile"
     divio_type: "none"
     abstract: "Python-specialist implementer applying TDD, type safety, and idiomatic Python 3.12+ practices"
@@ -2874,7 +2874,7 @@ pages:
     - {slug: "when-to-reach-for-it", text: "When to reach for it", level: 2}
     - {slug: "how-to-load-it-from-your-harness", text: "How to load it from your harness", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/api/agent-profiles/randy-reducer.md"
+  - path: "docs/api/agent_profiles/randy-reducer.md"
     title: "Randy Reducer — Agent Profile"
     divio_type: "none"
     abstract: "Semantic compression specialist for behavior-preserving code reduction"
@@ -2884,7 +2884,7 @@ pages:
     - {slug: "when-to-reach-for-it", text: "When to reach for it", level: 2}
     - {slug: "how-to-load-it-from-your-harness", text: "How to load it from your harness", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/api/agent-profiles/researcher-robbie.md"
+  - path: "docs/api/agent_profiles/researcher-robbie.md"
     title: "Researcher Robbie — Agent Profile"
     divio_type: "none"
     abstract: "Domain knowledge acquisition and synthesis specialist"
@@ -2894,7 +2894,7 @@ pages:
     - {slug: "when-to-reach-for-it", text: "When to reach for it", level: 2}
     - {slug: "how-to-load-it-from-your-harness", text: "How to load it from your harness", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/api/agent-profiles/retrospective-facilitator.md"
+  - path: "docs/api/agent_profiles/retrospective-facilitator.md"
     title: "Retrospective Facilitator — Agent Profile"
     divio_type: "none"
     abstract: "Facilitates a structured mission retrospective at terminus"
@@ -2904,7 +2904,7 @@ pages:
     - {slug: "when-to-reach-for-it", text: "When to reach for it", level: 2}
     - {slug: "how-to-load-it-from-your-harness", text: "How to load it from your harness", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/api/agent-profiles/reviewer-renata.md"
+  - path: "docs/api/agent_profiles/reviewer-renata.md"
     title: "Reviewer Renata — Agent Profile"
     divio_type: "none"
     abstract: "Code and design quality assurance specialist for correctness, security, and standards review"
@@ -9064,7 +9064,7 @@ pages:
     abstract: "Assessment (2026-04-01) of which doctrine artifacts to include, based on PRs #305/#348 and the agent-profile-implementation-rebased branch."
     anchors:
     - {slug: "context", text: "Context", level: 2}
-    - {slug: "pillar-1-agent-profiles", text: "Pillar 1: Agent Profiles", level: 2}
+    - {slug: "pillar-1-agent_profiles", text: "Pillar 1: Agent Profiles", level: 2}
     - {slug: "what-landed", text: "What landed", level: 3}
     - {slug: "what-is-not-yet-connected", text: "What is not yet connected", level: 3}
     - {slug: "maturity-80", text: "Maturity: ~80%", level: 3}
@@ -11747,7 +11747,7 @@ pages:
     - {slug: "mission-doctrine-missions-models", text: "Mission (`doctrine.missions.models`)", level: 3}
     - {slug: "import-candidate-doctrine-import-candidates-models", text: "Import Candidate (`doctrine.import_candidates.models`)", level: 3}
     - {slug: "model-to-task-type-doctrine-model-task-routing-models", text: "Model-to-Task Type (`doctrine.model_task_routing.models`)", level: 3}
-    - {slug: "agent-profile-doctrine-agent-profiles-schema-models", text: "Agent Profile (`doctrine.agent_profiles.schema_models`)", level: 3}
+    - {slug: "agent-profile-doctrine-agent_profiles-schema-models", text: "Agent Profile (`doctrine.agent_profiles.schema_models`)", level: 3}
     - {slug: "new-infrastructure-in-generate-schemas-py", text: "New Infrastructure in generate\\_schemas.py", level: 2}
     - {slug: "ddd-paradigm-artifact", text: "DDD Paradigm Artifact", level: 2}
     - {slug: "final-state", text: "Final State", level: 2}
@@ -12219,7 +12219,7 @@ pages:
     - {slug: "6-1-schema-validation", text: "6.1 Schema validation", level: 3}
     - {slug: "6-2-profile-repository-shipped-profiles", text: "6.2 Profile repository — shipped profiles", level: 3}
     - {slug: "6-3-profile-aware-resolver", text: "6.3 Profile-aware resolver", level: 3}
-    - {slug: "6-4-spec-kitty-init-deploys-agent-profiles", text: "6.4 `spec-kitty init` deploys agent profiles", level: 3}
+    - {slug: "6-4-spec-kitty-init-deploys-agent_profiles", text: "6.4 `spec-kitty init` deploys agent profiles", level: 3}
     - {slug: "6-5-agent-profile-suggestion-in-task-templates", text: "6.5 Agent profile suggestion in task templates", level: 3}
     - {slug: "section-7-charter-defaults-and-init-time-doctrine-integration", text: "Section 7 — Charter defaults and init-time doctrine integration", level: 2}
     - {slug: "7-1-charter-generated-at-init", text: "7.1 Charter generated at init", level: 3}
@@ -12267,7 +12267,7 @@ pages:
     - {slug: "6-1-schema-validation", text: "6.1 Schema validation", level: 3}
     - {slug: "6-2-profile-repository-shipped-profiles-exist", text: "6.2 Profile repository — shipped profiles exist", level: 3}
     - {slug: "6-3-profile-aware-resolver", text: "6.3 Profile-aware resolver", level: 3}
-    - {slug: "6-4-spec-kitty-init-deploys-agent-profiles", text: "6.4 `spec-kitty init` deploys agent profiles", level: 3}
+    - {slug: "6-4-spec-kitty-init-deploys-agent_profiles", text: "6.4 `spec-kitty init` deploys agent profiles", level: 3}
     - {slug: "6-5-agent-profile-suggestion-in-task-templates", text: "6.5 Agent profile suggestion in task templates", level: 3}
     - {slug: "7-charter-defaults-and-init-time-doctrine-integration", text: "7. Charter defaults and init-time doctrine integration", level: 2}
     - {slug: "7-1-charter-defaults-injected-at-init", text: "7.1 Charter defaults injected at init", level: 3}
@@ -12370,7 +12370,7 @@ pages:
     - {slug: "wp01-residuals-specify-cli-compat-registry-2026-04-20", text: "WP01 residuals — `specify_cli.compat.registry` (2026-04-20)", level: 2}
     - {slug: "wp02-residuals-kernel-safe-re-2026-04-20", text: "WP02 residuals — `kernel._safe_re` (2026-04-20)", level: 2}
     - {slug: "wp04-residuals-doctrine-resolver-2026-04-20", text: "WP04 residuals — `doctrine.resolver` (2026-04-20)", level: 2}
-    - {slug: "wp05-residuals-doctrine-agent-profiles-2026-04-20", text: "WP05 residuals — `doctrine.agent_profiles` (2026-04-20)", level: 2}
+    - {slug: "wp05-residuals-doctrine-agent_profiles-2026-04-20", text: "WP05 residuals — `doctrine.agent_profiles` (2026-04-20)", level: 2}
     - {slug: "wp06-residuals-doctrine-missions-2026-04-20", text: "WP06 residuals — `doctrine.missions` (2026-04-20)", level: 2}
     - {slug: "wp07-residuals-doctrine-shared-2026-04-20-phase-2-close", text: "WP07 residuals — `doctrine.shared` (2026-04-20) [Phase 2 close]", level: 2}
   - path: "docs/plans/testing/qa-tidy-first-sequencing.md"
