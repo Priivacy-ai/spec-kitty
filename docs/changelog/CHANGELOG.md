@@ -363,6 +363,15 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **Activating a slug-named hub directive (e.g. `use-c4-model-techniques`) in a
+  charter now resolves to the real doctrine node instead of a dangling
+  identifier (`#3009`, `#3298`).** The directive-id normalizer folded numbered
+  slugs (`024-...` → `DIRECTIVE_024`) but left slug-named directives hyphenated
+  and uppercased (`use-c4-model-techniques` → `USE-C4-MODEL-TECHNIQUES`), which
+  is not the artifact's canonical node id (`USE_C4_MODEL_TECHNIQUES`). So
+  activating or referencing such a directive by its slug silently pointed at
+  nothing. The normalizer now folds hyphens to underscores, matching the
+  canonical node id — so slug-hub directives activate and cascade like any other.
 - **`spec-kitty tracker sync publish` on a local (`beads`/`fp`) binding now
   prints a clear error instead of crashing with a Python traceback (`#3168`).**
   Local providers have no snapshot-publish transport, but the command delegated
