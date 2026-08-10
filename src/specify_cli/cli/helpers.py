@@ -198,7 +198,7 @@ def _render_nag_if_needed(ctx: typer.Context) -> None:
 
     try:
         # Deferred imports to avoid circular imports at module load time.
-        from datetime import UTC, datetime  # noqa: PLC0415
+        from kernel.clock import now_utc  # noqa: PLC0415
 
         from specify_cli.compat import Decision  # noqa: PLC0415
         from specify_cli.compat import Invocation  # noqa: PLC0415
@@ -241,7 +241,7 @@ def _render_nag_if_needed(ctx: typer.Context) -> None:
         try:
             nag_cache = NagCache.default()
             existing = nag_cache.read()
-            now = datetime.now(UTC)
+            now = now_utc()
             if existing is not None:
                 updated_record = replace(existing, last_shown_at=now)
             else:

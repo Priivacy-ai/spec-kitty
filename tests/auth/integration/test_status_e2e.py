@@ -8,7 +8,7 @@ a :class:`FakeSecureStorage` pre-populated with a known session.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, UTC
+from kernel.clock import UTC, now_utc, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -27,7 +27,7 @@ runner = CliRunner()
 
 def _authenticated_session() -> StoredSession:
     """Build a StoredSession with deterministic, human-readable fields."""
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id="u_alice",
         email="alice@example.com",
@@ -108,7 +108,7 @@ class TestStatusE2E:
         fake_storage: FakeSecureStorage,
     ) -> None:
         """A session whose refresh token has expired prompts re-login."""
-        now = datetime.now(UTC)
+        now = now_utc()
         session = _authenticated_session()
         # Force refresh expiry into the past.
         session.refresh_token_expires_at = now - timedelta(minutes=1)

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from datetime import UTC, datetime, timedelta
+from kernel.clock import now_utc, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -1271,7 +1271,7 @@ class TestTasksStatusReviewWarnings:
         """The CLI status command flags in_review WPs past the review threshold."""
         mission_slug = "test-status-stalled-review"
         feature_dir, _wp_file = _build_wp_file(tmp_path, mission_slug, "WP01")
-        event_time = datetime.now(UTC) - timedelta(minutes=45)
+        event_time = now_utc() - timedelta(minutes=45)
         event = StatusEvent(
             event_id="test-WP01-in-review",
             mission_slug=feature_dir.name,

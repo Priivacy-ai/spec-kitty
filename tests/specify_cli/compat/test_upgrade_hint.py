@@ -228,7 +228,7 @@ class TestSourceHintRendersWithoutUnavailable:
 
     def test_source_hint_renders_without_unavailable(self) -> None:
         """render_human for PROJECT_TOO_NEW_FOR_CLI + SOURCE install must not produce <unavailable>."""
-        from datetime import datetime, UTC
+        from kernel.clock import UTC, datetime
         from pathlib import Path
 
         from specify_cli.compat.messages import render_human

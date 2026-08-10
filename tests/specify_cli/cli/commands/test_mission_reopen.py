@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from datetime import UTC, datetime
+from kernel.clock import UTC, datetime
 from pathlib import Path
 
 import pytest

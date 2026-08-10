@@ -21,7 +21,7 @@ from specify_cli.missions._read_path_resolver import (
 import contextlib
 import json
 import subprocess
-from datetime import UTC, datetime, timedelta
+from kernel.clock import UTC, datetime, now_utc, parse_iso, parse_stamp, timedelta
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -474,7 +474,7 @@ def _parse_iso_date_or_exit(value: str, flag_name: str) -> datetime:
     """Parse an ISO date/datetime string; raise BadParameter on failure."""
     for fmt in ("%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S%z"):
         try:
-            dt = datetime.strptime(value, fmt)
+            dt = parse_stamp(value, fmt)
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=UTC)
             return dt
@@ -482,7 +482,7 @@ def _parse_iso_date_or_exit(value: str, flag_name: str) -> datetime:
             continue
     # Try stdlib fromisoformat
     try:
-        dt = datetime.fromisoformat(value)
+        dt = parse_iso(value)
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=UTC)
         return dt
@@ -551,7 +551,7 @@ def _discover_missions_for_backfill(
             continue
 
         try:
-            completed_at = datetime.fromisoformat(completed_at_str)
+            completed_at = parse_iso(completed_at_str)
             if completed_at.tzinfo is None:
                 completed_at = completed_at.replace(tzinfo=UTC)
         except ValueError:
@@ -625,7 +625,7 @@ def backfill_cmd(  # noqa: C901
 ) -> None:
     """Author retrospective records for historical missions in bulk."""
     # Parse window
-    now = datetime.now(UTC)
+    now = now_utc()
     default_since = now - timedelta(days=30)
 
     since_dt: datetime = _parse_iso_date_or_exit(since, "--since") if since else default_since
@@ -932,7 +932,7 @@ def summary_cmd(  # noqa: C901
 
     READ-ONLY: no filesystem mutation is performed.
     """
-    from datetime import date as date_type
+    from kernel.clock import date as date_type
     from specify_cli.retrospective.cli import (
         _build_json_envelope as _base_json_envelope,
         _render_rich as _base_render_rich,

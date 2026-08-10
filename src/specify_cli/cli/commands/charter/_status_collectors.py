@@ -6,7 +6,7 @@ serialises to JSON or renders to the console. Kept in their own module so
 """
 from __future__ import annotations
 
-from datetime import date
+from kernel.clock import date
 from pathlib import Path
 from typing import Any
 

@@ -25,7 +25,7 @@ as a failure to shells / scripts.
 
 from __future__ import annotations
 
-from datetime import datetime, UTC
+from kernel.clock import UTC, datetime, now_utc
 
 from specify_cli.cli.console import console
 
@@ -130,7 +130,7 @@ def _print_token_expiry(session: StoredSession) -> None:
     replayed/legacy sessions written before the amendment — re-login
     populates the field.
     """
-    now = datetime.now(UTC)
+    now = now_utc()
     access_remaining = (session.access_token_expires_at - now).total_seconds()
     console.print(f"  Access token:   {format_duration(access_remaining)}")
 

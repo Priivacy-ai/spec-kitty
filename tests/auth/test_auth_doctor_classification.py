@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import datetime, timedelta, UTC
+from kernel.clock import now_utc, timedelta
 from io import StringIO
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -50,7 +50,7 @@ pytestmark = [pytest.mark.integration]
 
 
 def _make_session() -> StoredSession:
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id="user-abc",
         email="rob@example.com",

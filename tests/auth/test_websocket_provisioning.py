@@ -19,7 +19,7 @@ module so we never touch real secure storage or the network.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from kernel.clock import UTC, now_utc, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -46,7 +46,7 @@ def _make_session(access_remaining_seconds: int = 3600) -> StoredSession:
     does not communicate one. This hardcoded value is acceptable here
     because it is TEST CODE, not a real session being persisted.
     """
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id="u_alice",
         email="alice@example.com",

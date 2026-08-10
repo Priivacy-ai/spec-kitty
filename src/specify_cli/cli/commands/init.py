@@ -7,7 +7,7 @@ import os
 import shutil
 import subprocess
 import sys
-from datetime import datetime
+from kernel.clock import now_utc
 from pathlib import Path
 from collections.abc import Callable
 
@@ -1185,7 +1185,7 @@ def init(  # noqa: C901
 
         metadata = ProjectMetadata(
             version=__version__,
-            initialized_at=datetime.now(),
+            initialized_at=now_utc(),
             python_version=plat.python_version(),
             platform=system.platform,
             platform_version=plat.platform(),

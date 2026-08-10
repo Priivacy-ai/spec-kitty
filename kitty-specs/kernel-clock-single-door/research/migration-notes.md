@@ -210,3 +210,77 @@ WP03 self-check golden. The `tasks_move_task.py` date-stamp site (a distinct
 against parsed event times) likewise need no separate registry entry: the
 former is exercised by `format_stamp`'s own WP04 round-trip tests, the
 latter never produces a persisted byte.
+
+## WP13 — specify_cli/cli, rest (`src/specify_cli/cli/` excl. `cli/commands/agent/`)
+
+| Site | Was | Now | Byte-changing? | Test |
+|---|---|---|---|---|
+| `cli/commands/init.py` (`ProjectMetadata.initialized_at`, persisted `.kittify/metadata.yaml`) | naive `datetime.now()` | aware-UTC `now_utc()` | **Yes** — `ProjectMetadata.save()` renders `self.initialized_at.isoformat()`; a naive `datetime.isoformat()` has no UTC offset suffix, an aware one gets `+00:00`. Every freshly-`init`'d project's `metadata.yaml` gains the offset. | `tests/specify_cli/cli/commands/test_init_integration.py::test_metadata_initialized_at_is_aware_utc` — asserts the on-disk `initialized_at` string ends with `+00:00` (fails if the door call is reverted to a naive `datetime.now()`). |
+| `cli/commands/upgrade.py` (`metadata.last_upgraded_at`, persisted `.kittify/metadata.yaml`, the "no migrations needed, still stamp the version" path) | naive `datetime.now()` | aware-UTC `now_utc()` | **Yes** — same `ProjectMetadata.save()` serializer as `initialized_at` above; `last_upgraded_at` is explicitly masked (not omitted) in the compare-before-write dedup check (`_mask_volatile_metadata`), so the on-disk bytes still change on every stamped upgrade. | `tests/specify_cli/cli/commands/test_upgrade_command.py::test_no_op_upgrade_stamps_last_upgraded_at_as_aware_utc` — asserts the on-disk `last_upgraded_at` string ends with `+00:00` (fails under the same naive-revert mutation). |
+| `cli/commands/glossary.py` (`_load_store_from_seeds`, 2 sites: the `GlossarySenseUpdated`/`GlossaryClarificationResolved` event-replay fallback used when an event dict lacks a `timestamp` field, `Provenance.timestamp`) | naive `datetime.fromisoformat(event.get("timestamp", datetime.now().isoformat()))` | `parse_iso(event.get("timestamp", now_utc_iso()))` | **Yes** — a naive fallback, once round-tripped through `fromisoformat`, produces a naive `Provenance.timestamp`; any downstream serializer of that field (e.g. `glossary/models.py::term_sense_to_dict`) would render it without a UTC offset. Rare in practice (only trips when a replayed event is missing its `timestamp` key), but adjudicated per FR-011 rather than left un-audited. | `tests/agent/cli/commands/test_glossary.py::TestStoreHelpers::test_replayed_sense_missing_timestamp_gets_aware_utc_fallback` — writes a `GlossarySenseUpdated` event with no `timestamp` field and asserts the resulting sense's `provenance.timestamp.tzinfo` is not `None` (fails if the door's `now_utc_iso()` fallback is reverted to a naive `datetime.now().isoformat()`). |
+
+Adjudication: all three sites above are converted (not pinned-naive) — the
+"naive local-time bug is fixed" scenario from spec.md, not a legitimate
+local-display consumer. `now_naive_local()` was NOT added to the door (no
+WP13 site needed it).
+
+All other WP13 wall-clock sites (`_auth_doctor.py`, `_auth_status.py`,
+`charter/_status_collectors.py`, `charter/_widen.py`, `doctor.py`,
+`retrospect.py`, `sync.py`, `cli/helpers.py`, and the ten owned test files)
+used only aware forms (`datetime.now(UTC)`, `datetime.now(tz=UTC)`) or
+parse/format helpers (`datetime.fromisoformat`, `datetime.strptime`); no
+further genuinely naive site existed to adjudicate.
+
+Byte-identical routings persisted to disk are registered in
+`tests/kernel/test_byte_identity_mapping.py` (`_auth_doctor.assemble_report`,
+`widen.state.WidenPendingStore.add_pending`, `cli.helpers._render_nag_if_needed`,
+`cli.commands.upgrade._record_agent_choice` — all `datetime.now(UTC)` →
+`now_utc()`, unchanged shape). Sites that only ever feed a duration
+comparison or display string (`_auth_doctor`'s/`_auth_status`'s/`sync.py`'s
+token-expiry and "N ago" `now_utc()` calls, `retrospect.py`'s backfill-window
+`now_utc()`, `doctor.py`'s stale-sweep `now=now_utc()` threshold, and every
+`parse_iso`/`parse_stamp` parse-only call) never produce a persisted byte and
+need no registry entry.
+
+## WP13b — specify_cli/auth + specify_cli/compat (`src/specify_cli/auth/`, `src/specify_cli/compat/`, `tests/auth/`)
+
+`naive=∅`. Every wall-clock site across `auth/{device_flow/state,flows/
+authorization_code,flows/device_code,flows/refresh,http/transport,loopback/
+state,session,session_hot_path,transport}.py` and `compat/{cache,history,
+planner}.py` used only aware forms (`datetime.now(UTC)`, `datetime.now(tz=
+UTC)`) or parse/format helpers (`datetime.fromisoformat`) — no genuinely
+naive `datetime.now()`/`utcnow()` site existed to adjudicate. `now_naive_
+local()` was NOT added to the door.
+
+**`time.time()` sites — adjudicated as epoch computations, not naive-local
+bugs (byte-identical, no migration note needed):**
+
+| Site | Was | Now | Byte-changing? |
+|---|---|---|---|
+| `auth/session_hot_path.py::publish_session_hot_path` (persisted `session.hot-path.json` `generated_at` field) | raw `time.time()` | `now_epoch()` | **No.** `now_epoch()` is defined as exactly `DEFAULT_CLOCK.now_epoch()` → `time.time()` (WP03); byte-identical delegation. Registered as `specify_cli.auth.session_hot_path.publish_session_hot_path#generated_at` in the mapping harness. |
+| `auth/session_hot_path.py::load_session_hot_path` (freshness-comparison `now` against the parsed `generated_at`) | raw `time.time()` | `now_epoch()` | No — a live comparison value, never itself persisted. |
+| `compat/history.py::UpgradeAttemptStore.consecutive_failure_count` (`cutoff` window-comparison against the persisted `created_at` epoch column, itself a `record.timestamp.timestamp()` derivation) | raw `time.time()` | `now_epoch()` | No — `cutoff` is a comparison threshold, never itself persisted; the epoch semantics match the column it's compared against (both are wall-clock Unix epoch, not intra-process duration), so `now_epoch()` — not `monotonic` — is the correct route per the classification rule (elapsed-window-over-persisted-wall-clock-epoch). |
+
+**Persisted, byte-identical `datetime.now(UTC)` → `now_utc()` routings**
+(registered in `tests/kernel/test_byte_identity_mapping.py`; representative
+entries only where multiple call sites share the identical producer/prior
+shape, per the WP11/WP12 dossier-style convention):
+
+| Site | Was | Now | Byte-changing? |
+|---|---|---|---|
+| `auth/flows/{authorization_code,device_code,refresh}.py` (`StoredSession.issued_at`/`access_token_expires_at`/`last_used_at`, persisted `session.json` via `to_dict()`/`to_json()`) and `auth/session.py::StoredSession.touch()`/`is_access_token_expired()`/`is_refresh_token_expired()` | `datetime.now(UTC)` | `now_utc()` | **No.** Registered (one representative entry) as `specify_cli.auth.session.StoredSession#issued_at`. |
+| `compat/planner.py::plan()`'s `now` default (feeds `_write_nag_cache_for_fetch`'s persisted `NagCacheRecord.fetched_at`, `.kittify/upgrade-nag-cache.json`) | `datetime.now(UTC)` | `now_utc()` | **No.** Registered as `specify_cli.compat.planner.plan#now_default`. |
+| `auth/device_flow/state.py` (`DeviceFlowState.created_at`/`expires_at`/`last_polled_at`) and `auth/loopback/state.py` (`PKCEState.created_at`/`expires_at`) | `datetime.now(UTC)` | `now_utc()` | No — both dataclasses are explicitly documented as in-flight, in-memory-only (never persisted); no registry entry needed. |
+| `auth/http/transport.py`/`auth/transport.py` (`_force_access_token_expired`, in-memory `session.access_token_expires_at` mutation for test-forcing a refresh) | `datetime.now(UTC)` | `now_utc()` | No — mutates an in-memory session object; not itself a persistence boundary. |
+
+All other `now_utc()`/`parse_iso()` routings (token-expiry comparisons in
+`session.py`/`session_hot_path.py`/`device_flow/state.py`/`loopback/state.py`,
+and every `datetime.fromisoformat` parse-only call in `session.py`,
+`compat/cache.py`, `compat/history.py`, `auth/flows/*.py`,
+`auth/session_hot_path.py`) never produce a persisted byte on their own (they
+either feed a boolean/`timedelta` comparison or reconstruct an in-memory
+`datetime` already covered by the producer-side registry entry above) and
+need no separate registry entry.
+
+C-005: no Lamport-clock files are owned by this WP (the Lamport module lives
+under `specify_cli/sync/`, WP09).
