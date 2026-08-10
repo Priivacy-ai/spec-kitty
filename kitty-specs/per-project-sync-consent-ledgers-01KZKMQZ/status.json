@@ -120,8 +120,8 @@
     "WP04": {
       "actor": "codex",
       "agent": "codex",
-      "agent_profile": "architect-alphonso",
-      "agent_profile_version": "1.0",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "planned",
       "last_event_id": "01KZMVDB7N3M7N8SEAN6TY9NNR",
@@ -139,15 +139,15 @@
         "reviewer": "codex",
         "verdict": "changes_requested"
       },
-      "role": "reviewer",
-      "shell_pid": 1091,
+      "role": "implementer",
+      "shell_pid": 0,
       "shell_pid_created_at": "1786272735.189561",
       "subtasks": {
-        "T016": "done",
-        "T017": "done",
-        "T018": "done",
-        "T019": "done",
-        "T020": "done"
+        "T016": "planned",
+        "T017": "planned",
+        "T018": "planned",
+        "T019": "planned",
+        "T020": "planned"
       }
     },
     "WP05": {
