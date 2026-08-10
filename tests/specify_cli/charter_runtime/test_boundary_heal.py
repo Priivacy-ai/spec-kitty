@@ -317,7 +317,8 @@ def test_orphaned_backing_artifact_at_boundary_still_refuses(
                 returncode=1,
                 stdout="",
                 stderr=(
-                    "Refused: this run would drop orphaned content without --prune:\n"
+                    "Refused: this run preserved orphaned content instead of dropping it; "
+                    "the following references are dangling (backing artifact deleted):\n"
                     "node directive:PROJECT_999 (backing artifact deleted)\n"
                 ),
             )

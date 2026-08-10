@@ -788,9 +788,15 @@ def _emit_orphan_refusal(
 ) -> None:
     """FR-014 / T014: refuse (exit 1) a plain run that would drop orphaned content.
 
-    Always raises ``typer.Exit(code=1)`` -- never returns normally. No write
-    has happened by this point: the caller only reaches here via the
-    no-write preview computed by ``_reconciliation_preview``.
+    Always raises ``typer.Exit(code=1)`` -- never returns normally. The real
+    run's call site (``synthesize.py``) reaches this AFTER
+    ``charter.synthesizer.synthesize()`` has already run in preserve mode --
+    i.e. after the write. Nothing was actually destroyed by that write:
+    preserve mode never deletes, so the "refuse" here is about the *content*
+    (a dangling, backing-artifact-deleted reference) rather than an
+    in-progress write. A no-write preview path (e.g. a future dry-run
+    caller reachable purely via ``_reconciliation_preview``) would reach
+    this function before any write at all.
     """
     lines = [_orphan_ref_to_line(ref) for ref in orphaned]
 
@@ -802,7 +808,10 @@ def _emit_orphan_refusal(
             "warnings": warnings_collected + lines,
         }, indent=2, sort_keys=True))
     else:
-        err_console.print("[red]Refused:[/red] this run would drop orphaned content without --prune:")
+        err_console.print(
+            "[red]Refused:[/red] this run preserved orphaned content instead of dropping it; "
+            "the following references are dangling (backing artifact deleted):"
+        )
         for line in lines:
             err_console.print(line)
         err_console.print(

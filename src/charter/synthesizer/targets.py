@@ -298,7 +298,10 @@ def build_targets(
                 # For tactic / styleguide: artifact_id == slug
                 artifact_id = slug
 
-            # Combine explicit + implicit source_urns (no duplicates).
+            # `explicit_source_urns` already resolved to the mission-type
+            # evidence URNs above when the answer context declared none, so
+            # this is a plain rename to the SynthesisTarget field name -- no
+            # combining/deduplication happens here.
             all_source_urns = explicit_source_urns
 
             target = SynthesisTarget(
