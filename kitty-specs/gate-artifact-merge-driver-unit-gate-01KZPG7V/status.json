@@ -1,0 +1,81 @@
+{
+  "event_count": 12,
+  "last_event_id": "01KZPJSJZ2H9HFXQS3AB8N736K",
+  "materialized_at": "2026-08-10T19:36:03.810042+00:00",
+  "mission_number": "",
+  "mission_slug": "gate-artifact-merge-driver-unit-gate-01KZPG7V",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 4,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "in_progress",
+      "last_event_id": "01KZPJHB20R2MGFT20V1JQC278",
+      "last_transition_at": "2026-08-10T19:31:33.568030+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 3326683,
+      "shell_pid_created_at": "1786390289.24"
+    },
+    "WP02": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "in_progress",
+      "last_event_id": "01KZPJNK5A369CJ9MMFHAD3EX7",
+      "last_transition_at": "2026-08-10T19:33:52.938251+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 3331929,
+      "shell_pid_created_at": "1786390428.61"
+    },
+    "WP03": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "in_progress",
+      "last_event_id": "01KZPJRBFGCZP2FDC9GVWQ2J64",
+      "last_transition_at": "2026-08-10T19:35:23.376204+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 3336027,
+      "shell_pid_created_at": "1786390518.62"
+    },
+    "WP04": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "in_progress",
+      "last_event_id": "01KZPJSJZ2H9HFXQS3AB8N736K",
+      "last_transition_at": "2026-08-10T19:36:03.810042+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 3339151,
+      "shell_pid_created_at": "1786390559.29"
+    }
+  }
+}
