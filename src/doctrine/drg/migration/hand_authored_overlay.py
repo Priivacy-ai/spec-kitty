@@ -50,6 +50,54 @@ from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.validator import assert_valid
 
 # ---------------------------------------------------------------------------
+# Repeated literals hoisted to named constants (Sonar python:S1192). Grouped
+# by role: DRG URNs referenced as node/edge endpoints, `when=` applicability
+# clauses shared verbatim across several profile->hub edges, and the shared
+# opening sentence fragment of a `reason=` value whose remainder differs per
+# edge (joined back with `+` where the literal is only the first chunk of an
+# implicitly-concatenated multi-line string).
+# ---------------------------------------------------------------------------
+
+_URN_ANTI_PATTERN_BIG_BALL_OF_MUD = "anti_pattern:big-ball-of-mud"
+_URN_ANTI_PATTERN_BIG_UPFRONT_DESIGN = "anti_pattern:big-upfront-design"
+_URN_ASSET_COMMON_DOCS_STRUCTURAL_LINT = "asset:common-docs-structural-lint"
+_URN_ACTION_DOCUMENTATION_DESIGN = "action:documentation/design"
+_URN_DIRECTIVE_025 = "directive:DIRECTIVE_025"
+_URN_DIRECTIVE_030 = "directive:DIRECTIVE_030"
+_URN_DIRECTIVE_034 = "directive:DIRECTIVE_034"
+_URN_DIRECTIVE_041 = "directive:DIRECTIVE_041"
+_URN_DIRECTIVE_RECONCILE_CHANGE_SCOPE_TENSIONS = "directive:RECONCILE_CHANGE_SCOPE_TENSIONS"
+_URN_DIRECTIVE_DISCIPLINED_REFACTORING = "directive:DISCIPLINED_REFACTORING"
+_URN_DIRECTIVE_USE_C4_MODEL_TECHNIQUES = "directive:USE_C4_MODEL_TECHNIQUES"
+_URN_DIRECTIVE_USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY = "directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY"
+_URN_PARADIGM_BROWNFIELD_ONBOARDING = "paradigm:brownfield-onboarding"
+_URN_PARADIGM_C4_INCREMENTAL_DETAIL_MODELING = "paradigm:c4-incremental-detail-modeling"
+_URN_PARADIGM_DOMAIN_DRIVEN_DESIGN = "paradigm:domain-driven-design"
+_URN_TACTIC_TERMINOLOGY_EXTRACTION_MAPPING = "tactic:terminology-extraction-mapping"
+_URN_TOOLGUIDE_CONTEXTIVE = "toolguide:contextive"
+_URN_PROFILE_ARCHITECT_ALPHONSO = "agent_profile:architect-alphonso"
+_URN_PROFILE_FRONTEND_FREDDY = "agent_profile:frontend-freddy"
+_URN_PROFILE_GENERIC_AGENT = "agent_profile:generic-agent"
+_URN_PROFILE_IMPLEMENTER_IVAN = "agent_profile:implementer-ivan"
+_URN_PROFILE_JAVA_JENNY = "agent_profile:java-jenny"
+_URN_PROFILE_NODE_NORRIS = "agent_profile:node-norris"
+_URN_PROFILE_PYTHON_PEDRO = "agent_profile:python-pedro"
+_URN_PROFILE_RANDY_REDUCER = "agent_profile:randy-reducer"
+_URN_PROFILE_REVIEWER_RENATA = "agent_profile:reviewer-renata"
+
+_WHEN_DISCIPLINED_REFACTORING_TIDYING = "when tidying code, encountering long classes/methods, or discovering convoluted logic"
+_WHEN_WRITING_OR_REVIEWING_ACCOMPANYING_TESTS = "when writing or reviewing the tests that accompany an implementation"
+_WHEN_ASSESSING_TESTS_CONSTRAIN_BEHAVIOUR = "when assessing whether the tests around a change actually constrain its behaviour"
+_WHEN_TESTS_MEET_QUALITY_GATE = "when assessing whether tests meet the quality gate they must pass"
+_WHEN_KEEPING_TESTS_AS_SCAFFOLD = "when keeping the tests they write a clear scaffold rather than friction"
+
+_REASON_IMPLEMENTER_REACHES_DISCIPLINED_REFACTORING = "An implementer-role profile should reach the disciplined-refactoring "
+_REASON_IMPLEMENTER_REACHES_TEST_FIRST_HUB = "An implementer-role profile should reach the test-first hub when "
+_REASON_IMPLEMENTER_REACHES_MUTATION_HUB = "An implementer-role profile should reach the mutation hub when "
+_REASON_IMPLEMENTER_REACHES_TEST_QUALITY_GATE_HUB = "An implementer-role profile should reach the test-quality-gate hub "
+_REASON_IMPLEMENTER_REACHES_TESTS_AS_SCAFFOLD_HUB = "An implementer-role profile should reach the tests-as-scaffold hub "
+
+# ---------------------------------------------------------------------------
 # The thirteen anti-pattern/smell nodes authored in
 # packs/built-in/anti_pattern.graph.yaml. None of these are ever an edge *source*
 # (rejects edges terminate at them), so they carry no outgoing edges of their
@@ -82,13 +130,13 @@ HAND_AUTHORED_NODES: tuple[DRGNode, ...] = (
         tags=["anti-pattern"],
     ),
     DRGNode(
-        urn="anti_pattern:big-ball-of-mud",
+        urn=_URN_ANTI_PATTERN_BIG_BALL_OF_MUD,
         kind=NodeKind.ANTI_PATTERN,
         label="Big Ball of Mud",
         tags=["anti-pattern"],
     ),
     DRGNode(
-        urn="anti_pattern:big-upfront-design",
+        urn=_URN_ANTI_PATTERN_BIG_UPFRONT_DESIGN,
         kind=NodeKind.ANTI_PATTERN,
         label="Big Upfront Design",
         tags=["anti-pattern"],
@@ -167,7 +215,7 @@ HAND_AUTHORED_NODES: tuple[DRGNode, ...] = (
 HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     DRGEdge(
         source="directive:DIRECTIVE_024",
-        target="directive:DIRECTIVE_025",
+        target=_URN_DIRECTIVE_025,
         relation=Relation.IN_TENSION_WITH,
         reason=(
             "Locality of Change bounds new work to the minimum scope the goal "
@@ -181,7 +229,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:DIRECTIVE_025",
+        source=_URN_DIRECTIVE_025,
         target="tactic:change-apply-smallest-viable-diff",
         relation=Relation.IN_TENSION_WITH,
         reason=(
@@ -195,23 +243,23 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
+        source=_URN_DIRECTIVE_RECONCILE_CHANGE_SCOPE_TENSIONS,
         target="directive:DIRECTIVE_024",
         relation=Relation.RECONCILES_TENSION,
     ),
     DRGEdge(
-        source="directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
-        target="directive:DIRECTIVE_025",
+        source=_URN_DIRECTIVE_RECONCILE_CHANGE_SCOPE_TENSIONS,
+        target=_URN_DIRECTIVE_025,
         relation=Relation.RECONCILES_TENSION,
     ),
     DRGEdge(
-        source="directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
+        source=_URN_DIRECTIVE_RECONCILE_CHANGE_SCOPE_TENSIONS,
         target="tactic:change-apply-smallest-viable-diff",
         relation=Relation.RECONCILES_TENSION,
     ),
     DRGEdge(
-        source="paradigm:brownfield-onboarding",
-        target="anti_pattern:big-ball-of-mud",
+        source=_URN_PARADIGM_BROWNFIELD_ONBOARDING,
+        target=_URN_ANTI_PATTERN_BIG_BALL_OF_MUD,
         relation=Relation.REJECTS,
         reason=(
             "A Big Ball of Mud is the failure mode brownfield onboarding is "
@@ -222,8 +270,8 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="paradigm:brownfield-onboarding",
-        target="anti_pattern:big-upfront-design",
+        source=_URN_PARADIGM_BROWNFIELD_ONBOARDING,
+        target=_URN_ANTI_PATTERN_BIG_UPFRONT_DESIGN,
         relation=Relation.REJECTS,
         reason=(
             "Big Upfront Design assumes the right structure can be derived "
@@ -234,8 +282,8 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="paradigm:c4-incremental-detail-modeling",
-        target="anti_pattern:big-upfront-design",
+        source=_URN_PARADIGM_C4_INCREMENTAL_DETAIL_MODELING,
+        target=_URN_ANTI_PATTERN_BIG_UPFRONT_DESIGN,
         relation=Relation.REJECTS,
         reason=(
             "Big Upfront Design attempts to specify every architectural "
@@ -245,7 +293,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="paradigm:c4-incremental-detail-modeling",
+        source=_URN_PARADIGM_C4_INCREMENTAL_DETAIL_MODELING,
         target="anti_pattern:code-is-the-documentation",
         relation=Relation.REJECTS,
         reason=(
@@ -257,7 +305,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="paradigm:c4-incremental-detail-modeling",
+        source=_URN_PARADIGM_C4_INCREMENTAL_DETAIL_MODELING,
         target="anti_pattern:single-diagram-architecture",
         relation=Relation.REJECTS,
         reason=(
@@ -268,7 +316,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="paradigm:domain-driven-design",
+        source=_URN_PARADIGM_DOMAIN_DRIVEN_DESIGN,
         target="anti_pattern:anemic-domain-model",
         relation=Relation.REJECTS,
         reason=(
@@ -279,8 +327,8 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="paradigm:domain-driven-design",
-        target="anti_pattern:big-ball-of-mud",
+        source=_URN_PARADIGM_DOMAIN_DRIVEN_DESIGN,
+        target=_URN_ANTI_PATTERN_BIG_BALL_OF_MUD,
         relation=Relation.REJECTS,
         reason=(
             "A Big Ball of Mud architecture has no explicit context "
@@ -290,7 +338,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="paradigm:domain-driven-design",
+        source=_URN_PARADIGM_DOMAIN_DRIVEN_DESIGN,
         target="anti_pattern:database-driven-design",
         relation=Relation.REJECTS,
         reason=(
@@ -323,7 +371,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # -----------------------------------------------------------------------
     DRGEdge(
         source="directive:DIRECTIVE_042",
-        target="asset:common-docs-structural-lint",
+        target=_URN_ASSET_COMMON_DOCS_STRUCTURAL_LINT,
         relation=Relation.REQUIRES,
         reason=(
             "DIRECTIVE_042 names the common-docs structural lint as the live "
@@ -333,7 +381,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     ),
     DRGEdge(
         source="styleguide:common-docs",
-        target="asset:common-docs-structural-lint",
+        target=_URN_ASSET_COMMON_DOCS_STRUCTURAL_LINT,
         relation=Relation.REQUIRES,
         reason=(
             "The common-docs styleguide's tooling rows and quality_test name "
@@ -344,7 +392,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     ),
     DRGEdge(
         source="tactic:common-docs-curation",
-        target="asset:common-docs-structural-lint",
+        target=_URN_ASSET_COMMON_DOCS_STRUCTURAL_LINT,
         relation=Relation.REQUIRES,
         reason=(
             "The common-docs curation tactic directs the agent to run the "
@@ -354,7 +402,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     ),
     DRGEdge(
         source="tactic:common-docs-scaffold",
-        target="asset:common-docs-structural-lint",
+        target=_URN_ASSET_COMMON_DOCS_STRUCTURAL_LINT,
         relation=Relation.REQUIRES,
         reason=(
             "The common-docs scaffold tactic relies on the structural lint's "
@@ -475,7 +523,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # -----------------------------------------------------------------------
     DRGEdge(
         source="action:software-dev/specify",
-        target="paradigm:domain-driven-design",
+        target=_URN_PARADIGM_DOMAIN_DRIVEN_DESIGN,
         relation=Relation.SCOPE,
         reason=(
             "The software-dev specify step aligns the mission design with "
@@ -489,7 +537,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="paradigm:domain-driven-design",
+        source=_URN_PARADIGM_DOMAIN_DRIVEN_DESIGN,
         target="tactic:bounded-context-identification",
         relation=Relation.REQUIRES,
         reason=(
@@ -499,7 +547,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="paradigm:domain-driven-design",
+        source=_URN_PARADIGM_DOMAIN_DRIVEN_DESIGN,
         target="tactic:context-mapping-classification",
         relation=Relation.REQUIRES,
         reason=(
@@ -509,7 +557,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="paradigm:domain-driven-design",
+        source=_URN_PARADIGM_DOMAIN_DRIVEN_DESIGN,
         target="tactic:context-boundary-inference",
         relation=Relation.REQUIRES,
         reason=(
@@ -520,7 +568,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="paradigm:domain-driven-design",
+        source=_URN_PARADIGM_DOMAIN_DRIVEN_DESIGN,
         target="tactic:bounded-context-canvas-fill",
         relation=Relation.REQUIRES,
         reason=(
@@ -531,7 +579,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="paradigm:domain-driven-design",
+        source=_URN_PARADIGM_DOMAIN_DRIVEN_DESIGN,
         target="tactic:strategic-domain-classification",
         relation=Relation.REQUIRES,
         reason=(
@@ -543,7 +591,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="paradigm:domain-driven-design",
+        source=_URN_PARADIGM_DOMAIN_DRIVEN_DESIGN,
         target="tactic:aggregate-boundary-design",
         relation=Relation.REQUIRES,
         reason=(
@@ -553,7 +601,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="paradigm:domain-driven-design",
+        source=_URN_PARADIGM_DOMAIN_DRIVEN_DESIGN,
         target="tactic:entity-value-object-classification",
         relation=Relation.REQUIRES,
         reason=(
@@ -563,7 +611,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="paradigm:domain-driven-design",
+        source=_URN_PARADIGM_DOMAIN_DRIVEN_DESIGN,
         target="tactic:domain-event-capture",
         relation=Relation.REQUIRES,
         reason=(
@@ -573,7 +621,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="paradigm:domain-driven-design",
+        source=_URN_PARADIGM_DOMAIN_DRIVEN_DESIGN,
         target="tactic:anti-corruption-layer",
         relation=Relation.REQUIRES,
         reason=(
@@ -584,7 +632,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="paradigm:domain-driven-design",
+        source=_URN_PARADIGM_DOMAIN_DRIVEN_DESIGN,
         target="styleguide:aggregate-design-rules",
         relation=Relation.REQUIRES,
         reason=(
@@ -603,8 +651,8 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # convention in this same file. Content-only edit: no node/edge cardinality
     # or relation-histogram move.
     DRGEdge(
-        source="agent_profile:architect-alphonso",
-        target="paradigm:domain-driven-design",
+        source=_URN_PROFILE_ARCHITECT_ALPHONSO,
+        target=_URN_PARADIGM_DOMAIN_DRIVEN_DESIGN,
         relation=Relation.SUGGESTS,
         when="designing or reviewing significant code changes",
         reason=(
@@ -616,7 +664,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     ),
     DRGEdge(
         source="agent_profile:paula-patterns",
-        target="paradigm:domain-driven-design",
+        target=_URN_PARADIGM_DOMAIN_DRIVEN_DESIGN,
         relation=Relation.SUGGESTS,
         when="investigating or inspecting code",
         reason=(
@@ -626,8 +674,8 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="agent_profile:randy-reducer",
-        target="paradigm:domain-driven-design",
+        source=_URN_PROFILE_RANDY_REDUCER,
+        target=_URN_PARADIGM_DOMAIN_DRIVEN_DESIGN,
         relation=Relation.SUGGESTS,
         when="investigating or inspecting code",
         reason=(
@@ -693,7 +741,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # to the fast-follow, not authored in this pass.
     # -----------------------------------------------------------------------
     DRGEdge(
-        source="directive:DISCIPLINED_REFACTORING",
+        source=_URN_DIRECTIVE_DISCIPLINED_REFACTORING,
         target="tactic:refactoring-encapsulate-record",
         relation=Relation.SUGGESTS,
         when=(
@@ -709,7 +757,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:DISCIPLINED_REFACTORING",
+        source=_URN_DIRECTIVE_DISCIPLINED_REFACTORING,
         target="tactic:refactoring-encapsulate-variable",
         relation=Relation.SUGGESTS,
         when=(
@@ -725,13 +773,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:DISCIPLINED_REFACTORING",
+        source=_URN_DIRECTIVE_DISCIPLINED_REFACTORING,
         target="tactic:refactoring-extract-first-order-concept",
         relation=Relation.SUGGESTS,
-        when=(
-            "an important concept is implicit, duplicated, or scattered across the "
-            "code with no explicit name or single home"
-        ),
+        when=("an important concept is implicit, duplicated, or scattered across the code with no explicit name or single home"),
         reason=(
             "Disciplined refactoring suggests Extract First-Order Concept when the "
             "smell is a hidden/duplicated concept that should be named; the `when` "
@@ -740,13 +785,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:DISCIPLINED_REFACTORING",
+        source=_URN_DIRECTIVE_DISCIPLINED_REFACTORING,
         target="tactic:refactoring-move-field",
         relation=Relation.SUGGESTS,
-        when=(
-            "a field is read and modified more by another class than the one that "
-            "declares it, so data ownership has drifted"
-        ),
+        when=("a field is read and modified more by another class than the one that declares it, so data ownership has drifted"),
         reason=(
             "Disciplined refactoring suggests Move Field when the smell is a field "
             "living on the wrong owner; the `when` is the tactic's own stated "
@@ -754,13 +796,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:DISCIPLINED_REFACTORING",
+        source=_URN_DIRECTIVE_DISCIPLINED_REFACTORING,
         target="tactic:refactoring-move-method",
         relation=Relation.SUGGESTS,
-        when=(
-            "a method uses more of another class's data and behaviour than its own "
-            "host's (feature envy)"
-        ),
+        when=("a method uses more of another class's data and behaviour than its own host's (feature envy)"),
         reason=(
             "Disciplined refactoring suggests Move Method when the smell is feature "
             "envy; the `when` is the tactic's own stated applicability (its first "
@@ -769,7 +808,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:DISCIPLINED_REFACTORING",
+        source=_URN_DIRECTIVE_DISCIPLINED_REFACTORING,
         target="tactic:refactoring-state-pattern-for-behavior",
         relation=Relation.SUGGESTS,
         when=(
@@ -785,7 +824,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:DISCIPLINED_REFACTORING",
+        source=_URN_DIRECTIVE_DISCIPLINED_REFACTORING,
         target="tactic:refactoring-strangler-fig",
         relation=Relation.SUGGESTS,
         when=(
@@ -801,66 +840,61 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="agent_profile:frontend-freddy",
-        target="directive:DISCIPLINED_REFACTORING",
+        source=_URN_PROFILE_FRONTEND_FREDDY,
+        target=_URN_DIRECTIVE_DISCIPLINED_REFACTORING,
         relation=Relation.SUGGESTS,
-        when="when tidying code, encountering long classes/methods, or discovering convoluted logic",
+        when=_WHEN_DISCIPLINED_REFACTORING_TIDYING,
         reason=(
-            "An implementer-role profile should reach the disciplined-refactoring "
-            "directive when restructuring code. Composition-only under today's "
+            _REASON_IMPLEMENTER_REACHES_DISCIPLINED_REFACTORING + "directive when restructuring code. Composition-only under today's "
             "traversal (the profile channel walks requires/specializes_from only), "
             "authored per the #3063 family-B operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:generic-agent",
-        target="directive:DISCIPLINED_REFACTORING",
+        source=_URN_PROFILE_GENERIC_AGENT,
+        target=_URN_DIRECTIVE_DISCIPLINED_REFACTORING,
         relation=Relation.SUGGESTS,
-        when="when tidying code, encountering long classes/methods, or discovering convoluted logic",
+        when=_WHEN_DISCIPLINED_REFACTORING_TIDYING,
         reason=(
-            "An implementer-role profile should reach the disciplined-refactoring "
-            "directive when restructuring code. Composition-only under today's "
+            _REASON_IMPLEMENTER_REACHES_DISCIPLINED_REFACTORING + "directive when restructuring code. Composition-only under today's "
             "traversal, authored per the #3063 family-B operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:implementer-ivan",
-        target="directive:DISCIPLINED_REFACTORING",
+        source=_URN_PROFILE_IMPLEMENTER_IVAN,
+        target=_URN_DIRECTIVE_DISCIPLINED_REFACTORING,
         relation=Relation.SUGGESTS,
-        when="when tidying code, encountering long classes/methods, or discovering convoluted logic",
+        when=_WHEN_DISCIPLINED_REFACTORING_TIDYING,
         reason=(
-            "An implementer-role profile should reach the disciplined-refactoring "
-            "directive when restructuring code. Composition-only under today's "
+            _REASON_IMPLEMENTER_REACHES_DISCIPLINED_REFACTORING + "directive when restructuring code. Composition-only under today's "
             "traversal, authored per the #3063 family-B operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:java-jenny",
-        target="directive:DISCIPLINED_REFACTORING",
+        source=_URN_PROFILE_JAVA_JENNY,
+        target=_URN_DIRECTIVE_DISCIPLINED_REFACTORING,
         relation=Relation.SUGGESTS,
-        when="when tidying code, encountering long classes/methods, or discovering convoluted logic",
+        when=_WHEN_DISCIPLINED_REFACTORING_TIDYING,
         reason=(
-            "An implementer-role profile should reach the disciplined-refactoring "
-            "directive when restructuring code. Composition-only under today's "
+            _REASON_IMPLEMENTER_REACHES_DISCIPLINED_REFACTORING + "directive when restructuring code. Composition-only under today's "
             "traversal, authored per the #3063 family-B operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:node-norris",
-        target="directive:DISCIPLINED_REFACTORING",
+        source=_URN_PROFILE_NODE_NORRIS,
+        target=_URN_DIRECTIVE_DISCIPLINED_REFACTORING,
         relation=Relation.SUGGESTS,
-        when="when tidying code, encountering long classes/methods, or discovering convoluted logic",
+        when=_WHEN_DISCIPLINED_REFACTORING_TIDYING,
         reason=(
-            "An implementer-role profile should reach the disciplined-refactoring "
-            "directive when restructuring code. Composition-only under today's "
+            _REASON_IMPLEMENTER_REACHES_DISCIPLINED_REFACTORING + "directive when restructuring code. Composition-only under today's "
             "traversal, authored per the #3063 family-B operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:python-pedro",
-        target="directive:DISCIPLINED_REFACTORING",
+        source=_URN_PROFILE_PYTHON_PEDRO,
+        target=_URN_DIRECTIVE_DISCIPLINED_REFACTORING,
         relation=Relation.SUGGESTS,
-        when="when tidying code, encountering long classes/methods, or discovering convoluted logic",
+        when=_WHEN_DISCIPLINED_REFACTORING_TIDYING,
         reason=(
             "The primary implementer-role profile should reach the "
             "disciplined-refactoring directive when restructuring code. "
@@ -869,13 +903,12 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="agent_profile:randy-reducer",
-        target="directive:DISCIPLINED_REFACTORING",
+        source=_URN_PROFILE_RANDY_REDUCER,
+        target=_URN_DIRECTIVE_DISCIPLINED_REFACTORING,
         relation=Relation.SUGGESTS,
-        when="when tidying code, encountering long classes/methods, or discovering convoluted logic",
+        when=_WHEN_DISCIPLINED_REFACTORING_TIDYING,
         reason=(
-            "An implementer-role profile should reach the disciplined-refactoring "
-            "directive when restructuring code. Composition-only under today's "
+            _REASON_IMPLEMENTER_REACHES_DISCIPLINED_REFACTORING + "directive when restructuring code. Composition-only under today's "
             "traversal, authored per the #3063 family-B operator attestation."
         ),
     ),
@@ -949,8 +982,8 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # action-scoped, or the profile channel to follow `suggests`).
     # -----------------------------------------------------------------------
     DRGEdge(
-        source="directive:USE_C4_MODEL_TECHNIQUES",
-        target="paradigm:c4-incremental-detail-modeling",
+        source=_URN_DIRECTIVE_USE_C4_MODEL_TECHNIQUES,
+        target=_URN_PARADIGM_C4_INCREMENTAL_DETAIL_MODELING,
         relation=Relation.SUGGESTS,
         when=(
             "communicating a system's architecture to more than one audience at "
@@ -966,7 +999,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:USE_C4_MODEL_TECHNIQUES",
+        source=_URN_DIRECTIVE_USE_C4_MODEL_TECHNIQUES,
         target="tactic:c4-zoom-in-architecture-documentation",
         relation=Relation.SUGGESTS,
         when=(
@@ -981,7 +1014,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:USE_C4_MODEL_TECHNIQUES",
+        source=_URN_DIRECTIVE_USE_C4_MODEL_TECHNIQUES,
         target="tactic:architecture-diagram-review-checklist",
         relation=Relation.SUGGESTS,
         when=(
@@ -997,13 +1030,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:USE_C4_MODEL_TECHNIQUES",
+        source=_URN_DIRECTIVE_USE_C4_MODEL_TECHNIQUES,
         target="toolguide:mermaid-diagramming",
         relation=Relation.SUGGESTS,
-        when=(
-            "rendering the architecture diagrams as text-based, version-controlled "
-            "diagram-as-code in Mermaid so they diff and review beside the code"
-        ),
+        when=("rendering the architecture diagrams as text-based, version-controlled diagram-as-code in Mermaid so they diff and review beside the code"),
         reason=(
             "The C4 hub suggests the Mermaid toolguide as one text-based rendering "
             "option satisfying its 'keep diagrams as diagram-as-code' rule; the "
@@ -1012,13 +1042,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:USE_C4_MODEL_TECHNIQUES",
+        source=_URN_DIRECTIVE_USE_C4_MODEL_TECHNIQUES,
         target="toolguide:plantuml-diagramming",
         relation=Relation.SUGGESTS,
-        when=(
-            "rendering the architecture diagrams as text-based, version-controlled "
-            "diagram-as-code in PlantUML so they diff and review beside the code"
-        ),
+        when=("rendering the architecture diagrams as text-based, version-controlled diagram-as-code in PlantUML so they diff and review beside the code"),
         reason=(
             "The C4 hub suggests the PlantUML toolguide as the other text-based "
             "rendering option satisfying its 'keep diagrams as diagram-as-code' "
@@ -1027,7 +1054,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:USE_C4_MODEL_TECHNIQUES",
+        source=_URN_DIRECTIVE_USE_C4_MODEL_TECHNIQUES,
         target="procedure:drill-down-documentation",
         relation=Relation.SUGGESTS,
         when=(
@@ -1044,7 +1071,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:USE_C4_MODEL_TECHNIQUES",
+        source=_URN_DIRECTIVE_USE_C4_MODEL_TECHNIQUES,
         target="tactic:code-documentation-analysis",
         relation=Relation.SUGGESTS,
         when=(
@@ -1062,8 +1089,8 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:USE_C4_MODEL_TECHNIQUES",
-        target="paradigm:domain-driven-design",
+        source=_URN_DIRECTIVE_USE_C4_MODEL_TECHNIQUES,
+        target=_URN_PARADIGM_DOMAIN_DRIVEN_DESIGN,
         relation=Relation.SUGGESTS,
         when=(
             "the architecture being documented is organised around a domain model, "
@@ -1085,8 +1112,8 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="agent_profile:architect-alphonso",
-        target="directive:USE_C4_MODEL_TECHNIQUES",
+        source=_URN_PROFILE_ARCHITECT_ALPHONSO,
+        target=_URN_DIRECTIVE_USE_C4_MODEL_TECHNIQUES,
         relation=Relation.SUGGESTS,
         when="documenting or reviewing system architecture",
         reason=(
@@ -1183,13 +1210,11 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # D1. BDD/ATDD hub = directive:DIRECTIVE_034 (test-first-development).
     # DELIVERS at implement/review (034 is scope-resolved).
     DRGEdge(
-        source="directive:DIRECTIVE_034",
+        source=_URN_DIRECTIVE_034,
         target="tactic:development-bdd",
         relation=Relation.SUGGESTS,
         when=(
-            "designing observable behavioural contracts at a system's public "
-            "interfaces before implementation, so stakeholders can validate what "
-            "the system must do"
+            "designing observable behavioural contracts at a system's public interfaces before implementation, so stakeholders can validate what the system must do"
         ),
         reason=(
             "Test-first development suggests BDD-as-behavioural-contract-design as "
@@ -1199,13 +1224,11 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:DIRECTIVE_034",
+        source=_URN_DIRECTIVE_034,
         target="tactic:atdd-adversarial-acceptance",
         relation=Relation.SUGGESTS,
         when=(
-            "hardening acceptance criteria by deliberately exploring how a feature "
-            "could fail and turning selected failure modes into adversarial "
-            "acceptance tests"
+            "hardening acceptance criteria by deliberately exploring how a feature could fail and turning selected failure modes into adversarial acceptance tests"
         ),
         reason=(
             "Test-first development suggests adversarial acceptance-test definition "
@@ -1214,7 +1237,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:DIRECTIVE_034",
+        source=_URN_DIRECTIVE_034,
         target="paradigm:specification-by-example",
         relation=Relation.SUGGESTS,
         when=(
@@ -1229,7 +1252,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:DIRECTIVE_034",
+        source=_URN_DIRECTIVE_034,
         target="tactic:formalized-constraint-testing",
         relation=Relation.SUGGESTS,
         when=(
@@ -1245,13 +1268,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:DIRECTIVE_034",
+        source=_URN_DIRECTIVE_034,
         target="procedure:example-mapping-workshop",
         relation=Relation.SUGGESTS,
-        when=(
-            "turning a behaviour request into concrete rules, examples, and open "
-            "questions as a shared specification set before implementation"
-        ),
+        when=("turning a behaviour request into concrete rules, examples, and open questions as a shared specification set before implementation"),
         reason=(
             "Test-first development suggests the Example Mapping workshop as the "
             "collaborative step that produces the examples tests are written from; "
@@ -1260,14 +1280,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:DIRECTIVE_034",
+        source=_URN_DIRECTIVE_034,
         target="styleguide:given-when-then-authoring",
         relation=Relation.SUGGESTS,
-        when=(
-            "writing behavioural scenarios as Given (precondition) / When (single "
-            "trigger) / Then (observable outcome) in domain language, runner-"
-            "agnostic"
-        ),
+        when=("writing behavioural scenarios as Given (precondition) / When (single trigger) / Then (observable outcome) in domain language, runner-agnostic"),
         reason=(
             "Test-first development suggests the Given-When-Then authoring "
             "conventions for writing the scenarios; the `when` is the new "
@@ -1275,13 +1291,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:DIRECTIVE_034",
+        source=_URN_DIRECTIVE_034,
         target="toolguide:gherkin",
         relation=Relation.SUGGESTS,
-        when=(
-            "expressing those scenarios in the Gherkin DSL (Feature / Scenario / "
-            "Given-When-Then / Examples), independent of any runner"
-        ),
+        when=("expressing those scenarios in the Gherkin DSL (Feature / Scenario / Given-When-Then / Examples), independent of any runner"),
         reason=(
             "Test-first development suggests the Gherkin toolguide as the notation "
             "for the scenarios; the `when` is the new toolguide's own scope "
@@ -1294,7 +1307,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # brownfield already links its non-mandatory members (it mixes requires for
     # hard prerequisites with suggests, e.g. styleguide:adversarial-squad-cadence).
     DRGEdge(
-        source="paradigm:brownfield-onboarding",
+        source=_URN_PARADIGM_BROWNFIELD_ONBOARDING,
         target="tactic:reverse-speccing",
         relation=Relation.SUGGESTS,
         when=(
@@ -1310,7 +1323,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="paradigm:brownfield-onboarding",
+        source=_URN_PARADIGM_BROWNFIELD_ONBOARDING,
         target="tactic:test-to-system-reconstruction",
         relation=Relation.SUGGESTS,
         when=(
@@ -1329,13 +1342,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # INERT: the directive is not action-scoped and not charter-activated, so its
     # outbound `suggests` are never walked; these members stay in the deferred set.
     DRGEdge(
-        source="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        source=_URN_DIRECTIVE_USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY,
         target="tactic:mutation-testing-workflow",
         relation=Relation.SUGGESTS,
-        when=(
-            "running mutation testing to verify tests detect real bugs rather than "
-            "merely execute code, and triaging the surviving mutants"
-        ),
+        when=("running mutation testing to verify tests detect real bugs rather than merely execute code, and triaging the surviving mutants"),
         reason=(
             "The mutation hub suggests the run/triage workflow as its concrete "
             "step-by-step technique; the `when` is the tactic's own stated purpose. "
@@ -1344,13 +1354,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        source=_URN_DIRECTIVE_USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY,
         target="styleguide:mutation-aware-test-design",
         relation=Relation.SUGGESTS,
-        when=(
-            "designing tests so common mutants (boundary, logic, membership, "
-            "aggregate) are killed rather than tolerated"
-        ),
+        when=("designing tests so common mutants (boundary, logic, membership, aggregate) are killed rather than tolerated"),
         reason=(
             "The mutation hub suggests the mutation-aware test-design conventions "
             "as the design discipline that makes mutants killable; the `when` is "
@@ -1358,13 +1365,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        source=_URN_DIRECTIVE_USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY,
         target="toolguide:python-mutation-tools",
         relation=Relation.SUGGESTS,
-        when=(
-            "running mutation testing on Python code with mutmut (run/browse/apply, "
-            "equivalent-mutant annotation)"
-        ),
+        when=("running mutation testing on Python code with mutmut (run/browse/apply, equivalent-mutant annotation)"),
         reason=(
             "The mutation hub suggests the Python mutation toolguide (mutmut) as the "
             "generator for Python; the `when` is the toolguide's own scope. Inert "
@@ -1372,12 +1376,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        source=_URN_DIRECTIVE_USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY,
         target="toolguide:typescript-mutation-tools",
         relation=Relation.SUGGESTS,
-        when=(
-            "running mutation testing on TypeScript/JavaScript code with Stryker"
-        ),
+        when=("running mutation testing on TypeScript/JavaScript code with Stryker"),
         reason=(
             "The mutation hub suggests the TypeScript/JavaScript mutation toolguide "
             "(Stryker) as the generator for that stack; the `when` is the "
@@ -1388,7 +1390,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # gate) — the quality BAR the gate enforces. DELIVERS at implement/review (030
     # is scope-resolved).
     DRGEdge(
-        source="directive:DIRECTIVE_030",
+        source=_URN_DIRECTIVE_030,
         target="tactic:adversarial-qa-handoff",
         relation=Relation.SUGGESTS,
         when=(
@@ -1404,13 +1406,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:DIRECTIVE_030",
+        source=_URN_DIRECTIVE_030,
         target="tactic:work-package-completion-validation",
         relation=Relation.SUGGESTS,
-        when=(
-            "validating that a work package meets its required quality gates before "
-            "its status advances to for_review or done"
-        ),
+        when=("validating that a work package meets its required quality gates before its status advances to for_review or done"),
         reason=(
             "The quality gate suggests work-package completion validation as the "
             "check that its gates are actually met before a status transition; the "
@@ -1419,13 +1418,11 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:DIRECTIVE_030",
+        source=_URN_DIRECTIVE_030,
         target="styleguide:testing-principles",
         relation=Relation.SUGGESTS,
         when=(
-            "judging whether a test suite is fast, isolated, repeatable, self-"
-            "validating, thorough and truthful — the properties the quality gate "
-            "exists to protect"
+            "judging whether a test suite is fast, isolated, repeatable, self-validating, thorough and truthful — the properties the quality gate exists to protect"
         ),
         reason=(
             "The quality gate suggests the testing-principles styleguide as the "
@@ -1434,13 +1431,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:DIRECTIVE_030",
+        source=_URN_DIRECTIVE_030,
         target="styleguide:test-desiderata-and-boundaries",
         relation=Relation.SUGGESTS,
-        when=(
-            "assessing tests against the test desiderata (Kent Beck) and checking "
-            "each test owns exactly one behavioural boundary"
-        ),
+        when=("assessing tests against the test desiderata (Kent Beck) and checking each test owns exactly one behavioural boundary"),
         reason=(
             "The quality gate suggests the test-desiderata-and-boundaries styleguide "
             "as the finer-grained bar for a good test; the `when` is the "
@@ -1448,13 +1442,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:DIRECTIVE_030",
+        source=_URN_DIRECTIVE_030,
         target="toolguide:sonar",
         relation=Relation.SUGGESTS,
-        when=(
-            "running SonarQube static analysis and gating on NEW-code coverage, "
-            "code smells, security hotspots and duplication"
-        ),
+        when=("running SonarQube static analysis and gating on NEW-code coverage, code smells, security hotspots and duplication"),
         reason=(
             "The quality gate suggests the Sonar toolguide as the static-analysis "
             "gate that carries the size/complexity/duplication metrics that do not "
@@ -1466,14 +1457,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # friction) — the clarity / authoring side. INERT: 041 is NOT scope-linked from
     # any action, so its `suggests` are never walked; these members stay deferred.
     DRGEdge(
-        source="directive:DIRECTIVE_041",
+        source=_URN_DIRECTIVE_041,
         target="tactic:test-readability-clarity-check",
         relation=Relation.SUGGESTS,
-        when=(
-            "checking whether a test suite documents behaviour well enough to "
-            "reconstruct the system from tests alone (tests as executable "
-            "specification)"
-        ),
+        when=("checking whether a test suite documents behaviour well enough to reconstruct the system from tests alone (tests as executable specification)"),
         reason=(
             "Tests-as-scaffold suggests the readability/clarity check as the way to "
             "confirm tests remain a legible specification, not friction; the `when` "
@@ -1481,13 +1468,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:DIRECTIVE_041",
+        source=_URN_DIRECTIVE_041,
         target="tactic:zombies-tdd",
         relation=Relation.SUGGESTS,
-        when=(
-            "driving implementation through tiny behaviour increments (ZOMBIES) "
-            "with failing tests to control complexity"
-        ),
+        when=("driving implementation through tiny behaviour increments (ZOMBIES) with failing tests to control complexity"),
         reason=(
             "Tests-as-scaffold suggests ZOMBIES TDD as the increment-sized way to "
             "let tests scaffold the implementation; the `when` is the tactic's own "
@@ -1495,7 +1479,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="directive:DIRECTIVE_041",
+        source=_URN_DIRECTIVE_041,
         target="styleguide:quadruple-a-test-format",
         relation=Relation.SUGGESTS,
         when=(
@@ -1514,231 +1498,211 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # Seven implementer-role profiles -> {test-first 034, mutation, test-quality
     # 030, test-quality 041}.
     DRGEdge(
-        source="agent_profile:frontend-freddy",
-        target="directive:DIRECTIVE_034",
+        source=_URN_PROFILE_FRONTEND_FREDDY,
+        target=_URN_DIRECTIVE_034,
         relation=Relation.SUGGESTS,
-        when="when writing or reviewing the tests that accompany an implementation",
+        when=_WHEN_WRITING_OR_REVIEWING_ACCOMPANYING_TESTS,
         reason=(
-            "An implementer-role profile should reach the test-first hub when "
-            "writing tests. Composition-only in the profile channel (walks "
+            _REASON_IMPLEMENTER_REACHES_TEST_FIRST_HUB + "writing tests. Composition-only in the profile channel (walks "
             "requires/specializes_from only), authored per the #3063 family-D "
             "operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:frontend-freddy",
-        target="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        source=_URN_PROFILE_FRONTEND_FREDDY,
+        target=_URN_DIRECTIVE_USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY,
         relation=Relation.SUGGESTS,
-        when="when assessing whether the tests around a change actually constrain its behaviour",
+        when=_WHEN_ASSESSING_TESTS_CONSTRAIN_BEHAVIOUR,
         reason=(
-            "An implementer-role profile should reach the mutation hub when "
-            "assessing test quality. Composition-only in the profile channel, "
+            _REASON_IMPLEMENTER_REACHES_MUTATION_HUB + "assessing test quality. Composition-only in the profile channel, "
             "authored per the #3063 family-D operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:frontend-freddy",
-        target="directive:DIRECTIVE_030",
+        source=_URN_PROFILE_FRONTEND_FREDDY,
+        target=_URN_DIRECTIVE_030,
         relation=Relation.SUGGESTS,
-        when="when assessing whether tests meet the quality gate they must pass",
+        when=_WHEN_TESTS_MEET_QUALITY_GATE,
         reason=(
-            "An implementer-role profile should reach the test-quality-gate hub "
-            "when assessing test quality. Composition-only in the profile channel, "
+            _REASON_IMPLEMENTER_REACHES_TEST_QUALITY_GATE_HUB + "when assessing test quality. Composition-only in the profile channel, "
             "authored per the #3063 family-D operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:frontend-freddy",
-        target="directive:DIRECTIVE_041",
+        source=_URN_PROFILE_FRONTEND_FREDDY,
+        target=_URN_DIRECTIVE_041,
         relation=Relation.SUGGESTS,
-        when="when keeping the tests they write a clear scaffold rather than friction",
+        when=_WHEN_KEEPING_TESTS_AS_SCAFFOLD,
         reason=(
-            "An implementer-role profile should reach the tests-as-scaffold hub "
-            "when writing tests. Composition-only in the profile channel, authored "
+            _REASON_IMPLEMENTER_REACHES_TESTS_AS_SCAFFOLD_HUB + "when writing tests. Composition-only in the profile channel, authored "
             "per the #3063 family-D operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:generic-agent",
-        target="directive:DIRECTIVE_034",
+        source=_URN_PROFILE_GENERIC_AGENT,
+        target=_URN_DIRECTIVE_034,
         relation=Relation.SUGGESTS,
-        when="when writing or reviewing the tests that accompany an implementation",
+        when=_WHEN_WRITING_OR_REVIEWING_ACCOMPANYING_TESTS,
         reason=(
-            "An implementer-role profile should reach the test-first hub when "
-            "writing tests. Composition-only in the profile channel, authored per "
+            _REASON_IMPLEMENTER_REACHES_TEST_FIRST_HUB + "writing tests. Composition-only in the profile channel, authored per "
             "the #3063 family-D operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:generic-agent",
-        target="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        source=_URN_PROFILE_GENERIC_AGENT,
+        target=_URN_DIRECTIVE_USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY,
         relation=Relation.SUGGESTS,
-        when="when assessing whether the tests around a change actually constrain its behaviour",
+        when=_WHEN_ASSESSING_TESTS_CONSTRAIN_BEHAVIOUR,
         reason=(
-            "An implementer-role profile should reach the mutation hub when "
-            "assessing test quality. Composition-only in the profile channel, "
+            _REASON_IMPLEMENTER_REACHES_MUTATION_HUB + "assessing test quality. Composition-only in the profile channel, "
             "authored per the #3063 family-D operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:generic-agent",
-        target="directive:DIRECTIVE_030",
+        source=_URN_PROFILE_GENERIC_AGENT,
+        target=_URN_DIRECTIVE_030,
         relation=Relation.SUGGESTS,
-        when="when assessing whether tests meet the quality gate they must pass",
+        when=_WHEN_TESTS_MEET_QUALITY_GATE,
         reason=(
-            "An implementer-role profile should reach the test-quality-gate hub "
-            "when assessing test quality. Composition-only in the profile channel, "
+            _REASON_IMPLEMENTER_REACHES_TEST_QUALITY_GATE_HUB + "when assessing test quality. Composition-only in the profile channel, "
             "authored per the #3063 family-D operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:generic-agent",
-        target="directive:DIRECTIVE_041",
+        source=_URN_PROFILE_GENERIC_AGENT,
+        target=_URN_DIRECTIVE_041,
         relation=Relation.SUGGESTS,
-        when="when keeping the tests they write a clear scaffold rather than friction",
+        when=_WHEN_KEEPING_TESTS_AS_SCAFFOLD,
         reason=(
-            "An implementer-role profile should reach the tests-as-scaffold hub "
-            "when writing tests. Composition-only in the profile channel, authored "
+            _REASON_IMPLEMENTER_REACHES_TESTS_AS_SCAFFOLD_HUB + "when writing tests. Composition-only in the profile channel, authored "
             "per the #3063 family-D operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:implementer-ivan",
-        target="directive:DIRECTIVE_034",
+        source=_URN_PROFILE_IMPLEMENTER_IVAN,
+        target=_URN_DIRECTIVE_034,
         relation=Relation.SUGGESTS,
-        when="when writing or reviewing the tests that accompany an implementation",
+        when=_WHEN_WRITING_OR_REVIEWING_ACCOMPANYING_TESTS,
         reason=(
-            "An implementer-role profile should reach the test-first hub when "
-            "writing tests. Composition-only in the profile channel, authored per "
+            _REASON_IMPLEMENTER_REACHES_TEST_FIRST_HUB + "writing tests. Composition-only in the profile channel, authored per "
             "the #3063 family-D operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:implementer-ivan",
-        target="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        source=_URN_PROFILE_IMPLEMENTER_IVAN,
+        target=_URN_DIRECTIVE_USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY,
         relation=Relation.SUGGESTS,
-        when="when assessing whether the tests around a change actually constrain its behaviour",
+        when=_WHEN_ASSESSING_TESTS_CONSTRAIN_BEHAVIOUR,
         reason=(
-            "An implementer-role profile should reach the mutation hub when "
-            "assessing test quality. Composition-only in the profile channel, "
+            _REASON_IMPLEMENTER_REACHES_MUTATION_HUB + "assessing test quality. Composition-only in the profile channel, "
             "authored per the #3063 family-D operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:implementer-ivan",
-        target="directive:DIRECTIVE_030",
+        source=_URN_PROFILE_IMPLEMENTER_IVAN,
+        target=_URN_DIRECTIVE_030,
         relation=Relation.SUGGESTS,
-        when="when assessing whether tests meet the quality gate they must pass",
+        when=_WHEN_TESTS_MEET_QUALITY_GATE,
         reason=(
-            "An implementer-role profile should reach the test-quality-gate hub "
-            "when assessing test quality. Composition-only in the profile channel, "
+            _REASON_IMPLEMENTER_REACHES_TEST_QUALITY_GATE_HUB + "when assessing test quality. Composition-only in the profile channel, "
             "authored per the #3063 family-D operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:implementer-ivan",
-        target="directive:DIRECTIVE_041",
+        source=_URN_PROFILE_IMPLEMENTER_IVAN,
+        target=_URN_DIRECTIVE_041,
         relation=Relation.SUGGESTS,
-        when="when keeping the tests they write a clear scaffold rather than friction",
+        when=_WHEN_KEEPING_TESTS_AS_SCAFFOLD,
         reason=(
-            "An implementer-role profile should reach the tests-as-scaffold hub "
-            "when writing tests. Composition-only in the profile channel, authored "
+            _REASON_IMPLEMENTER_REACHES_TESTS_AS_SCAFFOLD_HUB + "when writing tests. Composition-only in the profile channel, authored "
             "per the #3063 family-D operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:java-jenny",
-        target="directive:DIRECTIVE_034",
+        source=_URN_PROFILE_JAVA_JENNY,
+        target=_URN_DIRECTIVE_034,
         relation=Relation.SUGGESTS,
-        when="when writing or reviewing the tests that accompany an implementation",
+        when=_WHEN_WRITING_OR_REVIEWING_ACCOMPANYING_TESTS,
         reason=(
-            "An implementer-role profile should reach the test-first hub when "
-            "writing tests. Composition-only in the profile channel, authored per "
+            _REASON_IMPLEMENTER_REACHES_TEST_FIRST_HUB + "writing tests. Composition-only in the profile channel, authored per "
             "the #3063 family-D operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:java-jenny",
-        target="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        source=_URN_PROFILE_JAVA_JENNY,
+        target=_URN_DIRECTIVE_USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY,
         relation=Relation.SUGGESTS,
-        when="when assessing whether the tests around a change actually constrain its behaviour",
+        when=_WHEN_ASSESSING_TESTS_CONSTRAIN_BEHAVIOUR,
         reason=(
-            "An implementer-role profile should reach the mutation hub when "
-            "assessing test quality. Composition-only in the profile channel, "
+            _REASON_IMPLEMENTER_REACHES_MUTATION_HUB + "assessing test quality. Composition-only in the profile channel, "
             "authored per the #3063 family-D operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:java-jenny",
-        target="directive:DIRECTIVE_030",
+        source=_URN_PROFILE_JAVA_JENNY,
+        target=_URN_DIRECTIVE_030,
         relation=Relation.SUGGESTS,
-        when="when assessing whether tests meet the quality gate they must pass",
+        when=_WHEN_TESTS_MEET_QUALITY_GATE,
         reason=(
-            "An implementer-role profile should reach the test-quality-gate hub "
-            "when assessing test quality. Composition-only in the profile channel, "
+            _REASON_IMPLEMENTER_REACHES_TEST_QUALITY_GATE_HUB + "when assessing test quality. Composition-only in the profile channel, "
             "authored per the #3063 family-D operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:java-jenny",
-        target="directive:DIRECTIVE_041",
+        source=_URN_PROFILE_JAVA_JENNY,
+        target=_URN_DIRECTIVE_041,
         relation=Relation.SUGGESTS,
-        when="when keeping the tests they write a clear scaffold rather than friction",
+        when=_WHEN_KEEPING_TESTS_AS_SCAFFOLD,
         reason=(
-            "An implementer-role profile should reach the tests-as-scaffold hub "
-            "when writing tests. Composition-only in the profile channel, authored "
+            _REASON_IMPLEMENTER_REACHES_TESTS_AS_SCAFFOLD_HUB + "when writing tests. Composition-only in the profile channel, authored "
             "per the #3063 family-D operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:node-norris",
-        target="directive:DIRECTIVE_034",
+        source=_URN_PROFILE_NODE_NORRIS,
+        target=_URN_DIRECTIVE_034,
         relation=Relation.SUGGESTS,
-        when="when writing or reviewing the tests that accompany an implementation",
+        when=_WHEN_WRITING_OR_REVIEWING_ACCOMPANYING_TESTS,
         reason=(
-            "An implementer-role profile should reach the test-first hub when "
-            "writing tests. Composition-only in the profile channel, authored per "
+            _REASON_IMPLEMENTER_REACHES_TEST_FIRST_HUB + "writing tests. Composition-only in the profile channel, authored per "
             "the #3063 family-D operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:node-norris",
-        target="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        source=_URN_PROFILE_NODE_NORRIS,
+        target=_URN_DIRECTIVE_USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY,
         relation=Relation.SUGGESTS,
-        when="when assessing whether the tests around a change actually constrain its behaviour",
+        when=_WHEN_ASSESSING_TESTS_CONSTRAIN_BEHAVIOUR,
         reason=(
-            "An implementer-role profile should reach the mutation hub when "
-            "assessing test quality. Composition-only in the profile channel, "
+            _REASON_IMPLEMENTER_REACHES_MUTATION_HUB + "assessing test quality. Composition-only in the profile channel, "
             "authored per the #3063 family-D operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:node-norris",
-        target="directive:DIRECTIVE_030",
+        source=_URN_PROFILE_NODE_NORRIS,
+        target=_URN_DIRECTIVE_030,
         relation=Relation.SUGGESTS,
-        when="when assessing whether tests meet the quality gate they must pass",
+        when=_WHEN_TESTS_MEET_QUALITY_GATE,
         reason=(
-            "An implementer-role profile should reach the test-quality-gate hub "
-            "when assessing test quality. Composition-only in the profile channel, "
+            _REASON_IMPLEMENTER_REACHES_TEST_QUALITY_GATE_HUB + "when assessing test quality. Composition-only in the profile channel, "
             "authored per the #3063 family-D operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:node-norris",
-        target="directive:DIRECTIVE_041",
+        source=_URN_PROFILE_NODE_NORRIS,
+        target=_URN_DIRECTIVE_041,
         relation=Relation.SUGGESTS,
-        when="when keeping the tests they write a clear scaffold rather than friction",
+        when=_WHEN_KEEPING_TESTS_AS_SCAFFOLD,
         reason=(
-            "An implementer-role profile should reach the tests-as-scaffold hub "
-            "when writing tests. Composition-only in the profile channel, authored "
+            _REASON_IMPLEMENTER_REACHES_TESTS_AS_SCAFFOLD_HUB + "when writing tests. Composition-only in the profile channel, authored "
             "per the #3063 family-D operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:python-pedro",
-        target="directive:DIRECTIVE_034",
+        source=_URN_PROFILE_PYTHON_PEDRO,
+        target=_URN_DIRECTIVE_034,
         relation=Relation.SUGGESTS,
-        when="when writing or reviewing the tests that accompany an implementation",
+        when=_WHEN_WRITING_OR_REVIEWING_ACCOMPANYING_TESTS,
         reason=(
             "The primary implementer-role profile should reach the test-first hub "
             "when writing tests. Composition-only in the profile channel, authored "
@@ -1746,10 +1710,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="agent_profile:python-pedro",
-        target="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        source=_URN_PROFILE_PYTHON_PEDRO,
+        target=_URN_DIRECTIVE_USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY,
         relation=Relation.SUGGESTS,
-        when="when assessing whether the tests around a change actually constrain its behaviour",
+        when=_WHEN_ASSESSING_TESTS_CONSTRAIN_BEHAVIOUR,
         reason=(
             "The primary implementer-role profile should reach the mutation hub "
             "when assessing test quality. Composition-only in the profile channel, "
@@ -1757,10 +1721,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="agent_profile:python-pedro",
-        target="directive:DIRECTIVE_030",
+        source=_URN_PROFILE_PYTHON_PEDRO,
+        target=_URN_DIRECTIVE_030,
         relation=Relation.SUGGESTS,
-        when="when assessing whether tests meet the quality gate they must pass",
+        when=_WHEN_TESTS_MEET_QUALITY_GATE,
         reason=(
             "The primary implementer-role profile should reach the test-quality-"
             "gate hub when assessing test quality. Composition-only in the profile "
@@ -1768,10 +1732,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="agent_profile:python-pedro",
-        target="directive:DIRECTIVE_041",
+        source=_URN_PROFILE_PYTHON_PEDRO,
+        target=_URN_DIRECTIVE_041,
         relation=Relation.SUGGESTS,
-        when="when keeping the tests they write a clear scaffold rather than friction",
+        when=_WHEN_KEEPING_TESTS_AS_SCAFFOLD,
         reason=(
             "The primary implementer-role profile should reach the tests-as-"
             "scaffold hub when writing tests. Composition-only in the profile "
@@ -1779,53 +1743,49 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="agent_profile:randy-reducer",
-        target="directive:DIRECTIVE_034",
+        source=_URN_PROFILE_RANDY_REDUCER,
+        target=_URN_DIRECTIVE_034,
         relation=Relation.SUGGESTS,
-        when="when writing or reviewing the tests that accompany an implementation",
+        when=_WHEN_WRITING_OR_REVIEWING_ACCOMPANYING_TESTS,
         reason=(
-            "An implementer-role profile should reach the test-first hub when "
-            "writing tests. Composition-only in the profile channel, authored per "
+            _REASON_IMPLEMENTER_REACHES_TEST_FIRST_HUB + "writing tests. Composition-only in the profile channel, authored per "
             "the #3063 family-D operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:randy-reducer",
-        target="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        source=_URN_PROFILE_RANDY_REDUCER,
+        target=_URN_DIRECTIVE_USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY,
         relation=Relation.SUGGESTS,
-        when="when assessing whether the tests around a change actually constrain its behaviour",
+        when=_WHEN_ASSESSING_TESTS_CONSTRAIN_BEHAVIOUR,
         reason=(
-            "An implementer-role profile should reach the mutation hub when "
-            "assessing test quality. Composition-only in the profile channel, "
+            _REASON_IMPLEMENTER_REACHES_MUTATION_HUB + "assessing test quality. Composition-only in the profile channel, "
             "authored per the #3063 family-D operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:randy-reducer",
-        target="directive:DIRECTIVE_030",
+        source=_URN_PROFILE_RANDY_REDUCER,
+        target=_URN_DIRECTIVE_030,
         relation=Relation.SUGGESTS,
-        when="when assessing whether tests meet the quality gate they must pass",
+        when=_WHEN_TESTS_MEET_QUALITY_GATE,
         reason=(
-            "An implementer-role profile should reach the test-quality-gate hub "
-            "when assessing test quality. Composition-only in the profile channel, "
+            _REASON_IMPLEMENTER_REACHES_TEST_QUALITY_GATE_HUB + "when assessing test quality. Composition-only in the profile channel, "
             "authored per the #3063 family-D operator attestation."
         ),
     ),
     DRGEdge(
-        source="agent_profile:randy-reducer",
-        target="directive:DIRECTIVE_041",
+        source=_URN_PROFILE_RANDY_REDUCER,
+        target=_URN_DIRECTIVE_041,
         relation=Relation.SUGGESTS,
-        when="when keeping the tests they write a clear scaffold rather than friction",
+        when=_WHEN_KEEPING_TESTS_AS_SCAFFOLD,
         reason=(
-            "An implementer-role profile should reach the tests-as-scaffold hub "
-            "when writing tests. Composition-only in the profile channel, authored "
+            _REASON_IMPLEMENTER_REACHES_TESTS_AS_SCAFFOLD_HUB + "when writing tests. Composition-only in the profile channel, authored "
             "per the #3063 family-D operator attestation."
         ),
     ),
     # reviewer-renata -> {test-quality 030, test-quality 041, mutation}
     DRGEdge(
-        source="agent_profile:reviewer-renata",
-        target="directive:DIRECTIVE_030",
+        source=_URN_PROFILE_REVIEWER_RENATA,
+        target=_URN_DIRECTIVE_030,
         relation=Relation.SUGGESTS,
         when="when assessing the quality of the tests under review",
         reason=(
@@ -1835,8 +1795,8 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="agent_profile:reviewer-renata",
-        target="directive:DIRECTIVE_041",
+        source=_URN_PROFILE_REVIEWER_RENATA,
+        target=_URN_DIRECTIVE_041,
         relation=Relation.SUGGESTS,
         when="when assessing whether the tests under review are a clear scaffold rather than friction",
         reason=(
@@ -1846,8 +1806,8 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="agent_profile:reviewer-renata",
-        target="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        source=_URN_PROFILE_REVIEWER_RENATA,
+        target=_URN_DIRECTIVE_USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY,
         relation=Relation.SUGGESTS,
         when="when assessing whether the tests under review actually constrain behaviour",
         reason=(
@@ -1859,7 +1819,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # debugger-debbie -> {mutation}
     DRGEdge(
         source="agent_profile:debugger-debbie",
-        target="directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
+        target=_URN_DIRECTIVE_USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY,
         relation=Relation.SUGGESTS,
         when="when assessing whether the tests around a defect actually constrain the behaviour that broke",
         reason=(
@@ -1873,13 +1833,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # architect profile, NOT via the DDD paradigm (which would deliver it at
     # specify). Measured inert: not reachable at d=1 or d=2.
     DRGEdge(
-        source="agent_profile:architect-alphonso",
+        source=_URN_PROFILE_ARCHITECT_ALPHONSO,
         target="procedure:event-storming-discovery",
         relation=Relation.SUGGESTS,
-        when=(
-            "discovering domain events, commands, aggregates, policies, read "
-            "models, and bounded-context boundaries from real business flows"
-        ),
+        when=("discovering domain events, commands, aggregates, policies, read models, and bounded-context boundaries from real business flows"),
         reason=(
             "Event Storming is a DDD-cluster discovery procedure (family-A). The "
             "operator's earlier guard keeps it OUT of the eager specify delivery "
@@ -1917,7 +1874,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # E1 (reasons-canvas / SPDD). The operator ruled: link only the canvas
     # *writing* as `suggests` to alphonso, for now. ONE edge.
     DRGEdge(
-        source="agent_profile:architect-alphonso",
+        source=_URN_PROFILE_ARCHITECT_ALPHONSO,
         target="styleguide:reasons-canvas-writing",
         relation=Relation.SUGGESTS,
         when=(
@@ -1948,8 +1905,8 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # `terminology-extraction-mapping` attests either paradigm; see the EXCLUDED
     # audit below for the other three.
     DRGEdge(
-        source="tactic:terminology-extraction-mapping",
-        target="paradigm:domain-driven-design",
+        source=_URN_TACTIC_TERMINOLOGY_EXTRACTION_MAPPING,
+        target=_URN_PARADIGM_DOMAIN_DRIVEN_DESIGN,
         relation=Relation.SUGGESTS,
         when=(
             "the extracted terms must be owned by a bounded context and cross-"
@@ -1968,8 +1925,8 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="tactic:terminology-extraction-mapping",
-        target="paradigm:brownfield-onboarding",
+        source=_URN_TACTIC_TERMINOLOGY_EXTRACTION_MAPPING,
+        target=_URN_PARADIGM_BROWNFIELD_ONBOARDING,
         relation=Relation.SUGGESTS,
         when=(
             "recovering a shared vocabulary from an existing system's source code "
@@ -1995,7 +1952,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # `references:` block) -- authoring it here would be a duplicate, so it is
     # OMITTED (three edges, not four). See the EXCLUDED audit.
     DRGEdge(
-        source="toolguide:contextive",
+        source=_URN_TOOLGUIDE_CONTEXTIVE,
         target="tactic:glossary-curation-interview",
         relation=Relation.SUGGESTS,
         when=(
@@ -2013,7 +1970,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="toolguide:contextive",
+        source=_URN_TOOLGUIDE_CONTEXTIVE,
         target="tactic:language-driven-design",
         relation=Relation.SUGGESTS,
         when=(
@@ -2030,13 +1987,10 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="tactic:terminology-extraction-mapping",
+        source=_URN_TACTIC_TERMINOLOGY_EXTRACTION_MAPPING,
         target="tactic:glossary-curation-interview",
         relation=Relation.SUGGESTS,
-        when=(
-            "feeding the extracted, relationship-mapped, validated terms into the "
-            "HiC-led curation rounds that promote them into the living glossary"
-        ),
+        when=("feeding the extracted, relationship-mapped, validated terms into the HiC-led curation rounds that promote them into the living glossary"),
         reason=(
             "The extraction-mapping tactic's OWN purpose is to build 'a "
             "comprehensive, maintainable glossary' and its final step publishes the "
@@ -2090,8 +2044,8 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="toolguide:contextive",
-        target="tactic:terminology-extraction-mapping",
+        source=_URN_TOOLGUIDE_CONTEXTIVE,
+        target=_URN_TACTIC_TERMINOLOGY_EXTRACTION_MAPPING,
         relation=Relation.SUGGESTS,
         when=(
             "capturing the extracted, bounded-context-owned terms in an enforceable "
@@ -2138,7 +2092,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # walked by any channel and is not made walkable here.
     # -----------------------------------------------------------------------
     DRGEdge(
-        source="action:documentation/design",
+        source=_URN_ACTION_DOCUMENTATION_DESIGN,
         target="template:c4-context-mermaid-template",
         relation=Relation.INSTANTIATES,
         reason=(
@@ -2149,7 +2103,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="action:documentation/design",
+        source=_URN_ACTION_DOCUMENTATION_DESIGN,
         target="template:c4-container-mermaid-template",
         relation=Relation.INSTANTIATES,
         reason=(
@@ -2160,7 +2114,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
         ),
     ),
     DRGEdge(
-        source="action:documentation/design",
+        source=_URN_ACTION_DOCUMENTATION_DESIGN,
         target="template:c4-component-mermaid-template",
         relation=Relation.INSTANTIATES,
         reason=(
@@ -2287,9 +2241,7 @@ def merge_hand_authored_overlay(graph: DRGGraph) -> DRGGraph:
     for node in HAND_AUTHORED_NODES:
         nodes_by_urn[node.urn] = node
 
-    edges_by_triple: dict[tuple[str, str, str], DRGEdge] = {
-        (e.source, e.target, e.relation.value): e for e in graph.edges
-    }
+    edges_by_triple: dict[tuple[str, str, str], DRGEdge] = {(e.source, e.target, e.relation.value): e for e in graph.edges}
     for edge in HAND_AUTHORED_EDGES:
         edges_by_triple[(edge.source, edge.target, edge.relation.value)] = edge
 
