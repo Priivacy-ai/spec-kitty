@@ -305,7 +305,27 @@ def _split_profile_blocks(text: str) -> list[tuple[str, str]]:
     return [_split_leading_header(chunk) for chunk in text.split("\n\n") if chunk]
 
 
-_HEADING_LINE_RE = re.compile(r"^###\s+(.+?)\s*$")
+_HEADING_LINE_RE = re.compile(r"^###\s+(\S.*?)\s*$")
+"""Match a ``### <heading>`` marker line, capturing the heading text.
+
+Sonar ``S8786`` flagged the original ``(.+?)\\s*$`` capture group: ``.`` and
+``\\s`` overlap in what they can match, so the engine can partition a run of
+trailing whitespace between the lazy ``.+?`` and the greedy ``\\s*`` in more
+than one way (ambiguous backtracking shape) even though this particular
+worst case is empirically linear/quadratic, not exponential — the real
+input is always a single short heading line (see
+``tests/charter/context_renderers/test_token_budget_sonar.py`` for the
+match-equivalence proof and timing note). Requiring the capture to *start*
+with a non-space character (``\\S.*?``) removes the overlap: the boundary
+between "leading run captured by group 1" and "trailing ``\\s*``" is no
+longer ambiguous, because a space can never be the first captured
+character. The only behavioural difference from the old pattern is on the
+degenerate whitespace-only body ``"###    "`` (marker + only spaces): the
+old pattern captured a single trailing space; the new pattern requires a
+non-space first character that does not exist there, so the whole match
+fails and ``.match(...)`` returns ``None`` — an intentionally-dropped dead
+input, since no real ``### <heading>`` line is whitespace-only.
+"""
 
 
 def _split_critical_sections(text: str) -> list[tuple[str, str, str]]:
@@ -362,130 +382,126 @@ def _split_critical_sections(text: str) -> list[tuple[str, str, str]]:
     return result
 
 
-def _enforce_token_budget(
-    text: str,
-    *,
-    action: str,
-    profile_block: str,
-    section_block: str,
-    budget: int = BUDGET_DEFAULT,
-) -> str:
-    """Apply the NFR-001 token budget to *text* (WP05, consolidated WP04 T019).
-
-    When ``len(text) <= budget`` the text is returned unchanged.  Over
-    budget, the longest substitutable candidate is swapped for the
-    canonical fetch + when-doing stanza, and the substitution loop iterates
-    over the remaining candidates (longest first) until the budget holds
-    or no swap candidates remain.
+def _collect_section_block_candidates(
+    section_block: str, action: str
+) -> list[RenderedSection]:
+    """Build the per-heading swap candidates for *section_block*.
 
     ``section_block`` (the action-critical charter sections — Terminology
     Canon, Code Review Checklist, Regression Vigilance) is split into one
     candidate per heading, exactly as ``profile_block`` is split into one
-    candidate per kind (see :func:`_split_critical_sections` /
-    :func:`_split_profile_blocks`). Prior to that split, the WHOLE joined
-    ``section_block`` competed as a single opaque candidate against
-    individually-split, often much larger profile kind-blocks — so growing
-    the profile payload (e.g. a language-scope fix admitting more
-    profile-cited artifacts) could tip the combined section body just over
-    the length that made it the single longest candidate, taking every
-    heading's anchors (glossary path, ADR path, profile-cited
+    candidate per kind by :func:`_collect_profile_block_candidates` (see
+    :func:`_split_critical_sections` / :func:`_split_profile_blocks`). Prior
+    to that split, the WHOLE joined ``section_block`` competed as a single
+    opaque candidate against individually-split, often much larger profile
+    kind-blocks — so growing the profile payload (e.g. a language-scope fix
+    admitting more profile-cited artifacts) could tip the combined section
+    body just over the length that made it the single longest candidate,
+    taking every heading's anchors (glossary path, ADR path, profile-cited
     ``DIRECTIVE_NNN`` citations) down in one swap even though each heading
     individually is far smaller than the profile content that should have
     been preferred. Splitting both sides the same way lets every candidate
     compete on its own real size, so the small, curated headings are
     naturally spared unless they are genuinely the largest thing left.
-
-    Authority paths stay inline unconditionally (they are never added as
-    a candidate at all — see the caller in ``bootstrap_text.py`` /
-    ``compact_governance.py``).
     """
 
-    if len(text) <= budget:
-        return text
+    if not section_block:
+        return []
 
-    # Decompose the rendered ``text`` into a fixed-section model and run
-    # the substitution loop.  We do this by replacing whole blocks in
-    # the original text rather than re-joining, so the surrounding
-    # structure (Charter Context header, Policy Summary, Action
-    # Doctrine, References) stays byte-identical.
     candidates: list[RenderedSection] = []
-    if section_block:
-        headed = _split_critical_sections(section_block)
-        if headed:
-            for header, body, heading in headed:
-                if not body:
-                    continue
-                candidates.append(
-                    RenderedSection(
-                        section_id=f"action-critical-sections:{heading}",
-                        header=header,
-                        body=body,
-                        selector=critical_section_selector(heading),
-                        when_doing_clause=critical_section_when_clause(heading),
-                        substitutable=True,
-                        indent="  ",
-                    )
-                )
-        else:
-            # No "### <heading>" sub-structure detected at all (e.g. a bare
-            # single-blob fixture) — fall back to the pre-split, single-
-            # candidate behaviour covering the whole block. The header
-            # (e.g. "Action-Critical Charter Sections (implement):") is
-            # split off so a substitution below never removes it — see
-            # _split_leading_header. A body-less section_block has nothing
-            # left worth swapping, so it is left inline rather than added
-            # as a candidate.
-            header, body = _split_leading_header(section_block)
-            if body:
-                candidates.append(
-                    RenderedSection(
-                        section_id="action-critical-sections",
-                        header=header,
-                        body=body,
-                        selector=f"section:critical-{action}",
-                        when_doing_clause=(
-                            "need to consult the action-critical charter sections"
-                        ),
-                        substitutable=True,
-                        indent="  ",
-                    )
-                )
-    if profile_block:
-        # profile_block joins up to six kind-blocks (directives, tactics,
-        # styleguides, toolguides, procedures, suggested-doctrine), each with
-        # its own anchor header. Splitting it into one RenderedSection per
-        # kind (rather than one opaque candidate for the whole block) means
-        # EVERY populated kind's header survives a swap, not just the first
-        # — see _split_profile_blocks.
-        for index, (header, body) in enumerate(_split_profile_blocks(profile_block)):
+    headed = _split_critical_sections(section_block)
+    if headed:
+        for header, body, heading in headed:
             if not body:
                 continue
             candidates.append(
                 RenderedSection(
-                    section_id=f"profile-cited-sections-{index}",
+                    section_id=f"action-critical-sections:{heading}",
                     header=header,
                     body=body,
-                    selector="section:profile-citations",
-                    when_doing_clause=(
-                        "need to consult the profile-cited directives and tactics"
-                    ),
+                    selector=critical_section_selector(heading),
+                    when_doing_clause=critical_section_when_clause(heading),
                     substitutable=True,
                     indent="  ",
                 )
             )
+        return candidates
 
-    if not candidates:
-        # Nothing safe to substitute — return the original text so we
-        # don't silently drop content.  The caller (the WP prompt
-        # builder) sees over-budget text rather than missing content;
-        # operators will spot the regression via the measurement script.
-        return text
+    # No "### <heading>" sub-structure detected at all (e.g. a bare
+    # single-blob fixture) — fall back to the pre-split, single-
+    # candidate behaviour covering the whole block. The header
+    # (e.g. "Action-Critical Charter Sections (implement):") is
+    # split off so a substitution below never removes it — see
+    # _split_leading_header. A body-less section_block has nothing
+    # left worth swapping, so it is left inline rather than added
+    # as a candidate.
+    header, body = _split_leading_header(section_block)
+    if body:
+        candidates.append(
+            RenderedSection(
+                section_id="action-critical-sections",
+                header=header,
+                body=body,
+                selector=f"section:critical-{action}",
+                when_doing_clause=(
+                    "need to consult the action-critical charter sections"
+                ),
+                substitutable=True,
+                indent="  ",
+            )
+        )
+    return candidates
 
-    # Sort longest first, ties broken on section_id for determinism. Every
-    # heading/kind is now its own candidate (see _split_critical_sections /
-    # _split_profile_blocks), so this competes on each candidate's real
-    # size rather than on which side of the section/profile divide it fell.
-    candidates.sort(key=lambda sec: (-len(sec.body), sec.section_id))
+
+def _collect_profile_block_candidates(profile_block: str) -> list[RenderedSection]:
+    """Build one swap candidate per kind-block in *profile_block*.
+
+    ``profile_block`` joins up to six kind-blocks (directives, tactics,
+    styleguides, toolguides, procedures, suggested-doctrine), each with its
+    own anchor header. Splitting it into one :class:`RenderedSection` per
+    kind (rather than one opaque candidate for the whole block) means EVERY
+    populated kind's header survives a swap, not just the first — see
+    :func:`_split_profile_blocks`.
+    """
+
+    if not profile_block:
+        return []
+
+    candidates: list[RenderedSection] = []
+    for index, (header, body) in enumerate(_split_profile_blocks(profile_block)):
+        if not body:
+            continue
+        candidates.append(
+            RenderedSection(
+                section_id=f"profile-cited-sections-{index}",
+                header=header,
+                body=body,
+                selector="section:profile-citations",
+                when_doing_clause=(
+                    "need to consult the profile-cited directives and tactics"
+                ),
+                substitutable=True,
+                indent="  ",
+            )
+        )
+    return candidates
+
+
+def _swap_candidates_into_text(
+    text: str, candidates: list[RenderedSection], budget: int
+) -> tuple[str, list[str]]:
+    """Swap *candidates* (already sorted longest-first) into *text*.
+
+    Iterates the sorted candidates, replacing each section's body with its
+    canonical fetch stanza (see :func:`fetch_stanza_lines`) until *text*
+    fits under *budget* (accounting for the trailing warning line) or the
+    candidates are exhausted. A candidate whose body can no longer be found
+    verbatim in the running text (renderer drift) is skipped defensively
+    rather than aborting the whole substitution.
+
+    Returns the possibly-substituted text and the ordered ``section_id``
+    list of the swaps that were actually applied.
+    """
 
     current_text = text
     swapped_ids: list[str] = []
@@ -507,6 +523,59 @@ def _enforce_token_budget(
             continue
         current_text = new_text
         swapped_ids.append(section.section_id)
+    return current_text, swapped_ids
+
+
+def _enforce_token_budget(
+    text: str,
+    *,
+    action: str,
+    profile_block: str,
+    section_block: str,
+    budget: int = BUDGET_DEFAULT,
+) -> str:
+    """Apply the NFR-001 token budget to *text* (WP05, consolidated WP04 T019).
+
+    When ``len(text) <= budget`` the text is returned unchanged.  Over
+    budget, the longest substitutable candidate is swapped for the
+    canonical fetch + when-doing stanza, and the substitution loop iterates
+    over the remaining candidates (longest first) until the budget holds
+    or no swap candidates remain.
+
+    Candidates are collected from ``section_block`` (one per heading, see
+    :func:`_collect_section_block_candidates`) and ``profile_block`` (one
+    per kind, see :func:`_collect_profile_block_candidates`), then swapped
+    in by :func:`_swap_candidates_into_text`.  We do this by replacing whole
+    blocks in the original ``text`` rather than re-joining, so the
+    surrounding structure (Charter Context header, Policy Summary, Action
+    Doctrine, References) stays byte-identical.
+
+    Authority paths stay inline unconditionally (they are never added as
+    a candidate at all — see the caller in ``bootstrap_text.py`` /
+    ``compact_governance.py``).
+    """
+
+    if len(text) <= budget:
+        return text
+
+    candidates = _collect_section_block_candidates(section_block, action)
+    candidates.extend(_collect_profile_block_candidates(profile_block))
+
+    if not candidates:
+        # Nothing safe to substitute — return the original text so we
+        # don't silently drop content.  The caller (the WP prompt
+        # builder) sees over-budget text rather than missing content;
+        # operators will spot the regression via the measurement script.
+        return text
+
+    # Sort longest first, ties broken on section_id for determinism. Every
+    # heading/kind is now its own candidate (see _collect_section_block_
+    # candidates / _collect_profile_block_candidates), so this competes on
+    # each candidate's real size rather than on which side of the
+    # section/profile divide it fell.
+    candidates.sort(key=lambda sec: (-len(sec.body), sec.section_id))
+
+    current_text, swapped_ids = _swap_candidates_into_text(text, candidates, budget)
 
     if swapped_ids:
         current_text = f"{current_text}\n\n{warning_line(len(swapped_ids), budget)}"
