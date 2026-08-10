@@ -124,6 +124,67 @@ def test_same_key_cannot_change_action_audience_or_payload(
     assert len(client.requests) == 1
 
 
+def test_first_acknowledged_result_is_immutable_on_same_key_retry(
+    store: ProjectSyncStore,
+    audience: AdmissionAudience,
+) -> None:
+    client = FakeAdmissionClient([_response("admitted", 1, "binding-1"), _response("admitted", 99, "binding-99")])
+    service = AdmissionOperationService(store, client)
+
+    first = service.perform(
+        action=AdmissionAction.ADMIT,
+        audience=audience,
+        operation_key=KEY_A,
+    )
+    retried = service.perform(
+        action=AdmissionAction.ADMIT,
+        audience=audience,
+        operation_key=KEY_A,
+    )
+
+    assert retried == first
+    assert retried.result_generation == 1
+    assert retried.binding_audience == "binding-1"
+    assert len(client.requests) == 1
+
+
+def test_readmit_requires_a_new_key_and_expected_generation_cas(
+    store: ProjectSyncStore,
+    audience: AdmissionAudience,
+) -> None:
+    client = FakeAdmissionClient([_response("admitted", 1, "binding-1"), _response("admitted", 3, "binding-3")])
+    service = AdmissionOperationService(store, client)
+    first = service.perform(
+        action=AdmissionAction.ADMIT,
+        audience=audience,
+        operation_key=KEY_A,
+    )
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "UPDATE project_target_admissions SET admission_state = 'pending', "
+            "admission_generation = '2', binding_audience = 'revoked-binding' "
+            "WHERE project_uuid = ?",
+            (PROJECT,),
+        )
+
+    readmitted = service.perform(
+        action=AdmissionAction.ADMIT,
+        audience=audience,
+        operation_key=KEY_B,
+        expected_generation=2,
+    )
+
+    assert first.result_generation == 1
+    assert readmitted.result_generation == 3
+    assert readmitted.operation_key != first.operation_key
+    with store.unit_of_work() as unit:
+        current = unit.execute(
+            "SELECT admission_state, admission_generation, binding_audience FROM project_target_admissions WHERE project_uuid = ?",
+            (PROJECT,),
+        ).fetchone()
+    assert tuple(current) == ("admitted", "3", "binding-3")
+
+
 def test_delayed_old_admit_result_cannot_revive_newer_revocation(
     store: ProjectSyncStore,
     audience: AdmissionAudience,

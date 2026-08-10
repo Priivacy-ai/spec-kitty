@@ -24,19 +24,23 @@ Wiring the resolver into the live surfaces happens in WP02; this module just
 exposes a small, stable surface: :class:`ResolvedSyncTarget` and
 :func:`resolve_sync_target`.
 """
+
 from __future__ import annotations
 
 import logging
+import hashlib
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 import toml
 
 from specify_cli.auth.config import get_saas_base_url
 from specify_cli.auth.errors import ConfigurationError
 from specify_cli.sync.config import SyncConfig
+from specify_cli.sync.project_identity import CanonicalProjectUUID
 from specify_cli.sync.queue import (
     build_queue_scope,
     read_active_scope,
@@ -97,9 +101,7 @@ class SyncTargetSplitBrainError(RuntimeError):
     operator can reconcile ``config.toml`` and ``SPEC_KITTY_SAAS_URL``.
     """
 
-    def __init__(
-        self, *, configured_server_url: str | None, env_server_url: str | None
-    ) -> None:
+    def __init__(self, *, configured_server_url: str | None, env_server_url: str | None) -> None:
         super().__init__(
             _SPLIT_BRAIN_MESSAGE.format(
                 config=configured_server_url,
@@ -109,6 +111,91 @@ class SyncTargetSplitBrainError(RuntimeError):
         )
         self.configured_server_url = configured_server_url
         self.env_server_url = env_server_url
+
+
+@dataclass(frozen=True, slots=True)
+class AdmissionAudience:
+    """Exact remote-admission authority tuple derived from trusted auth state."""
+
+    normalized_server_origin: str
+    account_identity: str
+    private_teamspace_id: str
+    project_uuid: CanonicalProjectUUID
+    configuration_generation: int
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "project_uuid",
+            CanonicalProjectUUID.parse(self.project_uuid),
+        )
+        if not self.normalized_server_origin.strip():
+            raise ValueError("normalized server origin is required")
+        if not self.account_identity.strip():
+            raise ValueError("authenticated account identity is required")
+        if not self.private_teamspace_id.strip():
+            raise ValueError("canonical Private Teamspace identity is required")
+        if self.configuration_generation < 1:
+            raise ValueError("target configuration generation must be positive")
+
+    @property
+    def target_identity(self) -> str:
+        """Store-facing spelling shared with :class:`TargetAudience`."""
+        return self.normalized_server_origin
+
+    def to_diagnostics_dict(self) -> dict[str, str | int]:
+        """Return only pseudonymous identifiers and non-sensitive categories."""
+
+        def pseudonym(value: str) -> str:
+            return hashlib.sha256(value.encode("utf-8")).hexdigest()[:16]  # noqa: TID251 - admission-audience diagnostic pseudonym, not charter freshness
+
+        return {
+            "category": "project_sync_admission_audience",
+            "origin_id": pseudonym(self.normalized_server_origin),
+            "account_id": pseudonym(self.account_identity),
+            "private_teamspace_id": pseudonym(self.private_teamspace_id),
+            "project_id": pseudonym(self.project_uuid.storage_token),
+            "configuration_generation": self.configuration_generation,
+        }
+
+
+def _normalize_server_origin(raw_url: str) -> str:
+    """Canonicalize scheme/host/port and deliberately discard route aliases."""
+    parts = urlsplit(raw_url.strip())
+    scheme = parts.scheme.lower()
+    if scheme not in {"http", "https"} or not parts.hostname:
+        raise ValueError("admission server URL requires an http(s) scheme and host")
+    try:
+        host = parts.hostname.encode("idna").decode("ascii").lower()
+        port = parts.port
+    except (UnicodeError, ValueError) as exc:
+        raise ValueError("admission server URL has an invalid host or port") from exc
+    default_port = 443 if scheme == "https" else 80
+    netloc = host if port is None or port == default_port else f"{host}:{port}"
+    return urlunsplit((scheme, netloc, "", "", ""))
+
+
+def build_admission_audience(
+    resolved_target: ResolvedSyncTarget,
+    *,
+    account_identity: str,
+    private_teamspace_id: str,
+    project_uuid: CanonicalProjectUUID | str,
+    configuration_generation: int,
+) -> AdmissionAudience:
+    """Bind resolved origin to trusted account and canonical Teamspace metadata.
+
+    The signature intentionally has no token, display team selector, repository
+    slug, active checkout, or route-alias parameter. Those values cannot grant
+    or mutate hosted admission authority.
+    """
+    return AdmissionAudience(
+        normalized_server_origin=_normalize_server_origin(resolved_target.resolved_server_url),
+        account_identity=account_identity,
+        private_teamspace_id=private_teamspace_id,
+        project_uuid=CanonicalProjectUUID.parse(project_uuid),
+        configuration_generation=configuration_generation,
+    )
 
 
 @dataclass(frozen=True)
@@ -264,9 +351,7 @@ def _ascii_token(value: str) -> str:
     return "".join(ch if ch.isascii() else f"_u{ord(ch):04x}_" for ch in value)
 
 
-def _derive_queue_scope(
-    resolved_server_url: str, user_id: str | None, team_slug: str | None
-) -> str:
+def _derive_queue_scope(resolved_server_url: str, user_id: str | None, team_slug: str | None) -> str:
     """Derive the deterministic, ASCII-safe queue scope from the resolved target.
 
     Mirrors ``sync/queue.py::build_queue_scope`` composition exactly (server |

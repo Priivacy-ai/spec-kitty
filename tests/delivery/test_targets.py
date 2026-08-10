@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.delivery import DeliveryTargetRegistry, ProjectDeliveryTargetRegistry
+from specify_cli.sync.project_context import AdmissionState
 from specify_cli.sync.project_store import ProjectSyncStore
 from specify_cli.sync.target_authority import AdmissionAudience
 
@@ -63,7 +64,10 @@ def test_target_change_invalidates_remote_proof_without_selecting_another_store(
     assert changed.admission_state == "pending"
     assert changed.admission_generation is None
     assert changed.binding_audience is None
-    assert store.create_context().remote_eligible is False
+    context = store.create_context()
+    assert context.admission_state is AdmissionState.PENDING
+    assert context.admission_generation is None
+    assert context.binding_audience is None
 
 
 def test_registry_write_rolls_back_with_outer_project_action(
