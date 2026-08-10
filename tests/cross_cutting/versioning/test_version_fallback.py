@@ -45,15 +45,15 @@ def test_pyproject_version_matches_metadata():
         from importlib.metadata import version as get_metadata_version
 
         metadata_version = get_metadata_version("spec-kitty-cli")
-
-        # Should match
-        assert pyproject_version == metadata_version, (
-            f"pyproject.toml ({pyproject_version}) should match metadata ({metadata_version})"
-        )
     except Exception:
         # If metadata not available (editable install), that's OK
         # The pyproject.toml version is what we'll use
-        pass
+        return
+
+    # Should match
+    assert pyproject_version == metadata_version, (
+        f"pyproject.toml ({pyproject_version}) should match metadata ({metadata_version})"
+    )
 
 
 def test_upgrade_uses_correct_version():

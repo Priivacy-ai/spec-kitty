@@ -205,9 +205,9 @@ class TestPlanMissionIntegration:
         # (In real execution, discover_mission would be called and not raise exception)
         try:
             mission = yaml.safe_load(mission_runtime.read_text())
-            assert mission is not None, "Mission should load successfully"
         except Exception as e:
             pytest.fail(f"Failed to discover plan mission: {e}")
+        assert mission is not None, "Mission should load successfully"
 
 
 class TestPlanCommandResolution:
