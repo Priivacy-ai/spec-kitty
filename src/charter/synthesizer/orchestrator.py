@@ -26,19 +26,26 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from .reconcile import SynthesizeMode
+
 __all__ = [
     "SynthesisResult",
+    "SynthesizeMode",
     "resynthesize",
     "synthesize",
 ]
 
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from pathlib import Path
+    from typing import Any
 
     from .adapter import AdapterOutput, SynthesisAdapter
+    from .reconcile import ReconciliationDelta
     from .request import SynthesisRequest
     from .resynthesize_pipeline import ResynthesisResult
+    from .synthesize_pipeline import ProvenanceEntry
 
 
 # ---------------------------------------------------------------------------
@@ -68,6 +75,13 @@ class SynthesisResult:
     effective_adapter_version: str
     """adapter_version_override if set; else adapter.version."""
 
+    reconciliation: ReconciliationDelta | None = None
+    """Preserve/prune/dry-run delta from reconciling this run's overlay +
+    manifest against on-disk state (WP01, FR-009). ``synthesize()`` always
+    populates this; ``None`` only guards construction sites that predate the
+    reconciliation seam (``resynthesize()`` does not reconcile — it runs its
+    own bounded merge — and leaves this at the default)."""
+
 
 def _built_in_drg_from_snapshot(snapshot: object) -> object:
     """Normalize a request DRG snapshot into a validate-able DRGGraph payload."""
@@ -88,17 +102,71 @@ def _built_in_drg_from_snapshot(snapshot: object) -> object:
 # ---------------------------------------------------------------------------
 
 
+def _reconstruct_synthesis_result(
+    request: SynthesisRequest,
+    results: list[tuple[Mapping[str, Any], ProvenanceEntry]],
+    reconciliation: ReconciliationDelta,
+) -> SynthesisResult:
+    """Build the ``SynthesisResult`` for the request's primary target.
+
+    Shared tail for every ``synthesize()`` return path (dry-run included) so
+    the reconciliation delta is always attached (T005) and there is exactly
+    one place that knows how to fall back to the first result when the
+    primary target was not among the synthesized set.
+    """
+    from datetime import datetime  # noqa: PLC0415
+
+    from .adapter import AdapterOutput as _AdapterOutput  # noqa: PLC0415
+
+    primary_target = request.target
+    for body, prov in results:
+        if prov.artifact_kind == primary_target.kind and prov.artifact_slug == primary_target.slug:
+            return SynthesisResult(
+                target_kind=prov.artifact_kind,
+                target_slug=prov.artifact_slug,
+                adapter_output=_AdapterOutput(
+                    body=body,
+                    generated_at=datetime.fromisoformat(prov.generated_at)
+                    if not isinstance(prov.generated_at, datetime)
+                    else prov.generated_at,
+                ),
+                inputs_hash=prov.inputs_hash,
+                effective_adapter_id=prov.adapter_id,
+                effective_adapter_version=prov.adapter_version,
+                reconciliation=reconciliation,
+            )
+
+    # Fallback to first result if primary target was not among synthesized targets
+    first_body, first_prov = results[0]
+    return SynthesisResult(
+        target_kind=first_prov.artifact_kind,
+        target_slug=first_prov.artifact_slug,
+        adapter_output=_AdapterOutput(
+            body=first_body,
+            generated_at=datetime.fromisoformat(first_prov.generated_at)
+            if not isinstance(first_prov.generated_at, datetime)
+            else first_prov.generated_at,
+        ),
+        inputs_hash=first_prov.inputs_hash,
+        effective_adapter_id=first_prov.adapter_id,
+        effective_adapter_version=first_prov.adapter_version,
+        reconciliation=reconciliation,
+    )
+
+
 def synthesize(
     request: SynthesisRequest,
     adapter: SynthesisAdapter | None = None,
     repo_root: Path | None = None,
+    *,
+    mode: SynthesizeMode = SynthesizeMode.preserve,
 ) -> SynthesisResult:
     """Run the full synthesis pipeline for a single SynthesisRequest.
 
-    Delegates to synthesize_pipeline.run_all() (WP02), then stages and
-    promotes all artifacts to disk via write_pipeline.promote() (WP03, T018).
-    The lazy-import seam resolves: write_pipeline.promote() now has a
-    production caller.
+    Delegates to synthesize_pipeline.run_all() (WP02), reconciles the fresh
+    overlay + manifest against on-disk state (WP01, ``reconcile.py`` —
+    preserve-and-succeed: never silently drops backed content, FR-001/FR-009),
+    then stages and promotes to disk via write_pipeline.promote() (WP03).
 
     Parameters
     ----------
@@ -110,12 +178,20 @@ def synthesize(
     repo_root:
         Repository root for staging/promote. Inferred from CWD when None
         (WP05 / CLI wiring will supply this explicitly).
+    mode:
+        ``preserve`` (default): reconcile and write, dropping nothing.
+        ``dry_run``: compute the ``ReconciliationDelta`` only; write nothing.
+        ``prune``: write the merged state minus ``delta.removable``. Keyword-
+        only so every existing positional caller (``synthesize(request,
+        adapter, repo_root)``) keeps working unchanged.
 
     Returns
     -------
     SynthesisResult
-        Per-target result with validated artifact body + provenance fields.
-        The manifest + artifacts have been written to disk before returning.
+        Per-target result with validated artifact body + provenance fields,
+        carrying the ``ReconciliationDelta`` in ``.reconciliation``. For
+        ``preserve``/``prune`` the manifest + artifacts have been written to
+        disk before returning; for ``dry_run`` nothing was written.
 
     Raises
     ------
@@ -123,6 +199,10 @@ def synthesize(
         Until WP02 delivers synthesize_pipeline.py (pre-WP02 state).
     ImportError
         Propagated if synthesize_pipeline or write_pipeline module is missing.
+    doctrine.drg.loader.DRGLoadError
+        When an on-disk project overlay exists but cannot be parsed (FR-007
+        fail-closed at the library seam — never falls back to a wholesale
+        rebuild; see ``reconcile.reconcile_synthesis``).
     """
     from pathlib import Path as _Path  # noqa: PLC0415
 
@@ -133,6 +213,8 @@ def synthesize(
         from .project_drg import apply_post_condition as _apply_post_condition  # noqa: PLC0415
         from .project_drg import emit_project_layer as _emit_project_layer  # noqa: PLC0415
         from .project_drg import persist as _persist_project_graph  # noqa: PLC0415
+        from .reconcile import apply_prune as _apply_prune  # noqa: PLC0415
+        from .reconcile import reconcile_synthesis as _reconcile_synthesis  # noqa: PLC0415
         from .synthesize_pipeline import _get_synthesizer_version  # noqa: PLC0415
         from .synthesize_pipeline import run_all as _run_all  # noqa: PLC0415
         from .staging import StagingDir as _StagingDir  # noqa: PLC0415
@@ -171,77 +253,60 @@ def synthesize(
     if not targets:
         targets = [request.target]
 
-    # Track whether a project DRG was emitted; the post-condition uses this
-    # to decide between "built_in_only=true" and "graph.yaml on disk" states
-    # (FR-009).
-    emitted_project_graph: dict[str, bool] = {"value": False}
+    _repo_root = repo_root if repo_root is not None else _Path.cwd()
+
+    # --- Reconcile the fresh emit against on-disk state (WP01) ---
+    # Computed BEFORE staging (mirrors resynthesize_pipeline.run()'s Step
+    # 1/6): the merged manifest must be ready to hand to promote() as
+    # manifest_override, and dry_run needs the delta without ever creating a
+    # staging dir. May raise DRGLoadError — fail-closed, no write (FR-007).
+    fresh_overlay = _emit_project_layer(
+        targets=targets,
+        spec_kitty_version=_SPEC_KITTY_VERSION,
+        built_in_drg=built_in_drg,
+    )
+    outcome = _reconcile_synthesis(
+        repo_root=_repo_root,
+        fresh_overlay=fresh_overlay,
+        new_results=results,
+        run_id=request.run_id,
+        built_in_drg=built_in_drg,
+    )
+    if mode is SynthesizeMode.prune:
+        outcome = _apply_prune(outcome)
+
+    if mode is SynthesizeMode.dry_run:
+        return _reconstruct_synthesis_result(request, results, outcome.delta)
+
+    merged_overlay = outcome.merged_overlay
 
     def _validation_callback(staged_dir: _StagingDir) -> None:
-        project_graph = _emit_project_layer(
-            targets=targets,
-            spec_kitty_version=_SPEC_KITTY_VERSION,
-            built_in_drg=built_in_drg,
-        )
-        if project_graph.nodes:
-            _persist_project_graph(project_graph, staged_dir.root, staged_dir.guard)
-            emitted_project_graph["value"] = True
+        # FR-009 amendment #1 (BLOCKER): persist the MERGED overlay
+        # unconditionally when it carries content, and drive the post-
+        # condition below from the merged graph — not the fresh emit. A
+        # zero/subset-emit run over a backed on-disk overlay must not
+        # re-unlink the preserved graph.yaml.
+        if merged_overlay.nodes:
+            _persist_project_graph(merged_overlay, staged_dir.root, staged_dir.guard)
         _validate_project_graph(staged_dir.root, built_in_drg)
 
     # --- Stage and promote to disk (WP03, T018) ---
-    _repo_root = repo_root if repo_root is not None else _Path.cwd()
     with _StagingDir.create(_repo_root, request.run_id) as staging_dir:
         _write_pipeline.promote(
             request,
             staging_dir,
             results,
             _validation_callback,
+            manifest_override=outcome.merged_manifest,
         )
 
     # --- FR-009 post-condition: graph.yaml XOR built_in_only=True ---
     _apply_post_condition(
         _repo_root,
-        has_project_graph=emitted_project_graph["value"],
+        has_project_graph=bool(merged_overlay.nodes),
     )
 
-    # --- Reconstruct SynthesisResult for the primary target ---
-    from datetime import datetime  # noqa: PLC0415
-    from .adapter import AdapterOutput as _AdapterOutput  # noqa: PLC0415
-
-    primary_target = request.target
-    for body, prov in results:
-        if (
-            prov.artifact_kind == primary_target.kind
-            and prov.artifact_slug == primary_target.slug
-        ):
-            return SynthesisResult(
-                target_kind=prov.artifact_kind,
-                target_slug=prov.artifact_slug,
-                adapter_output=_AdapterOutput(
-                    body=body,
-                    generated_at=datetime.fromisoformat(prov.generated_at)
-                    if not isinstance(prov.generated_at, datetime)
-                    else prov.generated_at,
-                ),
-                inputs_hash=prov.inputs_hash,
-                effective_adapter_id=prov.adapter_id,
-                effective_adapter_version=prov.adapter_version,
-            )
-
-    # Fallback to first result if primary target was not among synthesized targets
-    first_body, first_prov = results[0]
-    return SynthesisResult(
-        target_kind=first_prov.artifact_kind,
-        target_slug=first_prov.artifact_slug,
-        adapter_output=_AdapterOutput(
-            body=first_body,
-            generated_at=datetime.fromisoformat(first_prov.generated_at)
-            if not isinstance(first_prov.generated_at, datetime)
-            else first_prov.generated_at,
-        ),
-        inputs_hash=first_prov.inputs_hash,
-        effective_adapter_id=first_prov.adapter_id,
-        effective_adapter_version=first_prov.adapter_version,
-    )
+    return _reconstruct_synthesis_result(request, results, outcome.delta)
 
 
 def resynthesize(

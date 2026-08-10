@@ -37,27 +37,29 @@ from pathlib import Path
 from typing import Any
 
 from doctrine.drg.loader import load_graph_or_dir
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode
+from doctrine.drg.models import DRGGraph
 
-from charter.bundle import compute_bundle_content_hash
-
-from .artifact_naming import artifact_filename, doctrine_kind_subdir
 from .manifest import (
     MANIFEST_PATH,
-    ManifestArtifactEntry,
     SynthesisManifest,
-    finalize_manifest,
     load_yaml as load_manifest,
 )
+from .reconcile import merge_project_overlay as _merge_project_overlay
+from .reconcile import rewrite_manifest as _rewrite_manifest
 from .request import SynthesisRequest, SynthesisTarget
-from .synthesize_pipeline import ProvenanceEntry, _get_synthesizer_version, canonical_yaml
+from .synthesize_pipeline import ProvenanceEntry, _get_synthesizer_version
 from .topic_resolver import ResolvedTopic, resolve as resolve_topic
 
 _KITTIFY_DIRNAME = ".kittify"
 
 
 # ---------------------------------------------------------------------------
-# Manifest-rewrite helper (T029 option-b: owned here, not in write_pipeline)
+# Manifest-rewrite helper: ``_rewrite_manifest`` / ``_merge_project_overlay``
+# now live in ``reconcile.py`` (charter-synthesize-reconciliation WP01, T002)
+# and are imported above under their historical private names so every call
+# site below (and this module's behavior) is unchanged. The full-synthesize
+# path (``orchestrator.synthesize``) shares the SAME implementation via
+# ``reconcile.reconcile_synthesis`` — one merge, not two.
 # ---------------------------------------------------------------------------
 
 
@@ -92,119 +94,6 @@ def _new_ulid() -> str:
         rand_int >>= 5
 
     return ts_part + rand_part
-
-
-def _rewrite_manifest(
-    existing: SynthesisManifest,
-    new_results: list[tuple[Mapping[str, Any], ProvenanceEntry]],
-    run_id: str,
-    repo_root: Path,
-) -> SynthesisManifest:
-    """Produce a new SynthesisManifest merging old entries with fresh ones.
-
-    For each artifact in ``new_results``:
-      - Compute a fresh ``content_hash`` and ``provenance_path``.
-      - Replace (or insert) the corresponding entry in the manifest.
-
-    For artifacts NOT in ``new_results``:
-      - Retain the prior entry unchanged (prior ``content_hash``, etc.).
-
-    Parameters
-    ----------
-    existing:
-        The manifest loaded from disk before the resynthesis run.
-    new_results:
-        ``(body, ProvenanceEntry)`` tuples produced by the bounded pipeline.
-    run_id:
-        New ULID for this resynthesis run.
-    repo_root:
-        Repository root used to compute a fresh ``bundle_content_hash`` via
-        ``charter.bundle.compute_bundle_content_hash`` (FR-003/AS-3: both
-        remediation commands must clear staleness).
-
-    Returns
-    -------
-    SynthesisManifest
-        The merged manifest (not yet written to disk; caller does the write).
-    """
-    import hashlib
-    from datetime import UTC, datetime
-
-    # Build a key → new ManifestArtifactEntry dict for regenerated artifacts
-    new_entries_by_key: dict[tuple[str, str], ManifestArtifactEntry] = {}
-    new_adapter_ids: set[str] = set()
-    new_adapter_versions: set[str] = set()
-
-    for body, prov in new_results:
-        kind = prov.artifact_kind
-        slug = prov.artifact_slug
-        artifact_id: str | None = None
-        if kind == "directive":
-            artifact_id = prov.artifact_urn.split(":", 1)[1]
-
-        filename = artifact_filename(kind, slug, artifact_id)
-        yaml_bytes = canonical_yaml(body)
-        content_hash = hashlib.sha256(yaml_bytes).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
-
-        rel_content = (
-            f"{_KITTIFY_DIRNAME}/doctrine/{doctrine_kind_subdir(kind)}/{filename}"
-        )
-        rel_prov = f"{_KITTIFY_DIRNAME}/charter/provenance/{kind}-{slug}.yaml"
-
-        new_entries_by_key[(kind, slug)] = ManifestArtifactEntry(
-            kind=kind,
-            slug=slug,
-            path=rel_content,
-            provenance_path=rel_prov,
-            content_hash=content_hash,
-        )
-        new_adapter_ids.add(prov.adapter_id)
-        new_adapter_versions.add(prov.adapter_version)
-
-    # Merge: existing entries updated where regenerated, retained otherwise
-    merged: list[ManifestArtifactEntry] = []
-    existing_keys: set[tuple[str, str]] = set()
-    for entry in existing.artifacts:
-        key = (entry.kind, entry.slug)
-        existing_keys.add(key)
-        if key in new_entries_by_key:
-            merged.append(new_entries_by_key[key])
-        else:
-            merged.append(entry)
-
-    # Add genuinely new artifacts (not previously in the manifest)
-    for raw_key, new_entry in new_entries_by_key.items():
-        str_key: tuple[str, str] = (raw_key[0], raw_key[1])
-        if str_key not in existing_keys:
-            merged.append(new_entry)
-
-    # Adapter identity (aggregate from new results; fall back to existing)
-    if len(new_adapter_ids) == 1:
-        primary_adapter_id = new_adapter_ids.pop()
-        primary_adapter_version = new_adapter_versions.pop() if len(new_adapter_versions) == 1 else existing.adapter_version
-    else:
-        primary_adapter_id = existing.adapter_id
-        primary_adapter_version = existing.adapter_version
-
-    synthesizer_ver = _get_synthesizer_version()
-    sorted_merged = sorted(merged, key=lambda e: (e.kind, e.slug))
-    created_at = datetime.now(tz=UTC).isoformat()
-
-    # Build a SynthesisManifest instance and route it through the single
-    # canonical finalizer (data-model.md "Contract: finalize_manifest")
-    # instead of hand-syncing a raw manifest_data_without_hash dict.
-    manifest = SynthesisManifest(
-        mission_id=existing.mission_id,
-        created_at=created_at,
-        run_id=run_id,
-        adapter_id=primary_adapter_id,
-        adapter_version=primary_adapter_version,
-        synthesizer_version=synthesizer_ver,
-        manifest_hash="0" * 64,
-        artifacts=sorted_merged,
-        bundle_content_hash=compute_bundle_content_hash(repo_root),
-    )
-    return finalize_manifest(manifest)
 
 
 # ---------------------------------------------------------------------------
@@ -599,47 +488,6 @@ def _built_in_drg_from_request(request: SynthesisRequest) -> DRGGraph:
     snapshot.setdefault("generated_at", "1970-01-01T00:00:00+00:00")
     snapshot.setdefault("generated_by", "request.drg_snapshot")
     return DRGGraph.model_validate(snapshot)
-
-
-def _merge_project_overlay(
-    existing_overlay: DRGGraph,
-    updated_overlay: DRGGraph,
-) -> DRGGraph:
-    """Replace only the resynthesized nodes/edges inside an existing overlay."""
-    updated_urns = {node.urn for node in updated_overlay.nodes}
-    updated_nodes_by_urn = {node.urn: node for node in updated_overlay.nodes}
-    merged_nodes: list[DRGNode] = []
-    for node in existing_overlay.nodes:
-        replacement = updated_nodes_by_urn.pop(node.urn, None)
-        merged_nodes.append(replacement if replacement is not None else node)
-    merged_nodes.extend(updated_nodes_by_urn.values())
-
-    updated_edges_by_source: dict[str, list[DRGEdge]] = {}
-    for edge in updated_overlay.edges:
-        updated_edges_by_source.setdefault(edge.source, []).append(edge)
-
-    merged_edges: list[DRGEdge] = []
-    inserted_sources: set[str] = set()
-    for edge in existing_overlay.edges:
-        if edge.source not in updated_urns:
-            merged_edges.append(edge)
-            continue
-        if edge.source in inserted_sources:
-            continue
-        merged_edges.extend(updated_edges_by_source.get(edge.source, []))
-        inserted_sources.add(edge.source)
-
-    for source, edges in updated_edges_by_source.items():
-        if source not in inserted_sources:
-            merged_edges.extend(edges)
-
-    return DRGGraph(
-        schema_version=updated_overlay.schema_version,
-        generated_at=updated_overlay.generated_at,
-        generated_by=updated_overlay.generated_by,
-        nodes=merged_nodes,
-        edges=merged_edges,
-    )
 
 
 __all__ = [
