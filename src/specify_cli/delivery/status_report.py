@@ -58,6 +58,7 @@ from specify_cli.delivery.targets import (
     compute_url_hash,
 )
 from specify_cli.sync.body_queue import OfflineBodyUploadQueue
+from specify_cli.sync.project_context import validate_project_sync_context_authority
 
 if TYPE_CHECKING:
     from specify_cli.delivery.ledger import SqliteDeliveryLedger
@@ -541,6 +542,7 @@ def build_project_store_status(
     quarantine_count: int = 0,
 ) -> dict[str, Any]:
     """Report adapters bound to the context's exact verified store/UoW open."""
+    validate_project_sync_context_authority(context)
     owner = str(context.project_uuid)
     if body_upload_queue is not None and not isinstance(
         body_upload_queue,

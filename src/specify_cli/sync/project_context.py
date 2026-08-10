@@ -38,6 +38,26 @@ class VerifiedProjectStoreIdentity:
         raise TypeError("verified store identities are created by ProjectSyncStore")
 
 
+@dataclass(frozen=True, slots=True, init=False)
+class _ProjectSyncAuthoritySnapshot:
+    """Private store-minted authority binding for one context snapshot."""
+
+    project_uuid: CanonicalProjectUUID
+    store_identity: VerifiedProjectStoreIdentity
+    consent_state: ConsentState | None
+    consent_generation: int | None
+    epoch_id: int | None
+    target_audience: TargetAudience | None
+    admission_state: AdmissionState | None
+    admission_generation: str | None
+    binding_audience: str | None
+    kill_switch_allows: bool
+    transport_lease_identity: str | None
+
+    def __init__(self, *_args: object, **_kwargs: object) -> None:
+        raise TypeError("authority snapshots are created by ProjectSyncStore")
+
+
 @dataclass(frozen=True, slots=True)
 class TargetAudience:
     """Exact immutable target/account/Private-Teamspace binding."""
@@ -96,6 +116,7 @@ class ProjectSyncContext:
 
     project_uuid: CanonicalProjectUUID
     store_identity: VerifiedProjectStoreIdentity
+    _authority_snapshot: _ProjectSyncAuthoritySnapshot
     consent_state: ConsentState | None
     consent_generation: int | None
     epoch_id: int | None
@@ -182,6 +203,39 @@ def _new_maintenance_capability(
     return capability
 
 
+def _new_authority_snapshot(
+    *,
+    store_identity: VerifiedProjectStoreIdentity,
+    consent_state: ConsentState | None,
+    consent_generation: int | None,
+    epoch_id: int | None,
+    target_audience: TargetAudience | None,
+    admission_state: AdmissionState | None,
+    admission_generation: str | None,
+    binding_audience: str | None,
+    kill_switch_allows: bool,
+    transport_lease_identity: str | None,
+) -> _ProjectSyncAuthoritySnapshot:
+    """Bind the complete context authority to one verified store identity."""
+    snapshot = object.__new__(_ProjectSyncAuthoritySnapshot)
+    values = {
+        "project_uuid": store_identity.project_uuid,
+        "store_identity": store_identity,
+        "consent_state": consent_state,
+        "consent_generation": consent_generation,
+        "epoch_id": epoch_id,
+        "target_audience": target_audience,
+        "admission_state": admission_state,
+        "admission_generation": admission_generation,
+        "binding_audience": binding_audience,
+        "kill_switch_allows": kill_switch_allows,
+        "transport_lease_identity": transport_lease_identity,
+    }
+    for name, value in values.items():
+        object.__setattr__(snapshot, name, value)
+    return snapshot
+
+
 def _new_project_sync_context(
     *,
     store_identity: VerifiedProjectStoreIdentity,
@@ -229,9 +283,22 @@ def _new_project_sync_context(
         raise ValueError("transport lease requires complete eligible authority")
 
     context = object.__new__(ProjectSyncContext)
+    authority_snapshot = _new_authority_snapshot(
+        store_identity=store_identity,
+        consent_state=consent_state,
+        consent_generation=consent_generation,
+        epoch_id=epoch_id,
+        target_audience=target_audience,
+        admission_state=admission_state,
+        admission_generation=admission_generation,
+        binding_audience=binding_audience,
+        kill_switch_allows=kill_switch_allows,
+        transport_lease_identity=transport_lease_identity,
+    )
     values = {
         "project_uuid": project_uuid,
         "store_identity": store_identity,
+        "_authority_snapshot": authority_snapshot,
         "consent_state": consent_state,
         "consent_generation": consent_generation,
         "epoch_id": epoch_id,
@@ -247,6 +314,28 @@ def _new_project_sync_context(
     return context
 
 
+def validate_project_sync_context_authority(context: ProjectSyncContext) -> None:
+    """Reject context snapshots whose visible fields were transplanted."""
+    try:
+        snapshot = context._authority_snapshot
+    except AttributeError as exc:
+        raise ValueError("verified project store context authority mismatch") from exc
+    if snapshot.store_identity is not context.store_identity or snapshot.project_uuid != context.project_uuid:
+        raise ValueError("verified project store context authority mismatch")
+    if (
+        snapshot.consent_state is not context.consent_state
+        or snapshot.consent_generation != context.consent_generation
+        or snapshot.epoch_id != context.epoch_id
+        or snapshot.target_audience != context.target_audience
+        or snapshot.admission_state is not context.admission_state
+        or snapshot.admission_generation != context.admission_generation
+        or snapshot.binding_audience != context.binding_audience
+        or snapshot.kill_switch_allows != context.kill_switch_allows
+        or snapshot.transport_lease_identity != context.transport_lease_identity
+    ):
+        raise ValueError("verified project store context authority mismatch")
+
+
 __all__ = [
     "AdmissionState",
     "ConsentState",
@@ -255,4 +344,5 @@ __all__ = [
     "ProjectSyncContext",
     "TargetAudience",
     "VerifiedProjectStoreIdentity",
+    "validate_project_sync_context_authority",
 ]
