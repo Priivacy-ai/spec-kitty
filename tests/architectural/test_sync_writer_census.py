@@ -128,6 +128,8 @@ class _FunctionCollector(ast.NodeVisitor):
 def _expr_effect(node: ast.expr) -> GrantEffect:
     if isinstance(node, ast.Constant) and node.value is False:
         return GrantEffect.REFUSAL_ONLY
+    if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id == "ConsentState" and node.attr == "REFUSED":
+        return GrantEffect.REFUSAL_ONLY
     return GrantEffect.MAY_GRANT
 
 
@@ -188,6 +190,28 @@ def _keyword_sites(record: _FunctionRecord, node: ast.Call) -> list[GrantSite]:
         )
         for keyword in node.keywords
         if keyword.arg in _GRANT_FIELDS and _domain_field(keyword.arg, callee, record.qualname)
+    ]
+
+
+def _consent_state_sites(
+    record: _FunctionRecord,
+    node: ast.Call,
+) -> list[GrantSite]:
+    """Discover typed project-consent persistence without naming its writer."""
+    return [
+        _grant_site(
+            record,
+            node,
+            GrantKind.PERSISTENCE,
+            keyword.value,
+            "keyword:ConsentState.state",
+        )
+        for keyword in node.keywords
+        if keyword.arg == "state"
+        and isinstance(keyword.value, ast.Attribute)
+        and isinstance(keyword.value.value, ast.Name)
+        and keyword.value.value.id == "ConsentState"
+        and keyword.value.attr in {"GRANTED", "REFUSED"}
     ]
 
 
@@ -337,6 +361,7 @@ def _semantic_sites(record: _FunctionRecord) -> list[GrantSite]:
     for node in ast.walk(record.node):
         if isinstance(node, ast.Call):
             sites.extend(_keyword_sites(record, node))
+            sites.extend(_consent_state_sites(record, node))
             sites.extend(_update_sites(record, node))
             sites.extend(_setattr_sites(record, node))
         elif isinstance(node, ast.Dict):
@@ -723,8 +748,6 @@ def scan_grant_paths(
 _KNOWN_GRANT_SITE_COUNTS: Counter[str] = Counter(
     line.strip()
     for line in """
-specify_cli/cli/commands/sync.py::_run_consent_index_backfill::call-path::may-grant::calls:backfill_uuid_consent_index:persistence
-specify_cli/cli/commands/sync.py::migrate::call-path::may-grant::calls:_run_consent_index_backfill:persistence
 specify_cli/cli/commands/sync.py::opt_in::call-path::may-grant::calls:enable_checkout_sync:persistence
 specify_cli/cli/commands/sync.py::opt_out::call-path::refusal-only::calls:disable_checkout_sync:persistence
 specify_cli/sync/background.py::_consenting_body_project_uuids::call-path::may-grant::calls:consented_project_uuids:decision-return
@@ -736,46 +759,29 @@ specify_cli/sync/config.py::SyncConfig.read_project_consent::decision-return::ma
 specify_cli/sync/config.py::SyncConfig.read_project_consent::decision-return::may-grant::keyword:ProjectConsentRead.enabled
 specify_cli/sync/config.py::SyncConfig.read_project_consent::decision-return::may-grant::keyword:ProjectConsentRead.enabled
 specify_cli/sync/config.py::SyncConfig.read_project_consent::decision-return::may-grant::return:grant-field
-specify_cli/sync/config.py::SyncConfig.set_checkout_sync_enabled::persistence::may-grant::mapping:enabled
-specify_cli/sync/config.py::SyncConfig.set_project_consent::call-path::may-grant::calls:set_project_consent_bulk:persistence
-specify_cli/sync/config.py::SyncConfig.set_project_consent_bulk::persistence::may-grant::mapping:enabled
-specify_cli/sync/config.py::SyncConfig.set_repository_sync_enabled::persistence::may-grant::mapping:enabled
 specify_cli/sync/config.py::_project_consent_entry::decision-return::may-grant::return:grant-field
 specify_cli/sync/config.py::_project_consent_entry::decision-return::may-grant::return:grant-field
-specify_cli/sync/consent.py::_answer_machine_index::decision-return::may-grant::keyword:ConsentDecision.granted
-specify_cli/sync/consent.py::_answer_machine_index::decision-return::may-grant::return:grant-field
-specify_cli/sync/consent.py::_answer_machine_index::decision-return::refusal-only::keyword:ConsentDecision.granted
-specify_cli/sync/consent.py::_answer_project_local::call-path::may-grant::calls:_reconcile_index:persistence
-specify_cli/sync/consent.py::_answer_project_local::call-path::refusal-only::calls:_reconcile_index:persistence
-specify_cli/sync/consent.py::_answer_project_local::decision-return::may-grant::keyword:ConsentDecision.granted
-specify_cli/sync/consent.py::_answer_project_local::decision-return::may-grant::return:grant-field
-specify_cli/sync/consent.py::_answer_project_local::decision-return::refusal-only::keyword:ConsentDecision.granted
-specify_cli/sync/consent.py::_answer_project_local::decision-return::refusal-only::keyword:ConsentDecision.granted
-specify_cli/sync/consent.py::_reconcile_index::call-path::may-grant::calls:set_project_consent:persistence
-specify_cli/sync/consent.py::backfill_uuid_consent_index::call-path::may-grant::calls:set_project_consent_bulk:persistence
-specify_cli/sync/consent.py::backfill_uuid_consent_index::decision-return::may-grant::keyword:UnresolvedConsentEntry.enabled
 specify_cli/sync/consent.py::consented_project_uuids::decision-return::may-grant::return:grant-field
-specify_cli/sync/consent.py::get_project_consent::call-path::may-grant::calls:get_project_consent:decision-return
+specify_cli/sync/consent.py::import_legacy_refusal::persistence::refusal-only::keyword:ConsentState.state
+specify_cli/sync/consent.py::record_project_opt_in::persistence::may-grant::keyword:ConsentState.state
+specify_cli/sync/consent.py::record_project_opt_out::persistence::refusal-only::keyword:ConsentState.state
+specify_cli/sync/consent.py::resolve_project_consent::decision-return::may-grant::keyword:ConsentDecision.granted
 specify_cli/sync/consent.py::resolve_project_consent::decision-return::refusal-only::keyword:ConsentDecision.granted
 specify_cli/sync/consent.py::resolve_project_consent::decision-return::refusal-only::keyword:ConsentDecision.granted
-specify_cli/sync/consent.py::set_project_consent::call-path::may-grant::calls:set_project_consent:persistence
+specify_cli/sync/consent.py::resolve_project_consent::decision-return::refusal-only::keyword:ConsentDecision.granted
+specify_cli/sync/consent.py::resolve_project_consent::decision-return::refusal-only::keyword:ConsentDecision.granted
 specify_cli/sync/local_commit.py::_frame_project_consents::decision-return::may-grant::return:grant-field
 specify_cli/sync/routing.py::_build_checkout_sync_routing::call-path::refusal-only::calls:_deny_routing_for_project_local_fault:decision-return
 specify_cli/sync/routing.py::_build_checkout_sync_routing::decision-return::may-grant::keyword:CheckoutSyncRouting.effective_sync_enabled
 specify_cli/sync/routing.py::_build_checkout_sync_routing::decision-return::may-grant::return:grant-field
 specify_cli/sync/routing.py::_deny_routing_for_project_local_fault::decision-return::refusal-only::keyword:CheckoutSyncRouting.effective_sync_enabled
 specify_cli/sync/routing.py::_routing_for_unreadable_project_config::call-path::refusal-only::calls:_deny_routing_for_project_local_fault:decision-return
-specify_cli/sync/routing.py::disable_checkout_sync::call-path::refusal-only::calls:set_project_consent:persistence
-specify_cli/sync/routing.py::disable_checkout_sync::call-path::refusal-only::calls:set_repository_sync_enabled:persistence
-specify_cli/sync/routing.py::disable_checkout_sync::call-path::refusal-only::calls:write_local_sync_enabled:persistence
-specify_cli/sync/routing.py::enable_checkout_sync::call-path::may-grant::calls:set_project_consent:persistence
-specify_cli/sync/routing.py::enable_checkout_sync::call-path::may-grant::calls:set_repository_sync_enabled:persistence
-specify_cli/sync/routing.py::enable_checkout_sync::call-path::may-grant::calls:write_local_sync_enabled:persistence
+specify_cli/sync/routing.py::disable_checkout_sync::call-path::refusal-only::calls:record_project_opt_out:persistence
+specify_cli/sync/routing.py::enable_checkout_sync::call-path::may-grant::calls:record_project_opt_in:persistence
 specify_cli/sync/routing.py::is_sync_enabled_for_checkout::decision-return::may-grant::return:grant-field
 specify_cli/sync/routing.py::read_local_sync_enabled::call-path::may-grant::calls:get_checkout_sync_enabled:decision-return
 specify_cli/sync/routing.py::resolve_checkout_sync_routing::call-path::may-grant::calls:_build_checkout_sync_routing:decision-return
 specify_cli/sync/routing.py::resolve_checkout_sync_routing_readonly::call-path::may-grant::calls:_build_checkout_sync_routing:decision-return
-specify_cli/sync/routing.py::write_local_sync_enabled::call-path::may-grant::calls:set_checkout_sync_enabled:persistence
 specify_cli/sync/runtime.py::event_project_consents_to_publish::decision-return::may-grant::return:grant-field
 """.splitlines()
     if line.strip()
@@ -789,8 +795,9 @@ def final_grant_writer_violations(
     return tuple(
         site
         for site in sites
-        if site.effect is GrantEffect.MAY_GRANT
-        and not (site.relpath == "specify_cli/sync/project_store.py" and site.qualname == "ProjectSyncStore.set_consent_decision")
+        if site.kind is GrantKind.PERSISTENCE
+        and site.effect is GrantEffect.MAY_GRANT
+        and not (site.relpath == "specify_cli/sync/consent.py" and site.qualname == "record_project_opt_in" and site.evidence == "keyword:ConsentState.state")
     )
 
 
@@ -804,6 +811,17 @@ def test_source_discovered_grant_census_cannot_grow() -> None:
     assert any(site.kind is GrantKind.CALL_PATH for site in sites)
     assert any(site.effect is GrantEffect.REFUSAL_ONLY for site in sites)
     assert all(site.owner_wp for site in sites)
+    assert not final_grant_writer_violations(sites)
+    direct_store_grants = tuple(site for site in sites if site.kind is GrantKind.PERSISTENCE and site.effect is GrantEffect.MAY_GRANT)
+    assert len(direct_store_grants) == 1
+    assert direct_store_grants[0].qualname == "record_project_opt_in"
+    consent_resolvers = tuple(
+        site
+        for site in sites
+        if site.kind is GrantKind.DECISION_RETURN and site.effect is GrantEffect.MAY_GRANT and site.evidence == "keyword:ConsentDecision.granted"
+    )
+    assert len(consent_resolvers) == 1
+    assert consent_resolvers[0].qualname == "resolve_project_consent"
     shrink = _KNOWN_GRANT_SITE_COUNTS - observed
     if shrink:
         warnings.warn(

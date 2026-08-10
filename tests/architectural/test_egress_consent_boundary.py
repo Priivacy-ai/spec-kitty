@@ -1950,6 +1950,11 @@ def _layout_operation(text: str | None) -> str | None:
 def _writer_owner(relpath: str) -> str:
     if "migrate" in relpath or relpath.startswith("specify_cli/cli/"):
         return "WP10"
+    if relpath in {
+        "specify_cli/sync/consent.py",
+        "specify_cli/sync/history_disclosure.py",
+    }:
+        return "WP03"
     if relpath.startswith("specify_cli/delivery/targets.py"):
         return "WP05"
     if relpath.startswith("specify_cli/delivery/dispatcher.py"):
@@ -2096,6 +2101,12 @@ specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.mark_uploaded::DELETE::ex
 specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.record_permanent_failure::INSERT::execute
 specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.remove_project_tasks::DELETE::execute
 specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.remove_stale::DELETE::execute
+specify_cli/sync/consent.py::_seal_active_epochs::UPDATE::execute
+specify_cli/sync/consent.py::_write_decision::INSERT::execute
+specify_cli/sync/consent.py::_write_decision::INSERT::execute
+specify_cli/sync/consent.py::allocate_capture_sequence::INSERT::execute
+specify_cli/sync/consent.py::allocate_capture_sequence::INSERT::execute
+specify_cli/sync/history_disclosure.py::confirm_history_disclosure::INSERT::execute
 specify_cli/sync/migrate_journal.py::MigrationAudit.__init__::CREATE::executescript
 specify_cli/sync/migrate_journal.py::MigrationAudit.clear_conflict::DELETE::execute
 specify_cli/sync/migrate_journal.py::MigrationAudit.quarantine_conflict::INSERT::execute
