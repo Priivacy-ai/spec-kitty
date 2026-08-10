@@ -1,3 +1,34 @@
+---
+schema_version: 1
+artifact_type: spec-kitty.analysis-report
+command: /spec-kitty.analyze
+mission_slug: per-project-sync-consent-ledgers-01KZNNZS
+mission_id: 01KZNNZSMG4FTNQ7AY6ZXJAJNG
+generated_at: '2026-08-10T11:32:39.964845+00:00'
+analyzer_agent: codex
+input_artifacts:
+  spec.md:
+    path: /private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260810-130708-cEJgwV/spec-kitty/kitty-specs/per-project-sync-consent-ledgers-01KZNNZS/spec.md
+    sha256: b8b9e05b5930f5dfed4e88a655bdc523ea8afd89550d732637efbd7e5ca74822
+  plan.md:
+    path: /private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260810-130708-cEJgwV/spec-kitty/kitty-specs/per-project-sync-consent-ledgers-01KZNNZS/plan.md
+    sha256: 12142faf29c961e89e70e0ee956a10933b2c635045a0cbfb1237047b2c5e2bdb
+  tasks.md:
+    path: /private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260810-130708-cEJgwV/spec-kitty/kitty-specs/per-project-sync-consent-ledgers-01KZNNZS/tasks.md
+    sha256: ecaaedbf3af4b636ea51543f3d6db73e1ad0bfc4f1fd2c12c1f4623562bbbd45
+  charter:
+    path: /private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260810-130708-cEJgwV/spec-kitty/.kittify/charter/charter.yaml
+    sha256: c304520c64195493fc9394b11cb5b84c91569eafe268aa3d194be58ffaee8305
+verdict: unknown
+issue_counts:
+  info:
+  medium:
+  high:
+  low:
+  critical:
+findings: []
+---
+
 # Analysis: per-project sync consent ledgers
 
 Date: 2026-08-10  
