@@ -15,6 +15,19 @@ that:
    ``blocked_reason`` always points the operator at one exact recovery
    command.
 
+Boundary heal semantics (WP04, charter-synthesize-reconciliation-01KZJQN6):
+the ``charter synthesize`` call inside the refresh sequence is invoked
+flagless — no ``--prune``, no ``--dry-run`` — which selects
+``SynthesizeMode.preserve`` (the library default): a successful heal never
+drops backed content, and ``synthesized_drg`` self-clears to ``fresh``
+because ``rewrite_manifest`` re-stamps the manifest's
+``bundle_content_hash`` on every write. This is a "never silently drops
+content" guarantee, NOT a "never refuses" guarantee: orphaned
+(backing-artifact-deleted) content and an unparseable on-disk doctrine
+overlay still make the subprocess exit non-zero, and this runner surfaces
+that as an actionable ``blocked_reason`` exactly like any other refresh
+failure — it never coerces that outcome to ``passed=True``.
+
 Performance contract (NFR-001):
 
 * warm path (everything fresh) — < 300 ms;
@@ -40,7 +53,7 @@ from .result import CharterPreflightCheck, CharterPreflightResult
 if TYPE_CHECKING:  # pragma: no cover — used only for type hints.
     from specify_cli.charter_runtime.freshness import CharterFreshness
 
-__all__ = ["run_charter_preflight"]
+__all__ = ["SYNTHESIZED_DRG_LAYER", "run_charter_preflight"]
 
 
 # ---------------------------------------------------------------------------
@@ -48,12 +61,21 @@ __all__ = ["run_charter_preflight"]
 # ---------------------------------------------------------------------------
 
 
+#: Canonical freshness-check name for the synthesized-DRG layer. This is the
+#: single source of truth for the string ``"synthesized_drg"`` — both
+#: ``_LAYER_ORDER`` below and ``references_refresh``'s references-parity
+#: cause matching (:func:`references_refresh.is_references_parity_cause`)
+#: consume this constant rather than re-declaring the literal, so a rename
+#: here cannot silently desync the references-parity heal from the runner's
+#: actual layer set.
+SYNTHESIZED_DRG_LAYER = "synthesized_drg"
+
 # Layer ordering is part of the contract — consumers MAY index by name but
 # humans scanning ``--json`` output rely on this order.
 _LAYER_ORDER: tuple[tuple[str, str], ...] = (
     ("charter_source", "charter source"),
     ("synced_bundle", "synced bundle"),
-    ("synthesized_drg", "synthesized DRG"),
+    (SYNTHESIZED_DRG_LAYER, "synthesized DRG"),
 )
 
 # Passing states — see contracts/charter-preflight-json.md "State semantics".
@@ -339,6 +361,37 @@ def _refresh_timeout_secs() -> float:
     return value
 
 
+def refresh_references_if_needed(repo_root: Path, cause: str) -> bool:
+    """References-parity extension point (T019 install / WP06 implement, #2777).
+
+    Delegates to :func:`specify_cli.charter_runtime.preflight.
+    references_refresh.refresh_references_if_needed`, WP06's implementation
+    of the real references-parity ``generate`` call (FR-011). The import is
+    deferred to call time — not module-import time — so this rarely-taken
+    branch does not grow ``run_charter_preflight``'s hot-path import surface
+    (mirrors the lazy-import discipline this package already uses for
+    ``charter.bundle``/``charter.synthesizer`` elsewhere, LD-3/NFR-003).
+
+    Args:
+        repo_root: Repository root the just-completed heal ran against.
+        cause: Comma-joined names of the freshness checks that triggered the
+            heal (e.g. ``"synthesized_drg"``). See ``references_refresh``'s
+            module docstring for why ``synthesized_drg`` is the
+            references-parity signal.
+
+    Returns:
+        ``True`` iff a targeted ``generate`` was attempted (i.e. *cause*
+        named the references-parity layer) — the caller uses this to decide
+        whether ``charter.yaml``'s derived catalog may have just changed and
+        the synthesis manifest needs re-stamping (MAJOR-1, WP06 rejection
+        cycle 1) before the post-refresh freshness recompute. ``False`` for
+        a non-references-parity cause (true no-op, nothing to re-stamp).
+    """
+    from .references_refresh import refresh_references_if_needed as _refresh_references
+
+    return _refresh_references(repo_root, cause)
+
+
 def _attempt_auto_refresh(
     repo_root: Path,
     freshness: CharterFreshness,
@@ -354,6 +407,11 @@ def _attempt_auto_refresh(
        is already ``fresh``.
     3. ``spec-kitty charter bundle validate`` — always run when we reach
        this branch.
+    4. ``refresh_references_if_needed`` (WP06, #2777) — a targeted
+       ``spec-kitty charter generate``, gated on the references-parity
+       cause. When it fires, step 5 (below) re-runs ``synthesize`` once
+       more to re-stamp the manifest against generate's rewritten
+       ``charter.yaml`` — see that step's own comment for why.
 
     On any non-zero exit, we stop, surface the failing command's first
     stderr line via ``blocked_reason``, and mark
@@ -403,6 +461,11 @@ def _attempt_auto_refresh(
             )
 
     if not drg_fresh:
+        # WP04: flagless invocation — no --prune, no --dry-run — selects
+        # SynthesizeMode.preserve (the library default). See the module
+        # docstring's "Boundary heal semantics" section: this never drops
+        # backed content, but orphaned/unparseable causes still exit
+        # non-zero and are surfaced below via `reason`, never swallowed.
         synth_cmd = [*_SPEC_KITTY_CHARTER_PREFIX, "synthesize"]
         ok, reason = _run_refresh_step(synth_cmd, repo_root, timeout_secs)
         actions.append(" ".join(synth_cmd))
@@ -426,6 +489,43 @@ def _attempt_auto_refresh(
             auto_refresh_actions=actions,
             blocked_reason=reason,
         )
+
+    # References-parity extension point (WP04 install / WP06 implement,
+    # #2777): fires a targeted `generate` once the refresh sequence has
+    # succeeded, before the post-refresh freshness recompute. Gated, not
+    # unconditional — `synthesized_drg` is the post-#2759 proxy for
+    # "references-parity drift" (the stand-alone parity check it used to
+    # name is retired; see `references_refresh`'s module docstring), so this
+    # only fires when the ORIGINAL stale-cause set actually named that
+    # layer.
+    stale_cause = ",".join(sorted({c.name for c in initial_checks if c.state not in _PASS_STATES}))
+    references_refreshed = refresh_references_if_needed(repo_root, cause=stale_cause)
+
+    if references_refreshed:
+        # MAJOR-1 (WP06 rejection cycle 1): `generate` rewrites
+        # `charter.yaml`'s derived catalog but — unlike `synthesize` — never
+        # re-stamps the synthesis manifest's `bundle_content_hash` itself.
+        # Left alone, the freshness recompute below would then see
+        # stored_hash (pre-generate) != current_hash (post-generate) and
+        # report `synthesized_drg="stale"`, turning a heal that genuinely
+        # succeeded into `passed=False`. Re-running the same flagless
+        # `synthesize` step (`SynthesizeMode.preserve`, never --prune/
+        # --dry-run) re-stamps the manifest against the NEW `charter.yaml`
+        # — the same self-clearing mechanism the module docstring's
+        # "Boundary heal semantics" section already documents for the
+        # first synthesize call — so the recompute below sees a
+        # manifest-coherent state.
+        restamp_cmd = [*_SPEC_KITTY_CHARTER_PREFIX, "synthesize"]
+        ok, reason = _run_refresh_step(restamp_cmd, repo_root, timeout_secs)
+        actions.append(" ".join(restamp_cmd))
+        if not ok:
+            return CharterPreflightResult(
+                passed=False,
+                checks=initial_checks,
+                auto_refresh_applied=True,
+                auto_refresh_actions=actions,
+                blocked_reason=reason,
+            )
 
     # Refresh succeeded — recompute freshness and rebuild checks so
     # callers see the post-refresh state.

@@ -256,8 +256,26 @@ def test_auto_refresh_clean_worktree_runs_sequence(tmp_path: Path, monkeypatch: 
     cmds_as_strs = [" ".join(c) for c in spec_kitty_calls]
     assert "spec-kitty charter synthesize" in cmds_as_strs
     assert "spec-kitty charter bundle validate" in cmds_as_strs
-    # And the result captured those actions in order.
-    assert result.auto_refresh_actions == cmds_as_strs
+    # And the result captured the runner's own tracked action sequence in
+    # order: sync, synthesize, bundle validate, then a WP06 re-stamp
+    # `synthesize` (#2777, MAJOR-1 rejection cycle 1) — the references-parity
+    # heal's targeted `generate` rewrites charter.yaml's derived catalog but
+    # never re-stamps the synthesis manifest's bundle_content_hash itself, so
+    # the boundary re-runs the same flagless `synthesize` once more to keep
+    # the post-refresh freshness recompute manifest-coherent. That targeted
+    # `generate` call is a real executed subprocess (visible above via
+    # `cmds_as_strs`, which observes every "spec-kitty" call) but is issued
+    # by `references_refresh.refresh_references_if_needed` — a background
+    # extension-point side effect, not one of the primary steps
+    # `_attempt_auto_refresh` itself tracks — so it is intentionally absent
+    # from `auto_refresh_actions`.
+    assert "spec-kitty charter generate --no-from-interview" in cmds_as_strs
+    assert result.auto_refresh_actions == [
+        "spec-kitty charter sync",
+        "spec-kitty charter synthesize",
+        "spec-kitty charter bundle validate",
+        "spec-kitty charter synthesize",
+    ]
 
 
 def test_auto_refresh_failure_captures_blocked_reason(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

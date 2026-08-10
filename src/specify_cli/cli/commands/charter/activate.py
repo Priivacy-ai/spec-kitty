@@ -26,6 +26,7 @@ from __future__ import annotations
 import contextlib
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from pathlib import Path
+from typing import cast
 
 import typer
 from rich.console import Console
@@ -50,7 +51,7 @@ from charter.pack_manager import YAML_KEY_MAP, CharterPackManager
 
 from specify_cli.cli.commands.charter._layer_roots import resolve_layer_roots
 
-__all__ = ["activate_cmd", "run_resynthesize_pipeline"]
+__all__ = ["activate_cmd", "run_full_synthesize"]
 
 RESYNTHESIZE_HELP = (
     "Eagerly refresh the derived bundle/DRG after this activation via the "
@@ -99,11 +100,20 @@ def _source_urn(
     except MissionTypeNotAnArtifactKind:
         return None
     try:
-        return resolve_artifact_urn(
-            kind_enum,
-            artifact_id,
-            doctrine_root=resolve_doctrine_root(),
-            layer_roots=layer_roots,
+        # ``resolve_artifact_urn`` is declared ``-> str`` in charter/kind_vocabulary.py,
+        # but the project's mypy config sets ``follow_imports = "skip"`` for the
+        # ``charter.*`` module pattern (pyproject.toml), so mypy treats the imported
+        # symbol's return as ``Any`` here rather than reading its real signature.
+        # The cast is an honest re-statement of the already-declared type, not a
+        # suppression of a real type error.
+        return cast(
+            str,
+            resolve_artifact_urn(
+                kind_enum,
+                artifact_id,
+                doctrine_root=resolve_doctrine_root(),
+                layer_roots=layer_roots,
+            ),
         )
     except UnknownArtifactIdError:
         return None
@@ -123,10 +133,16 @@ def _drg_id_to_config_id(
     config stem resolves (so rendering never crashes on an orphan node).
     """
     try:
-        return resolve_config_id(
-            f"{kind_value}:{drg_id}",
-            doctrine_root=doctrine_root,
-            layer_roots=layer_roots,
+        # See the matching comment on ``_source_urn`` above: ``resolve_config_id``
+        # is declared ``-> str``, but the ``charter.*`` mypy import-skip override
+        # erases that at this call site; the cast restates the real signature.
+        return cast(
+            str,
+            resolve_config_id(
+                f"{kind_value}:{drg_id}",
+                doctrine_root=doctrine_root,
+                layer_roots=layer_roots,
+            ),
         )
     except (UnknownArtifactIdError, ValueError):
         return drg_id
@@ -302,8 +318,13 @@ def _render_no_cascade_warning(
     console.print(f"[yellow]Hint[/yellow]: {report.recovery_hint}")
 
 
-def run_resynthesize_pipeline(repo_root: Path) -> None:
-    """Eagerly refresh the derived bundle/DRG via the EXISTING synthesize pipeline (FR-007).
+def run_full_synthesize(repo_root: Path) -> None:
+    """Eagerly refresh the derived bundle/DRG via the EXISTING full-synthesize pipeline (FR-007).
+
+    FR-013 naming footgun fix: this function calls the FULL ``charter
+    synthesize`` pipeline (the same one ``spec-kitty charter synthesize``
+    runs), not the bounded ``resynthesize_pipeline`` module -- its previous
+    name (``run_resynthesize_pipeline``) misleadingly suggested the latter.
 
     ``--resynthesize`` opts into the SAME production entry points
     ``spec-kitty charter generate`` uses (recompiles ``references.yaml`` from
@@ -325,6 +346,13 @@ def run_resynthesize_pipeline(repo_root: Path) -> None:
     to the declared default value -- so every parameter is passed explicitly
     here with its production default; never rely on the bare function
     signature default when calling a Typer command body in-process.
+    ``prune=False`` is REQUIRED here (WP05, #3270 sentinel-prune regression):
+    WP03 added ``--prune`` to ``charter_synthesize``; an in-process caller
+    that omits it would receive the truthy ``OptionInfo`` sentinel instead
+    of the declared ``False`` default and silently prune the overlay on
+    every activation/deactivation. ``synthesize.py``'s ``_coerce_cli_bool``
+    is a belt-and-braces guard for this same footgun -- this explicit
+    keyword is the authoritative fix.
 
     Imports are deliberately local: this whole call graph (evidence
     collection, doctrine service construction, git staging) is expensive and
@@ -348,6 +376,7 @@ def run_resynthesize_pipeline(repo_root: Path) -> None:
         _synthesize(
             adapter="generated",
             dry_run=False,
+            prune=False,
             json_output=False,
             skip_code_evidence=False,
             skip_corpus=False,
@@ -446,4 +475,4 @@ def activate_cmd(
     # FR-007: opt-in eager refresh, run AFTER cascade so it reconciles the
     # complete post-activation config state -- not just the direct target.
     if resynthesize:
-        run_resynthesize_pipeline(repo_root)
+        run_full_synthesize(repo_root)

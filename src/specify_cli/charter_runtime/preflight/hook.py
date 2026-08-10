@@ -12,6 +12,16 @@ These helpers implement the rules in
 The helpers are intentionally CLI-side (typer-aware): they are the shared
 glue between the three consumer entry points and ``run_charter_preflight``.
 The runner itself stays framework-free.
+
+Boundary heal caveat (WP04, charter-synthesize-reconciliation-01KZJQN6): when
+``cfg.auto_refresh`` is set, ``run_charter_preflight`` attempts a
+non-destructive heal (``SynthesizeMode.preserve`` — never drops backed
+content) before falling through to the ``passed=False`` branch below. That
+non-destructive guarantee is not a "never refuses" guarantee: orphaned
+(backing-artifact-deleted) content and an unparseable on-disk doctrine
+overlay still make the heal fail. When that happens it surfaces here exactly
+like any other preflight failure — printed ``blocked_reason`` + exit 1 (or,
+for the dashboard, a warning banner), never a silently-coerced ``passed=True``.
 """
 
 from __future__ import annotations

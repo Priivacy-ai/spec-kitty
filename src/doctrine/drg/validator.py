@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from doctrine.drg.models import DRGGraph, NodeKind, Relation
+from doctrine.drg.models import DRGEdge, DRGGraph, NodeKind, Relation
 
 #: Relations whose *both* endpoints must be ``agent_profile`` nodes. Lineage
 #: (``specializes_from``) and runtime delegation (``delegates_to``) are the two
@@ -208,7 +208,7 @@ def validate_dangling_references(graph: DRGGraph) -> list[str]:
     """
     errors: list[str] = []
     urns = graph.node_urns()
-    for edge in graph.edges:
+    for edge in dangling_endpoints(graph):
         if edge.source not in urns:
             errors.append(
                 f"Dangling source: edge ({edge.source} --{edge.relation}--> "
@@ -222,19 +222,53 @@ def validate_dangling_references(graph: DRGGraph) -> list[str]:
     return errors
 
 
-def _validate_duplicate_edges(graph: DRGGraph) -> list[str]:
-    """Return errors for repeated ``(source, target, relation)`` triples."""
-    errors: list[str] = []
+def dangling_endpoints(graph: DRGGraph) -> list[DRGEdge]:
+    """Return each edge whose source and/or target is not a known node URN.
+
+    Structured SSOT for "dangling edge" detection (charter-synthesize-
+    reconciliation WP01, amendment #3). Both :func:`validate_dangling_references`
+    (string formatting, above) and ``charter.synthesizer.reconcile``
+    (preserved-vs-new-emit provenance classification) consume this so
+    "dangling" has exactly one definition, never a second re-implementation.
+
+    An edge with a dangling endpoint on *either* side appears once here even
+    when both sides dangle; :func:`validate_dangling_references` re-derives
+    which side(s) dangled from ``graph.node_urns()`` to keep its
+    one-message-per-dangling-endpoint output shape (and exact wording)
+    unchanged.
+    """
+    urns = graph.node_urns()
+    return [edge for edge in graph.edges if edge.source not in urns or edge.target not in urns]
+
+
+def duplicate_edge_triples(graph: DRGGraph) -> list[DRGEdge]:
+    """Return each edge that repeats an already-seen ``(source, target, relation)`` triple.
+
+    Structured SSOT for "duplicate edge" detection (charter-synthesize-
+    reconciliation WP01, amendment #3). Both :func:`_validate_duplicate_edges`
+    (string formatting, below) and ``charter.synthesizer.reconcile``
+    (preserved-vs-new-emit provenance classification) consume this so
+    "duplicate" has exactly one definition. Returns the second-and-later
+    occurrence of each repeated triple, in graph edge order -- mirrors the
+    prior inline scan exactly, so :func:`validate_graph`'s string output is
+    unchanged.
+    """
+    duplicates: list[DRGEdge] = []
     seen_triples: set[tuple[str, str, str]] = set()
     for edge in graph.edges:
         triple = (edge.source, edge.target, edge.relation.value)
         if triple in seen_triples:
-            errors.append(
-                f"Duplicate edge: ({edge.source} --{edge.relation}--> "
-                f"{edge.target})"
-            )
+            duplicates.append(edge)
         seen_triples.add(triple)
-    return errors
+    return duplicates
+
+
+def _validate_duplicate_edges(graph: DRGGraph) -> list[str]:
+    """Return errors for repeated ``(source, target, relation)`` triples."""
+    return [
+        f"Duplicate edge: ({edge.source} --{edge.relation}--> {edge.target})"
+        for edge in duplicate_edge_triples(graph)
+    ]
 
 
 def _validate_requires_cycles(graph: DRGGraph) -> list[str]:

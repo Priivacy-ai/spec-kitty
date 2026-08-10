@@ -24,6 +24,7 @@ import re
 from typing import Any
 
 from .errors import DuplicateTargetError, ProjectDRGValidationError
+from .interview_mapping import mission_type_urn_candidate
 from .request import SynthesisTarget
 
 __all__ = [
@@ -138,6 +139,16 @@ def _make_title_for_section(section_label: str, kind: str, answer_context: dict[
 # ---------------------------------------------------------------------------
 
 
+def _known_drg_urns(drg_snapshot: dict[str, Any]) -> frozenset[str]:
+    """Return the set of node URNs present in *drg_snapshot*."""
+    nodes = drg_snapshot.get("nodes", [])
+    return frozenset(
+        str(node["urn"])
+        for node in nodes
+        if isinstance(node, dict) and node.get("urn")
+    )
+
+
 def _validate_source_urns(
     source_urns: tuple[str, ...],
     drg_snapshot: dict[str, Any],
@@ -158,15 +169,7 @@ def _validate_source_urns(
     target_label:
         Human-readable label for the target being built (for error messages).
     """
-    # Build the set of known URNs from the DRG snapshot.
-    nodes = drg_snapshot.get("nodes", [])
-    known_urns: set[str] = set()
-    for node in nodes:
-        if isinstance(node, dict):
-            urn = node.get("urn")
-            if urn:
-                known_urns.add(str(urn))
-
+    known_urns = _known_drg_urns(drg_snapshot)
     dangling = [u for u in source_urns if u not in known_urns]
     if dangling:
         raise ProjectDRGValidationError(
@@ -180,6 +183,48 @@ def _validate_source_urns(
                 f"{len(dangling)} dangling reference(s): {', '.join(dangling)}"
             ),
         )
+
+
+# ---------------------------------------------------------------------------
+# #3052 edge wiring (FR-012/NFR-007)
+# ---------------------------------------------------------------------------
+
+
+def _mission_type_evidence_urns(
+    section_label: str,
+    answer_context: dict[str, Any],
+    drg_snapshot: dict[str, Any],
+) -> tuple[str, ...]:
+    """Return the declared ``mission_type`` URN for this target, or ``()``.
+
+    Extends ``source_urns`` population to the ``mission_type`` section
+    (currently ``edges: []``), mirroring the existing
+    ``how-we-apply-DIRECTIVE_xxx`` pattern for ``selected_directives``. Fires
+    only when:
+
+    1. ``section_label`` is ``"mission_type"`` -- no other section is touched.
+    2. The answer names a shipped mission-type id (real identity-match
+       evidence via ``interview_mapping.mission_type_urn_candidate`` --
+       ``resolve_sections()`` cannot perform this check itself, R-9 forbids
+       DRG access at interview-resolution time).
+    3. That id's ``mission_type:<id>`` node is actually present in *this
+       run's* ``drg_snapshot``.
+
+    Condition 3 is the no-fabrication safety valve (NFR-007): an incomplete
+    or minimal DRG snapshot (e.g. a narrow test double lacking mission-type
+    nodes) silently omits the edge instead of raising
+    ``ProjectDRGValidationError`` -- the identity match is genuine evidence,
+    but a run that cannot corroborate it in its own DRG never claims it.
+    """
+    if section_label != "mission_type":
+        return ()
+    answer = answer_context.get("answer", "")
+    if not isinstance(answer, str) or not answer:
+        return ()
+    candidate = mission_type_urn_candidate(answer)
+    if candidate and candidate in _known_drg_urns(drg_snapshot):
+        return (candidate,)
+    return ()
 
 
 # ---------------------------------------------------------------------------
@@ -228,6 +273,10 @@ def build_targets(
         explicit_source_urns: tuple[str, ...] = tuple(
             answer_context.get("source_urns", ())
         )
+        if not explicit_source_urns:
+            explicit_source_urns = _mission_type_evidence_urns(
+                section_label, answer_context, drg_snapshot
+            )
 
         # Validate any explicitly declared source URNs against the DRG.
         if explicit_source_urns:
@@ -249,7 +298,10 @@ def build_targets(
                 # For tactic / styleguide: artifact_id == slug
                 artifact_id = slug
 
-            # Combine explicit + implicit source_urns (no duplicates).
+            # `explicit_source_urns` already resolved to the mission-type
+            # evidence URNs above when the answer context declared none, so
+            # this is a plain rename to the SynthesisTarget field name -- no
+            # combining/deduplication happens here.
             all_source_urns = explicit_source_urns
 
             target = SynthesisTarget(

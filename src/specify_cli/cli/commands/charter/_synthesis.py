@@ -5,10 +5,21 @@ behaviour-preserving; only import paths changed.
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+import typer
+
+from specify_cli.cli.console import console, err_console
 from specify_cli.task_utils import TaskCliError
+
+if TYPE_CHECKING:
+    from charter.synthesizer.reconcile import (
+        NodeOrEdgeRef,
+        ReconciliationConflict,
+        ReconciliationDelta,
+    )
 
 # ``_interview_path`` is part of the legacy charter test-patch surface. We must
 # look it up on the package module at call time (not bind it at import time) so
@@ -200,15 +211,25 @@ def _collect_evidence_result(
 
 def _build_synthesis_validation_callback(request: Any) -> Any:
     from doctrine.drg.models import DRGGraph
-    from importlib.metadata import version as pkg_version
 
     from charter.synthesizer.interview_mapping import normalize_interview_snapshot, resolve_sections
     from charter.synthesizer.orchestrator import _built_in_drg_from_snapshot
     from charter.synthesizer.project_drg import emit_project_layer, persist as persist_project_graph
+    from charter.synthesizer.synthesize_pipeline import _get_synthesizer_version
     from charter.synthesizer.targets import build_targets, detect_duplicates, order_targets
     from charter.synthesizer.validation_gate import validate as validate_project_graph
 
-    spec_kitty_version = pkg_version("spec-kitty-cli")
+    # WP03 campsite fix: this call site duplicated a bare, unprotected
+    # ``importlib.metadata.version("spec-kitty-cli")`` lookup instead of
+    # reusing the package's own safe helper. It never raised in production
+    # (real installs resolve the distribution fine) but crashes with a bare
+    # ``PackageNotFoundError`` under an editable/dev checkout where metadata
+    # discovery differs by import context (e.g. pytest vs. a plain
+    # interpreter) -- reproduced by this WP's own dry-run CLI tests, the
+    # first callers to exercise this code path for real instead of mocking
+    # it away. ``_get_synthesizer_version()`` (already used by
+    # ``orchestrator.synthesize()`` for the exact same purpose) never raises.
+    spec_kitty_version = _get_synthesizer_version()
     built_in_drg = DRGGraph.model_validate(_built_in_drg_from_snapshot(request.drg_snapshot))
     interview_snapshot = normalize_interview_snapshot(dict(request.interview_snapshot))
     sections = resolve_sections(interview_snapshot)
@@ -554,6 +575,326 @@ def _has_generated_artifacts(repo_root: Path) -> bool:
     return False
 
 
+def _print_synthesis_commit_reminder() -> None:
+    console.print("[yellow]Synthesis artifacts written; commit provenance before continuing:[/yellow]")
+    console.print(
+        "  git add .kittify/charter/synthesis-manifest.yaml "
+        ".kittify/charter/provenance/ .kittify/doctrine/"
+    )
+    console.print("  git commit -m 'chore: charter synthesis artifacts'")
+
+
+# ---------------------------------------------------------------------------
+# WP03 (charter-synthesize-reconciliation-01KZJQN6) -- CLI-owned reconciliation
+# policy on top of the library's ReconciliationDelta (reconcile.py, WP01):
+# preserve-and-warn default, --prune list-and-remove, --dry-run report-and-
+# no-write, and the narrow orphan-without-prune / unparseable-overlay
+# refusal (FR-003 / FR-007 / FR-010 / FR-014). The library seam owns the
+# MECHANISM (merge/prune/dry-run); everything here is the CLI's POLICY on
+# top of it.
+# ---------------------------------------------------------------------------
+
+
+def _reconciliation_preview(request: Any, repo_root: Path) -> ReconciliationDelta:
+    """Compute this run's ``ReconciliationDelta`` without writing anything.
+
+    Every WP03 mode decision -- the ``--dry-run`` report AND the orphan-
+    refusal check ahead of a real preserve/prune write -- reads from this
+    ONE preview computation.
+
+    Deliberately does NOT call ``charter.synthesizer.synthesize`` (nor
+    ``run_all()``/the adapter): the GRAPH-level delta fields this WP consumes
+    (``retained``/``added``/``removable`` node+edge refs, used for orphan
+    detection and --dry-run reporting) depend only on ``targets`` --
+    interview/DRG-snapshot-derived, computed identically to the real write
+    path's ``_build_synthesis_validation_callback`` -- and on-disk state,
+    never on adapter output. Reusing the canonical
+    ``reconcile.reconcile_synthesis`` (C-002) with an empty ``new_results``
+    list gives an EXACT graph-level preview without invoking the adapter, so
+    a preview never fails (or double-runs) an adapter a real run would also
+    exercise. Only the returned delta's ``manifest_delta`` is a coarser
+    approximation (every existing manifest entry reads as "preserved" since
+    no ``new_results`` are supplied) -- WP03 never reads ``manifest_delta``
+    from this preview, only ``.removable``/``.retained``/``.conflicts``.
+    """
+    from doctrine.drg.models import DRGGraph  # noqa: PLC0415
+
+    from charter.synthesizer.interview_mapping import normalize_interview_snapshot, resolve_sections  # noqa: PLC0415
+    from charter.synthesizer.orchestrator import _built_in_drg_from_snapshot  # noqa: PLC0415
+    from charter.synthesizer.project_drg import emit_project_layer  # noqa: PLC0415
+    from charter.synthesizer.reconcile import reconcile_synthesis  # noqa: PLC0415
+    from charter.synthesizer.synthesize_pipeline import _get_synthesizer_version  # noqa: PLC0415
+    from charter.synthesizer.targets import build_targets, detect_duplicates, order_targets  # noqa: PLC0415
+
+    spec_kitty_version = _get_synthesizer_version()
+    built_in_drg = DRGGraph.model_validate(_built_in_drg_from_snapshot(request.drg_snapshot))
+    interview_snapshot = normalize_interview_snapshot(dict(request.interview_snapshot))
+    sections = resolve_sections(interview_snapshot)
+    targets = build_targets(
+        interview_snapshot=interview_snapshot,
+        mappings=sections,
+        drg_snapshot=dict(request.drg_snapshot),
+    )
+    targets = order_targets(targets)
+    detect_duplicates(targets)
+    if not targets:
+        targets = [request.target]
+
+    fresh_overlay = emit_project_layer(
+        targets=targets,
+        spec_kitty_version=spec_kitty_version,
+        built_in_drg=built_in_drg,
+    )
+    outcome = reconcile_synthesis(
+        repo_root=repo_root,
+        fresh_overlay=fresh_overlay,
+        new_results=[],
+        run_id=request.run_id,
+        built_in_drg=built_in_drg,
+    )
+    return outcome.delta
+
+
+def _orphaned_removals(delta: ReconciliationDelta | None) -> tuple[NodeOrEdgeRef, ...]:
+    """``delta.removable`` entries with no backing artifact left on disk.
+
+    FR-014 / T014: a plain (non-``--prune``) run that would need to drop one
+    of these is the narrow orphan-refusal case -- the graph still
+    references content that no longer exists on disk, so silently
+    preserving it verbatim would keep a dangling reference instead of
+    surfacing the problem to the operator. Backed divergence (the common
+    case) is never refused -- it is preserved and reported (US2 AC4).
+
+    Returns ``()`` when *delta* is not a real ``ReconciliationDelta`` (e.g.
+    ``None``, or a test double standing in for a mocked ``SynthesisResult``)
+    -- there is nothing to classify without a genuine delta.
+    """
+    from charter.synthesizer.reconcile import ReconciliationDelta as _ReconciliationDelta  # noqa: PLC0415
+
+    if not isinstance(delta, _ReconciliationDelta):
+        return ()
+    return tuple(ref for ref in delta.removable if ref.backing_artifact is None)
+
+
+_ORPHAN_REMEDIATION_TEMPLATE = (
+    "Remediation (orphaned {ref_kind}): '{urn}' has no backing artifact on "
+    "disk. Restore the backing artifact, or run "
+    "`spec-kitty charter synthesize --prune` to remove it."
+)
+
+
+def _format_conflict_line(kind: str, target_id: str, backing_artifact: str | None, remediation: str) -> str:
+    """Render one refusal/prune/dry-run line from the DRG typed-conflict shape.
+
+    FR-014 / T015: every reported class -- a real ``ReconciliationConflict``
+    (``duplicate_triple`` / ``preserved_dangling_endpoint``) or a
+    WP03-classified orphaned removal -- renders through this ONE formatter
+    (``kind`` + ``target_id`` + ``backing_artifact`` + ``remediation``) so
+    the CLI never hand-rolls a second, parallel message format.
+    """
+    backing = backing_artifact if backing_artifact else "(orphaned -- no backing artifact on disk)"
+    return f"  [{kind}] {target_id} (backing: {backing})\n      {remediation}"
+
+
+def _orphan_ref_to_line(ref: NodeOrEdgeRef) -> str:
+    remediation = _ORPHAN_REMEDIATION_TEMPLATE.format(ref_kind=ref.ref_kind, urn=ref.urn)
+    return _format_conflict_line(f"orphaned_{ref.ref_kind}", ref.urn, ref.backing_artifact, remediation)
+
+
+def _conflict_to_line(conflict: ReconciliationConflict) -> str:
+    return _format_conflict_line(conflict.kind, conflict.target_id, conflict.backing_artifact, conflict.remediation)
+
+
+def _ref_to_dict(ref: NodeOrEdgeRef) -> dict[str, Any]:
+    return {"ref_kind": ref.ref_kind, "urn": ref.urn, "backing_artifact": ref.backing_artifact}
+
+
+def _conflict_to_dict(conflict: ReconciliationConflict) -> dict[str, Any]:
+    return {
+        "kind": conflict.kind,
+        "target_id": conflict.target_id,
+        "backing_artifact": conflict.backing_artifact,
+        "remediation": conflict.remediation,
+        "provenance": conflict.provenance,
+    }
+
+
+def _emit_dry_run_report(
+    *,
+    json_output: bool,
+    adapter_name: str,
+    syn_adapter: Any,
+    warnings_collected: list[str],
+    staged_files: list[str],
+    written_artifacts_dr: list[dict[str, Any]],
+    delta: ReconciliationDelta,
+) -> None:
+    """Emit the ``--dry-run`` report (FR-010): planned deletions, no write.
+
+    ``written_artifacts``/``staged_artifacts`` still come from the legacy
+    staging helper (``_run_synthesis_dry_run_with_artifacts`` -- byte-equal
+    path parity with the real-run branch, FR-004); ``planned_deletes`` /
+    ``conflicts`` are the NEW reconciliation-delta fields this WP adds to
+    the same envelope (T013). Handles both ``--json`` and human console
+    output, including the ``mark_invocation_succeeded()`` side effect, so
+    the caller only needs to call this once and return.
+    """
+    from specify_cli.diagnostics import mark_invocation_succeeded  # noqa: PLC0415
+
+    planned_deletes = [_ref_to_dict(ref) for ref in delta.removable]
+    conflict_dicts = [_conflict_to_dict(c) for c in delta.conflicts]
+
+    if json_output:
+        print(json.dumps({
+            # Contracted fields (FR-002):
+            "result": "dry_run",
+            "adapter": {
+                "id": getattr(syn_adapter, "id", adapter_name),
+                "version": getattr(syn_adapter, "version", "unknown"),
+            },
+            "written_artifacts": written_artifacts_dr,
+            "warnings": warnings_collected,
+            # Legacy compatibility fields (data-model.md §E-1):
+            "staged_artifacts": staged_files,
+            "artifact_count": len(staged_files),
+            "validated": True,
+            # FR-010: reconciliation delta preview -- what --prune would
+            # remove; empty when there is no divergence.
+            "planned_deletes": planned_deletes,
+            "conflicts": conflict_dicts,
+        }, indent=2, sort_keys=True))
+        mark_invocation_succeeded()
+        return
+
+    console.print("[yellow]Dry-run:[/yellow] synthesis staged and validated (not promoted)")
+    for f in staged_files:
+        console.print(f"  [dim]staged:[/dim] {f}")
+    if delta.removable:
+        console.print("[yellow]Planned deletions (would run under --prune):[/yellow]")
+        for ref in delta.removable:
+            console.print(f"  - {ref.ref_kind}: {ref.urn}")
+    else:
+        console.print("[dim]No divergence: --prune would remove nothing.[/dim]")
+    for conflict in delta.conflicts:
+        console.print(f"[yellow]{_conflict_to_line(conflict)}[/yellow]")
+
+
+def _emit_orphan_refusal(
+    *,
+    json_output: bool,
+    adapter_name: str,
+    warnings_collected: list[str],
+    orphaned: tuple[NodeOrEdgeRef, ...],
+) -> None:
+    """FR-014 / T014: refuse (exit 1) a plain run that would drop orphaned content.
+
+    Always raises ``typer.Exit(code=1)`` -- never returns normally. The real
+    run's call site (``synthesize.py``) reaches this AFTER
+    ``charter.synthesizer.synthesize()`` has already run in preserve mode --
+    i.e. after the write. Nothing was actually destroyed by that write:
+    preserve mode never deletes, so the "refuse" here is about the *content*
+    (a dangling, backing-artifact-deleted reference) rather than an
+    in-progress write. A no-write preview path (e.g. a future dry-run
+    caller reachable purely via ``_reconciliation_preview``) would reach
+    this function before any write at all.
+    """
+    lines = [_orphan_ref_to_line(ref) for ref in orphaned]
+
+    if json_output:
+        print(json.dumps({
+            "result": "failure",
+            "adapter": {"id": adapter_name, "version": "unknown"},
+            "written_artifacts": [],
+            "warnings": warnings_collected + lines,
+        }, indent=2, sort_keys=True))
+    else:
+        err_console.print(
+            "[red]Refused:[/red] this run preserved orphaned content instead of dropping it; "
+            "the following references are dangling (backing artifact deleted):"
+        )
+        for line in lines:
+            err_console.print(line)
+        err_console.print(
+            "[yellow]Re-run with `--prune` to remove it, or restore the backing artifact.[/yellow]"
+        )
+    raise typer.Exit(code=1)
+
+
+def _emit_real_run_report(
+    *,
+    json_output: bool,
+    result: Any,
+    written_artifacts_real: list[dict[str, Any]],
+    warnings_collected: list[str],
+    prune: bool,
+) -> None:
+    """Emit the real-run (preserve/prune) success report.
+
+    ``prune=True`` lists every effected deletion (T012); ``prune=False``
+    reports retained content plus preserved-content conflict warnings
+    (T011). Both read ``result.reconciliation`` -- the SAME delta the write
+    just acted on, never a second recomputation. When ``result`` is a test
+    double that carries no ``.reconciliation`` attribute at all, or whose
+    ``.reconciliation`` is not a real ``ReconciliationDelta`` (e.g. a
+    fully-mocked ``SynthesisResult``), the reconciliation section of the
+    report is simply omitted -- there is nothing genuine to report.
+    """
+    from specify_cli.diagnostics import mark_invocation_succeeded  # noqa: PLC0415
+    from charter.synthesizer.reconcile import ReconciliationDelta as _ReconciliationDelta  # noqa: PLC0415
+
+    reconciliation = getattr(result, "reconciliation", None)
+    if not isinstance(reconciliation, _ReconciliationDelta):
+        reconciliation = None
+
+    if json_output:
+        payload: dict[str, Any] = {
+            # Contracted fields (FR-002):
+            "result": "success",
+            "adapter": {
+                "id": result.effective_adapter_id,
+                "version": result.effective_adapter_version,
+            },
+            "written_artifacts": written_artifacts_real,
+            "warnings": warnings_collected,
+            # Legacy compatibility fields (data-model.md §E-1):
+            "target_kind": result.target_kind,
+            "target_slug": result.target_slug,
+            "inputs_hash": result.inputs_hash,
+            "adapter_id": result.effective_adapter_id,
+            "adapter_version": result.effective_adapter_version,
+        }
+        if reconciliation is not None:
+            if prune:
+                payload["deletions"] = [_ref_to_dict(ref) for ref in reconciliation.removable]
+            else:
+                payload["retained"] = [_ref_to_dict(ref) for ref in reconciliation.retained]
+                payload["conflicts"] = [_conflict_to_dict(c) for c in reconciliation.conflicts]
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        mark_invocation_succeeded()
+        return
+
+    console.print("[green]Charter synthesis complete[/green]")
+    console.print(f"Primary artifact: {result.target_kind}:{result.target_slug}")
+    console.print(f"Adapter: {result.effective_adapter_id} v{result.effective_adapter_version}")
+    if reconciliation is not None:
+        if prune:
+            if reconciliation.removable:
+                console.print("[yellow]Pruned (removed):[/yellow]")
+                for ref in reconciliation.removable:
+                    console.print(f"  - {ref.ref_kind}: {ref.urn}")
+            else:
+                console.print("[dim]--prune: nothing to prune.[/dim]")
+        else:
+            if reconciliation.retained:
+                console.print("[dim]Retained on-disk content (untargeted by this run):[/dim]")
+                for ref in reconciliation.retained:
+                    console.print(f"  - {ref.ref_kind}: {ref.urn}")
+            for conflict in reconciliation.conflicts:
+                console.print(f"[yellow]{_conflict_to_line(conflict)}[/yellow]")
+    if written_artifacts_real:
+        _print_synthesis_commit_reminder()
+
+
 # Fresh-project doctrine seed helpers were carved out into ``_fresh_doctrine``
 # so this module stays comfortably under the WP06 line budget. Re-exported so
 # legacy ``from specify_cli.cli.commands.charter._synthesis import …`` consumers
@@ -570,16 +911,22 @@ __all__ = [
     "_build_synthesis_request",
     "_build_synthesis_validation_callback",
     "_collect_evidence_result",
+    "_emit_dry_run_report",
+    "_emit_orphan_refusal",
+    "_emit_real_run_report",
     "_extract_artifact_id_from_provenance",
     "_has_generated_artifacts",
     "_list_resynthesis_topics",
     "_load_written_artifacts_from_manifest",
     "_materialize_fresh_doctrine",
+    "_orphaned_removals",
     "_planned_fresh_doctrine_deletes",
     "_planned_fresh_doctrine_paths",
+    "_print_synthesis_commit_reminder",
     "_provenance_to_planned_artifacts",
     "_raise_if_bundle_incomplete",
     "_read_written_artifacts_from_manifest",
+    "_reconciliation_preview",
     "_run_synthesis_dry_run",
     "_run_synthesis_dry_run_with_artifacts",
     "_staged_to_planned_artifacts",

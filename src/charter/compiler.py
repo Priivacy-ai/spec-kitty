@@ -24,7 +24,7 @@ from charter.interview import (
 )
 from charter.default_pack import load_default_mission_type_activations
 from charter.kind_vocabulary import ArtifactKind, resolve_artifact_urn
-from charter.language_scope import extract_declared_languages
+from charter.language_scope import infer_repo_languages
 from charter.pack_context import PackContext
 from charter.resolver import DEFAULT_TOOL_REGISTRY
 from charter.schemas import (
@@ -328,7 +328,11 @@ class CompiledCharter:
     diagnostics: list[str] = field(default_factory=list)
     selected_tactics: list[str] = field(default_factory=list)
     languages: list[str] = field(default_factory=list)
-    active_languages: list[str] = field(default_factory=list)
+    #: ``None`` means "no active-language signal was found" (issue #3292) —
+    #: distinct from a genuinely empty, deliberate answer. See
+    #: :func:`charter.language_scope.infer_repo_languages`, the single
+    #: authority this field's value is sourced from.
+    active_languages: list[str] | None = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -377,7 +381,16 @@ def compile_charter(
     path and had zero effect on the config-sourced activation set for any
     path (#2530) -- removed rather than re-applied a second time.
     """
-    active_languages = extract_declared_languages("\n".join(str(value) for value in interview.answers.values()))
+    # Single authority (issue #3292): route through the SAME function the
+    # doctrine-service language gate (charter.doctrine_service_builder) uses,
+    # passing the in-memory *interview* so a not-yet-persisted interview
+    # (e.g. `charter generate --no-from-interview`) is still consulted. This
+    # replaces an independent `extract_declared_languages` scan that used to
+    # unconditionally stamp a (possibly meaningless-empty) list into
+    # `catalog.languages`, which the next run's `infer_repo_languages` then
+    # read back as authoritative "admit none" — see that function's
+    # docstring for the full feedback-loop this closes.
+    active_languages = infer_repo_languages(repo_root, interview=interview)
     catalog = doctrine_catalog or load_doctrine_catalog(active_languages=active_languages)
     diagnostics: list[str] = []
 
@@ -591,7 +604,13 @@ def _build_catalog_dict(compiled: CompiledCharter) -> dict[str, Any]:
     catalog = CharterCatalog(
         mission=compiled.mission,
         template_set=compiled.template_set,
-        languages=list(compiled.active_languages),
+        # None (no active-language signal, #3292) is preserved as-is rather
+        # than collapsed into `[]` -- `CharterCatalog.languages` is nullable
+        # precisely so this "no signal" state round-trips as absent/null
+        # instead of a persisted empty list that a later
+        # `infer_repo_languages` call would treat as authoritative "admit
+        # none". See that function's docstring for the full contract.
+        languages=list(compiled.active_languages) if compiled.active_languages is not None else None,
         references=references,
     )
     dumped: dict[str, Any] = catalog.model_dump(mode="json")
@@ -886,8 +905,22 @@ def _default_doctrine_service(repo_root: Path | None) -> DoctrineService:
     ``org_roots`` always self-resolved) -- ``compile_charter`` already runs
     its own, separate ``config_roots`` activation derivation for the
     reference set (see that function's docstring); the two are independent
-    and this duplication is a documented WP01/FR-005 concern, not resolved
-    here. When *repo_root* is ``None`` (no config to source a `PackContext`
+    and this duplication (paradigms/directives/tactics activation, NOT
+    languages) is a documented WP01/FR-005 concern, not resolved here.
+
+    The *``active_languages``* axis specifically -- previously ALSO an
+    independent duplication (``compile_charter`` ran its own
+    ``extract_declared_languages`` scan for the ``catalog.languages`` stamp
+    while this builder separately called
+    :func:`charter.language_scope.infer_repo_languages` for the doctrine
+    gate) -- is unified as of issue #3292: both now route through that one
+    function, called here with no *interview* override (this builder has no
+    in-memory interview; it reads the on-disk transcript, matching
+    ``compile_charter``'s own disk-transcript fallback when no in-memory
+    interview is supplied either). See :func:`infer_repo_languages`'s
+    docstring for the resolution contract this closes.
+
+    When *repo_root* is ``None`` (no config to source a `PackContext`
     from), the raw inner service is still wrapped with `pack_context=None`
     so no code outside ``charter.resolver``/the unified builder constructs
     the raw service unwrapped (NFR-001) -- this preserves the exact
