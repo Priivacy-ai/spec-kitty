@@ -26,7 +26,7 @@ import pytest
 from scripts.docs import rename_reconcile as rr
 from scripts.docs import touched_set_gates as tsg
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
