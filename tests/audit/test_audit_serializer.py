@@ -154,7 +154,9 @@ class TestEmptyReport:
 
     def test_empty_report_is_deterministic(self) -> None:
         report = RepoAuditReport(missions=[], shape_counters={}, repo_summary={})
-        assert build_report_json(report) == build_report_json(report)
+        first_json = build_report_json(report)
+        second_json = build_report_json(report)
+        assert first_json == second_json
 
 
 class TestSingleMission:

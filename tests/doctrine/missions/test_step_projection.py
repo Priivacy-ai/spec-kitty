@@ -103,7 +103,9 @@ class TestProjectActionSequence:
             _step("plan", in_action_sequence=True, sequence_index=1),
         ]
 
-        assert project_action_sequence(steps) == project_action_sequence(steps)
+        first_projection = project_action_sequence(steps)
+        second_projection = project_action_sequence(steps)
+        assert first_projection == second_projection
 
     def test_excludes_steps_not_in_action_sequence(self) -> None:
         specify = _step("specify", in_action_sequence=True, sequence_index=0)
