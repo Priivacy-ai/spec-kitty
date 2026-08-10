@@ -1,32 +1,17 @@
 {
-  "mission": "per-project-sync-consent-ledgers-01KZNNZS",
-  "core_issue": "Priivacy-ai/spec-kitty#3262",
-  "saas_incident": "Priivacy-ai/spec-kitty-saas#585",
-  "status": "planning",
-  "closure_boundary": {
-    "prevention": "This mission is scoped to prevent future cross-project hosted sync egress by enforcing explicit per-project consent and project-scoped ledgers.",
-    "historical_remediation": "SaaS #585 remains open until the already-delivered 1,322 non-consenting project events receive an approved remediation disposition.",
-    "out_of_scope": [
-      "Billing launch work",
-      "Secure onboarding beyond consent preconditions",
-      "Repair/merge of core PR #3135"
-    ]
+  "rows": {
+    "#3262/WP01": {
+      "evidence_ref": "src/specify_cli/sync/consent.py::_answer_env returns None; focused validation: 94 passed, 2 xfailed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    }
   },
-  "requirements": {
-    "FR-001": { "wp": "WP01", "evidence": [] },
-    "FR-002": { "wp": "WP01", "evidence": [] },
-    "FR-003": { "wp": "WP02", "evidence": [] },
-    "FR-004": { "wp": "WP02, WP05", "evidence": [] },
-    "FR-005": { "wp": "WP02, WP05", "evidence": [] },
-    "FR-006": { "wp": "WP01, WP04", "evidence": [] },
-    "FR-007": { "wp": "WP01, WP04", "evidence": [] },
-    "FR-008": { "wp": "WP01", "evidence": [] },
-    "FR-009": { "wp": "WP05", "evidence": [] },
-    "FR-010": { "wp": "WP03", "evidence": [] },
-    "FR-011": { "wp": "WP03", "evidence": [] },
-    "FR-012": { "wp": "WP01, WP05", "evidence": [] },
-    "FR-013": { "wp": "WP02, WP05, WP06", "evidence": [] },
-    "FR-014": { "wp": "WP04", "evidence": [] },
-    "FR-015": { "wp": "WP06", "evidence": [] }
-  }
+  "schema_version": 1
 }
