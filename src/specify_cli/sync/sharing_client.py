@@ -13,6 +13,11 @@ from specify_cli.auth.http import OAuthHttpClient
 from .config import SyncConfig
 
 
+# S1192: shared message for every "the server responded 2xx but the body
+# doesn't match the expected shape" guard below.
+_UNEXPECTED_SHARE_RESPONSE_SHAPE = "Unexpected repository share response shape."
+
+
 class RepositorySharingClientError(RuntimeError):
     """Structured failure for repository sharing API calls."""
 
@@ -75,7 +80,7 @@ async def list_repository_shares(*, source_project_uuid: str | None = None) -> l
         return [item for item in data["results"] if isinstance(item, dict)]
     if isinstance(data, list):
         return [item for item in data if isinstance(item, dict)]
-    raise RepositorySharingClientError("Unexpected repository share response shape.")
+    raise RepositorySharingClientError(_UNEXPECTED_SHARE_RESPONSE_SHAPE)
 
 
 async def request_repository_share(*, source_project_uuid: str, destination_team_slug: str) -> dict[str, Any]:
@@ -92,7 +97,7 @@ async def request_repository_share(*, source_project_uuid: str, destination_team
         raise _error_from_response(response)
     data = response.json()
     if not isinstance(data, dict):
-        raise RepositorySharingClientError("Unexpected repository share response shape.")
+        raise RepositorySharingClientError(_UNEXPECTED_SHARE_RESPONSE_SHAPE)
     return data
 
 
@@ -110,7 +115,7 @@ async def leave_repository_share(*, source_project_uuid: str, destination_team_s
         raise _error_from_response(response)
     data = response.json()
     if not isinstance(data, dict):
-        raise RepositorySharingClientError("Unexpected repository share response shape.")
+        raise RepositorySharingClientError(_UNEXPECTED_SHARE_RESPONSE_SHAPE)
     return data
 
 

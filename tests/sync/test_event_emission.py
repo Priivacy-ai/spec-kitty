@@ -25,7 +25,7 @@ import pytest
 
 pytestmark = pytest.mark.fast
 
-from specify_cli.sync.emitter import EventEmitter
+from specify_cli.sync.emitter import EventEmitter, TokenUsageMetadata
 from specify_cli.sync.project_identity import ProjectIdentity
 from specify_cli.sync.queue import OfflineQueue
 
@@ -343,25 +343,27 @@ class TestAnalyticsEmission:
     def test_token_usage_recorded(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         event = emitter.emit_token_usage_recorded(
             mission_id="01JTJ8M3Z3ZV4A6J3B1Q4JQ8RM",
-            run_id="run-analytics-001",
-            step_id="implement",
-            wp_id="WP03",
-            phase_name="implementation",
-            actor={
-                "actor_id": "codex",
-                "actor_type": "llm",
-                "display_name": "Codex",
-                "provider": "openai",
-                "model": "gpt-5.4",
-                "tool": "codex",
-            },
-            provider="openai",
-            model="gpt-5.4",
             input_tokens=1200,
             output_tokens=300,
             total_tokens=1500,
             estimated_cost_usd=0.036,
             source="runtime-usage",
+            metadata=TokenUsageMetadata(
+                run_id="run-analytics-001",
+                step_id="implement",
+                wp_id="WP03",
+                phase_name="implementation",
+                actor={
+                    "actor_id": "codex",
+                    "actor_type": "llm",
+                    "display_name": "Codex",
+                    "provider": "openai",
+                    "model": "gpt-5.4",
+                    "tool": "codex",
+                },
+                provider="openai",
+                model="gpt-5.4",
+            ),
         )
         assert event is not None
         assert event["event_type"] == "TokenUsageRecorded"

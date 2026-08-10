@@ -160,7 +160,8 @@ def _checkout_project_uuid(repo_root: Path) -> str | None:
         from specify_cli.identity.project import load_identity  # noqa: PLC0415
 
         identity = load_identity(Path(repo_root) / ".kittify" / "config.yaml")
-    except Exception:  # noqa: BLE001 - an unreadable identity is absence, and absence denies
+    # An unreadable identity is absence, and absence denies.
+    except Exception:  # noqa: BLE001
         logger.debug("Could not read project identity at %s", repo_root, exc_info=True)
         return None
     return str(identity.project_uuid) if identity.project_uuid else None
@@ -200,7 +201,8 @@ def _frame_project_consents(frame: Mapping[str, Any], *, offered_roots: list[Pat
         from specify_cli.sync.consent import consented_project_uuids  # noqa: PLC0415
 
         granted = uuid in consented_project_uuids([uuid], checkout_roots=offered_roots)
-    except Exception:  # noqa: BLE001 - unanswerable is not granted
+    # Unanswerable is not granted.
+    except Exception:  # noqa: BLE001
         logger.warning(
             "Could not resolve hosted-sync consent for a LocalCommit frame; refusing to send it",
             exc_info=True,
