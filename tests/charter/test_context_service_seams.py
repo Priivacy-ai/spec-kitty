@@ -205,8 +205,11 @@ class TestNormalizeDirectiveId:
     def test_canonical_form_passes_through(self) -> None:
         assert _normalize_directive_id("DIRECTIVE_024") == "DIRECTIVE_024"
 
-    def test_non_numeric_uppercases(self) -> None:
-        assert _normalize_directive_id("some-slug") == "SOME-SLUG"
+    def test_non_numeric_uppercases_and_folds_hyphens(self) -> None:
+        # Slug-named hub directives normalize to their UPPER_SNAKE node id, so the
+        # fallback folds hyphens to underscores (#3009) -- matching id_normalizer.
+        assert _normalize_directive_id("some-slug") == "SOME_SLUG"
+        assert _normalize_directive_id("use-c4-model-techniques") == "USE_C4_MODEL_TECHNIQUES"
 
 
 class TestExistingOrgRoots:
