@@ -230,7 +230,10 @@
         "WP09"
       ],
       "write_scope": [
+        "tests/architectural/test_egress_consent_boundary.py",
+        "tests/architectural/test_sync_writer_census.py",
         "tests/support/sync_transport_barriers.py",
+        "tests/sync/test_daemon_publish_consent_3030.py",
         "tests/sync/test_transport_crash_matrix.py",
         "tests/sync/test_transport_revocation_matrix.py"
       ],

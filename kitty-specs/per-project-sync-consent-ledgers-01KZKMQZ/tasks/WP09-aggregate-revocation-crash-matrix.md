@@ -42,7 +42,10 @@ create_intent:
 - tests/sync/test_transport_crash_matrix.py
 execution_mode: code_change
 owned_files:
+- tests/architectural/test_egress_consent_boundary.py
+- tests/architectural/test_sync_writer_census.py
 - tests/support/sync_transport_barriers.py
+- tests/sync/test_daemon_publish_consent_3030.py
 - tests/sync/test_transport_revocation_matrix.py
 - tests/sync/test_transport_crash_matrix.py
 role: implementer
@@ -75,6 +78,13 @@ Build reusable test-only process barriers at `before_attempt_commit`,
 `response_received_before_result`, and `result_committed`. Bind each barrier to
 project, attempt, native correlation, and adapter family so mixed concurrent
 runs cannot cross-release.
+
+Update the executable sender/writer censuses after WP07 and WP08 land. Correct
+their final owner labels, enumerate every live runtime-event, dossier,
+body-enqueue, background-discovery, and daemon control-plane row, and migrate the
+existing daemon-publish regression to the canonical proof protocol. The census
+must inspect per-symbol sinks rather than accepting a file merely because one
+known sink in that file is allowlisted.
 
 ## Subtask T041 — Both revoke orderings for every family
 
