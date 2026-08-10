@@ -369,6 +369,44 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **Restored an honest red CI gate: `main`'s two standing reds now go green for
+  the right reason, and `move-task`'s pre-review gate stops crying wolf
+  (test-layer only; epic `#3260` — "a red gate must mean a real regression").**
+  This is a CI/gate-correctness pass with **no runtime or behavior change** — no
+  `src/` change, no `__init__.py` touch, no version bump — so nothing you install
+  or run changes. What changes is that the project's own signal is trustworthy
+  again:
+  - **The blocking `regression tests` job goes green** because the last resident
+    red-first reproduction (`#2782`) was retired. That repro asserted `agent
+    mission create --json` synchronously emits a `direct ingress skipped`
+    diagnostic on stderr — a contract the deferred/offline sync architecture
+    cannot satisfy (mission-create queues its lifecycle event and dossier bodies
+    to the offline outbox and returns without an in-process ingress attempt, so
+    the diagnostic never fires there, even with consent recorded). It was
+    redesigned into a green functional test of the architecturally-honest
+    mission-create contract (`rc=0` + strict-JSON stdout + no diagnostic prose on
+    stdout + the `#2254` drift guard), moved back beside its strict-JSON siblings,
+    and un-marked `regression`. `-m regression` now collects nothing, so the
+    blocking job passes. (The diagnostic's real firing is still proven at the
+    resolver seam by a separate test.)
+  - **The `integration-tests-cli` job goes green** because a drifted test was
+    locking a since-corrected contract at the `commit_to_branch` seam. Following
+    `#3269` / commit `793872a19`, only a genuine empty changeset maps to
+    `unchanged`; a rejecting pre-commit hook is a real failure. The test was
+    rewritten to assert the corrected contract (hook rejection re-raises and
+    leaves the artifact dirty).
+  - **`move-task`'s pre-review gate stops reporting phantom "new failures"** —
+    two false reds that made the reliability gate untrustworthy (both children of
+    epic `#3260`). `tests/doctrine/test_hatch_build.py` now guards its transitive
+    import with `pytest.importorskip("hatchling")`, so the pre-review gate's
+    ephemeral baseline venv (which lacks `hatchling` outside the `test` extra)
+    skips it cleanly instead of hard-failing collection; the normal test job
+    installs the extra and still runs every test (`#3224`). And
+    `test_inline_meta_read_gate` now relativizes scanned paths against the scanned
+    tree's own root rather than the gate file's location, so a cross-tree
+    (git-worktree baseline) scan no longer produces absolute paths that silently
+    over-count `mission_metadata.py` as a violation (`#3241`, PART 2).
+
 - **`spec-kitty auth login` (and any caller of the SaaS URL helper) now points
   you at the real hosted service when `SPEC_KITTY_SAAS_URL` is unset, not a fake
   placeholder (`#3297`, closes `#3296`).** Previously, running the command
