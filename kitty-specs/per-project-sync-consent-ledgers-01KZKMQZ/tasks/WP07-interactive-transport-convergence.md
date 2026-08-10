@@ -54,6 +54,7 @@ owned_files:
 - src/specify_cli/delivery/consent_gate.py
 - src/specify_cli/delivery/ledger.py
 - src/specify_cli/delivery/receivers.py
+- src/specify_cli/delivery/targets.py
 - src/specify_cli/sync/client.py
 - src/specify_cli/sync/emitter.py
 - src/specify_cli/sync/events.py
@@ -71,6 +72,7 @@ owned_files:
 - tests/delivery/test_dispatcher.py
 - tests/delivery/test_project_store_ledger.py
 - tests/delivery/test_receivers.py
+- tests/delivery/test_targets.py
 - tests/delivery/test_liveness_predicate_before_limit_3030.py
 - tests/sync/test_body_drain_consent_3030.py
 - tests/sync/test_interactive_transport_convergence.py
@@ -199,3 +201,4 @@ typed refusal, or a tracker permission used as a hosted-sync grant.
 - 2026-08-10T02:25:00Z – codex – Sequentially assigned the existing body-drain consent, dispatcher liveness-before-limit, and cross-project refusal-state suites to WP07 because making those callers green requires the WP06 attempt/lease and WP07 correlated final-gate/parking wiring; WP04 owns only the repository boundary and must not restore a shared-store caller compatibility path.
 - 2026-08-10T18:47:24Z – codex – Corrected pre-allocation ownership metadata: T032's live event relay (`src/specify_cli/sync/events.py`) and the three already-assigned regression suites are now explicit WP07-owned files, and lane-e now retains those paths plus the already-owned dispatcher suite. This is a governance-only correction with no production scope expansion. The normal finalizer was not rerun because its live-mission topology rewrite is tracked in #3311; existing lane identities, status history, and planning provenance are preserved. Documentary `later_owner` drift in the architecture census remains for an explicitly owned later correction.
 - 2026-08-10T19:20:00Z – codex – Added sequential ownership of `src/specify_cli/cli/commands/sync.py` after the live dispatcher redesign proved final/exit sync must release transaction-bound journal/ledger UoWs before WP06's separately committed attempt/start/result phases. WP10 retains later migration-command ownership and now depends on WP07; the two packages may not edit this shared file concurrently.
+- 2026-08-10T22:05:00Z – codex – Corrected sequential WP05→WP07 ownership for the target-ID seam and lane scope. T032 requires one public target-ID derivation shared by target registration and dispatcher attempts; WP07 therefore owns the minimal `delivery/targets.py` API/test amendment rather than duplicating its hash algorithm. `delivery/receivers.py`, already task-owned for exact disclosed-byte serialization, is also restored to lane-e's write scope. No WP05 admission semantics are reopened.
