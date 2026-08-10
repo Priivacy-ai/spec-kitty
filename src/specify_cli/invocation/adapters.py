@@ -41,26 +41,39 @@ logger = logging.getLogger(__name__)
 class EgressConsent(enum.Enum):
     """Whether an Op recorded in a checkout may be transmitted off the machine.
 
-    Four members rather than a boolean or a ``bool | None``, because the
+    Six members rather than a boolean or a ``bool | None``, because the
     caller's decision must be impossible to spell wrongly.  ``None`` carried two
     unrelated meanings and the guard tested only one of them; here every member
     is asked the same question — :attr:`permits_egress` — and only one answers
-    yes.  The two undetermined members stay separate because they need different
-    operator responses (load a package vs. fix a fault), not because they differ
-    in verdict: neither is consent (FR-003's rule, re-derived here because this
-    path never called ``is_sync_enabled_for_checkout``).
+    yes.  The three former ``DENIED`` members and the two undetermined members
+    each stay separate because they need different operator responses (record a
+    decision, establish an identity, load a package, or fix a fault), not
+    because they differ in verdict: none of the five is consent (FR-003's rule,
+    re-derived here because this path never called
+    ``is_sync_enabled_for_checkout``).
     """
 
     #: The project that owns the checkout has consented to hosted sync.
     GRANTED = "granted"
-    #: A consent decision exists and it is a refusal (or the project could not be
-    #: identified, which is permanently non-consentable — NFR-001).
-    DENIED = "denied"
+    #: No consent record exists for the project at all — split from the former
+    #: ``DENIED`` so the operator is told "record a decision" rather than
+    #: "your decision was refused" (data-model: ``ConsentLevel.ABSENT``).
+    NO_RECORD = "no_record"
+    #: A consent decision is recorded and it is a refusal — split from the
+    #: former ``DENIED`` (data-model: a non-absent, non-granting level, incl.
+    #: ``ConsentLevel.UNDETERMINED`` — a consciously chosen mapping, not a
+    #: silent catch-all).
+    RECORDED_REFUSAL = "recorded_refusal"
+    #: The project could not be identified, which is permanently non-consentable
+    #: (NFR-001) — split from the former ``DENIED`` (data-model: routing
+    #: resolved no ``project_uuid``).
+    NOT_CONSENTABLE = "not_consentable"
     #: No resolver is registered: the INTEGRATION sync package was never loaded.
     #: Costless to refuse — without sync there is also no client to send through.
     NO_RESOLVER = "no_resolver"
     #: The registered resolver raised, or answered with something that is not a
-    #: bool.  Consent could not be determined, so it was not given.
+    #: recognized :class:`EgressConsent` member.  Consent could not be
+    #: determined, so it was not given.
     UNANSWERABLE = "unanswerable"
 
     @property
@@ -78,7 +91,7 @@ class EgressConsent(enum.Enum):
 # implementation per slot at startup.  Using ``None`` as the sentinel
 # means "no implementation registered" which is the correct initial
 # state for CORE modules that are loaded before INTEGRATION packages.
-_egress_consent_resolver: Callable[[Path], bool] | None = None
+_egress_consent_resolver: Callable[[Path], EgressConsent] | None = None
 _saas_client_factory: Callable[[Path], Any | None] | None = None
 
 
@@ -100,12 +113,15 @@ def _callable_key(fn: Callable[..., Any]) -> str:
 
 
 def register_egress_consent_resolver(
-    fn: Callable[[Path], bool],
+    fn: Callable[[Path], EgressConsent],
 ) -> None:
     """Register the egress-consent resolver (idempotent by qualified name).
 
     The resolver is asked "does the project that owns this checkout consent to
-    hosted sync?" and must answer with a bool.  It is *not* asked "is sync
+    hosted sync, and — when it does not — why not?" and must answer with an
+    :class:`EgressConsent` member (the decision-carrying return; the split
+    mapping from the underlying consent record lives in the resolver itself,
+    not here — see :func:`resolve_egress_consent`).  It is *not* asked "is sync
     configured for this checkout" — that question was what this slot used to
     hold, and answering it is how one project's Ops travelled under another
     project's configuration (#3030 FR-025).
@@ -181,11 +197,16 @@ def resolve_egress_consent(path: Path) -> EgressConsent:
 
     - no resolver registered → :attr:`EgressConsent.NO_RESOLVER`
     - resolver raised → :attr:`EgressConsent.UNANSWERABLE`
-    - resolver answered with a non-bool → :attr:`EgressConsent.UNANSWERABLE`
-      (this catches a resolver written against the retired ``bool | None``
-      contract: returning ``None`` used to mean "proceed" and must not silently
-      keep meaning that)
-    - ``True`` / ``False`` → :attr:`EgressConsent.GRANTED` / :attr:`DENIED`
+    - resolver answered with something that is not a recognized
+      :class:`EgressConsent` member → :attr:`EgressConsent.UNANSWERABLE` (this
+      catches a resolver written against the retired ``bool | None`` contract:
+      returning ``True``/``False``/``None`` used to be the whole contract, and a
+      resolver that survives a rewrite and keeps returning a bare value must
+      not keep being read as an answer — a raw non-:class:`EgressConsent` value
+      must never reach a :attr:`permits_egress` call)
+    - a recognized :class:`EgressConsent` member → that member, unchanged (the
+      split mapping from the underlying consent record lives in the resolver
+      itself — see :func:`register_egress_consent_resolver` — not here)
 
     A raising resolver is logged at WARNING, not DEBUG.  It is not routine
     degradation: some project's audit trail is being dropped, and #3030 FR-023
@@ -202,12 +223,10 @@ def resolve_egress_consent(path: Path) -> EgressConsent:
             exc_info=True,
         )
         return EgressConsent.UNANSWERABLE
-    if answer is True:
-        return EgressConsent.GRANTED
-    if answer is False:
-        return EgressConsent.DENIED
+    if isinstance(answer, EgressConsent):
+        return answer
     logger.warning(
-        "egress-consent resolver returned %r (not a bool) for %s; refusing to propagate",
+        "egress-consent resolver returned %r (not an EgressConsent) for %s; refusing to propagate",
         answer,
         path,
     )

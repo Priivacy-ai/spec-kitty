@@ -189,7 +189,7 @@ def test_sweep_sync_disabled_closes_locally_without_propagation(tmp_path: Path) 
         patch.object(
             propagator_mod,
             "resolve_egress_consent",
-            return_value=EgressConsent.DENIED,  # the project has not consented
+            return_value=EgressConsent.NO_RECORD,  # the project has not consented
         ),
         patch.object(propagator_mod, "_get_saas_client", client_spy),
     ):
