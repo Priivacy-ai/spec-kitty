@@ -25,7 +25,8 @@ import pytest
 from specify_cli.delivery.consent_gate import consented_batch, resolve_consent_answer
 from specify_cli.delivery.ledger import SqliteDeliveryLedger
 from specify_cli.delivery.receivers import OutboundEvent, TeamspaceReceiver
-from specify_cli.event_journal import Event, EventJournal, resolve_journal_path
+from specify_cli.event_journal import Event, EventJournal
+from specify_cli.sync.project_store import ProjectSyncStore
 
 pytestmark = [pytest.mark.fast]
 
@@ -128,12 +129,13 @@ class DifferentialCounter:
 
     def observe_ledger(
         self,
-        ledger: SqliteDeliveryLedger,
+        ledgers: Mapping[str, SqliteDeliveryLedger],
         project_pairs: Mapping[str, Sequence[tuple[str, str]]],
     ) -> None:
-        """Replace counts from the production ledger's public result-read seam."""
+        """Read each isolated store through the production result-read seam."""
         self.counts.clear()
         for project_uuid, pairs in project_pairs.items():
+            ledger = ledgers[project_uuid]
             self.counts[project_uuid] = sum(ledger.get(event_id, target_id) is not None for event_id, target_id in pairs)
 
 
@@ -394,7 +396,11 @@ def test_spies_and_counter_observe_current_production_write_paths(
 ) -> None:
     runtime_home = tmp_path / "runtime"
     monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime_home))
-    journal_path = resolve_journal_path(user_id="operator", team_slug="team")
+    store_a = ProjectSyncStore(UUID_A)
+    store_b = ProjectSyncStore(UUID_B)
+    authority_a = store_a.layout_generation()
+    authority_a.begin_cutover("incident-spy")
+    authority_a.publish_project_only("incident-spy", verify_exact=lambda: True)
     event = Event(
         event_id="event-a-current-write",
         event_type="WPStatusChanged",
@@ -411,12 +417,13 @@ def test_spies_and_counter_observe_current_production_write_paths(
         project_slug="same-slug",
     )
     open_spy = SqliteOpenSpy()
-    with open_spy.installed(monkeypatch):
-        journal = EventJournal(journal_path)
+    with open_spy.installed(monkeypatch), store_a.unit_of_work() as unit_a:
+        journal = EventJournal(unit_a, authority_a)
         journal.append(event)
-    assert journal.count() == 1
+        journal_count = journal.count()
+    assert journal_count == 1
     assert open_spy.targets
-    assert set(open_spy.targets) == {str(journal_path)}
+    assert set(open_spy.targets) == {str(store_a.database_path)}
 
     wire_payload = {
         "event_id": event.event_id,
@@ -444,22 +451,70 @@ def test_spies_and_counter_observe_current_production_write_paths(
     assert len(byte_spy.bodies) == 1
     assert gzip.decompress(byte_spy.bodies[0]) == json.dumps({"events": [wire_payload]}).encode()
 
-    ledger = SqliteDeliveryLedger(str(tmp_path / "result-ledger.db"))
     target_id = "target-a"
-    ledger.record_success("event-a-before", target_id)
-    ledger.record_success("event-b-before", target_id)
+    event_ids = {
+        UUID_A: ("event-a-before", "event-a-after"),
+        UUID_B: ("event-b-before", "event-b-after"),
+    }
+    for store, project_uuid in ((store_a, UUID_A), (store_b, UUID_B)):
+        with store.unit_of_work() as unit:
+            journal = EventJournal(unit, store.layout_generation())
+            for event_id in event_ids[project_uuid]:
+                journal.append(
+                    Event(
+                        event_id=event_id,
+                        event_type="WPStatusChanged",
+                        payload=json.dumps(
+                            {
+                                "event_id": event_id,
+                                "project_uuid": project_uuid,
+                                "payload": {"wp_id": "WP01"},
+                            }
+                        ).encode(),
+                        occurred_at="2026-08-09T12:00:00+00:00",
+                        created_at="2026-08-09T12:00:01+00:00",
+                        project_uuid=project_uuid,
+                        project_slug="same-slug",
+                    )
+                )
+            SqliteDeliveryLedger(unit, store.layout_generation()).record_success(
+                event_ids[project_uuid][0],
+                target_id,
+            )
+
     counter = DifferentialCounter()
     pairs = {
         UUID_A: (("event-a-before", target_id), ("event-a-after", target_id)),
         UUID_B: (("event-b-before", target_id), ("event-b-after", target_id)),
     }
-    counter.observe_ledger(ledger, pairs)
+    with store_a.unit_of_work() as unit_a, store_b.unit_of_work() as unit_b:
+        counter.observe_ledger(
+            {
+                UUID_A: SqliteDeliveryLedger(unit_a, store_a.layout_generation()),
+                UUID_B: SqliteDeliveryLedger(unit_b, store_b.layout_generation()),
+            },
+            pairs,
+        )
     before = counter.snapshot()
-    ledger.record_success("event-a-after", target_id)
-    counter.observe_ledger(ledger, pairs)
+    store_b_before = store_b.database_path.read_bytes()
+    open_spy.targets.clear()
+    with open_spy.installed(monkeypatch), store_a.unit_of_work() as unit_a:
+        SqliteDeliveryLedger(unit_a, store_a.layout_generation()).record_success(
+            "event-a-after",
+            target_id,
+        )
+    assert set(open_spy.targets) == {str(store_a.database_path)}
+    assert store_b.database_path.read_bytes() == store_b_before
+    with store_a.unit_of_work() as unit_a, store_b.unit_of_work() as unit_b:
+        counter.observe_ledger(
+            {
+                UUID_A: SqliteDeliveryLedger(unit_a, store_a.layout_generation()),
+                UUID_B: SqliteDeliveryLedger(unit_b, store_b.layout_generation()),
+            },
+            pairs,
+        )
     assert counter.delta(before, UUID_A) == 1
     assert counter.delta(before, UUID_B) == 0
-    ledger.close()
 
 
 def test_cross_process_barrier_releases_only_after_controller_signal() -> None:

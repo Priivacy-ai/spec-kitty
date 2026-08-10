@@ -1,18 +1,18 @@
 {
-  "event_count": 60,
-  "last_event_id": "01KZMKM0K03F3ENS6X1Q79Q703",
-  "materialized_at": "2026-08-10T01:12:00.823556+00:00",
+  "event_count": 78,
+  "last_event_id": "01KZN7FQE3CVT6QAATM57X1PNP",
+  "materialized_at": "2026-08-10T06:59:11.939065+00:00",
   "mission_number": "",
   "mission_slug": "per-project-sync-consent-ledgers-01KZKMQZ",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 3,
+    "approved": 4,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 2,
+    "in_progress": 1,
     "in_review": 0,
     "planned": 6
   },
@@ -118,19 +118,39 @@
       }
     },
     "WP04": {
-      "actor": "codex",
+      "actor": "user",
       "agent": "codex",
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "in_progress",
-      "last_event_id": "01KZMK8BWHGHCFY63C7AT3DQCE",
-      "last_transition_at": "2026-08-10T01:05:39.178798+00:00",
+      "lane": "approved",
+      "last_event_id": "01KZN7FQE3CVT6QAATM57X1PNP",
+      "last_transition_at": "2026-08-10T06:59:11.939065+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Implementation bea905e79; 251 owned/authorized tests passed with 2 expected architecture xfails; 16 independent incident controls passed; Ruff, strict mypy, compileall, and diff checks passed.",
+        "Cycle 2 closes forged/stale history authority, physical body purge, status queue ownership/UoW validation, deterministic clock evidence, and Ruff format debt. Gates: 254 passed/2 xfailed baseline; 23 extended controls; 65 normal pytest; Ruff and strict mypy green.",
+        "Cycle 3 binds status context and every repository to the exact verified UoW store capability, makes direct UoW construction fail closed, and restores the real A/B incident spy without compatibility constructors. Gates: 256 passed/2 xfailed baseline; 24 extended controls; 67 normal pytest; 48 passed/2 xfailed architecture; Ruff and strict mypy green.",
+        "Cycle 4 ready: status context carries a private store-minted authority snapshot and status rejects genuine identity transplants before journal/ledger/body reads. Validation: status report 30 passed; WP04 owned matrix 275 passed, 2 xfailed; Ruff check/format, strict source mypy, compileall, and diff-check clean.",
+        "Review passed: cycle-4 fix binds ProjectSyncContext status-report authority to a store-minted snapshot and validates before journal/ledger/body queue reads; focused pytest tests/delivery/test_status_report.py -W error passed 30/30. Known unrelated sync queue migration collection failures and allocator recovery evidence are documented as deferred issue-matrix follow-ups."
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 1091,
-      "shell_pid_created_at": "1786272735.189561"
+      "review": null,
+      "review_result": {
+        "reference": "Review passed: cycle-4 fix binds ProjectSyncContext status-report authority to a store-minted snapshot and validates before journal/ledger/body queue reads; focused pytest tests/delivery/test_status_report.py -W error passed 30/30. Known unrelated sync queue migration collection failures and allocator recovery evidence are documented as deferred issue-matrix follow-ups.",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 0,
+      "shell_pid_created_at": "1786272735.189561",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
     },
     "WP05": {
       "actor": "codex",

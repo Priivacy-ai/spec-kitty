@@ -52,6 +52,8 @@ owned_files:
 - tests/sync/test_migration_writer_barrier.py
 - tests/cli/commands/test_sync_project_store_commands.py
 - tests/sync/test_migrate_journal.py
+- tests/event_journal/test_identity_migration_3030.py
+- tests/delivery/test_purge_all_body_uploads_3030.py
 role: implementer
 tags: []
 tracker_refs:
@@ -136,6 +138,18 @@ Commit one mixed-store WAL fixture red-first. Run all five owned tests plus
 relevant CLI/migrate-journal tests. Use temporary runtime roots and real
 subprocess kills. Run ruff and strict mypy on touched modules.
 
+Sequentially own `tests/event_journal/test_identity_migration_3030.py` here:
+its legacy file/schema/ALTER scenarios are read-only migration-input contracts,
+not a reason for WP04 to retain a live path constructor. Re-pin those scenarios
+to the WAL-aware inventory/copy boundary and preserve source bytes.
+
+Sequentially own `tests/delivery/test_purge_all_body_uploads_3030.py` here as
+well. Its shared `queue.db`, blank/whitespace identities, and whole-legacy-store
+disposition are migration/quarantine contracts. Replace the removed global live
+purge API with explicit immutable-source inventory and complete
+migrated/quarantined disposition evidence; WP04 must not resurrect a shared-store
+compatibility constructor or `purge_all_body_uploads` live path.
+
 ## Definition of Done
 
 - Inventory includes committed WAL state and never mutates source evidence.
@@ -151,3 +165,8 @@ Hash and compare sources, inspect WAL-resident cases, and kill real processes at
 every phase. Verify A-only commands do not scan B and late old-binary rows remain
 invisible. Reject cleanup/deletion, synthetic UUIDs, schema-creating source opens,
 writer edits in this WP, a second layout authority, or live legacy fallback.
+
+## Activity Log
+
+- 2026-08-10T02:25:00Z – codex – Sequentially assigned the existing identity-migration #3030 suite to WP10. Its legacy file/schema/ALTER cases are read-only migration-source contracts and cannot justify retaining a live path constructor in WP04.
+- 2026-08-10T02:45:00Z – codex – Sequentially assigned the legacy purge-all body-upload #3030 suite to WP10 after WP04 review. Blank/whitespace identities and a whole shared queue are migration/quarantine inputs, not grounds for restoring a live global purge API.

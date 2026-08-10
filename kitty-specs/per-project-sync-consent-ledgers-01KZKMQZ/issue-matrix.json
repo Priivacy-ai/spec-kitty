@@ -97,6 +97,30 @@
       "evidence_ref": "Follow-up: Priivacy-ai/spec-kitty#3280 owns the documented branch/path and deeper flow-analysis limits; all 13 searchable TODO markers remain unchanged.",
       "verdict": "deferred-with-followup"
     },
+    "#2929": {
+      "repo": "Priivacy-ai/spec-kitty",
+      "title": "Synthetic baseline JUnit failure",
+      "scope": "pre-existing-baseline",
+      "fr": null,
+      "nfr": "NFR-006",
+      "sc": null,
+      "wp": "WP04",
+      "source_file": "tasks/WP04-project-owned-payload-repositories.md",
+      "evidence_ref": "The WP04 activity log identifies the synthetic baseline JUnit failure as the existing #2929 defect; WP04 status-report authority fixes do not change that baseline failure.",
+      "verdict": "deferred-with-followup"
+    },
+    "#3281": {
+      "repo": "Priivacy-ai/spec-kitty",
+      "title": "Spec Kitty managed-lane planning/dependency propagation recovery",
+      "scope": "tooling-follow-up",
+      "fr": null,
+      "nfr": "NFR-006",
+      "sc": null,
+      "wp": "WP04",
+      "source_file": "tasks/WP04-project-owned-payload-repositories.md",
+      "evidence_ref": "WP04 allocation recovery and later SaaS recurrence evidence are recorded in Priivacy-ai/spec-kitty#3281; source implementation proceeded only after managed-lane metadata/dependency history was reconciled.",
+      "verdict": "deferred-with-followup"
+    },
     "#1065": {
       "repo": "Priivacy-ai/spec-kitty",
       "title": "Rejected default-on sync direction",

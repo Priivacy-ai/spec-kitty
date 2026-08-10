@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 import sqlite3
-from collections.abc import Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager, suppress
 from contextvars import ContextVar
 from datetime import UTC, datetime
@@ -112,29 +112,38 @@ def _stored_positive_int(value: object, field: str) -> int:
 class ProjectUnitOfWork:
     """Narrow SQL port that cannot commit, roll back, close, or replace its store."""
 
+    _active: bool
+    _connection_identity: int
+    _execute: Callable[..., sqlite3.Cursor]
+    _executemany: Callable[..., sqlite3.Cursor]
+    _store_identity: VerifiedProjectStoreIdentity
+    project_uuid: CanonicalProjectUUID
+
     __slots__ = (
         "_active",
         "_connection_identity",
         "_execute",
         "_executemany",
+        "_store_identity",
         "project_uuid",
     )
 
     def __init__(
         self,
-        connection: sqlite3.Connection,
-        project_uuid: CanonicalProjectUUID,
+        *_args: object,
+        **_kwargs: object,
     ) -> None:
-        self.project_uuid = project_uuid
-        self._connection_identity = id(connection)
-        self._execute = connection.execute
-        self._executemany = connection.executemany
-        self._active = True
+        raise TypeError("project units of work are created by ProjectSyncStore")
 
     @property
     def connection_identity(self) -> int:
         """Opaque identity used to prove nested work reuses one connection."""
         return self._connection_identity
+
+    @property
+    def store_identity(self) -> VerifiedProjectStoreIdentity:
+        """Opaque store capability minted by the verified opening transaction."""
+        return self._store_identity
 
     def _require_active(self) -> None:
         if not self._active:
@@ -178,6 +187,22 @@ class ProjectUnitOfWork:
 
     def _deactivate(self) -> None:
         self._active = False
+
+
+def _new_project_unit_of_work(
+    connection: sqlite3.Connection,
+    project_uuid: CanonicalProjectUUID,
+    store_identity: VerifiedProjectStoreIdentity,
+) -> ProjectUnitOfWork:
+    """Create the SQL port only after ProjectSyncStore verifies the open store."""
+    unit = object.__new__(ProjectUnitOfWork)
+    unit.project_uuid = project_uuid
+    unit._store_identity = store_identity
+    unit._connection_identity = id(connection)
+    unit._execute = connection.execute
+    unit._executemany = connection.executemany
+    unit._active = True
+    return unit
 
 
 _SCHEMA_STATEMENTS: Final[tuple[str, ...]] = (
@@ -530,7 +555,17 @@ class ProjectSyncStore:
                 connection.commit()
                 connection.execute("BEGIN IMMEDIATE")
                 self._verify_owner(connection)
-            unit = ProjectUnitOfWork(connection, self.project_uuid)
+            store_identity = _new_verified_project_store_identity(
+                project_uuid=self.project_uuid,
+                database_path=self.database_path,
+                schema_version=self.schema_version,
+                layout_version=self.layout_version,
+            )
+            unit = _new_project_unit_of_work(
+                connection,
+                self.project_uuid,
+                store_identity,
+            )
             token = self._active_unit.set(unit)
             exposed = True
             yield unit
@@ -556,12 +591,7 @@ class ProjectSyncStore:
     ) -> VerifiedProjectStoreIdentity:
         if self._active_unit.get() is not unit:
             raise ProjectStoreError("verified store identity requires the active store unit of work")
-        return _new_verified_project_store_identity(
-            project_uuid=self.project_uuid,
-            database_path=self.database_path,
-            schema_version=self.schema_version,
-            layout_version=self.layout_version,
-        )
+        return unit.store_identity
 
     def layout_generation(
         self,
