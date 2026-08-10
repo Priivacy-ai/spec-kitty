@@ -37,6 +37,8 @@ history:
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/event_journal/journal.py
 create_intent:
+- tests/architectural/test_project_store_boundary.py
+- tests/architectural/test_egress_consent_boundary.py
 - tests/event_journal/test_project_store_journal.py
 - tests/delivery/test_project_store_ledger.py
 - tests/sync/test_project_store_outboxes.py
