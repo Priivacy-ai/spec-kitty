@@ -131,8 +131,8 @@ def execute_with_glossary(
         # the concrete runner into the kernel registry.
         try:
             module = import_module("glossary.attachment")
-            GlossaryAwarePrimitiveRunner = module.GlossaryAwarePrimitiveRunner
-            register(GlossaryAwarePrimitiveRunner)
+            glossary_aware_runner = module.GlossaryAwarePrimitiveRunner
+            register(glossary_aware_runner)
             runner_cls = get_runner()
         except Exception:
             runner_cls = None

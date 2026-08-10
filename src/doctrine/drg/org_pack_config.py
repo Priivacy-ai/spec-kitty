@@ -68,7 +68,15 @@ class OrgPackEnvVarUnsetError(ValueError):
         )
 
 
-_ENV_VAR_TOKEN_RE = re.compile(r"\$\{[^}]+\}|\$[A-Za-z_][A-Za-z0-9_]*")
+# ``re.ASCII`` is required, not cosmetic: ``os.path.expandvars`` (via
+# ``posixpath``/``ntpath``) recognizes only ASCII variable-name characters
+# internally (``re.compile(_varpattern, re.ASCII)``). Without this flag,
+# ``\w`` would match Unicode word characters too, so this detector could
+# report a longer/different token than the one ``expandvars`` actually
+# considered for non-ASCII input (e.g. ``$naïve`` — ``expandvars`` only
+# looks up ``na``, but plain ``\w+`` would greedily match ``naïve``). The
+# flag keeps ``\w`` exactly equivalent to the previous ``[A-Za-z0-9_]``.
+_ENV_VAR_TOKEN_RE = re.compile(r"\$\{[^}]+\}|\$[A-Za-z_]\w*", re.ASCII)
 
 
 def _expand_path_template(raw: str) -> str:

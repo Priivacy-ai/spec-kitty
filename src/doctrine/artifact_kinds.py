@@ -115,7 +115,10 @@ _PATTERNS: dict[str, str] = {
 #: Operator token (hyphenated CLI surface) that callers must explicitly route to
 #: the mission-tier path; it is part of the charter kind universe but not an
 #: :class:`ArtifactKind` member. See :class:`MissionTypeNotAnArtifactKind`.
-MISSION_TYPE_TOKEN = "mission-type"  # noqa: S105 - kind token, not a secret
+# Not a secret: ruff's bandit-derived S105 check flags any string literal
+# assigned to a name containing "TOKEN". The value is an operator-facing CLI
+# token, not a credential, so the S105 finding is suppressed on the line below.
+MISSION_TYPE_TOKEN = "mission-type"  # noqa: S105
 
 
 class ArtifactKind(StrEnum):
