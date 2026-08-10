@@ -63,19 +63,45 @@ jobs:
       PYTHONPATH: .
     steps:
       - uses: actions/checkout@v6
+        with:
+          # Diff-scope mode (#3147) resolves the PR's changed files against
+          # `github.event.pull_request.base.sha`, which requires the base
+          # commit's history to be present locally — a shallow (default) clone
+          # doesn't have it. fetch-depth: 0 gets the full history on every
+          # trigger (push:main included; the extra cost is worth the shared
+          # checkout step over branching the checkout itself).
+          fetch-depth: 0
       - name: Install uv
         uses: astral-sh/setup-uv@v8.1.0
       - name: Set up Python
         run: uv python install 3.11
       - name: Install project
         run: uv sync
+      # Diff-scope flag (#3147, B-WP02): on `pull_request`, scope the two
+      # blocking dead-link/related-edge gates below to the PR's own changed
+      # docs/**/*.md files via `--changed-from <base-sha>`, so a docs PR is no
+      # longer failed for pre-existing broken links it never touched. On
+      # `push` (the unfiltered push:main backstop, FR-005/M3) the flag is
+      # empty — those steps run whole-tree exactly as before, `min_files=1`
+      # floor intact. Fail-closed keys on git base RESOLVABILITY (B-WP02): a
+      # resolved diff that touches zero docs files (common — this workflow
+      # also triggers on non-`.md` paths like `src/specify_cli/**`) exits 0,
+      # never errors; only an unresolvable/unfetched base does.
+      - name: Compute diff-scope flag (PR only)
+        id: diffscope
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "flag=--changed-from ${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "flag=" >> "$GITHUB_OUTPUT"
+          fi
       # --- Blocking docs rulers (Mission B / WP14, FR-011) -------------------
       # Each runs --strict so a re-introduced violation reds CI. (The R1
       # anti-sprawl structure ratchet was retired per #2851 follow-up: the
       # single-root/13-section policy of DIRECTIVE_042 is now maintained by
       # periodic bulk curation rather than a per-PR blocking gate.)
       - name: Related-edge validator (R2, --strict)
-        run: uv run python scripts/docs/related_validator.py --strict --repo-root .
+        run: uv run python scripts/docs/related_validator.py --strict --repo-root . ${{ steps.diffscope.outputs.flag }}
       # Audience resolver (NFR-002, FR-018): every audience: reference on a page
       # must resolve to a persona under docs/context/audience/. --strict reds CI
       # on any dangling reference (mirror of the related-edge resolver).
@@ -84,7 +110,7 @@ jobs:
       - name: Description-length gate (NFR-003, --strict)
         run: uv run python scripts/docs/description_length_check.py --strict --repo-root .
       - name: Relative body-link gate (WP18, --check)
-        run: uv run python scripts/docs/relative_link_fixer.py --check --repo-root .
+        run: uv run python scripts/docs/relative_link_fixer.py --check --repo-root . ${{ steps.diffscope.outputs.flag }}
       # Structural docs lint (FR-008): index completeness, point-in-time
       # placement, shadow-tree basenames, frontmatter contract. Now shipped as
       # the `common-docs-structural-lint` doctrine asset (its single canonical
