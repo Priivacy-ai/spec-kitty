@@ -204,15 +204,49 @@ _RAW_FORM_EXEMPT: dict[str, str] = {
 
 
 def _is_utc_alias(node: ast.expr) -> bool:
-    """``UTC`` / ``datetime.UTC`` / ``timezone.utc`` - the aware-UTC spellings."""
+    """Every aware-UTC spelling, including module-aliased imports.
+
+    Covers ``UTC`` / ``<mod>.UTC`` / ``timezone.utc`` / ``<mod>.timezone.utc``.
+    The module segment is matched by *shape*, not by the literal name
+    ``datetime``, so an ``import datetime as _dt`` alias (``_dt.UTC`` /
+    ``_dt.timezone.utc``) is caught too -- the exact idiom two of this PR's
+    own migrated modules used before migration. An attribute chain ending in
+    ``.UTC`` or ``.timezone.utc`` passed to a bare ``.now(...)`` is, in
+    practice, always stdlib datetime.
+    """
     if isinstance(node, ast.Name):
         return node.id == "UTC"
     if isinstance(node, ast.Attribute):
         base = node.value
-        if node.attr == "UTC" and isinstance(base, ast.Name) and base.id == "datetime":
+        # <mod>.UTC  (datetime.UTC, _dt.UTC)
+        if node.attr == "UTC" and isinstance(base, ast.Name):
             return True
-        if node.attr == "utc" and isinstance(base, ast.Name) and base.id == "timezone":
-            return True
+        if node.attr == "utc":
+            # timezone.utc  (bare, or aliased to a bare name)
+            if isinstance(base, ast.Name) and base.id == "timezone":
+                return True
+            # <mod>.timezone.utc  (datetime.timezone.utc, _dt.timezone.utc)
+            if (
+                isinstance(base, ast.Attribute)
+                and base.attr == "timezone"
+                and isinstance(base.value, ast.Name)
+            ):
+                return True
+    return False
+
+
+def _now_call_passes_utc(call: ast.Call) -> bool:
+    """True for ``<x>.now(<aware-UTC>)`` where the timezone is passed either
+    positionally (``now(UTC)``) or by the ``tz=`` keyword (``now(tz=UTC)``) -
+    the two spellings serialize byte-identically.
+    """
+    if not (isinstance(call.func, ast.Attribute) and call.func.attr == "now"):
+        return False
+    if len(call.args) == 1 and not call.keywords:  # now(UTC)
+        return _is_utc_alias(call.args[0])
+    if not call.args and len(call.keywords) == 1:  # now(tz=UTC)
+        kw = call.keywords[0]
+        return kw.arg == "tz" and _is_utc_alias(kw.value)
     return False
 
 
@@ -224,8 +258,9 @@ def _raw_utc_isoformat_lines(tree: ast.AST) -> list[int]:
 
     - ``.isoformat()`` must take NO arguments. ``isoformat(timespec=...)`` is a
       different serialization (a distinct contract), not a violation.
-    - the ``now()`` argument must be an aware-UTC alias. A naive ``now()`` and
-      ``now(some_tz)`` are different contracts too.
+    - the ``now()`` timezone must be an aware-UTC alias, passed positionally
+      (``now(UTC)``) or by the ``tz=`` keyword (``now(tz=UTC)``). A naive
+      ``now()`` and ``now(some_other_tz)`` are different contracts too.
     """
     hits: list[int] = []
     for node in ast.walk(tree):
@@ -237,11 +272,7 @@ def _raw_utc_isoformat_lines(tree: ast.AST) -> list[int]:
         if node.args or node.keywords:
             continue  # timespec= etc. -> a distinct serialization contract
         inner = outer.value
-        if not (isinstance(inner, ast.Call) and isinstance(inner.func, ast.Attribute)):
-            continue
-        if inner.func.attr != "now" or len(inner.args) != 1 or inner.keywords:
-            continue
-        if _is_utc_alias(inner.args[0]):
+        if isinstance(inner, ast.Call) and _now_call_passes_utc(inner):
             hits.append(node.lineno)
     return hits
 
@@ -280,6 +311,14 @@ def test_the_ratchet_is_non_vacuous() -> None:
         "import datetime\nx = datetime.datetime.now(datetime.UTC).isoformat()\n",
         "from datetime import UTC, datetime\nx = datetime.now(UTC).isoformat()\n",
         "from datetime import datetime, timezone\nx = datetime.now(timezone.utc).isoformat()\n",
+        # the ``tz=`` keyword spelling -- byte-identical to positional now(UTC)
+        "from datetime import UTC, datetime\nx = datetime.now(tz=UTC).isoformat()\n",
+        # the fully-qualified ``datetime.timezone.utc`` alias
+        "import datetime\nx = datetime.datetime.now(datetime.timezone.utc).isoformat()\n",
+        # module-aliased import (``import datetime as _dt``) - the idiom two of
+        # this PR's own migrated modules used before migration
+        "import datetime as _dt\nx = _dt.datetime.now(_dt.UTC).isoformat()\n",
+        "import datetime as _dt\nx = _dt.datetime.now(_dt.timezone.utc).isoformat()\n",
     )
     for src in violations:
         assert _raw_utc_isoformat_lines(ast.parse(src)), f"detector MISSED a violation:\n{src}"
