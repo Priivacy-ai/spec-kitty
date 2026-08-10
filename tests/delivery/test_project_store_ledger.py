@@ -10,7 +10,9 @@ import pytest
 from specify_cli.delivery.ledger import STATUS_TERMINAL_FAILED, SqliteDeliveryLedger
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
-from specify_cli.sync.project_store import ProjectSyncStore
+from specify_cli.sync.consent import record_project_opt_in, record_project_opt_out
+from specify_cli.sync.project_store import ProjectSyncStore, ProjectUnitOfWork
+from specify_cli.sync.queue import OfflineQueue
 
 
 PROJECT = "aaaaaaaa-0000-0000-0000-000000000001"
@@ -22,8 +24,8 @@ def _project_only(store: ProjectSyncStore) -> None:
     authority.publish_project_only("wp04-test", verify_exact=lambda: True)
 
 
-def _capture(unit: object, store: ProjectSyncStore, event_id: str) -> None:
-    EventJournal(unit, store.layout_generation()).append(  # type: ignore[arg-type]
+def _capture(unit: ProjectUnitOfWork, store: ProjectSyncStore, event_id: str) -> None:
+    EventJournal(unit, store.layout_generation()).append(
         Event(
             event_id=event_id,
             event_type="WPStatusChanged",
@@ -42,6 +44,7 @@ def test_terminal_refusal_is_parked_and_selection_keeps_fifo_order(
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
     store = ProjectSyncStore(PROJECT)
     _project_only(store)
+    record_project_opt_in(PROJECT, actor="test")
     with store.unit_of_work() as unit:
         for event_id in ("event-1", "event-2", "event-3"):
             _capture(unit, store, event_id)
@@ -60,7 +63,7 @@ def test_terminal_refusal_is_parked_and_selection_keeps_fifo_order(
         assert ledger.select_undelivered(
             target_id="target-2",
             event_universe=("event-1", "event-2", "event-3"),
-        ) == ["event-1", "event-2", "event-3"]
+        ) == ["event-2", "event-3"]
 
 
 def test_fault_after_journal_and_result_rolls_back_one_outer_transaction(
@@ -70,8 +73,16 @@ def test_fault_after_journal_and_result_rolls_back_one_outer_transaction(
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
     store = ProjectSyncStore(PROJECT)
     _project_only(store)
+    record_project_opt_in(PROJECT, actor="test")
     with pytest.raises(RuntimeError, match="fault"), store.unit_of_work() as unit:
-        _capture(unit, store, "event-1")
+        OfflineQueue(unit, store.layout_generation()).queue_event(
+            {
+                "event_id": "event-1",
+                "event_type": "WPStatusChanged",
+                "project_uuid": PROJECT,
+                "payload": {"project_uuid": PROJECT},
+            }
+        )
         SqliteDeliveryLedger(unit, store.layout_generation()).record_pending(
             "event-1", "target-1"
         )
@@ -79,4 +90,36 @@ def test_fault_after_journal_and_result_rolls_back_one_outer_transaction(
 
     with store.unit_of_work() as unit:
         assert EventJournal(unit, store.layout_generation()).count() == 0
+        assert OfflineQueue(unit, store.layout_generation()).size() == 0
         assert SqliteDeliveryLedger(unit, store.layout_generation()).get("event-1", "target-1") is None
+
+
+def test_sealed_history_stays_parked_and_opt_out_never_purges(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store = ProjectSyncStore(PROJECT)
+    _project_only(store)
+    with store.unit_of_work() as unit:
+        _capture(unit, store, "event-1")
+
+    record_project_opt_in(PROJECT, actor="test")
+    with store.unit_of_work() as unit:
+        _capture(unit, store, "event-2")
+        ledger = SqliteDeliveryLedger(unit, store.layout_generation())
+        assert ledger.select_undelivered(
+            target_id="target-1",
+            event_universe=("event-1", "event-2"),
+        ) == ["event-2"]
+
+    record_project_opt_out(PROJECT, actor="test")
+    with store.unit_of_work() as unit:
+        journal = EventJournal(unit, store.layout_generation())
+        assert journal.count() == 2
+        assert SqliteDeliveryLedger(
+            unit, store.layout_generation()
+        ).select_undelivered(
+            target_id="target-1",
+            event_universe=("event-1", "event-2"),
+        ) == []

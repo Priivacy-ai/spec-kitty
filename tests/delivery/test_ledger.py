@@ -19,13 +19,12 @@ order. The headline behaviours they lock are:
 """
 from __future__ import annotations
 
-import sqlite3
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 
 from specify_cli.delivery.ledger import (
-    LEDGER_INDEX_NAME,
     LEDGER_TABLE,
     STATUS_DUPLICATE,
     STATUS_FAILED_TRANSIENT,
@@ -37,11 +36,15 @@ from specify_cli.delivery.ledger import (
     SqliteDeliveryLedger,
     init_ledger,
 )
+from specify_cli.event_journal import Event, EventJournal
+from specify_cli.sync.consent import record_project_opt_in
+from specify_cli.sync.project_store import ProjectSyncStore, ProjectUnitOfWork
 
 pytestmark = pytest.mark.fast
 
 TARGET_A = "tgt-a"
 TARGET_B = "tgt-b"
+PROJECT = "aaaaaaaa-0000-0000-0000-000000000001"
 EVT_1 = "evt-1"
 EVT_2 = "evt-2"
 EVT_3 = "evt-3"
@@ -55,13 +58,54 @@ def _ts(second: int) -> str:
     return f"2026-06-29T00:00:{second:02d}+00:00"
 
 
+def _project_only(store: ProjectSyncStore) -> None:
+    authority = store.layout_generation()
+    authority.begin_cutover("ledger-tests")
+    authority.publish_project_only("ledger-tests", verify_exact=lambda: True)
+
+
+def _capture(journal: EventJournal, event_id: str) -> None:
+    journal.append(
+        Event(
+            event_id=event_id,
+            event_type="WpStatusChanged",
+            payload=b"{}",
+            occurred_at=_ts(0),
+            created_at=_ts(0),
+            project_uuid=PROJECT,
+        )
+    )
+
+
 @pytest.fixture
-def ledger() -> Iterator[SqliteDeliveryLedger]:
-    led = SqliteDeliveryLedger(":memory:")
-    try:
-        yield led
-    finally:
-        led.close()
+def store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSyncStore:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    value = ProjectSyncStore(PROJECT)
+    _project_only(value)
+    record_project_opt_in(PROJECT, actor="test")
+    return value
+
+
+@pytest.fixture
+def unit(store: ProjectSyncStore) -> Iterator[ProjectUnitOfWork]:
+    with store.unit_of_work() as value:
+        yield value
+
+
+@pytest.fixture
+def ledger(unit: ProjectUnitOfWork, store: ProjectSyncStore) -> SqliteDeliveryLedger:
+    journal = EventJournal(unit, store.layout_generation())
+    event_ids = set(JOURNAL) | {
+        "evt-success",
+        "evt-duplicate",
+        "evt-pending",
+        "evt-rejected",
+        "evt-transient",
+        "evt-terminal-failed",
+    }
+    for event_id in sorted(event_ids):
+        _capture(journal, event_id)
+    return SqliteDeliveryLedger(unit, store.layout_generation())
 
 
 # ---------------------------------------------------------------------------
@@ -69,34 +113,32 @@ def ledger() -> Iterator[SqliteDeliveryLedger]:
 # ---------------------------------------------------------------------------
 
 
-def test_table_pk_and_selection_index_present(ledger: SqliteDeliveryLedger) -> None:
-    conn = ledger.connection
-    tables = {r["name"] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+def test_aggregate_result_schema_present(
+    ledger: SqliteDeliveryLedger,
+    unit: ProjectUnitOfWork,
+) -> None:
+    tables = {
+        str(row[0])
+        for row in unit.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()
+    }
     assert LEDGER_TABLE in tables
+    assert "delivery_attempts" in tables
 
-    info = list(conn.execute(f"PRAGMA table_info({LEDGER_TABLE})"))
-    pk = sorted((r["pk"], r["name"]) for r in info if r["pk"])
-    assert [name for _, name in pk] == ["event_id", "target_id"]
-
-    indexes = {r["name"] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='index'")}
-    assert LEDGER_INDEX_NAME in indexes
+    info = list(unit.execute(f"PRAGMA table_info({LEDGER_TABLE})"))
+    assert [str(row[1]) for row in info if row[5]] == ["result_id"]
+    assert not hasattr(ledger, "connection")
 
 
-def test_init_is_idempotent() -> None:
-    conn = sqlite3.connect(":memory:")
-    conn.row_factory = sqlite3.Row
-    init_ledger(conn)
-    conn.execute(
-        f"INSERT INTO {LEDGER_TABLE} (event_id, target_id, status, attempt_count) "
-        "VALUES (?, ?, ?, ?)",
-        (EVT_1, TARGET_A, STATUS_PENDING, 1),
-    )
-    conn.commit()
-    # Re-running init must not raise and must not drop existing rows.
-    init_ledger(conn)
-    count = conn.execute(f"SELECT COUNT(*) AS n FROM {LEDGER_TABLE}").fetchone()["n"]
-    assert count == 1
-    conn.close()
+def test_init_is_idempotent(
+    ledger: SqliteDeliveryLedger,
+    unit: ProjectUnitOfWork,
+) -> None:
+    ledger.record_pending(EVT_1, TARGET_A)
+    init_ledger(unit)
+    init_ledger(unit)
+    assert ledger.get(EVT_1, TARGET_A) is not None
 
 
 def test_pending_row_roundtrips_with_optional_fields_unset(ledger: SqliteDeliveryLedger) -> None:
@@ -112,14 +154,17 @@ def test_pending_row_roundtrips_with_optional_fields_unset(ledger: SqliteDeliver
     assert row.last_response_json is None
 
 
-def test_pk_collapses_repeated_pair_into_one_row(ledger: SqliteDeliveryLedger) -> None:
+def test_stable_identity_collapses_repeated_pair_into_one_row(
+    ledger: SqliteDeliveryLedger,
+) -> None:
     ledger.record_pending(EVT_1, TARGET_A, at=_ts(1))
     ledger.record_transient(EVT_1, TARGET_A, http_status=503, error="boom", at=_ts(2))
-    rows = ledger.connection.execute(
-        f"SELECT COUNT(*) AS n FROM {LEDGER_TABLE} WHERE event_id = ? AND target_id = ?",
-        (EVT_1, TARGET_A),
-    ).fetchone()
-    assert rows["n"] == 1
+    rows = [
+        row
+        for row in ledger.rows()
+        if row.event_id == EVT_1 and row.target_id == TARGET_A
+    ]
+    assert len(rows) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -311,10 +356,8 @@ def test_idempotent_redelivery_yields_duplicate_unchanged_event_ids(
     assert first == STATUS_SUCCESS
     assert second == STATUS_DUPLICATE
     # No row duplication; event IDs unchanged (NFR-003 / contract "no corruption").
-    rows = ledger.connection.execute(
-        f"SELECT event_id FROM {LEDGER_TABLE} WHERE target_id = ?", (TARGET_A,)
-    ).fetchall()
-    assert [r["event_id"] for r in rows] == [EVT_1]
+    rows = [row for row in ledger.rows() if row.target_id == TARGET_A]
+    assert [row.event_id for row in rows] == [EVT_1]
     assert ledger.delivered_anywhere(EVT_1) is True
 
 
@@ -382,8 +425,8 @@ def test_record_result_success_is_idempotent_via_protocol(
     assert row.attempt_count == 2
 
 
-def test_ledger_is_a_context_manager() -> None:
-    with SqliteDeliveryLedger(":memory:") as led:
+def test_ledger_is_a_context_manager(ledger: SqliteDeliveryLedger) -> None:
+    with ledger as led:
         led.record_success(EVT_1, TARGET_A, http_status=200, at=_ts(5))
         assert led.delivered_anywhere(EVT_1) is True
 
@@ -413,4 +456,4 @@ def test_ledger_row_is_immutable_value_object() -> None:
         last_response_json=None,
     )
     with pytest.raises((AttributeError, TypeError)):
-        row.status = STATUS_SUCCESS  # type: ignore[misc]
+        row.status = STATUS_SUCCESS

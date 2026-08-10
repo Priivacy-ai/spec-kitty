@@ -44,11 +44,9 @@ from typing import TYPE_CHECKING, Any
 
 from specify_cli.delivery.ledger import (
     LEDGER_TABLE,
-    STATUS_DUPLICATE,
     STATUS_FAILED_TRANSIENT,
     STATUS_PENDING,
     STATUS_REJECTED,
-    STATUS_SUCCESS,
     STATUS_TERMINAL_FAILED,
     TERMINAL_SUCCESS_STATUSES,
 )
@@ -64,6 +62,7 @@ if TYPE_CHECKING:
     from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
     from specify_cli.event_journal import EventJournal
     from specify_cli.sync.migrate_journal import MigrationAudit
+    from specify_cli.sync.project_context import ProjectSyncContext
     from specify_cli.sync.target_authority import ResolvedSyncTarget
 
 # -- additive section keys (contract §6; exported so tests pin the exact set) ---
@@ -221,7 +220,11 @@ def _resolved_identity_dict(resolved_target: ResolvedSyncTarget) -> dict[str, An
 
 def _ledger_status_rows(ledger: SqliteDeliveryLedger) -> list[Any]:
     """Fetch ``(target_id, status, count)`` triples once for the count sections."""
-    return list(ledger.connection.execute(_STATUS_COUNTS_SQL).fetchall())
+    counts: dict[tuple[str, str], int] = {}
+    for row in ledger.rows():
+        key = (row.target_id, row.status)
+        counts[key] = counts.get(key, 0) + 1
+    return [(target, status, count) for (target, status), count in counts.items()]
 
 
 def _delivered_counts_by_target(status_rows: list[Any]) -> dict[str, int]:
@@ -296,10 +299,10 @@ def _delivery_targets_section(
 
 def _delivered_success_ids_by_target(ledger: SqliteDeliveryLedger) -> dict[str, set[str]]:
     """Per-target set of event ids with a terminal-success delivery."""
-    rows = ledger.connection.execute(_DELIVERED_IDS_SQL, (STATUS_SUCCESS, STATUS_DUPLICATE)).fetchall()
     by_target: dict[str, set[str]] = {}
-    for target_id, event_id in rows:
-        by_target.setdefault(str(target_id), set()).add(str(event_id))
+    for row in ledger.rows():
+        if row.status in TERMINAL_SUCCESS_STATUSES:
+            by_target.setdefault(row.target_id, set()).add(row.event_id)
     return by_target
 
 
@@ -376,14 +379,14 @@ def _event_journal_section(
 
 def _terminal_failures_section(ledger: SqliteDeliveryLedger) -> dict[str, Any]:
     """Selector-excluded permanent failures (FR-015) — inspectable, never deleted."""
-    rows = ledger.connection.execute(_TERMINAL_FAILED_SQL, (STATUS_TERMINAL_FAILED,)).fetchall()
     events = [
         {
-            "event_id": str(row[0]),
-            "target_id": str(row[1]),
-            "last_error": None if row[2] is None else str(row[2]),
+            "event_id": row.event_id,
+            "target_id": row.target_id,
+            "last_error": row.last_error,
         }
-        for row in rows
+        for row in ledger.rows()
+        if row.status == STATUS_TERMINAL_FAILED
     ]
     return {"count": len(events), "events": events}
 
@@ -527,6 +530,68 @@ def build_status_report(
     return report
 
 
+def build_project_store_status(
+    *,
+    context: ProjectSyncContext,
+    journal: EventJournal,
+    ledger: SqliteDeliveryLedger,
+    body_upload_queue: Any = None,
+    migration_phase: str | None = None,
+    quarantine_count: int = 0,
+) -> dict[str, Any]:
+    """Report one explicit store's authority and payload-free diagnostics."""
+    owner = str(context.project_uuid)
+    if journal.project_uuid != owner or ledger.project_uuid != owner:
+        raise ValueError("status inputs do not belong to the context's project store")
+    target = context.target_audience
+    blockers: list[str] = []
+    if context.consent_state is None:
+        blockers.append("consent_absent")
+    elif context.consent_state.value != "granted":
+        blockers.append("consent_refused")
+    if context.epoch_id is None:
+        blockers.append("eligible_epoch_absent")
+    if target is None:
+        blockers.append("target_absent")
+    if context.admission_state is None or context.admission_state.value != "admitted":
+        blockers.append("admission_not_current")
+    if not context.kill_switch_allows:
+        blockers.append("kill_switch_closed")
+    return {
+        "project_uuid": owner,
+        "decision": (
+            None
+            if context.consent_state is None
+            else {
+                "state": context.consent_state.value,
+                "generation": context.consent_generation,
+            }
+        ),
+        "epoch_id": context.epoch_id,
+        "target": (
+            None
+            if target is None
+            else {
+                "target_identity": target.target_identity,
+                "account_identity": target.account_identity,
+                "private_teamspace_id": target.private_teamspace_id,
+                "configuration_generation": target.configuration_generation,
+            }
+        ),
+        "admission": {
+            "state": context.admission_state.value if context.admission_state else None,
+            "generation": context.admission_generation,
+            "binding_audience": context.binding_audience,
+        },
+        "migration": {"phase": migration_phase},
+        "quarantine_count": quarantine_count,
+        "journal_count": journal.count(),
+        "delivery_result_count": len(ledger.rows()),
+        "body_task_count": body_upload_queue.size() if body_upload_queue is not None else 0,
+        "blocking_reasons": blockers,
+    }
+
+
 __all__ = [
     "ADDITIVE_SECTION_KEYS",
     "BODY_UPLOAD_COMPAT_KEY",
@@ -547,6 +612,7 @@ __all__ = [
     "UnresolvedIdentityCandidate",
     "TERMINAL_FAILURES_KEY",
     "build_per_project_store_report",
+    "build_project_store_status",
     "build_status_report",
     "default_status_sections",
     "evaluate_gc_suggestion",
@@ -786,8 +852,6 @@ def build_per_project_store_report(
     writes, via ``_reconcile_index``) is unreachable from here. A diagnostic must
     not mutate the consent index it is reporting on (C-001).
     """
-    from specify_cli.sync.consent import resolve_project_consent
-
     # The REPORTING read, not the drain's filtered one. `read_identity_projection`
     # requires a uuid filter so the drain cannot scan (NFR-003); this report has the
     # inverse requirement and must see rows whose project is not known to consent —
@@ -833,6 +897,7 @@ def build_per_project_store_report(
     for row in rows:
         grouped.setdefault(row.project_uuid or None, []).append(row)
 
+    owner_state, _owner_generation = journal.owner_consent_projection()
     report_rows: list[ProjectStoreRow] = []
     for project_uuid, group in grouped.items():
         candidates: tuple[UnresolvedIdentityCandidate, ...] = ()
@@ -856,16 +921,17 @@ def build_per_project_store_report(
             # among them is not a licence to invent a third value.
             project_slug = next((r.project_slug for r in group if r.project_slug), None)
             repo_slug = next((r.repo_slug for r in group if r.repo_slug), None)
-            # `project_uuid` ONLY. The `repo_slug=` argument this used to pass was
-            # removed when #3030 reverted repo-slug-keyed consent: a repo slug is a
-            # mutable git remote, so keying a grant on it lets a fresh clone, a renamed
-            # remote or a re-`git init`ed repo inherit a decision nobody made (FR-019).
-            # The slug is still READ above and rendered — naming which repo a row came
-            # from is the report's job — but it never influences the decision.
-            decision = resolve_project_consent(project_uuid)
-            decision_granted = decision.granted
-            level = str(decision.level)
-            reason = decision.reason
+            if project_uuid != journal.project_uuid:
+                raise ValueError("journal projection contains a foreign project owner")
+            decision_granted = owner_state == "granted"
+            level = "project_store" if owner_state is not None else "absent"
+            reason = (
+                "granted by the explicit UUID-owned project decision"
+                if owner_state == "granted"
+                else "refused by the explicit UUID-owned project decision"
+                if owner_state == "refused"
+                else "no explicit UUID-owned project decision exists"
+            )
 
         report_rows.append(
             ProjectStoreRow(

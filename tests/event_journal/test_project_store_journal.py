@@ -9,6 +9,11 @@ import pytest
 
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
+from specify_cli.sync.layout_generation import (
+    LayoutDestination,
+    LayoutTestHooks,
+    LayoutWritePermit,
+)
 from specify_cli.sync.project_store import ProjectSyncStore
 
 
@@ -76,6 +81,57 @@ def test_capture_rejects_event_declared_for_another_owner(
 
     with store.unit_of_work() as unit:
         assert EventJournal(unit, store.layout_generation()).count() == 0
+
+
+def test_stale_legacy_permit_redirects_once_before_capture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = tmp_path / "runtime"
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime))
+    store = ProjectSyncStore(PROJECT_A)
+    authority = store.layout_generation()
+    observed_destinations: list[LayoutDestination] = []
+
+    def publish_cutover_between_issue_and_revalidate(
+        permit: LayoutWritePermit,
+    ) -> None:
+        observed_destinations.append(permit.destination)
+        authority.begin_cutover("wp04-race")
+        authority.publish_project_only("wp04-race", verify_exact=lambda: True)
+
+    with store.unit_of_work() as unit:
+        receipt = EventJournal(unit, authority).append(
+            _event("event-race", PROJECT_A),
+            test_hooks=LayoutTestHooks(
+                before_revalidate=publish_cutover_between_issue_and_revalidate
+            ),
+        )
+        assert EventJournal(unit, authority).count() == 1
+
+    assert observed_destinations == [LayoutDestination.LEGACY]
+    assert receipt.inserted is True
+    assert list(runtime.rglob("*.db")) == [store.database_path]
+
+
+def test_same_uuid_store_instances_share_one_physical_journal(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    first = ProjectSyncStore(PROJECT_A)
+    second = ProjectSyncStore(PROJECT_A)
+    _project_only(first)
+
+    with first.unit_of_work() as unit:
+        EventJournal(unit, first.layout_generation()).append(
+            _event("event-shared", PROJECT_A)
+        )
+    with second.unit_of_work() as unit:
+        observed = EventJournal(unit, second.layout_generation()).read_all()
+
+    assert first.database_path == second.database_path
+    assert [event.event_id for event in observed] == ["event-shared"]
 
 
 def test_journal_adapter_exposes_no_connection_or_commit_surface(

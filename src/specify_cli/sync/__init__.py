@@ -52,6 +52,13 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "emit_diff_summary_recorded": (_EVENTS_MODULE, "emit_diff_summary_recorded"),
     "emit_proof_event": (_EVENTS_MODULE, "emit_proof_event"),
     "OfflineQueue": (".queue", "OfflineQueue"),
+    "ProjectOutboxTask": (".queue", "ProjectOutboxTask"),
+    "OfflineBodyUploadQueue": (".body_queue", "OfflineBodyUploadQueue"),
+    "ProjectSyncStore": (".project_store", "ProjectSyncStore"),
+    "ProjectUnitOfWork": (".project_store", "ProjectUnitOfWork"),
+    "LayoutGenerationAuthority": (".layout_generation", "LayoutGenerationAuthority"),
+    "LayoutWritePermit": (".layout_generation", "LayoutWritePermit"),
+    "LayoutTestHooks": (".layout_generation", "LayoutTestHooks"),
     "SAAS_SYNC_ENV_VAR": (_FEATURE_FLAGS_MODULE, "SAAS_SYNC_ENV_VAR"),
     "is_saas_sync_enabled": (_FEATURE_FLAGS_MODULE, "is_saas_sync_enabled"),
     "saas_sync_disabled_message": (_FEATURE_FLAGS_MODULE, "saas_sync_disabled_message"),
@@ -104,6 +111,13 @@ __all__ = [
     "WebSocketClient",
     "SyncConfig",
     "OfflineQueue",
+    "ProjectOutboxTask",
+    "OfflineBodyUploadQueue",
+    "ProjectSyncStore",
+    "ProjectUnitOfWork",
+    "LayoutGenerationAuthority",
+    "LayoutWritePermit",
+    "LayoutTestHooks",
     "BatchEventResult",
     "BatchSyncResult",
     "categorize_error",
@@ -225,6 +239,7 @@ def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
         read_queue_scope_from_credentials,
         read_queue_scope_from_session,
     )
+    from specify_cli.sync.project_store import ProjectSyncStore
 
     if not is_saas_sync_enabled():
         return
@@ -277,7 +292,9 @@ def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
 
     validate_outbound_payload(event, "envelope")
     EventModel(**event)
-    OfflineQueue().queue_event(event)
+    store = ProjectSyncStore(str(identity.project_uuid))
+    with store.unit_of_work() as unit:
+        OfflineQueue(unit, store.layout_generation()).queue_event(event)
 
     # -----------------------------------------------------------------------
     # Daemon/WebSocket push for MissionCreated envelopes (FR-005, WP03)

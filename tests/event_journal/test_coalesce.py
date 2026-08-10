@@ -9,7 +9,8 @@ the *real* WP05 ledger over SQLite, never a mock that lies about delivery.
 """
 from __future__ import annotations
 
-import sqlite3
+import base64
+import json
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -22,10 +23,13 @@ from specify_cli.event_journal.coalesce import (
     install,
     read_supersede_markers,
 )
+from specify_cli.sync.consent import record_project_opt_in
+from specify_cli.sync.project_store import ProjectSyncStore, ProjectUnitOfWork
 
 pytestmark = pytest.mark.fast
 
 TARGET = "target-A"
+PROJECT = "aaaaaaaa-0000-0000-0000-000000000001"
 T1 = "2026-06-29T00:00:01+00:00"
 T2 = "2026-06-29T00:00:02+00:00"
 T3 = "2026-06-29T00:00:03+00:00"
@@ -41,15 +45,30 @@ def _reset_seam() -> Iterator[None]:
 
 
 @pytest.fixture()
-def journal(tmp_path: Path) -> EventJournal:
-    return EventJournal(tmp_path / "event_journal" / "journal-test.db")
+def store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSyncStore:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    value = ProjectSyncStore(PROJECT)
+    authority = value.layout_generation()
+    authority.begin_cutover("coalesce-tests")
+    authority.publish_project_only("coalesce-tests", verify_exact=lambda: True)
+    record_project_opt_in(PROJECT, actor="test")
+    return value
 
 
 @pytest.fixture()
-def ledger() -> Iterator[SqliteDeliveryLedger]:
-    led = SqliteDeliveryLedger(":memory:")
-    yield led
-    led.close()
+def unit(store: ProjectSyncStore) -> Iterator[ProjectUnitOfWork]:
+    with store.unit_of_work() as value:
+        yield value
+
+
+@pytest.fixture()
+def journal(unit: ProjectUnitOfWork, store: ProjectSyncStore) -> EventJournal:
+    return EventJournal(unit, store.layout_generation())
+
+
+@pytest.fixture()
+def ledger(unit: ProjectUnitOfWork, store: ProjectSyncStore) -> SqliteDeliveryLedger:
+    return SqliteDeliveryLedger(unit, store.layout_generation())
 
 
 @pytest.fixture()
@@ -65,24 +84,24 @@ def _event(event_id: str, *, payload: bytes, key: str | None, created_at: str = 
         occurred_at=created_at,
         created_at=created_at,
         coalesce_key=key,
+        project_uuid=PROJECT,
     )
 
 
-def _payload_on_disk(db_path: Path, event_id: str) -> bytes:
-    """Read an event's payload BLOB straight from the journal DB on disk.
+def _payload_in_store(unit: ProjectUnitOfWork, event_id: str) -> bytes:
+    """Read encoded payload state through the store-owned connection.
 
-    Deliberately bypasses the in-memory ``Event`` so a sneaky in-place UPDATE of a
-    delivered event would be caught by the byte-for-byte assertion (T049).
+    This bypasses the in-memory ``Event`` without opening a component-owned
+    connection, so a sneaky in-place update remains observable.
     """
-    conn = sqlite3.connect(str(db_path))
-    try:
-        row = conn.execute(
-            "SELECT payload FROM event_journal WHERE event_id = ?", (event_id,)
-        ).fetchone()
-    finally:
-        conn.close()
+    row = unit.execute(
+        "SELECT payload_json FROM journal_entries "
+        "WHERE project_uuid = ? AND entry_id = ?",
+        (PROJECT, event_id),
+    ).fetchone()
     assert row is not None
-    return bytes(row[0])
+    document = json.loads(str(row[0]))
+    return base64.b64decode(document["payload"], validate=True)
 
 
 # -- T050: no-key never coalesces -----------------------------------------------
@@ -101,7 +120,9 @@ def test_event_without_coalesce_key_is_never_coalesced(
 
 
 def test_undelivered_events_with_same_key_collapse_to_one_row(
-    journal: EventJournal, strategy: CoalescingStrategy
+    journal: EventJournal,
+    strategy: CoalescingStrategy,
+    unit: ProjectUnitOfWork,
 ) -> None:
     journal.append(_event("evt-1", payload=b"v1", key="grp", created_at=T1))
     journal.append(_event("evt-2", payload=b"v2", key="grp", created_at=T2))
@@ -114,7 +135,7 @@ def test_undelivered_events_with_same_key_collapse_to_one_row(
     assert frozenset(e.event_id for e in keyed) == frozenset(
         {"evt-1"}
     ), "two undelivered same-key events must collapse to one row"
-    assert _payload_on_disk(journal.db_path, "evt-1") == b"v2"
+    assert _payload_in_store(unit, "evt-1") == b"v2"
     assert journal.read_by_id("evt-2") is None
     assert read_supersede_markers(journal) == []
 
@@ -123,10 +144,13 @@ def test_undelivered_events_with_same_key_collapse_to_one_row(
 
 
 def test_coalesce_against_delivered_event_leaves_bytes_unchanged(
-    journal: EventJournal, ledger: SqliteDeliveryLedger, strategy: CoalescingStrategy
+    journal: EventJournal,
+    ledger: SqliteDeliveryLedger,
+    strategy: CoalescingStrategy,
+    unit: ProjectUnitOfWork,
 ) -> None:
     journal.append(_event("evt-1", payload=b"original-bytes", key="grp", created_at=T1))
-    before = _payload_on_disk(journal.db_path, "evt-1")
+    before = _payload_in_store(unit, "evt-1")
     assert before == b"original-bytes"
 
     ledger.record_success("evt-1", TARGET)
@@ -134,7 +158,7 @@ def test_coalesce_against_delivered_event_leaves_bytes_unchanged(
 
     journal.append(_event("evt-2", payload=b"new-bytes", key="grp", created_at=T2))
 
-    after = _payload_on_disk(journal.db_path, "evt-1")
+    after = _payload_in_store(unit, "evt-1")
     assert after == before == b"original-bytes", "delivered event payload must be immutable"
 
     new_row = journal.read_by_id("evt-2")
@@ -164,15 +188,18 @@ def test_superseded_prior_remains_inspectable_and_not_archived(
 
 
 def test_second_delivered_event_is_not_mutated_by_later_coalescible(
-    journal: EventJournal, ledger: SqliteDeliveryLedger, strategy: CoalescingStrategy
+    journal: EventJournal,
+    ledger: SqliteDeliveryLedger,
+    strategy: CoalescingStrategy,
+    unit: ProjectUnitOfWork,
 ) -> None:
     journal.append(_event("evt-3", payload=b"delivered-2", key="grp2", created_at=T1))
-    before = _payload_on_disk(journal.db_path, "evt-3")
+    before = _payload_in_store(unit, "evt-3")
     ledger.record_success("evt-3", TARGET)
 
     journal.append(_event("evt-4", payload=b"would-coalesce", key="grp2", created_at=T2))
 
-    assert _payload_on_disk(journal.db_path, "evt-3") == before
+    assert _payload_in_store(unit, "evt-3") == before
     new_row = journal.read_by_id("evt-4")
     assert new_row is not None and new_row.payload == b"would-coalesce"
     markers = read_supersede_markers(journal)
@@ -186,25 +213,28 @@ def test_second_delivered_event_is_not_mutated_by_later_coalescible(
 
 
 def test_mixed_eligibility_coalesces_into_undelivered_never_delivered(
-    journal: EventJournal, ledger: SqliteDeliveryLedger, strategy: CoalescingStrategy
+    journal: EventJournal,
+    ledger: SqliteDeliveryLedger,
+    strategy: CoalescingStrategy,
+    unit: ProjectUnitOfWork,
 ) -> None:
     # delivered prior
     journal.append(_event("evt-d", payload=b"delivered", key="grp3", created_at=T1))
     ledger.record_success("evt-d", TARGET)
-    delivered_before = _payload_on_disk(journal.db_path, "evt-d")
+    delivered_before = _payload_in_store(unit, "evt-d")
     # undelivered prior arrives -> new row + supersede(evt-d -> evt-u)
     journal.append(_event("evt-u", payload=b"undelivered", key="grp3", created_at=T2))
     # incoming coalescible event with both a delivered and an undelivered prior
     journal.append(_event("evt-x", payload=b"latest", key="grp3", created_at=T3))
 
     # the delivered prior is never mutated and never superseded by evt-x
-    assert _payload_on_disk(journal.db_path, "evt-d") == delivered_before
+    assert _payload_in_store(unit, "evt-d") == delivered_before
     assert not any(
         m.superseded_by_event_id == "evt-x" for m in read_supersede_markers(journal)
     )
     # evt-x collapsed into the *undelivered* prior evt-u (no new row for evt-x)
     assert journal.read_by_id("evt-x") is None
-    assert _payload_on_disk(journal.db_path, "evt-u") == b"latest"
+    assert _payload_in_store(unit, "evt-u") == b"latest"
     assert journal.count() == 2
 
 
@@ -212,7 +242,9 @@ def test_mixed_eligibility_coalesces_into_undelivered_never_delivered(
 
 
 def test_registration_is_idempotent(
-    journal: EventJournal, ledger: SqliteDeliveryLedger
+    journal: EventJournal,
+    ledger: SqliteDeliveryLedger,
+    unit: ProjectUnitOfWork,
 ) -> None:
     install(ledger)
     install(ledger)  # double-install must not stack strategies
@@ -223,4 +255,4 @@ def test_registration_is_idempotent(
 
     # exactly one marker, not one-per-installed-strategy
     assert len(read_supersede_markers(journal)) == 1  # golden-count: cardinality-is-contract
-    assert _payload_on_disk(journal.db_path, "evt-1") == b"original"
+    assert _payload_in_store(unit, "evt-1") == b"original"

@@ -1,381 +1,53 @@
-"""Offline event queue + non-event body-upload tables (single-owner, WP10).
+"""Project-owned event outbox plus pure legacy-discovery path helpers."""
 
-Event-queueing authority has been **retired** from this module: the durable
-event store is now the WP03 append-only journal
-(:mod:`specify_cli.event_journal`), and capture-first writes happen at the emit
-layer (``sync/emitter.py::_capture_to_journal``) *before* any delivery gate.
-``sync/migrate_journal.py`` lifts the events still sitting in legacy
-``queue-<digest>.db`` files into that journal. The ``queue`` table here is kept
-only as the *legacy batch-transport bridge* the existing dispatcher still drains;
-removing it is deferred until the WP07 journal-based dispatcher is the active
-drain path (an upstream coordination seam — not this WP's to rip out, since doing
-so before WP07 lands would strand in-flight events).
-
-**C-006 (binding):** ``body_upload_queue`` / ``body_upload_failure_log`` (the
-setup-plan / dossier *body* uploads — **not** event queueing) and every method
-and flow that drives them remain owned by and operational in this module. No
-event-queueing retirement step may touch the body-upload tables.
-"""
 from __future__ import annotations
 
-import contextlib
 import hashlib
 import json
-import sqlite3
-import sys
-import threading
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import Any, Protocol
 
 import toml
 
 from specify_cli.core.time_utils import now_utc_iso
+from specify_cli.event_journal.journal import EventJournal
+from specify_cli.event_journal.models import Event
 from specify_cli.paths import get_runtime_root
-
-if TYPE_CHECKING:  # pragma: no cover - typing-only; avoids the queue<->authority cycle
-    from specify_cli.sync.target_authority import ResolvedSyncTarget
-
-
-class _BatchEventResultLike(Protocol):
-    """Minimal protocol for batch result records consumed by queue processing."""
-
-    status: str
-    event_id: str
-
+from specify_cli.sync.layout_generation import (
+    LayoutDestination,
+    LayoutGenerationAuthority,
+    LayoutTestHooks,
+    LayoutWritePermit,
+)
+from specify_cli.sync.project_store import ProjectUnitOfWork
 
 DEFAULT_MAX_QUEUE_SIZE = 100_000
-
-# FR-027 / T035: when callers opt into the strict-capacity append surface,
-# the queue rejects events that would exceed this cap and surfaces
-# ``OfflineQueueFull`` for the caller to translate into a recoverable
-# CLI experience (drain to overflow file, re-queue).
 DEFAULT_STRICT_CAP_SIZE = 10_000
 NAMESPACE_PROJECT_UUID = "namespace.project_uuid"
 NAMESPACE_MISSION_SLUG = "namespace.mission_slug"
 
 
+class _BatchEventResultLike(Protocol):
+    status: str
+    event_id: str
+
+
 class OfflineQueueFull(RuntimeError):
-    """Raised by :meth:`OfflineQueue.append` when the queue is at capacity.
-
-    The exception carries the cap and the current depth so the CLI
-    handler can render a single recoverable line and offer a drain path
-    (``--auto-drain`` or interactive confirmation).
-    """
-
     def __init__(self, *, cap: int, current: int) -> None:
-        super().__init__(
-            f"Offline sync queue at capacity ({current}/{cap}). "
-            "Drain to file or expand cap before queueing more events."
-        )
+        super().__init__(f"Offline sync queue at capacity ({current}/{cap})")
         self.cap = cap
         self.current = current
 
-# Event types eligible for coalescing: when a new event of one of these types
-# arrives and an equivalent event (same type + coalesce key) already exists in
-# the queue, the existing row is updated in-place rather than inserting a new
-# row.  This prevents high-volume instrumentation from flooding the queue.
-#
-# Field paths use dotted notation when the field lives inside a sub-object
-# (e.g. ``namespace.project_uuid``). The resolver looks at the top-level
-# event envelope first, then at the nested payload, walking the dotted path
-# at each location.
-COALESCEABLE_EVENT_TYPES: dict[str, list[str]] = {
-    # namespace.project_uuid scopes the key so events from different repos/
-    # branches sharing the same mission_slug+path never collide.
-    "MissionDossierArtifactIndexed": [
-        NAMESPACE_PROJECT_UUID,
-        NAMESPACE_MISSION_SLUG,
-        "artifact_id.path",
-    ],
-    # Snapshot hashes are regenerated on each scan, so coalesce by
-    # project+mission to keep only the latest snapshot queued for a given
-    # dossier.
-    "MissionDossierSnapshotComputed": [
-        NAMESPACE_PROJECT_UUID,
-        NAMESPACE_MISSION_SLUG,
-    ],
-}
 
-LEGACY_COALESCE_FIELD_FALLBACKS: dict[tuple[str, str], list[str]] = {
-    ("MissionDossierArtifactIndexed", NAMESPACE_PROJECT_UUID): ["project_uuid"],
-    ("MissionDossierArtifactIndexed", NAMESPACE_MISSION_SLUG): ["mission_slug"],
-    ("MissionDossierArtifactIndexed", "artifact_id.path"): ["relative_path", "artifact_key"],
-    ("MissionDossierSnapshotComputed", NAMESPACE_PROJECT_UUID): ["project_uuid"],
-    ("MissionDossierSnapshotComputed", NAMESPACE_MISSION_SLUG): ["mission_slug"],
-}
+class LegacyQueueMigrationRequiredError(RuntimeError):
+    """A retired path-backed queue operation was requested on a live path."""
 
 
-def _resolve_dotted(container: Any, path: str) -> Any:
-    """Walk a dotted field path inside a nested dict, returning ``None`` on miss."""
-    current = container
-    for segment in path.split("."):
-        if not isinstance(current, dict):
-            return None
-        current = current.get(segment)
-        if current is None:
-            return None
-    return current
-
-
-def _resolve_event_or_payload(event: dict[str, Any], payload: dict[str, Any], path: str) -> Any:
-    """Resolve a field path against the event envelope, then its payload."""
-    value = _resolve_dotted(event, path)
-    if value is not None:
-        return value
-    return _resolve_dotted(payload, path)
-
-
-def _normalize_legacy_artifact_class(value: Any) -> str:
-    if value == "other":
-        return "runtime"
-    if isinstance(value, str) and value:
-        return value
-    return "runtime"
-
-
-def _string_context(values: dict[str, Any]) -> dict[str, str]:
-    return {key: str(value) for key, value in values.items() if value is not None}
-
-
-def _legacy_namespace(event: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any] | None:
-    namespace = payload.get("namespace") or event.get("namespace")
-    if isinstance(namespace, dict):
-        return namespace
-    return None
-
-
-def _legacy_content_ref(payload: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "algorithm": "sha256",
-        "hash": str(payload.get("content_hash_sha256", "")),
-        "size_bytes": int(payload.get("size_bytes") or 0),
-    }
-
-
-def _build_legacy_artifact_indexed_payload(
-    event: dict[str, Any],
-    payload: dict[str, Any],
-    namespace: dict[str, Any],
-) -> dict[str, Any] | None:
-    if "artifact_id" in payload:
-        return None
-    relative_path = str(payload.get("relative_path") or payload.get("artifact_key") or "")
-    return {
-        "namespace": namespace,
-        "artifact_id": {
-            "mission_type": str(namespace.get("mission_type") or "software-dev"),
-            "path": relative_path,
-            "artifact_class": _normalize_legacy_artifact_class(payload.get("artifact_class")),
-            "wp_id": payload.get("wp_id"),
-        },
-        "content_ref": _legacy_content_ref(payload),
-        "indexed_at": str(payload.get("indexed_at") or event.get("timestamp") or now_utc_iso()),
-        "step_id": payload.get("step_id"),
-        "context_diagnostics": _string_context(
-            {
-                "artifact_key": payload.get("artifact_key"),
-                "required_status": payload.get("required_status"),
-            }
-        ),
-    }
-
-
-def _build_legacy_artifact_missing_payload(
-    event: dict[str, Any],
-    payload: dict[str, Any],
-    namespace: dict[str, Any],
-) -> dict[str, Any] | None:
-    if "expected_identity" in payload:
-        return None
-    expected_path = str(payload.get("expected_path_pattern") or payload.get("artifact_key") or "")
-    return {
-        "namespace": namespace,
-        "expected_identity": {
-            "mission_type": str(namespace.get("mission_type") or "software-dev"),
-            "path": expected_path,
-            "artifact_class": _normalize_legacy_artifact_class(payload.get("artifact_class")),
-        },
-        "manifest_step": str(payload.get("step_id") or "default"),
-        "checked_at": str(payload.get("checked_at") or event.get("timestamp") or now_utc_iso()),
-        "remediation_hint": payload.get("reason_detail"),
-        "context_diagnostics": _string_context(
-            {
-                "artifact_key": payload.get("artifact_key"),
-                "reason_code": payload.get("reason_code"),
-                "reason_detail": payload.get("reason_detail"),
-                "blocking": payload.get("blocking"),
-            }
-        ),
-    }
-
-
-def _build_legacy_snapshot_payload(
-    event: dict[str, Any],
-    payload: dict[str, Any],
-    namespace: dict[str, Any],
-) -> dict[str, Any] | None:
-    if "snapshot_hash" in payload:
-        return None
-    counts: dict[str, Any] = {}
-    raw_counts = payload.get("artifact_counts")
-    if isinstance(raw_counts, dict):
-        counts = raw_counts
-    return {
-        "namespace": namespace,
-        "snapshot_hash": str(payload.get("parity_hash_sha256") or ""),
-        "artifact_count": int(counts.get("total") or 0),
-        "anomaly_count": int(counts.get("required_missing") or 0),
-        "computed_at": str(payload.get("computed_at") or event.get("timestamp") or now_utc_iso()),
-        "algorithm": "sha256",
-        "context_diagnostics": _string_context(
-            {
-                "snapshot_id": payload.get("snapshot_id"),
-                "completeness_status": payload.get("completeness_status"),
-                "required": counts.get("required"),
-                "required_present": counts.get("required_present"),
-                "optional": counts.get("optional"),
-                "optional_present": counts.get("optional_present"),
-            }
-        ),
-    }
-
-
-def _build_legacy_parity_drift_payload(
-    event: dict[str, Any],
-    payload: dict[str, Any],
-    namespace: dict[str, Any],
-) -> dict[str, Any] | None:
-    if "expected_hash" in payload:
-        return None
-    changed_paths = [
-        str(path)
-        for path in (payload.get("missing_in_local") or []) + (payload.get("missing_in_baseline") or [])
-    ]
-    return {
-        "namespace": namespace,
-        "expected_hash": str(payload.get("baseline_parity_hash") or ""),
-        "actual_hash": str(payload.get("local_parity_hash") or ""),
-        "drift_kind": str(payload.get("drift_kind") or "anomaly_introduced"),
-        "detected_at": str(payload.get("detected_at") or event.get("timestamp") or now_utc_iso()),
-        "artifact_ids_changed": [
-            {
-                "mission_type": str(namespace.get("mission_type") or "software-dev"),
-                "path": path,
-                "artifact_class": "evidence",
-            }
-            for path in changed_paths
-        ],
-        "context_diagnostics": _string_context(
-            {
-                "severity": payload.get("severity"),
-                "missing_in_local": ",".join(str(path) for path in payload.get("missing_in_local") or []),
-                "missing_in_baseline": ",".join(str(path) for path in payload.get("missing_in_baseline") or []),
-            }
-        ),
-    }
-
-
-def _migrate_legacy_dossier_payload(event: dict[str, Any]) -> dict[str, Any]:
-    """Return *event* with legacy flat dossier payloads upgraded if possible.
-
-    Operators can have old MissionDossier* events in SQLite after upgrading.
-    Those rows were emitted before spec-kitty-events 5.0.0 made the
-    namespaced envelope mandatory; transforming them during drain keeps the
-    queue from repeatedly submitting events the server will reject with
-    ``Additional properties are not allowed``.
-    """
-    payload = event.get("payload")
-    if not isinstance(payload, dict):
-        return event
-
-    event_type = str(event.get("event_type", ""))
-    namespace = _legacy_namespace(event, payload)
-    if namespace is None:
-        return event
-
-    builders: dict[str, Any] = {
-        "MissionDossierArtifactIndexed": _build_legacy_artifact_indexed_payload,
-        "MissionDossierArtifactMissing": _build_legacy_artifact_missing_payload,
-        "MissionDossierSnapshotComputed": _build_legacy_snapshot_payload,
-        "MissionDossierParityDriftDetected": _build_legacy_parity_drift_payload,
-    }
-    builder = builders.get(event_type)
-    migrated_payload = None if builder is None else builder(event, payload, namespace)
-
-    if migrated_payload is None:
-        return event
-
-    cleaned_payload = {
-        key: value
-        for key, value in migrated_payload.items()
-        if value is not None and value != {} and value != []
-    }
-    migrated = dict(event)
-    migrated["payload"] = cleaned_payload
-    return migrated
-
-
-def _coalesce_key(event: dict[str, Any]) -> str | None:
-    """Return a deterministic coalesce key for an event, or None if not coalesceable.
-
-    The key is built from the event_type and the fields listed in
-    COALESCEABLE_EVENT_TYPES. Fields may live either on the top-level event
-    envelope (for example ``project_uuid``) or inside ``payload``. Dotted
-    paths (e.g. ``namespace.project_uuid``) navigate sub-objects in either
-    location.
-    """
-    event_type = str(event.get("event_type", ""))
-    key_fields = COALESCEABLE_EVENT_TYPES.get(event_type)
-    if key_fields is None:
-        return None
-    payload = event.get("payload") or {}
-    parts = [event_type]
-    for field_name in key_fields:
-        value = _resolve_event_or_payload(event, payload, field_name)
-        if value is None:
-            for fallback in LEGACY_COALESCE_FIELD_FALLBACKS.get((event_type, field_name), []):
-                value = _resolve_event_or_payload(event, payload, fallback)
-                if value is not None:
-                    break
-        if value is None:
-            value = ""
-        parts.append(str(value))
-    return "|".join(parts)
-
-
-def get_max_queue_size() -> int:
-    """Read max_queue_size from ~/.spec-kitty/config.toml, falling back to DEFAULT_MAX_QUEUE_SIZE.
-
-    Config key: [sync] max_queue_size = <int>
-    """
-    config_file = _spec_kitty_dir() / "config.toml"
-    if not config_file.exists():
-        return DEFAULT_MAX_QUEUE_SIZE
-    try:
-        data = toml.load(config_file)
-        value = data.get("sync", {}).get("max_queue_size")
-        if value is not None:
-            return int(value)
-    except (toml.TomlDecodeError, OSError, TypeError, ValueError):
-        pass
-    return DEFAULT_MAX_QUEUE_SIZE
-
-
-@dataclass
+@dataclass(slots=True)
 class QueueStats:
-    """Aggregate statistics about the offline event queue.
-
-    Used by ``sync status`` to display queue health information
-    including depth, age, retry distribution, and top event types.
-
-    ``drain_blocked_counts`` (issue #1072 / #1075) breaks the queue depth
-    down by ``drain_blocked_reason``: events ready to ship are counted under
-    ``"ready"``, blocked events under ``"sync_disabled"`` / ``"no_auth"`` /
-    ``"no_team"``. Empty when the queue is empty.
-    """
-
     total_queued: int = 0
     max_queue_size: int = DEFAULT_MAX_QUEUE_SIZE
     total_retried: int = 0
@@ -385,447 +57,21 @@ class QueueStats:
     drain_blocked_counts: dict[str, int] = field(default_factory=dict)
 
 
-def _spec_kitty_dir() -> Path:
-    """Return the runtime state root, honouring ``SPEC_KITTY_HOME`` (WP01).
-
-    All consumers append their own suffix (``credentials``, ``auth``,
-    ``queue.db``, ``queues``, ``active_queue_scope``, ``config.toml``). On
-    POSIX with the env var unset this is ``~/.spec-kitty`` — byte-identical to
-    the legacy path (NFR-001).
-    """
-    # ``get_runtime_root`` is seen as ``Any`` here because mypy skips imports
-    # for ``specify_cli.*`` (follow_imports=skip); coerce at the typed boundary.
-    base: Path = get_runtime_root().base
-    return base
-
-
-def _credentials_path() -> Path:
-    return _spec_kitty_dir() / "credentials"
-
-
-def _auth_session_store_dir() -> Path:
-    return _spec_kitty_dir() / "auth"
-
-
-def _legacy_queue_db_path() -> Path:
-    return _spec_kitty_dir() / "queue.db"
-
-
-def _scoped_queue_dir() -> Path:
-    return _spec_kitty_dir() / "queues"
-
-
-def _active_scope_path() -> Path:
-    return _spec_kitty_dir() / "active_queue_scope"
-
-
-def _normalise_scope_part(value: str) -> str:
-    return value.strip().lower()
-
-
-def build_queue_scope(server_url: str, username: str, team_slug: str) -> str:
-    """Build canonical queue scope identity for a login session."""
-    server = _normalise_scope_part(server_url).rstrip("/")
-    user = _normalise_scope_part(username)
-    team = _normalise_scope_part(team_slug)
-    return f"{server}|{user}|{team}"
-
-
-def read_queue_scope_from_credentials(credentials_path: Path | None = None) -> str | None:
-    """Read queue scope from credentials file.
-
-    Returns None when credentials are missing, invalid, or incomplete.
-    """
-    path = credentials_path or _credentials_path()
-    if not path.exists():
-        return None
-
-    try:
-        data = toml.load(path)
-    except (toml.TomlDecodeError, OSError):
-        return None
-
-    user_data = data.get("user") if isinstance(data, dict) else None
-    server_data = data.get("server") if isinstance(data, dict) else None
-    if not isinstance(user_data, dict) or not isinstance(server_data, dict):
-        return None
-
-    username = user_data.get("username")
-    server_url = server_data.get("url")
-    team_slug = user_data.get("team_slug") or "no-team"
-
-    if not username or not server_url:
-        return None
-    return build_queue_scope(str(server_url), str(username), str(team_slug))
-
-
-def _read_server_url_for_scope() -> str:
-    config_file = _spec_kitty_dir() / "config.toml"
-    if not config_file.exists():
-        return "https://spec-kitty-dev.fly.dev"
-    try:
-        data = toml.load(config_file)
-    except (toml.TomlDecodeError, OSError):
-        return "https://spec-kitty-dev.fly.dev"
-    value = data.get("sync", {}).get("server_url", "https://spec-kitty-dev.fly.dev")
-    return str(value)
-
-
-def read_queue_scope_from_session(*, allow_rehydrate: bool = True) -> str | None:
-    """Read queue scope from the real encrypted auth session store.
-
-    Returns None when the session is missing, unreadable, or incomplete, or
-    when the session lacks a Private Teamspace (FR-002/FR-004 — direct ingress
-    requires a Private Teamspace; the shared helper emits the structured
-    warning and the queue-scope path skips by returning ``None``).
-    """
-    # FR-002/FR-004/NFR-002 + NFR-001: ingress team-id derivation must go
-    # through the shared helper, AND must use the process-wide TokenManager
-    # singleton so the rehydrate negative cache + threading.Lock state
-    # persist across queue-scope reads in the same process. Constructing a
-    # fresh TokenManager per call would zero the cache and could trigger
-    # repeated /api/v1/me probes for a single shared-only session.
-    try:
-        from specify_cli.auth import get_token_manager
-        from specify_cli.auth.session import require_private_team_id
-    except Exception as exc:
-        import logging
-
-        logging.getLogger(__name__).warning(
-            "read_queue_scope_from_session: import failed: %s", exc
-        )
-        return None
-
-    token_manager = get_token_manager()
-    session = token_manager.get_current_session()
-    if session is None or not session.email:
-        return None
-
-    if allow_rehydrate:
-        from specify_cli.sync._team import resolve_private_team_id_for_ingress
-
-        team_id = resolve_private_team_id_for_ingress(
-            token_manager,
-            endpoint="/api/v1/events/batch/",
-        )
-    else:
-        team_id = require_private_team_id(session)
-    if team_id is None:
-        # Queue scope cannot be safely derived without a Private Teamspace;
-        # leave events in any existing scoped queue and return None so
-        # callers fall back to non-ingress paths.
-        return None
-
-    return build_queue_scope(
-        server_url=_read_server_url_for_scope(),
-        username=session.email,
-        team_slug=team_id,
-    )
-
-
-def scope_db_path(scope: str) -> Path:
-    """Resolve a deterministic queue DB path for a given scope."""
-    digest = hashlib.sha256(scope.encode("utf-8")).hexdigest()[:16]  # noqa: TID251 - production raw SHA-256 owner
-    return _scoped_queue_dir() / f"queue-{digest}.db"
-
-
-def _table_row_count(conn: sqlite3.Connection, table_name: str) -> int:
-    allowed_tables = {
-        "queue",
-        "body_upload_queue",
-        "body_upload_failure_log",
-    }
-    if table_name not in allowed_tables:
-        raise ValueError(f"Unexpected table name {table_name!r}")
-    cursor = conn.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
-        (table_name,),
-    )
-    if cursor.fetchone() is None:
-        return 0
-    query = {
-        "queue": "SELECT COUNT(*) FROM queue",
-        "body_upload_queue": "SELECT COUNT(*) FROM body_upload_queue",
-        "body_upload_failure_log": "SELECT COUNT(*) FROM body_upload_failure_log",
-    }[table_name]
-    row = conn.execute(query).fetchone()
-    return int(row[0]) if row else 0
-
-
-def _queue_db_has_content(db_path: Path) -> bool:
-    if not db_path.exists():
-        return False
-    conn = sqlite3.connect(db_path)
-    try:
-        return any(
-            _table_row_count(conn, table_name) > 0
-            for table_name in ("queue", "body_upload_queue", "body_upload_failure_log")
-        )
-    finally:
-        conn.close()
-
-
-# ----------------------------------------------------------------------
-# Row-level legacy→scoped queue migration (FR-001/FR-002)
-#
-# Spec: kitty-specs/mvp-sync-boundary-cli-01KRVCQS/data-model.md
-#
-# Stable keys are taken from the live schema in this file and in
-# ``body_queue.py``:
-#
-# * ``queue`` — ``event_id`` carries a ``UNIQUE`` constraint (see
-#   ``OfflineQueue._init_db``). It is the only natural identity per row.
-# * ``body_upload_queue`` — the schema declares a composite
-#   ``UNIQUE(project_uuid, mission_slug, target_branch, mission_type,
-#   manifest_version, artifact_path, content_hash)`` (see
-#   ``_BODY_QUEUE_SCHEMA``). That composite is the schema-canonical
-#   identity per row.
-# * ``body_upload_failure_log`` — schema declares
-#   ``UNIQUE(project_uuid, mission_slug, target_branch, mission_type,
-#   manifest_version, artifact_path, content_hash, failure_reason)``.
-#
-# Using these tuples as the dedup key keeps ``INSERT OR IGNORE`` honest:
-# the unique index decides which rows already live in the destination
-# and which are net-new, regardless of whether ``id`` (AUTOINCREMENT
-# rowid) collides between legacy and scoped DBs.
-# ----------------------------------------------------------------------
-
-_MIGRATION_TABLES: list[tuple[str, tuple[str, ...]]] = [
-    ("queue", ("event_id",)),
-    (
-        "body_upload_queue",
-        (
-            "project_uuid",
-            "mission_slug",
-            "target_branch",
-            "mission_type",
-            "manifest_version",
-            "artifact_path",
-            "content_hash",
-        ),
-    ),
-    (
-        "body_upload_failure_log",
-        (
-            "project_uuid",
-            "mission_slug",
-            "target_branch",
-            "mission_type",
-            "manifest_version",
-            "artifact_path",
-            "content_hash",
-            "failure_reason",
-        ),
-    ),
-]
-
-
-def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
-    cursor = conn.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
-        (table_name,),
-    )
-    return cursor.fetchone() is not None
-
-
-def _format_key(key_columns: tuple[str, ...], key_values: tuple[Any, ...]) -> str:
-    """Render a stable-key tuple as a compact log token without payload data.
-
-    Only column names and the values that make up the unique key appear here.
-    No payload columns (event bodies, JSON blobs) are ever logged.
-    """
-    return ",".join(f"{col}={val!r}" for col, val in zip(key_columns, key_values, strict=True))
-
-
-def _scoped_dst_schema(dst: sqlite3.Connection) -> None:
-    """Ensure the destination DB has both event-queue and body-queue tables.
-
-    The event-queue schema is normally created via ``OfflineQueue._init_db``,
-    but the migration function is callable before any ``OfflineQueue`` has
-    been opened against the destination path. We replicate the minimum
-    schema (table + UNIQUE index on ``event_id``) here so ``INSERT OR
-    IGNORE`` semantics survive a fresh destination DB.
-    """
-    dst.execute(
-        """
-        CREATE TABLE IF NOT EXISTS queue (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            event_id TEXT UNIQUE NOT NULL,
-            event_type TEXT NOT NULL,
-            data TEXT NOT NULL,
-            timestamp INTEGER NOT NULL,
-            retry_count INTEGER DEFAULT 0,
-            coalesce_key TEXT
-        )
-        """
-    )
-    dst.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON queue(timestamp)")
-    dst.execute("CREATE INDEX IF NOT EXISTS idx_retry ON queue(retry_count)")
-    dst.execute(
-        "CREATE INDEX IF NOT EXISTS idx_coalesce_key ON queue(coalesce_key)"
-    )
-    ensure_body_queue_schema(dst)
-
-
-def _column_names(conn: sqlite3.Connection, table_name: str) -> list[str]:
-    cursor = conn.execute(f"PRAGMA table_info({table_name})")
-    return [str(row[1]) for row in cursor]
-
-
-def _migrate_one_table(
-    src: sqlite3.Connection,
-    dst: sqlite3.Connection,
-    table: str,
-    key_columns: tuple[str, ...],
-    logger: Any,
-) -> int:
-    """Merge a single table from *src* into *dst* by row-level INSERT OR IGNORE.
-
-    Returns the number of legacy rows successfully migrated (i.e. either
-    newly inserted into dst, or already present in dst by stable key —
-    both states are safe to delete from src).
-    """
-    if not _table_exists(src, table):
-        return 0
-    if not _table_exists(dst, table):
-        return 0
-
-    src_columns = _column_names(src, table)
-    dst_columns = _column_names(dst, table)
-    # Only carry columns that exist on both sides. This keeps the migration
-    # safe across additive schema drift in either direction. Exclude the
-    # synthetic ``id`` AUTOINCREMENT rowid: it is a local-only identifier
-    # whose value is meaningless across DBs and would collide with rows
-    # already in dst (causing ``INSERT OR IGNORE`` to silently drop the
-    # legacy row even when its stable key is fresh).
-    shared_columns = [c for c in src_columns if c in dst_columns and c != "id"]
-    # Sanity: the chosen key columns must exist on both sides; otherwise we
-    # cannot dedupe and must skip the table rather than risk duplication.
-    for key_col in key_columns:
-        if key_col not in shared_columns:
-            return 0
-
-    insert_columns = ", ".join(shared_columns)
-    placeholders = ", ".join("?" for _ in shared_columns)
-    insert_sql = (
-        f"INSERT OR IGNORE INTO {table} ({insert_columns}) "  # noqa: S608 — column names are static / schema-derived
-        f"VALUES ({placeholders})"
-    )
-    where_clause = " AND ".join(f"{col} = ?" for col in key_columns)
-    exists_sql = (
-        f"SELECT 1 FROM {table} WHERE {where_clause} LIMIT 1"  # noqa: S608 — column names are static
-    )
-    delete_sql = (
-        f"DELETE FROM {table} WHERE {where_clause}"  # noqa: S608 — column names are static
-    )
-
-    select_sql = f"SELECT {insert_columns} FROM {table}"  # noqa: S608 — column names are static
-    src_cursor = src.execute(select_sql)
-    src_rows = src_cursor.fetchall()
-
-    migrated = 0
-    for row in src_rows:
-        key_values = tuple(row[shared_columns.index(c)] for c in key_columns)
-        dst.execute(insert_sql, row)
-        # Verify the row really landed in dst before deleting the legacy
-        # copy. INSERT OR IGNORE could have skipped due to a UNIQUE
-        # conflict that is itself a successful merge, or due to some
-        # other constraint failure (e.g. NOT NULL drift) that is not.
-        landed = dst.execute(exists_sql, key_values).fetchone() is not None
-        if not landed:
-            continue
-        src.execute(delete_sql, key_values)
-        migrated += 1
-        logger.info(
-            "migrated row legacy→scoped: table=%s key=%s",
-            table,
-            _format_key(key_columns, key_values),
-        )
-    return migrated
-
-
-def _migrate_legacy_queue_to_scope(scoped_db_path: Path) -> int:
-    """Idempotent row-level merge from legacy queue.db into the scoped DB.
-
-    Replaces the historical whole-DB ``backup()`` path, which only ran when
-    the scoped DB was completely empty. The new strategy walks every
-    table listed in :data:`_MIGRATION_TABLES`, applies ``INSERT OR
-    IGNORE`` keyed by the schema-canonical unique key, verifies the row
-    landed in the destination, and only then deletes the legacy copy.
-
-    Returns the total count of rows migrated across all tables. Safe to
-    re-run: a second invocation against an already-drained legacy DB
-    returns ``0``.
-    """
-    import logging
-
-    logger = logging.getLogger("specify_cli.sync.queue")
-    legacy_db = _legacy_queue_db_path()
-    if not legacy_db.exists():
-        return 0
-    scoped_db_path.parent.mkdir(parents=True, exist_ok=True)
-
-    migrated = 0
-    src = sqlite3.connect(legacy_db)
-    dst = sqlite3.connect(scoped_db_path)
-    try:
-        try:
-            # Row-factory access by index is enough; we only need positional
-            # tuples for the INSERT statements below.
-            _scoped_dst_schema(dst)
-            for table, key_columns in _MIGRATION_TABLES:
-                migrated += _migrate_one_table(
-                    src, dst, table, key_columns, logger
-                )
-            # FR-006/FR-007: commit destination FIRST, then legacy
-            # source. Reasoning: if dst.commit() fails, the legacy
-            # rows are still in src (uncommitted delete rolls back)
-            # and the next retry replays the migration. If
-            # src.commit() fails AFTER dst.commit() succeeded, the
-            # legacy rows survive (delete uncommitted) and retry is
-            # safe because the per-row INSERT uses INSERT OR IGNORE
-            # keyed on the schema-canonical unique key — already-
-            # migrated rows are detected as "landed" and the legacy
-            # copy is deleted again. The previous ordering committed
-            # src first, which would have stranded rows in the gap
-            # between src.commit() success and dst.commit() failure.
-            dst.commit()
-            src.commit()
-        except Exception:
-            # Atomic rollback for the WP02 acceptance: a failure inside
-            # any per-table loop must leave neither the scoped DB nor
-            # the legacy DB partially mutated. SQLite holds the writes
-            # inside an implicit transaction until commit(), so
-            # rollback() unwinds them.
-            with contextlib.suppress(sqlite3.Error):
-                dst.rollback()
-            with contextlib.suppress(sqlite3.Error):
-                src.rollback()
-            raise
-    finally:
-        dst.close()
-        src.close()
-    return migrated
-
-
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
+class ProjectOutboxTask:
+    task_id: str
+    event_id: str
+    project_uuid: str
+    epoch_id: int
+    capture_sequence: int
+    event: dict[str, Any]
+    state: str
+    retry_count: int
+    created_at: str
+
+
+@dataclass(frozen=True, slots=True)
 class LegacyRowCounts:
-    """Structured counts of legacy queue rows pending migration.
-
-    Returned by :func:`detect_legacy_rows_for_scope`. Splits the per-table
-    counts into the two row classes the sync boundary contract cares
-    about: event-queue rows and body-upload rows. ``per_table`` preserves
-    the original per-table mapping for callers (sync status CLI) that
-    surface table-level diagnostics.
-
-    Behaves like a mapping for the small set of existing call sites that
-    still treat the result as a ``dict``: ``bool(value)``, ``len(value)``,
-    iteration, ``value.get(name, 0)``, and equality against a plain dict
-    all delegate to ``per_table``. New call sites should read the named
-    subtotals directly (``event_rows``, ``body_upload_rows``,
-    ``total_rows``).
-    """
-
     event_rows: int = 0
     body_upload_rows: int = 0
     failure_log_rows: int = 0
@@ -834,10 +80,6 @@ class LegacyRowCounts:
     @property
     def total_rows(self) -> int:
         return self.event_rows + self.body_upload_rows + self.failure_log_rows
-
-    # ------------------------------------------------------------------
-    # Mapping-like surface for backwards-compatible callers.
-    # ------------------------------------------------------------------
 
     def __bool__(self) -> bool:
         return bool(self.per_table)
@@ -866,1054 +108,453 @@ class LegacyRowCounts:
     def values(self) -> Any:
         return self.per_table.values()
 
-    def __eq__(self, other: object) -> bool:
-        # Equality against another LegacyRowCounts compares the full
-        # dataclass; equality against a plain dict compares per_table
-        # only (used by existing tests that pre-date the structured
-        # return).
-        if isinstance(other, LegacyRowCounts):
-            return (
-                self.event_rows == other.event_rows
-                and self.body_upload_rows == other.body_upload_rows
-                and self.failure_log_rows == other.failure_log_rows
-                and self.per_table == other.per_table
-            )
-        if isinstance(other, dict):
-            return self.per_table == other
-        return NotImplemented
-
     def __hash__(self) -> int:
-        # frozen dataclasses are hashable by default; the dict field
-        # breaks that, so we provide an explicit hash over the subtotals.
-        return hash(
-            (self.event_rows, self.body_upload_rows, self.failure_log_rows)
-        )
+        return hash((self.event_rows, self.body_upload_rows, self.failure_log_rows))
 
 
-def detect_legacy_rows_for_scope(scope: str) -> LegacyRowCounts:
-    """Return subtotals of legacy rows that belong to *scope*.
+def _spec_kitty_dir() -> Path:
+    return Path(get_runtime_root().base)
 
-    The legacy queue DB at ``~/.spec-kitty/queue.db`` predates per-scope
-    queues, so any rows it still holds will, on the next authenticated
-    drain, be merged into the active scope. This helper lets ``sync
-    status`` (WP03) and the preflight gate (WP01) surface the pending
-    migration *before* a drain happens, without mutating the legacy DB.
 
-    Args:
-        scope: Active queue scope identity as built by
-            :func:`build_queue_scope`. Used for log context and to make
-            the helper signature future-proof; the legacy DB has no
-            per-scope partitioning today, so all legacy rows count
-            toward the active scope.
+def _credentials_path() -> Path:
+    return _spec_kitty_dir() / "credentials"
 
-    Returns:
-        :class:`LegacyRowCounts` carrying ``event_rows`` (legacy
-        ``queue`` table), ``body_upload_rows`` (legacy
-        ``body_upload_queue`` table), ``failure_log_rows`` (legacy
-        ``body_upload_failure_log`` table), ``total_rows``, and the
-        per-table mapping. Empty/missing tables are omitted from
-        ``per_table``; their subtotal is ``0``.
-    """
-    del scope  # Reserved for future use; no per-scope partitioning today.
-    legacy_db = _legacy_queue_db_path()
-    if not legacy_db.exists():
-        return LegacyRowCounts()
 
-    per_table: dict[str, int] = {}
-    event_rows = 0
-    body_upload_rows = 0
-    failure_log_rows = 0
+def _auth_session_store_dir() -> Path:
+    return _spec_kitty_dir() / "auth"
 
-    conn = sqlite3.connect(legacy_db)
-    try:
-        for table, _key_columns in _MIGRATION_TABLES:
-            if not _table_exists(conn, table):
-                continue
-            row = conn.execute(
-                f"SELECT COUNT(*) FROM {table}"  # noqa: S608  # nosec B608 - table names are static / schema-derived
-            ).fetchone()
-            count = int(row[0]) if row else 0
-            if count <= 0:
-                continue
-            per_table[table] = count
-            if table == "queue":
-                event_rows += count
-            elif table == "body_upload_queue":
-                body_upload_rows += count
-            elif table == "body_upload_failure_log":
-                failure_log_rows += count
-    finally:
-        conn.close()
 
-    return LegacyRowCounts(
-        event_rows=event_rows,
-        body_upload_rows=body_upload_rows,
-        failure_log_rows=failure_log_rows,
-        per_table=per_table,
+def _legacy_queue_db_path() -> Path:
+    """Named WP10 migration input; never opened by this module."""
+    return _spec_kitty_dir() / "queue.db"
+
+
+def _scoped_queue_dir() -> Path:
+    return _spec_kitty_dir() / "queues"
+
+
+def _active_scope_path() -> Path:
+    return _spec_kitty_dir() / "active_queue_scope"
+
+
+def _normalise_scope_part(value: str) -> str:
+    return value.strip().lower()
+
+
+def build_queue_scope(server_url: str, username: str, team_slug: str) -> str:
+    material = "\0".join(
+        _normalise_scope_part(value) for value in (server_url, username, team_slug)
     )
+    return hashlib.sha256(material.encode()).hexdigest()  # noqa: TID251 - legacy path identity
 
 
-def resolved_scope_db_path(resolved_target: ResolvedSyncTarget) -> Path:
-    """Consume WP01's derived queue path for *resolved_target* (FR-016, contract §1).
-
-    The queue scope is a **derived isolation key** for these local offline /
-    body-upload tables — never an input target selector. WP01's
-    :class:`~specify_cli.sync.target_authority.ResolvedSyncTarget` already derives
-    ``queue_db_path`` from ``resolved_server_url`` + identity, so callers holding a
-    resolved target must consume that path directly rather than re-deriving a
-    selector here (``active_queue_scope is never an input selector``). This also
-    folds in the legacy ``queue.db`` rows for the same scope.
-    """
-    scoped_path: Path = resolved_target.queue_db_path
-    _migrate_legacy_queue_to_scope(scoped_path)
-    return scoped_path
-
-
-def default_queue_db_path(
-    credentials_path: Path | None = None,
-    *,
-    allow_rehydrate: bool = True,
-    resolved_target: ResolvedSyncTarget | None = None,
-) -> Path:
-    """Resolve default queue DB path.
-
-    When a WP01 ``resolved_target`` is supplied its **derived** queue scope is
-    consumed verbatim (FR-016: the scope is a derived isolation key, never a
-    target selector). Otherwise the path is keyed off the cached session /
-    credentials scope: unauthenticated sessions use legacy
-    ``~/.spec-kitty/queue.db``; authenticated sessions use scoped queues under
-    ``~/.spec-kitty/queues/`` (the same ``scope_db_path`` derivation WP01 mirrors,
-    so the two never drift).
-    """
-    if resolved_target is not None:
-        return resolved_scope_db_path(resolved_target)
-    scope = read_queue_scope_from_session(allow_rehydrate=allow_rehydrate)
-    if scope is None:
-        scope = read_queue_scope_from_credentials(credentials_path=credentials_path)
-    if scope:
-        scoped_path = scope_db_path(scope)
-        _migrate_legacy_queue_to_scope(scoped_path)
-        return scoped_path
-    return _legacy_queue_db_path()
+def scope_db_path(scope: str) -> Path:
+    return _scoped_queue_dir() / f"queue-{scope}.db"
 
 
 def read_active_scope(path: Path | None = None) -> str | None:
-    """Read previously active queue scope marker."""
-    marker = path or _active_scope_path()
-    if not marker.exists():
-        return None
+    source = path or _active_scope_path()
     try:
-        value = marker.read_text().strip()
+        value = source.read_text(encoding="utf-8").strip()
     except OSError:
         return None
     return value or None
 
 
 def write_active_scope(scope: str, path: Path | None = None) -> None:
-    """Persist active queue scope marker."""
-    marker = path or _active_scope_path()
-    marker.parent.mkdir(parents=True, exist_ok=True)
-    marker.write_text(scope)
+    destination = path or _active_scope_path()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(f"{scope.strip()}\n", encoding="utf-8")
+
+
+def _read_json(path: Path) -> Mapping[str, Any] | None:
+    try:
+        value: Any = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return None
+    return value if isinstance(value, Mapping) else None
+
+
+def read_queue_scope_from_credentials(credentials_path: Path | None = None) -> str | None:
+    data = _read_json(credentials_path or _credentials_path())
+    if data is None:
+        return None
+    explicit = data.get("queue_scope")
+    return str(explicit) if isinstance(explicit, str) and explicit.strip() else None
+
+
+def read_queue_scope_from_session(*, allow_rehydrate: bool = True) -> str | None:
+    del allow_rehydrate
+    active = read_active_scope()
+    if active:
+        return active
+    session = _read_json(_auth_session_store_dir() / "session.json")
+    if session is None:
+        return None
+    explicit = session.get("queue_scope")
+    return str(explicit) if isinstance(explicit, str) and explicit.strip() else None
+
+
+def default_queue_db_path(*_args: object, **_kwargs: object) -> Path:
+    raise LegacyQueueMigrationRequiredError(
+        "live payload queues are selected by ProjectSyncStore; legacy paths are WP10 migration inputs"
+    )
+
+
+def resolved_scope_db_path(resolved_target: object) -> Path:
+    del resolved_target
+    raise LegacyQueueMigrationRequiredError("target identity cannot select a live payload store")
+
+
+def detect_legacy_rows_for_scope(scope: str) -> LegacyRowCounts:
+    del scope
+    raise LegacyQueueMigrationRequiredError(
+        "inspect legacy rows through the named WP10 read-only migration adapter"
+    )
 
 
 def pending_events_for_scope(scope: str) -> int:
-    """Return pending event count for a scoped queue without mutating queue data."""
-    db_path = scope_db_path(scope)
-    if not db_path.exists():
-        return 0
-    queue = OfflineQueue(db_path=db_path)
-    return queue.size()
+    del scope
+    raise LegacyQueueMigrationRequiredError("legacy queue counts require WP10 migration mode")
 
 
-_BODY_QUEUE_SCHEMA = """
-CREATE TABLE IF NOT EXISTS body_upload_queue (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    project_uuid TEXT NOT NULL,
-    mission_slug TEXT NOT NULL,
-    target_branch TEXT NOT NULL,
-    mission_type TEXT NOT NULL,
-    manifest_version TEXT NOT NULL,
-    artifact_path TEXT NOT NULL,
-    content_hash TEXT NOT NULL,
-    hash_algorithm TEXT NOT NULL DEFAULT 'sha256',
-    content_body TEXT NOT NULL,
-    size_bytes INTEGER NOT NULL,
-    retry_count INTEGER NOT NULL DEFAULT 0,
-    next_attempt_at REAL NOT NULL DEFAULT 0.0,
-    created_at REAL NOT NULL,
-    last_error TEXT,
-    UNIQUE(project_uuid, mission_slug, target_branch, mission_type, manifest_version, artifact_path, content_hash)
-);
-CREATE INDEX IF NOT EXISTS idx_body_queue_next_attempt ON body_upload_queue(next_attempt_at);
-CREATE INDEX IF NOT EXISTS idx_body_queue_namespace ON body_upload_queue(project_uuid, mission_slug, target_branch);
-
-CREATE TABLE IF NOT EXISTS body_upload_failure_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    project_uuid TEXT NOT NULL,
-    mission_slug TEXT NOT NULL,
-    target_branch TEXT NOT NULL,
-    mission_type TEXT NOT NULL,
-    manifest_version TEXT NOT NULL,
-    artifact_path TEXT NOT NULL,
-    content_hash TEXT NOT NULL,
-    hash_algorithm TEXT NOT NULL DEFAULT 'sha256',
-    size_bytes INTEGER NOT NULL,
-    failure_reason TEXT NOT NULL,
-    failure_count INTEGER NOT NULL DEFAULT 1,
-    first_failed_at REAL NOT NULL,
-    last_failed_at REAL NOT NULL,
-    UNIQUE(project_uuid, mission_slug, target_branch, mission_type, manifest_version, artifact_path, content_hash, failure_reason)
-);
-CREATE INDEX IF NOT EXISTS idx_body_failure_last_failed_at ON body_upload_failure_log(last_failed_at DESC);
-"""
+def get_max_queue_size() -> int:
+    config_file = _spec_kitty_dir() / "config.toml"
+    if not config_file.exists():
+        return DEFAULT_MAX_QUEUE_SIZE
+    try:
+        data = toml.load(config_file)
+        return int(data.get("sync", {}).get("max_queue_size", DEFAULT_MAX_QUEUE_SIZE))
+    except (OSError, TypeError, ValueError, toml.TomlDecodeError):
+        return DEFAULT_MAX_QUEUE_SIZE
 
 
-def _migrate_body_queue_column_rename(conn: sqlite3.Connection) -> None:
-    """Rename legacy columns mission_slug -> mission_slug, mission_type -> mission_type.
+def _resolve_dotted(container: Any, path: str) -> Any:
+    value = container
+    for segment in path.split("."):
+        if not isinstance(value, Mapping):
+            return None
+        value = value.get(segment)
+    return value
 
-    Idempotent: skips if columns are already renamed or if the table does not exist.
-    SQLite ALTER TABLE RENAME COLUMN requires SQLite 3.25.0+ (Python 3.11+ bundles 3.39+).
-    """
-    cursor = conn.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='body_upload_queue'"
+
+COALESCEABLE_EVENT_TYPES: dict[str, list[str]] = {
+    "MissionDossierArtifactIndexed": [
+        NAMESPACE_PROJECT_UUID,
+        NAMESPACE_MISSION_SLUG,
+        "artifact_id.path",
+    ],
+    "MissionDossierSnapshotComputed": [
+        NAMESPACE_PROJECT_UUID,
+        NAMESPACE_MISSION_SLUG,
+    ],
+}
+
+
+def _coalesce_key(event: dict[str, Any]) -> str | None:
+    fields = COALESCEABLE_EVENT_TYPES.get(str(event.get("event_type")))
+    if fields is None:
+        return None
+    payload = event.get("payload")
+    payload = payload if isinstance(payload, Mapping) else {}
+    values = [
+        _resolve_dotted(event, field) or _resolve_dotted(payload, field)
+        for field in fields
+    ]
+    if any(value is None for value in values):
+        return None
+    return "|".join(str(value) for value in values)
+
+
+def _owner_from_event(event: Mapping[str, Any]) -> str | None:
+    candidates = (
+        event.get("project_uuid"),
+        _resolve_dotted(event, NAMESPACE_PROJECT_UUID),
+        _resolve_dotted(event.get("payload", {}), NAMESPACE_PROJECT_UUID),
+        _resolve_dotted(event.get("payload", {}), "project_uuid"),
     )
-    if cursor.fetchone() is None:
-        return  # Table doesn't exist yet; fresh install will create with new names
-
-    col_cursor = conn.execute("PRAGMA table_info(body_upload_queue)")
-    columns = {row[1] for row in col_cursor}
-
-    if "mission_slug" not in columns and "mission_type" not in columns:
-        return  # Already migrated
-
-    if "mission_slug" in columns:
-        conn.execute(
-            "ALTER TABLE body_upload_queue RENAME COLUMN mission_slug TO mission_slug"
-        )
-    if "mission_type" in columns:
-        conn.execute(
-            "ALTER TABLE body_upload_queue RENAME COLUMN mission_type TO mission_type"
-        )
-    conn.commit()
+    for candidate in candidates:
+        if isinstance(candidate, str) and candidate.strip():
+            return candidate.strip().lower()
+    return None
 
 
-def ensure_body_queue_schema(conn: sqlite3.Connection) -> None:
-    """Create body_upload_queue table and indexes if they don't exist.
+def _task_metadata(event_id: str, retry_count: int = 0) -> str:
+    return json.dumps(
+        {"event_id": event_id, "retry_count": retry_count},
+        sort_keys=True,
+        separators=(",", ":"),
+    )
 
-    Also runs the column rename migration for existing databases.
-    """
-    _migrate_body_queue_column_rename(conn)
-    conn.executescript(_BODY_QUEUE_SCHEMA)
+
+def _require_project_destination(permit: LayoutWritePermit) -> None:
+    if permit.destination is not LayoutDestination.PROJECT_STORE:
+        raise RuntimeError("outbox writes require the project_only layout")
 
 
 class OfflineQueue:
-    """
-    SQLite-based offline event queue.
+    """Connection-free project event outbox repository."""
 
-    Stores events locally when the CLI cannot connect to the sync server,
-    allowing them to be drained and synced when connectivity is restored.
+    MAX_QUEUE_SIZE = DEFAULT_MAX_QUEUE_SIZE
+    _QUEUE_EXCLUDED_EVENT_TYPES = frozenset(
+        {"DecisionInputRequested", "DecisionInputAnswered"}
+    )
 
-    Features:
-    - Persistent storage across CLI restarts
-    - FIFO ordering by timestamp
-    - Configurable capacity limit (default 100,000) with FIFO eviction
-    - Event coalescing for high-volume event types
-    - Indexes for efficient retrieval
-    """
+    __slots__ = ("_authority", "_max_queue_size", "_unit")
 
-    MAX_QUEUE_SIZE = DEFAULT_MAX_QUEUE_SIZE  # kept as class attr for back-compat
+    def __init__(
+        self,
+        unit: ProjectUnitOfWork,
+        authority: LayoutGenerationAuthority,
+        max_queue_size: int | None = None,
+    ) -> None:
+        self._unit = unit
+        self._authority = authority
+        self._max_queue_size = max_queue_size if max_queue_size is not None else get_max_queue_size()
 
-    def __init__(self, db_path: Path | None = None, max_queue_size: int | None = None) -> None:
-        """
-        Initialize offline queue.
+    @property
+    def project_uuid(self) -> str:
+        return str(self._unit.project_uuid.storage_token)
 
-        Args:
-            db_path: Path to SQLite database. Defaults to a scope-aware path:
-                - unauthenticated: ~/.spec-kitty/queue.db
-                - authenticated: ~/.spec-kitty/queues/queue-<scope-hash>.db
-            max_queue_size: Override maximum queue capacity.  When None the
-                value is read from ``~/.spec-kitty/config.toml`` (key
-                ``[sync] max_queue_size``) or falls back to 100,000.
-        """
-        if db_path is None:
-            db_path = default_queue_db_path()
+    @property
+    def max_queue_size(self) -> int:
+        return self._max_queue_size
 
-        self.db_path = db_path
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+    def _pending_rows(self) -> list[tuple[Any, ...]]:
+        return [
+            tuple(row)
+            for row in self._unit.execute(
+                "SELECT outbox_tasks.task_id, outbox_tasks.journal_entry_id, "
+                "outbox_tasks.epoch_id, outbox_tasks.state, "
+                "outbox_tasks.idempotency_identity, outbox_tasks.created_at, "
+                "journal_entries.capture_sequence, journal_entries.payload_json "
+                "FROM outbox_tasks JOIN journal_entries "
+                "ON journal_entries.project_uuid = outbox_tasks.project_uuid "
+                "AND journal_entries.entry_id = outbox_tasks.journal_entry_id "
+                "WHERE outbox_tasks.project_uuid = ? AND outbox_tasks.task_kind = 'event' "
+                "AND outbox_tasks.state NOT IN ('synced', 'terminal_failed') "
+                "ORDER BY journal_entries.capture_sequence, outbox_tasks.task_id",
+                (self.project_uuid,),
+            ).fetchall()
+        ]
 
-        if max_queue_size is not None:
-            self._max_queue_size = int(max_queue_size)
-        else:
-            self._max_queue_size = get_max_queue_size()
+    def append(self, event: dict[str, Any], *, cap: int | None = None) -> None:
+        effective = cap if cap is not None else DEFAULT_STRICT_CAP_SIZE
+        if self.size() >= effective:
+            raise OfflineQueueFull(cap=effective, current=self.size())
+        if not self.queue_event(event):
+            raise RuntimeError("project outbox rejected the event")
 
-        self._init_db()
-
-        # Mission 6 (issue #352): cached in-process row count.
-        # ``None`` means "uninitialized"; the next caller that needs the cap
-        # value calls ``_ensure_row_count()`` which lazily loads via a single
-        # ``SELECT COUNT(*) FROM queue``. After that, every mutation path on
-        # this instance keeps the counter coherent with disk so the hot
-        # ``queue_event()`` path no longer pays a full table scan per insert.
-        #
-        # The counter is guarded by ``_row_count_lock`` so callers from
-        # multiple threads (see ``TestConcurrentEmission`` in
-        # ``tests/sync/test_edge_cases.py``) cannot race the lazy load or the
-        # post-commit increment / decrement.
-        self._row_count: int | None = None
-        self._row_count_lock = threading.Lock()
-
-    # ------------------------------------------------------------------
-    # Mission 6 (issue #352): in-process row-count cache helpers.
-    # ------------------------------------------------------------------
-
-    def _load_row_count(self) -> int:
-        """Initialize the cached counter from disk and return it.
-
-        Performs exactly one ``SELECT COUNT(*) FROM queue`` against the
-        SQLite database, then caches the result on ``self._row_count``.
-
-        Callers MUST hold ``self._row_count_lock`` or call this only at
-        construction time when no other thread can observe the queue.
-        """
-        conn = sqlite3.connect(self.db_path)
-        try:
-            row = conn.execute("SELECT COUNT(*) FROM queue").fetchone()
-        finally:
-            conn.close()
-        count = int(row[0]) if row is not None else 0
-        self._row_count = count
-        return count
-
-    def _ensure_row_count(self) -> int:
-        """Return the cached counter, loading lazily on first access.
-
-        Callers that are about to mutate ``self._row_count`` MUST already
-        hold ``self._row_count_lock``. Pure read callers (e.g. ``size()``)
-        also acquire the lock to avoid reading a partially-updated value
-        from another thread.
-        """
-        if self._row_count is None:
-            return self._load_row_count()
-        return self._row_count
-
-    def _size_from_disk(self) -> int:
-        """Read the row count directly from SQLite (no cache).
-
-        Reserved for tests and the invariant check; production hot paths
-        MUST go through :meth:`_ensure_row_count` instead.
-        """
-        conn = sqlite3.connect(self.db_path)
-        try:
-            row = conn.execute("SELECT COUNT(*) FROM queue").fetchone()
-        finally:
-            conn.close()
-        return int(row[0]) if row is not None else 0
-
-    def _init_db(self) -> None:
-        """Initialize database schema with indexes."""
-        conn = sqlite3.connect(self.db_path)
-        try:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS queue (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    event_id TEXT UNIQUE NOT NULL,
-                    event_type TEXT NOT NULL,
-                    data TEXT NOT NULL,
-                    timestamp INTEGER NOT NULL,
-                    retry_count INTEGER DEFAULT 0,
-                    coalesce_key TEXT
-                )
-            """)
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON queue(timestamp)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_retry ON queue(retry_count)")
-            conn.commit()
-
-            # Migrate: add coalesce_key column to legacy databases that lack it.
-            # Must run BEFORE the coalesce_key index creation.
-            self._migrate_add_coalesce_key(conn)
-
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_coalesce_key ON queue(coalesce_key)")
-            conn.commit()
-            ensure_body_queue_schema(conn)
-        finally:
-            conn.close()
-
-    @staticmethod
-    def _migrate_add_coalesce_key(conn: sqlite3.Connection) -> None:
-        """Add coalesce_key column to existing databases that lack it."""
-        cursor = conn.execute("PRAGMA table_info(queue)")
-        columns = {row[1] for row in cursor}
-        if "coalesce_key" not in columns:
-            conn.execute("ALTER TABLE queue ADD COLUMN coalesce_key TEXT")
-            conn.commit()
-
-    # ------------------------------------------------------------------
-    # FR-027 / T035: strict-cap append + drain-to-file recovery
-    # ------------------------------------------------------------------
-
-    def append(
+    def queue_event(
         self,
         event: dict[str, Any],
         *,
-        cap: int | None = None,
-    ) -> None:
-        """Append an event with strict capacity enforcement (FR-027).
-
-        Unlike :meth:`queue_event`, this method MUST NOT silently evict
-        older events when the queue is full. Instead it raises
-        :class:`OfflineQueueFull`, which the CLI surface translates into
-        a single recoverable line plus the drain-to-file path (see
-        :meth:`drain_to_file`).
-
-        Args:
-            event: Envelope dict with ``event_id`` / ``event_type`` /
-                ``payload`` (same shape as :meth:`queue_event`).
-            cap: Override the strict cap. When ``None`` the default
-                ``DEFAULT_STRICT_CAP_SIZE`` (10_000) applies — this is
-                deliberately tighter than ``queue_event``'s eviction cap
-                so the CLI can react before the eviction path triggers.
-
-        Raises:
-            OfflineQueueFull: Appending would exceed *cap*.
-            sqlite3.Error: Database I/O failure (caller decides).
-        """
-        effective_cap = int(cap) if cap is not None else DEFAULT_STRICT_CAP_SIZE
-        c_key = _coalesce_key(event)
-
-        # Coalesce path is still allowed because it does not grow the
-        # queue. Mirrors :meth:`queue_event`.
-        if c_key is not None and self._try_coalesce(event, c_key):
-            return
-
-        # Mission 6: cap check goes through the cached counter, not a per-event
-        # SELECT COUNT(*) full table scan. Hold the counter lock for the
-        # entire read-modify-write so concurrent callers cannot race the
-        # cap check.
-        with self._row_count_lock:
-            current_size = self._ensure_row_count()
-            # Mission 6 fix (PR #1029 review): the cache is a per-instance
-            # value, but two ``OfflineQueue`` instances can target the same
-            # SQLite file. A sibling instance's insert is invisible to this
-            # cache, so when the projected post-insert depth approaches or
-            # breaches the cap we MUST reconcile against disk before deciding
-            # whether to raise. The hot far-from-cap path
-            # (``cached + 1 < cap``) is unaffected; only callers near the cap
-            # pay the extra ``SELECT COUNT(*)``.
-            if current_size + 1 >= effective_cap:
-                current_size = self._load_row_count()
-            if current_size >= effective_cap:
-                raise OfflineQueueFull(cap=effective_cap, current=current_size)
-
-            inserted_new_row = False
-            conn = sqlite3.connect(self.db_path)
-            try:
-                # See ``queue_event`` for the rationale behind the
-                # INSERT-OR-IGNORE + conditional-UPDATE split.
-                cursor = conn.execute(
-                    "INSERT OR IGNORE INTO queue (event_id, event_type, data, timestamp, coalesce_key) "
-                    "VALUES (?, ?, ?, ?, ?)",
-                    (
-                        str(event["event_id"]),
-                        str(event["event_type"]),
-                        json.dumps(event),
-                        int(datetime.now().timestamp()),
-                        c_key,
-                    ),
-                )
-                inserted_new_row = cursor.rowcount == 1
-                if not inserted_new_row:
-                    conn.execute(
-                        "UPDATE queue SET event_type = ?, data = ?, timestamp = ?, coalesce_key = ? "
-                        "WHERE event_id = ?",
-                        (
-                            str(event["event_type"]),
-                            json.dumps(event),
-                            int(datetime.now().timestamp()),
-                            c_key,
-                            str(event["event_id"]),
-                        ),
-                    )
-                conn.commit()
-            finally:
-                conn.close()
-
-            # Cache update only after successful commit; an exception above
-            # leaves ``self._row_count`` untouched, which is correct (the
-            # INSERT did not happen).
-            if inserted_new_row:
-                self._row_count = current_size + 1
-
-    def drain_to_file(self, path: Path) -> int:
-        """Drain every queued event to *path* as JSONL and clear the queue.
-
-        Used by the CLI's offline-overflow recovery path (FR-027): when
-        :meth:`append` raises :class:`OfflineQueueFull`, the operator
-        confirms (or passes ``--auto-drain``) and the entire queue is
-        copied to ``.kittify/sync/overflow-<utc-iso>.jsonl`` for later
-        replay by the offline-queue recovery path.
-
-        The drained file is a strict JSONL stream — one JSON event per
-        line, sorted by ``(timestamp, id)`` to match the FIFO order
-        preserved in :meth:`drain_queue`.
-
-        Args:
-            path: Destination JSONL path. Parent directories are
-                created if missing. The file is overwritten if it
-                already exists.
-
-        Returns:
-            Number of events drained.
-        """
-        path.parent.mkdir(parents=True, exist_ok=True)
-
-        conn = sqlite3.connect(self.db_path)
-        try:
-            cursor = conn.execute(
-                "SELECT data FROM queue ORDER BY timestamp ASC, id ASC"
-            )
-            rows = cursor.fetchall()
-        finally:
-            conn.close()
-
-        count = 0
-        with open(path, "w", encoding="utf-8") as fh:
-            for row in rows:
-                raw = row[0]
-                try:
-                    parsed = json.loads(raw)
-                except (TypeError, ValueError):
-                    # Skip un-parseable rows — they should never exist
-                    # but losing them here is preferable to corrupting
-                    # the JSONL stream.
-                    continue
-                fh.write(json.dumps(parsed, sort_keys=True))
-                fh.write("\n")
-                count += 1
-
-        # Clearing the queue MUST happen after the file write succeeds
-        # so a crash mid-drain does not lose evidence. Mission 6: clear()
-        # also zeros the cached counter, so no extra bookkeeping is needed.
-        self.clear()
-        return count
-
-    # Decision event types excluded from the SQLite queue.  These events are
-    # written to git by DecisionGitLog instead (spec-kitty #1546, WP02).
-    _QUEUE_EXCLUDED_EVENT_TYPES: frozenset[str] = frozenset(
-        {
-            "DecisionInputRequested",
-            "DecisionInputAnswered",
-        }
-    )
-
-    def queue_event(self, event: dict[str, Any]) -> bool:
-        """
-        Add event to offline queue.
-
-        High-volume event types listed in ``COALESCEABLE_EVENT_TYPES`` are
-        coalesced: if an existing row with the same coalesce key is already
-        queued, the row is updated in-place (new event_id, data, timestamp)
-        instead of inserting a new row.  This prevents dossier scans from
-        flooding the queue.
-
-        ``DecisionInputRequested`` and ``DecisionInputAnswered`` are excluded
-        from the queue because they are written to git by ``DecisionGitLog``
-        instead (spec-kitty #1546).
-
-        Args:
-            event: Event dict with event_id, event_type, and payload
-
-        Returns:
-            True if queued successfully, False on database error
-        """
-        # Decision events are recorded to git; skip the SQLite queue entirely.
+        test_hooks: LayoutTestHooks | None = None,
+    ) -> bool:
         if event.get("event_type") in self._QUEUE_EXCLUDED_EVENT_TYPES:
-            return True  # Written to git by DecisionGitLog instead
+            return True
+        owner = _owner_from_event(event)
+        if owner != self.project_uuid:
+            raise ValueError("event project UUID does not match store owner")
+        event_id = str(event.get("event_id", "")).strip()
+        event_type = str(event.get("event_type", "")).strip()
+        if not event_id or not event_type:
+            raise ValueError("event_id and event_type are required")
+        task_id = f"event:{event_id}"
+        existing = self._unit.execute(
+            "SELECT 1 FROM outbox_tasks WHERE project_uuid = ? AND task_id = ?",
+            (self.project_uuid, task_id),
+        ).fetchone()
+        if existing is not None:
+            return True
+        if self.size() >= self._max_queue_size:
+            return False
+        timestamp = str(event.get("created_at") or now_utc_iso())
+        journal_event = Event(
+            event_id=event_id,
+            event_type=event_type,
+            payload=json.dumps(event, sort_keys=True, separators=(",", ":")).encode(),
+            occurred_at=str(event.get("occurred_at") or timestamp),
+            created_at=str(event.get("created_at") or timestamp),
+            coalesce_key=_coalesce_key(event),
+            drain_blocked_reason=(
+                str(event["drain_blocked_reason"])
+                if event.get("drain_blocked_reason") is not None
+                else None
+            ),
+            project_uuid=self.project_uuid,
+            project_slug=(str(event["project_slug"]) if event.get("project_slug") else None),
+            repo_slug=(str(event["repo_slug"]) if event.get("repo_slug") else None),
+        )
+        receipt = EventJournal(self._unit, self._authority).append(
+            journal_event,
+            test_hooks=test_hooks,
+        )
 
-        c_key = _coalesce_key(event)
-
-        # Attempt coalescing before checking the size cap.
-        # If an existing row can be updated, no new row is added.
-        if c_key is not None:
-            coalesced = self._try_coalesce(event, c_key)
-            if coalesced:
-                return True
-
-        # Mission 6 (issue #352): use the cached row count so the hot path
-        # does not pay a full ``SELECT COUNT(*) FROM queue`` table scan per
-        # non-coalesced event. Hold the counter lock for the entire
-        # read-modify-write so two concurrent emitters cannot race the cap
-        # check or the cache update (see ``TestConcurrentEmission`` in
-        # ``tests/sync/test_edge_cases.py``).
-        with self._row_count_lock:
-            evicted = 0
-            inserted_new_row = False
-            current_size = self._ensure_row_count()
-            # Mission 6 fix (PR #1029 review): a sibling ``OfflineQueue``
-            # instance pointed at the same SQLite file can insert behind our
-            # back, leaving the cached counter low. When the projected
-            # post-insert depth approaches or exceeds the cap, reconcile
-            # against disk so the FIFO eviction path correctly bounds the
-            # queue. The hot far-from-cap path (``cached + 1 < cap``) is
-            # unaffected; only callers near the cap pay the extra
-            # ``SELECT COUNT(*)``.
-            if current_size + 1 >= self._max_queue_size:
-                current_size = self._load_row_count()
-            conn = sqlite3.connect(self.db_path)
-            try:
-                if current_size >= self._max_queue_size:
-                    # FIFO eviction: delete the oldest events to make room
-                    overflow = current_size - self._max_queue_size + 1
-                    conn.execute(
-                        "DELETE FROM queue WHERE id IN ("
-                        "  SELECT id FROM queue ORDER BY timestamp ASC, id ASC LIMIT ?"
-                        ")",
-                        (overflow,),
-                    )
-                    evicted = overflow
-                    print(
-                        f"Offline queue at capacity ({self._max_queue_size:,} events). "
-                        f"Evicted {overflow:,} oldest event(s) to make room.\n"
-                        f"  Check auth and connectivity: spec-kitty sync status --check\n"
-                        f"  Drain the queue manually:    spec-kitty sync now",
-                        file=sys.stderr,
-                    )
-
-                # Mission 6: split the historical ``INSERT OR REPLACE`` into
-                # ``INSERT OR IGNORE`` + conditional ``UPDATE`` so the cached
-                # counter can tell apart a new row (rowcount == 1) from a
-                # duplicate event_id update (rowcount == 0). The net effect on
-                # disk is identical to the old single-statement form.
-                cursor = conn.execute(
-                    "INSERT OR IGNORE INTO queue (event_id, event_type, data, timestamp, coalesce_key) "
-                    "VALUES (?, ?, ?, ?, ?)",
-                    (
-                        str(event["event_id"]),
-                        str(event["event_type"]),
-                        json.dumps(event),
-                        int(datetime.now().timestamp()),
-                        c_key,
-                    ),
-                )
-                inserted_new_row = cursor.rowcount == 1
-                if not inserted_new_row:
-                    conn.execute(
-                        "UPDATE queue SET event_type = ?, data = ?, timestamp = ?, coalesce_key = ? "
-                        "WHERE event_id = ?",
-                        (
-                            str(event["event_type"]),
-                            json.dumps(event),
-                            int(datetime.now().timestamp()),
-                            c_key,
-                            str(event["event_id"]),
-                        ),
-                    )
-                conn.commit()
-                # Cache update only after the commit succeeds. ``evicted`` rows
-                # were removed; a brand-new row contributes +1, an
-                # event_id-replacement contributes 0.
-                self._row_count = current_size - evicted + (1 if inserted_new_row else 0)
-                return True
-            except Exception as e:
-                # FR-009/NFR-003: sync side-effect failures during a `--json`
-                # agent command (mission create / task update / status read)
-                # MUST NOT leak to stdout. Route through stderr-routed logger
-                # instead of print() so json.loads(stdout) stays parseable
-                # when a queue insert fails (e.g., transient SQLite
-                # contention).
-                import logging
-
-                logging.getLogger(__name__).warning(
-                    "Failed to queue event: %s", e
-                )
-                # Do NOT mutate ``self._row_count`` here: the commit above
-                # either ran (in which case we already updated the cache and
-                # returned True) or did not run (in which case the cache must
-                # stay as it was).
-                return False
-            finally:
-                conn.close()
-
-    def _try_coalesce(self, event: dict[str, Any], c_key: str) -> bool:
-        """Update an existing row with the same coalesce key, if one exists.
-
-        Returns True if a row was updated (coalesced), False otherwise.
-
-        Coalescing is an in-place row update; it does NOT change the cached
-        row count (``self._row_count``) and intentionally does not touch it.
-        """
-        conn = sqlite3.connect(self.db_path)
-        try:
-            cursor = conn.execute(
-                "SELECT id FROM queue WHERE coalesce_key = ? LIMIT 1",
-                (c_key,),
-            )
-            row = cursor.fetchone()
-            if row is None:
-                return False
-            existing_id = row[0]
-            conn.execute(
-                "UPDATE queue SET event_id = ?, data = ?, timestamp = ? WHERE id = ?",
+        def write(permit: LayoutWritePermit) -> None:
+            _require_project_destination(permit)
+            self._unit.execute(
+                "INSERT INTO outbox_tasks "
+                "(task_id, project_uuid, epoch_id, journal_entry_id, task_kind, state, "
+                "idempotency_identity, created_at) VALUES (?, ?, ?, ?, 'event', "
+                "'pending', ?, ?)",
                 (
-                    str(event["event_id"]),
-                    json.dumps(event),
-                    int(datetime.now().timestamp()),
-                    existing_id,
+                    task_id,
+                    self.project_uuid,
+                    receipt.epoch_id,
+                    event_id,
+                    _task_metadata(event_id),
+                    timestamp,
                 ),
             )
-            conn.commit()
-            return True
-        except Exception:
-            return False
-        finally:
-            conn.close()
 
-    def drain_queue(self, limit: int = 1000) -> list[dict[str, Any]]:
-        """
-        Retrieve events from queue (oldest first).
+        self._authority.execute_write(
+            self._authority.issue_write_permit(),
+            write,
+            test_hooks=test_hooks,
+        )
+        return True
 
-        Does not remove events - use mark_synced() after successful sync.
+    def drain_queue(self, limit: int = 1000) -> list[ProjectOutboxTask]:
+        tasks: list[ProjectOutboxTask] = []
+        for row in self._pending_rows()[:limit]:
+            metadata = json.loads(str(row[4] or "{}"))
+            event = EventJournal(self._unit, self._authority).read_by_id(str(row[1]))
+            if event is None:
+                raise ValueError("outbox task references a missing project journal entry")
+            envelope = json.loads(event.payload)
+            tasks.append(
+                ProjectOutboxTask(
+                    task_id=str(row[0]),
+                    event_id=str(row[1]),
+                    project_uuid=self.project_uuid,
+                    epoch_id=int(row[2]),
+                    capture_sequence=int(row[6]),
+                    event=envelope,
+                    state=str(row[3]),
+                    retry_count=int(metadata.get("retry_count", 0)),
+                    created_at=str(row[5]),
+                )
+            )
+        return tasks
 
-        Args:
-            limit: Maximum number of events to return
+    def _update_tasks(self, event_ids: Iterable[str], *, state: str, retry: bool = False) -> int:
+        ids = list(event_ids)
+        if not ids:
+            return 0
+        updated = 0
 
-        Returns:
-            List of event dicts ordered by timestamp, then id (FIFO)
-        """
-        conn = sqlite3.connect(self.db_path)
-        try:
-            # Order by timestamp first, then by id for deterministic FIFO ordering
-            # when multiple events are queued within the same second
-            cursor = conn.execute("SELECT event_id, data FROM queue ORDER BY timestamp ASC, id ASC LIMIT ?", (limit,))
-            events: list[dict[str, Any]] = []
-            for row in cursor:
-                _, data = row
-                events.append(_migrate_legacy_dossier_payload(json.loads(data)))
-            return events
-        finally:
-            conn.close()
+        def write(permit: LayoutWritePermit) -> None:
+            nonlocal updated
+            _require_project_destination(permit)
+            for event_id in ids:
+                row = self._unit.execute(
+                    "SELECT idempotency_identity FROM outbox_tasks WHERE project_uuid = ? "
+                    "AND journal_entry_id = ? AND task_kind = 'event'",
+                    (self.project_uuid, event_id),
+                ).fetchone()
+                if row is None:
+                    continue
+                metadata = json.loads(str(row[0] or "{}"))
+                count = int(metadata.get("retry_count", 0)) + (1 if retry else 0)
+                self._unit.execute(
+                    "UPDATE outbox_tasks SET state = ?, idempotency_identity = ? "
+                    "WHERE project_uuid = ? AND journal_entry_id = ? AND task_kind = 'event'",
+                    (state, _task_metadata(event_id, count), self.project_uuid, event_id),
+                )
+                updated += 1
+
+        self._authority.execute_write(self._authority.issue_write_permit(), write)
+        return updated
 
     def mark_synced(self, event_ids: list[str]) -> None:
-        """
-        Remove successfully synced events from queue.
-
-        Args:
-            event_ids: List of event IDs to remove
-        """
-        if not event_ids:
-            return
-
-        conn = sqlite3.connect(self.db_path)
-        try:
-            placeholders = ",".join("?" * len(event_ids))
-            cursor = conn.execute(
-                f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608  # nosec B608 - placeholders are count-derived only
-                event_ids,
-            )
-            deleted = cursor.rowcount if cursor.rowcount is not None and cursor.rowcount >= 0 else 0
-            conn.commit()
-        finally:
-            conn.close()
-
-        # Mission 6: only decrement the cache when initialized; otherwise the
-        # next ``_ensure_row_count`` call will re-read from disk anyway.
-        if deleted > 0:
-            with self._row_count_lock:
-                if self._row_count is not None:
-                    self._row_count = max(0, self._row_count - deleted)
+        self._update_tasks(event_ids, state="synced")
 
     def increment_retry(self, event_ids: list[str]) -> None:
-        """
-        Increment retry count for events that failed to sync.
-
-        Args:
-            event_ids: List of event IDs to increment
-        """
-        if not event_ids:
-            return
-
-        conn = sqlite3.connect(self.db_path)
-        try:
-            placeholders = ",".join("?" * len(event_ids))
-            conn.execute(
-                f"UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})",  # noqa: S608  # nosec B608 - placeholders are count-derived only
-                event_ids,
-            )
-            conn.commit()
-        finally:
-            conn.close()
-
-    def size(self) -> int:
-        """
-        Get current queue size.
-
-        Reads directly from disk and refreshes the cached counter. We do not
-        serve ``size()`` from the in-process cache because other processes
-        (or other ``OfflineQueue`` instances pointing at the same DB) may
-        have mutated the queue, and ``size()`` is not on the hot enqueue
-        path — the per-call cost of one ``SELECT COUNT(*)`` is acceptable
-        here.
-
-        Returns:
-            Number of events in queue
-        """
-        with self._row_count_lock:
-            return self._load_row_count()
-
-    def clear(self) -> None:
-        """Remove all events from queue"""
-        conn = sqlite3.connect(self.db_path)
-        try:
-            conn.execute("DELETE FROM queue")
-            conn.commit()
-        finally:
-            conn.close()
-        # Mission 6: queue is empty regardless of prior cache state.
-        with self._row_count_lock:
-            self._row_count = 0
+        self._update_tasks(event_ids, state="retry", retry=True)
 
     def remove_events(self, event_ids: list[str]) -> int:
-        """Remove queued events by ``event_id``; return the number deleted.
-
-        Used by the queue->journal migration cleanup (#2665) to delete rows
-        that have been confirmed durable in the event journal. Deletes only the
-        given ids — never a blanket clear — so events enqueued after the
-        migration snapshot are preserved. Ids absent from the queue are simply
-        not counted (the return value is the *actual* number of rows removed).
-        """
-        if not event_ids:
-            return 0
-        conn = sqlite3.connect(self.db_path)
-        try:
-            placeholders = ",".join("?" * len(event_ids))
-            cursor = conn.execute(
-                f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608  # nosec B608 - placeholders are count-derived only
-                list(event_ids),
-            )
-            removed = cursor.rowcount if cursor.rowcount and cursor.rowcount > 0 else 0
-            conn.commit()
-        finally:
-            conn.close()
-        if removed > 0:
-            with self._row_count_lock:
-                if self._row_count is not None:
-                    self._row_count = max(0, self._row_count - removed)
-        return removed
-
-    # ``remove_project_events`` was deleted here (#3030 C-004 / WP08).
-    #
-    # It purged one project's rows from THIS store, which WP02 removed the event
-    # drain from — nothing ships out of it any more — and it full-decoded every row
-    # to find the project uuid. Its one caller, ``routing.disable_checkout_sync``,
-    # now purges the store that actually ships (the event journal) through
-    # ``delivery/retention.py``. Deleting rather than merely unwiring it: a second,
-    # disagreeing definition of "purge this project's events" left lying around is
-    # what a future caller picks up by accident. Legacy rows still on disk converge
-    # into the journal via ``spec-kitty sync migrate`` and are purgeable there.
-    #
-    # The body-upload tables in this module are UNAFFECTED (C-006, module header):
-    # they remain owned here and operational.
+        return self._update_tasks(event_ids, state="synced")
 
     def process_batch_results(self, results: list[_BatchEventResultLike]) -> None:
-        """Process batch sync results by status.
+        for result in results:
+            if result.status in {"success", "duplicate"}:
+                self.mark_synced([result.event_id])
+            elif result.status in {"rejected"}:
+                self.increment_retry([result.event_id])
+            elif result.status in {"failed_permanent", "terminal_failed"}:
+                self._update_tasks([result.event_id], state="terminal_failed")
 
-        Five buckets (see ``BatchEventResult`` for full semantics):
+    def size(self) -> int:
+        row = self._unit.execute(
+            "SELECT COUNT(*) FROM outbox_tasks WHERE project_uuid = ? "
+            "AND task_kind = 'event' AND state NOT IN ('synced', 'terminal_failed')",
+            (self.project_uuid,),
+        ).fetchone()
+        return int(row[0]) if row is not None else 0
 
-        * ``success`` / ``duplicate`` / ``failed_permanent`` -> DELETE from
-          queue. ``failed_permanent`` events (e.g. oversized events) are
-          removed so the drain loop can continue past them without stalling.
-        * ``pending`` -> **no mutation**. Per-event ``queued`` / ``pending``
-          rows were accepted by the server but not yet materialised, so the
-          local row stays available for the next daemon tick.
-        * ``rejected`` -> UPDATE ``retry_count = retry_count + 1``. This is
-          for **per-event content rejections** returned by the server inside
-          a 200 response body, where the server actually evaluated that
-          event and refused it.
-        * ``failed_transient`` -> **no mutation**. Batch-level failures
-          (HTTP 401/403/5xx, transport timeouts, connection errors, or the
-          pre-flight "no Private Teamspace" skip) never reach individual
-          events on the server, so per-event retry attribution is wrong.
-          Leaving these rows untouched lets the daemon retry on its next
-          tick without poisoning the retry counter. Issue #889.
-
-        Wraps all queue mutations in a single SQLite transaction for
-        atomicity: either all changes apply or none do.
-
-        Args:
-            results: List of ``BatchEventResult`` (or any object with
-                ``.status`` and ``.event_id`` attributes).
-        """
-        synced_or_duplicate: list[str] = []
-        rejected: list[str] = []
-        # transient: batch-level failure, no mutation. Tracked separately
-        # for clarity even though no SQL is issued.
-        transient: list[str] = []
-        for r in results:
-            if r.status in ("success", "duplicate", "failed_permanent"):
-                synced_or_duplicate.append(r.event_id)
-            elif r.status == "rejected":
-                rejected.append(r.event_id)
-            elif r.status in ("pending", "failed_transient"):
-                transient.append(r.event_id)
-
-        conn = sqlite3.connect(self.db_path)
-        deleted = 0
-        try:
-            # Wrap both operations in a single transaction. ``pending`` and
-            # ``failed_transient`` rows are intentionally left untouched (no
-            # DELETE, no UPDATE).
-            if synced_or_duplicate:
-                placeholders = ",".join("?" * len(synced_or_duplicate))
-                cursor = conn.execute(
-                    f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608  # nosec B608 - placeholders are count-derived only
-                    synced_or_duplicate,
-                )
-                deleted = cursor.rowcount if cursor.rowcount is not None and cursor.rowcount >= 0 else 0
-            if rejected:
-                placeholders = ",".join("?" * len(rejected))
-                conn.execute(
-                    f"UPDATE queue SET retry_count = retry_count + 1 WHERE event_id IN ({placeholders})",  # noqa: S608  # nosec B608 - placeholders are count-derived only
-                    rejected,
-                )
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            conn.close()
-
-        # Mission 6: decrement by the exact rowcount of the DELETE (rejected
-        # rows only bump retry_count, so they don't change the queue size).
-        if deleted > 0:
-            with self._row_count_lock:
-                if self._row_count is not None:
-                    self._row_count = max(0, self._row_count - deleted)
+    def clear(self) -> None:
+        self.mark_synced([task.event_id for task in self.drain_queue(limit=self.size())])
 
     def get_events_by_retry_count(self, max_retries: int = 5) -> list[dict[str, Any]]:
-        """
-        Get events that haven't exceeded retry limit.
-
-        Args:
-            max_retries: Maximum retry count threshold
-
-        Returns:
-            List of events with retry_count < max_retries
-        """
-        conn = sqlite3.connect(self.db_path)
-        try:
-            cursor = conn.execute(
-                "SELECT event_id, data FROM queue WHERE retry_count < ? ORDER BY timestamp ASC, id ASC", (max_retries,)
-            )
-            events: list[dict[str, Any]] = []
-            for row in cursor:
-                _, data = row
-                events.append(json.loads(data))
-            return events
-        finally:
-            conn.close()
+        return [task.event for task in self.drain_queue() if task.retry_count <= max_retries]
 
     def get_drain_blocked_counts(self) -> dict[str, int]:
-        """Return queued-event counts grouped by ``drain_blocked_reason``.
-
-        Issue #1072 / #1075: events are now appended to the durable outbox
-        regardless of auth, sync, or team-resolution state. Each event
-        carries a ``drain_blocked_reason`` diagnostic (``None`` means
-        ready to drain). ``sync status`` uses this aggregate to tell the
-        operator WHY the queue is stuck rather than just reporting depth.
-
-        Returned keys are the union of ``None`` (rendered as ``"ready"``)
-        and the values in :data:`EventEmitter.DRAIN_BLOCKED_REASONS`.
-        Keys with zero count are omitted. Events that pre-date this
-        feature (no ``drain_blocked_reason`` field) are counted as
-        ``"ready"`` because the original emit-time code path only queued
-        when remote drain was eligible.
-        """
         counts: dict[str, int] = {}
-        conn = sqlite3.connect(self.db_path)
-        try:
-            cursor = conn.execute("SELECT data FROM queue")
-            for (raw,) in cursor:
-                try:
-                    event = json.loads(raw)
-                except (TypeError, ValueError):
-                    continue
-                reason = event.get("drain_blocked_reason")
-                bucket = reason if isinstance(reason, str) and reason else "ready"
-                counts[bucket] = counts.get(bucket, 0) + 1
-        finally:
-            conn.close()
+        for task in self.drain_queue():
+            reason = task.event.get("drain_blocked_reason") or "ready"
+            counts[str(reason)] = counts.get(str(reason), 0) + 1
         return counts
 
     def get_queue_stats(self) -> QueueStats:
-        """
-        Compute aggregate statistics about the queue.
+        tasks = self.drain_queue()
+        retries = [task.retry_count for task in tasks]
+        types: dict[str, int] = {}
+        for task in tasks:
+            event_type = str(task.event.get("event_type", "unknown"))
+            types[event_type] = types.get(event_type, 0) + 1
+        oldest_age = None
+        if tasks:
+            try:
+                oldest = min(datetime.fromisoformat(task.created_at) for task in tasks)
+                oldest_age = datetime.now(UTC) - oldest.astimezone(UTC)
+            except ValueError:
+                oldest_age = None
+        return QueueStats(
+            total_queued=len(tasks),
+            max_queue_size=self._max_queue_size,
+            total_retried=sum(retry > 0 for retry in retries),
+            oldest_event_age=oldest_age,
+            retry_distribution={
+                "0 retries": sum(retry == 0 for retry in retries),
+                "1-3 retries": sum(1 <= retry <= 3 for retry in retries),
+                "4+ retries": sum(retry >= 4 for retry in retries),
+            },
+            top_event_types=sorted(types.items(), key=lambda item: (-item[1], item[0]))[:5],
+            drain_blocked_counts=self.get_drain_blocked_counts(),
+        )
 
-        Returns a QueueStats with:
-        - total_queued: number of events in queue
-        - total_retried: number of events with retry_count > 0
-        - oldest_event_age: timedelta from oldest event timestamp to now (None if empty)
-        - retry_distribution: counts bucketed as '0 retries', '1-3 retries', '4+ retries'
-        - top_event_types: top 5 event types by count, descending
-        """
-        # Mission 6: use the cached counter to short-circuit the empty-queue
-        # path; for the populated path we still issue the aggregate queries
-        # below because they cannot be served by the simple counter.
-        with self._row_count_lock:
-            total_queued = self._ensure_row_count()
-        if total_queued == 0:
-            return QueueStats(max_queue_size=self._max_queue_size)
 
-        conn = sqlite3.connect(self.db_path)
-        try:
-
-            # Total retried (retry_count > 0)
-            total_retried_row = conn.execute("SELECT COUNT(*) FROM queue WHERE retry_count > 0").fetchone()
-            total_retried = int(total_retried_row[0]) if total_retried_row is not None else 0
-
-            # Oldest event age
-            oldest_ts_row = conn.execute("SELECT MIN(timestamp) FROM queue").fetchone()
-            oldest_ts = oldest_ts_row[0] if oldest_ts_row is not None else None
-            oldest_event_age: timedelta | None = None
-            if oldest_ts is not None:
-                oldest_dt = datetime.fromtimestamp(int(oldest_ts), tz=UTC)
-                now_dt = datetime.now(tz=UTC)
-                oldest_event_age = now_dt - oldest_dt
-
-            # Retry distribution buckets
-            cursor = conn.execute("""
-                SELECT
-                    CASE
-                        WHEN retry_count = 0 THEN '0 retries'
-                        WHEN retry_count BETWEEN 1 AND 3 THEN '1-3 retries'
-                        ELSE '4+ retries'
-                    END as bucket,
-                    COUNT(*) as count
-                FROM queue
-                GROUP BY bucket
-            """)
-            retry_distribution: dict[str, int] = {}
-            for bucket, count in cursor:
-                retry_distribution[str(bucket)] = int(count)
-
-            # Top 5 event types by count
-            cursor = conn.execute("""
-                SELECT event_type, COUNT(*) as count
-                FROM queue
-                GROUP BY event_type
-                ORDER BY count DESC
-                LIMIT 5
-            """)
-            top_event_types: list[tuple[str, int]] = []
-            for event_type, count in cursor:
-                top_event_types.append((str(event_type), int(count)))
-
-            return QueueStats(
-                total_queued=total_queued,
-                max_queue_size=self._max_queue_size,
-                total_retried=total_retried,
-                oldest_event_age=oldest_event_age,
-                retry_distribution=retry_distribution,
-                top_event_types=top_event_types,
-                drain_blocked_counts=self.get_drain_blocked_counts(),
-            )
-        finally:
-            conn.close()
+__all__ = [
+    "COALESCEABLE_EVENT_TYPES",
+    "DEFAULT_MAX_QUEUE_SIZE",
+    "DEFAULT_STRICT_CAP_SIZE",
+    "LegacyQueueMigrationRequiredError",
+    "LegacyRowCounts",
+    "OfflineQueue",
+    "OfflineQueueFull",
+    "ProjectOutboxTask",
+    "QueueStats",
+    "_legacy_queue_db_path",
+    "build_queue_scope",
+    "default_queue_db_path",
+    "detect_legacy_rows_for_scope",
+    "get_max_queue_size",
+    "pending_events_for_scope",
+    "read_active_scope",
+    "read_queue_scope_from_credentials",
+    "read_queue_scope_from_session",
+    "resolved_scope_db_path",
+    "scope_db_path",
+    "write_active_scope",
+]

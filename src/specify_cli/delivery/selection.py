@@ -47,6 +47,7 @@ from specify_cli.event_journal import (
     DRAIN_BLOCKED_SAAS_DISABLED,
     EventIdentityRow,
 )
+from specify_cli.sync.project_context import ConsentState, ProjectSyncContext
 
 #: Policy: the operator had hosted sync off for this capture, so shipping it now
 #: would deliver something they had not agreed to ship. ``classify_drain_blocked_reason``
@@ -97,7 +98,11 @@ def _default_consent_predicate(candidates: Sequence[str | None]) -> frozenset[st
     """
     from specify_cli.sync.consent import consented_project_uuids
 
-    return consented_project_uuids(list(candidates), checkout_roots=_drain_checkout_roots())
+    return frozenset(
+        consented_project_uuids(
+            list(candidates), checkout_roots=_drain_checkout_roots()
+        )
+    )
 
 
 def _drain_checkout_roots() -> list[Path]:
@@ -168,9 +173,9 @@ class ConsentedSelection:
 def select_consented(
     journal: Any,
     *,
-    consent_predicate: ConsentPredicate | None = None,
+    context: ProjectSyncContext,
 ) -> ConsentedSelection:
-    """Build the drain's universe: consented rows only, oldest first (FR-008/NFR-003).
+    """Select from one explicit store using its coherent authority snapshot.
 
     Three steps, and the order of the first two is the whole point:
 
@@ -191,20 +196,28 @@ def select_consented(
     terminal rows fill the window and be stripped afterwards, yielding an empty
     selection with consented undelivered rows behind it (NFR-002 starvation).
     """
-    resolve = _drain_consent_memo(consent_predicate or _default_consent_predicate)
-
-    present = journal.distinct_project_uuids()
-    # The answer is minted here, from the resolution that builds the SQL predicate
-    # — one question, two consumers (the ``IN (…)`` filter and the receiver's
-    # batch mint). ``resolve`` is the memo, so this costs no extra lookups.
-    answer = resolve_consent_answer(present, consent_predicate=resolve)
-    consented = answer.granted
-    if not consented:
+    owner = str(context.project_uuid)
+    if journal.project_uuid != owner:
+        raise ValueError("selection context does not match the journal store owner")
+    granted = context.consent_state is ConsentState.GRANTED and context.epoch_id is not None
+    answer = resolve_consent_answer(
+        [owner],
+        consent_predicate=lambda candidates: (
+            frozenset({owner}) if granted and owner in candidates else frozenset()
+        ),
+    )
+    if not granted:
         return ConsentedSelection(event_ids=[], answer=answer)
-
-    rows = journal.read_identity_projection(project_uuids=sorted(consented))
+    # The UUID predicate remains in the repository query even though the physical
+    # database is already isolated. Both controls are independently load-bearing.
+    rows = journal.read_identity_projection(project_uuids=[owner])
     return ConsentedSelection(
-        event_ids=selectable_event_ids(rows, consent_predicate=resolve),
+        event_ids=selectable_event_ids(
+            rows,
+            consent_predicate=lambda candidates: frozenset(
+                candidate for candidate in candidates if candidate == owner
+            ),
+        ),
         answer=answer,
     )
 

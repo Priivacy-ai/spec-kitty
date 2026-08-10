@@ -7,6 +7,7 @@ default no-op coalescing seam. They never assert internal call ordering.
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -20,12 +21,21 @@ from specify_cli.event_journal import (
     reset_coalesce_strategy,
     row_to_event,
 )
+from specify_cli.sync.project_store import ProjectSyncStore
 
 pytestmark = pytest.mark.fast
 
+PROJECT = "aaaaaaaa-0000-0000-0000-000000000001"
+
+
+def _project_only(store: ProjectSyncStore) -> None:
+    authority = store.layout_generation()
+    authority.begin_cutover("journal-tests")
+    authority.publish_project_only("journal-tests", verify_exact=lambda: True)
+
 
 @pytest.fixture(autouse=True)
-def _reset_seam() -> None:
+def _reset_seam() -> Iterator[None]:
     """Reset the module-level coalesce strategy so a WP08-style registration
     in one test never leaks into another (T019 edge case)."""
     reset_coalesce_strategy()
@@ -34,8 +44,12 @@ def _reset_seam() -> None:
 
 
 @pytest.fixture()
-def journal(tmp_path: Path) -> EventJournal:
-    return EventJournal(tmp_path / "event_journal" / "journal-test.db")
+def journal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[EventJournal]:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store = ProjectSyncStore(PROJECT)
+    _project_only(store)
+    with store.unit_of_work() as unit:
+        yield EventJournal(unit, store.layout_generation())
 
 
 def _event(event_id: str, *, payload: bytes = b"{}", reason: str | None = None) -> Event:
@@ -48,6 +62,7 @@ def _event(event_id: str, *, payload: bytes = b"{}", reason: str | None = None) 
         coalesce_key=None,
         archived_at=None,
         drain_blocked_reason=reason,
+        project_uuid=PROJECT,
     )
 
 
@@ -123,7 +138,7 @@ def test_event_model_carries_no_target_or_delivery_field() -> None:
 def test_event_is_immutable() -> None:
     evt = _event("evt-frozen")
     with pytest.raises(dataclasses.FrozenInstanceError):
-        evt.event_id = "mutated"  # type: ignore[misc]
+        evt.event_id = "mutated"
 
 
 def test_journal_module_imports_nothing_from_delivery() -> None:
@@ -161,9 +176,10 @@ def test_record_is_an_alias_for_append(journal: EventJournal) -> None:
     assert journal.read_by_id("evt-record") is not None
 
 
-def test_db_path_property_returns_configured_path(tmp_path: Path) -> None:
-    db_path = tmp_path / "event_journal" / "journal-x.db"
-    assert EventJournal(db_path).db_path == db_path
+def test_live_journal_exposes_no_path_or_connection_surface(journal: EventJournal) -> None:
+    assert not hasattr(journal, "db_path")
+    assert not hasattr(journal, "connection")
+    assert not hasattr(journal, "commit")
 
 
 def test_default_coalesce_seam_is_no_op_distinct_rows(journal: EventJournal) -> None:

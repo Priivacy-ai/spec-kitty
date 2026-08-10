@@ -7,8 +7,8 @@ gate blocked), never the internal call order.
 """
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -27,12 +27,24 @@ from specify_cli.event_journal import (
     reset_journal_cache,
     resolve_journal_path,
 )
+from specify_cli.sync.project_store import ProjectSyncStore
 
 pytestmark = pytest.mark.fast
 
+PROJECT = "cccccccc-0000-0000-0000-00000000000c"
+
+
+def _project_only(store: ProjectSyncStore) -> None:
+    authority = store.layout_generation()
+    authority.begin_cutover("capture-first-tests")
+    authority.publish_project_only("capture-first-tests", verify_exact=lambda: True)
+
 
 @pytest.fixture(autouse=True)
-def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def _isolated_home(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[None]:
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path))
     reset_journal_cache()
     reset_coalesce_strategy()
@@ -42,8 +54,11 @@ def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture()
-def journal(tmp_path: Path) -> EventJournal:
-    return EventJournal(tmp_path / "event_journal" / "capture-test.db")
+def journal(tmp_path: Path) -> Iterator[EventJournal]:
+    store = ProjectSyncStore(PROJECT)
+    _project_only(store)
+    with store.unit_of_work() as unit:
+        yield EventJournal(unit, store.layout_generation())
 
 
 def _gate(
@@ -93,6 +108,7 @@ def test_disabled_sync_keeps_event_durable_with_reason(journal: EventJournal) ->
         payload=b'{"wp": "WP01"}',
         occurred_at="2026-06-29T00:00:00+00:00",
         gate=_gate(saas=False, auth=False, team=None),
+        project_uuid=PROJECT,
     )
     assert event.drain_blocked_reason == DRAIN_BLOCKED_SAAS_DISABLED
     stored = journal.read_by_id("evt-disabled")
@@ -111,6 +127,7 @@ def test_missing_auth_and_team_keeps_event_durable_with_diagnostics(
         payload=b"{}",
         occurred_at="2026-06-29T00:00:00+00:00",
         gate=_gate(auth=False, team=None),
+        project_uuid=PROJECT,
     )
     blocked = journal.read_blocked()
     assert [e.event_id for e in blocked] == ["evt-noauth"]
@@ -126,6 +143,7 @@ def test_capture_produces_distinct_rows_even_when_blocked(journal: EventJournal)
             payload=b"{}",
             occurred_at="2026-06-29T00:00:00+00:00",
             gate=_gate(saas=False),
+            project_uuid=PROJECT,
         )
     assert journal.count() == 4  # no coalescing
 
@@ -141,6 +159,7 @@ def test_teamspace_bound_family_cannot_be_silently_dropped(journal: EventJournal
             gate=_gate(),
             is_teamspace_bound=True,
             skip_journal=True,
+            project_uuid=PROJECT,
         )
     assert journal.count() == 0  # guard fired before any write
 
@@ -148,116 +167,45 @@ def test_teamspace_bound_family_cannot_be_silently_dropped(journal: EventJournal
 # ── producer-scoped path (never server-scoped) ───────────────────────
 
 
-def test_journal_path_is_producer_scoped_not_server_scoped(tmp_path: Path) -> None:
+def test_legacy_journal_path_is_named_input_not_a_live_scope(tmp_path: Path) -> None:
     authed = resolve_journal_path(user_id="dev@example.com", team_slug="team-x")
     anon = resolve_journal_path()
-    assert authed != anon
+    assert authed == anon
     assert str(tmp_path) in str(authed)
     assert "event_journal" in authed.parts
-    # No server URL ever participates in the path (FR-003).
+    # The retained helper names one WP10 migration input; user/team/server
+    # attributes can no longer select a live payload store.
     assert "fly.dev" not in str(authed)
     assert "https" not in str(authed)
-    assert authed.name.startswith("journal-")
     assert anon.name == "journal-local.db"
 
 
 # ── live emit-path integration (capture-first is actually wired) ─────
 
 
-#: The project the emit-path tests below belong to. It needs to be a real uuid, not
-#: ``None`` — see ``_consenting_checkout``.
-_STUB_PROJECT_UUID = "cccccccc-0000-0000-0000-00000000000c"
-
-
-@pytest.fixture
-def _consenting_checkout(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Open the per-project consent axis for the emit-path tests below.
-
-    Capture-first means the journal write precedes the *delivery* gates — SaaS
-    enablement, auth, team resolution. Since #3030 T006 it no longer outranks
-    *consent*: a project that has not consented never reaches the journal
-    (NFR-005 as amended), and WP01 made absence of a consent record a denial, so
-    an unconfigured test project now resolves to non-consenting.
-
-    These tests are about the ordering property, not about consent, so they consent
-    explicitly and keep asserting exactly what they always did. The non-consenting
-    half of the contract is pinned separately by
-    ``tests/sync/test_sync_consent_capture_gap_3031.py``.
-
-    **Rewritten for #3030 M1.** This used to patch
-    ``emitter.is_sync_enabled_for_checkout``, which the capture gate no longer calls:
-    the gate is resolved from the *event's own* ``project_uuid`` down
-    ``sync/consent.py``'s chain instead of from ``Path.cwd()``. So consent is now
-    recorded through its real writer, keyed on the uuid ``_stub_emitter`` stamps.
-
-    That is also why ``_stub_emitter`` gained a ``project_uuid``: it had ``None``, and
-    an event whose project cannot be identified can never be shown to belong to a
-    consenting one (NFR-001), so it is correctly refused. Asserting a capture-ordering
-    property against an event that is being refused would assert nothing at all — the
-    same repaired-setup call ``test_local_commit.py`` made for T027. Every assertion
-    in the two tests below is unchanged.
-    """
-    from specify_cli.sync.consent import set_project_consent
-
-    del monkeypatch  # consent is recorded in the per-test SPEC_KITTY_HOME, not patched
-    set_project_consent(_STUB_PROJECT_UUID, True)
-
-
-def _stub_emitter():
-    from specify_cli.sync.emitter import EventEmitter
-    from specify_cli.sync.git_metadata import GitMetadata
-
-    em = EventEmitter()
-    em._identity = SimpleNamespace(  # type: ignore[assignment]
-        build_id="build-1",
-        project_uuid=_STUB_PROJECT_UUID,
-        project_slug="stub-project",
-    )
-    em._get_git_metadata = lambda: GitMetadata()  # type: ignore[method-assign]
-    return em
-
-
-def test_emit_writes_journal_before_delivery_gates_when_disabled(
-    monkeypatch: pytest.MonkeyPatch,
-    _consenting_checkout: None,
+def test_live_factory_requires_explicit_store_capabilities(
+    tmp_path: Path,
+    journal: EventJournal,
 ) -> None:
-    from specify_cli.sync import emitter as emitter_mod
-
-    monkeypatch.setattr(emitter_mod, "is_saas_sync_enabled", lambda: False)
-    em = _stub_emitter()
-
-    em._emit(
-        event_type="ErrorLogged",
-        aggregate_id="WP01",
-        aggregate_type="WorkPackage",
-        payload={"error_type": "runtime", "error_message": "boom"},
-    )
-
-    rows = get_journal(team_slug=None).read_all()
-    assert len(rows) == 1
-    assert rows[0].event_type == "ErrorLogged"
-    assert rows[0].drain_blocked_reason == DRAIN_BLOCKED_SAAS_DISABLED
-    assert em.ws_client is None  # no delivery channel was opened
+    del tmp_path
+    with pytest.raises(TypeError):
+        get_journal()
+    assert journal.project_uuid == PROJECT
 
 
-def test_emit_n_events_when_disabled_yields_n_distinct_journal_rows(
-    monkeypatch: pytest.MonkeyPatch,
-    _consenting_checkout: None,
-) -> None:
-    from specify_cli.sync import emitter as emitter_mod
-
-    monkeypatch.setattr(emitter_mod, "is_saas_sync_enabled", lambda: False)
-    em = _stub_emitter()
-
+def test_disabled_capture_keeps_each_fact_distinct(journal: EventJournal) -> None:
     for i in range(3):
-        em._emit(
+        capture_teamspace_bound(
+            journal=journal,
+            event_id=f"emit-{i}",
             event_type="WpStatusChanged",
-            aggregate_id=f"WP0{i}",
-            aggregate_type="WorkPackage",
-            payload={"i": i},
+            payload=f'{{"i":{i}}}'.encode(),
+            occurred_at="2026-06-29T00:00:00+00:00",
+            gate=_gate(saas=False),
+            project_uuid=PROJECT,
         )
 
-    rows = get_journal(team_slug=None).read_all()
+    rows = journal.read_all()
     assert len(rows) == 3
-    assert len({r.event_id for r in rows}) == 3
-    assert all(r.drain_blocked_reason == DRAIN_BLOCKED_SAAS_DISABLED for r in rows)
+    assert len({row.event_id for row in rows}) == 3
+    assert all(row.drain_blocked_reason == DRAIN_BLOCKED_SAAS_DISABLED for row in rows)

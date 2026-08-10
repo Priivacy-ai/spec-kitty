@@ -40,7 +40,7 @@ def test_explicit_purge_can_only_observe_and_delete_its_store(
         )
 
     with store_a.unit_of_work() as unit:
-        result = purge_project_payloads(unit)
+        result = purge_project_payloads(unit, store_a.layout_generation())
         assert result.target_before == 1
         assert result.target_after == 0
         assert result.other_project_differential == 0

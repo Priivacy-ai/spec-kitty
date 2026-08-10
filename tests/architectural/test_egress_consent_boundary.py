@@ -1404,7 +1404,7 @@ _PROJECT_SYNC_SENDER_MATRIX = (
     _ProjectSyncSender(
         "body drain",
         _SymbolRef("specify_cli/sync/body_transport.py", "push_content"),
-        _SymbolRef("specify_cli/sync/body_queue.py", "OfflineBodyUploadQueue.mark_uploaded"),
+        _SymbolRef("specify_cli/sync/body_queue.py", "OfflineBodyUploadQueue._update"),
         _ResultState.DURABLE,
         "WP04",
     ),
@@ -2070,6 +2070,16 @@ def _scan_layout_writers(
     return tuple(sorted(sites))
 
 
+_RETIRED_LAYOUT_BY_WP04_PREFIXES = (
+    "specify_cli/delivery/ledger.py::",
+    "specify_cli/delivery/retention.py::",
+    "specify_cli/event_journal/coalesce.py::",
+    "specify_cli/event_journal/journal.py::",
+    "specify_cli/sync/body_queue.py::",
+    "specify_cli/sync/queue.py::",
+)
+
+
 _KNOWN_LAYOUT_WRITE_COUNTS: Counter[str] = Counter(
     line.strip()
     for line in """
@@ -2139,7 +2149,24 @@ specify_cli/sync/queue.py::_scoped_dst_schema::CREATE::execute
 specify_cli/sync/queue.py::_scoped_dst_schema::CREATE::execute
 specify_cli/sync/queue.py::ensure_body_queue_schema::CREATE::executescript
 """.splitlines()
-    if line.strip()
+    if line.strip() and not line.strip().startswith(_RETIRED_LAYOUT_BY_WP04_PREFIXES)
+)
+
+_KNOWN_LAYOUT_WRITE_COUNTS.update(
+    {
+        "specify_cli/delivery/ledger.py::SqliteDeliveryLedger._record.write::INSERT::execute": 3,
+        "specify_cli/delivery/retention.py::purge_project_payloads.write::DELETE::execute": 1,
+        "specify_cli/event_journal/journal.py::EventJournal.append.write::INSERT::execute": 1,
+        "specify_cli/event_journal/journal.py::EventJournal.mark_archived.write::UPDATE::execute": 1,
+        "specify_cli/event_journal/journal.py::EventJournal.purge_events.write::DELETE::execute": 4,
+        "specify_cli/event_journal/journal.py::EventJournal.purge_events.write::UPDATE::execute": 1,
+        "specify_cli/event_journal/journal.py::EventJournal.record_supersede.write::INSERT::execute": 1,
+        "specify_cli/event_journal/journal.py::EventJournal.replace_undelivered_payload.write::UPDATE::execute": 1,
+        "specify_cli/sync/body_queue.py::OfflineBodyUploadQueue._update.write::UPDATE::execute": 1,
+        "specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.enqueue.write::INSERT::execute": 1,
+        "specify_cli/sync/queue.py::OfflineQueue._update_tasks.write::UPDATE::execute": 1,
+        "specify_cli/sync/queue.py::OfflineQueue.queue_event.write::INSERT::execute": 1,
+    }
 )
 
 _CANONICAL_PROJECT_STORE_LAYOUT_COUNTS: Counter[str] = Counter(
@@ -2220,15 +2247,15 @@ _DURABLE_RESULT_AUTHORITIES: dict[_SymbolRef, tuple[str, str]] = {
     _SymbolRef(
         "specify_cli/delivery/ledger.py",
         "SqliteDeliveryLedger._record",
-    ): ("delivery_ledger", "event_id"),
+    ): ("delivery_results", "attempt_id"),
     _SymbolRef(
         "specify_cli/sync/body_queue.py",
-        "OfflineBodyUploadQueue.mark_uploaded",
-    ): ("body_upload_queue", "row_id"),
+        "OfflineBodyUploadQueue._update",
+    ): ("body_upload_tasks", "row_id"),
     _SymbolRef(
         "specify_cli/sync/queue.py",
         "OfflineQueue.queue_event",
-    ): ("queue", "event"),
+    ): ("outbox_tasks", "event_id"),
 }
 
 
@@ -2253,7 +2280,12 @@ def _durable_result_write(
     authority_lines = {
         site.lineno
         for site in _scan_layout_writers((path,), source_root=source_root)
-        if site.qualname == row.result_write.qualname and site.operation in dml and table in site.statement.lower()
+        if (
+            site.qualname == row.result_write.qualname
+            or site.qualname.startswith(f"{row.result_write.qualname}.")
+        )
+        and site.operation in dml
+        and table in site.statement.lower()
     }
     return any(
         isinstance(item, ast.Call)
@@ -2407,6 +2439,67 @@ def test_source_discovered_layout_writer_census_is_counted_and_shrink_only() -> 
             "layout-writer census shrank: " + ", ".join(f"{key} (-{count})" for key, count in sorted(shrink.items())),
             stacklevel=1,
         )
+
+
+_WP04_PERMIT_WRITERS = {
+    _SymbolRef("specify_cli/delivery/ledger.py", "SqliteDeliveryLedger._record"),
+    _SymbolRef("specify_cli/delivery/retention.py", "purge_project_payloads"),
+    _SymbolRef("specify_cli/event_journal/journal.py", "EventJournal.append"),
+    _SymbolRef("specify_cli/event_journal/journal.py", "EventJournal.mark_archived"),
+    _SymbolRef("specify_cli/event_journal/journal.py", "EventJournal.purge_events"),
+    _SymbolRef("specify_cli/event_journal/journal.py", "EventJournal.record_supersede"),
+    _SymbolRef(
+        "specify_cli/event_journal/journal.py",
+        "EventJournal.replace_undelivered_payload",
+    ),
+    _SymbolRef("specify_cli/sync/body_queue.py", "OfflineBodyUploadQueue._update"),
+    _SymbolRef("specify_cli/sync/body_queue.py", "OfflineBodyUploadQueue.enqueue"),
+    _SymbolRef("specify_cli/sync/queue.py", "OfflineQueue._update_tasks"),
+    _SymbolRef("specify_cli/sync/queue.py", "OfflineQueue.queue_event"),
+}
+
+
+def _uses_layout_write_permit(path: Path, qualname: str) -> bool:
+    node = _qualified_function_node(path, qualname)
+    if node is None:
+        return False
+    calls = [item for item in ast.walk(node) if isinstance(item, ast.Call)]
+    has_issue = any(_attr_tail(call.func) == "issue_write_permit" for call in calls)
+    has_execute = any(_attr_tail(call.func) == "execute_write" for call in calls)
+    has_destination_check = any(
+        isinstance(call.func, ast.Name)
+        and call.func.id == "_require_project_destination"
+        for call in calls
+    )
+    return has_issue and has_execute and has_destination_check
+
+
+def test_every_wp04_current_writer_participates_in_layout_permits() -> None:
+    sites = _scan_layout_writers()
+    discovered = {
+        _SymbolRef(site.relpath, site.qualname.removesuffix(".write"))
+        for site in sites
+        if site.owner_wp == "WP04" and not _is_canonical_project_store_layout_write(site)
+    }
+    assert discovered == _WP04_PERMIT_WRITERS
+    assert all(
+        _uses_layout_write_permit(_SRC / writer.relpath, writer.qualname)
+        for writer in _WP04_PERMIT_WRITERS
+    )
+
+
+def test_layout_permit_guard_rejects_a_writer_bypass_mutant(tmp_path: Path) -> None:
+    source = tmp_path / "specify_cli" / "sync" / "queue.py"
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        "class OfflineQueue:\n"
+        "    def queue_event(self, unit, payload):\n"
+        "        unit.execute('INSERT INTO outbox_tasks VALUES (?)', (payload,))\n",
+        encoding="utf-8",
+    )
+    sites = _scan_layout_writers((source,), source_root=tmp_path)
+    assert [site.operation for site in sites] == ["INSERT"]
+    assert not _uses_layout_write_permit(source, "OfflineQueue.queue_event")
 
 
 def test_new_sender_and_layout_writer_mutants_flow_through_real_collectors(
