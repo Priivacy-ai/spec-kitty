@@ -618,12 +618,11 @@ class CharterPackManager:
 
         result = ActivationResult(deactivated=list(plan.deactivated), warnings=list(plan.warnings))
 
-        # No-op removal (ID not present): nothing to write, leave the
-        # activation source bytes untouched.
-        if not plan.deactivated:
-            return result
-
-        commit_plan(target_path, data, plan, save=save)
+        # Guard only the side effect: a no-op removal (ID not present) writes
+        # nothing and leaves the activation source bytes untouched. The returned
+        # result is identical on both paths (S3516 -> single return).
+        if plan.deactivated:
+            commit_plan(target_path, data, plan, save=save)
         return result
 
     def list_activated(

@@ -328,6 +328,30 @@ def test_force_release_clear_failure(
     assert force_release(lock_path, only_if_age_s=60.0) is False
 
 
+def test_force_release_propagates_genuine_os_lock_error(
+    lock_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #3009-class Sonar S3516 fix: a genuine (non-contention) OSError from
+    # _os_lock must PROPAGATE, not be swallowed as False -- per the module
+    # contract (_is_contention_error / _os_lock docstrings) and the honored twin
+    # in MachineFileLock.__aenter__. Red-first: the pre-fix handler returned False
+    # on both arms, so this pytest.raises would fail ("DID NOT RAISE").
+    # This is a DIFFERENT except from test_force_release_clear_failure (the
+    # deliberate clear-step best-effort swallow), which stays green.
+    _write_record(lock_path, age_s=120.0)
+
+    genuine = OSError("input/output error")
+    genuine.errno = 5  # EIO -- a genuine I/O error, never contention
+
+    def _boom(_fd: int) -> None:
+        raise genuine
+
+    monkeypatch.setattr(fl, "_os_lock", _boom)
+    with pytest.raises(OSError) as excinfo:
+        force_release(lock_path, only_if_age_s=60.0)
+    assert excinfo.value.errno == 5
+
+
 def test_is_contention_error_distinguishes_genuine_io() -> None:
     # Non-contention OSError (errno=None) propagates rather than being eaten.
     assert fl._is_contention_error(OSError()) is False
