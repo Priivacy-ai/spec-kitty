@@ -98,9 +98,7 @@ def _lease_bound_context(unit: ProjectUnitOfWork, lease_identity: str) -> Projec
 
     if consent_state is ConsentState.GRANTED and consent_generation is not None:
         epoch_row = unit.execute(
-            "SELECT epoch_id FROM consent_epochs "
-            "WHERE project_uuid = ? AND state = 'eligible' AND consent_generation = ? "
-            "ORDER BY epoch_id DESC LIMIT 1",
+            "SELECT epoch_id FROM consent_epochs WHERE project_uuid = ? AND state = 'eligible' AND consent_generation = ? ORDER BY epoch_id DESC LIMIT 1",
             (project_uuid, consent_generation),
         ).fetchone()
         if epoch_row is not None:
@@ -124,11 +122,7 @@ def _lease_bound_context(unit: ProjectUnitOfWork, lease_identity: str) -> Projec
         admission_generation = str(admission_row[5]) if admission_row[5] is not None else None
         binding_audience = str(admission_row[6]) if admission_row[6] is not None else None
 
-    kill_switch_allows = bool(
-        consent_state is ConsentState.GRANTED
-        and epoch_id is not None
-        and admission_state is AdmissionState.ADMITTED
-    )
+    kill_switch_allows = bool(consent_state is ConsentState.GRANTED and epoch_id is not None and admission_state is AdmissionState.ADMITTED)
     return _new_project_sync_context(
         store_identity=unit.store_identity,
         consent_state=consent_state,

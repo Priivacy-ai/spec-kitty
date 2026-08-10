@@ -10,6 +10,10 @@ from specify_cli.sync.project_store import ProjectSyncStore
 from specify_cli.sync.transport_attempts import (
     DeliveryAttemptSpec,
     DeliveryAttemptState,
+    RecoveryAction,
+    mark_delivery_result_unknown,
+    mark_transport_started,
+    plan_delivery_attempt_recovery,
     prepare_delivery_attempt,
     recover_delivery_attempts,
 )
@@ -30,9 +34,7 @@ def _store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSyncStore:
             (PROJECT_UUID,),
         )
         unit.execute(
-            "INSERT INTO consent_epochs "
-            "(epoch_id, project_uuid, opened_at_tail, state, consent_generation, reason) "
-            "VALUES (7, ?, 0, 'eligible', 3, 'opt_in')",
+            "INSERT INTO consent_epochs (epoch_id, project_uuid, opened_at_tail, state, consent_generation, reason) VALUES (7, ?, 0, 'eligible', 3, 'opt_in')",
             (PROJECT_UUID,),
         )
         unit.execute(
@@ -77,3 +79,42 @@ def test_attempt_is_durable_before_transport_and_recovers_native_identity(
     assert record.native_identity == "idempotency:commit-abc"
     assert record.payload_hash == "sha256:payload"
     assert record.reconciliation_policy == "native_identity_required"
+
+
+def test_recovery_decision_uses_original_identity_after_transport_started(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(unit, context, _spec("attempt-started"))
+        mark_transport_started(unit, context, "attempt-started")
+
+    with store.unit_of_work() as unit:
+        decision = plan_delivery_attempt_recovery(unit, attempt_id="attempt-started")
+
+    assert decision.state is DeliveryAttemptState.IN_FLIGHT
+    assert decision.action is RecoveryAction.QUERY_NATIVE_IDENTITY
+    assert decision.native_identity == "idempotency:commit-abc"
+    assert decision.may_resend is False
+
+
+def test_response_received_before_result_is_unknown_and_never_blind_retry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(unit, context, _spec("attempt-unknown"))
+        mark_transport_started(unit, context, "attempt-unknown")
+        mark_delivery_result_unknown(unit, context, attempt_id="attempt-unknown", reason="response_before_commit")
+
+    with store.unit_of_work() as unit:
+        decision = plan_delivery_attempt_recovery(unit, attempt_id="attempt-unknown")
+
+    assert decision.state is DeliveryAttemptState.UNKNOWN
+    assert decision.action is RecoveryAction.QUERY_NATIVE_IDENTITY
+    assert decision.native_identity == "idempotency:commit-abc"
+    assert decision.may_resend is False
