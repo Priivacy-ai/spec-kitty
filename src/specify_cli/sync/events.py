@@ -75,7 +75,10 @@ def _ensure_dashboard_sync_daemon(repo_root: Path | None, *, ensure_daemon: bool
             logger.debug("Background sync in manual mode; skipping daemon auto-start")
         elif outcome.skipped_reason == "intent_local_only":
             # Unreachable by construction — this function passes REMOTE_REQUIRED.
-            assert False, "intent_local_only reached in REMOTE_REQUIRED path"  # noqa: B011
+            # An explicit raise (not `assert False`) keeps this guard live
+            # under `python -O`; the surrounding `except Exception` still
+            # logs it as a warning and continues, same as before.
+            raise AssertionError("intent_local_only reached in REMOTE_REQUIRED path")
         elif outcome.skipped_reason is not None and outcome.skipped_reason.startswith("start_failed:"):
             logger.warning("Could not ensure global sync daemon: %s", outcome.skipped_reason)
     except Exception as exc:

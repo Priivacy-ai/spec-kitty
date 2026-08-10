@@ -835,7 +835,17 @@ def init(  # noqa: C901
                                 use_global = False
                         if not use_global:
                             if template_mode == "local":
-                                assert local_repo is not None
+                                # Invariant: template_mode is only set to "local"
+                                # right after local_repo is confirmed non-None
+                                # (see get_local_repo_root() above). An explicit
+                                # raise (not assert) keeps this guard live under
+                                # `python -O` and lets the surrounding
+                                # `except Exception` translate it via
+                                # tracker.error(...) + re-raise, same as before.
+                                if local_repo is None:
+                                    raise RuntimeError(
+                                        "local_repo must be set when template_mode is 'local'"
+                                    )
                                 copy_specify_base_from_local(local_repo, project_path)
                             else:
                                 copy_specify_base_from_package(project_path)

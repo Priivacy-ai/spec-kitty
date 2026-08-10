@@ -1137,7 +1137,14 @@ def _run_event_sync_dispatch() -> DispatchSummary | None:
                 f"no delivery attempted.[/dim]"
             )
             return DispatchSummary.empty()
-        assert gate_decision is not None  # a resolved receiver always carries a decision
+        if gate_decision is None:
+            # Invariant: a resolved (non-None) receiver always carries a
+            # decision from _resolve_gated_receiver. An explicit raise (not
+            # assert) keeps this guard live under `python -O`; the
+            # surrounding `except Exception` still degrades it to a dim
+            # notice + None, same as before (this function must never break
+            # the command — NFR-006).
+            raise RuntimeError("resolved receiver carries no gate decision")
         if gate_decision.blocked:
             names = ", ".join(gate.name for gate in gate_decision.unsatisfied)
             console.print(f"[dim]Event sync gated: {names}[/dim]")
