@@ -12,6 +12,10 @@ Modules
 -------
 atomic
     Atomic file-write utility (write-to-temp-then-rename).
+clock
+    The single door to wall-clock time (``now_utc_iso()`` and minimal
+    datetime type re-exports). Distinct from the Lamport logical clock in
+    ``specify_cli.sync.clock``. See ``kitty-specs/kernel-clock-single-door``.
 glossary_types
     Glossary primitive value types: ``Strictness``, ``ExtractedTerm``,
     ``SemanticConflict``, ``ScopeRef``, ``GlossaryScope``, and related

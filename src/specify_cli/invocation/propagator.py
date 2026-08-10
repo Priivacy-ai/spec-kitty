@@ -34,7 +34,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.invocation.adapters import get_saas_client as _get_saas_client_from_seam
 from specify_cli.invocation.adapters import resolve_egress_consent
 from specify_cli.invocation.projection_policy import EventKind, ModeOfWork, resolve_projection

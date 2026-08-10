@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.core.process_liveness import is_process_alive
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 
 logger = logging.getLogger(__name__)
 

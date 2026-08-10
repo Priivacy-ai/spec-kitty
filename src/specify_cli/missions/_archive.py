@@ -37,7 +37,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable, Iterable
 from dataclasses import asdict, dataclass
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from pathlib import Path
 from typing import Any
 

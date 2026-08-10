@@ -9,7 +9,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING, TextIO
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.core.utils import ensure_within_any
 from specify_cli.invocation.errors import AlreadyClosedError, InvocationError, InvocationWriteError
 from specify_cli.invocation.record import (

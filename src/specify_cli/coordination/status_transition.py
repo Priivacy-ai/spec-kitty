@@ -13,7 +13,7 @@ import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from pathlib import Path
 from typing import Any, TypeVar
 

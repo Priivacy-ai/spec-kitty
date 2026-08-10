@@ -47,7 +47,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 
 # -- Public table / index identity (locked contract; asserted by tests) --------
 LEDGER_TABLE = "delivery_ledger"

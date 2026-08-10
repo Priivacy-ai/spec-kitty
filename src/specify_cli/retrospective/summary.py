@@ -17,7 +17,7 @@ WP03 addition (T017):
 from __future__ import annotations
 
 from specify_cli.core.constants import RETROSPECTIVE_FILENAME
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.core.utils import safe_is_dir
 from specify_cli.mission_metadata import load_meta_or_empty
 from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission

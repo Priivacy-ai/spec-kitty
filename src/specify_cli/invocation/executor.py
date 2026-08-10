@@ -30,7 +30,7 @@ import ulid as _ulid_mod  # matches codebase pattern: status/emit.py, core/missi
 from charter.context import build_charter_context
 from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.git import safe_commit
 from specify_cli.invocation.empty_charter import resolve_generic_fallback
 from specify_cli.invocation.errors import (

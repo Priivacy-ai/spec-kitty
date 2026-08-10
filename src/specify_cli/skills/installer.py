@@ -14,7 +14,7 @@ from specify_cli.core.config import (
     SKILL_CLASS_SHARED,
     SKILL_CLASS_WRAPPER,
 )
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.skills.command_renderer import ensure_skill_frontmatter
 from specify_cli.skills.manifest import (
     ManagedFileEntry,

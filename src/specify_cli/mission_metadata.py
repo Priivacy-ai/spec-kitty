@@ -23,7 +23,7 @@ from typing import Any, Literal, TypedDict
 
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import safe_mission_slug
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 
 # Hoisted S1192 literals (campsite #1970) -- the meta.json filename and the two
 # decode encodings appear across this module and the legacy contracts it absorbs.

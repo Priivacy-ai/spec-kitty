@@ -60,7 +60,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.delivery.ledger import LEDGER_TABLE
 from specify_cli.event_journal.models import COL_EVENT_ID, TABLE_NAME
 

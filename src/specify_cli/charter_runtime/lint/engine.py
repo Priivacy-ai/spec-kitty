@@ -17,7 +17,7 @@ import logging
 import time
 from pathlib import Path
 
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 
 from .findings import DecayReport, GraphState, LintFinding
 from .checks.orphan import OrphanChecker

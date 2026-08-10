@@ -26,7 +26,7 @@ from specify_cli.core.mission_payload import (
     default_mission_purpose_context,
 )
 from specify_cli.core.paths import is_worktree_context, locate_project_root
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.git import safe_commit
 from specify_cli.lanes.branch_naming import mission_dir_name, resolve_mid8
 from specify_cli.mission_metadata import load_meta_or_empty, validate_purpose_summary

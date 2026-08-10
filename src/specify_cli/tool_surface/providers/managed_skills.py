@@ -34,7 +34,7 @@ from pathlib import Path
 from typing import Protocol, cast
 
 from specify_cli.core.config import AGENT_SKILL_CONFIG, SKILL_CLASS_WRAPPER
-from specify_cli.core.time_utils import now_utc_iso
+from kernel.clock import now_utc_iso
 from specify_cli.skills import installer as skill_installer
 from specify_cli.skills import verifier as skill_verifier
 from specify_cli.skills.manifest import (
