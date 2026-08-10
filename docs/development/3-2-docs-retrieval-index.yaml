@@ -8259,6 +8259,7 @@ pages:
     - {slug: "the-30-rescued-artefacts-by-prior-mission-family-attribution", text: "The 30 rescued artefacts, by prior-mission family attribution", level: 3}
     - {slug: "deferred-set-neither-channel-48-20", text: "Deferred set (neither channel) — 48 → 20", level: 3}
     - {slug: "reconciliation-note-the-50-vs-60-39-39-stale-prose-wp03-d19", text: "Reconciliation note — the \"50 vs 60\" / \"39→39\" stale prose (WP03, D19)", level: 3}
+    - {slug: "writing-comms-diagramming-activation-commit-9a99801f1-3009-profile-channel-rescues-6", text: "Writing-comms/diagramming activation (commit `9a99801f1`, #3009) — profile-channel rescues +6", level: 3}
     - {slug: "composition-ledger-nfr-004-counts-this-wp-moves", text: "Composition ledger (NFR-004) — counts this WP moves", level: 2}
     - {slug: "composition-ledger-nfr-004-family-a-3063-ddd-family", text: "Composition ledger (NFR-004) — Family A (#3063 DDD family)", level: 2}
     - {slug: "family-b-3063-refactoring-family-operator-interview-outcome-inert-composition-only", text: "Family B (#3063 REFACTORING family) — operator interview outcome, INERT (composition-only)", level: 2}
