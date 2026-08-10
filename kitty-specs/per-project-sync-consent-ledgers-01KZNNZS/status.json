@@ -1,12 +1,12 @@
 {
-  "event_count": 0,
-  "last_event_id": null,
-  "materialized_at": "",
+  "event_count": 30,
+  "last_event_id": "01KZNS7S2QSY0FM7M6K6C7CAYJ",
+  "materialized_at": "2026-08-10T12:09:25.847526+00:00",
   "mission_number": "",
-  "mission_slug": "",
+  "mission_slug": "per-project-sync-consent-ledgers-01KZNNZS",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 0,
+    "approved": 6,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
@@ -16,5 +16,186 @@
     "in_review": 0,
     "planned": 0
   },
-  "work_packages": {}
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KZNQJYZVVY1X6CR7DEYVDAV4",
+      "last_transition_at": "2026-08-10T11:40:35.195298+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review passed: WP01 source invariant already present; focused validation 94 passed, 2 xfailed; no source diff required."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "local:WP01-evidence-94-pass",
+        "reviewer": "codex",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 19494,
+      "shell_pid_created_at": "1786361801.418182",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "user",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KZNQXP12V8H5DH5XRWSZBG5Z",
+      "last_transition_at": "2026-08-10T11:46:26.466186+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review passed: WP02 selector/ledger invariant already present; focused validation 56 passed; no source diff required."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "local:WP02-evidence-56-pass",
+        "reviewer": "codex",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 23161,
+      "shell_pid_created_at": "1786362349.179304",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP03": {
+      "actor": "user",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KZNR5WPN3R1WRCATT4VA9DJT",
+      "last_transition_at": "2026-08-10T11:50:55.445422+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review passed: WP03 migration/backfill invariant already present; focused validation 60 passed; no source diff required."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "local:WP03-evidence-60-pass",
+        "reviewer": "codex",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 25631,
+      "shell_pid_created_at": "1786362625.556632",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
+    },
+    "WP04": {
+      "actor": "user",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KZNRDXJ7VZVSZ8MT1R0F8ABP",
+      "last_transition_at": "2026-08-10T11:55:18.471320+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review passed: WP04 opt-in/out/status UX invariant already present; focused validation 67 passed; no source diff required."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "local:WP04-evidence-67-pass",
+        "reviewer": "codex",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 28578,
+      "shell_pid_created_at": "1786362897.104318",
+      "subtasks": {
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
+    },
+    "WP05": {
+      "actor": "user",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KZNRXZF333TWNEHDKA3339GA",
+      "last_transition_at": "2026-08-10T12:04:04.707155+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implementation evidence recorded externally: runtime enforcement slice passed (132 passed); no source diff required.",
+        "Review passed: WP05 runtime enforcement already present; focused daemon/body/delivery/history-import/SaaS-client consent slice passed (132 passed); no source diff required. Anti-pattern checklist: dead code N/A, synthetic fixture PASS, silent empty return N/A, FR coverage PASS, frozen surface PASS, locked decision PASS, shared-file ownership N/A, production fragility N/A."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "local:WP05-evidence-132-pass",
+        "reviewer": "codex",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 64936,
+      "shell_pid_created_at": "1786343378.968437",
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done"
+      }
+    },
+    "WP06": {
+      "actor": "user",
+      "agent": "codex",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KZNS7S2QSY0FM7M6K6C7CAYJ",
+      "last_transition_at": "2026-08-10T12:09:25.847526+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implementation complete: hosted sync consent incident runbook added; focused closure proof passed (126 passed).",
+        "Review passed: WP06 runbook documents prevention vs #585 historical remediation boundary; focused closure proof passed (126 passed). Anti-pattern checklist: dead code N/A, synthetic fixture PASS, silent empty return N/A, FR coverage PASS, frozen surface PASS, locked decision PASS, shared-file ownership N/A, production fragility N/A."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "local:WP06-evidence-126-pass",
+        "reviewer": "codex",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 64936,
+      "shell_pid_created_at": "1786343378.968437",
+      "subtasks": {
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done"
+      }
+    }
+  }
 }
