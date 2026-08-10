@@ -19,6 +19,22 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
 
+- **`charter synthesize` is now non-destructive — it preserves backed governance
+  content by default (mission `charter-synthesize-reconciliation`; `#3270` P0,
+  folds `#2777` / `#3052`).** Previously an authoring-only charter edit forced
+  operators to run `charter synthesize`, which silently deleted doctrine graph
+  nodes and edges whose backing artifacts still existed on disk — and `implement`
+  / `next` hard-blocked until you ran it. Now synthesize **reconciles** against
+  the on-disk graph: backed content is retained and the command reports what it
+  kept (exit 0); `--prune` is the explicit opt-in that removes divergent content
+  and lists every deletion; `--dry-run` previews exactly what `--prune` would
+  remove and writes nothing; and a non-zero refusal is reserved for genuinely
+  unpreservable states (orphaned removal without `--prune`, or an unparseable
+  overlay). The `implement` / `next` boundary auto-refresh now self-heals
+  non-destructively and clears the stale signal so you are never trapped, and
+  `charter activate` / `deactivate` go through the same preserve path. Consumer-pack
+  synthesis also emits charter-relevant edges from declared interview evidence
+  (`#3052`) — no more orphaned just-generated directives, and no fabricated edges.
 - **`spec-kitty accept --json` now surfaces stranded-verdict advisories in a
   top-level `advisories` array (mission `verdict-seam-boundary-hardening`;
   `#3255`).** When a mission carries a review verdict that no longer has a home
@@ -353,7 +369,15 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   to the backend unconditionally and hit an uncaught `AttributeError`, which the
   CLI let escape as a raw traceback. It now exits with a clean
   "not supported for local providers — use `tracker sync push` instead" message.
-
+- **`charter generate` is now idempotent — a second run no longer degrades the
+  compiled catalog (`#3292`).** Two independent `active_languages` computations
+  fed a feedback loop: `generate` stamped `catalog.languages: []` for a
+  language-agnostic charter, and the language-scope gate then read that empty list
+  back as an authoritative "admit no languages", degrading language-scoped
+  styleguide/toolguide titles and summaries to a `"Definition unavailable in
+  bundled doctrine"` placeholder on the next run. `active_languages` now has a
+  single authority and an empty result means "no signal → admit all" (round-tripped
+  as an absent field, not a persisted `[]`), so repeated generates are byte-stable.
 - **A spec commit that genuinely FAILS is no longer silently reported as
   "unchanged" (`#3269`).** When a `git commit` failed for a real reason — a
   rejecting pre-commit hook, a lock error — `safe_commit` collapsed every
