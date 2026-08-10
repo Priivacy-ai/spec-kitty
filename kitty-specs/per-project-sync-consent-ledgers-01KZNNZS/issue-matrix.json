@@ -1,5 +1,41 @@
 {
   "rows": {
+    "#3030": {
+      "evidence_ref": "Existing #3030 consent hardening is treated as baseline evidence for this mission; WP01 verified the relevant env-as-arming invariant.",
+      "fr": null,
+      "nfr": null,
+      "repo": "Priivacy-ai/spec-kitty",
+      "sc": null,
+      "scope": "baseline",
+      "source_file": null,
+      "title": "Prior project-identity and consent hardening baseline",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#3135": {
+      "evidence_ref": "Related core PR remains separate and failing checks; not folded into this mission implementation.",
+      "fr": null,
+      "nfr": null,
+      "repo": "Priivacy-ai/spec-kitty",
+      "sc": null,
+      "scope": "out-of-scope-related-pr",
+      "source_file": null,
+      "title": "Related tracker egress refusal PR repair",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3262": {
+      "evidence_ref": "Mission per-project-sync-consent-ledgers-01KZNNZS owns structural closure across WP01-WP06.",
+      "fr": "FR-001..FR-015",
+      "nfr": null,
+      "repo": "Priivacy-ai/spec-kitty",
+      "sc": "SC-001..SC-008",
+      "scope": "primary-core-issue",
+      "source_file": null,
+      "title": "Hosted sync consent: explicit per-project opt-in + per-project ledger",
+      "verdict": "in-mission",
+      "wp": "WP01-WP06"
+    },
     "#3262/WP01": {
       "evidence_ref": "src/specify_cli/sync/consent.py::_answer_env returns None; focused validation: 94 passed, 2 xfailed",
       "fr": null,
@@ -11,6 +47,54 @@
       "title": null,
       "verdict": "verified-already-fixed",
       "wp": "WP01"
+    },
+    "#585": {
+      "evidence_ref": "SaaS incident prevention is in mission; historical 1,322-event remediation disposition remains an explicit closure boundary.",
+      "fr": "FR-015",
+      "nfr": null,
+      "repo": "Priivacy-ai/spec-kitty-saas",
+      "sc": "SC-008",
+      "scope": "saas-incident-closure-boundary",
+      "source_file": null,
+      "title": "Consent incident: cross-project hosted sync egress",
+      "verdict": "in-mission",
+      "wp": "WP06"
+    },
+    "#727": {
+      "evidence_ref": "Secure onboarding remains in broader control board; not part of this core consent-ledger mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": "Priivacy-ai/spec-kitty-saas",
+      "sc": null,
+      "scope": "control-board-deferred",
+      "source_file": null,
+      "title": "Secure onboarding downstream item",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#729": {
+      "evidence_ref": "Secure onboarding remains in broader control board; not part of this core consent-ledger mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": "Priivacy-ai/spec-kitty-saas",
+      "sc": null,
+      "scope": "control-board-deferred",
+      "source_file": null,
+      "title": "Secure onboarding dependency item",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#751": {
+      "evidence_ref": "Secure onboarding remains in broader control board; consent incident closure precedes this lane.",
+      "fr": null,
+      "nfr": null,
+      "repo": "Priivacy-ai/spec-kitty-saas",
+      "sc": null,
+      "scope": "control-board-deferred",
+      "source_file": null,
+      "title": "Secure onboarding unblocker",
+      "verdict": "deferred-with-followup",
+      "wp": null
     }
   },
   "schema_version": 1
