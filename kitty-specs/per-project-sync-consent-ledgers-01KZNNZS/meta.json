@@ -11,5 +11,7 @@
   "purpose_tldr": "per project sync consent ledgers",
   "slug": "per-project-sync-consent-ledgers-01KZNNZS",
   "target_branch": "main",
-  "topology": "lanes_with_coord"
+  "topology": "lanes_with_coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-10T11:32:49.100195+00:00"
 }

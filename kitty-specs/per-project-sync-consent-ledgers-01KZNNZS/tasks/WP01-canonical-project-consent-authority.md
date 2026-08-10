@@ -12,6 +12,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-per-project-sync-consent-ledgers-01KZNNZS
+base_commit: 873544c4e3a2c7ca5723f11cb2456b37f30b9c45
+created_at: '2026-08-10T11:32:53.872579+00:00'
 subtasks:
 - T001
 - T002
@@ -55,3 +58,28 @@ only disable or expose rollout surfaces, never grant egress consent.
 - Explicit project opt-in/out is represented by the canonical decision object.
 - Environment/config rollout flags cannot grant consent.
 - Architectural tests catch bypass transmitters.
+
+## Implementation evidence — 2026-08-10
+
+Current origin HEAD already implements the source-side WP01 invariant in
+`src/specify_cli/sync/consent.py`: `_answer_env()` returns `None` unconditionally,
+and the terminal default says `SPEC_KITTY_ENABLE_SAAS_SYNC` arms the machine but
+never grants per-project consent.
+
+Focused validation:
+
+```bash
+SPEC_KITTY_NO_UPGRADE_CHECK=1 env -u SPEC_KITTY_ENABLE_SAAS_SYNC \
+  uv run --group dev --extra test pytest \
+  tests/sync/test_consent_resolver_3030.py \
+  tests/cli/commands/test_sync_commands.py \
+  tests/architectural/test_egress_consent_boundary.py -q
+```
+
+Result: `94 passed, 2 xfailed in 57.43s`.
+
+Key existing pins:
+
+- `tests/sync/test_consent_resolver_3030.py::test_absence_denies_even_with_the_env_var_armed`
+- `tests/sync/test_consent_resolver_3030.py::test_project_local_refusal_outranks_the_env_override`
+- `tests/sync/test_consent_resolver_3030.py::test_repo_default_grant_does_not_consent_for_an_unrecorded_uuid`
