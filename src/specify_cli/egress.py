@@ -337,13 +337,16 @@ def _channel1_state_for_verdict(verdict: EgressConsent) -> tuple[str, bool]:
 
     Mirrors :func:`_refusal_for_verdict`'s branches so the two can never
     disagree about which members are the three named refusal states versus
-    degraded. Only the degraded members — ``NO_RESOLVER``, ``UNANSWERABLE``,
+    degraded. The permit branch asks ``permits_egress`` (not ``is GRANTED``),
+    exactly as :func:`_refusal_for_verdict` does, so the two provably co-vary: a
+    future permitting member cannot make one report ``granted`` while the other
+    still refuses. Only the degraded members — ``NO_RESOLVER``, ``UNANSWERABLE``,
     and (as a fail-safe) any future member this module has not named — set
     ``generic = True`` (egress-single-authority mission Decision 3).
     """
     from specify_cli.invocation.adapters import EgressConsent as _Verdict  # noqa: PLC0415
 
-    if verdict is _Verdict.GRANTED:
+    if verdict.permits_egress:
         return _CHANNEL1_STATE_GRANTED, False
     if verdict is _Verdict.NO_RECORD:
         return _CHANNEL1_STATE_NO_RECORD, False
