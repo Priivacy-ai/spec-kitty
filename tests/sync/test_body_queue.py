@@ -257,17 +257,22 @@ class TestMarkFailedRetryable:
         assert reference["retry_count"] == 1
         assert reference["last_error"] == "timeout"
 
-    def test_sets_future_next_attempt(self, queue: OfflineBodyUploadQueue) -> None:
-        queue.enqueue(_ns(), "spec.md", "h1", "body", 4)
-        task = queue.drain()[0]
-        now = time.time()
-        queue.mark_failed_retryable(task.row_id, "err")
-        assert queue.get_stats().backoff_count == 1
-        assert queue.get_stats().newest_created_at is not None
-        assert next(
-            item for item in queue._rows() if str(item[0]) == task.row_id
-        )  # row remains durable
-        assert time.time() >= now
+    def test_sets_future_next_attempt(
+        self,
+        queue: OfflineBodyUploadQueue,
+        unit: ProjectUnitOfWork,
+    ) -> None:
+        with patch("specify_cli.sync.body_queue.time") as mock_time:
+            mock_time.time.return_value = 100.0
+            queue.enqueue(_ns(), "spec.md", "h1", "body", 4)
+            task = queue.drain()[0]
+            queue.mark_failed_retryable(task.row_id, "err")
+            mock_time.time.return_value = 100.5
+            stats = queue.get_stats()
+        reference = _reference(unit, task.row_id)
+        assert reference["next_attempt_at"] == 101.0
+        assert stats.backoff_count == 1
+        assert stats.newest_created_at == 100.0
 
     def test_task_hidden_during_backoff(self, queue: OfflineBodyUploadQueue) -> None:
         queue.enqueue(_ns(), "spec.md", "h1", "body", 4)

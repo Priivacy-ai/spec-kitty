@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
+from typing import cast
 
 import pytest
 
@@ -11,6 +13,12 @@ from specify_cli.delivery.ledger import STATUS_TERMINAL_FAILED, SqliteDeliveryLe
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
 from specify_cli.sync.consent import record_project_opt_in, record_project_opt_out
+from specify_cli.sync.history_disclosure import (
+    HistoryDisclosureCapability,
+    HistoryDisclosureError,
+    confirm_history_disclosure,
+    preview_sealed_history,
+)
 from specify_cli.sync.project_store import ProjectSyncStore, ProjectUnitOfWork
 from specify_cli.sync.queue import OfflineQueue
 
@@ -34,6 +42,37 @@ def _capture(unit: ProjectUnitOfWork, store: ProjectSyncStore, event_id: str) ->
             created_at=f"2026-08-10T00:00:0{event_id[-1]}+00:00",
             project_uuid=PROJECT,
         )
+    )
+
+
+def _admit_current_target(store: ProjectSyncStore) -> None:
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "INSERT INTO project_target_admissions "
+            "(project_uuid, target_identity, account_identity, private_teamspace_id, "
+            "configuration_generation, admission_state, admission_generation, "
+            "binding_audience) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                PROJECT,
+                "https://app.spec-kitty.ai",
+                "account-1",
+                "teamspace-1",
+                1,
+                "admitted",
+                "admission-1",
+                "audience-1",
+            ),
+        )
+
+
+def _confirmed_history(store: ProjectSyncStore) -> HistoryDisclosureCapability:
+    preview = preview_sealed_history(store)
+    return confirm_history_disclosure(
+        store,
+        preview,
+        actor="test",
+        idempotency_key="wp04-history",
+        context=store.create_context(),
     )
 
 
@@ -123,3 +162,71 @@ def test_sealed_history_stays_parked_and_opt_out_never_purges(
             target_id="target-1",
             event_universe=("event-1", "event-2"),
         ) == []
+
+
+def test_fabricated_history_capability_cannot_select_sealed_rows(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store = ProjectSyncStore(PROJECT)
+    _project_only(store)
+    with store.unit_of_work() as unit:
+        _capture(unit, store, "event-1")
+    record_project_opt_in(PROJECT, actor="test")
+    _admit_current_target(store)
+    genuine = _confirmed_history(store)
+    forged = cast(
+        HistoryDisclosureCapability,
+        SimpleNamespace(project_uuid=PROJECT, row_ids=genuine.row_ids),
+    )
+
+    with store.unit_of_work() as unit:
+        ledger = SqliteDeliveryLedger(unit, store.layout_generation())
+        assert ledger.select_undelivered(
+            target_id="target-1",
+            event_universe=("event-1",),
+            history_action=genuine,
+        ) == ["event-1"]
+        with pytest.raises(TypeError, match="history disclosure capability"):
+            ledger.select_undelivered(
+                target_id="target-1",
+                event_universe=("event-1",),
+                history_action=forged,
+            )
+
+
+def test_history_selection_revalidates_opt_out_and_exact_cohort(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store = ProjectSyncStore(PROJECT)
+    _project_only(store)
+    with store.unit_of_work() as unit:
+        _capture(unit, store, "event-1")
+    record_project_opt_in(PROJECT, actor="test")
+    _admit_current_target(store)
+    capability = _confirmed_history(store)
+
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "UPDATE journal_entries SET payload_json = ? "
+            "WHERE project_uuid = ? AND entry_id = ?",
+            ('{"changed":true}', PROJECT, "event-1"),
+        )
+        with pytest.raises(HistoryDisclosureError, match="cohort changed"):
+            SqliteDeliveryLedger(unit, store.layout_generation()).select_undelivered(
+                target_id="target-1",
+                event_universe=("event-1",),
+                history_action=capability,
+            )
+
+    record_project_opt_out(PROJECT, actor="test")
+    with store.unit_of_work() as unit:
+        with pytest.raises(HistoryDisclosureError, match="stale"):
+            SqliteDeliveryLedger(unit, store.layout_generation()).select_undelivered(
+                target_id="target-1",
+                event_universe=("event-1",),
+                history_action=capability,
+            )

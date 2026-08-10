@@ -46,6 +46,7 @@ from specify_cli.delivery.status_report import (
     TARGET_AUTHORITY_KEY,
     TERMINAL_FAILURES_KEY,
     build_status_report,
+    build_project_store_status,
     default_status_sections,
     evaluate_gc_suggestion,
 )
@@ -69,6 +70,15 @@ PREVIOUS_URL = "https://previous.example"
 TEAM = "team-x"
 USER = "user@example.com"
 PROJECT = "aaaaaaaa-0000-0000-0000-000000000001"
+PROJECT_B = "bbbbbbbb-0000-0000-0000-000000000002"
+
+
+class _ReadCountingBodyQueue(OfflineBodyUploadQueue):
+    size_reads = 0
+
+    def size(self) -> int:
+        self.size_reads += 1
+        return super().size()
 
 
 # ---------------------------------------------------------------------------
@@ -155,6 +165,25 @@ def _legacy_base() -> dict[str, object]:
         "mismatches": [],
         "orphan_records": [],
     }
+
+
+def test_project_store_status_rejects_a_context_b_queue_before_read(
+    store: ProjectSyncStore,
+    unit: ProjectUnitOfWork,
+    journal: EventJournal,
+    ledger: SqliteDeliveryLedger,
+) -> None:
+    store_b = ProjectSyncStore(PROJECT_B)
+    with store_b.unit_of_work() as unit_b:
+        queue_b = _ReadCountingBodyQueue(unit_b, store_b.layout_generation())
+        with pytest.raises(ValueError, match="context's project store"):
+            build_project_store_status(
+                context=store.create_context(),
+                journal=journal,
+                ledger=ledger,
+                body_upload_queue=queue_b,
+            )
+        assert queue_b.size_reads == 0
 
 
 # ---------------------------------------------------------------------------
