@@ -10,7 +10,7 @@ related:
 
 This note carries the point-in-time mission-status snapshots (named mission IDs, PENDING
 wall-clock records, and per-job CI-confirmation state) that used to live at the bottom of
-[`docs/development/testing-parallel.md`](../../development/testing-parallel.md). The durable
+[`docs/development/testing-parallel.md`](../../development/testing/testing-parallel.md). The durable
 how-to (the one correct local command, why `--dist loadfile` is required, per-worker HOME
 isolation, the serial daemon pass, volume env gates, and the stability ratchet entrypoint) stays
 on that page; this page is the engineering-note-shaped record of *which* shard flips have

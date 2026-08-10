@@ -11,7 +11,7 @@ related:
 ---
 # Repo-Coupling Audit of Built-In Doctrine
 
-**Rule being audited** — [`review-gates.md`, "Shippable doctrine"](../../development/review-gates.md):
+**Rule being audited** — [`review-gates.md`, "Shippable doctrine"](../../development/how-to/review-gates.md):
 built-in doctrine under `src/doctrine/**/built-in/` MUST be valid and actionable
 in a consumer repository that activated the pack but has **no** access to the
 spec-kitty source tree, CI, or tooling.

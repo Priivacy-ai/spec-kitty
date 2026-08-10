@@ -1,0 +1,216 @@
+{
+  "event_count": 103,
+  "last_event_id": "01KZP0P0ZCJ9X3DVBR3EZDDJ5C",
+  "materialized_at": "2026-08-10T14:19:32.716212+00:00",
+  "mission_number": "",
+  "mission_slug": "common-docs-convergence-01KZMTR9",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 13,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KZP0NDSHZ6Y97XWVP8C64RSD",
+      "last_transition_at": "2026-08-10T14:19:13.073248+00:00",
+      "review_result": {
+        "reference": "Review passed (cycle 1): T001-T003 verified independently; T004 reconciled to WP04 (three-way parity guard); 51 targeted tests green; C-012 respected; diff confined; issue-matrix resolved.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1684779,
+      "shell_pid_created_at": "1786340115.39"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZP0NFHNX44GM24560EQFJX6",
+      "last_transition_at": "2026-08-10T14:19:14.869030+00:00",
+      "review_result": {
+        "reference": "Review passed: T005-T007 verified (catalog kebab-clean+per-level index.md, resolver examines 13/0 dangling via _guards floor, tests cover dangling+zero-examined+valid). (A) README->index renames coherent w/ one-index-per-dir target, git-detected renames preserve history. (B) External refs to renamed landing pages are body-links/generated path: entries not related: edges (related_validator not newly red); FOLLOW-UP for WP03/WP13: capture the 3 audience README->index renames in the occurrence-map spine so rename-reconcile + redirect regen don't miss them.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1753872,
+      "shell_pid_created_at": "1786342489.85"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZP0NH3WDXD1J0Q9PHX8N1A8",
+      "last_transition_at": "2026-08-10T14:19:16.476417+00:00",
+      "review_result": {
+        "reference": "Review passed: collapsed cumulative spine reproduces all 149 prior keys (0 regression), 13 archive->changelog value shifts point at live changelog/ (0 dead archive targets), tool repointed to convergence mission, test has teeth (empty-moves + genuine RED without spine; 23/23 green in integrated state), WP02 3x README->index catalog renames captured, redirect_map.yaml untouched (WP13 owns).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1784940,
+      "shell_pid_created_at": "1786343668.13"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZP0NJQ9QTYGCKJFT1ZFQ8D3",
+      "last_transition_at": "2026-08-10T14:19:18.121596+00:00",
+      "review_result": {
+        "reference": "Review passed: T004 parity restored (4 surfaces, schema in-sync, parity+integrity green); extended-lint advisory config-driven; touched-set gates non-vacuous w/ red-first tests; rename-reconcile path-configurable; CI wired. WP13 follow-up: styleguide 3-way merge (WP01 audience/routing + WP04 T004 fields).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1828070,
+      "shell_pid_created_at": "1786345568.53"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZP0NM9ZPM19Z31TREEYX9AX",
+      "last_transition_at": "2026-08-10T14:19:19.743153+00:00",
+      "review_result": {
+        "reference": "Review passed: 4 zero-value dirs retired (no valuable loss), mission.yaml repointed off docs/output, inbound refs correctly flagged for WP13; scope confined; doc-mission + terminology tests green.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1888791,
+      "shell_pid_created_at": "1786348100.27"
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KZP0NNWCC029B7HWW6DG17B6",
+      "last_transition_at": "2026-08-10T14:19:21.356256+00:00",
+      "review_result": {
+        "reference": "Fix cycle 1 verified: batch-api-contract relative link depth corrected (resolves to repo-root kitty-specs), sole owned-file link defect closed; no regression; related_validator + terminology green; description-gate reds remain WP13 docfx.json dead-glob handoff.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1917869,
+      "shell_pid_created_at": "1786348931.91"
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZP0NQEF8628DQF0CXADJJG2",
+      "last_transition_at": "2026-08-10T14:19:22.959735+00:00",
+      "review_result": {
+        "reference": "Review passed: version shadow collapsed (3 era stubs deleted, no adr/ writes, diagram anchors repointed to live C4 pages that resolve), explanations+workflow rehomed w/ history, 4 canonical-producer refs updated + gates green, one living architecture index/kebab/audience, 0 unsafe rewrites (fidelity preserved); structural-lint + terminology green; WP13 flags complete.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 1976806,
+      "shell_pid_created_at": "1786350740.2"
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZP0NZCB1QH4RR2HV76DYJTF",
+      "last_transition_at": "2026-08-10T14:19:31.083973+00:00",
+      "review_result": {
+        "reference": "Review passed: era history distilled into adr/1.x-3.x (fact-preserving, charter adr/3.x content preserved+resolves), era README->index (#2227, stubs description-prefixed), #2887 non-dated ADRs dated + redundant doc_status removed (MADR status kept), migrations reclassified+kebab; scope confined; structural-lint/terminology/charter-paths + ADR tests green; WP13 flags complete.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2052286,
+      "shell_pid_created_at": "1786352814.21"
+    },
+    "WP09": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZP0NS08W8RA4FHS4H590F0G",
+      "last_transition_at": "2026-08-10T14:19:24.552563+00:00",
+      "review_result": {
+        "reference": "Review passed: examples->guides (feature->mission renames incl. worktree-parallel-missions/multi-agent-mission-development), all guides pages Divio-typed (exactly one type: each; tutorials/how-to/reference/explanation), subdivided by concern w/ per-subdir index.md (folds #3273), kebab-case throughout, all 5 audience: paths resolve under docs/context/audience/, description 50-180 on touched pages; 2 fact-safe bounded rewrites (terminology+scanability; --push removed as canon fact-correction, git checkout feature-a literal preserved); intra-guides links recomputed for new depth + rename retargeting; related-validator + structural-lint + terminology guard green (48 passed); scope confined to docs/guides+examples. Published-pages canary RED: hardcoded constant docs/guides/install-spec-kitty.md moved to how-to/installation/ — WP13/enumerated-set Python-constant-update handoff (nav-regen won't fix a code literal); WP09 flagged the code-referenced-path hazard class (install-and-upgrade, use-retrospective-learning) but not install-spec-kitty specifically — non-owned surface, noted not rejected.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2125835,
+      "shell_pid_created_at": "1786355368.77"
+    },
+    "WP10": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZP0NTKENC3G0KT7Y3B228D9",
+      "last_transition_at": "2026-08-10T14:19:26.190055+00:00",
+      "review_result": {
+        "reference": "Review passed: development subdivided (4 concern dirs, per-subdir index, 3-2-*.yaml untouched), create-a-doctrine-artifact re-authored with asset-manifest content test_asset_howto needs (path-constant flagged for WP13), gap_analysis subdir pins updated + tests green, kebab/audience/type; intra-dev links + terminology green; structural-lint failure = expected WP07 cross-lane transient; WP13 flags complete.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2184272,
+      "shell_pid_created_at": "1786357345.93"
+    },
+    "WP11": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZP0NW7GFKTWERY76GWJ71QW",
+      "last_transition_at": "2026-08-10T14:19:27.856284+00:00",
+      "review_result": {
+        "reference": "Review passed: 3 dead charter authority paths repaired (glossary/contexts/, architecture/3.x/adr/, architecture/adrs/ removed; docs/context/ + docs/adr/3.x/ preserved) — all remaining paths resolve on disk, doctor doctrine healthy (all errors []), governance semantics preserved + new FR-019 resolution test added; glossary/README folded into docs/context/glossary-conventions.md, contextive-glossaries.md (R098) + spec-driven.md (R099) rehomed with history, charter-paths test updated; context index single/kebab/audience resolvable; all 8 CLAUDE.md footgun anchors intact in orchestration.md/execution.md; plans/notes exemption reconciled (no live path lost coverage); structural-lint/terminology/charter tests green (66 passed). REVIEWER-RAISED HAZARD for WP13 (implementer did not pre-flag this): charter.md prose (non-owned by WP11) still lists the 3 dead paths at lines 375/563/565/567 — 'spec-kitty charter sync' derives authority_paths and would REVERT the T032 repair. WP13 must reconcile charter.md prose and must NOT run charter sync before that reconciliation.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2200730,
+      "shell_pid_created_at": "1786359235.58"
+    },
+    "WP12": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZP0NXT96C3ZTST1PBG8W81H",
+      "last_transition_at": "2026-08-10T14:19:29.481581+00:00",
+      "review_result": {
+        "reference": "Review passed: media->assets + README logo <img> absolute URL correct (docs/assets/logo_small.webp, no media/ refs remain), HOW_TO_MAINTAIN/p0-baseline->operations, release-goals+archive->changelog (not plans, CHANGELOG record intact), index/kebab/audience; owned-file links + structural-lint + terminology green; 14 archive redirect targets + broader dangling set flagged for WP13.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2221533,
+      "shell_pid_created_at": "1786360640.8"
+    },
+    "WP13": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KZP0P0ZCJ9X3DVBR3EZDDJ5C",
+      "last_transition_at": "2026-08-10T14:19:32.716212+00:00",
+      "review_result": {
+        "reference": "Fix cycle 1 verified: stale charter dual-read guard flipped to post-fold invariant (legacy homes dropped) — doctrinally correct, siblings cover new homes; charter collapsed + doctor healthy; audience --strict 0 dangling + link --check 0 dead; final-green clean except the 2 documented occurrence_map-on-primary artifacts (green post-merge). WP13 approved — mission ready for accept+merge.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2834897,
+      "shell_pid_created_at": "1786370293.75"
+    }
+  }
+}

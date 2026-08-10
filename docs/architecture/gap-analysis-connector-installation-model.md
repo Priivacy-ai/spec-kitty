@@ -11,7 +11,7 @@ related:
 **Status**: Draft
 **Date**: 2026-03-10
 **Scope**: `spec-kitty-saas`, `spec-kitty` CLI
-**Related ADR**: [Connector Installation, User Link, and Resource Mapping Separation](../adr/3.x/adr-connector-auth-binding-separation.md)
+**Related ADR**: [Connector Installation, User Link, and Resource Mapping Separation](../adr/3.x/2026-04-06-2-connector-auth-binding-separation.md)
 **Related PRD**: `prd-connector-auth-first-team-binding-v1.md` in the planning repo
 
 ## Executive Summary

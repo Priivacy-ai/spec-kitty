@@ -12,7 +12,7 @@ related:
 ---
 # Charter Pack Usage Journey: Apply, Generate, and the Dispatch Safety Net
 
-[How to Set Up Project Governance](../guides/setup-governance.md) documents the
+[How to Set Up Project Governance](../guides/how-to/governance/setup-governance.md) documents the
 **interview-driven** path to a charter (`charter interview` → `charter generate`). This page
 documents the second, **pack-driven** onboarding path — `spec-kitty charter pack apply <name>` —
 which is faster to run but has a two-step shape operators can miss: applying a pack alone does
@@ -159,10 +159,10 @@ If `charter status` still reports the charter as missing after `apply`, that is 
 - [How Charter Works](../context/charter-overview.md) — the write-store/compiled-bundle/companion
   model in full, plus the DRG-backed context model
 - [Governance Files Reference](../context/governance-files.md) — authoritative per-file table
-- [How to Set Up Project Governance](../guides/setup-governance.md) — the interview-driven
+- [How to Set Up Project Governance](../guides/how-to/governance/setup-governance.md) — the interview-driven
   onboarding path (the alternative to pack apply)
 - [Charter CLI Reference](../api/charter-commands.md) — narrative command reference; see the
   generated [CLI Command Reference](../api/cli-commands.md#spec-kitty-charter-pack) for the full,
   `--help`-verified `charter pack` flag surface
-- [Generic Agent — Agent Profile](../reference/agent_profiles/generic-agent.md) — the profile the
+- [Generic Agent — Agent Profile](../api/agent-profiles/generic-agent.md) — the profile the
   dispatch safety net falls back to

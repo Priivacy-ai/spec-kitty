@@ -57,9 +57,9 @@ To manage which agents are active in your project:
 - **Add agents**: `spec-kitty agent config add <agents>`
 - **Remove agents**: `spec-kitty agent config remove <agents>`
 
-See [Managing AI Agents](../guides/manage-agents.md) for complete documentation on agent management workflows.
+See [Managing AI Agents](../guides/how-to/collaboration/manage-agents.md) for complete documentation on agent management workflows.
 
-For per-harness usage guides, see [Codex](../guides/harnesses/codex.md), [Pi TUI](../guides/harnesses/pi-tui.md), and [Letta Code](../guides/harnesses/letta.md).
+For per-harness usage guides, see [Codex](../guides/how-to/harnesses/codex.md), [Pi TUI](../guides/how-to/harnesses/pi-tui.md), and [Letta Code](../guides/how-to/harnesses/letta.md).
 
 ---
 
@@ -402,16 +402,16 @@ spec-kitty agent config sync
 - [Slash Commands](slash-commands.md) — Complete command reference
 - [Supported Harnesses](supported-harnesses.md) — Support matrix for every agent surface
 - [CLI Commands](cli-commands.md) — `spec-kitty` command reference
-- [Install & Upgrade](../guides/install-spec-kitty.md) — Installation guide
+- [Install & Upgrade](../guides/how-to/installation/install-spec-kitty.md) — Installation guide
 
 ## Getting Started
 
-- [Claude Code Integration](../guides/claude-code-integration.md)
+- [Claude Code Integration](../guides/tutorials/claude-code-integration.md)
 
 ## Practical Usage
 
-- [Install Spec Kitty](../guides/install-spec-kitty.md)
-- [Use the Dashboard](../guides/use-dashboard.md)
+- [Install Spec Kitty](../guides/how-to/installation/install-spec-kitty.md)
+- [Use the Dashboard](../guides/how-to/monitoring/use-dashboard.md)
 
 ## Background
 

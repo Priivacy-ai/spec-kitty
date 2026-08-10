@@ -9,7 +9,7 @@ related:
 # Understanding Governed Profile Invocation
 
 This document explains governed profile invocation. For how to run a governed
-mission, see [How to Run a Governed Mission](../guides/run-governed-mission.md).
+mission, see [How to Run a Governed Mission](../guides/how-to/governance/run-governed-mission.md).
 For the CLI reference, see
 [Profile Invocation Reference](../api/profile-invocation.md).
 
@@ -141,5 +141,5 @@ Evidence files promoted via `--evidence` receive Tier 2 status in the trail.
 ## See Also
 
 - [How Charter Works](../context/charter-overview.md)
-- [How to Run a Governed Mission](../guides/run-governed-mission.md)
+- [How to Run a Governed Mission](../guides/how-to/governance/run-governed-mission.md)
 - [Profile Invocation Reference](../api/profile-invocation.md)

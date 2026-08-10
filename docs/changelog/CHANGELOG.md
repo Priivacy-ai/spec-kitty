@@ -140,9 +140,9 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
     **delivered-but-not-activation-gated** (`gate = ALL`) - a reachable source
     pulls them in without an activation list. This closes the defect where
     `asset_ids = []` was the silently-conforming outcome forever.
-  - **Docs**: [Create a doctrine artifact](../doctrine/create-a-doctrine-artifact.md)
+  - **Docs**: [Create a doctrine artifact](../development/how-to/create-a-doctrine-artifact.md)
     gains an executable asset how-to (author a manifest, place the blob, resolve
-    it), and [Doctrine artifact kinds](../doctrine/doctrine-kinds.md) documents
+    it), and [Doctrine artifact kinds](../architecture/doctrine-kinds.md) documents
     the shipped built-in asset and the three delivery categories.
 - **New checks that catch a change which looks like it worked and did nothing
   (mission `doctrine-silence-guards`).** Four additions, all aimed at the same
@@ -217,7 +217,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   `spec_kitty.cli_package`, `spec_kitty.upgrade_provider`, and
   `spec_kitty.distribution_profile` - without overlaying `src/specify_cli/**`.
   Stock public-PyPI / `spec-kitty-cli` installs with no hooks are unchanged.
-  Packager guide: [`docs/guides/fork-packaging-hooks.md`](../guides/fork-packaging-hooks.md).
+  Packager guide: [`docs/guides/fork-packaging-hooks.md`](../guides/how-to/installation/fork-packaging-hooks.md).
 - **Doctrine-controlled transition gates - the `for_review` pre-review gate is now
   declared by the repo's active doctrine, not hardcoded to Spec Kitty's own repo
   shape (#2595, #2596, #2598; epic #2535 half A).** Scope resolution moves behind a
@@ -826,7 +826,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
     that exists nowhere in the vocabulary** (`urn:profile:...`). Anyone who copied
     it got a declaration that merged without complaint and produced no edge. The
     example is corrected in `AGENTS.md` / `CLAUDE.md` and in
-    [the org-pack authoring guide](../guides/create-an-org-doctrine-pack.md), and
+    [the org-pack authoring guide](../guides/how-to/governance/create-an-org-doctrine-pack.md), and
     the accepted forms are now enforced at merge time.
 
 - **`spec-kitty agent tasks mark-status` could not find subtask ids written the
@@ -1496,7 +1496,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   endpoint that cannot be resolved is now refused at merge time with an
   `unresolved_edge_endpoint` conflict naming the token, instead of being dropped
   or silently re-pointed at an invented node. See
-  [the org-pack authoring guide](../guides/create-an-org-doctrine-pack.md).
+  [the org-pack authoring guide](../guides/how-to/governance/create-an-org-doctrine-pack.md).
 - **A push to a protected branch now starts 49 of 50 test jobs instead of about
   10.** Pull requests are unaffected - path filtering still narrows a PR to the
   suites its diff touches. This is a deliberate trade of CI minutes for
@@ -1628,7 +1628,7 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   block with `review.fail_on_pre_review_regression` (enforced only when
   `review.test_command` is set; `move-task --force` overrides), and override the
   scope per-WP via frontmatter `pre_review_test_scope`. See
-  [review-gates.md](../development/review-gates.md).
+  [review-gates.md](../development/how-to/review-gates.md).
 - **`spec-kitty review --check-residual` + environment-parity preflight
   (#2283).** The new `--check-residual` flag runs CI's always-on
   `unit-contract-residual` `-m` selection over `tests/` locally - the `-m`
@@ -4173,7 +4173,7 @@ command and no new top-level runtime dependencies.
 - **`behavior-driven-development` tactic enriched** - extended `notes` with a toolchain landscape section (Cucumber family, Playwright, Selenium, Serenity BDD, custom DSLs; source: `patterns.sddevelopment.be/primers/toolchain-and-automation/bdd`); three new `failure_modes` (rubber-stamp scenarios, shared mutable state between scenarios, orphaned step definitions); cross-references to the new BDD paradigm and procedure.
 - **`tactic-references` union-merged in `resolve_profile()`** - `tactic-references` added to `_LIST_FIELDS` in `src/doctrine/agent_profiles/repository.py`. Specialist profiles now inherit base-profile tactic references via `_union_merge` at resolution time rather than overriding them.
 - **Tactic compliance test extended** - `test_tactic_compliance.py` `ARTIFACT_DIRS` now includes `procedure` and `paradigm` types, enabling cross-type reference validation for tactics that reference procedures or paradigms.
-- **Shared package boundary cutover** (mission `shared-package-boundary-cutover-01KQ22DS`) - `spec-kitty-runtime` is no longer a dependency of `spec-kitty-cli`. The CLI now owns its own runtime internally under `src/specify_cli/next/_internal_runtime/`; `spec-kitty next` works from a clean install of `spec-kitty-cli` alone. `spec-kitty-events` and `spec-kitty-tracker` are external PyPI dependencies consumed via their public import surfaces (`spec_kitty_events`, `spec_kitty_tracker`). The vendored events tree under `src/specify_cli/spec_kitty_events/` has been removed (~23 kLoC). Developers who relied on editable cross-package overrides should consult [`docs/development/local-overrides.md`](../development/local-overrides.md); operators upgrading from a pre-cutover release should consult [`docs/migration/shared-package-boundary-cutover.md`](../migrations/shared-package-boundary-cutover.md). Decision rationale recorded in [ADR 2026-04-25-1](../adr/3.x/2026-04-25-1-shared-package-boundary.md).
+- **Shared package boundary cutover** (mission `shared-package-boundary-cutover-01KQ22DS`) - `spec-kitty-runtime` is no longer a dependency of `spec-kitty-cli`. The CLI now owns its own runtime internally under `src/specify_cli/next/_internal_runtime/`; `spec-kitty next` works from a clean install of `spec-kitty-cli` alone. `spec-kitty-events` and `spec-kitty-tracker` are external PyPI dependencies consumed via their public import surfaces (`spec_kitty_events`, `spec_kitty_tracker`). The vendored events tree under `src/specify_cli/spec_kitty_events/` has been removed (~23 kLoC). Developers who relied on editable cross-package overrides should consult [`docs/development/local-overrides.md`](../development/how-to/local-overrides.md); operators upgrading from a pre-cutover release should consult [`docs/migration/shared-package-boundary-cutover.md`](../migrations/shared-package-boundary-cutover.md). Decision rationale recorded in [ADR 2026-04-25-1](../adr/3.x/2026-04-25-1-shared-package-boundary.md).
 
 ### Removed
 

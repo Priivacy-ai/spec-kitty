@@ -22,9 +22,9 @@ related:
   </nav>
 </section>
 
-New here? [Get started](guides/getting-started.md) walks you through installing Spec Kitty and running your first mission end to end — about 30 minutes, no prior Spec Kitty knowledge required.
+New here? [Get started](guides/tutorials/getting-started.md) walks you through installing Spec Kitty and running your first mission end to end — about 30 minutes, no prior Spec Kitty knowledge required.
 
-Just need the install steps? [Install Spec Kitty](guides/install-spec-kitty.md) covers macOS, Linux, and Windows — the `pipx`, `uv`, and `pip` paths, adding Spec Kitty to a repository you already have, and what to do when your distribution blocks a system-wide `pip install`.
+Just need the install steps? [Install Spec Kitty](guides/how-to/installation/install-spec-kitty.md) covers macOS, Linux, and Windows — the `pipx`, `uv`, and `pip` paths, adding Spec Kitty to a repository you already have, and what to do when your distribution blocks a system-wide `pip install`.
 
 Set up and wondering what to type? The [slash command reference](api/slash-commands.md) covers the `/spec-kitty.*` commands your AI agent gains — specify, plan, tasks, implement, review, accept, merge — with each one's syntax, prerequisites, and the files it writes.
 
@@ -33,7 +33,7 @@ Already using Spec Kitty? Head to [Migrations](migrations/index.md) if you're up
 ## What's new and roadmap
 
 - [Changelog](changelog/index.md) — release history (canonical `CHANGELOG.md`).
-- [Release goals](release-goals/index.md) — declared intent of each release line (3.2.x, 3.3.x); each line's execution roadmap is linked from there and from [Plans](plans/index.md).
+- [Release goals](changelog/release-goals.md) — declared intent of each release line (3.2.x, 3.3.x); each line's execution roadmap is linked from there and from [Plans](plans/index.md).
 
 ## Browse by topic
 
@@ -130,13 +130,13 @@ Already using Spec Kitty? Head to [Migrations](migrations/index.md) if you're up
 | Section | Landing page |
 |---|---|
 | Context | [context/index.md](context/index.md) |
-| Core Concepts | [core-concepts/index.md](core-concepts/index.md) |
-| Doctrine | [doctrine/index.md](doctrine/index.md) |
+| Core Concepts | [core-concepts/index.md](context/index.md) |
+| Doctrine | [doctrine/index.md](architecture/doctrine-kinds.md) |
 | Architecture | [architecture/index.md](architecture/index.md) |
 | ADRs | [adr/index.md](adr/index.md) |
 | Plans | [plans/index.md](plans/index.md) |
 | API | [api/index.md](api/index.md) |
-| Reference | [reference/index.md](reference/index.md) |
+| Reference | [reference/index.md](api/index.md) |
 | Configuration | [configuration/index.md](configuration/index.md) |
 | Integrations | [integrations/index.md](integrations/index.md) |
 | Security | [security/index.md](security/index.md) |
@@ -144,8 +144,8 @@ Already using Spec Kitty? Head to [Migrations](migrations/index.md) if you're up
 | Operations | [operations/index.md](operations/index.md) |
 | Migrations | [migrations/index.md](migrations/index.md) |
 | Changelog | [changelog/index.md](changelog/index.md) |
-| Release Goals | [release-goals/index.md](release-goals/index.md) |
-| Project Updates | [updates/index.md](updates/index.md) |
+| Release Goals | [release-goals/index.md](changelog/release-goals.md) |
+| Project Updates | [updates/index.md](changelog/index.md) |
 
 ## Migration and archive
 

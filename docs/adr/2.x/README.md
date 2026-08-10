@@ -1,28 +1,7 @@
 ---
 title: 2.x ADRs
-description: Index of the 2.x-era decisions covering event-sourced status, doctrine and glossary governance, tracker connectors, and the canonical runtime next command loop.
+description: 'Redirect stub: this ADR era landing page moved to docs/adr/2.x/index.md; retained so existing links to the old README path keep resolving cleanly.'
+doc_status: active
+updated: '2026-08-10'
 ---
-
-# 2.x ADRs
-
-Architectural Decision Records for the 2.x track. **Not the current track —
-see [`docs/adr/3.x/`](../3.x/README.md) for current decisions.**
-
-## Naming
-
-- `YYYY-MM-DD-N-descriptive-title-with-dashes.md`
-
-## Source of Truth
-
-This folder is canonical for 2.x decisions (dates before 2026-03-30, the
-3.0.0 release). ADRs dated on or after 2026-03-30 were moved to
-[`docs/adr/3.x/`](../3.x/README.md). The `architecture/` tree was removed by the
-Common Docs structural move (PR #2225); existing references using the old
-`architecture/2.x/adr/<filename>` or `architecture/adrs/` paths will need
-updating to the new `docs/adr/` paths.
-
-## Status Conventions
-
-- `Accepted` means the decision remains current policy.
-- `Superseded` means a newer ADR replaced the decision; keep the file for history, but do not implement from it.
-- `Deprecated` means the direction is in active retirement and should not receive new work.
+This page has moved to [index.md](index.md) — the 2.x ADR era landing page and index.

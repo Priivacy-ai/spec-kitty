@@ -201,5 +201,5 @@ backfill  →  verify  →  reader cutover  →  writer cutover
 ## See also
 
 - [ADR 2026-07-16-1 — WP runtime-state authority](../adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md)
-- [Status Model](../status-model.md) — the append-only event log this design extends
+- [Status Model](status-model.md) — the append-only event log this design extends
 - [Execution Lanes](execution-lanes.md), [Runtime Loop](runtime-loop.md)
