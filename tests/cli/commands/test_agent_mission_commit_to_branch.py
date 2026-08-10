@@ -140,14 +140,19 @@ def test_commit_to_branch_still_commits_changed_artifact(tmp_path: Path) -> None
     assert _run_git(tmp_path, "log", "-1", "--pretty=%s") == "Add plan for feature 001-demo"
 
 
-def test_commit_to_branch_treats_empty_safe_commit_shape_as_unchanged_when_dirty(tmp_path: Path) -> None:
-    """WP02/#2056: a `safe_commit: git commit failed` shape is classified unchanged.
+def test_commit_to_branch_hook_rejection_surfaces_as_error_not_unchanged(tmp_path: Path) -> None:
+    """A rejecting pre-commit hook is a REAL commit failure, not an empty changeset.
 
-    After the de-god collapse routed `_commit_to_branch` through the canonical
-    `commit_for_mission` seam, the router maps the empty-changeset error shape
-    (`safe_commit: git commit failed`) to a benign `unchanged` outcome rather
-    than re-raising. The artifact is left untouched on disk (still dirty); the
-    helper returns the typed no-op result instead of propagating a RuntimeError.
+    Fix 793872a19 / PR #3269: the router classifies ONLY the distinct
+    `safe_commit: nothing to commit` shape as `unchanged` (staged tree matches
+    HEAD). A hook `exit 1` leaves a real staged change, so it surfaces as an
+    error and `_commit_to_branch` re-raises RuntimeError rather than silently
+    reporting `unchanged`. The artifact stays dirty and uncommitted.
+
+    Previously (WP02/#2056) this test asserted the opposite — that the generic
+    `safe_commit: git commit failed` shape was classified `unchanged`. That was
+    the masking bug 793872a19 deliberately corrected; the correct-contract
+    regression lives in tests/git_ops/test_safe_commit_commit_failure_classification.py.
     """
     _init_repo(tmp_path)
     plan_file = tmp_path / "plan.md"
@@ -157,15 +162,15 @@ def test_commit_to_branch_treats_empty_safe_commit_shape_as_unchanged_when_dirty
     hook.write_text("#!/bin/sh\nexit 1\n")
     hook.chmod(0o755)
 
-    result = _commit_to_branch(
-        plan_file,
-        "001-demo",
-        "plan",
-        tmp_path,
-        "mission/work",
-        json_output=True,
-    )
+    with pytest.raises(RuntimeError, match="git commit failed"):
+        _commit_to_branch(
+            plan_file,
+            "001-demo",
+            "plan",
+            tmp_path,
+            "mission/work",
+            json_output=True,
+        )
 
-    assert result.status == "unchanged"
-    # The artifact is not committed — it stays dirty in the working tree.
+    # The commit genuinely did not land — plan.md stays an uncommitted change.
     assert _run_git(tmp_path, "status", "--porcelain", "--", "plan.md") == "M plan.md"
