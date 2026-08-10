@@ -1,0 +1,32 @@
+{
+  "accept_commit": "55988f2de370d56daa97687398d7d5eb1e96ba21",
+  "acceptance_history": [
+    {
+      "accept_commit": "55988f2de370d56daa97687398d7d5eb1e96ba21",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-08-10T08:04:34.393772+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "47fbc847b43c17cc0b61e56c2416dfb091db885d"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-08-10T08:04:34.393772+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "47fbc847b43c17cc0b61e56c2416dfb091db885d",
+  "baseline_merge_commit": "5d0db496a83a38b98ec68390ff35826974f456c9",
+  "created_at": "2026-08-09T07:44:04.890745+00:00",
+  "flattened": true,
+  "friendly_name": "Charter Synthesize Reconciliation",
+  "mission_id": "01KZJQN68SWZ7T1YKGDB4Q4EVH",
+  "mission_number": null,
+  "mission_slug": "charter-synthesize-reconciliation-01KZJQN6",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "An authoring-only charter edit currently forces operators to run charter synthesize, which silently drops doctrine graph nodes and their edges while leaving the underlying artifact files on disk; implement and next hard-block until they run it. This mission makes synthesize reconcile against the existing on-disk graph (refusing to drop still-backed content unless explicitly pruned), surfaces pending deletions in dry-run, wires charter-relevant edges from the doctrine DRG, and makes the implement-boundary auto-refresh trustworthy and complete, so governance content is never lost and the core workflow is never trapped.",
+  "purpose_tldr": "Stop charter synthesize from silently deleting governance graph nodes, and unblock implement safely.",
+  "slug": "charter-synthesize-reconciliation-01KZJQN6",
+  "status_phase": "1",
+  "target_branch": "fix/charter-synthesize-reconciliation",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-09T18:40:53.335921+00:00"
+}
