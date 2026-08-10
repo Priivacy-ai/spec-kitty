@@ -102,7 +102,10 @@ def test_no_banned_wall_clock_call_outside_the_door() -> None:
         "CALL:<path>:<line> to your package's "
         "tests/architectural/_exemptions/<owner>.txt if this is a currently-"
         "tracked, not-yet-remediated site.\nViolations:\n"
-        + "\n".join(f"  {relpath}:{violation.line}: {violation.call}" for relpath, violation in violations)
+        + "\n".join(
+            f"  {relpath}:{violation.line}: {violation.call} -- use {violation.suggestion}"
+            for relpath, violation in violations
+        )
     )
 
 
@@ -123,17 +126,31 @@ def test_every_call_exemption_entry_is_a_real_violation() -> None:
 def test_stale_exemption_removal_reds_the_gate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """C-009 non-vacuity: removing a live exemption line makes the gate red, naming the call site.
 
-    Builds an ISOLATED one-owner exemption directory (never mutates the real
-    committed ``_exemptions/*.txt`` files) containing exactly one entry for a
-    real violation this WP's own generated allow-list carries, then asserts
-    that WITHOUT that entry the same collection-and-filter logic
-    ``test_no_banned_wall_clock_call_outside_the_door`` runs is non-empty and
-    names the now-unexempted call site.
+    TREE-INDEPENDENT (WP15 terminal remediation): the real tree's exemption
+    union is now empty (SC-003) -- WP05-WP14 shrank every ``_exemptions/*.txt``
+    to nothing, so there is no live in-tree violation left to harvest via
+    ``collect_call_ban_violations(scan.iter_python_files())`` the way the
+    pre-terminal version of this test did. Instead plants a SYNTHETIC
+    ``datetime.now(datetime.UTC)`` call in an unexempted ``tmp_path`` file,
+    runs it through the REAL detector (``collect_call_ban_violations``), then
+    proves the exemption mechanism is load-bearing via the exact same
+    collection-and-filter logic ``test_no_banned_wall_clock_call_outside_the_door``
+    runs. ``scan.REPO_ROOT`` is monkeypatched to ``tmp_path`` for the
+    duration of the ``scan.relpath`` calls inside ``collect_call_ban_violations``
+    below, so the planted file -- which must physically live under
+    ``tmp_path``, never the real scanned tree -- still resolves through the
+    SAME ``relpath`` function the real gate uses. No write ever touches the
+    real repo tree or a committed ``_exemptions/*.txt`` file.
     """
-    scanned = scan.iter_python_files()
-    all_violations = collect_call_ban_violations(scanned)
-    assert all_violations, "no real call-ban violation exists to prove non-vacuity against"
+    module = tmp_path / "offender.py"
+    module.write_text("import datetime\n\ndatetime.now(datetime.UTC)\n", encoding="utf-8")
+    monkeypatch.setattr(scan, "REPO_ROOT", tmp_path.resolve())
+
+    all_violations = collect_call_ban_violations([module])
+    assert len(all_violations) == 1, "the planted call-ban violation must be detected by the real detector"
     sample_relpath, sample_violation = all_violations[0]
+    assert sample_relpath == "offender.py"
+    assert (sample_violation.line, sample_violation.call) == (3, "datetime.now()")
 
     isolated_dir = tmp_path / "_exemptions"
     isolated_dir.mkdir()
@@ -231,6 +248,38 @@ def test_variable_split_form_fires(tmp_path: Path) -> None:
     assert [v.call for v in violations] == ["d.now()"]
 
 
+def test_positional_now_call_fires(tmp_path: Path) -> None:
+    """Plant-matrix (plan Sec 1.3): the plain positional form ``datetime.now(UTC)`` fires.
+
+    C-009: non-vacuous by construction -- deleting ``("datetime", "now")``
+    from ``_BANNED_CALLS`` (or the ``_normalize_alias``/``visit_Call`` check
+    that consults it) reds this assertion.
+    """
+    module = tmp_path / "offender.py"
+    module.write_text("from datetime import datetime, UTC\n\ndatetime.now(UTC)\n", encoding="utf-8")
+
+    violations = _violations_for_file(module)
+
+    assert [v.call for v in violations] == ["datetime.now()"]
+
+
+def test_module_alias_now_call_fires(tmp_path: Path) -> None:
+    """Plant-matrix: the module-alias form ``import datetime as dt; dt.now()`` fires.
+
+    C-009: non-vacuous -- removing the ``import datetime as X`` alias-binding
+    branch in ``_WholeModuleClockVisitor.visit_Import`` (the
+    ``parts[0] in {"datetime", "time"}`` case) reds this assertion, since
+    ``dt`` would then resolve to nothing and ``dt.now()`` would not match
+    ``_BANNED_CALLS``.
+    """
+    module = tmp_path / "offender.py"
+    module.write_text("import datetime as dt\n\ndt.now()\n", encoding="utf-8")
+
+    violations = _violations_for_file(module)
+
+    assert [v.call for v in violations] == ["dt.now()"]
+
+
 def test_tz_keyword_form_fires(tmp_path: Path) -> None:
     """``datetime.now(tz=UTC)`` (keyword form) fires exactly like the positional form."""
     module = tmp_path / "offender.py"
@@ -293,9 +342,73 @@ def test_allowed_parse_iso_does_not_fire(tmp_path: Path) -> None:
     assert _violations_for_file(module) == []
 
 
+def test_allowed_from_epoch_producer_does_not_fire(tmp_path: Path) -> None:
+    """Negative (C-009 over-fire boundary): the door's ``from_epoch`` parse helper is not a banned call.
+
+    Non-vacuous: this would go red under a mutation that widened
+    ``_BANNED_CALLS``/``_ALIASABLE_CLOCK_PATHS`` to also flag arbitrary
+    door-imported names, or that treated any door re-export as banned
+    outright rather than only the clock-callable ones.
+    """
+    module = tmp_path / "offender.py"
+    module.write_text("from kernel.clock import from_epoch\n\nfrom_epoch(0.0)\n", encoding="utf-8")
+
+    assert _violations_for_file(module) == []
+
+
 def test_duration_clock_calls_do_not_fire(tmp_path: Path) -> None:
     """NFR-006 (the over-fire boundary): ``import time; time.monotonic()``/``perf_counter()`` never ban."""
     module = tmp_path / "offender.py"
     module.write_text("import time\n\ntime.monotonic()\ntime.perf_counter()\n", encoding="utf-8")
 
     assert _violations_for_file(module) == []
+
+
+def test_message_mapping_suggests_correct_producer(tmp_path: Path) -> None:
+    """SC-001: the violation's ``suggestion`` names the correct producer for >=4 representative spellings.
+
+    Non-vacuity (C-009): flipping ``_isoformat_producer_suggestion``'s /
+    ``_strftime_producer_suggestion``'s branch logic (or the
+    ``_NOW_FAMILY_CALLS``/``_DATE_TODAY_CALLS``/``_EPOCH_CALL`` membership
+    checks in ``wall_clock_assertions._suggested_producer``) to always return
+    the generic fallback reds this test -- verified during review by
+    temporarily short-circuiting ``_suggested_producer`` to always return
+    ``_UNKNOWN_CALL_SUGGESTION`` and observing every assertion below fail.
+    """
+    module = tmp_path / "offender.py"
+    module.write_text(
+        "import datetime\nimport time\n\n"
+        "datetime.now(datetime.UTC).isoformat()\n"
+        "datetime.now(datetime.UTC).strftime('%Y-%m-%dT%H:%M:%SZ')\n"
+        "datetime.now(datetime.UTC).strftime('%Y%m%dT%H%M%SZ')\n"
+        "time.time()\n"
+        "datetime.date.today()\n",
+        encoding="utf-8",
+    )
+
+    violations = _violations_for_file(module)
+    suggestion_by_line = {v.line: v.suggestion for v in violations}
+
+    assert suggestion_by_line[4] == "kernel.clock.now_utc_iso()"
+    assert suggestion_by_line[5] == "kernel.clock.now_utc_stamp()"
+    assert suggestion_by_line[6] == "kernel.clock.now_utc_compact_stamp()"
+    assert suggestion_by_line[7] == "kernel.clock.now_epoch()"
+    assert suggestion_by_line[8] == "kernel.clock.now_utc().date() (or an adjudicated naive-local fix per FR-011)"
+
+
+def test_message_mapping_falls_back_to_generic_now_suggestion(tmp_path: Path) -> None:
+    """SC-001 negative: a bare, unchained ``.now()`` gets the generic (not over-specific) producer suggestion.
+
+    C-009: non-vacuous -- if ``_chained_attribute_call`` were mutated to
+    always report a (spurious) chain, this would incorrectly assert a
+    specific stamp/iso producer instead of the generic fallback, and fail.
+    """
+    module = tmp_path / "offender.py"
+    module.write_text("import datetime\n\ndatetime.now(datetime.UTC)\n", encoding="utf-8")
+
+    violations = _violations_for_file(module)
+
+    assert [v.suggestion for v in violations] == [
+        "kernel.clock.now_utc() (or now_utc_iso()/now_utc_stamp()/"
+        "now_utc_compact_stamp()/now_utc_seconds() for a specific serialization contract)"
+    ]
