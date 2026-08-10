@@ -494,7 +494,15 @@ _PROFILE_UNREACHABLE: frozenset[str] = frozenset(
         "directive:DIRECTIVE_035",
         "directive:DIRECTIVE_038",
         "directive:DIRECTIVE_039",
-        "directive:DIRECTIVE_042",
+        # DIRECTIVE_042 and the common-docs cluster (styleguide:common-docs +
+        # the four common-docs-* tactics) left this pin when DIRECTIVE_047 (the
+        # audience-metadata directive, mission common-docs-convergence) was
+        # wired into the built-in graph: 047 ``requires`` DIRECTIVE_042 and
+        # ``suggests`` styleguide:common-docs, and 042 then delivers the cluster
+        # transitively. The profile channel follows ``suggests`` (WP01), so all
+        # six became profile-reachable via real authored edges — not C-009
+        # normalization — so they are dropped here (NFR-004: real wiring shrinks
+        # the pin).
         "directive:DIRECTIVE_046",
         "paradigm:atomic-design",
         "paradigm:deep-module-design",
@@ -507,7 +515,6 @@ _PROFILE_UNREACHABLE: frozenset[str] = frozenset(
         "procedure:mission-wrap-up-sequence",
         "procedure:refactoring",
         "procedure:test-first-bug-fixing",
-        "styleguide:common-docs",
         "styleguide:deployable-skill-authoring",
         "styleguide:java-conventions",
         "tactic:analysis-extract-before-interpret",
@@ -516,10 +523,8 @@ _PROFILE_UNREACHABLE: frozenset[str] = frozenset(
         "tactic:avoid-gold-plating",
         "tactic:boring-code-review",
         "tactic:chain-of-responsibility-rule-pipeline",
-        "tactic:common-docs-curation",
-        "tactic:common-docs-find",
-        "tactic:common-docs-scaffold",
-        "tactic:common-docs-write",
+        # common-docs-{curation,find,scaffold,write} dropped — see the
+        # DIRECTIVE_047 note above; the cluster is now profile-reachable.
         "tactic:compositional-stream-boundaries",
         "tactic:cross-cutting-state-via-store",
         "tactic:deepening-opportunity-assessment",
