@@ -99,10 +99,14 @@ EXPECTED_AGGREGATE_COLUMNS = {
         "target_identity",
         "account_identity",
         "private_teamspace_id",
+        "configuration_generation",
+        "request_payload_hash",
+        "request_payload_version",
         "state",
         "result_state",
         "result_generation",
         "binding_audience",
+        "original_error_category",
         "attempts",
         "created_at",
         "updated_at",
@@ -339,6 +343,28 @@ def test_store_schema_contains_the_whole_transactional_aggregate(
     assert surfaces["project_sync_layout_generation"].owner_module == ("sync/layout_generation")
     assert surfaces["project_sync_layout_generation_lock"].owner_module == ("sync/layout_generation")
     assert surfaces["project_sync_layout_generation_marker"].owner_module == ("sync/layout_generation")
+
+
+def test_admission_operation_schema_pins_t024_states_and_payload_identity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    store = ProjectSyncStore(PROJECT_A)
+
+    with store.unit_of_work() as unit:
+        row = unit.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'admission_operations'").fetchone()
+
+    assert row is not None
+    schema = str(row[0])
+    for state in ("prepared", "sent", "acknowledged", "refused", "unknown"):
+        assert f"'{state}'" in schema
+    for superseded in ("'pending'", "'in_flight'", "'succeeded'", "'conflict'"):
+        assert superseded not in schema
+    assert "request_payload_hash TEXT NOT NULL" in schema
+    assert "request_payload_version INTEGER NOT NULL" in schema
+    assert "configuration_generation INTEGER NOT NULL" in schema
+    assert "original_error_category TEXT" in schema
 
 
 def test_owner_tamper_fails_closed_without_rewriting_evidence(
