@@ -36,8 +36,8 @@ def get_saas_base_url() -> str:
 
     Raises:
         ConfigurationError: If the env var is not set or is empty. There is NO
-            fallback to a hardcoded domain — fly.io deployments use generated
-            hostnames and there is no stable production domain.
+            fallback to a hardcoded domain; callers must explicitly opt in to
+            either the hosted service or a self-hosted instance.
 
     Returns:
         The SaaS base URL with any trailing slashes stripped.
@@ -47,6 +47,6 @@ def get_saas_base_url() -> str:
         raise ConfigurationError(
             f"{_ENV_VAR} environment variable is not set. "
             f"Set it to your spec-kitty-saas instance URL (e.g. "
-            f"https://api.spec-kitty.example.com) and try again."
+            f"https://app.spec-kitty.ai) and try again."
         )
     return url.rstrip("/")
