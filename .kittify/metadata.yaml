@@ -297,3 +297,57 @@ migrations:
     applied_at: '2026-06-15T06:30:20.619977'
     result: success
     notes: 'surface_repair_wiring: probed 214 tool surface(s)'
+  - id: 3.2.6_decisions_event_log_merge_driver
+    applied_at: '2026-08-10T13:08:46.568536'
+    result: success
+    notes: Configured git merge.spec-kitty-event-log.name; Configured git merge.spec-kitty-event-log.driver
+  - id: 3.2.6_gate_artifact_merge_drivers
+    applied_at: '2026-08-10T13:08:46.673042'
+    result: success
+    notes: 'Configured git merge.spec-kitty-acceptance-matrix.name; Configured git
+      merge.spec-kitty-acceptance-matrix.driver; Added .gitattributes entry: kitty-specs/**/issue-matrix.md
+      merge=spec-kitty-issue-matrix; Configured git merge.spec-kitty-issue-matrix.name;
+      Configured git merge.spec-kitty-issue-matrix.driver'
+  - id: 3.2.6_issue_matrix_driver_repoint
+    applied_at: '2026-08-10T13:08:46.740787'
+    result: success
+    notes: Configured git merge.spec-kitty-issue-matrix.name
+  - id: 3.2.6_meta_traces_merge_drivers
+    applied_at: '2026-08-10T13:08:46.864075'
+    result: success
+    notes: Configured git merge.spec-kitty-meta.name; Configured git merge.spec-kitty-meta.driver;
+      Configured git merge.spec-kitty-traces.name; Configured git merge.spec-kitty-traces.driver
+  - id: 3.2.7_review_cycle_merge_driver
+    applied_at: '2026-08-10T13:08:46.942068'
+    result: success
+    notes: Configured git merge.spec-kitty-review-cycle.name; Configured git merge.spec-kitty-review-cycle.driver
+  - id: normalize_activation_absence
+    applied_at: '2026-08-10T13:08:47.432203'
+    result: success
+    notes: 'Normalized absent activation keys to [] in /private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260810-130708-cEJgwV/spec-kitty/.kittify/charter/charter.yaml:
+      [''activated_glossary_packs'', ''activated_mission_step_contracts'']'
+  - id: unify_charter_activation_promote_answers
+    applied_at: '2026-08-10T13:08:49.171572'
+    result: success
+    notes: Promoted ['041-tests-as-scaffold-not-friction', '042-common-docs', '043-close-defect-class-by-construction',
+      '044-canonical-sources-and-unification', '045-prs-only-and-read-intent', '046-readable-consistent-prs']
+      into activated_directives; Promoted ['delete-the-assertion-not-the-test', 'architectural-gate-non-vacuity',
+      'frozen-baseline-shrink-only-ratchet', 'canonical-source-unification', 'pr-agent-worktree-isolation',
+      'ownership-map-leeway', 'reviewer-implementer-role-separation'] into activated_tactics;
+      Promoted ['adversarial-squad-cadence', 'planning-and-tracking'] into activated_styleguides;
+      Promoted ['github-tracker', 'terminology-guard'] into activated_toolguides;
+      Promoted ['mission-tracer-files', 'post-merge-arch-gate-adjudication'] into
+      activated_procedures
+  - id: consolidate_charter_bundle_fold
+    applied_at: '2026-08-10T13:08:49.408492'
+    result: success
+    notes: 'Relocated activation keys onto existing /private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260810-130708-cEJgwV/spec-kitty/.kittify/charter/charter.yaml;
+      Deleted /private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260810-130708-cEJgwV/spec-kitty/.kittify/charter/governance.yaml;
+      Deleted /private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260810-130708-cEJgwV/spec-kitty/.kittify/charter/directives.yaml;
+      Deleted /private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260810-130708-cEJgwV/spec-kitty/.kittify/charter/metadata.yaml;
+      Deleted /private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260810-130708-cEJgwV/spec-kitty/.kittify/charter/references.yaml;
+      Updated .kittify/config.yaml: removed activated_* keys, added charter: pointer'
+  - id: verdict_provenance_backfill
+    applied_at: '2026-08-10T13:08:49.909951'
+    result: success
+    notes: Backfilled 17 stranded verdict event(s) across 352 mission(s) scanned
