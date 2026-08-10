@@ -131,7 +131,8 @@
         "Implementation bea905e79; 251 owned/authorized tests passed with 2 expected architecture xfails; 16 independent incident controls passed; Ruff, strict mypy, compileall, and diff checks passed.",
         "Cycle 2 closes forged/stale history authority, physical body purge, status queue ownership/UoW validation, deterministic clock evidence, and Ruff format debt. Gates: 254 passed/2 xfailed baseline; 23 extended controls; 65 normal pytest; Ruff and strict mypy green.",
         "Cycle 3 binds status context and every repository to the exact verified UoW store capability, makes direct UoW construction fail closed, and restores the real A/B incident spy without compatibility constructors. Gates: 256 passed/2 xfailed baseline; 24 extended controls; 67 normal pytest; 48 passed/2 xfailed architecture; Ruff and strict mypy green.",
-        "Cycle 4 ready: status context carries a private store-minted authority snapshot and status rejects genuine identity transplants before journal/ledger/body reads. Validation: status report 30 passed; WP04 owned matrix 275 passed, 2 xfailed; Ruff check/format, strict source mypy, compileall, and diff-check clean."
+        "Cycle 4 ready: status context carries a private store-minted authority snapshot and status rejects genuine identity transplants before journal/ledger/body reads. Validation: status report 30 passed; WP04 owned matrix 275 passed, 2 xfailed; Ruff check/format, strict source mypy, compileall, and diff-check clean.",
+        "Review passed: cycle-4 fix binds ProjectSyncContext status-report authority to a store-minted snapshot and validates before journal/ledger/body queue reads; focused pytest tests/delivery/test_status_report.py -W error passed 30/30. Known unrelated sync queue migration collection failures and allocator recovery evidence are documented as deferred issue-matrix follow-ups."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
