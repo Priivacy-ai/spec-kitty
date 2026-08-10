@@ -22,7 +22,11 @@ Primary sanctioned holder of raw `datetime`/`time.time()`.
 | `now_epoch() -> float` | Unix epoch seconds | wall-clock `time.time()` |
 | `now_naive_local() -> datetime` | naive local (**only if** census shows a legitimate consumer — MINOR-1) | conditional |
 
-**Parse/format helpers** (C-007): `parse_iso`, `parse_stamp` (wraps `strptime`), `format_stamp` (wraps `strftime`).
+**Parse/format helpers** (C-007): `parse_iso`, `parse_stamp` (wraps `strptime`), `format_stamp` (wraps
+`strftime`), and `from_epoch(x) -> datetime` (wraps `datetime.fromtimestamp(x, tz=UTC)` — the inverse of
+`now_epoch`; 11+ sites otherwise keep a raw `datetime` import solely to call `.fromtimestamp`, eroding
+C-007). `date.today()` (1 site, `scripts/`) has no date-only producer; adjudicate it at census as a naive
+fix (`now_utc().date()` flips local→UTC date — a byte-changing FR-011 case needing a migration note).
 **Type re-exports** (FR-002): `__all__` = exact AST closure of datetime names used outside the door
 (baseline `datetime,date,timedelta,UTC`; add others only if the census shows a referencing site).
 Re-exporting a type never yields a sanctioned `.now()` path — the call-ban (§1.3) catches it.
@@ -41,7 +45,7 @@ avoided (resolves the phasing inversion; Priti MINOR-2 / Renata).
 
 Two AST detectors over `src/`, `tests/`, `scripts/` (C-008), each excluding the sanctioned allow-list:
 - **Import-ban** (template `test_kernel_no_doctrine_import.py`): fail on stdlib `datetime` import outside sanctioned modules.
-- **Call-ban** (machinery `wall_clock_assertions.py` `_BANNED_CALLS`, generalized from assert-only to whole-module): fail on `.now`/`.utcnow`/`.today`/`time.time()` calls whose receiver resolves — via a per-file alias map covering stdlib import, `import datetime as _dt`, **and the door re-export** — to datetime/time. Flags the `.now(<aware-UTC>)` call itself so the **variable-split** form is caught. **Honest limit**: cross-statement receiver binding is resolved only within a function's local alias/assignment map, not by full type inference; deeper indirection (a `.now` attribute passed through a returned object) is out of scope and recorded as such.
+- **Call-ban** (reuses `wall_clock_assertions.py` alias machinery + `_BANNED_CALLS`): landed and proven non-vacuous in WP01b (not deferred). **Add a NEW whole-module entry point** that reuses the shared alias/`_BANNED_CALLS` machinery — do NOT widen the existing assert-scoped `find_wall_clock_assertion_violations` (that would turn the legitimate freshness-bounds idiom `before/after = datetime.now(UTC)` into violations and red-flag its 124-test support suite). The existing assert-gate and its tests stay intact. The new entry point (i) records banned calls across the whole module, and (ii) **anchors module-name resolution per source root** — the engine currently derives module keys from the scan's `os.path.commonpath`, so widening the scan to `src/`+`tests/`+`scripts/` collapses the root and resolves the door as `src.kernel.clock`, never `kernel.clock` — the re-export bypass would slip through (verified). Fix: resolve `src/**` names anchored at `src/` (→ `kernel.clock`) while keeping `tests/**` anchored at the repo root. Then fail on `.now`/`.utcnow`/`.today`/`time.time()` calls whose receiver resolves — via the per-file alias map covering stdlib import, `import datetime as _dt`, **and the door re-export** — to datetime/time. Flags the `.now(<aware-UTC>)` call itself so the **variable-split** form is caught (no type inference needed). **Honest limits (documented in the gate docstring)**: cross-statement receiver binding is resolved only within a function's local alias/assignment map; a `getattr(kernel.clock,'datetime').now()` receiver yields no attribute chain and is an accepted, disclosed residual (contrived, and it carries no datetime import for the import-ban either).
 - **Both detectors carry their own `scanned > N` floor** (NOTE-3): a detector silently scanning zero files must go red, not green.
 - **Allow-list = per-package files** (`tests/architectural/_exemptions/<package>.txt`), unioned by the gate (MAJOR-2). Each remediation WP edits only its own file → lanes are physically disjoint. A stale-exemption check fails once an allowlisted path is clean. Terminal acceptance: the union is empty (SC-003).
 - **Non-vacuity plant matrix** (Renata MAJOR-3; all planted in-memory / `tmp_path`, NEVER as committed `.py` under the scanned tree — NOTE-2): every banned spelling — `import datetime`; `from datetime import datetime`; positional `datetime.now(UTC)`; `tz=` keyword `datetime.now(tz=UTC)`; module-alias `dt.now()`; double-attr `datetime.datetime.now()`; re-export bypass `from kernel.clock import datetime; datetime.now()`; variable-split; `utcnow()`; `date.today()`; `time.time()` — each asserted to FIRE. Paired allowed-form negatives asserted NOT to fire: producers, `timedelta`, type annotations, `parse_iso`, and — critically — `import time; time.monotonic()/perf_counter()` (the over-fire boundary NFR-006 depends on).
@@ -50,12 +54,15 @@ Two AST detectors over `src/`, `tests/`, `scripts/` (C-008), each excluding the 
 
 ## 2. Decisions resolved
 
-- **D-1 → route through the door.** Verified: the no-kernel invariant is a docstring in
-  `planner.py`/`workflow_registry.py`/`workflow_schema.py`, unenforced by any test, and those modules
-  don't read the wall clock; the wall-clock users (`engine.py`, `retrospective_terminus.py`) don't
-  declare it. Route them through the door, keep the allow-list at **one**, update the `_internal_runtime`
-  docstring (code/doctrine agree), confirm `test_shared_package_boundary.py` / `test_no_runtime_pypi_dep.py`
-  stay green. Fallback to a second sanctioned module only if an enforced isolation test surfaces.
+- **D-1 → route through the door.** Verified sound: `test_layer_rules.py` places `runtime` above `kernel`
+  (a legal downward edge); `test_shared_package_boundary.py` bans only `spec_kitty_runtime`/vendored-events
+  (kernel is a permitted production layer); `test_no_runtime_pypi_dep.py` is unaffected (the door is
+  stdlib-only, no new dep/cycle). The `_internal_runtime` no-kernel docstring's real purpose is runtime
+  **re-extractability**, not general purity — and it is already porous (`retrospective_terminus.py` and
+  `planner.py` import `specify_cli.*`), while `spec_kitty_runtime`'s retirement (shared-package-boundary ADR)
+  moots re-extraction. So route `engine.py`/`retrospective_terminus.py` through the door, keep the allow-list
+  at **one**, and update the `_internal_runtime` docstring to state that rationale (code/doctrine agree).
+  Fallback to a second sanctioned module only if an enforced isolation test surfaces.
 - **D-2 → `kernel.clock`.** Keep the name; minimal `__all__`; C-005 documents the Lamport distinction.
 
 ## 3. Census (WP00 — hard prerequisite)
