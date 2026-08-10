@@ -282,7 +282,7 @@ def rewrite_manifest(
     partial re-synthesis).
     """
     import hashlib  # noqa: PLC0415 -- lazy: see module docstring's import-cycle note
-    from datetime import UTC, datetime  # noqa: PLC0415
+    from kernel.clock import now_utc_iso  # noqa: PLC0415
 
     from charter.bundle import compute_bundle_content_hash  # noqa: PLC0415
 
@@ -340,7 +340,7 @@ def rewrite_manifest(
 
     synthesizer_ver = _get_synthesizer_version()
     sorted_merged = sorted(merged, key=lambda e: (e.kind, e.slug))
-    created_at = datetime.now(tz=UTC).isoformat()
+    created_at = now_utc_iso()
 
     manifest = SynthesisManifest(
         mission_id=existing.mission_id,
@@ -364,14 +364,14 @@ def _empty_manifest_seed(run_id: str) -> SynthesisManifest:
     ``rewrite_manifest`` reduces to exactly what the default (non-reconciled)
     manifest builder in ``write_pipeline.promote`` would have produced.
     """
-    from datetime import UTC, datetime  # noqa: PLC0415
+    from kernel.clock import now_utc_iso  # noqa: PLC0415
 
     from .manifest import SynthesisManifest  # noqa: PLC0415
     from .synthesize_pipeline import _get_synthesizer_version  # noqa: PLC0415
 
     return SynthesisManifest(
         mission_id=None,
-        created_at=datetime.now(tz=UTC).isoformat(),
+        created_at=now_utc_iso(),
         run_id=run_id,
         adapter_id="",
         adapter_version="",
