@@ -913,7 +913,11 @@ class TestFilterSurvivingOrgNodes:
         surviving = _filter_surviving_org_nodes(fragment, conflicts, "org:acme")
 
         assert [n.id for n in surviving] == ["policy"]
-        assert len(conflicts) == 1
+        # golden-count: cardinality-is-contract -- the invariant is "exactly one
+        # conflict is recorded"; the single conflict's full identity is pinned by
+        # the conflicts[0] field assertions immediately below, so the count guards
+        # against a spurious second conflict rather than standing in for membership.
+        assert len(conflicts) == 1  # golden-count: cardinality-is-contract
         conflict = conflicts[0]
         assert conflict.kind == "layer_rule_violation"
         assert conflict.target_id == "smuggled"

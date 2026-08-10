@@ -1076,5 +1076,9 @@ class TestAgentProfileImplementerIvanConstant:
             and target == _AGENT_PROFILE_IMPLEMENTER_IVAN
         ]
         # Behavior-preserving: still exactly 4 lineage edges into implementer-ivan.
-        assert len(lineage_targets) == 4
+        # golden-count: cardinality-is-contract -- all 4 targets are the SAME
+        # constant, so a set/frozenset equality collapses to size 1 and would
+        # lose the "exactly 4 duplicated references" invariant this S1192 hoist
+        # is here to preserve.
+        assert len(lineage_targets) == 4  # golden-count: cardinality-is-contract
         assert all(t is _AGENT_PROFILE_IMPLEMENTER_IVAN for t in lineage_targets)
