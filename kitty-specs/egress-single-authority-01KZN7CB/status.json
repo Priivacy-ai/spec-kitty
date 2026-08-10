@@ -1,0 +1,66 @@
+{
+  "event_count": 21,
+  "last_event_id": "01KZNX15SCV2H27NEHNCVD3S2E",
+  "materialized_at": "2026-08-10T13:15:43.788655+00:00",
+  "mission_number": "",
+  "mission_slug": "egress-single-authority-01KZN7CB",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZNX13KBZ4A5F57F8JATPBNE",
+      "last_transition_at": "2026-08-10T13:15:41.547813+00:00",
+      "review_result": {
+        "reference": "Review passed: red-first harness verified. Sole change is new tests/sync/tracker/test_egress_single_authority.py (no product/src edit; only-file confirmed via git diff --stat). Red/green split matches DoD exactly. Invariance guards GREEN now: T001 48-cell enforcement matrix incl. permit row + all 3 precedence levels (project-local/machine-index/env) + non-vacuity cardinality guard; T002 hosted byte-identity + separate saas_client pin; T005 static no-local-import AST pin; T005 root-is-None -> undetermined; T006 renderer parity (granted + 3 refusal states). Behavior-change cells RED now: T003 one-resolution (currently two); T004 all 8 degraded cells (generic-wording driven by single authority); T005 iterate-split-members (NO_RECORD/RECORDED_REFUSAL/NOT_CONSENTABLE absent today); T006 _classify_channel1-absent + import-failure-no-longer-masquerades-as-no_record. Goldens captured live (T001 from resolve_egress_consent.permits_egress + _resolve_channel2/_JOIN/_refusing_channels; T002 from project_egress_refusal/SaasConsentError; T006 from live verdict fields) -- genuine enforcement-equivalence, not circular. Marker=integration; marker-correctness + golden-count architectural gates pass; ruff clean. 1 skip = T005 dynamic subprocess probe degrading gracefully (subprocess interpreter lacks editable install; static AST pin is primary C-004 guard and passes). Anti-pattern checklist: dead-code N/A (test-only), synthetic-fixture PASS (live goldens), silent-empty-return N/A, FR-coverage PASS, frozen-surface PASS, locked-decision PASS (no product edits), shared-file-ownership PASS (WP01 sole owner), production-fragility N/A. Note: set issue-matrix #3287 -> in-mission (mission core fix lands in WP03; canonical issue-verdict CLI) to clear the mission-wide approval gate -- the scaffolded row was never populated and is outside WP01's owned_files/DoD.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2218575,
+      "shell_pid_created_at": "1786360599.94"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZNX14R2X36V13CDQYA8KKDT",
+      "last_transition_at": "2026-08-10T13:15:42.722326+00:00",
+      "review_result": {
+        "reference": "Review passed: atomic DENIED-split contract. C-004 upheld (egress.py adds no sync.consent/sync.routing import; only 2 hits are docstring prose; _egress_decision obtains member solely via resolve_egress_consent). Split-mapping ConsentDecision->member lives in ONE place (sync/__init__ resolver), not duplicated in _egress_decision (paula MAJOR-1 clear). C-001: permits_egress=self is GRANTED unchanged; iterate-all-members guard pins only GRANTED permits; resolve_egress_consent refuses bool/None/unrecognized via isinstance->UNANSWERABLE, never raises, never permits. NFR-002: all 3 refusal members render _DENIED_TEMPLATE, no fall-through; project_egress_refusal returns byte-identical string. resolve_project_consent called once; consented_project_uuids retained (11 sibling callers). _egress_decision reachable via project_egress_refusal (3 live callers). DENIED fully removed; 5 T017 mocks re-pointed to NO_RECORD. Diff scope = 7 owned files only; egress_verdict.py/_classify_channel1 untouched. DoD tests 178 green (3108 verdict + both saas consent gates + consolidation), invocation suites green, ruff+mypy --strict clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2484252,
+      "shell_pid_created_at": "1786363508.91"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KZNX15SCV2H27NEHNCVD3S2E",
+      "last_transition_at": "2026-08-10T13:15:43.788655+00:00",
+      "review_result": {
+        "reference": "Review passed: harness GREEN (70 passed, 1 legit env-skip); _classify_channel1 deleted from src (grep empty); NFR-004 structurally pinned (counting test: exactly 1 routing + 1 consent per gated verdict, non-vacuous); NFR-003 never-raise verified: generic branch sets detail/remedies without indexing state-keyed dicts (no KeyError) and HOSTED_SERVICE byte-identical passthrough correctly gated on not channel1_generic so degraded states render composed generic wording instead of leaking _IMPORT_FAILURE_TEMPLATE; FR-016 byte-identity preserved for the three NAMED states; NFR-001 refused/refusing_channels derive from permits alone; six CHANNEL1_* constants retained, test_sync_doctor_tracker_egress_3108 green; ruff+mypy --strict clean; only 3 owned files touched.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2560153,
+      "shell_pid_created_at": "1786365221.8"
+    }
+  }
+}

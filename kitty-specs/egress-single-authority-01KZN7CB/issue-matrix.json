@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#3287": {
+      "evidence_ref": "WP03 745fe598: _classify_channel1 deleted; single-authority diagnostics; harness green",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP03"
+    }
+  },
+  "schema_version": 1
+}

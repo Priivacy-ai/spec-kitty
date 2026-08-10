@@ -1,0 +1,32 @@
+{
+  "accept_commit": "784f70835aefe8f91c6d64d0a93e946d6c622995",
+  "acceptance_history": [
+    {
+      "accept_commit": "784f70835aefe8f91c6d64d0a93e946d6c622995",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-08-10T13:15:13.067330+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "a730ac543d6afbdc341e6b96f772734c72702b37"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-08-10T13:15:13.067330+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "a730ac543d6afbdc341e6b96f772734c72702b37",
+  "baseline_merge_commit": "401793427e2cd33ae583158ef0ea8d160b0f357b",
+  "created_at": "2026-08-10T06:57:21.739127+00:00",
+  "flattened": true,
+  "friendly_name": "Single-Authority Tracker-Egress Verdict",
+  "mission_id": "01KZN7CBTA6T39KZS7A09PY384",
+  "mission_number": null,
+  "mission_slug": "egress-single-authority-01KZN7CB",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The tracker egress gate already enforces consent from one authority, but it re-derives the human-readable reason for a refusal from a second, independent lookup that can drift and does redundant work. This mission gives the consent resolver a richer return so diagnostics come from the enforcing evaluation, and deletes the duplicate path. It closes a documented tech-debt seam (#3287) and removes redundant git work (#3291) without changing what the gate allows or denies.",
+  "purpose_tldr": "Make the tracker-egress verdict's diagnostics come from the same single authority that enforces it, removing a duplicate consent lookup.",
+  "slug": "egress-single-authority-01KZN7CB",
+  "status_phase": "1",
+  "target_branch": "feat/egress-single-authority",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-10T11:13:01.949519+00:00"
+}
