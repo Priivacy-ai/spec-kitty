@@ -8,18 +8,42 @@
     {
       "lane_id": "lane-a",
       "wp_ids": [
-        "WP01"
+        "WP01",
+        "WP02",
+        "WP03"
       ],
       "write_scope": [
         "docs/adr/3.x/2026-08-09-1-project-sync-store-boundary.md",
+        "src/specify_cli/state/contract.py",
+        "src/specify_cli/sync/config.py",
+        "src/specify_cli/sync/consent.py",
+        "src/specify_cli/sync/deny_hints.py",
+        "src/specify_cli/sync/history_disclosure.py",
+        "src/specify_cli/sync/layout_generation.py",
+        "src/specify_cli/sync/project_context.py",
+        "src/specify_cli/sync/project_identity.py",
+        "src/specify_cli/sync/project_store.py",
+        "src/specify_cli/sync/routing.py",
         "tests/architectural/test_egress_consent_boundary.py",
         "tests/architectural/test_project_store_boundary.py",
         "tests/architectural/test_sync_writer_census.py",
-        "tests/sync/test_project_consent_incident_baseline.py"
+        "tests/sync/test_consent_epochs.py",
+        "tests/sync/test_consent_resolver_3030.py",
+        "tests/sync/test_consent_write_refusal_3030.py",
+        "tests/sync/test_daemon_deny_hints.py",
+        "tests/sync/test_history_disclosure.py",
+        "tests/sync/test_layout_generation.py",
+        "tests/sync/test_legacy_grant_writers.py",
+        "tests/sync/test_project_consent_authority.py",
+        "tests/sync/test_project_consent_incident_baseline.py",
+        "tests/sync/test_project_store.py",
+        "tests/sync/test_project_store_transactions.py",
+        "tests/sync/test_project_sync_context.py"
       ],
       "predicted_surfaces": [
         "api",
         "app-shell",
+        "artifact-rendering",
         "legacy-cleanup",
         "tracker-integration"
       ],
@@ -28,61 +52,6 @@
     },
     {
       "lane_id": "lane-b",
-      "wp_ids": [
-        "WP02"
-      ],
-      "write_scope": [
-        "src/specify_cli/state/contract.py",
-        "src/specify_cli/sync/layout_generation.py",
-        "src/specify_cli/sync/project_context.py",
-        "src/specify_cli/sync/project_identity.py",
-        "src/specify_cli/sync/project_store.py",
-        "tests/sync/test_layout_generation.py",
-        "tests/sync/test_project_store.py",
-        "tests/sync/test_project_store_transactions.py",
-        "tests/sync/test_project_sync_context.py"
-      ],
-      "predicted_surfaces": [
-        "api",
-        "app-shell",
-        "legacy-cleanup",
-        "tracker-integration"
-      ],
-      "depends_on_lanes": [
-        "lane-a"
-      ],
-      "parallel_group": 1
-    },
-    {
-      "lane_id": "lane-c",
-      "wp_ids": [
-        "WP03"
-      ],
-      "write_scope": [
-        "src/specify_cli/sync/config.py",
-        "src/specify_cli/sync/consent.py",
-        "src/specify_cli/sync/deny_hints.py",
-        "src/specify_cli/sync/history_disclosure.py",
-        "src/specify_cli/sync/routing.py",
-        "tests/sync/test_consent_epochs.py",
-        "tests/sync/test_daemon_deny_hints.py",
-        "tests/sync/test_history_disclosure.py",
-        "tests/sync/test_legacy_grant_writers.py",
-        "tests/sync/test_project_consent_authority.py"
-      ],
-      "predicted_surfaces": [
-        "api",
-        "app-shell",
-        "legacy-cleanup",
-        "tracker-integration"
-      ],
-      "depends_on_lanes": [
-        "lane-b"
-      ],
-      "parallel_group": 2
-    },
-    {
-      "lane_id": "lane-d",
       "wp_ids": [
         "WP04"
       ],
@@ -109,13 +78,12 @@
         "tracker-integration"
       ],
       "depends_on_lanes": [
-        "lane-b",
-        "lane-c"
+        "lane-a"
       ],
-      "parallel_group": 3
+      "parallel_group": 1
     },
     {
-      "lane_id": "lane-e",
+      "lane_id": "lane-c",
       "wp_ids": [
         "WP05"
       ],
@@ -140,13 +108,12 @@
         "workspace"
       ],
       "depends_on_lanes": [
-        "lane-b",
-        "lane-c"
+        "lane-a"
       ],
-      "parallel_group": 3
+      "parallel_group": 1
     },
     {
-      "lane_id": "lane-f",
+      "lane_id": "lane-d",
       "wp_ids": [
         "WP06"
       ],
@@ -162,13 +129,13 @@
         "app-shell"
       ],
       "depends_on_lanes": [
-        "lane-d",
-        "lane-e"
+        "lane-b",
+        "lane-c"
       ],
-      "parallel_group": 4
+      "parallel_group": 2
     },
     {
-      "lane_id": "lane-j",
+      "lane_id": "lane-h",
       "wp_ids": [
         "WP10"
       ],
@@ -189,12 +156,12 @@
         "legacy-cleanup"
       ],
       "depends_on_lanes": [
-        "lane-d"
+        "lane-b"
       ],
-      "parallel_group": 4
+      "parallel_group": 2
     },
     {
-      "lane_id": "lane-g",
+      "lane_id": "lane-e",
       "wp_ids": [
         "WP07"
       ],
@@ -222,12 +189,12 @@
         "tracker-integration"
       ],
       "depends_on_lanes": [
-        "lane-f"
+        "lane-d"
       ],
-      "parallel_group": 5
+      "parallel_group": 3
     },
     {
-      "lane_id": "lane-h",
+      "lane_id": "lane-f",
       "wp_ids": [
         "WP08"
       ],
@@ -245,12 +212,12 @@
         "tracker-integration"
       ],
       "depends_on_lanes": [
-        "lane-f"
+        "lane-d"
       ],
-      "parallel_group": 5
+      "parallel_group": 3
     },
     {
-      "lane_id": "lane-i",
+      "lane_id": "lane-g",
       "wp_ids": [
         "WP09"
       ],
@@ -264,13 +231,13 @@
         "tracker-integration"
       ],
       "depends_on_lanes": [
-        "lane-g",
-        "lane-h"
+        "lane-e",
+        "lane-f"
       ],
-      "parallel_group": 6
+      "parallel_group": 4
     },
     {
-      "lane_id": "lane-k",
+      "lane_id": "lane-i",
       "wp_ids": [
         "WP11"
       ],
@@ -294,14 +261,35 @@
         "tracker-integration"
       ],
       "depends_on_lanes": [
-        "lane-i",
-        "lane-j"
+        "lane-g",
+        "lane-h"
       ],
-      "parallel_group": 7
+      "parallel_group": 5
     }
   ],
-  "computed_at": "2026-08-09T18:02:51.222589+00:00",
+  "computed_at": "2026-08-10T00:37:54.496560+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
-  "planning_commit_sha": "600d683472f94c87a62fea80fd45e1e927efefa0"
+  "planning_commit_sha": "2a706d2274ec81eb66ce2e145fd2e10ff87de740",
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP02",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/architectural/test_project_store_boundary.py' vs 'tests/architectural/test_project_store_boundary.py', 'tests/architectural/test_egress_consent_boundary.py' vs 'tests/architectural/test_egress_consent_boundary.py'; WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP03",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/architectural/test_sync_writer_census.py' vs 'tests/architectural/test_sync_writer_census.py', 'tests/architectural/test_egress_consent_boundary.py' vs 'tests/architectural/test_egress_consent_boundary.py'"
+      }
+    ],
+    "total_merges": 2,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 2
+    }
+  }
 }
