@@ -465,6 +465,34 @@ cuts both ways — including *not* moving a correct one to match a stale premise
   gate for the pins; a reviewer should verify each of the 30 rescued members and
   the 20 remaining against the measured diff.
 
+### Writing-comms/diagramming activation (commit `9a99801f1`, #3009) — profile-channel rescues +6
+
+The dogfooding activation of the writing-comms/diagramming doctrine set (commit
+`9a99801f1`) added seventeen artefacts to the action-channel unreachable sets
+(`_ACTION_UNREACHABLE_D1`/`D2`). Seven of the seventeen are **rescued by the
+profile channel** — action-`d=2`-unreachable yet delivered by an activated
+writing-comms profile — so `_PROFILE_RESCUES` moves **30 → 37**. Each delivering
+edge is traced from the built-in graph via `profile_channel_reachable` (C-001, no
+hand-rolled walk):
+
+- `directive:DIRECTIVE_047` — `agent_profile:scribe-sally` requires it directly.
+- `directive:DIRECTIVE_048` — `agent_profile:scribe-sally` requires it directly.
+- `directive:DIRECTIVE_049` — `agent_profile:minutes-maker-mahad` requires it directly.
+- `directive:DIRECTIVE_050` — `agent_profile:minutes-maker-mahad` requires it directly.
+- `directive:USE_C4_MODEL_TECHNIQUES` — `agent_profile:diagram-daisy` requires it
+  directly (the slug-hub directive; its store slug `use-c4-model-techniques` now
+  normalizes to this node URN via the `id_normalizer` hyphen→underscore fix).
+- `styleguide:quadruple-a-test-format` — via `agent_profile:generic-agent` →
+  `directive:DIRECTIVE_041` --`suggests`--> the styleguide.
+- `tactic:writing-audience-catalog` — `agent_profile:comms-cleo` reaches it directly.
+
+The other ten of the seventeen are unreachable from **both** channels and are
+recorded as tracked #3009 debt (added to `_PROFILE_UNREACHABLE`), to be wired with
+real inbound edges by the deferred orphan-wiring doctrine mission — they are NOT
+rescues and carry no ledger row here. (`directive:RECONCILE_CHANGE_SCOPE_TENSIONS`
+is one of the ten: it is wired only by hand-authored `reconciles_tension` overlay
+edges the profile channel does not walk.)
+
 ## Composition ledger (NFR-004) — counts this WP moves
 
 The single authored edge moves these counts. Each is recorded so no golden

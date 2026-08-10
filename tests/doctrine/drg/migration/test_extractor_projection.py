@@ -630,11 +630,6 @@ _AWAITING_REFERENCES: frozenset[str] = frozenset(
         # pack layer by ADR 2026-07-26-2, which made it a node for the first
         # time. Nothing references it yet.
         "toolguide:powershell-syntax",
-        # Ledger (doctrine-tension-edges-01KY1WPC WP03): a plain built-in
-        # directive whose only edges are the hand-authored
-        # ``reconciles_tension`` ones the extractor cannot mint. Wired by the
-        # overlay -- see _ORPHANS_RESOLVED_BY_OVERLAY.
-        "directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
         # Ledger (10) #3063 family-B: the new disciplined-refactoring hub
         # directive. It carries no inline references, so a pure ``generate_graph``
         # mints its node but no edge; its only edges are the hand-authored
@@ -654,11 +649,16 @@ _AWAITING_REFERENCES: frozenset[str] = frozenset(
         # node but no edge; every one is wired only by the hand-authored family-D
         # ``suggests`` edges. Wired by the overlay -- see
         # _ORPHANS_RESOLVED_BY_OVERLAY.
+        #
+        # Ledger (writing-comms/diagramming activation, commit 9a99801f1, #3009):
+        # four of the five family-D artefacts -- quadruple-a-test-format,
+        # given-when-then-authoring, sonar, gherkin -- became charter-ACTIVATED. An
+        # activated pure orphan is a tracked #3009 defect, so they graduate to
+        # _ACTIVATED_BUT_ORPHANED (the floor guard demands it, and the orphan
+        # partition keeps each URN in exactly one bucket). Only
+        # ``USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY`` -- which is NOT activated
+        # -- stays here as a plain awaiting-references orphan.
         "directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
-        "styleguide:quadruple-a-test-format",
-        "styleguide:given-when-then-authoring",
-        "toolguide:sonar",
-        "toolguide:gherkin",
     }
 )
 
@@ -700,7 +700,9 @@ _NOT_A_TRAVERSAL_TARGET: frozenset[str] = frozenset({"agent_profile:human-in-cha
 #: WIRED via ``_CURATED_ARTIFACT_EDGES`` (ledger entry 7) -- seven targets plus
 #: ``directive:DIRECTIVE_035``, which leaves this set by becoming an edge SOURCE
 #: rather than by gaining an inbound edge.
-#: ``styleguide:deployable-skill-authoring`` is the only survivor.
+#: ``styleguide:deployable-skill-authoring`` was the only survivor of ledger
+#: entry 7; the writing-comms/diagramming activation (commit 9a99801f1, #3009)
+#: later adds four more activated pure orphans -- see the set body.
 #:
 #: The first pass had ``paradigm:atomic-design`` here instead, claiming no
 #: defensible source existed. Review refuted that from the corpus:
@@ -717,11 +719,33 @@ _NOT_A_TRAVERSAL_TARGET: frozenset[str] = frozenset({"agent_profile:human-in-cha
 _ACTIVATED_BUT_ORPHANED: frozenset[str] = frozenset(
     {
         "styleguide:deployable-skill-authoring",
+        # Ledger (writing-comms/diagramming activation, commit 9a99801f1, #3009):
+        # the four family-D BDD/testing artefacts the writing-comms charter set
+        # activated. Each is still wired only by the family-D overlay (they stay in
+        # _ORPHANS_RESOLVED_BY_OVERLAY) yet remain unreachable from any action or
+        # profile traversal root -- activating them cascades to nothing. Tracked as
+        # #3009 debt until real inbound edges are authored (the deferred A2
+        # orphan-wiring doctrine mission), NOT green-washed away here.
+        "styleguide:quadruple-a-test-format",
+        "styleguide:given-when-then-authoring",
+        "toolguide:sonar",
+        "toolguide:gherkin",
+        # Ledger (writing-comms/diagramming activation, commit 9a99801f1, #3009):
+        # the reconcile-change-scope-tensions hub directive. Its only edges are the
+        # hand-authored ``reconciles_tension`` overlay edges (still in
+        # _ORPHANS_RESOLVED_BY_OVERLAY); it became charter-ACTIVATED, and once
+        # id_normalizer folds its slug to the node URN it is detected as an
+        # activated pure orphan -- so it graduates here from _AWAITING_REFERENCES.
+        "directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
     }
 )
 
 #: Every node a PURE ``generate_graph`` run leaves incident to no edge.
-#: 17 + 10 + 1 + 1 = 29 (``_AWAITING_REFERENCES`` shrank to 10 with ledger entry (15)'s
+#: 17 + 5 + 1 + 6 = 29 (``_AWAITING_REFERENCES`` shrank 10 -> 5 when the
+#: writing-comms/diagramming activation (commit 9a99801f1, #3009) graduated four
+#: family-D artefacts plus the reconcile-change-scope-tensions hub directive into
+#: ``_ACTIVATED_BUT_ORPHANED`` 1 -> 6; the union is unchanged. It had earlier
+#: shrunk to 10 with ledger entry (15)'s
 #: rehome-writing-comms-doctrine, which gives ``directive:USE_C4_MODEL_TECHNIQUES`` a
 #: real extractor edge via ``agent_profile:diagram-daisy`` -- it had grown to 11 with
 #: ledger entry (12)'s five new family-D artefacts, atop entry (11)'s
