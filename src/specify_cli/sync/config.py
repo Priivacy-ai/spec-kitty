@@ -9,6 +9,7 @@ that need the *live runtime target* must obtain a
 precedence and derives the queue scope) rather than treating the raw
 ``get_server_url`` value as the target.
 """
+
 import sys
 from dataclasses import dataclass
 from enum import StrEnum
@@ -172,9 +173,7 @@ class ProjectConsentRead:
         return self.fault is not None
 
 
-def _project_consent_entry(
-    config: dict[str, Any], project_uuid: str
-) -> tuple[bool | None, str | None]:
+def _project_consent_entry(config: dict[str, Any], project_uuid: str) -> tuple[bool | None, str | None]:
     """Decode one uuid's consent entry: ``(enabled, fault_detail)``.
 
     Shared by :meth:`SyncConfig.get_project_consent` and
@@ -214,16 +213,14 @@ def _project_consent_entry(
     if not isinstance(entry, dict):
         return (
             None,
-            f"[sync.project_consent.{project_uuid!r}] is not a table "
-            f"(got {type(entry).__name__})",
+            f"[sync.project_consent.{project_uuid!r}] is not a table (got {type(entry).__name__})",
         )
     enabled = entry.get("enabled")
     if isinstance(enabled, bool):
         return (enabled, None)
     return (
         None,
-        f"[sync.project_consent.{project_uuid!r}].enabled is not a boolean "
-        f"(got {enabled!r})",
+        f"[sync.project_consent.{project_uuid!r}].enabled is not a boolean (got {enabled!r})",
     )
 
 
@@ -238,7 +235,7 @@ class SyncConfig:
         # (mypy follow_imports=skip for ``specify_cli.*``); coerce at the typed
         # boundary.
         self.config_dir: Path = get_runtime_root().base
-        self.config_file = self.config_dir / 'config.toml'
+        self.config_file = self.config_dir / "config.toml"
 
     def read(self) -> ConfigRead:
         """Load config.toml, reporting *why* it is empty (#3030 FR-020).
@@ -364,9 +361,7 @@ class SyncConfig:
             # healthy. One broken entry is not a broken index.
             return ProjectConsentRead(
                 enabled=None,
-                fault=ConfigReadFault(
-                    kind="unusable", detail=f"{self.config_file}: {entry_fault}"
-                ),
+                fault=ConfigReadFault(kind="unusable", detail=f"{self.config_file}: {entry_fault}"),
             )
         return ProjectConsentRead(enabled=enabled, fault=None)
 
@@ -378,15 +373,15 @@ class SyncConfig:
     def get_server_url(self) -> str:
         """Get server URL from config"""
         config = self._load()
-        url = config.get('sync', {}).get('server_url', 'https://spec-kitty-dev.fly.dev')
+        url = config.get("sync", {}).get("server_url", "https://spec-kitty-dev.fly.dev")
         return str(url)
 
     def set_server_url(self, url: str) -> None:
         """Set server URL in config"""
         config = self._load_for_update()
-        if 'sync' not in config:
-            config['sync'] = {}
-        config['sync']['server_url'] = url
+        if "sync" not in config:
+            config["sync"] = {}
+        config["sync"]["server_url"] = url
         self._save(config)
 
     def resolve_runtime_target(
@@ -426,7 +421,7 @@ class SyncConfig:
                 return int(value)
         except (TypeError, ValueError):
             pass
-        return DEFAULT_MAX_QUEUE_SIZE
+        return int(DEFAULT_MAX_QUEUE_SIZE)
 
     def set_max_queue_size(self, size: int) -> None:
         """Set maximum offline queue size in config."""
@@ -459,9 +454,7 @@ class SyncConfig:
         stripped = raw.strip()
 
         if stripped == "":
-            raise ValueError(
-                "[sync].background_daemon must be 'auto' or 'manual', not an empty string"
-            )
+            raise ValueError("[sync].background_daemon must be 'auto' or 'manual', not an empty string")
 
         folded = stripped.casefold()
         policy = _BACKGROUND_DAEMON_VALUES.get(folded)
@@ -505,16 +498,11 @@ class SyncConfig:
         return None
 
     def set_repository_sync_enabled(self, repo_slug: str, enabled: bool) -> None:
-        """Persist the default sync preference for future checkouts of a repo."""
-        config = self._load_for_update()
-        if "sync" not in config:
-            config["sync"] = {}
-        repo_defaults = config["sync"].setdefault("repo_defaults", {})
-        if not isinstance(repo_defaults, dict):
-            repo_defaults = {}
-            config["sync"]["repo_defaults"] = repo_defaults
-        repo_defaults[repo_slug] = {"enabled": bool(enabled)}
-        self._save(config)
+        """Reject the retired repository-default consent writer."""
+        del repo_slug, enabled
+        from .consent import LegacyConsentMigrationRequiredError
+
+        raise LegacyConsentMigrationRequiredError("repository defaults are non-authoritative; use explicit project opt-in")
 
     def get_checkout_sync_enabled(self, repo_root: Path) -> bool | None:
         """Return the remembered sync preference for one local checkout path."""
@@ -531,16 +519,11 @@ class SyncConfig:
         return None
 
     def set_checkout_sync_enabled(self, repo_root: Path, enabled: bool) -> None:
-        """Persist the sync preference for one local checkout path only."""
-        config = self._load_for_update()
-        if "sync" not in config:
-            config["sync"] = {}
-        checkout_overrides = config["sync"].setdefault("checkout_overrides", {})
-        if not isinstance(checkout_overrides, dict):
-            checkout_overrides = {}
-            config["sync"]["checkout_overrides"] = checkout_overrides
-        checkout_overrides[str(repo_root.resolve())] = {"enabled": bool(enabled)}
-        self._save(config)
+        """Reject the retired checkout-local consent writer."""
+        del repo_root, enabled
+        from .consent import LegacyConsentMigrationRequiredError
+
+        raise LegacyConsentMigrationRequiredError("checkout overrides are non-authoritative; use explicit project opt-in")
 
     # --- uuid-keyed consent index (#3030 FR-013) --------------------------
     #
@@ -568,32 +551,18 @@ class SyncConfig:
         return records
 
     def set_project_consent(self, project_uuid: str, enabled: bool) -> None:
-        """Record consent for one project."""
-        self.set_project_consent_bulk({project_uuid: enabled})
+        """Reject the retired machine UUID consent-index writer."""
+        del project_uuid, enabled
+        from .consent import LegacyConsentMigrationRequiredError
+
+        raise LegacyConsentMigrationRequiredError("the machine consent index is non-authoritative; use explicit opt-in")
 
     def set_project_consent_bulk(self, entries: dict[str, bool]) -> None:
-        """Record consent for many projects in a **single** file write.
+        """Reject bulk consent writes; consent is one explicit project action."""
+        del entries
+        from .consent import LegacyConsentMigrationRequiredError
 
-        Batched on purpose: these setters are unlocked whole-file
-        read-modify-writes and the daemon writes this file concurrently with an
-        interactive ``sync enable``. Since #3030 a lost record is a silent
-        delivery denial, not a cosmetic loss, so a backfill over N paths must not
-        be N read-modify-write cycles.
-        """
-        if not entries:
-            return
-        config = self._load_for_update()
-        section = config.setdefault("sync", {})
-        if not isinstance(section, dict):
-            section = {}
-            config["sync"] = section
-        consent = section.setdefault("project_consent", {})
-        if not isinstance(consent, dict):
-            consent = {}
-            section["project_consent"] = consent
-        for uuid, enabled in entries.items():
-            consent[str(uuid)] = {"enabled": bool(enabled)}
-        self._save(config)
+        raise LegacyConsentMigrationRequiredError("bulk consent writes are retired; each grant requires explicit project opt-in")
 
     def mark_checkout_records_unresolved(self, paths: list[str]) -> None:
         """Flag path-keyed records whose checkout no longer resolves to a uuid.
