@@ -77,6 +77,14 @@ def should_index(relative_path: str, markup: str) -> bool:
         return False
     if rel.startswith("assets/"):
         return False
+    # kitty-specs are dogfooded mission artifacts (spec/plan/tasks/... per
+    # mission) surfaced in the site for provenance, not curated public pages:
+    # they legitimately share a per-mission description and carry glossary-linked
+    # titles. They are internal, so they stay out of search indexing — and, as
+    # the single indexability authority (I-08), out of the SEO rules (og:title,
+    # duplicate-description) and the sitemap too.
+    if rel.startswith("kitty-specs/") or "/kitty-specs/" in rel:
+        return False
     if 'http-equiv="refresh"' in markup.lower():
         return False
     robots = ROBOTS_RE.search(markup)

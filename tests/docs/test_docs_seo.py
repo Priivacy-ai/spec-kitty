@@ -96,6 +96,16 @@ def test_seo_postprocess_injects_static_metadata(tmp_path: Path) -> None:
     nested = site / "how-to"
     nested.mkdir()
     (nested / "toc.html").write_text("<html><head><title>TOC</title></head><body></body></html>", encoding="utf-8")
+    # kitty-specs are dogfooded mission artifacts — internal, kept out of search
+    # indexing and the sitemap (should_index returns False for them).
+    spec_dir = site / "kitty-specs" / "065-x"
+    spec_dir.mkdir(parents=True)
+    (spec_dir / "spec.html").write_text(
+        '<html><head><title>Feature 065 | Spec Kitty Documentation</title>'
+        '<meta name="description" content="Mission 065 spec."></head>'
+        "<body><h1>Spec</h1></body></html>",
+        encoding="utf-8",
+    )
 
     pages = seo_postprocess.process_html(site, "https://docs.spec-kitty.ai/", "assets/images/logo_small.webp")
     seo_postprocess.write_sitemap(site, pages)
@@ -110,9 +120,13 @@ def test_seo_postprocess_injects_static_metadata(tmp_path: Path) -> None:
     toc_rendered = (nested / "toc.html").read_text(encoding="utf-8")
     assert 'name="robots" content="noindex, follow"' in toc_rendered
 
+    spec_rendered = (spec_dir / "spec.html").read_text(encoding="utf-8")
+    assert 'name="robots" content="noindex, follow"' in spec_rendered
+
     sitemap = (site / "sitemap.xml").read_text(encoding="utf-8")
     assert "https://docs.spec-kitty.ai/" in sitemap
     assert "toc.html" not in sitemap
+    assert "kitty-specs" not in sitemap
 
     robots = (site / "robots.txt").read_text(encoding="utf-8")
     assert "Sitemap: https://docs.spec-kitty.ai/sitemap.xml" in robots
