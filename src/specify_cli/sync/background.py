@@ -20,10 +20,10 @@ import logging
 import sqlite3
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from kernel.clock import datetime, now_utc
 from specify_cli.auth import get_token_manager
 from specify_cli.auth.errors import AuthenticationError
 from specify_cli.auth.refresh_transaction import RefreshLockTimeoutError
@@ -606,7 +606,7 @@ class BackgroundSyncService:
                     return self._record_unauthenticated_tick(result)
                 self._consecutive_failures = 0
                 self._backoff_seconds = 0.5
-                self._last_sync = datetime.now(UTC)
+                self._last_sync = now_utc()
                 return result
             except Exception as exc:
                 self._consecutive_failures += 1
@@ -659,7 +659,7 @@ class BackgroundSyncService:
                 return self._record_unauthenticated_tick(result)
             self._consecutive_failures = 0
             self._backoff_seconds = 0.5
-            self._last_sync = datetime.now(UTC)
+            self._last_sync = now_utc()
             return result
         except Exception as exc:
             self._consecutive_failures += 1

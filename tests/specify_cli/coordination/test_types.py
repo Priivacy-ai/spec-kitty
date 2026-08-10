@@ -12,11 +12,11 @@ Covers:
 from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
-from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
+from kernel.clock import now_utc
 from specify_cli.coordination.types import (
     Allowed,
     CommitReceipt,
@@ -99,7 +99,7 @@ def test_pending_event_handle_is_frozen() -> None:
 
 
 def test_commit_receipt_carries_contract_fields() -> None:
-    now = datetime.now(UTC)
+    now = now_utc()
     receipt = CommitReceipt(
         commit_sha="abc123",
         committed_at=now,

@@ -40,12 +40,12 @@ import sys
 import tempfile
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field as dataclass_field
-from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any, Literal
 
 import psutil
 
+from kernel.clock import now_utc_seconds
 from specify_cli.core.loopback_http import build_loopback_url
 from specify_cli.sync.daemon import (
     DAEMON_EXEC_ARG_PREFIX,
@@ -1036,7 +1036,7 @@ def build_record_for_current_process(
     health response.
     """
     identity = compute_foreground_identity(allow_network=allow_network)
-    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+    now = now_utc_seconds()
     return DaemonOwnerRecord(
         pid=pid,
         port=port,

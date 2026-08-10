@@ -19,11 +19,12 @@ writes to stdout.
 from __future__ import annotations
 
 import sys
-import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import ValidationError as PydanticValidationError
+
+from kernel.clock import now_epoch
 
 from spec_kitty_events import Event
 # Canonical event-type registry (Priivacy-ai/spec-kitty#1222).
@@ -342,7 +343,7 @@ def diagnose_body_queue(body_queue: OfflineBodyUploadQueue) -> dict[str, Any]:
             "in_backoff": stats.backoff_count,
             "max_retry_count": stats.max_retry_count,
             "oldest_task_age_seconds": (
-                time.time() - stats.oldest_created_at
+                now_epoch() - stats.oldest_created_at
                 if stats.oldest_created_at is not None
                 else None
             ),

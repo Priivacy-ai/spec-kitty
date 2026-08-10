@@ -318,7 +318,8 @@ def test_wp_created_envelope_timestamp_matches_normalized_created_at():
     elsewhere), and it must name the exact same moment the payload's
     ``created_at`` datetime does — not a raw, un-normalized passthrough."""
     import dataclasses
-    from datetime import datetime
+
+    from kernel.clock import parse_iso
 
     scan = dataclasses.replace(
         _demo_scan(),
@@ -336,7 +337,7 @@ def test_wp_created_envelope_timestamp_matches_normalized_created_at():
     # The payload keeps its own (pydantic-serialized) datetime, but it must
     # name the SAME instant as the envelope timestamp — never a differing
     # verdict on the same underlying created_at.
-    assert datetime.fromisoformat(wp_created["payload"]["created_at"]) == datetime.fromisoformat(
+    assert parse_iso(wp_created["payload"]["created_at"]) == parse_iso(
         wp_created["timestamp"]
     )
 

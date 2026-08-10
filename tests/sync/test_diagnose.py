@@ -6,8 +6,7 @@ checks, and per-event-type payload validation using ``_PAYLOAD_RULES``.
 
 from __future__ import annotations
 
-from datetime import datetime, UTC
-
+from kernel.clock import now_utc_iso
 from specify_cli.sync.diagnose import DiagnoseResult, diagnose_events
 
 import pytest
@@ -45,7 +44,7 @@ def _make_valid_event(**overrides) -> dict:
             "mission_slug": "039-test",
             "execution_mode": "direct_repo",
         },
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": now_utc_iso(),
         "node_id": "test-node",
         "lamport_clock": 1,
         "causation_id": None,

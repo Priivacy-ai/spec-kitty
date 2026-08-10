@@ -12,9 +12,9 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 
+from kernel.clock import parse_iso
 from spec_kitty_events import normalize_event_id
 
 from .models import Lane
@@ -324,7 +324,7 @@ def _is_valid_iso8601(value: str) -> bool:
     """
     try:
         # Python 3.11+ datetime.fromisoformat handles Z suffix
-        datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parse_iso(value.replace("Z", "+00:00"))
         return True
     except (ValueError, AttributeError):
         return False

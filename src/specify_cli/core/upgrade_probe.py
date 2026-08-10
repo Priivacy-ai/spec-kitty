@@ -24,11 +24,12 @@ The probe **never** raises. Callers can rely on the returned
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
 from enum import StrEnum
 from typing import Any
 
 import httpx
+
+from kernel.clock import datetime, now_utc
 
 from specify_cli.core.version_compare import is_version_newer, try_parse_version
 
@@ -121,7 +122,7 @@ def probe_pypi(
         f"spec-kitty-cli/{cli_version} "
         "(https://github.com/Priivacy-ai/spec-kitty)"
     )
-    probed_at = datetime.now(UTC)
+    probed_at = now_utc()
 
     try:
         client_kwargs: dict[str, Any] = {

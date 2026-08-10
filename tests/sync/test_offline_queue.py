@@ -4,7 +4,7 @@ import sqlite3
 import pytest
 
 pytestmark = pytest.mark.fast
-from datetime import UTC, datetime, timedelta
+from kernel.clock import now_epoch, now_utc, timedelta
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.auth.secure_storage.file_fallback import FileFallbackStorage
 from io import StringIO
@@ -258,7 +258,7 @@ class TestOfflineQueueDefaultPath:
     @staticmethod
     def _write_session(tmp_path: Path, *, team_id: str = "team-red") -> StoredSession:
         storage = FileFallbackStorage(base_dir=tmp_path / ".spec-kitty" / "auth")
-        issued_at = datetime.now(UTC)
+        issued_at = now_utc()
         session = StoredSession(
             user_id="user-1",
             email="test@example.com",
@@ -490,9 +490,8 @@ class TestQueueStats:
         # Insert events with specific timestamps using raw SQL
         conn = sqlite3.connect(temp_queue.db_path)
         import json
-        import time
 
-        now = int(time.time())
+        now = int(now_epoch())
         # Insert an event 3600 seconds (1 hour) ago
         old_ts = now - 3600
         conn.execute(

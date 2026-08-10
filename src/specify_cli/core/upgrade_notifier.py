@@ -30,13 +30,12 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import asdict, replace
-from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 from rich.console import Console
 
-from kernel.clock import Clock, DEFAULT_CLOCK
+from kernel.clock import Clock, DEFAULT_CLOCK, datetime, parse_iso, timedelta
 from specify_cli.core.env import is_truthy
 from specify_cli.core.upgrade_probe import (
     UpgradeChannel,
@@ -110,7 +109,7 @@ def _deserialize_result(data: dict[str, Any]) -> UpgradeProbeResult | None:
                 else None
             ),
             channel=UpgradeChannel(data["channel"]),
-            probed_at=datetime.fromisoformat(data["probed_at"]),
+            probed_at=parse_iso(data["probed_at"]),
             error=(str(data["error"]) if data.get("error") is not None else None),
             releases=tuple(data.get("releases") or ()),
         )

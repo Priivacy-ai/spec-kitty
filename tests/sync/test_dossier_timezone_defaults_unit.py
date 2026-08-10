@@ -6,10 +6,10 @@ paths touched by the datetime.utcnow deprecation remediation.
 
 from __future__ import annotations
 
-from datetime import UTC
 from pathlib import Path
 from uuid import uuid4
 
+from kernel.clock import UTC
 from specify_cli.dossier.drift_detector import capture_baseline
 from specify_cli.dossier.indexer import Indexer
 from specify_cli.dossier.manifest import ManifestRegistry

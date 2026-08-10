@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, UTC
 from io import StringIO
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -10,6 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from rich.console import Console
 
+from kernel.clock import UTC, datetime, now_utc, timedelta
 from specify_cli.cli.commands.sync import format_queue_health
 from specify_cli.sync.config import ConfigRead
 from specify_cli.sync.queue import DEFAULT_MAX_QUEUE_SIZE, QueueStats
@@ -166,7 +166,7 @@ class TestDoctorCommand:
         mock_config.read.return_value = ConfigRead(data={}, fault=None)
         mock_config_cls.return_value = mock_config
 
-        now = datetime.now(UTC)
+        now = now_utc()
         session = _make_fake_session(
             access_expires_at=now + timedelta(days=30),
             refresh_expires_at=now + timedelta(days=30),

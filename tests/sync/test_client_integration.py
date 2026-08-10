@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import UTC, datetime, timedelta
 from typing import Any
 import pytest
 from unittest.mock import AsyncMock
@@ -20,6 +19,7 @@ from uuid import UUID
 import httpx
 import respx
 
+from kernel.clock import now_utc, timedelta
 from specify_cli.auth.secure_storage import SecureStorage
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.auth.token_manager import TokenManager
@@ -215,7 +215,7 @@ class _FakeStorage(SecureStorage):  # type: ignore[misc]
 
 
 def _build_session(*, teams: list[Team]) -> StoredSession:
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id="user-1",
         email="u@example.com",

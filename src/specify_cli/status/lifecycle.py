@@ -10,11 +10,10 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from kernel.clock import Clock, DEFAULT_CLOCK
+from kernel.clock import UTC, Clock, DEFAULT_CLOCK, datetime, from_epoch, parse_iso, timedelta
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status.lifecycle_events import (
     FOLLOW_UP_RECORDED,
@@ -132,7 +131,7 @@ def _parse_dt(raw: object) -> datetime | None:
     if not isinstance(raw, str) or not raw.strip():
         return None
     try:
-        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        parsed = parse_iso(raw.replace("Z", "+00:00"))
     except ValueError:
         return None
     if parsed.tzinfo is None:
@@ -148,7 +147,7 @@ def _fallback_created_at(feature_dir: Path) -> datetime | None:
         return created_at
 
     try:
-        return datetime.fromtimestamp(feature_dir.stat().st_mtime, tz=UTC)
+        return from_epoch(feature_dir.stat().st_mtime)
     except OSError:
         return None
 

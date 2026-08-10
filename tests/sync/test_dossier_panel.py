@@ -12,7 +12,7 @@ Tests verify:
 
 import pytest
 from pathlib import Path
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 
 pytestmark = pytest.mark.fast
 
@@ -56,7 +56,7 @@ class TestDossierAPIResponses:
                 "optional_present": 14,
             },
             "missing_required_count": 2,
-            "last_scanned_at": datetime.now(UTC).isoformat(),
+            "last_scanned_at": now_utc_iso(),
         }
 
         # Verify structure
@@ -125,7 +125,7 @@ class TestDossierAPIResponses:
             "content_truncated": False,
             "truncation_notice": None,
             "media_type_hint": "markdown",
-            "indexed_at": datetime.now(UTC).isoformat(),
+            "indexed_at": now_utc_iso(),
         }
 
         # Verify structure

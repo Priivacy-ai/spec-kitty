@@ -46,7 +46,9 @@ from kernel.clock import (
     now_utc_iso,
     now_utc_seconds,
     now_utc_stamp,
+    timedelta,
 )
+from specify_cli.task_utils.support import now_utc as _task_utils_now_utc_stamp
 
 pytestmark = pytest.mark.fast
 
@@ -260,6 +262,119 @@ REGISTRY: dict[str, RegisteredSite] = {
     # `datetime.now(UTC).isoformat()` -> now_utc_iso().
     "runtime.runtime_bridge#now": RegisteredSite(
         producer=now_utc_iso,
+        prior_signature=lambda instant: instant.isoformat(),
+    ),
+    # --- WP09 (specify_cli/sync) --------------------------------------------
+    # sync/body_queue.py's persisted SQLite epoch columns (`created_at`,
+    # `next_attempt_at`, `first_failed_at`, `last_failed_at` -- all five call
+    # sites shared the identical prior expression, one representative entry
+    # covers them). Prior: raw `time.time()` -> now_epoch(). `now_epoch()` is
+    # defined as exactly `DEFAULT_CLOCK.now_epoch()` -> `time.time()` (WP03),
+    # so this is a byte-identical delegation (the persisted float epoch is
+    # unchanged), not a reformat.
+    "specify_cli.sync.body_queue.OfflineBodyUploadQueue#persisted_epoch": RegisteredSite(
+        producer=lambda: str(now_epoch()),
+        prior_signature=lambda instant: str(instant.timestamp()),
+    ),
+    # sync/queue.py's persisted `queue.timestamp` column (5 call sites, one
+    # representative entry). Prior: naive `int(datetime.now().timestamp())`
+    # -- a naive `.now()` interpreted under the system's local timezone and
+    # immediately reduced to a Unix epoch via `.timestamp()`, which is the
+    # SAME epoch float `time.time()`/`now_epoch()` would have produced for
+    # that instant (naive-local-`.timestamp()` and aware-UTC-`.timestamp()`
+    # both resolve to the one true Unix epoch for "now" -- this is an epoch
+    # computation in disguise, not a serialized local-time value, so it is
+    # NOT one of the FR-011 byte-changing naive fixes; see
+    # research/migration-notes.md). Migrated onto `int(now_epoch())`.
+    "specify_cli.sync.queue.OfflineQueue#persisted_timestamp": RegisteredSite(
+        producer=lambda: str(int(now_epoch())),
+        prior_signature=lambda instant: str(int(instant.timestamp())),
+    ),
+    # sync/owner.py's `DaemonOwnerRecord.started_at` seconds-precision stamp.
+    # Prior: `datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S+00:00")` -- for a
+    # UTC-tzinfo datetime this is byte-identical to
+    # `isoformat(timespec="seconds")` (both render the zero UTC offset as
+    # `+00:00`) -> now_utc_seconds().
+    "specify_cli.sync.owner.build_foreground_owner_record#started_at": RegisteredSite(
+        producer=now_utc_seconds,
+        prior_signature=lambda instant: instant.strftime("%Y-%m-%dT%H:%M:%S+00:00"),
+    ),
+    # --- WP10 (specify_cli/status + merge + coordination) -------------------
+    # coordination/status_transition.py's batch-commit persisted `StatusEvent.at`
+    # / annotation `at` fields (status.events.jsonl) -- the batch anchor
+    # `started_at` is offset per-event by `timedelta(microseconds=...)` then
+    # serialized via `.isoformat()`. Prior: `datetime.now(UTC)` -> `now_utc()`;
+    # the door's datetime-returning producer is defined as exactly
+    # `DEFAULT_CLOCK.now()` -> `datetime.now(UTC)` (WP02/WP03), so the
+    # subsequent timedelta arithmetic + `.isoformat()` is unchanged.
+    "specify_cli.coordination.status_transition.transition_batch#at": RegisteredSite(
+        producer=lambda: (now_utc() + timedelta(microseconds=3)).isoformat(),
+        prior_signature=lambda instant: (instant + timedelta(microseconds=3)).isoformat(),
+    ),
+    # status/emit.py's batch-claim persisted `StatusEvent.at` / annotation `at`
+    # fields (same `started_at`-anchor-plus-offset-plus-isoformat shape as the
+    # coordination site above, independent call site). Prior:
+    # `datetime.now(UTC)` -> `now_utc()`.
+    "specify_cli.status.emit.emit_status_transitions_batch#at": RegisteredSite(
+        producer=lambda: (now_utc() + timedelta(microseconds=3)).isoformat(),
+        prior_signature=lambda instant: (instant + timedelta(microseconds=3)).isoformat(),
+    ),
+    # --- WP11 (specify_cli/core + task_utils + decisions + dossier) ---------
+    # core/file_lock.py's persisted `LockRecord.started_at` (JSON lock-file
+    # record). Prior: `datetime.now(UTC)` -> `now_utc()`.
+    "specify_cli.core.file_lock.LockRecord#started_at": RegisteredSite(
+        producer=lambda: now_utc().isoformat(),
+        prior_signature=lambda instant: instant.isoformat(),
+    ),
+    # core/upgrade_probe.py's persisted `UpgradeProbeResult.probed_at` (JSON
+    # upgrade-check cache). Prior: `datetime.now(UTC)` -> `now_utc()`.
+    "specify_cli.core.upgrade_probe.probe_pypi#probed_at": RegisteredSite(
+        producer=lambda: now_utc().isoformat(),
+        prior_signature=lambda instant: instant.isoformat(),
+    ),
+    # task_utils/support.py's own `now_utc() -> str` stamp helper (NOT the
+    # door's datetime-returning `now_utc()` -- same name, distinct contract,
+    # C-003; see the module's FR-010/WP11 docstring note). Its body now
+    # delegates to the door's `now_utc_stamp()` instead of a direct
+    # `datetime.now(UTC).strftime(...)` call. Prior signature reproduces the
+    # exact prior expression (the format string is the SAME door constant,
+    # aliased locally as `TIMESTAMP_FORMAT`, both before and after this WP).
+    "specify_cli.task_utils.support.now_utc#stamp": RegisteredSite(
+        producer=_task_utils_now_utc_stamp,
+        prior_signature=lambda instant: instant.strftime("%Y-%m-%dT%H:%M:%SZ"),
+    ),
+    # decisions/emit.py's persisted `DecisionPointOpened`/`DecisionPointResolved`
+    # envelope `at` field (status.events.jsonl) -- previously produced by the
+    # module-local `_now_utc()` helper (`datetime.now(UTC)`, retired this WP);
+    # call sites now read `kernel.clock.now_utc()` directly.
+    "specify_cli.decisions.emit.emit_decision_opened#at": RegisteredSite(
+        producer=lambda: now_utc().isoformat(),
+        prior_signature=lambda instant: instant.isoformat(),
+    ),
+    # decisions/service.py's `IndexEntry.created_at`/`resolved_at` (persisted
+    # `decisions/index.json` via `model_dump(mode="json")`, and rendered
+    # directly into `DM-<id>.md` via `.isoformat()`) -- same retired
+    # module-local `_now_utc()` -> `now_utc()` routing as emit.py above.
+    "specify_cli.decisions.service.open_decision#created_at": RegisteredSite(
+        producer=lambda: now_utc().isoformat(),
+        prior_signature=lambda instant: instant.isoformat(),
+    ),
+    # dossier/models.py's pydantic `default_factory` timestamps (`ArtifactRef
+    # .indexed_at`, `MissionDossier.dossier_created_at`/`dossier_updated_at`,
+    # `MissionDossierSnapshot.computed_at`) -- one representative entry; all
+    # four shared the identical prior expression
+    # `default_factory=lambda: datetime.now(UTC)` -> `default_factory=now_utc`.
+    # Persisted via `dossier/snapshot.py`'s `a.indexed_at.isoformat()` /
+    # `model_dump()`.
+    "specify_cli.dossier.models.ArtifactRef#indexed_at": RegisteredSite(
+        producer=lambda: now_utc().isoformat(),
+        prior_signature=lambda instant: instant.isoformat(),
+    ),
+    # dossier/drift_detector.py's persisted `BaselineSnapshot.captured_at`
+    # (`.kittify/dossiers/<slug>/parity-baseline.json`). Prior:
+    # `datetime.now(UTC)` -> `now_utc()`.
+    "specify_cli.dossier.drift_detector.capture_baseline#captured_at": RegisteredSite(
+        producer=lambda: now_utc().isoformat(),
         prior_signature=lambda instant: instant.isoformat(),
     ),
 }

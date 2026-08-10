@@ -32,7 +32,7 @@ import os
 import socket
 import sys
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from kernel.clock import UTC, datetime, now_utc, parse_iso
 from importlib import metadata as importlib_metadata
 from pathlib import Path
 from types import TracebackType
@@ -100,7 +100,7 @@ class LockRecord:
     @property
     def age_s(self) -> float:
         """Return seconds elapsed since :attr:`started_at` (clamped at ``0``)."""
-        delta = (datetime.now(UTC) - self.started_at).total_seconds()
+        delta = (now_utc() - self.started_at).total_seconds()
         return delta if delta > 0 else 0.0
 
     def is_stuck(self, threshold_s: float = STALE_AFTER_S_DEFAULT) -> bool:
@@ -213,7 +213,7 @@ def _record_from_payload(payload: object) -> LockRecord | None:
     if not isinstance(started_raw, str) or not isinstance(host, str) or not isinstance(version, str):
         return None
     try:
-        started_at = datetime.fromisoformat(started_raw)
+        started_at = parse_iso(started_raw)
     except ValueError:
         return None
     if started_at.tzinfo is None:
@@ -355,7 +355,7 @@ class MachineFileLock:
         return LockRecord(
             schema_version=_SCHEMA_VERSION,
             pid=os.getpid(),
-            started_at=datetime.now(UTC),
+            started_at=now_utc(),
             host=socket.gethostname(),
             version=_get_package_version(),
         )

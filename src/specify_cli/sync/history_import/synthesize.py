@@ -32,12 +32,12 @@ does not validate, persist, or upload — WP-Y5 owns preflight/upload.
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
 from collections.abc import Sequence
 from typing import Any
 
 from spec_kitty_events.project_lifecycle import WPCreatedPayload
 
+from kernel.clock import UTC, datetime, parse_iso
 from specify_cli.core.mission_payload import build_mission_created_payload
 from specify_cli.migration.envelope_seam import (
     build_teamspace_envelope,
@@ -319,7 +319,7 @@ def _parse_timestamp(value: str | None) -> datetime | None:
     if not value:
         return None
     try:
-        return datetime.fromisoformat(value)
+        return parse_iso(value)
     except ValueError:
         return None
 

@@ -25,7 +25,7 @@ from __future__ import annotations
 import logging
 import subprocess
 from collections.abc import Callable
-from datetime import datetime, UTC
+from kernel.clock import UTC, datetime, now_utc, parse_iso
 from kernel._safe_re import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
@@ -307,7 +307,7 @@ def _latest_status_event_time(events: list[StatusEvent], wp_id: str) -> datetime
         if event.wp_id != wp_id or not event.at:
             continue
         try:
-            parsed = datetime.fromisoformat(event.at)
+            parsed = parse_iso(event.at)
         except ValueError:
             continue
         parsed = parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)
@@ -382,7 +382,7 @@ def _apply_review_status_flags(
     """
     stale_verdicts: list[dict[str, object]] = []
     stalled_wps: list[dict[str, object]] = []
-    now = datetime.now(UTC)
+    now = now_utc()
 
     for wp in work_packages:
         wp_id = wp.get("id")

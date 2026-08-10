@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from types import SimpleNamespace
 from uuid import UUID
 
 import pytest
 from spec_kitty_events.models import Event
 
+from kernel.clock import UTC, datetime
 from specify_cli.proof.events import PROOF_EVENT_TYPES
 from specify_cli.sync.diagnose import diagnose_events
 from specify_cli.sync.emitter import EventEmitter, VALID_EVENT_TYPES

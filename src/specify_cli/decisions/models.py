@@ -8,11 +8,12 @@ DecisionTerminalResponse for CLI output contracts.
 
 from __future__ import annotations
 
-from datetime import datetime
 from enum import StrEnum
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from kernel.clock import datetime
 
 
 __all__ = [

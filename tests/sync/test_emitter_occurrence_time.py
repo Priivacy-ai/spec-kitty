@@ -7,13 +7,13 @@ The local ``StatusEvent.at`` MUST survive ``_saas_fan_out`` →
 ``EventEmitter.emit_wp_status_changed`` → ``EventEmitter._emit``, so that the
 wire envelope's ``timestamp`` field equals the local lane-transition moment
 (Rule R-T-01 in spec-kitty-events). When no ``occurred_at`` is provided, the
-emitter mints ``datetime.now(UTC).isoformat()`` (current behavior, for
+emitter mints ``now_utc_iso()`` (current behavior, for
 genuinely new events created at emission time).
 """
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from kernel.clock import now_utc, parse_iso
 
 import pytest
 
@@ -45,7 +45,7 @@ class TestEmitOccurrenceTime:
         assert event["timestamp"] == PRODUCER_TIME_ISO
 
     def test_emit_mints_fresh_timestamp_when_no_occurred_at(self, emitter: EventEmitter, temp_queue: OfflineQueue):
-        before = datetime.now(UTC)
+        before = now_utc()
         event = emitter._emit(
             event_type="WPStatusChanged",
             aggregate_id="WP01",
@@ -59,9 +59,9 @@ class TestEmitOccurrenceTime:
                 "execution_mode": "direct_repo",
             },
         )
-        after = datetime.now(UTC)
+        after = now_utc()
         assert event is not None
-        emitted = datetime.fromisoformat(event["timestamp"].replace("Z", "+00:00"))
+        emitted = parse_iso(event["timestamp"].replace("Z", "+00:00"))
         # The fresh timestamp is bounded by [before, after] within the same call.
         assert before <= emitted <= after
 
@@ -80,7 +80,7 @@ class TestEmitWpStatusChangedOccurredAt:
         assert event["timestamp"] == PRODUCER_TIME_ISO
 
     def test_method_without_occurred_at_mints_fresh(self, emitter: EventEmitter, temp_queue: OfflineQueue):
-        before = datetime.now(UTC)
+        before = now_utc()
         event = emitter.emit_wp_status_changed(
             wp_id="WP02",
             from_lane="planned",
@@ -88,9 +88,9 @@ class TestEmitWpStatusChangedOccurredAt:
             actor="test",
             mission_slug="test-mission",
         )
-        after = datetime.now(UTC)
+        after = now_utc()
         assert event is not None
-        emitted = datetime.fromisoformat(event["timestamp"].replace("Z", "+00:00"))
+        emitted = parse_iso(event["timestamp"].replace("Z", "+00:00"))
         assert before <= emitted <= after
 
 
