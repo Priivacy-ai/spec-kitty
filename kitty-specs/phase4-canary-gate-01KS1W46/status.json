@@ -24,6 +24,7 @@
       "lane": "planned",
       "last_event_id": "01KS2KC8HNT4A3NJDJDQF61NXA",
       "last_transition_at": "2026-05-20T11:47:16.149888+00:00",
+      "review_result": null,
       "shell_pid": 60867,
       "subtasks": {
         "T001": "done",
@@ -41,6 +42,7 @@
       "lane": "planned",
       "last_event_id": "01KS2KCBVTBPSSVW7YQW5BPJ9S",
       "last_transition_at": "2026-05-20T11:47:19.546142+00:00",
+      "review_result": null,
       "shell_pid": 62266,
       "subtasks": {
         "T007": "done",
@@ -58,6 +60,7 @@
       "lane": "approved",
       "last_event_id": "01KS1XCMD1FV1Y8WHYSP2TAGHG",
       "last_transition_at": "2026-05-20T05:22:59.617772+00:00",
+      "review_result": null,
       "shell_pid": 62711,
       "subtasks": {
         "T013": "done",
@@ -73,6 +76,7 @@
       "lane": "planned",
       "last_event_id": "01KS2KCF3FGSG7QMBZASAW5N02",
       "last_transition_at": "2026-05-20T11:47:22.863354+00:00",
+      "review_result": null,
       "shell_pid": 64254,
       "subtasks": {
         "T017": "done",
@@ -91,6 +95,7 @@
       "lane": "planned",
       "last_event_id": "01KS2KCJGCQJFNGDW6CDF3VG8C",
       "last_transition_at": "2026-05-20T11:47:26.348808+00:00",
+      "review_result": null,
       "shell_pid": 65704,
       "subtasks": {
         "T024": "planned",
@@ -106,6 +111,7 @@
       "lane": "planned",
       "last_event_id": "01KS2KCNXFYS8PENXFC97NRPJ3",
       "last_transition_at": "2026-05-20T11:47:29.839719+00:00",
+      "review_result": null,
       "shell_pid": 65704,
       "subtasks": {
         "T028": "planned",
@@ -123,6 +129,7 @@
       "lane": "planned",
       "last_event_id": "01KS2KCSA0W65BWJ8VW2CJEVGG",
       "last_transition_at": "2026-05-20T11:47:33.312790+00:00",
+      "review_result": null,
       "shell_pid": 65704,
       "subtasks": {
         "T034": "planned",
@@ -140,6 +147,7 @@
       "lane": "planned",
       "last_event_id": "01KS2KCWPMHRD4BKA1N4CSVYZH",
       "last_transition_at": "2026-05-20T11:47:36.788440+00:00",
+      "review_result": null,
       "shell_pid": 65704,
       "subtasks": {
         "T040": "planned",

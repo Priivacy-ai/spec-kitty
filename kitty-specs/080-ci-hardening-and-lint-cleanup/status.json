@@ -1,5 +1,5 @@
 {
-  "event_count": 32,
+  "event_count": 34,
   "last_event_id": "01KNSCA8MGHZE5BBP6GW3BK2QZ",
   "materialized_at": "2026-04-09T15:03:35.312539+00:00",
   "mission_number": "80",
@@ -24,6 +24,12 @@
       "lane": "in_progress",
       "last_event_id": "01KNSC9C8JFFQ72FYSWRSNKVZG",
       "last_transition_at": "2026-04-09T15:03:06.258196+00:00",
+      "review_result": {
+        "feedback_path": "/private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260810-130708-cEJgwV/spec-kitty/kitty-specs/080-ci-hardening-and-lint-cleanup/tasks/WP01-auto-fix-ruff-violations/review-cycle-2.md",
+        "reference": "review-cycle://080-ci-hardening-and-lint-cleanup/WP01-auto-fix-ruff-violations/review-cycle-2.md",
+        "reviewer": "unknown",
+        "verdict": "changes_requested"
+      },
       "shell_pid": 40632,
       "subtasks": {
         "T001": "done",
@@ -55,6 +61,12 @@
       "lane": "in_progress",
       "last_event_id": "01KNSCA8MGHZE5BBP6GW3BK2QZ",
       "last_transition_at": "2026-04-09T15:03:35.312539+00:00",
+      "review_result": {
+        "feedback_path": "/private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260810-130708-cEJgwV/spec-kitty/kitty-specs/080-ci-hardening-and-lint-cleanup/tasks/WP03-fix-dossier-schema-drift/review-cycle-2.md",
+        "reference": "review-cycle://080-ci-hardening-and-lint-cleanup/WP03-fix-dossier-schema-drift/review-cycle-2.md",
+        "reviewer": "unknown",
+        "verdict": "changes_requested"
+      },
       "shell_pid": 43579,
       "subtasks": {
         "T010": "done",

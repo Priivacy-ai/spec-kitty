@@ -24,6 +24,11 @@
       "lane": "done",
       "last_event_id": "01KXEQFN1751BNB5E4NSRPSKKZ",
       "last_transition_at": "2026-07-13T21:52:42.023948+00:00",
+      "review_result": {
+        "reference": "Approved: all 5 functional checks passed (reviewer-renata); reject basis (missing tracer) was a stale lane-branch read — WP01 tracer entry + WP05 fold-in flag ARE on mission branch HEAD; commit citation true. WP05 must fold the overlay into _imports_by_target when removing the 4 rows.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3019175,
       "shell_pid_created_at": "1783953675.37",
       "subtasks": {
@@ -44,6 +49,11 @@
       "lane": "approved",
       "last_event_id": "01KXE9JH9QAT6SEZA49167K909",
       "last_transition_at": "2026-07-13T17:49:36.439140+00:00",
+      "review_result": {
+        "reference": "APPROVED classification-only. Classification arbiter-confirmed sound (0-deletable-pre-repoint, proven by reverted 5-name experiment; 3 live production _rb deps). Deletion re-homed in WP18 (deps WP04). Deliverable docs/notes/runtime-bridge-delegate-classification.md committed. Lane DAG acyclic. Force: settled content, orchestrator-decided re-scope per operator.",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
       "shell_pid": 3200587,
       "shell_pid_created_at": "1783957774.75",
       "subtasks": {
@@ -64,6 +74,11 @@
       "lane": "done",
       "last_event_id": "01KXEQGQJSJPCF263SD767ZSPK",
       "last_transition_at": "2026-07-13T21:53:17.401557+00:00",
+      "review_result": {
+        "reference": "APPROVE (reviewer-renata/opus): all 9 repointed names resolve to defining seam (no false-greens); stub-widening genuine positional-convention; _check_cli_guards correctly left composite/façade; canonical __all__ untouched; tests/next 516 passed; scope tests/next+tracer only. Commit e9ea977d9.",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
       "shell_pid": 3544050,
       "shell_pid_created_at": "1783965044.28",
       "subtasks": {
@@ -83,6 +98,11 @@
       "lane": "done",
       "last_event_id": "01KXEQH1HD75FH1HTWC0DC9SP3",
       "last_transition_at": "2026-07-13T21:53:27.597108+00:00",
+      "review_result": {
+        "reference": "APPROVE (reviewer-renata/opus): 47 repoints all target defining seam (grep-verified); repointed names are retained thin delegates (survive WP18 deletion); seam-family scoping CORRECT — those suites assert seam→façade live-lookup, repoint=vacuous; _composition_dispatch_inputs correctly left (plain re-export, WP18 co-refactors call-site+patch); compat_surface+no_dead_symbols untouched; 121 spot-check passed incl test_bridge_parity. Commit 6540d1dea.",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
       "shell_pid": 3628555,
       "shell_pid_created_at": "1783967824.84",
       "subtasks": {
@@ -102,6 +122,11 @@
       "lane": "done",
       "last_event_id": "01KXEQJ42RZQVY274DCCZ2KJ2K",
       "last_transition_at": "2026-07-13T21:54:02.968073+00:00",
+      "review_result": {
+        "reference": "APPROVE (reviewer-renata/opus): atomic wire+remove (bc8b6bada, single commit); wiring load-bearing (4 façade names only reachable via next_cmd call-bound accessor invisible to static AST — un-wire would red); zero-grandfathered-burndown SOUND (traced Mission/Severity/AcceptanceMode live; WP18's 8 deletions non-eligible privates; dangling=0/stale=0); baseline honest (ratchet doesn't validate category_b key); allowlist 317→313; 27 passed. FR-004 burndown premise dissolved by re-seq — evidence-backed, not skipped.",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
       "shell_pid": 3988808,
       "shell_pid_created_at": "1783977060.38",
       "subtasks": {
@@ -123,6 +148,11 @@
       "lane": "done",
       "last_event_id": "01KXEQFT4GXQ27N9PGP8DEMRD4",
       "last_transition_at": "2026-07-13T21:52:47.248288+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata/opus)",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3019175,
       "shell_pid_created_at": "1783953675.37",
       "subtasks": {
@@ -143,6 +173,11 @@
       "lane": "done",
       "last_event_id": "01KXEQFZ25HPS38FTXRV0BGT28",
       "last_transition_at": "2026-07-13T21:52:52.293824+00:00",
+      "review_result": {
+        "reference": "Review passed on merits",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2954148,
       "shell_pid_created_at": "1783952615.6",
       "subtasks": {
@@ -162,6 +197,11 @@
       "lane": "done",
       "last_event_id": "01KXEQG41CDN74VM1MAZ45W5Q5",
       "last_transition_at": "2026-07-13T21:52:57.388779+00:00",
+      "review_result": {
+        "reference": "Review passed on merits: twin re-pointed to observable event, 3 siblings verified clean",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2975016,
       "shell_pid_created_at": "1783952825.42",
       "subtasks": {
@@ -182,6 +222,11 @@
       "lane": "done",
       "last_event_id": "01KXEQG8VVY9VYC73D1CD93PR7",
       "last_transition_at": "2026-07-13T21:53:02.331796+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata/opus): thin factory delegate, behaviour-preserving allow_worktree_context kwarg, byte-identical-after-normalization parity. Force: lane-i status-artifact hygiene reconciled at merge.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3019175,
       "shell_pid_created_at": "1783953675.37",
       "subtasks": {
@@ -202,6 +247,11 @@
       "lane": "done",
       "last_event_id": "01KXEQGDTKSD824CCTNGXQZQ5C",
       "last_transition_at": "2026-07-13T21:53:07.411798+00:00",
+      "review_result": {
+        "reference": "Verified: #2553 real record_property fix (14 nudges/0 warnings); #2295 recount=1",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2964635,
       "shell_pid_created_at": "1783952729.87",
       "subtasks": {
@@ -223,6 +273,11 @@
       "lane": "done",
       "last_event_id": "01KXEQGWKW6P7P56JBCRZX6YBP",
       "last_transition_at": "2026-07-13T21:53:22.556142+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata/opus): non-vacuous per-dir ceiling guard, #2625-deferred ledger, new-guard-file DoD complete",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3199451,
       "shell_pid_created_at": "1783957741.51",
       "subtasks": {
@@ -245,6 +300,11 @@
       "lane": "done",
       "last_event_id": "01KXEQHBHNNG5W62W7MYZ48FRV",
       "last_transition_at": "2026-07-13T21:53:37.845428+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata/opus): member-exact conversions, 4 dirs->0, pre-existing red confirmed unrelated",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3237943,
       "shell_pid_created_at": "1783958502.54",
       "subtasks": {
@@ -265,6 +325,11 @@
       "lane": "done",
       "last_event_id": "01KXEQHGDGTF9E4Q7A8S2Y9QWW",
       "last_transition_at": "2026-07-13T21:53:42.832887+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata/opus): 106 conversions behaviour-preserving, guard green -106, reds pre-existing",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3237943,
       "shell_pid_created_at": "1783958502.54",
       "subtasks": {
@@ -285,6 +350,11 @@
       "lane": "done",
       "last_event_id": "01KXEQHN8CXAPBQAYSD4DQAKGS",
       "last_transition_at": "2026-07-13T21:53:47.788470+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata/opus): behaviour-preserving conversions, genuine annotations, 23 dirs->0, reds pre-existing/environmental",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3237943,
       "shell_pid_created_at": "1783958502.54",
       "subtasks": {
@@ -305,6 +375,11 @@
       "lane": "done",
       "last_event_id": "01KXEQGJRCXS5NSW62HA1YS351",
       "last_transition_at": "2026-07-13T21:53:12.460826+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata/opus)",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3011971,
       "shell_pid_created_at": "1783953481.93",
       "subtasks": {
@@ -325,6 +400,11 @@
       "lane": "done",
       "last_event_id": "01KXEQHT7QCTX4GHJZWJSZZ8W1",
       "last_transition_at": "2026-07-13T21:53:52.887513+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata/opus): register() seam + manifest, diagnosable message, WP11 carried forward, guards green",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 3237943,
       "shell_pid_created_at": "1783958502.54",
       "subtasks": {
@@ -346,6 +426,11 @@
       "lane": "done",
       "last_event_id": "01KXEQHZ6JS7YP3KBVJRM030Z1",
       "last_transition_at": "2026-07-13T21:53:57.970093+00:00",
+      "review_result": {
+        "reference": "APPROVE (reviewer-renata/opus): both guards non-vacuous (fault-injections bite); slow-tests gate-add safe (filter_true=False); sonar cross-workflow wiring producer/consumer names agree; new-guard DoD honest (gc3b +14=new tests, orphan_files=[], gc2b BASELINE_TARGETS exclude architectural); scope=7 files. 21 passed; ruff/mypy clean. Commit a50ce86bf. Note: live Sonar effect verifiable post-merge only (disclosed).",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
       "shell_pid": 3546106,
       "shell_pid_created_at": "1783965155.58",
       "subtasks": {
@@ -368,6 +453,11 @@
       "lane": "done",
       "last_event_id": "01KXEQH6DZSRAK893QRZMHYFD3",
       "last_transition_at": "2026-07-13T21:53:32.607447+00:00",
+      "review_result": {
+        "reference": "APPROVE (reviewer-renata/opus): 8 deletions provably safe (plain re-export imports, none in frozen guard); 4 call-site refactors circular-safe + behaviour-preserving; co-evolved suites load-bearing (not gutted); DEFERRAL LEGITIMATE — completeness proof: 36 surviving thin delegates = 34 REACH-entangled + 2 canonical __all__ = 0 deletable-without-touching-#2531-guard; 157 passed; ruff clean. Commit 5e82681ef. Follow-up owed: #2531-co-owned sentinel-retirement for the 34.",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
       "shell_pid": 3777390,
       "shell_pid_created_at": "1783972200.22",
       "subtasks": {

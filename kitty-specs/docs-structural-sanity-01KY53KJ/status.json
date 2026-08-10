@@ -32,6 +32,11 @@
         "Review passed: DIRECTIVE_042 validation_criteria now cites scripts/docs/docs_structural_lint.py (no dead-ratchet refs); comprehensive structural_lint_config policy block matches #2302 4-check spec (curated sections, concern-bucket map, point-in-time patterns/markers/allowlist, frontmatter contract w/ #2227 deferral, shadow-tree nav exemptions, guides boundary); Styleguide Pydantic model + JSON schema extended with optional field; 2 tactics reconciled to name the lint; test_models.py 12 passed. Satisfies #2302 doctrine half; WP02 lint consumes this config."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: DIRECTIVE_042 validation_criteria now cites scripts/docs/docs_structural_lint.py (no dead-ratchet refs); comprehensive structural_lint_config policy block matches #2302 4-check spec (curated sections, concern-bucket map, point-in-time patterns/markers/allowlist, frontmatter contract w/ #2227 deferral, shadow-tree nav exemptions, guides boundary); Styleguide Pydantic model + JSON schema extended with optional field; 2 tactics reconciled to name the lint; test_models.py 12 passed. Satisfies #2302 doctrine half; WP02 lint consumes this config.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 3356247,
       "shell_pid_created_at": "1784739534.86",
@@ -58,6 +63,11 @@
         "Review passed: 4 config-driven checks load policy from WP01 structural_lint_config block (SSOT, fail-loud, 'reads config not constant' tested); 18 tests green incl 4-class detection + live cohort-clean + config-match; ruff clean; mypy clean w/ --explicit-package-bases (plain collision pre-existing project-wide). CI-wiring + real-tree zero-violation correctly deferred to WP05 per timing-boundary. Satisfies #2302 lint half + FR-007/011/NFR-003/005/006."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: 4 config-driven checks load policy from WP01 structural_lint_config block (SSOT, fail-loud, 'reads config not constant' tested); 18 tests green incl 4-class detection + live cohort-clean + config-match; ruff clean; mypy clean w/ --explicit-package-bases (plain collision pre-existing project-wide). CI-wiring + real-tree zero-violation correctly deferred to WP05 per timing-boundary. Satisfies #2302 lint half + FR-007/011/NFR-003/005/006.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 2745383,
       "shell_pid_created_at": "1784888606.89",
@@ -84,6 +94,11 @@
         "Review passed: redistribution correct; index enumerates 57 links (#2865); back-ref fixed; no terminology issues. Closes #2864/#2865/#2867; ext ref sweep -> WP05."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: redistribution correct; index enumerates 57 links (#2865); back-ref fixed; no terminology issues. Closes #2864/#2865/#2867; ext ref sweep -> WP05.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 2721214,
       "shell_pid_created_at": "1784888150.05",
@@ -111,6 +126,11 @@
         "Review passed: 4 docs/plans/notes/ shadows deleted (1118 lines); fold-safety verified — all 3 canonical twins (architecture/, adr/3.x/) hold equal-or-fuller content; shadow tree fully retired. Closes #2866."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: 4 docs/plans/notes/ shadows deleted (1118 lines); fold-safety verified — all 3 canonical twins (architecture/, adr/3.x/) hold equal-or-fuller content; shadow tree fully retired. Closes #2866.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 2736570,
       "shell_pid_created_at": "1784888420.25",
@@ -136,6 +156,11 @@
         "Review passed: lint exit 0 post-move (0 violations); adr+redirect-stub doctrine exemptions config-driven; 1 real frontmatter fix; referrers repointed (0 dead links); CI wired; redirect corpus byte-untouched; 28 tests pass; ruff/mypy clean. Deviations (bulk_ref_rewrite file-move bug worked around, T022 deferred) documented as upstream gaps."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: lint exit 0 post-move (0 violations); adr+redirect-stub doctrine exemptions config-driven; 1 real frontmatter fix; referrers repointed (0 dead links); CI wired; redirect corpus byte-untouched; 28 tests pass; ruff/mypy clean. Deviations (bulk_ref_rewrite file-move bug worked around, T022 deferred) documented as upstream gaps.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 2788283,
       "shell_pid_created_at": "1784889852.43",

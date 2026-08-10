@@ -2,7 +2,7 @@
   "event_count": 85,
   "last_event_id": "01KZAXAZM1ZXCDH0JYVXK99SAD",
   "materialized_at": "2026-08-06T06:49:26.401412+00:00",
-  "mission_number": "",
+  "mission_number": "191",
   "mission_slug": "verdict-seam-write-unification-01KZ9Q35",
   "mission_type": "software-dev",
   "summary": {
@@ -20,152 +20,321 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZAXAQZKNJVD2PJ845Y5YYBM",
       "last_transition_at": "2026-08-06T06:49:18.579637+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: T003 extends _RECORD_CTOR_CALL_RE + _contains_ctor to recognize .from_dict factory calls (via _call_base_name); T004 adds named exclusions (status/reducer.py, status/wp_review.py excluded as event-authority deserializers; forward-declared migration/verdict_provenance_backfill.py + status/verdict_vocab.py for WP02/WP04); T005 adds real-data + negative-control tests and reconciles verdict_seam_census.yaml with 8 new active writer rows (incl. the verified models.py:570 gap). Red-first T001 poison test verified red before T003, green after. Full census file: 29 passed. ruff check clean, mypy --strict clean.",
+        "Review passed: red-green verified at 62d02dcd6 (poison RED without predicate, GREEN final), predicate non-vacuous with empirically load-bearing named exclusions, fixture==derived exact (8 active rows, 0 retire), owned-files clean (no source touched), 37 tests pass, ruff+mypy clean"
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed: red-green verified at 62d02dcd6 (poison RED without predicate, GREEN final), predicate non-vacuous with empirically load-bearing named exclusions, fixture==derived exact (8 active rows, 0 retire), owned-files clean (no source touched), 37 tests pass, ruff+mypy clean",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "shell_pid": 1188709,
-      "shell_pid_created_at": "1785966219.81"
+      "role": "reviewer",
+      "shell_pid": 1275401,
+      "shell_pid_created_at": "1785967808.71",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZAXASS5B8SZ1Y9TJYFT97Q5",
       "last_transition_at": "2026-08-06T06:49:20.421262+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: backfill_verdict_provenance + stranded_verdict_findings implemented via append_events_atomic_verified with historical reviewed_at (D-PLAN-10). 15 new tests (red-first demonstrated), reducer ordering + SC-008 hermetic pin covered. ruff+mypy --strict clean. Filed #3220 for an unrelated pre-existing baseline failure in tests/status/test_reducer.py.",
+        "Review passed (reviewer-renata): mechanism=append_events_atomic_verified with hand-constructed StatusEvent (emit_status_transition absent from code); at=artifact.reviewed_at, no now()/datetime in code path; reducer sorts by (at,event_id) so a now() stamp would RED test_historical_rejection_then_later_real_approval_resolves_approved (non-vacuous). SC-008 hermetic pin (tmp_path) + provenance predicate pure fn stranded_verdict_findings both green. Owned tests 59 passed; census 25/25 (2 writer/2 resolver/3 reader rows are the real derived set); ruff+mypy --strict clean. #3220 test_event_sourced_review_result_this_missions_own_meta_json_fixture confirmed pre-existing (red on base ref; WP02 touches neither test_reducer.py nor the fixture). No-production-caller is the intended staged seam consumed by WP05/WP03 (dependents)."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed (reviewer-renata): mechanism=append_events_atomic_verified with hand-constructed StatusEvent (emit_status_transition absent from code); at=artifact.reviewed_at, no now()/datetime in code path; reducer sorts by (at,event_id) so a now() stamp would RED test_historical_rejection_then_later_real_approval_resolves_approved (non-vacuous). SC-008 hermetic pin (tmp_path) + provenance predicate pure fn stranded_verdict_findings both green. Owned tests 59 passed; census 25/25 (2 writer/2 resolver/3 reader rows are the real derived set); ruff+mypy --strict clean. #3220 test_event_sourced_review_result_this_missions_own_meta_json_fixture confirmed pre-existing (red on base ref; WP02 touches neither test_reducer.py nor the fixture). No-production-caller is the intended staged seam consumed by WP05/WP03 (dependents).",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "shell_pid": 1360889,
-      "shell_pid_created_at": "1785969196.2"
+      "role": "reviewer",
+      "shell_pid": 1478557,
+      "shell_pid_created_at": "1785971132.58",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZAXAW8ZVVCR7PM65J2W0VPP",
       "last_transition_at": "2026-08-06T06:49:22.975702+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: emit_status_transition confirmed as sole authoritative verdict-durability write (FR-008); added tests/status/test_emit_durability.py covering SC-003 concurrency, NFR-001 no-lock-across-git, NFR-004 single authoritative call, NFR-005 <2s. review-cycle-N.md commit left hard-error for WP05.",
+        "APPROVED (reviewer-renata). Comment-only emit.py verified: WP03 commit 6cf37dd9c touches only owned files (emit.py +24 all docstring/comment, test_emit_durability.py +339); non-owned diff entries are #3086 target-branch merge baggage, not WP03. NFR-001 non-vacuity PROVEN by mutation: injecting a git subprocess inside feature_status_lock turned the lock/subprocess-order test RED; reverted clean. Independently confirmed the only git subprocess (git rev-parse in _git_common_dir) runs BEFORE lock.acquire(). SC-003 uses real multiprocessing fork (2 OS processes), asserts both durable OR exactly one explicit refusal — PASSED (stress). NFR-004 count==1 with real neuter-the-append non-vacuity leg. .md commit stays hard-error: review/cycle.py + WP05 matrix test UNTOUCHED (demote is WP05/D-PLAN-11). ruff clean; mypy --strict = exactly the 7 pre-existing errors, none new. NOTE (out-of-scope, non-blocking): tests/status/test_reducer.py::...meta_json_fixture fails on fixture drift (unrelated mission gained status_phase) — pre-exists on base, WP03 touched neither file; belongs to WP02/T027."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "APPROVED (reviewer-renata). Comment-only emit.py verified: WP03 commit 6cf37dd9c touches only owned files (emit.py +24 all docstring/comment, test_emit_durability.py +339); non-owned diff entries are #3086 target-branch merge baggage, not WP03. NFR-001 non-vacuity PROVEN by mutation: injecting a git subprocess inside feature_status_lock turned the lock/subprocess-order test RED; reverted clean. Independently confirmed the only git subprocess (git rev-parse in _git_common_dir) runs BEFORE lock.acquire(). SC-003 uses real multiprocessing fork (2 OS processes), asserts both durable OR exactly one explicit refusal — PASSED (stress). NFR-004 count==1 with real neuter-the-append non-vacuity leg. .md commit stays hard-error: review/cycle.py + WP05 matrix test UNTOUCHED (demote is WP05/D-PLAN-11). ruff clean; mypy --strict = exactly the 7 pre-existing errors, none new. NOTE (out-of-scope, non-blocking): tests/status/test_reducer.py::...meta_json_fixture fails on fixture drift (unrelated mission gained status_phase) — pre-exists on base, WP03 touched neither file; belongs to WP02/T027.",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "shell_pid": 1506785,
-      "shell_pid_created_at": "1785971703.2"
+      "role": "reviewer",
+      "shell_pid": 1547874,
+      "shell_pid_created_at": "1785972787.1",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZAXATKF16WS2Z5Z338CB2SB",
       "last_transition_at": "2026-08-06T06:49:21.263197+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: verdict_vocab.py bridge created, 7 sites swept (behavior-preserving), guard red-first->green with named 2-entry WP05 allowlist, D-PLAN-14 override negative test added, ruff+mypy --strict clean, all existing tests green",
+        "Review cycle 1 fix: removed dead EVENT_VERDICTS/is_recognized_verdict; models.py+reducer.py net-empty diff vs base; _SWEPT_MODULES narrowed to 5 genuine sites; guard red-first over 5 sites confirmed; census untouched 25/25 green; ruff+mypy clean.",
+        "Cycle-2: dead code removed (models.py+reducer.py net-empty vs base), sweep narrowed to 5 real sites, guard non-vacuous (6 red-first), D-PLAN-14/allowlist/census/lint intact"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "reference": "Cycle-2: dead code removed (models.py+reducer.py net-empty vs base), sweep narrowed to 5 real sites, guard non-vacuous (6 red-first), D-PLAN-14/allowlist/census/lint intact",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "shell_pid": 1357100,
-      "shell_pid_created_at": "1785969148.05"
+      "role": "reviewer",
+      "shell_pid": 1551986,
+      "shell_pid_created_at": "1785972860.76",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
-      "agent": "claude",
+      "agent": "",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZAXAX3HDG6FHHFCETHZHBV2",
       "last_transition_at": "2026-08-06T06:49:23.825454+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Reader collapse complete: every verdict reader (approval guard, merge gate, board/dashboard, status-display, fix-mode) repointed to event_sourced_review_result. 2 verdict-parser functions retired (latest_review_artifact_verdict, rejected_review_artifact_for_terminal_lane); ReviewCycleArtifact.latest/.from_file KEPT (content loaders per squad #1). .md commit demoted to best-effort (T026/D-PLAN-11): non-committed result now a logged WARNING, never a raised ReviewCycleError. WP04 vocab-bridge allowlist emptied. Census reader rows shrunk. Cross-mission baseline tension: several tests pinned by tests/architectural/mission_exit_baseline.txt (a prior mission's never-shrink floor) were repointed (not deleted) to assert the new event-sourced/demoted behavior under their exact original names -- flagged for reviewer/operator adjudication. Full scoped suites green (tests/review/, test_2093_authority_invariant.py, test_review_durability_matrix.py -n0, test_tasks_parsing_validation.py, tests/post_merge/, plus collateral consumer files). ruff+mypy --strict clean on every touched file (checked individually, not batched). No merge/push.",
+        "Cycle-1 fix: added a parametrized test (hyphen/dot/underscore) covering _wp_id_from_stem's previously-untested non-hyphen separator branches, both directly and end-to-end through resolve_review_verdict_facts against a genuine changes_requested event. Confirmed red against the pre-fix stem.split(\"-\")[0] naive cut (fails on dot/underscore, passes on hyphen) before restoring the fix. Test added in owned file tests/review/test_verdict_seam_reader_collapse.py. No production change. No merge/push.",
+        "Cycle-2: wp_id separator branch now tested (non-vacuity verified: naive-split reverts 4/6 red), guard fail-closes for all separators; production byte-identical to approved cycle-1"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "reference": "Cycle-2: wp_id separator branch now tested (non-vacuity verified: naive-split reverts 4/6 red), guard fail-closes for all separators; production byte-identical to approved cycle-1",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "shell_pid": 1566634,
-      "shell_pid_created_at": "1785973391.77"
+      "role": "reviewer",
+      "shell_pid": 0,
+      "shell_pid_created_at": "1785985721.15",
+      "subtasks": {
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done",
+        "T029": "done"
+      }
     },
     "WP06": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZAXAXYFD20P4DKJTXPFXJTV",
       "last_transition_at": "2026-08-06T06:49:24.687765+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: removed the verdict field from ReviewCycleArtifact (dataclass/to_dict/from_dict/validate_review_artifact) per FR-003/SC-007; added tests/review/test_artifacts_no_verdict_field.py (serialized-artifact + schema gates, red-first via git stash) and tests/coordination/test_verdict_dir_co_resolution.py (SC-001 US2 co-resolution under coord+flat topologies, AST invariant w/ poison arms, FR-007 doctor review-cycle-reconcile --json location gate). Reconciled cycle.py's FR-011 docstring and FR-007 wording. Added migration/verdict_provenance_backfill.py::_legacy_frontmatter_verdict (disclosed exception for pre-schema-change verdict recovery); one new census row, rest unchanged (25/25). Fixed ripple across ~20 test files incl. test_review_durability_matrix.py (WP05-owned, 17 reds from the schema change, fixed per orchestrator instruction). T035: did not relocate the physical write; test_analysis_report_rehome.py stays green unmodified. ruff+mypy --strict clean.",
+        "Cycle-2 fix: repointed the 10 stranded ripple fixtures the reviewer found (WP05's pure-event repoint left them .md-only, never recording the matching review_result event) plus 1 more found via a follow-up literal-string sweep. Verified each was GREEN at mission base 9d99691c4 (genuinely this lane's ripple, not pre-existing) via a temporary worktree. The 2 schema-invalid tests are repointed to the SAME precedent WP05's own reviewer already established (ReviewArtifactSchemaFinding is verified-dead code, never constructed in src/) -- exit 0/no-block, not weakened. Broad re-sweep (merge/post_merge/regression/integration/status/agent) green except confirmed pre-existing/environmental (#3220, mission_review_contract_gate env-skew, SaaS/sphinx/charter-status unrelated tests, SC-004's own documented real-OS-race finding)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "reference": "Cycle-2: 11 stranded .md-only fixtures repointed to event authority; 4 rejected-conflict tests still assert exit-1 + REJECTED_REVIEW_ARTIFACT_CONFLICT via seeded changes_requested events; 2 schema-invalid tests correctly exit-0 (ReviewArtifactSchemaFinding confirmed dead code); no assertions weakened. Base-vs-tip closure confirmed: all 11 green at base 9d99691c4, green in lane; broad 41-file sweep 942 passed with only pre-existing #3220 + #2804(P0) red at base. Schema removal unchanged, core gates green.",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "shell_pid": 1898004,
-      "shell_pid_created_at": "1785987884.12"
+      "role": "reviewer",
+      "shell_pid": 2325893,
+      "shell_pid_created_at": "1785998145.43",
+      "subtasks": {
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T034": "done",
+        "T035": "done",
+        "T055": "done"
+      }
     },
     "WP07": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZAXAYS3CKF3TXMF4M3F0XBJ",
       "last_transition_at": "2026-08-06T06:49:25.539698+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: FR-016 arbiter root threading. persist_arbiter_decision's repo_root is now required (no feature_dir.parent.parent self-inference); threaded through _run_arbiter_override -> persist_arbiter_override_decision -> persist_arbiter_decision. T038 confirms (does not repoint) that arbiter.py:461's ReviewCycleArtifact.latest stays cycle_number-only and get_arbiter_overrides_for_wp is already event-sourced. Red-first via git stash against pre-fix self-inference. pytest tests/review/ -k arbiter -q: 42 passed. ruff + mypy --strict src/specify_cli/review clean.",
+        "Review PASSED (reviewer-renata). FR-016 root-threading proven: self-inference fully retired (main_repo_root=repo_root, no 'or feature_dir.parent.parent' fallback anywhere); repo_root now REQUIRED. Full chain _run_arbiter_override -> persist_arbiter_override_decision -> persist_arbiter_decision threads caller-resolved main_repo_root end-to-end. Coord-root test is non-vacuous red->green: reverted the pre-WP07 caller chain and confirmed the behavioral test captures the COORD WORKTREE root (wrong partition) pre-fix, ctx.repo post-fix; fixture-invariant guard prevents vacuity. arbiter.py .latest KEPT as cycle_number-only (no .verdict read); get_arbiter_overrides_for_wp reads event-sourced wp_snapshot_state - no frontmatter verdict read reintroduced (T038 confirming, not repointing). All callers updated (1 prod site each + all direct test callers pass repo_root) - no missed call site. Out-of-map edits to WP04/WP05-owned files (merged, strictly upstream, no concurrent writer) are minimal consequences of the required param, localized away from vocab region. Gates: 42 arbiter + 28 seam tests green; ruff clean; mypy --strict clean on review pkg. tasks_move_task.py:1935 no-any-return is pre-existing #3223 (line far from WP07's 2569-2618 edit), not new."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review PASSED (reviewer-renata). FR-016 root-threading proven: self-inference fully retired (main_repo_root=repo_root, no 'or feature_dir.parent.parent' fallback anywhere); repo_root now REQUIRED. Full chain _run_arbiter_override -> persist_arbiter_override_decision -> persist_arbiter_decision threads caller-resolved main_repo_root end-to-end. Coord-root test is non-vacuous red->green: reverted the pre-WP07 caller chain and confirmed the behavioral test captures the COORD WORKTREE root (wrong partition) pre-fix, ctx.repo post-fix; fixture-invariant guard prevents vacuity. arbiter.py .latest KEPT as cycle_number-only (no .verdict read); get_arbiter_overrides_for_wp reads event-sourced wp_snapshot_state - no frontmatter verdict read reintroduced (T038 confirming, not repointing). All callers updated (1 prod site each + all direct test callers pass repo_root) - no missed call site. Out-of-map edits to WP04/WP05-owned files (merged, strictly upstream, no concurrent writer) are minimal consequences of the required param, localized away from vocab region. Gates: 42 arbiter + 28 seam tests green; ruff clean; mypy --strict clean on review pkg. tasks_move_task.py:1935 no-any-return is pre-existing #3223 (line far from WP07's 2569-2618 edit), not new.",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "shell_pid": 1895795,
-      "shell_pid_created_at": "1785987854.17"
+      "role": "reviewer",
+      "shell_pid": 1959364,
+      "shell_pid_created_at": "1785989483.81",
+      "subtasks": {
+        "T036": "done",
+        "T037": "done",
+        "T038": "done"
+      }
     },
     "WP08": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZAXARXSA56K4WA60KHX4R0H",
       "last_transition_at": "2026-08-06T06:49:19.545851+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: gate-artifact write-surface de-husk (#2804/#2404) — merge/executor.py gate-artifact preservation guard, coord-aware acceptance-matrix scaffold, write-side census test, issue-matrix.md retirement",
+        "Review PASSED (reviewer-renata). #2804 pin RED on mission base / GREEN on lane, body byte-unchanged -> greened via product write-surface de-husk. T042 non-vacuous: census (matrix.py=2, gates_core.py=1 verified; breaks on new write_acceptance_matrix call site) + behavioral leg on REAL scaffold under coord git fixture (coord-branch landing, zero PRIMARY residue) + bare-write compat. Executor guard in gate-artifact region (1004/1165/1222/1693); flatten region 1329-1518 -> zero WP10 collision. Advisory = synthetic <gate-coverage-junit> no-JUnit-XML sentinel, not a regression: tests/merge 636 + acceptance/finalize 65 + 2 pins 5 all green. Scope clean: owned files + new T042 test + consequential T043 test edit; gates_core.py correctly untouched. ruff clean; mypy 4 errors identical base-vs-lane (zero new)."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review PASSED (reviewer-renata). #2804 pin RED on mission base / GREEN on lane, body byte-unchanged -> greened via product write-surface de-husk. T042 non-vacuous: census (matrix.py=2, gates_core.py=1 verified; breaks on new write_acceptance_matrix call site) + behavioral leg on REAL scaffold under coord git fixture (coord-branch landing, zero PRIMARY residue) + bare-write compat. Executor guard in gate-artifact region (1004/1165/1222/1693); flatten region 1329-1518 -> zero WP10 collision. Advisory = synthetic <gate-coverage-junit> no-JUnit-XML sentinel, not a regression: tests/merge 636 + acceptance/finalize 65 + 2 pins 5 all green. Scope clean: owned files + new T042 test + consequential T043 test edit; gates_core.py correctly untouched. ruff clean; mypy 4 errors identical base-vs-lane (zero new).",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "shell_pid": 1180897,
-      "shell_pid_created_at": "1785966083.19"
+      "role": "reviewer",
+      "shell_pid": 1313150,
+      "shell_pid_created_at": "1785968400.45",
+      "subtasks": {
+        "T039": "done",
+        "T040": "done",
+        "T041": "done",
+        "T042": "done",
+        "T043": "done"
+      }
     },
     "WP09": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZAXAZM1ZXCDH0JYVXK99SAD",
       "last_transition_at": "2026-08-06T06:49:26.401412+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: FR-014 review-cycle merge driver downgraded to non-aborting (red-first proof via real squash-merge path); T046/T047 gate-artifact driver registration + .md->.json seed-drift verified already-satisfied on the mission base; IC04 census shard reconciled.",
+        "Review passed: FR-014 driver downgrade is non-fabricating (both renders embedded verbatim behind conflict markers, only raise typer.Exit(1) removed + err=False); red-first non-vacuous (new test reds via stash against old fail-closed driver with RuntimeError, green after, drives real _merge_branch_into squash). T046/T047 genuinely already-satisfied on base (issue-matrix .md->.json repoint delivered by write-side-seam-matrix-tracer-01KYP3MH; m_3_2_6_issue_matrix_driver_repoint supersedes stale seed; _ephemeral_merge_driver_activation registers matrix drivers before squash). IC04 shard entry consistent+real. Collateral WP18 re-pin (out-of-map) repointed to real new behavior, PYTHONPATH stale-install guard legitimate. 42 gate tests green; ruff clean; merge_driver.py:637 no-any-return pre-existing (base line 635, untouched by WP09)."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed: FR-014 driver downgrade is non-fabricating (both renders embedded verbatim behind conflict markers, only raise typer.Exit(1) removed + err=False); red-first non-vacuous (new test reds via stash against old fail-closed driver with RuntimeError, green after, drives real _merge_branch_into squash). T046/T047 genuinely already-satisfied on base (issue-matrix .md->.json repoint delivered by write-side-seam-matrix-tracer-01KYP3MH; m_3_2_6_issue_matrix_driver_repoint supersedes stale seed; _ephemeral_merge_driver_activation registers matrix drivers before squash). IC04 shard entry consistent+real. Collateral WP18 re-pin (out-of-map) repointed to real new behavior, PYTHONPATH stale-install guard legitimate. 42 gate tests green; ruff clean; merge_driver.py:637 no-any-return pre-existing (base line 635, untouched by WP09).",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "shell_pid": 1894160,
-      "shell_pid_created_at": "1785987845.28"
+      "role": "reviewer",
+      "shell_pid": 1979625,
+      "shell_pid_created_at": "1785989977.81",
+      "subtasks": {
+        "T044": "done",
+        "T045": "done",
+        "T046": "done",
+        "T047": "done",
+        "T048": "done"
+      }
     },
     "WP10": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZAXAVE1WV8Z39GG4R6N7YYQ",
       "last_transition_at": "2026-08-06T06:49:22.113766+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: flatten_coordination_metadata primitive extracted in mission_metadata.py (all 3 mutations, 1 write); TOPOLOGY_KEY/FLATTENED_KEY promoted to public in backfill_topology.py; 3 call sites converged (executor.py, _coordination_doctor.py, mission_type.py); mission-close-discard partial-flatten latent bug FIXED (topology now popped); non-vacuous AST single-source arch guard added (5th re-inline reds); red-first proven for both new tests. T054: verified _phase_push runs before _phase_cleanup_worktrees_and_branches, so a --push merge lands the flatten bookkeeping commit local-only -- documented as a known pre-existing residual (not fixed/regressed here, out of WP10 scope). ruff+mypy --strict clean on all touched files (2 unrelated pre-existing mypy no-any-return errors in executor.py at lines 153/1092, confirmed present on the base before this WP). All 3 existing regression suites stay green.",
+        "APPROVED (reviewer-renata). SC-009/FR-015 satisfied. Single canonical flatten_coordination_metadata primitive (all 3 mutations in one load->mutate->write_meta(validate=False)); AST arch-guard non-vacuous (synthetic re-inline flagged, scan confirms EXACTLY 1 owner=mission_metadata.flatten_coordination_metadata). Red->green proven concretely: old clear_coordination_metadata (1-of-3) leaves topology='coord' + flattened unset; new discard path pops topology & sets flattened. 3 sites converged (executor/doctor/mission_type). Executor out-of-map edit confined to 2 hunks (new fn @1246, call @1445); WP08 guard anchors 1004/1165/1222/1693 untouched, no collision. Constants TOPOLOGY_KEY/FLATTENED_KEY promoted public + in __all__; deferred import avoids circular import (verified). Existing suites green: test_coordination_flatten_on_branch_delete + test_mission_close_discard_coord_teardown + test_coord_deleted_degrade_paths = 15 passed; new tests 8 passed. T054 --push origin-divergence honestly documented as pre-existing residual (not regressed). ruff clean; mypy 2 baseline errors (153/1092) only, outside diff. Non-blocking follow-up: clear_coordination_metadata now prod-orphaned (still covered by fail-closed census + typed-error test)."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "APPROVED (reviewer-renata). SC-009/FR-015 satisfied. Single canonical flatten_coordination_metadata primitive (all 3 mutations in one load->mutate->write_meta(validate=False)); AST arch-guard non-vacuous (synthetic re-inline flagged, scan confirms EXACTLY 1 owner=mission_metadata.flatten_coordination_metadata). Red->green proven concretely: old clear_coordination_metadata (1-of-3) leaves topology='coord' + flattened unset; new discard path pops topology & sets flattened. 3 sites converged (executor/doctor/mission_type). Executor out-of-map edit confined to 2 hunks (new fn @1246, call @1445); WP08 guard anchors 1004/1165/1222/1693 untouched, no collision. Constants TOPOLOGY_KEY/FLATTENED_KEY promoted public + in __all__; deferred import avoids circular import (verified). Existing suites green: test_coordination_flatten_on_branch_delete + test_mission_close_discard_coord_teardown + test_coord_deleted_degrade_paths = 15 passed; new tests 8 passed. T054 --push origin-divergence honestly documented as pre-existing residual (not regressed). ruff clean; mypy 2 baseline errors (153/1092) only, outside diff. Non-blocking follow-up: clear_coordination_metadata now prod-orphaned (still covered by fail-closed census + typed-error test).",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "shell_pid": 1364954,
-      "shell_pid_created_at": "1785969244.21"
+      "role": "reviewer",
+      "shell_pid": 1467170,
+      "shell_pid_created_at": "1785970929.17",
+      "subtasks": {
+        "T049": "done",
+        "T050": "done",
+        "T051": "done",
+        "T052": "done",
+        "T053": "done",
+        "T054": "done"
+      }
     }
   }
 }

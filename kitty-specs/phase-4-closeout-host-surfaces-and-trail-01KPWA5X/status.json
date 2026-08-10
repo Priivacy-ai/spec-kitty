@@ -24,6 +24,7 @@
       "lane": "approved",
       "last_event_id": "01KPWD23VDS73PTYBVRCSNW90D",
       "last_transition_at": "2026-04-23T05:30:01.965356+00:00",
+      "review_result": null,
       "shell_pid": 12701,
       "subtasks": {
         "T001": "done",
@@ -39,6 +40,7 @@
       "lane": "approved",
       "last_event_id": "01KPWDD33WKM2WB14G8DTGT0EF",
       "last_transition_at": "2026-04-23T05:36:01.660491+00:00",
+      "review_result": null,
       "shell_pid": 14299,
       "subtasks": {
         "T005": "done",
@@ -55,6 +57,7 @@
       "lane": "approved",
       "last_event_id": "01KPWDP028TKGXEC39XNHJDBWK",
       "last_transition_at": "2026-04-23T05:40:53.448620+00:00",
+      "review_result": null,
       "shell_pid": 15771,
       "subtasks": {
         "T010": "done",
@@ -71,6 +74,7 @@
       "lane": "approved",
       "last_event_id": "01KPWE4H5R0TH653ED36EDPTX6",
       "last_transition_at": "2026-04-23T05:48:49.720664+00:00",
+      "review_result": null,
       "shell_pid": 17998,
       "subtasks": {
         "T015": "done",
@@ -87,6 +91,7 @@
       "lane": "approved",
       "last_event_id": "01KPWEEFGX1C2303VSNY5TY3XH",
       "last_transition_at": "2026-04-23T05:54:15.709416+00:00",
+      "review_result": null,
       "shell_pid": 19329,
       "subtasks": {
         "T020": "done",
@@ -104,6 +109,7 @@
       "lane": "approved",
       "last_event_id": "01KPWF2TA269QTS4F12FT1SV5H",
       "last_transition_at": "2026-04-23T06:05:22.114901+00:00",
+      "review_result": null,
       "shell_pid": 21940,
       "subtasks": {
         "T026": "done",
@@ -122,6 +128,7 @@
       "lane": "approved",
       "last_event_id": "01KPWFEP96DX1MRREJ4CEB30MS",
       "last_transition_at": "2026-04-23T06:11:51.206746+00:00",
+      "review_result": null,
       "shell_pid": 24349,
       "subtasks": {
         "T033": "done",
@@ -139,6 +146,7 @@
       "lane": "approved",
       "last_event_id": "01KPWFRK9YTAHBZEZBT8VYW6J5",
       "last_transition_at": "2026-04-23T06:17:15.838956+00:00",
+      "review_result": null,
       "shell_pid": 32159,
       "subtasks": {
         "T039": "done",

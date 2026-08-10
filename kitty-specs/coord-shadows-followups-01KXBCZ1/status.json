@@ -24,6 +24,11 @@
       "lane": "approved",
       "last_event_id": "01KXBH5PGABWVYHA9XNGWS2DN1",
       "last_transition_at": "2026-07-12T16:04:41.098606+00:00",
+      "review_result": {
+        "reference": "APPROVED by reviewer-renata (opus): 8/8 checks; A/B repro confirms coord-husk fix; dead-code clean; mypy net-zero-new; NFR-001 byte-identical",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 696616,
       "subtasks": {
         "T001": "done",
@@ -42,6 +47,11 @@
       "lane": "approved",
       "last_event_id": "01KXBJ5EFFARA9FZGFBB4DXPTW",
       "last_transition_at": "2026-07-12T16:22:01.455541+00:00",
+      "review_result": {
+        "reference": "APPROVED by reviewer-renata (opus): 12/12 checks; is_process_alive frozen byte-identical; end-to-end wiring both paths (ref-shared); flake pre-existing; 4th-writer edge filed #2580",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 698445,
       "subtasks": {
         "T008": "done",
@@ -64,6 +74,11 @@
       "lane": "approved",
       "last_event_id": "01KXBGKBAEC9PPV305PB72Q1AH",
       "last_transition_at": "2026-07-12T15:54:39.822828+00:00",
+      "review_result": {
+        "reference": "APPROVED by reviewer-renata (opus): 7/7 checks pass",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 698445,
       "subtasks": {
         "T019": "done",
@@ -80,6 +95,11 @@
       "lane": "approved",
       "last_event_id": "01KXBGR6Z96D8MWYWX0ATFYF1D",
       "last_transition_at": "2026-07-12T15:57:19.209467+00:00",
+      "review_result": {
+        "reference": "APPROVED by reviewer-renata (opus): 7/7 checks pass; tightening judged SAFE (unifies with guard/dashboard/writer)",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 698445,
       "subtasks": {
         "T024": "done",

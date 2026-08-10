@@ -24,6 +24,7 @@
       "lane": "done",
       "last_event_id": "01KQ8C418ZWKS86EBAQNT7M5H3",
       "last_transition_at": "2026-04-27T21:04:29.471515+00:00",
+      "review_result": null,
       "shell_pid": 66749,
       "subtasks": {
         "T001": "done",
@@ -39,6 +40,7 @@
       "lane": "done",
       "last_event_id": "01KQ8C44XPJGE1RKD8NDR9AYHA",
       "last_transition_at": "2026-04-27T21:04:33.206249+00:00",
+      "review_result": null,
       "shell_pid": 86393,
       "subtasks": {
         "T005": "done",
@@ -55,6 +57,7 @@
       "lane": "done",
       "last_event_id": "01KQ8C41Z3614333PHM8XD0S1B",
       "last_transition_at": "2026-04-27T21:04:30.179981+00:00",
+      "review_result": null,
       "shell_pid": 73284,
       "subtasks": {
         "T010": "done",
@@ -71,6 +74,7 @@
       "lane": "done",
       "last_event_id": "01KQ8C42ET50ZG7Y54MX333VN7",
       "last_transition_at": "2026-04-27T21:04:30.682633+00:00",
+      "review_result": null,
       "shell_pid": 78401,
       "subtasks": {
         "T015": "done",
@@ -89,6 +93,7 @@
       "lane": "done",
       "last_event_id": "01KQ8C42YNKQRXHW644BATNHBX",
       "last_transition_at": "2026-04-27T21:04:31.189446+00:00",
+      "review_result": null,
       "shell_pid": 80527,
       "subtasks": {
         "T022": "done",
@@ -104,6 +109,7 @@
       "lane": "done",
       "last_event_id": "01KQ8C43ENEPYQKQCTTNTEXJ32",
       "last_transition_at": "2026-04-27T21:04:31.701073+00:00",
+      "review_result": null,
       "shell_pid": 82312,
       "subtasks": {
         "T026": "done",
@@ -122,6 +128,7 @@
       "lane": "done",
       "last_event_id": "01KQ8C43YVPDAY4F9VJ5Z03YHX",
       "last_transition_at": "2026-04-27T21:04:32.219724+00:00",
+      "review_result": null,
       "shell_pid": 84538,
       "subtasks": {
         "T033": "done",
@@ -136,6 +143,7 @@
       "lane": "done",
       "last_event_id": "01KQ8C44EBH4M2JYSDVSC0K3KG",
       "last_transition_at": "2026-04-27T21:04:32.715855+00:00",
+      "review_result": null,
       "shell_pid": 70274,
       "subtasks": {
         "T036": "done",

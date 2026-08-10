@@ -20,62 +20,190 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYTSPZ4QAZ7WY351G4GXYQHZ",
       "last_transition_at": "2026-07-31T00:38:13.911877+00:00",
-      "shell_pid": 2517893,
-      "shell_pid_created_at": "1785441373.89"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP01 ready: per-stanza grammatical + contract green; ruff/mypy clean. pytest tests/charter/test_fetch_stanza_normalization.py tests/specify_cli/next/test_wp_prompt_governance_contract.py -q => 32 passed (exit 0). ruff check (4 changed files) => All checks passed (exit 0). mypy src/charter/context_renderers/fetch_stanza.py => Success (exit 0). Discovered out-of-scope gap flagged in commit + test docstring: section_bodies.py has a duplicate, unowned fetch-stanza composer with 2 more non-matching clauses (prepare a WP for review / perform a terminology cutover) -- not fixed here (outside fetch_stanza.py authoritative surface).",
+        "Review passed (reviewer-renata, independent): RED-first verified (reverted both prod files to test-commit ae887bbcc tree, 3/6 failed; fix 8cf79f440 -> 32 passed); closed 6-verb _WHEN_DOING_RE NOT widened; per-stanza guarantee real (T004 added, whole-prompt checks intact); byte-unchanged good path asserted; T003 fold minimal (render_fetch_stanza in fetch_stanza.py, context.py out-of-map alias, 2 live sites, no orphan import); ruff+mypy --strict clean, no noqa/type-ignore. FOLLOW-UP tracked (out of WP01 owned surface): section_bodies.py::_render_fetch_stanza + CRITICAL_SECTION_WHEN_CLAUSES bypasses fetch_stanza_lines; 'prepare a WP for review'/'perform a terminology cutover' still fail the closed set -> #3082 not terminal-done until routed through the choke-point. #3082 verdict=in-mission; matrix now complete."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata, independent): RED-first verified (reverted both prod files to test-commit ae887bbcc tree, 3/6 failed; fix 8cf79f440 -> 32 passed); closed 6-verb _WHEN_DOING_RE NOT widened; per-stanza guarantee real (T004 added, whole-prompt checks intact); byte-unchanged good path asserted; T003 fold minimal (render_fetch_stanza in fetch_stanza.py, context.py out-of-map alias, 2 live sites, no orphan import); ruff+mypy --strict clean, no noqa/type-ignore. FOLLOW-UP tracked (out of WP01 owned surface): section_bodies.py::_render_fetch_stanza + CRITICAL_SECTION_WHEN_CLAUSES bypasses fetch_stanza_lines; 'prepare a WP for review'/'perform a terminology cutover' still fail the closed set -> #3082 not terminal-done until routed through the choke-point. #3082 verdict=in-mission; matrix now complete.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2577245,
+      "shell_pid_created_at": "1785443171.64",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYTSQ03WNXP403FH8GYVDTJS",
       "last_transition_at": "2026-07-31T00:38:14.908809+00:00",
-      "shell_pid": 2525521,
-      "shell_pid_created_at": "1785441730.68"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP02 ready: composite 5-dimension empty-charter predicate + executor auto-route seam (no ProfileRegistry/resolver.py touch) + generic-agent fallback + one-shot dispatch warning + Literal widened. Gate fixtures: test_doctrine_service_factory.py + test_activation_authority.py green (9 passed); test_no_activation_key_admits_all_builtins_in_routing green; test_excluded_builtin_absent_from_routing_and_context is a PRE-EXISTING baseline red confirmed via isolated worktree at base commit (unrelated to this WP). Full tests/specify_cli/invocation/: 395 passed, 1 pre-existing red. ruff clean, mypy --strict clean (15 files). Red-first T006 confirmed RED (ModuleNotFoundError) before implementation.",
+        "Review passed: composite 5-dim predicate verified (URNs/agent_profiles/mission_step_contracts/glossary_packs/org_roots), executor auto-route seam only (no resolver/registry/doctrine_service_factory), RED-first confirmed (test f7d53e3bc precedes impl a2197d054, module absent at test commit), 23 WP02 tests green, gate fixtures green, pre-existing red test_excluded_builtin_absent_from_routing_and_context confirmed at merge-base 7bfa58d30 (not WP02 - track as GH issue), ruff/mypy --strict clean. Matrix now complete."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: composite 5-dim predicate verified (URNs/agent_profiles/mission_step_contracts/glossary_packs/org_roots), executor auto-route seam only (no resolver/registry/doctrine_service_factory), RED-first confirmed (test f7d53e3bc precedes impl a2197d054, module absent at test commit), 23 WP02 tests green, gate fixtures green, pre-existing red test_excluded_builtin_absent_from_routing_and_context confirmed at merge-base 7bfa58d30 (not WP02 - track as GH issue), ruff/mypy --strict clean. Matrix now complete.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2574115,
+      "shell_pid_created_at": "1785443118.2",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYTSQ0ZDCZKC3R33YHC5P899",
       "last_transition_at": "2026-07-31T00:38:15.789672+00:00",
-      "shell_pid": 2606858,
-      "shell_pid_created_at": "1785444036.66"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP03 ready: empty-charter Directive IDs block suppressed via bounded suppress_project_resolver flag (compact.py + declared out-of-map context.py/executor.py passthrough); scaffold asset common-charter-scaffold-minimal resolves+activates+validates; no compact-consumer regression (473 passed in tests/charter/ compact/reference/context sweep). Validation: pytest owned tests 9 passed; doctrine asset path exit 0; ruff clean; mypy src/charter/compact.py clean (pre-existing unrelated mypy finding at context.py:1963 confirmed red on base).",
+        "Review passed: RED->GREEN genuine (d784193b7 test-only leak-RED, 31 built-in DIR-### leaked via unconditional resolver_directives merge; ae102458c fix drops leak to 0). Bounded fix: suppress_project_resolver (default False) threaded compact.py->context.py->executor.py; _resolve_directives_selection UNTOUCHED (resolver.py not in diff); only executor's empty-charter seam passes kwarg, prompt_builder defaults False -> no collateral (tests/charter compact/reference/context = 473 passed). Out-of-map edits minimal+justified (context.py WP06: kw-only param passthrough; executor.py WP02: 1-line wiring from empty_charter_fallback). Asset common-charter-scaffold-minimal resolves exit0, mime guard + activatability + user-charter byte-preservation all covered. ruff clean; mypy compact.py clean. Pre-existing context.py:1963 no-any-return (commit 102fce06be) and #3092 parity red both predate WP03 (N/A)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: RED->GREEN genuine (d784193b7 test-only leak-RED, 31 built-in DIR-### leaked via unconditional resolver_directives merge; ae102458c fix drops leak to 0). Bounded fix: suppress_project_resolver (default False) threaded compact.py->context.py->executor.py; _resolve_directives_selection UNTOUCHED (resolver.py not in diff); only executor's empty-charter seam passes kwarg, prompt_builder defaults False -> no collateral (tests/charter compact/reference/context = 473 passed). Out-of-map edits minimal+justified (context.py WP06: kw-only param passthrough; executor.py WP02: 1-line wiring from empty_charter_fallback). Asset common-charter-scaffold-minimal resolves exit0, mime guard + activatability + user-charter byte-preservation all covered. ruff clean; mypy compact.py clean. Pre-existing context.py:1963 no-any-return (commit 102fce06be) and #3092 parity red both predate WP03 (N/A).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2651451,
+      "shell_pid_created_at": "1785445878.46",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYTSQ1TV6EHG5F424WATNT9N",
       "last_transition_at": "2026-07-31T00:38:16.667927+00:00",
-      "shell_pid": 2661891,
-      "shell_pid_created_at": "1785446318.78"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP04 ready: parity baseline (4 cases: token-budget substitution, catalog-miss fall-through, first-load state bookkeeping, empty-charter provenance) + leaf/pure seams extracted (catalog_diagnosis.py, token_budget.py consolidated, reference_pointers.py consolidated + charter_md_parsing.py, artifact_bodies.py, context_state.py) + profile_sections.py cycle dissolved (0 PLC0415); byte-parity green (7/7 parity tests); tests/charter/ full suite green (1761 passed, 4 skipped); test_layer_rules.py green; test_no_dead_symbols.py 40/41 green (1 pre-existing unrelated failure confirmed red at merge-base); ruff clean on all touched files; mypy src/charter/ clean (0 errors).",
+        "Review passed: byte-parity green on 4-case corpus, cycle dissolved, seams consolidated correctly, FR-009 shim intact. Dead-symbol charter_activated_urns is WP02-fallout routed to WP06 (not WP04)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: byte-parity green on 4-case corpus, cycle dissolved, seams consolidated correctly, FR-009 shim intact. Dead-symbol charter_activated_urns is WP02-fallout routed to WP06 (not WP04).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2756315,
+      "shell_pid_created_at": "1785449673.6",
+      "subtasks": {
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYTSQ2P5MTGH9R34YE8Q5BD9",
       "last_transition_at": "2026-07-31T00:38:17.541354+00:00",
-      "shell_pid": 2772517,
-      "shell_pid_created_at": "1785450306.3"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP05 ready: 5 render seams extracted (template_include, selection_block, activation_block, bootstrap_text, compact_governance); byte-parity green (test_context_parity.py 7/7, full tests/charter/ 1827 passed); suppress_project_resolver preserved through compact_governance move + regression-tested; context.py 2742->1445 lines; ruff+mypy clean; 2 pre-existing monkeypatch tests repointed to follow moved code (test_context_include.py, test_kind_cascade_exhaustive.py)",
+        "Review passed: 5 render seams extracted, byte-parity 7/7 (fixture unmodified), compact.py untouched, suppress_project_resolver preserved, collateral fixes target-repoint only, no new cycle. Dead-symbol charter_activated_urns is WP02-fallout (WP06)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: 5 render seams extracted, byte-parity 7/7 (fixture unmodified), compact.py untouched, suppress_project_resolver preserved, collateral fixes target-repoint only, no new cycle. Dead-symbol charter_activated_urns is WP02-fallout (WP06).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2832754,
+      "shell_pid_created_at": "1785453227.88",
+      "subtasks": {
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done"
+      }
     },
     "WP06": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KYTSQ3HDMGE6M44YQBFWG0JK",
       "last_transition_at": "2026-07-31T00:38:18.413439+00:00",
-      "shell_pid": 2843169,
-      "shell_pid_created_at": "1785453713.94"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP06 ready: service seams extracted (context_json, org_pack_discovery, action_doctrine_bundle, profile_resolution, doctrine_service_builder — US1-frozen region extracted last, byte-identical); context.py 570 lines (from 1445, <=600 ceiling); completion test green (16-module seam-existence manifest + LOC gate, 36 tests); dead-symbol allowlist fixed (charter_activated_urns stale entry removed, gate fully green); byte-parity green (test_context_parity.py); full tests/charter/ suite 1886 passed/4 skipped/0 failed; test_layer_rules/test_no_dead_symbols/test_runtime_charter_doctrine_boundary all green; ruff clean; mypy --strict clean (102 files)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: context.py 570 lines (3243->570), 16 seams, completion gate non-fakeable (manifest asserts non-context callers + LOC), byte-parity 7/7, dead-symbol green 24, function-local import pattern verified no-cycle + test-patch-required, all arch gates green.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2929271,
+      "shell_pid_created_at": "1785457236.59",
+      "subtasks": {
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done"
+      }
     }
   }
 }

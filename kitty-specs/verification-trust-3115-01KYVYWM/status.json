@@ -28,6 +28,11 @@
       "last_transition_at": "2026-07-31T15:22:39.783081+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260731",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 192528,
       "shell_pid_created_at": "1785508722.0",
@@ -53,6 +58,11 @@
         "Approved round 1 (c107f4e928). Red-before/green-after via WP01's reproducer; red produced by the mutant not a stash. Reviewer proved the mutant non-inert by rebuilding the pre-fix shape (result=None) and reproducing the false green. Blast radius widened to 3536 tests seam-on and seam-off: no outcome moved. 1 MEDIUM carried, NOT a WP02 defect: the three exempted specials carry _height=None so they render at (80,25) on the failing path; 5 tests still red there. WP03's guard MUST compare effective size.width, not declared _width."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Approved round 1 (c107f4e928). Red-before/green-after via WP01's reproducer; red produced by the mutant not a stash. Reviewer proved the mutant non-inert by rebuilding the pre-fix shape (result=None) and reproducing the false green. Blast radius widened to 3536 tests seam-on and seam-off: no outcome moved. 1 MEDIUM carried, NOT a WP02 defect: the three exempted specials carry _height=None so they render at (80,25) on the failing path; 5 tests still red there. WP03's guard MUST compare effective size.width, not declared _width.",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 808608,
       "shell_pid_created_at": "1785522645.1",
@@ -77,6 +87,11 @@
         "Approved round 2 (aab63e4501). Guard reads effective instance.size; a bare width>=36 check proven vacuous (rich's dumb floor is 80 > 36). Renders a fold-shaped table and asserts uuid contiguity; threshold swept - bites <88, clears >=88. Positive control by object identity on both named singletons. Red-first via WP02's mutant, suppression 3. R2: report now emitted via warnings.warn after terminalreporter.write_line was MEASURED to also fail under -n auto (xdist workers have no terminal; only structured reports cross IPC) - grep count 0 -> 7 under CI's own flags. interleaved.strip() added after a whitespace-only capture was shown to pass all four assertions. Exemption narrowed to snapshot-minus-specials. Orphan ratchet not re-run in R2 (no test names/counts/paths/markers changed) - stated plainly. NFR-006 recorded as satisfied-by-argument."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Approved round 2 (aab63e4501). Guard reads effective instance.size; a bare width>=36 check proven vacuous (rich's dumb floor is 80 > 36). Renders a fold-shaped table and asserts uuid contiguity; threshold swept - bites <88, clears >=88. Positive control by object identity on both named singletons. Red-first via WP02's mutant, suppression 3. R2: report now emitted via warnings.warn after terminalreporter.write_line was MEASURED to also fail under -n auto (xdist workers have no terminal; only structured reports cross IPC) - grep count 0 -> 7 under CI's own flags. interleaved.strip() added after a whitespace-only capture was shown to pass all four assertions. Exemption narrowed to snapshot-minus-specials. Orphan ratchet not re-run in R2 (no test names/counts/paths/markers changed) - stated plainly. NFR-006 recorded as satisfied-by-argument.",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 1266596,
       "shell_pid_created_at": "1785533739.57",
@@ -103,6 +118,11 @@
         "Approved round 2 (975a410e15). 22->53 entries. All 3 HIGH + 4 MEDIUM discharged by re-derivation; exclusion split reconciles exactly (296 bindings); docs artefacts byte-identical to fresh regeneration. Dependence methodology repaired: import-graph rule retired for a read-set/write-set trace, validated against the reset_adapters control. Reviewer withdrew its own proposed argument as weaker. 1 MEDIUM carried to WP05/WP06."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Approved round 2 (975a410e15). 22->53 entries. All 3 HIGH + 4 MEDIUM discharged by re-derivation; exclusion split reconciles exactly (296 bindings); docs artefacts byte-identical to fresh regeneration. Dependence methodology repaired: import-graph rule retired for a read-set/write-set trace, validated against the reset_adapters control. Reviewer withdrew its own proposed argument as weaker. 1 MEDIUM carried to WP05/WP06.",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 1016968,
       "shell_pid_created_at": "1785529450.97",
@@ -127,6 +147,11 @@
         "Approved round 2 (217b34afcb). Guard is a hookwrapper pair, not an autouse fixture (fixture form gave 145 false positives; pytest tears no-dependency autouse fixtures down before monkeypatch restore). Reviewer verified the 11 leaks with an INDEPENDENT census, guard neutralised and mutation bound: same 11 nodes/symbols/threads, each thread STILL-ALIVE-after-1.0s; with the guard inert all 12 pass. Filed as issue #3130. NFR-006's 5.06% does NOT survive measurement - micro-benchmark gives 70.1us/snapshot x2 x2122 = 0.30s = ~0.4%, below the noise floor (identical runs differed 0.79s); no implementation change warranted. R2 fixed: the xdist 'inspected 0' caveat now prints; T017 evidence retracted and re-recorded citing the reviewer's fuller reproduction; the restores-to-the-same-wrong-value blind spot named. OPERATOR DECISION OPEN: merging reds ~11 green fast-tests-sync tests by design. Third option surfaced by the reviewer: pin the 11 as xfail(strict=True) per C-011 - pins the defect rather than hiding it, keeps CI green."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Approved round 2 (217b34afcb). Guard is a hookwrapper pair, not an autouse fixture (fixture form gave 145 false positives; pytest tears no-dependency autouse fixtures down before monkeypatch restore). Reviewer verified the 11 leaks with an INDEPENDENT census, guard neutralised and mutation bound: same 11 nodes/symbols/threads, each thread STILL-ALIVE-after-1.0s; with the guard inert all 12 pass. Filed as issue #3130. NFR-006's 5.06% does NOT survive measurement - micro-benchmark gives 70.1us/snapshot x2 x2122 = 0.30s = ~0.4%, below the noise floor (identical runs differed 0.79s); no implementation change warranted. R2 fixed: the xdist 'inspected 0' caveat now prints; T017 evidence retracted and re-recorded citing the reviewer's fuller reproduction; the restores-to-the-same-wrong-value blind spot named. OPERATOR DECISION OPEN: merging reds ~11 green fast-tests-sync tests by design. Third option surfaced by the reviewer: pin the 11 as xfail(strict=True) per C-011 - pins the defect rather than hiding it, keeps CI green.",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 1606902,
       "shell_pid_created_at": "1785543112.79",
@@ -152,6 +177,11 @@
         "Approved round 3 (512e240d80). FR-005 closes as a LEGITIMATE NEGATIVE. Arc: r1's negative rested on a search that never read the primary artefact; r2's on a grep whose scope structurally excluded the answer; r3's on a validated instrument that saw a leak when present (sync/batch.py:674 via background.py's final-sync thread, #3130 leaks 1-2, stack-named) and saw none on either FR-005 victim. PRODUCER NAMED: subprocess.Popen._wait's POSIX busy-wait, delay=min(delay*2, remaining, .05), base 0.0005 - one loop that saturates, not two producers; the 0.05 is its cap. restart.py:147 and daemon.py:1382 FALSIFIED. NEW ROT MODE INSTANCE: psutil.Process.wait is invisible to @patch(time.sleep) because psutil._psposix.wait_pid_posix binds _sleep=time.sleep as a function default at import time; the pidfd branch has no sleep at all, so the exclusion is environment-independent. CLOSURE: the recorder is side_effect on the same mock whose call_count raises, so the instrument's blind spots are a subset of the failure's; the one exception (side_effect reassignment) measured at 0 sites. VICTIMS CORRECTED: the real ones are test_exponential_backoff_intervals and test_429_retries_then_raises, NOT test_429_respects_retry_after which the issue named."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Approved round 3 (512e240d80). FR-005 closes as a LEGITIMATE NEGATIVE. Arc: r1's negative rested on a search that never read the primary artefact; r2's on a grep whose scope structurally excluded the answer; r3's on a validated instrument that saw a leak when present (sync/batch.py:674 via background.py's final-sync thread, #3130 leaks 1-2, stack-named) and saw none on either FR-005 victim. PRODUCER NAMED: subprocess.Popen._wait's POSIX busy-wait, delay=min(delay*2, remaining, .05), base 0.0005 - one loop that saturates, not two producers; the 0.05 is its cap. restart.py:147 and daemon.py:1382 FALSIFIED. NEW ROT MODE INSTANCE: psutil.Process.wait is invisible to @patch(time.sleep) because psutil._psposix.wait_pid_posix binds _sleep=time.sleep as a function default at import time; the pidfd branch has no sleep at all, so the exclusion is environment-independent. CLOSURE: the recorder is side_effect on the same mock whose call_count raises, so the instrument's blind spots are a subset of the failure's; the one exception (side_effect reassignment) measured at 0 sites. VICTIMS CORRECTED: the real ones are test_exponential_backoff_intervals and test_429_retries_then_raises, NOT test_429_respects_retry_after which the issue named.",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 1714070,
       "shell_pid_created_at": "1785549710.78",
@@ -176,6 +206,11 @@
         "Approved round 2 (326677e6e6). Verdict NOT LOAD-BEARING, established on a discriminating arm: reviewer found cases (a)/(b) collapsed (both rendered 240x50 under WP02's unconditional seam), then ran seam-off + reset-neutralised together to restore the real (80,25) - same test reds with byte-identical assertion text either way. Suppression non-zero at all 5 sites (8/24/18/50/30), each exactly 2x collected. Deletion clause found UNSATISFIABLE: WP04's inventory disclaims tests/cli, so FR-009's conjunct cannot be established - all 5 kept, docstrings corrected. R2 fixed 3 docstring MEDIUMs: overclaimed two directions, wrong width attribution (240 seam vs the files' own 220), and a deleted threat model that left an absence claim unexplained. Verdict now scoped to measured compositions. Expected no_coverage gate line is NOT evidence; manual evidence stands in."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Approved round 2 (326677e6e6). Verdict NOT LOAD-BEARING, established on a discriminating arm: reviewer found cases (a)/(b) collapsed (both rendered 240x50 under WP02's unconditional seam), then ran seam-off + reset-neutralised together to restore the real (80,25) - same test reds with byte-identical assertion text either way. Suppression non-zero at all 5 sites (8/24/18/50/30), each exactly 2x collected. Deletion clause found UNSATISFIABLE: WP04's inventory disclaims tests/cli, so FR-009's conjunct cannot be established - all 5 kept, docstrings corrected. R2 fixed 3 docstring MEDIUMs: overclaimed two directions, wrong width attribution (240 seam vs the files' own 220), and a deleted threat model that left an absence claim unexplained. Verdict now scoped to measured compositions. Expected no_coverage gate line is NOT evidence; manual evidence stands in.",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 1531736,
       "shell_pid_created_at": "1785539275.42",
@@ -201,6 +236,11 @@
         "Approved round 2. R1 MEDIUM (unconditional misattribution) and LOW (helper breadth) both closed. Reviewer disproved the implementer's stated discriminator (effective_sync_enabled was a fixture artefact, not the predicate) then verified the claim independently by forging the matching-field case. Pre-review gate printed 'no new failures' in 7s for a file that takes 51s to collect -- treated as NO MEASUREMENT; reviewer's independent runs are the only regression evidence. 3 LOW/NOTE residuals carried."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Approved round 2. R1 MEDIUM (unconditional misattribution) and LOW (helper breadth) both closed. Reviewer disproved the implementer's stated discriminator (effective_sync_enabled was a fixture artefact, not the predicate) then verified the claim independently by forging the matching-field case. Pre-review gate printed 'no new failures' in 7s for a file that takes 51s to collect -- treated as NO MEASUREMENT; reviewer's independent runs are the only regression evidence. 3 LOW/NOTE residuals carried.",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 298849,
       "shell_pid_created_at": "1785511980.31",
@@ -224,6 +264,11 @@
         "Approved round 1. FR-015 matcher DECLINED on measured non-zero FPs - the FR's own acceptance. Reviewer re-derived every figure independently and confirmed all 5 FP sites are DI lookups through same-named Callable-typed params, not transports. Proved strict=True load-bearing by two-arm probe (exit 1 with, exit 0 green without). Closed the 211/13 discrepancy: 211 pairs with 116 files; the 13 was transcribed from the callee-agnostic precedent at spec.md:563. 3 LOW + 2 NOTE residuals carried."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Approved round 1. FR-015 matcher DECLINED on measured non-zero FPs - the FR's own acceptance. Reviewer re-derived every figure independently and confirmed all 5 FP sites are DI lookups through same-named Callable-typed params, not transports. Proved strict=True load-bearing by two-arm probe (exit 1 with, exit 0 green without). Closed the 211/13 discrepancy: 211 pairs with 116 files; the 13 was transcribed from the callee-agnostic precedent at spec.md:563. 3 LOW + 2 NOTE residuals carried.",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 469683,
       "shell_pid_created_at": "1785514719.87",
@@ -249,6 +294,11 @@
         "Approved round 2 (commit ee98806965). Acceptance chain: hook-level mutant, non-zero per-site split, loud on zero via TWO independent limbs (exit status survives -p no:terminalreporter), defeats both halves of the break condition, 8,813,833 non-terminating iterations uncapped reding as Failed: Timeout, and the cap converts that to AssertionError naming 26 on an interpreter where Failed: Timeout demonstrably CAN fire and did not. Measured on .venv/bin/python (timeout-2.4.0 registered). All r1 MEDIUMs+LOWs closed. Open, not WP11's: .gitignore:162 unanchored mutants/ - filed as #3125, and WP12 must git add -f plus evidence a git ls-files line."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Approved round 2 (commit ee98806965). Acceptance chain: hook-level mutant, non-zero per-site split, loud on zero via TWO independent limbs (exit status survives -p no:terminalreporter), defeats both halves of the break condition, 8,813,833 non-terminating iterations uncapped reding as Failed: Timeout, and the cap converts that to AssertionError naming 26 on an interpreter where Failed: Timeout demonstrably CAN fire and did not. Measured on .venv/bin/python (timeout-2.4.0 registered). All r1 MEDIUMs+LOWs closed. Open, not WP11's: .gitignore:162 unanchored mutants/ - filed as #3125, and WP12 must git add -f plus evidence a git ls-files line.",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 656342,
       "shell_pid_created_at": "1785519115.09",
@@ -273,6 +323,11 @@
         "Approved round 2 (efe2e01ee9). Derivation (a) rejected on measurement; (b) job-scoped to 17 command lines, pytest.ini byte-identical to base. Value 240s signal, full-protocol scope retained deliberately over --timeout-func-only so hangs in autouse fixture setup stay visible. Reviewer verified the timer armed via pytest's own header (timeout 240.0s / signal / func_only False) and measured max full-protocol item 29.90s = 8.03x headroom; it also retracted the practical force of its own finding (outlier setup/teardown measured 0.00, so 180 would have been safe - a bookkeeping defect, not a value defect). No job sets timeout-minutes, so no runner-level kill can pre-empt the bound. OPEN, carried to PR: FR-017's regression clause needs the first post-merge CI run; fast-tests-status (issue #3127) will be absent from that enumeration unless fast-tests-sync goes green."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Approved round 2 (efe2e01ee9). Derivation (a) rejected on measurement; (b) job-scoped to 17 command lines, pytest.ini byte-identical to base. Value 240s signal, full-protocol scope retained deliberately over --timeout-func-only so hangs in autouse fixture setup stay visible. Reviewer verified the timer armed via pytest's own header (timeout 240.0s / signal / func_only False) and measured max full-protocol item 29.90s = 8.03x headroom; it also retracted the practical force of its own finding (outlier setup/teardown measured 0.00, so 180 would have been safe - a bookkeeping defect, not a value defect). No job sets timeout-minutes, so no runner-level kill can pre-empt the bound. OPEN, carried to PR: FR-017's regression clause needs the first post-merge CI run; fast-tests-status (issue #3127) will be absent from that enumeration unless fast-tests-sync goes green.",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 996662,
       "shell_pid_created_at": "1785528802.7",
@@ -300,6 +355,11 @@
         "Round 3 APPROVE (review-cycle-2.md): both HIGHs discharged -- vacuous-PASS guard now fails 0/17 exit 1, four evidence extractors folded into exit status. Round 4 closed 1 MEDIUM + 3 LOWs."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Round 3 APPROVE (review-cycle-2.md): both HIGHs discharged -- vacuous-PASS guard now fails 0/17 exit 1, four evidence extractors folded into exit status. Round 4 closed 1 MEDIUM + 3 LOWs.",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 111162,
       "shell_pid_created_at": "1785577434.89",
@@ -325,6 +385,11 @@
         "Approved round 1. Outcome B forced: FR-010(a) is CONJUNCTIVE - FR-005 permits attribution by 'a specific other mechanism' so the named Popen._wait producer clears the ATTRIBUTION half; (a) fails on its REPRODUCTION conjunct since WP06 recorded F-b. Closed enumeration => (b). Zero diff verified mechanically; a manufactured change would have been the defect. #3136 checked line-by-line against all 11 claimed inheritances. Blocking exit clause not violated. LOWs carried: floor count corrected 11->10; FR-010's hours/mechanisms budget owed in the PR body; #3136 cites the WP04 inventory not yet on the mission branch; WP06's '400 calls' probe to be carried to #3136 with why it is NOT a both-directions reproduction."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Approved round 1. Outcome B forced: FR-010(a) is CONJUNCTIVE - FR-005 permits attribution by 'a specific other mechanism' so the named Popen._wait producer clears the ATTRIBUTION half; (a) fails on its REPRODUCTION conjunct since WP06 recorded F-b. Closed enumeration => (b). Zero diff verified mechanically; a manufactured change would have been the defect. #3136 checked line-by-line against all 11 claimed inheritances. Blocking exit clause not violated. LOWs carried: floor count corrected 11->10; FR-010's hours/mechanisms budget owed in the PR body; #3136 cites the WP04 inventory not yet on the mission branch; WP06's '400 calls' probe to be carried to #3136 with why it is NOT a both-directions reproduction.",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 83980,
       "shell_pid_created_at": "1785576131.52",

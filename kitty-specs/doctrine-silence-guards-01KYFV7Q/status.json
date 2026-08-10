@@ -28,6 +28,11 @@
       "last_transition_at": "2026-07-27T16:08:12.094158+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260727",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 623450,
       "shell_pid_created_at": "1785098011.73",
@@ -53,6 +58,11 @@
         "WP02 complete: schema/loader/diff_check field-path granularity, ATDD red-first commit, backward-compat proven against a committed legacy map, SC-011 demonstrated against B2's real (file,field) GOVERNANCE/RAW sets. --force used because this mission's tasks.md 'reference row' subtask format (T006..T011 as plain description lines) is not recognized by any of mark-status's four resolvers (checkbox/pipe-table/inline-subtasks/wp-id) despite tasks.md's own header directing agents to use mark-status for this format -- an upstream parser/template gap, reported separately, not a WP02 defect."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20260727",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 1052808,
       "shell_pid_created_at": "1785130206.64",
@@ -76,6 +86,11 @@
       "last_transition_at": "2026-07-27T16:08:23.065829+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20260727",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 1053412,
       "shell_pid_created_at": "1785130214.84",
@@ -97,6 +112,11 @@
       "last_transition_at": "2026-07-27T16:08:33.947645+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20260727",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 1244143,
       "shell_pid_created_at": "1785135817.26",
@@ -125,6 +145,11 @@
         "T023-T027 complete: --check exits 0, structural_lint_config + point_in_time_marker adjudicated and preserved, paradigm_reference/mission_step_template_ref verified, WP01 floors converted to proportional form, baseline 59->51."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20260727",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 1054169,
       "shell_pid_created_at": "1785130223.16",
@@ -151,6 +176,11 @@
         "T031/T032 landed: enum ratchet RED-first then GREEN. T029/T030/T033 verified already delivered by prior work (layout gate untouched, 17 tests pass)."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP06:20260727",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "subtasks": {
         "T029": "done",
@@ -171,6 +201,11 @@
       "last_transition_at": "2026-07-27T16:08:50.445983+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP07:20260727",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 1804289,
       "shell_pid_created_at": "1785144106.56",
@@ -195,6 +230,11 @@
       "last_transition_at": "2026-07-27T16:08:55.995083+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP08:20260727",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 1803519,
       "shell_pid_created_at": "1785144099.3",
@@ -217,6 +257,11 @@
       "last_transition_at": "2026-07-27T16:09:01.572079+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP09:20260727",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 3965243,
       "shell_pid_created_at": "1785163514.21",
@@ -240,6 +285,11 @@
         "review REJECT (reporting + three MINOR guard defects); remediating on lane-j"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP10:20260727",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "subtasks": {
         "T050": "done",

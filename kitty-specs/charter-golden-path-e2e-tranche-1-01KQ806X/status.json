@@ -24,6 +24,7 @@
       "lane": "done",
       "last_event_id": "01KQ85FS04ZQA6VZAHTXFFG90Z",
       "last_transition_at": "2026-04-27T19:08:34.180122+00:00",
+      "review_result": null,
       "shell_pid": 50884,
       "subtasks": {
         "T001": "done",
@@ -38,6 +39,7 @@
       "lane": "done",
       "last_event_id": "01KQ85FW58TS5B2P2MKJP3EDP9",
       "last_transition_at": "2026-04-27T19:08:37.417000+00:00",
+      "review_result": null,
       "shell_pid": 58927,
       "subtasks": {
         "T004": "done",

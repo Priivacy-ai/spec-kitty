@@ -24,6 +24,11 @@
       "lane": "done",
       "last_event_id": "01KXX163Q1ABNVFV3WEB4H9R4X",
       "last_transition_at": "2026-07-19T11:11:37.185342+00:00",
+      "review_result": {
+        "reference": "Review passed (renata/opus): faithful land of 0153934f9 (byte-identical, +142/-3, 4 owned files); calm consumer message names no internal module; spec-kitty-repo path unchanged (NFR-003); both pre-review constants preserved; 58 passed; ruff+mypy clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2450756,
       "shell_pid_created_at": "1784458275.52",
       "subtasks": {
@@ -41,6 +46,11 @@
       "lane": "done",
       "last_event_id": "01KXX164BN4VHY6G8HHDAPVSST",
       "last_transition_at": "2026-07-19T11:11:37.845348+00:00",
+      "review_result": {
+        "reference": "Review passed (renata/opus): _daemon_start_skip_reason honors disable envs as first check, returns None on neither-set (INV-2 behavior-preserving verified by code-read); is_truthy grammar matches pre-review-gate; repro green + 22 sibling daemon tests no regressions; ruff+mypy --strict clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2446076,
       "shell_pid_created_at": "1784458242.68",
       "subtasks": {
@@ -59,6 +69,11 @@
       "lane": "done",
       "last_event_id": "01KXX16511H4TYTMSBZTAF5N4Q",
       "last_transition_at": "2026-07-19T11:11:38.529045+00:00",
+      "review_result": {
+        "reference": "Review passed: FR-001 fixture sound; #2809->#2782 reconciliation substantiated (non-blocking gate)",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2473743,
       "shell_pid_created_at": "1784458502.5",
       "subtasks": {
@@ -77,6 +92,11 @@
       "lane": "done",
       "last_event_id": "01KXX165N6QC7T94HDYRF725TC",
       "last_transition_at": "2026-07-19T11:11:39.174298+00:00",
+      "review_result": {
+        "reference": "Review passed (renata/opus): isinstance guard in orchestrator.py only (448fc0133, +7/-1, no url_list re-plumb); FULL e2e test_charter_epic_golden_path 1 passed/47.77s; phase3+orchestrator 18 passed/1 skipped; ruff+mypy --strict clean; charter status --json unaffected.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2442998,
       "shell_pid_created_at": "1784458197.41",
       "subtasks": {
@@ -94,6 +114,11 @@
       "lane": "done",
       "last_event_id": "01KXX166995YMT8VRG7W5PP8P9",
       "last_transition_at": "2026-07-19T11:11:39.817417+00:00",
+      "review_result": {
+        "reference": "Review passed: diff confined to 2 owned test files, no product code. charter.yaml seeded schema-plausible (v2.0.0) + git-tracked/committed alongside charter.md; test exercises real ensure_charter_bundle_fresh chokepoint (not synthetic). Auth guard is a narrow pytest.skip keyed only on logged_out_on_connected_teamspace, placed before the real returncode assertion so it cannot mask a genuine regression when authed (NFR-002 satisfied). Tests: 8 passed / 1 skip (auth, logged-out sandbox); ruff + mypy --strict clean. Non-skip authed path unreachable here (CI always logged-out) but structurally the pre-existing assertion is intact.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2473743,
       "shell_pid_created_at": "1784458502.5",
       "subtasks": {
@@ -111,6 +136,11 @@
       "lane": "done",
       "last_event_id": "01KXX166XWM51Z238APKS96MP2",
       "last_transition_at": "2026-07-19T11:11:40.476987+00:00",
+      "review_result": {
+        "reference": "Review passed (renata/opus): dual-site loader-coverage guard (if: :1292 + JOB_GROUPS :3958), parity gate test_workflow_coherence 16 passed; urn-lane registry-clear root-fix inside catch_warnings, 78 passed x2 deterministic; no perturbation of other platform consumers; YAML valid; ruff clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2458157,
       "shell_pid_created_at": "1784458323.2",
       "subtasks": {

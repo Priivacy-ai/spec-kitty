@@ -1,5 +1,5 @@
 {
-  "event_count": 45,
+  "event_count": 46,
   "last_event_id": "01KZDQA8QBZQQKWWX2C36HR1RK",
   "materialized_at": "2026-08-07T09:01:54.795038+00:00",
   "mission_number": "",
@@ -19,75 +19,156 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
+      "agent": "cursor:composer:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZDQA2EMFKMD8BKHD3A8P2JN",
       "last_transition_at": "2026-08-07T09:01:48.372803+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: Authored DIRECTIVE_051 (supply-chain install safety, threat-class based), extended dependency-hygiene tactic with JS/TS supply-chain steps, and added the supply-chain-install-safety operational checklist tactic with adversarial-evidence disposition language; re-baselined DRG cardinality tests (+2 nodes/+8 edges) and confirmed pytest tests/doctrine/ -q + ruff are fully green.",
+        "Review passed: DIRECTIVE_051 + dependency-hygiene extension + supply-chain-install-safety tactic are complete, threat-class-based (no hardcoded incident packages), non-regressive to Java/Python guidance, operationally concrete with adversarial-evidence disposition vocabulary matching the contract; graph wiring correctly re-baselines the repo's established golden-count/cardinality tests (documented in commit), no step-contract/gate files touched, no terminology-canon hits, all tests/doctrine (2572 passed) and targeted golden-count suites (51 passed) green."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed: DIRECTIVE_051 + dependency-hygiene extension + supply-chain-install-safety tactic are complete, threat-class-based (no hardcoded incident packages), non-regressive to Java/Python guidance, operationally concrete with adversarial-evidence disposition vocabulary matching the contract; graph wiring correctly re-baselines the repo's established golden-count/cardinality tests (documented in commit), no step-contract/gate files touched, no terminology-canon hits, all tests/doctrine (2572 passed) and targeted golden-count suites (51 passed) green.",
         "reviewer": "Zohar Stolar",
         "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 74693,
+      "shell_pid_created_at": "1786037551.716207",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
       }
     },
     "WP02": {
       "actor": "merge",
-      "agent": "cursor:composer:implementer-ivan:implementer",
+      "agent": "cursor:composer:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZDQA44GGBQ2J864FT8V0GRG",
       "last_transition_at": "2026-08-07T09:01:50.096561+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: action indexes, action-graph scope edges, and plan/implement/review step-contract security stages wired; advisory compatibility preserved (no new fail-closed gate).",
+        "Cycle 2: added 3 focused behavioral tests (action-index content, implement step-ordering, advisory-gate preservation) per review-cycle-1 feedback. Wiring itself was already verified correct in cycle 1.",
+        "Review passed (cycle 2/3): 3 new behavioral tests verified meaningful and regression-catching via independent break/revert (directive-id swap, step-order swap, fail_open flip all caught); full doctrine suite 2579 passed/8 skipped; targeted new tests 40/40 passed; ruff clean on both changed files; terminology guard 10/10 passed; no scope creep (only the 2 promised test files changed this cycle); cycle-1 wiring criteria re-confirmed intact."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "reference": "Review passed (cycle 2/3): 3 new behavioral tests verified meaningful and regression-catching via independent break/revert (directive-id swap, step-order swap, fail_open flip all caught); full doctrine suite 2579 passed/8 skipped; targeted new tests 40/40 passed; ruff clean on both changed files; terminology guard 10/10 passed; no scope creep (only the 2 promised test files changed this cycle); cycle-1 wiring criteria re-confirmed intact.",
         "reviewer": "Zohar Stolar",
         "verdict": "approved"
       },
-      "shell_pid": 14865,
-      "shell_pid_created_at": "1786048236.787855"
+      "role": "reviewer",
+      "shell_pid": 24658,
+      "shell_pid_created_at": "1786049085.828041",
+      "subtasks": {
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
-      "agent": "cursor:composer:curator-carla:implementer",
+      "agent": "cursor:composer:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZDQA5P6EFA9KAWAGBA2YP2S",
       "last_transition_at": "2026-08-07T09:01:51.686182+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: reviewer-renata, implementer-ivan, node-norris, frontend-freddy, python-pedro, java-jenny, architect-alphonso profiles updated; agent_profile.graph.yaml edges added; no new persona introduced.",
+        "Cycle 2: fixed missed golden-count literal in test_pack_relocation_preflight.py (900->916) plus a stale comment in test_packaging_parity.py per review-cycle-1 feedback. Full tests/doctrine suite now green with zero failures.",
+        "Review passed (cycle 2/3): both cycle-1 fixes confirmed correct. test_pack_relocation_preflight.py::test_baseline_smoke_counts now asserts 916 (was 900) and passes (1 passed in 33.21s). test_packaging_parity.py:157 comment updated to 326/916. Full tests/doctrine suite: 2572 passed, 8 skipped, 0 failed (exit 0) -- matches WP02 clean baseline exactly. Independent grep sweep for stale '900' literals across tests/doctrine/ and docs/architecture/doctrine-relationships.md found only historical ledger-narration comments correctly describing the WP01->WP03 900->916 transition (test_extractor_projection.py, test_pack_relocation_identity.py, test_unknown_kind_fails_loudly.py) -- no live stale assertions remain. Diff since cycle-1 (commit 016638e22..11ef73bf1) touches only the 2 intended test files (2 lines) plus status bookkeeping; no WP01/02/04/05-owned files touched. Re-verified all 7 profiles (reviewer-renata/implementer-ivan/node-norris/frontend-freddy/python-pedro/java-jenny/architect-alphonso) still carry directive-047/tactic references, no new persona files added (7 M, 0 A). ruff check clean on both changed files."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "reference": "Review passed (cycle 2/3): both cycle-1 fixes confirmed correct. test_pack_relocation_preflight.py::test_baseline_smoke_counts now asserts 916 (was 900) and passes (1 passed in 33.21s). test_packaging_parity.py:157 comment updated to 326/916. Full tests/doctrine suite: 2572 passed, 8 skipped, 0 failed (exit 0) -- matches WP02 clean baseline exactly. Independent grep sweep for stale '900' literals across tests/doctrine/ and docs/architecture/doctrine-relationships.md found only historical ledger-narration comments correctly describing the WP01->WP03 900->916 transition (test_extractor_projection.py, test_pack_relocation_identity.py, test_unknown_kind_fails_loudly.py) -- no live stale assertions remain. Diff since cycle-1 (commit 016638e22..11ef73bf1) touches only the 2 intended test files (2 lines) plus status bookkeeping; no WP01/02/04/05-owned files touched. Re-verified all 7 profiles (reviewer-renata/implementer-ivan/node-norris/frontend-freddy/python-pedro/java-jenny/architect-alphonso) still carry directive-047/tactic references, no new persona files added (7 M, 0 A). ruff check clean on both changed files.",
         "reviewer": "Zohar Stolar",
         "verdict": "approved"
       },
-      "shell_pid": 26987,
-      "shell_pid_created_at": "1786049246.750211"
+      "role": "reviewer",
+      "shell_pid": 31098,
+      "shell_pid_created_at": "1786049763.64273",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
-      "agent": "cursor:composer:doctrine-daphne:implementer",
+      "agent": "cursor:composer:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZDQA77DCQTZG6RD7V8YA0Q2",
       "last_transition_at": "2026-08-07T09:01:53.261249+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: SOURCE plan/implement/review prompt.md + guidelines.md updated with security-check and adversarial-evidence disposition guidance, consistent with WP02's step-contract wiring. No generated agent-copy directories touched.",
+        "Review passed: SOURCE-only diff (6 owned files, .md only); plan/implement/review guidance concretely references DIRECTIVE_051 (051-supply-chain-install-safety) and supply-chain-install-safety tactic, wired to the exact supply_chain_security_check/supply_chain_security_review step names from WP02; adversarial evidence disposition vocab (accepted/changed/deferred_with_rationale) correctly scoped to plan/research+review only (not implement), matching the adversarial-evidence-contract; advisory posture preserved (no MUST-NOT/hard-block phrasing); terminology canon clean; tests 2579 passed/8 skipped (doctrine) and 10 passed (terminology guard), both exit 0."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed: SOURCE-only diff (6 owned files, .md only); plan/implement/review guidance concretely references DIRECTIVE_051 (051-supply-chain-install-safety) and supply-chain-install-safety tactic, wired to the exact supply_chain_security_check/supply_chain_security_review step names from WP02; adversarial evidence disposition vocab (accepted/changed/deferred_with_rationale) correctly scoped to plan/research+review only (not implement), matching the adversarial-evidence-contract; advisory posture preserved (no MUST-NOT/hard-block phrasing); terminology canon clean; tests 2579 passed/8 skipped (doctrine) and 10 passed (terminology guard), both exit 0.",
         "reviewer": "Zohar Stolar",
         "verdict": "approved"
       },
-      "shell_pid": 30848,
-      "shell_pid_created_at": "1786049745.437033"
+      "role": "reviewer",
+      "shell_pid": 37060,
+      "shell_pid_created_at": "1786050570.655477",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
-      "agent": "cursor:composer:reviewer-renata:implementer",
+      "agent": "cursor:composer:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZDQA8QBZQQKWWX2C36HR1RK",
       "last_transition_at": "2026-08-07T09:01:54.795038+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: added test_supply_chain_security_layer.py (action wiring), test_supply_chain_step_contract_advisory.py (step-contract advisory compatibility), test_supply_chain_profile_bindings.py (profile binding + adversarial-evidence vocabulary). Per operator instruction, test suites were not executed as part of this handoff."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed: 3 declared test files (T016/T017/T018) use real production resolution paths (resolve_context DRG walk, MissionStepContractRepository, AgentProfileRepository.resolve_profile) with semantic, non-shallow assertions; T017 explicitly pins gates==[] for plan/implement and exact {transition: fail_open} dict for review; T018 covers all 7 targeted profiles incl. reviewer-renata's accepted/changed/deferred_with_rationale vocabulary; golden-fixture DIRECTIVE_051 entry is minimal/correctly-formed matching sibling structure; the len(contract.gates)==1 golden-count regression (WP02-introduced, tests/doctrine has implicit ceiling 0) is correctly fixed to a stronger dict-equality check in both original and new file; no scope creep beyond the 3 test files + golden fixture + shipped-contracts fix; no banned terminology found.",
         "reviewer": "Zohar Stolar",
         "verdict": "approved"
       },
-      "shell_pid": 42117,
-      "shell_pid_created_at": "1786052998.532632"
+      "role": "reviewer",
+      "shell_pid": 99935,
+      "shell_pid_created_at": "1786085062.09075",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
     }
   }
 }

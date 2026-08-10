@@ -24,6 +24,11 @@
       "lane": "done",
       "last_event_id": "01KX8ER5AH21Y8YN0MY2R6KSSV",
       "last_transition_at": "2026-07-11T11:24:37.073660+00:00",
+      "review_result": {
+        "reference": "PASS. Diff = ONLY tests/characterization/** (4 files, 2080 LOC); zero src/ + zero frozen-seam (resolution.py/_read_path_resolver.py) diff. 73/73 green via uv run on pre-refactor code. CC19-37 split targets pinned DIRECTLY with real branch matrices asserting OUTPUT (not vacuous wiring): _build_recommended_fix_order (each trigger->exact string + fixed source order), _check_lane_gates CC19 (corrupt/missing/mismatch/off-branch/detached/planning-only/missing-matrix/mutate-vs-diagnose/evidence/verdict), _resolve_review_context CC37 (default/repo-root/lanes-manifest/workspace-ctx/dependency/well-known base_ref discovery + partial-fill), collect_feature_summary CC25 (strict metadata gate incl #2369 terminal exemption + coord-vs-primary routing + fix-order kwarg wiring). Lenient not-exists degrade pinned BOTH sides (acceptance degrades to feature_dir no-raise; workflow returns nonexistent path no-fallback). Normalization targeted not payload-to-constant. Gaps verified real: implement/review have no --json typer option; coord-review-without-claim raw FileNotFoundError pinned as current behaviour, both flagged for tickets. Markers correct; marker arch gates 4/4 green; ruff clean; mypy clean on new files. Filled issue-matrix verdicts to in-mission (WP01 pins pre-refactor behaviour; #s owned by WP02-05, terminal before mission done).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 233268,
       "subtasks": {
         "T001": "done",
@@ -40,6 +45,11 @@
       "lane": "done",
       "last_event_id": "01KX8ER5YM1W3PJNX96C6W7C4S",
       "last_transition_at": "2026-07-11T11:24:37.716913+00:00",
+      "review_result": {
+        "reference": "verified: radon implement 78->11 / review 72->7 / _resolve_review_context 37->8, all <=15 (max CC 14, no new fn >15); #2508 red-first PROVEN via real CLI entry (agent action implement WP01 CliRunner) -> reverting PRIMARY_METADATA anchor makes test FAIL, fix anchors identity read on primary at workflow_executor.py:143-146; delegation call site workflow.py:992 top_level_implement 6 kwargs intact + implement.py zero-diff; seam LENIENT preserved (_canonical_status_feature_dir routes resolve_handle_to_read_path, no require_exists=True added) + zero diff to resolution.py/_read_path_resolver.py; cores pure, bare shims, no __all__; monkeypatch symbols resolve; characterization 73/73, workflow suite 102/102, cores 42/42 green",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 551407,
       "subtasks": {
         "T006": "done",
@@ -60,6 +70,11 @@
       "lane": "done",
       "last_event_id": "01KX8ER6JHR59S6Q2K6XRASWMA",
       "last_transition_at": "2026-07-11T11:24:38.353527+00:00",
+      "review_result": {
+        "reference": "verified: both noqa:C901 gone + radon drops (implement F60->C14, ensure_planning B8) under S3776/ruff-15 gate; top_level_implement 6-kwarg signature byte-identical to base; characterization 73/73 + implement/cores 128/128 green; git injected as GitPort port; zero seam diff, all=4 names, shims reachable for monkeypatch",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 429674,
       "subtasks": {
         "T015": "done",
@@ -77,6 +92,11 @@
       "lane": "done",
       "last_event_id": "01KX8ER7799ENG49010R3ZE9PJ",
       "last_transition_at": "2026-07-11T11:24:39.017796+00:00",
+      "review_result": {
+        "reference": "PASS: radon drops verified (collect_feature_summary 25->B8; _check_lane_gates 19->A<=5; _build_recommended_fix_order 22->A<=5 predicate-table); normalize_feature_encoding C16 is pre-existing/untouched. Characterization 73 green + acceptance 59+98 + 32 new core tests green. Lenient degrade '_status_read_feature_dir status_dir if status_dir.exists() else feature_dir' byte-identical to base; gates read coord read_feature_dir (#2107 preserved). Monkeypatch trap avoided: collect_feature_summary stays in __init__; moved+patched symbols (_check_lane_gates/_build_recommended_fix_order) imported into __init__ and called bare there, no core-internal bypass. Zero seam-module diff (resolution.py/_read_path_resolver.py); __all__ byte-identical, accept.py exports kept, shims bare-import not in __all__. test_no_dead_symbols WorkPackageState removal is ratchet-MANDATED (stale-entry detector forces it; class gained live caller via summary_core->__init__), not scope creep. mypy: same 5 pre-existing findings relocated, zero new; ruff clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 365588,
       "subtasks": {
         "T021": "done",
@@ -94,6 +114,11 @@
       "lane": "done",
       "last_event_id": "01KX8ER7TMFPHBRJNWCDVE9DFA",
       "last_transition_at": "2026-07-11T11:24:39.636033+00:00",
+      "review_result": {
+        "reference": "cycle-1 verified: tests/architectural/ 0-failed (869 passed/4 skipped); inventory reconciled honestly (WP02 sink relocation, trusted-source matches original workflow.py rows; wp_slug not in NAMED_UNTRUSTED; audit.py+containment test byte-unchanged so SC-003 + undercount still bite mission_slug/feature_slug/wp_id); gates unchanged non-vacuous (empty diff cycle-0..HEAD)",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 926514,
       "subtasks": {
         "T027": "planned",

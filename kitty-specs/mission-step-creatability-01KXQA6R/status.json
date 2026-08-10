@@ -24,6 +24,11 @@
       "lane": "done",
       "last_event_id": "01KXRC3Y4FQPH2QX9SRPS2BNMJ",
       "last_transition_at": "2026-07-17T15:46:28.111643+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata): C-009 atomicity verified (field removal + overlay drop + slot re-point + CLI migration all on one tree; zero surviving MissionType.template_set model reads in src/). C-002 scalar fence held (mission_type_profiles.py diff touches ONLY _resolve_template_set_slot; scalar MissionTypeProfile.template_set and resolution.template_set untouched). C-006 resolved property not renamed. C-007 action_sequence overlay+test kept. C-005 parity guard retained. 4 T007 proofs all genuine (real CLI/repo/YAML-loader paths): --json {spec,plan} order parity; default().get constructs+projects; YAML template_set: raises ValidationError; NFR-003 spy proves cross-instance one-walk shared cache keyed (builtin_root,mission_type,pack_context). iter_template_refs public+consumed; dead-symbol gate green. Gates verified locally: 159 WP tests pass, dead-symbol 24 pass, regenerate-graph --check FRESH, ruff+mypy --strict clean. Seeded mission issue-matrix (in-mission for mission-scope issues; deferred-with-followup w/ handles for out-of-scope #2751/#2725/#2726) to unblock per-WP approval; terminal verdicts due at mission done.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2433070,
       "shell_pid_created_at": "1784286334.2",
       "subtasks": {
@@ -43,6 +48,11 @@
       "lane": "done",
       "last_event_id": "01KXRC3YY84HYDGB7S50F12MGD",
       "last_transition_at": "2026-07-17T15:46:28.936525+00:00",
+      "review_result": {
+        "reference": "Review PASSED. Content substance (DoD b, the reviewer-only gate): all 7 prompts (discover/audit/design/generate/validate/publish/accept) are genuine documentation-domain exemplars promoted from guidelines.md into executable prompt shape (description frontmatter, --mission rules, $ARGUMENTS, location pre-flight, Goal/What-to-do/Success-Criteria/Handoff). They teach Divio four-type allocation, gap-analysis coverage matrices, generator invocation (Sphinx/JSDoc/rustdoc), ADR-shaped design decisions, iteration modes, accessibility gates, living-documentation cadence, publish/accept handoff -- NOT filler, NOT software-dev-shaped; every handoff references documentation's OWN step names. Creatability (DoD a): real resolver projects template_set={spec: documentation-spec-template.md, plan: documentation-plan-template.md} (non-null, documentation-unique) -- proven by the resolution-integration failure output. Q1/C-010: discover->artifact_key 'spec', design->artifact_key 'plan' (exact); C-003 template_files per-type-unique. Markers: case-sensitive TODO/PLACEHOLDER/FIXME scan clean. Scope: only owned doctrine dirs touched; test_prompt_emptiness.py NOT edited (C-011 honored); template files are git renames. Gates: ruff clean, DRG regenerate-graph --check FRESH. REDS are ONLY the two expected transients: (1) WP05-owned C-011 test_prompt_emptiness.py (7 seeded-blank now-filled + exhaustive-list, 8 fails); (2) the types-null/uncreatable trio test_non_software_builtin_template_set_is_explicitly_null[documentation], test_domain_mission_resolves_zero_software_dev_doctrine[documentation], test_null_template_mapping_fails_closed_with_stable_diagnostics[documentation] -- intentional behavior change from documentation becoming creatable, folded into WP05 reconciliation, NOT a WP02 defect. Non-blocking follow-up for reconciliation owner: the template rename drifts CI selection baseline fast-tests-core-misc-nodeids.txt (guard suites themselves green, 1485 passed); sibling src/specify_cli/missions/documentation/templates/ still carries old names (out of WP02 owned scope; runtime resolves through doctrine copy).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2514500,
       "shell_pid_created_at": "1784288061.69",
       "subtasks": {
@@ -61,6 +71,11 @@
       "lane": "done",
       "last_event_id": "01KXRC3ZMVWFR0RY9QSG9W0F6W",
       "last_transition_at": "2026-07-17T15:46:29.659727+00:00",
+      "review_result": {
+        "reference": "Review passed: research is creatable (project_template_set -> {spec: research-spec-template.md, plan: research-plan-template.md}; both files exist; integration test resolves both at PACKAGE_DEFAULT tier). Q1/C-003 exact: scoping.template.artifact_key='spec', methodology='plan', per-type-unique research-vocabulary template_file names. All 5 prompts (scoping/methodology/gathering/synthesis/output) are genuine research-domain exemplars on their own step names -- dialectic-research, forensic-repository-audit, citation-discipline;  + headings + gate-aware substance; marker-free; not software-dev-shaped. 4 sibling null-test re-pins correct: null parametrizations narrowed to still-unauthored documentation/plan, positive research pins mirror the software-dev pattern, integration pin exercises the real resolver. 92 re-pinned tests pass, ruff clean. Only expected transient reds are the 5 WP05-owned test_prompt_emptiness.py seeded-blank census failures (frozen file untouched, C-011).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2544610,
       "shell_pid_created_at": "1784288715.79",
       "subtasks": {
@@ -78,6 +93,11 @@
       "lane": "done",
       "last_event_id": "01KXRC40AMMGS9EHZ3EXDQV8F1",
       "last_transition_at": "2026-07-17T15:46:30.356221+00:00",
+      "review_result": {
+        "reference": "Review passed: genuine plan-domain content confirmed (Problem Decomposition/MoSCoW/Eisenhower/ADR/Premortem/Bounded-Context per governance-profile; NO code/API/impl sections; explicit build->software-dev redirects) — NOT a software-dev clone. Creatability proven: project_template_set('plan')={'spec':'plan-spec-skeleton.md','plan':'plan-plan-skeleton.md'}, plan-unique filenames (C-003), exact artifact_keys spec/plan (Q1/C-010). Scope-clean: WP04 commit touches only mission-steps/plan/** + missions/plan/templates/** (8 files, 0 shared test files, test_prompt_emptiness.py untouched). Marker-free (NFR-004); terminology guard green. Reds are ONLY the 6 named WP05-owned transient reconciliations (test_seeded_prompt_is_zero_bytes[plan/*], test_every_sequence_step_prompt_is_currently_blank, test_non_software_builtin_template_set_is_explicitly_null[plan]) — honored per Known-transient-red note.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2566471,
       "shell_pid_created_at": "1784288969.97",
       "subtasks": {
@@ -95,6 +115,11 @@
       "lane": "done",
       "last_event_id": "01KXRC40ZYT4Y7M8EN7MCPPZ6Q",
       "last_transition_at": "2026-07-17T15:46:31.038207+00:00",
+      "review_result": {
+        "reference": "Review passed: emptiness scaffold retired -> positive structural floor (non-empty + no TODO/PLACEHOLDER/FIXME + $ARGUMENTS + >=1 '## ' heading + >=800 chars) parametrized over all 21 dispatch-relevant sequence-step prompts across all 4 built-in types via project_action_sequence, with a non-vacuity guard pinning coverage=={documentation,research,plan,software-dev}. NFR-004 necessary-not-sufficient disclaimer present as module docstring. Uniqueness guard (test_template_file_uniqueness.py) reads POST-CUTOVER project_template_set via Counter collision + set-cardinality, plus anti-vacuity guard — would catch a real collision. Null-test reconciliation complete: documentation+plan removed from null parametrizations across 4 shared files, ALL 4 built-in types now positively pinned (software-dev/research pre-existing, documentation/plan added); integration null-fail-closed path delegated to unit test_resolver_unit with rationale. CLI-test touch (WP01-owned) is a justified transient fix — WP02 authored documentation refs so null/(none) assertions would go RED; non-overlapping (WP01 done). Leeway rationale-backed, no concurrent collision. Reconciled scope 483 passed no transients; arch 1016 passed/4 skipped; DRG fresh; ruff clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2682653,
       "shell_pid_created_at": "1784292009.94",
       "subtasks": {
@@ -110,6 +135,11 @@
       "lane": "done",
       "last_event_id": "01KXRC41ND9R924HN4GT02GRRF",
       "last_transition_at": "2026-07-17T15:46:31.726017+00:00",
+      "review_result": {
+        "reference": "Review passed: N=8 (software-dev 2 + documentation/research/plan x{spec,plan}), counts 288/765/10 verified by re-running (direct extractor 8 nodes/8 edges + generate_graph 288/765/10 + freshness byte-identical). Single-traversal confirmed: extract_template_instantiation_edges consumes iter_template_refs (no second step.template walk, C-012/C-003). Orphans genuinely 10 - all pre-existing non-template nodes; each of the 8 new template:<mission>/<file> nodes carries an instantiates in-edge. Edges action-sourced in action.graph.yaml, template.graph.yaml nodes-only ending edges:[]; 16 bare exemplars untouched (disjoint from instantiates targets). Positive assertion test_instantiates_edges.py asserts each expected edge against the freshly regenerated shipped graph + bare-exemplar safety (non-synthetic). Dead-symbol edit justified: template_id_for/template_urn now live-called by extractor (removed), template_node/template_nodes still uncalled (kept); gate green. tests/doctrine/drg + full tests/architectural (1021 passed) + orphan-residual(14 unchanged) green; ruff/mypy clean. Scope clean: 6 owned files, no WP05 overlap.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2670112,
       "shell_pid_created_at": "1784291540.32",
       "subtasks": {
@@ -126,6 +156,11 @@
       "lane": "done",
       "last_event_id": "01KXRC42B9K5XZ4QTRE76XZYQ3",
       "last_transition_at": "2026-07-17T15:46:32.425500+00:00",
+      "review_result": {
+        "reference": "Cycle-2 approved: dead-symbol gate green via canonical allowlist (2 URN-lane symbols, rationale + consumer #2761); cycle-1-approved surfaces unchanged. Mission fully implemented.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2901996,
       "shell_pid_created_at": "1784302537.09",
       "subtasks": {

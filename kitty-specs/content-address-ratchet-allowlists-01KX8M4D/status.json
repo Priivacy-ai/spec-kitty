@@ -24,6 +24,11 @@
       "lane": "done",
       "last_event_id": "01KX94YYFAEAB95C4TZG7VF2M0",
       "last_transition_at": "2026-07-11T17:52:48.106893+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata/opus): WS3 residue; 27 focused + arch 850/0.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1417908,
       "subtasks": {
         "T001": "done",
@@ -39,6 +44,11 @@
       "lane": "done",
       "last_event_id": "01KX94YZ3KB3HH19SG3SZYN77K",
       "last_transition_at": "2026-07-11T17:52:48.755053+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata/opus): descriptor keystone verified (exactly-one/key-equal, D-1 regression-tested, reuse audit.py 3-tuple, S3776≤15); 26 unit + arch 847/0. --force: lane kitty-specs hygiene gate tripped by orchestrator's matrix-sync recovery, not a code issue; to be reconciled before merge.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1421306,
       "subtasks": {
         "T005": "done",
@@ -55,6 +65,11 @@
       "lane": "done",
       "last_event_id": "01KX94Z0CK4CKX6YZGBRTD9Y44",
       "last_transition_at": "2026-07-11T17:52:50.067174+00:00",
+      "review_result": {
+        "reference": "Review passed: WS#1-3 + CG#1-4 + wp05 anchor migrated to ContentDescriptors (token_substrings match plan table, each from finding's own normalized token line, verified by import-time resolve_descriptor). 3 twin-guards use descriptor_still_live (exactly-one, key-equal). wp05 scalar+call-arg replaced by descriptor; 2 reachability probes untouched. Fossils deleted; no line-number in any comparand. T015: motion battery green, bite reds, same-qualname-sibling reds (D-1 exactly-one proof). WP02 resolver cherry-pick verbatim. Owned tests 25/25; full tests/architectural 850/0; ruff clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1580485,
       "subtasks": {
         "T010": "done",
@@ -72,6 +87,11 @@
       "lane": "done",
       "last_event_id": "01KX94Z10H6JGZ2RFTCEEFKK5E",
       "last_transition_at": "2026-07-11T17:52:50.705470+00:00",
+      "review_result": {
+        "reference": "Review passed: RJ#1-4 migrated to ContentDescriptors matching plan table; RJ#1/RJ#2 same-qualname _coord_mid8 disambiguate by distinct token_substring (coord_candidate vs primary_candidate) — both resolve exactly-one at import via _RAW_JOIN_SEEDED_KEYS. Twin-guard test_allowlist_entries_are_not_stale converted to descriptor_still_live (exactly-one + key-equal); no row.line int in authoritative allowlist comparand. 8-entry re-anchor fossil deleted. T019 battery green: motion(comment above RJ#1/RJ#2)→green, bite(new mission_creation join)→red, same-qualname-sibling(3rd _coord_mid8 with colliding coord_candidate substring)→red proving exactly-one rejects absorption. Owned-file 21 passed; full tests/architectural 850/0; ruff clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1591306,
       "subtasks": {
         "T016": "done",
@@ -87,6 +107,11 @@
       "lane": "done",
       "last_event_id": "01KX94Z1MQ03ARH4T4ZBPVXJHE",
       "last_transition_at": "2026-07-11T17:52:51.351302+00:00",
+      "review_result": {
+        "reference": "Review passed: int-to-line-sink predicate (composite_key 2nd-arg + code_tokens_by_line index + path:NNN seed-string; NOT module::Name — no circularity w/ WS2, FR-014 census deferred+enumerated); permits variable 2nd-arg/occurrence/name-anchors; YAML int-only-in line/count/*_baseline; shard-enrolled in _ARCH_SHARD_2_FILES + marker-completeness green; escape-hatch live; ruff clean; guard GREEN on live tree (887 passed/4 skipped/0 failed).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1712622,
       "subtasks": {
         "T020": "planned",
@@ -103,6 +128,11 @@
       "lane": "done",
       "last_event_id": "01KX94YZQPT8N28Q94EJHSFXF8",
       "last_transition_at": "2026-07-11T17:52:49.398687+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata/opus): WS2 spike — relocation-proof key (not bare-name-alone; two-tier Candidate B), T004 no-false-negative PROVEN (dead procedures::ArtifactKind still caught), test_no_dead_symbols.py untouched (spike-only), 17 unit + arch 0-failed. Reviewer verified; move completed by orchestrator after reviewer stalled on bg-suite.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1712622,
       "subtasks": {
         "T025": "planned",

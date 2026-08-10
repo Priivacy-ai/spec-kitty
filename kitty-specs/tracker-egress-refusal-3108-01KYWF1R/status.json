@@ -31,6 +31,11 @@
         "Round 2 ACCEPT-WITH-FINDINGS; both HIGH closed and verified by reviewer's own mutations (F1 drain-consent mutant fires, F2 replay EQUAL:True). Round 3 closed F11/F12/F13/F15. Failing set byte-identical by name across all rounds: 21 reds, 19 greens. 487+51=538."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Round 2 ACCEPT-WITH-FINDINGS; both HIGH closed and verified by reviewer's own mutations (F1 drain-consent mutant fires, F2 replay EQUAL:True). Round 3 closed F11/F12/F13/F15. Failing set byte-identical by name across all rounds: 21 reds, 19 greens. 487+51=538.",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "subtasks": {
         "T001": "done",
@@ -40,7 +45,10 @@
         "T005": "done",
         "T006": "done",
         "T007": "done"
-      }
+      },
+      "tracker_refs": [
+        "3108"
+      ]
     },
     "WP02": {
       "actor": "claude",
@@ -56,6 +64,11 @@
         "Round 1 ACCEPT-WITH-FINDINGS (nothing above MEDIUM); F1-F5,F7,F10 remediated; delta re-review ACCEPT with no new findings. Each new assertion mutation-proven to discriminate. 582 = 519 base + 63."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Round 1 ACCEPT-WITH-FINDINGS (nothing above MEDIUM); F1-F5,F7,F10 remediated; delta re-review ACCEPT with no new findings. Each new assertion mutation-proven to discriminate. 582 = 519 base + 63.",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "subtasks": {
         "T008": "done",
@@ -65,7 +78,10 @@
         "T012": "done",
         "T013": "done",
         "T014": "done"
-      }
+      },
+      "tracker_refs": [
+        "3108"
+      ]
     },
     "WP03": {
       "actor": "claude",
@@ -81,6 +97,11 @@
         "Round 1 REJECT (2 HIGH); round 2 ACCEPT-WITH-FINDINGS, both HIGH closed and verified not relocated (mutant N3 kept the fix's mechanism but broke its outcome — killed by 4 tests). Round 3 closed LOW-2/3/6; the one surviving mutant (N8 constant collapse) now killed by 3 tests. 113 passed, 100% cover, 714=601+113."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Round 1 REJECT (2 HIGH); round 2 ACCEPT-WITH-FINDINGS, both HIGH closed and verified not relocated (mutant N3 kept the fix's mechanism but broke its outcome — killed by 4 tests). Round 3 closed LOW-2/3/6; the one surviving mutant (N8 constant collapse) now killed by 3 tests. 113 passed, 100% cover, 714=601+113.",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "subtasks": {
         "T015": "done",
@@ -89,7 +110,10 @@
         "T018": "done",
         "T019": "done",
         "T020": "done"
-      }
+      },
+      "tracker_refs": [
+        "3108"
+      ]
     },
     "WP04": {
       "actor": "claude",
@@ -107,6 +131,11 @@
         "Gap B closed. 17/21 WP01 reds green; 5 mutants killed incl. 3 per-entry-point; A1 erasure re-measured closed at 2 levels; T024-before-T026 proven by mutation. REJECT round 1 was HIGH-1 (forward CHANGELOG link reds 2 docs gates) — recorded as a named both-ends window closing at WP08."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Gap B closed. 17/21 WP01 reds green; 5 mutants killed incl. 3 per-entry-point; A1 erasure re-measured closed at 2 levels; T024-before-T026 proven by mutation. REJECT round 1 was HIGH-1 (forward CHANGELOG link reds 2 docs gates) — recorded as a named both-ends window closing at WP08.",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "subtasks": {
         "T021": "done",
@@ -116,7 +145,10 @@
         "T025": "done",
         "T026": "done",
         "T027": "done"
-      }
+      },
+      "tracker_refs": [
+        "3108"
+      ]
     },
     "WP05": {
       "actor": "claude",
@@ -134,13 +166,21 @@
         "Hosted gate on both channels. All 21 WP01 reds green (40 passed). Polarity verified by exhaustion: 16 egress values x 3 Channel-1 states + 8 hostile FS states, no combination grants at HOSTED. FR-016 byte-identity restored per operator decision; E2 seam allowlist re-pointed."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Hosted gate on both channels. All 21 WP01 reds green (40 passed). Polarity verified by exhaustion: 16 egress values x 3 Channel-1 states + 8 hostile FS states, no combination grants at HOSTED. FR-016 byte-identity restored per operator decision; E2 seam allowlist re-pointed.",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "subtasks": {
         "T028": "done",
         "T029": "done",
         "T030": "done",
         "T031": "done"
-      }
+      },
+      "tracker_refs": [
+        "3108"
+      ]
     },
     "WP06": {
       "actor": "claude",
@@ -158,6 +198,11 @@
         "REJECT round 1 on HIGH-1 (markup injection: doctor rendered '' for [refused], exit 1 on [/bold]). Fixed at both render sites; all 3 vectors verified exit 0 + verbatim. MEDIUM-1 wording table literally pinned + distinct."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "REJECT round 1 on HIGH-1 (markup injection: doctor rendered '' for [refused], exit 1 on [/bold]). Fixed at both render sites; all 3 vectors verified exit 0 + verbatim. MEDIUM-1 wording table literally pinned + distinct.",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "subtasks": {
         "T032": "done",
@@ -165,7 +210,10 @@
         "T034": "done",
         "T035": "done",
         "T036": "done"
-      }
+      },
+      "tracker_refs": [
+        "3108"
+      ]
     },
     "WP07": {
       "actor": "claude",
@@ -182,6 +230,11 @@
         "ACCEPT-WITH-FINDINGS, nothing above MEDIUM. Attributability verified 2 ways (17 control substitutions, all red). MEDIUM-1 RSS 1205972->96056 kB; MEDIUM-2 G3 now reds argument-nested and conditional-wrapped gates. G1 3/3 G2 2/2 G3 5/5 G4 3/3 G5 3/3 G6 2/2 G7 1/1 G8 2/2."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "ACCEPT-WITH-FINDINGS, nothing above MEDIUM. Attributability verified 2 ways (17 control substitutions, all red). MEDIUM-1 RSS 1205972->96056 kB; MEDIUM-2 G3 now reds argument-nested and conditional-wrapped gates. G1 3/3 G2 2/2 G3 5/5 G4 3/3 G5 3/3 G6 2/2 G7 1/1 G8 2/2.",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "subtasks": {
         "T037": "done",
@@ -190,7 +243,10 @@
         "T040": "done",
         "T041": "done",
         "T042": "done"
-      }
+      },
+      "tracker_refs": [
+        "3108"
+      ]
     },
     "WP08": {
       "actor": "claude",
@@ -208,13 +264,21 @@
         "ACCEPT-WITH-FINDINGS, all LOW, remediated. Docs gate 2 failed -> 44 passed, non-vacuous at HEAD. All 7 documented remedies have executed-remedy tests."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "ACCEPT-WITH-FINDINGS, all LOW, remediated. Docs gate 2 failed -> 44 passed, non-vacuous at HEAD. All 7 documented remedies have executed-remedy tests.",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
       "role": "implementer",
       "subtasks": {
         "T043": "done",
         "T044": "done",
         "T045": "done",
         "T046": "done"
-      }
+      },
+      "tracker_refs": [
+        "3108"
+      ]
     }
   }
 }

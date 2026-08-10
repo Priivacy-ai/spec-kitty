@@ -32,6 +32,11 @@
         "Review passed (NFR-004/R5): read_dir threaded through _resolve_anchor/_synthesize_claim_anchor; meta.json.created_at now read exclusively from PRIMARY read_dir. Seed identity (sha256 mission_id|wp_id|field) untouched. New test_seed_anchor_determinism.py is non-vacuous — divergent COORD legs (omitted vs foreign created_at), forces synthesis, asserts byte-identical events + PRIMARY value present + foreign absent (fails pre-fix). Fail-closed None preserved; C-003 migrated-mission no-op proven. ruff+mypy clean; migration suites green except documented pre-existing baseline red (dogfood corpus not-cut-over drift, not an anchor regression). Coordination note: one-line signature update to tests/unit/migration/test_backfill_runtime_state.py (outside owned_files) — mechanical _build_seed_events read_dir param, accepted as rationale-backed leeway; WP02 to rebase."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed (NFR-004/R5): read_dir threaded through _resolve_anchor/_synthesize_claim_anchor; meta.json.created_at now read exclusively from PRIMARY read_dir. Seed identity (sha256 mission_id|wp_id|field) untouched. New test_seed_anchor_determinism.py is non-vacuous — divergent COORD legs (omitted vs foreign created_at), forces synthesis, asserts byte-identical events + PRIMARY value present + foreign absent (fails pre-fix). Fail-closed None preserved; C-003 migrated-mission no-op proven. ruff+mypy clean; migration suites green except documented pre-existing baseline red (dogfood corpus not-cut-over drift, not an anchor regression). Coordination note: one-line signature update to tests/unit/migration/test_backfill_runtime_state.py (outside owned_files) — mechanical _build_seed_events read_dir param, accepted as rationale-backed leeway; WP02 to rebase.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 1582280,
       "shell_pid_created_at": "1785140010.76",
@@ -56,6 +61,11 @@
         "Accept-time stamp via cutover_mission; squash-merge simulation + idempotency + fail-closed tests green"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: single-authority stamp_accept_cutover wraps cutover_mission (no forked writer, FR-005); stamp runs BEFORE _commit_residual_acceptance_artifacts so meta.json(PRIMARY)+events.jsonl(COORD) are swept into the partition-aware residual commit (R4/FR-001 committed); fires only after summary.ok gate (FR-004); status_phase written last post verify.ok in cutover_mission (R4/WP09); fail-closed MissingMissionIdError aborts accept w/ no seed (NFR-003/R6); idempotent byte-stable rerun (FR-006). US1 squash test uses plain 'git merge --squash' (NO spec-kitty merge) and asserts cut-over corpus on target w/ no post-merge step. 3/3 tests green, ruff+mypy clean. Dogfood-corpus 1 red is pre-existing #2968 drift (unrelated legacy missions), not a WP02 regression.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 1724810,
       "shell_pid_created_at": "1785141715.89",
@@ -83,6 +93,11 @@
         "Review passed: diff-scoped fail-closed guard + shared cutover_eligibility predicate. R2 vacuity trap genuinely covered (native mission w/ real event-log claim + no status_phase flagged un-cut-over via phase-first ordering, verify_backfill necessary-not-sufficient). Single authority confirmed: both guard (is_cut_over/CutOverVerdict) and dogfood lock (eligible_runtime_missions/assert_birth_invariant_holds) import cutover_eligibility.py; dogfood edit is pure import-swap, reked-lock non-vacuity test still green. Evaluates ALL diff-touched missions (R3). Fail-closed on absent mission_id/verify error/ambiguity/undeterminable diff, exit 1 live-confirmed, exact FR-003 remedy string. Command registered+reachable, root-command census auto-derived green, ruff clean, project-mode mypy clean (narrow-file no-any-return is a follow_imports=skip artifact). Dogfood 1 failure = pre-existing 3-KW-mission corpus drift, baseline-identical, not a WP03 regression."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: diff-scoped fail-closed guard + shared cutover_eligibility predicate. R2 vacuity trap genuinely covered (native mission w/ real event-log claim + no status_phase flagged un-cut-over via phase-first ordering, verify_backfill necessary-not-sufficient). Single authority confirmed: both guard (is_cut_over/CutOverVerdict) and dogfood lock (eligible_runtime_missions/assert_birth_invariant_holds) import cutover_eligibility.py; dogfood edit is pure import-swap, reked-lock non-vacuity test still green. Evaluates ALL diff-touched missions (R3). Fail-closed on absent mission_id/verify error/ambiguity/undeterminable diff, exit 1 live-confirmed, exact FR-003 remedy string. Command registered+reachable, root-command census auto-derived green, ruff clean, project-mode mypy clean (narrow-file no-any-return is a follow_imports=skip artifact). Dogfood 1 failure = pre-existing 3-KW-mission corpus drift, baseline-identical, not a WP03 regression.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 1604246,
       "shell_pid_created_at": "1785140596.73",
@@ -109,6 +124,11 @@
         "Review passed: (1) kitty-specs/** in on.pull_request.paths [load-bearing R1 fix, confirmed in diff]; (2) cutover-guard job runs on pull_request, no dorny/paths-filter gate, only pr:deferred/pr:skip-ci opt-out, executes 'spec-kitty cutover-guard --base-ref' and exits non-zero on failure; (3) hosted in release-readiness.yml not ci-quality.yml; (4) pip install -e . then base-ref hydrate before guard; (5) docs cover trigger/remedy/required-check registration + skipped-required-check footgun; (6) YAML valid. Local sim: un-cut-over corpus-only set -> exit 1 + named mission + exact remedy 'spec-kitty migrate backfill-runtime-state --mission <slug>'; cut-over set -> exit 0. Terminology guard 4 passed. T019 live GitHub scratch-PR run accepted as deferred to closeout (mission PR touches kitty-specs and exercises the job)."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: (1) kitty-specs/** in on.pull_request.paths [load-bearing R1 fix, confirmed in diff]; (2) cutover-guard job runs on pull_request, no dorny/paths-filter gate, only pr:deferred/pr:skip-ci opt-out, executes 'spec-kitty cutover-guard --base-ref' and exits non-zero on failure; (3) hosted in release-readiness.yml not ci-quality.yml; (4) pip install -e . then base-ref hydrate before guard; (5) docs cover trigger/remedy/required-check registration + skipped-required-check footgun; (6) YAML valid. Local sim: un-cut-over corpus-only set -> exit 1 + named mission + exact remedy 'spec-kitty migrate backfill-runtime-state --mission <slug>'; cut-over set -> exit 0. Terminology guard 4 passed. T019 live GitHub scratch-PR run accepted as deferred to closeout (mission PR touches kitty-specs and exercises the job).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 1717550,
       "shell_pid_created_at": "1785141587.26",
@@ -134,6 +154,11 @@
         "Review passed: doctor cutover reuses cutover_repo(dry_run=True), thin shell per convention, real-fixture red-first test, CLI census updated, ruff/mypy clean"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: doctor cutover reuses cutover_repo(dry_run=True), thin shell per convention, real-fixture red-first test, CLI census updated, ruff/mypy clean",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 1572893,
       "shell_pid_created_at": "1785139884.4",

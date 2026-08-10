@@ -24,6 +24,11 @@
       "lane": "done",
       "last_event_id": "01KXNKHJTJ0JY502ZDCQSY54T6",
       "last_transition_at": "2026-07-16T13:58:32.018747+00:00",
+      "review_result": {
+        "reference": "Review passed: 21 requires edges (sw-dev 5+docs 7+research 5+plan 4), no retrospect; orphans 18->10 <=14 ceiling unchanged; regenerate --check fresh; assert_valid green; ruff+mypy strict clean; only new red is WP02-owned re-pin test.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 164313,
       "shell_pid_created_at": "1784189787.52",
       "subtasks": {
@@ -41,6 +46,11 @@
       "lane": "done",
       "last_event_id": "01KXNKHKKGBFNGBHYYXTVTE9M4",
       "last_transition_at": "2026-07-16T13:58:32.816775+00:00",
+      "review_result": {
+        "reference": "Review passed (--force: C-003 WP-authorized cross-mission drg-orphan-residual.md edit trips the lane-branch kitty-specs guard, whose git-restore remedy would delete required T009 work — documented/expected, same reason for_review used --force). Edge tests (plan=4, doc=7, 21 total, zero mission_type/sequence-action orphans) exercise real generator non-vacuously and pass; no-incident-edges test genuinely inverted+re-pinned (not deleted) + docstrings corrected, green; orphan gate green 10<=14, DOCUMENTED_ORPHAN_RESIDUAL unchanged at 14 and that file NOT in diff; residual doc reconciled 14->10 — independently verified all 4 removed rows carry live inbound edges (documentation-gap-prioritization<-styleguide:docs-freshness-sla; clean-linear-commit-history<-DIRECTIVE_046; documentation-curation-audit<-action:documentation/accept; zombies-tdd<-delete-the-assertion-not-the-test), empirical orphan count computed =10 matching the 10 untouched standalone #1923 rows exactly, no mission-type/action rows added; DRG suite 166 passed, terminology green, regenerate-graph --check fresh, ruff+mypy --strict clean on both test files, zero new suppressions; scope clean (2 owned test files + authorized residual doc only).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 194515,
       "shell_pid_created_at": "1784190942.9",
       "subtasks": {
@@ -58,6 +68,11 @@
       "lane": "done",
       "last_event_id": "01KXNKHMA8NT0FS6R2Y7RE4ZJQ",
       "last_transition_at": "2026-07-16T13:58:33.544522+00:00",
+      "review_result": {
+        "reference": "Review PASSED (reviewer-renata). --force rationale: guard blocks only on the inherited kitty-specs/mission-lifecycle-dispatch-drg-closeout-01KV0S99/drg-orphan-residual.md, which is WP02's approved deliverable (lane-c bases on WP02; orchestrator reconciled it in e15899d01 to keep lane-b/lane-c in sync for merge). WP03's substantive commit 6a10bf861 authored NO change to that doc. WP03 acceptance fully met: canonical seam (built_in_graph_source + load_built_in_graph) in loader.py resolves doctrine-locally via importlib.resources.files('doctrine'), does NOT import charter (C-004 clean); all 10 src readers routed, ZERO residual bespoke resolve_doctrine_root()/graph.yaml reads, org-pack readers untouched; file-vs-dir gotcha fixed (_default_drg yields directory), DRGLoadError swallow shapes preserved; T017 docstring-only (exceptions.py:26 runtime string unchanged, shared/errors.py not in diff, shared/ 94 tests green); snapshot.py FR-014 + focused test; ruff+mypy --strict clean, graph fresh, full doctrine+charter suite 4146 passed/1 skipped.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 270037,
       "shell_pid_created_at": "1784193403.04",
       "subtasks": {
@@ -77,6 +92,11 @@
       "lane": "done",
       "last_event_id": "01KXNKHN0XFPWVSV54AEBZ1ZEZ",
       "last_transition_at": "2026-07-16T13:58:34.269167+00:00",
+      "review_result": {
+        "reference": "Review passed (--force: guard trips on unrelated .kittify/charter/synthesis-manifest.yaml test-pollution, NOT WP04's diff which is tests-only 22 files). T018 seam fixtures present, SHIPPED_GRAPH_PATH retired. T021 gate layout-agnostic: _count_orphans via load_built_in_graph(), path-shape assertion dropped, byte-identity via genuine dir-enum _graph_files helper (degrades monolith->fragments), residual=14. T034: 3 sentinels->pyproject.toml, 3 squad readers->built_in_graph_source(). Grep-gate: all owned-file hits legit. Suite 4231 passed/1 skipped, 0 src changed, ruff clean.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 350349,
       "shell_pid_created_at": "1784195968.54",
       "subtasks": {
@@ -95,6 +115,11 @@
       "lane": "done",
       "last_event_id": "01KXNKHNPF8MG4V6NA7XMKMMJH",
       "last_transition_at": "2026-07-16T13:58:34.959456+00:00",
+      "review_result": {
+        "reference": "Cycle 2 approved. B1 (facade two-gate tension) FIXED: load_graph restored to charter.drg import+__all__ (built_in_graph_source correctly absent); allowlist entry escalated (module_path), documented (facade contract + #2677/FR-303); hash proven LOAD-BEARING (remove entry -> gate reds on exactly charter.drg::load_graph); both facade gates + dead-symbol + ratchet GREEN TOGETHER (60 passed). B2 (_partition_by_kind test) FIXED: TestPartitionByKind 5 tests (totality incl target-only, homogeneity, source-kind routing FR-007, DD-11 order, disjoint union); NON-VACUITY proven (target-routing perturbation fails 3/5, reverted clean); extractor.py logic byte-identical since cycle-1. Regression: ruff+mypy --strict clean on 3 files; tests/doctrine+tests/architectural 3590 passed/0 failed. Cycle-2 code delta = exactly 3 files. --force: inherited kitty-specs/ planning-artifact guard, not WP05 code.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 571069,
       "shell_pid_created_at": "1784204680.98",
       "subtasks": {
@@ -113,6 +138,11 @@
       "lane": "done",
       "last_event_id": "01KXNKHPCAFF3MBMKF9DJ4KHCY",
       "last_transition_at": "2026-07-16T13:58:35.658395+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata): behavior-preserving proofs green. Equality NON-VACUOUS — reference is generate_graph() in-memory return (280 nodes/757 edges) written to tmp, sharded is independent load_built_in_graph(); independently perturbed (drop/rename node, empty graph) all DETECTED. Totality: every populated kind has a fragment, per-kind counts equal, target-only 'template' proven present. Silent-degrade via REAL APIs: profile lineage (frontend-freddy/java-jenny/node-norris/python-pedro -> implementer-ivan, non-empty; empty-DRG repo yields [] -> would fail), charter-lint GraphState BUILT_IN_ONLY (not MISSING), pack-validator built-in URN set full + validate_pack() zero drg_dangling_edge. T033 suite green: 19 WP06 + 4253/1 core + 1006/4 arch + regenerate-graph --check fresh. ruff+mypy --strict clean. Scope clean: commit de0e5d7e7 touches only the 2 test files + inherited .kittify synthesis-manifest noise; NO src/ or kitty-specs/ changes.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 643589,
       "shell_pid_created_at": "1784208461.16",
       "subtasks": {

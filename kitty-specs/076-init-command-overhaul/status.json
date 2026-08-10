@@ -1,5 +1,5 @@
 {
-  "event_count": 50,
+  "event_count": 52,
   "last_event_id": "01KNNX21J40ST6B0JR7WND12KT",
   "materialized_at": "2026-04-08T06:39:13.988737+00:00",
   "mission_number": "76",
@@ -42,6 +42,12 @@
       "lane": "done",
       "last_event_id": "01KNNX21BR158X3Z029KRTF3CP",
       "last_transition_at": "2026-04-08T06:39:13.784380+00:00",
+      "review_result": {
+        "feedback_path": "/private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260810-130708-cEJgwV/spec-kitty/kitty-specs/076-init-command-overhaul/tasks/WP02-init-surgery/review-cycle-2.md",
+        "reference": "review-cycle://076-init-command-overhaul/WP02-init-surgery/review-cycle-2.md",
+        "reviewer": "unknown",
+        "verdict": "changes_requested"
+      },
       "shell_pid": 18478,
       "subtasks": {
         "T008": "planned",
@@ -64,6 +70,12 @@
       "lane": "done",
       "last_event_id": "01KNNX21DY1MNSXK0W1P50KDJB",
       "last_transition_at": "2026-04-08T06:39:13.854637+00:00",
+      "review_result": {
+        "feedback_path": "/private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260810-130708-cEJgwV/spec-kitty/kitty-specs/076-init-command-overhaul/tasks/WP03-template-and-tests/review-cycle-2.md",
+        "reference": "review-cycle://076-init-command-overhaul/WP03-template-and-tests/review-cycle-2.md",
+        "reviewer": "unknown",
+        "verdict": "changes_requested"
+      },
       "shell_pid": 44790,
       "subtasks": {
         "T019": "planned",

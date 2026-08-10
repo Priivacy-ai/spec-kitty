@@ -24,6 +24,7 @@
       "lane": "done",
       "last_event_id": "01KVT3MZYBP3E2RX7FKS7B86SD",
       "last_transition_at": "2026-06-23T11:25:35.051257+00:00",
+      "review_result": null,
       "subtasks": {
         "T001": "planned",
         "T002": "planned",
@@ -40,6 +41,7 @@
       "lane": "done",
       "last_event_id": "01KVT3N1TCPPY9JK2VPGV9CWDP",
       "last_transition_at": "2026-06-23T11:25:36.972788+00:00",
+      "review_result": null,
       "subtasks": {
         "T007": "planned",
         "T008": "planned",
@@ -56,6 +58,7 @@
       "lane": "done",
       "last_event_id": "01KVT3N0F2FTHA4ZFGEC0ZCH2G",
       "last_transition_at": "2026-06-23T11:25:35.586073+00:00",
+      "review_result": null,
       "subtasks": {
         "T013": "planned",
         "T014": "planned",
@@ -69,6 +72,7 @@
       "lane": "done",
       "last_event_id": "01KVT3N0XKDNSFP2E7663R83EW",
       "last_transition_at": "2026-06-23T11:25:36.051588+00:00",
+      "review_result": null,
       "subtasks": {
         "T016": "planned",
         "T017": "planned",
@@ -83,6 +87,7 @@
       "lane": "done",
       "last_event_id": "01KVT3N1C7BWWEB1WNMPA6VRBV",
       "last_transition_at": "2026-06-23T11:25:36.519969+00:00",
+      "review_result": null,
       "subtasks": {
         "T020": "planned",
         "T021": "planned",

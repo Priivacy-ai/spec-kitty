@@ -23,6 +23,11 @@
       "lane": "done",
       "last_event_id": "01KXA99HF2Q0HJH0GCZ3AGRCRH",
       "last_transition_at": "2026-07-12T04:27:43.970100+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260711",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1263853,
       "subtasks": {
         "T001": "done"
@@ -37,6 +42,11 @@
       "lane": "done",
       "last_event_id": "01KXA99QM18W9MD16MNJH9B2HM",
       "last_transition_at": "2026-07-12T04:27:50.273394+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20260711",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1268842,
       "subtasks": {
         "T007": "done"
@@ -51,6 +61,11 @@
       "lane": "done",
       "last_event_id": "01KXA99XT9D9FCQY928M0GXVPV",
       "last_transition_at": "2026-07-12T04:27:56.617909+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP03:20260711",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1742369,
       "subtasks": {
         "T011": "done"
@@ -65,6 +80,11 @@
       "lane": "done",
       "last_event_id": "01KXA9A43MJ8613D662YZM2ZHZ",
       "last_transition_at": "2026-07-12T04:28:03.060381+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP04:20260711",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 1985551,
       "subtasks": {
         "T015": "done"
@@ -79,6 +99,11 @@
       "lane": "done",
       "last_event_id": "01KXA9AAFKT1K7G4CNC0HVCF2H",
       "last_transition_at": "2026-07-12T04:28:09.587467+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP05:20260711",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2190657,
       "subtasks": {
         "T017": "done"
@@ -93,6 +118,11 @@
       "lane": "done",
       "last_event_id": "01KXA9AGMRVSA5W8RB2J2PFQDG",
       "last_transition_at": "2026-07-12T04:28:15.896301+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP06:20260711",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2442747,
       "subtasks": {
         "T021": "done"
@@ -107,6 +137,11 @@
       "lane": "done",
       "last_event_id": "01KXA9APWF7PWX8E3M1EBCQF9X",
       "last_transition_at": "2026-07-12T04:28:22.287148+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP07:20260711",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2661655,
       "subtasks": {
         "T025": "done"
@@ -121,6 +156,11 @@
       "lane": "done",
       "last_event_id": "01KXA9AX87HZ8FYZ6PKSPQHA52",
       "last_transition_at": "2026-07-12T04:28:28.807718+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP08:20260711",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2850453,
       "subtasks": {
         "T028": "done"
@@ -135,6 +175,11 @@
       "lane": "done",
       "last_event_id": "01KXA9B3GC0DW78M1CD83G0P1H",
       "last_transition_at": "2026-07-12T04:28:35.212442+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP09:20260712",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "shell_pid": 2956749,
       "subtasks": {
         "T031": "done"
@@ -149,6 +194,11 @@
       "lane": "done",
       "last_event_id": "01KXA9B9V036TW7XACNMH3QAZA",
       "last_transition_at": "2026-07-12T04:28:41.696643+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP10:20260712",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
       "subtasks": {
         "T034": "planned"
       },

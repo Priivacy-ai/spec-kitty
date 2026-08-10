@@ -1,5 +1,5 @@
 {
-  "event_count": 37,
+  "event_count": 38,
   "last_event_id": "01KRZZZMKF09NTJMPVYQ6K945M",
   "materialized_at": "2026-05-19T11:29:50.703178+00:00",
   "mission_number": "",
@@ -24,6 +24,7 @@
       "lane": "approved",
       "last_event_id": "01KRZVF09VF1D887T1VAHX6MTZ",
       "last_transition_at": "2026-05-19T10:10:51.323840+00:00",
+      "review_result": null,
       "shell_pid": 57716,
       "subtasks": {
         "T001": "done",
@@ -41,6 +42,7 @@
       "lane": "approved",
       "last_event_id": "01KRZYS1CVGXPHS3QPNX1F52ZW",
       "last_transition_at": "2026-05-19T11:08:45.851521+00:00",
+      "review_result": null,
       "shell_pid": 50875,
       "subtasks": {
         "T006": "done",
@@ -57,6 +59,7 @@
       "lane": "approved",
       "last_event_id": "01KRZVR6HH2F7T76YYQXQKSHS0",
       "last_transition_at": "2026-05-19T10:15:52.625617+00:00",
+      "review_result": null,
       "shell_pid": 62047,
       "subtasks": {
         "T011": "done",
@@ -74,6 +77,12 @@
       "lane": "approved",
       "last_event_id": "01KRZZZMKF09NTJMPVYQ6K945M",
       "last_transition_at": "2026-05-19T11:29:50.703178+00:00",
+      "review_result": {
+        "feedback_path": "/private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260810-130708-cEJgwV/spec-kitty/kitty-specs/unblock-sync-identity-boundary-canary-01KRZJ07/tasks/WP04-canary-verification/review-cycle-1.md",
+        "reference": "review-cycle://unblock-sync-identity-boundary-canary-01KRZJ07/WP04-canary-verification/review-cycle-1.md",
+        "reviewer": "unknown",
+        "verdict": "changes_requested"
+      },
       "shell_pid": 53522,
       "subtasks": {
         "T017": "done",

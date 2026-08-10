@@ -24,6 +24,7 @@
       "lane": "done",
       "last_event_id": "01KTE63YYFVMVS0CGW7H2KT06Y",
       "last_transition_at": "2026-06-06T10:02:07.695261+00:00",
+      "review_result": null,
       "shell_pid": 32276
     },
     "WP02": {
@@ -32,7 +33,8 @@
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KTE640VH3NGADPVQJV5VFFEB",
-      "last_transition_at": "2026-06-06T10:02:09.649302+00:00"
+      "last_transition_at": "2026-06-06T10:02:09.649302+00:00",
+      "review_result": null
     },
     "WP03": {
       "actor": "merge",
@@ -40,7 +42,8 @@
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KTE642NJ4KR0FT0ND1MYZ9JW",
-      "last_transition_at": "2026-06-06T10:02:11.506190+00:00"
+      "last_transition_at": "2026-06-06T10:02:11.506190+00:00",
+      "review_result": null
     },
     "WP04": {
       "actor": "merge",
@@ -48,7 +51,8 @@
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KTE6JBC9GMSPNPSDGKE3TK2Y",
-      "last_transition_at": "2026-06-06T10:09:59.177105+00:00"
+      "last_transition_at": "2026-06-06T10:09:59.177105+00:00",
+      "review_result": null
     }
   }
 }

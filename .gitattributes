@@ -22,3 +22,4 @@ kitty-specs/**/canary-evidence/** linguist-generated=true
 .kittify/workspaces/** -diff
 .kittify/migrations/** linguist-generated=true
 .kittify/migrations/** -diff
+kitty-specs/**/issue-matrix.md merge=spec-kitty-issue-matrix
