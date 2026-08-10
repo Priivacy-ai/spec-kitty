@@ -65,7 +65,7 @@ from charter.bundle import CHARTER_YAML
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-__all__ = ["is_references_parity_cause", "refresh_references_if_needed"]
+__all__ = ["refresh_references_if_needed"]
 
 _logger = logging.getLogger(__name__)
 
