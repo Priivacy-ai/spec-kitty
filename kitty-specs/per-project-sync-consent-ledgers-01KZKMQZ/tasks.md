@@ -218,7 +218,7 @@ T040-T043 belong to WP09.
 
 **Prompt**: `tasks/WP10-wal-aware-project-store-cutover.md`
 **Priority**: P1
-**Dependencies**: WP04
+**Dependencies**: WP04, WP07
 
 **Goal**: Consume—not create—the layout authority; copy and verify mixed shared
 state into project stores; quarantine unsafe identity; atomically cut over; and
@@ -246,8 +246,9 @@ T049-T054 belong to WP11.
   `architect-alphonso` because it is a green census/review package and owns no
   production implementation. WP11 changes executable acceptance/evidence code,
   so it also uses `python-pedro`.
-- `owned_files` are exact and non-overlapping. Any out-of-map edit requires
-  coordination and a recorded ownership update before editing.
+- `owned_files` are exact. Any shared file is sequentially owned with an explicit
+  dependency (currently WP07 → WP10 for `cli/commands/sync.py`); any other
+  out-of-map edit requires coordination and a recorded ownership update.
 - Every behavior-changing WP commits red-first ATDD in its own lane. WP01 must be
   green and approvable.
 - A pre-existing failure must be filed before baseline classification.

@@ -3,6 +3,7 @@ work_package_id: WP10
 title: WAL-aware layout migration, quarantine, and atomic cutover
 dependencies:
 - WP04
+- WP07
 requirement_refs:
 - FR-012
 - FR-013
@@ -127,10 +128,12 @@ or redelivery, and no cross-project side effect.
 
 ## Branch Strategy
 
-Run `spec-kitty agent action implement WP10 --agent <name>` after WP04 approval.
-It may progress while transport packages continue, but that is not a source-level
-disjointness claim: WP04 owns writers and WP10 owns migration/cutover only. Use
-the computed lane and governed merge; do not publish.
+Run `spec-kitty agent action implement WP10 --agent <name>` after WP04 and WP07
+approval. WP07 sequentially owns the final/exit sync transport redesign in
+`src/specify_cli/cli/commands/sync.py`; WP10 may edit that shared file only after
+the approved WP07 lineage is present, and only for migration/cutover commands.
+It may still progress alongside disjoint later transport evidence. Use the
+computed lane and governed merge; do not publish.
 
 ## Test strategy
 
@@ -170,3 +173,4 @@ writer edits in this WP, a second layout authority, or live legacy fallback.
 
 - 2026-08-10T02:25:00Z – codex – Sequentially assigned the existing identity-migration #3030 suite to WP10. Its legacy file/schema/ALTER cases are read-only migration-source contracts and cannot justify retaining a live path constructor in WP04.
 - 2026-08-10T02:45:00Z – codex – Sequentially assigned the legacy purge-all body-upload #3030 suite to WP10 after WP04 review. Blank/whitespace identities and a whole shared queue are migration/quarantine inputs, not grounds for restoring a live global purge API.
+- 2026-08-10T19:20:00Z – codex – Added WP07 as a dependency because both packages sequentially require `src/specify_cli/cli/commands/sync.py`: WP07 first phases final/exit dispatch around short project-store UoWs and WP06 transport commits; WP10 later adds migration/cutover commands without reopening or replacing the transport design.

@@ -156,9 +156,10 @@
         "legacy-cleanup"
       ],
       "depends_on_lanes": [
-        "lane-b"
+        "lane-b",
+        "lane-e"
       ],
-      "parallel_group": 2
+      "parallel_group": 4
     },
     {
       "lane_id": "lane-e",
@@ -166,6 +167,7 @@
         "WP07"
       ],
       "write_scope": [
+        "src/specify_cli/cli/commands/sync.py",
         "src/specify_cli/delivery/consent_gate.py",
         "src/specify_cli/delivery/dispatcher.py",
         "src/specify_cli/dossier/emitter_adapter.py",

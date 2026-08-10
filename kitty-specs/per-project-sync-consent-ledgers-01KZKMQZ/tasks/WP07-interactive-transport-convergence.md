@@ -49,6 +49,7 @@ create_intent:
 - tests/sync/test_sender_context_convergence.py
 execution_mode: code_change
 owned_files:
+- src/specify_cli/cli/commands/sync.py
 - src/specify_cli/delivery/dispatcher.py
 - src/specify_cli/delivery/consent_gate.py
 - src/specify_cli/sync/client.py
@@ -175,3 +176,4 @@ typed refusal, or a tracker permission used as a hosted-sync grant.
 
 - 2026-08-10T02:25:00Z – codex – Sequentially assigned the existing body-drain consent, dispatcher liveness-before-limit, and cross-project refusal-state suites to WP07 because making those callers green requires the WP06 attempt/lease and WP07 correlated final-gate/parking wiring; WP04 owns only the repository boundary and must not restore a shared-store caller compatibility path.
 - 2026-08-10T18:47:24Z – codex – Corrected pre-allocation ownership metadata: T032's live event relay (`src/specify_cli/sync/events.py`) and the three already-assigned regression suites are now explicit WP07-owned files, and lane-e now retains those paths plus the already-owned dispatcher suite. This is a governance-only correction with no production scope expansion. The normal finalizer was not rerun because its live-mission topology rewrite is tracked in #3311; existing lane identities, status history, and planning provenance are preserved. Documentary `later_owner` drift in the architecture census remains for an explicitly owned later correction.
+- 2026-08-10T19:20:00Z – codex – Added sequential ownership of `src/specify_cli/cli/commands/sync.py` after the live dispatcher redesign proved final/exit sync must release transaction-bound journal/ledger UoWs before WP06's separately committed attempt/start/result phases. WP10 retains later migration-command ownership and now depends on WP07; the two packages may not edit this shared file concurrently.
