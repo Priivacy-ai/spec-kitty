@@ -284,6 +284,60 @@ def test_project_store_status_rejects_same_uuid_from_another_physical_home_befor
         assert same_store["body_task_count"] == 1
 
 
+def test_project_store_status_rejects_genuine_identity_transplant_before_read(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home-a"))
+    store_a = ProjectSyncStore(PROJECT)
+    authority_a = store_a.layout_generation()
+    authority_a.begin_cutover("status-transplant-a")
+    authority_a.publish_project_only("status-transplant-a", verify_exact=lambda: True)
+    record_project_opt_in(PROJECT, actor="test")
+    with store_a.unit_of_work():
+        context_a = store_a.create_context()
+    assert context_a.consent_state is not None
+
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home-b"))
+    store_b = ProjectSyncStore(PROJECT)
+    authority_b = store_b.layout_generation()
+    authority_b.begin_cutover("status-transplant-b")
+    authority_b.publish_project_only("status-transplant-b", verify_exact=lambda: True)
+    with store_b.unit_of_work() as unit_b:
+        seed_queue = OfflineBodyUploadQueue(unit_b, authority_b)
+        seed_queue.enqueue(
+            NamespaceRef(PROJECT, "mission-a", "develop", "software-dev", "1"),
+            "spec.md",
+            "hash-a",
+            "# private body",
+            14,
+        )
+        journal_b = _ReadCountingJournal(unit_b, authority_b)
+        ledger_b = _ReadCountingLedger(unit_b, authority_b)
+        queue_b = _ReadCountingBodyQueue(unit_b, authority_b)
+        transplanted = _clone_context_with_identity(context_a, unit_b.store_identity)
+
+        with pytest.raises(ValueError, match="context authority mismatch"):
+            build_project_store_status(
+                context=transplanted,
+                journal=journal_b,
+                ledger=ledger_b,
+                body_upload_queue=queue_b,
+            )
+
+        assert journal_b.count_reads == 0
+        assert ledger_b.rows_reads == 0
+        assert queue_b.size_reads == 0
+        same_store = build_project_store_status(
+            context=store_b.create_context(),
+            journal=journal_b,
+            ledger=ledger_b,
+            body_upload_queue=queue_b,
+        )
+        assert same_store["decision"] is None
+        assert same_store["body_task_count"] == 1
+
+
 def test_project_store_status_rejects_fabricated_store_identity_before_read(
     store: ProjectSyncStore,
     unit: ProjectUnitOfWork,
