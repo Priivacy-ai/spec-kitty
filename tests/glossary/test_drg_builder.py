@@ -83,7 +83,9 @@ def test_glossary_urn_lane() -> None:
 
 def test_glossary_urn_is_stable() -> None:
     """Same input always produces the same URN."""
-    assert glossary_urn("mission") == glossary_urn("mission")
+    first_urn = glossary_urn("mission")
+    second_urn = glossary_urn("mission")
+    assert first_urn == second_urn
 
 
 def test_glossary_urn_prefix() -> None:

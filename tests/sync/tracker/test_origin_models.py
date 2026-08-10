@@ -61,7 +61,10 @@ class TestOriginCandidate:
             "url": "https://example.com",
             "match_type": "exact",
         }
-        assert OriginCandidate(**kwargs) == OriginCandidate(**kwargs)
+        first = OriginCandidate(**kwargs)
+        second = OriginCandidate(**kwargs)
+        assert first == second
+        assert first is not second
 
     def test_text_match_type(self) -> None:
         candidate = OriginCandidate(
