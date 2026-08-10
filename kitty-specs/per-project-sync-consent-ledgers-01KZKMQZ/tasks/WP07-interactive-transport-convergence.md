@@ -52,6 +52,7 @@ owned_files:
 - src/specify_cli/cli/commands/sync.py
 - src/specify_cli/delivery/dispatcher.py
 - src/specify_cli/delivery/consent_gate.py
+- src/specify_cli/delivery/ledger.py
 - src/specify_cli/sync/client.py
 - src/specify_cli/sync/emitter.py
 - src/specify_cli/sync/events.py
@@ -66,6 +67,7 @@ owned_files:
 - src/specify_cli/tracker/saas_client.py
 - tests/delivery/test_cross_project_refusal_state_3030.py
 - tests/delivery/test_dispatcher.py
+- tests/delivery/test_project_store_ledger.py
 - tests/delivery/test_liveness_predicate_before_limit_3030.py
 - tests/sync/test_body_drain_consent_3030.py
 - tests/sync/test_interactive_transport_convergence.py
@@ -114,6 +116,13 @@ Thread context/attempt/lease through dispatcher HTTP, Event batch, WebSocket
 Event, relay, reconnect/final flush, and LocalCommit. Preserve Authorization
 header WebSocket auth. Remove cwd, active target, login, repo slug, and request
 defaults as identity sources. A mixed request never uses request-wide proof.
+
+The dispatcher live path records exactly one canonical WP06 attempt/result per
+event. Adapt the delivery ledger as a read/status projection over those
+dispatcher attempts; do not write a second legacy-shaped attempt, ignore rows
+whose metadata shape differs, or parse an undocumented string identity. Retain
+legacy repository compatibility only for callers that have not entered the
+canonical transport path.
 
 ## Subtask T033 — Body, dossier, and history paths
 
