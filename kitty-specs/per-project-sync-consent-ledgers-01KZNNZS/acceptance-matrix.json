@@ -1,0 +1,199 @@
+{
+  "mission_slug": "per-project-sync-consent-ledgers-01KZNNZS",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Hosted sync egress is denied until explicit per-project opt-in exists.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 focused validation: tests/sync/test_consent_resolver_3030.py, tests/cli/commands/test_sync_commands.py, tests/architectural/test_egress_consent_boundary.py — 94 passed, 2 xfailed.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-10T12:09:26Z",
+      "notes": "Absence of a consent record remains denial."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Consent authority is keyed to stable project identity, not login, machine, shell, environment, or SaaS account alone.",
+      "proof_type": "automated_test",
+      "evidence": "WP01/WP02 validation: tests/sync/test_consent_resolver_3030.py and selector/ledger tests — 94 passed, 2 xfailed; 56 passed.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-10T12:09:26Z",
+      "notes": "Global rollout arming is not consent."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Event journal, offline queue, sync state, leases, and acknowledgement state are isolated per project.",
+      "proof_type": "automated_test",
+      "evidence": "WP02 focused validation: tests/delivery/test_dispatch_project_consent_3030.py, tests/delivery/test_consented_batch_3030.py, tests/delivery/test_purge_all_events_3030.py, tests/event_journal/test_identity_migration_3030.py — 56 passed.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-10T12:09:26Z",
+      "notes": "Selection and report surfaces are project-scoped."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Every hosted-sync selector filters by project consent before transmission.",
+      "proof_type": "automated_test",
+      "evidence": "WP05/WP06 validation: dispatcher/window/body/history/client consent slices — 132 passed; closure proof — 126 passed.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-10T12:09:26Z",
+      "notes": "Includes interactive, daemon, body upload, history import, tracker, and SaaS client seams."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Rows are not acknowledged, marked delivered, or purged unless the exact owning project consented.",
+      "proof_type": "automated_test",
+      "evidence": "WP05/WP06 validation: tests/delivery/test_cross_project_refusal_state_3030.py, tests/delivery/test_body_queue_purge_differential_3030.py, tests/cli/commands/test_sync_purge_3030.py — included in 132-pass and 126-pass slices.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-10T12:09:26Z",
+      "notes": "Refusal is not success."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "User-facing command/API records explicit opt-in for the current project and shows the project allowed to egress.",
+      "proof_type": "automated_test",
+      "evidence": "WP04 focused validation: tests/cli/commands/test_sync_commands.py, tests/cli/commands/test_sync_doctor_consent_health_3030.py, tests/cli/commands/test_sync_report_label_is_a_purge_selector_3030.py, tests/sync/test_sync_status_command.py — 67 passed.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-10T12:09:26Z",
+      "notes": "Opt-in/status UX is explicit and project-scoped."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "User-facing command/API revokes hosted-sync eligibility and stops future delivery.",
+      "proof_type": "automated_test",
+      "evidence": "WP04 focused validation plus WP06 closure proof, including per-project status and purge-selector checks — 67 passed; 126 passed.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-10T12:09:26Z",
+      "notes": "Opt-out stops future egress without deleting local history."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "SPEC_KITTY_ENABLE_SAAS_SYNC is a rollout/kill switch only and cannot grant egress consent.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 validation: env-as-arming invariant, tests/sync/test_consent_resolver_3030.py and tests/cli/commands/test_sync_commands.py — 94 passed, 2 xfailed.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-10T12:09:26Z",
+      "notes": "The runbook repeats this as an operator rule."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Background daemon startup, discovery, selection, transmission, retry, and acknowledgement enforce the same predicates as interactive sync.",
+      "proof_type": "automated_test",
+      "evidence": "WP05/WP06 validation: tests/sync/test_background_body.py, tests/sync/test_background_auth_backoff_3030.py, tests/sync/test_daemon_publish_consent_3030.py — included in 132-pass and 126-pass slices.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-10T12:09:26Z",
+      "notes": "Daemon publish and background body drain fail closed."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Migration from shared machine-global state does not silently admit historical projects.",
+      "proof_type": "automated_test",
+      "evidence": "WP03 focused validation: tests/sync/test_migrate_journal.py, tests/cli/commands/test_sync_migrate_backfills_h4.py, tests/sync/test_journal_identity_backfill_3030.py, tests/event_journal/test_identity_migration_3030.py — 60 passed.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-10T12:09:26Z",
+      "notes": "Backfill/migration preserves denial for unproven projects."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Rows without trustworthy project identity remain local-only or require explicit resolution.",
+      "proof_type": "automated_test",
+      "evidence": "WP03 validation plus WP06 closure proof: identity migration/backfill and incident reproduction slices — 60 passed; 126 passed.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-10T12:09:26Z",
+      "notes": "Ambiguous rows fail closed."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Low-level delivery seams refuse non-consenting project rows even if high-level command gates are bypassed.",
+      "proof_type": "automated_test",
+      "evidence": "WP05/WP06 validation: tests/specify_cli/saas_client/test_client_consent_gate_3030.py, tests/sync/tracker/test_saas_client_consent_gate_3030.py, tests/sync/test_history_import_consent_3030.py — included in 132-pass and 126-pass slices.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-10T12:09:26Z",
+      "notes": "Old-client/bypass seams fail closed."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Two projects on one machine cannot select, transmit, acknowledge, or purge each other’s events.",
+      "proof_type": "automated_test",
+      "evidence": "WP06 closure proof: tests/delivery/test_incident_reproduction_3030.py, tests/delivery/test_liveness_predicate_before_limit_3030.py, tests/delivery/test_cross_project_refusal_state_3030.py, tests/cli/commands/test_sync_purge_3030.py — 126 passed.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-10T12:09:26Z",
+      "notes": "This is the explicit two-project/multi-project closure proof."
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "sync status / sync doctor expose per-project queue and consent state before drain.",
+      "proof_type": "automated_test",
+      "evidence": "WP04/WP06 validation: tests/cli/commands/test_sync_status_per_project_3030.py, tests/cli/commands/test_sync_doctor_per_project_3030.py, tests/sync/test_sync_status_command.py — covered in 67-pass and 126-pass slices.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-10T12:09:26Z",
+      "notes": "Operators can see cross-project backlog/consent state."
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Closure note for #3262/#585 includes prevention evidence and separates #585 historical remediation.",
+      "proof_type": "document_review",
+      "evidence": "WP06 artifacts: docs/runbooks/hosted-sync-consent-incident.md, contracts/closure-dossier.md, issue-matrix.json, PR #3300 body.",
+      "pass_fail": "pass",
+      "verified_by": "codex",
+      "verified_at": "2026-08-10T12:09:26Z",
+      "notes": "#585 remains open until the 1,322 already-delivered events receive an approved disposition."
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "A global rollout flag must not grant project consent.",
+      "verification_method": "custom_command",
+      "verification_command": "WP01 focused validation",
+      "result": "confirmed_absent",
+      "evidence": "WP01 validation and runbook operator rule.",
+      "verified_by": "codex",
+      "verified_at": "2026-08-10T12:09:26Z",
+      "verified_ref": "feat/per-project-sync-consent@df413a669",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    },
+    {
+      "invariant_id": "NI-002",
+      "description": "A refused row or task must not be acknowledged or purged as delivered.",
+      "verification_method": "custom_command",
+      "verification_command": "WP05/WP06 focused validation",
+      "result": "confirmed_absent",
+      "evidence": "WP05/WP06 validation, including cross-project refusal and purge differential tests.",
+      "verified_by": "codex",
+      "verified_at": "2026-08-10T12:09:26Z",
+      "verified_ref": "feat/per-project-sync-consent@df413a669",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    },
+    {
+      "invariant_id": "NI-003",
+      "description": "This mission must not close SaaS #585 historical remediation.",
+      "verification_method": "custom_command",
+      "verification_command": "Closure dossier and runbook review",
+      "result": "confirmed_absent",
+      "evidence": "Closure dossier and runbook explicitly require a separate disposition for the already-delivered 1,322 events.",
+      "verified_by": "codex",
+      "verified_at": "2026-08-10T12:09:26Z",
+      "verified_ref": "feat/per-project-sync-consent@df413a669",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    }
+  ]
+}
