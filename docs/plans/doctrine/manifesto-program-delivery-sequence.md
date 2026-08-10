@@ -326,6 +326,8 @@ answer D-2 in it before anyone opens `extractor.py` with intent to add a field.*
 > **2026-07-26 update:** carried out. See § 10 for the realization into five sequenced missions,
 > the D-2/ADR-D2 closure, the D-3 operator ruling, and the `#2538` rig finding.
 
+<a id="10-realization-amendment-2026-07-26"></a>
+
 ## 10. Realization & amendment — 2026-07-26
 
 This section is an **addition**, not a rewrite: §§1–9 above are left as originally written except

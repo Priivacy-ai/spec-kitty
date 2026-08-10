@@ -66,7 +66,7 @@ flowchart LR
 
 ## Domain Context Map
 
-See [2.x Domain Breakdown](../README.md#domain-breakdown) for full detail.
+See [2.x Domain Breakdown](../README.md) for full detail.
 
 ```mermaid
 flowchart LR
@@ -96,7 +96,7 @@ flowchart LR
 
 ## Usage Flow Reference
 
-See [Usage Flow High-Level User Journey](../README.md#usage-flow-high-level-user-journey)
+See [Usage Flow High-Level User Journey](../README.md)
 for the generic cross-domain execution path that these boundaries protect.
 
 ## Branch and Routing Boundary
@@ -121,8 +121,8 @@ for the generic cross-domain execution path that these boundaries protect.
 
 ## Traceability
 
-- Domain map: `../README.md#domain-breakdown`
-- Usage flow reference: `../README.md#usage-flow-high-level-user-journey`
+- Domain map: `../README.md`
+- Usage flow reference: `../README.md`
 - Container view: `../02_containers/README.md`
 - Component view: `../03_components/README.md`
 - Runtime loop authority: `../adr/2026-02-17-1-canonical-next-command-runtime-loop.md`

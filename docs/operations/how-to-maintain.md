@@ -162,6 +162,8 @@ Keep area labels few and orthogonal; prefer native sub-issue parenting over inve
 
 ---
 
+<a id="5-recommended-additions"></a>
+
 ## 5. Release scoping: emergent milestones + declarations of intent (IMPLEMENTED)
 
 Adopted 2026-06-16. Milestones were previously **abandoned** (2 historical, no due-dates, zero open

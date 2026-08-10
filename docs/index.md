@@ -16,7 +16,7 @@ related:
   <h1 id="sk-docs-title">Spec Kitty documentation</h1>
   <p class="sk-docs-lead">Spec Kitty is for developers and teams who use AI coding agents (Claude Code, Cursor, Gemini CLI, and others) and want those agents to build the right thing, in the right order, without losing the plot halfway through. It gives your agent a clear spec, a plan, and a checklist to work from — instead of a loose prompt and a hope.</p>
   <nav class="sk-docs-actions" aria-label="Primary documentation paths">
-    <a class="sk-btn sk-btn-primary" href="guides/getting-started.md">Get started</a>
+    <a class="sk-btn sk-btn-primary" href="guides/tutorials/getting-started.md">Get started</a>
     <a class="sk-btn" href="migrations/index.md">Upgrade a project</a>
     <a class="sk-btn" href="api/index.md">Open the API reference</a>
   </nav>
@@ -43,12 +43,12 @@ Already using Spec Kitty? Head to [Migrations](migrations/index.md) if you're up
     <strong>Context</strong>
     <span>Glossary narrative, audiences, and the Charter-era governance model.</span>
   </a>
-  <a class="sk-doc-card" href="core-concepts/index.md">
+  <a class="sk-doc-card" href="context/index.md">
     <span class="sk-card-kicker">Core Concepts</span>
     <strong>Core Concepts</strong>
     <span>Context, terminology, and the doctrine layer that governs your agent.</span>
   </a>
-  <a class="sk-doc-card" href="doctrine/index.md">
+  <a class="sk-doc-card" href="architecture/doctrine-kinds.md">
     <span class="sk-card-kicker">Doctrine</span>
     <strong>Doctrine</strong>
     <span>The layered artifacts — directives, tactics, profiles — that shape agent behavior.</span>
@@ -73,7 +73,7 @@ Already using Spec Kitty? Head to [Migrations](migrations/index.md) if you're up
     <strong>API and CLI reference</strong>
     <span>Exact CLI, file, schema, and environment behavior.</span>
   </a>
-  <a class="sk-doc-card" href="reference/index.md">
+  <a class="sk-doc-card" href="api/index.md">
     <span class="sk-card-kicker">Reference</span>
     <strong>Reference</strong>
     <span>API, configuration, integrations, and security — exact behavior, no narrative.</span>
@@ -113,12 +113,12 @@ Already using Spec Kitty? Head to [Migrations](migrations/index.md) if you're up
     <strong>Changelog</strong>
     <span>Release history.</span>
   </a>
-  <a class="sk-doc-card" href="release-goals/index.md">
+  <a class="sk-doc-card" href="changelog/release-goals.md">
     <span class="sk-card-kicker">Release Goals</span>
     <strong>Release goals</strong>
     <span>Declared intent of each release line.</span>
   </a>
-  <a class="sk-doc-card" href="updates/index.md">
+  <a class="sk-doc-card" href="changelog/index.md">
     <span class="sk-card-kicker">Project Updates</span>
     <strong>Project Updates</strong>
     <span>Changelog, release goals, and mission run history.</span>

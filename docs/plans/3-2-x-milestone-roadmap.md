@@ -117,6 +117,8 @@ claim before any tracker action was taken; findings below.*
    shadow-workspace proposal gated — escalate only if the same undetected-out-of-context-write
    shape keeps recurring after `#3128` and the `#1878` strangler land.
 
+<a id="addendum-2026-08-02-charter-as-sole-door-boundary-usage-pair-landed-mission-1-mission-2"></a>
+
 ## Addendum 2026-08-02 — charter-as-sole-door boundary/usage pair landed (Mission 1 + Mission 2)
 
 *The two-mission sequence scoped to close out the [open-core delivery plan](3-2-x-open-core-delivery-plan.md)
