@@ -1883,6 +1883,7 @@ jobs:
             tests/glossary \
             tests/integration \
             -m "corpus and not windows_ci" -q --tb=short \
+            --timeout=240 --timeout-method=signal \
             -n auto --dist loadfile \
             --durations=50 \
             --cov=src/doctrine \
