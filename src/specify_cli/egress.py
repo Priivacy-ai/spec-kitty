@@ -32,11 +32,12 @@ re-derive the checkout to project to consent chain locally**. The single
 derivation lives in ``sync/__init__.py``'s ``_egress_consent_resolver``, which
 reads the checkout's identity through
 ``routing.resolve_checkout_sync_routing_readonly`` and then asks
-``sync.consent.consented_project_uuids`` — the same funnel the drain
-(``delivery/selection.py``), the emitter, the daemon and ``local_commit`` all
-walk, over the one declared precedence chain (project-local, machine index,
-env). Re-deriving it here would be a second expression of one invariant, free to
-drift, which is the defect class this mission keeps re-finding.
+``sync.consent.resolve_project_consent``, whose ``granted`` verdict wraps the
+same ``consented_project_uuids`` funnel the drain (``delivery/selection.py``),
+the emitter, the daemon and ``local_commit`` all walk, over the one declared
+precedence chain (project-local, machine index, env). Re-deriving it here would
+be a second expression of one invariant, free to drift, which is the defect
+class this mission keeps re-finding.
 
 The seam is registered by ``sync`` into the CORE registry slot in
 ``invocation/adapters.py``, so reaching it costs one import and no new chain.
