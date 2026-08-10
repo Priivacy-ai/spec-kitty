@@ -103,6 +103,21 @@ SRC = REPO_ROOT / "src"
 #: checked against, so a *change* in the topology reds and forces a human to look instead of
 #: being absorbed silently.
 #:
+#: RE-PINNED 2026-08-10 (#3287 / #3302, egress-single-authority). Previously this set also
+#: included ``specify_cli.tracker.egress_verdict``. The single-authority consolidation retired
+#: ``egress_verdict``'s second Channel-1 derivation: ``_resolve_channel1`` no longer binds the
+#: ``project_egress_refusal`` *wrapper* by value — it now takes a module-level by-value binding
+#: of the underlying decider ``egress._egress_decision`` and reads ``refusal_message`` /
+#: ``channel1_state`` / ``generic`` straight off the single ``EgressDecision`` it returns
+#: (``egress_verdict.py`` imports ``_egress_decision`` at module level; ``_resolve_channel1``
+#: calls it). So the name DISAPPEARED here because the decision point *tightened onto the one
+#: decider*, not because it stopped reaching it — the verified delegation chain the assertion
+#: message asks for. Binding ``_egress_decision`` from its own definition module carries no
+#: stale-re-export hazard (unlike the historical ``egress_consent.py`` re-export of
+#: ``project_egress_refusal`` that this gate hunts), so ``egress_verdict`` is correctly out of
+#: scope for THIS scan. Restoring a direct ``project_egress_refusal`` binding here would
+#: reintroduce the exact second Channel-1 derivation the PR removes.
+#:
 #: RE-PINNED 2026-08-07 (PR #3135 / #3108 Bundle-C port). Previously
 #: ``{specify_cli.saas_client.client, specify_cli.tracker.saas_client}``, hardcoded as two
 #: import aliases at the top of this file. The Bundle-C port routed the tracker transport's
@@ -137,7 +152,6 @@ SRC = REPO_ROOT / "src"
 EXPECTED_VERDICT_BINDERS = frozenset(
     {
         "specify_cli.saas_client.client",
-        "specify_cli.tracker.egress_verdict",
     }
 )
 
@@ -232,9 +246,18 @@ def test_sc004_clause3_names_are_reachable_and_the_comparison_is_not_self_identi
     itself. If any pinned binder were an alias of the definition module, the ``is``
     comparisons above would be trivially true and would prove nothing.
     """
-    assert len(EXPECTED_VERDICT_BINDERS) >= 2, (
-        "clause 3 is pinned to fewer than two deciding modules — a single-module comparison "
-        f"is one rename away from being self-identity: {sorted(EXPECTED_VERDICT_BINDERS)}"
+    # FLOOR LOWERED 2->1 on 2026-08-10 (#3287 / #3302, egress-single-authority). The
+    # single-authority consolidation retired the second ``project_egress_refusal`` binder
+    # (``tracker.egress_verdict`` now binds the underlying decider ``_egress_decision`` directly
+    # — see the RE-PINNED note on EXPECTED_VERDICT_BINDERS above), leaving exactly one binder,
+    # ``saas_client.client``. That single comparison is NOT vacuous: non-vacuity here is fully
+    # carried by the ``EGRESS_MODULE_DOTTED_NAME not in ...`` self-identity guard below and the
+    # impostor control at the end of this test — the old ``>= 2`` floor was belt-and-suspenders
+    # on top of those, not the thing preventing self-identity. A floor of ``>= 1`` still reds a
+    # fully-empty (genuinely vacuous, zero-binder) pin, which is the failure mode worth keeping.
+    assert len(EXPECTED_VERDICT_BINDERS) >= 1, (
+        "clause 3 is pinned to zero deciding modules — the comparison would iterate nothing and "
+        f"prove nothing: {sorted(EXPECTED_VERDICT_BINDERS)}"
     )
     assert EGRESS_MODULE_DOTTED_NAME not in EXPECTED_VERDICT_BINDERS, (
         "the definition module is pinned as one of its own binders — that comparison is "
