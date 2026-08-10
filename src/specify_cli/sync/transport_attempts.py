@@ -8,7 +8,8 @@ from datetime import UTC, datetime
 from enum import StrEnum
 
 from specify_cli.sync.project_context import ProjectSyncContext, validate_project_sync_context_authority
-from specify_cli.sync.project_store import ProjectStoreError, ProjectUnitOfWork
+from specify_cli.sync.project_store import ProjectStoreError, ProjectStoreLockedError, ProjectSyncStore, ProjectUnitOfWork
+from specify_cli.sync.transport_lease import acquire_project_transport_lease, transport_lease_is_live
 
 
 class DeliveryAttemptState(StrEnum):
@@ -41,6 +42,14 @@ class RecoveryAction(StrEnum):
     OPERATOR_REVIEW = "operator_review"
 
 
+class ReconciliationPolicy(StrEnum):
+    """Native adapter strategy the durable protocol may perform automatically."""
+
+    NATIVE_IDENTITY_QUERY = "native_identity_query"
+    NATIVE_IDENTITY_RETRY = "native_identity_retry"
+    OPERATOR_REVIEW = "operator_review"
+
+
 @dataclass(frozen=True, slots=True)
 class DeliveryAttemptSpec:
     """Adapter-neutral immutable identity for a possible remote disclosure."""
@@ -51,8 +60,8 @@ class DeliveryAttemptSpec:
     payload_hash: str
     payload_reference: str
     outbox_task_id: str | None = None
-    deadline_at: str | None = None
-    reconciliation_policy: str = "native_identity_required"
+    deadline_at: str = ""
+    reconciliation_policy: str = ReconciliationPolicy.OPERATOR_REVIEW.value
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,6 +81,7 @@ class OptOutSettlement:
 
     canceled_before_transport: int
     terminalized_orphans: int
+    waiting_live_attempts: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,9 +112,12 @@ def prepare_delivery_attempt(
         write_kind=spec.write_kind,
         native_identity=spec.native_identity,
         payload_hash=spec.payload_hash,
+        deadline_at=spec.deadline_at,
         reconciliation_policy=spec.reconciliation_policy,
     )
-    metadata = _attempt_metadata(spec)
+    _parse_deadline(spec.deadline_at)
+    policy = _parse_reconciliation_policy(spec.reconciliation_policy)
+    metadata = _attempt_metadata(spec, context=context, unit=unit, reconciliation_policy=policy)
     # TODO(#3262/WP06 follow-up): the existing project-store schema has only the
     # payload_reference text slot for native attempt metadata. This keeps the
     # current WP adapter-neutral and durable without a migration, but a later
@@ -129,7 +142,7 @@ def prepare_delivery_attempt(
             json.dumps(metadata, sort_keys=True),
             DeliveryAttemptState.PREPARED.value,
             spec.deadline_at,
-            spec.reconciliation_policy,
+            policy.value,
             _now(),
         ),
     )
@@ -138,7 +151,7 @@ def prepare_delivery_attempt(
         state=DeliveryAttemptState.PREPARED,
         native_identity=spec.native_identity,
         payload_hash=spec.payload_hash,
-        reconciliation_policy=spec.reconciliation_policy,
+        reconciliation_policy=policy.value,
     )
 
 
@@ -146,11 +159,14 @@ def mark_transport_started(
     unit: ProjectUnitOfWork,
     context: ProjectSyncContext,
     attempt_id: str,
+    *,
+    now: datetime | None = None,
 ) -> None:
     """Move a prepared attempt to in-flight immediately before I/O."""
     _validate_context_for_unit(unit, context, require_lease=True)
     row = unit.execute(
-        "SELECT 1 FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ? AND state = ?",
+        "SELECT epoch_id, consent_generation, target_generation, admission_generation, binding_audience, payload_reference, deadline_at "
+        "FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ? AND state = ?",
         (
             unit.project_uuid.storage_token,
             attempt_id,
@@ -159,6 +175,10 @@ def mark_transport_started(
     ).fetchone()
     if row is None:
         raise ProjectStoreError("delivery attempt was not prepared for transport start")
+    _assert_attempt_authority_matches_context(row=row, unit=unit, context=context)
+    deadline = _parse_deadline(str(row[6]) if row[6] is not None else "")
+    if deadline <= (now or datetime.now(UTC)):
+        raise ProjectStoreError("delivery attempt deadline expired before transport start")
     unit.execute(
         "UPDATE delivery_attempts SET state = ? WHERE project_uuid = ? AND attempt_id = ? AND state = ?",
         (
@@ -188,7 +208,8 @@ def mark_delivery_result_unknown(
     _validate_context_for_unit(unit, context, require_lease=True)
     _require_non_empty(attempt_id=attempt_id, reason=reason)
     row = unit.execute(
-        "SELECT 1 FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ? AND state IN (?, ?)",
+        "SELECT epoch_id, consent_generation, target_generation, admission_generation, binding_audience, payload_reference "
+        "FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ? AND state IN (?, ?)",
         (
             unit.project_uuid.storage_token,
             attempt_id,
@@ -198,11 +219,11 @@ def mark_delivery_result_unknown(
     ).fetchone()
     if row is None:
         raise ProjectStoreError("unknown result requires a started attempt")
+    _assert_attempt_authority_matches_context(row=row, unit=unit, context=context)
     unit.execute(
-        "UPDATE delivery_attempts SET state = ?, reconciliation_policy = ? WHERE project_uuid = ? AND attempt_id = ? AND state IN (?, ?)",
+        "UPDATE delivery_attempts SET state = ? WHERE project_uuid = ? AND attempt_id = ? AND state IN (?, ?)",
         (
             DeliveryAttemptState.UNKNOWN.value,
-            f"unknown:{reason}",
             unit.project_uuid.storage_token,
             attempt_id,
             DeliveryAttemptState.IN_FLIGHT.value,
@@ -226,10 +247,13 @@ def record_delivery_result(
         terminal_state = DeliveryAttemptState.SUCCEEDED
     elif outcome is DeliveryOutcome.REFUSED:
         terminal_state = DeliveryAttemptState.REFUSED
+    elif outcome is DeliveryOutcome.TERMINAL_UNKNOWN:
+        terminal_state = DeliveryAttemptState.TERMINAL_UNKNOWN
     else:
         terminal_state = DeliveryAttemptState.UNKNOWN
     row = unit.execute(
-        "SELECT epoch_id FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ? AND state IN (?, ?)",
+        "SELECT epoch_id, consent_generation, target_generation, admission_generation, binding_audience, payload_reference "
+        "FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ? AND state IN (?, ?)",
         (
             unit.project_uuid.storage_token,
             attempt_id,
@@ -239,6 +263,7 @@ def record_delivery_result(
     ).fetchone()
     if row is None:
         raise ProjectStoreError("delivery result requires a live or recoverable attempt")
+    _assert_attempt_authority_matches_context(row=row, unit=unit, context=context)
     unit.execute(
         "INSERT INTO delivery_results "
         "(result_id, project_uuid, epoch_id, attempt_id, target_generation, "
@@ -249,8 +274,8 @@ def record_delivery_result(
             unit.project_uuid.storage_token,
             int(row[0]),
             attempt_id,
-            context.target_audience.configuration_generation if context.target_audience is not None else None,
-            context.admission_generation,
+            int(row[2]) if row[2] is not None else None,
+            str(row[3]) if row[3] is not None else None,
             outcome.value,
             terminal_refusal_category,
             _now(),
@@ -266,6 +291,7 @@ def plan_delivery_attempt_recovery(
     unit: ProjectUnitOfWork,
     *,
     attempt_id: str,
+    now: datetime | None = None,
 ) -> DeliveryRecoveryDecision:
     """Return the only safe adapter-neutral recovery action for an attempt.
 
@@ -277,7 +303,7 @@ def plan_delivery_attempt_recovery(
     """
     _require_non_empty(attempt_id=attempt_id)
     row = unit.execute(
-        "SELECT state, payload_reference, reconciliation_policy FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ?",
+        "SELECT state, payload_reference, reconciliation_policy, deadline_at FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ?",
         (unit.project_uuid.storage_token, attempt_id),
     ).fetchone()
     if row is None:
@@ -285,6 +311,17 @@ def plan_delivery_attempt_recovery(
     state = DeliveryAttemptState(str(row[0]))
     metadata = _metadata_from_payload_reference(row[1])
     native_identity = metadata.get("native_identity")
+    policy = _parse_reconciliation_policy(str(row[2]) if row[2] is not None else "")
+    deadline = _parse_deadline(str(row[3]) if row[3] is not None else "")
+    if state in {DeliveryAttemptState.PREPARED, DeliveryAttemptState.IN_FLIGHT, DeliveryAttemptState.UNKNOWN} and deadline <= (now or datetime.now(UTC)):
+        return DeliveryRecoveryDecision(
+            attempt_id=attempt_id,
+            state=state,
+            action=RecoveryAction.OPERATOR_REVIEW,
+            native_identity=native_identity,
+            may_resend=False,
+            diagnostic="attempt deadline expired; automatic retry/query is not allowed",
+        )
     if state is DeliveryAttemptState.TERMINAL_UNKNOWN:
         return DeliveryRecoveryDecision(
             attempt_id=attempt_id,
@@ -295,6 +332,15 @@ def plan_delivery_attempt_recovery(
             diagnostic="attempt was terminalized during opt-out; preserve diagnostics only",
         )
     if state is DeliveryAttemptState.PREPARED:
+        if policy is not ReconciliationPolicy.NATIVE_IDENTITY_RETRY:
+            return DeliveryRecoveryDecision(
+                attempt_id=attempt_id,
+                state=state,
+                action=RecoveryAction.OPERATOR_REVIEW,
+                native_identity=native_identity,
+                may_resend=False,
+                diagnostic="attempt is prepared but native retry is not authorized by reconciliation policy",
+            )
         return DeliveryRecoveryDecision(
             attempt_id=attempt_id,
             state=state,
@@ -304,6 +350,15 @@ def plan_delivery_attempt_recovery(
             diagnostic="attempt was durable before transport; retry only with the original native identity",
         )
     if state in {DeliveryAttemptState.IN_FLIGHT, DeliveryAttemptState.UNKNOWN}:
+        if policy is not ReconciliationPolicy.NATIVE_IDENTITY_QUERY:
+            return DeliveryRecoveryDecision(
+                attempt_id=attempt_id,
+                state=state,
+                action=RecoveryAction.OPERATOR_REVIEW,
+                native_identity=native_identity,
+                may_resend=False,
+                diagnostic="attempt may have disclosed payload; policy requires operator review",
+            )
         return DeliveryRecoveryDecision(
             attempt_id=attempt_id,
             state=state,
@@ -322,7 +377,7 @@ def plan_delivery_attempt_recovery(
     )
 
 
-def terminalize_orphaned_attempt(
+def _terminalize_orphaned_attempt(
     unit: ProjectUnitOfWork,
     *,
     attempt_id: str,
@@ -368,18 +423,41 @@ def terminalize_orphaned_attempt(
 
 
 def settle_attempts_for_opt_out(
+    store: ProjectSyncStore,
+    *,
+    reason: str,
+    lock_timeout_seconds: float = 5.0,
+) -> OptOutSettlement:
+    """Cancel not-started attempts and terminalize started/uncertain orphans.
+
+    Settlement owns the bounded cross-process lease wait. If a live worker holds
+    the project transport lease, this call waits for that worker to commit its
+    genuine result and release. Once this call acquires the lease, any residual
+    started/unknown row is an orphan and is fenced as ``terminal_unknown`` before
+    opt-out returns. If the holder remains live past the caller's bounded wait,
+    every still-live started/unknown row is atomically fenced under the opt-out
+    settlement deadline without the transport lease; later result recording
+    still fails because terminal rows are not recoverable result targets.
+    """
+    _require_non_empty(reason=reason)
+    if lock_timeout_seconds < 0:
+        raise ValueError("lock_timeout_seconds cannot be negative")
+    try:
+        with acquire_project_transport_lease(store, lock_timeout_seconds=lock_timeout_seconds) as lease, lease.unit_of_work() as (unit, context):
+            _validate_context_for_unit(unit, context, require_lease=False)
+            if not transport_lease_is_live(lease.lease_identity):
+                raise ProjectStoreError("opt-out settlement requires a live project transport lease")
+            return _settle_open_unit(unit, reason=reason)
+    except ProjectStoreLockedError:
+        with store.unit_of_work() as unit:
+            return _settle_open_unit(unit, reason=reason)
+
+
+def _settle_open_unit(
     unit: ProjectUnitOfWork,
     *,
     reason: str,
 ) -> OptOutSettlement:
-    """Cancel not-started attempts and terminalize started/uncertain orphans.
-
-    This is the durable half of the WP06 opt-out ordering contract.  It does not
-    claim remote revocation; it only prevents prepared attempts from starting and
-    makes already-started/unknown attempts impossible to promote automatically
-    after opt-out has returned.
-    """
-    _require_non_empty(reason=reason)
     prepared_rows = unit.execute(
         "SELECT attempt_id FROM delivery_attempts WHERE project_uuid = ? AND state = ?",
         (
@@ -397,18 +475,31 @@ def settle_attempts_for_opt_out(
         ),
     )
     orphan_rows = unit.execute(
-        "SELECT attempt_id FROM delivery_attempts WHERE project_uuid = ? AND state IN (?, ?)",
+        "SELECT attempt_id, deadline_at FROM delivery_attempts WHERE project_uuid = ? AND state IN (?, ?)",
         (
             unit.project_uuid.storage_token,
             DeliveryAttemptState.IN_FLIGHT.value,
             DeliveryAttemptState.UNKNOWN.value,
         ),
     ).fetchall()
+    terminalized = 0
     for row in orphan_rows:
-        terminalize_orphaned_attempt(unit, attempt_id=str(row[0]), reason=reason)
+        _parse_deadline(str(row[1]) if row[1] is not None else "")
+        refreshed = unit.execute(
+            "SELECT state FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ?",
+            (unit.project_uuid.storage_token, str(row[0])),
+        ).fetchone()
+        if refreshed is None:
+            continue
+        refreshed_state = DeliveryAttemptState(str(refreshed[0]))
+        if refreshed_state not in {DeliveryAttemptState.IN_FLIGHT, DeliveryAttemptState.UNKNOWN}:
+            continue
+        _terminalize_orphaned_attempt(unit, attempt_id=str(row[0]), reason=reason)
+        terminalized += 1
     return OptOutSettlement(
         canceled_before_transport=len(prepared_rows),
-        terminalized_orphans=len(orphan_rows),
+        terminalized_orphans=terminalized,
+        waiting_live_attempts=0,
     )
 
 
@@ -449,13 +540,38 @@ def _validate_context_for_unit(
         raise ProjectStoreError("delivery attempt context does not match the active project unit")
     if require_lease and not context.egress_eligible:
         raise ProjectStoreError("transport/result operation requires the project transport lease")
+    if require_lease and not transport_lease_is_live(context.transport_lease_identity):
+        raise ProjectStoreError("transport/result operation requires a live project transport lease")
 
 
-def _attempt_metadata(spec: DeliveryAttemptSpec) -> dict[str, str]:
+def _attempt_metadata(
+    spec: DeliveryAttemptSpec,
+    *,
+    context: ProjectSyncContext,
+    unit: ProjectUnitOfWork,
+    reconciliation_policy: ReconciliationPolicy,
+) -> dict[str, str]:
+    target = context.target_audience
+    if target is None:
+        raise ProjectStoreError("delivery attempt requires an admitted target audience")
     return {
         "payload_reference": spec.payload_reference,
         "write_kind": spec.write_kind,
         "native_identity": spec.native_identity,
+        "project_uuid": unit.project_uuid.storage_token,
+        "store_database_path": str(context.store_identity.database_path),
+        "store_schema_version": str(context.store_identity.schema_version),
+        "store_layout_version": str(context.store_identity.layout_version),
+        "epoch_id": str(context.epoch_id),
+        "consent_generation": str(context.consent_generation),
+        "target_identity": target.target_identity,
+        "account_identity": target.account_identity,
+        "private_teamspace_id": target.private_teamspace_id,
+        "target_generation": str(target.configuration_generation),
+        "admission_generation": str(context.admission_generation),
+        "binding_audience": str(context.binding_audience),
+        "deadline_at": spec.deadline_at,
+        "reconciliation_policy": reconciliation_policy.value,
     }
 
 
@@ -477,6 +593,75 @@ def _require_non_empty(**values: str) -> None:
             raise ValueError(f"{name} must be non-empty")
 
 
+def _assert_attempt_authority_matches_context(
+    *,
+    row: object,
+    unit: ProjectUnitOfWork,
+    context: ProjectSyncContext,
+) -> None:
+    target = context.target_audience
+    if target is None:
+        raise ProjectStoreError("delivery attempt requires an admitted target audience")
+    epoch_id = int(row[0])  # type: ignore[index]
+    consent_generation = int(row[1])  # type: ignore[index]
+    target_generation = int(row[2])  # type: ignore[index]
+    admission_generation = str(row[3])  # type: ignore[index]
+    binding_audience = str(row[4])  # type: ignore[index]
+    metadata = _metadata_from_payload_reference(row[5])  # type: ignore[index]
+    expected = {
+        "project_uuid": unit.project_uuid.storage_token,
+        "store_database_path": str(context.store_identity.database_path),
+        "store_schema_version": str(context.store_identity.schema_version),
+        "store_layout_version": str(context.store_identity.layout_version),
+        "epoch_id": str(context.epoch_id),
+        "consent_generation": str(context.consent_generation),
+        "target_identity": target.target_identity,
+        "account_identity": target.account_identity,
+        "private_teamspace_id": target.private_teamspace_id,
+        "target_generation": str(target.configuration_generation),
+        "admission_generation": str(context.admission_generation),
+        "binding_audience": str(context.binding_audience),
+    }
+    persisted = {
+        "epoch_id": str(epoch_id),
+        "consent_generation": str(consent_generation),
+        "target_generation": str(target_generation),
+        "admission_generation": admission_generation,
+        "binding_audience": binding_audience,
+    }
+    expected.update(persisted)
+    for key, expected_value in expected.items():
+        if metadata.get(key) != expected_value:
+            raise ProjectStoreError("delivery attempt authority no longer matches the live transport lease")
+    if (
+        epoch_id != context.epoch_id
+        or consent_generation != context.consent_generation
+        or target_generation != target.configuration_generation
+        or admission_generation != context.admission_generation
+        or binding_audience != context.binding_audience
+    ):
+        raise ProjectStoreError("delivery attempt authority no longer matches the live transport lease")
+
+
+def _parse_deadline(value: str) -> datetime:
+    if not value.strip():
+        raise ValueError("deadline_at must be non-empty")
+    normalized = value.strip()
+    if normalized.endswith("Z"):
+        normalized = f"{normalized[:-1]}+00:00"
+    deadline = datetime.fromisoformat(normalized)
+    if deadline.tzinfo is None:
+        raise ValueError("deadline_at must include timezone")
+    return deadline.astimezone(UTC)
+
+
+def _parse_reconciliation_policy(value: str) -> ReconciliationPolicy:
+    try:
+        return ReconciliationPolicy(value.strip())
+    except ValueError:
+        return ReconciliationPolicy.OPERATOR_REVIEW
+
+
 def _now() -> str:
     return datetime.now(UTC).isoformat()
 
@@ -488,6 +673,7 @@ __all__ = [
     "DeliveryAttemptState",
     "DeliveryOutcome",
     "OptOutSettlement",
+    "ReconciliationPolicy",
     "RecoveryAction",
     "mark_transport_started",
     "mark_delivery_result_unknown",
@@ -496,5 +682,4 @@ __all__ = [
     "record_delivery_result",
     "recover_delivery_attempts",
     "settle_attempts_for_opt_out",
-    "terminalize_orphaned_attempt",
 ]

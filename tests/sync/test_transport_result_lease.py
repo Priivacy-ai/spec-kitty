@@ -19,7 +19,7 @@ from specify_cli.sync.transport_attempts import (
     prepare_delivery_attempt,
     record_delivery_result,
 )
-from specify_cli.sync.transport_lease import acquire_project_transport_lease
+from specify_cli.sync.transport_lease import acquire_project_transport_lease, transport_lease_is_live
 
 
 PROJECT_UUID = "aaaaaaaa-0000-0000-0000-000000000001"
@@ -27,6 +27,7 @@ PROJECT_UUID = "aaaaaaaa-0000-0000-0000-000000000001"
 
 def _seed_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSyncStore:
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     store = ProjectSyncStore(PROJECT_UUID)
     with store.unit_of_work() as unit:
         unit.execute(
@@ -57,6 +58,8 @@ def _attempt() -> DeliveryAttemptSpec:
         native_identity="operation-key:abc",
         payload_hash="sha256:history",
         payload_reference="history:abc",
+        deadline_at="2999-01-01T00:00:00Z",
+        reconciliation_policy="native_identity_query",
     )
 
 
@@ -92,6 +95,79 @@ def test_transport_start_and_result_recording_require_lease_bound_context(
     assert row[0] == DeliveryAttemptState.SUCCEEDED.value
 
 
+def test_cached_context_after_lock_release_cannot_start_or_record_result(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _seed_store(tmp_path, monkeypatch)
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(unit, context, _attempt())
+        stale_context = context
+
+    with store.unit_of_work() as unit, pytest.raises(ProjectStoreError, match="live project transport lease"):
+        mark_transport_started(unit, stale_context, "attempt-lease")
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        mark_transport_started(unit, context, "attempt-lease")
+
+    with store.unit_of_work() as unit, pytest.raises(ProjectStoreError, match="live project transport lease"):
+        record_delivery_result(
+            unit,
+            stale_context,
+            result_id="stale-result",
+            attempt_id="attempt-lease",
+            outcome=DeliveryOutcome.DELIVERED,
+        )
+
+
+def test_same_label_reacquisition_does_not_reactivate_cached_context(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _seed_store(tmp_path, monkeypatch)
+
+    with (
+        acquire_project_transport_lease(store, lease_identity="stable-label") as lease,
+        lease.unit_of_work() as (
+            unit,
+            context,
+        ),
+    ):
+        prepare_delivery_attempt(unit, context, _attempt())
+        stale_context = context
+
+    with (
+        acquire_project_transport_lease(store, lease_identity="stable-label") as lease,
+        lease.unit_of_work() as (
+            unit,
+            live_context,
+        ),
+    ):
+        assert live_context.transport_lease_identity != stale_context.transport_lease_identity
+        with pytest.raises(ProjectStoreError, match="live project transport lease"):
+            mark_transport_started(unit, stale_context, "attempt-lease")
+
+
+def test_forked_child_does_not_inherit_live_lease_authority(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _seed_store(tmp_path, monkeypatch)
+    child_report = tmp_path / "fork-report.txt"
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (_unit, context):
+        pid = os.fork()
+        if pid == 0:
+            child_report.write_text(str(transport_lease_is_live(context.transport_lease_identity)))
+            os._exit(0)
+        _, status = os.waitpid(pid, 0)
+
+    assert os.WIFEXITED(status)
+    assert os.WEXITSTATUS(status) == 0
+    assert child_report.read_text() == "False"
+
+
 def test_transport_lease_excludes_a_second_process(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -119,6 +195,7 @@ def test_transport_lease_excludes_a_second_process(
                 **os.environ,
                 "PYTHONPATH": str(Path.cwd() / "src"),
                 "SPEC_KITTY_HOME": str(tmp_path / "runtime"),
+                "SPEC_KITTY_ENABLE_SAAS_SYNC": "1",
             },
             text=True,
             capture_output=True,
@@ -147,3 +224,136 @@ def test_lease_bound_context_rechecks_opt_out_before_transport_start(
         assert context.egress_eligible is False
         with pytest.raises(ProjectStoreError, match="requires the project transport lease"):
             mark_transport_started(unit, context, "attempt-lease")
+
+
+def test_kill_switch_off_denies_transport_lease_eligibility(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _seed_store(tmp_path, monkeypatch)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        assert context.egress_eligible is False
+        prepare_delivery_attempt(unit, context, _attempt())
+        with pytest.raises(ProjectStoreError, match="transport/result operation requires the project transport lease"):
+            mark_transport_started(unit, context, "attempt-lease")
+
+
+def test_transport_start_rejects_stale_persisted_authority_tuple(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _seed_store(tmp_path, monkeypatch)
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(unit, context, _attempt())
+
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "UPDATE project_consent_decisions SET generation = 5 WHERE project_uuid = ?",
+            (PROJECT_UUID,),
+        )
+        unit.execute(
+            "UPDATE consent_epochs SET state = 'sealed' WHERE project_uuid = ?",
+            (PROJECT_UUID,),
+        )
+        unit.execute(
+            "INSERT INTO consent_epochs (epoch_id, project_uuid, opened_at_tail, state, consent_generation, reason) VALUES (8, ?, 0, 'eligible', 5, 'renewed')",
+            (PROJECT_UUID,),
+        )
+        unit.execute(
+            "UPDATE project_target_admissions SET target_identity = 'https://app.spec-kitty.ai/v2', "
+            "account_identity = 'account-2', private_teamspace_id = 'teamspace-2', "
+            "configuration_generation = 9, admission_generation = 'server-generation-2', "
+            "binding_audience = 'private-teamspace:teamspace-2' WHERE project_uuid = ?",
+            (PROJECT_UUID,),
+        )
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        assert context.egress_eligible is True
+        with pytest.raises(ProjectStoreError, match="authority no longer matches"):
+            mark_transport_started(unit, context, "attempt-lease")
+
+
+def test_result_records_attempt_original_tuple_and_rejects_current_substitution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _seed_store(tmp_path, monkeypatch)
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(unit, context, _attempt())
+        mark_transport_started(unit, context, "attempt-lease")
+
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "UPDATE project_consent_decisions SET generation = 5 WHERE project_uuid = ?",
+            (PROJECT_UUID,),
+        )
+        unit.execute(
+            "UPDATE consent_epochs SET state = 'sealed' WHERE project_uuid = ?",
+            (PROJECT_UUID,),
+        )
+        unit.execute(
+            "INSERT INTO consent_epochs (epoch_id, project_uuid, opened_at_tail, state, consent_generation, reason) VALUES (8, ?, 0, 'eligible', 5, 'renewed')",
+            (PROJECT_UUID,),
+        )
+        unit.execute(
+            "UPDATE project_target_admissions SET target_identity = 'https://app.spec-kitty.ai/v2', "
+            "account_identity = 'account-2', private_teamspace_id = 'teamspace-2', "
+            "configuration_generation = 9, admission_generation = 'server-generation-2', "
+            "binding_audience = 'private-teamspace:teamspace-2' WHERE project_uuid = ?",
+            (PROJECT_UUID,),
+        )
+
+    with (
+        acquire_project_transport_lease(store) as lease,
+        lease.unit_of_work() as (unit, context),
+        pytest.raises(ProjectStoreError, match="authority no longer matches"),
+    ):
+        record_delivery_result(
+            unit,
+            context,
+            result_id="result-substituted",
+            attempt_id="attempt-lease",
+            outcome=DeliveryOutcome.DELIVERED,
+        )
+
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "UPDATE project_consent_decisions SET generation = 3 WHERE project_uuid = ?",
+            (PROJECT_UUID,),
+        )
+        unit.execute(
+            "UPDATE consent_epochs SET state = 'eligible' WHERE project_uuid = ? AND epoch_id = 7",
+            (PROJECT_UUID,),
+        )
+        unit.execute(
+            "UPDATE consent_epochs SET state = 'sealed' WHERE project_uuid = ? AND epoch_id = 8",
+            (PROJECT_UUID,),
+        )
+        unit.execute(
+            "UPDATE project_target_admissions SET target_identity = 'https://app.spec-kitty.ai', "
+            "account_identity = 'account-1', private_teamspace_id = 'teamspace-1', "
+            "configuration_generation = 4, admission_generation = 'server-generation-1', "
+            "binding_audience = 'private-teamspace:teamspace-1' WHERE project_uuid = ?",
+            (PROJECT_UUID,),
+        )
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        record_delivery_result(
+            unit,
+            context,
+            result_id="result-original",
+            attempt_id="attempt-lease",
+            outcome=DeliveryOutcome.DELIVERED,
+        )
+
+    with store.unit_of_work() as unit:
+        row = unit.execute(
+            "SELECT target_generation, admission_generation, outcome FROM delivery_results WHERE project_uuid = ? AND result_id = ?",
+            (PROJECT_UUID, "result-original"),
+        ).fetchone()
+
+    assert row == (4, "server-generation-1", DeliveryOutcome.DELIVERED.value)

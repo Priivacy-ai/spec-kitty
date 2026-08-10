@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
-from specify_cli.sync.project_store import ProjectSyncStore
+from specify_cli.sync.project_store import ProjectStoreError, ProjectSyncStore
 from specify_cli.sync.transport_attempts import (
     DeliveryAttemptSpec,
     DeliveryAttemptState,
@@ -25,6 +26,7 @@ PROJECT_UUID = "aaaaaaaa-0000-0000-0000-000000000001"
 
 def _store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSyncStore:
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     store = ProjectSyncStore(PROJECT_UUID)
     with store.unit_of_work() as unit:
         unit.execute(
@@ -55,7 +57,8 @@ def _spec(attempt_id: str = "attempt-1") -> DeliveryAttemptSpec:
         native_identity="idempotency:commit-abc",
         payload_hash="sha256:payload",
         payload_reference="local-commit:commit-abc",
-        deadline_at="2026-08-10T00:01:00Z",
+        deadline_at="2999-01-01T00:00:00Z",
+        reconciliation_policy="native_identity_query",
     )
 
 
@@ -78,7 +81,7 @@ def test_attempt_is_durable_before_transport_and_recovers_native_identity(
     assert record.state is DeliveryAttemptState.PREPARED
     assert record.native_identity == "idempotency:commit-abc"
     assert record.payload_hash == "sha256:payload"
-    assert record.reconciliation_policy == "native_identity_required"
+    assert record.reconciliation_policy == "native_identity_query"
 
 
 def test_recovery_decision_uses_original_identity_after_transport_started(
@@ -98,6 +101,176 @@ def test_recovery_decision_uses_original_identity_after_transport_started(
     assert decision.action is RecoveryAction.QUERY_NATIVE_IDENTITY
     assert decision.native_identity == "idempotency:commit-abc"
     assert decision.may_resend is False
+
+
+def test_prepared_recovery_only_resends_when_policy_allows_retry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(
+            unit,
+            context,
+            DeliveryAttemptSpec(
+                attempt_id="attempt-retry",
+                write_kind="local_commit",
+                native_identity="idempotency:retry",
+                payload_hash="sha256:payload",
+                payload_reference="local-commit:retry",
+                deadline_at="2999-01-01T00:00:00Z",
+                reconciliation_policy="native_identity_retry",
+            ),
+        )
+        prepare_delivery_attempt(
+            unit,
+            context,
+            DeliveryAttemptSpec(
+                attempt_id="attempt-review",
+                write_kind="local_commit",
+                native_identity="idempotency:review",
+                payload_hash="sha256:payload",
+                payload_reference="local-commit:review",
+                deadline_at="2999-01-01T00:00:00Z",
+                reconciliation_policy="operator_review",
+            ),
+        )
+
+    with store.unit_of_work() as unit:
+        retry = plan_delivery_attempt_recovery(unit, attempt_id="attempt-retry")
+        review = plan_delivery_attempt_recovery(unit, attempt_id="attempt-review")
+
+    assert retry.action is RecoveryAction.RETRY_NATIVE_IDENTITY
+    assert retry.may_resend is True
+    assert review.action is RecoveryAction.OPERATOR_REVIEW
+    assert review.may_resend is False
+
+
+def test_transport_start_deadline_boundary_is_enforced(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(
+            unit,
+            context,
+            DeliveryAttemptSpec(
+                attempt_id="attempt-deadline-before",
+                write_kind="local_commit",
+                native_identity="idempotency:deadline-before",
+                payload_hash="sha256:payload",
+                payload_reference="local-commit:deadline-before",
+                deadline_at="2026-08-10T00:01:00Z",
+                reconciliation_policy="native_identity_query",
+            ),
+        )
+        mark_transport_started(
+            unit,
+            context,
+            "attempt-deadline-before",
+            now=datetime(2026, 8, 10, 0, 0, 59, tzinfo=UTC),
+        )
+        prepare_delivery_attempt(
+            unit,
+            context,
+            DeliveryAttemptSpec(
+                attempt_id="attempt-deadline-at",
+                write_kind="local_commit",
+                native_identity="idempotency:deadline-at",
+                payload_hash="sha256:payload",
+                payload_reference="local-commit:deadline-at",
+                deadline_at="2026-08-10T00:01:00Z",
+                reconciliation_policy="native_identity_query",
+            ),
+        )
+        with pytest.raises(ProjectStoreError, match="deadline expired"):
+            mark_transport_started(
+                unit,
+                context,
+                "attempt-deadline-at",
+                now=datetime(2026, 8, 10, 0, 1, 0, tzinfo=UTC),
+            )
+        prepare_delivery_attempt(
+            unit,
+            context,
+            DeliveryAttemptSpec(
+                attempt_id="attempt-deadline-after",
+                write_kind="local_commit",
+                native_identity="idempotency:deadline-after",
+                payload_hash="sha256:payload",
+                payload_reference="local-commit:deadline-after",
+                deadline_at="2026-08-10T00:01:00Z",
+                reconciliation_policy="native_identity_query",
+            ),
+        )
+        with pytest.raises(ProjectStoreError, match="deadline expired"):
+            mark_transport_started(
+                unit,
+                context,
+                "attempt-deadline-after",
+                now=datetime(2026, 8, 10, 0, 1, 1, tzinfo=UTC),
+            )
+
+
+def test_expired_deadline_blocks_automatic_retry_and_query_recovery(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(
+            unit,
+            context,
+            DeliveryAttemptSpec(
+                attempt_id="attempt-expired-prepared",
+                write_kind="local_commit",
+                native_identity="idempotency:expired-prepared",
+                payload_hash="sha256:payload",
+                payload_reference="local-commit:expired-prepared",
+                deadline_at="2026-08-10T00:01:00Z",
+                reconciliation_policy="native_identity_retry",
+            ),
+        )
+        prepare_delivery_attempt(
+            unit,
+            context,
+            DeliveryAttemptSpec(
+                attempt_id="attempt-expired-query",
+                write_kind="local_commit",
+                native_identity="idempotency:expired-query",
+                payload_hash="sha256:payload",
+                payload_reference="local-commit:expired-query",
+                deadline_at="2026-08-10T00:01:00Z",
+                reconciliation_policy="native_identity_query",
+            ),
+        )
+        mark_transport_started(
+            unit,
+            context,
+            "attempt-expired-query",
+            now=datetime(2026, 8, 10, 0, 0, 59, tzinfo=UTC),
+        )
+
+    with store.unit_of_work() as unit:
+        prepared = plan_delivery_attempt_recovery(
+            unit,
+            attempt_id="attempt-expired-prepared",
+            now=datetime(2026, 8, 10, 0, 1, 0, tzinfo=UTC),
+        )
+        query = plan_delivery_attempt_recovery(
+            unit,
+            attempt_id="attempt-expired-query",
+            now=datetime(2026, 8, 10, 0, 1, 1, tzinfo=UTC),
+        )
+
+    assert prepared.action is RecoveryAction.OPERATOR_REVIEW
+    assert prepared.may_resend is False
+    assert query.action is RecoveryAction.OPERATOR_REVIEW
+    assert query.may_resend is False
 
 
 def test_response_received_before_result_is_unknown_and_never_blind_retry(

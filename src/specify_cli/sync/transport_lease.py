@@ -8,13 +8,16 @@ eligibility check, transport start, and result recording across processes.
 from __future__ import annotations
 
 import fcntl
+import os
 import time
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from threading import Lock
 
+from specify_cli.sync.feature_flags import is_saas_sync_enabled
 from specify_cli.sync.project_context import (
     AdmissionState,
     ConsentState,
@@ -23,6 +26,9 @@ from specify_cli.sync.project_context import (
     _new_project_sync_context,
 )
 from specify_cli.sync.project_store import ProjectStoreLockedError, ProjectSyncStore, ProjectUnitOfWork
+
+_LIVE_LEASES: dict[str, int] = {}
+_LIVE_LEASES_LOCK = Lock()
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,9 +61,10 @@ def acquire_project_transport_lease(
     """
     if lock_timeout_seconds < 0:
         raise ValueError("lock timeout cannot be negative")
-    identity = lease_identity or f"transport-lease:{uuid.uuid4()}"
-    if not identity.strip():
+    label = lease_identity or "transport-lease"
+    if not label.strip():
         raise ValueError("transport lease identity must be non-empty")
+    identity = f"{label}:pid:{os.getpid()}:acquisition:{uuid.uuid4()}"
 
     path = store.egress_lock_path
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -72,9 +79,35 @@ def acquire_project_transport_lease(
                     raise ProjectStoreLockedError("project transport lease is locked") from exc
                 time.sleep(min(0.01, max(0.0, deadline - time.monotonic())))
         try:
+            _register_live_lease(identity)
             yield TransportLeaseContext(store=store, lease_identity=identity, lock_path=path)
         finally:
+            _unregister_live_lease(identity)
             fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+def transport_lease_is_live(lease_identity: str | None) -> bool:
+    """Return whether this process still owns the OS-backed lease identity.
+
+    The durable start/result protocol must not accept a cached
+    ``ProjectSyncContext`` after ``acquire_project_transport_lease`` has exited.
+    Keeping the liveness registry process-local deliberately makes a copied
+    identity useless in another process and after OS lock release.
+    """
+    if lease_identity is None:
+        return False
+    with _LIVE_LEASES_LOCK:
+        return _LIVE_LEASES.get(lease_identity) == os.getpid()
+
+
+def _register_live_lease(lease_identity: str) -> None:
+    with _LIVE_LEASES_LOCK:
+        _LIVE_LEASES[lease_identity] = os.getpid()
+
+
+def _unregister_live_lease(lease_identity: str) -> None:
+    with _LIVE_LEASES_LOCK:
+        _LIVE_LEASES.pop(lease_identity, None)
 
 
 def _lease_bound_context(unit: ProjectUnitOfWork, lease_identity: str) -> ProjectSyncContext:
@@ -122,7 +155,9 @@ def _lease_bound_context(unit: ProjectUnitOfWork, lease_identity: str) -> Projec
         admission_generation = str(admission_row[5]) if admission_row[5] is not None else None
         binding_audience = str(admission_row[6]) if admission_row[6] is not None else None
 
-    kill_switch_allows = bool(consent_state is ConsentState.GRANTED and epoch_id is not None and admission_state is AdmissionState.ADMITTED)
+    kill_switch_allows = bool(
+        is_saas_sync_enabled() and consent_state is ConsentState.GRANTED and epoch_id is not None and admission_state is AdmissionState.ADMITTED
+    )
     return _new_project_sync_context(
         store_identity=unit.store_identity,
         consent_state=consent_state,
@@ -140,4 +175,5 @@ def _lease_bound_context(unit: ProjectUnitOfWork, lease_identity: str) -> Projec
 __all__ = [
     "TransportLeaseContext",
     "acquire_project_transport_lease",
+    "transport_lease_is_live",
 ]
