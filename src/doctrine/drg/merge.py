@@ -938,6 +938,37 @@ def _resolve_builtin_collision(
     _warn_builtin_override(urn, source_marker)
 
 
+def _filter_surviving_org_nodes(
+    fragment: OrgDRGFragment,
+    conflicts: list[OrgDRGConflict],
+    source_marker: str,
+) -> list[Any]:
+    """Return fragment nodes that pass the layer-rule check.
+
+    Nodes that violate the layer rule are recorded as ``hard_fail``
+    ``layer_rule_violation`` conflicts and excluded from the merge.
+    Extracted from :func:`_merge_org_fragment` to keep its cognitive
+    complexity within the ruff C901 limit (15).
+    """
+    surviving_nodes: list[Any] = []
+    for node in fragment.nodes:
+        if _violates_layer_rule(node):
+            conflicts.append(
+                OrgDRGConflict(
+                    kind="layer_rule_violation",
+                    conflicting_layers=[source_marker],
+                    target_id=node.id,
+                    built_in_value=None,
+                    org_value=node.model_dump(),
+                    project_value=None,
+                    resolution_applied="hard_fail",
+                )
+            )
+            continue
+        surviving_nodes.append(node)
+    return surviving_nodes
+
+
 def _merge_org_fragment(
     fragment: OrgDRGFragment,
     merged_nodes: dict[str, DRGNode],
@@ -959,22 +990,7 @@ def _merge_org_fragment(
     prohibition.
     """
     source_marker = f"org:{fragment.pack_name}"
-    surviving_nodes: list[Any] = []
-    for node in fragment.nodes:
-        if _violates_layer_rule(node):
-            conflicts.append(
-                OrgDRGConflict(
-                    kind="layer_rule_violation",
-                    conflicting_layers=[source_marker],
-                    target_id=node.id,
-                    built_in_value=None,
-                    org_value=node.model_dump(),
-                    project_value=None,
-                    resolution_applied="hard_fail",
-                )
-            )
-            continue
-        surviving_nodes.append(node)
+    surviving_nodes = _filter_surviving_org_nodes(fragment, conflicts, source_marker)
 
     node_id_to_urn: dict[str, str] = {}
     for node in surviving_nodes:

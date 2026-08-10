@@ -5,14 +5,21 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from ruamel.yaml import YAML
 
 from doctrine.versioning import (
     CURRENT_BUNDLE_SCHEMA_VERSION,
     MAX_READABLE_BUNDLE_SCHEMA,
     MIN_READABLE_BUNDLE_SCHEMA,
+    PRE_PHASE7_MIGRATION_SENTINEL,
     BundleCompatibilityResult,
     BundleCompatibilityStatus,
     MigrationResult,
+    _apply_v2_sidecar_defaults,
+    _dump_yaml_safe,
+    _migrate_provenance_sidecars,
+    _migrate_synthesis_manifest,
+    _stamp_charter_bundle_version,
     check_bundle_compatibility,
     get_bundle_schema_version,
     repair_v2_synthesis_manifest_defaults,
@@ -632,3 +639,229 @@ def test_versioning_charter_filename_literals_match_charter_bundle() -> None:
         "cannot import charter.bundle to fix this automatically -- update the "
         "hardcoded literal(s) in src/doctrine/versioning.py to match the rename."
     )
+
+
+# ---------------------------------------------------------------------------
+# WP03 T011 — direct unit tests for the helpers extracted from
+# migrate_v1_to_v2 to keep its cognitive complexity within the ruff C901
+# limit (15): _dump_yaml_safe, _apply_v2_sidecar_defaults,
+# _migrate_provenance_sidecars, _migrate_synthesis_manifest,
+# _stamp_charter_bundle_version.
+# ---------------------------------------------------------------------------
+
+
+def _rt_yaml() -> YAML:
+    yaml = YAML()
+    yaml.default_flow_style = False
+    yaml.explicit_start = False
+    return yaml
+
+
+class TestDumpYamlSafeDirect:
+    def test_writes_data_and_records_no_error_on_success(self, tmp_path: Path) -> None:
+        target = tmp_path / "out.yaml"
+        errors: list[str] = []
+        _dump_yaml_safe(_rt_yaml(), target, {"a": 1}, errors, what="out.yaml")
+
+        assert errors == []
+        assert target.exists()
+        assert _rt_yaml().load(target) == {"a": 1}
+
+    def test_write_failure_is_appended_to_errors_not_raised(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        target = tmp_path / "out.yaml"
+        original_write_bytes = Path.write_bytes
+
+        def _patched_write_bytes(path: Path, data: bytes) -> int:
+            if path == target:
+                raise OSError("disk full")
+            return original_write_bytes(path, data)
+
+        monkeypatch.setattr(Path, "write_bytes", _patched_write_bytes)
+        errors: list[str] = []
+
+        _dump_yaml_safe(_rt_yaml(), target, {"a": 1}, errors, what="out.yaml")
+
+        assert errors == ["Failed to write out.yaml: disk full"]
+        assert not target.exists()
+
+
+class TestApplyV2SidecarDefaultsDirect:
+    def test_fills_sentinel_defaults_and_stamps_schema_version(
+        self, tmp_path: Path
+    ) -> None:
+        sidecar_path = tmp_path / "sidecar.yaml"
+        sidecar_path.write_text("schema_version: '1'\n", encoding="utf-8")
+        data: dict[str, object] = {"schema_version": "1", "source_urns": ["drg:directive:X"]}
+
+        _apply_v2_sidecar_defaults(data, sidecar_path)
+
+        assert data["schema_version"] == "2"
+        assert data["synthesizer_version"] == PRE_PHASE7_MIGRATION_SENTINEL
+        assert data["synthesis_run_id"] == PRE_PHASE7_MIGRATION_SENTINEL
+        assert data["source_input_ids"] == ["drg:directive:X"]
+        assert data["corpus_snapshot_id"] == "(none)"
+        assert "produced_at" in data
+
+    def test_preserves_existing_explicit_values(self, tmp_path: Path) -> None:
+        sidecar_path = tmp_path / "sidecar.yaml"
+        sidecar_path.write_text("schema_version: '1'\n", encoding="utf-8")
+        data: dict[str, object] = {
+            "schema_version": "1",
+            "synthesizer_version": "3.2.6",
+            "produced_at": "2026-01-01T00:00:00Z",
+            "source_input_ids": ["already-set"],
+            "corpus_snapshot_id": "snap-123",
+        }
+
+        _apply_v2_sidecar_defaults(data, sidecar_path)
+
+        assert data["synthesizer_version"] == "3.2.6"
+        assert data["produced_at"] == "2026-01-01T00:00:00Z"
+        assert data["source_input_ids"] == ["already-set"]
+        assert data["corpus_snapshot_id"] == "snap-123"
+
+    def test_uses_sentinel_when_stat_fails(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        sidecar_path = tmp_path / "sidecar.yaml"
+        sidecar_path.write_text("schema_version: '1'\n", encoding="utf-8")
+
+        def _patched_stat(path: Path, *args: object, **kwargs: object) -> object:
+            raise OSError("stat blocked for test")
+
+        monkeypatch.setattr(Path, "stat", _patched_stat)
+        data: dict[str, object] = {"schema_version": "1"}
+
+        _apply_v2_sidecar_defaults(data, sidecar_path)
+
+        assert data["produced_at"] == PRE_PHASE7_MIGRATION_SENTINEL
+
+
+class TestMigrateProvenanceSidecarsDirect:
+    def test_no_provenance_dir_is_a_noop(self, tmp_path: Path) -> None:
+        changes, errors = _migrate_provenance_sidecars(tmp_path, False, _rt_yaml())
+        assert changes == []
+        assert errors == []
+
+    def test_already_migrated_sidecar_is_skipped_idempotently(
+        self, tmp_path: Path
+    ) -> None:
+        provenance_dir = tmp_path / "provenance"
+        provenance_dir.mkdir()
+        sidecar = provenance_dir / "already-v2.yaml"
+        _rt_yaml().dump({"schema_version": "2"}, sidecar)
+
+        changes, errors = _migrate_provenance_sidecars(tmp_path, False, _rt_yaml())
+
+        assert changes == []
+        assert errors == []
+
+    def test_non_mapping_sidecar_is_reported_as_an_error(self, tmp_path: Path) -> None:
+        provenance_dir = tmp_path / "provenance"
+        provenance_dir.mkdir()
+        (provenance_dir / "list.yaml").write_text("- a\n- b\n", encoding="utf-8")
+
+        changes, errors = _migrate_provenance_sidecars(tmp_path, False, _rt_yaml())
+
+        assert changes == []
+        assert len(errors) == 1
+        assert "not a YAML mapping" in errors[0]
+
+    def test_dry_run_reports_changes_without_writing(self, tmp_path: Path) -> None:
+        provenance_dir = tmp_path / "provenance"
+        provenance_dir.mkdir()
+        sidecar = provenance_dir / "v1.yaml"
+        _rt_yaml().dump({"schema_version": "1"}, sidecar)
+
+        changes, errors = _migrate_provenance_sidecars(tmp_path, True, _rt_yaml())
+
+        assert changes == [str(sidecar)]
+        assert errors == []
+        assert _rt_yaml().load(sidecar) == {"schema_version": "1"}
+
+
+class TestMigrateSynthesisManifestDirect:
+    def test_no_manifest_is_a_noop(self, tmp_path: Path) -> None:
+        changes, errors = _migrate_synthesis_manifest(tmp_path, False, _rt_yaml())
+        assert changes == []
+        assert errors == []
+
+    def test_already_v2_manifest_is_a_noop(self, tmp_path: Path) -> None:
+        manifest_path = tmp_path / "synthesis-manifest.yaml"
+        _rt_yaml().dump({"schema_version": "2"}, manifest_path)
+
+        changes, errors = _migrate_synthesis_manifest(tmp_path, False, _rt_yaml())
+
+        assert changes == []
+        assert errors == []
+
+    def test_load_error_is_reported_and_does_not_raise(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        manifest_path = tmp_path / "synthesis-manifest.yaml"
+        manifest_path.write_text("schema_version: '1'\n", encoding="utf-8")
+
+        yaml_rt = _rt_yaml()
+
+        def _broken_load(_path: Path) -> None:
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(yaml_rt, "load", _broken_load)
+
+        changes, errors = _migrate_synthesis_manifest(tmp_path, False, yaml_rt)
+
+        assert changes == []
+        assert errors == ["Failed to load synthesis-manifest.yaml: boom"]
+
+    def test_v1_manifest_gets_v2_defaults_and_hash(self, tmp_path: Path) -> None:
+        manifest_path = tmp_path / "synthesis-manifest.yaml"
+        _rt_yaml().dump({"schema_version": "1", "artifacts": []}, manifest_path)
+
+        changes, errors = _migrate_synthesis_manifest(tmp_path, False, _rt_yaml())
+
+        assert changes == [str(manifest_path)]
+        assert errors == []
+        written = _rt_yaml().load(manifest_path)
+        assert written["schema_version"] == "2"
+        assert written["synthesizer_version"] == PRE_PHASE7_MIGRATION_SENTINEL
+        assert "manifest_hash" in written
+
+
+class TestStampCharterBundleVersionDirect:
+    def test_no_charter_yaml_is_a_noop(self, tmp_path: Path) -> None:
+        changes, errors = _stamp_charter_bundle_version(tmp_path, False, _rt_yaml())
+        assert changes == []
+        assert errors == []
+
+    def test_already_stamped_is_a_noop(self, tmp_path: Path) -> None:
+        charter_yaml = tmp_path / "charter.yaml"
+        _rt_yaml().dump({"metadata": {"bundle_schema_version": 2}}, charter_yaml)
+
+        changes, errors = _stamp_charter_bundle_version(tmp_path, False, _rt_yaml())
+
+        assert changes == []
+        assert errors == []
+
+    def test_missing_metadata_section_is_created(self, tmp_path: Path) -> None:
+        charter_yaml = tmp_path / "charter.yaml"
+        _rt_yaml().dump({"schema_version": "2.0.0"}, charter_yaml)
+
+        changes, errors = _stamp_charter_bundle_version(tmp_path, False, _rt_yaml())
+
+        assert changes == [str(charter_yaml)]
+        assert errors == []
+        written = _rt_yaml().load(charter_yaml)
+        assert written["metadata"]["bundle_schema_version"] == 2
+        assert written["schema_version"] == "2.0.0"  # other sections untouched
+
+    def test_dry_run_reports_change_without_writing(self, tmp_path: Path) -> None:
+        charter_yaml = tmp_path / "charter.yaml"
+        _rt_yaml().dump({"metadata": {"generated_at": "2026-01-01"}}, charter_yaml)
+
+        changes, errors = _stamp_charter_bundle_version(tmp_path, True, _rt_yaml())
+
+        assert changes == [str(charter_yaml)]
+        assert errors == []
+        assert "bundle_schema_version" not in _rt_yaml().load(charter_yaml)["metadata"]

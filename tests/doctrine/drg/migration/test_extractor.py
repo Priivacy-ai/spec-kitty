@@ -19,7 +19,10 @@ from ruamel.yaml import YAML
 from doctrine.drg.loader import built_in_graph_source
 from doctrine.drg.migration.calibrator import measure_surface
 from doctrine.drg.migration.extractor import (
+    _AGENT_PROFILE_IMPLEMENTER_IVAN,
+    _CURATED_ARTIFACT_EDGES,
     _SKIP_REF_TYPES,
+    _discover_built_in_nodes_in_dir,
     _partition_by_kind,
     extract_action_edges,
     extract_artifact_edges,
@@ -968,3 +971,110 @@ class TestPartitionByKind:
         assert set(recomposed_edges) == {
             (e.source, e.target, e.relation.value) for e in graph.edges
         }
+
+
+class TestDiscoverBuiltInNodesInDir:
+    """Direct unit tests for the extracted per-subdir scan helper (WP03 T011),
+    pulled out of ``_discover_built_in_artifact_nodes`` to keep its cognitive
+    complexity within the ruff C901 limit (15)."""
+
+    def test_registers_a_node_per_artifact_with_label(self, tmp_path: Path) -> None:
+        styleguide_dir = tmp_path / "styleguides"
+        styleguide_dir.mkdir()
+        (styleguide_dir / "one.styleguide.yaml").write_text(
+            "id: my-style\nname: My Style\n", encoding="utf-8"
+        )
+
+        nodes_by_urn: dict[str, DRGNode] = {}
+        _discover_built_in_nodes_in_dir(
+            styleguide_dir, "styleguide", NodeKind.STYLEGUIDE, nodes_by_urn
+        )
+
+        assert set(nodes_by_urn) == {"styleguide:my-style"}
+        node = nodes_by_urn["styleguide:my-style"]
+        assert node.kind == NodeKind.STYLEGUIDE
+        assert node.label == "My Style"
+
+    def test_agent_profile_kind_uses_profile_id_key_and_agent_glob(
+        self, tmp_path: Path
+    ) -> None:
+        """agent_profile is the one kind with a different glob/id-key pair."""
+        profiles_dir = tmp_path / "agent_profiles"
+        profiles_dir.mkdir()
+        (profiles_dir / "pedro.agent.yaml").write_text(
+            "profile-id: python-pedro\nname: Python Pedro\n", encoding="utf-8"
+        )
+        # A same-named .toolguide.yaml sibling must NOT match the agent glob.
+        (profiles_dir / "pedro.toolguide.yaml").write_text(
+            "id: not-an-agent\n", encoding="utf-8"
+        )
+
+        nodes_by_urn: dict[str, DRGNode] = {}
+        _discover_built_in_nodes_in_dir(
+            profiles_dir, "agent_profile", NodeKind.AGENT_PROFILE, nodes_by_urn
+        )
+
+        assert set(nodes_by_urn) == {"agent_profile:python-pedro"}
+
+    def test_file_with_no_artifact_id_is_skipped(self, tmp_path: Path) -> None:
+        toolguides_dir = tmp_path / "toolguides"
+        toolguides_dir.mkdir()
+        (toolguides_dir / "noid.toolguide.yaml").write_text(
+            "name: No ID Here\n", encoding="utf-8"
+        )
+
+        nodes_by_urn: dict[str, DRGNode] = {}
+        _discover_built_in_nodes_in_dir(
+            toolguides_dir, "toolguide", NodeKind.TOOLGUIDE, nodes_by_urn
+        )
+
+        assert nodes_by_urn == {}
+
+    def test_empty_yaml_document_is_skipped(self, tmp_path: Path) -> None:
+        procedures_dir = tmp_path / "procedures"
+        procedures_dir.mkdir()
+        (procedures_dir / "empty.procedure.yaml").write_text("", encoding="utf-8")
+
+        nodes_by_urn: dict[str, DRGNode] = {}
+        _discover_built_in_nodes_in_dir(
+            procedures_dir, "procedure", NodeKind.PROCEDURE, nodes_by_urn
+        )
+
+        assert nodes_by_urn == {}
+
+    def test_nested_subdirectory_artifacts_are_discovered_via_rglob(
+        self, tmp_path: Path
+    ) -> None:
+        assets_dir = tmp_path / "assets"
+        nested = assets_dir / "nested" / "deeper"
+        nested.mkdir(parents=True)
+        (nested / "deep.asset.yaml").write_text(
+            "id: deep-asset\ntitle: Deep Asset\n", encoding="utf-8"
+        )
+
+        nodes_by_urn: dict[str, DRGNode] = {}
+        _discover_built_in_nodes_in_dir(
+            assets_dir, "asset", NodeKind.ASSET, nodes_by_urn
+        )
+
+        assert set(nodes_by_urn) == {"asset:deep-asset"}
+
+
+class TestAgentProfileImplementerIvanConstant:
+    """S1192 hoist (WP03 T009): the ``agent_profile:implementer-ivan``
+    lineage target was duplicated 4x in ``_CURATED_ARTIFACT_EDGES``; it is
+    now one named module constant referenced at every site."""
+
+    def test_constant_has_the_expected_urn(self) -> None:
+        assert _AGENT_PROFILE_IMPLEMENTER_IVAN == "agent_profile:implementer-ivan"
+
+    def test_all_four_implementer_lineage_edges_reference_the_constant(self) -> None:
+        lineage_targets = [
+            target
+            for source, target, relation in _CURATED_ARTIFACT_EDGES
+            if relation == Relation.SPECIALIZES_FROM
+            and target == _AGENT_PROFILE_IMPLEMENTER_IVAN
+        ]
+        # Behavior-preserving: still exactly 4 lineage edges into implementer-ivan.
+        assert len(lineage_targets) == 4
+        assert all(t is _AGENT_PROFILE_IMPLEMENTER_IVAN for t in lineage_targets)

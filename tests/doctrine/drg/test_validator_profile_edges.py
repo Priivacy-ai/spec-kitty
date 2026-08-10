@@ -12,7 +12,12 @@ from __future__ import annotations
 import pytest
 
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.validator import validate_graph, validate_profile_edges
+from doctrine.drg.validator import (
+    _validate_lineage_acyclicity,
+    _validate_profile_edge_endpoints,
+    validate_graph,
+    validate_profile_edges,
+)
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
@@ -237,3 +242,102 @@ class TestWiredIntoValidateGraph:
         )
         errors = validate_graph(graph)
         assert any("Dangling source" in e for e in errors)
+
+
+# ---------------------------------------------------------------------------
+# WP03 T011 — direct unit tests for the two phase-helpers extracted from
+# validate_profile_edges to keep its cognitive complexity within the ruff
+# C901 limit (15).
+# ---------------------------------------------------------------------------
+
+
+class TestValidateProfileEdgeEndpointsDirect:
+    def test_returns_empty_list_for_a_clean_graph(self) -> None:
+        graph = _graph(
+            [_profile("child"), _profile("parent")],
+            [
+                DRGEdge(
+                    source="agent_profile:child",
+                    target="agent_profile:parent",
+                    relation=Relation.SPECIALIZES_FROM,
+                )
+            ],
+        )
+        assert _validate_profile_edge_endpoints(graph) == []
+
+    def test_flags_non_profile_source_directly(self) -> None:
+        graph = _graph(
+            [DRGNode(urn="tactic:tdd", kind=NodeKind.TACTIC), _profile("parent")],
+            [
+                DRGEdge(
+                    source="tactic:tdd",
+                    target="agent_profile:parent",
+                    relation=Relation.SPECIALIZES_FROM,
+                )
+            ],
+        )
+        errors = _validate_profile_edge_endpoints(graph)
+        assert len(errors) == 1
+        assert "source" in errors[0]
+
+    def test_missing_endpoint_node_is_skipped_not_reported(self) -> None:
+        """Dangling refs are validate_graph's job, not this helper's."""
+        graph = _graph(
+            [_profile("parent")],
+            [
+                DRGEdge(
+                    source="agent_profile:ghost",
+                    target="agent_profile:parent",
+                    relation=Relation.DELEGATES_TO,
+                )
+            ],
+        )
+        assert _validate_profile_edge_endpoints(graph) == []
+
+
+class TestValidateLineageAcyclicityDirect:
+    def test_returns_empty_list_for_an_acyclic_lineage(self) -> None:
+        graph = _graph(
+            [_profile("child"), _profile("parent")],
+            [
+                DRGEdge(
+                    source="agent_profile:child",
+                    target="agent_profile:parent",
+                    relation=Relation.SPECIALIZES_FROM,
+                )
+            ],
+        )
+        assert _validate_lineage_acyclicity(graph) == []
+
+    def test_detects_a_direct_two_node_cycle(self) -> None:
+        graph = _graph(
+            [_profile("a"), _profile("b")],
+            [
+                DRGEdge(
+                    source="agent_profile:a",
+                    target="agent_profile:b",
+                    relation=Relation.SPECIALIZES_FROM,
+                ),
+                DRGEdge(
+                    source="agent_profile:b",
+                    target="agent_profile:a",
+                    relation=Relation.SPECIALIZES_FROM,
+                ),
+            ],
+        )
+        errors = _validate_lineage_acyclicity(graph)
+        assert len(errors) == 1
+        assert "Cycle in specializes_from lineage" in errors[0]
+
+    def test_non_lineage_edges_are_ignored(self) -> None:
+        graph = _graph(
+            [_profile("a"), _profile("b")],
+            [
+                DRGEdge(
+                    source="agent_profile:a",
+                    target="agent_profile:b",
+                    relation=Relation.DELEGATES_TO,
+                ),
+            ],
+        )
+        assert _validate_lineage_acyclicity(graph) == []

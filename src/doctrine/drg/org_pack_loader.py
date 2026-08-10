@@ -766,24 +766,36 @@ def _merge_action_sequence(
             f"replacement instead"
         )
 
-    merged_seq: list[Any] = []
-    for step in overlay_seq:
-        sid = _step_id(step)
-        base_step = base_by_id.get(sid) if sid is not None else None
-        if isinstance(step, Mapping) and isinstance(base_step, Mapping):
-            merged_step = {**deepcopy(dict(base_step)), **deepcopy(dict(step))}
-            for io_field in ("inputs", "outputs"):
-                base_io = base_step.get(io_field)
-                # Only a *deliberate* empty restatement strips the contract;
-                # omitting the field entirely preserves the base I/O (the merge
-                # keeps the base value via the dict-merge above).
-                if base_io and io_field in step and not step.get(io_field):
-                    raise TopologyMergeError(
-                        f"enhances overlay strips {io_field!r} from {seq_field} "
-                        f"step {sid!r}; step input/output contracts must be "
-                        f"preserved"
-                    )
-            merged_seq.append(merged_step)
-        else:
-            merged_seq.append(deepcopy(step))
-    return merged_seq
+    return [_merge_action_sequence_step(step, base_by_id, seq_field) for step in overlay_seq]
+
+
+def _merge_action_sequence_step(
+    step: Any,
+    base_by_id: dict[str, Any],
+    seq_field: str,
+) -> Any:
+    """Field-merge one overlay step onto its base counterpart, preserving I/O.
+
+    Extracted from :func:`_merge_action_sequence` to keep its cognitive
+    complexity within the ruff C901 limit (15). A step with no identifiable
+    base counterpart (or that is not itself a mapping) passes through
+    unchanged (deep-copied).
+    """
+    sid = _step_id(step)
+    base_step = base_by_id.get(sid) if sid is not None else None
+    if not (isinstance(step, Mapping) and isinstance(base_step, Mapping)):
+        return deepcopy(step)
+
+    merged_step = {**deepcopy(dict(base_step)), **deepcopy(dict(step))}
+    for io_field in ("inputs", "outputs"):
+        base_io = base_step.get(io_field)
+        # Only a *deliberate* empty restatement strips the contract;
+        # omitting the field entirely preserves the base I/O (the merge
+        # keeps the base value via the dict-merge above).
+        if base_io and io_field in step and not step.get(io_field):
+            raise TopologyMergeError(
+                f"enhances overlay strips {io_field!r} from {seq_field} "
+                f"step {sid!r}; step input/output contracts must be "
+                f"preserved"
+            )
+    return merged_step
