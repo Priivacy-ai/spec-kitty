@@ -1,0 +1,91 @@
+# WP00 census — kernel.clock single-door mission
+# Measured against branch HEAD (feat/kernel-clock-single-door) 2026-08-10.
+# Authority for: which paths each WP owns (disjoint prefix map), per-contract
+# inventory, FR-011(b) decision, and the C-006 duplicate-application guard.
+
+guard_c006_duplicate_application:
+  # Are #3288's clock commits already on upstream/main by another route?
+  result: NONE_ON_MAIN            # mission legitimately owns the full clock diff
+  commits_checked: [617eae475, b8b51e262, 2c62488e1, 8afb9bdeb, d766e8f25]
+  action: carry the diff; base the eventual PR on origin/main; no de-dup needed.
+
+datetime_importers_by_package:
+  kernel: 0                       # target home (clean)
+  mission_runtime: 0
+  doctrine: 2
+  glossary: 6
+  runtime: 7
+  charter: 16
+  specify_cli: 101
+  scripts: 3
+  tests: 176                      # remediated via WP14 (shared) + owning package test dirs
+
+contracts:                        # src + scripts, in scope
+  aware_iso_fluent: {desc: "datetime.now(<UTC>).isoformat()", producer: now_utc_iso, live_outside_specify_cli: 9}
+  second_stamp: {desc: "%Y-%m-%dT%H:%M:%SZ via strftime", producer: now_utc_stamp, dup_constants: 4}
+  compact_stamp: {desc: "%Y%m%dT%H%M%SZ", producer: now_utc_compact_stamp}
+  timespec_seconds: {desc: "isoformat(timespec='seconds')", producer: now_utc_seconds}
+  datetime_returning: {desc: "datetime.now(UTC) not serialized", producer: now_utc}
+  epoch: {desc: "time.time() wall-clock", producer: now_epoch, sites: 9}
+  fromtimestamp: {desc: "datetime.fromtimestamp(x, tz=UTC)", helper: from_epoch, sites: 11}
+  parse_iso: {desc: "datetime.fromisoformat", helper: parse_iso, files: 41}
+  parse_stamp: {desc: "datetime.strptime", helper: parse_stamp, sites: 1}
+  naive_now: {desc: "datetime.now() no tz", sites: 21}      # FR-011 — see decision below
+  utcnow: {sites: 0}
+
+out_of_scope:
+  duration_clock: {desc: "time.monotonic / perf_counter", sites: 38}   # NFR-006 — untouched, import time NOT banned
+  lamport: {path: "src/specify_cli/sync/clock.py", note: "logical clock; import repointed only (WP09), logic untouched (C-005)"}
+
+dup_second_stamp_constants:       # FR-004 — collapse to one door constant
+  - src/specify_cli/task_utils/support.py:27   # TIMESTAMP_FORMAT
+  - src/specify_cli/review/cycle.py:41          # UTC_SECOND_TIMESTAMP_FORMAT
+  - src/specify_cli/cli/commands/agent/tasks.py:359
+  - src/specify_cli/cli/commands/agent/tasks_materialization.py:47
+
+internal_runtime_wall_clock:      # FR-014 / D-1 — route through the door
+  - src/runtime/next/_internal_runtime/retrospective_terminus.py:65   # isoformat
+  - src/runtime/next/_internal_runtime/engine.py:115                  # isoformat
+  - src/runtime/next/_internal_runtime/engine.py:461,636,673         # datetime-returning
+  - src/runtime/next/_internal_runtime/contracts.py:37               # default_factory
+
+fr_011b_decision:
+  # naive now() sites = 21, utcnow = 0. Default: convert ALL to aware-UTC via the door
+  # (they record UTC-intended timestamps as local — latent bugs).
+  now_naive_local_producer: NOT_ADDED_BY_DEFAULT
+  rule: >
+    Each package WP converts its naive sites to an aware-UTC producer and proves the
+    aware value. A package WP that finds a GENUINELY local-time-display consumer
+    escalates: add now_naive_local() to the door (a bounded, recorded escape) and pin
+    it with a test. Absent such a finding, (b)=∅ and now_naive_local() is never added.
+  byte_changing: true             # persisted naive->aware changes bytes -> migration note per site
+
+# ---------------------------------------------------------------------------
+# OWNERSHIP MAP — disjoint by directory prefix (every gate-scoped path is owned
+# by exactly one WP; longest-prefix wins). Complete over src/ + scripts/ + the
+# shared test/config paths. Package test dirs are owned by the same WP as their
+# source subpackage.
+# ---------------------------------------------------------------------------
+ownership_map:
+  WP05_doctrine:      [src/doctrine/, tests/doctrine/]
+  WP06_glossary:      [src/glossary/, tests/glossary/, tests/agent/glossary/]
+  WP07_charter:       [src/charter/, tests/charter/]     # incl. compiler/context_state/pack_manager persisted goldens
+  WP08_runtime:       [src/runtime/, tests/next/, tests/runtime/]   # incl. FR-014/D-1 _internal_runtime
+  WP09_specify_sync:  [src/specify_cli/sync/, tests/sync/]          # 7; incl. Lamport import repoint + body_queue epoch golden
+  WP10_specify_status_merge: [src/specify_cli/status/, src/specify_cli/merge/, src/specify_cli/status_service/, src/specify_cli/coordination/, tests/status/, tests/merge/]  # 5+3
+  WP11_specify_core:  [src/specify_cli/core/, src/specify_cli/task_utils/, src/specify_cli/decisions/, src/specify_cli/dossier/, src/specify_cli/delivery/, src/specify_cli/event_journal/, tests/specify_cli/core/]  # core 7 + decisions + dossier 5 ...
+  WP12_specify_cli_agent: [src/specify_cli/cli/commands/agent/]     # cli split A (the agent command tree)
+  WP13_specify_cli_rest:  [src/specify_cli/cli/]                    # cli split B (rest of cli; longest-prefix gives agent/ to WP12)
+  WP13b_specify_auth_compat: [src/specify_cli/auth/, src/specify_cli/compat/, tests/auth/]  # 9+3; session_hot_path.py + history.py (time.time+datetime)
+  WP13c_specify_misc: [src/specify_cli/retrospective/, src/specify_cli/invocation/, src/specify_cli/review/, src/specify_cli/acceptance/, src/specify_cli/orchestrator_api/, src/specify_cli/missions/, src/specify_cli/upgrade/, src/specify_cli/readiness/, src/specify_cli/policy/, src/specify_cli/session_presence/, src/specify_cli/skills/, src/specify_cli/doc_analysis/, "src/specify_cli/*.py (top-level modules)"]
+  WP14_shared:        [scripts/, tests/architectural/, tests/_support/, tests/conftest.py, pyproject.toml, "tests/*.py (shared roots)"]
+  # NOTE: cli=17 importers exceeded the <=15 lane cap -> split into WP12 (agent tree) + WP13 (cli rest).
+  # WP13c is a catch-all for the remaining specify_cli subpackages; if census-per-subpackage shows any
+  # single lane >15 owned files at finalize, split it and re-run finalize-tasks (per plan MINOR-1).
+
+lane_size_check:
+  cli_importers: 17               # > 15 -> SPLIT into WP12 (agent) + WP13 (rest). Done above.
+  note: >
+    Remaining specify_cli subpackages grouped into WP10/WP11/WP13b/WP13c to keep each
+    reviewable; exact per-lane file counts are re-confirmed at finalize-tasks and any
+    lane exceeding ~15 owned files splits before the fan-out starts.
