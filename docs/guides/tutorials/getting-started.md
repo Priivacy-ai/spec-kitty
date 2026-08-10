@@ -18,7 +18,7 @@ In this tutorial, you'll install Spec Kitty and create your first mission specif
 **Time**: ~30 minutes
 **Prerequisites**: Python 3.11+, Git, an AI coding agent (Claude Code, Cursor, Gemini CLI, etc.)
 
-![Getting started with Spec Kitty - Mission Kitty hero](../assets/images/getting-started-mission-kitty.png)
+![Getting started with Spec Kitty - Mission Kitty hero](../../assets/images/getting-started-mission-kitty.png)
 
 ## Step 1: Install Spec Kitty
 

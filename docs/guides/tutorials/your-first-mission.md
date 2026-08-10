@@ -20,7 +20,9 @@ Except for the one-time CLI install, everything below happens inside your AI age
 **Time**: ~2 hours
 **Prerequisites**: Completed [Getting Started](getting-started.md)
 
-![Your first Spec Kitty mission - Mission Kitty briefing](../assets/images/your-first-mission-mission-kitty.png)
+![Your first Spec Kitty mission - Mission Kitty briefing](../../assets/images/your-first-mission-mission-kitty.png)
+
+_Stylized splash — the cards are decorative. The full workflow is specify, plan, tasks, analyze, implement, review, accept, merge, laid out in the Overview below._
 
 >[!NOTE]
 >This tutorial uses git for version control. Spec Kitty abstracts the VCS operations into simple commands.

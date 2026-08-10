@@ -19,7 +19,9 @@ Spec Kitty supports four mission types that tailor the workflow and artifacts to
 **Time**: ~45 minutes
 **Prerequisites**: Completed [Getting Started](getting-started.md)
 
-![Understanding Spec Kitty missions - Mission Kitty briefing](../assets/images/missions-overview-mission-kitty.png)
+![Understanding Spec Kitty missions - Mission Kitty briefing](../../assets/images/missions-overview-mission-kitty.png)
+
+_Stylized splash — the spy-themed cards are decorative. The four actual mission types (Software Dev, Deep Research, Documentation, Plan) are described below._
 
 ## What Is a Mission?
 
