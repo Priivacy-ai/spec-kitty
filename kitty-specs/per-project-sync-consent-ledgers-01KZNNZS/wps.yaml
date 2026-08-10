@@ -1,0 +1,320 @@
+# Work packages — per-project sync consent ledgers
+#
+# This board is intentionally ordered. The incident class is caused by consent
+# and storage scope drift across multiple egress paths, so every downstream WP
+# must use the same project authority introduced by WP01.
+
+dependency_notes:
+  - edge: WP02 -> WP01
+    kind: necessity
+    why: >-
+      Per-project ledgers and selectors need the canonical consent decision shape
+      before they can decide which project owns a row.
+  - edge: WP03 -> WP02
+    kind: necessity
+    why: >-
+      Safe migration cannot classify legacy shared state until the scoped ledger
+      resolver and ambiguous-row policy exist.
+  - edge: WP04 -> WP01
+    kind: necessity
+    why: >-
+      User-visible opt-in/out/status commands must expose the same authority that
+      runtime egress uses.
+  - edge: WP04 -> WP02
+    kind: risk-ordering
+    why: >-
+      Status and doctor output are clearest after the scoped stores exist, though
+      some command text can be prepared earlier.
+  - edge: WP05 -> WP03
+    kind: necessity
+    why: >-
+      Background, body-upload, transmit, acknowledgement, and purge paths must
+      operate on migrated/scoped stores, not the legacy machine-wide queue.
+  - edge: WP06 -> WP05
+    kind: necessity
+    why: >-
+      Closure evidence must observe the final runtime behavior across interactive,
+      daemon, bypass, old-client, and acknowledgement paths.
+
+work_packages:
+  - id: WP01
+    title: "Canonical project consent authority"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/sync/consent.py"
+      - "src/specify_cli/sync/routing.py"
+      - "src/specify_cli/cli/commands/sync.py"
+      - "tests/sync/test_project_consent_authority_3262.py"
+      - "tests/cli/commands/test_sync_project_consent_3262.py"
+      - "tests/architectural/test_egress_consent_boundary.py"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-006
+      - FR-007
+      - FR-008
+      - FR-012
+    plan_concern_refs:
+      - IC-01
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+    prompt_file: "tasks/WP01-canonical-project-consent-authority.md"
+
+  - id: WP02
+    title: "Per-project ledger and selector resolver"
+    dependencies:
+      - WP01
+    owned_files:
+      - "src/specify_cli/event_journal/journal.py"
+      - "src/specify_cli/event_journal/models.py"
+      - "src/specify_cli/sync/queue.py"
+      - "src/specify_cli/sync/body_queue.py"
+      - "src/specify_cli/delivery/ledger.py"
+      - "src/specify_cli/delivery/selection.py"
+      - "src/specify_cli/delivery/status_report.py"
+      - "tests/delivery/test_project_ledger_selection_3262.py"
+      - "tests/event_journal/test_project_scoped_journal_3262.py"
+    requirement_refs:
+      - FR-003
+      - FR-004
+      - FR-005
+      - FR-013
+    plan_concern_refs:
+      - IC-02
+    subtasks:
+      - T006
+      - T007
+      - T008
+      - T009
+      - T010
+    prompt_file: "tasks/WP02-per-project-ledger-selector-resolver.md"
+
+  - id: WP03
+    title: "Safe migration from shared state"
+    dependencies:
+      - WP02
+    owned_files:
+      - "src/specify_cli/sync/migrate_journal.py"
+      - "src/specify_cli/event_journal/journal.py"
+      - "src/specify_cli/sync/queue.py"
+      - "src/specify_cli/sync/body_queue.py"
+      - "tests/sync/test_project_ledger_migration_3262.py"
+      - "tests/event_journal/test_legacy_project_classification_3262.py"
+    requirement_refs:
+      - FR-010
+      - FR-011
+    plan_concern_refs:
+      - IC-03
+    subtasks:
+      - T011
+      - T012
+      - T013
+      - T014
+    prompt_file: "tasks/WP03-safe-migration-from-shared-state.md"
+
+  - id: WP04
+    title: "Explicit opt-in/out/status UX"
+    dependencies:
+      - WP01
+      - WP02
+    owned_files:
+      - "src/specify_cli/cli/commands/sync.py"
+      - "src/specify_cli/sync/consent.py"
+      - "src/specify_cli/delivery/status_report.py"
+      - "docs/sync.md"
+      - "tests/cli/commands/test_sync_project_consent_3262.py"
+      - "tests/sync/test_sync_status_project_consent_3262.py"
+    requirement_refs:
+      - FR-006
+      - FR-007
+      - FR-014
+    plan_concern_refs:
+      - IC-04
+    subtasks:
+      - T015
+      - T016
+      - T017
+      - T018
+    prompt_file: "tasks/WP04-explicit-opt-in-out-status-ux.md"
+
+  - id: WP05
+    title: "Daemon, body-upload, delivery, and ack enforcement"
+    dependencies:
+      - WP03
+      - WP04
+    owned_files:
+      - "src/specify_cli/delivery/selection.py"
+      - "src/specify_cli/delivery/dispatcher.py"
+      - "src/specify_cli/delivery/ledger.py"
+      - "src/specify_cli/delivery/retention.py"
+      - "src/specify_cli/sync/background.py"
+      - "src/specify_cli/sync/body_upload.py"
+      - "src/specify_cli/sync/body_transport.py"
+      - "src/specify_cli/sync/history_import/upload.py"
+      - "tests/delivery/test_dispatch_project_consent_3262.py"
+      - "tests/sync/test_body_upload_project_consent_3262.py"
+      - "tests/sync/test_background_project_consent_3262.py"
+    requirement_refs:
+      - FR-004
+      - FR-005
+      - FR-009
+      - FR-012
+      - FR-013
+    plan_concern_refs:
+      - IC-05
+    subtasks:
+      - T019
+      - T020
+      - T021
+      - T022
+      - T023
+    prompt_file: "tasks/WP05-daemon-body-delivery-ack-enforcement.md"
+
+  - id: WP06
+    title: "Two-project proof and closure dossier"
+    dependencies:
+      - WP05
+    owned_files:
+      - "kitty-specs/per-project-sync-consent-ledgers-01KZNNZS/issue-matrix.json"
+      - "kitty-specs/per-project-sync-consent-ledgers-01KZNNZS/quickstart.md"
+      - "kitty-specs/per-project-sync-consent-ledgers-01KZNNZS/contracts/closure-dossier.md"
+      - "docs/runbooks/hosted-sync-consent-incident.md"
+      - "tests/delivery/test_two_project_isolation_3262.py"
+      - "tests/sync/tracker/test_saas_client_consent_gate_3262.py"
+    requirement_refs:
+      - FR-013
+      - FR-015
+    plan_concern_refs:
+      - IC-06
+    subtasks:
+      - T024
+      - T025
+      - T026
+      - T027
+      - T028
+    prompt_file: "tasks/WP06-two-project-proof-and-closure-dossier.md"
+
+subtasks:
+  - id: T001
+    description: >
+      RED FIRST. Add tests proving a project with no explicit consent is denied
+      even when SPEC_KITTY_ENABLE_SAAS_SYNC is set.
+  - id: T002
+    description: >
+      Change the consent resolver so environment/config rollout flags can only
+      disable or expose sync surfaces; they must not grant egress consent.
+  - id: T003
+    description: >
+      Define the canonical project consent decision object, including project id,
+      grant source, denial reason, and audit-ready status text.
+  - id: T004
+    description: >
+      Route compatibility helpers such as is_sync_enabled_for_checkout through the
+      canonical authority without letting checkout-level readiness authorize row
+      egress.
+  - id: T005
+    description: >
+      Strengthen architectural consent-boundary tests so new transmitters cannot
+      bypass the canonical project consent authority.
+
+  - id: T006
+    description: >
+      RED FIRST. Add a two-project selector test where project A is opted in,
+      project B is not, and only A's rows enter a ConsentedBatch.
+  - id: T007
+    description: >
+      Introduce the project-scoped ledger/storage resolver for event journal,
+      offline queue, body queue, and delivery ledger reads.
+  - id: T008
+    description: >
+      Key selection, acknowledgement, and purge predicates by the row/task project
+      identity rather than the current checkout or machine-global state.
+  - id: T009
+    description: >
+      Preserve existing project identity columns and reporting helpers while
+      removing any unscoped full-journal selection path from hot egress code.
+  - id: T010
+    description: >
+      Update status report internals to expose per-project selected/refused/queued
+      counts without scanning unrelated projects on normal delivery.
+
+  - id: T011
+    description: >
+      RED FIRST. Build isolated fixture databases containing mixed legacy rows,
+      body uploads, and ambiguous rows predating project identity.
+  - id: T012
+    description: >
+      Implement migration into project-scoped ledgers or scoped resolver metadata
+      without destructive purge of source rows during classification.
+  - id: T013
+    description: >
+      Classify ambiguous legacy rows as local-only/refused until a project can be
+      proven; do not silently admit them into any opted-in project.
+  - id: T014
+    description: >
+      Make migration idempotent and record audit evidence of imported, refused,
+      ambiguous, and unchanged counts.
+
+  - id: T015
+    description: >
+      RED FIRST. Add CLI tests for explicit project opt-in, opt-out, and status
+      language that avoids describing the global env flag as consent.
+  - id: T016
+    description: >
+      Implement or adjust sync commands so consent changes are project-scoped,
+      reversible, and visible before any drain starts.
+  - id: T017
+    description: >
+      Update sync status/doctor/routes output with concise per-project consent,
+      ledger, migration, and refusal summaries.
+  - id: T018
+    description: >
+      Update user-facing docs/help text to say default denied, per-project opt-in,
+      and global flag as deny-only/visibility-only rollout control.
+
+  - id: T019
+    description: >
+      RED FIRST. Add daemon/background and body-upload tests proving non-consenting
+      projects are refused even if another checkout is opted in.
+  - id: T020
+    description: >
+      Wire background delivery, body upload, history import upload, and SaaS client
+      send wrappers through the row/task project consent predicate.
+  - id: T021
+    description: >
+      Ensure refused rows are not acknowledged, purged, or marked terminal-success
+      before a real transmit acknowledgement for their own project.
+  - id: T022
+    description: >
+      Add old-client/bypass seam tests that call lower-level delivery helpers
+      directly and still observe fail-closed refusal.
+  - id: T023
+    description: >
+      Run focused sync/delivery/body/architectural validation and record exact
+      commands and results for closure evidence.
+
+  - id: T024
+    description: >
+      RED FIRST. Add an end-to-end two-project fixture covering interactive drain,
+      daemon drain, body upload, and acknowledgement isolation.
+  - id: T025
+    description: >
+      Create issue-matrix.json mapping every FR/SC to tests, code surfaces, and PR
+      evidence, including the explicit #585 historical-remediation boundary.
+  - id: T026
+    description: >
+      Write the closure dossier and runbook: prevention shipped, remaining
+      incident-disposition work, operator verification steps, and rollback notes.
+  - id: T027
+    description: >
+      Publish GitHub issue/PR comments linking the mission, test evidence, and the
+      fact that #585 is not closed until the 1,322 historical events receive an
+      approved remediation disposition.
+  - id: T028
+    description: >
+      Run the final focused and broad validation suites required by the mission
+      review gate and record their outputs in the mission artifacts.

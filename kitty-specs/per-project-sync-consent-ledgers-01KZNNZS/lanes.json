@@ -1,0 +1,129 @@
+{
+  "version": 1,
+  "mission_slug": "per-project-sync-consent-ledgers-01KZNNZS",
+  "mission_id": "01KZNNZSMG4FTNQ7AY6ZXJAJNG",
+  "mission_branch": "kitty/mission-per-project-sync-consent-ledgers-01KZNNZS",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/sync/consent.py",
+        "src/specify_cli/sync/routing.py",
+        "tests/architectural/test_egress_consent_boundary.py",
+        "tests/sync/test_project_consent_authority_3262.py"
+      ],
+      "predicted_surfaces": [
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/delivery/ledger.py",
+        "src/specify_cli/delivery/selection.py",
+        "src/specify_cli/delivery/status_report.py",
+        "src/specify_cli/event_journal/journal.py",
+        "src/specify_cli/event_journal/models.py",
+        "src/specify_cli/sync/body_queue.py",
+        "src/specify_cli/sync/queue.py",
+        "tests/delivery/test_project_ledger_selection_3262.py",
+        "tests/event_journal/test_project_scoped_journal_3262.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/sync/migrate_journal.py",
+        "tests/event_journal/test_legacy_project_classification_3262.py",
+        "tests/sync/test_project_ledger_migration_3262.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/sync.md",
+        "src/specify_cli/cli/commands/sync.py",
+        "tests/cli/commands/test_sync_project_consent_3262.py",
+        "tests/sync/test_sync_status_project_consent_3262.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/delivery/dispatcher.py",
+        "src/specify_cli/delivery/retention.py",
+        "src/specify_cli/sync/background.py",
+        "src/specify_cli/sync/body_transport.py",
+        "src/specify_cli/sync/body_upload.py",
+        "src/specify_cli/sync/history_import/upload.py",
+        "tests/delivery/test_dispatch_project_consent_3262.py",
+        "tests/sync/test_background_project_consent_3262.py",
+        "tests/sync/test_body_upload_project_consent_3262.py"
+      ],
+      "predicted_surfaces": [
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "docs/runbooks/hosted-sync-consent-incident.md"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [
+        "lane-e"
+      ],
+      "parallel_group": 4
+    }
+  ],
+  "computed_at": "2026-08-10T11:27:57.004807+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "f7b2c9138995db16db38aeba8aed4da268cb2849"
+}
