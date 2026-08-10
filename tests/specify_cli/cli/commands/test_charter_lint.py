@@ -263,3 +263,45 @@ class TestCharterlintNoDRG:
         parsed = json.loads(result.output)
         assert parsed["finding_count"] == 0
         assert parsed["findings"] == []
+
+
+# ---------------------------------------------------------------------------
+# _load_org_layer fail-fast guard (#3009 / C-002 regression, WP02 review MAJOR).
+#
+# The org-layer shape check must NOT be swallowed by the pack-loading `except`:
+# a wrong-shape return from load_org_drg must FAIL FAST (TypeError), a missing
+# pack must exit(1), and an unknown load error must degrade to (no raise). Before
+# the S5779 fix the shape `assert` sat inside the `except Exception`, so a shape
+# regression was caught and silently degraded to a warning (and vanished under
+# `python -O`). This pins the fixed control flow so a future refactor cannot
+# re-introduce the swallow.
+# ---------------------------------------------------------------------------
+
+
+def test_load_org_layer_wrong_shape_fails_fast() -> None:
+    from specify_cli.cli.commands.charter.lint import _load_org_layer
+
+    # load_org_drg is imported inside _load_org_layer from charter.drg.
+    with patch("charter.drg.load_org_drg", return_value=[object()]), pytest.raises(TypeError, match="OrgDRGFragment"):
+        _load_org_layer(Path("."), output_json=True)
+
+
+def test_load_org_layer_missing_pack_exits_one() -> None:
+    import typer
+
+    from charter.drg import OrgPackMissingError
+    from specify_cli.cli.commands.charter.lint import _load_org_layer
+
+    err = OrgPackMissingError("missing", "org-packs/foo")
+    with patch("charter.drg.load_org_drg", side_effect=err), pytest.raises(typer.Exit) as excinfo:
+        _load_org_layer(Path("."), output_json=True)
+    assert excinfo.value.exit_code == 1
+
+
+def test_load_org_layer_generic_error_degrades() -> None:
+    from specify_cli.cli.commands.charter.lint import _load_org_layer
+
+    with patch("charter.drg.load_org_drg", side_effect=RuntimeError("boom")):
+        summary, fragments = _load_org_layer(Path("."), output_json=True)
+    assert summary == []
+    assert fragments == []
