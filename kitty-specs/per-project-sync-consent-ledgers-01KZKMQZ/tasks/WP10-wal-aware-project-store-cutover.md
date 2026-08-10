@@ -126,6 +126,14 @@ guidance without reimplementing consent. Kill subprocesses before/after each
 durable phase, rerun, and prove exact convergence, unchanged sources, no duplicate
 or redelivery, and no cross-project side effect.
 
+After attributable legacy rows have been copied into sealed project epochs, wire
+the operator-facing history disclosure flow in this same command surface:
+preview the exact WP03 cohort/hash/count, explicitly confirm it with actor and
+idempotency identity, consume the persisted capability under the current target
+and admission tuple, and invoke WP07's history/preflight transport with that exact
+capability. The legacy filesystem importer must remain fail-closed without this
+authority; migration or `--apply` may never manufacture or auto-confirm consent.
+
 ## Branch Strategy
 
 Run `spec-kitty agent action implement WP10 --agent <name>` after WP04 and WP07
@@ -174,3 +182,4 @@ writer edits in this WP, a second layout authority, or live legacy fallback.
 - 2026-08-10T02:25:00Z – codex – Sequentially assigned the existing identity-migration #3030 suite to WP10. Its legacy file/schema/ALTER cases are read-only migration-source contracts and cannot justify retaining a live path constructor in WP04.
 - 2026-08-10T02:45:00Z – codex – Sequentially assigned the legacy purge-all body-upload #3030 suite to WP10 after WP04 review. Blank/whitespace identities and a whole shared queue are migration/quarantine inputs, not grounds for restoring a live global purge API.
 - 2026-08-10T19:20:00Z – codex – Added WP07 as a dependency because both packages sequentially require `src/specify_cli/cli/commands/sync.py`: WP07 first phases final/exit dispatch around short project-store UoWs and WP06 transport commits; WP10 later adds migration/cutover commands without reopening or replacing the transport design.
+- 2026-08-10T22:55:00Z – codex – Closed a live-caller ownership gap discovered during T033: WP03 supplies the immutable history capability and WP07 supplies capability-gated history/preflight transport, but neither package owned the operator command that previews and confirms migrated sealed rows. WP10 now wires that flow after verified sealed-epoch copy, in the CLI surface it already owns. It must not synthesize a grant or auto-confirm during migration/import.
