@@ -37,6 +37,7 @@ from datetime import datetime, UTC
 from pathlib import Path
 
 import typer
+from kernel.clock import UTC_SECOND_TIMESTAMP_FORMAT
 from specify_cli.cli.console import console
 from typing import Annotated
 
@@ -356,7 +357,9 @@ logger = logging.getLogger(__name__)
 # and reads it back through ``_tasks.SPEC_MD_FILENAME`` (the WP05
 # ``UTC_SECOND_TIMESTAMP_FORMAT`` precedent).
 SPEC_MD_FILENAME = "spec.md"
-UTC_SECOND_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+# FR-004 (kernel-clock-single-door WP03): UTC_SECOND_TIMESTAMP_FORMAT is now
+# defined once on the door (kernel.clock), imported above; call sites here
+# are untouched (package remediation is WP12's job).
 
 
 app = typer.Typer(name="tasks", help="Task workflow commands for AI agents", no_args_is_help=True)

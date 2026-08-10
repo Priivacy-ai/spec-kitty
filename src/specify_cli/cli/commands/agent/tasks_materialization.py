@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from datetime import datetime, UTC
 from kernel._safe_re import re
+from kernel.clock import UTC_SECOND_TIMESTAMP_FORMAT
 from mission_runtime import MissionArtifactKind, placement_seam
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -42,9 +43,9 @@ from specify_cli.cli.commands.agent.tasks_outline import (
     _parse_pipe_table_header,
 )
 
-# Mirror of the timestamp format defined in ``tasks``. Hoisted as a module-local
-# constant so this seam has no back-import to the god-module.
-UTC_SECOND_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+# FR-004 (kernel-clock-single-door WP03): defined once on the door
+# (kernel.clock.UTC_SECOND_TIMESTAMP_FORMAT), imported above; call sites here
+# are untouched (package remediation is WP12's job).
 
 
 def _persist_review_artifact_override(

@@ -34,7 +34,6 @@ IMPORT:tests/specify_cli/dossier/test_integration.py
 CALL:src/specify_cli/core/file_lock.py:103
 CALL:src/specify_cli/core/file_lock.py:358
 CALL:src/specify_cli/core/stale_detection.py:401
-CALL:src/specify_cli/core/upgrade_notifier.py:278
 CALL:src/specify_cli/core/upgrade_probe.py:124
 CALL:src/specify_cli/core/vcs/git.py:1207
 CALL:src/specify_cli/decisions/emit.py:66
@@ -47,5 +46,5 @@ CALL:src/specify_cli/dossier/models.py:219
 CALL:src/specify_cli/dossier/models.py:353
 CALL:src/specify_cli/dossier/models.py:99
 CALL:src/specify_cli/dossier/snapshot.py:150
-CALL:src/specify_cli/task_utils/support.py:107
+CALL:src/specify_cli/task_utils/support.py:110
 CALL:tests/specify_cli/core/test_stale_detection_snapshot_liveness.py:78

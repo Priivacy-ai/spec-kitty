@@ -14,6 +14,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from kernel.clock import Clock, DEFAULT_CLOCK
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status.lifecycle_events import (
     FOLLOW_UP_RECORDED,
@@ -307,6 +308,7 @@ def is_mission_completed(
     feature_dir: Path,
     *,
     now: datetime | None = None,
+    clock: Clock = DEFAULT_CLOCK,
 ) -> bool:
     """Return ``True`` iff the mission has reached completion (#1926).
 
@@ -328,7 +330,7 @@ def is_mission_completed(
     """
     if _last_merge_marker_at(feature_dir) is not None:
         return True
-    lifecycle = derive_mission_lifecycle(feature_dir, now=now)
+    lifecycle = derive_mission_lifecycle(feature_dir, now=now, clock=clock)
     return lifecycle.state in _COMPLETED_LIFECYCLE_STATES
 
 
@@ -336,9 +338,15 @@ def derive_mission_lifecycle(
     feature_dir: Path,
     *,
     now: datetime | None = None,
+    clock: Clock = DEFAULT_CLOCK,
 ) -> MissionLifecycleResult:
-    """Return canonical lifecycle state for one mission directory."""
-    now = (now or datetime.now(UTC)).astimezone(UTC)
+    """Return canonical lifecycle state for one mission directory.
+
+    ``clock``: injectable :class:`kernel.clock.Clock` (kernel-clock-single-door
+    FR-009); defaults to :data:`kernel.clock.DEFAULT_CLOCK`. Used only when
+    ``now`` (an explicit value) is omitted.
+    """
+    now = (now if now is not None else clock.now()).astimezone(UTC)
     identity = resolve_mission_identity(feature_dir)
     has_event_log = (feature_dir / EVENTS_FILENAME).exists()
 
@@ -436,9 +444,10 @@ def generate_lifecycle_json(
     derived_dir: Path,
     *,
     now: datetime | None = None,
+    clock: Clock = DEFAULT_CLOCK,
 ) -> None:
     """Write ``lifecycle.json`` for one mission under ``.kittify/derived``."""
-    lifecycle = derive_mission_lifecycle(feature_dir, now=now)
+    lifecycle = derive_mission_lifecycle(feature_dir, now=now, clock=clock)
     mission_slug = lifecycle.mission_slug or feature_dir.name
     output_dir = derived_dir / mission_slug
     output_dir.mkdir(parents=True, exist_ok=True)

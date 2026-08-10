@@ -31,7 +31,6 @@ CALL:src/specify_cli/coordination/transaction.py:797
 CALL:src/specify_cli/coordination/transaction.py:862
 CALL:src/specify_cli/status/doctor.py:163
 CALL:src/specify_cli/status/emit.py:840
-CALL:src/specify_cli/status/lifecycle.py:341
 CALL:src/specify_cli/status/lifecycle_events.py:531
 CALL:src/specify_cli/status/lifecycle_events.py:730
 CALL:tests/merge/test_issue_2367_bake_strand.py:181

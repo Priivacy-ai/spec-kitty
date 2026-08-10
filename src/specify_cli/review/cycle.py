@@ -8,6 +8,7 @@ ReviewResult derivation.
 
 from __future__ import annotations
 
+from kernel.clock import UTC_SECOND_TIMESTAMP_FORMAT
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.agent_tasks_ports import (
     CommitArtifactResult,
@@ -38,7 +39,9 @@ from specify_cli.status import (
 
 logger = logging.getLogger(__name__)
 
-UTC_SECOND_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+# FR-004 (kernel-clock-single-door WP03): defined once on the door
+# (kernel.clock.UTC_SECOND_TIMESTAMP_FORMAT), imported above; call sites here
+# are untouched (package remediation is WP13c's job).
 REVIEW_FEEDBACK_SENTINELS = frozenset({"force-override", "action-review-claim"})
 
 #: T042 (FR-002/mechanism shared with WP11): the commit call's own retry-on-

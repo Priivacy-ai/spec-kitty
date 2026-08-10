@@ -35,6 +35,7 @@ from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import TYPE_CHECKING, Literal, Protocol, cast
 
+from kernel.clock import Clock, DEFAULT_CLOCK
 from specify_cli.core.env import is_truthy
 
 if TYPE_CHECKING:
@@ -654,6 +655,7 @@ def run_upgrade_ux(
     prompt: PromptCallback | None = None,
     upgrade_runner: Callable[[], int] | None = None,
     installer_detector: Callable[[], object] | None = None,
+    clock: Clock = DEFAULT_CLOCK,
 ) -> UpgradeUxOutcome:
     """Drive the upgrade-readiness UX for one CLI invocation.
 
@@ -667,10 +669,14 @@ def run_upgrade_ux(
         suppressed: Result of ``_should_suppress_nag()`` from the caller.
             When True, this function returns immediately without prompting,
             without invoking a subprocess, and without writing the cache.
-        now: Current UTC datetime (defaults to ``datetime.now(UTC)``).
+        now: Current UTC datetime; explicit-value test seam, takes
+            precedence over ``clock`` when given.
         env: Environment mapping (defaults to ``os.environ``).
         prompt: Injectable prompt callback for testing.
         upgrade_runner: Injectable subprocess runner for testing.
+        clock: Injectable :class:`kernel.clock.Clock` (kernel-clock-single-door
+            FR-009); defaults to :data:`kernel.clock.DEFAULT_CLOCK`. Used
+            only when ``now`` is omitted.
         installer_detector: Injectable installer detector (returns an
             ``InstallMethod``).
 
@@ -684,7 +690,7 @@ def run_upgrade_ux(
         return _inactive_outcome()
 
     if now is None:
-        now = datetime.now(UTC)
+        now = clock.now()
     if env is None:
         env = dict(os.environ)
     if prompt is None:
