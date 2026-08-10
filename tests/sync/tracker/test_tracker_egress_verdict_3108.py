@@ -1308,13 +1308,17 @@ class TestZeroBlastRadius:
     #: Expected number of real ``tracker_egress_verdict`` **call sites** per file, and the WP
     #: that wires each. WP04 has landed three (``sync_pull``/``sync_push``/``sync_run``);
     #: WP05 adds ``saas_client.py``; WP06 adds ``cli/commands/sync.py`` for ``sync doctor``.
-    #: ``cli/commands/tracker.py`` is never a direct caller -- it reaches the gate through
-    #: ``LocalTrackerService``, and it *mentions* the symbol in two amended docstrings, which
-    #: is why this pin counts AST nodes rather than substrings (see the docstring below).
+    #: ``cli/commands/tracker.py`` gained **one** direct call site at the 2026-08-10 landing
+    #: pass (PR #3135, HIGH-1 / #3108 follow-up): ``_check_sync_readiness`` consults the hosted
+    #: verdict ahead of the readiness network probe so "refusal precedes any HTTP attempt" holds
+    #: at the CLI pre-flight, not only inside ``SaaSTrackerClient._request``. It also *mentions*
+    #: the symbol in amended docstrings, which is why this pin counts AST nodes rather than
+    #: substrings (see the docstring below). Kept in step with G4's census in
+    #: ``tests/architectural/test_tracker_egress_guards_3108.py`` (6 enclosing / 7 expressions).
     _EXPECTED_CALL_SITES: ClassVar[dict[str, int]] = {
         "src/specify_cli/tracker/local_service.py": 3,  # WP04, landed: pull, push, run
         "src/specify_cli/tracker/saas_client.py": 1,  # WP05, landed: _request
-        "src/specify_cli/cli/commands/tracker.py": 0,  # never a direct caller
+        "src/specify_cli/cli/commands/tracker.py": 1,  # PR #3135 HIGH-1: _check_sync_readiness pre-flight
         "src/specify_cli/cli/commands/sync.py": 2,  # WP06, landed: one per destination
     }
 
