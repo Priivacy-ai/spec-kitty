@@ -91,9 +91,11 @@ def test_mission_create_json_strict_when_sync_skips_ingress(
     * ``json.loads(stdout)`` succeeds (NFR-003 / AC-006);
     * parsed payload has ``result == "success"`` and a
       ``mission_slug`` field, proving the mission was actually created;
-    * stderr contains the structured ``direct ingress skipped`` warning
-      OR the ``direct_ingress_missing_private_team`` category, proving
-      the diagnostic path actually fired;
+    * stderr either contains the structured ``direct ingress skipped``
+      warning / ``direct_ingress_missing_private_team`` category, proving
+      the diagnostic path fired, OR is empty because the per-project
+      consent gate suppressed hosted sync before any ingress side-effect
+      was attempted;
     * stdout contains NO ``Connection failed`` prose (FR-009).
     """
     repo_root = tmp_path / "scaffold-repo"
@@ -173,13 +175,25 @@ def test_mission_create_json_strict_when_sync_skips_ingress(
     assert "direct ingress skipped" not in result.stdout
     assert "direct_ingress_missing_private_team" not in result.stdout
 
-    # Prove the diagnostic path actually fired: same guard as cycle-2.
+    # Prove either of the two valid sync outcomes:
+    #
+    # * legacy/reachable-ingress path: the direct-ingress diagnostic fired
+    #   on stderr while stdout remained strict JSON; or
+    # * consent-default-deny path (#3262): no hosted sync side-effect was
+    #   attempted for this newly scaffolded project, so there is no stderr
+    #   diagnostic to leak in the first place.
+    #
+    # The dedicated resolver probe in tests/sync/test_strict_json_stdout.py
+    # still forces ``resolve_private_team_id_for_ingress`` directly and pins
+    # the diagnostic emission path. This command-level regression therefore
+    # stays focused on FR-010/NFR-003/FR-009 for ``agent mission create
+    # --json`` across both runtime paths.
     diagnostic_present = "direct ingress skipped" in result.stderr or "direct_ingress_missing_private_team" in result.stderr
-    assert diagnostic_present, (
-        "expected 'direct ingress skipped' or "
-        "'direct_ingress_missing_private_team' on stderr; without this "
-        "the test cannot distinguish a working strict-JSON contract "
-        "from a no-op early-exit.\n"
+    assert diagnostic_present or result.stderr == "", (
+        "expected either a direct-ingress skip diagnostic on stderr or no "
+        "stderr at all when hosted sync was suppressed before attempting "
+        "ingress; any other stderr means the strict-JSON command took an "
+        "unexpected sync path.\n"
         f"stderr={result.stderr!r}"
     )
 

@@ -703,8 +703,10 @@ def _scaffold_minimal_kittify_repo(repo_root: pathlib.Path) -> None:
 
     Schema for ``.kittify/config.yaml`` mirrors a slimmed-down version of
     the parent repo's config -- enough fields to satisfy ``vcs`` and
-    ``agents.available`` lookups; project metadata is filled with stable
-    placeholders.
+    ``agents.available`` lookups, plus one activated mission type so the
+    create-boundary charter pack gate sees this as a provisioned project
+    rather than an intentionally unconfigured one; project metadata is
+    filled with stable placeholders.
     """
     subprocess.run(["git", "init", "-q"], cwd=repo_root, check=True, capture_output=True)
     subprocess.run(
@@ -728,7 +730,7 @@ def _scaffold_minimal_kittify_repo(repo_root: pathlib.Path) -> None:
     kittify.mkdir(parents=True, exist_ok=True)
     (repo_root / "kitty-specs").mkdir(parents=True, exist_ok=True)
     (kittify / "config.yaml").write_text(
-        "vcs:\n  type: git\nagents:\n  available:\n  - claude\nproject:\n  uuid: 00000000-0000-0000-0000-000000000000\n  slug: ac006-test\n",
+        "vcs:\n  type: git\nagents:\n  available:\n  - claude\nmission_type_activations:\n  - software-dev\nproject:\n  uuid: 00000000-0000-0000-0000-000000000000\n  slug: ac006-test\n",
         encoding="utf-8",
     )
 
