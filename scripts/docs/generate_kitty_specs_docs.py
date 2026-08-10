@@ -54,9 +54,10 @@ def read_json(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {}
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
         return {}
+    return data if isinstance(data, dict) else {}
 
 
 def read_text(path: Path) -> str:
@@ -75,11 +76,13 @@ def mission_name(path: Path, meta: dict[str, Any]) -> str:
 
 def sort_key(mission: Mission) -> tuple[int, str]:
     number = mission.meta.get("mission_number")
-    try:
-        return (-int(number), mission.name.lower())
-    except (TypeError, ValueError):
-        created = str(mission.meta.get("created_at") or "")
-        return (0, f"{created} {mission.name}".lower())
+    if isinstance(number, (int, str)):
+        try:
+            return (-int(number), mission.name.lower())
+        except ValueError:
+            pass
+    created = str(mission.meta.get("created_at") or "")
+    return (0, f"{created} {mission.name}".lower())
 
 
 def parse_task_titles(tasks_md: str) -> dict[str, str]:
@@ -214,8 +217,8 @@ def table_to_html(rows: list[str]) -> str:
     body_rows = parsed[2:] if re.fullmatch(r"\s*\|?[\s:|\\-]+\|?\s*", rows[1]) else parsed[1:]
     head_html = "".join(f"<th>{inline_md(cell)}</th>" for cell in header)
     body_html = []
-    for row in body_rows:
-        cells = row + [""] * max(0, len(header) - len(row))
+    for body_row in body_rows:
+        cells = body_row + [""] * max(0, len(header) - len(body_row))
         body_html.append("<tr>" + "".join(f"<td>{inline_md(cell)}</td>" for cell in cells[: len(header)]) + "</tr>")
     return f"<table><thead><tr>{head_html}</tr></thead><tbody>{''.join(body_html)}</tbody></table>"
 
