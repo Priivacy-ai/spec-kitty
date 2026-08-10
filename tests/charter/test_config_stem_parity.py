@@ -14,17 +14,20 @@ This module:
   ``UnknownArtifactIdError``) — no new resolver logic is introduced here; this
   is a reuse-and-pin, not a reimplementation (see module docstring history in
   ``kind_vocabulary.py``).
-- **T003**: a data-driven fixture that round-trips *every one* of the 25
+- **T003**: a data-driven fixture that round-trips *every one* of the
   ``activated_directives`` slug-stems declared in this repository's own
-  ``.kittify/config.yaml`` against the real built-in doctrine tree, plus a
+  activation store against the real built-in doctrine tree, plus a
   spot-check of one activated entry from each of the other five activatable
-  kinds (tactic, toolguide, procedure, paradigm, styleguide).
+  kinds (tactic, toolguide, procedure, paradigm, styleguide). Both numbered
+  (``DIRECTIVE_NNN``) and slug-hub (``USE_C4_MODEL_TECHNIQUES``) canonical id
+  forms are accepted.
 - **T004**: non-vacuity — a deliberately malformed/unresolvable stem is
   rejected (proves the guard actually bites and is not inert).
 """
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -122,7 +125,7 @@ def test_resolve_artifact_urn_is_reject_not_drop_on_unresolvable_stem(
 
 
 # --------------------------------------------------------------------------- #
-# T003 — full 25-directive parity fixture, driven by this repo's own
+# T003 — full activated-directive parity fixture, driven by this repo's own
 # .kittify/config.yaml (production-shaped data, not placeholders).
 # --------------------------------------------------------------------------- #
 
@@ -130,10 +133,13 @@ def test_resolve_artifact_urn_is_reject_not_drop_on_unresolvable_stem(
 def test_config_declares_exactly_the_expected_directive_count(
     activated_directive_stems: list[str],
 ) -> None:
-    # Pins the observed count from spec.md (Context & Motivation: "25 vs 24
-    # directives observed") so a silent addition/removal in config.yaml is
-    # visible as an intentional test update, not an invisible drift.
-    assert len(activated_directive_stems) == 25  # golden-count: cardinality-is-contract
+    # Pins the observed activated-directive count so a silent addition/removal
+    # in the activation store is visible as an intentional test update, not an
+    # invisible drift. Bumped 25 -> 31 for the writing-comms/diagramming
+    # doctrine activation (commit 9a99801f1): numbered directives 046-050 plus
+    # the two deliberately slug-named hub directives
+    # (use-c4-model-techniques, reconcile-change-scope-tensions).
+    assert len(activated_directive_stems) == 31  # golden-count: cardinality-is-contract
 
 
 def _directive_stems_for_parametrize() -> list[str]:
@@ -142,7 +148,7 @@ def _directive_stems_for_parametrize() -> list[str]:
     ``pytest.mark.parametrize`` needs its argument list at collection time,
     before fixtures run, so this re-reads the same config file the
     ``activated_directive_stems`` fixture reads. Both routes must produce the
-    same 25 stems; :func:`test_config_declares_exactly_the_expected_directive_count`
+    same stems; :func:`test_config_declares_exactly_the_expected_directive_count`
     pins the count so drift between the two reads would show up as a count
     mismatch, not silently.
     """
@@ -159,11 +165,23 @@ def test_every_activated_directive_stem_round_trips_to_canonical_urn(
     """Every real ``config.activated_directives`` stem resolves and round-trips.
 
     Exercises the exact mapping the live derivation (WP02) must reproduce:
-    stem → canonical URN (``directive:DIRECTIVE_NNN``) → back to the same
-    stem, with no manual answers.yaml involvement.
+    stem -> canonical directive URN -> back to the same stem, with no manual
+    answers.yaml involvement.
+
+    The canonical id is *whatever form the directive artifact declares*: the
+    numbered ``directive:DIRECTIVE_NNN`` form, or the UPPER_SNAKE slug form used
+    by deliberately-named extensible hub directives (e.g.
+    ``directive:USE_C4_MODEL_TECHNIQUES``,
+    ``directive:RECONCILE_CHANGE_SCOPE_TENSIONS`` — the same established
+    convention as ``DISCIPLINED_REFACTORING`` / ``USE_MUTATION_TESTING`` already
+    in the graph). The round-trip below is the real bite; the URN shape check
+    only pins that a *canonical* directive URN came back, not a particular id
+    spelling.
     """
     urn = resolve_artifact_urn(ArtifactKind.DIRECTIVE, stem, doctrine_root=doctrine_root)
-    assert urn.startswith("directive:DIRECTIVE_")
+    assert re.fullmatch(
+        r"directive:[A-Z][A-Z0-9_]+", urn
+    ), f"expected a canonical directive URN, got {urn!r}"
     assert resolve_config_id(urn, doctrine_root=doctrine_root) == stem
 
 
