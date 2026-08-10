@@ -71,7 +71,7 @@ G1     ``factory.SUPPORTED_PROVIDERS`` is exactly ``("beads", "fp")``           
 G2     ``build_connector`` has exactly one call site, in ``_build_engine``          2
 G3     ``_build_engine``'s callers are exactly the three gated methods, and the     5
        gate is the first *executable* statement of each
-G4     exactly 5 enclosing functions and exactly 6 call expressions                 3
+G4     exactly 6 enclosing functions and exactly 7 call expressions                 3
 G5     every ``destination`` is a literal member, and the per-site mapping holds    3
 G6     the verdict *body* never reads the provider (expected set empty)             2
 G7     WP03's polarity map is exhaustive over ``config._EGRESS_LEGAL_VALUES``       1
@@ -944,15 +944,30 @@ EXPECTED_ENCLOSING_FUNCTIONS = frozenset(
         "LocalTrackerService.sync_push",
         "LocalTrackerService.sync_run",
         "SaaSTrackerClient._request",
+        "_check_sync_readiness",
         "_render_tracker_egress",
     }
 )
-EXPECTED_ENCLOSING_COUNT = 5
-#: Six, not five: ``sync doctor``'s renderer calls the verdict **twice**, once per destination row.
-#: Both numbers are asserted separately and both are exact. An implementer who reads "five call
-#: sites" as "five call expressions" writes a renderer that loops over ``EgressDestination``,
+EXPECTED_ENCLOSING_COUNT = 6
+#: Seven, not six: ``sync doctor``'s renderer calls the verdict **twice**, once per destination
+#: row. Both numbers are asserted separately and both are exact. An implementer who reads "six
+#: call sites" as "six call expressions" writes a renderer that loops over ``EgressDestination``,
 #: which G5 then rejects because the loop variable is an ``ast.Name``, not a literal member.
-EXPECTED_CALL_EXPRESSION_COUNT = 6
+#:
+#: **Landing-pass audited chokepoint (2026-08-10, PR #3135, HIGH-1 / #3108 follow-up):**
+#: ``cli/commands/tracker.py::_check_sync_readiness`` is the sixth enclosing function and
+#: contributes the seventh call expression. Before this call site existed, the hosted
+#: (SaaS-backed) branch of ``_check_sync_readiness`` called
+#: ``_check_readiness(..., probe_reachability=True)`` as its first act -- which, once auth and
+#: host-config both resolve, issues a real network HEAD probe
+#: (``saas/readiness.py:_probe_reachability``) *before* ``SaaSTrackerClient._request``'s own
+#: ``tracker_egress_verdict`` gate (this file's own G3 subject) ever ran. A refusing project's
+#: hosted-egress verdict is now consulted here too, ahead of that probe, so "refusal precedes
+#: any HTTP attempt" holds at the CLI's own pre-flight and not only one layer below it. This is
+#: precisely the kind of new call site this guard exists to catch when it is *not* audited --
+#: it is audited (this comment, plus the guard's own re-pinned census), so the guard's job here
+#: is only to keep the numbers honest, not to raise an alarm.
+EXPECTED_CALL_EXPRESSION_COUNT = 7
 
 #: The load-bearing half of G5 (its set-equality clause carries almost nothing on its own, because
 #: the doctor renderer supplies both members by itself). Per site, the **sorted members actually
@@ -962,6 +977,7 @@ EXPECTED_PER_SITE_DESTINATIONS: dict[str, tuple[str, ...]] = {
     "LocalTrackerService.sync_push": ("LOCAL_SUBPROCESS",),
     "LocalTrackerService.sync_run": ("LOCAL_SUBPROCESS",),
     "SaaSTrackerClient._request": ("HOSTED_SERVICE",),
+    "_check_sync_readiness": ("HOSTED_SERVICE",),
     "_render_tracker_egress": ("HOSTED_SERVICE", "LOCAL_SUBPROCESS"),
 }
 EXPECTED_LITERAL_MEMBERS = frozenset({"LOCAL_SUBPROCESS", "HOSTED_SERVICE"})
@@ -1108,12 +1124,17 @@ def _real_verdict_calls() -> CallFindings:
     return analyze_calls_in_tree(SRC_ROOT, VERDICT_FN)
 
 
-def test_g4_exactly_five_enclosing_functions_and_six_call_expressions() -> None:
+def test_g4_exactly_six_enclosing_functions_and_seven_call_expressions() -> None:
     """G4 -- **two** exact assertions, never collapsed into one and never ``<=``.
 
-    Exactly **5** enclosing functions (``sync_pull``, ``sync_push``, ``sync_run``,
-    ``SaaSTrackerClient._request``, and ``sync doctor``'s renderer) and exactly **6** call
-    expressions (the renderer calls twice, once per destination row).
+    Exactly **6** enclosing functions (``sync_pull``, ``sync_push``, ``sync_run``,
+    ``SaaSTrackerClient._request``, ``_check_sync_readiness``, and ``sync doctor``'s renderer)
+    and exactly **7** call expressions (the renderer calls twice, once per destination row).
+
+    Originally "exactly 5 / exactly 6" (FR-015); re-pinned to 6/7 at the 2026-08-10 landing pass
+    (PR #3135, HIGH-1 / #3108 follow-up) when ``_check_sync_readiness`` gained its own audited
+    ``tracker_egress_verdict`` call site -- see :data:`EXPECTED_CALL_EXPRESSION_COUNT`'s own
+    comment for why.
 
     A rejected draft of this Mission said "exactly three" while its own requirements demanded
     three local sites, a fourth and a fifth -- arithmetically impossible, and repeated five times.
@@ -1151,8 +1172,8 @@ def test_g4_exactly_five_enclosing_functions_and_six_call_expressions() -> None:
 
     # Every kill below is measured as a DELTA against a control that is itself correctly shaped,
     # then folded onto the real tree's findings. Asserting only "the synthetic mutant's set differs
-    # from the expected five" would be no evidence at all -- the two-site control differs from the
-    # expected five as well, so such a 'kill' fires whether or not the mutant is present. That is
+    # from the expected set" would be no evidence at all -- the two-site control differs from the
+    # expected set as well, so such a 'kill' fires whether or not the mutant is present. That is
     # recorded mutation-lie #1 (the mutant is a no-op and all-green reads as "your pin is fine").
     control = analyze_calls_in_source(_UNSWAPPED_CONTROL, VERDICT_FN, module="<g4-control>")
     assert control.call_count == 2 and len(control.enclosing) == 2, (  # golden-count: cardinality-is-contract
