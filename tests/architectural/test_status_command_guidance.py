@@ -61,7 +61,7 @@ _SCOPED_SOURCE_FILES = (
     Path("docs/api/environment-variables.md"),
     Path("docs/api/upgrade-lifecycle.md"),
     Path("docs/architecture/launch-readiness-future.md"),
-    Path("docs/guides/install-and-upgrade.md"),
+    Path("docs/guides/how-to/installation/install-and-upgrade.md"),
 )
 _SCOPED_SOURCE_DENOMINATOR = 5
 
