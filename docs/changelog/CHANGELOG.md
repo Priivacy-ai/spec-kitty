@@ -347,6 +347,13 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **`spec-kitty tracker sync publish` on a local (`beads`/`fp`) binding now
+  prints a clear error instead of crashing with a Python traceback (`#3168`).**
+  Local providers have no snapshot-publish transport, but the command delegated
+  to the backend unconditionally and hit an uncaught `AttributeError`, which the
+  CLI let escape as a raw traceback. It now exits with a clean
+  "not supported for local providers — use `tracker sync push` instead" message.
+
 - **A spec commit that genuinely FAILS is no longer silently reported as
   "unchanged" (`#3269`).** When a `git commit` failed for a real reason — a
   rejecting pre-commit hook, a lock error — `safe_commit` collapsed every
