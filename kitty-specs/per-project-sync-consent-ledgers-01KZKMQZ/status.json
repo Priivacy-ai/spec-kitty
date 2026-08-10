@@ -1,7 +1,7 @@
 {
-  "event_count": 62,
-  "last_event_id": "01KZMR3B1AV4Y9YR9X92A0CE69",
-  "materialized_at": "2026-08-10T02:30:17.386103+00:00",
+  "event_count": 63,
+  "last_event_id": "01KZMS3QRV6XMX81Z946AJNSNZ",
+  "materialized_at": "2026-08-10T02:47:59.003486+00:00",
   "mission_number": "",
   "mission_slug": "per-project-sync-consent-ledgers-01KZKMQZ",
   "mission_type": "software-dev",
@@ -13,8 +13,8 @@
     "done": 0,
     "for_review": 0,
     "in_progress": 1,
-    "in_review": 1,
-    "planned": 6
+    "in_review": 0,
+    "planned": 7
   },
   "work_packages": {
     "WP01": {
@@ -120,26 +120,33 @@
     "WP04": {
       "actor": "codex",
       "agent": "codex",
-      "agent_profile": "architect-alphonso",
-      "agent_profile_version": "1.0",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "in_review",
-      "last_event_id": "01KZMR3B1AV4Y9YR9X92A0CE69",
-      "last_transition_at": "2026-08-10T02:30:17.386103+00:00",
+      "lane": "planned",
+      "last_event_id": "01KZMS3QRV6XMX81Z946AJNSNZ",
+      "last_transition_at": "2026-08-10T02:47:59.003486+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Implementation bea905e79; 251 owned/authorized tests passed with 2 expected architecture xfails; 16 independent incident controls passed; Ruff, strict mypy, compileall, and diff checks passed."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "reviewer",
-      "shell_pid": 1091,
+      "review": null,
+      "review_result": {
+        "feedback_path": "/private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260809-175108-qc7maU/spec-kitty/kitty-specs/per-project-sync-consent-ledgers-01KZKMQZ/tasks/WP04-project-owned-payload-repositories/review-cycle-1.md",
+        "reference": "review-cycle://per-project-sync-consent-ledgers-01KZKMQZ/WP04-project-owned-payload-repositories/review-cycle-1.md",
+        "reviewer": "codex",
+        "verdict": "changes_requested"
+      },
+      "role": "implementer",
+      "shell_pid": 0,
       "shell_pid_created_at": "1786272735.189561",
       "subtasks": {
-        "T016": "done",
-        "T017": "done",
-        "T018": "done",
-        "T019": "done",
-        "T020": "done"
+        "T016": "planned",
+        "T017": "planned",
+        "T018": "planned",
+        "T019": "planned",
+        "T020": "planned"
       }
     },
     "WP05": {
