@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
+import textwrap
 from pathlib import Path
 
 import pytest
@@ -88,3 +92,57 @@ def test_transport_start_and_result_recording_require_lease_bound_context(
         ).fetchone()
     assert row is not None
     assert row[0] == DeliveryAttemptState.SUCCEEDED.value
+
+
+def test_transport_lease_excludes_a_second_process(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _seed_store(tmp_path, monkeypatch)
+    script = textwrap.dedent(
+        f"""
+        from specify_cli.sync.project_store import ProjectStoreLockedError, ProjectSyncStore
+        from specify_cli.sync.transport_lease import acquire_project_transport_lease
+
+        store = ProjectSyncStore({PROJECT_UUID!r})
+        try:
+            with acquire_project_transport_lease(store, lock_timeout_seconds=0.05):
+                raise SystemExit(2)
+        except ProjectStoreLockedError:
+            raise SystemExit(0)
+        """
+    )
+
+    with acquire_project_transport_lease(store):
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            check=False,
+            env={**os.environ, "SPEC_KITTY_HOME": str(tmp_path / "runtime")},
+            text=True,
+            capture_output=True,
+            timeout=5,
+        )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_lease_bound_context_rechecks_opt_out_before_transport_start(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _seed_store(tmp_path, monkeypatch)
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(unit, context, _attempt())
+
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "UPDATE project_consent_decisions SET state = 'refused', generation = 4, "
+            "action = 'explicit_opt_out' WHERE project_uuid = ?",
+            (PROJECT_UUID,),
+        )
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        assert context.egress_eligible is False
+        with pytest.raises(ProjectStoreError, match="requires the project transport lease"):
+            mark_transport_started(unit, context, "attempt-lease")

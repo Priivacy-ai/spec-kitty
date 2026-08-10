@@ -57,6 +57,14 @@ class DeliveryAttemptRecord:
     reconciliation_policy: str | None
 
 
+@dataclass(frozen=True, slots=True)
+class OptOutSettlement:
+    """Counts for one opt-out settlement pass over durable attempts."""
+
+    canceled_before_transport: int
+    terminalized_orphans: int
+
+
 def prepare_delivery_attempt(
     unit: ProjectUnitOfWork,
     context: ProjectSyncContext,
@@ -242,6 +250,54 @@ def terminalize_orphaned_attempt(
     )
 
 
+def settle_attempts_for_opt_out(
+    unit: ProjectUnitOfWork,
+    *,
+    reason: str,
+) -> OptOutSettlement:
+    """Cancel not-started attempts and terminalize started/uncertain orphans.
+
+    This is the durable half of the WP06 opt-out ordering contract.  It does not
+    claim remote revocation; it only prevents prepared attempts from starting and
+    makes already-started/unknown attempts impossible to promote automatically
+    after opt-out has returned.
+    """
+    _require_non_empty(reason=reason)
+    prepared_rows = unit.execute(
+        "SELECT attempt_id FROM delivery_attempts "
+        "WHERE project_uuid = ? AND state = ?",
+        (
+            unit.project_uuid.storage_token,
+            DeliveryAttemptState.PREPARED.value,
+        ),
+    ).fetchall()
+    unit.execute(
+        "UPDATE delivery_attempts SET state = ?, reconciliation_policy = ? "
+        "WHERE project_uuid = ? AND state = ?",
+        (
+            DeliveryAttemptState.CANCELED.value,
+            f"canceled:{reason}",
+            unit.project_uuid.storage_token,
+            DeliveryAttemptState.PREPARED.value,
+        ),
+    )
+    orphan_rows = unit.execute(
+        "SELECT attempt_id FROM delivery_attempts "
+        "WHERE project_uuid = ? AND state IN (?, ?)",
+        (
+            unit.project_uuid.storage_token,
+            DeliveryAttemptState.IN_FLIGHT.value,
+            DeliveryAttemptState.UNKNOWN.value,
+        ),
+    ).fetchall()
+    for row in orphan_rows:
+        terminalize_orphaned_attempt(unit, attempt_id=str(row[0]), reason=reason)
+    return OptOutSettlement(
+        canceled_before_transport=len(prepared_rows),
+        terminalized_orphans=len(orphan_rows),
+    )
+
+
 def recover_delivery_attempts(unit: ProjectUnitOfWork) -> list[DeliveryAttemptRecord]:
     """Return recoverable attempts without inventing a new native identity."""
     records: list[DeliveryAttemptRecord] = []
@@ -317,9 +373,11 @@ __all__ = [
     "DeliveryAttemptSpec",
     "DeliveryAttemptState",
     "DeliveryOutcome",
+    "OptOutSettlement",
     "mark_transport_started",
     "prepare_delivery_attempt",
     "record_delivery_result",
     "recover_delivery_attempts",
+    "settle_attempts_for_opt_out",
     "terminalize_orphaned_attempt",
 ]

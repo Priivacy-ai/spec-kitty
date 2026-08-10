@@ -14,6 +14,7 @@ from specify_cli.sync.transport_attempts import (
     prepare_delivery_attempt,
     record_delivery_result,
     recover_delivery_attempts,
+    settle_attempts_for_opt_out,
     terminalize_orphaned_attempt,
 )
 from specify_cli.sync.transport_lease import acquire_project_transport_lease
@@ -88,3 +89,68 @@ def test_terminalized_orphan_cannot_later_be_promoted_to_success(
         [record] = recover_delivery_attempts(unit)
 
     assert record.state is DeliveryAttemptState.TERMINAL_UNKNOWN
+
+
+def test_opt_out_settlement_cancels_prepared_and_terminalizes_started_attempts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(
+            unit,
+            context,
+            DeliveryAttemptSpec(
+                attempt_id="attempt-before-send",
+                write_kind="event",
+                native_identity="event:event-1",
+                payload_hash="sha256:event",
+                payload_reference="event:event-1",
+            ),
+        )
+        prepare_delivery_attempt(
+            unit,
+            context,
+            DeliveryAttemptSpec(
+                attempt_id="attempt-after-send",
+                write_kind="local_commit",
+                native_identity="commit:abc",
+                payload_hash="sha256:commit",
+                payload_reference="local-commit:abc",
+            ),
+        )
+        unit.execute(
+            "UPDATE delivery_attempts SET state = ? WHERE project_uuid = ? AND attempt_id = ?",
+            (
+                DeliveryAttemptState.IN_FLIGHT.value,
+                PROJECT_UUID,
+                "attempt-after-send",
+            ),
+        )
+
+    with store.unit_of_work() as unit:
+        settlement = settle_attempts_for_opt_out(unit, reason="explicit_opt_out")
+
+    assert settlement.canceled_before_transport == 1
+    assert settlement.terminalized_orphans == 1
+
+    with store.unit_of_work() as unit:
+        rows = {
+            str(row[0]): str(row[1])
+            for row in unit.execute(
+                "SELECT attempt_id, state FROM delivery_attempts WHERE project_uuid = ?",
+                (PROJECT_UUID,),
+            )
+        }
+        terminal_result = unit.execute(
+            "SELECT outcome, terminal_refusal_category FROM delivery_results "
+            "WHERE project_uuid = ? AND attempt_id = ?",
+            (PROJECT_UUID, "attempt-after-send"),
+        ).fetchone()
+
+    assert rows == {
+        "attempt-before-send": DeliveryAttemptState.CANCELED.value,
+        "attempt-after-send": DeliveryAttemptState.TERMINAL_UNKNOWN.value,
+    }
+    assert terminal_result == ("terminal_unknown", "explicit_opt_out")
