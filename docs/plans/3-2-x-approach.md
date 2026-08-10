@@ -4,8 +4,8 @@ description: 'The operator''s 3.2.x sequencing (doctrine-swap first, cleanup nex
 doc_status: proposed
 updated: '2026-07-17'
 related:
-- docs/development/manage-issue-tracker.md
-- docs/guides/keep-main-clean.md
+- docs/development/how-to/manage-issue-tracker.md
+- docs/guides/how-to/missions/keep-main-clean.md
 ---
 
 # 3.2.x Delivery Approach — Operator Plan, Dialectically Challenged

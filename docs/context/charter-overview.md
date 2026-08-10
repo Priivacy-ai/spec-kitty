@@ -6,7 +6,7 @@ updated: '2026-07-20'
 type: explanation
 related:
 - docs/context/governance-files.md
-- docs/guides/setup-governance.md
+- docs/guides/how-to/governance/setup-governance.md
 - docs/architecture/charter-pack-usage-journey.md
 ---
 # How Charter Works

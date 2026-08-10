@@ -5,10 +5,10 @@ doc_status: draft
 updated: '2026-08-01'
 related:
 - docs/plans/3-2-x-milestone-roadmap.md
-- docs/release-goals/3.2.x.md
+- docs/changelog/3.2.x.md
 - docs/architecture/execution-lanes.md
 - docs/architecture/git-worktrees.md
-- HOW_TO_MAINTAIN.md
+- docs/operations/how-to-maintain.md
 ---
 
 # Write-path topology: ambient-location root cause and remediation options

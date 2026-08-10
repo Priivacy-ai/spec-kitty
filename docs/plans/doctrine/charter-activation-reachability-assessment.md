@@ -7,7 +7,7 @@ type: explanation
 related:
 - docs/plans/doctrine/layered-doctrine-resolution-design.md
 - docs/plans/doctrine/doctrine-artifact-selection-preflight.md
-- docs/development/review-gates.md
+- docs/development/how-to/review-gates.md
 - docs/adr/3.x/2026-07-26-1-drg-edges-are-the-canonical-relationship-authority.md
 ---
 # Charter Activation vs DRG Reachability

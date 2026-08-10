@@ -5,7 +5,7 @@ doc_status: draft
 updated: '2026-07-05'
 related:
 - docs/plans/3-2-x-milestone-roadmap.md
-- docs/release-goals/index.md
+- docs/changelog/release-goals.md
 ---
 # Plans
 

@@ -5,9 +5,9 @@ doc_status: draft
 updated: '2026-08-02'
 related:
 - docs/plans/investigations/write-path-topology-root-cause.md
-- docs/development/read-side-seam-classification.md
+- docs/development/reference/read-side-seam-classification.md
 - docs/plans/3-2-x-milestone-roadmap.md
-- docs/release-goals/3.2.x.md
+- docs/changelog/3.2.x.md
 ---
 
 # Review-artifact integrity (#3044): the topology-seam connection is historical, the open gap is a missing writer

@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-07-21'
 related:
 - docs/changelog/index.md
-- docs/release-goals/index.md
+- docs/changelog/release-goals.md
 - docs/migrations/from-charter-2x.md
 - docs/migrations/index.md
 - docs/migrations/upgrade-to-0-12-0.md

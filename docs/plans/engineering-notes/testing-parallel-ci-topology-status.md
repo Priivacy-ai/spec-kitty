@@ -4,7 +4,7 @@ description: 'Point-in-time mission-status snapshot of the CI shard-topology re-
 doc_status: active
 updated: '2026-07-22'
 related:
-- docs/development/testing-parallel.md
+- docs/development/testing/testing-parallel.md
 ---
 # Test-suite parallelization — CI shard topology status
 

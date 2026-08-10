@@ -4,7 +4,7 @@ description: Final remediation plan for accelerating the test suite, including t
 doc_status: draft
 updated: '2026-07-12'
 related:
-- docs/development/testing-parallel.md
+- docs/development/testing/testing-parallel.md
 - docs/plans/testing/ci-job-timings.md
 - docs/plans/testing/ci-coverage-union-audit.md
 ---

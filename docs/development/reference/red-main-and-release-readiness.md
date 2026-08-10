@@ -9,7 +9,7 @@ related:
 - docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
 - docs/development/testing/testing-flakiness.md
 - docs/development/how-to/pr-landing.md
-- docs/guides/keep-main-clean.md
+- docs/guides/how-to/missions/keep-main-clean.md
 ---
 
 # Red Main and Release Readiness

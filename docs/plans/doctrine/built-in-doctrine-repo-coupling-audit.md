@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-07-28'
 type: explanation
 related:
-- docs/development/review-gates.md
+- docs/development/how-to/review-gates.md
 - docs/plans/doctrine/charter-activation-reachability-assessment.md
 - docs/adr/3.x/2026-07-26-2-doctrine-artefact-pack-layout-convention.md
 ---

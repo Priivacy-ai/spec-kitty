@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-07-04'
 related:
 - docs/context/index.md
-- docs/archive/index.md
+- docs/changelog/index.md
 - docs/migrations/migration-and-shim-rules.md
 - docs/migrations/2-1-main-cutover-checklist.md
 - docs/migrations/charter-ownership-consolidation.md

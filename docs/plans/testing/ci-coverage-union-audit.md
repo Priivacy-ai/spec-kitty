@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-07-12'
 related:
 - docs/plans/testing/ci-job-timings.md
-- docs/development/testing-parallel.md
+- docs/development/testing/testing-parallel.md
 - kitty-specs/ci-test-topology-performance-01KXBJRT/contracts/guard-contracts.md
 ---
 

@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-06-15'
 related:
 - docs/context/index.md
-- docs/archive/2x/index.md
+- docs/changelog/2x/index.md
 ---
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 
