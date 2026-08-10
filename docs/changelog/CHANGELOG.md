@@ -369,6 +369,24 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **Two blocking CI gates now reflect what a PR actually changed (mission
+  `ci-scoping-gate-reliability`; `#3008`, `#3147`).** _Corpus data no longer ships
+  unguarded (`#3008`):_ a PR that changed only non-source corpus data — shipped
+  doctrine under `packs/**`, a mission's planning artifacts under `kitty-specs/**`,
+  or charter config under `.kittify/**` — never triggered the quality workflow at
+  all, so every corpus-reading suite was silently skipped pre- and post-merge and a
+  regression in shipped data shipped invisibly. Narrow, discrete trigger globs now
+  start the workflow on such changes, and a new blocking `fast-tests-corpus` job
+  runs the corpus-reading suites (selected by a `@pytest.mark.corpus` marker, so
+  already-covered suites are not re-run) and gates the merge. The trigger
+  deliberately excludes lifecycle churn (`status.events.jsonl`, notes, trace) so it
+  does not fire on every mission PR. _Docs dead-link gate no longer over-fires
+  (`#3147`):_ the blocking dead-link / related-edge check scanned the whole tree and
+  failed a docs PR for pre-existing broken links in files it never touched. The
+  blocking check is now scoped to the PR's own changed files (fail-closed on an
+  unresolvable base ref — a shallow clone or unfetched base errors rather than
+  passing trivially), while the unfiltered whole-tree scan is retained as the
+  non-blocking `push: main` backstop so genuine repo-wide rot is still surfaced.
 - **Restored an honest red CI gate: `main`'s two standing reds now go green for
   the right reason, and `move-task`'s pre-review gate stops crying wolf
   (test-layer only; epic `#3260` — "a red gate must mean a real regression").**
@@ -406,7 +424,6 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
     tree's own root rather than the gate file's location, so a cross-tree
     (git-worktree baseline) scan no longer produces absolute paths that silently
     over-count `mission_metadata.py` as a violation (`#3241`, PART 2).
-
 - **`spec-kitty auth login` (and any caller of the SaaS URL helper) now points
   you at the real hosted service when `SPEC_KITTY_SAAS_URL` is unset, not a fake
   placeholder (`#3297`, closes `#3296`).** Previously, running the command
