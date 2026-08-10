@@ -295,7 +295,7 @@ def _is_local_binding() -> bool:
     return False
 
 
-def _check_sync_readiness(*, is_sync_run: bool = False) -> None:
+def _check_sync_readiness(*, is_sync_run: bool = False, root: Path | None = None) -> None:
     """Provider-aware readiness gate for sync subcommands.
 
     Local providers (beads, fp) reach the sync command without going through
@@ -334,12 +334,22 @@ def _check_sync_readiness(*, is_sync_run: bool = False) -> None:
 
     SaaS-backed (or unknown/unconfigured) bindings get the full readiness
     chain plus the manual-mode daemon-policy check.
+
+    **Pass ``root`` so the pre-flight gate judges the same project the transport
+    will.** ``SaaSTrackerClient._request`` resolves its own ``project_root``
+    from the ``TrackerService`` the command builds (``_service`` →
+    ``require_repo_root()``). If this pre-flight resolved ``require_repo_root()``
+    independently, the two hosted gates could -- for a caller whose cwd is not
+    the data-owning root -- answer for two different projects. The sync commands
+    resolve the root once and thread the same value into both this gate and
+    ``_service(root=...)``, so a single resolution decides both. Absent ``root``
+    (direct callers) this falls back to ``require_repo_root()`` unchanged.
     """
     if _is_local_binding():
         return
 
     verdict = tracker_egress_verdict(
-        require_repo_root(),
+        root if root is not None else require_repo_root(),
         destination=EgressDestination.HOSTED_SERVICE,
         identifiers=TRACKER_EGRESS_IDENTIFIER_KINDS,
     )
@@ -373,7 +383,13 @@ def _check_binding_readiness(*, probe_reachability: bool = False) -> None:
     _check_readiness(require_mission_binding=True, probe_reachability=probe_reachability)
 
 
-def _service(*, allow_unbound: bool = False) -> TrackerService:
+def _service(*, allow_unbound: bool = False, root: Path | None = None) -> TrackerService:
+    # ``root`` lets a caller pin the exact project root (see _check_sync_readiness):
+    # the sync commands resolve the root once and pass the same value to both the
+    # egress pre-flight and the transport, so the two hosted gates cannot answer
+    # for different projects.
+    if root is not None:
+        return TrackerService(root)
     if allow_unbound:
         try:
             repo_root = require_repo_root()
@@ -1086,10 +1102,11 @@ def sync_pull_command(
 
     For local providers: pulls directly from the tracker API.
     """
-    _check_sync_readiness()
+    root = require_repo_root()
+    _check_sync_readiness(root=root)
 
     def _run() -> None:
-        payload = _service().sync_pull(limit=limit)
+        payload = _service(root=root).sync_pull(limit=limit)
         if as_json:
             _print_json(payload)
             return
@@ -1145,12 +1162,13 @@ def sync_push_command(
 
     For local providers: pushes directly to the tracker API using --limit.
     """
-    _check_sync_readiness()
+    root = require_repo_root()
+    _check_sync_readiness(root=root)
     import sys as _sys
 
     def _run() -> None:
-        service = _service()
-        config = load_tracker_config(require_repo_root())
+        service = _service(root=root)
+        config = load_tracker_config(root)
 
         if config.provider and config.provider in SAAS_PROVIDERS:
             # --- SaaS path: explicit items required ---
@@ -1227,10 +1245,11 @@ def sync_run_command(
 
     For local providers: runs pull then push using direct connectors.
     """
-    _check_sync_readiness(is_sync_run=True)
+    root = require_repo_root()
+    _check_sync_readiness(is_sync_run=True, root=root)
 
     def _run() -> None:
-        payload = _service().sync_run(limit=limit)
+        payload = _service(root=root).sync_run(limit=limit)
         if as_json:
             _print_json(payload)
             return
@@ -1275,10 +1294,11 @@ def sync_publish_command(
     For local providers: the facade will raise an error if this operation
     is not supported by the bound provider.
     """
-    _check_sync_readiness()
+    root = require_repo_root()
+    _check_sync_readiness(root=root)
 
     def _run() -> None:
-        payload = _service().sync_publish()
+        payload = _service(root=root).sync_publish()
         if as_json:
             _print_json(payload)
             return
