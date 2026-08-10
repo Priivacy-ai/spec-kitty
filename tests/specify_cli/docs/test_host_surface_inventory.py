@@ -1,7 +1,7 @@
 """WP05 / FR-001 / NFR-003 — Host-surface parity matrix coverage test.
 
 Asserts that every supported host surface from AGENT_DIRS has exactly one row
-in docs/host-surface-parity.md, and that every row has a valid parity_status.
+in docs/architecture/host-surface-parity.md, and that every row has a valid parity_status.
 """
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import pytest
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-PARITY_DOC = REPO_ROOT / "docs/host-surface-parity.md"
+PARITY_DOC = REPO_ROOT / "docs/architecture/host-surface-parity.md"
 
 # Pulled from src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py::AGENT_DIRS
 # plus Agent Skills surfaces.
@@ -27,7 +27,7 @@ VALID_PARITY_STATUS = {"at_parity", "partial", "missing"}
 
 
 def _parse_rows() -> list[dict[str, str]]:
-    """Parse the parity matrix table from docs/host-surface-parity.md."""
+    """Parse the parity matrix table from docs/architecture/host-surface-parity.md."""
     content = PARITY_DOC.read_text()
     # Find the first markdown table in the doc
     lines = content.splitlines()
