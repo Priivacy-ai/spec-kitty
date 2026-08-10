@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "mission_slug": "egress-single-authority-01KZN7CB",
+  "mission_id": "01KZN7CBTA6T39KZS7A09PY384",
+  "mission_branch": "kitty/mission-egress-single-authority-01KZN7CB",
+  "target_branch": "feat/egress-single-authority",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/sync/tracker/test_egress_single_authority.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/egress.py",
+        "src/specify_cli/invocation/adapters.py",
+        "src/specify_cli/sync/__init__.py",
+        "tests/invocation/test_adapters.py",
+        "tests/specify_cli/invocation/test_doctor_ops.py",
+        "tests/specify_cli/invocation/test_invocation_e2e.py",
+        "tests/specify_cli/invocation/test_propagator_policy.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/tracker/egress_verdict.py",
+        "tests/sync/tracker/test_local_service.py",
+        "tests/sync/tracker/test_tracker_egress_verdict_3108.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-08-10T11:14:22.867764+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "2ad8a5ead2370b2b95039e32d0014a0b7c99399d"
+}
