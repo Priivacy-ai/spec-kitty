@@ -1,7 +1,7 @@
 {
-  "event_count": 60,
-  "last_event_id": "01KZMKM0K03F3ENS6X1Q79Q703",
-  "materialized_at": "2026-08-10T01:12:00.823556+00:00",
+  "event_count": 73,
+  "last_event_id": "01KZMXCJ2JH7MWDWN5VN3BDS84",
+  "materialized_at": "2026-08-10T04:02:42.386496+00:00",
   "mission_number": "",
   "mission_slug": "per-project-sync-consent-ledgers-01KZKMQZ",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 2,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 6
+    "planned": 7
   },
   "work_packages": {
     "WP01": {
@@ -120,17 +120,36 @@
     "WP04": {
       "actor": "codex",
       "agent": "codex",
-      "agent_profile": "python-pedro",
-      "agent_profile_version": "1.0",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "in_progress",
-      "last_event_id": "01KZMK8BWHGHCFY63C7AT3DQCE",
-      "last_transition_at": "2026-08-10T01:05:39.178798+00:00",
+      "lane": "planned",
+      "last_event_id": "01KZMXCJ2JH7MWDWN5VN3BDS84",
+      "last_transition_at": "2026-08-10T04:02:42.386496+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Implementation bea905e79; 251 owned/authorized tests passed with 2 expected architecture xfails; 16 independent incident controls passed; Ruff, strict mypy, compileall, and diff checks passed.",
+        "Cycle 2 closes forged/stale history authority, physical body purge, status queue ownership/UoW validation, deterministic clock evidence, and Ruff format debt. Gates: 254 passed/2 xfailed baseline; 23 extended controls; 65 normal pytest; Ruff and strict mypy green.",
+        "Cycle 3 binds status context and every repository to the exact verified UoW store capability, makes direct UoW construction fail closed, and restores the real A/B incident spy without compatibility constructors. Gates: 256 passed/2 xfailed baseline; 24 extended controls; 67 normal pytest; 48 passed/2 xfailed architecture; Ruff and strict mypy green."
+      ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260809-175108-qc7maU/spec-kitty/kitty-specs/per-project-sync-consent-ledgers-01KZKMQZ/tasks/WP04-project-owned-payload-repositories/review-cycle-3.md",
+        "reference": "review-cycle://per-project-sync-consent-ledgers-01KZKMQZ/WP04-project-owned-payload-repositories/review-cycle-3.md",
+        "reviewer": "codex",
+        "verdict": "changes_requested"
+      },
       "role": "implementer",
-      "shell_pid": 1091,
-      "shell_pid_created_at": "1786272735.189561"
+      "shell_pid": 0,
+      "shell_pid_created_at": "1786272735.189561",
+      "subtasks": {
+        "T016": "planned",
+        "T017": "planned",
+        "T018": "planned",
+        "T019": "planned",
+        "T020": "planned"
+      }
     },
     "WP05": {
       "actor": "codex",
