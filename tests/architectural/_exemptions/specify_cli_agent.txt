@@ -15,7 +15,7 @@ IMPORT:src/specify_cli/cli/commands/agent/tasks_move_task.py
 IMPORT:src/specify_cli/cli/commands/agent/tasks_parsing_validation.py
 IMPORT:src/specify_cli/cli/commands/agent/workflow.py
 CALL:src/specify_cli/cli/commands/agent/mission_parsing.py:267
-CALL:src/specify_cli/cli/commands/agent/tasks.py:983
-CALL:src/specify_cli/cli/commands/agent/tasks_materialization.py:80
+CALL:src/specify_cli/cli/commands/agent/tasks.py:986
+CALL:src/specify_cli/cli/commands/agent/tasks_materialization.py:81
 CALL:src/specify_cli/cli/commands/agent/tasks_move_task.py:747
 CALL:src/specify_cli/cli/commands/agent/tasks_parsing_validation.py:385

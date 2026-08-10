@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from kernel._safe_re import re
 from datetime import datetime, timezone, UTC
+from kernel.clock import Clock, DEFAULT_CLOCK
 from pathlib import Path
 from typing import Any
 
@@ -105,8 +106,14 @@ def infer_created_at(
     feature_dir: Path,
     *,
     now: datetime | None = None,
+    clock: Clock = DEFAULT_CLOCK,
 ) -> str:
-    """Infer a stable ``created_at`` timestamp from the earliest file mtime."""
+    """Infer a stable ``created_at`` timestamp from the earliest file mtime.
+
+    ``clock``: injectable :class:`kernel.clock.Clock` (kernel-clock-single-door
+    FR-009); defaults to :data:`kernel.clock.DEFAULT_CLOCK`. Used only as the
+    no-files fallback, and only when ``now`` (an explicit value) is omitted.
+    """
     timestamps = [path.stat().st_mtime for path in feature_dir.rglob("*") if path.is_file()]
     if feature_dir.exists():
         timestamps.append(feature_dir.stat().st_mtime)
@@ -114,7 +121,7 @@ def infer_created_at(
     if timestamps:
         created_at = datetime.fromtimestamp(min(timestamps), tz=UTC)
     else:
-        created_at = now or datetime.now(UTC)
+        created_at = now if now is not None else clock.now()
     return created_at.isoformat()
 
 
