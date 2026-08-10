@@ -42,7 +42,7 @@ from tests.doctrine._builtin_inventory import (
     shipped_builtin_node_count,
 )
 
-pytestmark = [pytest.mark.doctrine]
+pytestmark = [pytest.mark.doctrine, pytest.mark.corpus]
 
 runner = CliRunner()
 

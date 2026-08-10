@@ -16,7 +16,6 @@ on:
       - 'docs/**'
       - 'scripts/docs/**'
       - 'scripts/ci/**'
-      - '.kittify/doctrine/overlays/**'
       - 'tests/**'
       - 'pyproject.toml'
       - '.kittify/metadata.yaml'
@@ -36,6 +35,24 @@ on:
       - '.github/workflows/release.yml'
       - '.github/workflows/release-readiness.yml'
       - '.github/workflows/check-spec-kitty-events-alignment.yml'
+      # corpus (#3008 Gate 0, mission ci-scoping-gate-reliability): the
+      # wheel-shipped doctrine corpus and narrow mission-spec/charter leaves
+      # that ~70 tests read but that no other glob above covers. Discrete
+      # globs ONLY -- GitHub `on.paths` does not support `{a,b}` brace
+      # expansion (see the `corpus:` dorny filter below for the identical,
+      # non-src, mirrored set). Never add bare `kitty-specs/**` or
+      # `status.events.jsonl` here (C-001) -- that would fire on routine
+      # WP status churn.
+      - 'packs/**'
+      - 'kitty-specs/**/spec.md'
+      - 'kitty-specs/**/plan.md'
+      - 'kitty-specs/**/tasks/**'
+      - 'kitty-specs/**/contracts/**'
+      - 'kitty-specs/**/acceptance-matrix.json'
+      - '.kittify/charter/**'
+      - '.kittify/glossaries/**'
+      - '.kittify/doctrine/**'
+      - '.kittify/release/downstream-verified.json'
   push:
     branches:
       - main
@@ -46,7 +63,6 @@ on:
       - 'docs/**'
       - 'scripts/docs/**'
       - 'scripts/ci/**'
-      - '.kittify/doctrine/overlays/**'
       - 'tests/**'
       - 'pyproject.toml'
       - '.kittify/metadata.yaml'
@@ -64,6 +80,19 @@ on:
       - '.github/workflows/release.yml'
       - '.github/workflows/release-readiness.yml'
       - '.github/workflows/check-spec-kitty-events-alignment.yml'
+      # corpus (#3008 Gate 0, mission ci-scoping-gate-reliability): mirrors
+      # the pull_request corpus globs above so the push:main post-merge run
+      # also fires on a corpus-only change. See that block's comment.
+      - 'packs/**'
+      - 'kitty-specs/**/spec.md'
+      - 'kitty-specs/**/plan.md'
+      - 'kitty-specs/**/tasks/**'
+      - 'kitty-specs/**/contracts/**'
+      - 'kitty-specs/**/acceptance-matrix.json'
+      - '.kittify/charter/**'
+      - '.kittify/glossaries/**'
+      - '.kittify/doctrine/**'
+      - '.kittify/release/downstream-verified.json'
   schedule:
     # Nightly Sonar run on the default branch. Offset from the top of the hour
     # to avoid GitHub Actions' busiest scheduling window.
@@ -179,6 +208,11 @@ jobs:
       execution_context: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.execution_context }}
       e2e: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.e2e }}
       docs: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.docs }}
+      # corpus (#3008, mission ci-scoping-gate-reliability): non-src, mirrors
+      # the `docs:` row shape exactly. Never added to src_backed_groups / the
+      # unmatched loop / ci_topology_census.json (M2) -- corpus is data, not
+      # a src/specify_cli child dir.
+      corpus: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.corpus }}
       glossary: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.glossary }}
       acceptance: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.acceptance }}
       # Composite src-backed groups (mission ci-topology-shrink FR-002): same
@@ -374,6 +408,25 @@ jobs:
               - 'docs/**'
               - 'tests/docs/**'
               - 'scripts/docs/**'
+            # corpus (#3008, mission ci-scoping-gate-reliability): mirrors the
+            # on.paths corpus globs above (T001) exactly -- discrete, non-src.
+            # Selects the dedicated fast-tests-corpus job (below) instead of
+            # relying on the src-only `unmatched` catch-all, which a
+            # packs/**-only or kitty-specs-leaf-only PR would never trip
+            # (any_src stays false). Do NOT add to src_backed_groups / the
+            # unmatched loop / ci_topology_census.json (M2) -- every glob
+            # here is non-src.
+            corpus:
+              - 'packs/**'
+              - 'kitty-specs/**/spec.md'
+              - 'kitty-specs/**/plan.md'
+              - 'kitty-specs/**/tasks/**'
+              - 'kitty-specs/**/contracts/**'
+              - 'kitty-specs/**/acceptance-matrix.json'
+              - '.kittify/charter/**'
+              - '.kittify/glossaries/**'
+              - '.kittify/doctrine/**'
+              - '.kittify/release/downstream-verified.json'
             charter:
               - 'src/charter/**'
               - 'src/specify_cli/charter_runtime/**'
@@ -1783,6 +1836,65 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
+  # fast-tests-corpus: BLOCKING job for the wheel-shipped doctrine corpus and
+  # narrow mission-spec/charter data (#3008, mission ci-scoping-gate-reliability).
+  # Closes the two silent-no-op gates a packs/built-in/**-only or
+  # kitty-specs-leaf-only PR previously hit:
+  #   Gate 0: on.paths (T001) now triggers the whole workflow for these paths.
+  #   Gate 1: the `corpus` dorny filter (T002) selects THIS job.
+  # Runs `-m corpus` (NOT whole directories, M1): the ~70 corpus-reading
+  # modules live scattered across tests/doctrine, tests/architectural,
+  # tests/charter/synthesizer, tests/contract, tests/glossary, and
+  # tests/integration -- directories that ALSO carry many non-corpus tests
+  # already covered by fast-tests-doctrine / integration-tests-core-misc /
+  # fast-tests-charter etc. Running those directories whole here would
+  # duplicate that coverage on every push/mixed PR; `-m corpus` scopes the
+  # run to exactly the marked reader set (T005). Residual overlap (a marked
+  # module also running in its home job on a mixed PR or on `push`) is small
+  # and intentional (NFR-004) -- not claimed as zero.
+  # No default `-m` addopts exists in pytest.ini (only `--tb=short`); the
+  # mutmut-only `-m` list in pyproject.toml's [tool.mutmut] is never seen by
+  # plain pytest/CI, so `-m "corpus and not windows_ci"` is the sole filter
+  # here, with no override contest. If the `corpus` marker is registered but
+  # selects zero tests, pytest exits 5 (no tests collected) and this job
+  # FAILS -- a fail-safe RED, never masked (no `|| true`, no
+  # `--suppress-no-test-exit-code`).
+  # ---------------------------------------------------------------------------
+  fast-tests-corpus:
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    needs: [changes]
+    if: >-
+      always()
+      && (needs.changes.outputs.corpus == 'true' || github.event_name == 'push')
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          python-version: '3.12'
+      - run: uv sync --frozen --all-extras
+      - run: mkdir -p out/reports/coverage
+      - name: "Run fast tests — corpus"
+        run: |
+          uv run python -m pytest \
+            tests/architectural \
+            tests/charter/synthesizer \
+            tests/contract \
+            tests/doctrine \
+            tests/glossary \
+            tests/integration \
+            -m "corpus and not windows_ci" -q --tb=short \
+            -n auto --dist loadfile \
+            --durations=50 \
+            --cov=src/doctrine \
+            --cov-report=xml:out/reports/coverage/coverage-fast-corpus.xml
+      - name: "Upload fast-corpus coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fast-test-corpus-reports
+          path: out/reports/
+
+  # ---------------------------------------------------------------------------
   # fast-tests-docs: dedicated CHEAP job for docs-only changes (#2359). A
   # docs/**, tests/docs/**, or scripts/docs/** change sets docs=true and runs
   # ONLY this job instead of the ~17-minute core-misc code cone. It runs the
@@ -2967,7 +3079,7 @@ jobs:
           # marker negation alone does not cover it; the ignore is the structural
           # guard (mirrors slow-tests). See tests/_real_port_suites.py.
           uv run python -m pytest tests/ \
-            -m "(unit or contract) and not (fast or integration or git_repo or slow or e2e or architectural or distribution or windows_ci or quarantine or regression or timing or stress or docs_scoped or arch_shard_1 or arch_shard_2 or arch_shard_3 or next_shard_1 or next_shard_2 or next_shard_3)" \
+            -m "(unit or contract) and not (fast or integration or git_repo or slow or e2e or architectural or distribution or windows_ci or quarantine or regression or timing or stress or docs_scoped or corpus or arch_shard_1 or arch_shard_2 or arch_shard_3 or next_shard_1 or next_shard_2 or next_shard_3)" \
             -q --tb=short \
             --ignore=tests/sync/test_orphan_sweep.py \
             --ignore=tests/sync/test_daemon_orphan_classification.py \
@@ -4218,6 +4330,7 @@ jobs:
       - fast-tests-cli
       - fast-tests-core-misc
       - fast-tests-docs
+      - fast-tests-corpus
       - fast-tests-charter
       - fast-tests-agent
       - mission-loader-coverage
@@ -4312,6 +4425,7 @@ jobs:
               "fast-tests-cli": ["cli"],
               "fast-tests-core-misc": ["core_misc", "cli", "execution_context", "glossary", "acceptance", "auth_audit_git", "lifecycle", "agent_surface", "closeout", "governance", "platform"],
               "fast-tests-docs": ["docs"],
+              "fast-tests-corpus": ["corpus"],
               "fast-tests-charter": ["charter"],
               "fast-tests-agent": ["agent"],
               "integration-tests-doctrine": ["doctrine"],

@@ -7,7 +7,7 @@ import pytest
 from doctrine.drg.models import DRGGraph
 from doctrine.service import DoctrineService
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 
 @pytest.fixture(scope="module")

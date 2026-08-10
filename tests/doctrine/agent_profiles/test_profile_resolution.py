@@ -22,7 +22,7 @@ from doctrine.agent_profiles.repository import AgentProfileRepository
 from doctrine.drg.query import resolve_context
 from doctrine.drg.reachability import profile_channel_reachable
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.fast, pytest.mark.corpus]
 
 
 _DAPHNE = "doctrine-daphne"

@@ -19,7 +19,7 @@ from doctrine.service import DoctrineService
 
 SOFTWARE_DEV_ACTIONS = ("specify", "plan", "implement", "review")
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.fast, pytest.mark.corpus]
 
 
 class TestShippedContractsExistAndValidate:

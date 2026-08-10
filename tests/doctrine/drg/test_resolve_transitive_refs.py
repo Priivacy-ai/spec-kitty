@@ -27,7 +27,7 @@ from doctrine.drg.query import (
 )
 from doctrine.drg.validator import assert_valid
 
-pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
 
 # ---------------------------------------------------------------------------

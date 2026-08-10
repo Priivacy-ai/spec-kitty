@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 import pytest
-pytestmark = [pytest.mark.doctrine, pytest.mark.non_sandbox, pytest.mark.integration]
+pytestmark = [pytest.mark.doctrine, pytest.mark.non_sandbox, pytest.mark.integration, pytest.mark.corpus]
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_ENV = {**os.environ, "PYTHONPATH": str(REPO_ROOT / "src")}
 

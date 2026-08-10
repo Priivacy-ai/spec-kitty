@@ -79,7 +79,7 @@ from doctrine.drg.models import DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.query import ResolveTransitiveRefsResult, resolve_transitive_refs
 from tests.doctrine._builtin_inventory import shipped_builtin_node_count
 
-pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
 #: NFR-004 — the shipped graph's content must not move. The node count is now
 #: DERIVED from the ``packs/built-in`` inventory (#3234, see

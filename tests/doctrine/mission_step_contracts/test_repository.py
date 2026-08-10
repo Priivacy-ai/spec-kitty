@@ -7,7 +7,7 @@ from ruamel.yaml import YAML
 
 from doctrine.missions.step_contracts import MissionStepContractRepository
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.fast, pytest.mark.corpus]
 
 
 class TestMissionStepContractRepository:

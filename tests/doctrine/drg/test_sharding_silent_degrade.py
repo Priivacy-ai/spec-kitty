@@ -37,7 +37,7 @@ from specify_cli.charter_runtime.lint._drg import load_merged_drg
 from specify_cli.charter_runtime.lint.findings import GraphState
 from specify_cli.doctrine.pack_validator import validate_pack
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
+pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.corpus]
 
 
 @pytest.fixture(scope="module")

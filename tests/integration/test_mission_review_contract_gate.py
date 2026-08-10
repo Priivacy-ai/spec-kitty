@@ -35,7 +35,7 @@ from tests.reliability.fixtures import (
     write_work_package,
 )
 
-pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.corpus]
 
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]

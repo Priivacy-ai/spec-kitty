@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 # ---------------------------------------------------------------------------
 # Locate the source root relative to this test file.

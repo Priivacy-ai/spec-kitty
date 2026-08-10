@@ -20,7 +20,7 @@ from doctrine.drg.loader import load_built_in_graph
 from doctrine.drg.models import DRGGraph, Relation
 from doctrine.drg.query import resolve_context
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 _DIRECTIVE_URN = "directive:DIRECTIVE_051"
 _TACTIC_URN = "tactic:supply-chain-install-safety"

@@ -162,7 +162,7 @@ import yaml
 
 from specify_cli.status.reducer import _RUNTIME_SLOTS
 
-pytestmark = pytest.mark.architectural
+pytestmark = [pytest.mark.architectural, pytest.mark.corpus]
 
 # ---------------------------------------------------------------------------
 # T003 reconciliation -- import, never re-derive, the reducer's authority set.

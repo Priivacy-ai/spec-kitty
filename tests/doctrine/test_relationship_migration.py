@@ -25,7 +25,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
 from doctrine.drg.loader import load_built_in_graph
 from doctrine.drg.merge import merge_three_layers

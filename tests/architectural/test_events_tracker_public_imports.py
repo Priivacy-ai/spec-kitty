@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.architectural]
+pytestmark = [pytest.mark.architectural, pytest.mark.corpus]
 
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]

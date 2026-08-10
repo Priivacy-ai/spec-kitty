@@ -55,7 +55,7 @@ from charter.mission_type_profiles import (
 from doctrine.missions.action_index import ActionIndex, load_action_index
 from doctrine.missions.repository import MissionTemplateRepository
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 
 @pytest.fixture(autouse=True)

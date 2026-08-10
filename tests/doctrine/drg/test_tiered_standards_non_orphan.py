@@ -26,7 +26,7 @@ from doctrine.drg.models import Relation
 if TYPE_CHECKING:
     from doctrine.drg.models import DRGGraph
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.fast, pytest.mark.corpus]
 
 _STYLEGUIDE_URN = "styleguide:tiered-standards"
 _SOURCE_DIRECTIVE_URN = "directive:DIRECTIVE_030"

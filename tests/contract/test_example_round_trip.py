@@ -70,7 +70,7 @@ import pydantic
 import pytest
 import yaml
 
-pytestmark = [pytest.mark.contract, pytest.mark.fast]
+pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
 
 # Type of the built-in ``record_property`` fixture: records a (name, value)
 # pair into the JUnit/report output. Used to route the report-only legacy

@@ -9,7 +9,7 @@ import pytest
 from specify_cli.cli.commands.agent.mission import _invalid_kitty_specs_owned_files
 from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.fast, pytest.mark.corpus]
 
 MISSION_UNDER_TEST = "autonomous-runtime-safety-followups-01KS52BD"
 
