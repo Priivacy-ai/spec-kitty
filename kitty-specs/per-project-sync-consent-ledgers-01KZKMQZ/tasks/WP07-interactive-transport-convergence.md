@@ -41,6 +41,9 @@ agent_profile: python-pedro
 authoritative_surface: src/specify_cli/delivery/dispatcher.py
 create_intent:
 - tests/delivery/test_dispatcher.py
+- tests/delivery/test_liveness_predicate_before_limit_3030.py
+- tests/delivery/test_cross_project_refusal_state_3030.py
+- tests/sync/test_body_drain_consent_3030.py
 - tests/sync/test_interactive_transport_convergence.py
 - tests/sync/test_saas_refusal_parking.py
 - tests/sync/test_sender_context_convergence.py
@@ -142,6 +145,13 @@ Sequentially migrate `tests/delivery/test_dispatcher.py` from its retired
 `set_project_consent(..., True)` fixture to the WP03 project-owned explicit
 opt-in authority while preserving every dispatcher behavior assertion. This
 compatibility migration belongs to WP07; earlier WPs must not edit the suite.
+Sequentially migrate `tests/sync/test_body_drain_consent_3030.py` while wiring
+body drain through the WP06 attempt/lease and WP07 final gate; WP04 must not
+preserve or test a live shared-store caller path to keep this suite green.
+The existing dispatcher liveness-before-limit and cross-project refusal-state
+#3030 suites are also sequentially assigned here: their load-bearing assertions
+depend on WP07's dispatcher, correlated refusal, parking, and final-gate wiring,
+not on a WP04 repository compatibility shim.
 
 ## Definition of Done
 
@@ -156,3 +166,7 @@ compatibility migration belongs to WP07; earlier WPs must not edit the suite.
 Review every census row rather than a representative sample. Reject adapter-local
 consent, request-wide generations, query-token WebSocket auth, generic retry of
 typed refusal, or a tracker permission used as a hosted-sync grant.
+
+## Activity Log
+
+- 2026-08-10T02:25:00Z – codex – Sequentially assigned the existing body-drain consent, dispatcher liveness-before-limit, and cross-project refusal-state suites to WP07 because making those callers green requires the WP06 attempt/lease and WP07 correlated final-gate/parking wiring; WP04 owns only the repository boundary and must not restore a shared-store caller compatibility path.

@@ -40,8 +40,18 @@ create_intent:
 - tests/architectural/test_project_store_boundary.py
 - tests/architectural/test_egress_consent_boundary.py
 - tests/event_journal/test_project_store_journal.py
+- tests/event_journal/test_journal.py
+- tests/event_journal/test_capture_first.py
+- tests/event_journal/test_coalesce.py
 - tests/delivery/test_project_store_ledger.py
+- tests/delivery/test_ledger.py
+- tests/delivery/test_retention.py
+- tests/delivery/test_status_report.py
+- tests/delivery/test_per_project_report_3030.py
+- tests/delivery/test_project_purge_3030.py
 - tests/sync/test_project_store_outboxes.py
+- tests/sync/test_offline_queue.py
+- tests/sync/test_body_queue.py
 - tests/delivery/test_project_store_retention.py
 execution_mode: code_change
 owned_files:
@@ -150,6 +160,14 @@ Run `spec-kitty agent action implement WP04 --agent <name>` after WP02 and WP03 
 
 Commit a failing public capture/store-open test before implementation. Run the four owned tests plus focused existing `tests/event_journal`, `tests/delivery`, and queue/body #3030 tests. Use real SQLite transactions and connection/open spies. Run ruff and strict mypy for touched modules.
 
+The existing journal, ledger, status, retention, purge, offline-queue, and
+body-queue suites listed in `owned_files` are sequentially assigned to WP04 for
+the mechanical public-boundary migration required by T016-T019. Replace retired
+shared-path/default-resolver expectations with equivalent ProjectSyncStore/UoW
+assertions; do not add a production compatibility constructor. Legacy source
+schema/file migration remains WP10. Dispatcher liveness/refusal and body-drain
+caller convergence remain WP07/WP09.
+
 ## Definition of Done
 
 - All live payload repositories use the ProjectSyncStore unit of work.
@@ -167,3 +185,4 @@ Reviewers should search for default constructors, private layout checks, and pat
 ## Activity Log
 
 - 2026-08-10T01:18:46Z – codex – shell_pid=1091 – Before source work, recovered the allocator-omitted approved WP03 dependency without conflict at lane merge 36e9cb818 and verified approved WP01 2ee80fbe0, WP02 10dccf3bf, WP03 7f9366cea, and current coordination ancestry. The arbiter authorized ownership of the two T020 architecture ratchets only; recorded as root 867643c73, coordination 4cc32490b, and lane a89d4903e while preserving every TODO(#3280), non-vacuity floor, and mutation guard. Reproductions are attached to #3281; the synthetic baseline JUnit failure is the existing #2929 defect.
+- 2026-08-10T02:25:00Z – codex – The expanded pre-WP04 suites exposed stale shared-store constructors and path assertions on the exact repository surfaces T016-T019 replace. Sequential ownership is expanded only to the affected repository tests so valid #3030 behavior is re-pinned to ProjectSyncStore/UoW without restoring a forbidden compatibility path. Legacy migration and dispatcher/body-drain caller tests remain explicitly assigned to WP10 and WP07/WP09.
