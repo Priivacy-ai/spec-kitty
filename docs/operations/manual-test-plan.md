@@ -104,8 +104,8 @@ Create a fresh test feature and run through the full lifecycle:
 
 | # | Step | Expected Result | Pass/Fail | Notes |
 |---|------|-----------------|-----------|-------|
-| 1.5.1 | Run `spec-kitty merge --dry-run` on a multi-WP feature | Conflict forecast shows predicted conflicts, auto-resolvable flags | | |
-| 1.5.2 | Run `spec-kitty merge --feature <slug>` | Preflight validates the lane manifest, lane worktrees are clean, and target branch exists | | |
+| 1.5.1 | Run `spec-kitty merge --dry-run` on a multi-WP mission | Conflict forecast shows predicted conflicts, auto-resolvable flags | | |
+| 1.5.2 | Run `spec-kitty merge --mission <slug>` | Preflight validates the lane manifest, lane worktrees are clean, and target branch exists | | |
 | 1.5.3 | Run `spec-kitty merge --dry-run --json` | JSON shows mission branch, target branch, and computed lanes | | |
 | 1.5.4 | Complete a full merge | Lane branches merge into the mission branch, then the mission branch merges into target, and lane worktrees are cleaned up | | |
 | 1.5.5 | Verify status file auto-resolution | `status.events.jsonl` merge conflicts auto-resolved (append-both) | | |

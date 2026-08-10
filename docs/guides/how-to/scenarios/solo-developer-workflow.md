@@ -127,12 +127,12 @@ Final validation:
 /spec-kitty.accept
 ```
 
-Merge to main:
+Consolidate the mission into your local primary branch:
 ```text
-/spec-kitty.merge --push
+/spec-kitty.merge
 ```
 
-**Result:** Feature complete, worktree cleaned up, back in main repo!
+**Result:** Mission complete, worktree cleaned up, back in your repository-root checkout!
 
 ### 9. Start Next Feature
 ```bash
