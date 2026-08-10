@@ -73,7 +73,7 @@ from charter.mission_type_profiles import (
 from charter.mission_type_profile_repository import MissionTypeProfileRepository
 from doctrine.missions.mission_type_repository import builtin_mission_type_ids
 
-pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
 #: The shipped missions root: ``packs/built-in/missions`` (relocated from
 #: ``src/doctrine/missions`` by mission

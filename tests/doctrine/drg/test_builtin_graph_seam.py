@@ -16,7 +16,7 @@ from doctrine.drg.loader import (
     load_built_in_graph,
 )
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
+pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.corpus]
 
 
 def test_source_points_at_doctrine_root_directory() -> None:

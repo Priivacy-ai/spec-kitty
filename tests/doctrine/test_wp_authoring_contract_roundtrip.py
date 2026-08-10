@@ -38,7 +38,7 @@ from specify_cli.ownership.validation import validate_glob_matches, validate_own
 from specify_cli.status import WPMetadata
 from tests.doctrine.conftest import BUILT_IN_MISSIONS_ROOT, REPO_ROOT
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 # --- The three drifting encodings, pinned to disk -------------------------------
 

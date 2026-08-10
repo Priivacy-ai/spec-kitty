@@ -13,7 +13,7 @@ from doctrine.drg.query import resolve_transitive_refs
 from doctrine.drg.validator import assert_valid
 from doctrine.missions import MissionTemplateRepository
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCTRINE_ROOT = REPO_ROOT / "src" / "doctrine"

@@ -29,7 +29,7 @@ import pytest
 
 from doctrine.agent_profiles.repository import AgentProfileRepository
 
-pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
 _PROFILE_ID = "doctrine-daphne"
 

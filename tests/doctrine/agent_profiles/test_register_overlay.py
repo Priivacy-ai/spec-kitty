@@ -18,7 +18,7 @@ import pytest
 from doctrine.agent_profiles.profile import AgentProfile
 from doctrine.agent_profiles.repository import AgentProfileRepository
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 
 def _make_profile(profile_id: str, *, name: str) -> AgentProfile:

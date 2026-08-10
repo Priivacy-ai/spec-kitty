@@ -96,7 +96,7 @@ from doctrine.drg.loader import DRGLoadError
 from doctrine.drg.migration import extractor
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
-pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
 # Relocated built-in pack root (mission relocate-builtin-doctrine-packs-01KYT87F):
 # the shipped ``*.graph.yaml`` fragments and the built-in agent profiles now live

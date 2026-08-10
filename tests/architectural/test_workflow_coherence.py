@@ -60,10 +60,7 @@ def needs_declaration_violations(model: gc.WorkflowModel) -> list[str]:
     for job, reads in model.needs_result_reads.items():
         undeclared = reads - set(model.job_needs.get(job, ()))
         if undeclared:
-            out.append(
-                f"job {job!r} reads needs.<x>.result for undeclared job(s) "
-                f"{sorted(undeclared)} (declared needs: {sorted(model.job_needs.get(job, ()))})"
-            )
+            out.append(f"job {job!r} reads needs.<x>.result for undeclared job(s) {sorted(undeclared)} (declared needs: {sorted(model.job_needs.get(job, ()))})")
     return out
 
 
@@ -76,9 +73,19 @@ def unconsumed_filter_groups(model: gc.WorkflowModel) -> set[str]:
 
 
 def glob_is_live(glob: str, tracked: set[str]) -> bool:
-    """FR-003c: does ``glob`` match >=1 tracked path?"""
+    """FR-003c: does ``glob`` match >=1 tracked path?
+
+    The trailing-``/**`` fast path below is a literal prefix check, which is
+    only valid when nothing EARLIER in the glob is itself a wildcard (e.g.
+    ``docs/**``). A glob with a wildcard segment before the trailing ``/**``
+    (e.g. ``kitty-specs/**/tasks/**``, mission ci-scoping-gate-reliability
+    #3008) would make that prefix contain a literal ``*`` character, which
+    can never match a real tracked path -- a false "dead glob" negative, not
+    a real one. Route those through the general ``fnmatch`` branch instead,
+    which correctly treats every ``*``/``**`` as a wildcard throughout.
+    """
     normalized = glob.rstrip("/")
-    if normalized.endswith("/**"):
+    if normalized.endswith("/**") and "*" not in normalized[:-3]:
         prefix = normalized[:-3].rstrip("/") + "/"
         return any(path.startswith(prefix) for path in tracked)
     if "*" in normalized:
@@ -108,20 +115,14 @@ def parse_job_groups(quality_gate_run_text: str) -> dict[str, set[str]]:
     """Parse the ``JOB_GROUPS = { ... }`` heredoc dict into ``job -> {groups}``."""
     match = re.search(r"JOB_GROUPS\s*=\s*\{(.*?)\}\s*\n", quality_gate_run_text, re.DOTALL)
     assert match, "JOB_GROUPS table not found in the quality-gate decision step"
-    return {
-        row.group(1): set(_QUOTED_RE.findall(row.group(2)))
-        for row in _JOB_GROUPS_ROW_RE.finditer(match.group(1))
-    }
+    return {row.group(1): set(_QUOTED_RE.findall(row.group(2))) for row in _JOB_GROUPS_ROW_RE.finditer(match.group(1))}
 
 
 def parsed_blocking_gating(model: gc.WorkflowModel) -> dict[str, set[str]]:
     """Job -> the dorny filter groups its ``if:`` gates on, for BLOCKING jobs only."""
     filter_names = set(model.filter_groups) - {"any_src"}
     blocking = set(model.job_needs["quality-gate"])
-    mapping = {
-        job: set(model.job_gating_groups.get(job, frozenset())) & filter_names
-        for job in blocking
-    }
+    mapping = {job: set(model.job_gating_groups.get(job, frozenset())) & filter_names for job in blocking}
     return {job: groups for job, groups in mapping.items() if groups}
 
 
@@ -142,11 +143,7 @@ def _quality_gate_run_text() -> str:
 
 def _decision_step() -> dict[str, object]:
     data = yaml.safe_load(_CI_QUALITY.read_text(encoding="utf-8"))
-    return next(
-        step
-        for step in data["jobs"]["quality-gate"]["steps"]
-        if step.get("name") == _DECISION_STEP
-    )
+    return next(step for step in data["jobs"]["quality-gate"]["steps"] if step.get("name") == _DECISION_STEP)
 
 
 def _tracked_paths() -> set[str]:
@@ -181,6 +178,18 @@ def test_every_filter_group_is_consumed_live() -> None:
         assert not unconsumed, f"{name}: unconsumed filter groups {sorted(unconsumed)}"
 
 
+# Single named, justified exception (mission ci-scoping-gate-reliability
+# #3008): ``.kittify/release/downstream-verified.json`` is a release.yml-
+# GENERATED artifact (``.github/workflows/release.yml`` writes it at
+# ``:323`` and uploads it as the ``downstream-verified`` artifact; consumed
+# by ``tests/integration/test_release_gate_downstream_consumer.py``) --
+# never committed to git by design, so ``git ls-files``-based liveness can
+# never observe it. It is a real, live-in-production glob; only this
+# `FR-003c` tracked-file proxy is structurally blind to it. A single named
+# constant, not a general allowlist: any OTHER dead glob still fails below.
+_GENERATED_ARTIFACT_GLOB_EXCEPTIONS = frozenset({".kittify/release/downstream-verified.json"})
+
+
 def test_every_filter_glob_is_live() -> None:
     """FR-003c: no dead filter glob (KNOWN FLOOR: WP03 FR-004(e) removed the stale ones)."""
     tracked = _tracked_paths()
@@ -190,7 +199,7 @@ def test_every_filter_glob_is_live() -> None:
             (group, glob)
             for group, globs in model.filter_groups.items()
             for glob in globs
-            if not glob_is_live(glob, tracked)
+            if glob not in _GENERATED_ARTIFACT_GLOB_EXCEPTIONS and not glob_is_live(glob, tracked)
         ]
         assert not dead, f"{name}: dead filter globs (WP03-feedback if live) {dead}"
 
@@ -215,8 +224,7 @@ def test_quality_gate_consumes_tojson_needs_not_literal_reads() -> None:
     step = _decision_step()
     env = step.get("env")
     assert isinstance(env, dict) and env.get("NEEDS_JSON") == _TOJSON_NEEDS, (
-        "the decision step must consume the full needs context via "
-        "NEEDS_JSON: ${{ toJSON(needs) }}"
+        "the decision step must consume the full needs context via NEEDS_JSON: ${{ toJSON(needs) }}"
     )
 
 
@@ -241,11 +249,7 @@ def test_diff_cover_critical_paths_are_cov_backed_live() -> None:
     cov_targets: set[str] = set()
     for targets in model.cov_targets.values():
         cov_targets |= targets
-    unbacked = [
-        entry
-        for entry in model.diff_cover_critical_paths
-        if critical_path_backed_by(entry, cov_targets) is None
-    ]
+    unbacked = [entry for entry in model.diff_cover_critical_paths if critical_path_backed_by(entry, cov_targets) is None]
     assert not unbacked, f"unbacked critical-path entries (vacuous gate): {unbacked}"
 
 
@@ -367,11 +371,7 @@ def test_faultinjection_extra_pytest_workflow_reds(tmp_path: Path) -> None:
 
 def test_faultinjection_job_groups_mapping_drift_reds() -> None:
     """FR-011: a JOB_GROUPS row disagreeing with the parsed gating reds."""
-    run_text = (
-        'JOB_GROUPS = {\n'
-        '    "fast-tests-sync": ["sync", "drifted_extra"],\n'
-        '}\n'
-    )
+    run_text = 'JOB_GROUPS = {\n    "fast-tests-sync": ["sync", "drifted_extra"],\n}\n'
     table = parse_job_groups(run_text)
     assert table == {"fast-tests-sync": {"sync", "drifted_extra"}}
     # A parsed gating that lacks ``drifted_extra`` would make table != parsed.

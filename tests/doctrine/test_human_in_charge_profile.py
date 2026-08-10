@@ -8,7 +8,7 @@ import pytest
 
 from doctrine.agent_profiles.repository import AgentProfileRepository
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 _SHIPPED_DIR = Path(__file__).parents[2] / "packs" / "built-in" / "agent_profiles"
 

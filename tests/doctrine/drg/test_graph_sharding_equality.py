@@ -41,7 +41,7 @@ from doctrine.drg.migration.hand_authored_overlay import (
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode
 from doctrine.drg.validator import assert_valid
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
+pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.corpus]
 
 _FRAGMENT_SUFFIX = ".graph.yaml"
 

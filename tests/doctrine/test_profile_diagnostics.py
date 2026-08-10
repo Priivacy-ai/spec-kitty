@@ -15,7 +15,7 @@ from doctrine.agent_profiles import SkippedProfile
 from doctrine.agent_profiles.repository import AgentProfileRepository
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 
 # ── helpers ────────────────────────────────────────────────────────────────

@@ -49,7 +49,7 @@ from doctrine.missions.mission_step_repository import MissionStepRepository
 from doctrine.missions.mission_type_repository import MissionTypeRepository
 from doctrine.missions.step_projection import project_action_sequence
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 _REPO_ROOT = Path(__file__).parents[3]
 # Mission doctrine-consumer-surface-missions-extraction-01KZ6G6H (FR-005)

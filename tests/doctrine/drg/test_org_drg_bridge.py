@@ -71,7 +71,7 @@ from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.org_pack_loader import OrgDRGFragment, load_org_pack
 from doctrine.drg.validator import validate_dangling_references, validate_graph
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.corpus]
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 

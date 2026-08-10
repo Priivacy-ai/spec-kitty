@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
+pytestmark = [pytest.mark.architectural, pytest.mark.git_repo, pytest.mark.corpus]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 

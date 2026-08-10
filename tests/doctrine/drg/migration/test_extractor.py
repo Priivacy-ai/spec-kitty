@@ -34,7 +34,7 @@ from doctrine.missions.mission_type_repository import MissionTypeRepository
 
 # Path to the shipped doctrine root inside the repo.
 
-pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[4] / "src" / "doctrine"
 
 _yaml = YAML(typ="safe")

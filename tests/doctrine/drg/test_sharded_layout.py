@@ -30,7 +30,7 @@ import pytest
 from doctrine.drg.loader import built_in_graph_source, load_built_in_graph
 from doctrine.drg.validator import assert_valid
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
+pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.corpus]
 
 # Relocated to the flattened built-in pack root (mission
 # relocate-builtin-doctrine-packs-01KYT87F): the shipped ``*.graph.yaml``

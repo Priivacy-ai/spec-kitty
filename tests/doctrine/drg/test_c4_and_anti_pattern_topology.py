@@ -40,7 +40,7 @@ from doctrine.drg.reachability import (
 )
 from doctrine.drg.validator import validate_graph
 
-pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
 _ARCHITECT = "agent_profile:architect-alphonso"
 _DESIGN_ACTION = "action:documentation/design"

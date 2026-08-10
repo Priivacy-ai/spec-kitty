@@ -37,7 +37,7 @@ from doctrine.drg.migration.extractor import (
 )
 from doctrine.drg.models import NodeKind, Relation
 
-pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
 # Relocated built-in pack root (mission relocate-builtin-doctrine-packs-01KYT87F):
 # the shipped ``*.graph.yaml`` fragments now live under ``packs/built-in/``.

@@ -52,7 +52,7 @@ from doctrine.missions.mission_step_repository import MissionStepRepository
 from doctrine.missions.mission_type_repository import MissionTypeRepository
 from doctrine.missions.step_projection import project_action_sequence
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 # ---------------------------------------------------------------------------
 # Locate source roots relative to this test file.

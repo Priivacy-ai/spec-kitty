@@ -20,7 +20,7 @@ from doctrine.agent_profiles.validation import validate_agent_profile_yaml
 from doctrine.pack_paths import resolve_pack_root
 from tests.doctrine._builtin_inventory import builtin_profile_ids
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 # Post-relocation the shipped built-in profiles live at

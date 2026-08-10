@@ -37,7 +37,7 @@ from tests.doctrine._builtin_inventory import (
     shipped_builtin_node_count,
 )
 
-pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
 _REPO_ROOT: Path = Path(__file__).resolve().parents[4]
 DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"

@@ -28,7 +28,7 @@ from doctrine.drg.merge import merge_three_layers
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.org_pack_loader import OrgDRGFragment
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 
 def _graph(

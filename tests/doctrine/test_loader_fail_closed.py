@@ -25,7 +25,7 @@ from doctrine.drg.loader import (
 from doctrine.pack_paths import PackRootNotFound
 from tests.doctrine._builtin_inventory import shipped_builtin_node_count
 
-pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 
 def _raise_pack_root_not_found() -> None:
