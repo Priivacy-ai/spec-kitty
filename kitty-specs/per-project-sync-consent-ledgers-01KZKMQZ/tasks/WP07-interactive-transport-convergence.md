@@ -40,6 +40,7 @@ history:
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/delivery/dispatcher.py
 create_intent:
+- tests/delivery/test_dispatcher.py
 - tests/sync/test_interactive_transport_convergence.py
 - tests/sync/test_saas_refusal_parking.py
 - tests/sync/test_sender_context_convergence.py
@@ -58,6 +59,7 @@ owned_files:
 - src/specify_cli/sync/history_import/upload.py
 - src/specify_cli/saas_client/client.py
 - src/specify_cli/tracker/saas_client.py
+- tests/delivery/test_dispatcher.py
 - tests/sync/test_interactive_transport_convergence.py
 - tests/sync/test_saas_refusal_parking.py
 - tests/sync/test_sender_context_convergence.py
@@ -136,6 +138,10 @@ publish.
 Use local fake HTTP/WebSocket endpoints and exact sanitized byte assertions. Run
 the three owned tests plus focused dispatcher, WebSocket, body, LocalCommit,
 history, tracker-consent, and #3030 tests; then ruff and strict mypy.
+Sequentially migrate `tests/delivery/test_dispatcher.py` from its retired
+`set_project_consent(..., True)` fixture to the WP03 project-owned explicit
+opt-in authority while preserving every dispatcher behavior assertion. This
+compatibility migration belongs to WP07; earlier WPs must not edit the suite.
 
 ## Definition of Done
 
