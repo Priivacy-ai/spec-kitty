@@ -8488,6 +8488,74 @@ pages:
     - {slug: "backward-compatibility", text: "Backward compatibility", level: 2}
     - {slug: "commands-that-participate", text: "Commands that participate", level: 2}
     - {slug: "related", text: "Related", level: 2}
+  - path: "docs/operations/manual-test-plan.md"
+    title: "Comprehensive Manual Test Plan"
+    divio_type: "reference"
+    abstract: "Full-ecosystem manual verification plan for Spec Kitty Beta/GA readiness: SaaS staging, CLI, tracker connectors, and webhook integrations across all repositories."
+    anchors:
+    - {slug: "prerequisites", text: "Prerequisites", level: 2}
+    - {slug: "accounts-required", text: "Accounts Required", level: 3}
+    - {slug: "local-environment", text: "Local Environment", level: 3}
+    - {slug: "staging-infrastructure", text: "Staging Infrastructure", level: 3}
+    - {slug: "section-1-cli-core-functionality", text: "Section 1: CLI Core Functionality", level: 2}
+    - {slug: "1-1-installation-and-version", text: "1.1 Installation and Version", level: 3}
+    - {slug: "1-2-mission-lifecycle-software-dev", text: "1.2 Mission Lifecycle (software-dev)", level: 3}
+    - {slug: "1-3-status-model", text: "1.3 Status Model", level: 3}
+    - {slug: "1-4-local-dashboard", text: "1.4 Local Dashboard", level: 3}
+    - {slug: "1-5-merge-system-feature-017", text: "1.5 Merge System (Feature 017)", level: 3}
+    - {slug: "section-2-authentication-and-sync", text: "Section 2: Authentication and Sync", level: 2}
+    - {slug: "2-1-cli-authentication", text: "2.1 CLI Authentication", level: 3}
+    - {slug: "2-2-event-sync-cli-saas", text: "2.2 Event Sync (CLI → SaaS)", level: 3}
+    - {slug: "2-3-websocket-connection", text: "2.3 WebSocket Connection", level: 3}
+    - {slug: "section-3-saas-dashboard", text: "Section 3: SaaS Dashboard", level: 2}
+    - {slug: "3-1-account-and-team-management", text: "3.1 Account and Team Management", level: 3}
+    - {slug: "3-2-project-and-feature-views", text: "3.2 Project and Feature Views", level: 3}
+    - {slug: "3-3-collaboration-panel", text: "3.3 Collaboration Panel", level: 3}
+    - {slug: "3-4-decision-inbox", text: "3.4 Decision Inbox", level: 3}
+    - {slug: "3-5-dossier-mission-artifacts", text: "3.5 Dossier (Mission Artifacts)", level: 3}
+    - {slug: "3-6-glossary-dashboard", text: "3.6 Glossary Dashboard", level: 3}
+    - {slug: "section-4-connector-flows-e2e", text: "Section 4: Connector Flows (E2E)", level: 2}
+    - {slug: "4-1-jira-integration", text: "4.1 Jira Integration", level: 3}
+    - {slug: "4-2-linear-integration", text: "4.2 Linear Integration", level: 3}
+    - {slug: "4-3-github-issues-integration", text: "4.3 GitHub Issues Integration", level: 3}
+    - {slug: "4-4-gitlab-issues-integration", text: "4.4 GitLab Issues Integration", level: 3}
+    - {slug: "4-5-slack-integration", text: "4.5 Slack Integration", level: 3}
+    - {slug: "4-6-connector-operations-and-telemetry", text: "4.6 Connector Operations and Telemetry", level: 3}
+    - {slug: "section-5-spontaneous-stand-ups", text: "Section 5: Spontaneous Stand-ups", level: 2}
+    - {slug: "5-1-stand-up-trigger-llm-initiated", text: "5.1 Stand-up Trigger (LLM-Initiated)", level: 3}
+    - {slug: "5-2-stand-up-trigger-human-initiated", text: "5.2 Stand-up Trigger (Human-Initiated)", level: 3}
+    - {slug: "5-3-stand-up-discussion-and-resolution", text: "5.3 Stand-up Discussion and Resolution", level: 3}
+    - {slug: "5-4-stand-up-edge-cases", text: "5.4 Stand-up Edge Cases", level: 3}
+    - {slug: "section-6-payments-and-billing-polar", text: "Section 6: Payments and Billing (Polar)", level: 2}
+    - {slug: "6-1-subscription-lifecycle", text: "6.1 Subscription Lifecycle", level: 3}
+    - {slug: "6-2-polar-webhook-handling", text: "6.2 Polar Webhook Handling", level: 3}
+    - {slug: "section-7-transactional-emails", text: "Section 7: Transactional Emails", level: 2}
+    - {slug: "7-1-account-emails-existing", text: "7.1 Account Emails (Existing)", level: 3}
+    - {slug: "7-2-workflow-notification-emails", text: "7.2 Workflow Notification Emails", level: 3}
+    - {slug: "7-3-email-preferences", text: "7.3 Email Preferences", level: 3}
+    - {slug: "section-8-dashboard-parity-local-vs-saas", text: "Section 8: Dashboard Parity (Local vs SaaS)", level: 2}
+    - {slug: "8-1-visual-comparison", text: "8.1 Visual Comparison", level: 3}
+    - {slug: "8-2-brand-token-verification", text: "8.2 Brand Token Verification", level: 3}
+    - {slug: "section-9-api-and-integration-contracts", text: "Section 9: API and Integration Contracts", level: 2}
+    - {slug: "9-1-rest-api", text: "9.1 REST API", level: 3}
+    - {slug: "9-2-websocket", text: "9.2 WebSocket", level: 3}
+    - {slug: "section-10-monitoring-and-observability", text: "Section 10: Monitoring and Observability", level: 2}
+    - {slug: "10-1-health-checks", text: "10.1 Health Checks", level: 3}
+    - {slug: "10-2-prometheus-metrics", text: "10.2 Prometheus Metrics", level: 3}
+    - {slug: "10-3-sentry-integration", text: "10.3 Sentry Integration", level: 3}
+    - {slug: "section-11-security", text: "Section 11: Security", level: 2}
+    - {slug: "11-1-authentication-security", text: "11.1 Authentication Security", level: 3}
+    - {slug: "11-2-authorization", text: "11.2 Authorization", level: 3}
+    - {slug: "section-12-edge-cases-and-error-handling", text: "Section 12: Edge Cases and Error Handling", level: 2}
+    - {slug: "12-1-concurrent-agent-operations", text: "12.1 Concurrent Agent Operations", level: 3}
+    - {slug: "12-2-network-failures", text: "12.2 Network Failures", level: 3}
+    - {slug: "12-3-data-integrity", text: "12.3 Data Integrity", level: 3}
+    - {slug: "section-13-performance-smoke-tests", text: "Section 13: Performance Smoke Tests", level: 2}
+    - {slug: "section-14-ga-readiness-gate-checklist", text: "Section 14: GA Readiness Gate Checklist", level: 2}
+    - {slug: "execution-notes", text: "Execution Notes", level: 2}
+    - {slug: "test-order-recommendation", text: "Test Order Recommendation", level: 3}
+    - {slug: "reporting", text: "Reporting", level: 3}
+    - {slug: "retest-policy", text: "Retest Policy", level: 3}
   - path: "docs/operations/p0-baseline-refresh.md"
     title: "Baseline Refresh — P0 Test Failures"
     divio_type: "reference"
@@ -9526,6 +9594,30 @@ pages:
     - {slug: "residual-remediation-frozen-under-an-explicit-operator-decision", text: "Residual remediation, frozen under an explicit operator decision", level: 3}
     - {slug: "found-by-this-work-package-open-and-escalated-rather-than-absorbed", text: "Found by this work package — open, and escalated rather than absorbed", level: 3}
     - {slug: "tooling-friction-met-while-producing-this-page", text: "Tooling friction met while producing this page", level: 3}
+  - path: "docs/plans/engineering-notes/2026-06-12-coordination-topology-stabilization.md"
+    title: "Working Plan — Coordination Topology Stabilization (Post-3.2.0)"
+    divio_type: "explanation"
+    abstract: "Point-in-time working plan synthesizing findings for the coordination-topology split-brain and fail-open gate issues under umbrella #1878; the planned work is now done."
+    anchors:
+    - {slug: "1-executive-summary", text: "1. Executive Summary", level: 2}
+    - {slug: "2-findings-table", text: "2. Findings Table", level: 2}
+    - {slug: "3-cross-cutting-root-causes", text: "3. Cross-Cutting Root Causes", level: 2}
+    - {slug: "cluster-a-coordination-read-surface-blindness-1878-umbrella-closes-1884-large-part-of-1883-treadmill-items-24-25", text: "Cluster A — Coordination read-surface blindness (#1878 umbrella; closes #1884, large part of #1883, treadmill items 24-25)", level: 3}
+    - {slug: "cluster-b-wrong-root-path-anchoring-in-writers-1887-sibling-fallbacks-in-1884", text: "Cluster B — Wrong-root path anchoring in writers (#1887; sibling fallbacks in #1884)", level: 3}
+    - {slug: "cluster-c-self-defeating-non-transactional-gates-1883-encoding-retry-path-1814-class", text: "Cluster C — Self-defeating / non-transactional gates (#1883; encoding-retry path; #1814 class)", level: 3}
+    - {slug: "cluster-d-signals-generated-then-dropped-fail-open-not-found-1885-1888-1164-triggering-half", text: "Cluster D — Signals generated then dropped / fail-open not-found (#1885, #1888, #1164 triggering half)", level: 3}
+    - {slug: "cluster-e-heuristics-blind-to-intent-1886-1164-content-half-1888-overlap-guard", text: "Cluster E — Heuristics blind to intent (#1886, #1164 content half, #1888 overlap guard)", level: 3}
+    - {slug: "4-working-plan", text: "4. Working Plan", level: 2}
+    - {slug: "ws1-coordination-aware-read-primitive-setup-plan-gate-closes-1884-core-of-1878", text: "WS1 — Coordination-aware read primitive + setup-plan gate (closes #1884; core of #1878)", level: 3}
+    - {slug: "ws2-stop-worktrees-index-leakage-writer-fix-cleanup-ratchet-closes-1887-part-of-1878", text: "WS2 — Stop `.worktrees` index leakage: writer fix, cleanup, ratchet (closes #1887; part of #1878)", level: 3}
+    - {slug: "ws3-accept-gate-transactional-ownership-closes-1883-depends-on-ws1-primitive-1814-pattern", text: "WS3 — Accept gate transactional ownership (closes #1883; depends on WS1 primitive, #1814 pattern)", level: 3}
+    - {slug: "ws4-ff-merge-treadmill-elimination-part-of-1878-after-ws1-ws3", text: "WS4 — ff-merge treadmill elimination (part of #1878; after WS1-WS3)", level: 3}
+    - {slug: "ws5-fail-closed-next-query-mode-closes-1885-residual-small-independent", text: "WS5 — Fail-closed `next` query mode (closes #1885 residual; small, independent)", level: 3}
+    - {slug: "ws6-ownership-validation-severity-signal-routing-closes-1888-small-independent", text: "WS6 — Ownership validation severity + signal routing (closes #1888; small, independent)", level: 3}
+    - {slug: "ws7-stale-assertion-analyzer-message-content-classification-closes-1886-small-independent", text: "WS7 — Stale-assertion analyzer message-content classification (closes #1886; small, independent)", level: 3}
+    - {slug: "ws8-terminus-retrospective-triggering-content-closes-1164-large", text: "WS8 — Terminus retrospective: triggering + content (closes #1164; large)", level: 3}
+    - {slug: "5-falsified-refuted-claims-do-not-re-litigate", text: "5. Falsified / Refuted Claims (do not re-litigate)", level: 2}
+    - {slug: "6-dormant-masks-follow-ups", text: "6. Dormant Masks / Follow-Ups", level: 2}
   - path: "docs/plans/engineering-notes/2026-07-18-doctrine-driven-p0-remediation-field-report.md"
     title: "Field report: a doctrine-driven P0 remediation, end to end"
     divio_type: "none"
@@ -10650,6 +10742,20 @@ pages:
     - {slug: "what-does-not-belong-here", text: "What does NOT belong here", level: 2}
     - {slug: "file-format", text: "File format", level: 2}
     - {slug: "index", text: "Index", level: 2}
+  - path: "docs/plans/engineering-notes/research-notes-csf-2670.md"
+    title: "Pre-spec research — CSF #2670 landing-pass campsite follow-ups"
+    divio_type: "explanation"
+    abstract: "Closeout of the pre-spec research squad for CSF #2670: root-cause findings on the shard-map gap, xdist flake, sync remediation-guard, and mypy debt tickets."
+    anchors:
+    - {slug: "scope-tickets-all-open-children-of-epic-1928-ruff-mypy-sonar-debt", text: "Scope tickets (all OPEN, children of epic #1928 ruff/mypy/Sonar debt)", level: 2}
+    - {slug: "root-cause-findings-not-error-counts", text: "Root-cause findings (not error counts)", level: 2}
+    - {slug: "2671-one-seam-two-reds", text: "#2671 — one seam, two reds", level: 3}
+    - {slug: "2673-shared-mutable-real-file-state", text: "#2673 — shared mutable real-file state", level: 3}
+    - {slug: "2674-one-structural-root-split-surface-half-blind-guard", text: "#2674 — one structural root (split surface + half-blind guard)", level: 3}
+    - {slug: "2675-11-target-file-errors-collapse-to-6-roots", text: "#2675 — 11 target-file errors collapse to 6 roots", level: 3}
+    - {slug: "collision-with-in-flight-2651-mission-type-single-source-gate-wiring-s0", text: "Collision with in-flight #2651 / mission-type-single-source-gate-wiring / S0", level: 2}
+    - {slug: "related-issue-verdicts-robbie", text: "Related-issue verdicts (robbie)", level: 2}
+    - {slug: "recommended-mission-shape", text: "Recommended mission shape", level: 2}
   - path: "docs/plans/engineering-notes/runtime_and_state_overhaul/01-ticket-capture.md"
     title: "01 — Ticket Capture: Failure Modes & Suggested Implementations"
     divio_type: "none"

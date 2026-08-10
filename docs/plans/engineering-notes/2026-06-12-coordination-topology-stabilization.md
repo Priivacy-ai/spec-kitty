@@ -1,3 +1,10 @@
+---
+title: 'Working Plan — Coordination Topology Stabilization (Post-3.2.0)'
+description: 'Point-in-time working plan synthesizing findings for the coordination-topology split-brain and fail-open gate issues under umbrella #1878; the planned work is now done.'
+doc_status: superseded
+type: explanation
+updated: '2026-08-10'
+---
 # Working Plan: Coordination Topology Stabilization (Post-3.2.0)
 
 Synthesized from validated findings for issues #1164, #1878 (umbrella), #1883, #1884, #1885, #1886, #1887, #1888 in Priivacy-ai/spec-kitty.

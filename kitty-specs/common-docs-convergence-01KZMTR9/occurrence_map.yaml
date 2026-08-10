@@ -308,3 +308,10 @@ moves:
   - { from: ["docs/context/audience/external/README.md"], to: "docs/context/audience/external/index.md", reason: "WP02 audience-catalog index normalization (README -> index)" }
 
   # WP06/07/09/10/12 in-section kebab renames, IC-06 how-to routing, IC-07 index/kebab: per-WP fragments appended at implement time.
+
+  # Single-root completion: 5 pre-existing stray root files adjudicated (retire/rehome).
+  - { from: ["MANUAL_TEST_PLAN.md"], to: "docs/operations/manual-test-plan.md", reason: "single-root: root QA plan -> operations reference" }
+  - { from: ["WORKING-PLAN-coordination-stabilization-2026-06-12.md"], to: "docs/plans/engineering-notes/2026-06-12-coordination-topology-stabilization.md", reason: "single-root: point-in-time working plan -> plans/engineering-notes (superseded)" }
+  - { from: ["research-notes-csf-2670.md"], to: "docs/plans/engineering-notes/research-notes-csf-2670.md", reason: "single-root: point-in-time research -> plans/engineering-notes" }
+  - { from: ["T022-perf.txt"], to: "RETIRE", reason: "single-root: transient perf-gate dump, retired" }
+  - { from: ["review-feedback-WP04.md"], to: "RETIRE", reason: "single-root: transient review artifact, retired" }

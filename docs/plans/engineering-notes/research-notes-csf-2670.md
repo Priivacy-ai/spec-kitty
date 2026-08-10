@@ -1,3 +1,10 @@
+---
+title: 'Pre-spec research — CSF #2670 landing-pass campsite follow-ups'
+description: 'Closeout of the pre-spec research squad for CSF #2670: root-cause findings on the shard-map gap, xdist flake, sync remediation-guard, and mypy debt tickets.'
+doc_status: closeout
+type: explanation
+updated: '2026-08-10'
+---
 # Pre-spec research — CSF #2670 landing-pass campsite follow-ups
 
 Base: `upstream/main` @ `c6b70d22e` (research worktree `research/csf-2670-followups`, read-only).

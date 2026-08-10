@@ -11,6 +11,7 @@ related:
 - docs/index.md
 - docs/operations/how-to-maintain.md
 - docs/operations/identity-boundary-ci-gate.md
+- docs/operations/manual-test-plan.md
 - docs/operations/internal-hosted-readiness.md
 - docs/operations/p0-baseline-refresh.md
 - docs/operations/recovery-index.md
@@ -34,6 +35,7 @@ across missions (unlike the effort-scoped notes that live under
 - [Internal hosted-readiness mode (pre-launch)](internal-hosted-readiness.md) — the hidden SaaS rollout-gate path for internal dogfooding, not for end users.
 - [How to maintain the issue tracker](how-to-maintain.md) — maintainer runbook for tracker structure, priority levels, issue types, and milestone/release-goal conventions.
 - [P0 baseline refresh](p0-baseline-refresh.md) — targeted P0 test-failure baseline record and its per-cluster reproduction status.
+- [Manual test plan](manual-test-plan.md) — comprehensive manual verification plan across all repositories for Beta/GA readiness (SaaS, CLI, connectors, webhooks).
 
 ## See also
 

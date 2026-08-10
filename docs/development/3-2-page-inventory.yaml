@@ -2828,6 +2828,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/operations/manual-test-plan.md
+  tag: current
+  divio_type: reference
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/operations/p0-baseline-refresh.md
   tag: current
   divio_type: reference
@@ -3159,6 +3165,12 @@
   current_target: true
   notes: null
 - path: docs/plans/engineering-notes/01KYW895-verification-evidence.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/2026-06-12-coordination-topology-stabilization.md
   tag: current
   divio_type: explanation
   owning_workstream: none
@@ -3617,6 +3629,12 @@
 - path: docs/plans/engineering-notes/reflections/README.md
   tag: current
   divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/research-notes-csf-2670.md
+  tag: current
+  divio_type: explanation
   owning_workstream: none
   current_target: true
   notes: null
