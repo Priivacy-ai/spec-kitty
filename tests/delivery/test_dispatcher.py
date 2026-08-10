@@ -15,13 +15,14 @@ contract §3 "Required tests" map onto the scenario tests below:
 Plus focused unit tests over the select / post / record phases and the D-020
 coalescing carry so each helper is exercised directly (T044 / coverage).
 """
+
 from __future__ import annotations
 
 import json
 import sqlite3
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pytest
 
@@ -43,6 +44,7 @@ from specify_cli.delivery.ledger import (
     TERMINAL_SUCCESS_STATUSES,
     SqliteDeliveryLedger,
 )
+from specify_cli.delivery.interfaces import DeliveryTarget, TargetIdentity
 from specify_cli.delivery.receivers import (
     DeliveryOutcome,
     DeliveryResult,
@@ -50,13 +52,12 @@ from specify_cli.delivery.receivers import (
     StubReceiver,
     map_batch_response,
 )
-from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
+from specify_cli.sync.project_context import AdmissionState
+from specify_cli.sync.project_identity import CanonicalProjectUUID
+from specify_cli.sync.project_store import ProjectSyncStore, ProjectUnitOfWork
 from tests._support.consented_batches import granting
-
-if TYPE_CHECKING:
-    from specify_cli.delivery.interfaces import DeliveryTarget
 
 pytestmark = pytest.mark.fast
 
@@ -84,16 +85,17 @@ def _consent_to_the_test_project(tmp_path: Any, monkeypatch: Any) -> None:
 
 def _admit_project_for_transport(project_uuid: str) -> None:
     """Seed the WP06 target admission needed by WP07's final transport gate."""
-    from specify_cli.sync.project_store import ProjectSyncStore
-
     store = ProjectSyncStore(project_uuid)
+    authority = store.layout_generation()
+    authority.begin_cutover("wp07-dispatcher-test")
+    authority.publish_project_only("wp07-dispatcher-test", verify_exact=lambda: True)
     with store.unit_of_work() as unit:
         unit.execute(
             "INSERT INTO project_target_admissions "
             "(project_uuid, target_identity, account_identity, private_teamspace_id, "
             "configuration_generation, admission_state, admission_generation, binding_audience) "
             "VALUES (?, 'dispatcher-test-target', 'account-test', 'teamspace-test', 1, "
-            "'admitted', 'dispatcher-generation-1', 'private-teamspace:teamspace-test')",
+            "'admitted', '1', 'private-teamspace:teamspace-test')",
             (project_uuid,),
         )
 
@@ -106,9 +108,7 @@ def _admit_project_for_transport(project_uuid: str) -> None:
 def _make_event(index: int) -> Event:
     """Build a distinct JSON-payload journal event with a deterministic timestamp."""
     event_id = f"evt-{index}"
-    payload = json.dumps(
-        {"event_id": event_id, "event_type": "mission.updated", "n": index}
-    ).encode("utf-8")
+    payload = json.dumps({"event_id": event_id, "event_type": "mission.updated", "n": index}).encode("utf-8")
     return Event(
         event_id=event_id,
         event_type="mission.updated",
@@ -120,35 +120,63 @@ def _make_event(index: int) -> Event:
 
 
 @pytest.fixture
-def journal(tmp_path: Any) -> EventJournal:
+def store() -> ProjectSyncStore:
+    return ProjectSyncStore(_TEST_PROJECT_UUID)
+
+
+@pytest.fixture
+def unit(store: ProjectSyncStore) -> Any:
+    with store.unit_of_work() as active:
+        yield active
+
+
+@pytest.fixture
+def journal(store: ProjectSyncStore, unit: ProjectUnitOfWork) -> EventJournal:
     """A journal seeded with three distinct events (the drain universe)."""
-    jrnl = EventJournal(tmp_path / "journal.db")
+    jrnl = EventJournal(unit, store.layout_generation())
     for index in range(3):
         jrnl.append(_make_event(index))
     return jrnl
 
 
 @pytest.fixture
-def ledger() -> SqliteDeliveryLedger:
-    return SqliteDeliveryLedger(":memory:")
+def ledger(store: ProjectSyncStore, unit: ProjectUnitOfWork) -> SqliteDeliveryLedger:
+    return SqliteDeliveryLedger(unit, store.layout_generation())
 
 
 @pytest.fixture
-def registry() -> SqliteDeliveryTargetRegistry:
-    return SqliteDeliveryTargetRegistry(":memory:")
-
-
-@pytest.fixture
-def target_a(registry: SqliteDeliveryTargetRegistry) -> DeliveryTarget:
-    return registry.register(
-        url="https://a.example.com", team_slug="team", user_email="u@example.com"
+def target_a() -> DeliveryTarget:
+    return DeliveryTarget(
+        target_id="target-a",
+        identity=TargetIdentity(
+            target_identity="dispatcher-test-target",
+            account_identity="account-test",
+            private_teamspace_id="teamspace-test",
+            project_uuid=CanonicalProjectUUID.parse(_TEST_PROJECT_UUID),
+            configuration_generation=1,
+        ),
+        admission_state=AdmissionState.ADMITTED,
+        admission_generation=1,
+        binding_audience="private-teamspace:teamspace-test",
+        last_error_category=None,
     )
 
 
 @pytest.fixture
-def target_b(registry: SqliteDeliveryTargetRegistry) -> DeliveryTarget:
-    return registry.register(
-        url="https://b.example.com", team_slug="team", user_email="u@example.com"
+def target_b() -> DeliveryTarget:
+    return DeliveryTarget(
+        target_id="target-b",
+        identity=TargetIdentity(
+            target_identity="dispatcher-test-target",
+            account_identity="account-test",
+            private_teamspace_id="teamspace-test",
+            project_uuid=CanonicalProjectUUID.parse(_TEST_PROJECT_UUID),
+            configuration_generation=1,
+        ),
+        admission_state=AdmissionState.ADMITTED,
+        admission_generation=1,
+        binding_audience="private-teamspace:teamspace-test",
+        last_error_category=None,
     )
 
 
@@ -222,11 +250,7 @@ class _PendingHeadStub:
         return [
             DeliveryResult(
                 event_id=event.event_id,
-                outcome=(
-                    DeliveryOutcome.PENDING
-                    if event.event_id in {"evt-0", "evt-1"}
-                    else DeliveryOutcome.SUCCESS
-                ),
+                outcome=(DeliveryOutcome.PENDING if event.event_id in {"evt-0", "evt-1"} else DeliveryOutcome.SUCCESS),
                 http_status=200,
             )
             for event in batch
@@ -257,12 +281,7 @@ class _AdaptiveOversizedStub:
         return map_batch_response(
             events,
             http_status=200,
-            body={
-                "results": [
-                    {"event_id": event.event_id, "status": "success"}
-                    for event in events
-                ]
-            },
+            body={"results": [{"event_id": event.event_id, "status": "success"} for event in events]},
         )
 
 
@@ -435,9 +454,13 @@ def test_idempotent_redelivery_yields_duplicate(
 
 
 def test_record_rolls_back_batch_on_mid_record_failure(
+    store: ProjectSyncStore,
+    unit: ProjectUnitOfWork,
+    journal: EventJournal,
     target_a: DeliveryTarget,
 ) -> None:
     """A ledger failure while recording a remote batch leaves no partial rows."""
+    del journal
 
     class _FailAfterFirstLedger(SqliteDeliveryLedger):
         calls = 0
@@ -448,7 +471,7 @@ def test_record_rolls_back_batch_on_mid_record_failure(
             if self.calls == 1:
                 raise sqlite3.OperationalError("synthetic ledger failure")
 
-    ledger = _FailAfterFirstLedger(":memory:")
+    ledger = _FailAfterFirstLedger(unit, store.layout_generation())
     results = [
         DeliveryResult(event_id="evt-a", outcome=DeliveryOutcome.SUCCESS),
         DeliveryResult(event_id="evt-b", outcome=DeliveryOutcome.SUCCESS),
@@ -466,9 +489,7 @@ def test_record_rolls_back_batch_on_mid_record_failure(
 # --------------------------------------------------------------------------- #
 
 
-def test_no_active_target_is_a_noop(
-    journal: EventJournal, ledger: SqliteDeliveryLedger
-) -> None:
+def test_no_active_target_is_a_noop(journal: EventJournal, ledger: SqliteDeliveryLedger) -> None:
     stub = StubReceiver()
 
     summary = dispatch(journal=journal, ledger=ledger, receiver=stub, target=None)
@@ -588,9 +609,21 @@ def test_dispatch_summary_counts_and_recorded() -> None:
 
 
 def test_record_exposes_retryable_ids_without_calling_pending_a_failure(
+    journal: EventJournal,
     ledger: SqliteDeliveryLedger,
 ) -> None:
     """The batch loop can skip every retryable outcome without report drift."""
+    for index, event_id in enumerate(("pending", "rejected", "transient", "terminal"), start=4):
+        journal.append(
+            Event(
+                event_id=event_id,
+                event_type="mission.updated",
+                payload=json.dumps({"event_id": event_id}).encode("utf-8"),
+                occurred_at=_OCCURRED_AT,
+                created_at=f"2026-06-29T00:00:{index:02d}+00:00",
+                project_uuid=_TEST_PROJECT_UUID,
+            )
+        )
     results = [
         DeliveryResult(event_id="pending", outcome=DeliveryOutcome.PENDING),
         DeliveryResult(event_id="rejected", outcome=DeliveryOutcome.REJECTED),
@@ -674,9 +707,7 @@ def test_install_coalescing_invokes_install_with_ledger(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fake = _FakeCoalesce()
-    monkeypatch.setattr(
-        "specify_cli.delivery.dispatcher._load_coalesce", lambda: fake
-    )
+    monkeypatch.setattr("specify_cli.delivery.dispatcher._load_coalesce", lambda: fake)
     assert _install_coalescing(ledger) is True
     assert fake.installed_with is ledger
 
@@ -700,9 +731,7 @@ def test_dispatch_activates_coalescing_on_live_path(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fake = _FakeCoalesce()
-    monkeypatch.setattr(
-        "specify_cli.delivery.dispatcher._load_coalesce", lambda: fake
-    )
+    monkeypatch.setattr("specify_cli.delivery.dispatcher._load_coalesce", lambda: fake)
     stub = StubReceiver()
 
     dispatch(journal=journal, ledger=ledger, receiver=stub, target=target_a)
