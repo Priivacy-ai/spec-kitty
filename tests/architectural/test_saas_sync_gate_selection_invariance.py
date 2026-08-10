@@ -1,7 +1,7 @@
 """#3213 — the SaaS-sync feature flag is a single collection-time authority.
 
 Import-time ``@pytest.mark.skipif(not os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC"))``
-gates (e.g. the #2782 regression) are evaluated at *collection*. If any test
+gates are evaluated at *collection*. If any test
 module sets that flag at import via its own module-level
 ``os.environ.setdefault(...)``, the gate's decision depends on whether that
 module happens to be collected in the current selection — so the SAME node
@@ -16,9 +16,12 @@ guards pin that authority:
 2. NO test module re-introduces a module-level write of the flag (which would
    restore the selection-dependence).
 
-Note: with the flag consistently set, the known-open #2782 P0 red runs (and is
-red) under ``pytest tests/regression`` too — that is the intended, honest
-effect, not a new regression.
+Note: with the flag consistently set, every import-time SaaS-sync gate makes the
+same skip/run decision under ``pytest tests/regression`` and ``pytest tests/ -m
+regression`` — that is the intended, honest effect. (Historically this also
+re-exposed the then-open #2782 P0 red under ``pytest tests/regression``; #2782
+has since been resolved and its reproduction retired, so nothing in
+``tests/regression`` is red today.)
 """
 
 from __future__ import annotations

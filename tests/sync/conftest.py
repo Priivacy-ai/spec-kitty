@@ -186,12 +186,13 @@ def _isolate_pre_review_gate_sync_toggles(monkeypatch: pytest.MonkeyPatch) -> No
     (after this fixture runs), so they are unaffected. No production
     behaviour changes -- this only isolates the test env.
 
-    Note (#2782): this fixture only guards against a *leaked toggle*
-    silently disabling sync. It does not -- and cannot -- paper over a
-    genuine live-connection failure in the sync layer (e.g. a real
-    ``Connection refused`` from the ``final_sync`` phase); that failure
-    mode is tracked separately under #2782 and is orthogonal to what this
-    fixture isolates.
+    Note: this fixture only guards against a *leaked toggle* silently
+    disabling sync. It does not -- and cannot -- paper over a genuine
+    live-connection failure in the sync layer (e.g. a real ``Connection
+    refused`` from the ``final_sync`` phase), which is orthogonal to what
+    this fixture isolates. (This scope note originally cross-referenced the
+    then-open #2782 P0; #2782 has since been resolved as a corrected test
+    contract and its reproduction retired.)
     """
     for _name in SYNC_DISABLE_ENV_VARS:
         monkeypatch.delenv(_name, raising=False)
