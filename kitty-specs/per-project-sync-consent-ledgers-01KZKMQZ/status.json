@@ -162,6 +162,9 @@
       "last_event_id": "01KZN85ZT4RPDARPJ6R3A7SZYN",
       "last_transition_at": "2026-08-10T07:11:21.412737+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "WP05 ready after WP04 approval: target-scoped admission ratchets repinned in 8dcfe7945/f2cc9cf15; focused architecture gate tests/architectural/test_egress_consent_boundary.py passed 38/40 with 2 expected xfails; implementer reported focused WP05 suite 37 passed, Ruff clean, targeted mypy clean. Force used only because lane-c history contains prior managed-lane kitty-specs artifacts despite current cleanup; not used to bypass code review or validation."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 1091,
