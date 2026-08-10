@@ -209,6 +209,99 @@ def _read_and_rehash(
     return content, actual_hash
 
 
+def _enqueue_artifact(
+    artifact: ArtifactRef,
+    namespace_ref: NamespaceRef,
+    body_queue: OfflineBodyUploadQueue,
+    content: str,
+    actual_hash: str,
+) -> UploadOutcome:
+    """Enqueue already-read, already-hashed artifact content."""
+    enqueue_result = body_queue.enqueue(
+        namespace=namespace_ref,
+        artifact_path=artifact.relative_path,
+        content_hash=actual_hash,
+        content_body=content,
+        size_bytes=len(content.encode("utf-8")),
+    )
+
+    if enqueue_result == BodyEnqueueResult.ENQUEUED:
+        status = UploadStatus.QUEUED
+        reason = "enqueued"
+    elif enqueue_result == BodyEnqueueResult.ALREADY_EXISTS:
+        status = UploadStatus.ALREADY_EXISTS
+        reason = "already_in_queue"
+    else:
+        status = UploadStatus.FAILED
+        reason = "queue_full"
+
+    return UploadOutcome(
+        artifact_path=artifact.relative_path,
+        status=status,
+        reason=reason,
+        content_hash=actual_hash,
+    )
+
+
+def _process_artifact(
+    artifact: ArtifactRef,
+    namespace_ref: NamespaceRef,
+    body_queue: OfflineBodyUploadQueue,
+    feature_dir: Path,
+) -> UploadOutcome:
+    """Filter, read, and enqueue a single artifact; return its outcome.
+
+    Each filter stage returns early with the SKIPPED outcome that the
+    original inline loop produced via ``continue`` — same guard order,
+    same reasons, same terminal enqueue call.
+    """
+    # Skip non-present artifacts
+    if not artifact.is_present:
+        return UploadOutcome(
+            artifact_path=artifact.relative_path,
+            status=UploadStatus.SKIPPED,
+            reason=f"not_present: {artifact.error_reason or 'unknown'}",
+        )
+
+    # Filter 1: Supported surface (FR-004)
+    if not _is_supported_surface(artifact.relative_path):
+        return UploadOutcome(
+            artifact_path=artifact.relative_path,
+            status=UploadStatus.SKIPPED,
+            reason="unsupported_surface",
+        )
+
+    # Filter 2: Supported format (FR-005/FR-006)
+    format_skip = _check_format(artifact.relative_path)
+    if format_skip is not None:
+        return format_skip
+
+    # Filter 3: Size limit
+    size_skip = _check_size_limit(artifact.relative_path, artifact.size_bytes)
+    if size_skip is not None:
+        return size_skip
+
+    # Read content + re-hash guard
+    result = _read_and_rehash(
+        feature_dir,
+        artifact.relative_path,
+        artifact.content_hash_sha256,
+    )
+    if isinstance(result, UploadOutcome):
+        return result
+
+    content, actual_hash = result
+    if content == "":
+        return UploadOutcome(
+            artifact_path=artifact.relative_path,
+            status=UploadStatus.SKIPPED,
+            reason="empty_content",
+            content_hash=actual_hash,
+        )
+
+    return _enqueue_artifact(artifact, namespace_ref, body_queue, content, actual_hash)
+
+
 def prepare_body_uploads(
     artifacts: list[ArtifactRef],
     namespace_ref: NamespaceRef,
@@ -235,94 +328,10 @@ def prepare_body_uploads(
             for artifact in artifacts
         ]
 
-    outcomes: list[UploadOutcome] = []
-
-    for artifact in artifacts:
-        # Skip non-present artifacts
-        if not artifact.is_present:
-            outcomes.append(
-                UploadOutcome(
-                    artifact_path=artifact.relative_path,
-                    status=UploadStatus.SKIPPED,
-                    reason=f"not_present: {artifact.error_reason or 'unknown'}",
-                )
-            )
-            continue
-
-        # Filter 1: Supported surface (FR-004)
-        if not _is_supported_surface(artifact.relative_path):
-            outcomes.append(
-                UploadOutcome(
-                    artifact_path=artifact.relative_path,
-                    status=UploadStatus.SKIPPED,
-                    reason="unsupported_surface",
-                )
-            )
-            continue
-
-        # Filter 2: Supported format (FR-005/FR-006)
-        format_skip = _check_format(artifact.relative_path)
-        if format_skip is not None:
-            outcomes.append(format_skip)
-            continue
-
-        # Filter 3: Size limit
-        size_skip = _check_size_limit(artifact.relative_path, artifact.size_bytes)
-        if size_skip is not None:
-            outcomes.append(size_skip)
-            continue
-
-        # Read content + re-hash guard
-        result = _read_and_rehash(
-            feature_dir,
-            artifact.relative_path,
-            artifact.content_hash_sha256,
-        )
-        if isinstance(result, UploadOutcome):
-            outcomes.append(result)
-            continue
-
-        content, actual_hash = result
-        if content == "":
-            outcomes.append(
-                UploadOutcome(
-                    artifact_path=artifact.relative_path,
-                    status=UploadStatus.SKIPPED,
-                    reason="empty_content",
-                    content_hash=actual_hash,
-                )
-            )
-            continue
-
-        # Enqueue
-        enqueue_result = body_queue.enqueue(
-            namespace=namespace_ref,
-            artifact_path=artifact.relative_path,
-            content_hash=actual_hash,
-            content_body=content,
-            size_bytes=len(content.encode("utf-8")),
-        )
-
-        if enqueue_result == BodyEnqueueResult.ENQUEUED:
-            status = UploadStatus.QUEUED
-            reason = "enqueued"
-        elif enqueue_result == BodyEnqueueResult.ALREADY_EXISTS:
-            status = UploadStatus.ALREADY_EXISTS
-            reason = "already_in_queue"
-        else:
-            status = UploadStatus.FAILED
-            reason = "queue_full"
-
-        outcomes.append(
-            UploadOutcome(
-                artifact_path=artifact.relative_path,
-                status=status,
-                reason=reason,
-                content_hash=actual_hash,
-            )
-        )
-
-    return outcomes
+    return [
+        _process_artifact(artifact, namespace_ref, body_queue, feature_dir)
+        for artifact in artifacts
+    ]
 
 
 def log_upload_outcomes(

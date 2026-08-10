@@ -356,41 +356,19 @@ def _build_record(
 # ---------------------------------------------------------------------------
 
 
-def classify_candidate(
+def _classify_never_touch_or_singleton(
     probe: CandidateProbe,
-    foreground: ForegroundScope,
-) -> DaemonIdentityRecord:
-    """Classify one probed sync-port listener.
+    *,
+    is_singleton: bool,
+) -> DaemonIdentityRecord | None:
+    """Rows 1–3 of the decision table: ``never_touch`` guards + singleton exclusion.
 
-    Implements the normative decision table from
-    ``data-model.md`` (rows 1–9), evaluated
-    top-to-bottom; the first matching row wins.
-
-    Parameters
-    ----------
-    probe:
-        Pre-extracted facts about the candidate listener.  Callers populate
-        this from ``psutil`` / ``lsof`` (PID), ``/api/health`` (health), and
-        ``owner.py`` cmdline helpers (scope / shape / executable).
-    foreground:
-        Identity of the running CLI invocation (scope, executable, singleton).
-
-    Returns
-    -------
-    DaemonIdentityRecord
-        Fully populated record including ``cleanup_class`` and ``skip_reason``.
-
-    Notes
-    -----
-    * ``owner_present`` does not appear in any predicate — it is carried in the
-      probe for reporting purposes only (FR-003).
-    * A non-matching ``package_version`` / ``executable_summary`` is *not* a
-      skip condition once rows 1–8 pass (FR-008).
-    * A wedged listener (``probe.health is None`` or ``not responded``) is
-      ``operator_required / unresponsive`` — never ``safe_auto`` (D-01).
+    Extracted from ``classify_candidate`` to keep its complexity within
+    budget (Sonar S3776 / ruff C901); a pure sub-check over the same
+    top-to-bottom decision table, first matching row wins. Returns the
+    record for the first matching row, or ``None`` when none of rows 1–3
+    match — control then falls through to the operator_required guards.
     """
-    is_singleton = _is_singleton(probe, foreground)
-
     # Row 1 — port out of range → never_touch / out_of_range
     if not (_DAEMON_PORT_START <= probe.port < _DAEMON_PORT_END):
         return _build_record(
@@ -441,6 +419,23 @@ def classify_candidate(
             True,
         )
 
+    return None
+
+
+def _classify_operator_required(
+    probe: CandidateProbe,
+    foreground: ForegroundScope,
+    *,
+    is_singleton: bool,
+) -> DaemonIdentityRecord | None:
+    """Rows 4–8 of the decision table: ``operator_required`` guards.
+
+    Extracted from ``classify_candidate`` to keep its complexity within
+    budget (Sonar S3776 / ruff C901); a pure sub-check over the same
+    top-to-bottom decision table, first matching row wins. Returns the
+    record for the first matching row, or ``None`` when none of rows 4–8
+    match — control then falls through to row 9, safe_auto.
+    """
     # Row 4 — cannot determine PID → operator_required / missing_pid
     if probe.listener_pid is None:
         return _build_record(
@@ -494,6 +489,56 @@ def classify_candidate(
             IdentitySource.health_self_report,
             is_singleton,
         )
+
+    return None
+
+
+def classify_candidate(
+    probe: CandidateProbe,
+    foreground: ForegroundScope,
+) -> DaemonIdentityRecord:
+    """Classify one probed sync-port listener.
+
+    Implements the normative decision table from
+    ``data-model.md`` (rows 1–9), evaluated
+    top-to-bottom; the first matching row wins.
+
+    Parameters
+    ----------
+    probe:
+        Pre-extracted facts about the candidate listener.  Callers populate
+        this from ``psutil`` / ``lsof`` (PID), ``/api/health`` (health), and
+        ``owner.py`` cmdline helpers (scope / shape / executable).
+    foreground:
+        Identity of the running CLI invocation (scope, executable, singleton).
+
+    Returns
+    -------
+    DaemonIdentityRecord
+        Fully populated record including ``cleanup_class`` and ``skip_reason``.
+
+    Notes
+    -----
+    * ``owner_present`` does not appear in any predicate — it is carried in the
+      probe for reporting purposes only (FR-003).
+    * A non-matching ``package_version`` / ``executable_summary`` is *not* a
+      skip condition once rows 1–8 pass (FR-008).
+    * A wedged listener (``probe.health is None`` or ``not responded``) is
+      ``operator_required / unresponsive`` — never ``safe_auto`` (D-01).
+    """
+    is_singleton = _is_singleton(probe, foreground)
+
+    never_touch_or_singleton = _classify_never_touch_or_singleton(
+        probe, is_singleton=is_singleton
+    )
+    if never_touch_or_singleton is not None:
+        return never_touch_or_singleton
+
+    operator_required = _classify_operator_required(
+        probe, foreground, is_singleton=is_singleton
+    )
+    if operator_required is not None:
+        return operator_required
 
     # Row 9 — all guards passed → safe_auto
     # FR-008: a differing package_version / executable_summary is stale-version

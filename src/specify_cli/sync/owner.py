@@ -922,6 +922,33 @@ def _classify_orphan(
     return classify_candidate(probe, foreground)
 
 
+def _orphan_disposition(record: DaemonIdentityRecord) -> str:
+    """Classify a scanned orphan's cleanup record into a reap-loop action.
+
+    Pure decision/partition helper extracted from ``reap_orphan_daemons`` to
+    keep its complexity within budget (Sonar S3776 / ruff C901); touches no
+    process state and sends no signals — the ``_sweep_daemon_process``
+    terminate/kill escalation stays inline in the caller, untouched.
+
+    Returns one of ``"skip_out_of_scope"`` (record should be counted as
+    out-of-scope AND recorded in ``skipped_details``), ``"skip_in_scope"``
+    (record should only be recorded in ``skipped_details``), or ``"reap"``.
+    """
+    if record.cleanup_class != CleanupClass.SAFE_AUTO:
+        if record.skip_reason in {
+            SkipReason.cross_root,
+            SkipReason.pre_marker,
+            SkipReason.missing_pid,
+        }:
+            return "skip_out_of_scope"
+        return "skip_in_scope"
+
+    if not record.spawn_shape_ok:
+        return "skip_out_of_scope"
+
+    return "reap"
+
+
 def reap_orphan_daemons(
     *,
     executable_scope: str | None = None,
@@ -984,18 +1011,10 @@ def reap_orphan_daemons(
         health = _probe_health(port) if port is not None else None
         record = _classify_orphan(orphan.pid, orphan.cmdline, foreground, health=health)
 
-        if record.cleanup_class != CleanupClass.SAFE_AUTO:
-            if record.skip_reason in {
-                SkipReason.cross_root,
-                SkipReason.pre_marker,
-                SkipReason.missing_pid,
-            }:
+        disposition = _orphan_disposition(record)
+        if disposition != "reap":
+            if disposition == "skip_out_of_scope":
                 result.skipped_out_of_scope.append(orphan.pid)
-            result.skipped_details.append(record)
-            continue
-
-        if not record.spawn_shape_ok:
-            result.skipped_out_of_scope.append(orphan.pid)
             result.skipped_details.append(record)
             continue
 
