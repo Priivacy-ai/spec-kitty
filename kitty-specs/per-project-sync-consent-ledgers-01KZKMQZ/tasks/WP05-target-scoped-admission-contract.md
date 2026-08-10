@@ -4,6 +4,7 @@ title: Pinned target-scoped admission and canonical refusal contract
 dependencies:
 - WP02
 - WP03
+- WP04
 requirement_refs:
 - FR-004
 - FR-007
@@ -82,6 +83,12 @@ Then read research Decisions 4, 5, 12, and 13 plus the ProjectTargetAdmission/Pr
 Implement the core half of target-scoped SaaS admission against one attested candidate contract. Move delivery target interfaces, concrete registry, public exports, and their existing tests into the ProjectSyncStore boundary so targets cannot retain a component-owned database or connection. A local project consent decision remains project-wide, while remote admission is valid only for the exact normalized server origin, authenticated account/canonical Private Teamspace, project UUID, and opaque generation. Persist admit/revoke/readmit operation identity before I/O and consume stable per-write proof/refusal shapes without inventing a parallel protocol.
 
 ## External gates
+
+WP04 now sequentially owns `sync/project_store.py` after WP02 to mint/thread the
+verified active-UoW store capability required by repository/status isolation.
+WP05 consumes that reviewed seam and then applies its already planned admission
+operation/target changes; it must not replace, structurally clone, or bypass the
+capability when merging the approved WP04 boundary.
 
 SaaS WP04 must expose the candidate checkout/ref and generated contract digest before this WP starts. Fail if the checkout HEAD or digest differs; do not fall back to `../spec-kitty-saas`, an ambient workspace name, branch name, or package version. Repository-sharing `admissions/` or `RepositoryShareMembership` is a different domain and must not be reused, inherited, or backfilled as ProjectSyncAdmission.
 
@@ -169,3 +176,8 @@ Use the explicit candidate contract and a local fake transport; no production ca
 ## Risks and reviewer guidance
 
 Reviewers must independently verify the candidate checkout/ref/digest, race delayed admit against revoke, and inspect database evidence. Verify target storage and audience identity cannot be selected by request parameters. Reject ambient sibling lookup, a target registry that still connects/commits, inference from event-channel success/repository sharing/login/tracker permission, and mutating tests aimed at `app.spec-kitty.ai`.
+
+## Activity Log
+
+- 2026-08-10T01:45:55Z – codex – shell_pid=1091 – WP05 source green at 9dc5fd9ad: 71 focused tests passed; strict mypy and diff-scoped ruff passed. Submission is intentionally held in_progress until WP04 is approved and merged. Read-only architecture probe: 41 passed, 2 xfailed, 2 expected failures in WP04-owned ratchets (removed legacy target sqlite connect/commit floors; new authorized ProjectDeliveryTargetRegistry/admission_operations SQL sites). After WP04 approval, sequentially transfer the two architecture tests WP04→WP05, repin only those exact sites, and require the architecture gate green before for_review.
+- 2026-08-10T01:48:31Z – codex – shell_pid=1091 – Broader compatibility planning gap for arbitration: all 22 legacy-consent setup errors arise in tests/delivery/test_dispatcher.py at its autouse _consent_to_the_test_project fixture (line 80), calling approved WP03-owned src/specify_cli/sync/consent.py and now receiving LegacyConsentMigrationRequiredError. No mission WP owns tests/delivery/test_dispatcher.py. Later WP07 owns src/specify_cli/delivery/dispatcher.py but only its three new tests/sync convergence files, not this legacy test. Do not edit until arbitration assigns sequential ownership, likely WP03→WP07 for the fixture migration.
