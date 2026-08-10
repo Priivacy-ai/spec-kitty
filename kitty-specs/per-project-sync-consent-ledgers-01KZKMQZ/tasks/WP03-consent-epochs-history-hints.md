@@ -55,6 +55,8 @@ owned_files:
 - tests/sync/test_history_disclosure.py
 - tests/sync/test_daemon_deny_hints.py
 - tests/sync/test_legacy_grant_writers.py
+- tests/sync/test_consent_resolver_3030.py
+- tests/sync/test_consent_write_refusal_3030.py
 role: implementer
 tags: []
 tracker_refs:
