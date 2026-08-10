@@ -30,6 +30,7 @@ capture taken before login. The split is *policy vs readiness*:
   every tick and still selectable, per ``emitter.py``'s stated contract that
   drain-blocked events are re-evaluated each drain.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Sequence
@@ -54,9 +55,7 @@ from specify_cli.sync.project_context import ConsentState, ProjectSyncContext
 #: maps both ``not saas_enabled`` and ``not checkout_enabled`` onto this single
 #: token, and the two are indistinguishable after the fact — the second is a
 #: consent refusal, so the pair is treated fail-closed as terminal.
-TERMINAL_DRAIN_BLOCKED_REASONS: frozenset[str] = frozenset(
-    {DRAIN_BLOCKED_SAAS_DISABLED}
-)
+TERMINAL_DRAIN_BLOCKED_REASONS: frozenset[str] = frozenset({DRAIN_BLOCKED_SAAS_DISABLED})
 
 #: Readiness: the operator consented; the machine was not ready. These MUST stay
 #: selectable or an honest user's pre-login backlog is stranded forever.
@@ -98,11 +97,7 @@ def _default_consent_predicate(candidates: Sequence[str | None]) -> frozenset[st
     """
     from specify_cli.sync.consent import consented_project_uuids
 
-    return frozenset(
-        consented_project_uuids(
-            list(candidates), checkout_roots=_drain_checkout_roots()
-        )
-    )
+    return frozenset(consented_project_uuids(list(candidates), checkout_roots=_drain_checkout_roots()))
 
 
 def _drain_checkout_roots() -> list[Path]:
@@ -202,9 +197,7 @@ def select_consented(
     granted = context.consent_state is ConsentState.GRANTED and context.epoch_id is not None
     answer = resolve_consent_answer(
         [owner],
-        consent_predicate=lambda candidates: (
-            frozenset({owner}) if granted and owner in candidates else frozenset()
-        ),
+        consent_predicate=lambda candidates: frozenset({owner}) if granted and owner in candidates else frozenset(),
     )
     if not granted:
         return ConsentedSelection(event_ids=[], answer=answer)
@@ -214,9 +207,7 @@ def select_consented(
     return ConsentedSelection(
         event_ids=selectable_event_ids(
             rows,
-            consent_predicate=lambda candidates: frozenset(
-                candidate for candidate in candidates if candidate == owner
-            ),
+            consent_predicate=lambda candidates: frozenset(candidate for candidate in candidates if candidate == owner),
         ),
         answer=answer,
     )

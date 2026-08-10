@@ -35,6 +35,7 @@ Per **C-001** this is a read-only consumer: it never opens SQLite directly to
 resolve a target and never mutates the journal, ledger, registry, or audit store.
 Destructive payload operations live in :mod:`specify_cli.delivery.retention`.
 """
+
 from __future__ import annotations
 
 from collections.abc import Collection
@@ -56,6 +57,7 @@ from specify_cli.delivery.targets import (
     canonicalize_url,
     compute_url_hash,
 )
+from specify_cli.sync.body_queue import OfflineBodyUploadQueue
 
 if TYPE_CHECKING:
     from specify_cli.delivery.ledger import SqliteDeliveryLedger
@@ -153,8 +155,7 @@ ADDITIVE_SECTION_KEYS: tuple[str, ...] = tuple(default_status_sections())
 GC_LARGE_JOURNAL_THRESHOLD_BYTES = 50 * 1024 * 1024  # 50 MiB
 
 _GC_SUGGESTION_REASON = (
-    "Retained payloads are large and fully delivered to all known targets; "
-    "an explicit `sync gc` would reclaim space while preserving delivery history."
+    "Retained payloads are large and fully delivered to all known targets; an explicit `sync gc` would reclaim space while preserving delivery history."
 )
 
 # -- ledger status reads via the public diagnostic connection (contract §6) ----
@@ -535,7 +536,7 @@ def build_project_store_status(
     context: ProjectSyncContext,
     journal: EventJournal,
     ledger: SqliteDeliveryLedger,
-    body_upload_queue: Any = None,
+    body_upload_queue: OfflineBodyUploadQueue | None = None,
     migration_phase: str | None = None,
     quarantine_count: int = 0,
 ) -> dict[str, Any]:
@@ -543,6 +544,15 @@ def build_project_store_status(
     owner = str(context.project_uuid)
     if journal.project_uuid != owner or ledger.project_uuid != owner:
         raise ValueError("status inputs do not belong to the context's project store")
+    if journal.unit_of_work_identity != ledger.unit_of_work_identity:
+        raise ValueError("status inputs do not share the same project unit of work")
+    if body_upload_queue is not None:
+        if not isinstance(body_upload_queue, OfflineBodyUploadQueue):
+            raise TypeError("project-store status requires a project-store body queue")
+        if body_upload_queue.project_uuid != owner:
+            raise ValueError("status inputs do not belong to the context's project store")
+        if body_upload_queue.unit_of_work_identity != journal.unit_of_work_identity:
+            raise ValueError("status inputs do not share the same project unit of work")
     target = context.target_audience
     blockers: list[str] = []
     if context.consent_state is None:
@@ -760,11 +770,7 @@ class PerProjectStoreReport:
         and unnamed. The bucket speaks through ``unresolved_identity_count`` and its
         own FR-011 warning instead, so no row is reported twice under two diagnoses.
         """
-        return tuple(
-            row
-            for row in self.rows
-            if not row.consent_granted and not row.is_unresolved_identity
-        )
+        return tuple(row for row in self.rows if not row.consent_granted and not row.is_unresolved_identity)
 
 
 def _unresolved_identity_candidates(
@@ -911,10 +917,7 @@ def build_per_project_store_report(
             candidates = _unresolved_identity_candidates(group)
             decision_granted = False
             level = "unresolved_identity"
-            reason = (
-                "no stored project identity; unselectable while the column is "
-                "NULL or blank, and counted here rather than dropped (FR-011)"
-            )
+            reason = "no stored project identity; unselectable while the column is NULL or blank, and counted here rather than dropped (FR-011)"
         else:
             # Safe for a resolved project: every row in this group shares one
             # ``project_uuid``, so the slugs describe one identity. A disagreement

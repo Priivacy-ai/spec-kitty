@@ -7,6 +7,7 @@ event becomes a NEW row plus a ``superseded`` marker linking prior->new without
 mutating the prior payload (contract section 3). Delivery state is recorded via
 the *real* WP05 ledger over SQLite, never a mock that lies about delivery.
 """
+
 from __future__ import annotations
 
 import base64
@@ -95,8 +96,7 @@ def _payload_in_store(unit: ProjectUnitOfWork, event_id: str) -> bytes:
     connection, so a sneaky in-place update remains observable.
     """
     row = unit.execute(
-        "SELECT payload_json FROM journal_entries "
-        "WHERE project_uuid = ? AND entry_id = ?",
+        "SELECT payload_json FROM journal_entries WHERE project_uuid = ? AND entry_id = ?",
         (PROJECT, event_id),
     ).fetchone()
     assert row is not None
@@ -107,9 +107,7 @@ def _payload_in_store(unit: ProjectUnitOfWork, event_id: str) -> bytes:
 # -- T050: no-key never coalesces -----------------------------------------------
 
 
-def test_event_without_coalesce_key_is_never_coalesced(
-    journal: EventJournal, strategy: CoalescingStrategy
-) -> None:
+def test_event_without_coalesce_key_is_never_coalesced(journal: EventJournal, strategy: CoalescingStrategy) -> None:
     journal.append(_event("evt-1", payload=b"a", key=None, created_at=T1))
     journal.append(_event("evt-2", payload=b"b", key=None, created_at=T2))
     assert {e.event_id for e in journal.read_all()} == {"evt-1", "evt-2"}
@@ -132,9 +130,7 @@ def test_undelivered_events_with_same_key_collapse_to_one_row(
     # no id rewrite) but carries the most recent payload.
     # cardinality-is-contract: two same-key rows must collapse to ONE; frozenset on event_id would mask a duplicated surviving row
     assert len(keyed) == 1  # golden-count: cardinality-is-contract
-    assert frozenset(e.event_id for e in keyed) == frozenset(
-        {"evt-1"}
-    ), "two undelivered same-key events must collapse to one row"
+    assert frozenset(e.event_id for e in keyed) == frozenset({"evt-1"}), "two undelivered same-key events must collapse to one row"
     assert _payload_in_store(unit, "evt-1") == b"v2"
     assert journal.read_by_id("evt-2") is None
     assert read_supersede_markers(journal) == []
@@ -169,14 +165,10 @@ def test_coalesce_against_delivered_event_leaves_bytes_unchanged(
     markers = read_supersede_markers(journal)
     # cardinality-is-contract: exactly one supersede marker, not one-per-strategy (cf. test_registration_is_idempotent)
     assert len(markers) == 1  # golden-count: cardinality-is-contract
-    assert frozenset(
-        (m.superseded_event_id, m.superseded_by_event_id, m.coalesce_key) for m in markers
-    ) == frozenset({("evt-1", "evt-2", "grp")})
+    assert frozenset((m.superseded_event_id, m.superseded_by_event_id, m.coalesce_key) for m in markers) == frozenset({("evt-1", "evt-2", "grp")})
 
 
-def test_superseded_prior_remains_inspectable_and_not_archived(
-    journal: EventJournal, ledger: SqliteDeliveryLedger, strategy: CoalescingStrategy
-) -> None:
+def test_superseded_prior_remains_inspectable_and_not_archived(journal: EventJournal, ledger: SqliteDeliveryLedger, strategy: CoalescingStrategy) -> None:
     journal.append(_event("evt-1", payload=b"original", key="grp", created_at=T1))
     ledger.record_success("evt-1", TARGET)
     journal.append(_event("evt-2", payload=b"successor", key="grp", created_at=T2))
@@ -203,10 +195,7 @@ def test_second_delivered_event_is_not_mutated_by_later_coalescible(
     new_row = journal.read_by_id("evt-4")
     assert new_row is not None and new_row.payload == b"would-coalesce"
     markers = read_supersede_markers(journal)
-    assert any(
-        m.superseded_event_id == "evt-3" and m.superseded_by_event_id == "evt-4"
-        for m in markers
-    )
+    assert any(m.superseded_event_id == "evt-3" and m.superseded_by_event_id == "evt-4" for m in markers)
 
 
 # -- T050: mixed eligibility (delivered + undelivered prior share a key) --------
@@ -229,9 +218,7 @@ def test_mixed_eligibility_coalesces_into_undelivered_never_delivered(
 
     # the delivered prior is never mutated and never superseded by evt-x
     assert _payload_in_store(unit, "evt-d") == delivered_before
-    assert not any(
-        m.superseded_by_event_id == "evt-x" for m in read_supersede_markers(journal)
-    )
+    assert not any(m.superseded_by_event_id == "evt-x" for m in read_supersede_markers(journal))
     # evt-x collapsed into the *undelivered* prior evt-u (no new row for evt-x)
     assert journal.read_by_id("evt-x") is None
     assert _payload_in_store(unit, "evt-u") == b"latest"

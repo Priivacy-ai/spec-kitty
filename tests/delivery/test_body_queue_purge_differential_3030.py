@@ -38,9 +38,7 @@ def _enqueue(queue: OfflineBodyUploadQueue, artifact_path: str, body: str) -> st
         len(body.encode()),
     )
     assert result.value == "enqueued"
-    return next(
-        task.row_id for task in queue.drain() if task.artifact_path == artifact_path
-    )
+    return next(task.row_id for task in queue.drain() if task.artifact_path == artifact_path)
 
 
 def _row_count(unit: ProjectUnitOfWork) -> int:
@@ -86,8 +84,7 @@ def test_purge_physically_deletes_a_and_leaves_b_byte_exact(
         queue_b = OfflineBodyUploadQueue(unit_b, store_b.layout_generation())
         row_b = _enqueue(queue_b, "spec.md", "# secret B")
         before_b = unit_b.execute(
-            "SELECT body_task_id, body_reference FROM body_upload_tasks "
-            "WHERE project_uuid = ?",
+            "SELECT body_task_id, body_reference FROM body_upload_tasks WHERE project_uuid = ?",
             (PROJECT_B,),
         ).fetchall()
         assert len(before_b) == 1 and str(before_b[0][0]) == row_b
@@ -98,8 +95,7 @@ def test_purge_physically_deletes_a_and_leaves_b_byte_exact(
         second = _enqueue(queue_a, "plan.md", "# secret A plan")
         queue_a.mark_uploaded(second)
         before_a = unit_a.execute(
-            "SELECT body_task_id, body_reference FROM body_upload_tasks "
-            "WHERE project_uuid = ? ORDER BY body_task_id",
+            "SELECT body_task_id, body_reference FROM body_upload_tasks WHERE project_uuid = ? ORDER BY body_task_id",
             (PROJECT_A,),
         ).fetchall()
         assert {str(row[0]) for row in before_a} == {first, second}
@@ -119,8 +115,7 @@ def test_purge_physically_deletes_a_and_leaves_b_byte_exact(
 
     with store_b.unit_of_work() as unit_b:
         after_b = unit_b.execute(
-            "SELECT body_task_id, body_reference FROM body_upload_tasks "
-            "WHERE project_uuid = ?",
+            "SELECT body_task_id, body_reference FROM body_upload_tasks WHERE project_uuid = ?",
             (PROJECT_B,),
         ).fetchall()
         assert after_b == before_b

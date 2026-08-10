@@ -835,32 +835,22 @@ def _journal_uses_explicit_store_factory(path: Path) -> bool:
     for statement in tree.body:
         if isinstance(statement, (ast.Assign, ast.AnnAssign)):
             targets = statement.targets if isinstance(statement, ast.Assign) else [statement.target]
-            if any(
-                isinstance(target, ast.Name) and "JOURNAL_CACHE" in target.id
-                for target in targets
-            ):
+            if any(isinstance(target, ast.Name) and "JOURNAL_CACHE" in target.id for target in targets):
                 return False
         if isinstance(statement, ast.FunctionDef) and statement.name == "get_journal":
-            arguments = {
-                argument.arg
-                for argument in (*statement.args.args, *statement.args.kwonlyargs)
-            }
+            arguments = {argument.arg for argument in (*statement.args.args, *statement.args.kwonlyargs)}
             return {"unit", "authority"}.issubset(arguments)
     return False
 
 
 def test_live_journal_factory_has_no_global_resolver_cache() -> None:
-    assert _journal_uses_explicit_store_factory(
-        _SRC / "specify_cli" / "event_journal" / "journal.py"
-    )
+    assert _journal_uses_explicit_store_factory(_SRC / "specify_cli" / "event_journal" / "journal.py")
 
 
 def test_global_journal_resolver_mutant_is_rejected(tmp_path: Path) -> None:
     mutant = tmp_path / "journal.py"
     mutant.write_text(
-        "_JOURNAL_CACHE = {}\n"
-        "def get_journal(user_id=None, team_slug=None):\n"
-        "    return _JOURNAL_CACHE.setdefault((user_id, team_slug), object())\n",
+        "_JOURNAL_CACHE = {}\ndef get_journal(user_id=None, team_slug=None):\n    return _JOURNAL_CACHE.setdefault((user_id, team_slug), object())\n",
         encoding="utf-8",
     )
     assert not _journal_uses_explicit_store_factory(mutant)

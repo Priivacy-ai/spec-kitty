@@ -5,6 +5,7 @@ Teamspace-bound fact is durably journaled with a ``drain_blocked_reason`` and
 no delivery is attempted. We assert the *result* (a row exists even though the
 gate blocked), never the internal call order.
 """
+
 from __future__ import annotations
 
 from collections.abc import Iterator
@@ -68,18 +69,14 @@ def _gate(
     auth: bool = True,
     team: str | None = "team-x",
 ) -> CaptureGateState:
-    return CaptureGateState(
-        saas_enabled=saas, checkout_enabled=checkout, authenticated=auth, team_slug=team
-    )
+    return CaptureGateState(saas_enabled=saas, checkout_enabled=checkout, authenticated=auth, team_slug=team)
 
 
 # ── classify_drain_blocked_reason (gate → journal reason) ──────────────
 
 
 def test_classify_saas_disabled_takes_precedence() -> None:
-    assert classify_drain_blocked_reason(_gate(saas=False, auth=False, team=None)) == (
-        DRAIN_BLOCKED_SAAS_DISABLED
-    )
+    assert classify_drain_blocked_reason(_gate(saas=False, auth=False, team=None)) == (DRAIN_BLOCKED_SAAS_DISABLED)
     assert classify_drain_blocked_reason(_gate(checkout=False)) == DRAIN_BLOCKED_SAAS_DISABLED
 
 

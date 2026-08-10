@@ -142,9 +142,7 @@ def _normalise_scope_part(value: str) -> str:
 
 
 def build_queue_scope(server_url: str, username: str, team_slug: str) -> str:
-    material = "\0".join(
-        _normalise_scope_part(value) for value in (server_url, username, team_slug)
-    )
+    material = "\0".join(_normalise_scope_part(value) for value in (server_url, username, team_slug))
     return hashlib.sha256(material.encode()).hexdigest()  # noqa: TID251 - legacy path identity
 
 
@@ -196,9 +194,7 @@ def read_queue_scope_from_session(*, allow_rehydrate: bool = True) -> str | None
 
 
 def default_queue_db_path(*_args: object, **_kwargs: object) -> Path:
-    raise LegacyQueueMigrationRequiredError(
-        "live payload queues are selected by ProjectSyncStore; legacy paths are WP10 migration inputs"
-    )
+    raise LegacyQueueMigrationRequiredError("live payload queues are selected by ProjectSyncStore; legacy paths are WP10 migration inputs")
 
 
 def resolved_scope_db_path(resolved_target: object) -> Path:
@@ -208,9 +204,7 @@ def resolved_scope_db_path(resolved_target: object) -> Path:
 
 def detect_legacy_rows_for_scope(scope: str) -> LegacyRowCounts:
     del scope
-    raise LegacyQueueMigrationRequiredError(
-        "inspect legacy rows through the named WP10 read-only migration adapter"
-    )
+    raise LegacyQueueMigrationRequiredError("inspect legacy rows through the named WP10 read-only migration adapter")
 
 
 def pending_events_for_scope(scope: str) -> int:
@@ -257,10 +251,7 @@ def _coalesce_key(event: dict[str, Any]) -> str | None:
         return None
     payload = event.get("payload")
     payload = payload if isinstance(payload, Mapping) else {}
-    values = [
-        _resolve_dotted(event, field) or _resolve_dotted(payload, field)
-        for field in fields
-    ]
+    values = [_resolve_dotted(event, field) or _resolve_dotted(payload, field) for field in fields]
     if any(value is None for value in values):
         return None
     return "|".join(str(value) for value in values)
@@ -296,9 +287,7 @@ class OfflineQueue:
     """Connection-free project event outbox repository."""
 
     MAX_QUEUE_SIZE = DEFAULT_MAX_QUEUE_SIZE
-    _QUEUE_EXCLUDED_EVENT_TYPES = frozenset(
-        {"DecisionInputRequested", "DecisionInputAnswered"}
-    )
+    _QUEUE_EXCLUDED_EVENT_TYPES = frozenset({"DecisionInputRequested", "DecisionInputAnswered"})
 
     __slots__ = ("_authority", "_max_queue_size", "_unit")
 
@@ -377,11 +366,7 @@ class OfflineQueue:
             occurred_at=str(event.get("occurred_at") or timestamp),
             created_at=str(event.get("created_at") or timestamp),
             coalesce_key=_coalesce_key(event),
-            drain_blocked_reason=(
-                str(event["drain_blocked_reason"])
-                if event.get("drain_blocked_reason") is not None
-                else None
-            ),
+            drain_blocked_reason=(str(event["drain_blocked_reason"]) if event.get("drain_blocked_reason") is not None else None),
             project_uuid=self.project_uuid,
             project_slug=(str(event["project_slug"]) if event.get("project_slug") else None),
             repo_slug=(str(event["repo_slug"]) if event.get("repo_slug") else None),
@@ -449,8 +434,7 @@ class OfflineQueue:
             _require_project_destination(permit)
             for event_id in ids:
                 row = self._unit.execute(
-                    "SELECT idempotency_identity FROM outbox_tasks WHERE project_uuid = ? "
-                    "AND journal_entry_id = ? AND task_kind = 'event'",
+                    "SELECT idempotency_identity FROM outbox_tasks WHERE project_uuid = ? AND journal_entry_id = ? AND task_kind = 'event'",
                     (self.project_uuid, event_id),
                 ).fetchone()
                 if row is None:
@@ -458,8 +442,7 @@ class OfflineQueue:
                 metadata = json.loads(str(row[0] or "{}"))
                 count = int(metadata.get("retry_count", 0)) + (1 if retry else 0)
                 self._unit.execute(
-                    "UPDATE outbox_tasks SET state = ?, idempotency_identity = ? "
-                    "WHERE project_uuid = ? AND journal_entry_id = ? AND task_kind = 'event'",
+                    "UPDATE outbox_tasks SET state = ?, idempotency_identity = ? WHERE project_uuid = ? AND journal_entry_id = ? AND task_kind = 'event'",
                     (state, _task_metadata(event_id, count), self.project_uuid, event_id),
                 )
                 updated += 1
@@ -487,8 +470,7 @@ class OfflineQueue:
 
     def size(self) -> int:
         row = self._unit.execute(
-            "SELECT COUNT(*) FROM outbox_tasks WHERE project_uuid = ? "
-            "AND task_kind = 'event' AND state NOT IN ('synced', 'terminal_failed')",
+            "SELECT COUNT(*) FROM outbox_tasks WHERE project_uuid = ? AND task_kind = 'event' AND state NOT IN ('synced', 'terminal_failed')",
             (self.project_uuid,),
         ).fetchone()
         return int(row[0]) if row is not None else 0

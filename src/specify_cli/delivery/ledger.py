@@ -17,6 +17,10 @@ from specify_cli.sync.layout_generation import (
     LayoutWritePermit,
 )
 from specify_cli.sync.project_store import ProjectUnitOfWork
+from specify_cli.sync.history_disclosure import (
+    HistoryDisclosureCapability,
+    revalidate_history_disclosure,
+)
 
 LEDGER_TABLE = "delivery_results"
 LEDGER_INDEX_NAME = "project_store_delivery_results"
@@ -117,6 +121,10 @@ class SqliteDeliveryLedger:
     def project_uuid(self) -> str:
         return str(self._unit.project_uuid.storage_token)
 
+    @property
+    def unit_of_work_identity(self) -> int:
+        return int(self._unit.connection_identity)
+
     @contextmanager
     def transaction(self) -> Iterator[SqliteDeliveryLedger]:
         """Group inside the already-active store-owned outer transaction."""
@@ -202,8 +210,7 @@ class SqliteDeliveryLedger:
             if status == STATUS_SUCCESS and previous is not None and previous.status in TERMINAL_SUCCESS_STATUSES:
                 effective_status = STATUS_DUPLICATE
             task_row = self._unit.execute(
-                "SELECT task_id FROM outbox_tasks WHERE project_uuid = ? "
-                "AND journal_entry_id = ? AND task_kind = 'event' ORDER BY task_id LIMIT 1",
+                "SELECT task_id FROM outbox_tasks WHERE project_uuid = ? AND journal_entry_id = ? AND task_kind = 'event' ORDER BY task_id LIMIT 1",
                 (self.project_uuid, event_id),
             ).fetchone()
             task_id = str(task_row[0]) if task_row is not None else f"event:{event_id}"
@@ -368,28 +375,25 @@ class SqliteDeliveryLedger:
         target_id: str,
         event_universe: Iterable[str],
         limit: int | None = None,
-        history_action: object | None = None,
+        history_action: HistoryDisclosureCapability | None = None,
     ) -> list[str]:
         if history_action is None:
             universe = self._ordinary_eligible_ids(event_universe)
         else:
-            if str(getattr(history_action, "project_uuid", "")) != self.project_uuid:
-                raise ValueError("history disclosure capability belongs to another project")
-            authorized = {str(value) for value in getattr(history_action, "row_ids", ())}
+            capability = revalidate_history_disclosure(self._unit, history_action)
+            authorized = set(capability.row_ids)
             universe = [event_id for event_id in event_universe if event_id in authorized]
         terminal_for_target = {
             row.event_id
             for row in (self._row_from_attempt(attempt) for attempt in self._attempt_rows())
-            if (row.target_id == target_id and row.status in TERMINAL_SUCCESS_STATUSES)
-            or row.status == STATUS_TERMINAL_FAILED
+            if (row.target_id == target_id and row.status in TERMINAL_SUCCESS_STATUSES) or row.status == STATUS_TERMINAL_FAILED
         }
         selected = [event_id for event_id in universe if event_id not in terminal_for_target]
         return selected if limit is None else selected[:limit]
 
     def delivered_anywhere(self, event_id: str) -> bool:
         return any(
-            self._row_from_attempt(attempt).event_id == event_id
-            and self._row_from_attempt(attempt).status in TERMINAL_SUCCESS_STATUSES
+            self._row_from_attempt(attempt).event_id == event_id and self._row_from_attempt(attempt).status in TERMINAL_SUCCESS_STATUSES
             for attempt in self._attempt_rows()
         )
 

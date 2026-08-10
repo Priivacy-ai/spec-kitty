@@ -17,6 +17,7 @@ order. The headline behaviours they lock are:
   event IDs (NFR-003);
 * the selection-supporting index is part of the locked contract.
 """
+
 from __future__ import annotations
 
 from collections.abc import Iterator
@@ -117,12 +118,7 @@ def test_aggregate_result_schema_present(
     ledger: SqliteDeliveryLedger,
     unit: ProjectUnitOfWork,
 ) -> None:
-    tables = {
-        str(row[0])
-        for row in unit.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()
-    }
+    tables = {str(row[0]) for row in unit.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
     assert LEDGER_TABLE in tables
     assert "delivery_attempts" in tables
 
@@ -159,11 +155,7 @@ def test_stable_identity_collapses_repeated_pair_into_one_row(
 ) -> None:
     ledger.record_pending(EVT_1, TARGET_A, at=_ts(1))
     ledger.record_transient(EVT_1, TARGET_A, http_status=503, error="boom", at=_ts(2))
-    rows = [
-        row
-        for row in ledger.rows()
-        if row.event_id == EVT_1 and row.target_id == TARGET_A
-    ]
+    rows = [row for row in ledger.rows() if row.event_id == EVT_1 and row.target_id == TARGET_A]
     assert len(rows) == 1
 
 
@@ -186,9 +178,7 @@ def test_record_success_is_terminal_and_does_not_delete_journal(
     # FR-001 boundary: the ledger has no path that mutates the journal universe,
     # and exposes no event-delete surface at all.
     assert journal == list(JOURNAL)
-    assert not any(
-        hasattr(ledger, name) for name in ("delete_event", "delete_journal", "remove_event")
-    )
+    assert not any(hasattr(ledger, name) for name in ("delete_event", "delete_journal", "remove_event"))
 
 
 def test_duplicate_is_distinct_status_but_treated_as_delivered(
@@ -214,8 +204,10 @@ def test_nonterminal_states_remain_selectable(ledger: SqliteDeliveryLedger) -> N
     ledger.record_transient(EVT_3, TARGET_A, http_status=503, error="upstream", at=_ts(3))
     selected = ledger.select_undelivered(target_id=TARGET_A, event_universe=JOURNAL)
     assert set(selected) == {EVT_1, EVT_2, EVT_3}
-    assert ledger.get(EVT_2, TARGET_A).status == STATUS_REJECTED
-    assert ledger.get(EVT_3, TARGET_A).status == STATUS_FAILED_TRANSIENT
+    rejected = ledger.get(EVT_2, TARGET_A)
+    transient = ledger.get(EVT_3, TARGET_A)
+    assert rejected is not None and rejected.status == STATUS_REJECTED
+    assert transient is not None and transient.status == STATUS_FAILED_TRANSIENT
 
 
 def test_batch_transient_does_not_flip_per_event_rejection(ledger: SqliteDeliveryLedger) -> None:
@@ -223,8 +215,10 @@ def test_batch_transient_does_not_flip_per_event_rejection(ledger: SqliteDeliver
     # stay distinguishable by their durable status; neither becomes terminal.
     ledger.record_rejected(EVT_1, TARGET_A, http_status=422, error="content", at=_ts(1))
     ledger.record_transient(EVT_2, TARGET_A, http_status=500, error="batch", at=_ts(1))
-    assert ledger.get(EVT_1, TARGET_A).status == STATUS_REJECTED
-    assert ledger.get(EVT_2, TARGET_A).status == STATUS_FAILED_TRANSIENT
+    rejected = ledger.get(EVT_1, TARGET_A)
+    transient = ledger.get(EVT_2, TARGET_A)
+    assert rejected is not None and rejected.status == STATUS_REJECTED
+    assert transient is not None and transient.status == STATUS_FAILED_TRANSIENT
     selected = ledger.select_undelivered(target_id=TARGET_A, event_universe=JOURNAL)
     assert {EVT_1, EVT_2} <= set(selected)
 
@@ -259,9 +253,7 @@ def test_terminal_failed_excluded_from_selection_but_retained(
     ledger: SqliteDeliveryLedger,
 ) -> None:
     journal = list(JOURNAL)
-    ledger.record_terminal_failed(
-        EVT_1, TARGET_A, http_status=413, error="payload too large", at=_ts(7)
-    )
+    ledger.record_terminal_failed(EVT_1, TARGET_A, http_status=413, error="payload too large", at=_ts(7))
     # Excluded from selection so the drain progresses past the oversized event.
     assert EVT_1 not in ledger.select_undelivered(target_id=TARGET_A, event_universe=JOURNAL)
     # Inspectable and retained; the journal is never deleted.
@@ -406,7 +398,7 @@ def test_protocol_methods_present_and_typed(ledger: SqliteDeliveryLedger) -> Non
     assert callable(ledger.record_result)
     assert callable(ledger.select_pending)
     assert callable(ledger.delivered_anywhere)
-    assert ledger.record_result(event_id=EVT_1, target_id=TARGET_A, result="pending") is None
+    ledger.record_result(event_id=EVT_1, target_id=TARGET_A, result="pending")
 
 
 def test_get_returns_none_for_missing_pair(ledger: SqliteDeliveryLedger) -> None:
@@ -456,4 +448,4 @@ def test_ledger_row_is_immutable_value_object() -> None:
         last_response_json=None,
     )
     with pytest.raises((AttributeError, TypeError)):
-        row.status = STATUS_SUCCESS
+        setattr(row, "status", STATUS_SUCCESS)  # noqa: B010 - runtime probe for frozen result rows

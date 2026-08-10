@@ -66,8 +66,7 @@ def queue(unit: ProjectUnitOfWork, store: ProjectSyncStore) -> OfflineBodyUpload
 
 def _reference(unit: ProjectUnitOfWork, row_id: str) -> dict[str, object]:
     row = unit.execute(
-        "SELECT body_reference FROM body_upload_tasks "
-        "WHERE project_uuid = ? AND body_task_id = ?",
+        "SELECT body_reference FROM body_upload_tasks WHERE project_uuid = ? AND body_task_id = ?",
         (PROJECT, row_id),
     ).fetchone()
     assert row is not None
@@ -84,18 +83,14 @@ def _update_reference(
     value = _reference(unit, row_id)
     value.update(changes)
     unit.execute(
-        "UPDATE body_upload_tasks SET body_reference = ? "
-        "WHERE project_uuid = ? AND body_task_id = ?",
+        "UPDATE body_upload_tasks SET body_reference = ? WHERE project_uuid = ? AND body_task_id = ?",
         (json.dumps(value, sort_keys=True), PROJECT, row_id),
     )
 
 
 class TestSchema:
     def test_table_created(self, unit: ProjectUnitOfWork) -> None:
-        row = unit.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' "
-            "AND name='body_upload_tasks'"
-        ).fetchone()
+        row = unit.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='body_upload_tasks'").fetchone()
         assert row is not None
 
     def test_indexes_created(self, unit: ProjectUnitOfWork) -> None:
@@ -119,10 +114,7 @@ class TestSchemaInOfflineQueue:
         store: ProjectSyncStore,
     ) -> None:
         OfflineQueue(unit, store.layout_generation())
-        assert unit.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' "
-            "AND name='body_upload_tasks'"
-        ).fetchone() is not None
+        assert unit.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='body_upload_tasks'").fetchone() is not None
 
 
 class TestEnqueue:
@@ -132,21 +124,15 @@ class TestEnqueue:
 
     def test_duplicate_returns_false(self, queue: OfflineBodyUploadQueue) -> None:
         queue.enqueue(_ns(), "spec.md", "sha256abc", "# Spec", 6)
-        assert queue.enqueue(
-            _ns(), "spec.md", "sha256abc", "# Spec", 6
-        ) is BodyEnqueueResult.ALREADY_EXISTS
+        assert queue.enqueue(_ns(), "spec.md", "sha256abc", "# Spec", 6) is BodyEnqueueResult.ALREADY_EXISTS
 
     def test_different_hash_creates_new_task(self, queue: OfflineBodyUploadQueue) -> None:
         assert queue.enqueue(_ns(), "spec.md", "hash1", "v1", 2) is BodyEnqueueResult.ENQUEUED
         assert queue.enqueue(_ns(), "spec.md", "hash2", "v2", 2) is BodyEnqueueResult.ENQUEUED
 
     def test_different_namespace_creates_new_task(self, queue: OfflineBodyUploadQueue) -> None:
-        assert queue.enqueue(
-            _ns(mission_slug="feat-a"), "spec.md", "hash1", "body", 4
-        ) is BodyEnqueueResult.ENQUEUED
-        assert queue.enqueue(
-            _ns(mission_slug="feat-b"), "spec.md", "hash1", "body", 4
-        ) is BodyEnqueueResult.ENQUEUED
+        assert queue.enqueue(_ns(mission_slug="feat-a"), "spec.md", "hash1", "body", 4) is BodyEnqueueResult.ENQUEUED
+        assert queue.enqueue(_ns(mission_slug="feat-b"), "spec.md", "hash1", "body", 4) is BodyEnqueueResult.ENQUEUED
 
     def test_default_capacity_matches_event_queue_default(
         self,
@@ -162,9 +148,7 @@ class TestEnqueue:
         queue = OfflineBodyUploadQueue(unit, store.layout_generation(), max_queue_size=2)
         queue.enqueue(_ns(), "a.md", "hash-a", "body", 4)
         queue.enqueue(_ns(), "b.md", "hash-b", "body", 4)
-        assert queue.enqueue(
-            _ns(), "extra.md", "new-hash", "body", 4
-        ) is BodyEnqueueResult.QUEUE_FULL
+        assert queue.enqueue(_ns(), "extra.md", "new-hash", "body", 4) is BodyEnqueueResult.QUEUE_FULL
 
     def test_capacity_limit_is_silent(
         self,
@@ -365,9 +349,7 @@ class TestStats:
 class TestProcessRestart:
     def test_data_persists_across_reopen(self, store: ProjectSyncStore) -> None:
         with store.unit_of_work() as unit:
-            OfflineBodyUploadQueue(unit, store.layout_generation()).enqueue(
-                _ns(), "spec.md", "h1", "body", 4
-            )
+            OfflineBodyUploadQueue(unit, store.layout_generation()).enqueue(_ns(), "spec.md", "h1", "body", 4)
         with store.unit_of_work() as unit:
             tasks = OfflineBodyUploadQueue(unit, store.layout_generation()).drain()
         assert len(tasks) == 1

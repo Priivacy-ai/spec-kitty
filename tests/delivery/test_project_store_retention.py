@@ -31,13 +31,9 @@ def test_explicit_purge_can_only_observe_and_delete_its_store(
     store_b = ProjectSyncStore(PROJECT_B)
     _project_only(store_a)
     with store_a.unit_of_work() as unit:
-        OfflineQueue(unit, store_a.layout_generation()).queue_event(
-            {"event_id": "a", "event_type": "x", "project_uuid": PROJECT_A, "payload": {}}
-        )
+        OfflineQueue(unit, store_a.layout_generation()).queue_event({"event_id": "a", "event_type": "x", "project_uuid": PROJECT_A, "payload": {}})
     with store_b.unit_of_work() as unit:
-        OfflineQueue(unit, store_b.layout_generation()).queue_event(
-            {"event_id": "b", "event_type": "x", "project_uuid": PROJECT_B, "payload": {}}
-        )
+        OfflineQueue(unit, store_b.layout_generation()).queue_event({"event_id": "b", "event_type": "x", "project_uuid": PROJECT_B, "payload": {}})
 
     with store_a.unit_of_work() as unit:
         result = purge_project_payloads(unit, store_a.layout_generation())

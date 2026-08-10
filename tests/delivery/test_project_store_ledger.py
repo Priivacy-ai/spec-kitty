@@ -122,9 +122,7 @@ def test_fault_after_journal_and_result_rolls_back_one_outer_transaction(
                 "payload": {"project_uuid": PROJECT},
             }
         )
-        SqliteDeliveryLedger(unit, store.layout_generation()).record_pending(
-            "event-1", "target-1"
-        )
+        SqliteDeliveryLedger(unit, store.layout_generation()).record_pending("event-1", "target-1")
         raise RuntimeError("fault")
 
     with store.unit_of_work() as unit:
@@ -156,12 +154,13 @@ def test_sealed_history_stays_parked_and_opt_out_never_purges(
     with store.unit_of_work() as unit:
         journal = EventJournal(unit, store.layout_generation())
         assert journal.count() == 2
-        assert SqliteDeliveryLedger(
-            unit, store.layout_generation()
-        ).select_undelivered(
-            target_id="target-1",
-            event_universe=("event-1", "event-2"),
-        ) == []
+        assert (
+            SqliteDeliveryLedger(unit, store.layout_generation()).select_undelivered(
+                target_id="target-1",
+                event_universe=("event-1", "event-2"),
+            )
+            == []
+        )
 
 
 def test_fabricated_history_capability_cannot_select_sealed_rows(
@@ -211,8 +210,7 @@ def test_history_selection_revalidates_opt_out_and_exact_cohort(
 
     with store.unit_of_work() as unit:
         unit.execute(
-            "UPDATE journal_entries SET payload_json = ? "
-            "WHERE project_uuid = ? AND entry_id = ?",
+            "UPDATE journal_entries SET payload_json = ? WHERE project_uuid = ? AND entry_id = ?",
             ('{"changed":true}', PROJECT, "event-1"),
         )
         with pytest.raises(HistoryDisclosureError, match="cohort changed"):
@@ -223,10 +221,12 @@ def test_history_selection_revalidates_opt_out_and_exact_cohort(
             )
 
     record_project_opt_out(PROJECT, actor="test")
-    with store.unit_of_work() as unit:
-        with pytest.raises(HistoryDisclosureError, match="stale"):
-            SqliteDeliveryLedger(unit, store.layout_generation()).select_undelivered(
-                target_id="target-1",
-                event_universe=("event-1",),
-                history_action=capability,
-            )
+    with (
+        store.unit_of_work() as unit,
+        pytest.raises(HistoryDisclosureError, match="stale"),
+    ):
+        SqliteDeliveryLedger(unit, store.layout_generation()).select_undelivered(
+            target_id="target-1",
+            event_universe=("event-1",),
+            history_action=capability,
+        )

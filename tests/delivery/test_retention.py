@@ -6,6 +6,7 @@ single ``delivered_anywhere`` hit. These tests use real domain objects (journal 
 ledger), not mocks (NFR-001), and assert on-disk journal state plus the
 :meth:`SqliteDeliveryLedger.select_undelivered` drain view.
 """
+
 from __future__ import annotations
 
 from collections.abc import Iterator
@@ -65,9 +66,7 @@ def ledger(unit: ProjectUnitOfWork, store: ProjectSyncStore) -> SqliteDeliveryLe
     return SqliteDeliveryLedger(unit, store.layout_generation())
 
 
-def test_gc_keeps_event_undelivered_to_a_known_target(
-    journal: EventJournal, ledger: SqliteDeliveryLedger
-) -> None:
+def test_gc_keeps_event_undelivered_to_a_known_target(journal: EventJournal, ledger: SqliteDeliveryLedger) -> None:
     """E1 delivered to target-a only is NOT purged when target-b is also known.
 
     The payload remains the durable, re-drainable copy for target-b (FR-005):
@@ -89,9 +88,7 @@ def test_gc_keeps_event_undelivered_to_a_known_target(
     assert ledger.select_undelivered(target_id=TARGET_A, event_universe=["E1"]) == []
 
 
-def test_gc_purges_event_delivered_to_all_known_targets(
-    journal: EventJournal, ledger: SqliteDeliveryLedger
-) -> None:
+def test_gc_purges_event_delivered_to_all_known_targets(journal: EventJournal, ledger: SqliteDeliveryLedger) -> None:
     """Once E1 has reached every known target its payload is reclaimable."""
     journal.append(_event("E1"))
     ledger.record_success("E1", TARGET_A)
@@ -107,9 +104,7 @@ def test_gc_purges_event_delivered_to_all_known_targets(
     assert ledger.delivered_to_target("E1", TARGET_B) is True
 
 
-def test_gc_with_no_known_targets_purges_nothing(
-    journal: EventJournal, ledger: SqliteDeliveryLedger
-) -> None:
+def test_gc_with_no_known_targets_purges_nothing(journal: EventJournal, ledger: SqliteDeliveryLedger) -> None:
     """Empty known-target universe => purge nothing, even if delivered_anywhere.
 
     Without a target universe the operation cannot establish full delivery, so
@@ -126,9 +121,7 @@ def test_gc_with_no_known_targets_purges_nothing(
     assert journal.read_by_id("E1") is not None
 
 
-def test_gc_default_known_targets_is_purge_nothing(
-    journal: EventJournal, ledger: SqliteDeliveryLedger
-) -> None:
+def test_gc_default_known_targets_is_purge_nothing(journal: EventJournal, ledger: SqliteDeliveryLedger) -> None:
     """Omitting known_target_ids (None default) keeps existing callers safe."""
     journal.append(_event("E1"))
     ledger.record_success("E1", TARGET_A)

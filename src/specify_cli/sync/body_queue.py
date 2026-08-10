@@ -150,6 +150,10 @@ class OfflineBodyUploadQueue:
         return str(self._unit.project_uuid.storage_token)
 
     @property
+    def unit_of_work_identity(self) -> int:
+        return int(self._unit.connection_identity)
+
+    @property
     def max_queue_size(self) -> int:
         return self._max_queue_size
 
@@ -273,11 +277,7 @@ class OfflineBodyUploadQueue:
             return []
         denied_rows = {str(value) for value in (exclude_row_ids or ())}
         now = time.time()
-        return [
-            task
-            for task in (self._task(row) for row in self._rows())
-            if task.row_id not in denied_rows and task.next_attempt_at <= now
-        ][:limit]
+        return [task for task in (self._task(row) for row in self._rows()) if task.row_id not in denied_rows and task.next_attempt_at <= now][:limit]
 
     def _update(
         self,
@@ -294,18 +294,13 @@ class OfflineBodyUploadQueue:
         data: Any = json.loads(str(row[4]))
         retry_count = task.retry_count + (1 if retry else 0)
         data["retry_count"] = retry_count
-        data["next_attempt_at"] = (
-            time.time() + min(_BACKOFF_BASE * (2 ** max(0, retry_count - 1)), _BACKOFF_CAP)
-            if retry
-            else task.next_attempt_at
-        )
+        data["next_attempt_at"] = time.time() + min(_BACKOFF_BASE * (2 ** max(0, retry_count - 1)), _BACKOFF_CAP) if retry else task.next_attempt_at
         data["last_error"] = error if error is not None else task.last_error
 
         def write(permit: LayoutWritePermit) -> None:
             _require_project_destination(permit)
             self._unit.execute(
-                "UPDATE body_upload_tasks SET body_reference = ?, state = ? "
-                "WHERE project_uuid = ? AND body_task_id = ?",
+                "UPDATE body_upload_tasks SET body_reference = ?, state = ? WHERE project_uuid = ? AND body_task_id = ?",
                 (_encode_reference(data), state, self.project_uuid, str(row_id)),
             )
 
@@ -361,10 +356,17 @@ class OfflineBodyUploadQueue:
     def remove_project_tasks(self, project_uuid: str) -> int:
         if project_uuid.strip().lower() != self.project_uuid:
             raise ValueError("cannot remove body tasks from another project store")
-        tasks = [self._task(row) for row in self._rows(include_terminal=True)]
-        for task in tasks:
-            self.mark_uploaded(task.row_id)
-        return len(tasks)
+        before = len(self._rows(include_terminal=True))
+
+        def write(permit: LayoutWritePermit) -> None:
+            _require_project_destination(permit)
+            self._unit.execute(
+                "DELETE FROM body_upload_tasks WHERE project_uuid = ?",
+                (self.project_uuid,),
+            )
+
+        self._authority.execute_write(self._authority.issue_write_permit(), write)
+        return before
 
     def count_by_project(self) -> dict[str, int]:
         total = len(self._rows(include_terminal=True))

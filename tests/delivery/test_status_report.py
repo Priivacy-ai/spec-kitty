@@ -19,11 +19,13 @@ C-006:
 * no status field implies body-upload rows are event-journal rows (NFR-006,
   C-006) — body-upload counts live only in ``body_upload_compatibility``.
 """
+
 from __future__ import annotations
 
 import json
 from collections.abc import Iterator
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -250,9 +252,7 @@ def test_default_status_sections_has_every_additive_key() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_report_has_every_additive_section_and_preserves_base(
-    journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry
-) -> None:
+def test_report_has_every_additive_section_and_preserves_base(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry) -> None:
     base = _legacy_base()
     report = build_status_report(
         base=base,
@@ -285,13 +285,9 @@ def test_report_has_every_additive_section_and_preserves_base(
     assert json.loads(json.dumps(report))
 
 
-def test_target_authority_section_mirrors_resolved_target(
-    journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry
-) -> None:
+def test_target_authority_section_mirrors_resolved_target(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry) -> None:
     resolved = _resolved()
-    report = build_status_report(
-        resolved_target=resolved, journal=journal, ledger=ledger, target_registry=registry
-    )
+    report = build_status_report(resolved_target=resolved, journal=journal, ledger=ledger, target_registry=registry)
     assert report[TARGET_AUTHORITY_KEY] == resolved.to_diagnostics_dict()
 
 
@@ -300,9 +296,7 @@ def test_target_authority_section_mirrors_resolved_target(
 # ---------------------------------------------------------------------------
 
 
-def test_distinct_counts_retained_previous_current(
-    journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry
-) -> None:
+def test_distinct_counts_retained_previous_current(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry) -> None:
     previous = _register(registry, PREVIOUS_URL)
     _register(registry, CURRENT_URL)  # current target known but undelivered
 
@@ -352,9 +346,7 @@ def _fill(journal: EventJournal, ledger: SqliteDeliveryLedger, target_id: str, *
             ledger.record_success(event_id, target_id)
 
 
-def test_gc_suggested_when_large_and_fully_delivered(
-    journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry
-) -> None:
+def test_gc_suggested_when_large_and_fully_delivered(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry) -> None:
     target = _register(registry, CURRENT_URL)
     _fill(journal, ledger, target.target_id, count=3, deliver=3)
 
@@ -390,9 +382,7 @@ def test_gc_not_suggested_when_not_fully_delivered_but_size_shown(
     assert section["journal_size_bytes"] > 0  # size still surfaced
 
 
-def test_gc_not_suggested_when_small_but_size_shown(
-    journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry
-) -> None:
+def test_gc_not_suggested_when_small_but_size_shown(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry) -> None:
     target = _register(registry, CURRENT_URL)
     _fill(journal, ledger, target.target_id, count=1, deliver=1)
 
@@ -408,9 +398,7 @@ def test_gc_not_suggested_when_small_but_size_shown(
     assert "journal_size_bytes" in section
 
 
-def test_gc_not_suggested_with_zero_known_targets(
-    journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry
-) -> None:
+def test_gc_not_suggested_with_zero_known_targets(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry) -> None:
     # Events present and "large", but no delivery target configured/known.
     for index in range(3):
         journal.append(_event(f"evt-{index}", payload=b"payload-bytes"))
@@ -432,7 +420,7 @@ def test_evaluate_gc_suggestion_threshold_boundary() -> None:
     suggested, suggestion = evaluate_gc_suggestion(
         retained_event_ids=(),
         journal_size_bytes=GC_LARGE_JOURNAL_THRESHOLD_BYTES,
-        ledger=object(),
+        ledger=cast(SqliteDeliveryLedger, object()),
         known_target_ids=(),
         large_threshold_bytes=GC_LARGE_JOURNAL_THRESHOLD_BYTES,
     )
@@ -440,9 +428,7 @@ def test_evaluate_gc_suggestion_threshold_boundary() -> None:
     assert suggestion is None
 
 
-def test_delivery_ledger_non_terminal_counts(
-    journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry
-) -> None:
+def test_delivery_ledger_non_terminal_counts(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry) -> None:
     target = _register(registry, CURRENT_URL)
     for event_id in ("evt-p", "evt-r", "evt-t"):
         journal.append(_event(event_id))
@@ -450,9 +436,7 @@ def test_delivery_ledger_non_terminal_counts(
     ledger.record_rejected("evt-r", target.target_id, error="bad content")
     ledger.record_transient("evt-t", target.target_id, error="5xx")
 
-    report = build_status_report(
-        resolved_target=_resolved(), journal=journal, ledger=ledger, target_registry=registry
-    )
+    report = build_status_report(resolved_target=_resolved(), journal=journal, ledger=ledger, target_registry=registry)
     section = report[DELIVERY_LEDGER_KEY]
     assert section["pending"] == 1
     assert section["rejected"] == 1
@@ -479,9 +463,7 @@ def test_known_target_without_deliveries_is_not_listed_as_previous(
     assert unused.target_id not in previous_ids  # zero deliveries -> not surfaced
 
 
-def test_malformed_resolved_url_yields_unregistered_current(
-    journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry
-) -> None:
+def test_malformed_resolved_url_yields_unregistered_current(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry) -> None:
     report = build_status_report(
         resolved_target=_resolved("not-a-valid-url"),
         journal=journal,
@@ -510,16 +492,12 @@ def test_evaluate_gc_suggestion_empty_retained_is_vacuously_delivered(ledger: Sq
 # ---------------------------------------------------------------------------
 
 
-def test_terminal_failures_inspectable(
-    journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry
-) -> None:
+def test_terminal_failures_inspectable(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry) -> None:
     target = _register(registry, CURRENT_URL)
     journal.append(_event("evt-oversized"))
     ledger.record_terminal_failed("evt-oversized", target.target_id, error="payload too large")
 
-    report = build_status_report(
-        resolved_target=_resolved(), journal=journal, ledger=ledger, target_registry=registry
-    )
+    report = build_status_report(resolved_target=_resolved(), journal=journal, ledger=ledger, target_registry=registry)
     section = report[TERMINAL_FAILURES_KEY]
     assert section["count"] == 1
     failure = section["events"][0]
@@ -527,9 +505,7 @@ def test_terminal_failures_inspectable(
     assert failure["last_error"] == "payload too large"
 
 
-def test_migration_conflicts_block_cleanup(
-    journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry
-) -> None:
+def test_migration_conflicts_block_cleanup(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry) -> None:
     audit = MigrationAudit(":memory:")
     audit.record_conflict(
         MigrationConflict(
@@ -555,12 +531,8 @@ def test_migration_conflicts_block_cleanup(
     assert section["conflicts"][0]["event_id"] == "evt-dup"
 
 
-def test_migration_conflicts_section_present_when_none(
-    journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry
-) -> None:
-    report = build_status_report(
-        resolved_target=_resolved(), journal=journal, ledger=ledger, target_registry=registry
-    )
+def test_migration_conflicts_section_present_when_none(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry) -> None:
+    report = build_status_report(resolved_target=_resolved(), journal=journal, ledger=ledger, target_registry=registry)
     section = report[MIGRATION_CONFLICTS_KEY]
     assert section["count"] == 0
     assert section["cleanup_blocked"] is False
@@ -617,9 +589,7 @@ def test_body_upload_counts_only_in_compat_section(
 # ---------------------------------------------------------------------------
 
 
-def test_archive_marks_and_preserves_ledger(
-    journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry
-) -> None:
+def test_archive_marks_and_preserves_ledger(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry) -> None:
     target = _register(registry, CURRENT_URL)
     ids = ["evt-a", "evt-b", "evt-c"]
     for event_id in ids:
@@ -636,12 +606,11 @@ def test_archive_marks_and_preserves_ledger(
         assert stored is not None
         assert stored.archived_at is not None
         # Ledger provenance intact.
-        assert ledger.get(event_id, target.target_id).status == "success"
+        row = ledger.get(event_id, target.target_id)
+        assert row is not None and row.status == "success"
 
     # Archived rows leave the "retained" surface.
-    report = build_status_report(
-        resolved_target=_resolved(), journal=journal, ledger=ledger, target_registry=registry
-    )
+    report = build_status_report(resolved_target=_resolved(), journal=journal, ledger=ledger, target_registry=registry)
     assert report[EVENT_JOURNAL_KEY]["retained_event_count"] == 0
     assert report[EVENT_JOURNAL_KEY]["archived_event_count"] == 3
 
@@ -655,9 +624,7 @@ def test_archive_is_idempotent(journal: EventJournal) -> None:
     assert "evt-a" in second.skipped
 
 
-def test_gc_purges_delivered_preserves_undelivered_and_ledger(
-    journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry
-) -> None:
+def test_gc_purges_delivered_preserves_undelivered_and_ledger(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry) -> None:
     target = _register(registry, CURRENT_URL)
     journal.append(_event("evt-delivered"))
     journal.append(_event("evt-undelivered"))
@@ -675,7 +642,8 @@ def test_gc_purges_delivered_preserves_undelivered_and_ledger(
     assert journal.read_by_id("evt-undelivered") is not None
 
     # Ledger history/provenance preserved (FR-010).
-    assert ledger.get("evt-delivered", target.target_id).status == "success"
+    row = ledger.get("evt-delivered", target.target_id)
+    assert row is not None and row.status == "success"
 
 
 def test_archive_without_event_ids_scans_retained(journal: EventJournal) -> None:
@@ -686,9 +654,7 @@ def test_archive_without_event_ids_scans_retained(journal: EventJournal) -> None
     assert result.archived_count == 2
 
 
-def test_gc_with_no_delivered_events_purges_nothing(
-    journal: EventJournal, ledger: SqliteDeliveryLedger
-) -> None:
+def test_gc_with_no_delivered_events_purges_nothing(journal: EventJournal, ledger: SqliteDeliveryLedger) -> None:
     journal.append(_event("evt-undelivered"))
     result = gc_payloads(journal, ledger)  # nothing delivered anywhere
     assert result.purged_count == 0
@@ -696,9 +662,7 @@ def test_gc_with_no_delivered_events_purges_nothing(
     assert journal.read_by_id("evt-undelivered") is not None
 
 
-def test_sync_now_style_path_does_not_trigger_retention(
-    journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry
-) -> None:
+def test_sync_now_style_path_does_not_trigger_retention(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry) -> None:
     # Simulate a normal capture + deliver cycle (US4 scenario 3): no explicit
     # cleanup command is invoked, so no journal payload is ever deleted.
     target = _register(registry, CURRENT_URL)
@@ -715,9 +679,7 @@ def test_sync_now_style_path_does_not_trigger_retention(
 
 
 def test_empty_journal_report(journal: EventJournal, ledger: SqliteDeliveryLedger, registry: SqliteDeliveryTargetRegistry) -> None:
-    report = build_status_report(
-        resolved_target=_resolved(), journal=journal, ledger=ledger, target_registry=registry
-    )
+    report = build_status_report(resolved_target=_resolved(), journal=journal, ledger=ledger, target_registry=registry)
     section = report[EVENT_JOURNAL_KEY]
     assert section["retained_event_count"] == 0
     assert section["archived_event_count"] == 0

@@ -258,11 +258,7 @@ def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
     event_type = envelope.get("event_type")
     payload = envelope.get("payload")
     aggregate_type = envelope.get("aggregate_type")
-    if (
-        not isinstance(event_type, str)
-        or not isinstance(payload, Mapping)
-        or not isinstance(aggregate_type, str)
-    ):
+    if not isinstance(event_type, str) or not isinstance(payload, Mapping) or not isinstance(aggregate_type, str):
         return
 
     repo_root = repo_root_for_lifecycle_log(log_path)
@@ -383,9 +379,7 @@ def register_default_handlers() -> None:
             if routing is None or not routing.project_uuid:
                 return False
             uuid = str(routing.project_uuid)
-            return uuid in consented_project_uuids(
-                [uuid], checkout_roots=[routing.repo_root]
-            )
+            return uuid in consented_project_uuids([uuid], checkout_roots=[routing.repo_root])
 
         register_egress_consent_resolver(_egress_consent_resolver)
 

@@ -4,6 +4,7 @@ These assert observable on-disk state (NFR-001): distinct rows, idempotent
 re-append, no normal-path delete, no delivery/target leakage, and the
 default no-op coalescing seam. They never assert internal call ordering.
 """
+
 from __future__ import annotations
 
 import dataclasses
@@ -152,12 +153,8 @@ def test_journal_module_imports_nothing_from_delivery() -> None:
 def test_oldest_created_at_and_count(journal: EventJournal) -> None:
     assert journal.count() == 0
     assert journal.oldest_created_at() is None
-    journal.append(
-        dataclasses.replace(_event("evt-a"), created_at="2026-06-29T03:00:00+00:00")
-    )
-    journal.append(
-        dataclasses.replace(_event("evt-b"), created_at="2026-06-29T01:00:00+00:00")
-    )
+    journal.append(dataclasses.replace(_event("evt-a"), created_at="2026-06-29T03:00:00+00:00"))
+    journal.append(dataclasses.replace(_event("evt-b"), created_at="2026-06-29T01:00:00+00:00"))
     assert journal.count() == 2
     assert journal.oldest_created_at() == "2026-06-29T01:00:00+00:00"
 

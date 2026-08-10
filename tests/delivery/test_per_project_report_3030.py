@@ -47,9 +47,7 @@ def store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSyncStore:
     value = ProjectSyncStore(PROJECT)
     authority = value.layout_generation()
     authority.begin_cutover("per-project-report-tests")
-    authority.publish_project_only(
-        "per-project-report-tests", verify_exact=lambda: True
-    )
+    authority.publish_project_only("per-project-report-tests", verify_exact=lambda: True)
     record_project_opt_in(PROJECT, actor="test")
     return value
 
@@ -62,9 +60,7 @@ def journal(store: ProjectSyncStore) -> Iterator[EventJournal]:
 
 def _seed(journal: EventJournal, count: int = 14) -> None:
     for index in range(count):
-        journal.append(
-            _event(f"evt-{index:02d}", f"2026-07-01T00:00:{index:02d}Z")
-        )
+        journal.append(_event(f"evt-{index:02d}", f"2026-07-01T00:00:{index:02d}Z"))
 
 
 def test_sc004_report_names_every_project_with_count_age_and_consent(
@@ -165,9 +161,7 @@ def _identity_row(index: int) -> EventIdentityRow:
 
 
 def test_reconciliation_fails_when_the_projection_omits_rows() -> None:
-    report = build_per_project_store_report(
-        _DisagreeingJournal([_identity_row(index) for index in range(3)], 10)
-    )
+    report = build_per_project_store_report(_DisagreeingJournal([_identity_row(index) for index in range(3)], 10))
     assert report.counted_event_total == 3
     assert report.retained_event_count == 10
     assert report.reconciles is False
@@ -208,9 +202,7 @@ def test_a_restricted_report_does_not_reconcile_when_a_named_event_is_missing(
     journal: EventJournal,
 ) -> None:
     _seed(journal, 1)
-    result = build_per_project_store_report(
-        journal, event_ids=["evt-00", "evt-never-landed"]
-    )
+    result = build_per_project_store_report(journal, event_ids=["evt-00", "evt-never-landed"])
     assert result.counted_event_total == 1
     assert result.retained_event_count == 2
     assert result.reconciles is False
@@ -245,9 +237,7 @@ def test_an_empty_project_uuid_is_identity_less_and_counted_exactly_once(
 ) -> None:
     for value in (None, "", "   "):
         with pytest.raises(ValueError, match="owner"):
-            journal.append(
-                _event("evt-blank", "2026-05-01T00:00:00Z", project_uuid=value)
-            )
+            journal.append(_event("evt-blank", "2026-05-01T00:00:00Z", project_uuid=value))
     assert journal.count() == 0
 
 
@@ -278,12 +268,8 @@ def test_candidates_split_on_project_slug_when_no_repo_slug_was_recorded(
 def test_no_candidate_ever_spans_two_distinct_recorded_names(
     journal: EventJournal,
 ) -> None:
-    journal.append(
-        _event("evt-a", "2026-07-01T00:00:00Z", project_slug="acme-app")
-    )
-    journal.append(
-        _event("evt-b", "2026-07-01T00:00:01Z", project_slug="renamed-app")
-    )
+    journal.append(_event("evt-a", "2026-07-01T00:00:00Z", project_slug="acme-app"))
+    journal.append(_event("evt-b", "2026-07-01T00:00:01Z", project_slug="renamed-app"))
     row = build_per_project_store_report(journal).rows[0]
     assert row.project_uuid == PROJECT
     assert row.event_count == 2

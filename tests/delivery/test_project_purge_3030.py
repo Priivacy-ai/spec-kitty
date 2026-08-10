@@ -106,9 +106,7 @@ class TestDryRunIsTheDefault:
         assert set(preview.purged_event_ids) == {"a-1", "a-2", "a-3"}
         assert preview.target_before == preview.target_after == 3
         assert preview.ledger_rows_selected == 2
-        real = purge_project_events(
-            _TARGET_A, journal=journal, ledger=ledger, dry_run=False
-        )
+        real = purge_project_events(_TARGET_A, journal=journal, ledger=ledger, dry_run=False)
         assert set(real.purged_event_ids) == set(preview.purged_event_ids)
         assert real.ledger_rows_removed == preview.ledger_rows_selected
 
@@ -131,9 +129,7 @@ class TestExactness:
         journal: EventJournal,
         ledger: SqliteDeliveryLedger,
     ) -> None:
-        result = purge_project_events(
-            _TARGET_A, journal=journal, ledger=ledger, dry_run=False
-        )
+        result = purge_project_events(_TARGET_A, journal=journal, ledger=ledger, dry_run=False)
         assert _journal_ids(journal) == set()
         assert result.target_after == 0
         assert result.other_project_journal_differential == 0
@@ -163,9 +159,7 @@ class TestExactness:
         journal: EventJournal,
         ledger: SqliteDeliveryLedger,
     ) -> None:
-        result = purge_project_events(
-            _TARGET_A, journal=journal, ledger=ledger, dry_run=False
-        )
+        result = purge_project_events(_TARGET_A, journal=journal, ledger=ledger, dry_run=False)
         assert result.ledger_rows_removed == 2
         assert _ledger_ids(ledger) == set()
 

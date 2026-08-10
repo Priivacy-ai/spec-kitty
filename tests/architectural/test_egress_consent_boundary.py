@@ -2164,6 +2164,7 @@ _KNOWN_LAYOUT_WRITE_COUNTS.update(
         "specify_cli/event_journal/journal.py::EventJournal.replace_undelivered_payload.write::UPDATE::execute": 1,
         "specify_cli/sync/body_queue.py::OfflineBodyUploadQueue._update.write::UPDATE::execute": 1,
         "specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.enqueue.write::INSERT::execute": 1,
+        "specify_cli/sync/body_queue.py::OfflineBodyUploadQueue.remove_project_tasks.write::DELETE::execute": 1,
         "specify_cli/sync/queue.py::OfflineQueue._update_tasks.write::UPDATE::execute": 1,
         "specify_cli/sync/queue.py::OfflineQueue.queue_event.write::INSERT::execute": 1,
     }
@@ -2280,10 +2281,7 @@ def _durable_result_write(
     authority_lines = {
         site.lineno
         for site in _scan_layout_writers((path,), source_root=source_root)
-        if (
-            site.qualname == row.result_write.qualname
-            or site.qualname.startswith(f"{row.result_write.qualname}.")
-        )
+        if (site.qualname == row.result_write.qualname or site.qualname.startswith(f"{row.result_write.qualname}."))
         and site.operation in dml
         and table in site.statement.lower()
     }
@@ -2454,6 +2452,10 @@ _WP04_PERMIT_WRITERS = {
     ),
     _SymbolRef("specify_cli/sync/body_queue.py", "OfflineBodyUploadQueue._update"),
     _SymbolRef("specify_cli/sync/body_queue.py", "OfflineBodyUploadQueue.enqueue"),
+    _SymbolRef(
+        "specify_cli/sync/body_queue.py",
+        "OfflineBodyUploadQueue.remove_project_tasks",
+    ),
     _SymbolRef("specify_cli/sync/queue.py", "OfflineQueue._update_tasks"),
     _SymbolRef("specify_cli/sync/queue.py", "OfflineQueue.queue_event"),
 }
@@ -2466,11 +2468,7 @@ def _uses_layout_write_permit(path: Path, qualname: str) -> bool:
     calls = [item for item in ast.walk(node) if isinstance(item, ast.Call)]
     has_issue = any(_attr_tail(call.func) == "issue_write_permit" for call in calls)
     has_execute = any(_attr_tail(call.func) == "execute_write" for call in calls)
-    has_destination_check = any(
-        isinstance(call.func, ast.Name)
-        and call.func.id == "_require_project_destination"
-        for call in calls
-    )
+    has_destination_check = any(isinstance(call.func, ast.Name) and call.func.id == "_require_project_destination" for call in calls)
     return has_issue and has_execute and has_destination_check
 
 
@@ -2482,19 +2480,14 @@ def test_every_wp04_current_writer_participates_in_layout_permits() -> None:
         if site.owner_wp == "WP04" and not _is_canonical_project_store_layout_write(site)
     }
     assert discovered == _WP04_PERMIT_WRITERS
-    assert all(
-        _uses_layout_write_permit(_SRC / writer.relpath, writer.qualname)
-        for writer in _WP04_PERMIT_WRITERS
-    )
+    assert all(_uses_layout_write_permit(_SRC / writer.relpath, writer.qualname) for writer in _WP04_PERMIT_WRITERS)
 
 
 def test_layout_permit_guard_rejects_a_writer_bypass_mutant(tmp_path: Path) -> None:
     source = tmp_path / "specify_cli" / "sync" / "queue.py"
     source.parent.mkdir(parents=True)
     source.write_text(
-        "class OfflineQueue:\n"
-        "    def queue_event(self, unit, payload):\n"
-        "        unit.execute('INSERT INTO outbox_tasks VALUES (?)', (payload,))\n",
+        "class OfflineQueue:\n    def queue_event(self, unit, payload):\n        unit.execute('INSERT INTO outbox_tasks VALUES (?)', (payload,))\n",
         encoding="utf-8",
     )
     sites = _scan_layout_writers((source,), source_root=tmp_path)

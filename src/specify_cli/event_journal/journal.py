@@ -115,9 +115,7 @@ def _event_from_document(document: str) -> Event:
 
 def _require_project_destination(permit: LayoutWritePermit) -> None:
     if permit.destination is not LayoutDestination.PROJECT_STORE:
-        raise ProjectLayoutRequiredError(
-            "live payload writes require the project_only layout; legacy state is migration input only"
-        )
+        raise ProjectLayoutRequiredError("live payload writes require the project_only layout; legacy state is migration input only")
 
 
 class EventJournal:
@@ -137,10 +135,13 @@ class EventJournal:
     def project_uuid(self) -> str:
         return str(self._unit.project_uuid.storage_token)
 
+    @property
+    def unit_of_work_identity(self) -> int:
+        return int(self._unit.connection_identity)
+
     def _existing_assignment(self, event_id: str) -> JournalWriteReceipt | None:
         row = self._unit.execute(
-            "SELECT capture_sequence, epoch_id FROM journal_entries "
-            "WHERE project_uuid = ? AND entry_id = ?",
+            "SELECT capture_sequence, epoch_id FROM journal_entries WHERE project_uuid = ? AND entry_id = ?",
             (self.project_uuid, event_id),
         ).fetchone()
         if row is None:
@@ -189,9 +190,7 @@ class EventJournal:
 
             assignment = allocate_capture_sequence(self._unit)
             self._unit.execute(
-                "INSERT INTO journal_entries "
-                "(entry_id, project_uuid, epoch_id, capture_sequence, payload_json, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO journal_entries (entry_id, project_uuid, epoch_id, capture_sequence, payload_json, created_at) VALUES (?, ?, ?, ?, ?, ?)",
                 (
                     event.event_id,
                     self.project_uuid,
@@ -225,8 +224,7 @@ class EventJournal:
 
     def read_all(self) -> list[Event]:
         rows = self._unit.execute(
-            "SELECT payload_json FROM journal_entries WHERE project_uuid = ? "
-            "ORDER BY capture_sequence, entry_id",
+            "SELECT payload_json FROM journal_entries WHERE project_uuid = ? ORDER BY capture_sequence, entry_id",
             (self.project_uuid,),
         ).fetchall()
         return [_event_from_document(str(row[0])) for row in rows]
@@ -265,8 +263,7 @@ class EventJournal:
     def read_identity_projection_for_report(self) -> list[EventIdentityRow]:
         """Read the explicit store's payload-free owner projection only."""
         rows = self._unit.execute(
-            "SELECT entry_id, created_at, payload_json FROM journal_entries "
-            "WHERE project_uuid = ? ORDER BY capture_sequence, entry_id",
+            "SELECT entry_id, created_at, payload_json FROM journal_entries WHERE project_uuid = ? ORDER BY capture_sequence, entry_id",
             (self.project_uuid,),
         ).fetchall()
         projected: list[EventIdentityRow] = []
@@ -313,8 +310,7 @@ class EventJournal:
     def owner_consent_projection(self) -> tuple[str | None, int | None]:
         """Return this store owner's payload-free decision on the active UoW."""
         row = self._unit.execute(
-            "SELECT state, generation FROM project_consent_decisions "
-            "WHERE project_uuid = ?",
+            "SELECT state, generation FROM project_consent_decisions WHERE project_uuid = ?",
             (self.project_uuid,),
         ).fetchone()
         if row is None:
@@ -334,8 +330,7 @@ class EventJournal:
         def write(permit: LayoutWritePermit) -> None:
             _require_project_destination(permit)
             self._unit.execute(
-                "UPDATE journal_entries SET payload_json = ? "
-                "WHERE project_uuid = ? AND entry_id = ?",
+                "UPDATE journal_entries SET payload_json = ? WHERE project_uuid = ? AND entry_id = ?",
                 (_event_document(updated), self.project_uuid, event_id),
             )
 
@@ -406,8 +401,7 @@ class EventJournal:
         def write(permit: LayoutWritePermit) -> None:
             _require_project_destination(permit)
             self._unit.execute(
-                "UPDATE journal_entries SET payload_json = ? "
-                "WHERE project_uuid = ? AND entry_id = ?",
+                "UPDATE journal_entries SET payload_json = ? WHERE project_uuid = ? AND entry_id = ?",
                 (_event_document(updated), self.project_uuid, event_id),
             )
 
@@ -464,9 +458,7 @@ class EventJournal:
 JournalTransaction = EventJournal
 
 
-def resolve_journal_path(
-    *, user_id: str | None = None, team_slug: str | None = None
-) -> Path:
+def resolve_journal_path(*, user_id: str | None = None, team_slug: str | None = None) -> Path:
     """Return a legacy source path for named migration/diagnostics only."""
     del user_id, team_slug
     return Path(get_runtime_root().base) / JOURNAL_SUBDIR / "journal-local.db"

@@ -103,9 +103,7 @@ def test_stale_legacy_permit_redirects_once_before_capture(
     with store.unit_of_work() as unit:
         receipt = EventJournal(unit, authority).append(
             _event("event-race", PROJECT_A),
-            test_hooks=LayoutTestHooks(
-                before_revalidate=publish_cutover_between_issue_and_revalidate
-            ),
+            test_hooks=LayoutTestHooks(before_revalidate=publish_cutover_between_issue_and_revalidate),
         )
         assert EventJournal(unit, authority).count() == 1
 
@@ -124,9 +122,7 @@ def test_same_uuid_store_instances_share_one_physical_journal(
     _project_only(first)
 
     with first.unit_of_work() as unit:
-        EventJournal(unit, first.layout_generation()).append(
-            _event("event-shared", PROJECT_A)
-        )
+        EventJournal(unit, first.layout_generation()).append(_event("event-shared", PROJECT_A))
     with second.unit_of_work() as unit:
         observed = EventJournal(unit, second.layout_generation()).read_all()
 

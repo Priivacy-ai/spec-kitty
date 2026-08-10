@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
-from typing import Protocol
-
 from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.delivery.ledger import SqliteDeliveryLedger
 from specify_cli.event_journal.journal import EventJournal
@@ -14,6 +12,7 @@ from specify_cli.sync.layout_generation import (
     LayoutGenerationAuthority,
     LayoutWritePermit,
 )
+from specify_cli.sync.body_queue import OfflineBodyUploadQueue
 from specify_cli.sync.project_store import ProjectUnitOfWork
 
 PURGE_ALL_CONFIRMATION = "purge all events"
@@ -68,12 +67,6 @@ class ProjectPayloadPurgeResult:
     def is_exact(self) -> bool:
         expected = self.target_before if self.dry_run else 0
         return self.target_after == expected and self.other_project_differential == 0
-
-
-class BodyUploadPurgeTarget(Protocol):
-    def count_by_project(self) -> dict[str, int]: ...
-
-    def remove_project_tasks(self, project_uuid: str) -> int: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -154,26 +147,12 @@ class ProjectPurgeResult:
 
     @property
     def is_exact(self) -> bool:
-        expected = (
-            self.target_before
-            if self.dry_run
-            else self.target_before - self.purged_count
-            if self.undelivered_only
-            else 0
-        )
-        return (
-            self.target_after == expected
-            and self.other_project_journal_differential == 0
-            and self.other_ledger_differential == 0
-        )
+        expected = self.target_before if self.dry_run else self.target_before - self.purged_count if self.undelivered_only else 0
+        return self.target_after == expected and self.other_project_journal_differential == 0 and self.other_ledger_differential == 0
 
 
 def _payload_bytes(journal: EventJournal, *, live_only: bool) -> int:
-    return sum(
-        len(event.payload)
-        for event in journal.read_all()
-        if not live_only or event.archived_at is None
-    )
+    return sum(len(event.payload) for event in journal.read_all() if not live_only or event.archived_at is None)
 
 
 def archive_payloads(
@@ -182,9 +161,7 @@ def archive_payloads(
     event_ids: Sequence[str] | None = None,
     at: str | None = None,
 ) -> RetentionResult:
-    candidates = list(event_ids) if event_ids is not None else [
-        event.event_id for event in journal.read_all() if event.archived_at is None
-    ]
+    candidates = list(event_ids) if event_ids is not None else [event.event_id for event in journal.read_all() if event.archived_at is None]
     before = _payload_bytes(journal, live_only=True)
     archived: list[str] = []
     skipped: list[str] = []
@@ -214,12 +191,7 @@ def gc_payloads(
 ) -> RetentionResult:
     candidates = list(event_ids) if event_ids is not None else [event.event_id for event in journal.read_all()]
     before = _payload_bytes(journal, live_only=False)
-    purged = [
-        event_id
-        for event_id in candidates
-        if known_target_ids
-        and all(ledger.delivered_to_target(event_id, target_id) for target_id in known_target_ids)
-    ]
+    purged = [event_id for event_id in candidates if known_target_ids and all(ledger.delivered_to_target(event_id, target_id) for target_id in known_target_ids)]
     skipped = [event_id for event_id in candidates if event_id not in purged]
     journal.purge_events(purged, preserve_delivery_history=True)
     return RetentionResult(
@@ -234,10 +206,14 @@ def gc_payloads(
 def purge_project_body_uploads(
     project_uuid: str,
     *,
-    body_queue: BodyUploadPurgeTarget,
+    body_queue: OfflineBodyUploadQueue,
     dry_run: bool = True,
 ) -> BodyQueuePurgeResult:
     target = project_uuid.strip().lower()
+    if not isinstance(body_queue, OfflineBodyUploadQueue):
+        raise TypeError("body purge requires a project-store body queue")
+    if target != body_queue.project_uuid:
+        raise ValueError("body purge selector must match the project store owner")
     before = dict(body_queue.count_by_project())
     removed = 0 if dry_run else body_queue.remove_project_tasks(target)
     after = dict(body_queue.count_by_project())
@@ -246,15 +222,9 @@ def purge_project_body_uploads(
 
 def _counts(unit: ProjectUnitOfWork) -> tuple[int, int, int]:
     owner = unit.project_uuid.storage_token
-    journal = unit.execute(
-        "SELECT COUNT(*) FROM journal_entries WHERE project_uuid = ?", (owner,)
-    ).fetchone()
-    body = unit.execute(
-        "SELECT COUNT(*) FROM body_upload_tasks WHERE project_uuid = ?", (owner,)
-    ).fetchone()
-    results = unit.execute(
-        "SELECT COUNT(*) FROM delivery_results WHERE project_uuid = ?", (owner,)
-    ).fetchone()
+    journal = unit.execute("SELECT COUNT(*) FROM journal_entries WHERE project_uuid = ?", (owner,)).fetchone()
+    body = unit.execute("SELECT COUNT(*) FROM body_upload_tasks WHERE project_uuid = ?", (owner,)).fetchone()
+    results = unit.execute("SELECT COUNT(*) FROM delivery_results WHERE project_uuid = ?", (owner,)).fetchone()
     return (
         int(journal[0]) if journal is not None else 0,
         int(body[0]) if body is not None else 0,
@@ -315,11 +285,7 @@ def purge_project_events(
     if target != journal.project_uuid or target != ledger.project_uuid:
         raise ValueError("purge selector must match the explicit project store owner")
     events = journal.read_all()
-    ids = [
-        event.event_id
-        for event in events
-        if not undelivered_only or not ledger.delivered_anywhere(event.event_id)
-    ]
+    ids = [event.event_id for event in events if not undelivered_only or not ledger.delivered_anywhere(event.event_id)]
     before_rows = ledger.rows()
     status_before: dict[str, int] = {}
     for row in before_rows:

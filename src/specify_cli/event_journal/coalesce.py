@@ -40,11 +40,7 @@ class CoalescingStrategy:
         candidates = [row for row in journal.read_all() if row.coalesce_key == key]
         if not candidates:
             return CoalesceDecision()
-        undelivered = [
-            candidate
-            for candidate in candidates
-            if not self._ledger.delivered_anywhere(candidate.event_id)
-        ]
+        undelivered = [candidate for candidate in candidates if not self._ledger.delivered_anywhere(candidate.event_id)]
         if undelivered:
             journal.replace_undelivered_payload(undelivered[-1].event_id, event.payload)
             return CoalesceDecision(store_as_new=False)

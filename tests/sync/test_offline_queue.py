@@ -75,24 +75,18 @@ class TestOfflineQueue:
         assert not hasattr(temp_queue, "db_path")
 
     def test_queue_event_success(self, temp_queue: OfflineQueue) -> None:
-        result = temp_queue.queue_event(
-            _event("evt-001", "WPStatusChanged", {"wp_id": "WP01", "status": "doing"})
-        )
+        result = temp_queue.queue_event(_event("evt-001", "WPStatusChanged", {"wp_id": "WP01", "status": "doing"}))
         assert result is True
         assert temp_queue.size() == 1
 
     def test_queue_multiple_events(self, temp_queue: OfflineQueue) -> None:
         for index in range(5):
-            assert temp_queue.queue_event(
-                _event(f"evt-{index:03d}", "WPStatusChanged", {"index": index})
-            )
+            assert temp_queue.queue_event(_event(f"evt-{index:03d}", "WPStatusChanged", {"index": index}))
         assert temp_queue.size() == 5
 
     def test_drain_queue_fifo_order(self, temp_queue: OfflineQueue) -> None:
         for index in range(3):
-            temp_queue.queue_event(
-                _event(f"evt-{index:03d}", "TestEvent", {"index": index})
-            )
+            temp_queue.queue_event(_event(f"evt-{index:03d}", "TestEvent", {"index": index}))
         tasks = temp_queue.drain_queue()
         assert all(isinstance(task, ProjectOutboxTask) for task in tasks)
         assert [task.event_id for task in tasks] == ["evt-000", "evt-001", "evt-002"]
@@ -158,9 +152,7 @@ class TestOfflineQueueSizeLimit:
 class TestOfflineQueuePersistence:
     def test_queue_persists_across_instances(self, store: ProjectSyncStore) -> None:
         with store.unit_of_work() as unit:
-            OfflineQueue(unit, store.layout_generation()).queue_event(
-                _event("evt-001", "TestEvent", {"data": "test"})
-            )
+            OfflineQueue(unit, store.layout_generation()).queue_event(_event("evt-001", "TestEvent", {"data": "test"}))
         with store.unit_of_work() as unit:
             tasks = OfflineQueue(unit, store.layout_generation()).drain_queue()
         assert len(tasks) == 1
@@ -276,9 +268,7 @@ class TestQueueStats:
 
     def test_oldest_event_age_from_past_timestamp(self, temp_queue: OfflineQueue) -> None:
         now = datetime.now(UTC)
-        temp_queue.queue_event(
-            _event("old-evt", "TestEvent", created_at=(now - timedelta(hours=1)).isoformat())
-        )
+        temp_queue.queue_event(_event("old-evt", "TestEvent", created_at=(now - timedelta(hours=1)).isoformat()))
         temp_queue.queue_event(_event("new-evt", "TestEvent", created_at=now.isoformat()))
         age = temp_queue.get_queue_stats().oldest_event_age
         assert age is not None
