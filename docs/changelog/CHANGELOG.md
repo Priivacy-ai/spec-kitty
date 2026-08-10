@@ -1311,17 +1311,18 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 - **Internal: the `specify_cli` aware-UTC clock contract is now enforced structurally
   (#2496).** Follow-up to #2494's clock-consolidation sweep. Routes the remaining
   byte-identical `datetime.now(UTC).isoformat()` "now"-stamp call sites in `specify_cli`
-  onto the single canonical `now_utc_iso()` helper, so that helper is the sole permitted
-  producer of the form. Behaviour-preserving: the `UTC` / `timezone.utc` spellings
-  serialize byte-identically under `requires-python >=3.11`. Adds an **AST negative
-  gate** over the whole `src/specify_cli` tree
-  (`tests/specify_cli/test_clock_consolidation.py`), alongside the pre-existing
-  owned-file inventory, so a module added later is covered the moment it lands rather
-  than silently regressing while the suite stays green; the gate ships a self-mutant
-  non-vacuity test and a stale-exemption check.
-  Distinct contracts are deliberately out of scope and are not flagged: the
-  second-precision `%Y-%m-%dT%H:%M:%SZ` stamp family, `isoformat(timespec=...)`,
-  naive `now()`, and the datetime-returning family.
+  onto the single canonical `now_utc_iso()` helper, the canonical producer of that form.
+  Behaviour-preserving: the `UTC` / `timezone.utc` spellings serialize byte-identically
+  under `requires-python >=3.11`. Adds an **AST negative gate** over the whole
+  `src/specify_cli` tree (`tests/specify_cli/test_clock_consolidation.py`), alongside
+  the pre-existing owned-file inventory, so a module added later is covered the moment it
+  lands rather than silently regressing while the suite stays green; the gate ships a
+  self-mutant non-vacuity test and a stale-exemption check. It targets the fluent
+  single-expression `<x>.now(<aware-UTC>).isoformat()` idiom (import aliases resolved);
+  distinct contracts are deliberately out of scope and not flagged: the second-precision
+  `%Y-%m-%dT%H:%M:%SZ` stamp family, `isoformat(timespec=...)`, naive `now()`, the
+  datetime-returning family, and non-fluent forms (a variable-split or a space-separated
+  `str()` of an aware instant).
 - **Internal: the coord-authority trio is decomposed into ports + pure cores
   (#2464, #2465).** The three coord-authority god-modules are restructured
   behaviour-preservingly into the shipped Typer-shell + request-dataclass + pure-cores

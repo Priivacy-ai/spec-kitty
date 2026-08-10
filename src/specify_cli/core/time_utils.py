@@ -3,15 +3,19 @@
 This module hosts the single canonical `now_utc_iso()` helper.
 
 **The semantic clock contract**: every "now"-stamp in `specify_cli` that
-serializes an *aware-UTC* instant at `isoformat()`'s native precision routes
-through this helper. `now_utc_iso()` is the sole permitted producer of that
-form; a local `datetime.now(UTC).isoformat()` copy is a contract violation.
-This is enforced structurally rather than by inventory: an AST gate
+serializes an *aware-UTC* instant at `isoformat()`'s native precision should
+route through this helper — it is the canonical producer of that form, and a
+local `datetime.now(UTC).isoformat()` copy is a contract violation. This is
+enforced structurally rather than by inventory: an AST gate
 (`tests/specify_cli/test_clock_consolidation.py`) scans the whole
-`src/specify_cli` tree for the raw form and fails on any occurrence outside
-the exception families below, so a newly added module is covered the moment
-it lands. (A count of migrated copies is deliberately NOT recorded here — it
-decays on every migration.)
+`src/specify_cli` tree and fails on the **fluent single-expression idiom**
+`<x>.now(<aware-UTC>).isoformat()` (import aliases resolved) outside the
+exception families below, so a newly added module is covered the moment it
+lands. The gate is precise, not total: a variable-split
+(`d = datetime.now(UTC)` then `d.isoformat()`) or a `str()` of an aware
+instant (a distinct, space-separated string) is not the fluent idiom and is
+out of scope by design — see the gate's own docstring. (A count of migrated
+copies is deliberately NOT recorded here — it decays on every migration.)
 
 Allowed exception families (each a genuinely *distinct contract*, not an
 escape hatch):
@@ -46,9 +50,9 @@ def now_utc_iso() -> str:
 
     The canonical producer of the aware-UTC ``isoformat()`` form: a local
     ``datetime.now(UTC).isoformat()`` copy anywhere in ``specify_cli`` is a
-    violation of the module's clock contract and is caught by the AST gate.
-    Do not use this for the second-precision ``%Y-%m-%dT%H:%M:%SZ`` stamp
-    format (see ``task_utils.support.now_utc``) or for callers that need a
-    ``datetime`` object back.
+    violation of the module's clock contract, and the AST gate catches that
+    fluent idiom. Do not use this for the second-precision
+    ``%Y-%m-%dT%H:%M:%SZ`` stamp format (see ``task_utils.support.now_utc``)
+    or for callers that need a ``datetime`` object back.
     """
     return datetime.now(UTC).isoformat()
