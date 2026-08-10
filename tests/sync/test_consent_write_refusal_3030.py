@@ -59,9 +59,7 @@ def _plant_records() -> Path:
                     PROJECT_A: {"enabled": True},
                     BYSTANDER: {"enabled": True},
                 },
-                "checkout_overrides": {
-                    BYSTANDER_CHECKOUT: {"enabled": True}
-                },
+                "checkout_overrides": {BYSTANDER_CHECKOUT: {"enabled": True}},
             }
         }
     )

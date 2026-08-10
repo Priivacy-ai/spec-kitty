@@ -27,9 +27,7 @@ def _capture(store: ProjectSyncStore, entry_id: str) -> tuple[int, int]:
     with store.unit_of_work() as unit:
         assignment = allocate_capture_sequence(unit)
         unit.execute(
-            "INSERT INTO journal_entries "
-            "(entry_id, project_uuid, epoch_id, capture_sequence, payload_json) "
-            "VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO journal_entries (entry_id, project_uuid, epoch_id, capture_sequence, payload_json) VALUES (?, ?, ?, ?, ?)",
             (
                 entry_id,
                 PROJECT_UUID,
@@ -105,4 +103,3 @@ def test_opt_out_seals_without_deleting_and_reopt_in_never_relabels() -> None:
         regranted_epoch,
         "eligible",
     )
-

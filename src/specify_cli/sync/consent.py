@@ -1,44 +1,29 @@
-"""Per-project hosted-sync consent: the one resolver (#3030 WP05, FR-013/FR-019).
+"""UUID-owned hosted-sync consent, capture epochs, and legacy diagnostics.
 
-Consent used to be answerable only per *checkout*, keyed by absolute path in
-machine-global config, while events carry a ``project_uuid``. That missing join is
-what let a drain authorize at one scope and deliver at another. This module
-supplies the join and is the **single** place the precedence chain is expressed.
-
-Precedence — see spec.md "FR-013 × FR-019 reconciliation":
-
-1. :attr:`ConsentLevel.PROJECT_LOCAL` — the project's own ``.kittify/config.yaml``,
-   authoritative whenever readable. Version-controlled and reviewable in the repo
-   it governs. A **refusal outranks a grant**: two checkouts can share a
-   ``project_uuid`` through a committed file and disagree, and FR-013's rule is
-   deny if any checkout of the project is opted out.
-2. :attr:`ConsentLevel.MACHINE_INDEX` — the uuid-keyed machine-global index. This
-   must exist: the dispatcher resolves consent for events carrying only a
-   ``project_uuid``, and must still answer when the checkout has moved, been
-   renamed or deleted. It is a **cache**, not a second source of truth — when a
-   readable checkout disagrees, the file wins and the index is corrected.
-3. :attr:`ConsentLevel.ENV` — ``SPEC_KITTY_ENABLE_SAAS_SYNC`` is machine-global
-   *arming*, never per-project consent, and therefore **never a grant on its own**.
-   The 2026-07-27 incident is exactly this: the var was exported and five
-   projects with no record rode along on it.
-4. Nothing recorded anywhere → **deny** (FR-002). Absence of a decision is not
-   consent; the five leaked projects had no record at all.
-
-Why one definition site: three consumers must agree — the drain's predicate, the
-consent writers, and FR-015's report. A second copy is how the reported state and
-the enforced state come to disagree, which is the same failure mode T011's identity
-chain guards against.
+Only :class:`ProjectSyncStore` decisions grant local hosted sync. Checkout files,
+machine indexes, repository defaults, login, targets, and environment settings are
+retained only as diagnostics or deny-only controls; their former resolver branches
+fail if called so they cannot silently return as grant authority.
 """
+
 from __future__ import annotations
 
 import enum
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from .config import ConfigReadFault
+from .project_context import ConsentState
+from .project_store import (
+    ProjectStoreError,
+    ProjectStoreVersionError,
+    ProjectSyncStore,
+    ProjectUnitOfWork,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +69,79 @@ class ConsentLevel(enum.StrEnum):
     #: An operator told "no consent record" for a project they opted in will go and
     #: opt it in again; one told "your consent index is unreadable" will fix the file.
     UNDETERMINED = "undetermined"
+    PROJECT_STORE = "project_store"
+
+
+class ConsentAuthorityStatus(enum.StrEnum):
+    """Typed outcome of reading the UUID-owned consent authority."""
+
+    ABSENT = "absent"
+    GRANTED = "granted"
+    REFUSED = "refused"
+    UNREADABLE = "unreadable"
+    INCOMPATIBLE = "incompatible"
+
+
+class ConsentAction(enum.StrEnum):
+    """The complete set of actions allowed to write local consent."""
+
+    EXPLICIT_OPT_IN = "explicit_opt_in"
+    EXPLICIT_OPT_OUT = "explicit_opt_out"
+    MIGRATED_REFUSAL = "migrated_refusal"
+
+
+class LegacyConsentMigrationRequiredError(RuntimeError):
+    """A retired legacy grant surface was invoked instead of explicit opt-in."""
+
+
+class ConsentAuthorityError(RuntimeError):
+    """A project-store consent or epoch invariant could not be satisfied."""
+
+
+@dataclass(frozen=True, slots=True)
+class CaptureAssignment:
+    """Monotonic sequence and epoch selected in one store transaction."""
+
+    project_uuid: str
+    capture_sequence: int
+    epoch_id: int
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectConsentRecord:
+    """One persisted project decision plus the epoch transition it produced."""
+
+    project_uuid: str
+    state: ConsentState
+    generation: int
+    action: ConsentAction
+    actor: str
+    decided_at: datetime
+    schema_version: int
+    epoch_id: int | None = None
+    opened_at_tail: int | None = None
+
+    @property
+    def idempotency_identity(self) -> str:
+        """Stable identity derived only from the persisted decision tuple."""
+        return f"consent:{self.project_uuid}:{self.generation}:{self.action.value}"
+
+
+@dataclass(frozen=True, slots=True)
+class ConsentAuthorityDiagnostic:
+    """Fail-closed read result that distinguishes absence from store faults."""
+
+    status: ConsentAuthorityStatus
+    project_uuid: str
+    record: ProjectConsentRecord | None = None
+    detail: str | None = None
+
+    @property
+    def generation(self) -> int | None:
+        return self.record.generation if self.record is not None else None
+
+
+_DECISION_SCHEMA_VERSION = 1
 
 
 #: The chain, highest authority first. Declared once; never re-derived.
@@ -226,8 +284,7 @@ def _consent_value_or_fault(section: Any) -> tuple[bool | None, str | None]:
     if not isinstance(section, dict):
         return (
             None,
-            f"{PROJECT_CONFIG_SYNC_SECTION} is not a mapping "
-            f"(got {type(section).__name__})",
+            f"{PROJECT_CONFIG_SYNC_SECTION} is not a mapping (got {type(section).__name__})",
         )
     raw = section.get(PROJECT_CONFIG_ENABLED_KEY, _MISSING)
     if raw is _MISSING:
@@ -236,8 +293,7 @@ def _consent_value_or_fault(section: Any) -> tuple[bool | None, str | None]:
         return (raw, None)
     return (
         None,
-        f"{PROJECT_CONFIG_SYNC_SECTION}.{PROJECT_CONFIG_ENABLED_KEY} is not a "
-        f"boolean (got {raw!r})",
+        f"{PROJECT_CONFIG_SYNC_SECTION}.{PROJECT_CONFIG_ENABLED_KEY} is not a boolean (got {raw!r})",
     )
 
 
@@ -346,9 +402,7 @@ def _read_project_local(
         )
 
     declared, identity_fault = _declared_uuid_or_fault(data.get("project"))
-    hosted, consent_fault = _consent_value_or_fault(
-        data.get(PROJECT_CONFIG_SYNC_SECTION)
-    )
+    hosted, consent_fault = _consent_value_or_fault(data.get(PROJECT_CONFIG_SYNC_SECTION))
     field_faults = [f for f in (identity_fault, consent_fault) if f is not None]
     if field_faults:
         logger.debug("Unusable project config at %s: %s", config_path, field_faults)
@@ -406,9 +460,7 @@ def project_local_consent_fault(repo_root: Path) -> ConfigReadFault | None:
     return _read_project_local(repo_root)[2]
 
 
-def _project_local_votes(
-    project_uuid: str, checkout_roots: list[Path]
-) -> tuple[list[bool], list[ConfigReadFault]]:
+def _project_local_votes(project_uuid: str, checkout_roots: list[Path]) -> tuple[list[bool], list[ConfigReadFault]]:
     """Collect hosted-consent votes, and read faults, from the offered checkouts.
 
     A checkout that declares a different uuid is ignored: its file speaks only for
@@ -434,21 +486,350 @@ def _project_local_votes(
     return votes, faults
 
 
-# --- machine-global index (level 2) ---------------------------------------
+# --- UUID-owned project-store authority ----------------------------------
+
+
+def _require_actor(actor: str) -> str:
+    normalized = actor.strip()
+    if not normalized:
+        raise ValueError("consent actor/provenance must be non-empty")
+    return normalized
+
+
+def _decision_row(
+    unit: ProjectUnitOfWork,
+) -> tuple[object, ...] | None:
+    row = unit.execute(
+        "SELECT state, generation, action, actor, decided_at, decision_schema_version FROM project_consent_decisions WHERE project_uuid = ?",
+        (unit.project_uuid.storage_token,),
+    ).fetchone()
+    return tuple(row) if row is not None else None
+
+
+def _active_epoch(
+    unit: ProjectUnitOfWork,
+    *,
+    state: str | None = None,
+) -> tuple[int, int, str] | None:
+    if state is not None:
+        row = unit.execute(
+            "SELECT epoch_id, opened_at_tail, state FROM consent_epochs WHERE project_uuid = ? AND state = ? ORDER BY epoch_id DESC LIMIT 1",
+            (unit.project_uuid.storage_token, state),
+        ).fetchone()
+    else:
+        row = unit.execute(
+            "SELECT epoch_id, opened_at_tail, state FROM consent_epochs "
+            "WHERE project_uuid = ? AND state IN ('capture_only', 'eligible') "
+            "ORDER BY epoch_id DESC LIMIT 1",
+            (unit.project_uuid.storage_token,),
+        ).fetchone()
+    if row is None:
+        return None
+    return int(row[0]), int(row[1]), str(row[2])
+
+
+def _capture_tail(unit: ProjectUnitOfWork) -> int:
+    row = unit.execute(
+        "SELECT next_sequence FROM capture_sequences WHERE project_uuid = ?",
+        (unit.project_uuid.storage_token,),
+    ).fetchone()
+    if row is None:
+        return 0
+    value = row[0]
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise ConsentAuthorityError("persisted capture tail is incompatible")
+    return value
+
+
+def _next_epoch_id(unit: ProjectUnitOfWork) -> int:
+    row = unit.execute(
+        "SELECT COALESCE(MAX(epoch_id), 0) FROM consent_epochs",
+    ).fetchone()
+    assert row is not None
+    return int(row[0]) + 1
+
+
+def _parse_decision_row(
+    project_uuid: str,
+    row: tuple[object, ...],
+    *,
+    epoch_id: int | None = None,
+    opened_at_tail: int | None = None,
+) -> ProjectConsentRecord:
+    if len(row) != 6:
+        raise ConsentAuthorityError("persisted consent row has an incompatible shape")
+    state = ConsentState(str(row[0]))
+    generation = row[1]
+    if not isinstance(generation, int) or isinstance(generation, bool) or generation < 1:
+        raise ConsentAuthorityError("persisted consent generation is incompatible")
+    action = ConsentAction(str(row[2]))
+    actor = str(row[3])
+    decided_at = datetime.fromisoformat(str(row[4]))
+    if decided_at.tzinfo is None:
+        raise ConsentAuthorityError("persisted consent timestamp is not timezone-aware")
+    schema_version = row[5]
+    if schema_version != _DECISION_SCHEMA_VERSION:
+        raise ConsentAuthorityError("persisted consent decision schema is incompatible")
+    return ProjectConsentRecord(
+        project_uuid=project_uuid,
+        state=state,
+        generation=generation,
+        action=action,
+        actor=actor,
+        decided_at=decided_at,
+        schema_version=schema_version,
+        epoch_id=epoch_id,
+        opened_at_tail=opened_at_tail,
+    )
+
+
+def _record_from_unit(unit: ProjectUnitOfWork) -> ProjectConsentRecord | None:
+    row = _decision_row(unit)
+    if row is None:
+        return None
+    epoch = _active_epoch(unit)
+    epoch_id = epoch[0] if epoch is not None else None
+    opened_at_tail = epoch[1] if epoch is not None else None
+    return _parse_decision_row(
+        unit.project_uuid.storage_token,
+        row,
+        epoch_id=epoch_id,
+        opened_at_tail=opened_at_tail,
+    )
+
+
+def read_project_consent_decision(
+    project_uuid: str,
+) -> ConsentAuthorityDiagnostic:
+    """Read only the project-store authority and fail closed with typed detail."""
+    try:
+        store = ProjectSyncStore(project_uuid)
+    except (TypeError, ValueError) as exc:
+        return ConsentAuthorityDiagnostic(
+            status=ConsentAuthorityStatus.INCOMPATIBLE,
+            project_uuid=str(project_uuid),
+            detail=str(exc),
+        )
+    canonical = store.project_uuid.storage_token
+    try:
+        with store.unit_of_work() as unit:
+            record = _record_from_unit(unit)
+    except ProjectStoreVersionError as exc:
+        return ConsentAuthorityDiagnostic(
+            status=ConsentAuthorityStatus.INCOMPATIBLE,
+            project_uuid=canonical,
+            detail=str(exc),
+        )
+    except (ConsentAuthorityError, ValueError) as exc:
+        return ConsentAuthorityDiagnostic(
+            status=ConsentAuthorityStatus.INCOMPATIBLE,
+            project_uuid=canonical,
+            detail=str(exc),
+        )
+    except ProjectStoreError as exc:
+        return ConsentAuthorityDiagnostic(
+            status=ConsentAuthorityStatus.UNREADABLE,
+            project_uuid=canonical,
+            detail=str(exc),
+        )
+    if record is None:
+        return ConsentAuthorityDiagnostic(
+            status=ConsentAuthorityStatus.ABSENT,
+            project_uuid=canonical,
+            detail="no project-store consent decision; explicit opt-in is required",
+        )
+    return ConsentAuthorityDiagnostic(
+        status=(ConsentAuthorityStatus.GRANTED if record.state is ConsentState.GRANTED else ConsentAuthorityStatus.REFUSED),
+        project_uuid=canonical,
+        record=record,
+    )
+
+
+def _seal_active_epochs(
+    unit: ProjectUnitOfWork,
+    *,
+    tail: int,
+    decided_at: str,
+    reason: str,
+) -> None:
+    unit.execute(
+        "UPDATE consent_epochs SET state = 'sealed', sealed_at_tail = ?, "
+        "sealed_at = ?, reason = ? WHERE project_uuid = ? "
+        "AND state IN ('capture_only', 'eligible')",
+        (tail, decided_at, reason, unit.project_uuid.storage_token),
+    )
+
+
+def _write_decision(
+    project_uuid: str,
+    *,
+    state: ConsentState,
+    action: ConsentAction,
+    actor: str,
+) -> ProjectConsentRecord:
+    store = ProjectSyncStore(project_uuid)
+    canonical = store.project_uuid.storage_token
+    provenance = _require_actor(actor)
+    with store.unit_of_work() as unit:
+        current = _record_from_unit(unit)
+        if current is not None and current.action is action:
+            return current
+
+        generation = 1 if current is None else current.generation + 1
+        tail = _capture_tail(unit)
+        decided_at = datetime.now(UTC).isoformat()
+        _seal_active_epochs(
+            unit,
+            tail=tail,
+            decided_at=decided_at,
+            reason=("opt_in" if action is ConsentAction.EXPLICIT_OPT_IN else "opt_out"),
+        )
+        unit.execute(
+            "INSERT INTO project_consent_decisions "
+            "(project_uuid, state, generation, action, actor, decided_at, "
+            "decision_schema_version) VALUES (?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(project_uuid) DO UPDATE SET state = excluded.state, "
+            "generation = excluded.generation, action = excluded.action, "
+            "actor = excluded.actor, decided_at = excluded.decided_at, "
+            "decision_schema_version = excluded.decision_schema_version",
+            (
+                canonical,
+                state.value,
+                generation,
+                action.value,
+                provenance,
+                decided_at,
+                _DECISION_SCHEMA_VERSION,
+            ),
+        )
+
+        epoch_id: int | None = None
+        opened_at_tail: int | None = None
+        if action is not ConsentAction.MIGRATED_REFUSAL:
+            epoch_id = _next_epoch_id(unit)
+            opened_at_tail = tail
+            unit.execute(
+                "INSERT INTO consent_epochs (epoch_id, project_uuid, opened_at_tail, state, consent_generation, reason) VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    epoch_id,
+                    canonical,
+                    tail,
+                    ("eligible" if state is ConsentState.GRANTED else "capture_only"),
+                    generation if state is ConsentState.GRANTED else None,
+                    "opt_in" if state is ConsentState.GRANTED else "opt_out",
+                ),
+            )
+        row = _decision_row(unit)
+        assert row is not None
+        return _parse_decision_row(
+            canonical,
+            row,
+            epoch_id=epoch_id,
+            opened_at_tail=opened_at_tail,
+        )
+
+
+def record_project_opt_in(
+    project_uuid: str,
+    *,
+    actor: str,
+) -> ProjectConsentRecord:
+    """Persist the only action that may create a local hosted-sync grant."""
+    record = _write_decision(
+        project_uuid,
+        state=ConsentState.GRANTED,
+        action=ConsentAction.EXPLICIT_OPT_IN,
+        actor=actor,
+    )
+    from .deny_hints import remove_deny_hint
+
+    remove_deny_hint(project_uuid)
+    return record
+
+
+def record_project_opt_out(
+    project_uuid: str,
+    *,
+    actor: str,
+) -> ProjectConsentRecord:
+    """Persist refusal and seal eligibility without deleting captured rows."""
+    record = _write_decision(
+        project_uuid,
+        state=ConsentState.REFUSED,
+        action=ConsentAction.EXPLICIT_OPT_OUT,
+        actor=actor,
+    )
+    from .deny_hints import DenyHintAction, publish_deny_hint
+
+    publish_deny_hint(
+        project_uuid,
+        action=DenyHintAction.REVOKE,
+        authority_generation=record.generation,
+        reason_category="explicit_opt_out",
+    )
+    return record
+
+
+def import_legacy_refusal(
+    project_uuid: str,
+    *,
+    actor: str,
+) -> ProjectConsentRecord:
+    """Import an attributable refusal; legacy grants intentionally have no API."""
+    return _write_decision(
+        project_uuid,
+        state=ConsentState.REFUSED,
+        action=ConsentAction.MIGRATED_REFUSAL,
+        actor=actor,
+    )
+
+
+def allocate_capture_sequence(unit: ProjectUnitOfWork) -> CaptureAssignment:
+    """Allocate sequence and epoch inside the caller's active store transaction."""
+    canonical = unit.project_uuid.storage_token
+    tail = _capture_tail(unit)
+    decision = _record_from_unit(unit)
+    expected_state = "eligible" if decision is not None and decision.state is ConsentState.GRANTED else "capture_only"
+    epoch = _active_epoch(unit, state=expected_state)
+    if epoch is None:
+        if expected_state == "eligible":
+            raise ConsentAuthorityError("granted consent has no current eligible epoch")
+        epoch_id = _next_epoch_id(unit)
+        unit.execute(
+            "INSERT INTO consent_epochs (epoch_id, project_uuid, opened_at_tail, state, consent_generation, reason) VALUES (?, ?, ?, 'capture_only', NULL, ?)",
+            (epoch_id, canonical, tail, "initial_capture"),
+        )
+    else:
+        epoch_id = epoch[0]
+
+    sequence = tail + 1
+    unit.execute(
+        "INSERT INTO capture_sequences (project_uuid, next_sequence) VALUES (?, ?) ON CONFLICT(project_uuid) DO UPDATE SET next_sequence = excluded.next_sequence",
+        (canonical, sequence),
+    )
+    return CaptureAssignment(
+        project_uuid=canonical,
+        capture_sequence=sequence,
+        epoch_id=epoch_id,
+    )
 
 
 def get_project_consent(project_uuid: str) -> bool | None:
-    """Read the uuid-keyed index. ``None`` means no record."""
-    from .config import SyncConfig
-
-    return SyncConfig().get_project_consent(project_uuid)
+    """Compatibility read backed exclusively by the project-store decision."""
+    diagnostic = read_project_consent_decision(project_uuid)
+    if diagnostic.status is ConsentAuthorityStatus.GRANTED:
+        return True
+    if diagnostic.status is ConsentAuthorityStatus.REFUSED:
+        return False
+    return None
 
 
 def set_project_consent(project_uuid: str, enabled: bool) -> None:
-    """Write the uuid-keyed index."""
-    from .config import SyncConfig
-
-    SyncConfig().set_project_consent(project_uuid, enabled)
+    """Reject the retired machine-index writer with actionable guidance."""
+    del project_uuid, enabled
+    raise LegacyConsentMigrationRequiredError(
+        "the machine consent index is non-authoritative; use explicit opt-in for this project to grant, or import an attributable legacy refusal"
+    )
 
 
 # --- the resolver ---------------------------------------------------------
@@ -461,100 +842,14 @@ def _normalize_uuid(value: Any) -> str | None:
     return text or None
 
 
-def _answer_project_local(uuid: str, roots: list[Path]) -> ConsentDecision | None:
-    """The project's own file. Refusal outranks grant (FR-013's rule).
-
-    Order of the three branches below is the FR-020 fix, and each is chosen for the
-    fail-closed direction:
-
-    1. **A readable refusal wins outright**, faults or not. The answer is already
-       known and attributable; a sibling root nobody could read cannot make a denial
-       *less* certain, and downgrading it to UNDETERMINED would lose the attribution
-       an operator needs.
-    2. **A fault then outranks a grant.** An unreadable file may have refused, and
-       falling through to the machine index means a stale grant answers for a
-       committed refusal — the leak measured before this fix. Denying here is the
-       only direction that cannot leak.
-    3. Otherwise the readable votes decide, or the level abstains.
-    """
-    votes, faults = _project_local_votes(uuid, roots)
-
-    if votes and not all(votes):
-        _reconcile_index(uuid, False)
-        return ConsentDecision(
-            granted=False,
-            level=ConsentLevel.PROJECT_LOCAL,
-            project_uuid=uuid,
-            reason=(
-                "refused by the project's own .kittify/config.yaml"
-                if len(votes) == 1
-                else "at least one checkout of this project is opted out"
-            ),
-        )
-
-    if faults:
-        # No index reconciliation: we do not know what the file says, so writing a
-        # verdict into the cache would launder a fault into a recorded decision.
-        return ConsentDecision(
-            granted=False,
-            level=ConsentLevel.UNDETERMINED,
-            project_uuid=uuid,
-            reason=(
-                "a checkout's own .kittify/config.yaml could not be read, so a "
-                "committed refusal cannot be ruled out; refusing rather than "
-                f"deferring to the machine index ({faults[0].detail})"
-            ),
-        )
-
-    if not votes:
-        return None
-    granted = all(votes)
-    _reconcile_index(uuid, granted)
-    reason = "granted by the project's own .kittify/config.yaml"
-    return ConsentDecision(
-        granted=granted,
-        level=ConsentLevel.PROJECT_LOCAL,
-        project_uuid=uuid,
-        reason=reason,
-    )
+def _answer_project_local(_uuid: str, _roots: list[Path]) -> ConsentDecision | None:
+    """Reject accidental use of the retired checkout-file authority branch."""
+    raise LegacyConsentMigrationRequiredError("project-local sync flags are diagnostic only; use the UUID-owned explicit project opt-in")
 
 
-def _answer_machine_index(uuid: str, _roots: list[Path]) -> ConsentDecision | None:
-    """The uuid-keyed machine-global index — a cache, not a second source of truth.
-
-    Reads through :meth:`SyncConfig.read_project_consent` so an *unreadable* index is
-    answered as :attr:`ConsentLevel.UNDETERMINED` rather than falling through to the
-    terminal "no consent record" default (#3030 FR-020). Both deny; only one of them
-    tells the operator something true. One file read yields both the record and the
-    readability, so "no record, index healthy" cannot be assembled from two reads that
-    disagree.
-    """
-    from .config import SyncConfig
-
-    read = SyncConfig().read_project_consent(uuid)
-    if read.fault is not None:
-        return ConsentDecision(
-            granted=False,
-            level=ConsentLevel.UNDETERMINED,
-            project_uuid=uuid,
-            reason=(
-                "the machine-global consent index could not be read, so this "
-                "project's recorded decision is unknown; refusing rather than "
-                f"treating it as unrecorded ({read.fault.detail})"
-            ),
-        )
-    if read.enabled is None:
-        return None
-    return ConsentDecision(
-        granted=read.enabled,
-        level=ConsentLevel.MACHINE_INDEX,
-        project_uuid=uuid,
-        reason=(
-            "granted by the machine-global consent index"
-            if read.enabled
-            else "opted out in the machine-global consent index"
-        ),
-    )
+def _answer_machine_index(_uuid: str, _roots: list[Path]) -> ConsentDecision | None:
+    """Reject accidental use of the retired machine-index authority branch."""
+    raise LegacyConsentMigrationRequiredError("the machine consent index is diagnostic only; use the UUID-owned explicit project opt-in")
 
 
 def _answer_env(_uuid: str, _roots: list[Path]) -> ConsentDecision | None:
@@ -596,9 +891,7 @@ def _check_chain_is_dispatchable() -> None:
     orphaned = [level for level in LEVEL_RESOLVERS if level not in PROJECT_CONSENT_PRECEDENCE]
     if missing or orphaned:
         raise RuntimeError(
-            "consent precedence chain and its dispatch table disagree: "
-            f"declared levels with no resolver={missing}, "
-            f"resolvers for undeclared levels={orphaned}"
+            f"consent precedence chain and its dispatch table disagree: declared levels with no resolver={missing}, resolvers for undeclared levels={orphaned}"
         )
 
 
@@ -611,21 +904,12 @@ def resolve_project_consent(
     repo_root: Path | None = None,
     checkout_roots: list[Path] | None = None,
 ) -> ConsentDecision:
-    """Resolve hosted-sync consent for *project_uuid* down the one chain.
+    """Resolve consent exclusively from the UUID-owned project store.
 
-    ``repo_root`` / ``checkout_roots`` are the checkouts available to consult for
-    the project-local level; when none are readable the answer degrades to the next
-    declared level, then to deny. An unresolvable *project_uuid* is never consentable
-    (NFR-001).
-
-    The order is not written here. It is read from
-    :data:`PROJECT_CONSENT_PRECEDENCE` on every call and dispatched through
-    :data:`LEVEL_RESOLVERS`, so the declared chain and the enforced chain are the same
-    object. Nothing is consulted outside it — in particular the repo-slug-keyed
-    ``[sync.repo_defaults]`` record is not a level, because it is keyed on a mutable
-    git remote and a fresh clone or a re-``git init`` would inherit a decision nobody
-    made about it (FR-019).
+    Checkout roots are accepted temporarily for source compatibility and ignored.
+    They are read-only legacy diagnostic inputs, never consent authority.
     """
+    del repo_root, checkout_roots
     uuid = _normalize_uuid(project_uuid)
     if uuid is None:
         return ConsentDecision(
@@ -634,61 +918,37 @@ def resolve_project_consent(
             project_uuid=None,
             reason="project identity did not resolve; not consentable",
         )
-
-    roots = list(checkout_roots or [])
-    if repo_root is not None:
-        roots.append(Path(repo_root))
-
-    for level in PROJECT_CONSENT_PRECEDENCE:
-        decision = LEVEL_RESOLVERS[level](uuid, roots)
-        if decision is not None:
-            return decision
-
-    # Terminal default (FR-002): absence of a decision is not consent. The reason
-    # names the env var because that is the incident's actual mechanism — the chain
-    # reaches its arming level only to be refused by it.
+    diagnostic = read_project_consent_decision(uuid)
+    if diagnostic.status is ConsentAuthorityStatus.GRANTED:
+        return ConsentDecision(
+            granted=True,
+            level=ConsentLevel.PROJECT_STORE,
+            project_uuid=diagnostic.project_uuid,
+            reason="granted by the explicit UUID-owned project decision",
+        )
+    if diagnostic.status is ConsentAuthorityStatus.REFUSED:
+        return ConsentDecision(
+            granted=False,
+            level=ConsentLevel.PROJECT_STORE,
+            project_uuid=diagnostic.project_uuid,
+            reason="refused by the explicit UUID-owned project decision",
+        )
+    if diagnostic.status in {
+        ConsentAuthorityStatus.UNREADABLE,
+        ConsentAuthorityStatus.INCOMPATIBLE,
+    }:
+        return ConsentDecision(
+            granted=False,
+            level=ConsentLevel.UNDETERMINED,
+            project_uuid=diagnostic.project_uuid,
+            reason=(f"project consent authority is {diagnostic.status.value}; refusing egress ({diagnostic.detail})"),
+        )
     return ConsentDecision(
         granted=False,
         level=ConsentLevel.ABSENT,
-        project_uuid=uuid,
-        reason=(
-            "no consent record for this project in the checkout or the "
-            "machine-global index; SPEC_KITTY_ENABLE_SAAS_SYNC arms the machine "
-            "but never grants per-project consent"
-        ),
+        project_uuid=diagnostic.project_uuid,
+        reason=("no UUID-owned project consent decision; checkout, repository, login, target, and environment settings never grant per-project consent"),
     )
-
-
-def _reconcile_index(project_uuid: str, granted: bool) -> None:
-    """Correct the cache when the authoritative file disagrees with it.
-
-    Without this, a later lookup made without the checkout available would
-    resurrect a stale grant, and the reported state would contradict the enforced
-    one. Best-effort: a write failure must not turn an answered question into an
-    error.
-
-    **This is the most dangerous writer of the consent index, because it is reached
-    from a read.** Nothing here is an operator action: ``resolve_project_consent``
-    calls it on any drain tick that consults a checkout. On an unreadable index
-    :func:`get_project_consent` answers ``None``, which differs from every verdict, so
-    the correction always fired — and the write rebuilt the file from an empty
-    document. Measured before the fix: resolving one project's consent left the index
-    holding that project's single entry, with a bystander project's grant and an
-    unrelated checkout override gone.
-
-    ``SyncConfig`` now refuses that write
-    (:class:`~specify_cli.sync.config.ConfigNotReadableError`) and the refusal lands in
-    the ``except`` below, which is the right place for it: the authoritative file *was*
-    read, the verdict is known and returned, and only the cache correction is declined.
-    That is precisely the "a write failure must not turn an answered question into an
-    error" contract this function already had — the swallow is not hiding the refusal,
-    it is the refusal's intended landing.
-    """
-    try:
-        if get_project_consent(project_uuid) != granted:
-            set_project_consent(project_uuid, granted)
-    except Exception as exc:  # noqa: BLE001 - the decision stands regardless
-        logger.debug("Could not reconcile consent index for %s: %s", project_uuid, exc)
 
 
 def consented_project_uuids(
@@ -766,56 +1026,9 @@ def consent_index_health() -> ConsentIndexHealth:
 
 
 def backfill_uuid_consent_index() -> ConsentBackfillResult:
-    """Map today's path-keyed consent records onto the uuid index.
-
-    One batched write, deliberately: every ``SyncConfig`` setter is an unlocked
-    whole-file read-modify-write, the daemon writes the same file as an
-    interactive ``sync enable``, and a lost record is now a *silent delivery
-    denial* rather than a cosmetic loss. N per-path cycles would widen that window
-    N times.
-
-    Idempotent: a converged index reports ``mapped == 0``.
-
-    A path that no longer resolves to a uuid keeps its path-keyed entry and is
-    reported as unresolved (:data:`UNRESOLVED_MARKER`). Dropping it would lose the
-    operator's decision; silently leaving it unmarked would imply it is enforced
-    when the predicate cannot see it (US2 scenario 3).
-    """
-    from .config import SyncConfig
-
-    config = SyncConfig()
-    path_records = config.get_all_checkout_sync_records()
-
-    votes: dict[str, list[bool]] = {}
-    unresolved: list[UnresolvedConsentEntry] = []
-
-    for raw_path, enabled in path_records.items():
-        # A read fault lands in the same bucket as a missing uuid: *unresolved*, which
-        # is marked and reported rather than dropped (:data:`UNRESOLVED_MARKER`). That
-        # is already the fail-closed answer here — an unmappable record contributes no
-        # vote, so it can never manufacture a grant — and unlike the resolver, the
-        # backfill has no next level to defer to, so it needs no UNDETERMINED branch.
-        declared, _hosted, _fault = _read_project_local(Path(raw_path))
-        if declared is None:
-            unresolved.append(UnresolvedConsentEntry(path=raw_path, enabled=enabled))
-            continue
-        votes.setdefault(declared, []).append(enabled)
-
-    # FR-013's conflict rule, applied once here as well as in the resolver: any
-    # opted-out checkout denies the whole project.
-    resolved = {uuid: all(v) for uuid, v in votes.items()}
-    existing = config.get_all_project_consent()
-    pending = {u: g for u, g in resolved.items() if existing.get(u) != g}
-
-    if pending:
-        config.set_project_consent_bulk(pending)
-    if unresolved:
-        config.mark_checkout_records_unresolved([e.path for e in unresolved])
-
-    return ConsentBackfillResult(
-        mapped=len(pending),
-        unresolved=len(unresolved),
-        unresolved_entries=unresolved,
+    """Reject legacy grant backfill; WP10 owns explicit migration UX."""
+    raise LegacyConsentMigrationRequiredError(
+        "legacy consent-index backfill is retired because it could manufacture a grant; migrate attributable refusals only and require explicit opt-in"
     )
 
 
@@ -844,9 +1057,20 @@ def backfill_uuid_consent_index() -> ConsentBackfillResult:
 # which still cannot tell an operator their consent index is unreadable. The name
 # stays importable and unadvertised until that consumer lands.
 __all__ = [
+    "CaptureAssignment",
+    "ConsentAction",
+    "ConsentAuthorityDiagnostic",
+    "ConsentAuthorityStatus",
+    "LegacyConsentMigrationRequiredError",
+    "ProjectConsentRecord",
+    "allocate_capture_sequence",
     "consented_project_uuids",
+    "import_legacy_refusal",
     "project_local_consent_fault",
     "read_project_local_consent",
+    "read_project_consent_decision",
+    "record_project_opt_in",
+    "record_project_opt_out",
     "resolve_project_consent",
     "set_project_consent",
 ]
