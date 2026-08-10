@@ -363,6 +363,15 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **`spec-kitty auth login` (and any caller of the SaaS URL helper) now points
+  you at the real hosted service when `SPEC_KITTY_SAAS_URL` is unset, not a fake
+  placeholder (`#3297`, closes `#3296`).** Previously, running the command
+  without that variable set told you to `Set it to your spec-kitty-saas instance
+  URL (e.g. https://api.spec-kitty.example.com)` — a `.example.com` placeholder
+  that does not resolve, so a first-time user who copied it got a dead URL. The
+  guidance now names the actual hosted URL, `https://app.spec-kitty.ai`, so the
+  example is copy-paste-usable; self-hosted instances still override via the env
+  var exactly as before.
 - **Timestamps that Spec Kitty writes into your project no longer record local
   time while labelling it UTC (mission `kernel-clock-single-door`; `#3305`,
   closes `#3289`, owns the closed `#3288`).** Roughly twenty places across the
