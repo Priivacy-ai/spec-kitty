@@ -26,6 +26,11 @@ __all__ = [
     "_jsonable_artifact_value",
 ]
 
+# S1192: shared "Steps:" section header, referenced by every inline body
+# formatter below that lists a doctrine artifact's ``steps`` sequence
+# (tactic / procedure / mission-step-contract).
+_STEPS_SECTION_HEADER = "    Steps:"
+
 
 def _format_profile_directive_code(raw: object) -> str:
     """Normalise a directive-ref code to the canonical ``DIRECTIVE_NNN`` form.
@@ -163,7 +168,7 @@ def _format_inline_tactic_body(tactic: object) -> list[str]:
         body_lines.append(f"    Purpose: {purpose.strip()}")
     steps = getattr(tactic, "steps", None)
     if isinstance(steps, list) and steps:
-        body_lines.append("    Steps:")
+        body_lines.append(_STEPS_SECTION_HEADER)
         for step in steps:
             step_title = getattr(step, "title", str(step))
             body_lines.append(f"      - {step_title}")
@@ -202,7 +207,7 @@ def _format_inline_procedure_body(procedure: object) -> list[str]:
         body_lines.append(f"    Exit condition: {exit_.strip()}")
     steps = getattr(procedure, "steps", None)
     if isinstance(steps, list) and steps:
-        body_lines.append("    Steps:")
+        body_lines.append(_STEPS_SECTION_HEADER)
         for step in steps:
             step_title = getattr(step, "title", str(step))
             body_lines.append(f"      - {step_title}")
@@ -238,7 +243,7 @@ def _format_inline_step_contract_body(contract: object) -> list[str]:
         body_lines.append(f"    Mission: {mission.strip()}")
     steps = getattr(contract, "steps", None)
     if isinstance(steps, list) and steps:
-        body_lines.append("    Steps:")
+        body_lines.append(_STEPS_SECTION_HEADER)
         for step in steps:
             step_id = getattr(step, "id", None)
             step_desc = getattr(step, "description", "")

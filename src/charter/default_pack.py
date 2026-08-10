@@ -77,7 +77,8 @@ def _load_raw_pack_mapping(pack_path: Path) -> dict[str, Any]:
     yaml = YAML(typ="safe")
     try:
         raw: Any = yaml.load(pack_path.read_text(encoding="utf-8"))
-    except Exception:  # noqa: BLE001 — malformed YAML degrades to empty, caller decides
+    except Exception:  # noqa: BLE001
+        # Malformed YAML degrades to empty; the caller decides how to react.
         return {}
     if not isinstance(raw, dict):
         return {}

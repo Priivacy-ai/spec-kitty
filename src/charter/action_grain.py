@@ -188,15 +188,22 @@ def scan_builtin_cross_grain_duplicates(built_in_dir: Path | None = None) -> lis
         If any artifact URN is declared in both the type grain and the
         action grain for any shipped mission type.
     """
-    from charter.mission_type_profile_repository import (  # noqa: PLC0415 — lazy; avoids charter.action_grain <-> charter.mission_type_profile_repository import cycle (T006)
+    # Lazy: avoids a charter.action_grain <-> charter.mission_type_profile_repository
+    # import cycle (T006).
+    from charter.mission_type_profile_repository import (  # noqa: PLC0415
         builtin_missions_root,
     )
-    from charter.mission_type_profiles import (  # noqa: PLC0415 — lazy; avoids charter.action_grain <-> charter.mission_type_profiles import cycle (T006)
+    # Lazy: avoids a charter.action_grain <-> charter.mission_type_profiles import
+    # cycle (T006).
+    from charter.mission_type_profiles import (  # noqa: PLC0415
         ResolvedGovernance,
         _load_mission_type_profile,
         _profile_type_grain,
     )
-    from doctrine.missions.mission_type_repository import (  # noqa: PLC0415 — lazy; the doctrine mission_types/*.yaml roster (post-review hardening: enumerate the derived source, not a hardcoded list, so a new type is auto-covered)
+    # Lazy: the doctrine mission_types/*.yaml roster (post-review hardening —
+    # enumerate the derived source, not a hardcoded list, so a new type is
+    # auto-covered).
+    from doctrine.missions.mission_type_repository import (  # noqa: PLC0415
         MissionTypeRepository,
     )
 

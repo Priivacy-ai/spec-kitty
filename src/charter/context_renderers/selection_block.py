@@ -240,7 +240,7 @@ def _render_selected_directives(
         repo,
         header=_SELECTED_DIRECTIVES_HEADER,
         selector_kind="directive",
-        when_clause="are about to apply a code change",
+        when_clause=_ACTION_DOCTRINE_LINK_WHEN,
         body_formatter=_format_inline_directive_body,
         org_source_map=org_source_map,
     )
@@ -259,7 +259,7 @@ def _render_selected_tactics(
         repo,
         header=_SELECTED_TACTICS_HEADER,
         selector_kind="tactic",
-        when_clause="are about to apply a code change",
+        when_clause=_ACTION_DOCTRINE_LINK_WHEN,
         body_formatter=_format_inline_tactic_body,
         org_source_map=org_source_map,
     )
@@ -340,7 +340,7 @@ def _render_selected_agent_profiles(
         repo,
         header=_SELECTED_AGENT_PROFILES_HEADER,
         selector_kind="agent_profile",
-        when_clause="are about to apply a code change",
+        when_clause=_ACTION_DOCTRINE_LINK_WHEN,
         body_formatter=_format_inline_agent_profile_body,
         org_source_map=org_source_map,
     )
