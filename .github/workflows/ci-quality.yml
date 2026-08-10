@@ -3547,6 +3547,10 @@ jobs:
     needs:
       - kernel-tests
       - fast-tests-doctrine
+      # fast-tests-corpus emits --cov=src/doctrine (the wheel-shipped corpus
+      # gate, #3008) — a sonarcloud coverage-consumer per the C-005 invariant;
+      # its coverage XML would otherwise be silently dropped from the aggregator.
+      - fast-tests-corpus
       - fast-tests-sync
       # fast-tests-sync-orphan-sweep emits --cov=src/specify_cli/sync (extracted
       # from fast-tests-sync's own serial step, WP06 T016) — a sonarcloud
