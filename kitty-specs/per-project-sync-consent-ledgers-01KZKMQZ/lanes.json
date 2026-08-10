@@ -57,6 +57,7 @@
       ],
       "write_scope": [
         "src/specify_cli/delivery/ledger.py",
+        "src/specify_cli/delivery/receivers.py",
         "src/specify_cli/delivery/retention.py",
         "src/specify_cli/delivery/selection.py",
         "src/specify_cli/delivery/status_report.py",
@@ -182,15 +183,18 @@
         "src/specify_cli/sync/history_import/upload.py",
         "src/specify_cli/sync/local_commit.py",
         "src/specify_cli/sync/runtime_event_emitter.py",
+        "src/specify_cli/sync/transport_attempts.py",
         "src/specify_cli/tracker/saas_client.py",
         "tests/delivery/test_cross_project_refusal_state_3030.py",
         "tests/delivery/test_dispatcher.py",
         "tests/delivery/test_project_store_ledger.py",
+        "tests/delivery/test_receivers.py",
         "tests/delivery/test_liveness_predicate_before_limit_3030.py",
         "tests/sync/test_body_drain_consent_3030.py",
         "tests/sync/test_interactive_transport_convergence.py",
         "tests/sync/test_saas_refusal_parking.py",
-        "tests/sync/test_sender_context_convergence.py"
+        "tests/sync/test_sender_context_convergence.py",
+        "tests/sync/test_transport_attempt_recovery.py"
       ],
       "predicted_surfaces": [
         "api",

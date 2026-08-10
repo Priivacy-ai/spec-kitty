@@ -53,10 +53,12 @@ owned_files:
 - src/specify_cli/delivery/dispatcher.py
 - src/specify_cli/delivery/consent_gate.py
 - src/specify_cli/delivery/ledger.py
+- src/specify_cli/delivery/receivers.py
 - src/specify_cli/sync/client.py
 - src/specify_cli/sync/emitter.py
 - src/specify_cli/sync/events.py
 - src/specify_cli/sync/runtime_event_emitter.py
+- src/specify_cli/sync/transport_attempts.py
 - src/specify_cli/sync/body_transport.py
 - src/specify_cli/sync/body_upload.py
 - src/specify_cli/sync/dossier_pipeline.py
@@ -68,11 +70,13 @@ owned_files:
 - tests/delivery/test_cross_project_refusal_state_3030.py
 - tests/delivery/test_dispatcher.py
 - tests/delivery/test_project_store_ledger.py
+- tests/delivery/test_receivers.py
 - tests/delivery/test_liveness_predicate_before_limit_3030.py
 - tests/sync/test_body_drain_consent_3030.py
 - tests/sync/test_interactive_transport_convergence.py
 - tests/sync/test_saas_refusal_parking.py
 - tests/sync/test_sender_context_convergence.py
+- tests/sync/test_transport_attempt_recovery.py
 role: implementer
 tags: []
 tracker_refs:
@@ -123,6 +127,15 @@ dispatcher attempts; do not write a second legacy-shaped attempt, ignore rows
 whose metadata shape differs, or parse an undocumented string identity. Retain
 legacy repository compatibility only for callers that have not entered the
 canonical transport path.
+
+Preserve one real receiver batch call after all per-item attempts are durably
+prepared and final-gated under the project lease. The transport-native identity
+must be serialized on the wire and equal the result correlation key; hash the
+exact disclosed representation. Extend WP06 only through a typed public
+attempt/result projection, typed existing-attempt recovery, and supported
+same-attempt prepared resume. Do not duplicate its private JSON parser, match
+exception text, or collapse known pending/retryable rejection into response
+uncertainty.
 
 ## Subtask T033 — Body, dossier, and history paths
 
