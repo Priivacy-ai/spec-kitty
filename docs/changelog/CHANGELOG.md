@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-08-02'
+updated: '2026-08-10'
 ---
 # Changelog
 
@@ -19,6 +19,12 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
 
+- **Documentation pages can now declare who they are for: a canonical `audience:`
+  frontmatter field, plus a Common Docs styleguide and gates, ship in the built-in
+  doctrine pack (mission `common-docs-convergence`).** Each page states its
+  intended reader and Divio type, and projects that activate the pack inherit the
+  same Common Docs conventions — the single-root structure and audience/type
+  discipline — out of the box.
 - **`charter synthesize` is now non-destructive — it preserves backed governance
   content by default (mission `charter-synthesize-reconciliation`; `#3270` P0,
   folds `#2777` / `#3052`).** Previously an authoring-only charter edit forced
@@ -1195,6 +1201,17 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ♻️ Changed
 
+- **Spec Kitty's documentation now lives under one predictable `docs/` root with
+  canonical sections, so you can find a page by where it logically belongs
+  (mission `common-docs-convergence`; `#2215`, `#2887`, `#3273`).** The scattered
+  root folders (`research/`, `examples/`, `glossary/`, `media/`) and the duplicate
+  `reference/` vs `api/` split are gone. How-tos are now organised by audience —
+  user how-tos under `guides/`, contributor how-tos under `development/` — each
+  subdivided by concern behind a single landing page, so you reach what you need
+  in fewer clicks. Old documentation URLs redirect to their new homes, so existing
+  links and bookmarks keep working. Every page now declares its intended reader
+  and Divio type, and the architecture docs present one living design with prior
+  versions filed as ADRs.
 - **Dead queue-backed event-drain code removed from `sync/batch.py`, closing a
   latent consent-bypass path (mission `chain-b-consent-bypass-3167`; `#3167`,
   `#3190`, `#3187`, `#3220`).** `batch_sync` and `sync_all_queued_events` had no
