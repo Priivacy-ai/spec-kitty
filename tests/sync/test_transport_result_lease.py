@@ -427,6 +427,94 @@ def test_refused_result_is_terminal_with_category_and_native_identity_cannot_be_
         )
 
 
+@pytest.mark.parametrize("category", [None, "", "   "])
+def test_refused_result_requires_category_and_writes_no_terminal_rows(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    category: str | None,
+) -> None:
+    store = _seed_store(tmp_path, monkeypatch)
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(
+            unit,
+            context,
+            DeliveryAttemptSpec(
+                attempt_id="attempt-refused-missing-category",
+                write_kind="history_disclosure",
+                native_identity="operation-key:missing-category",
+                payload_hash="sha256:missing-category",
+                payload_reference="history:missing-category",
+                deadline_at="2999-01-01T00:00:00Z",
+                reconciliation_policy="native_identity_query",
+            ),
+        )
+        mark_transport_started(unit, context, "attempt-refused-missing-category")
+        with pytest.raises(ProjectStoreError, match="requires a terminal refusal category"):
+            record_delivery_result(
+                unit,
+                context,
+                result_id="result-refused-missing-category",
+                attempt_id="attempt-refused-missing-category",
+                outcome=DeliveryOutcome.REFUSED,
+                terminal_refusal_category=category,
+            )
+
+    with store.unit_of_work() as unit:
+        attempt_row = unit.execute(
+            "SELECT state FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ?",
+            (PROJECT_UUID, "attempt-refused-missing-category"),
+        ).fetchone()
+        result_count = unit.execute(
+            "SELECT COUNT(*) FROM delivery_results WHERE project_uuid = ? AND attempt_id = ?",
+            (PROJECT_UUID, "attempt-refused-missing-category"),
+        ).fetchone()
+
+    assert attempt_row == (DeliveryAttemptState.IN_FLIGHT.value,)
+    assert result_count == (0,)
+
+
+@pytest.mark.parametrize("outcome", [DeliveryOutcome.DELIVERED, DeliveryOutcome.DUPLICATE])
+def test_successful_result_rejects_terminal_refusal_category(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    outcome: DeliveryOutcome,
+) -> None:
+    store = _seed_store(tmp_path, monkeypatch)
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(
+            unit,
+            context,
+            DeliveryAttemptSpec(
+                attempt_id=f"attempt-{outcome.value}-with-category",
+                write_kind="history_disclosure",
+                native_identity=f"operation-key:{outcome.value}-with-category",
+                payload_hash=f"sha256:{outcome.value}-with-category",
+                payload_reference=f"history:{outcome.value}-with-category",
+                deadline_at="2999-01-01T00:00:00Z",
+                reconciliation_policy="native_identity_query",
+            ),
+        )
+        mark_transport_started(unit, context, f"attempt-{outcome.value}-with-category")
+        with pytest.raises(ProjectStoreError, match="cannot include a terminal refusal category"):
+            record_delivery_result(
+                unit,
+                context,
+                result_id=f"result-{outcome.value}-with-category",
+                attempt_id=f"attempt-{outcome.value}-with-category",
+                outcome=outcome,
+                terminal_refusal_category="project_not_admitted",
+            )
+
+    with store.unit_of_work() as unit:
+        result_count = unit.execute(
+            "SELECT COUNT(*) FROM delivery_results WHERE project_uuid = ? AND attempt_id = ?",
+            (PROJECT_UUID, f"attempt-{outcome.value}-with-category"),
+        ).fetchone()
+    assert result_count == (0,)
+
+
 def test_duplicate_result_is_truthful_idempotent_success_on_original_attempt(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

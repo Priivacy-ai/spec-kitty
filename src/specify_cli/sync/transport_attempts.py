@@ -51,6 +51,27 @@ class ReconciliationPolicy(StrEnum):
     OPERATOR_REVIEW = "operator_review"
 
 
+_REQUIRED_METADATA_FIELDS = (
+    "payload_reference",
+    "write_kind",
+    "native_identity",
+    "project_uuid",
+    "store_database_path",
+    "store_schema_version",
+    "store_layout_version",
+    "epoch_id",
+    "consent_generation",
+    "target_identity",
+    "account_identity",
+    "private_teamspace_id",
+    "target_generation",
+    "admission_generation",
+    "binding_audience",
+    "deadline_at",
+    "reconciliation_policy",
+)
+
+
 @dataclass(frozen=True, slots=True)
 class DeliveryAttemptSpec:
     """Adapter-neutral immutable identity for a possible remote disclosure."""
@@ -247,6 +268,7 @@ def record_delivery_result(
 ) -> None:
     """Record a genuine transport result only while holding the project lease."""
     _validate_context_for_unit(unit, context, require_lease=True)
+    _validate_result_category(outcome=outcome, terminal_refusal_category=terminal_refusal_category)
     if outcome in {DeliveryOutcome.DELIVERED, DeliveryOutcome.DUPLICATE}:
         terminal_state = DeliveryAttemptState.SUCCEEDED
     elif outcome is DeliveryOutcome.REFUSED:
@@ -638,15 +660,12 @@ def _metadata_required_identity_diagnostic(
     *,
     payload_hash: str | None,
 ) -> str | None:
-    required = {
-        "native_identity": metadata.get("native_identity"),
-        "write_kind": metadata.get("write_kind"),
-        "payload_reference": metadata.get("payload_reference"),
-        "payload_hash": payload_hash,
-    }
-    for key, value in required.items():
+    for key in _REQUIRED_METADATA_FIELDS:
+        value = metadata.get(key)
         if value is None or not value.strip():
             return f"delivery attempt metadata is missing required {key}; operator repair required"
+    if payload_hash is None or not payload_hash.strip():
+        return "delivery attempt metadata is missing required payload_hash; operator repair required"
     return None
 
 
@@ -714,10 +733,27 @@ def _metadata_from_payload_reference(raw_value: object) -> dict[str, str]:
     try:
         value = json.loads(raw_value)
     except json.JSONDecodeError:
-        return {"payload_reference": raw_value}
+        return {}
     if not isinstance(value, dict):
         return {}
-    return {str(key): str(item) for key, item in value.items() if item is not None}
+    metadata: dict[str, str] = {}
+    for key, item in value.items():
+        if not isinstance(key, str) or not isinstance(item, str):
+            continue
+        metadata[key] = item
+    return metadata
+
+
+def _validate_result_category(
+    *,
+    outcome: DeliveryOutcome,
+    terminal_refusal_category: str | None,
+) -> None:
+    has_category = terminal_refusal_category is not None and bool(terminal_refusal_category.strip())
+    if outcome is DeliveryOutcome.REFUSED and not has_category:
+        raise ProjectStoreError("refused delivery result requires a terminal refusal category")
+    if outcome in {DeliveryOutcome.DELIVERED, DeliveryOutcome.DUPLICATE} and terminal_refusal_category is not None:
+        raise ProjectStoreError("successful delivery result cannot include a terminal refusal category")
 
 
 def _require_non_empty(**values: str) -> None:

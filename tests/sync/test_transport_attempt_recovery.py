@@ -287,6 +287,13 @@ def test_expired_deadline_blocks_automatic_retry_and_query_recovery(
         ),
         ("attempt-invalid-policy", "unknown", "__keep__", "does_not_exist"),
         ("attempt-conflicting-authority", "in_flight", "conflict", "native_identity_query"),
+        ("attempt-array-native", "in_flight", ("native_identity", []), "native_identity_query"),
+        ("attempt-object-write-kind", "in_flight", ("write_kind", {"kind": "local_commit"}), "native_identity_query"),
+        ("attempt-object-payload", "unknown", ("payload_reference", {"ref": "local-commit"}), "native_identity_query"),
+        ("attempt-number-generation", "prepared", ("target_generation", 4), "native_identity_retry"),
+        ("attempt-array-audience", "unknown", ("binding_audience", ["private-teamspace"]), "native_identity_query"),
+        ("attempt-bool-deadline", "in_flight", ("deadline_at", False), "native_identity_query"),
+        ("attempt-number-policy", "in_flight", ("reconciliation_policy", 1), "native_identity_query"),
     ],
 )
 def test_corrupt_recovery_metadata_fails_closed_to_operator_review(
@@ -294,7 +301,7 @@ def test_corrupt_recovery_metadata_fails_closed_to_operator_review(
     monkeypatch: pytest.MonkeyPatch,
     attempt_id: str,
     state_transition: str,
-    payload_reference: str | None,
+    payload_reference: str | tuple[str, object] | None,
     policy: str,
 ) -> None:
     store = _store(tmp_path, monkeypatch)
@@ -328,6 +335,16 @@ def test_corrupt_recovery_metadata_fails_closed_to_operator_review(
             metadata = json.loads(str(row[0]))
             metadata["target_generation"] = "999"
             payload_reference = json.dumps(metadata, sort_keys=True)
+        elif isinstance(payload_reference, tuple):
+            row = unit.execute(
+                "SELECT payload_reference FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ?",
+                (PROJECT_UUID, attempt_id),
+            ).fetchone()
+            assert row is not None
+            metadata = json.loads(str(row[0]))
+            field, malformed_value = payload_reference
+            metadata[field] = malformed_value
+            payload_reference = json.dumps(metadata, sort_keys=True)
         if payload_reference == "__keep__":
             unit.execute(
                 "UPDATE delivery_attempts SET reconciliation_policy = ? WHERE project_uuid = ? AND attempt_id = ?",
@@ -343,6 +360,8 @@ def test_corrupt_recovery_metadata_fails_closed_to_operator_review(
     assert decision.action is RecoveryAction.OPERATOR_REVIEW
     assert decision.may_resend is False
     assert "operator" in decision.diagnostic
+    if attempt_id == "attempt-array-native":
+        assert decision.native_identity is None
 
 
 def test_response_received_before_result_is_unknown_and_never_blind_retry(
