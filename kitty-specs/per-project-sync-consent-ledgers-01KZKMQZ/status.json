@@ -191,6 +191,9 @@
       "last_event_id": "01KZP9B32QNVB0ZTMDV3MSSS1Q",
       "last_transition_at": "2026-08-10T16:50:51.607450+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: WP06 adapter-neutral durable transport-attempt/lease protocol implemented in owned files through d170c656b. T026-T030 marked done: durable attempts persist before I/O with native identity; project-scoped cross-process lease gates transport/result; opt-out cancels prepared attempts and terminalizes in-flight/unknown orphans; subprocess-death and response-before-result windows preserve original identity and block late success/resend after terminal_unknown. Validation: WP06 owned suites 9/9 passed; Ruff check/format clean; strict mypy clean for transport_attempts.py and transport_lease.py; workflow validation passed. Baseline caveat: project-store savepoint failure reproduces at pre-WP06 head 14ac8b31 and is owned by Priivacy-ai/spec-kitty#3309; WP06 intentionally did not edit/fix #3309. Force used only because lane-d history contains managed-lane kitty-specs status artifact(s), not to bypass code review or validation."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 64936,
