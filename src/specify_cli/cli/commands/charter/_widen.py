@@ -368,8 +368,6 @@ def _dispatch_widen_input(  # noqa: C901
           - user_answer: None → continue inner loop (re-prompt); else the value to use.
           - should_break: True if the outer question loop should advance to next question.
     """
-    from datetime import UTC, datetime
-
     from specify_cli.widen.models import WidenAction, WidenPendingEntry
 
     result = widen_flow.run_widen_mode(
@@ -404,12 +402,14 @@ def _dispatch_widen_input(  # noqa: C901
         # Write WidenPendingEntry (T024 pattern — caller does persistence)
         if widen_store is not None:
             try:
+                from kernel.clock import now_utc
+
                 widen_store.add_pending(WidenPendingEntry(
                     decision_id=result.decision_id or current_decision_id,
                     mission_slug=mission_slug,
                     question_id=f"charter.{question_id}",
                     question_text=prompt_text,
-                    entered_pending_at=datetime.now(tz=UTC),
+                    entered_pending_at=now_utc(),
                     widen_endpoint_response={},
                 ))
             except Exception as exc:  # noqa: BLE001

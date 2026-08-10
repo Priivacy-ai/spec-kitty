@@ -377,6 +377,68 @@ REGISTRY: dict[str, RegisteredSite] = {
         producer=lambda: now_utc().isoformat(),
         prior_signature=lambda instant: instant.isoformat(),
     ),
+    # --- WP13 (specify_cli/cli, rest of cli/ -- excl. cli/commands/agent/) --
+    # cli/commands/_auth_doctor.py's persisted `DoctorReport.generated_at`
+    # (rendered via `render_report_json`'s `--json` payload). Prior:
+    # `datetime.now(UTC)` -> `now_utc()`.
+    "specify_cli.cli.commands._auth_doctor.assemble_report#generated_at": RegisteredSite(
+        producer=lambda: now_utc().isoformat(),
+        prior_signature=lambda instant: instant.isoformat(),
+    ),
+    # cli/commands/charter/_widen.py's persisted `WidenPendingEntry.entered_pending_at`
+    # (`widen-pending.jsonl`, via pydantic `model_dump_json()`). Prior:
+    # `datetime.now(tz=UTC)` -> `now_utc()` -- both produce the identical
+    # aware-UTC `datetime` object shape pydantic serializes from, so the
+    # per-VALUE comparison below (independent of pydantic's own `Z`-suffixed
+    # JSON encoding, unchanged by this WP) is byte-identical.
+    "specify_cli.widen.state.WidenPendingStore.add_pending#entered_pending_at": RegisteredSite(
+        producer=lambda: now_utc().isoformat(),
+        prior_signature=lambda instant: instant.isoformat(),
+    ),
+    # cli/helpers.py's persisted `NagCacheRecord.last_shown_at`
+    # (`.kittify/upgrade-nag-cache.json`, via `_dt_to_iso`, which is a no-op
+    # pass-through for an already-aware-UTC value). Prior: `datetime.now(UTC)`
+    # -> `now_utc()`.
+    "specify_cli.cli.helpers._render_nag_if_needed#last_shown_at": RegisteredSite(
+        producer=lambda: now_utc().isoformat(),
+        prior_signature=lambda instant: instant.isoformat(),
+    ),
+    # cli/commands/upgrade.py's `_record_agent_choice` persisted
+    # `NagCacheRecord.fetched_at`/`last_shown_at` (same cache file/serializer
+    # as the helpers.py site above, independent call site). Prior:
+    # `datetime.now(UTC)` -> `now_utc()`.
+    "specify_cli.cli.commands.upgrade._record_agent_choice#fetched_at": RegisteredSite(
+        producer=lambda: now_utc().isoformat(),
+        prior_signature=lambda instant: instant.isoformat(),
+    ),
+    # --- WP13b (specify_cli/auth, specify_cli/compat) -----------------------
+    # `StoredSession.issued_at`/`access_token_expires_at`/`last_used_at`
+    # (persisted `session.json` via `to_dict()`/`to_json()`, one representative
+    # entry -- all three share the identical prior expression). Constructed
+    # by `auth/flows/{authorization_code,device_code,refresh}.py` and
+    # `auth/session.py::StoredSession.touch()`. Prior: `datetime.now(UTC)` ->
+    # `now_utc()`.
+    "specify_cli.auth.session.StoredSession#issued_at": RegisteredSite(
+        producer=lambda: now_utc().isoformat(),
+        prior_signature=lambda instant: instant.isoformat(),
+    ),
+    # `auth/session_hot_path.py::publish_session_hot_path`'s persisted
+    # `generated_at` epoch float (`session.hot-path.json`). Prior: raw
+    # `time.time()` -> `now_epoch()`; `now_epoch()` is defined as exactly
+    # `DEFAULT_CLOCK.now_epoch()` -> `time.time()` (WP03).
+    "specify_cli.auth.session_hot_path.publish_session_hot_path#generated_at": RegisteredSite(
+        producer=lambda: str(now_epoch()),
+        prior_signature=lambda instant: str(instant.timestamp()),
+    ),
+    # `compat/planner.py::_write_nag_cache_for_fetch`'s persisted
+    # `NagCacheRecord.fetched_at` (`.kittify/upgrade-nag-cache.json`, same
+    # serializer as the WP13 `cli.helpers`/`cli.commands.upgrade` sites
+    # above, independent call site: `plan()`'s `now` default). Prior:
+    # `datetime.now(UTC)` -> `now_utc()`.
+    "specify_cli.compat.planner.plan#now_default": RegisteredSite(
+        producer=lambda: now_utc().isoformat(),
+        prior_signature=lambda instant: instant.isoformat(),
+    ),
 }
 
 

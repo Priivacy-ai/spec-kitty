@@ -19,7 +19,7 @@ from __future__ import annotations
 import io
 import json
 import time
-from datetime import datetime, timedelta, UTC
+from kernel.clock import datetime, now_utc, parse_iso, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -58,7 +58,7 @@ def _make_session(
     *,
     refresh_token_expires_at: datetime | None,
 ) -> StoredSession:
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id="user-abc",
         email="rob@example.com",
@@ -193,7 +193,7 @@ def _capture_render(report: DoctorReport) -> str:
 def test_renders_authenticated_no_findings(monkeypatch: pytest.MonkeyPatch) -> None:
     """Healthy state ⇒ all 7 sections render; findings empty; exit 0."""
     session = _make_session(
-        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+        refresh_token_expires_at=now_utc() + timedelta(days=30)
     )
     _patch_state(monkeypatch, session=session)
 
@@ -236,7 +236,7 @@ def test_renders_unauthenticated(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_renders_orphan_finding(monkeypatch: pytest.MonkeyPatch) -> None:
     """One orphan present ⇒ F-002 warn; exit 0 (warn is not critical)."""
     session = _make_session(
-        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+        refresh_token_expires_at=now_utc() + timedelta(days=30)
     )
     # WP05 repoint: _auth_doctor.assemble_report() now receives DaemonIdentityRecord
     # objects from enumerate_identity_records; OrphanDaemon is no longer consumed here.
@@ -257,12 +257,12 @@ def test_renders_orphan_finding(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_renders_stuck_lock_finding(monkeypatch: pytest.MonkeyPatch) -> None:
     """Lock record 120 s old ⇒ F-003 critical; exit 1."""
     session = _make_session(
-        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+        refresh_token_expires_at=now_utc() + timedelta(days=30)
     )
     lock = LockRecord(
         schema_version=1,
         pid=99999,
-        started_at=datetime.now(UTC) - timedelta(seconds=120),
+        started_at=now_utc() - timedelta(seconds=120),
         host="localhost",
         version="3.2.0a5",
     )
@@ -272,7 +272,7 @@ def test_renders_stuck_lock_finding(monkeypatch: pytest.MonkeyPatch) -> None:
     lock = LockRecord(
         schema_version=1,
         pid=99999,
-        started_at=datetime.now(UTC) - timedelta(seconds=120),
+        started_at=now_utc() - timedelta(seconds=120),
         host=socket.gethostname(),
         version="3.2.0a5",
     )
@@ -308,7 +308,7 @@ def test_runs_under_three_seconds(monkeypatch: pytest.MonkeyPatch) -> None:
     we exercise the *whole* pipeline rather than the network layer.
     """
     session = _make_session(
-        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+        refresh_token_expires_at=now_utc() + timedelta(days=30)
     )
 
     # WP05 repoint: assemble_report() calls enumerate_identity_records now;
@@ -334,12 +334,12 @@ def test_renders_held_fresh_lock(monkeypatch: pytest.MonkeyPatch) -> None:
     import socket
 
     session = _make_session(
-        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+        refresh_token_expires_at=now_utc() + timedelta(days=30)
     )
     lock = LockRecord(
         schema_version=1,
         pid=42,
-        started_at=datetime.now(UTC) - timedelta(seconds=2),
+        started_at=now_utc() - timedelta(seconds=2),
         host=socket.gethostname(),
         version="3.2.0a5",
     )
@@ -357,7 +357,7 @@ def test_renders_held_fresh_lock(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_renders_active_daemon(monkeypatch: pytest.MonkeyPatch) -> None:
     """Healthy daemon ⇒ section prints PID/Port/Package/Protocol."""
     session = _make_session(
-        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+        refresh_token_expires_at=now_utc() + timedelta(days=30)
     )
     daemon_status = SyncDaemonStatus(
         healthy=True,
@@ -388,7 +388,7 @@ def test_renders_active_daemon(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_renders_recorded_unhealthy_daemon(monkeypatch: pytest.MonkeyPatch) -> None:
     """Daemon state file exists but health probe fails ⇒ "recorded but not healthy"."""
     session = _make_session(
-        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+        refresh_token_expires_at=now_utc() + timedelta(days=30)
     )
     daemon_status = SyncDaemonStatus(
         healthy=False, port=9400, pid=12345
@@ -412,7 +412,7 @@ def test_unhealthy_daemon_finding_points_to_reset(
 ) -> None:
     """Rollout-enabled unhealthy singleton should tell users to run ``--reset``."""
     session = _make_session(
-        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+        refresh_token_expires_at=now_utc() + timedelta(days=30)
     )
     daemon_status = SyncDaemonStatus(
         healthy=False, port=9402, pid=12835
@@ -435,12 +435,12 @@ def test_unhealthy_daemon_finding_points_to_reset(
 def test_nfs_holder_finding(monkeypatch: pytest.MonkeyPatch) -> None:
     """F-007 fires when the lock holder host differs from the local hostname."""
     session = _make_session(
-        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+        refresh_token_expires_at=now_utc() + timedelta(days=30)
     )
     lock = LockRecord(
         schema_version=1,
         pid=42,
-        started_at=datetime.now(UTC) - timedelta(seconds=2),
+        started_at=now_utc() - timedelta(seconds=2),
         host="some-other-host.example.com",
         version="3.2.0a5",
     )
@@ -454,7 +454,7 @@ def test_nfs_holder_finding(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_json_output_schema(monkeypatch: pytest.MonkeyPatch) -> None:
     """``--json`` payload validates against ``data-model.md`` §5 schema."""
     session = _make_session(
-        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+        refresh_token_expires_at=now_utc() + timedelta(days=30)
     )
     _patch_state(monkeypatch, session=session)
 
@@ -478,7 +478,7 @@ def test_json_output_schema(monkeypatch: pytest.MonkeyPatch) -> None:
     # OrphanDaemon dicts to full DaemonIdentityRecord.to_dict() entries (FR-004).
     assert payload["schema_version"] == 2
     # ISO-8601 datetime
-    datetime.fromisoformat(payload["generated_at"])
+    parse_iso(payload["generated_at"])
     # auth_root is a string path
     assert isinstance(payload["auth_root"], str)
 
@@ -726,7 +726,7 @@ def test_doctor_impl_server_false_no_outbound_call(
     import asyncio
 
     session = _make_session(
-        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+        refresh_token_expires_at=now_utc() + timedelta(days=30)
     )
     _patch_state(monkeypatch, session=session)
 
@@ -755,7 +755,7 @@ def test_doctor_impl_server_true_renders_active(
 ) -> None:
     """server=True + active session → output contains 'active' and session id."""
     session = _make_session(
-        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+        refresh_token_expires_at=now_utc() + timedelta(days=30)
     )
     _patch_state(monkeypatch, session=session)
 
@@ -794,7 +794,7 @@ def test_doctor_impl_server_true_renders_unknown_session_id(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     session = _make_session(
-        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+        refresh_token_expires_at=now_utc() + timedelta(days=30)
     )
     _patch_state(monkeypatch, session=session)
 
@@ -833,7 +833,7 @@ def test_doctor_impl_server_true_renders_reauthenticate(
 ) -> None:
     """server=True + 401 → output contains 're-authenticate' guidance."""
     session = _make_session(
-        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+        refresh_token_expires_at=now_utc() + timedelta(days=30)
     )
     _patch_state(monkeypatch, session=session)
 
@@ -873,7 +873,7 @@ def test_doctor_impl_server_true_json_includes_server_session(
 ) -> None:
     """server=True + --json → payload includes server_session key."""
     session = _make_session(
-        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+        refresh_token_expires_at=now_utc() + timedelta(days=30)
     )
     _patch_state(monkeypatch, session=session)
 
@@ -908,7 +908,7 @@ def test_default_doctor_output_has_server_hint(
 ) -> None:
     """Default auth doctor output ends with the --server hint line."""
     session = _make_session(
-        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+        refresh_token_expires_at=now_utc() + timedelta(days=30)
     )
     _patch_state(monkeypatch, session=session)
 
@@ -923,7 +923,7 @@ def test_server_doctor_output_no_hint(
 ) -> None:
     """auth doctor --server output does NOT show the hint."""
     session = _make_session(
-        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
+        refresh_token_expires_at=now_utc() + timedelta(days=30)
     )
     _patch_state(monkeypatch, session=session)
 

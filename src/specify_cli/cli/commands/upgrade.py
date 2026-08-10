@@ -41,7 +41,7 @@ from __future__ import annotations
 import json
 import os
 import sys
-from datetime import UTC, datetime
+from kernel.clock import now_utc
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -162,7 +162,7 @@ def _agent_check_payload() -> dict[str, object]:
         resolve_effective_preference,
     )
 
-    now = datetime.now(UTC)
+    now = now_utc()
     invocation = Invocation(
         command_path=("upgrade",),
         raw_args=("--agent-check", "--json"),
@@ -273,7 +273,7 @@ def _record_agent_choice(
         print(json.dumps(payload) if json_output else "Error: --agent-latest is required")
         raise typer.Exit(2)
 
-    now = datetime.now(UTC)
+    now = now_utc()
     cache = NagCache.default()
     existing = cache.read()
     reset_anchor = existing is not None and needs_reset(
@@ -762,7 +762,7 @@ def upgrade(  # noqa: C901
         metadata = ProjectMetadata.load(kittify_dir)
         if metadata and metadata.version != target_version and not dry_run:
             metadata.version = target_version
-            metadata.last_upgraded_at = datetime.now()
+            metadata.last_upgraded_at = now_utc()
             metadata.save(kittify_dir)
 
         if not dry_run:

@@ -12,7 +12,7 @@ Critical invariants covered:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, UTC
+from kernel.clock import UTC, datetime, now_utc, timedelta
 from pathlib import Path
 
 
@@ -30,7 +30,7 @@ import pytest
 pytestmark = [pytest.mark.integration]
 
 def _now() -> datetime:
-    return datetime.now(UTC)
+    return now_utc()
 
 
 def _make_session(

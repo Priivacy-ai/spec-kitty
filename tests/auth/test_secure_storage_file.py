@@ -16,7 +16,7 @@ import concurrent.futures
 import json
 import os
 import stat
-from datetime import datetime, timedelta, UTC
+from kernel.clock import datetime, now_utc, timedelta
 from pathlib import Path
 
 import pytest
@@ -29,7 +29,7 @@ from specify_cli.auth.session import StoredSession, Team
 pytestmark = [pytest.mark.integration]
 
 def _now() -> datetime:
-    return datetime.now(UTC)
+    return now_utc()
 
 
 def _make_session(access_token: str = "access") -> StoredSession:

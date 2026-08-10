@@ -9,7 +9,7 @@ import os
 import stat
 import sys
 import unittest.mock as mock
-from datetime import datetime, timedelta, UTC
+from kernel.clock import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -387,16 +387,12 @@ class TestIsFresh:
 
     def test_just_shown_returns_true(self) -> None:
         """Shown 1 second ago with 86400 throttle → True (fresh)."""
-        from datetime import timedelta
-
         last = _NOW - timedelta(seconds=1)
         record = _make_record(last_shown_at=last)
         assert NagCache.is_fresh(record, throttle_seconds=86400, now=_NOW, current_cli_version=_VERSION) is True
 
     def test_expired_returns_false(self) -> None:
         """Shown 86401 seconds ago with 86400 throttle → False (expired)."""
-        from datetime import timedelta
-
         last = _NOW - timedelta(seconds=86401)
         record = _make_record(last_shown_at=last)
         assert NagCache.is_fresh(record, throttle_seconds=86400, now=_NOW, current_cli_version=_VERSION) is False
@@ -407,8 +403,6 @@ class TestIsFresh:
         Per the corrected data-model: ``delta < throttle_seconds`` is the freshness
         predicate, so the boundary (delta == throttle) is treated as expired.
         """
-        from datetime import timedelta
-
         last = _NOW - timedelta(seconds=86400)
         record = _make_record(last_shown_at=last)
         result = NagCache.is_fresh(record, throttle_seconds=86400, now=_NOW, current_cli_version=_VERSION)
@@ -417,32 +411,24 @@ class TestIsFresh:
 
     def test_far_past_returns_false(self) -> None:
         """Shown 1 year ago → False."""
-        from datetime import timedelta
-
         last = _NOW - timedelta(days=400)
         record = _make_record(last_shown_at=last)
         assert NagCache.is_fresh(record, throttle_seconds=86400, now=_NOW, current_cli_version=_VERSION) is False
 
     def test_clock_skew_future_last_shown_returns_false(self) -> None:
         """last_shown_at in the future (clock skew) → False (CHK044)."""
-        from datetime import timedelta
-
         last = _NOW + timedelta(seconds=3600)
         record = _make_record(last_shown_at=last)
         assert NagCache.is_fresh(record, throttle_seconds=86400, now=_NOW, current_cli_version=_VERSION) is False
 
     def test_custom_throttle_respects_value(self) -> None:
         """Custom throttle of 120 seconds: shown 60 seconds ago → fresh."""
-        from datetime import timedelta
-
         last = _NOW - timedelta(seconds=60)
         record = _make_record(last_shown_at=last)
         assert NagCache.is_fresh(record, throttle_seconds=120, now=_NOW, current_cli_version=_VERSION) is True
 
     def test_custom_throttle_expired(self) -> None:
         """Custom throttle of 120 seconds: shown 200 seconds ago → expired."""
-        from datetime import timedelta
-
         last = _NOW - timedelta(seconds=200)
         record = _make_record(last_shown_at=last)
         assert NagCache.is_fresh(record, throttle_seconds=120, now=_NOW, current_cli_version=_VERSION) is False
@@ -481,7 +467,6 @@ class TestHasFreshData:
 
     def test_just_fetched_returns_true(self) -> None:
         """Fetched 1 second ago with 86400 throttle → True (fresh data)."""
-        from datetime import timedelta
         fetched = _NOW - timedelta(seconds=1)
         record = _make_record(fetched_at=fetched, last_shown_at=None)
         assert NagCache.has_fresh_data(record, throttle_seconds=86400, now=_NOW, current_cli_version=_VERSION) is True
@@ -493,7 +478,6 @@ class TestHasFreshData:
         has_fresh_data() must return True (fetched_at is recent).
         This is what enables the no-update fast path.
         """
-        from datetime import timedelta
         fetched = _NOW - timedelta(hours=1)
         record = _make_record(
             latest_version=_VERSION,   # installed == latest, no update
@@ -507,21 +491,18 @@ class TestHasFreshData:
 
     def test_stale_fetch_returns_false(self) -> None:
         """Fetched longer than throttle_seconds ago → False (stale data)."""
-        from datetime import timedelta
         fetched = _NOW - timedelta(seconds=86401)
         record = _make_record(fetched_at=fetched, last_shown_at=None)
         assert NagCache.has_fresh_data(record, throttle_seconds=86400, now=_NOW, current_cli_version=_VERSION) is False
 
     def test_exactly_at_throttle_boundary_returns_false(self) -> None:
         """Fetched exactly throttle_seconds ago → False (delta == throttle → expired)."""
-        from datetime import timedelta
         fetched = _NOW - timedelta(seconds=86400)
         record = _make_record(fetched_at=fetched, last_shown_at=None)
         assert NagCache.has_fresh_data(record, throttle_seconds=86400, now=_NOW, current_cli_version=_VERSION) is False
 
     def test_clock_skew_negative_delta_returns_false(self) -> None:
         """fetched_at in the future (clock skew) → False (CHK044)."""
-        from datetime import timedelta
         fetched = _NOW + timedelta(seconds=3600)
         record = _make_record(fetched_at=fetched, last_shown_at=None)
         assert NagCache.has_fresh_data(record, throttle_seconds=86400, now=_NOW, current_cli_version=_VERSION) is False

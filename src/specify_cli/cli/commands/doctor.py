@@ -829,14 +829,13 @@ def invocation_pairing(
 
 def _run_ops_sweep(repo_root: Path, *, threshold_hours: float, json_output: bool) -> None:
     """Run the stale sweep and exit per contracts/doctor-ops-close-stale.md."""
-    import datetime as _dt
-
+    from kernel.clock import now_utc
     from specify_cli.doctor.ops import close_stale_ops
 
     report = close_stale_ops(
         repo_root,
         threshold_hours=threshold_hours,
-        now=_dt.datetime.now(_dt.UTC),
+        now=now_utc(),
     )
     # Exit 1 on per-op write/IO errors or when open-but-fresh Ops remain after
     # the sweep (consistent with report mode); already_closed is not a failure.

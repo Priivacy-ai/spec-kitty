@@ -12,7 +12,7 @@ import logging
 import re
 import subprocess
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, UTC
+from kernel.clock import UTC, now_utc, parse_iso, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final
 from urllib.parse import urlparse
@@ -1324,12 +1324,12 @@ def _oldest_age_label(created_at: str | None) -> str:
     if not created_at:
         return "[dim]n/a[/dim]"
     try:
-        parsed = datetime.fromisoformat(created_at)
+        parsed = parse_iso(created_at)
     except ValueError:
         return created_at
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=UTC)
-    return f"{humanize_timedelta(datetime.now(UTC) - parsed)} ago"
+    return f"{humanize_timedelta(now_utc() - parsed)} ago"
 
 
 def _project_store_label(row: ProjectStoreRow) -> str:
@@ -5389,7 +5389,7 @@ def status(  # noqa: C901
     # Last sync
     if daemon_status.last_sync:
         try:
-            parsed_sync_time = datetime.fromisoformat(daemon_status.last_sync)
+            parsed_sync_time = parse_iso(daemon_status.last_sync)
             table.add_row(
                 _STATUS_LAST_SYNC_LABEL,
                 parsed_sync_time.strftime("%Y-%m-%d %H:%M:%S UTC"),
@@ -5925,8 +5925,6 @@ def doctor() -> None:  # noqa: C901
     Examples:
         spec-kitty sync doctor
     """
-    from datetime import datetime
-
     from specify_cli.auth import get_token_manager
     from specify_cli.sync.body_queue import OfflineBodyUploadQueue
     from specify_cli.sync.config import SyncConfig
@@ -5999,7 +5997,7 @@ def doctor() -> None:  # noqa: C901
         access_exp_dt = session.access_token_expires_at
         refresh_exp_dt = session.refresh_token_expires_at
 
-        now = datetime.now(UTC)
+        now = now_utc()
 
         access_ok = access_exp_dt is not None and access_exp_dt > now
         refresh_ok = (

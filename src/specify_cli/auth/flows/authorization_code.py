@@ -30,8 +30,9 @@ via the constructor, typically from
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, UTC
 from typing import Any, cast
+
+from kernel.clock import datetime, now_utc, parse_iso, timedelta
 from urllib.parse import urlencode
 
 from ..config import get_saas_base_url
@@ -275,7 +276,7 @@ class AuthorizationCodeFlow:
         # ``default_team_id``; we prefer Private Teamspace when available.
         default_team_id = pick_default_team_id(teams)
 
-        now = datetime.now(UTC)
+        now = now_utc()
         try:
             expires_in = int(tokens["expires_in"])
         except (KeyError, TypeError, ValueError) as exc:
@@ -352,4 +353,4 @@ def _parse_iso_utc(value: str) -> datetime:
     parsing so both forms round-trip identically.
     """
     normalized = value.replace("Z", "+00:00") if value.endswith("Z") else value
-    return datetime.fromisoformat(normalized)
+    return parse_iso(normalized)

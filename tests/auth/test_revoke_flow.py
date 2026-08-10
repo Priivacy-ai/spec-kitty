@@ -15,7 +15,7 @@ network traffic occurs. The test for request shape verifies:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, UTC
+from kernel.clock import now_utc, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -40,7 +40,7 @@ def _saas_url(monkeypatch):
 
 def _make_session(*, refresh_token: str = "rfs.sessionid.secret") -> StoredSession:
     """Build a minimal StoredSession for revoke tests."""
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id="u_test",
         email="test@example.com",

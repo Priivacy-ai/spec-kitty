@@ -12,7 +12,7 @@ WP01-enforced safety belt — :func:`doctor_impl` must pass the
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, UTC
+from kernel.clock import now_utc, timedelta
 from pathlib import Path
 
 import pytest
@@ -36,7 +36,7 @@ from specify_cli.sync.orphan_sweep import (
 pytestmark = [pytest.mark.integration]
 
 def _make_session() -> StoredSession:
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id="user-abc",
         email="rob@example.com",
@@ -154,7 +154,7 @@ def _patch_state(
 
 def _write_lock_record(path: Path, *, age_s: float) -> None:
     """Write a JSON lock record at ``path`` with started_at = now - age_s."""
-    started = datetime.now(UTC) - timedelta(seconds=age_s)
+    started = now_utc() - timedelta(seconds=age_s)
     payload = {
         "schema_version": 1,
         "pid": 99999,

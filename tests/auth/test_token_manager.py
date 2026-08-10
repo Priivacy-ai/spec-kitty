@@ -21,7 +21,7 @@ import asyncio
 import logging
 import sys
 import types
-from datetime import datetime, timedelta, UTC
+from kernel.clock import datetime, now_utc, timedelta
 
 import pytest
 
@@ -51,7 +51,7 @@ from specify_cli.core.file_lock import LockAcquireTimeout
 pytestmark = [pytest.mark.integration]
 
 def _now() -> datetime:
-    return datetime.now(UTC)
+    return now_utc()
 
 
 def _make_session(
@@ -272,7 +272,7 @@ async def test_get_access_token_without_session_raises():
 @pytest.mark.asyncio
 async def test_get_access_token_raises_typed_error_for_naive_expired_refresh():
     tm = TokenManager(FakeStorage())
-    naive_past = datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=1)
+    naive_past = now_utc().replace(tzinfo=None) - timedelta(minutes=1)
     tm.set_session(
         _make_session(
             access_expires_in=-60,

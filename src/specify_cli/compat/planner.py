@@ -20,10 +20,11 @@ import contextlib
 import os
 import sys
 from dataclasses import dataclass, replace
-from datetime import datetime, UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 from collections.abc import Callable
+
+from kernel.clock import datetime, now_utc
 
 # StrEnum is stdlib 3.11+
 from enum import StrEnum
@@ -897,7 +898,7 @@ def _plan_impl(
 
     # Defaults
     if now is None:
-        now = datetime.now(UTC)
+        now = now_utc()
 
     if config is None:
         config = UpgradeConfig.load()

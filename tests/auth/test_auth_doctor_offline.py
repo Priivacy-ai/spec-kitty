@@ -17,7 +17,7 @@ reset=False, unstick_lock=False)`` (the default, read-only path).
 from __future__ import annotations
 
 import urllib.request
-from datetime import datetime, timedelta, UTC
+from kernel.clock import now_utc, timedelta
 from pathlib import Path
 
 import pytest
@@ -31,7 +31,7 @@ from specify_cli.sync.daemon import SyncDaemonStatus
 pytestmark = [pytest.mark.integration]
 
 def _make_session() -> StoredSession:
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id="user-abc",
         email="rob@example.com",

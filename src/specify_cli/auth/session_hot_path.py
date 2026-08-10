@@ -13,9 +13,10 @@ import os
 import time
 from contextlib import suppress
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from kernel.clock import UTC, datetime, now_epoch, now_utc, parse_iso
 
 from .session import StoredSession
 
@@ -40,7 +41,7 @@ class SessionHotPathSummary:
             return False
         if self.refresh_token_expires_at is None:
             return True
-        return self.refresh_token_expires_at > datetime.now(UTC)
+        return self.refresh_token_expires_at > now_utc()
 
 
 def hot_path_disabled() -> bool:
@@ -80,7 +81,7 @@ def load_session_hot_path(store_dir: Path) -> SessionHotPathSummary | None:
         fingerprint = dict(payload["durable_fingerprint"])
     except (KeyError, TypeError, ValueError):
         return None
-    now = time.time()
+    now = now_epoch()
     if now < generated_at or now - generated_at > min(max_age, _MAX_AGE_SECONDS):
         return None
     try:
@@ -93,7 +94,7 @@ def load_session_hot_path(store_dir: Path) -> SessionHotPathSummary | None:
     refresh_raw = payload.get("refresh_token_expires_at")
     try:
         refresh_expires_at = (
-            datetime.fromisoformat(refresh_raw) if refresh_raw else None
+            parse_iso(refresh_raw) if refresh_raw else None
         )
     except (TypeError, ValueError):
         return None
@@ -119,7 +120,7 @@ def publish_session_hot_path(store_dir: Path, session: StoredSession) -> None:
         return
     tmp: Path | None = None
     try:
-        now = time.time()
+        now = now_epoch()
         payload: dict[str, Any] = {
             "schema_version": _SCHEMA_VERSION,
             "generated_at": now,

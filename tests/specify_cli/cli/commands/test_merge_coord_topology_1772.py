@@ -30,7 +30,7 @@ from __future__ import annotations
 import contextlib
 import json
 import subprocess
-from datetime import UTC, datetime
+from kernel.clock import now_utc_iso
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -142,7 +142,7 @@ def _write_manifest(feature_dir: Path) -> LanesManifest:
                 parallel_group=0,
             )
         ],
-        computed_at=datetime.now(UTC).isoformat(),
+        computed_at=now_utc_iso(),
         computed_from="test-fixture",
     )
     write_lanes_json(feature_dir, manifest)
@@ -168,7 +168,7 @@ def _bootstrap_coord_mission(
     # the in-branch status path resolves and post-merge validation can read it.
     done_event = {
         "actor": "merge",
-        "at": datetime.now(UTC).isoformat(),
+        "at": now_utc_iso(),
         "event_id": "01HXYZDONE0000000000000001",
         "execution_mode": "worktree",
         "feature_slug": MISSION_SLUG,

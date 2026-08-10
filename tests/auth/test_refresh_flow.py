@@ -15,7 +15,7 @@ relative ``refresh_token_expires_in`` form.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, UTC
+from kernel.clock import UTC, datetime, now_utc, timedelta
 from unittest.mock import AsyncMock, Mock, patch
 
 import httpx
@@ -50,7 +50,7 @@ def _make_session(
     refresh_token: str = "refresh-v1",
     refresh_token_expires_at: datetime | None = None,
 ) -> StoredSession:
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id="user-1",
         email="a@b.com",
@@ -203,14 +203,14 @@ class TestRefreshTTLAmendment:
             refresh_token_expires_in=3600,
         )
 
-        before = datetime.now(UTC)
+        before = now_utc()
         with patch("specify_cli.auth.flows.refresh.PublicHttpClient") as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__.return_value = mock_client
             mock_client.post.return_value = _mock_httpx_response(200, body)
 
             updated = await flow.refresh(session)
-        after = datetime.now(UTC)
+        after = now_utc()
 
         assert updated.refresh_token_expires_at is not None
         delta = updated.refresh_token_expires_at - before
@@ -492,7 +492,7 @@ def _make_expired_session_with_teams(teams: list[Team]) -> StoredSession:
     ``refresh_if_needed`` actually performs the OAuth dance instead of
     raising :class:`RefreshTokenExpiredError`.
     """
-    now = datetime.now(UTC)
+    now = now_utc()
     return StoredSession(
         user_id="user-1",
         email="a@b.com",

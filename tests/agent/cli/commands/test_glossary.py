@@ -1204,6 +1204,47 @@ class TestStoreHelpers:
         terms = _get_all_terms_from_store(store)
         assert len(terms) == 3
 
+    def test_replayed_sense_missing_timestamp_gets_aware_utc_fallback(self, mock_glossary_store, tmp_path):
+        """kernel-clock-single-door FR-011: a replayed ``GlossarySenseUpdated``
+        event missing its ``timestamp`` field falls back to an aware-UTC
+        instant, not naive local time.
+
+        Regression guard for the naive ``datetime.now().isoformat()``
+        fallback formerly in ``cli.commands.glossary._load_store_from_seeds``
+        (research/migration-notes.md): a naive fallback, once round-tripped
+        through ``fromisoformat``, produces a ``Provenance.timestamp`` with
+        no tz — silently mislabeling local time as an instant once any
+        caller serializes it. Non-vacuity: reverting the door's
+        ``now_utc_iso()`` fallback back to a bare ``datetime.now().isoformat()``
+        makes ``tzinfo`` come back ``None`` and this assertion fails.
+        """
+        from specify_cli.cli.commands.glossary import _load_store_from_seeds
+
+        events_dir = mock_glossary_store / ".kittify" / "events" / "glossary"
+        events_dir.mkdir(parents=True)
+        event_file = events_dir / "test.events.jsonl"
+        event_file.write_text(
+            json.dumps(
+                {
+                    "event_type": "GlossarySenseUpdated",
+                    "actor": {"actor_id": "system:test"},
+                    "new_sense": {
+                        "surface": "no-timestamp-term",
+                        "scope": "team_domain",
+                        "definition": "A sense whose event carries no timestamp field",
+                    },
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        store = _load_store_from_seeds(mock_glossary_store)
+
+        senses = store._cache["team_domain"]["no-timestamp-term"]
+        assert len(senses) == 1
+        assert senses[0].provenance.timestamp.tzinfo is not None
+
     def test_get_all_terms_scope_filter(self, mock_glossary_store):
         """Verify scope filter works."""
         from specify_cli.cli.commands.glossary import (

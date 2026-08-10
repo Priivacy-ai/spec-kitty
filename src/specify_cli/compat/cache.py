@@ -26,9 +26,10 @@ import stat
 import sys
 import tempfile
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
+
+from kernel.clock import UTC, datetime, parse_iso
 
 _LOG = logging.getLogger(__name__)
 
@@ -532,7 +533,7 @@ def _iso_to_dt(s: str) -> datetime:
     Raises:
         ValueError: If the string cannot be parsed.
     """
-    dt = datetime.fromisoformat(s)
+    dt = parse_iso(s)
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=UTC)
     return dt.astimezone(UTC)

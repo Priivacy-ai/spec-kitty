@@ -26,12 +26,12 @@ import asyncio
 import http.client
 import socket
 import ssl
-from datetime import datetime, timedelta, UTC
 from types import TracebackType
 from typing import Any
 from urllib.parse import urlsplit
 
 import httpx
+from kernel.clock import now_utc, timedelta
 
 from specify_cli.auth import get_token_manager
 from specify_cli.auth.config import get_saas_base_url
@@ -279,7 +279,7 @@ class OAuthHttpClient(_BaseHttpClient):
             return
         # Bump expiry well into the past so any buffer window still classifies
         # as expired.
-        session.access_token_expires_at = datetime.now(UTC) - timedelta(seconds=60)
+        session.access_token_expires_at = now_utc() - timedelta(seconds=60)
 
     async def _send(
         self,

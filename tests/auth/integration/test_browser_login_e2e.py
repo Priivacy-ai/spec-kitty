@@ -100,15 +100,15 @@ def patched_state_manager() -> Any:
     flow and the mocked :class:`CallbackServer`: the fake callback server
     knows the nonce and the real :class:`CallbackHandler.validate` passes.
     """
-    from datetime import datetime, timedelta, UTC
+    from kernel.clock import now_utc, timedelta
 
     fixed_state = PKCEState(
         state=_FIXED_STATE,
         code_verifier=_FIXED_VERIFIER,
         code_challenge=_FIXED_CHALLENGE,
         code_challenge_method="S256",
-        created_at=datetime.now(UTC),
-        expires_at=datetime.now(UTC) + timedelta(minutes=5),
+        created_at=now_utc(),
+        expires_at=now_utc() + timedelta(minutes=5),
     )
     with patch(
         "specify_cli.auth.flows.authorization_code.StateManager"
@@ -246,11 +246,11 @@ class TestBrowserLoginE2E:
         Covers the FR-001 idempotency path and proves the CliRunner-driven
         test reaches the real ``login_impl`` shortcut logic.
         """
-        from datetime import datetime, timedelta, UTC
+        from kernel.clock import now_utc, timedelta
 
         from specify_cli.auth.session import StoredSession, Team
 
-        now = datetime.now(UTC)
+        now = now_utc()
         fake_storage._session = StoredSession(
             user_id="u_alice",
             email="alice@example.com",
@@ -305,11 +305,11 @@ class TestBrowserLoginE2E:
         mocked_browser: MagicMock,
     ) -> None:
         """``--force`` must clear the existing session and re-run the flow."""
-        from datetime import datetime, timedelta, UTC
+        from kernel.clock import now_utc, timedelta
 
         from specify_cli.auth.session import StoredSession, Team
 
-        now = datetime.now(UTC)
+        now = now_utc()
         fake_storage._session = StoredSession(
             user_id="u_bob",
             email="bob@example.com",

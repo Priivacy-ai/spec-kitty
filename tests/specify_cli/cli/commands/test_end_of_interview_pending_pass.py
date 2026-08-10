@@ -12,7 +12,7 @@ Tests cover:
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from kernel.clock import now_utc
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -53,7 +53,7 @@ def _make_entry(decision_id: str = "dec-001", question: str = "What DB?") -> Wid
         mission_slug=MISSION_SLUG,
         question_id="charter.db_choice",
         question_text=question,
-        entered_pending_at=datetime.now(tz=UTC),
+        entered_pending_at=now_utc(),
         widen_endpoint_response={},
     )
 
