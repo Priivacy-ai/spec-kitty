@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -271,6 +272,77 @@ def test_expired_deadline_blocks_automatic_retry_and_query_recovery(
     assert prepared.may_resend is False
     assert query.action is RecoveryAction.OPERATOR_REVIEW
     assert query.may_resend is False
+
+
+@pytest.mark.parametrize(
+    ("attempt_id", "state_transition", "payload_reference", "policy"),
+    [
+        ("attempt-malformed", "prepared", "{not-json", "native_identity_retry"),
+        ("attempt-empty", "prepared", "{}", "native_identity_retry"),
+        (
+            "attempt-missing-identity",
+            "in_flight",
+            json.dumps({"write_kind": "local_commit", "payload_reference": "local-commit:missing"}),
+            "native_identity_query",
+        ),
+        ("attempt-invalid-policy", "unknown", "__keep__", "does_not_exist"),
+        ("attempt-conflicting-authority", "in_flight", "conflict", "native_identity_query"),
+    ],
+)
+def test_corrupt_recovery_metadata_fails_closed_to_operator_review(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    attempt_id: str,
+    state_transition: str,
+    payload_reference: str | None,
+    policy: str,
+) -> None:
+    store = _store(tmp_path, monkeypatch)
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(
+            unit,
+            context,
+            DeliveryAttemptSpec(
+                attempt_id=attempt_id,
+                write_kind="local_commit",
+                native_identity=f"idempotency:{attempt_id}",
+                payload_hash="sha256:payload",
+                payload_reference=f"local-commit:{attempt_id}",
+                deadline_at="2999-01-01T00:00:00Z",
+                reconciliation_policy="native_identity_query" if state_transition != "prepared" else "native_identity_retry",
+            ),
+        )
+        if state_transition in {"in_flight", "unknown"}:
+            mark_transport_started(unit, context, attempt_id)
+        if state_transition == "unknown":
+            mark_delivery_result_unknown(unit, context, attempt_id=attempt_id, reason="corruption_probe")
+
+    with store.unit_of_work() as unit:
+        if payload_reference == "conflict":
+            row = unit.execute(
+                "SELECT payload_reference FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ?",
+                (PROJECT_UUID, attempt_id),
+            ).fetchone()
+            assert row is not None
+            metadata = json.loads(str(row[0]))
+            metadata["target_generation"] = "999"
+            payload_reference = json.dumps(metadata, sort_keys=True)
+        if payload_reference == "__keep__":
+            unit.execute(
+                "UPDATE delivery_attempts SET reconciliation_policy = ? WHERE project_uuid = ? AND attempt_id = ?",
+                (policy, PROJECT_UUID, attempt_id),
+            )
+        else:
+            unit.execute(
+                "UPDATE delivery_attempts SET payload_reference = ?, reconciliation_policy = ? WHERE project_uuid = ? AND attempt_id = ?",
+                (payload_reference, policy, PROJECT_UUID, attempt_id),
+            )
+        decision = plan_delivery_attempt_recovery(unit, attempt_id=attempt_id)
+
+    assert decision.action is RecoveryAction.OPERATOR_REVIEW
+    assert decision.may_resend is False
+    assert "operator" in decision.diagnostic
 
 
 def test_response_received_before_result_is_unknown_and_never_blind_retry(

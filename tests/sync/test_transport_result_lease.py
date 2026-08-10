@@ -15,7 +15,9 @@ from specify_cli.sync.transport_attempts import (
     DeliveryAttemptSpec,
     DeliveryAttemptState,
     DeliveryOutcome,
+    RecoveryAction,
     mark_transport_started,
+    plan_delivery_attempt_recovery,
     prepare_delivery_attempt,
     record_delivery_result,
 )
@@ -357,3 +359,207 @@ def test_result_records_attempt_original_tuple_and_rejects_current_substitution(
         ).fetchone()
 
     assert row == (4, "server-generation-1", DeliveryOutcome.DELIVERED.value)
+
+
+def test_refused_result_is_terminal_with_category_and_native_identity_cannot_be_reused(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _seed_store(tmp_path, monkeypatch)
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(
+            unit,
+            context,
+            DeliveryAttemptSpec(
+                attempt_id="attempt-refused",
+                write_kind="history_disclosure",
+                native_identity="operation-key:refused",
+                payload_hash="sha256:refused",
+                payload_reference="history:refused",
+                deadline_at="2999-01-01T00:00:00Z",
+                reconciliation_policy="native_identity_query",
+            ),
+        )
+        mark_transport_started(unit, context, "attempt-refused")
+        record_delivery_result(
+            unit,
+            context,
+            result_id="result-refused",
+            attempt_id="attempt-refused",
+            outcome=DeliveryOutcome.REFUSED,
+            terminal_refusal_category="project_not_admitted",
+        )
+
+    with store.unit_of_work() as unit:
+        attempt_row = unit.execute(
+            "SELECT state FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ?",
+            (PROJECT_UUID, "attempt-refused"),
+        ).fetchone()
+        result_row = unit.execute(
+            "SELECT outcome, terminal_refusal_category, target_generation, admission_generation FROM delivery_results WHERE project_uuid = ? AND result_id = ?",
+            (PROJECT_UUID, "result-refused"),
+        ).fetchone()
+        decision = plan_delivery_attempt_recovery(unit, attempt_id="attempt-refused")
+
+    assert attempt_row == (DeliveryAttemptState.REFUSED.value,)
+    assert result_row == ("refused", "project_not_admitted", 4, "server-generation-1")
+    assert decision.action is RecoveryAction.OPERATOR_REVIEW
+    assert decision.may_resend is False
+
+    with (
+        acquire_project_transport_lease(store) as lease,
+        lease.unit_of_work() as (unit, context),
+        pytest.raises(ProjectStoreError, match="native transport identity already belongs"),
+    ):
+        prepare_delivery_attempt(
+            unit,
+            context,
+            DeliveryAttemptSpec(
+                attempt_id="attempt-refused-replay",
+                write_kind="history_disclosure",
+                native_identity="operation-key:refused",
+                payload_hash="sha256:different",
+                payload_reference="history:different",
+                deadline_at="2999-01-01T00:00:00Z",
+                reconciliation_policy="native_identity_query",
+            ),
+        )
+
+
+def test_duplicate_result_is_truthful_idempotent_success_on_original_attempt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _seed_store(tmp_path, monkeypatch)
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(
+            unit,
+            context,
+            DeliveryAttemptSpec(
+                attempt_id="attempt-duplicate",
+                write_kind="history_disclosure",
+                native_identity="operation-key:duplicate",
+                payload_hash="sha256:duplicate",
+                payload_reference="history:duplicate",
+                deadline_at="2999-01-01T00:00:00Z",
+                reconciliation_policy="native_identity_query",
+            ),
+        )
+        mark_transport_started(unit, context, "attempt-duplicate")
+        record_delivery_result(
+            unit,
+            context,
+            result_id="result-duplicate",
+            attempt_id="attempt-duplicate",
+            outcome=DeliveryOutcome.DUPLICATE,
+        )
+
+    with store.unit_of_work() as unit:
+        attempt_row = unit.execute(
+            "SELECT state FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ?",
+            (PROJECT_UUID, "attempt-duplicate"),
+        ).fetchone()
+        result_row = unit.execute(
+            "SELECT outcome, target_generation, admission_generation FROM delivery_results WHERE project_uuid = ? AND result_id = ?",
+            (PROJECT_UUID, "result-duplicate"),
+        ).fetchone()
+
+    assert attempt_row == (DeliveryAttemptState.SUCCEEDED.value,)
+    assert result_row == ("duplicate", 4, "server-generation-1")
+
+
+def test_corrupt_existing_metadata_blocks_possibly_colliding_fresh_native_identity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _seed_store(tmp_path, monkeypatch)
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(unit, context, _attempt())
+
+    with store.unit_of_work() as unit:
+        unit.execute(
+            "UPDATE delivery_attempts SET payload_reference = ? WHERE project_uuid = ? AND attempt_id = ?",
+            ("{not-json", PROJECT_UUID, "attempt-lease"),
+        )
+
+    with (
+        acquire_project_transport_lease(store) as lease,
+        lease.unit_of_work() as (unit, context),
+        pytest.raises(ProjectStoreError, match="operator repair"),
+    ):
+        prepare_delivery_attempt(
+            unit,
+            context,
+            DeliveryAttemptSpec(
+                attempt_id="attempt-possible-collision",
+                write_kind="history_disclosure",
+                native_identity="operation-key:abc",
+                payload_hash="sha256:history-2",
+                payload_reference="history:abc-2",
+                deadline_at="2999-01-01T00:00:00Z",
+                reconciliation_policy="native_identity_query",
+            ),
+        )
+
+
+def test_same_attempt_native_identity_reprepare_fails_before_payload_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = _seed_store(tmp_path, monkeypatch)
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(unit, context, _attempt())
+        with pytest.raises(ProjectStoreError, match="recover the original attempt"):
+            prepare_delivery_attempt(unit, context, _attempt())
+        with pytest.raises(ProjectStoreError, match="different payload hash"):
+            prepare_delivery_attempt(
+                unit,
+                context,
+                DeliveryAttemptSpec(
+                    attempt_id="attempt-lease",
+                    write_kind="history_disclosure",
+                    native_identity="operation-key:abc",
+                    payload_hash="sha256:changed",
+                    payload_reference="history:abc",
+                    deadline_at="2999-01-01T00:00:00Z",
+                    reconciliation_policy="native_identity_query",
+                ),
+            )
+
+
+@pytest.mark.parametrize(
+    ("write_kind", "native_identity", "message"),
+    [
+        ("event", "operation-key:abc", "different write kind"),
+        ("history_disclosure", "operation-key:changed", "different native identity"),
+    ],
+)
+def test_same_attempt_changed_identity_scope_fails_at_protocol_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    write_kind: str,
+    native_identity: str,
+    message: str,
+) -> None:
+    store = _seed_store(tmp_path, monkeypatch)
+
+    with acquire_project_transport_lease(store) as lease, lease.unit_of_work() as (unit, context):
+        prepare_delivery_attempt(unit, context, _attempt())
+        with pytest.raises(ProjectStoreError, match=message):
+            prepare_delivery_attempt(
+                unit,
+                context,
+                DeliveryAttemptSpec(
+                    attempt_id="attempt-lease",
+                    write_kind=write_kind,
+                    native_identity=native_identity,
+                    payload_hash="sha256:history",
+                    payload_reference="history:abc",
+                    deadline_at="2999-01-01T00:00:00Z",
+                    reconciliation_policy="native_identity_query",
+                ),
+            )

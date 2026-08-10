@@ -28,6 +28,7 @@ class DeliveryOutcome(StrEnum):
     """Truthful terminal result classes recorded under the transport lease."""
 
     DELIVERED = "delivered"
+    DUPLICATE = "duplicate"
     REFUSED = "refused"
     UNKNOWN = "unknown"
     TERMINAL_UNKNOWN = "terminal_unknown"
@@ -118,11 +119,14 @@ def prepare_delivery_attempt(
     _parse_deadline(spec.deadline_at)
     policy = _parse_reconciliation_policy(spec.reconciliation_policy)
     metadata = _attempt_metadata(spec, context=context, unit=unit, reconciliation_policy=policy)
+    _assert_native_identity_available_for_prepare(unit=unit, context=context, spec=spec, metadata=metadata)
     # TODO(#3262/WP06 follow-up): the existing project-store schema has only the
     # payload_reference text slot for native attempt metadata. This keeps the
     # current WP adapter-neutral and durable without a migration, but a later
     # schema-hardening WP should normalize native_identity/write_kind into first
-    # class columns before adapters depend on query-heavy recovery.
+    # class columns before adapters depend on query-heavy recovery. Until then,
+    # the denormalized scan below fails closed on corrupt existing metadata
+    # rather than risking a replayed/colliding native identity.
     unit.execute(
         "INSERT INTO delivery_attempts "
         "(attempt_id, project_uuid, epoch_id, outbox_task_id, consent_generation, "
@@ -243,7 +247,7 @@ def record_delivery_result(
 ) -> None:
     """Record a genuine transport result only while holding the project lease."""
     _validate_context_for_unit(unit, context, require_lease=True)
-    if outcome is DeliveryOutcome.DELIVERED:
+    if outcome in {DeliveryOutcome.DELIVERED, DeliveryOutcome.DUPLICATE}:
         terminal_state = DeliveryAttemptState.SUCCEEDED
     elif outcome is DeliveryOutcome.REFUSED:
         terminal_state = DeliveryAttemptState.REFUSED
@@ -303,7 +307,9 @@ def plan_delivery_attempt_recovery(
     """
     _require_non_empty(attempt_id=attempt_id)
     row = unit.execute(
-        "SELECT state, payload_reference, reconciliation_policy, deadline_at FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ?",
+        "SELECT state, payload_reference, reconciliation_policy, deadline_at, payload_hash, "
+        "epoch_id, consent_generation, target_generation, admission_generation, binding_audience "
+        "FROM delivery_attempts WHERE project_uuid = ? AND attempt_id = ?",
         (unit.project_uuid.storage_token, attempt_id),
     ).fetchone()
     if row is None:
@@ -313,6 +319,16 @@ def plan_delivery_attempt_recovery(
     native_identity = metadata.get("native_identity")
     policy = _parse_reconciliation_policy(str(row[2]) if row[2] is not None else "")
     deadline = _parse_deadline(str(row[3]) if row[3] is not None else "")
+    metadata_diagnostic = _recovery_metadata_diagnostic(row=row, metadata=metadata)
+    if metadata_diagnostic is not None:
+        return DeliveryRecoveryDecision(
+            attempt_id=attempt_id,
+            state=state,
+            action=RecoveryAction.OPERATOR_REVIEW,
+            native_identity=native_identity if native_identity and native_identity.strip() else None,
+            may_resend=False,
+            diagnostic=metadata_diagnostic,
+        )
     if state in {DeliveryAttemptState.PREPARED, DeliveryAttemptState.IN_FLIGHT, DeliveryAttemptState.UNKNOWN} and deadline <= (now or datetime.now(UTC)):
         return DeliveryRecoveryDecision(
             attempt_id=attempt_id,
@@ -573,6 +589,123 @@ def _attempt_metadata(
         "deadline_at": spec.deadline_at,
         "reconciliation_policy": reconciliation_policy.value,
     }
+
+
+def _assert_native_identity_available_for_prepare(
+    *,
+    unit: ProjectUnitOfWork,
+    context: ProjectSyncContext,
+    spec: DeliveryAttemptSpec,
+    metadata: dict[str, str],
+) -> None:
+    """Reserve the per-project ``(write_kind, native_identity)`` scope.
+
+    Re-delivery must recover the original attempt. A new attempt ID may not
+    reuse the same native identity, and re-preparing the same attempt ID fails
+    loudly before SQLite so callers cannot accidentally change payload truth.
+    """
+    for row in unit.execute(
+        "SELECT attempt_id, state, payload_hash, payload_reference FROM delivery_attempts WHERE project_uuid = ?",
+        (unit.project_uuid.storage_token,),
+    ):
+        existing_attempt_id = str(row[0])
+        existing_metadata = _metadata_from_payload_reference(row[3])
+        diagnostic = _metadata_required_identity_diagnostic(existing_metadata, payload_hash=str(row[2]) if row[2] is not None else None)
+        if diagnostic is not None:
+            raise ProjectStoreError("existing delivery attempt metadata requires operator repair before native identity admission")
+        if existing_attempt_id == spec.attempt_id:
+            _assert_metadata_tuple_matches(
+                metadata=existing_metadata,
+                payload_hash=str(row[2]) if row[2] is not None else None,
+                context=context,
+                unit=unit,
+            )
+            if existing_metadata["write_kind"] != spec.write_kind:
+                raise ProjectStoreError("delivery attempt already exists with a different write kind")
+            if existing_metadata["native_identity"] != spec.native_identity:
+                raise ProjectStoreError("delivery attempt already exists with a different native identity")
+            if str(row[2]) != spec.payload_hash:
+                raise ProjectStoreError("delivery attempt already exists with a different payload hash")
+            if existing_metadata.get("payload_reference") != metadata["payload_reference"]:
+                raise ProjectStoreError("delivery attempt already exists with a different payload reference")
+            raise ProjectStoreError("delivery attempt already exists; recover the original attempt")
+        if existing_metadata["write_kind"] == spec.write_kind and existing_metadata["native_identity"] == spec.native_identity:
+            raise ProjectStoreError("native transport identity already belongs to another delivery attempt")
+
+
+def _metadata_required_identity_diagnostic(
+    metadata: dict[str, str],
+    *,
+    payload_hash: str | None,
+) -> str | None:
+    required = {
+        "native_identity": metadata.get("native_identity"),
+        "write_kind": metadata.get("write_kind"),
+        "payload_reference": metadata.get("payload_reference"),
+        "payload_hash": payload_hash,
+    }
+    for key, value in required.items():
+        if value is None or not value.strip():
+            return f"delivery attempt metadata is missing required {key}; operator repair required"
+    return None
+
+
+def _recovery_metadata_diagnostic(
+    *,
+    row: object,
+    metadata: dict[str, str],
+) -> str | None:
+    diagnostic = _metadata_required_identity_diagnostic(
+        metadata,
+        payload_hash=str(row[4]) if row[4] is not None else None,  # type: ignore[index]
+    )
+    if diagnostic is not None:
+        return diagnostic
+    expected = {
+        "epoch_id": str(row[5]),  # type: ignore[index]
+        "consent_generation": str(row[6]),  # type: ignore[index]
+        "target_generation": str(row[7]),  # type: ignore[index]
+        "admission_generation": str(row[8]),  # type: ignore[index]
+        "binding_audience": str(row[9]),  # type: ignore[index]
+    }
+    for key, expected_value in expected.items():
+        if metadata.get(key) != expected_value:
+            return "delivery attempt metadata authority tuple is inconsistent; operator repair required"
+    return None
+
+
+def _assert_metadata_tuple_matches(
+    *,
+    metadata: dict[str, str],
+    payload_hash: str | None,
+    context: ProjectSyncContext,
+    unit: ProjectUnitOfWork,
+) -> None:
+    target = context.target_audience
+    if target is None:
+        raise ProjectStoreError("delivery attempt requires an admitted target audience")
+    expected = {
+        "project_uuid": unit.project_uuid.storage_token,
+        "store_database_path": str(context.store_identity.database_path),
+        "store_schema_version": str(context.store_identity.schema_version),
+        "store_layout_version": str(context.store_identity.layout_version),
+        "epoch_id": str(context.epoch_id),
+        "consent_generation": str(context.consent_generation),
+        "target_identity": target.target_identity,
+        "account_identity": target.account_identity,
+        "private_teamspace_id": target.private_teamspace_id,
+        "target_generation": str(target.configuration_generation),
+        "admission_generation": str(context.admission_generation),
+        "binding_audience": str(context.binding_audience),
+        "payload_hash": payload_hash or "",
+    }
+    for key, expected_value in expected.items():
+        if key == "payload_hash":
+            if not expected_value.strip():
+                raise ProjectStoreError("native transport identity already belongs to an invalid payload")
+            continue
+        if metadata.get(key) != expected_value:
+            raise ProjectStoreError("native transport identity already belongs to a different authority")
 
 
 def _metadata_from_payload_reference(raw_value: object) -> dict[str, str]:
