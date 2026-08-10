@@ -51,3 +51,30 @@ doctor/routes, and documentation language.
 - Users can explicitly opt one project in and later opt it out.
 - Status/doctor output is concise and project-scoped.
 - Docs never describe the global env flag as consent.
+
+## Implementation evidence — 2026-08-10
+
+Current origin HEAD already implements the WP04 UX/status invariant:
+
+- `src/specify_cli/cli/commands/sync.py` exposes explicit `sync opt-in` and
+  `sync opt-out` commands and renders per-project consent state in `sync status`
+  / `sync doctor`.
+- Status/doctor surfaces distinguish unreadable/undetermined consent from a
+  missing record and tell the operator not to re-record consent for readability
+  faults.
+- Existing output text treats `SPEC_KITTY_ENABLE_SAAS_SYNC` as a rollout/status
+  preflight flag, not as a project consent grant.
+
+Focused validation:
+
+```bash
+SPEC_KITTY_NO_UPGRADE_CHECK=1 env -u SPEC_KITTY_ENABLE_SAAS_SYNC \
+  uv run --group dev --extra test pytest \
+  tests/cli/commands/test_sync_commands.py \
+  tests/cli/commands/test_sync_doctor_consent_health_3030.py \
+  tests/cli/commands/test_sync_report_label_is_a_purge_selector_3030.py \
+  tests/sync/test_sync_status_command.py \
+  tests/cli/commands/test_sync_migrate_backfills_h4.py -q
+```
+
+Result: `67 passed in 49.87s`.
