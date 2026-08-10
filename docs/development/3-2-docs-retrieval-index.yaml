@@ -2730,6 +2730,72 @@ pages:
     - {slug: "scan-behaviour-notes", text: "Scan Behaviour Notes", level: 2}
     - {slug: "multiple-files-from-the-same-harness-directory", text: "Multiple files from the same harness directory", level: 3}
     - {slug: "how-to-update", text: "How to Update", level: 2}
+  - path: "docs/api/agent-subcommands.md"
+    title: "Agent Subcommand Reference"
+    divio_type: "none"
+    abstract: "Reference for spec-kitty agent subcommands. Learn how agent-only actions like config, status, decision, and retrospect behave in workflows."
+    anchors:
+    - {slug: "getting-started", text: "Getting Started", level: 2}
+    - {slug: "practical-usage", text: "Practical Usage", level: 2}
+    - {slug: "spec-kitty-agent", text: "spec-kitty agent", level: 2}
+    - {slug: "spec-kitty-agent-action", text: "spec-kitty agent action", level: 2}
+    - {slug: "spec-kitty-agent-action-implement", text: "spec-kitty agent action implement", level: 2}
+    - {slug: "spec-kitty-agent-action-review", text: "spec-kitty agent action review", level: 2}
+    - {slug: "spec-kitty-agent-config", text: "spec-kitty agent config", level: 2}
+    - {slug: "spec-kitty-agent-config-add", text: "spec-kitty agent config add", level: 2}
+    - {slug: "spec-kitty-agent-config-list", text: "spec-kitty agent config list", level: 2}
+    - {slug: "spec-kitty-agent-config-remove", text: "spec-kitty agent config remove", level: 2}
+    - {slug: "spec-kitty-agent-config-set", text: "spec-kitty agent config set", level: 2}
+    - {slug: "spec-kitty-agent-config-status", text: "spec-kitty agent config status", level: 2}
+    - {slug: "spec-kitty-agent-config-sync", text: "spec-kitty agent config sync", level: 2}
+    - {slug: "spec-kitty-agent-context", text: "spec-kitty agent context", level: 2}
+    - {slug: "spec-kitty-agent-context-resolve", text: "spec-kitty agent context resolve", level: 2}
+    - {slug: "spec-kitty-agent-decision", text: "spec-kitty agent decision", level: 2}
+    - {slug: "spec-kitty-agent-decision-cancel", text: "spec-kitty agent decision cancel", level: 2}
+    - {slug: "spec-kitty-agent-decision-defer", text: "spec-kitty agent decision defer", level: 2}
+    - {slug: "spec-kitty-agent-decision-open", text: "spec-kitty agent decision open", level: 2}
+    - {slug: "spec-kitty-agent-decision-resolve", text: "spec-kitty agent decision resolve", level: 2}
+    - {slug: "spec-kitty-agent-decision-verify", text: "spec-kitty agent decision verify", level: 2}
+    - {slug: "spec-kitty-agent-issue-verdict", text: "spec-kitty agent issue-verdict", level: 2}
+    - {slug: "spec-kitty-agent-mission", text: "spec-kitty agent mission", level: 2}
+    - {slug: "spec-kitty-agent-mission-accept", text: "spec-kitty agent mission accept", level: 2}
+    - {slug: "spec-kitty-agent-mission-acceptance-verdict", text: "spec-kitty agent mission acceptance-verdict", level: 2}
+    - {slug: "spec-kitty-agent-mission-branch-context", text: "spec-kitty agent mission branch-context", level: 2}
+    - {slug: "spec-kitty-agent-mission-check-prerequisites", text: "spec-kitty agent mission check-prerequisites", level: 2}
+    - {slug: "spec-kitty-agent-mission-create", text: "spec-kitty agent mission create", level: 2}
+    - {slug: "spec-kitty-agent-mission-finalize-tasks", text: "spec-kitty agent mission finalize-tasks", level: 2}
+    - {slug: "spec-kitty-agent-mission-merge", text: "spec-kitty agent mission merge", level: 2}
+    - {slug: "spec-kitty-agent-mission-record-analysis", text: "spec-kitty agent mission record-analysis", level: 2}
+    - {slug: "spec-kitty-agent-mission-repair", text: "spec-kitty agent mission repair", level: 2}
+    - {slug: "spec-kitty-agent-mission-setup-plan", text: "spec-kitty agent mission setup-plan", level: 2}
+    - {slug: "spec-kitty-agent-profile-list", text: "spec-kitty agent profile list", level: 2}
+    - {slug: "spec-kitty-agent-profile-show", text: "spec-kitty agent profile show", level: 2}
+    - {slug: "spec-kitty-agent-release", text: "spec-kitty agent release", level: 2}
+    - {slug: "spec-kitty-agent-release-prep", text: "spec-kitty agent release prep", level: 2}
+    - {slug: "spec-kitty-agent-retrospect", text: "spec-kitty agent retrospect", level: 2}
+    - {slug: "spec-kitty-agent-retrospect-summary", text: "spec-kitty agent retrospect summary", level: 2}
+    - {slug: "spec-kitty-agent-retrospect-synthesize", text: "spec-kitty agent retrospect synthesize", level: 2}
+    - {slug: "spec-kitty-agent-status", text: "spec-kitty agent status", level: 2}
+    - {slug: "spec-kitty-agent-status-doctor", text: "spec-kitty agent status doctor", level: 2}
+    - {slug: "spec-kitty-agent-status-emit", text: "spec-kitty agent status emit", level: 2}
+    - {slug: "spec-kitty-agent-status-lifecycle", text: "spec-kitty agent status lifecycle", level: 2}
+    - {slug: "spec-kitty-agent-status-materialize", text: "spec-kitty agent status materialize", level: 2}
+    - {slug: "spec-kitty-agent-status-migrate", text: "spec-kitty agent status migrate", level: 2}
+    - {slug: "spec-kitty-agent-status-reconcile", text: "spec-kitty agent status reconcile", level: 2}
+    - {slug: "spec-kitty-agent-status-validate", text: "spec-kitty agent status validate", level: 2}
+    - {slug: "spec-kitty-agent-tasks", text: "spec-kitty agent tasks", level: 2}
+    - {slug: "spec-kitty-agent-tasks-add-history", text: "spec-kitty agent tasks add-history", level: 2}
+    - {slug: "spec-kitty-agent-tasks-finalize-tasks", text: "spec-kitty agent tasks finalize-tasks", level: 2}
+    - {slug: "spec-kitty-agent-tasks-list-dependents", text: "spec-kitty agent tasks list-dependents", level: 2}
+    - {slug: "spec-kitty-agent-tasks-list-tasks", text: "spec-kitty agent tasks list-tasks", level: 2}
+    - {slug: "spec-kitty-agent-tasks-map-requirements", text: "spec-kitty agent tasks map-requirements", level: 2}
+    - {slug: "spec-kitty-agent-tasks-mark-status", text: "spec-kitty agent tasks mark-status", level: 2}
+    - {slug: "spec-kitty-agent-tasks-move-task", text: "spec-kitty agent tasks move-task", level: 2}
+    - {slug: "spec-kitty-agent-tasks-status", text: "spec-kitty agent tasks status", level: 2}
+    - {slug: "spec-kitty-agent-tasks-validate-workflow", text: "spec-kitty agent tasks validate-workflow", level: 2}
+    - {slug: "spec-kitty-agent-tests", text: "spec-kitty agent tests", level: 2}
+    - {slug: "spec-kitty-agent-tests-stale-check", text: "spec-kitty agent tests stale-check", level: 2}
+    - {slug: "spec-kitty-agent-tracer-append", text: "spec-kitty agent tracer-append", level: 2}
   - path: "docs/api/agent_profiles/architect-alphonso.md"
     title: "Architect Alphonso — Agent Profile"
     divio_type: "none"
@@ -2914,72 +2980,6 @@ pages:
     - {slug: "when-to-reach-for-it", text: "When to reach for it", level: 2}
     - {slug: "how-to-load-it-from-your-harness", text: "How to load it from your harness", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
-  - path: "docs/api/agent-subcommands.md"
-    title: "Agent Subcommand Reference"
-    divio_type: "none"
-    abstract: "Reference for spec-kitty agent subcommands. Learn how agent-only actions like config, status, decision, and retrospect behave in workflows."
-    anchors:
-    - {slug: "getting-started", text: "Getting Started", level: 2}
-    - {slug: "practical-usage", text: "Practical Usage", level: 2}
-    - {slug: "spec-kitty-agent", text: "spec-kitty agent", level: 2}
-    - {slug: "spec-kitty-agent-action", text: "spec-kitty agent action", level: 2}
-    - {slug: "spec-kitty-agent-action-implement", text: "spec-kitty agent action implement", level: 2}
-    - {slug: "spec-kitty-agent-action-review", text: "spec-kitty agent action review", level: 2}
-    - {slug: "spec-kitty-agent-config", text: "spec-kitty agent config", level: 2}
-    - {slug: "spec-kitty-agent-config-add", text: "spec-kitty agent config add", level: 2}
-    - {slug: "spec-kitty-agent-config-list", text: "spec-kitty agent config list", level: 2}
-    - {slug: "spec-kitty-agent-config-remove", text: "spec-kitty agent config remove", level: 2}
-    - {slug: "spec-kitty-agent-config-set", text: "spec-kitty agent config set", level: 2}
-    - {slug: "spec-kitty-agent-config-status", text: "spec-kitty agent config status", level: 2}
-    - {slug: "spec-kitty-agent-config-sync", text: "spec-kitty agent config sync", level: 2}
-    - {slug: "spec-kitty-agent-context", text: "spec-kitty agent context", level: 2}
-    - {slug: "spec-kitty-agent-context-resolve", text: "spec-kitty agent context resolve", level: 2}
-    - {slug: "spec-kitty-agent-decision", text: "spec-kitty agent decision", level: 2}
-    - {slug: "spec-kitty-agent-decision-cancel", text: "spec-kitty agent decision cancel", level: 2}
-    - {slug: "spec-kitty-agent-decision-defer", text: "spec-kitty agent decision defer", level: 2}
-    - {slug: "spec-kitty-agent-decision-open", text: "spec-kitty agent decision open", level: 2}
-    - {slug: "spec-kitty-agent-decision-resolve", text: "spec-kitty agent decision resolve", level: 2}
-    - {slug: "spec-kitty-agent-decision-verify", text: "spec-kitty agent decision verify", level: 2}
-    - {slug: "spec-kitty-agent-issue-verdict", text: "spec-kitty agent issue-verdict", level: 2}
-    - {slug: "spec-kitty-agent-mission", text: "spec-kitty agent mission", level: 2}
-    - {slug: "spec-kitty-agent-mission-accept", text: "spec-kitty agent mission accept", level: 2}
-    - {slug: "spec-kitty-agent-mission-acceptance-verdict", text: "spec-kitty agent mission acceptance-verdict", level: 2}
-    - {slug: "spec-kitty-agent-mission-branch-context", text: "spec-kitty agent mission branch-context", level: 2}
-    - {slug: "spec-kitty-agent-mission-check-prerequisites", text: "spec-kitty agent mission check-prerequisites", level: 2}
-    - {slug: "spec-kitty-agent-mission-create", text: "spec-kitty agent mission create", level: 2}
-    - {slug: "spec-kitty-agent-mission-finalize-tasks", text: "spec-kitty agent mission finalize-tasks", level: 2}
-    - {slug: "spec-kitty-agent-mission-merge", text: "spec-kitty agent mission merge", level: 2}
-    - {slug: "spec-kitty-agent-mission-record-analysis", text: "spec-kitty agent mission record-analysis", level: 2}
-    - {slug: "spec-kitty-agent-mission-repair", text: "spec-kitty agent mission repair", level: 2}
-    - {slug: "spec-kitty-agent-mission-setup-plan", text: "spec-kitty agent mission setup-plan", level: 2}
-    - {slug: "spec-kitty-agent-profile-list", text: "spec-kitty agent profile list", level: 2}
-    - {slug: "spec-kitty-agent-profile-show", text: "spec-kitty agent profile show", level: 2}
-    - {slug: "spec-kitty-agent-release", text: "spec-kitty agent release", level: 2}
-    - {slug: "spec-kitty-agent-release-prep", text: "spec-kitty agent release prep", level: 2}
-    - {slug: "spec-kitty-agent-retrospect", text: "spec-kitty agent retrospect", level: 2}
-    - {slug: "spec-kitty-agent-retrospect-summary", text: "spec-kitty agent retrospect summary", level: 2}
-    - {slug: "spec-kitty-agent-retrospect-synthesize", text: "spec-kitty agent retrospect synthesize", level: 2}
-    - {slug: "spec-kitty-agent-status", text: "spec-kitty agent status", level: 2}
-    - {slug: "spec-kitty-agent-status-doctor", text: "spec-kitty agent status doctor", level: 2}
-    - {slug: "spec-kitty-agent-status-emit", text: "spec-kitty agent status emit", level: 2}
-    - {slug: "spec-kitty-agent-status-lifecycle", text: "spec-kitty agent status lifecycle", level: 2}
-    - {slug: "spec-kitty-agent-status-materialize", text: "spec-kitty agent status materialize", level: 2}
-    - {slug: "spec-kitty-agent-status-migrate", text: "spec-kitty agent status migrate", level: 2}
-    - {slug: "spec-kitty-agent-status-reconcile", text: "spec-kitty agent status reconcile", level: 2}
-    - {slug: "spec-kitty-agent-status-validate", text: "spec-kitty agent status validate", level: 2}
-    - {slug: "spec-kitty-agent-tasks", text: "spec-kitty agent tasks", level: 2}
-    - {slug: "spec-kitty-agent-tasks-add-history", text: "spec-kitty agent tasks add-history", level: 2}
-    - {slug: "spec-kitty-agent-tasks-finalize-tasks", text: "spec-kitty agent tasks finalize-tasks", level: 2}
-    - {slug: "spec-kitty-agent-tasks-list-dependents", text: "spec-kitty agent tasks list-dependents", level: 2}
-    - {slug: "spec-kitty-agent-tasks-list-tasks", text: "spec-kitty agent tasks list-tasks", level: 2}
-    - {slug: "spec-kitty-agent-tasks-map-requirements", text: "spec-kitty agent tasks map-requirements", level: 2}
-    - {slug: "spec-kitty-agent-tasks-mark-status", text: "spec-kitty agent tasks mark-status", level: 2}
-    - {slug: "spec-kitty-agent-tasks-move-task", text: "spec-kitty agent tasks move-task", level: 2}
-    - {slug: "spec-kitty-agent-tasks-status", text: "spec-kitty agent tasks status", level: 2}
-    - {slug: "spec-kitty-agent-tasks-validate-workflow", text: "spec-kitty agent tasks validate-workflow", level: 2}
-    - {slug: "spec-kitty-agent-tests", text: "spec-kitty agent tests", level: 2}
-    - {slug: "spec-kitty-agent-tests-stale-check", text: "spec-kitty agent tests stale-check", level: 2}
-    - {slug: "spec-kitty-agent-tracer-append", text: "spec-kitty agent tracer-append", level: 2}
   - path: "docs/api/batch-api-contract.md"
     title: "Batch Event Ingest API Contract"
     divio_type: "reference"
@@ -4043,7 +4043,7 @@ pages:
     - {slug: "three-tiers-not-two", text: "Three tiers, not two", level: 2}
     - {slug: "step-1-charter-pack-apply", text: "Step 1 — `charter pack apply`", level: 2}
     - {slug: "step-2-compile-the-bundle", text: "Step 2 — compile the bundle", level: 2}
-    - {slug: "why-apply-does-not-auto-compile-why-apply-does-not-auto-compile", text: "Why `apply` does not auto-compile {#why-apply-does-not-auto-compile}", level: 3}
+    - {slug: "why-apply-does-not-auto-compile", text: "Why `apply` does not auto-compile", level: 3}
     - {slug: "the-dispatch-safety-net", text: "The dispatch safety net", level: 2}
     - {slug: "what-empty-means", text: "What \"empty\" means", level: 3}
     - {slug: "the-deliberate-behaviour-change", text: "The deliberate behaviour change", level: 3}
@@ -9064,7 +9064,7 @@ pages:
     abstract: "Assessment (2026-04-01) of which doctrine artifacts to include, based on PRs #305/#348 and the agent-profile-implementation-rebased branch."
     anchors:
     - {slug: "context", text: "Context", level: 2}
-    - {slug: "pillar-1-agent_profiles", text: "Pillar 1: Agent Profiles", level: 2}
+    - {slug: "pillar-1-agent-profiles", text: "Pillar 1: Agent Profiles", level: 2}
     - {slug: "what-landed", text: "What landed", level: 3}
     - {slug: "what-is-not-yet-connected", text: "What is not yet connected", level: 3}
     - {slug: "maturity-80", text: "Maturity: ~80%", level: 3}
@@ -11747,7 +11747,7 @@ pages:
     - {slug: "mission-doctrine-missions-models", text: "Mission (`doctrine.missions.models`)", level: 3}
     - {slug: "import-candidate-doctrine-import-candidates-models", text: "Import Candidate (`doctrine.import_candidates.models`)", level: 3}
     - {slug: "model-to-task-type-doctrine-model-task-routing-models", text: "Model-to-Task Type (`doctrine.model_task_routing.models`)", level: 3}
-    - {slug: "agent-profile-doctrine-agent_profiles-schema-models", text: "Agent Profile (`doctrine.agent_profiles.schema_models`)", level: 3}
+    - {slug: "agent-profile-doctrine-agent-profiles-schema-models", text: "Agent Profile (`doctrine.agent_profiles.schema_models`)", level: 3}
     - {slug: "new-infrastructure-in-generate-schemas-py", text: "New Infrastructure in generate\\_schemas.py", level: 2}
     - {slug: "ddd-paradigm-artifact", text: "DDD Paradigm Artifact", level: 2}
     - {slug: "final-state", text: "Final State", level: 2}
@@ -12219,7 +12219,7 @@ pages:
     - {slug: "6-1-schema-validation", text: "6.1 Schema validation", level: 3}
     - {slug: "6-2-profile-repository-shipped-profiles", text: "6.2 Profile repository — shipped profiles", level: 3}
     - {slug: "6-3-profile-aware-resolver", text: "6.3 Profile-aware resolver", level: 3}
-    - {slug: "6-4-spec-kitty-init-deploys-agent_profiles", text: "6.4 `spec-kitty init` deploys agent profiles", level: 3}
+    - {slug: "6-4-spec-kitty-init-deploys-agent-profiles", text: "6.4 `spec-kitty init` deploys agent profiles", level: 3}
     - {slug: "6-5-agent-profile-suggestion-in-task-templates", text: "6.5 Agent profile suggestion in task templates", level: 3}
     - {slug: "section-7-charter-defaults-and-init-time-doctrine-integration", text: "Section 7 — Charter defaults and init-time doctrine integration", level: 2}
     - {slug: "7-1-charter-generated-at-init", text: "7.1 Charter generated at init", level: 3}
@@ -12267,7 +12267,7 @@ pages:
     - {slug: "6-1-schema-validation", text: "6.1 Schema validation", level: 3}
     - {slug: "6-2-profile-repository-shipped-profiles-exist", text: "6.2 Profile repository — shipped profiles exist", level: 3}
     - {slug: "6-3-profile-aware-resolver", text: "6.3 Profile-aware resolver", level: 3}
-    - {slug: "6-4-spec-kitty-init-deploys-agent_profiles", text: "6.4 `spec-kitty init` deploys agent profiles", level: 3}
+    - {slug: "6-4-spec-kitty-init-deploys-agent-profiles", text: "6.4 `spec-kitty init` deploys agent profiles", level: 3}
     - {slug: "6-5-agent-profile-suggestion-in-task-templates", text: "6.5 Agent profile suggestion in task templates", level: 3}
     - {slug: "7-charter-defaults-and-init-time-doctrine-integration", text: "7. Charter defaults and init-time doctrine integration", level: 2}
     - {slug: "7-1-charter-defaults-injected-at-init", text: "7.1 Charter defaults injected at init", level: 3}
@@ -12370,7 +12370,7 @@ pages:
     - {slug: "wp01-residuals-specify-cli-compat-registry-2026-04-20", text: "WP01 residuals — `specify_cli.compat.registry` (2026-04-20)", level: 2}
     - {slug: "wp02-residuals-kernel-safe-re-2026-04-20", text: "WP02 residuals — `kernel._safe_re` (2026-04-20)", level: 2}
     - {slug: "wp04-residuals-doctrine-resolver-2026-04-20", text: "WP04 residuals — `doctrine.resolver` (2026-04-20)", level: 2}
-    - {slug: "wp05-residuals-doctrine-agent_profiles-2026-04-20", text: "WP05 residuals — `doctrine.agent_profiles` (2026-04-20)", level: 2}
+    - {slug: "wp05-residuals-doctrine-agent-profiles-2026-04-20", text: "WP05 residuals — `doctrine.agent_profiles` (2026-04-20)", level: 2}
     - {slug: "wp06-residuals-doctrine-missions-2026-04-20", text: "WP06 residuals — `doctrine.missions` (2026-04-20)", level: 2}
     - {slug: "wp07-residuals-doctrine-shared-2026-04-20-phase-2-close", text: "WP07 residuals — `doctrine.shared` (2026-04-20) [Phase 2 close]", level: 2}
   - path: "docs/plans/testing/qa-tidy-first-sequencing.md"
